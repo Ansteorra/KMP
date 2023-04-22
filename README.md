@@ -1,2 +1,2 @@
-# KingdomMangement
+# KingdomMangementPlatform
 Kingdom Management Platform
