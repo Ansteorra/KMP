@@ -43,6 +43,8 @@ sudo echo "export EMAIL_SMTP_HOST='$EMAIL_DEV_SMTP_HOST'" >> /workspaces/$(echo 
 sudo echo "export EMAIL_SMTP_PORT='$EMAIL_DEV_SMTP_PORT'" >> /workspaces/$(echo $RepositoryName)/app/config/.env
 sudo echo "export EMAIL_SMTP_USERNAME='$EMAIL_DEV_SMTP_USERNAME'" >> /workspaces/$(echo $RepositoryName)/app/config/.env
 sudo echo "export EMAIL_SMTP_PASSWORD='$EMAIL_DEV_SMTP_PASSWORD'" >> /workspaces/$(echo $RepositoryName)/app/config/.env
+sudo echo "export PATH_WKHTML='/usr/bin/wkhtmltopdf'" >> /workspaces/$(echo $RepositoryName)/app/config/.env
+
 
 cd /workspaces/$(echo $RepositoryName)/app
 composer install -n

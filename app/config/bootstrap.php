@@ -68,6 +68,16 @@ if (!env('APP_NAME') && file_exists(CONFIG . '.env')) {
          ->toServer();
 }
 
+Configure::write('CakePdf', [
+    'engine' => [
+        'className' => 'CakePdf.WkHtmlToPdf',
+        'binary' => env('PATH_WKHTML'),
+        'options'=>[
+            'dpi'=>300,
+        ],
+    ],
+]);
+
 /*
  * Read configuration file and inject configuration into various
  * CakePHP classes.

@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "cf4acc9af81e6ac2fc72dbbb514c2b0d",
+    "content-hash": "6b46ba9c421afea66a67061c3a674aed",
     "packages": [
         {
             "name": "cakephp/cakephp",
@@ -360,6 +360,56 @@
                 }
             ],
             "time": "2023-01-11T08:27:00+00:00"
+        },
+        {
+            "name": "friendsofcake/cakepdf",
+            "version": "4.1.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/FriendsOfCake/CakePdf.git",
+                "reference": "1df6dd0ec0e74e1a7a6e61535a5e882f755eb94e"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/FriendsOfCake/CakePdf/zipball/1df6dd0ec0e74e1a7a6e61535a5e882f755eb94e",
+                "reference": "1df6dd0ec0e74e1a7a6e61535a5e882f755eb94e",
+                "shasum": ""
+            },
+            "require": {
+                "cakephp/cakephp": "^4.0"
+            },
+            "replace": {
+                "ceeram/cakepdf": "self.version"
+            },
+            "require-dev": {
+                "cakephp/cakephp-codesniffer": "^4.2",
+                "dompdf/dompdf": "^2.0",
+                "mpdf/mpdf": "^8.0.4",
+                "phpunit/phpunit": "~8.5.0 || ^9.3",
+                "tecnickcom/tcpdf": "^6.3"
+            },
+            "suggest": {
+                "dompdf/dompdf": "If you wish to use the DomPdf engine",
+                "mpdf/mpdf": "If you wish to use the Mpdf engine",
+                "tecnickcom/tcpdf": "If you wish to use the Tcpdf engine"
+            },
+            "type": "cakephp-plugin",
+            "autoload": {
+                "psr-4": {
+                    "CakePdf\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "CakePHP plugin for creating and/or rendering Pdfs, several Pdf engines supported.",
+            "homepage": "http://github.com/friendsofcake/CakePdf",
+            "support": {
+                "issues": "https://github.com/FriendsOfCake/CakePdf/issues",
+                "source": "https://github.com/FriendsOfCake/CakePdf/tree/4.1.2"
+            },
+            "time": "2022-08-31T13:06:10+00:00"
         },
         {
             "name": "laminas/laminas-diactoros",
