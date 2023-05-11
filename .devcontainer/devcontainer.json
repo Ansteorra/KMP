@@ -14,7 +14,7 @@
           //"documentationUrl": "tbd"
         },
         "MYSQL_DEV_USERNAME": { },
-	"MYSQL_DEV_PASSWORD": { },
+		"MYSQL_DEV_PASSWORD": { },
         "EMAIL_DEV_SMTP_HOST": { },
         "EMAIL_DEV_SMTP_PORT": { },
         "EMAIL_DEV_SMTP_USERNAME": { },
@@ -30,7 +30,7 @@
 
 	"remoteUser": "vscode",
 
-	//"postStartCommand": "bash .devcontainer/init_env/config_space.sh",
+	"postStartCommand": "bash .devcontainer/init_env/config_space.sh",
 
 	"forwardPorts": [8080,3306]
 
