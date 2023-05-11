@@ -13,11 +13,11 @@
           //"description": "TBD",
           //"documentationUrl": "tbd"
         },
-        "MYSQL_DEV_USER_NAME": { },
+        "MYSQL_DEV_USERNAME": { },
 	"MYSQL_DEV_PASSWORD": { },
         "EMAIL_DEV_SMTP_HOST": { },
         "EMAIL_DEV_SMTP_PORT": { },
-        "EMAIL_DEV_SMTP_EMAIL": { },
+        "EMAIL_DEV_SMTP_USERNAME": { },
         "EMAIL_DEV_SMTP_PASSWORD": { }
     },
 
