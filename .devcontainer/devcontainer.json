@@ -1,0 +1,38 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the README at:
+// https://github.com/microsoft/vscode-dev-containers/tree/v0.191.1/containers/debian
+{
+	"name": "Debian",
+	"build": {
+		"dockerfile": "Dockerfile",
+		// Update 'VARIANT' to pick an Debian version: bullseye, buster, stretch
+		"args": { "VARIANT": "buster" }
+	},
+
+    "secrets": {
+        "MYSQL_DEV_DB_NAME": {
+          //"description": "TBD",
+          //"documentationUrl": "tbd"
+        },
+        "MYSQL_DEV_USER_NAME": { },
+        "EMAIL_DEV_SMTP_HOST": { },
+        "EMAIL_DEV_SMTP_PORT": { },
+        "EMAIL_DEV_SMTP_EMAIL": { },
+        "EMAIL_DEV_SMTP_PASSWORD": { }
+    },
+
+	// Set *default* container specific settings.json values on container create.
+	"settings": {},
+
+	// Add the IDs of extensions you want installed when the container is created.
+	"extensions": ["felixfbecker.php-debug","cweijan.vscode-mysql-client2"],
+
+
+	"remoteUser": "vscode",
+
+	//"postStartCommand": "bash .devcontainer/init_env/config_space.sh",
+
+	"forwardPorts": [8080,3306]
+
+}
+
+
