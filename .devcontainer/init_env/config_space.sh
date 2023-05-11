@@ -36,13 +36,13 @@ sudo mysql <<EOFMYSQL
     flush privileges;
 EOFMYSQL
 
-sudo echo "export MYSQL_DEV_USERNAME='$MYSQL_DEV_USERNAME'" >> /workspaces/$(echo $RepositoryName)/app/config/.env
-sudo echo "export MYSQL_DEV_PASSWORD='$MYSQL_DEV_PASSWORD'" >> /workspaces/$(echo $RepositoryName)/app/config/.env
-sudo echo "export MYSQL_DEV_DB_NAME='$MYSQL_DEV_DB_NAME'" >> /workspaces/$(echo $RepositoryName)/app/config/.env
-sudo echo "export EMAIL_DEV_SMTP_HOST='$EMAIL_DEV_SMTP_HOST'" >> /workspaces/$(echo $RepositoryName)/app/config/.env
-sudo echo "export EMAIL_DEV_SMTP_PORT='$EMAIL_DEV_SMTP_PORT'" >> /workspaces/$(echo $RepositoryName)/app/config/.env
-sudo echo "export EMAIL_DEV_SMTP_USERNAME='$EMAIL_DEV_SMTP_USERNAME'" >> /workspaces/$(echo $RepositoryName)/app/config/.env
-sudo echo "export EMAIL_DEV_SMTP_PASSWORD='$EMAIL_DEV_SMTP_PASSWORD'" >> /workspaces/$(echo $RepositoryName)/app/config/.env
+sudo echo "export MYSQL_USERNAME='$MYSQL_DEV_USERNAME'" >> /workspaces/$(echo $RepositoryName)/app/config/.env
+sudo echo "export MYSQL_PASSWORD='$MYSQL_DEV_PASSWORD'" >> /workspaces/$(echo $RepositoryName)/app/config/.env
+sudo echo "export MYSQL_DB_NAME='$MYSQL_DEV_DB_NAME'" >> /workspaces/$(echo $RepositoryName)/app/config/.env
+sudo echo "export EMAIL_SMTP_HOST='$EMAIL_DEV_SMTP_HOST'" >> /workspaces/$(echo $RepositoryName)/app/config/.env
+sudo echo "export EMAIL_SMTP_PORT='$EMAIL_DEV_SMTP_PORT'" >> /workspaces/$(echo $RepositoryName)/app/config/.env
+sudo echo "export EMAIL_SMTP_USERNAME='$EMAIL_DEV_SMTP_USERNAME'" >> /workspaces/$(echo $RepositoryName)/app/config/.env
+sudo echo "export EMAIL_SMTP_PASSWORD='$EMAIL_DEV_SMTP_PASSWORD'" >> /workspaces/$(echo $RepositoryName)/app/config/.env
 
 cd /workspaces/$(echo $RepositoryName)/app
 composer install -n
