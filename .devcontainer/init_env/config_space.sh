@@ -45,6 +45,8 @@ sudo echo "export EMAIL_SMTP_USERNAME='$EMAIL_DEV_SMTP_USERNAME'" >> /workspaces
 sudo echo "export EMAIL_SMTP_PASSWORD='$EMAIL_DEV_SMTP_PASSWORD'" >> /workspaces/$(echo $RepositoryName)/app/config/.env
 sudo echo "export PATH_WKHTML='/usr/bin/wkhtmltopdf'" >> /workspaces/$(echo $RepositoryName)/app/config/.env
 
+rm /workspaces/$(echo $RepositoryName)/app/config/app_local.php
+cp /workspaces/$(echo $RepositoryName)/.devcontainer/init_env/app_local.php /workspaces/$(echo $RepositoryName)/app/config/app_local.php
 
 cd /workspaces/$(echo $RepositoryName)/app
 composer install -n
