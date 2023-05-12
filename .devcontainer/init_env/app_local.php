@@ -44,10 +44,10 @@ return [
              */
             //'port' => 'non_standard_port_number',
 
-            'username' => env('MYSQL_DEV_USERNAME'),
-            'password' => env('MYSQL_DEV_PASSWORD'),
+            'username' => env('MYSQL_USERNAME'),
+            'password' => env('MYSQL_PASSWORD'),
 
-            'database' => env('MYSQL_DEV_DB_NAME'),
+            'database' => env('MYSQL_DB_NAME'),
             /*
              * If not using the default 'public' schema with the PostgreSQL driver
              * set it here.
@@ -83,10 +83,10 @@ return [
      */
     'EmailTransport' => [
         'default' => [
-            'host' => env('EMAIL_DEV_SMTP_HOST'),
-            'port' => env('EMAIL_DEV_SMTP_PORT'),
-            'username' => env('EMAIL_DEV_SMTP_USERNAME'),
-            'password' => env('EMAIL_DEV_SMTP_PASSWORD'),
+            'host' => env('EMAIL_SMTP_HOST'),
+            'port' => env('EMAIL_SMTP_PORT'),
+            'username' => env('EMAIL_SMTP_USERNAME'),
+            'password' => env('EMAIL_SMTP_PASSWORD'),
             'client' => null,
             'url' => env('EMAIL_TRANSPORT_DEFAULT_URL', null),
         ],
