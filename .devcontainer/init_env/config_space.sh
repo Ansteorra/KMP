@@ -49,3 +49,5 @@ sudo echo "export PATH_WKHTML='/usr/bin/wkhtmltopdf'" >> /workspaces/$(echo $Rep
 cd /workspaces/$(echo $RepositoryName)/app
 composer install -n
 php bin/cake.php migrations migrate
+php bin/cake.php migrations seed --source Seeds/DevInit
+php bin/cake.php bootstrap install --latest
