@@ -66,9 +66,10 @@ require CAKE . 'functions.php';
  * for more information for recommended practices.
 */
 if (!env('APP_NAME') && file_exists(CONFIG . '.env')) {
+    $overwrite = true;
     $dotenv = new \josegonzalez\Dotenv\Loader([CONFIG . '.env']);
     $dotenv->parse()
-        ->putenv()
+        ->putenv($overwrite)
         ->toEnv()
         ->toServer();
 }

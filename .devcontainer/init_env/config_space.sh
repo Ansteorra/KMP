@@ -25,7 +25,10 @@ cat > 000-default.conf <<EOF
 </VirtualHost>
 EOF
 sudo mv 000-default.conf /etc/apache2/sites-available/000-default.conf
+sudo bash -c 'echo "zend.assertions=1" >> /etc/php/8.3/apache2/php.ini'
 sudo apachectl restart
+
+sudo sudo bash -c 'echo "zend.assertions=1" >> /etc/php/8.3/cli/php.ini'
 
 #setup mysql
 sudo service mysql start

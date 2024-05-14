@@ -26,8 +26,9 @@ $checkConnection = function (string $name) {
     $error = null;
     $connected = false;
     try {
-        $connection = ConnectionManager::get($name);
-        $connected = $connection->connect();
+       ConnectionManager::get($name)->getDriver()->connect();
+       #$connected = $connection->connect();
+       $connected = true;
     } catch (Exception $connectionError) {
         $error = $connectionError->getMessage();
         if (method_exists($connectionError, 'getAttributes')) {
