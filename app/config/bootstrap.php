@@ -46,6 +46,11 @@ use Cake\Mailer\TransportFactory;
 use Cake\Routing\Router;
 use Cake\Utility\Security;
 
+/**
+ * Load global functions.
+ */
+require CAKE . 'functions.php';
+
 /*
  * See https://github.com/josegonzalez/php-dotenv for API details.
  *
@@ -61,21 +66,21 @@ use Cake\Utility\Security;
  * for more information for recommended practices.
 */
 if (!env('APP_NAME') && file_exists(CONFIG . '.env')) {
-     $dotenv = new \josegonzalez\Dotenv\Loader([CONFIG . '.env']);
-     $dotenv->parse()
-         ->putenv()
-         ->toEnv()
-         ->toServer();
+    $dotenv = new \josegonzalez\Dotenv\Loader([CONFIG . '.env']);
+    $dotenv->parse()
+        ->putenv()
+        ->toEnv()
+        ->toServer();
 }
 
 Configure::write('CakePdf', [
-    'engine' => [
-        'className' => 'CakePdf.WkHtmlToPdf',
-        'binary' => env('PATH_WKHTML'),
-        'options'=>[
-            'dpi'=>300,
-        ],
-    ],
+   'engine' => [
+       'className' => 'CakePdf.WkHtmlToPdf',
+       'binary' => env('PATH_WKHTML'),
+       'options'=>[
+           'dpi'=>300,
+       ],
+   ],
 ]);
 
 /*
@@ -114,7 +119,7 @@ if (Configure::read('debug')) {
 
 /*
  * Set the default server timezone. Using UTC makes time calculations / conversions easier.
- * Check http://php.net/manual/en/timezones.php for list of valid timezone strings.
+ * Check https://php.net/manual/en/timezones.php for list of valid timezone strings.
  */
 date_default_timezone_set(Configure::read('App.defaultTimezone'));
 
@@ -219,7 +224,6 @@ ServerRequest::addDetector('tablet', function ($request) {
 //    ->useLocaleParser();
 // \Cake\Database\TypeFactory::build('timestamptimezone')
 //    ->useLocaleParser();
-
 // There is no time-specific type in Cake
 TypeFactory::map('time', StringType::class);
 
@@ -231,3 +235,9 @@ TypeFactory::map('time', StringType::class);
 //Inflector::rules('plural', ['/^(inflect)or$/i' => '\1ables']);
 //Inflector::rules('irregular', ['red' => 'redlings']);
 //Inflector::rules('uninflected', ['dontinflectme']);
+
+// set a custom date and time format
+// see https://book.cakephp.org/4/en/core-libraries/time.html#setting-the-default-locale-and-format-string
+// and https://unicode-org.github.io/icu/userguide/format_parse/datetime/#datetime-format-syntax
+//\Cake\I18n\FrozenDate::setToStringFormat('dd.MM.yyyy');
+//\Cake\I18n\FrozenTime::setToStringFormat('dd.MM.yyyy HH:mm');

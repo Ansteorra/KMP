@@ -24,7 +24,12 @@
 use Cake\Routing\Route\DashedRoute;
 use Cake\Routing\RouteBuilder;
 
-return static function (RouteBuilder $routes) {
+/*
+ * This file is loaded in the context of the `Application` class.
+  * So you can use  `$this` to reference the application class instance
+  * if required.
+ */
+return function (RouteBuilder $routes): void {
     /*
      * The default class to use for all routes
      *
@@ -44,8 +49,7 @@ return static function (RouteBuilder $routes) {
      */
     $routes->setRouteClass(DashedRoute::class);
 
-    $routes->scope('/', function (RouteBuilder $builder) {
-        
+    $routes->scope('/', function (RouteBuilder $builder): void {
         /*
          * Here, we are connecting '/' (base path) to a controller called 'Pages',
          * its action called 'display', and we pass a param to select the view file
@@ -74,12 +78,13 @@ return static function (RouteBuilder $routes) {
         $builder->fallbacks();
     });
     $routes->setExtensions(['pdf']);
+
     /*
      * If you need a different set of middleware or none at all,
      * open new scope and define routes there.
      *
      * ```
-     * $routes->scope('/api', function (RouteBuilder $builder) {
+     * $routes->scope('/api', function (RouteBuilder $builder): void {
      *     // No $builder->applyMiddleware() here.
      *
      *     // Parse specified extensions from URLs
