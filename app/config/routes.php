@@ -29,6 +29,9 @@ use Cake\Routing\RouteBuilder;
   * So you can use  `$this` to reference the application class instance
   * if required.
  */
+
+
+
 return function (RouteBuilder $routes): void {
     /*
      * The default class to use for all routes
@@ -77,7 +80,7 @@ return function (RouteBuilder $routes): void {
          */
         $builder->fallbacks();
     });
-    $routes->setExtensions(['pdf']);
+    $routes->setExtensions(['json','pdf']);
 
     /*
      * If you need a different set of middleware or none at all,
