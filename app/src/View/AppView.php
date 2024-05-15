@@ -17,6 +17,7 @@ namespace App\View;
 
 use BootstrapUI\View\UIView;
 
+
 /**
  * Application View
  *
@@ -26,6 +27,7 @@ use BootstrapUI\View\UIView;
  */
 class AppView extends UIView
 {
+   
     /**
      * Initialization hook method.
      *
@@ -38,5 +40,7 @@ class AppView extends UIView
     public function initialize(): void
     {
         parent::initialize();
+        $this->loadHelper('Authentication.Identity');
+        
     }
 }

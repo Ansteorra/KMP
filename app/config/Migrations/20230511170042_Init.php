@@ -111,6 +111,11 @@ class Init extends AbstractMigration
                 'limit' => 2,
                 'null' => true,
             ])
+            ->addColumn('num_required_authorizors', 'integer', [
+                'default' => 1,
+                'limit' => 2,
+                'null' => false,
+            ])
             ->addIndex(
                 [
                     'name',
@@ -124,8 +129,43 @@ class Init extends AbstractMigration
             )
             ->create();
 
-        $this->table('roles_authorization_types')
+        $this->table('permissions')
+            ->addColumn('id', 'integer', [
+                'autoIncrement' => true,
+                'default' => null,
+                'limit' => 11,
+                'null' => false,
+            ])
+            ->addPrimaryKey(['id'])
+            ->addColumn('name', 'string', [
+                'default' => null,
+                'limit' => 255,
+                'null' => false,
+            ])
             ->addColumn('authorization_type_id', 'integer', [
+                'default' => null,
+                'limit' => 11,
+                'null' => true,
+            ])
+            ->addIndex(
+                [
+                    'authorization_type_id',
+                ]
+            )
+            ->addColumn('system', 'boolean', [
+                'default' => false,
+                'limit' => null,
+                'null' => false,
+            ])
+            ->addColumn('is_super_user', 'boolean', [
+                'default' => false,
+                'limit' => null,
+                'null' => false,
+            ])
+            ->create();
+
+        $this->table('roles_permissions')
+            ->addColumn('permission_id', 'integer', [
                 'default' => null,
                 'limit' => 11,
                 'null' => false,
@@ -135,17 +175,31 @@ class Init extends AbstractMigration
                 'limit' => 11,
                 'null' => false,
             ])
-            ->addPrimaryKey(['authorization_type_id', 'role_id'])
-            ->addIndex(
+            ->addPrimaryKey(
                 [
-                    'authorization_type_id',
+                    'permission_id','role_id'
                 ]
             )
-            ->addIndex(
-                [
-                    'role_id',
-                ]
-            )
+            ->create();
+
+        $this->table('app_settings')
+            ->addColumn('id', 'integer', [
+                'autoIncrement' => true,
+                'default' => null,
+                'limit' => 11,
+                'null' => false,
+            ])
+            ->addPrimaryKey(['id'])
+            ->addColumn('name', 'string', [
+                'default' => null,
+                'limit' => 255,
+                'null' => false,
+            ])
+            ->addColumn('value', 'string', [
+                'default' => null,
+                'limit' => 255,
+                'null' => true,
+            ])
             ->create();
 
             //--------------------------------- Operational Tables -----------------------------------
@@ -164,7 +218,7 @@ class Init extends AbstractMigration
             ])
             ->addColumn('password', 'string', [
                 'default' => null,
-                'limit' => 33,
+                'limit' => 512,
                 'null' => false,
             ])
             ->addColumn('sca_name', 'string', [
@@ -293,6 +347,11 @@ class Init extends AbstractMigration
                     'branch_name',
                 ]
             )
+            ->addColumn('deleted_date', 'datetime', [
+                'default' => null,
+                'limit' => null,
+                'null' => true,
+            ])
             ->create();
 
         $this->table('participant_authorization_types')
@@ -313,9 +372,9 @@ class Init extends AbstractMigration
                 'limit' => 11,
                 'null' => false,
             ])
-            ->addColumn('authorized_by', 'string', [
+            ->addColumn('authorized_by_id', 'integer', [
                 'default' => null,
-                'limit' => 255,
+                'limit' => 11,
                 'null' => false,
             ])
             ->addColumn('expires_on', 'date', [
@@ -350,6 +409,21 @@ class Init extends AbstractMigration
                 'null' => false,
             ])
             ->addColumn('role_id', 'integer', [
+                'default' => null,
+                'limit' => 11,
+                'null' => false,
+            ])
+            ->addColumn('ended_on', 'date', [
+                'default' => null,
+                'limit' => null,
+                'null' => true,
+            ])
+            ->addColumn('start_on', 'date', [
+                'default' => 'CURRENT_TIMESTAMP',
+                'limit' => null,
+                'null' => false,
+            ])            
+            ->addColumn('authorized_by_id', 'integer', [
                 'default' => null,
                 'limit' => 11,
                 'null' => false,
@@ -461,6 +535,15 @@ class Init extends AbstractMigration
                     'delete' => 'CASCADE'
                 ]
             )
+            ->addForeignKey(
+                'authorized_by_id',
+                'participants',
+                'id',
+                [
+                    'update' => 'NO_ACTION',
+                    'delete' => 'NO_ACTION'
+                ]
+            )
             ->update();
 
         $this->table('participants')
@@ -488,6 +571,15 @@ class Init extends AbstractMigration
             ->addForeignKey(
                 'role_id',
                 'roles',
+                'id',
+                [
+                    'update' => 'NO_ACTION',
+                    'delete' => 'CASCADE'
+                ]
+            )
+            ->addForeignKey(
+                'authorized_by_id',
+                'participants',
                 'id',
                 [
                     'update' => 'NO_ACTION',
@@ -526,7 +618,7 @@ class Init extends AbstractMigration
             )
             ->update();
 
-        $this->table('roles_authorization_types')
+        $this->table('permissions')
             ->addForeignKey(
                 'authorization_type_id',
                 'authorization_types',
@@ -536,9 +628,21 @@ class Init extends AbstractMigration
                     'delete' => 'CASCADE'
                 ]
             )
+            ->update();
+
+            $this->table('roles_permissions')
             ->addForeignKey(
                 'role_id',
                 'roles',
+                'id',
+                [
+                    'update' => 'NO_ACTION',
+                    'delete' => 'CASCADE'
+                ]
+            )
+            ->addForeignKey(
+                'permission_id',
+                'permissions',
                 'id',
                 [
                     'update' => 'NO_ACTION',
@@ -586,16 +690,18 @@ class Init extends AbstractMigration
             ->dropForeignKey(
                 'participant_marshal_id'
             )->save();
-
-        $this->table('roles_authorization_types')
-            ->dropForeignKey(
-                'authorization_type_id'
-            )
+        $this->table('roles_permissions')
             ->dropForeignKey(
                 'role_id'
             )->save();
 
-        $this->table('roles_authorization_types')->drop()->save();
+        $this->table('permissions')
+            ->dropForeignKey(
+                'authorization_type_id'
+            )->save();
+
+        $this->table('roles_permissions')->drop()->save();
+        $this->table('permissions')->drop()->save();
         $this->table('participants_roles')->drop()->save();
         $this->table('participant_authorization_types')->drop()->save();
         $this->table('pending_authorizations')->drop()->save();
@@ -604,6 +710,7 @@ class Init extends AbstractMigration
         $this->table('branches')->drop()->save();
         $this->table('martial_groups')->drop()->save();
         $this->table('roles')->drop()->save();
+        $this->table('app_settings')->drop()->save();
 
         
     }

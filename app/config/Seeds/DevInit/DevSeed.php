@@ -54,20 +54,29 @@ class DevSeed extends AbstractSeed
         ];
         $this->table("authorization_types")->insert($authtypes)->save();
 
-        $insertStatement = "INSERT INTO roles_authorization_types (authorization_type_id, role_id) SELECT authorization_types.id as authorization_type_id, roles.id as role_id FROM authorization_types, roles where authorization_types.name in (%s) and roles.name = '%s'";
-        $authRoles = 
-        [
-            ["role" => "Admin", "auths" => "'Armored Combat', 'Armored Combat Field Marshal', 'Rapier Combat','Rapier Combat Field Marshal','Youth Boffer 1','Youth Boffer 2','Youth Boffer 3','Youth Boffer Marshal','Youth Boffer Junior Marshal'"],
-            ["role" => "Kingdom Earl Marshal", "auths" => "'Armored Combat', 'Armored Combat Field Marshal', 'Rapier Combat','Rapier Combat Field Marshal','Youth Boffer 1','Youth Boffer 2','Youth Boffer 3','Youth Boffer Marshal','Youth Boffer Junior Marshal'"],
-            ["role" => "Secretary", "auths" => "'Armored Combat', 'Armored Combat Field Marshal', 'Rapier Combat','Rapier Combat Field Marshal','Youth Boffer 1','Youth Boffer 2','Youth Boffer 3','Youth Boffer Marshal','Youth Boffer Junior Marshal'"],
-            ["role" => "Authorizing Armored Marshal", "auths" => "'Armored Combat', 'Armored Combat Field Marshal'"],
-            ["role" => "Authorizing Rapier Marshal", "auths" => " 'Rapier Combat','Rapier Combat Field Marshal'"],
-            ["role" => "Authorizing Youth Armored Marshal", "auths" => "'Youth Boffer 1','Youth Boffer 2','Youth Boffer 3','Youth Boffer Marshal','Youth Boffer Junior Marshal'"],
+        $permissions = [
+            ["name" => "Is Super User", 'authorization_type_id' => NULL, 'system' => true, 'is_super_user' => true],
+            ["name" => "Can Manage Roles", 'authorization_type_id' => NULL, 'system' => true],
+            ["name" => "Can Manage Permissions", 'authorization_type_id' => NULL, 'system' => true],
+            ["name" => "Can Manage Authorization Types", 'authorization_type_id' => NULL, 'system' => true],
+            ["name" => "Can Manage Branches", 'authorization_type_id' => NULL, 'system' => true],
+            ["name" => "Can Manage Martial Groups", 'authorization_type_id' => NULL, 'system' => true],
+            ["name" => "Can Manage Settings", 'authorization_type_id' => NULL, 'system' => true],
+            ["name" => "Can Manage Users", 'authorization_type_id' => NULL, 'system' => true]
         ];
-        foreach($authRoles as $auths){
-            $exeStatement = sprintf($insertStatement,$auths["auths"],$auths["role"]);
-            $count = $this->execute($exeStatement);
-        }
+
+        $this->table("permissions")->insert($permissions)->save();
+
+        $insertStatement = "INSERT INTO permissions (name, authorization_type_id,system) SELECT CONCAT('can authorize ', authorization_types.name) AS name, authorization_types.id as authorization_type_id, false as system FROM authorization_types";
+
+        $count = $this->execute($insertStatement);
+
+        $role_permissions = [
+            ["role_id" => 1, "permission_id" => 1],
+            ["role_id" => 1, "permission_id" => 2],
+            ["role_id" => 1, "permission_id" => 3]
+        ];
+        $this->table("roles_permissions")->insert($role_permissions)->save();
 
         $branches = [
             ["name" => "Kingdom", "location"=>"Kingdom"],
@@ -167,8 +176,8 @@ class DevSeed extends AbstractSeed
         $table = $this->table('participants');
         $table->insert($participants)->save();        
         $participant_roles = [
-            ["participant_id" => 1,"role_id" => 1],
-            ["participant_id" => 2,"role_id" => 3],
+            ["participant_id" => 1,"role_id" => 1, 'authorized_by_id'=>1],
+            ["participant_id" => 2,"role_id" => 3, 'authorized_by_id'=>1],
         ];
         $this->table("participants_roles")->insert($participant_roles)->save();
 

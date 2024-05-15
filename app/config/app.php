@@ -1,6 +1,6 @@
 <?php
 
-use Cake\Cache\Engine\FileEngine;
+use Cake\Cache\Engine\ArrayEngine;
 use Cake\Database\Connection;
 use Cake\Database\Driver\Mysql;
 use Cake\Log\Engine\FileLog;
@@ -48,6 +48,7 @@ return [
      */
     'App' => [
         'namespace' => 'App',
+        'title' => 'Ansteorra Management System',
         'encoding' => env('APP_ENCODING', 'UTF-8'),
         'defaultLocale' => env('APP_DEFAULT_LOCALE', 'en_US'),
         'defaultTimezone' => env('APP_DEFAULT_TIMEZONE', 'UTC'),
@@ -96,9 +97,8 @@ return [
      */
     'Cache' => [
         'default' => [
-            'className' => FileEngine::class,
-            'path' => CACHE,
-            'url' => env('CACHE_DEFAULT_URL', null),
+            'className' => ArrayEngine::class,
+
         ],
 
         /*
@@ -108,10 +108,7 @@ return [
          * If you set 'className' => 'Null' core cache will be disabled.
          */
         '_cake_core_' => [
-            'className' => FileEngine::class,
-            'prefix' => 'myapp_cake_core_',
-            'path' => CACHE . 'persistent' . DS,
-            'serialize' => true,
+            'className' => ArrayEngine::class,
             'duration' => '+1 years',
             'url' => env('CACHE_CAKECORE_URL', null),
         ],
@@ -123,10 +120,7 @@ return [
          * Duration will be set to '+2 minutes' in bootstrap.php when debug = true
          */
         '_cake_model_' => [
-            'className' => FileEngine::class,
-            'prefix' => 'myapp_cake_model_',
-            'path' => CACHE . 'models' . DS,
-            'serialize' => true,
+            'className' => ArrayEngine::class,
             'duration' => '+1 years',
             'url' => env('CACHE_CAKEMODEL_URL', null),
         ],

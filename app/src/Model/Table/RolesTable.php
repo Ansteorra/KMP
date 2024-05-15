@@ -1,7 +1,9 @@
 <?php
+declare(strict_types=1);
+
 namespace App\Model\Table;
 
-use Cake\ORM\Query;
+use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
@@ -9,27 +11,32 @@ use Cake\Validation\Validator;
 /**
  * Roles Model
  *
- * @property \Cake\ORM\Association\BelongsToMany $Participants
- * @property \Cake\ORM\Association\BelongsToMany $AuthorizationTypes
+ * @property \App\Model\Table\ParticipantsTable&\Cake\ORM\Association\BelongsToMany $Participants
+ * @property \App\Model\Table\PermissionsTable&\Cake\ORM\Association\BelongsToMany $Permissions
  *
- * @method \App\Model\Entity\Role get($primaryKey, $options = [])
- * @method \App\Model\Entity\Role newEntity($data = null, array $options = [])
- * @method \App\Model\Entity\Role[] newEntities(array $data, array $options = [])
- * @method \App\Model\Entity\Role|bool save(\Cake\Datasource\EntityInterface $entity, $options = [])
+ * @method \App\Model\Entity\Role newEmptyEntity()
+ * @method \App\Model\Entity\Role newEntity(array $data, array $options = [])
+ * @method array<\App\Model\Entity\Role> newEntities(array $data, array $options = [])
+ * @method \App\Model\Entity\Role get(mixed $primaryKey, array|string $finder = 'all', \Psr\SimpleCache\CacheInterface|string|null $cache = null, \Closure|string|null $cacheKey = null, mixed ...$args)
+ * @method \App\Model\Entity\Role findOrCreate($search, ?callable $callback = null, array $options = [])
  * @method \App\Model\Entity\Role patchEntity(\Cake\Datasource\EntityInterface $entity, array $data, array $options = [])
- * @method \App\Model\Entity\Role[] patchEntities($entities, array $data, array $options = [])
- * @method \App\Model\Entity\Role findOrCreate($search, callable $callback = null)
+ * @method array<\App\Model\Entity\Role> patchEntities(iterable $entities, array $data, array $options = [])
+ * @method \App\Model\Entity\Role|false save(\Cake\Datasource\EntityInterface $entity, array $options = [])
+ * @method \App\Model\Entity\Role saveOrFail(\Cake\Datasource\EntityInterface $entity, array $options = [])
+ * @method iterable<\App\Model\Entity\Role>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\Role>|false saveMany(iterable $entities, array $options = [])
+ * @method iterable<\App\Model\Entity\Role>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\Role> saveManyOrFail(iterable $entities, array $options = [])
+ * @method iterable<\App\Model\Entity\Role>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\Role>|false deleteMany(iterable $entities, array $options = [])
+ * @method iterable<\App\Model\Entity\Role>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\Role> deleteManyOrFail(iterable $entities, array $options = [])
  */
 class RolesTable extends Table
 {
-
     /**
      * Initialize method
      *
-     * @param array $config The configuration for the Table.
+     * @param array<string, mixed> $config The configuration for the Table.
      * @return void
      */
-    public function initialize(array $config)
+    public function initialize(array $config): void
     {
         parent::initialize($config);
 
@@ -40,12 +47,12 @@ class RolesTable extends Table
         $this->belongsToMany('Participants', [
             'foreignKey' => 'role_id',
             'targetForeignKey' => 'participant_id',
-            'joinTable' => 'participants_roles'
+            'joinTable' => 'participants_roles',
         ]);
-        $this->belongsToMany('AuthorizationTypes', [
+        $this->belongsToMany('Permissions', [
             'foreignKey' => 'role_id',
-            'targetForeignKey' => 'authorization_type_id',
-            'joinTable' => 'roles_authorization_types'
+            'targetForeignKey' => 'permission_id',
+            'joinTable' => 'roles_permissions',
         ]);
     }
 
@@ -55,15 +62,13 @@ class RolesTable extends Table
      * @param \Cake\Validation\Validator $validator Validator instance.
      * @return \Cake\Validation\Validator
      */
-    public function validationDefault(Validator $validator)
+    public function validationDefault(Validator $validator): Validator
     {
         $validator
-            ->integer('id')
-            ->allowEmpty('id', 'create');
-
-        $validator
+            ->scalar('name')
+            ->maxLength('name', 255)
             ->requirePresence('name', 'create')
-            ->notEmpty('name')
+            ->notEmptyString('name')
             ->add('name', 'unique', ['rule' => 'validateUnique', 'provider' => 'table']);
 
         return $validator;
@@ -76,9 +81,9 @@ class RolesTable extends Table
      * @param \Cake\ORM\RulesChecker $rules The rules object to be modified.
      * @return \Cake\ORM\RulesChecker
      */
-    public function buildRules(RulesChecker $rules)
+    public function buildRules(RulesChecker $rules): RulesChecker
     {
-        $rules->add($rules->isUnique(['name']));
+        $rules->add($rules->isUnique(['name']), ['errorField' => 'name']);
 
         return $rules;
     }

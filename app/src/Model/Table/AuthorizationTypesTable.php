@@ -1,7 +1,9 @@
 <?php
+declare(strict_types=1);
+
 namespace App\Model\Table;
 
-use Cake\ORM\Query;
+use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
@@ -9,29 +11,34 @@ use Cake\Validation\Validator;
 /**
  * AuthorizationTypes Model
  *
- * @property \Cake\ORM\Association\BelongsTo $MartialGroups
- * @property \Cake\ORM\Association\HasMany $ParticipantAuthorizationTypes
- * @property \Cake\ORM\Association\HasMany $PendingAuthorizations
- * @property \Cake\ORM\Association\BelongsToMany $Roles
+ * @property \App\Model\Table\MartialGroupsTable&\Cake\ORM\Association\BelongsTo $MartialGroups
+ * @property \App\Model\Table\ParticipantAuthorizationTypesTable&\Cake\ORM\Association\HasMany $ParticipantAuthorizationTypes
+ * @property \App\Model\Table\PendingAuthorizationsTable&\Cake\ORM\Association\HasMany $PendingAuthorizations
+ * @property \App\Model\Table\PermissionsTable&\Cake\ORM\Association\HasMany $Permissions
  *
- * @method \App\Model\Entity\AuthorizationType get($primaryKey, $options = [])
- * @method \App\Model\Entity\AuthorizationType newEntity($data = null, array $options = [])
- * @method \App\Model\Entity\AuthorizationType[] newEntities(array $data, array $options = [])
- * @method \App\Model\Entity\AuthorizationType|bool save(\Cake\Datasource\EntityInterface $entity, $options = [])
+ * @method \App\Model\Entity\AuthorizationType newEmptyEntity()
+ * @method \App\Model\Entity\AuthorizationType newEntity(array $data, array $options = [])
+ * @method array<\App\Model\Entity\AuthorizationType> newEntities(array $data, array $options = [])
+ * @method \App\Model\Entity\AuthorizationType get(mixed $primaryKey, array|string $finder = 'all', \Psr\SimpleCache\CacheInterface|string|null $cache = null, \Closure|string|null $cacheKey = null, mixed ...$args)
+ * @method \App\Model\Entity\AuthorizationType findOrCreate($search, ?callable $callback = null, array $options = [])
  * @method \App\Model\Entity\AuthorizationType patchEntity(\Cake\Datasource\EntityInterface $entity, array $data, array $options = [])
- * @method \App\Model\Entity\AuthorizationType[] patchEntities($entities, array $data, array $options = [])
- * @method \App\Model\Entity\AuthorizationType findOrCreate($search, callable $callback = null)
+ * @method array<\App\Model\Entity\AuthorizationType> patchEntities(iterable $entities, array $data, array $options = [])
+ * @method \App\Model\Entity\AuthorizationType|false save(\Cake\Datasource\EntityInterface $entity, array $options = [])
+ * @method \App\Model\Entity\AuthorizationType saveOrFail(\Cake\Datasource\EntityInterface $entity, array $options = [])
+ * @method iterable<\App\Model\Entity\AuthorizationType>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\AuthorizationType>|false saveMany(iterable $entities, array $options = [])
+ * @method iterable<\App\Model\Entity\AuthorizationType>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\AuthorizationType> saveManyOrFail(iterable $entities, array $options = [])
+ * @method iterable<\App\Model\Entity\AuthorizationType>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\AuthorizationType>|false deleteMany(iterable $entities, array $options = [])
+ * @method iterable<\App\Model\Entity\AuthorizationType>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\AuthorizationType> deleteManyOrFail(iterable $entities, array $options = [])
  */
 class AuthorizationTypesTable extends Table
 {
-
     /**
      * Initialize method
      *
-     * @param array $config The configuration for the Table.
+     * @param array<string, mixed> $config The configuration for the Table.
      * @return void
      */
-    public function initialize(array $config)
+    public function initialize(array $config): void
     {
         parent::initialize($config);
 
@@ -41,18 +48,16 @@ class AuthorizationTypesTable extends Table
 
         $this->belongsTo('MartialGroups', [
             'foreignKey' => 'martial_groups_id',
-            'joinType' => 'INNER'
+            'joinType' => 'INNER',
         ]);
         $this->hasMany('ParticipantAuthorizationTypes', [
-            'foreignKey' => 'authorization_type_id'
+            'foreignKey' => 'authorization_type_id',
         ]);
         $this->hasMany('PendingAuthorizations', [
-            'foreignKey' => 'authorization_type_id'
-        ]);
-        $this->belongsToMany('Roles', [
             'foreignKey' => 'authorization_type_id',
-            'targetForeignKey' => 'role_id',
-            'joinTable' => 'roles_authorization_types'
+        ]);
+        $this->hasMany('Permissions', [
+            'foreignKey' => 'authorization_type_id',
         ]);
     }
 
@@ -62,21 +67,35 @@ class AuthorizationTypesTable extends Table
      * @param \Cake\Validation\Validator $validator Validator instance.
      * @return \Cake\Validation\Validator
      */
-    public function validationDefault(Validator $validator)
+    public function validationDefault(Validator $validator): Validator
     {
         $validator
-            ->integer('id')
-            ->allowEmpty('id', 'create');
-
-        $validator
+            ->scalar('name')
+            ->maxLength('name', 255)
             ->requirePresence('name', 'create')
-            ->notEmpty('name')
+            ->notEmptyString('name')
             ->add('name', 'unique', ['rule' => 'validateUnique', 'provider' => 'table']);
 
         $validator
             ->integer('length')
             ->requirePresence('length', 'create')
-            ->notEmpty('length');
+            ->notEmptyString('length');
+
+        $validator
+            ->integer('martial_groups_id')
+            ->notEmptyString('martial_groups_id');
+
+        $validator
+            ->integer('minimum_age')
+            ->allowEmptyString('minimum_age');
+
+        $validator
+            ->integer('maximum_age')
+            ->allowEmptyString('maximum_age');
+
+        $validator
+            ->integer('num_required_authorizors')
+            ->notEmptyString('num_required_authorizors');
 
         return $validator;
     }
@@ -88,10 +107,10 @@ class AuthorizationTypesTable extends Table
      * @param \Cake\ORM\RulesChecker $rules The rules object to be modified.
      * @return \Cake\ORM\RulesChecker
      */
-    public function buildRules(RulesChecker $rules)
+    public function buildRules(RulesChecker $rules): RulesChecker
     {
-        $rules->add($rules->isUnique(['name']));
-        $rules->add($rules->existsIn(['martial_groups_id'], 'MartialGroups'));
+        $rules->add($rules->isUnique(['name']), ['errorField' => 'name']);
+        $rules->add($rules->existsIn(['martial_groups_id'], 'MartialGroups'), ['errorField' => 'martial_groups_id']);
 
         return $rules;
     }
