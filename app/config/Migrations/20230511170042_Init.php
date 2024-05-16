@@ -29,7 +29,7 @@ class Init extends AbstractMigration
                 'limit' => 40,
                 'null' => false,
             ])
-            ->addColumn('branch_id', 'integer', [
+            ->addColumn('parent_id', 'integer', [
                 'default' => null,
                 'limit' => 11,
                 'null' => true,
@@ -146,6 +146,21 @@ class Init extends AbstractMigration
                 'default' => null,
                 'limit' => 11,
                 'null' => true,
+            ])            
+            ->addColumn('require_active_membership', 'boolean', [
+                'default' => false,
+                'limit' => null,
+                'null' => false,
+            ])
+            ->addColumn('require_active_background_check', 'boolean', [
+                'default' => false,
+                'limit' => null,
+                'null' => false,
+            ])
+            ->addColumn('require_min_age', 'boolean', [
+                'default' => false,
+                'limit' => null,
+                'null' => false,
             ])
             ->addIndex(
                 [
@@ -402,7 +417,7 @@ class Init extends AbstractMigration
         
         
 
-        $this->table('participants_roles')
+        $this->table('participant_roles')
             ->addColumn('participant_id', 'integer', [
                 'default' => null,
                 'limit' => 11,
@@ -558,7 +573,7 @@ class Init extends AbstractMigration
             )
             ->update();
 
-        $this->table('participants_roles')
+        $this->table('participant_roles')
             ->addForeignKey(
                 'participant_id',
                 'participants',
@@ -672,7 +687,7 @@ class Init extends AbstractMigration
                 'branch_name'
             )->save();
 
-        $this->table('participants_roles')
+        $this->table('participant_roles')
             ->dropForeignKey(
                 'participant_id'
             )
@@ -702,7 +717,7 @@ class Init extends AbstractMigration
 
         $this->table('roles_permissions')->drop()->save();
         $this->table('permissions')->drop()->save();
-        $this->table('participants_roles')->drop()->save();
+        $this->table('participant_roles')->drop()->save();
         $this->table('participant_authorization_types')->drop()->save();
         $this->table('pending_authorizations')->drop()->save();
         $this->table('participants')->drop()->save();

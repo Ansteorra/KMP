@@ -80,6 +80,7 @@ class KMPBruteForcePasswordIdentifier extends PasswordIdentifier
         $user->last_failed_login = null;
         $user->password_token = null;
         $user->password_token_expires_on = null;
+        $user->last_login = DateTime::now();
         $participantsTable->save($user);
     }
 

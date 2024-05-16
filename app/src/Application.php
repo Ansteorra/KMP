@@ -16,6 +16,21 @@ declare(strict_types=1);
  */
 namespace App;
 
+//Authentication usings
+use Authentication\AuthenticationService;
+use Authentication\AuthenticationServiceInterface;
+use Authentication\AuthenticationServiceProviderInterface;
+use Authentication\Identifier\AbstractIdentifier;
+use Authentication\Identifier\IdentifierInterface;
+use Authentication\Middleware\AuthenticationMiddleware;
+
+//Authorization usings
+use Authorization\AuthorizationService;
+use Authorization\AuthorizationServiceInterface;
+use Authorization\AuthorizationServiceProviderInterface;
+use Authorization\Middleware\AuthorizationMiddleware;
+use Authorization\Policy\OrmResolver;
+
 use Cake\Core\Configure;
 use Cake\Core\ContainerInterface;
 use Cake\Datasource\FactoryLocator;
@@ -24,17 +39,14 @@ use Cake\Http\BaseApplication;
 use Cake\Http\Middleware\BodyParserMiddleware;
 use Cake\Http\Middleware\CsrfProtectionMiddleware;
 use Cake\Http\MiddlewareQueue;
+use Cake\I18n\DateTime;
 use Cake\ORM\Locator\TableLocator;
+use Cake\Routing\Router;
 use Cake\Routing\Middleware\AssetMiddleware;
 use Cake\Routing\Middleware\RoutingMiddleware;
-use Authentication\AuthenticationService;
-use Authentication\AuthenticationServiceInterface;
-use Authentication\AuthenticationServiceProviderInterface;
-use Authentication\Identifier\AbstractIdentifier;
-use Authentication\Identifier\IdentifierInterface;
-use Authentication\Middleware\AuthenticationMiddleware;
+
+use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
-use Cake\Routing\Router;
 
 /**
  * Application setup class.
@@ -44,7 +56,7 @@ use Cake\Routing\Router;
  *
  * @extends \Cake\Http\BaseApplication<\App\Application>
  */
-class Application extends BaseApplication implements AuthenticationServiceProviderInterface
+class Application extends BaseApplication implements AuthenticationServiceProviderInterface, AuthorizationServiceProviderInterface
 {
     /**
      * Load all the application configuration and bootstrap logic.
@@ -53,9 +65,13 @@ class Application extends BaseApplication implements AuthenticationServiceProvid
      */
     public function bootstrap(): void
     {
+        DateTime::setToStringFormat('YYYY-MM-dd HH:mm:ss');
         // Call parent to load bootstrap from files.
         parent::bootstrap();
 
+        //add plugins
+        $this->addPlugin('Authorization');
+        
         if (PHP_SAPI !== 'cli') {
             FactoryLocator::add(
                 'Table',
@@ -100,7 +116,12 @@ class Application extends BaseApplication implements AuthenticationServiceProvid
             ]))
             // Add the AuthenticationMiddleware. It should be
             // after routing and body parser.
-            ->add(new AuthenticationMiddleware($this));
+            ->add(new AuthenticationMiddleware($this))
+            ->add(new AuthorizationMiddleware($this, [
+                'identityDecorator' => function ($auth, $user) {
+                    return $user->setAuthorization($auth);
+                }
+            ]));
 
         return $middlewareQueue;
     }
@@ -175,5 +196,11 @@ class Application extends BaseApplication implements AuthenticationServiceProvid
         ]);
 
         return $service;
+    }
+
+    public function getAuthorizationService(ServerRequestInterface $request): AuthorizationServiceInterface
+    {
+        $resolver = new OrmResolver();
+        return new AuthorizationService($resolver);
     }
 }

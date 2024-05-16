@@ -118,6 +118,7 @@ class ParticipantsController extends AppController
      */
     public function login()
     {
+        $this->Authorization->skipAuthorization();
         if ($this->request->is('post')) {
             $authentication = $this->request->getAttribute('authentication');
             $result = $authentication->getResult();
@@ -156,6 +157,7 @@ class ParticipantsController extends AppController
 
     public function logout()
     {
+        $this->Authorization->skipAuthorization();
         $this->Authentication->logout();
         return $this->redirect(['controller' => 'Participants', 'action' => 'login']);
     }

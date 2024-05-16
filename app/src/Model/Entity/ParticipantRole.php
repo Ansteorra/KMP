@@ -5,20 +5,20 @@ namespace App\Model\Entity;
 
 use Cake\ORM\Entity;
 
-use JeremyHarris\LazyLoad\ORM\LazyLoadEntityTrait;
-
 /**
- * Role Entity
+ * ParticipantRole Entity
  *
- * @property int $id
- * @property string $name
+ * @property int $participant_id
+ * @property int $role_id
+ * @property \Cake\I18n\Date|null $ended_on
+ * @property \Cake\I18n\Date $start_on
+ * @property int $authorized_by_id
  *
- * @property \App\Model\Entity\Participant[] $participants
- * @property \App\Model\Entity\Permission[] $permissions
+ * @property \App\Model\Entity\Participant $participant
+ * @property \App\Model\Entity\Role $role
  */
-class Role extends Entity
+class ParticipantRole extends Entity
 {
-    use LazyLoadEntityTrait;
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().
      *
@@ -29,8 +29,10 @@ class Role extends Entity
      * @var array<string, bool>
      */
     protected array $_accessible = [
-        'name' => true,
-        'participants' => true,
-        'permissions' => true,
+        'ended_on' => true,
+        'start_on' => true,
+        'authorized_by_id' => true,
+        'participant' => true,
+        'role' => true,
     ];
 }

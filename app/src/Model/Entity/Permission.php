@@ -5,6 +5,8 @@ namespace App\Model\Entity;
 
 use Cake\ORM\Entity;
 
+
+
 /**
  * Permission Entity
  *

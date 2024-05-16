@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 namespace App\Controller;
+use Cake\Log\Log;
 
 /**
  * Roles Controller
@@ -10,6 +11,11 @@ namespace App\Controller;
  */
 class RolesController extends AppController
 {
+    public function initialize(): void
+    {
+        parent::initialize();
+        $this->Authorization->authorizeModel('index','add');
+    }
     /**
      * Index method
      *
@@ -17,7 +23,10 @@ class RolesController extends AppController
      */
     public function index()
     {
+
+        $this->Authorization->authorizeAction();
         $query = $this->Roles->find();
+        $query = $this->Authorization->applyScope($query);
         $roles = $this->paginate($query);
 
         $this->set(compact('roles'));
@@ -32,7 +41,8 @@ class RolesController extends AppController
      */
     public function view($id = null)
     {
-        $role = $this->Roles->get($id, contain: ['Participants', 'Permissions']);
+        $role = $this->Roles->get($id,contain: ['Participants','Permissions']);
+        $this->Authorization->authorize($role, "view");
         $this->set(compact('role'));
     }
 

@@ -52,9 +52,7 @@ class ParticipantsTable extends Table
             'foreignKey' => 'participant_id',
         ]);
         $this->belongsToMany('Roles', [
-            'foreignKey' => 'participant_id',
-            'targetForeignKey' => 'role_id',
-            'joinTable' => 'participants_roles',
+            'through' => 'ParticipantRoles',
         ]);
     }
 

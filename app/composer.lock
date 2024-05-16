@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "2ce55ad631ff9119c96be37a49726742",
+    "content-hash": "6f99fc42ca0cea1260faa0361bc56346",
     "packages": [
         {
             "name": "cakephp/authentication",
@@ -73,6 +73,71 @@
                 "source": "https://github.com/cakephp/authentication"
             },
             "time": "2023-12-01T02:37:50+00:00"
+        },
+        {
+            "name": "cakephp/authorization",
+            "version": "3.1.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/cakephp/authorization.git",
+                "reference": "819b4968c73f400245a422a5afcd3b37cd5365b8"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/cakephp/authorization/zipball/819b4968c73f400245a422a5afcd3b37cd5365b8",
+                "reference": "819b4968c73f400245a422a5afcd3b37cd5365b8",
+                "shasum": ""
+            },
+            "require": {
+                "cakephp/http": "^5.0",
+                "php": ">=8.1",
+                "psr/http-client": "^1.0",
+                "psr/http-message": "^1.1 || ^2.0",
+                "psr/http-server-handler": "^1.0",
+                "psr/http-server-middleware": "^1.0"
+            },
+            "require-dev": {
+                "cakephp/authentication": "^3.0",
+                "cakephp/bake": "^3.0",
+                "cakephp/cakephp": "^5.0",
+                "cakephp/cakephp-codesniffer": "^5.0",
+                "phpunit/phpunit": "^10.1.0"
+            },
+            "suggest": {
+                "cakephp/http": "To use \"RequestPolicyInterface\" (Not needed separately if using full CakePHP framework).",
+                "cakephp/orm": "To use \"OrmResolver\" (Not needed separately if using full CakePHP framework)."
+            },
+            "type": "cakephp-plugin",
+            "autoload": {
+                "psr-4": {
+                    "Authorization\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "CakePHP Community",
+                    "homepage": "https://github.com/cakephp/authorization/graphs/contributors"
+                }
+            ],
+            "description": "Authorization abstraction layer plugin for CakePHP",
+            "keywords": [
+                "access",
+                "auth",
+                "authorization",
+                "cakephp"
+            ],
+            "support": {
+                "docs": "https://cakephp.org/authorization/2/en/",
+                "forum": "https://stackoverflow.com/tags/cakephp",
+                "irc": "irc://irc.freenode.org/cakephp",
+                "issues": "https://github.com/cakephp/authorization/issues",
+                "source": "https://github.com/cakephp/authorization"
+            },
+            "time": "2024-02-06T09:09:51+00:00"
         },
         {
             "name": "cakephp/cakephp",
@@ -538,6 +603,47 @@
                 "source": "https://github.com/FriendsOfCake/CakePdf/tree/5.0.0"
             },
             "time": "2023-10-03T08:38:04+00:00"
+        },
+        {
+            "name": "jeremyharris/cakephp-lazyload",
+            "version": "5.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/jeremyharris/cakephp-lazyload.git",
+                "reference": "a1bb3c7a1b0b33ce631d5511c8525f6d3d9bd6a1"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/jeremyharris/cakephp-lazyload/zipball/a1bb3c7a1b0b33ce631d5511c8525f6d3d9bd6a1",
+                "reference": "a1bb3c7a1b0b33ce631d5511c8525f6d3d9bd6a1",
+                "shasum": ""
+            },
+            "require": {
+                "cakephp/orm": "^5.0",
+                "php": ">=8.1"
+            },
+            "require-dev": {
+                "cakephp/cakephp": "^5.0",
+                "phpunit/phpunit": "^10"
+            },
+            "type": "cakephp-plugin",
+            "autoload": {
+                "psr-4": {
+                    "JeremyHarris\\LazyLoad\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "description": "An association lazy-loader for CakePHP",
+            "keywords": [
+                "cakephp",
+                "lazy load",
+                "plugin"
+            ],
+            "support": {
+                "issues": "https://github.com/jeremyharris/cakephp-lazyload/issues",
+                "source": "https://github.com/jeremyharris/cakephp-lazyload/tree/5.0.0"
+            },
+            "time": "2023-10-04T17:31:03+00:00"
         },
         {
             "name": "laminas/laminas-diactoros",

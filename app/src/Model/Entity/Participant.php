@@ -3,11 +3,26 @@ declare(strict_types=1);
 
 namespace App\Model\Entity;
 
-use Cake\ORM\Entity;
-use Authentication\PasswordHasher\DefaultPasswordHasher;
-use Cake\Utility\Hash;
-use \Datetime;
+use ArrayAccess;
+
+use Cake\I18n\DateTime;
 use Cake\Log\Log;
+use Cake\ORM\Entity;
+use Cake\ORM\TableRegistry;
+use Cake\Utility\Hash;
+
+
+use Authentication\PasswordHasher\DefaultPasswordHasher;
+use Authentication\IdentityInterface as AuthenticationIdentity;
+
+use Authorization\IdentityInterface as AuthorizationIdentity;
+use Authorization\AuthorizationServiceInterface;
+use Authorization\Policy\ResultInterface;
+
+use JeremyHarris\LazyLoad\ORM\LazyLoadEntityTrait;
+
+use App\KMP\PermissionsLoader;
+
 
 /**
  * Participant Entity
@@ -46,8 +61,13 @@ use Cake\Log\Log;
  * @property \App\Model\Entity\PendingAuthorization[] $pending_authorizations_to_approve
  * @property \App\Model\Entity\Role[] $roles
  */
-class Participant extends Entity
+class Participant extends Entity implements AuthorizationIdentity, AuthenticationIdentity
 {
+    use LazyLoadEntityTrait;
+
+    protected ?array $_permissions = null;
+    protected ?DateTime $_last_permissions_update = null;
+
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().
      *
@@ -60,7 +80,6 @@ class Participant extends Entity
     protected array $_accessible = [
         'last_updated' => true,
         'password' => true,
-        'salt' => true,
         'sca_name' => true,
         'first_name' => true,
         'middle_name' => true,
@@ -92,13 +111,80 @@ class Participant extends Entity
         'roles' => true,
     ];
 
+
+    /**
+     * Authorization\IdentityInterface method
+     */
+    public function can(string $action, mixed $resource): bool
+    {
+        return $this->authorization->can($this, $action, $resource);
+    }
+
+    /**
+     * Authorization\IdentityInterface method
+     */
+    public function canResult(string $action, mixed $resource): ResultInterface
+    {
+        return $this->authorization->canResult($this, $action, $resource);
+    }
+
+    /**
+     * Authorization\IdentityInterface method
+     */
+    public function applyScope(string $action, mixed $resource, mixed ...$optionalArgs): mixed
+    {
+        return $this->authorization->applyScope($this, $action, $resource);
+    }
+
+    /**
+     * Authorization\IdentityInterface method
+     */
+    public function getOriginalData(): ArrayAccess|array
+    {
+        return $this;
+    }
+
+    /**
+     * Setter to be used by the middleware.
+     */
+    public function setAuthorization(AuthorizationServiceInterface $service)
+    {
+        $this->authorization = $service;
+
+        return $this;
+    }
+
+    /**
+     * Authentication\IdentityInterface method
+     *
+     * @return string
+     */
+    public function getIdentifier(): array|string|int|null
+    {
+        return $this->id;
+    }
+
+    /**
+     * get permissions for the participant based on their roles
+     * @return Permission[]
+     */
+    public function getPermissions(): array {
+        if($this->_last_permissions_update == null || !$this->_last_permissions_update->isWithinNext('1 minute')){
+            $this->_permissions = PermissionsLoader::getPermissions($this->id);
+            $this->_last_permissions_update = DateTime::now();
+            Log::write('debug', 'load permissions' );
+        }
+        return $this->_permissions;
+    }
+
+
     /**
      * Fields that are excluded from JSON versions of the entity.
      *
      * @var list<string>
      */
     protected array $_hidden = [
-        'password','salt'
+        'password'
     ];
 
     protected function _setPassword($value)

@@ -55,14 +55,14 @@ class DevSeed extends AbstractSeed
         $this->table("authorization_types")->insert($authtypes)->save();
 
         $permissions = [
-            ["name" => "Is Super User", 'authorization_type_id' => NULL, 'system' => true, 'is_super_user' => true],
-            ["name" => "Can Manage Roles", 'authorization_type_id' => NULL, 'system' => true],
-            ["name" => "Can Manage Permissions", 'authorization_type_id' => NULL, 'system' => true],
-            ["name" => "Can Manage Authorization Types", 'authorization_type_id' => NULL, 'system' => true],
-            ["name" => "Can Manage Branches", 'authorization_type_id' => NULL, 'system' => true],
-            ["name" => "Can Manage Martial Groups", 'authorization_type_id' => NULL, 'system' => true],
-            ["name" => "Can Manage Settings", 'authorization_type_id' => NULL, 'system' => true],
-            ["name" => "Can Manage Users", 'authorization_type_id' => NULL, 'system' => true]
+            ["name" => "Is Super User", 'authorization_type_id' => NULL, 'system' => true, 'is_super_user' => true, 'require_active_membership' => true],
+            ["name" => "Can Manage Roles", 'authorization_type_id' => NULL, 'system' => true, 'require_active_membership' => true],
+            ["name" => "Can Manage Permissions", 'authorization_type_id' => NULL, 'system' => true, 'require_active_membership' => true],
+            ["name" => "Can Manage Authorization Types", 'authorization_type_id' => NULL, 'system' => true, 'require_active_membership' => true],
+            ["name" => "Can Manage Branches", 'authorization_type_id' => NULL, 'system' => true, 'require_active_membership' => true],
+            ["name" => "Can Manage Martial Groups", 'authorization_type_id' => NULL, 'system' => true, 'require_active_membership' => true],
+            ["name" => "Can Manage Settings", 'authorization_type_id' => NULL, 'system' => true, 'require_active_membership' => true],
+            ["name" => "Can Manage Users", 'authorization_type_id' => NULL, 'system' => true, 'require_active_membership' => true]
         ];
 
         $this->table("permissions")->insert($permissions)->save();
@@ -80,8 +80,8 @@ class DevSeed extends AbstractSeed
 
         $branches = [
             ["name" => "Kingdom", "location"=>"Kingdom"],
-            ["name" => "Region", "location"=> "Part of Kingdom","branch_id"=>1],
-            ["name" => "Barony", "location"=> "A Local group","branch_id"=>2],
+            ["name" => "Region", "location"=> "Part of Kingdom","parent_id"=>1],
+            ["name" => "Barony", "location"=> "A Local group","parent_id"=>2],
         ];
         $this->table("branches")->insert($branches)->save();
 
@@ -179,7 +179,7 @@ class DevSeed extends AbstractSeed
             ["participant_id" => 1,"role_id" => 1, 'authorized_by_id'=>1],
             ["participant_id" => 2,"role_id" => 3, 'authorized_by_id'=>1],
         ];
-        $this->table("participants_roles")->insert($participant_roles)->save();
+        $this->table("participant_roles")->insert($participant_roles)->save();
 
     }
 }

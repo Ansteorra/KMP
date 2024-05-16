@@ -15,6 +15,7 @@
 <?php $this->end(); ?>
 <?php $this->assign('tb_sidebar', '<ul class="nav flex-column">' . $this->fetch('tb_actions') . '</ul>'); ?>
 
+
 <table class="table table-striped">
     <thead>
     <tr>
