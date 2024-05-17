@@ -35,7 +35,7 @@
     <div class="related">
         <h4><?= __('Related Members') ?></h4>
         <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addMemberModal">Add To Group</button></h4>
-        <?php if (!empty($role->Member_roles)): ?>
+        <?php if (!empty($role->member_roles)): ?>
         <div class="table-responsive">
             <table class="table table-striped">
                 <tr>
@@ -45,14 +45,14 @@
                     <th scope="col"><?= __('Approved By') ?></th>
                     <th scope="col" class="actions"><?= __('Actions') ?></th>
                 </tr>
-                <?php foreach ($role->Member_roles as $assignee): ?>
+                <?php foreach ($role->member_roles as $assignee): ?>
                 <tr>
-                    <td><?= h($assignee->Member->sca_name) ?>   <?= h($assignee->id) ?></td>
+                    <td><?= h($assignee->member->sca_name) ?>   <?= h($assignee->id) ?></td>
                     <td><?= h($assignee->start_on) ?></td>
                     <td><?= h($assignee->ended_on) ?></td>
                     <td><?= h($assignee->authorized_by->sca_name) ?></td>
                     <td class="actions">
-                        <?= $this->Form->postLink( __('Deactivate'), ['controller' => 'MemberRoles', 'action' => 'deactivate', $assignee->id], ['confirm' => __('Are you sure you want to deactivate for {0}?', $assignee->Member->sca_name), 'class' => 'btn btn-danger']) ?>
+                        <?= $this->Form->postLink( __('Deactivate'), ['controller' => 'MemberRoles', 'action' => 'deactivate', $assignee->id], ['confirm' => __('Are you sure you want to deactivate for {0}?', $assignee->member->sca_name), 'class' => 'btn btn-danger']) ?>
                     </td>
                 </tr>
                 <?php endforeach; ?>
@@ -94,21 +94,26 @@
 </div>
 
 
-<?php $this->start('modals'); ?>
-<div class="modal fade" id="addMemberModal" tabindex="-1" role="dialog" aria-labelledby="addMemberModalLabel">
-   <div class="modal-dialog" role="document">
-    <div class="modal-content">
-      <div class="modal-header">
-        <button type="button" class="close" ata-bs-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-        <h4 class="modal-title" id="addMemberModalLabel">Add Member</h4>
-      </div>
-      <div class="modal-body">     
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-default" data-bs-dismiss="modal">Cancel</button>
-        <button type="submit" class="btn btn-primary" id="requestAuthSubmit">Submit</button>
-      </div>
-    </div>
-  </div>
-</div>
-<?php $this->end(); ?>
+<?php 
+    $this->start('modals');
+    echo $this->Modal->create("Add Member to Role", ['id' => 'addMemberModal', 'close' => true]) ;
+?>
+    <fieldset>
+        <?php
+            echo $this->Form->control('sca_name', ['type' => 'text', 'label' => 'SCA Name', 'id'=> 'sca_name']);
+                ?>
+    </fieldset>
+<?php
+    echo $this->Modal->end([
+        $this->Form->button('Submit',['class' => 'btn btn-primary']),
+        $this->Form->button('Close', ['data-bs-dismiss' => 'modal'])
+    ]);
+  $this->end(); 
+?>
+
+<?php
+    //$this->append('css', $this->Html->css(['app/autocomplete.css']));
+    $this->append('script', $this->Html->script(['app/ac_for_bs.js']));
+    $this->append('script', $this->Html->script(['app/roles/view.js']));
+ ?>
+

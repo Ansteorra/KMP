@@ -70,8 +70,6 @@ class Application extends BaseApplication implements AuthenticationServiceProvid
         parent::bootstrap();
 
         //add plugins
-        $this->addPlugin('Authorization');
-        
         if (PHP_SAPI !== 'cli') {
             FactoryLocator::add(
                 'Table',

@@ -60,14 +60,14 @@ if (!$this->fetch('tb_flash')) {
     $this->end();
 }
 $this->end();
-
-echo $this->fetch('modals');
-
 $this->start('tb_body_end');
 ?>
             </main>
         </div>
     </div>
+<?php
+    echo $this->fetch('modals');
+?>
 </body>
 <?php
 $this->end();

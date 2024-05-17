@@ -40,6 +40,7 @@ class AppView extends View
         // Call the initializeUI method from UIViewTrait
         $this->initializeUI(['layout' => false]);
         $this->loadHelper('Authentication.Identity');
+        $this->loadHelper('Bootstrap.Modal');
         
     }
 }

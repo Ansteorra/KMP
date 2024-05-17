@@ -12,4 +12,6 @@ return [
         'onlyCli' => true,
     ],
     'BootstrapUI' => [],
+    'Bootstrap' => [],
+    'Authorization' => [],
 ];

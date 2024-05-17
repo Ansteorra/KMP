@@ -117,8 +117,8 @@ if (Configure::read('debug')) {
     echo $this->fetch('tb_flash');
     echo $this->fetch('content');
     echo $this->fetch('tb_footer');
-    echo $this->fetch('script');
     echo $this->fetch('tb_body_end');
+    echo $this->fetch('script');
     ?>
 
 </html>
