@@ -73,6 +73,18 @@ class PermissionsTable extends Table
             ->allowEmptyString('authorization_type_id');
 
         $validator
+            ->boolean('require_active_membership')
+            ->notEmptyString('require_active_membership');
+
+        $validator
+            ->boolean('require_active_background_check')
+            ->notEmptyString('require_active_background_check');
+
+        $validator
+            ->integer('require_min_age')
+            ->notEmptyString('require_min_age');
+
+        $validator
             ->boolean('system')
             ->notEmptyString('system');
 

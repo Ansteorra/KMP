@@ -6,18 +6,20 @@ namespace App\Model\Entity;
 use Cake\ORM\Entity;
 
 /**
- * ParticipantRole Entity
+ * MemberRole Entity
  *
- * @property int $participant_id
+ * @property int $id
+ * @property int $Member_id
  * @property int $role_id
  * @property \Cake\I18n\Date|null $ended_on
  * @property \Cake\I18n\Date $start_on
  * @property int $authorized_by_id
  *
- * @property \App\Model\Entity\Participant $participant
+ * @property \App\Model\Entity\Member $Member
  * @property \App\Model\Entity\Role $role
+ * @property \App\Model\Entity\Member $authorized_by
  */
-class ParticipantRole extends Entity
+class MemberRole extends Entity
 {
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().
@@ -29,10 +31,13 @@ class ParticipantRole extends Entity
      * @var array<string, bool>
      */
     protected array $_accessible = [
+        'Member_id' => true,
+        'role_id' => true,
         'ended_on' => true,
         'start_on' => true,
         'authorized_by_id' => true,
-        'participant' => true,
+        'Member' => true,
         'role' => true,
+        'authorized_by' => true,
     ];
 }

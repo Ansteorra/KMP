@@ -1,13 +1,13 @@
 <?php
 /**
  * @var \App\View\AppView $this
- * @var \App\Model\Entity\Participant $participant
+ * @var \App\Model\Entity\Member $Member
  */
-$participant = [];
+$Member = [];
 ?>
 <?php $this->extend('/layout/TwitterBootstrap/signin'); ?>
 
-<?= $this->Form->create($participant, ['class' => 'form-signin']) ?>
+<?= $this->Form->create($Member, ['class' => 'form-signin']) ?>
 <?= $this->Html->image('BootstrapUI.baked-with-cakephp.svg', ['class' => 'mb-4', 'width' => '250']) ?>
 <h1 class="h3 mb-3 font-weight-normal"><?= __('Please sign in') ?></h1>
 <?= $this->Flash->render(); ?>

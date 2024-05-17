@@ -2,7 +2,7 @@
 
 namespace App\Policy;
 
-use Entity\Participant;
+use Entity\Member;
 use Entity\Permission;
 use Entity\Role;
 

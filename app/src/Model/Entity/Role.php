@@ -13,7 +13,7 @@ use JeremyHarris\LazyLoad\ORM\LazyLoadEntityTrait;
  * @property int $id
  * @property string $name
  *
- * @property \App\Model\Entity\Participant[] $participants
+ * @property \App\Model\Entity\Member[] $Members
  * @property \App\Model\Entity\Permission[] $permissions
  */
 class Role extends Entity
@@ -30,7 +30,7 @@ class Role extends Entity
      */
     protected array $_accessible = [
         'name' => true,
-        'participants' => true,
+        'Members' => true,
         'permissions' => true,
     ];
 }

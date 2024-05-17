@@ -15,7 +15,8 @@ declare(strict_types=1);
  */
 namespace App\View;
 
-use BootstrapUI\View\UIView;
+use BootstrapUI\View\UIViewTrait;
+use Cake\View\View;
 
 
 /**
@@ -25,21 +26,19 @@ use BootstrapUI\View\UIView;
  *
  * @link https://book.cakephp.org/4/en/views.html#the-app-view
  */
-class AppView extends UIView
+class AppView extends View
 {
-   
+    use UIViewTrait;
+
     /**
      * Initialization hook method.
-     *
-     * Use this method to add common initialization code like loading helpers.
-     *
-     * e.g. `$this->loadHelper('Html');`
-     *
-     * @return void
      */
     public function initialize(): void
     {
         parent::initialize();
+
+        // Call the initializeUI method from UIViewTrait
+        $this->initializeUI(['layout' => false]);
         $this->loadHelper('Authentication.Identity');
         
     }

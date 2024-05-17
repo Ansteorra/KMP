@@ -7,13 +7,13 @@ use Cake\ORM\Entity;
  * PendingAuthorization Entity
  *
  * @property int $id
- * @property int $participant_id
- * @property int $participant_marshal_id
+ * @property int $Member_id
+ * @property int $Member_marshal_id
  * @property int $authorization_type_id
  * @property string $authorization_token
  * @property \Cake\I18n\Time $requested_on
  *
- * @property \App\Model\Entity\Participant $participant
+ * @property \App\Model\Entity\Member $Member
  * @property \App\Model\Entity\AuthorizationType $authorization_type
  */
 class PendingAuthorization extends Entity

@@ -35,6 +35,18 @@
                 <td><?= $this->Number->format($permission->id) ?></td>
             </tr>
             <tr>
+                <th scope="row"><?= __('Require Active Membership') ?></th>
+                <td><?= $permission->require_active_membership ? __('Yes') : __('No'); ?></td>
+            </tr>
+            <tr>
+                <th scope="row"><?= __('Require Active Background Check') ?></th>
+                <td><?= $permission->require_active_background_check ? __('Yes') : __('No'); ?></td>
+            </tr>
+            <tr>
+                <th scope="row"><?= __('Require Min Age') ?></th>
+                <td><?= $permission->require_min_age ? __('Yes') : __('No'); ?></td>
+            </tr>
+            <tr>
                 <th scope="row"><?= __('System') ?></th>
                 <td><?= $permission->system ? __('Yes') : __('No'); ?></td>
             </tr>

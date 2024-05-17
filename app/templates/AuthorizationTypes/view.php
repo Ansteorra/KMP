@@ -13,8 +13,8 @@
 <li><?= $this->Html->link(__('New Authorization Type'), ['action' => 'add'], ['class' => 'nav-link']) ?> </li>
 <li><?= $this->Html->link(__('List Martial Groups'), ['controller' => 'MartialGroups', 'action' => 'index'], ['class' => 'nav-link']) ?></li>
 <li><?= $this->Html->link(__('New Martial Group'), ['controller' => 'MartialGroups', 'action' => 'add'], ['class' => 'nav-link']) ?></li>
-<li><?= $this->Html->link(__('List Participant Authorization Types'), ['controller' => 'ParticipantAuthorizationTypes', 'action' => 'index'], ['class' => 'nav-link']) ?></li>
-<li><?= $this->Html->link(__('New Participant Authorization Type'), ['controller' => 'ParticipantAuthorizationTypes', 'action' => 'add'], ['class' => 'nav-link']) ?></li>
+<li><?= $this->Html->link(__('List Member Authorization Types'), ['controller' => 'MemberAuthorizationTypes', 'action' => 'index'], ['class' => 'nav-link']) ?></li>
+<li><?= $this->Html->link(__('New Member Authorization Type'), ['controller' => 'MemberAuthorizationTypes', 'action' => 'add'], ['class' => 'nav-link']) ?></li>
 <li><?= $this->Html->link(__('List Pending Authorizations'), ['controller' => 'PendingAuthorizations', 'action' => 'index'], ['class' => 'nav-link']) ?></li>
 <li><?= $this->Html->link(__('New Pending Authorization'), ['controller' => 'PendingAuthorizations', 'action' => 'add'], ['class' => 'nav-link']) ?></li>
 <li><?= $this->Html->link(__('List Permissions'), ['controller' => 'Permissions', 'action' => 'index'], ['class' => 'nav-link']) ?></li>
@@ -57,31 +57,31 @@
         </table>
     </div>
     <div class="related">
-        <h4><?= __('Related Participant Authorization Types') ?></h4>
-        <?php if (!empty($authorizationType->participant_authorization_types)): ?>
+        <h4><?= __('Related Member Authorization Types') ?></h4>
+        <?php if (!empty($authorizationType->Member_authorization_types)): ?>
         <div class="table-responsive">
             <table class="table table-striped">
                 <tr>
                     <th scope="col"><?= __('Id') ?></th>
-                    <th scope="col"><?= __('Participant Id') ?></th>
+                    <th scope="col"><?= __('Member Id') ?></th>
                     <th scope="col"><?= __('Authorization Type Id') ?></th>
                     <th scope="col"><?= __('Authorized By Id') ?></th>
                     <th scope="col"><?= __('Expires On') ?></th>
                     <th scope="col"><?= __('Start On') ?></th>
                     <th scope="col" class="actions"><?= __('Actions') ?></th>
                 </tr>
-                <?php foreach ($authorizationType->participant_authorization_types as $participantAuthorizationTypes): ?>
+                <?php foreach ($authorizationType->Member_authorization_types as $MemberAuthorizationTypes): ?>
                 <tr>
-                    <td><?= h($participantAuthorizationTypes->id) ?></td>
-                    <td><?= h($participantAuthorizationTypes->participant_id) ?></td>
-                    <td><?= h($participantAuthorizationTypes->authorization_type_id) ?></td>
-                    <td><?= h($participantAuthorizationTypes->authorized_by_id) ?></td>
-                    <td><?= h($participantAuthorizationTypes->expires_on) ?></td>
-                    <td><?= h($participantAuthorizationTypes->start_on) ?></td>
+                    <td><?= h($MemberAuthorizationTypes->id) ?></td>
+                    <td><?= h($MemberAuthorizationTypes->Member_id) ?></td>
+                    <td><?= h($MemberAuthorizationTypes->authorization_type_id) ?></td>
+                    <td><?= h($MemberAuthorizationTypes->authorized_by_id) ?></td>
+                    <td><?= h($MemberAuthorizationTypes->expires_on) ?></td>
+                    <td><?= h($MemberAuthorizationTypes->start_on) ?></td>
                     <td class="actions">
-                        <?= $this->Html->link(__('View'), ['controller' => 'ParticipantAuthorizationTypes', 'action' => 'view', $participantAuthorizationTypes->id], ['class' => 'btn btn-secondary']) ?>
-                        <?= $this->Html->link(__('Edit'), ['controller' => 'ParticipantAuthorizationTypes', 'action' => 'edit', $participantAuthorizationTypes->id], ['class' => 'btn btn-secondary']) ?>
-                        <?= $this->Form->postLink( __('Delete'), ['controller' => 'ParticipantAuthorizationTypes', 'action' => 'delete', $participantAuthorizationTypes->id], ['confirm' => __('Are you sure you want to delete # {0}?', $participantAuthorizationTypes->id), 'class' => 'btn btn-danger']) ?>
+                        <?= $this->Html->link(__('View'), ['controller' => 'MemberAuthorizationTypes', 'action' => 'view', $MemberAuthorizationTypes->id], ['class' => 'btn btn-secondary']) ?>
+                        <?= $this->Html->link(__('Edit'), ['controller' => 'MemberAuthorizationTypes', 'action' => 'edit', $MemberAuthorizationTypes->id], ['class' => 'btn btn-secondary']) ?>
+                        <?= $this->Form->postLink( __('Delete'), ['controller' => 'MemberAuthorizationTypes', 'action' => 'delete', $MemberAuthorizationTypes->id], ['confirm' => __('Are you sure you want to delete # {0}?', $MemberAuthorizationTypes->id), 'class' => 'btn btn-danger']) ?>
                     </td>
                 </tr>
                 <?php endforeach; ?>
@@ -96,8 +96,8 @@
             <table class="table table-striped">
                 <tr>
                     <th scope="col"><?= __('Id') ?></th>
-                    <th scope="col"><?= __('Participant Id') ?></th>
-                    <th scope="col"><?= __('Participant Marshal Id') ?></th>
+                    <th scope="col"><?= __('Member Id') ?></th>
+                    <th scope="col"><?= __('Member Marshal Id') ?></th>
                     <th scope="col"><?= __('Authorization Type Id') ?></th>
                     <th scope="col"><?= __('Authorization Token') ?></th>
                     <th scope="col"><?= __('Requested On') ?></th>
@@ -108,8 +108,8 @@
                 <?php foreach ($authorizationType->pending_authorizations as $pendingAuthorizations): ?>
                 <tr>
                     <td><?= h($pendingAuthorizations->id) ?></td>
-                    <td><?= h($pendingAuthorizations->participant_id) ?></td>
-                    <td><?= h($pendingAuthorizations->participant_marshal_id) ?></td>
+                    <td><?= h($pendingAuthorizations->Member_id) ?></td>
+                    <td><?= h($pendingAuthorizations->Member_marshal_id) ?></td>
                     <td><?= h($pendingAuthorizations->authorization_type_id) ?></td>
                     <td><?= h($pendingAuthorizations->authorization_token) ?></td>
                     <td><?= h($pendingAuthorizations->requested_on) ?></td>

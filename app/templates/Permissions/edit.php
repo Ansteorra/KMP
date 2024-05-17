@@ -25,9 +25,12 @@
         <?php
             echo $this->Form->control('name');
             echo $this->Form->control('authorization_type_id', ['options' => $authorizationTypes, 'empty' => true]);
+            echo $this->Form->control('require_active_membership');
+            echo $this->Form->control('require_active_background_check');
+            echo $this->Form->control('require_min_age');
             echo $this->Form->control('system');
             echo $this->Form->control('is_super_user');
-            echo $this->Form->control('roles._ids', ['options' => $roles]);
+            echo $this->Form->control('roles._ids', ['type' => 'multicheckbox', 'options' => $roles]);
                 ?>
     </fieldset>
     <?= $this->Form->button(__('Submit')) ?>

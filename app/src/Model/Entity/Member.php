@@ -25,7 +25,7 @@ use App\KMP\PermissionsLoader;
 
 
 /**
- * Participant Entity
+ * Member Entity
  *
  * @property int $id
  * @property \Cake\I18n\DateTime $last_updated
@@ -56,12 +56,12 @@ use App\KMP\PermissionsLoader;
  * @property int|null $birth_year
  * @property \Cake\I18n\DateTime|null $deleted_date
  *
- * @property \App\Model\Entity\ParticipantAuthorizationType[] $participant_authorization_types
+ * @property \App\Model\Entity\MemberAuthorizationType[] $Member_authorization_types
  * @property \App\Model\Entity\PendingAuthorization[] $pending_authorizations
  * @property \App\Model\Entity\PendingAuthorization[] $pending_authorizations_to_approve
  * @property \App\Model\Entity\Role[] $roles
  */
-class Participant extends Entity implements AuthorizationIdentity, AuthenticationIdentity
+class Member extends Entity implements AuthorizationIdentity, AuthenticationIdentity
 {
     use LazyLoadEntityTrait;
 
@@ -105,7 +105,7 @@ class Participant extends Entity implements AuthorizationIdentity, Authenticatio
         'birth_month' => true,
         'birth_year' => true,
         'deleted_date' => true,
-        'participant_authorization_types' => true,
+        'Member_authorization_types' => true,
         'pending_authorizations' => true,
         'pending_authorizations_to_approve' => true,
         'roles' => true,
@@ -165,7 +165,7 @@ class Participant extends Entity implements AuthorizationIdentity, Authenticatio
     }
 
     /**
-     * get permissions for the participant based on their roles
+     * get permissions for the Member based on their roles
      * @return Permission[]
      */
     public function getPermissions(): array {

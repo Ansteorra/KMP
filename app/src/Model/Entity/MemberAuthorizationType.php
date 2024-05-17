@@ -4,18 +4,18 @@ namespace App\Model\Entity;
 use Cake\ORM\Entity;
 
 /**
- * ParticipantAuthorizationType Entity
+ * MemberAuthorizationType Entity
  *
  * @property int $id
- * @property int $participant_id
+ * @property int $Member_id
  * @property int $authorization_type_id
  * @property string $authorized_by
  * @property \Cake\I18n\Time $expires_on
  *
- * @property \App\Model\Entity\Participant $participant
+ * @property \App\Model\Entity\Member $Member
  * @property \App\Model\Entity\AuthorizationType $authorization_type
  */
-class ParticipantAuthorizationType extends Entity
+class MemberAuthorizationType extends Entity
 {
 
     /**

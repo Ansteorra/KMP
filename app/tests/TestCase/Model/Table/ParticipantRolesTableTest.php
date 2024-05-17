@@ -3,20 +3,20 @@ declare(strict_types=1);
 
 namespace App\Test\TestCase\Model\Table;
 
-use App\Model\Table\ParticipantRolesTable;
+use App\Model\Table\MemberRolesTable;
 use Cake\TestSuite\TestCase;
 
 /**
- * App\Model\Table\ParticipantRolesTable Test Case
+ * App\Model\Table\MemberRolesTable Test Case
  */
-class ParticipantRolesTableTest extends TestCase
+class MemberRolesTableTest extends TestCase
 {
     /**
      * Test subject
      *
-     * @var \App\Model\Table\ParticipantRolesTable
+     * @var \App\Model\Table\MemberRolesTable
      */
-    protected $ParticipantRoles;
+    protected $MemberRoles;
 
     /**
      * Fixtures
@@ -24,9 +24,10 @@ class ParticipantRolesTableTest extends TestCase
      * @var list<string>
      */
     protected array $fixtures = [
-        'app.ParticipantRoles',
-        'app.Participants',
-        'app.Roles',
+        'app.MemberRoles',
+        'app.Member',
+        'app.Role',
+        'app.AuthorizedBy',
     ];
 
     /**
@@ -37,8 +38,8 @@ class ParticipantRolesTableTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $config = $this->getTableLocator()->exists('ParticipantRoles') ? [] : ['className' => ParticipantRolesTable::class];
-        $this->ParticipantRoles = $this->getTableLocator()->get('ParticipantRoles', $config);
+        $config = $this->getTableLocator()->exists('MemberRoles') ? [] : ['className' => MemberRolesTable::class];
+        $this->MemberRoles = $this->getTableLocator()->get('MemberRoles', $config);
     }
 
     /**
@@ -48,7 +49,7 @@ class ParticipantRolesTableTest extends TestCase
      */
     protected function tearDown(): void
     {
-        unset($this->ParticipantRoles);
+        unset($this->MemberRoles);
 
         parent::tearDown();
     }
@@ -57,7 +58,7 @@ class ParticipantRolesTableTest extends TestCase
      * Test validationDefault method
      *
      * @return void
-     * @uses \App\Model\Table\ParticipantRolesTable::validationDefault()
+     * @uses \App\Model\Table\MemberRolesTable::validationDefault()
      */
     public function testValidationDefault(): void
     {
@@ -68,7 +69,7 @@ class ParticipantRolesTableTest extends TestCase
      * Test buildRules method
      *
      * @return void
-     * @uses \App\Model\Table\ParticipantRolesTable::buildRules()
+     * @uses \App\Model\Table\MemberRolesTable::buildRules()
      */
     public function testBuildRules(): void
     {

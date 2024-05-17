@@ -86,7 +86,7 @@ class DevSeed extends AbstractSeed
         $this->table("branches")->insert($branches)->save();
 
         $dev_pass = md5("Password123");
-        $participants = [
+        $Members = [
             [
                 'last_updated' => '2021-11-18 20:02:26',
                 'password' => $dev_pass,
@@ -101,7 +101,7 @@ class DevSeed extends AbstractSeed
                 'phone_number' => '',
                 'email_address' => 'admin@test.com',
                 'membership_number' => '0',
-                'membership_expires_on' => NULL,
+                'membership_expires_on' => '2030-01-01',
                 'branch_name' => 'Barony',
                 'notes' => '',
                 'parent_name' => '',
@@ -173,13 +173,13 @@ class DevSeed extends AbstractSeed
             ]
         ];
 
-        $table = $this->table('participants');
-        $table->insert($participants)->save();        
-        $participant_roles = [
-            ["participant_id" => 1,"role_id" => 1, 'authorized_by_id'=>1],
-            ["participant_id" => 2,"role_id" => 3, 'authorized_by_id'=>1],
+        $table = $this->table('Members');
+        $table->insert($Members)->save();        
+        $Member_roles = [
+            ["Member_id" => 1,"role_id" => 1, 'authorized_by_id'=>1],
+            ["Member_id" => 2,"role_id" => 3, 'authorized_by_id'=>1],
         ];
-        $this->table("participant_roles")->insert($participant_roles)->save();
+        $this->table("Member_roles")->insert($Member_roles)->save();
 
     }
 }

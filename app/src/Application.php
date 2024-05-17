@@ -152,7 +152,7 @@ class Application extends BaseApplication implements AuthenticationServiceProvid
             'unauthenticatedRedirect' => Router::url([
                     'prefix' => false,
                     'plugin' => null,
-                    'controller' => 'participants',
+                    'controller' => 'Members',
                     'action' => 'login',
             ]),
             'queryParam' => 'redirect',
@@ -169,7 +169,7 @@ class Application extends BaseApplication implements AuthenticationServiceProvid
             'loginUrl' => Router::url([
                 'prefix' => false,
                 'plugin' => null,
-                'controller' => 'participants',
+                'controller' => 'Members',
                 'action' => 'login',
             ]),
         ]);
@@ -178,7 +178,7 @@ class Application extends BaseApplication implements AuthenticationServiceProvid
         $service->loadIdentifier('KMPBruteForcePassword', [
             'resolver' => [
                 'className' => 'Authentication.Orm',
-                'userModel' => 'Participants',
+                'userModel' => 'Members',
             ],
             'fields' => $fields,
             // Other config options

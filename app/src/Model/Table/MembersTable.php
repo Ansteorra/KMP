@@ -9,27 +9,27 @@ use Cake\ORM\Table;
 use Cake\Validation\Validator;
 
 /**
- * Participants Model
+ * Members Model
  *
- * @property \App\Model\Table\ParticipantAuthorizationTypesTable&\Cake\ORM\Association\HasMany $ParticipantAuthorizationTypes
+ * @property \App\Model\Table\MemberAuthorizationTypesTable&\Cake\ORM\Association\HasMany $MemberAuthorizationTypes
  * @property \App\Model\Table\PendingAuthorizationsTable&\Cake\ORM\Association\HasMany $PendingAuthorizations
  * @property \App\Model\Table\RolesTable&\Cake\ORM\Association\BelongsToMany $Roles
  *
- * @method \App\Model\Entity\Participant newEmptyEntity()
- * @method \App\Model\Entity\Participant newEntity(array $data, array $options = [])
- * @method array<\App\Model\Entity\Participant> newEntities(array $data, array $options = [])
- * @method \App\Model\Entity\Participant get(mixed $primaryKey, array|string $finder = 'all', \Psr\SimpleCache\CacheInterface|string|null $cache = null, \Closure|string|null $cacheKey = null, mixed ...$args)
- * @method \App\Model\Entity\Participant findOrCreate($search, ?callable $callback = null, array $options = [])
- * @method \App\Model\Entity\Participant patchEntity(\Cake\Datasource\EntityInterface $entity, array $data, array $options = [])
- * @method array<\App\Model\Entity\Participant> patchEntities(iterable $entities, array $data, array $options = [])
- * @method \App\Model\Entity\Participant|false save(\Cake\Datasource\EntityInterface $entity, array $options = [])
- * @method \App\Model\Entity\Participant saveOrFail(\Cake\Datasource\EntityInterface $entity, array $options = [])
- * @method iterable<\App\Model\Entity\Participant>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\Participant>|false saveMany(iterable $entities, array $options = [])
- * @method iterable<\App\Model\Entity\Participant>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\Participant> saveManyOrFail(iterable $entities, array $options = [])
- * @method iterable<\App\Model\Entity\Participant>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\Participant>|false deleteMany(iterable $entities, array $options = [])
- * @method iterable<\App\Model\Entity\Participant>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\Participant> deleteManyOrFail(iterable $entities, array $options = [])
+ * @method \App\Model\Entity\Member newEmptyEntity()
+ * @method \App\Model\Entity\Member newEntity(array $data, array $options = [])
+ * @method array<\App\Model\Entity\Member> newEntities(array $data, array $options = [])
+ * @method \App\Model\Entity\Member get(mixed $primaryKey, array|string $finder = 'all', \Psr\SimpleCache\CacheInterface|string|null $cache = null, \Closure|string|null $cacheKey = null, mixed ...$args)
+ * @method \App\Model\Entity\Member findOrCreate($search, ?callable $callback = null, array $options = [])
+ * @method \App\Model\Entity\Member patchEntity(\Cake\Datasource\EntityInterface $entity, array $data, array $options = [])
+ * @method array<\App\Model\Entity\Member> patchEntities(iterable $entities, array $data, array $options = [])
+ * @method \App\Model\Entity\Member|false save(\Cake\Datasource\EntityInterface $entity, array $options = [])
+ * @method \App\Model\Entity\Member saveOrFail(\Cake\Datasource\EntityInterface $entity, array $options = [])
+ * @method iterable<\App\Model\Entity\Member>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\Member>|false saveMany(iterable $entities, array $options = [])
+ * @method iterable<\App\Model\Entity\Member>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\Member> saveManyOrFail(iterable $entities, array $options = [])
+ * @method iterable<\App\Model\Entity\Member>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\Member>|false deleteMany(iterable $entities, array $options = [])
+ * @method iterable<\App\Model\Entity\Member>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\Member> deleteManyOrFail(iterable $entities, array $options = [])
  */
-class ParticipantsTable extends Table
+class MembersTable extends Table
 {
     /**
      * Initialize method
@@ -41,18 +41,18 @@ class ParticipantsTable extends Table
     {
         parent::initialize($config);
 
-        $this->setTable('participants');
+        $this->setTable('Members');
         $this->setDisplayField('sca_name');
         $this->setPrimaryKey('id');
 
-        $this->hasMany('ParticipantAuthorizationTypes', [
-            'foreignKey' => 'participant_id',
+        $this->hasMany('MemberAuthorizationTypes', [
+            'foreignKey' => 'Member_id',
         ]);
         $this->hasMany('PendingAuthorizations', [
-            'foreignKey' => 'participant_id',
+            'foreignKey' => 'Member_id',
         ]);
         $this->belongsToMany('Roles', [
-            'through' => 'ParticipantRoles',
+            'through' => 'MemberRoles',
         ]);
     }
 

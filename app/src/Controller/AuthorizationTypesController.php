@@ -33,7 +33,7 @@ class AuthorizationTypesController extends AppController
      */
     public function view($id = null)
     {
-        $authorizationType = $this->AuthorizationTypes->get($id, contain: ['MartialGroups', 'ParticipantAuthorizationTypes', 'PendingAuthorizations', 'Permissions']);
+        $authorizationType = $this->AuthorizationTypes->get($id, contain: ['MartialGroups', 'MemberAuthorizationTypes', 'PendingAuthorizations', 'Permissions']);
         $this->set(compact('authorizationType'));
     }
 

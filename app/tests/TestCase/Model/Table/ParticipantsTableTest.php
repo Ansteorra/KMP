@@ -3,20 +3,20 @@ declare(strict_types=1);
 
 namespace App\Test\TestCase\Model\Table;
 
-use App\Model\Table\ParticipantsTable;
+use App\Model\Table\MembersTable;
 use Cake\TestSuite\TestCase;
 
 /**
- * App\Model\Table\ParticipantsTable Test Case
+ * App\Model\Table\MembersTable Test Case
  */
-class ParticipantsTableTest extends TestCase
+class MembersTableTest extends TestCase
 {
     /**
      * Test subject
      *
-     * @var \App\Model\Table\ParticipantsTable
+     * @var \App\Model\Table\MembersTable
      */
-    protected $Participants;
+    protected $Members;
 
     /**
      * Fixtures
@@ -24,8 +24,8 @@ class ParticipantsTableTest extends TestCase
      * @var list<string>
      */
     protected array $fixtures = [
-        'app.Participants',
-        'app.ParticipantAuthorizationTypes',
+        'app.Members',
+        'app.MemberAuthorizationTypes',
         'app.PendingAuthorizations',
         'app.PendingAuthorizationsToApprove',
         'app.Roles',
@@ -39,8 +39,8 @@ class ParticipantsTableTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $config = $this->getTableLocator()->exists('Participants') ? [] : ['className' => ParticipantsTable::class];
-        $this->Participants = $this->getTableLocator()->get('Participants', $config);
+        $config = $this->getTableLocator()->exists('Members') ? [] : ['className' => MembersTable::class];
+        $this->Members = $this->getTableLocator()->get('Members', $config);
     }
 
     /**
@@ -50,7 +50,7 @@ class ParticipantsTableTest extends TestCase
      */
     protected function tearDown(): void
     {
-        unset($this->Participants);
+        unset($this->Members);
 
         parent::tearDown();
     }
@@ -59,7 +59,7 @@ class ParticipantsTableTest extends TestCase
      * Test validationDefault method
      *
      * @return void
-     * @uses \App\Model\Table\ParticipantsTable::validationDefault()
+     * @uses \App\Model\Table\MembersTable::validationDefault()
      */
     public function testValidationDefault(): void
     {
@@ -70,7 +70,7 @@ class ParticipantsTableTest extends TestCase
      * Test findAuth method
      *
      * @return void
-     * @uses \App\Model\Table\ParticipantsTable::findAuth()
+     * @uses \App\Model\Table\MembersTable::findAuth()
      */
     public function testFindAuth(): void
     {

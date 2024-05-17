@@ -17,7 +17,7 @@ use Cake\ORM\Entity;
  * @property int $num_required_authorizors
  *
  * @property \App\Model\Entity\MartialGroup $martial_group
- * @property \App\Model\Entity\ParticipantAuthorizationType[] $participant_authorization_types
+ * @property \App\Model\Entity\MemberAuthorizationType[] $Member_authorization_types
  * @property \App\Model\Entity\PendingAuthorization[] $pending_authorizations
  * @property \App\Model\Entity\Permission[] $permissions
  */
@@ -40,7 +40,7 @@ class AuthorizationType extends Entity
         'maximum_age' => true,
         'num_required_authorizors' => true,
         'martial_group' => true,
-        'participant_authorization_types' => true,
+        'Member_authorization_types' => true,
         'pending_authorizations' => true,
         'permissions' => true,
     ];

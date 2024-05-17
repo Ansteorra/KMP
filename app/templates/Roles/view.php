@@ -11,8 +11,8 @@
 <li><?= $this->Form->postLink(__('Delete Role'), ['action' => 'delete', $role->id], ['confirm' => __('Are you sure you want to delete # {0}?', $role->id), 'class' => 'nav-link']) ?></li>
 <li><?= $this->Html->link(__('List Roles'), ['action' => 'index'], ['class' => 'nav-link']) ?> </li>
 <li><?= $this->Html->link(__('New Role'), ['action' => 'add'], ['class' => 'nav-link']) ?> </li>
-<li><?= $this->Html->link(__('List Participants'), ['controller' => 'Participants', 'action' => 'index'], ['class' => 'nav-link']) ?></li>
-<li><?= $this->Html->link(__('New Participant'), ['controller' => 'Participants', 'action' => 'add'], ['class' => 'nav-link']) ?></li>
+<li><?= $this->Html->link(__('List Members'), ['controller' => 'Members', 'action' => 'index'], ['class' => 'nav-link']) ?></li>
+<li><?= $this->Html->link(__('New Member'), ['controller' => 'Members', 'action' => 'add'], ['class' => 'nav-link']) ?></li>
 <li><?= $this->Html->link(__('List Permissions'), ['controller' => 'Permissions', 'action' => 'index'], ['class' => 'nav-link']) ?></li>
 <li><?= $this->Html->link(__('New Permission'), ['controller' => 'Permissions', 'action' => 'add'], ['class' => 'nav-link']) ?></li>
 <?php $this->end(); ?>
@@ -33,75 +33,26 @@
         </table>
     </div>
     <div class="related">
-        <h4><?= __('Related Participants') ?></h4>
-        <?php if (!empty($role->participants)): ?>
+        <h4><?= __('Related Members') ?></h4>
+        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addMemberModal">Add To Group</button></h4>
+        <?php if (!empty($role->Member_roles)): ?>
         <div class="table-responsive">
             <table class="table table-striped">
                 <tr>
-                    <th scope="col"><?= __('Id') ?></th>
-                    <th scope="col"><?= __('Last Updated') ?></th>
-                    <th scope="col"><?= __('Password') ?></th>
                     <th scope="col"><?= __('Sca Name') ?></th>
-                    <th scope="col"><?= __('First Name') ?></th>
-                    <th scope="col"><?= __('Middle Name') ?></th>
-                    <th scope="col"><?= __('Last Name') ?></th>
-                    <th scope="col"><?= __('Street Address') ?></th>
-                    <th scope="col"><?= __('City') ?></th>
-                    <th scope="col"><?= __('State') ?></th>
-                    <th scope="col"><?= __('Zip') ?></th>
-                    <th scope="col"><?= __('Phone Number') ?></th>
-                    <th scope="col"><?= __('Email Address') ?></th>
-                    <th scope="col"><?= __('Membership Number') ?></th>
-                    <th scope="col"><?= __('Membership Expires On') ?></th>
-                    <th scope="col"><?= __('Branch Name') ?></th>
-                    <th scope="col"><?= __('Notes') ?></th>
-                    <th scope="col"><?= __('Parent Name') ?></th>
-                    <th scope="col"><?= __('Background Check Expires On') ?></th>
-                    <th scope="col"><?= __('Hidden') ?></th>
-                    <th scope="col"><?= __('Password Token') ?></th>
-                    <th scope="col"><?= __('Password Token Expires On') ?></th>
-                    <th scope="col"><?= __('Last Login') ?></th>
-                    <th scope="col"><?= __('Last Failed Login') ?></th>
-                    <th scope="col"><?= __('Failed Login Attempts') ?></th>
-                    <th scope="col"><?= __('Birth Month') ?></th>
-                    <th scope="col"><?= __('Birth Year') ?></th>
-                    <th scope="col"><?= __('Deleted Date') ?></th>
+                    <th scope="col"><?= __('Assignment Date') ?></th>
+                    <th scope="col"><?= __('Expire Date') ?></th>
+                    <th scope="col"><?= __('Approved By') ?></th>
                     <th scope="col" class="actions"><?= __('Actions') ?></th>
                 </tr>
-                <?php foreach ($role->participants as $participants): ?>
+                <?php foreach ($role->Member_roles as $assignee): ?>
                 <tr>
-                    <td><?= h($participants->id) ?></td>
-                    <td><?= h($participants->last_updated) ?></td>
-                    <td><?= h($participants->password) ?></td>
-                    <td><?= h($participants->sca_name) ?></td>
-                    <td><?= h($participants->first_name) ?></td>
-                    <td><?= h($participants->middle_name) ?></td>
-                    <td><?= h($participants->last_name) ?></td>
-                    <td><?= h($participants->street_address) ?></td>
-                    <td><?= h($participants->city) ?></td>
-                    <td><?= h($participants->state) ?></td>
-                    <td><?= h($participants->zip) ?></td>
-                    <td><?= h($participants->phone_number) ?></td>
-                    <td><?= h($participants->email_address) ?></td>
-                    <td><?= h($participants->membership_number) ?></td>
-                    <td><?= h($participants->membership_expires_on) ?></td>
-                    <td><?= h($participants->branch_name) ?></td>
-                    <td><?= h($participants->notes) ?></td>
-                    <td><?= h($participants->parent_name) ?></td>
-                    <td><?= h($participants->background_check_expires_on) ?></td>
-                    <td><?= h($participants->hidden) ?></td>
-                    <td><?= h($participants->password_token) ?></td>
-                    <td><?= h($participants->password_token_expires_on) ?></td>
-                    <td><?= h($participants->last_login) ?></td>
-                    <td><?= h($participants->last_failed_login) ?></td>
-                    <td><?= h($participants->failed_login_attempts) ?></td>
-                    <td><?= h($participants->birth_month) ?></td>
-                    <td><?= h($participants->birth_year) ?></td>
-                    <td><?= h($participants->deleted_date) ?></td>
+                    <td><?= h($assignee->Member->sca_name) ?>   <?= h($assignee->id) ?></td>
+                    <td><?= h($assignee->start_on) ?></td>
+                    <td><?= h($assignee->ended_on) ?></td>
+                    <td><?= h($assignee->authorized_by->sca_name) ?></td>
                     <td class="actions">
-                        <?= $this->Html->link(__('View'), ['controller' => 'Participants', 'action' => 'view', $participants->id], ['class' => 'btn btn-secondary']) ?>
-                        <?= $this->Html->link(__('Edit'), ['controller' => 'Participants', 'action' => 'edit', $participants->id], ['class' => 'btn btn-secondary']) ?>
-                        <?= $this->Form->postLink( __('Delete'), ['controller' => 'Participants', 'action' => 'delete', $participants->id], ['confirm' => __('Are you sure you want to delete # {0}?', $participants->id), 'class' => 'btn btn-danger']) ?>
+                        <?= $this->Form->postLink( __('Deactivate'), ['controller' => 'MemberRoles', 'action' => 'deactivate', $assignee->id], ['confirm' => __('Are you sure you want to deactivate for {0}?', $assignee->Member->sca_name), 'class' => 'btn btn-danger']) ?>
                     </td>
                 </tr>
                 <?php endforeach; ?>
@@ -141,3 +92,23 @@
         <?php endif; ?>
     </div>
 </div>
+
+
+<?php $this->start('modals'); ?>
+<div class="modal fade" id="addMemberModal" tabindex="-1" role="dialog" aria-labelledby="addMemberModalLabel">
+   <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" ata-bs-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title" id="addMemberModalLabel">Add Member</h4>
+      </div>
+      <div class="modal-body">     
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="requestAuthSubmit">Submit</button>
+      </div>
+    </div>
+  </div>
+</div>
+<?php $this->end(); ?>

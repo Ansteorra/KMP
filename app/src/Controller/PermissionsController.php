@@ -10,6 +10,11 @@ namespace App\Controller;
  */
 class PermissionsController extends AppController
 {
+    public function initialize(): void
+    {
+        parent::initialize();
+        $this->Authorization->authorizeModel('index','add');
+    }
     /**
      * Index method
      *
@@ -17,8 +22,10 @@ class PermissionsController extends AppController
      */
     public function index()
     {
+        $this->Authorization->authorizeAction();
         $query = $this->Permissions->find()
             ->contain(['AuthorizationTypes']);
+        $query = $this->Authorization->applyScope($query);
         $permissions = $this->paginate($query);
 
         $this->set(compact('permissions'));
@@ -34,6 +41,7 @@ class PermissionsController extends AppController
     public function view($id = null)
     {
         $permission = $this->Permissions->get($id, contain: ['AuthorizationTypes', 'Roles']);
+        $this->Authorization->authorize($permission);
         $this->set(compact('permission'));
     }
 
@@ -44,6 +52,7 @@ class PermissionsController extends AppController
      */
     public function add()
     {
+        $this->Authorization->authorizeAction();
         $permission = $this->Permissions->newEmptyEntity();
         if ($this->request->is('post')) {
             $permission = $this->Permissions->patchEntity($permission, $this->request->getData());
@@ -69,6 +78,7 @@ class PermissionsController extends AppController
     public function edit($id = null)
     {
         $permission = $this->Permissions->get($id, contain: ['Roles']);
+        $this->Authorization->authorize($permission);
         if ($this->request->is(['patch', 'post', 'put'])) {
             $permission = $this->Permissions->patchEntity($permission, $this->request->getData());
             if ($this->Permissions->save($permission)) {
@@ -94,6 +104,7 @@ class PermissionsController extends AppController
     {
         $this->request->allowMethod(['post', 'delete']);
         $permission = $this->Permissions->get($id);
+        $this->Authorization->authorize($permission);
         if ($this->Permissions->delete($permission)) {
             $this->Flash->success(__('The permission has been deleted.'));
         } else {

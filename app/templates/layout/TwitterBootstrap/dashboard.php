@@ -61,10 +61,15 @@ if (!$this->fetch('tb_flash')) {
 }
 $this->end();
 
+echo $this->fetch('modals');
+
 $this->start('tb_body_end');
-echo '</body>';
+?>
+            </main>
+        </div>
+    </div>
+</body>
+<?php
 $this->end();
 
 echo $this->fetch('content');
-
-$this->append('footer', '</main></div></div>');

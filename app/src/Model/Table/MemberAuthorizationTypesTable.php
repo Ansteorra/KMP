@@ -7,20 +7,20 @@ use Cake\ORM\Table;
 use Cake\Validation\Validator;
 
 /**
- * ParticipantAuthorizationTypes Model
+ * MemberAuthorizationTypes Model
  *
- * @property \Cake\ORM\Association\BelongsTo $Participants
+ * @property \Cake\ORM\Association\BelongsTo $Members
  * @property \Cake\ORM\Association\BelongsTo $AuthorizationTypes
  *
- * @method \App\Model\Entity\ParticipantAuthorizationType get($primaryKey, $options = [])
- * @method \App\Model\Entity\ParticipantAuthorizationType newEntity($data = null, array $options = [])
- * @method \App\Model\Entity\ParticipantAuthorizationType[] newEntities(array $data, array $options = [])
- * @method \App\Model\Entity\ParticipantAuthorizationType|bool save(\Cake\Datasource\EntityInterface $entity, $options = [])
- * @method \App\Model\Entity\ParticipantAuthorizationType patchEntity(\Cake\Datasource\EntityInterface $entity, array $data, array $options = [])
- * @method \App\Model\Entity\ParticipantAuthorizationType[] patchEntities($entities, array $data, array $options = [])
- * @method \App\Model\Entity\ParticipantAuthorizationType findOrCreate($search, callable $callback = null)
+ * @method \App\Model\Entity\MemberAuthorizationType get($primaryKey, $options = [])
+ * @method \App\Model\Entity\MemberAuthorizationType newEntity($data = null, array $options = [])
+ * @method \App\Model\Entity\MemberAuthorizationType[] newEntities(array $data, array $options = [])
+ * @method \App\Model\Entity\MemberAuthorizationType|bool save(\Cake\Datasource\EntityInterface $entity, $options = [])
+ * @method \App\Model\Entity\MemberAuthorizationType patchEntity(\Cake\Datasource\EntityInterface $entity, array $data, array $options = [])
+ * @method \App\Model\Entity\MemberAuthorizationType[] patchEntities($entities, array $data, array $options = [])
+ * @method \App\Model\Entity\MemberAuthorizationType findOrCreate($search, callable $callback = null)
  */
-class ParticipantAuthorizationTypesTable extends Table
+class MemberAuthorizationTypesTable extends Table
 {
 
     /**
@@ -33,12 +33,12 @@ class ParticipantAuthorizationTypesTable extends Table
     {
         parent::initialize($config);
 
-        $this->setTable('participant_authorization_types');
+        $this->setTable('Member_authorization_types');
         $this->setDisplayField('id');
         $this->setPrimaryKey('id');
 
-        $this->belongsTo('Participants', [
-            'foreignKey' => 'participant_id',
+        $this->belongsTo('Members', [
+            'foreignKey' => 'Member_id',
             'joinType' => 'INNER'
         ]);
         $this->belongsTo('AuthorizationTypes', [
@@ -77,7 +77,7 @@ class ParticipantAuthorizationTypesTable extends Table
      */
     public function buildRules(RulesChecker $rules): RulesChecker
     {
-        $rules->add($rules->existsIn(['participant_id'], 'Participants'));
+        $rules->add($rules->existsIn(['Member_id'], 'Members'));
         $rules->add($rules->existsIn(['authorization_type_id'], 'AuthorizationTypes'));
 
         return $rules;

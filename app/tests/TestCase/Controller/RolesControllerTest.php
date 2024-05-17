@@ -24,8 +24,8 @@ class RolesControllerTest extends TestCase
     protected array $fixtures = [
         'app.Roles',
         'app.Permissions',
-        'app.Participants',
-        'app.ParticipantsRoles',
+        'app.Members',
+        'app.MembersRoles',
     ];
 
     /**

@@ -12,7 +12,7 @@ use Authentication\PasswordHasher\PasswordHasherInterface;
 use Authentication\PasswordHasher\PasswordHasherTrait;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
-use Entity\Participant;
+use Entity\Member;
 
 use Authentication\Identifier\PasswordIdentifier;
 
@@ -33,9 +33,9 @@ class KMPBruteForcePasswordIdentifier extends PasswordIdentifier
             return null;
         }
 
-        $participantsTable = TableRegistry::getTableLocator()->get('Participants');
+        $MembersTable = TableRegistry::getTableLocator()->get('Members');
 
-        //@var Particiapnt $user
+        //@var Membe $user
         $user = $identity;
         $failedLoginAttempts = $user->failed_login_attempts;
         $maxAttempts = (int)self::MAX_ATTEMPTS;
@@ -44,7 +44,7 @@ class KMPBruteForcePasswordIdentifier extends PasswordIdentifier
 
         //check if the user has reached the maximum number of failed login attempts
         if($failedLoginAttempts >= $maxAttempts && $user->last_failed_login > $timeout){
-            $this->_addFailedLoginAttempt($user, $participantsTable);
+            $this->_addFailedLoginAttempt($user, $MembersTable);
             $this->_errors[] = "Account Locked";
             return null;
         }
@@ -53,7 +53,7 @@ class KMPBruteForcePasswordIdentifier extends PasswordIdentifier
         if (array_key_exists('password', $credentials)) {
             $password = $credentials['password'];
             if (!$this->_checkPassword($identity, $password)) {
-                $this->_addFailedLoginAttempt($user, $participantsTable);
+                $this->_addFailedLoginAttempt($user, $MembersTable);
                 return null;
             }
         }
@@ -61,32 +61,32 @@ class KMPBruteForcePasswordIdentifier extends PasswordIdentifier
         if($this->_needsPasswordRehash){
             $user->password = $credentials['password'];
         }
-        $this->_resetFailedLoginAttempts($user, $participantsTable);
+        $this->_resetFailedLoginAttempts($user, $MembersTable);
         return $identity;
         
     }
 
     protected function _findIdentity($username): ArrayAccess|array|null
     {
-        $participantsTable = TableRegistry::getTableLocator()->get('Participants');
-        $user = $participantsTable->find()
+        $MembersTable = TableRegistry::getTableLocator()->get('Members');
+        $user = $MembersTable->find()
             ->where(['email_address' => $username])
             ->first();
         return $user;
     }
 
-    protected function _resetFailedLoginAttempts($user, $participantsTable){
+    protected function _resetFailedLoginAttempts($user, $MembersTable){
         $user->failed_login_attempts = 0;
         $user->last_failed_login = null;
         $user->password_token = null;
         $user->password_token_expires_on = null;
         $user->last_login = DateTime::now();
-        $participantsTable->save($user);
+        $MembersTable->save($user);
     }
 
-    protected function _addFailedLoginAttempt($user, $participantsTable){
+    protected function _addFailedLoginAttempt($user, $MembersTable){
         $user->failed_login_attempts++;
         $user->last_failed_login = DateTime::now();
-        $participantsTable->save($user);
+        $MembersTable->save($user);
     }
 }

@@ -1,15 +1,15 @@
 <?php
 /**
  * @var \App\View\AppView $this
- * @var \App\Model\Entity\Participant[]|\Cake\Collection\CollectionInterface $participants
+ * @var \App\Model\Entity\Member[]|\Cake\Collection\CollectionInterface $Members
  */
 ?>
 <?php $this->extend('/layout/TwitterBootstrap/dashboard'); ?>
 
 <?php $this->start('tb_actions'); ?>
-<li><?= $this->Html->link(__('New Participant'), ['action' => 'add'], ['class' => 'nav-link']) ?></li>
-<li><?= $this->Html->link(__('List Participant Authorization Types'), ['controller' => 'ParticipantAuthorizationTypes', 'action' => 'index'], ['class' => 'nav-link']) ?></li>
-<li><?= $this->Html->link(__('New Participant Authorization Type'), ['controller' => 'ParticipantAuthorizationTypes', 'action' => 'add'], ['class' => 'nav-link']) ?></li>
+<li><?= $this->Html->link(__('New Member'), ['action' => 'add'], ['class' => 'nav-link']) ?></li>
+<li><?= $this->Html->link(__('List Member Authorization Types'), ['controller' => 'MemberAuthorizationTypes', 'action' => 'index'], ['class' => 'nav-link']) ?></li>
+<li><?= $this->Html->link(__('New Member Authorization Type'), ['controller' => 'MemberAuthorizationTypes', 'action' => 'add'], ['class' => 'nav-link']) ?></li>
 <li><?= $this->Html->link(__('List Pending Authorizations'), ['controller' => 'PendingAuthorizations', 'action' => 'index'], ['class' => 'nav-link']) ?></li>
 <li><?= $this->Html->link(__('New Pending Authorization'), ['controller' => 'PendingAuthorizations', 'action' => 'add'], ['class' => 'nav-link']) ?></li>
 <li><?= $this->Html->link(__('List Roles'), ['controller' => 'Roles', 'action' => 'index'], ['class' => 'nav-link']) ?></li>
@@ -50,38 +50,38 @@
     </tr>
     </thead>
     <tbody>
-        <?php foreach ($participants as $participant) : ?>
+        <?php foreach ($Members as $Member) : ?>
         <tr>
-            <td><?= $this->Number->format($participant->id) ?></td>
-            <td><?= h($participant->last_updated) ?></td>
-            <td><?= h($participant->sca_name) ?></td>
-            <td><?= h($participant->first_name) ?></td>
-            <td><?= h($participant->middle_name) ?></td>
-            <td><?= h($participant->last_name) ?></td>
-            <td><?= h($participant->street_address) ?></td>
-            <td><?= h($participant->city) ?></td>
-            <td><?= h($participant->state) ?></td>
-            <td><?= h($participant->zip) ?></td>
-            <td><?= h($participant->phone_number) ?></td>
-            <td><?= h($participant->email_address) ?></td>
-            <td><?= $participant->membership_number === null ? '' : $this->Number->format($participant->membership_number) ?></td>
-            <td><?= h($participant->membership_expires_on) ?></td>
-            <td><?= h($participant->branch_name) ?></td>
-            <td><?= h($participant->parent_name) ?></td>
-            <td><?= h($participant->background_check_expires_on) ?></td>
-            <td><?= h($participant->hidden) ?></td>
-            <td><?= h($participant->password_token) ?></td>
-            <td><?= h($participant->password_token_expires_on) ?></td>
-            <td><?= h($participant->last_login) ?></td>
-            <td><?= h($participant->last_failed_login) ?></td>
-            <td><?= $participant->failed_login_attempts === null ? '' : $this->Number->format($participant->failed_login_attempts) ?></td>
-            <td><?= $participant->birth_month === null ? '' : $this->Number->format($participant->birth_month) ?></td>
-            <td><?= $participant->birth_year === null ? '' : $this->Number->format($participant->birth_year) ?></td>
-            <td><?= h($participant->deleted_date) ?></td>
+            <td><?= $this->Number->format($Member->id) ?></td>
+            <td><?= h($Member->last_updated) ?></td>
+            <td><?= h($Member->sca_name) ?></td>
+            <td><?= h($Member->first_name) ?></td>
+            <td><?= h($Member->middle_name) ?></td>
+            <td><?= h($Member->last_name) ?></td>
+            <td><?= h($Member->street_address) ?></td>
+            <td><?= h($Member->city) ?></td>
+            <td><?= h($Member->state) ?></td>
+            <td><?= h($Member->zip) ?></td>
+            <td><?= h($Member->phone_number) ?></td>
+            <td><?= h($Member->email_address) ?></td>
+            <td><?= $Member->membership_number === null ? '' : $this->Number->format($Member->membership_number) ?></td>
+            <td><?= h($Member->membership_expires_on) ?></td>
+            <td><?= h($Member->branch_name) ?></td>
+            <td><?= h($Member->parent_name) ?></td>
+            <td><?= h($Member->background_check_expires_on) ?></td>
+            <td><?= h($Member->hidden) ?></td>
+            <td><?= h($Member->password_token) ?></td>
+            <td><?= h($Member->password_token_expires_on) ?></td>
+            <td><?= h($Member->last_login) ?></td>
+            <td><?= h($Member->last_failed_login) ?></td>
+            <td><?= $Member->failed_login_attempts === null ? '' : $this->Number->format($Member->failed_login_attempts) ?></td>
+            <td><?= $Member->birth_month === null ? '' : $this->Number->format($Member->birth_month) ?></td>
+            <td><?= $Member->birth_year === null ? '' : $this->Number->format($Member->birth_year) ?></td>
+            <td><?= h($Member->deleted_date) ?></td>
             <td class="actions">
-                <?= $this->Html->link(__('View'), ['action' => 'view', $participant->id], ['title' => __('View'), 'class' => 'btn btn-secondary']) ?>
-                <?= $this->Html->link(__('Edit'), ['action' => 'edit', $participant->id], ['title' => __('Edit'), 'class' => 'btn btn-secondary']) ?>
-                <?= $this->Form->postLink(__('Delete'), ['action' => 'delete', $participant->id], ['confirm' => __('Are you sure you want to delete # {0}?', $participant->id), 'title' => __('Delete'), 'class' => 'btn btn-danger']) ?>
+                <?= $this->Html->link(__('View'), ['action' => 'view', $Member->id], ['title' => __('View'), 'class' => 'btn btn-secondary']) ?>
+                <?= $this->Html->link(__('Edit'), ['action' => 'edit', $Member->id], ['title' => __('Edit'), 'class' => 'btn btn-secondary']) ?>
+                <?= $this->Form->postLink(__('Delete'), ['action' => 'delete', $Member->id], ['confirm' => __('Are you sure you want to delete # {0}?', $Member->id), 'title' => __('Delete'), 'class' => 'btn btn-danger']) ?>
             </td>
         </tr>
         <?php endforeach; ?>

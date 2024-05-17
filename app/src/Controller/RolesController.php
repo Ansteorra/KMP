@@ -41,7 +41,7 @@ class RolesController extends AppController
      */
     public function view($id = null)
     {
-        $role = $this->Roles->get($id,contain: ['Participants','Permissions']);
+        $role = $this->Roles->get($id,contain: ['MemberRoles.Member','MemberRoles.Authorized_By','Permissions']);
         $this->Authorization->authorize($role, "view");
         $this->set(compact('role'));
     }
@@ -54,6 +54,7 @@ class RolesController extends AppController
     public function add()
     {
         $role = $this->Roles->newEmptyEntity();
+        $this->Authorization->authorizeAction();
         if ($this->request->is('post')) {
             $role = $this->Roles->patchEntity($role, $this->request->getData());
             if ($this->Roles->save($role)) {
@@ -63,8 +64,8 @@ class RolesController extends AppController
             }
             $this->Flash->error(__('The role could not be saved. Please, try again.'));
         }
-        $participants = $this->Roles->Participants->find('list', limit: 200)->all();
-        $this->set(compact('role', 'participants'));
+        $permissions = $this->Roles->Permissions->find('list')->all();
+        $this->set(compact('role', 'permissions'));
     }
 
     /**
@@ -76,7 +77,8 @@ class RolesController extends AppController
      */
     public function edit($id = null)
     {
-        $role = $this->Roles->get($id, contain: ['Participants']);
+        $role = $this->Roles->get($id,contain: ['MemberRoles.Member','MemberRoles.Authorized_By','Permissions']);
+        $this->Authorization->authorize($role);
         if ($this->request->is(['patch', 'post', 'put'])) {
             $role = $this->Roles->patchEntity($role, $this->request->getData());
             if ($this->Roles->save($role)) {
@@ -86,8 +88,8 @@ class RolesController extends AppController
             }
             $this->Flash->error(__('The role could not be saved. Please, try again.'));
         }
-        $participants = $this->Roles->Participants->find('list', limit: 200)->all();
-        $this->set(compact('role', 'participants'));
+        $permissions = $this->Roles->Permissions->find('list')->all();
+        $this->set(compact('role', 'permissions'));
     }
 
     /**
@@ -101,6 +103,7 @@ class RolesController extends AppController
     {
         $this->request->allowMethod(['post', 'delete']);
         $role = $this->Roles->get($id);
+        $this->Authorization->authorize($role);
         if ($this->Roles->delete($role)) {
             $this->Flash->success(__('The role has been deleted.'));
         } else {

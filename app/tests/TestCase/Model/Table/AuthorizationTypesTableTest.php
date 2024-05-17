@@ -26,7 +26,7 @@ class AuthorizationTypesTableTest extends TestCase
     protected array $fixtures = [
         'app.AuthorizationTypes',
         'app.MartialGroups',
-        'app.ParticipantAuthorizationTypes',
+        'app.MemberAuthorizationTypes',
         'app.PendingAuthorizations',
         'app.Permissions',
     ];

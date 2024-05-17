@@ -11,7 +11,7 @@ use Cake\Validation\Validator;
 /**
  * Roles Model
  *
- * @property \App\Model\Table\ParticipantsTable&\Cake\ORM\Association\BelongsToMany $Participants
+ * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsToMany $Members
  * @property \App\Model\Table\PermissionsTable&\Cake\ORM\Association\BelongsToMany $Permissions
  *
  * @method \App\Model\Entity\Role newEmptyEntity()
@@ -44,9 +44,16 @@ class RolesTable extends Table
         $this->setDisplayField('name');
         $this->setPrimaryKey('id');
 
-        $this->belongsToMany('Participants', [
-            'through' => 'ParticipantRoles',
+        $this->belongsToMany('Members', [
+            'through' => 'MemberRoles',
         ]);
+
+        $this->hasMany('MemberRoles', [
+            'foreignKey' => 'role_id',
+            'bindingKey' => 'id',
+            'joinType' => 'INNER',
+        ]);
+
         $this->belongsToMany('Permissions', [
             'foreignKey' => 'role_id',
             'targetForeignKey' => 'permission_id',

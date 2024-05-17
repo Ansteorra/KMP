@@ -21,6 +21,9 @@
         <th scope="col"><?= $this->Paginator->sort('id') ?></th>
         <th scope="col"><?= $this->Paginator->sort('name') ?></th>
         <th scope="col"><?= $this->Paginator->sort('authorization_type_id') ?></th>
+        <th scope="col"><?= $this->Paginator->sort('require_active_membership') ?></th>
+        <th scope="col"><?= $this->Paginator->sort('require_active_background_check') ?></th>
+        <th scope="col"><?= $this->Paginator->sort('require_min_age') ?></th>
         <th scope="col"><?= $this->Paginator->sort('system') ?></th>
         <th scope="col"><?= $this->Paginator->sort('is_super_user') ?></th>
         <th scope="col" class="actions"><?= __('Actions') ?></th>
@@ -32,6 +35,9 @@
             <td><?= $this->Number->format($permission->id) ?></td>
             <td><?= h($permission->name) ?></td>
             <td><?= $permission->hasValue('authorization_type') ? $this->Html->link($permission->authorization_type->name, ['controller' => 'AuthorizationTypes', 'action' => 'view', $permission->authorization_type->id]) : '' ?></td>
+            <td><?= h($permission->require_active_membership) ?></td>
+            <td><?= h($permission->require_active_background_check) ?></td>
+            <td><?= h($permission->require_min_age) ?></td>
             <td><?= h($permission->system) ?></td>
             <td><?= h($permission->is_super_user) ?></td>
             <td class="actions">

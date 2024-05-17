@@ -9,8 +9,8 @@ use Cake\Validation\Validator;
 /**
  * PendingAuthorizations Model
  *
- * @property \Cake\ORM\Association\BelongsTo $Participants
- * @property \Cake\ORM\Association\BelongsTo $Participants
+ * @property \Cake\ORM\Association\BelongsTo $Members
+ * @property \Cake\ORM\Association\BelongsTo $Members
  * @property \Cake\ORM\Association\BelongsTo $AuthorizationTypes
  *
  * @method \App\Model\Entity\PendingAuthorization get($primaryKey, $options = [])
@@ -38,13 +38,13 @@ class PendingAuthorizationsTable extends Table
         $this->setDisplayField('id');
         $this->setPrimaryKey('id');
 
-        $this->belongsTo('Participants', [
-            'foreignKey' => 'participant_id',
+        $this->belongsTo('Members', [
+            'foreignKey' => 'Member_id',
             'joinType' => 'INNER'
         ]);
-        $this->belongsTo('ParticipantMarshals', [
-            'className'=>'Participants',
-            'foreignKey' => 'participant_marshal_id',
+        $this->belongsTo('MemberMarshals', [
+            'className'=>'Members',
+            'foreignKey' => 'Member_marshal_id',
             'joinType' => 'INNER'
         ]);
         $this->belongsTo('AuthorizationTypes', [
@@ -83,8 +83,8 @@ class PendingAuthorizationsTable extends Table
      */
     public function buildRules(RulesChecker $rules): RulesChecker
     {
-        $rules->add($rules->existsIn(['participant_id'], 'Participants'));
-        $rules->add($rules->existsIn(['participant_marshal_id'], 'Participants'));
+        $rules->add($rules->existsIn(['Member_id'], 'Members'));
+        $rules->add($rules->existsIn(['Member_marshal_id'], 'Members'));
         $rules->add($rules->existsIn(['authorization_type_id'], 'AuthorizationTypes'));
 
         return $rules;

@@ -12,7 +12,7 @@ use Cake\Validation\Validator;
  * AuthorizationTypes Model
  *
  * @property \App\Model\Table\MartialGroupsTable&\Cake\ORM\Association\BelongsTo $MartialGroups
- * @property \App\Model\Table\ParticipantAuthorizationTypesTable&\Cake\ORM\Association\HasMany $ParticipantAuthorizationTypes
+ * @property \App\Model\Table\MemberAuthorizationTypesTable&\Cake\ORM\Association\HasMany $MemberAuthorizationTypes
  * @property \App\Model\Table\PendingAuthorizationsTable&\Cake\ORM\Association\HasMany $PendingAuthorizations
  * @property \App\Model\Table\PermissionsTable&\Cake\ORM\Association\HasMany $Permissions
  *
@@ -50,7 +50,7 @@ class AuthorizationTypesTable extends Table
             'foreignKey' => 'martial_groups_id',
             'joinType' => 'INNER',
         ]);
-        $this->hasMany('ParticipantAuthorizationTypes', [
+        $this->hasMany('MemberAuthorizationTypes', [
             'foreignKey' => 'authorization_type_id',
         ]);
         $this->hasMany('PendingAuthorizations', [

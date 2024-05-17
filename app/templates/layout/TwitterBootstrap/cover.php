@@ -4,6 +4,7 @@
  */
 use Cake\Core\Configure;
 
+
 $this->start('html');
 printf('<html lang="%s" class="h-100">', Configure::read('App.language'));
 $this->end();

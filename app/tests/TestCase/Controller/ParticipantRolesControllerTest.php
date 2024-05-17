@@ -3,16 +3,16 @@ declare(strict_types=1);
 
 namespace App\Test\TestCase\Controller;
 
-use App\Controller\MembersController;
+use App\Controller\MemberRolesController;
 use Cake\TestSuite\IntegrationTestTrait;
 use Cake\TestSuite\TestCase;
 
 /**
- * App\Controller\MembersController Test Case
+ * App\Controller\MemberRolesController Test Case
  *
- * @uses \App\Controller\MembersController
+ * @uses \App\Controller\MemberRolesController
  */
-class MembersControllerTest extends TestCase
+class MemberRolesControllerTest extends TestCase
 {
     use IntegrationTestTrait;
 
@@ -22,19 +22,17 @@ class MembersControllerTest extends TestCase
      * @var list<string>
      */
     protected array $fixtures = [
-        'app.Members',
-        'app.MemberAuthorizationTypes',
-        'app.PendingAuthorizations',
-        'app.PendingAuthorizationsToApprove',
-        'app.Roles',
-        'app.MembersRoles',
+        'app.MemberRoles',
+        'app.Member',
+        'app.Role',
+        'app.AuthorizedBy',
     ];
 
     /**
      * Test index method
      *
      * @return void
-     * @uses \App\Controller\MembersController::index()
+     * @uses \App\Controller\MemberRolesController::index()
      */
     public function testIndex(): void
     {
@@ -45,7 +43,7 @@ class MembersControllerTest extends TestCase
      * Test view method
      *
      * @return void
-     * @uses \App\Controller\MembersController::view()
+     * @uses \App\Controller\MemberRolesController::view()
      */
     public function testView(): void
     {
@@ -56,7 +54,7 @@ class MembersControllerTest extends TestCase
      * Test add method
      *
      * @return void
-     * @uses \App\Controller\MembersController::add()
+     * @uses \App\Controller\MemberRolesController::add()
      */
     public function testAdd(): void
     {
@@ -67,7 +65,7 @@ class MembersControllerTest extends TestCase
      * Test edit method
      *
      * @return void
-     * @uses \App\Controller\MembersController::edit()
+     * @uses \App\Controller\MemberRolesController::edit()
      */
     public function testEdit(): void
     {
@@ -78,7 +76,7 @@ class MembersControllerTest extends TestCase
      * Test delete method
      *
      * @return void
-     * @uses \App\Controller\MembersController::delete()
+     * @uses \App\Controller\MemberRolesController::delete()
      */
     public function testDelete(): void
     {
