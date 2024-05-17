@@ -1,8 +1,7 @@
 # See here for image contents: https://github.com/microsoft/vscode-dev-containers/tree/v0.191.1/containers/debian/.devcontainer/base.Dockerfile
 
 # [Choice] Debian version: bullseye, buster, stretch
-ARG VARIANT="bookworm"
-FROM mcr.microsoft.com/devcontainers/base:${VARIANT}
+FROM mcr.microsoft.com/devcontainers/base:bookworm
 
 RUN sudo apt -y install lsb-release apt-transport-https ca-certificates \
     && sudo wget -O /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg \
