@@ -5,17 +5,6 @@
  */
 ?>
 <?php $this->extend('/layout/TwitterBootstrap/dashboard'); ?>
-
-<?php $this->start('tb_actions'); ?>
-<li><?= $this->Html->link(__('New Role'), ['action' => 'add'], ['class' => 'nav-link']) ?></li>
-<li><?= $this->Html->link(__('List Members'), ['controller' => 'Members', 'action' => 'index'], ['class' => 'nav-link']) ?></li>
-<li><?= $this->Html->link(__('New Member'), ['controller' => 'Members', 'action' => 'add'], ['class' => 'nav-link']) ?></li>
-<li><?= $this->Html->link(__('List Permissions'), ['controller' => 'Permissions', 'action' => 'index'], ['class' => 'nav-link']) ?></li>
-<li><?= $this->Html->link(__('New Permission'), ['controller' => 'Permissions', 'action' => 'add'], ['class' => 'nav-link']) ?></li>
-<?php $this->end(); ?>
-<?php $this->assign('tb_sidebar', '<ul class="nav flex-column">' . $this->fetch('tb_actions') . '</ul>'); ?>
-
-
 <table class="table table-striped">
     <thead>
     <tr>

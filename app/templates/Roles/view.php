@@ -4,86 +4,126 @@
  * @var \App\Model\Entity\Role $role
  */
 ?>
-<?php $this->extend('/layout/TwitterBootstrap/dashboard'); ?>
+<?php 
+use Cake\I18n\DateTime;
+use Cake\Log\Log;
 
-<?php $this->start('tb_actions'); ?>
-<li><?= $this->Html->link(__('Edit Role'), ['action' => 'edit', $role->id], ['class' => 'nav-link']) ?></li>
-<li><?= $this->Form->postLink(__('Delete Role'), ['action' => 'delete', $role->id], ['confirm' => __('Are you sure you want to delete # {0}?', $role->id), 'class' => 'nav-link']) ?></li>
-<li><?= $this->Html->link(__('List Roles'), ['action' => 'index'], ['class' => 'nav-link']) ?> </li>
-<li><?= $this->Html->link(__('New Role'), ['action' => 'add'], ['class' => 'nav-link']) ?> </li>
-<li><?= $this->Html->link(__('List Members'), ['controller' => 'Members', 'action' => 'index'], ['class' => 'nav-link']) ?></li>
-<li><?= $this->Html->link(__('New Member'), ['controller' => 'Members', 'action' => 'add'], ['class' => 'nav-link']) ?></li>
-<li><?= $this->Html->link(__('List Permissions'), ['controller' => 'Permissions', 'action' => 'index'], ['class' => 'nav-link']) ?></li>
-<li><?= $this->Html->link(__('New Permission'), ['controller' => 'Permissions', 'action' => 'add'], ['class' => 'nav-link']) ?></li>
-<?php $this->end(); ?>
-<?php $this->assign('tb_sidebar', '<ul class="nav flex-column">' . $this->fetch('tb_actions') . '</ul>'); ?>
+$this->extend('/layout/TwitterBootstrap/dashboard'); 
+ $active = [];
+ $inactive = [];
+ foreach ($role->member_roles as $assignee) {
+     if ($assignee->ended_on === null || $assignee->ended_on > DateTime::now()) {
+         $active[] = $assignee;
+     } else {
+         $inactive[] = $assignee;
+     }
+ }
+
+?>
 
 <div class="roles view large-9 medium-8 columns content">
-    <h3><?= h($role->name) ?></h3>
+    <h3><?= h($role->name) ?> : <?= $this->Html->link(__('Edit'), ['action' => 'edit', $role->id], ['class' => 'btn btn-primary btn-sm']) ?></h3>
     <div class="table-responsive">
         <table class="table table-striped">
             <tr>
                 <th scope="row"><?= __('Name') ?></th>
                 <td><?= h($role->name) ?></td>
             </tr>
-            <tr>
-                <th scope="row"><?= __('Id') ?></th>
-                <td><?= $this->Number->format($role->id) ?></td>
-            </tr>
         </table>
     </div>
     <div class="related">
-        <h4><?= __('Related Members') ?></h4>
-        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addMemberModal">Add To Group</button></h4>
+        <h4><?= __('Related Members') ?> : <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addMemberModal">Add Member</button></h4>
         <?php if (!empty($role->member_roles)): ?>
-        <div class="table-responsive">
-            <table class="table table-striped">
-                <tr>
-                    <th scope="col"><?= __('Sca Name') ?></th>
-                    <th scope="col"><?= __('Assignment Date') ?></th>
-                    <th scope="col"><?= __('Expire Date') ?></th>
-                    <th scope="col"><?= __('Approved By') ?></th>
-                    <th scope="col" class="actions"><?= __('Actions') ?></th>
-                </tr>
-                <?php foreach ($role->member_roles as $assignee): ?>
-                <tr>
-                    <td><?= h($assignee->member->sca_name) ?>   <?= h($assignee->id) ?></td>
-                    <td><?= h($assignee->start_on) ?></td>
-                    <td><?= h($assignee->ended_on) ?></td>
-                    <td><?= h($assignee->authorized_by->sca_name) ?></td>
-                    <td class="actions">
-                        <?= $this->Form->postLink( __('Deactivate'), ['controller' => 'MemberRoles', 'action' => 'deactivate', $assignee->id], ['confirm' => __('Are you sure you want to deactivate for {0}?', $assignee->member->sca_name), 'class' => 'btn btn-danger']) ?>
-                    </td>
-                </tr>
-                <?php endforeach; ?>
-            </table>
-        </div>
+            <nav>
+                <div class="nav nav-tabs" id="nav-tab" role="tablist">
+                    <button class="nav-link active" id="nav-active-members-tab" data-bs-toggle="tab" data-bs-target="#nav-active-members" type="button" role="tab" aria-controls="nav-active-members" aria-selected="true">Active</button>
+                    <button class="nav-link" id="nav-deactivated-members-tab" data-bs-toggle="tab" data-bs-target="#nav-deactivated-members" type="button" role="tab" aria-controls="nav-pdeactivated-members" aria-selected="false">Deactivated</button>
+                </div>
+            </nav>
+            <div class="tab-content" id="nav-tabContent">
+                <div class="tab-pane fade show active" id="nav-active-members" role="tabpanel" aria-labelledby="nav-active-members-tab" tabindex="0">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <tr>
+                                <th scope="col"><?= __('Sca Name') ?></th>
+                                <th scope="col"><?= __('Assignment Date') ?></th>
+                                <th scope="col"><?= __('Expire Date') ?></th>
+                                <th scope="col"><?= __('Approved By') ?></th>
+                                <th scope="col" class="actions"><?= __('Actions') ?></th>
+                            </tr>
+                            <?php 
+                                foreach ($active as $assignee): ?>
+                                <tr>
+                                    <td><?= h($assignee->member->sca_name) ?></td>
+                                    <td><?= h($assignee->start_on) ?></td>
+                                    <td><?= h($assignee->ended_on) ?></td>
+                                    <td><?= h($assignee->authorized_by->sca_name) ?></td>
+                                    <td class="actions">
+                                        <?= $this->Form->postLink( __('Deactivate'), ['controller' => 'MemberRoles', 'action' => 'deactivate', $assignee->id], ['confirm' => __('Are you sure you want to deactivate for {0}?', $assignee->member->sca_name), 'class' => 'btn btn-danger']) ?>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </table>
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="nav-deactivated-members" role="tabpanel" aria-labelledby="nav-deactivated-members-tab" tabindex="0">
+                    <div class="table-responsive">
+                            <table class="table table-striped">
+                                <tr>
+                                    <th scope="col"><?= __('Sca Name') ?></th>
+                                    <th scope="col"><?= __('Assignment Date') ?></th>
+                                    <th scope="col"><?= __('Expire Date') ?></th>
+                                    <th scope="col"><?= __('Approved By') ?></th>
+                                </tr>
+                                <?php 
+                                    foreach ($inactive as $assignee): ?>
+                                    <tr>
+                                        <td><?= h($assignee->member->sca_name) ?></td>
+                                        <td><?= h($assignee->start_on) ?></td>
+                                        <td><?= h($assignee->ended_on) ?></td>
+                                        <td><?= h($assignee->authorized_by->sca_name) ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
         <?php endif; ?>
     </div>
     <div class="related">
-        <h4><?= __('Related Permissions') ?></h4>
+        <h4><?= __('Related Permissions') ?> : <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addPermissionModal">Add Permission</button></h4></h4>
         <?php if (!empty($role->permissions)): ?>
         <div class="table-responsive">
             <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th scope="col" colspan='2'></th>
+                        <th scope="col" colspan='3' class="text-center table-active">Requirements</th>
+                        <th scope="col" colspan='2'></th>
+                    </tr>
+                    <tr>
+                        <th scope="col"><?= __('Name') ?></th>
+                        <th scope="col"><?= __('Authorization Type') ?></th>
+                        <th scope="col" class="text-center"><?= __('Membership') ?></th>
+                        <th scope="col" class="text-center"><?= __('Background Check') ?></th>
+                        <th scope="col" class="text-center"><?= __('Minimum Age') ?></th>
+                        <th scope="col" class="text-center"><?= __('Super User') ?></th>
+                        <th scope="col" class="text-center"><?= __('System') ?></th>
+                        <th scope="col" class="actions"><?= __('Actions') ?></th>
+                    </tr>
+                </thead>
+                <?php foreach ($role->permissions as $permission): ?>
                 <tr>
-                    <th scope="col"><?= __('Id') ?></th>
-                    <th scope="col"><?= __('Name') ?></th>
-                    <th scope="col"><?= __('Authorization Type Id') ?></th>
-                    <th scope="col"><?= __('System') ?></th>
-                    <th scope="col"><?= __('Is Super User') ?></th>
-                    <th scope="col" class="actions"><?= __('Actions') ?></th>
-                </tr>
-                <?php foreach ($role->permissions as $permissions): ?>
-                <tr>
-                    <td><?= h($permissions->id) ?></td>
-                    <td><?= h($permissions->name) ?></td>
-                    <td><?= h($permissions->authorization_type_id) ?></td>
-                    <td><?= h($permissions->system) ?></td>
-                    <td><?= h($permissions->is_super_user) ?></td>
+                    <td><?= h($permission->name) ?></td>
+                    <td><?= h((($permission->authorization_type === null) ? '' : $permission->authorization_type->name)) ?></td>
+                    <td class="text-center"><?= ((($permission->require_active_membership)?$this->Html->icon('check-circle-fill'):$this->Html->icon('x-circle'))) ?></td>
+                    <td class="text-center"><?= ((($permission->require_active_background_check)?$this->Html->icon('check-circle-fill'):$this->Html->icon('x-circle'))) ?></td>
+                    <td class="text-center"><?= h($permission->require_min_age) ?></td>
+                    <td class="text-center"><?= ((($permission->system)?$this->Html->icon('check-circle-fill'):$this->Html->icon('x-circle'))) ?></td>
+                    <td class="text-center"><?= ((($permission->is_super_user)?$this->Html->icon('check-circle-fill'):$this->Html->icon('x-circle'))) ?></td>
                     <td class="actions">
-                        <?= $this->Html->link(__('View'), ['controller' => 'Permissions', 'action' => 'view', $permissions->id], ['class' => 'btn btn-secondary']) ?>
-                        <?= $this->Html->link(__('Edit'), ['controller' => 'Permissions', 'action' => 'edit', $permissions->id], ['class' => 'btn btn-secondary']) ?>
-                        <?= $this->Form->postLink( __('Delete'), ['controller' => 'Permissions', 'action' => 'delete', $permissions->id], ['confirm' => __('Are you sure you want to delete # {0}?', $permissions->id), 'class' => 'btn btn-danger']) ?>
+                        <?= $this->Form->postLink( __('Remove'), ['controller' => 'Roles', 'action' => 'deletePermission'], ['confirm' => __('Are you sure you want to remove for {0}?', $permission->name), 'class' => 'btn btn-danger','data' =>['permission_id' => $permission->id, 'role_id'=>$role->id]]) ?>
                     </td>
                 </tr>
                 <?php endforeach; ?>
@@ -100,7 +140,7 @@
 ?>
     <fieldset>
         <?php
-         echo $this->Form->create(null, ['id' => 'add_member__form', 'url' => ['controller' => 'MemberRoles', 'action' => 'quickAdd']]);
+         echo $this->Form->create(null, ['id' => 'add_member__form', 'url' => ['controller' => 'MemberRoles', 'action' => 'add']]);
             echo $this->Form->control('sca_name', ['type' => 'text', 'label' => 'SCA Name', 'id'=> 'add_member__sca_name']);
             echo $this->Form->control('role_id', ['type' => 'hidden', 'value' => $role->id, 'id' => 'add_member__role_id']);
             echo $this->Form->control('member_id', ['type' => 'hidden', 'id' => 'add_member__member_id']);
@@ -110,6 +150,24 @@
 <?php
     echo $this->Modal->end([
         $this->Form->button('Submit',['class' => 'btn btn-primary', 'id' => 'add_member__submit', 'disabled' => 'disabled']),
+        $this->Form->button('Close', ['data-bs-dismiss' => 'modal'])
+    ]);
+?>
+
+<?php 
+    echo $this->Modal->create("Add Permission to Role", ['id' => 'addPermissionModal', 'close' => true]) ;
+?>
+    <fieldset>
+        <?php
+         echo $this->Form->create(null, ['id' => 'add_permission__form', 'url' => ['controller' => 'Roles', 'action' => 'addPermission']]);
+            echo $this->Form->control('permission_id', ['options' => $permissions, 'empty' => true, 'id' => 'add_permission__permission_id']);
+            echo $this->Form->control('role_id', ['type' => 'hidden', 'value' => $role->id, 'id' => 'add_member__role_id']);
+         echo $this->Form->end()
+                ?>
+    </fieldset>
+<?php
+    echo $this->Modal->end([
+        $this->Form->button('Submit',['class' => 'btn btn-primary', 'id' => 'add_permission__submit', 'disabled' => 'disabled']),
         $this->Form->button('Close', ['data-bs-dismiss' => 'modal'])
     ]);
   $this->end(); 

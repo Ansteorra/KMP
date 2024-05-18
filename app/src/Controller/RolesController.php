@@ -14,7 +14,7 @@ class RolesController extends AppController
     public function initialize(): void
     {
         parent::initialize();
-        $this->Authorization->authorizeModel('index','add','searchMembers');
+        $this->Authorization->authorizeModel('index','add','searchMembers','addPermission');
     }
     /**
      * Index method
@@ -41,9 +41,18 @@ class RolesController extends AppController
      */
     public function view($id = null)
     {
-        $role = $this->Roles->get($id,contain: ['MemberRoles.Member','MemberRoles.Authorized_By','Permissions']);
+        Log::write("debug", 'user id '. $this->Authentication->getIdentity()->get('id'));
+        $role = $this->Roles->get($id,contain: ['MemberRoles.Member','MemberRoles.Authorized_By','Permissions.AuthorizationTypes','Permissions']);
         $this->Authorization->authorize($role, "view");
-        $this->set(compact('role'));
+        //get all the permissions not already assigned to the role
+        $currentPermissionIds = [];
+        foreach($role->permissions as $permission){
+            $currentPermissionIds[] = $permission->id;
+        }   
+        $permissions = $this->Roles->Permissions->find('list')
+            ->where(['NOT' => ['id IN' => $currentPermissionIds]])
+            ->all();
+        $this->set(compact('role','permissions'));
     }
 
     /**
@@ -92,6 +101,55 @@ class RolesController extends AppController
         $this->set(compact('role', 'permissions'));
     }
 
+    public function addPermission()
+    {
+        $this->request->allowMethod(['patch', 'post', 'put']);
+        $role_id = $this->request->getData('role_id');
+        $permission_id = $this->request->getData('permission_id');
+        $role = $this->Roles->get($role_id,contain: ['Permissions']);
+        Log::write("debug", $role);
+        $this->Authorization->authorize($role);
+        $permission = $this->Roles->Permissions->get($permission_id);
+        for($i = 0; $i < count($role->permissions); $i++){
+            if($role->permissions[$i]->id == $permission_id){
+                $this->Flash->error(__('The permission is already assigned to the role.'));
+                return $this->redirect($this->referer());
+            }
+        }
+        //add the permission to the role
+        $role->permissions[] = $permission;
+        $role->setDirty('permissions', true);
+        if ($this->Roles->save($role)) {
+            $this->Flash->success(__('The permission has been added to the role.'));
+        } else {
+            $this->Flash->error(__('The permission could not be added to the role. Please, try again.'));
+        }
+        return $this->redirect($this->referer());
+    }
+
+    public function deletePermission(){
+        $this->request->allowMethod(['post']);
+        $role_id = $this->request->getData('role_id');
+        $permission_id = $this->request->getData('permission_id');
+        $role = $this->Roles->get($role_id,contain: ['Permissions']);
+        $this->Authorization->authorize($role);
+        $permission = $this->Roles->Permissions->get($permission_id);
+        for($i = 0; $i < count($role->permissions); $i++){
+            if($role->permissions[$i]->id == $permission_id){
+                unset($role->permissions[$i]);
+                $role->setDirty('permissions', true);
+                if ($this->Roles->save($role)) {
+                    $this->Flash->success(__('The permission has been removed from the role.'));
+                } else {
+                    $this->Flash->error(__('The permission could not be removed from the role. Please, try again.'));
+                }
+                return $this->redirect($this->referer());
+            }
+        }
+        $this->Flash->error(__('The permission is not assigned to the role.'));
+        return $this->redirect($this->referer());
+    }
+
     /**
      * Delete method
      *
@@ -125,9 +183,6 @@ class RolesController extends AppController
         $q = $this->request->getQuery('q');
         $this->Authorization->authorizeAction();
         $this->request->allowMethod(['get']);
-        //if (!$this->request->is('ajax')) {
-        //    throw new MethodNotAllowedException();
-        //}
         $this->viewBuilder()->setClassName('Ajax');
         $query = $this->Roles->Members->find('all')
             ->where(['sca_name LIKE' => "%$q%"])

@@ -1,7 +1,8 @@
 class rolesView {
     constructor() {
         this.ac = null;
-    }
+
+    };
     //onInput for Autocomplete
     onInputHandler(){
         $('#add_member__member_id').val(0).trigger('change');
@@ -41,6 +42,24 @@ class rolesView {
             }else{
                 //disable button
                 $('#add_member__submit').prop('disabled', true);
+            }
+        });
+        $('#add_member__submit').click(function(){
+            if($('#add_member__member_id').val() > 0){
+                $('#add_member__form').submit();
+            }
+        });
+        $("#add_permission__permission_id").change(function () {
+            var end = this.value;
+            if (end > 0) {
+                $('#add_permission__submit').prop('disabled', false);
+            }else{
+                $('#add_permission__submit').prop('disabled', true);
+            }
+        });
+        $('#add_permission__submit').click(function(){
+            if($('#add_permission__permission_id').val() > 0){
+                $('#add_permission__form').submit();
             }
         });
     }

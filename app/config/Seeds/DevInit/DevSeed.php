@@ -67,7 +67,7 @@ class DevSeed extends AbstractSeed
 
         $this->table("permissions")->insert($permissions)->save();
 
-        $insertStatement = "INSERT INTO permissions (name, authorization_type_id,system) SELECT CONCAT('can authorize ', authorization_types.name) AS name, authorization_types.id as authorization_type_id, false as system FROM authorization_types";
+        $insertStatement = "INSERT INTO permissions (name, authorization_type_id,system) SELECT CONCAT('Can Authorize ', authorization_types.name) AS name, authorization_types.id as authorization_type_id, false as system FROM authorization_types";
 
         $count = $this->execute($insertStatement);
 

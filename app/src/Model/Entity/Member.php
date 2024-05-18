@@ -117,6 +117,9 @@ class Member extends Entity implements AuthorizationIdentity, AuthenticationIden
      */
     public function can(string $action, mixed $resource): bool
     {
+        if(is_string($resource)){
+            $resource = TableRegistry::getTableLocator()->get($resource)->newEmptyEntity();
+        }   
         return $this->authorization->can($this, $action, $resource);
     }
 

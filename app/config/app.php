@@ -48,7 +48,8 @@ return [
      */
     'App' => [
         'namespace' => 'App',
-        'title' => 'Ansteorra Management System',
+        'title' => 'AMS',
+        'appGraphic' => 'badge.png',
         'encoding' => env('APP_ENCODING', 'UTF-8'),
         'defaultLocale' => env('APP_DEFAULT_LOCALE', 'en_US'),
         'defaultTimezone' => env('APP_DEFAULT_TIMEZONE', 'UTC'),

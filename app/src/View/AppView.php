@@ -17,6 +17,7 @@ namespace App\View;
 
 use BootstrapUI\View\UIViewTrait;
 use Cake\View\View;
+use Cake\I18n\DateTime;
 
 
 /**
@@ -41,6 +42,6 @@ class AppView extends View
         $this->initializeUI(['layout' => false]);
         $this->loadHelper('Authentication.Identity');
         $this->loadHelper('Bootstrap.Modal');
-        
+        $this->loadHelper('Bootstrap.Navbar');
     }
 }

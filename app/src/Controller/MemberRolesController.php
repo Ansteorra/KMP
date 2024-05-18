@@ -14,25 +14,37 @@ class MemberRolesController extends AppController
     public function initialize(): void
     {
         parent::initialize();
-        $this->Authorization->authorizeModel('index','deactivate');
+        $this->Authorization->authorizeModel('index','deactivate','add');
     }
     /**
      * Add method
      *
      * @return \Cake\Http\Response|null|void Redirects on successful add, renders view otherwise.
      */
-    public function add($roleid, $particpantid)
+    public function add()
     {
+        $roleid = $this->request->getData('role_id');
+        $memberid = $this->request->getData('member_id');
         $this->request->allowMethod(['post']);
+        $oldMemberRoles = $this->MemberRoles->find('all')
+            ->where(['role_id' => $roleid, 'member_id' => $memberid, 'ended_on IS' => null]);
+        //begin transaction
+        $this->MemberRoles->getConnection()->begin();
+        foreach ($oldMemberRoles as $oldMemberRole) {
+            $oldMemberRole->ended_on = DateTime::now();
+            $this->MemberRoles->save($oldMemberRole);
+        }
         $MemberRole = $this->MemberRoles->newEmptyEntity();
         $MemberRole->role_id = $roleid;
-        $MemberRole->Member_id = $particpantid;
+        $MemberRole->Member_id = $memberid;
         $MemberRole->started_on = DateTime::now();
-        $MemberRole->authorized_by = $this->Authentication->getIdentity()->get('id');
+        $MemberRole->authorized_by_id = $this->Authentication->getIdentity()->get('id');
         if ($this->MemberRoles->save($MemberRole)) {
             $this->Flash->success(__('The Member role has been saved.'));
+            $this->MemberRoles->getConnection()->commit();
         } else {
             $this->Flash->error(__('The Member role could not be saved. Please, try again.'));
+            $this->MemberRoles->getConnection()->rollback();
         }
         return $this->redirect($this->referer());
 
