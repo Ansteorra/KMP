@@ -100,12 +100,16 @@
 ?>
     <fieldset>
         <?php
-            echo $this->Form->control('sca_name', ['type' => 'text', 'label' => 'SCA Name', 'id'=> 'sca_name']);
+         echo $this->Form->create(null, ['id' => 'add_member__form', 'url' => ['controller' => 'MemberRoles', 'action' => 'quickAdd']]);
+            echo $this->Form->control('sca_name', ['type' => 'text', 'label' => 'SCA Name', 'id'=> 'add_member__sca_name']);
+            echo $this->Form->control('role_id', ['type' => 'hidden', 'value' => $role->id, 'id' => 'add_member__role_id']);
+            echo $this->Form->control('member_id', ['type' => 'hidden', 'id' => 'add_member__member_id']);
+         echo $this->Form->end()
                 ?>
     </fieldset>
 <?php
     echo $this->Modal->end([
-        $this->Form->button('Submit',['class' => 'btn btn-primary']),
+        $this->Form->button('Submit',['class' => 'btn btn-primary', 'id' => 'add_member__submit', 'disabled' => 'disabled']),
         $this->Form->button('Close', ['data-bs-dismiss' => 'modal'])
     ]);
   $this->end(); 
@@ -113,7 +117,8 @@
 
 <?php
     //$this->append('css', $this->Html->css(['app/autocomplete.css']));
-    $this->append('script', $this->Html->script(['app/ac_for_bs.js']));
+    //$this->append('script', $this->Html->script('https://code.jquery.com/ui/1.13.3/jquery-ui.min.js', ["crossorigin"=>"anonymous","integrity" => "sha256-sw0iNNXmOJbQhYFuC9OF2kOlD5KQKe1y5lfBn4C9Sjg="]));
+    $this->append('script', $this->Html->script(['app/autocomplete.js']));
     $this->append('script', $this->Html->script(['app/roles/view.js']));
  ?>
 

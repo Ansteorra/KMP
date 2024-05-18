@@ -96,9 +96,9 @@ $this->prepend(
  * Change popper.min and bootstrap.min to use the compressed version
  */
 if (Configure::read('debug')) {
-    $this->prepend('script', $this->Html->script(['https://code.jquery.com/jquery-3.2.1.slim.min.js','BootstrapUI.popper', 'BootstrapUI.bootstrap']));
+    $this->prepend('script', $this->Html->script(['https://ajax.aspnetcdn.com/ajax/jQuery/jquery-3.7.1.min.js','BootstrapUI.popper', 'BootstrapUI.bootstrap']));
 } else {
-    $this->prepend('script', $this->Html->script(['https://code.jquery.com/jquery-3.2.1.slim.min.js','BootstrapUI.popper.min', 'BootstrapUI.bootstrap.min']));
+    $this->prepend('script', $this->Html->script(['https://ajax.aspnetcdn.com/ajax/jQuery/jquery-3.7.1.min.js','BootstrapUI.popper.min', 'BootstrapUI.bootstrap.min']));
 }
 
 ?>

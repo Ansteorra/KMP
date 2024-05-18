@@ -1,263 +1,130 @@
-function debounce(func, wait, immediate) {
-	var timeout;
-	return function() {
-		var context = this, args = arguments;
-		var later = function() {
-			timeout = null;
-			if (!immediate) func.apply(context, args);
-		};
-		var callNow = immediate && !timeout;
-		clearTimeout(timeout);
-		timeout = setTimeout(later, wait);
-		if (callNow) func.apply(context, args);
-	};
+const DEFAULTS = {
+  treshold: 2,
+  maximumItems: 5,
+  highlightTyped: true,
+  highlightClass: 'text-primary',
 };
 
-function clearListBS() {
-  console.log('Clearing List');
-  let autocompleteBSDiv = document.getElementById("autocompleteBS-list");
-  if( autocompleteBSDiv != null ) autocompleteBSDiv.remove();
-}
+class Autocomplete {
+  constructor(field, options) {
+    this.field = field;
+    this.options = Object.assign({}, DEFAULTS, options);
+    this.dropdown = null;
 
-function addResultsBS(config, results) {
-  console.log('Add Results');
-  clearListBS();
-  const newDiv = document.createElement('div');
-  const sourceBS = config.inputSource;
-  console.log(sourceBS.id);
+    field.parentNode.classList.add('dropdown');
+    field.setAttribute('data-toggle', 'dropdown');
+    field.classList.add('dropdown-toggle');
 
-  newDiv.classList.add("autocompleteBS-items");
-  newDiv.setAttribute('data-forinputbs', sourceBS.id);
-  newDiv.setAttribute('data-current', -1);
-  newDiv.setAttribute('data-results', results.length);
+    const dropdown = ce(`<div class="dropdown-menu" ></div>`);
+    if (this.options.dropdownClass)
+      dropdown.classList.add(this.options.dropdownClass);
 
-  console.log(results);
+    insertAfter(dropdown, field);
 
-  if ( results.length === 0 ) {
-    console.log('No Matches - Push a Message onto Results');
-    let pseudoResult = { [config.fetchMap.id]: "noMatchesBS", [config.fetchMap.name]: "No Matches Found - Please try again..." };
-    results.push(pseudoResult);
-  }
-  newDiv.id = "autocompleteBS-list";
-  let resultCounter = 0;
-  
-  results.forEach( function(result) {
-    // console.log(result);
-    let listDiv = document.createElement('div');
-    let listInput = document.createElement('input');
+    this.dropdown = new bootstrap.Dropdown(field, this.options.dropdownOptions)
 
-    listDiv.innerHTML = result[config.fetchMap.name];
-
-    listInput.id = 'autoBS-' + resultCounter;
-    listInput.setAttribute('value', result[config.fetchMap.name]);
-    listInput.setAttribute('data-id', result[config.fetchMap.id]);
-    listInput.setAttribute('data-resultid', resultCounter);
-    listInput.hidden = true;
-
-    // console.log(listInput);
-
-    listDiv.append(listInput);
-    newDiv.append(listDiv);
-    resultCounter++;
-    // console.log(newDiv);
-
-  });
-
-    newDiv.addEventListener("click", function(e) {
-      console.log('Autocomplete List Click Event');
-      console.log(e.target);
-
-      const autocompleteBSDiv = document.getElementById("autocompleteBS-list");
-      let totalResults = parseInt(autocompleteBSDiv.dataset.results);
-      let inputSource = autocompleteBSDiv.dataset.forinputbs;
-
-      if ( totalResults === 0 ) {
-        console.log('not a valid entry');
-        document.getElementById(inputSource).focus();
-        return;
+    field.addEventListener('click', (e) => {
+      if (this.createItems() === 0) {
+        e.stopPropagation();
+        this.dropdown.hide();
       }
-     
-      let selectedElement = e.target;
-
-      if (e.target.localName !== "div") selectedElement = e.target.parentElement; 
-      let selectedValue = selectedElement.querySelector('input');
-      config.inputSource.value = selectedValue.value;
-      config.targetID.value = selectedValue.dataset.id;
-      if ('function' === typeof window.resultHandlerBS) {
-        resultHandlerBS(config.name, results[selectedValue.dataset.resultid]);
-      }
-      clearListBS();
     });
 
-  console.log('Add autocompleteBS-list Input Source: ' + sourceBS.id);
+    field.addEventListener('input', () => {
+      const lookup = this.field.value;
+      if (this.options.onInput && lookup.length >= this.options.treshold)
+        this.options.onInput();
+      this.renderIfNeeded();
+    });
 
-  // console.log(newDiv);
-  sourceBS.parentElement.append(newDiv);
-
-  }
-
-function handleInputBS(e, config) {
-  console.log('handleInputBS');
-  let inputValue = e.target.value;
-  
-  if ( inputValue.length < config.minLength ) {
-    clearListBS();
-    return;
-  }
-
-  console.log(e);
-  console.log(config);
-
-  //let fetchURL = str.replace(config.fetchURL);
-  let fetchURL = config.fetchURL.replace('{term}', encodeURIComponent(inputValue));
-  console.log(fetchURL)
-
-  //fetch(config.fetchURL + '?term='+ encodeURIComponent(inputValue) )
-  fetch(fetchURL )
-  .then(response => response.json())
-  .then(response => {
-      results = response;
-      console.log(results);
-      if ( !Array.isArray(results) ) {
-        console.log('Was expecting an array from the Fetch API - Setting to Empty');
-        results = [];
+    field.addEventListener('keydown', (e) => {
+      if (e.keyCode === 27) {
+        this.dropdown.hide();
+        return;
       }
-      if ( results.length > config.maxResults ) results.length = config.maxResults;
-      addResultsBS(config, results);
-  })
-  .catch(error => console.error('Error:', error)); 
-
-}
-
-function handleKeyDownBS(e, config) {
-
-  const autocompleteBSDiv = document.getElementById("autocompleteBS-list");
-  const sourceBS = config.inputSource;
-  
-  if ( ! autocompleteBSDiv ) return;
-
-  let currentPosition = parseInt(autocompleteBSDiv.dataset.current);
-  let totalResults = parseInt(autocompleteBSDiv.dataset.results);
-
-  if ( autocompleteBSDiv.dataset.forinputbs == e.target.id ) {
-    console.log('Key Pressed: ' + e.keyCode);
-
-    let keyPressed = parseInt(e.keyCode);
-    let keyAction = '';
-
-    if ( keyPressed === 40 || keyPressed === 9 ) keyAction = 'down'
-    if ( keyPressed === 38 || (e.shiftKey && keyPressed == 9) ) keyAction = 'up'
-    if ( keyPressed === 13 ) keyAction = 'enter';
-    if ( keyPressed === 27 ) keyAction = 'escape';
-
-    if ( keyAction === 'enter' && totalResults > 0 && currentPosition === -1 ) keyAction = 'down';
-
-    if (keyAction) console.log(keyAction);
-  
-    switch ( keyAction ) {
-      case 'down':
-        e.preventDefault();
-        if ( totalResults === 0 ) return;
-        if ( currentPosition === -1 ) {
-          currentPosition = 1;
-        } else {
-          currentPosition++;
-        }
-        if ( currentPosition > totalResults ) currentPosition = 1;
-        console.log('New Position: ' + currentPosition);
-        autocompleteBSDiv.dataset.current = currentPosition;
-        setPositionBS(config, currentPosition);
-        break;
-      case 'up':
-        e.preventDefault();
-        if ( totalResults === 0 ) return;
-        if ( currentPosition === -1 ) {
-          currentPosition = 1;
-        } else {
-          currentPosition--;
-        }
-        if ( currentPosition < 1 ) currentPosition = totalResults;
-        console.log('New Position: ' + currentPosition);
-        autocompleteBSDiv.dataset.current = currentPosition;
-        setPositionBS(config, currentPosition);
-        break;
-      case 'enter':
-        e.preventDefault();
-        if ( totalResults === 0 ) return;
-        console.log(currentPosition);
-        config.targetID.value = results[currentPosition - 1][config.fetchMap.id];
-        clearListBS();
-        if ('function' === typeof window.resultHandlerBS) {
-          resultHandlerBS(config.name, results[currentPosition - 1]);
-        }
-        break;
-      case 'escape':
-        e.preventDefault();
-        config.inputSource.value = '';
-        config.targetID.value = '';
-        clearListBS();
-        break;
-    }
-  } else {
-    console.log('No Key Action');     
+    });
   }
 
-}
+  setData(data) {
+    this.options.data = data;
+    this.renderIfNeeded()
+  }
 
-function setPositionBS(config, positionBS) {
-  console.log('setPositionBS');
-  const autocompleteBSDiv = document.getElementById("autocompleteBS-list");
-  if ( ! autocompleteBSDiv ) return;
+  renderIfNeeded() {
+    if (this.createItems() > 0)
+      this.dropdown.show();
+    else
+      this.field.click();
+  }
 
-  const listItems = Array.from(autocompleteBSDiv.children);
+  createItem(lookup, item) {
+    let label;
+    if (this.options.highlightTyped) {
+      const idx = item.label.toLowerCase().indexOf(lookup.toLowerCase());
+      const className = Array.isArray(this.options.highlightClass) ? this.options.highlightClass.join(' ')
+        : (typeof this.options.highlightClass == 'string' ? this.options.highlightClass : '')
+      label = item.label.substring(0, idx)
+        + `<span class="${className}">${item.label.substring(idx, idx + lookup.length)}</span>`
+        + item.label.substring(idx + lookup.length, item.label.length);
+    } else
+      label = item.label;
+    return ce(`<button type="button" class="dropdown-item" data-value="${item.value}">${label}</button>`);
+  }
 
-  listItems.forEach( function(listItem) {
-    let selectedValue = listItem.querySelector('input');
-    // console.log(selectedValue.dataset.resultid);
-    if ( parseInt(selectedValue.dataset.resultid) == positionBS - 1 ) {
-      listItem.classList.add("autocompleteBS-active");
-      config.inputSource.value = selectedValue.value;
-    } else {
-      listItem.classList.remove("autocompleteBS-active");
+  createItems() {
+    const lookup = this.field.value;
+    if (lookup.length < this.options.treshold) {
+      this.dropdown.hide();
+      return 0;
     }
-  });
-  
+
+    const items = this.field.nextSibling;
+    items.innerHTML = '';
+
+    let count = 0;
+    
+    for (let i = 0; i < this.options.data.length; i++) {
+      const {label, value} = this.options.data[i];
+      const item = {label, value};
+      if (item.label.toLowerCase().indexOf(lookup.toLowerCase()) >= 0) {
+        items.appendChild(this.createItem(lookup, item));
+        if (this.options.maximumItems > 0 && ++count >= this.options.maximumItems)
+          break;
+      }
+    }
+
+    this.field.nextSibling.querySelectorAll('.dropdown-item').forEach((item) => {
+      item.addEventListener('click', (e) => {
+        let dataValue = e.target.getAttribute('data-value');
+        this.field.value = e.target.innerText;
+        if (this.options.onSelectItem)
+          this.options.onSelectItem({
+            value: dataValue,
+            label: e.target.innerText,
+          });
+        this.dropdown.hide();
+      })
+    });
+
+    return items.childNodes.length;
+  }
 }
 
-function clickCheckBS(e, config) {
-
-   const autocompleteBSDiv = document.getElementById("autocompleteBS-list");
-   console.log('clickCheckBS - Document Click Handler');
-
-   if ( ! autocompleteBSDiv ) return;
-
-   let sourceBS = autocompleteBSDiv.dataset.forinputbs;
-
-   if ( sourceBS == e.target.id ) {
-     console.log('Clicked in Target: ' + sourceBS);
-   } else {
-     console.log('Clicked outside target with an active list - Send back to input');
-     document.getElementById(sourceBS).focus();
-   }
-
+/**
+ * @param html
+ * @returns {Node}
+ */
+function ce(html) {
+  let div = document.createElement('div');
+  div.innerHTML = html;
+  return div.firstChild;
 }
 
-
-function autocompleteBS(configBS) {
-
-  // General Document Level Click Hander
-  document.addEventListener('click',  function(e) { clickCheckBS(e); } );
-
-  configBS.forEach( function(config) {
-    
-    var updateValueDebounce = debounce(function(e) {
-      handleInputBS(e, config);
-    }, config.debounceMS);
-
-    console.log(config.inputSource);
-    config.inputSource.addEventListener('input', updateValueDebounce);
-    config.inputSource.addEventListener('keydown',  function(e) { handleKeyDownBS(e,config); } );
-    
-  });
-
+/**
+ * @param elem
+ * @param refElem
+ * @returns {*}
+ */
+function insertAfter(elem, refElem) {
+  return refElem.parentNode.insertBefore(elem, refElem.nextSibling)
 }

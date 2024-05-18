@@ -14,7 +14,7 @@ class RolesController extends AppController
     public function initialize(): void
     {
         parent::initialize();
-        $this->Authorization->authorizeModel('index','add');
+        $this->Authorization->authorizeModel('index','add','searchMembers');
     }
     /**
      * Index method
@@ -111,5 +111,31 @@ class RolesController extends AppController
         }
 
         return $this->redirect(['action' => 'index']);
+    }
+
+    /**
+     * search for adding members to a role
+     * 
+     * @param string|null $q to search sca_name.
+     * @return \Cake\Http\Response|null|void ajax only
+     * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
+     */
+    public function searchMembers()
+    {
+        $q = $this->request->getQuery('q');
+        $this->Authorization->authorizeAction();
+        $this->request->allowMethod(['get']);
+        //if (!$this->request->is('ajax')) {
+        //    throw new MethodNotAllowedException();
+        //}
+        $this->viewBuilder()->setClassName('Ajax');
+        $query = $this->Roles->Members->find('all')
+            ->where(['sca_name LIKE' => "%$q%"])
+            ->select(['id','sca_name'])
+            ->limit(10);
+        //$query = $this->Authorization->applyScope($query);
+        $this->response = $this->response->withType('application/json')
+                                     ->withStringBody(json_encode($query));
+        return $this->response;
     }
 }

@@ -5,35 +5,41 @@
 	"build": {
 		"dockerfile": "Dockerfile",
 		// Update 'VARIANT' to pick an Debian version: bullseye, buster, stretch
-		"args": { "VARIANT": "buster" }
 	},
 
     "secrets": {
-        "MYSQL_DEV_DB_NAME": {
-          //"description": "TBD",
-          //"documentationUrl": "tbd"
-        },
-        "MYSQL_DEV_USERNAME": { },
-		"MYSQL_DEV_PASSWORD": { },
-        "EMAIL_DEV_SMTP_HOST": { },
-        "EMAIL_DEV_SMTP_PORT": { },
-        "EMAIL_DEV_SMTP_USERNAME": { },
         "EMAIL_DEV_SMTP_PASSWORD": { }
     },
+	"containerEnv": {
+			"MYSQL_DEV_DB_NAME": "KMP_DEV",
+			"MYSQL_DEV_USERNAME": "KMPSQLDEV",
+			"MYSQL_DEV_PASSWORD": "P@ssw0rd",
+			"EMAIL_DEV_SMTP_HOST": "ssl://smtp.gmail.com",
+			"EMAIL_DEV_SMTP_PORT": "465",
+			"EMAIL_DEV_SMTP_USERNAME": "webminister@marshal.ansteorra.org",
+			"EMAIL_DEV_SMTP_PASSWORD": "${localEnv:EMAIL_DEV_SMTP_PASSWORD}",
+			"REPO_PATH": "KMP"
+	},
 
 	// Set *default* container specific settings.json values on container create.
 	"settings": {},
 
 	// Add the IDs of extensions you want installed when the container is created.
-	"extensions": ["felixfbecker.php-debug","cweijan.vscode-mysql-client2"],
+	"extensions": [
+		"felixfbecker.php-debug",
+		"cweijan.vscode-mysql-client2",
+		"xdebug.php-debug"
+	],
 
 
 	"remoteUser": "vscode",
 
 	"postStartCommand": "bash .devcontainer/init_env/config_space.sh",
 
-	"forwardPorts": [8080,3306]
-
+	"forwardPorts": [
+		8080,
+		3306
+	]
 }
 
 
