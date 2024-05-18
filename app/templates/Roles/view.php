@@ -116,8 +116,6 @@
 ?>
 
 <?php
-    //$this->append('css', $this->Html->css(['app/autocomplete.css']));
-    //$this->append('script', $this->Html->script('https://code.jquery.com/ui/1.13.3/jquery-ui.min.js', ["crossorigin"=>"anonymous","integrity" => "sha256-sw0iNNXmOJbQhYFuC9OF2kOlD5KQKe1y5lfBn4C9Sjg="]));
     $this->append('script', $this->Html->script(['app/autocomplete.js']));
     $this->append('script', $this->Html->script(['app/roles/view.js']));
  ?>
