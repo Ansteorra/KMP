@@ -28,15 +28,7 @@ class BasePolicy implements BeforePolicyInterface
         return $user->getPermissions();
     }
     protected function _isSuperUser($user): bool{
-        $permissions = $this->_getPermissions($user);
-        foreach($permissions as $permission){
-            if($permission->is_super_user){
-                Log::debug('User is a super user');
-                return true;
-            }
-        }
-        Log::debug('User is not a super user');
-        return false;
+        return $user->isSuperUser();
     }
 
     protected function _hasNamedPermission($user, string $permission_name): bool{

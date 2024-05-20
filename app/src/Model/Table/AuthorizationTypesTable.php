@@ -11,7 +11,7 @@ use Cake\Validation\Validator;
 /**
  * AuthorizationTypes Model
  *
- * @property \App\Model\Table\MartialGroupsTable&\Cake\ORM\Association\BelongsTo $MartialGroups
+ * @property \App\Model\Table\AuthorizationGroupsTable&\Cake\ORM\Association\BelongsTo $AuthorizationGroups
  * @property \App\Model\Table\MemberAuthorizationTypesTable&\Cake\ORM\Association\HasMany $MemberAuthorizationTypes
  * @property \App\Model\Table\PendingAuthorizationsTable&\Cake\ORM\Association\HasMany $PendingAuthorizations
  * @property \App\Model\Table\PermissionsTable&\Cake\ORM\Association\HasMany $Permissions
@@ -46,8 +46,8 @@ class AuthorizationTypesTable extends Table
         $this->setDisplayField('name');
         $this->setPrimaryKey('id');
 
-        $this->belongsTo('MartialGroups', [
-            'foreignKey' => 'martial_groups_id',
+        $this->belongsTo('AuthorizationGroups', [
+            'foreignKey' => 'authorization_groups_id',
             'joinType' => 'INNER',
         ]);
         $this->hasMany('MemberAuthorizationTypes', [
@@ -59,6 +59,8 @@ class AuthorizationTypesTable extends Table
         $this->hasMany('Permissions', [
             'foreignKey' => 'authorization_type_id',
         ]);
+
+        $this->addBehavior('Muffin/Trash.Trash');
     }
 
     /**
@@ -82,8 +84,8 @@ class AuthorizationTypesTable extends Table
             ->notEmptyString('length');
 
         $validator
-            ->integer('martial_groups_id')
-            ->notEmptyString('martial_groups_id');
+            ->integer('authorization_groups_id')
+            ->notEmptyString('authorization_groups_id');
 
         $validator
             ->integer('minimum_age')
@@ -110,7 +112,7 @@ class AuthorizationTypesTable extends Table
     public function buildRules(RulesChecker $rules): RulesChecker
     {
         $rules->add($rules->isUnique(['name']), ['errorField' => 'name']);
-        $rules->add($rules->existsIn(['martial_groups_id'], 'MartialGroups'), ['errorField' => 'martial_groups_id']);
+        $rules->add($rules->existsIn(['authorization_groups_id'], 'AuthorizationGroups'), ['errorField' => 'authorization_groups_id']);
 
         return $rules;
     }

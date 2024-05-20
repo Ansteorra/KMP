@@ -64,7 +64,7 @@ class rolesView {
         });
     }
 }
-rolesView = new rolesView();
-rolesView.run();
+var pageControl = new rolesView();
+pageControl.run();
   
         

@@ -41,19 +41,31 @@ class MembersTable extends Table
     {
         parent::initialize($config);
 
-        $this->setTable('Members');
+        $this->setTable('members');
         $this->setDisplayField('sca_name');
         $this->setPrimaryKey('id');
 
         $this->hasMany('MemberAuthorizationTypes', [
-            'foreignKey' => 'Member_id',
+            'foreignKey' => 'member_id',
         ]);
         $this->hasMany('PendingAuthorizations', [
-            'foreignKey' => 'Member_id',
+            'foreignKey' => 'member_id',
         ]);
+        $this->hasMany('PendingAuthorizationsToApprove', [
+            'className'=> 'PendingAuthorizations',
+            'foreignKey' => 'member_authorizer_id'
+        ]);
+
+
         $this->belongsToMany('Roles', [
             'through' => 'MemberRoles',
         ]);
+
+        $this->belongsTo('Branches', [
+            'foreignKey' => 'branch_id',
+        ]);
+
+        $this->addBehavior('Muffin/Trash.Trash');
     }
 
     /**

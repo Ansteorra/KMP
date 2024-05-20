@@ -24,14 +24,12 @@
         <?php
             echo $this->Form->control('name');
             echo $this->Form->control('authorization_type_id', ['options' => $authorizationTypes, 'empty' => true]);
-            echo $this->Form->control('require_active_membership');
-            echo $this->Form->control('require_active_background_check');
-            echo $this->Form->control('require_min_age');
-            echo $this->Form->control('system');
-            echo $this->Form->control('is_super_user');
-            echo $this->Form->control('roles._ids', ['options' => $roles]);
+            echo $this->Form->control('require_active_membership',['switch' => true, 'label' => 'Require Membership']);
+            echo $this->Form->control('require_active_background_check',['switch' => true, 'label' => 'Require Background Check']);
+            echo $this->Form->control('require_min_age',['label' => 'Minimum Age', 'type' => 'number']);
+            echo $this->Form->control('is_super_user',['switch' => true]);
                 ?>
     </fieldset>
-    <?= $this->Form->button(__('Submit')) ?>
+    <div class='text-end'><?= $this->Form->button(__('Submit'), ['class'=> 'btn-primary']) ?></div>
     <?= $this->Form->end() ?>
 </div>

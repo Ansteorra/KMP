@@ -4,26 +4,23 @@
  * @var \App\Model\Entity\AuthorizationType $authorizationType
  */
 ?>
-<?php $this->extend('/layout/TwitterBootstrap/dashboard'); ?>
-
-<?php $this->start('tb_actions'); ?>
-<li><?= $this->Html->link(__('Edit Authorization Type'), ['action' => 'edit', $authorizationType->id], ['class' => 'nav-link']) ?></li>
-<li><?= $this->Form->postLink(__('Delete Authorization Type'), ['action' => 'delete', $authorizationType->id], ['confirm' => __('Are you sure you want to delete # {0}?', $authorizationType->id), 'class' => 'nav-link']) ?></li>
-<li><?= $this->Html->link(__('List Authorization Types'), ['action' => 'index'], ['class' => 'nav-link']) ?> </li>
-<li><?= $this->Html->link(__('New Authorization Type'), ['action' => 'add'], ['class' => 'nav-link']) ?> </li>
-<li><?= $this->Html->link(__('List Martial Groups'), ['controller' => 'MartialGroups', 'action' => 'index'], ['class' => 'nav-link']) ?></li>
-<li><?= $this->Html->link(__('New Martial Group'), ['controller' => 'MartialGroups', 'action' => 'add'], ['class' => 'nav-link']) ?></li>
-<li><?= $this->Html->link(__('List Member Authorization Types'), ['controller' => 'MemberAuthorizationTypes', 'action' => 'index'], ['class' => 'nav-link']) ?></li>
-<li><?= $this->Html->link(__('New Member Authorization Type'), ['controller' => 'MemberAuthorizationTypes', 'action' => 'add'], ['class' => 'nav-link']) ?></li>
-<li><?= $this->Html->link(__('List Pending Authorizations'), ['controller' => 'PendingAuthorizations', 'action' => 'index'], ['class' => 'nav-link']) ?></li>
-<li><?= $this->Html->link(__('New Pending Authorization'), ['controller' => 'PendingAuthorizations', 'action' => 'add'], ['class' => 'nav-link']) ?></li>
-<li><?= $this->Html->link(__('List Permissions'), ['controller' => 'Permissions', 'action' => 'index'], ['class' => 'nav-link']) ?></li>
-<li><?= $this->Html->link(__('New Permission'), ['controller' => 'Permissions', 'action' => 'add'], ['class' => 'nav-link']) ?></li>
-<?php $this->end(); ?>
-<?php $this->assign('tb_sidebar', '<ul class="nav flex-column">' . $this->fetch('tb_actions') . '</ul>'); ?>
+<?php $this->extend('/layout/TwitterBootstrap/dashboard'); 
+$user = $this->request->getAttribute('identity');
+?>
 
 <div class="authorizationTypes view large-9 medium-8 columns content">
-    <h3><?= h($authorizationType->name) ?></h3>
+    <div class="row align-items-start">
+        <div class="col">
+            <h3>
+                <?= $this->Html->link('', ['action' => 'index'], ['class' => 'bi bi-arrow-left-circle']) ?>
+                <?= h($authorizationType->name) ?> 
+            </h3>
+        </div>
+        <div class="col text-end">
+            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal">Edit</button>
+            <?= $this->Form->postLink(__('Delete'), ['action' => 'delete', $authorizationType->id], ['confirm' => __('Are you sure you want to delete {0}?', $authorizationType->name), 'title' => __('Delete'), 'class' => 'btn btn-danger btn-sm']) ?>
+        </div>
+    </div>
     <div class="table-responsive">
         <table class="table table-striped">
             <tr>
@@ -31,12 +28,8 @@
                 <td><?= h($authorizationType->name) ?></td>
             </tr>
             <tr>
-                <th scope="row"><?= __('Martial Group') ?></th>
-                <td><?= $authorizationType->hasValue('martial_group') ? $this->Html->link($authorizationType->martial_group->name, ['controller' => 'MartialGroups', 'action' => 'view', $authorizationType->martial_group->id]) : '' ?></td>
-            </tr>
-            <tr>
-                <th scope="row"><?= __('Id') ?></th>
-                <td><?= $this->Number->format($authorizationType->id) ?></td>
+                <th scope="row"><?= __('Authorization Group') ?></th>
+                <td><?= $authorizationType->hasValue('authorization_group') ? $this->Html->link($authorizationType->authorization_group->name, ['controller' => 'AuthorizationGroups', 'action' => 'view', $authorizationType->authorization_group->id]) : '' ?></td>
             </tr>
             <tr>
                 <th scope="row"><?= __('Length') ?></th>
@@ -51,37 +44,25 @@
                 <td><?= $authorizationType->maximum_age === null ? '' : $this->Number->format($authorizationType->maximum_age) ?></td>
             </tr>
             <tr>
-                <th scope="row"><?= __('Num Required Authorizors') ?></th>
+                <th scope="row"><?= __('# of Approvers') ?></th>
                 <td><?= $this->Number->format($authorizationType->num_required_authorizors) ?></td>
             </tr>
         </table>
     </div>
     <div class="related">
-        <h4><?= __('Related Member Authorization Types') ?></h4>
-        <?php if (!empty($authorizationType->Member_authorization_types)): ?>
+        <h4><?= __('Authorizing Roles') ?></h4>
+        <?php if (!empty($roles)): ?>
         <div class="table-responsive">
             <table class="table table-striped">
                 <tr>
-                    <th scope="col"><?= __('Id') ?></th>
-                    <th scope="col"><?= __('Member Id') ?></th>
-                    <th scope="col"><?= __('Authorization Type Id') ?></th>
-                    <th scope="col"><?= __('Authorized By Id') ?></th>
-                    <th scope="col"><?= __('Expires On') ?></th>
-                    <th scope="col"><?= __('Start On') ?></th>
+                    <th scope="col"><?= __('Name') ?></th>
                     <th scope="col" class="actions"><?= __('Actions') ?></th>
                 </tr>
-                <?php foreach ($authorizationType->Member_authorization_types as $MemberAuthorizationTypes): ?>
+                <?php foreach ($roles as $role): ?>
                 <tr>
-                    <td><?= h($MemberAuthorizationTypes->id) ?></td>
-                    <td><?= h($MemberAuthorizationTypes->Member_id) ?></td>
-                    <td><?= h($MemberAuthorizationTypes->authorization_type_id) ?></td>
-                    <td><?= h($MemberAuthorizationTypes->authorized_by_id) ?></td>
-                    <td><?= h($MemberAuthorizationTypes->expires_on) ?></td>
-                    <td><?= h($MemberAuthorizationTypes->start_on) ?></td>
+                    <td><?= h($role->name) ?></td>
                     <td class="actions">
-                        <?= $this->Html->link(__('View'), ['controller' => 'MemberAuthorizationTypes', 'action' => 'view', $MemberAuthorizationTypes->id], ['class' => 'btn btn-secondary']) ?>
-                        <?= $this->Html->link(__('Edit'), ['controller' => 'MemberAuthorizationTypes', 'action' => 'edit', $MemberAuthorizationTypes->id], ['class' => 'btn btn-secondary']) ?>
-                        <?= $this->Form->postLink( __('Delete'), ['controller' => 'MemberAuthorizationTypes', 'action' => 'delete', $MemberAuthorizationTypes->id], ['confirm' => __('Are you sure you want to delete # {0}?', $MemberAuthorizationTypes->id), 'class' => 'btn btn-danger']) ?>
+                        <?= $this->Html->link(__('View'), ['controller' => 'Roles', 'action' => 'view', $role->id], ['class' => 'btn btn-secondary']) ?>
                     </td>
                 </tr>
                 <?php endforeach; ?>
@@ -90,7 +71,7 @@
         <?php endif; ?>
     </div>
     <div class="related">
-        <h4><?= __('Related Pending Authorizations') ?></h4>
+        <h4><?= __('Pending Authorizations') ?></h4>
         <?php if (!empty($authorizationType->pending_authorizations)): ?>
         <div class="table-responsive">
             <table class="table table-striped">
@@ -127,29 +108,31 @@
         <?php endif; ?>
     </div>
     <div class="related">
-        <h4><?= __('Related Permissions') ?></h4>
-        <?php if (!empty($authorizationType->permissions)): ?>
+        <h4><?= __('Authorized Members') ?></h4>
+        <?php if (!empty($authorizationType->Member_authorization_types)): ?>
         <div class="table-responsive">
             <table class="table table-striped">
                 <tr>
                     <th scope="col"><?= __('Id') ?></th>
-                    <th scope="col"><?= __('Name') ?></th>
+                    <th scope="col"><?= __('Member Id') ?></th>
                     <th scope="col"><?= __('Authorization Type Id') ?></th>
-                    <th scope="col"><?= __('System') ?></th>
-                    <th scope="col"><?= __('Is Super User') ?></th>
+                    <th scope="col"><?= __('Authorized By Id') ?></th>
+                    <th scope="col"><?= __('Expires On') ?></th>
+                    <th scope="col"><?= __('Start On') ?></th>
                     <th scope="col" class="actions"><?= __('Actions') ?></th>
                 </tr>
-                <?php foreach ($authorizationType->permissions as $permissions): ?>
+                <?php foreach ($authorizationType->Member_authorization_types as $MemberAuthorizationTypes): ?>
                 <tr>
-                    <td><?= h($permissions->id) ?></td>
-                    <td><?= h($permissions->name) ?></td>
-                    <td><?= h($permissions->authorization_type_id) ?></td>
-                    <td><?= h($permissions->system) ?></td>
-                    <td><?= h($permissions->is_super_user) ?></td>
+                    <td><?= h($MemberAuthorizationTypes->id) ?></td>
+                    <td><?= h($MemberAuthorizationTypes->Member_id) ?></td>
+                    <td><?= h($MemberAuthorizationTypes->authorization_type_id) ?></td>
+                    <td><?= h($MemberAuthorizationTypes->authorized_by_id) ?></td>
+                    <td><?= h($MemberAuthorizationTypes->expires_on) ?></td>
+                    <td><?= h($MemberAuthorizationTypes->start_on) ?></td>
                     <td class="actions">
-                        <?= $this->Html->link(__('View'), ['controller' => 'Permissions', 'action' => 'view', $permissions->id], ['class' => 'btn btn-secondary']) ?>
-                        <?= $this->Html->link(__('Edit'), ['controller' => 'Permissions', 'action' => 'edit', $permissions->id], ['class' => 'btn btn-secondary']) ?>
-                        <?= $this->Form->postLink( __('Delete'), ['controller' => 'Permissions', 'action' => 'delete', $permissions->id], ['confirm' => __('Are you sure you want to delete # {0}?', $permissions->id), 'class' => 'btn btn-danger']) ?>
+                        <?= $this->Html->link(__('View'), ['controller' => 'MemberAuthorizationTypes', 'action' => 'view', $MemberAuthorizationTypes->id], ['class' => 'btn btn-secondary']) ?>
+                        <?= $this->Html->link(__('Edit'), ['controller' => 'MemberAuthorizationTypes', 'action' => 'edit', $MemberAuthorizationTypes->id], ['class' => 'btn btn-secondary']) ?>
+                        <?= $this->Form->postLink( __('Delete'), ['controller' => 'MemberAuthorizationTypes', 'action' => 'delete', $MemberAuthorizationTypes->id], ['confirm' => __('Are you sure you want to delete # {0}?', $MemberAuthorizationTypes->id), 'class' => 'btn btn-danger']) ?>
                     </td>
                 </tr>
                 <?php endforeach; ?>
@@ -158,3 +141,30 @@
         <?php endif; ?>
     </div>
 </div>
+
+<?php 
+    $this->start('modals');
+    echo $this->Modal->create("Edit Authoriztion Type", ['id' => 'editModal', 'close' => true]) ;
+?>
+    <fieldset>
+        <?php
+         echo $this->Form->create($authorizationType, ['id' => 'edit_entity', 'url' => ['controller' => 'AuthorizationTypes', 'action' => 'edit', $authorizationType->id]]);
+         echo $this->Form->control('name');
+         echo $this->Form->control('authorization_groups_id', ['options' => $AuthorizationGroups]);
+         echo $this->Form->control('length', ['label'=> 'Duration (years)', 'type' => 'number']);
+         echo $this->Form->control('minimum_age', ['type' => 'number']);
+         echo $this->Form->control('maximum_age', ['type' => 'number']);
+         echo $this->Form->control('num_required_authorizors', ['label' => '# of Approvers', 'type' => 'number']);
+         echo $this->Form->end()
+                ?>
+    </fieldset>
+<?php
+    echo $this->Modal->end([
+        $this->Form->button('Submit',['class' => 'btn btn-primary', 'id' => 'edit_entity__submit', 'onclick' => '$("#edit_entity").submit();']),
+        $this->Form->button('Close', ['data-bs-dismiss' => 'modal'])
+    ]);
+?>
+
+<?php    
+//finish writing to modal block in layout
+    $this->end(); ?>

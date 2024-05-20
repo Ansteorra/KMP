@@ -14,7 +14,7 @@ class RolesController extends AppController
     public function initialize(): void
     {
         parent::initialize();
-        $this->Authorization->authorizeModel('index','add','searchMembers','addPermission');
+        $this->Authorization->authorizeModel('index','add','searchMembers','addPermission','deletePermission');
     }
     /**
      * Index method
@@ -49,9 +49,14 @@ class RolesController extends AppController
         foreach($role->permissions as $permission){
             $currentPermissionIds[] = $permission->id;
         }   
-        $permissions = $this->Roles->Permissions->find('list')
-            ->where(['NOT' => ['id IN' => $currentPermissionIds]])
-            ->all();
+        $permissions = [];
+        if(count($currentPermissionIds) > 0){
+            $permissions = $this->Roles->Permissions->find('list')
+                ->where(['NOT' => ['id IN' => $currentPermissionIds]])
+                ->all();
+        }else{
+            $permissions = $this->Roles->Permissions->find('list')->all();
+        }
         $this->set(compact('role','permissions'));
     }
 
@@ -69,7 +74,7 @@ class RolesController extends AppController
             if ($this->Roles->save($role)) {
                 $this->Flash->success(__('The role has been saved.'));
 
-                return $this->redirect(['action' => 'index']);
+                return $this->redirect(['action' => 'view', $role->id]);
             }
             $this->Flash->error(__('The role could not be saved. Please, try again.'));
         }
@@ -93,7 +98,7 @@ class RolesController extends AppController
             if ($this->Roles->save($role)) {
                 $this->Flash->success(__('The role has been saved.'));
 
-                return $this->redirect(['action' => 'index']);
+                return $this->redirect($this->referer());
             }
             $this->Flash->error(__('The role could not be saved. Please, try again.'));
         }
@@ -107,8 +112,7 @@ class RolesController extends AppController
         $role_id = $this->request->getData('role_id');
         $permission_id = $this->request->getData('permission_id');
         $role = $this->Roles->get($role_id,contain: ['Permissions']);
-        Log::write("debug", $role);
-        $this->Authorization->authorize($role);
+        $this->Authorization->authorizeAction();
         $permission = $this->Roles->Permissions->get($permission_id);
         for($i = 0; $i < count($role->permissions); $i++){
             if($role->permissions[$i]->id == $permission_id){
@@ -132,7 +136,7 @@ class RolesController extends AppController
         $role_id = $this->request->getData('role_id');
         $permission_id = $this->request->getData('permission_id');
         $role = $this->Roles->get($role_id,contain: ['Permissions']);
-        $this->Authorization->authorize($role);
+        $this->Authorization->authorizeAction();
         $permission = $this->Roles->Permissions->get($permission_id);
         for($i = 0; $i < count($role->permissions); $i++){
             if($role->permissions[$i]->id == $permission_id){

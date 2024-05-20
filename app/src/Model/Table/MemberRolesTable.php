@@ -37,13 +37,13 @@ class MemberRolesTable extends Table
     {
         parent::initialize($config);
 
-        $this->setTable('Member_roles');
-        $this->setDisplayField(['Member_id', 'role_id']);
+        $this->setTable('member_roles');
+        $this->setDisplayField(['member_id', 'role_id']);
         $this->setPrimaryKey('id');
 
         $this->belongsTo('Member', [
             'className' => 'Members',
-            'foreignKey' => 'Member_id',
+            'foreignKey' => 'member_id',
             'joinType' => 'INNER',
         ]);
         $this->belongsTo('Role', [

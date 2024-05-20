@@ -43,5 +43,6 @@ class AppView extends View
         $this->loadHelper('Authentication.Identity');
         $this->loadHelper('Bootstrap.Modal');
         $this->loadHelper('Bootstrap.Navbar');
+        $this->loadHelper('Kmp');
     }
 }

@@ -33,6 +33,18 @@ class BranchesTable extends Table
         $this->setTable('branches');
         $this->setDisplayField('name');
         $this->setPrimaryKey('id');
+
+        $this->BelongsTo('parent', [
+            'className' => 'Branches',
+            'foreignKey' => 'parent_id',
+        ]);
+
+        $this->HasMany('members', [
+            'className' => 'Members',
+            'foreignKey' => 'branch_id',
+        ]);
+
+        $this->addBehavior('Tree');
     }
 
     /**
@@ -45,16 +57,12 @@ class BranchesTable extends Table
     {
         $validator
             ->requirePresence('name', 'create')
-            ->notEmpty('name')
+            ->notEmptyString('name')
             ->add('name', 'unique', ['rule' => 'validateUnique', 'provider' => 'table']);
 
         $validator
             ->requirePresence('location', 'create')
-            ->notEmpty('location');
-
-        $validator
-            ->requirePresence('region', 'create')
-            ->notEmpty('region');
+            ->notEmptyString('location');
 
         return $validator;
     }

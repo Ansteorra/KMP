@@ -43,19 +43,39 @@ $this->start('tb_body_start');
                 <div class="position-sticky pt-3">
                 <nav class="nav flex-column nav-underline mx-2">
                     <?php
-                        if($user->can('index', 'Roles')) {
-                            $activeclass = $this->request->getParam('controller') === 'Roles' ? 'active' : '';
-                            echo $this->Html->link(__(' Roles'), ['controller' => 'Roles', 'action' => 'index'], ['class' => 'nav-link fs-5 bi bi-universal-access-circle pb-0 '.$activeclass]);
-                            if($this->request->getParam('controller') === 'Roles' && $user->can('add', 'Roles')) {
-                                echo $this->Html->link(__(' New Role'), ['controller' => 'Roles', 'action' => 'add'], ['class' => 'nav-link bi bi-plus ms-3 fs-6 pt-0']);
-                            }
+                        $memberArea = "";
+                        $memberArea .= $this->Kmp->appControllerNav($user->sca_name, ['controller' =>'Members', 'action'=> 'view', $user->id], $this->request, $this->Html, $user, 'bi-person-fill', [
+                                ['suburl' => ['controller' =>'Members', 'action'=> 'view_card', $user->id], 'label' => 'My Auth Card', 'icon' => 'bi-person-vcard']
+                            ]);
+                        if($memberArea){
+                            echo $this->Kmp->appControllerNavSpacer('Members', $this->Html, 'bi-people');
+                            echo $memberArea;
                         }
-                        if($user->can('index', 'Permissions')) {
-                            $activeclass = $this->request->getParam('controller') === 'Permissions' ? 'active' : '';
-                            echo $this->Html->link(__(' Permissions'), ['controller' => 'Permissions', 'action' => 'index'], ['class' => 'nav-link fs-5 bi bi-clipboard-check pb-0 '.$activeclass]);
-                            if($this->request->getParam('controller') === 'Permissions' && $user->can('add', 'Roles')) {
-                                echo $this->Html->link(__(' New Permission'), ['controller' => 'Permissions', 'action' => 'add'], ['class' => 'nav-link bi bi-plus ms-3 pt-0 fs-6']);
-                            }
+                        $sysConfig = "";
+                        $sysConfig .= $this->Kmp->appControllerNav('App Settings', 'AppSettings', $this->request, $this->Html, $user, 'bi-card-list');
+                        $sysConfig .= $this->Kmp->appControllerNav('Branches', 'Branches', $this->request, $this->Html, $user, 'bi-diagram-3', [
+                            ['suburl' => ['controller' =>'Branches', 'action'=> 'add'], 'label' => 'New Branch', 'icon' => 'bi-plus']
+                        ]);
+                        $sysConfig .= $this->Kmp->appControllerNav('Authorization Groups', 'AuthorizationGroups', $this->request, $this->Html, $user, 'bi-archive', [
+                            ['suburl' => ['controller' =>'AuthorizationGroups', 'action'=> 'add'], 'label' => 'New Auth Group', 'icon' => 'bi-plus']
+                        ]);
+                        $sysConfig .= $this->Kmp->appControllerNav('Authorization Types', 'AuthorizationTypes', $this->request, $this->Html, $user, 'bi-collection', [
+                            ['suburl' => ['controller' =>'AuthorizationTypes', 'action'=> 'add'], 'label' => 'New Auth Type', 'icon' => 'bi-plus']
+                        ]);
+                        if($sysConfig){
+                            echo $this->Kmp->appControllerNavSpacer('System Config', $this->Html, 'bi-database-gear');
+                            echo $sysConfig;
+                        }
+                        $security = "";
+                        $security .= $this->Kmp->appControllerNav('Roles', 'Roles', $this->request, $this->Html, $user, 'bi-universal-access-circle', [
+                            ['suburl' => ['controller' =>'Roles', 'action'=> 'add'], 'label' => 'New Role', 'icon' => 'bi-plus']
+                        ]);
+                        $security .= $this->Kmp->appControllerNav('Permissions', 'Permissions', $this->request, $this->Html, $user, 'bi-clipboard-check', [
+                            ['suburl' => ['controller' =>'Permissions', 'action'=> 'add'], 'label' => 'New Permission', 'icon' => 'bi-plus']
+                        ]);
+                        if($security){
+                            echo $this->Kmp->appControllerNavSpacer('Security', $this->Html, 'bi-house-lock');
+                            echo $security;
                         }
                         ?>
                 </nav>

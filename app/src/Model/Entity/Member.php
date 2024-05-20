@@ -128,6 +128,9 @@ class Member extends Entity implements AuthorizationIdentity, AuthenticationIden
      */
     public function canResult(string $action, mixed $resource): ResultInterface
     {
+        if(is_string($resource)){
+            $resource = TableRegistry::getTableLocator()->get($resource)->newEmptyEntity();
+        }   
         return $this->authorization->canResult($this, $action, $resource);
     }
 
@@ -178,6 +181,18 @@ class Member extends Entity implements AuthorizationIdentity, AuthenticationIden
             Log::write('debug', 'load permissions' );
         }
         return $this->_permissions;
+    }
+
+    public function isSuperUser(): bool{
+        $permissions = $this->getPermissions();
+        foreach($permissions as $permission){
+            if($permission->is_super_user){
+                Log::debug('User is a super user');
+                return true;
+            }
+        }
+        Log::debug('User is not a super user');
+        return false;
     }
 
 

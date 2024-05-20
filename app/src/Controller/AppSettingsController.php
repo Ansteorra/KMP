@@ -10,6 +10,13 @@ namespace App\Controller;
  */
 class AppSettingsController extends AppController
 {
+
+    public function initialize(): void
+    {
+        parent::initialize();
+        $this->Authorization->authorizeModel('index','add');
+    }
+
     /**
      * Index method
      *
@@ -19,8 +26,8 @@ class AppSettingsController extends AppController
     {
         $query = $this->AppSettings->find();
         $appSettings = $this->paginate($query);
-
-        $this->set(compact('appSettings'));
+        $emptyAppSetting = $this->AppSettings->newEmptyEntity();
+        $this->set(compact('appSettings', 'emptyAppSetting'));
     }
 
     /**
@@ -53,7 +60,7 @@ class AppSettingsController extends AppController
             }
             $this->Flash->error(__('The app setting could not be saved. Please, try again.'));
         }
-        $this->set(compact('appSetting'));
+        return $this->redirect(['action' => 'index']);
     }
 
     /**
@@ -66,6 +73,7 @@ class AppSettingsController extends AppController
     public function edit($id = null)
     {
         $appSetting = $this->AppSettings->get($id, contain: []);
+        $this->Authorization->authorize($appSetting);
         if ($this->request->is(['patch', 'post', 'put'])) {
             $appSetting = $this->AppSettings->patchEntity($appSetting, $this->request->getData());
             if ($this->AppSettings->save($appSetting)) {
@@ -75,7 +83,7 @@ class AppSettingsController extends AppController
             }
             $this->Flash->error(__('The app setting could not be saved. Please, try again.'));
         }
-        $this->set(compact('appSetting'));
+        return $this->redirect(['action' => 'index']);
     }
 
     /**
@@ -89,6 +97,7 @@ class AppSettingsController extends AppController
     {
         $this->request->allowMethod(['post', 'delete']);
         $appSetting = $this->AppSettings->get($id);
+        $this->Authorization->authorize($appSetting);
         if ($this->AppSettings->delete($appSetting)) {
             $this->Flash->success(__('The app setting has been deleted.'));
         } else {

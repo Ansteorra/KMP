@@ -21,13 +21,13 @@ class DevSeed extends AbstractSeed
     public function run(): void
     {
 
-        $martial_groups = [
+        $authorization_groups = [
             ["name" => "Armored"],
             ["name" => "Rapier"],
             ["name" => "Youth Armored"],
         ];
 
-        $this->table("martial_groups")->insert($martial_groups)->save();
+        $this->table("authorization_groups")->insert($authorization_groups)->save();
 
         $roles = [
             ["name" => "Admin"],
@@ -42,15 +42,15 @@ class DevSeed extends AbstractSeed
         $this->table("roles")->insert($roles)->save();
 
         $authtypes = [
-            ["name"=>"Armored Combat", "length"=>4, "minimum_age"=>16, "maximum_age"=>200, "martial_groups_id"=>1],
-            ["name"=>"Armored Combat Field Marshal", "length"=>4, "minimum_age"=>16, "maximum_age"=>200, "martial_groups_id"=>1],
-            ["name"=>"Rapier Combat", "length"=>4, "minimum_age"=>16, "maximum_age"=>200, "martial_groups_id"=>2],
-            ["name"=>"Rapier Combat Field Marshal", "length"=>4, "minimum_age"=>16, "maximum_age"=>200, "martial_groups_id"=>2],
-            ["name"=>"Youth Boffer 1", "length"=>4, "minimum_age"=>6, "maximum_age"=>12, "martial_groups_id"=>3],
-            ["name"=>"Youth Boffer 2", "length"=>4, "minimum_age"=>10, "maximum_age"=>14, "martial_groups_id"=>3],
-            ["name"=>"Youth Boffer 3", "length"=>4, "minimum_age"=>13, "maximum_age"=>18, "martial_groups_id"=>3],
-            ["name"=>"Youth Boffer Marshal", "length"=>4, "minimum_age"=>16, "maximum_age"=>200, "martial_groups_id"=>3],
-            ["name"=>"Youth Boffer Junior Marshal", "length"=>4, "minimum_age"=>12, "maximum_age"=>18, "martial_groups_id"=>3],
+            ["name"=>"Armored Combat", "length"=>4, "minimum_age"=>16, "maximum_age"=>200, "authorization_groups_id"=>1],
+            ["name"=>"Armored Combat Field Marshal", "length"=>4, "minimum_age"=>16, "maximum_age"=>200, "authorization_groups_id"=>1],
+            ["name"=>"Rapier Combat", "length"=>4, "minimum_age"=>16, "maximum_age"=>200, "authorization_groups_id"=>2],
+            ["name"=>"Rapier Combat Field Marshal", "length"=>4, "minimum_age"=>16, "maximum_age"=>200, "authorization_groups_id"=>2],
+            ["name"=>"Youth Boffer 1", "length"=>4, "minimum_age"=>6, "maximum_age"=>12, "authorization_groups_id"=>3],
+            ["name"=>"Youth Boffer 2", "length"=>4, "minimum_age"=>10, "maximum_age"=>14, "authorization_groups_id"=>3],
+            ["name"=>"Youth Boffer 3", "length"=>4, "minimum_age"=>13, "maximum_age"=>18, "authorization_groups_id"=>3],
+            ["name"=>"Youth Boffer Marshal", "length"=>4, "minimum_age"=>16, "maximum_age"=>200, "authorization_groups_id"=>3],
+            ["name"=>"Youth Boffer Junior Marshal", "length"=>4, "minimum_age"=>12, "maximum_age"=>18, "authorization_groups_id"=>3],
         ];
         $this->table("authorization_types")->insert($authtypes)->save();
 
@@ -60,9 +60,8 @@ class DevSeed extends AbstractSeed
             ["name" => "Can Manage Permissions", 'authorization_type_id' => NULL, 'system' => true, 'require_active_membership' => true],
             ["name" => "Can Manage Authorization Types", 'authorization_type_id' => NULL, 'system' => true, 'require_active_membership' => true],
             ["name" => "Can Manage Branches", 'authorization_type_id' => NULL, 'system' => true, 'require_active_membership' => true],
-            ["name" => "Can Manage Martial Groups", 'authorization_type_id' => NULL, 'system' => true, 'require_active_membership' => true],
             ["name" => "Can Manage Settings", 'authorization_type_id' => NULL, 'system' => true, 'require_active_membership' => true],
-            ["name" => "Can Manage Users", 'authorization_type_id' => NULL, 'system' => true, 'require_active_membership' => true]
+            ["name" => "Can Manage members", 'authorization_type_id' => NULL, 'system' => true, 'require_active_membership' => true]
         ];
 
         $this->table("permissions")->insert($permissions)->save();
@@ -80,13 +79,17 @@ class DevSeed extends AbstractSeed
 
         $branches = [
             ["name" => "Kingdom", "location"=>"Kingdom"],
-            ["name" => "Region", "location"=> "Part of Kingdom","parent_id"=>1],
-            ["name" => "Barony", "location"=> "A Local group","parent_id"=>2],
+            ["name" => "Region 1", "location"=> "Part of Kingdom","parent_id"=>1],
+            ["name" => "Barony 1", "location"=> "A Local group","parent_id"=>2],
+            ["name" => "Barony 2", "location"=> "A Local group 2","parent_id"=>2],
+            ["name" => "Region 2", "location"=> "Part of Kingdom 2","parent_id"=>1],
+            ["name" => "Barony 3", "location"=> "A Local group 2","parent_id"=>5],
+            ["name" => "Shire 1", "location"=> "A sub local group 2","parent_id"=>6],
         ];
         $this->table("branches")->insert($branches)->save();
 
         $dev_pass = md5("Password123");
-        $Members = [
+        $members = [
             [
                 'last_updated' => '2021-11-18 20:02:26',
                 'password' => $dev_pass,
@@ -102,7 +105,7 @@ class DevSeed extends AbstractSeed
                 'email_address' => 'admin@test.com',
                 'membership_number' => '0',
                 'membership_expires_on' => '2030-01-01',
-                'branch_name' => 'Barony',
+                'branch_id' => '3',
                 'notes' => '',
                 'parent_name' => '',
                 'background_check_expires_on' => NULL,
@@ -130,7 +133,7 @@ class DevSeed extends AbstractSeed
                 'email_address' => 'Earl@test.com',
                 'membership_number' => '0',
                 'membership_expires_on' => NULL,
-                'branch_name' => 'Barony',
+                'branch_id' => '4',
                 'notes' => '',
                 'parent_name' => '',
                 'background_check_expires_on' => NULL,
@@ -158,7 +161,7 @@ class DevSeed extends AbstractSeed
                 'email_address' => 'Stan@test.com',
                 'membership_number' => '0',
                 'membership_expires_on' => NULL,
-                'branch_name' => 'Barony',
+                'branch_id' => '7',
                 'notes' => '',
                 'parent_name' => '',
                 'background_check_expires_on' => NULL,
@@ -173,13 +176,13 @@ class DevSeed extends AbstractSeed
             ]
         ];
 
-        $table = $this->table('Members');
-        $table->insert($Members)->save();        
-        $Member_roles = [
-            ["Member_id" => 1,"role_id" => 1, 'authorized_by_id'=>1],
-            ["Member_id" => 2,"role_id" => 3, 'authorized_by_id'=>1],
+        $table = $this->table('members');
+        $table->insert($members)->save();        
+        $member_roles = [
+            ["member_id" => 1,"role_id" => 1, 'authorized_by_id'=>1],
+            ["member_id" => 2,"role_id" => 3, 'authorized_by_id'=>1],
         ];
-        $this->table("Member_roles")->insert($Member_roles)->save();
+        $this->table("member_roles")->insert($member_roles)->save();
 
     }
 }

@@ -42,7 +42,21 @@ class PermissionsController extends AppController
     {
         $permission = $this->Permissions->get($id, contain: ['AuthorizationTypes', 'Roles']);
         $this->Authorization->authorize($permission);
-        $this->set(compact('permission'));
+        //Get all the roles not already assigned to the permission
+        $currentRoleIds = [];
+        foreach($permission->roles as $role){
+            $currentRoleIds[] = $role->id;
+        }
+        $roles = [];
+        if(count($currentRoleIds) > 0){
+            $roles = $this->Permissions->Roles->find('list')
+                ->where(['NOT' => ['id IN' => $currentRoleIds]])
+                ->all();
+        }else{
+            $roles = $this->Permissions->Roles->find('list')->all();
+        }
+        $authorizationTypes = $this->Permissions->AuthorizationTypes->find('list', limit: 200)->all();
+        $this->set(compact('permission','roles','authorizationTypes'));
     }
 
     /**
@@ -56,16 +70,19 @@ class PermissionsController extends AppController
         $permission = $this->Permissions->newEmptyEntity();
         if ($this->request->is('post')) {
             $permission = $this->Permissions->patchEntity($permission, $this->request->getData());
+            $permission->system = false;
+            if(!$this->Authentication->getIdentity()->isSuperUser()){
+                $permission->is_super_user = false;
+            }   
             if ($this->Permissions->save($permission)) {
                 $this->Flash->success(__('The permission has been saved.'));
 
-                return $this->redirect(['action' => 'index']);
+                return $this->redirect(['action' => 'view', $permission->id]);
             }
             $this->Flash->error(__('The permission could not be saved. Please, try again.'));
         }
         $authorizationTypes = $this->Permissions->AuthorizationTypes->find('list', limit: 200)->all();
-        $roles = $this->Permissions->Roles->find('list', limit: 200)->all();
-        $this->set(compact('permission', 'authorizationTypes', 'roles'));
+        $this->set(compact('permission', 'authorizationTypes'));
     }
 
     /**
@@ -79,12 +96,20 @@ class PermissionsController extends AppController
     {
         $permission = $this->Permissions->get($id, contain: ['Roles']);
         $this->Authorization->authorize($permission);
+        $patch = $this->request->getData();
         if ($this->request->is(['patch', 'post', 'put'])) {
-            $permission = $this->Permissions->patchEntity($permission, $this->request->getData());
+            if($permission->system){
+                //unset the name of the permission if it is a system permission
+                unset($patch['name']);
+            }       
+            if(!$this->Authentication->getIdentity()->isSuperUser()){
+                unset($patch['is_super_user']);
+            }   
+            $permission = $this->Permissions->patchEntity($permission, $patch);
             if ($this->Permissions->save($permission)) {
                 $this->Flash->success(__('The permission has been saved.'));
 
-                return $this->redirect(['action' => 'index']);
+                return $this->redirect($this->referer());
             }
             $this->Flash->error(__('The permission could not be saved. Please, try again.'));
         }
@@ -105,6 +130,10 @@ class PermissionsController extends AppController
         $this->request->allowMethod(['post', 'delete']);
         $permission = $this->Permissions->get($id);
         $this->Authorization->authorize($permission);
+        if($permission->system){
+            $this->Flash->error(__('The permission could not be deleted. System permissions cannot be deleted.'));
+            return $this->redirect($this->referer());
+        }   
         if ($this->Permissions->delete($permission)) {
             $this->Flash->success(__('The permission has been deleted.'));
         } else {

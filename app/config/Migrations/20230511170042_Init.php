@@ -14,7 +14,7 @@ class Init extends AbstractMigration
             ->addColumn('id', 'integer', [
                 'autoIncrement' => true,
                 'default' => null,
-                'limit' => 10,
+                'limit' => 11,
                 'null' => false,
                 'signed' => false,
             ])
@@ -33,6 +33,19 @@ class Init extends AbstractMigration
                 'default' => null,
                 'limit' => 11,
                 'null' => true,
+                'signed' => true,
+            ])
+            ->addColumn('lft', 'integer', [
+                'default' => null,
+                'limit' => 11,
+                'null' => true,
+                'signed' => true,
+            ])
+            ->addColumn('rght', 'integer', [
+                'default' => null,
+                'limit' => 11,
+                'null' => true,
+                'signed' => true,
             ])
             ->addIndex(
                 [
@@ -40,9 +53,19 @@ class Init extends AbstractMigration
                 ],
                 ['unique' => true]
             )
+            ->addIndex(
+                [
+                    'parent_id',
+                ]
+            )
+            ->addIndex(
+                [
+                    'lft',
+                ]
+            )
             ->create();
 
-        $this->table('martial_groups')
+        $this->table('authorization_groups')
             ->addColumn('id', 'integer', [
                 'autoIncrement' => true,
                 'default' => null,
@@ -76,6 +99,11 @@ class Init extends AbstractMigration
                 ],
                 ['unique' => true]
             )
+            ->addColumn('deleted', 'date', [
+                'default' => null,
+                'limit' => null,
+                'null' => true,
+            ])
             ->create();
 
         $this->table('authorization_types')
@@ -96,7 +124,7 @@ class Init extends AbstractMigration
                 'limit' => 11,
                 'null' => false,
             ])
-            ->addColumn('martial_groups_id', 'integer', [
+            ->addColumn('authorization_groups_id', 'integer', [
                 'default' => null,
                 'limit' => 11,
                 'null' => false,
@@ -116,6 +144,11 @@ class Init extends AbstractMigration
                 'limit' => 2,
                 'null' => false,
             ])
+            ->addColumn('deleted', 'date', [
+                'default' => null,
+                'limit' => null,
+                'null' => true,
+            ])
             ->addIndex(
                 [
                     'name',
@@ -124,7 +157,7 @@ class Init extends AbstractMigration
             )
             ->addIndex(
                 [
-                    'martial_groups_id',
+                    'authorization_groups_id',
                 ]
             )
             ->create();
@@ -218,7 +251,7 @@ class Init extends AbstractMigration
             ->create();
 
             //--------------------------------- Operational Tables -----------------------------------
-        $this->table('Members')
+        $this->table('members')
             ->addColumn('id', 'integer', [
                 'autoIncrement' => true,
                 'default' => null,
@@ -297,10 +330,11 @@ class Init extends AbstractMigration
                 'limit' => null,
                 'null' => true,
             ])
-            ->addColumn('branch_name', 'string', [
+            ->addColumn('branch_id', 'integer', [
                 'default' => null,
-                'limit' => 40,
+                'limit' => 11,
                 'null' => true,
+                'signed' => false,
             ])
             ->addColumn('notes', 'text', [
                 'default' => null,
@@ -357,19 +391,14 @@ class Init extends AbstractMigration
                 'limit' => 11,
                 'null' => true,
             ])
-            ->addIndex(
-                [
-                    'branch_name',
-                ]
-            )
-            ->addColumn('deleted_date', 'datetime', [
+            ->addColumn('deleted', 'date', [
                 'default' => null,
                 'limit' => null,
                 'null' => true,
             ])
             ->create();
 
-        $this->table('Member_authorization_types')
+        $this->table('member_authorization_types')
             ->addColumn('id', 'integer', [
                 'autoIncrement' => true,
                 'default' => null,
@@ -377,7 +406,7 @@ class Init extends AbstractMigration
                 'null' => false,
             ])
             ->addPrimaryKey(['id'])
-            ->addColumn('Member_id', 'integer', [
+            ->addColumn('member_id', 'integer', [
                 'default' => null,
                 'limit' => 11,
                 'null' => false,
@@ -409,7 +438,7 @@ class Init extends AbstractMigration
             )
             ->addIndex(
                 [
-                    'Member_id',
+                    'member_id',
                 ]
             )
             ->create();
@@ -417,7 +446,7 @@ class Init extends AbstractMigration
         
         
 
-        $this->table('Member_roles')
+        $this->table('member_roles')
             ->addColumn('id', 'integer', [
                 'autoIncrement' => true,
                 'default' => null,
@@ -425,7 +454,7 @@ class Init extends AbstractMigration
                 'null' => false,
             ])
             ->addPrimaryKey(['id'])
-            ->addColumn('Member_id', 'integer', [
+            ->addColumn('member_id', 'integer', [
                 'default' => null,
                 'limit' => 11,
                 'null' => false,
@@ -452,7 +481,7 @@ class Init extends AbstractMigration
             ])
             ->addIndex(
                 [
-                    'Member_id',
+                    'member_id',
                 ]
             )
             ->addIndex(
@@ -475,12 +504,12 @@ class Init extends AbstractMigration
                 'null' => false,
             ])
             ->addPrimaryKey(['id'])
-            ->addColumn('Member_id', 'integer', [
+            ->addColumn('member_id', 'integer', [
                 'default' => null,
                 'limit' => 11,
                 'null' => false,
             ])
-            ->addColumn('Member_marshal_id', 'integer', [
+            ->addColumn('member_authorizer_id', 'integer', [
                 'default' => null,
                 'limit' => 11,
                 'null' => false,
@@ -517,12 +546,12 @@ class Init extends AbstractMigration
             )
             ->addIndex(
                 [
-                    'Member_id',
+                    'member_id',
                 ]
             )
             ->addIndex(
                 [
-                    'Member_marshal_id',
+                    'member_authorizer_id',
                 ]
             )
             ->create();
@@ -532,8 +561,8 @@ class Init extends AbstractMigration
 
         $this->table('authorization_types')
             ->addForeignKey(
-                'martial_groups_id',
-                'martial_groups',
+                'authorization_groups_id',
+                'authorization_groups',
                 'id',
                 [
                     'update' => 'NO_ACTION',
@@ -542,7 +571,7 @@ class Init extends AbstractMigration
             )
             ->update();
 
-        $this->table('Member_authorization_types')
+        $this->table('member_authorization_types')
             ->addForeignKey(
                 'authorization_type_id',
                 'authorization_types',
@@ -553,8 +582,8 @@ class Init extends AbstractMigration
                 ]
             )
             ->addForeignKey(
-                'Member_id',
-                'Members',
+                'member_id',
+                'members',
                 'id',
                 [
                     'update' => 'NO_ACTION',
@@ -563,7 +592,7 @@ class Init extends AbstractMigration
             )
             ->addForeignKey(
                 'authorized_by_id',
-                'Members',
+                'members',
                 'id',
                 [
                     'update' => 'NO_ACTION',
@@ -572,22 +601,22 @@ class Init extends AbstractMigration
             )
             ->update();
 
-        $this->table('Members')
+        $this->table('members')
             ->addForeignKey(
-                'branch_name',
+                'branch_id',
                 'branches',
-                'name',
+                'id',
                 [
-                    'update' => 'CASCADE',
-                    'delete' => 'SET_NULL'
+                    'update' => 'NO_ACTION',
+                    'delete' => 'NO_ACTION'
                 ]
             )
             ->update();
 
-        $this->table('Member_roles')
+        $this->table('member_roles')
             ->addForeignKey(
-                'Member_id',
-                'Members',
+                'member_id',
+                'members',
                 'id',
                 [
                     'update' => 'NO_ACTION',
@@ -605,7 +634,7 @@ class Init extends AbstractMigration
             )
             ->addForeignKey(
                 'authorized_by_id',
-                'Members',
+                'members',
                 'id',
                 [
                     'update' => 'NO_ACTION',
@@ -625,8 +654,8 @@ class Init extends AbstractMigration
                 ]
             )
             ->addForeignKey(
-                'Member_id',
-                'Members',
+                'member_id',
+                'members',
                 'id',
                 [
                     'update' => 'NO_ACTION',
@@ -634,8 +663,8 @@ class Init extends AbstractMigration
                 ]
             )
             ->addForeignKey(
-                'Member_marshal_id',
-                'Members',
+                'member_authorizer_id',
+                'members',
                 'id',
                 [
                     'update' => 'NO_ACTION',
@@ -682,25 +711,25 @@ class Init extends AbstractMigration
     {
         $this->table('authorization_types')
             ->dropForeignKey(
-                'martial_groups_id'
+                'authorization_groups_id'
             )->save();
 
-        $this->table('Member_authorization_types')
+        $this->table('member_authorization_types')
             ->dropForeignKey(
                 'authorization_type_id'
             )
             ->dropForeignKey(
-                'Member_id'
+                'member_id'
             )->save();
 
-        $this->table('Members')
+        $this->table('members')
             ->dropForeignKey(
-                'branch_name'
+                'branch_id'
             )->save();
 
-        $this->table('Member_roles')
+        $this->table('member_roles')
             ->dropForeignKey(
-                'Member_id'
+                'member_id'
             )
             ->dropForeignKey(
                 'role_id'
@@ -711,10 +740,10 @@ class Init extends AbstractMigration
                 'authorization_type_id'
             )
             ->dropForeignKey(
-                'Member_id'
+                'member_id'
             )
             ->dropForeignKey(
-                'Member_marshal_id'
+                'member_marshal_id'
             )->save();
         $this->table('roles_permissions')
             ->dropForeignKey(
@@ -728,13 +757,13 @@ class Init extends AbstractMigration
 
         $this->table('roles_permissions')->drop()->save();
         $this->table('permissions')->drop()->save();
-        $this->table('Member_roles')->drop()->save();
-        $this->table('Member_authorization_types')->drop()->save();
+        $this->table('member_roles')->drop()->save();
+        $this->table('member_authorization_types')->drop()->save();
         $this->table('pending_authorizations')->drop()->save();
-        $this->table('Members')->drop()->save();
+        $this->table('members')->drop()->save();
         $this->table('authorization_types')->drop()->save();
         $this->table('branches')->drop()->save();
-        $this->table('martial_groups')->drop()->save();
+        $this->table('authorization_groups')->drop()->save();
         $this->table('roles')->drop()->save();
         $this->table('app_settings')->drop()->save();
 

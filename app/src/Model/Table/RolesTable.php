@@ -59,6 +59,8 @@ class RolesTable extends Table
             'targetForeignKey' => 'permission_id',
             'joinTable' => 'roles_permissions',
         ]);
+        
+        $this->addBehavior('Muffin/Trash.Trash');
     }
 
     /**

@@ -14,4 +14,5 @@ return [
     'BootstrapUI' => [],
     'Bootstrap' => [],
     'Authorization' => [],
+    'Muffin/Trash' => [],
 ];

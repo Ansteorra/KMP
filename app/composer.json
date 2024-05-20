@@ -14,7 +14,8 @@
         "friendsofcake/bootstrap-ui": "^5.0",
         "friendsofcake/cakepdf": "^5.0",
         "jeremyharris/cakephp-lazyload": "^5.0",
-        "mobiledetect/mobiledetectlib": "^4.8.03"
+        "mobiledetect/mobiledetectlib": "^4.8.03",
+        "muffin/trash": "^4.0"
     },
     "require-dev": {
         "cakephp/bake": "^3.0.0",

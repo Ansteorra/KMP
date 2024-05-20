@@ -11,12 +11,12 @@ use Cake\ORM\Entity;
  * @property int $id
  * @property string $name
  * @property int $length
- * @property int $martial_groups_id
+ * @property int $authorization_groups_id
  * @property int|null $minimum_age
  * @property int|null $maximum_age
  * @property int $num_required_authorizors
  *
- * @property \App\Model\Entity\MartialGroup $martial_group
+ * @property \App\Model\Entity\AuthorizationGroup $authorization_group
  * @property \App\Model\Entity\MemberAuthorizationType[] $Member_authorization_types
  * @property \App\Model\Entity\PendingAuthorization[] $pending_authorizations
  * @property \App\Model\Entity\Permission[] $permissions
@@ -35,11 +35,11 @@ class AuthorizationType extends Entity
     protected array $_accessible = [
         'name' => true,
         'length' => true,
-        'martial_groups_id' => true,
+        'authorization_groups_id' => true,
         'minimum_age' => true,
         'maximum_age' => true,
         'num_required_authorizors' => true,
-        'martial_group' => true,
+        'authorization_group' => true,
         'Member_authorization_types' => true,
         'pending_authorizations' => true,
         'permissions' => true,

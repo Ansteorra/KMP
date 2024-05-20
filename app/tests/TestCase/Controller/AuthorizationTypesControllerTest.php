@@ -23,7 +23,7 @@ class AuthorizationTypesControllerTest extends TestCase
      */
     protected array $fixtures = [
         'app.AuthorizationTypes',
-        'app.MartialGroups',
+        'app.AuthorizationGroups',
         'app.MemberAuthorizationTypes',
         'app.PendingAuthorizations',
         'app.Permissions',
