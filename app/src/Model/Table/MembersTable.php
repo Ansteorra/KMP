@@ -61,7 +61,8 @@ class MembersTable extends Table
             'through' => 'MemberRoles',
         ]);
 
-        $this->belongsTo('Branches', [
+        $this->belongsTo('Branch', [
+            'className' => 'Branches',
             'foreignKey' => 'branch_id',
         ]);
 

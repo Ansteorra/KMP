@@ -6,20 +6,6 @@
 ?>
 <?php $this->extend('/layout/TwitterBootstrap/dashboard'); ?>
 
-<?php $this->start('tb_actions'); ?>
-<li><?= $this->Html->link(__('Edit Member'), ['action' => 'edit', $Member->id], ['class' => 'nav-link']) ?></li>
-<li><?= $this->Form->postLink(__('Delete Member'), ['action' => 'delete', $Member->id], ['confirm' => __('Are you sure you want to delete # {0}?', $Member->id), 'class' => 'nav-link']) ?></li>
-<li><?= $this->Html->link(__('List Members'), ['action' => 'index'], ['class' => 'nav-link']) ?> </li>
-<li><?= $this->Html->link(__('New Member'), ['action' => 'add'], ['class' => 'nav-link']) ?> </li>
-<li><?= $this->Html->link(__('List Member Authorization Types'), ['controller' => 'MemberAuthorizationTypes', 'action' => 'index'], ['class' => 'nav-link']) ?></li>
-<li><?= $this->Html->link(__('New Member Authorization Type'), ['controller' => 'MemberAuthorizationTypes', 'action' => 'add'], ['class' => 'nav-link']) ?></li>
-<li><?= $this->Html->link(__('List Pending Authorizations'), ['controller' => 'PendingAuthorizations', 'action' => 'index'], ['class' => 'nav-link']) ?></li>
-<li><?= $this->Html->link(__('New Pending Authorization'), ['controller' => 'PendingAuthorizations', 'action' => 'add'], ['class' => 'nav-link']) ?></li>
-<li><?= $this->Html->link(__('List Roles'), ['controller' => 'Roles', 'action' => 'index'], ['class' => 'nav-link']) ?></li>
-<li><?= $this->Html->link(__('New Role'), ['controller' => 'Roles', 'action' => 'add'], ['class' => 'nav-link']) ?></li>
-<?php $this->end(); ?>
-<?php $this->assign('tb_sidebar', '<ul class="nav flex-column">' . $this->fetch('tb_actions') . '</ul>'); ?>
-
 <div class="Members view large-9 medium-8 columns content">
     <h3><?= h($Member->sca_name) ?></h3>
     <div class="table-responsive">
@@ -65,40 +51,20 @@
                 <td><?= h($Member->email_address) ?></td>
             </tr>
             <tr>
-                <th scope="row"><?= __('Branch Name') ?></th>
-                <td><?= h($Member->branch_name) ?></td>
+                <th scope="row"><?= __('Branch') ?></th>
+                <td><?= h($Member->branch->name) ?></td>
             </tr>
             <tr>
                 <th scope="row"><?= __('Parent Name') ?></th>
                 <td><?= h($Member->parent_name) ?></td>
             </tr>
             <tr>
-                <th scope="row"><?= __('Password Token') ?></th>
-                <td><?= h($Member->password_token) ?></td>
-            </tr>
-            <tr>
-                <th scope="row"><?= __('Id') ?></th>
-                <td><?= $this->Number->format($Member->id) ?></td>
-            </tr>
-            <tr>
                 <th scope="row"><?= __('Membership Number') ?></th>
-                <td><?= $Member->membership_number === null ? '' : $this->Number->format($Member->membership_number) ?></td>
+                <td><?= h($Member->membership_number) ?></td>
             </tr>
             <tr>
-                <th scope="row"><?= __('Failed Login Attempts') ?></th>
-                <td><?= $Member->failed_login_attempts === null ? '' : $this->Number->format($Member->failed_login_attempts) ?></td>
-            </tr>
-            <tr>
-                <th scope="row"><?= __('Birth Month') ?></th>
-                <td><?= $Member->birth_month === null ? '' : $this->Number->format($Member->birth_month) ?></td>
-            </tr>
-            <tr>
-                <th scope="row"><?= __('Birth Year') ?></th>
-                <td><?= $Member->birth_year === null ? '' : $this->Number->format($Member->birth_year) ?></td>
-            </tr>
-            <tr>
-                <th scope="row"><?= __('Last Updated') ?></th>
-                <td><?= h($Member->last_updated) ?></td>
+                <th scope="row"><?= __('Birth Date') ?></th>
+                <td><?=  h($Member->birth_month) - h($Member->birth_year) ?></td>
             </tr>
             <tr>
                 <th scope="row"><?= __('Membership Expires On') ?></th>
@@ -107,26 +73,6 @@
             <tr>
                 <th scope="row"><?= __('Background Check Expires On') ?></th>
                 <td><?= h($Member->background_check_expires_on) ?></td>
-            </tr>
-            <tr>
-                <th scope="row"><?= __('Password Token Expires On') ?></th>
-                <td><?= h($Member->password_token_expires_on) ?></td>
-            </tr>
-            <tr>
-                <th scope="row"><?= __('Last Login') ?></th>
-                <td><?= h($Member->last_login) ?></td>
-            </tr>
-            <tr>
-                <th scope="row"><?= __('Last Failed Login') ?></th>
-                <td><?= h($Member->last_failed_login) ?></td>
-            </tr>
-            <tr>
-                <th scope="row"><?= __('Deleted Date') ?></th>
-                <td><?= h($Member->deleted_date) ?></td>
-            </tr>
-            <tr>
-                <th scope="row"><?= __('Hidden') ?></th>
-                <td><?= $Member->hidden ? __('Yes') : __('No'); ?></td>
             </tr>
         </table>
     </div>

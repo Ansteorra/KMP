@@ -38,16 +38,18 @@ class PendingAuthorizationsTable extends Table
         $this->setDisplayField('id');
         $this->setPrimaryKey('id');
 
-        $this->belongsTo('Members', [
-            'foreignKey' => 'Member_id',
-            'joinType' => 'INNER'
-        ]);
-        $this->belongsTo('MemberMarshals', [
+        $this->belongsTo('Member', [
             'className'=>'Members',
-            'foreignKey' => 'Member_marshal_id',
+            'foreignKey' => 'member_id',
             'joinType' => 'INNER'
         ]);
-        $this->belongsTo('AuthorizationTypes', [
+        $this->belongsTo('Authorizer', [
+            'className'=>'Members',
+            'foreignKey' => 'member_marshal_id',
+            'joinType' => 'INNER'
+        ]);
+        $this->belongsTo('AuthorizationType', [
+            'className'=>'AuthorizationTypes',
             'foreignKey' => 'authorization_type_id',
             'joinType' => 'INNER'
         ]);

@@ -45,7 +45,7 @@ class MembersController extends AppController
      */
     public function view($id = null)
     {
-        $Member = $this->Members->get($id, contain: ['Roles', 'MemberAuthorizationTypes', 'PendingAuthorizations', 'PendingAuthorizationsToApprove']);
+        $Member = $this->Members->get($id, contain: ['Roles', 'Branch', 'MemberAuthorizationTypes.AuthorizationType', 'PendingAuthorizations.AuthorizationType', 'PendingAuthorizationsToApprove.AuthorizationType', 'MemberAuthorizationTypes.AuthorizationType', 'MemberAuthorizationTypes.AuthorizationType']);
         $this->set(compact('Member'));
     }
 

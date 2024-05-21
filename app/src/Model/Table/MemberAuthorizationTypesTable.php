@@ -37,11 +37,13 @@ class MemberAuthorizationTypesTable extends Table
         $this->setDisplayField('id');
         $this->setPrimaryKey('id');
 
-        $this->belongsTo('Members', [
+        $this->belongsTo('Member', [
+            'className' => 'Members', // 'MembersTable
             'foreignKey' => 'member_id',
             'joinType' => 'INNER'
         ]);
-        $this->belongsTo('AuthorizationTypes', [
+        $this->belongsTo('AuthorizationType', [
+            'className' => 'AuthorizationTypes', // 'AuthorizationTypesTable
             'foreignKey' => 'authorization_type_id',
             'joinType' => 'INNER'
         ]);

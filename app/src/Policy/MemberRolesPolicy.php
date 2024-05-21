@@ -24,5 +24,4 @@ class MemberRolesPolicy extends BasePolicy
     {
         return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
     }
-    
 }

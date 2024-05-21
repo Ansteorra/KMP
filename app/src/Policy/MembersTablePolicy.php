@@ -11,6 +11,6 @@ use Authorization\IdentityInterface;
  */
 class MembersTablePolicy extends BasePolicy
 {
-    protected string $REQUIRED_PERMISSION = 'Can Manage Permissions';
+    protected string $REQUIRED_PERMISSION = 'Can Manage Members';
     
 }
