@@ -42,7 +42,7 @@ class RolesController extends AppController
     public function view($id = null)
     {
         Log::write("debug", 'user id '. $this->Authentication->getIdentity()->get('id'));
-        $role = $this->Roles->get($id,contain: ['MemberRoles.Member','MemberRoles.Authorized_By','Permissions.AuthorizationTypes','Permissions']);
+        $role = $this->Roles->get($id,contain: ['MemberRoles.Member','MemberRoles.Approved_By','Permissions.AuthorizationTypes','Permissions']);
         $this->Authorization->authorize($role, "view");
         //get all the permissions not already assigned to the role
         $currentPermissionIds = [];
@@ -91,7 +91,7 @@ class RolesController extends AppController
      */
     public function edit($id = null)
     {
-        $role = $this->Roles->get($id,contain: ['MemberRoles.Member','MemberRoles.Authorized_By','Permissions']);
+        $role = $this->Roles->get($id,contain: ['MemberRoles.Member','MemberRoles.Approved_By','Permissions']);
         $this->Authorization->authorize($role);
         if ($this->request->is(['patch', 'post', 'put'])) {
             $role = $this->Roles->patchEntity($role, $this->request->getData());

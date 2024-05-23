@@ -6,7 +6,10 @@
  * @var \App\Model\Entity\Role[]|\Cake\Collection\CollectionInterface $roles
  */
 ?>
-<?php $this->extend('/layout/TwitterBootstrap/dashboard'); ?>
+<?php $this->extend('/layout/TwitterBootstrap/dashboard');
+
+$user = $this->request->getAttribute('identity');
+?>
 
 <?php $this->start('tb_actions'); ?>
 <li><?= $this->Html->link(__('List Permissions'), ['action' => 'index'], ['class' => 'nav-link']) ?></li>
@@ -27,7 +30,12 @@
             echo $this->Form->control('require_active_membership',['switch' => true, 'label' => 'Require Membership']);
             echo $this->Form->control('require_active_background_check',['switch' => true, 'label' => 'Require Background Check']);
             echo $this->Form->control('require_min_age',['label' => 'Minimum Age', 'type' => 'number']);
-            echo $this->Form->control('is_super_user',['switch' => true]);
+            if ($user->isSuperUser()){
+                echo $this->Form->control('is_super_user',['switch' => true]);
+            }else
+            {
+                echo $this->Form->control('is_super_user',['switch' => true, 'disabled' => 'disabled']);
+            }
                 ?>
     </fieldset>
     <div class='text-end'><?= $this->Form->button(__('Submit'), ['class'=> 'btn-primary']) ?></div>

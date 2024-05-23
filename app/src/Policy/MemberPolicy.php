@@ -21,18 +21,11 @@ class MemberPolicy extends BasePolicy
         } else {
             return $entity->id == $user->getIdentifier();
         }   
-        return false;
     }
 
     public function canPartialEdit(IdentityInterface $user, $entity)
     {
-        $canDo = $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
-        if ($canDo) {
-            return true;
-        } else {
-            return $entity->id == $user->getIdentifier();
-        }   
-        return false;
+        return $entity->id == $user->getIdentifier();
     }
 
     public function canViewCard(IdentityInterface $user, $entity)
@@ -43,6 +36,23 @@ class MemberPolicy extends BasePolicy
         } else {
             return $entity->id == $user->getIdentifier();
         }   
+    }
+
+    public function canAddNote (IdentityInterface $user, $entity)
+    {
+        $canDo = $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+        if ($canDo) {
+            return true;
+        } else {
+            return $entity->id == $user->getIdentifier();
+        }   
+    }
+    public function canViewPrivateNotes(IdentityInterface $user, $entity)
+    {
+        $canDo = $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+        if ($canDo) {
+            return true;
+        } 
         return false;
     }
 }

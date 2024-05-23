@@ -47,4 +47,36 @@ class PermissionsLoader{
         return $query;
     }
 
+    public static function getCurrentAuthorizationTypeApprovers($authorization_type_id){
+        $memberTable = TableRegistry::getTableLocator()->get('Members');
+        $now = DateTime::now();
+
+        $query = $memberTable->find()
+            ->contain(['Branch'])
+            ->innerJoinWith('Roles.Permissions')
+            ->where(['OR' => ['Permissions.authorization_type_id' => $authorization_type_id, 'Permissions.is_super_user' => true]])
+            ->where(['OR' => [
+                    'Permissions.require_active_membership' => false,
+                    'Members.membership_expires_on >' => DateTime::now()
+                ]])
+            ->where(['OR' => [
+                    'Permissions.require_active_background_check' => false,
+                    'Members.background_check_expires_on >' => DateTime::now()
+                ]])
+            ->where(['OR' => [
+                    'Permissions.require_min_age' => 0,
+                    'AND' => [
+                        'Members.birth_year = '. strval($now->year) . ' - Permissions.require_min_age',
+                        'Members.birth_month <=' => $now->month
+                    ],
+                    'Members.birth_year < '. strval($now->year)  . ' - Permissions.require_min_age'
+                ]])
+            ->distinct();
+        return $query;
+    }
+
+    public static function generateToken(){
+        return bin2hex(random_bytes(32));
+    }
+
 }

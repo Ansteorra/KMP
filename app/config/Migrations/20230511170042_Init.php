@@ -251,6 +251,61 @@ class Init extends AbstractMigration
             ->create();
 
             //--------------------------------- Operational Tables -----------------------------------
+        $this->table('notes')
+            ->addColumn('id', 'integer', [
+                'autoIncrement' => true,
+                'default' => null,
+                'limit' => 11,
+                'null' => false,
+            ])        
+            ->addColumn('author_id', 'integer', [
+                'default' => null,
+                'limit' => 11,
+                'null' => false,
+            ])
+            ->addColumn('created_on', 'timestamp', [
+                'default' => 'CURRENT_TIMESTAMP',
+                'limit' => null,
+                'null' => false,
+            ])
+            ->addColumn('topic_model', 'string', [
+                'default' => null,
+                'limit' => 255,
+                'null' => true,
+            ])            
+            ->addColumn('topic_id', 'integer', [
+                'default' => null,
+                'limit' => 11,
+                'null' => false,
+            ])
+            ->addColumn('subject', 'string', [
+                'default' => null,
+                'limit' => 255,
+                'null' => true,
+            ])
+            ->addColumn('body', 'text', [
+                'default' => null,
+                'limit' => null,
+                'null' => true,
+            ])
+            ->addColumn('private', 'boolean', [
+                'default' => false,
+                'limit' => null,
+                'null' => false,
+            ])
+            ->addPrimaryKey(['id'])
+            ->addIndex(
+                [
+                    'topic_id',
+                ]
+            )
+            ->addIndex(
+                [
+                    'topic_model',
+                ]
+            )
+            ->create();
+            
         $this->table('members')
             ->addColumn('id', 'integer', [
                 'autoIncrement' => true,
@@ -272,7 +327,7 @@ class Init extends AbstractMigration
             ->addColumn('sca_name', 'string', [
                 'default' => null,
                 'limit' => 50,
-                'null' => true,
+                'null' => false,
             ])
             ->addColumn('first_name', 'string', [
                 'default' => null,
@@ -292,38 +347,38 @@ class Init extends AbstractMigration
             ->addColumn('street_address', 'string', [
                 'default' => null,
                 'limit' => 75,
-                'null' => false,
+                'null' => true,
             ])
             ->addColumn('city', 'string', [
                 'default' => null,
                 'limit' => 30,
-                'null' => false,
+                'null' => true,
             ])
             ->addColumn('state', 'string', [
                 'default' => null,
                 'limit' => 2,
-                'null' => false,
+                'null' => true,
             ])
             ->addColumn('zip', 'string', [
                 'default' => null,
                 'limit' => 5,
-                'null' => false,
+                'null' => true,
             ])
             ->addColumn('phone_number', 'string', [
                 'default' => null,
                 'limit' => 15,
-                'null' => false,
+                'null' => true,
             ])
             ->addColumn('email_address', 'string', [
                 'default' => null,
                 'limit' => 50,
                 'null' => false,
             ])
-            ->addColumn('membership_number', 'integer', [
+            ->addColumn('membership_number', 'string', [
                 'default' => null,
-                'limit' => 10,
+                'limit' => 50,
                 'null' => true,
-                'signed' => false,
+                'signed' => true,
             ])
             ->addColumn('membership_expires_on', 'date', [
                 'default' => null,
@@ -336,14 +391,9 @@ class Init extends AbstractMigration
                 'null' => true,
                 'signed' => false,
             ])
-            ->addColumn('notes', 'text', [
-                'default' => null,
-                'limit' => null,
-                'null' => true,
-            ])
             ->addColumn('parent_name', 'string', [
                 'default' => null,
-                'limit' => 50,
+                'limit' => 100,
                 'null' => true,
             ])
             ->addColumn('background_check_expires_on', 'date', [
@@ -398,7 +448,7 @@ class Init extends AbstractMigration
             ])
             ->create();
 
-        $this->table('member_authorization_types')
+        $this->table('authorizations')
             ->addColumn('id', 'integer', [
                 'autoIncrement' => true,
                 'default' => null,
@@ -416,20 +466,25 @@ class Init extends AbstractMigration
                 'limit' => 11,
                 'null' => false,
             ])
-            ->addColumn('authorized_by_id', 'integer', [
-                'default' => null,
-                'limit' => 11,
-                'null' => false,
-            ])
             ->addColumn('expires_on', 'date', [
                 'default' => null,
                 'limit' => null,
-                'null' => false,
+                'null' => true,
             ])
             ->addColumn('start_on', 'date', [
                 'default' => null,
                 'limit' => null,
                 'null' => true,
+            ])
+            ->addColumn('requested_on', 'datetime', [
+                'default' => null,
+                'limit' => null,
+                'null' => false,
+            ])
+            ->addColumn('status', 'string', [
+                'default' => 'new',
+                'limit' => 20,
+                'null' => false,
             ])
             ->addIndex(
                 [
@@ -444,8 +499,62 @@ class Init extends AbstractMigration
             ->create();
 
         
-        
+            $this->table('authorization_approvals')
+            ->addColumn('id', 'integer', [
+                'autoIncrement' => true,
+                'default' => null,
+                'limit' => 11,
+                'null' => false,
+            ])
+            ->addPrimaryKey(['id'])
+            ->addColumn('authorization_id', 'integer', [
+                'default' => null,
+                'limit' => 11,
+                'null' => false,
+            ])
+            ->addColumn('approver_id', 'integer', [
+                'default' => null,
+                'limit' => 11,
+                'null' => false,
+            ])
+            ->addColumn('authorization_token', 'string', [
+                'default' => null,
+                'limit' => 255,
+                'null' => false,
+            ])
+            ->addColumn('requested_on', 'datetime', [
+                'default' => null,
+                'limit' => null,
+                'null' => false,
+            ])
+            ->addColumn('responded_on', 'datetime', [
+                'default' => null,
+                'limit' => null,
+                'null' => true,
+            ])
+            ->addColumn('approved', 'boolean', [
+                'default' => false,
+                'limit' => null,
+                'null' => false,
+            ])
+            ->addColumn('approver_notes', 'string', [
+                'default' => null,
+                'limit' => 255,
+                'null' => true,
+            ])
+            ->addIndex(
+                [
+                    'approver_id',
+                ]
+            )
+            ->addIndex(
+                [
+                    'authorization_id'
+                ]
+            )
+            ->create();
 
+        
         $this->table('member_roles')
             ->addColumn('id', 'integer', [
                 'autoIncrement' => true,
@@ -464,17 +573,17 @@ class Init extends AbstractMigration
                 'limit' => 11,
                 'null' => false,
             ])
-            ->addColumn('ended_on', 'date', [
+            ->addColumn('ended_on', 'datetime', [
                 'default' => null,
                 'limit' => null,
                 'null' => true,
             ])
-            ->addColumn('start_on', 'date', [
+            ->addColumn('start_on', 'datetimeß', [
                 'default' => 'CURRENT_TIMESTAMP',
                 'limit' => null,
                 'null' => false,
             ])            
-            ->addColumn('authorized_by_id', 'integer', [
+            ->addColumn('approver_id', 'integer', [
                 'default' => null,
                 'limit' => 11,
                 'null' => false,
@@ -491,72 +600,10 @@ class Init extends AbstractMigration
             )
             ->addIndex(
                 [
-                    'authorized_by_id',
+                    'approver_id',
                 ]
             )
             ->create();
-
-        $this->table('pending_authorizations')
-            ->addColumn('id', 'integer', [
-                'autoIncrement' => true,
-                'default' => null,
-                'limit' => 11,
-                'null' => false,
-            ])
-            ->addPrimaryKey(['id'])
-            ->addColumn('member_id', 'integer', [
-                'default' => null,
-                'limit' => 11,
-                'null' => false,
-            ])
-            ->addColumn('member_authorizer_id', 'integer', [
-                'default' => null,
-                'limit' => 11,
-                'null' => false,
-            ])
-            ->addColumn('authorization_type_id', 'integer', [
-                'default' => null,
-                'limit' => 11,
-                'null' => false,
-            ])
-            ->addColumn('authorization_token', 'string', [
-                'default' => null,
-                'limit' => 255,
-                'null' => false,
-            ])
-            ->addColumn('requested_on', 'date', [
-                'default' => null,
-                'limit' => null,
-                'null' => false,
-            ])
-            ->addColumn('responded_on', 'date', [
-                'default' => null,
-                'limit' => null,
-                'null' => true,
-            ])
-            ->addColumn('authorization_result', 'string', [
-                'default' => null,
-                'limit' => 255,
-                'null' => true,
-            ])
-            ->addIndex(
-                [
-                    'authorization_type_id',
-                ]
-            )
-            ->addIndex(
-                [
-                    'member_id',
-                ]
-            )
-            ->addIndex(
-                [
-                    'member_authorizer_id',
-                ]
-            )
-            ->create();
-
-        
         //-------------------------------Relationships-------------------------------
 
         $this->table('authorization_types')
@@ -571,7 +618,7 @@ class Init extends AbstractMigration
             )
             ->update();
 
-        $this->table('member_authorization_types')
+        $this->table('authorizations')
             ->addForeignKey(
                 'authorization_type_id',
                 'authorization_types',
@@ -588,15 +635,6 @@ class Init extends AbstractMigration
                 [
                     'update' => 'NO_ACTION',
                     'delete' => 'CASCADE'
-                ]
-            )
-            ->addForeignKey(
-                'authorized_by_id',
-                'members',
-                'id',
-                [
-                    'update' => 'NO_ACTION',
-                    'delete' => 'NO_ACTION'
                 ]
             )
             ->update();
@@ -633,7 +671,7 @@ class Init extends AbstractMigration
                 ]
             )
             ->addForeignKey(
-                'authorized_by_id',
+                'approver_id',
                 'members',
                 'id',
                 [
@@ -643,10 +681,10 @@ class Init extends AbstractMigration
             )
             ->update();
 
-        $this->table('pending_authorizations')
+        $this->table('authorization_approvals')
             ->addForeignKey(
-                'authorization_type_id',
-                'authorization_types',
+                'authorization_id',
+                'authorizations',
                 'id',
                 [
                     'update' => 'NO_ACTION',
@@ -654,16 +692,7 @@ class Init extends AbstractMigration
                 ]
             )
             ->addForeignKey(
-                'member_id',
-                'members',
-                'id',
-                [
-                    'update' => 'NO_ACTION',
-                    'delete' => 'CASCADE'
-                ]
-            )
-            ->addForeignKey(
-                'member_authorizer_id',
+                'approver_id',
                 'members',
                 'id',
                 [
@@ -714,7 +743,7 @@ class Init extends AbstractMigration
                 'authorization_groups_id'
             )->save();
 
-        $this->table('member_authorization_types')
+        $this->table('authorizations')
             ->dropForeignKey(
                 'authorization_type_id'
             )
@@ -735,15 +764,12 @@ class Init extends AbstractMigration
                 'role_id'
             )->save();
 
-        $this->table('pending_authorizations')
+        $this->table('authorization_approvals')
             ->dropForeignKey(
-                'authorization_type_id'
+                'authorization_id'
             )
             ->dropForeignKey(
-                'member_id'
-            )
-            ->dropForeignKey(
-                'member_marshal_id'
+                'approver_id'
             )->save();
         $this->table('roles_permissions')
             ->dropForeignKey(
@@ -755,18 +781,17 @@ class Init extends AbstractMigration
                 'authorization_type_id'
             )->save();
 
+        $this->table('notes')->drop()->save();
         $this->table('roles_permissions')->drop()->save();
         $this->table('permissions')->drop()->save();
         $this->table('member_roles')->drop()->save();
-        $this->table('member_authorization_types')->drop()->save();
-        $this->table('pending_authorizations')->drop()->save();
+        $this->table('authorizations')->drop()->save();
+        $this->table('authorization_approvals')->drop()->save();
         $this->table('members')->drop()->save();
         $this->table('authorization_types')->drop()->save();
         $this->table('branches')->drop()->save();
         $this->table('authorization_groups')->drop()->save();
         $this->table('roles')->drop()->save();
         $this->table('app_settings')->drop()->save();
-
-        
     }
 }

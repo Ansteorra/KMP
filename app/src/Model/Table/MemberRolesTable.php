@@ -51,11 +51,11 @@ class MemberRolesTable extends Table
             'foreignKey' => 'role_id',
             'joinType' => 'INNER',
         ]);
-        $this->belongsTo('Authorized_By', [
+        $this->belongsTo('Approved_By', [
             'className' => 'Members',
-            'foreignKey' => 'authorized_by_id',
+            'foreignKey' => 'approver_id',
             'joinType' => 'INNER',
-            'propertyName' => 'authorized_by'
+            'propertyName' => 'approved_by'
         ]);
     }
 
@@ -84,8 +84,8 @@ class MemberRolesTable extends Table
             ->notEmptyDate('start_on');
 
         $validator
-            ->integer('authorized_by_id')
-            ->notEmptyString('authorized_by_id');
+            ->integer('approver_id')
+            ->notEmptyString('approver_id');
 
         return $validator;
     }
@@ -101,7 +101,7 @@ class MemberRolesTable extends Table
     {
         $rules->add($rules->existsIn(['Member_id'], 'Members'), ['errorField' => 'Member_id']);
         $rules->add($rules->existsIn(['role_id'], 'Roles'), ['errorField' => 'role_id']);
-        $rules->add($rules->existsIn(['authorized_by_id'], 'Members'), ['errorField' => 'authorized_by_id']);
+        $rules->add($rules->existsIn(['approver_id'], 'Members'), ['errorField' => 'approver_id']);
 
         return $rules;
     }

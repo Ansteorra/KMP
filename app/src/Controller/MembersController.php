@@ -3,7 +3,9 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
-use Cake\I18n\Time;
+use Cake\I18n\DateTime;
+use Cake\ORM\TableRegistry;
+use App\KMP\PermissionsLoader;
 
 /**
  * Members Controller
@@ -20,7 +22,7 @@ class MembersController extends AppController
     {
         parent::beforeFilter($event);
     
-        $this->Authentication->allowUnauthenticated(['login']);
+        $this->Authentication->allowUnauthenticated(['login', 'approversList']);
     }
 
     /**
@@ -45,8 +47,41 @@ class MembersController extends AppController
      */
     public function view($id = null)
     {
-        $Member = $this->Members->get($id, contain: ['Roles', 'Branch', 'MemberAuthorizationTypes.AuthorizationType', 'PendingAuthorizations.AuthorizationType', 'PendingAuthorizationsToApprove.AuthorizationType', 'MemberAuthorizationTypes.AuthorizationType', 'MemberAuthorizationTypes.AuthorizationType']);
-        $this->set(compact('Member'));
+        $member = $this->Members->get($id, contain: [
+            'Roles', 
+            'Branch',
+            'Notes.Author',
+            'Authorizations.AuthorizationType',
+            'MemberRoles.Role',
+            'MemberRoles.Approved_By'
+        ]);
+        if (!$this->Authorization->can($member, 'viewPrivateNotes')){
+            // remove private notes
+            $member->notes = array_filter($member->notes, function($note) {
+                return !$note->private;
+            });
+        }
+        $newNote = $this->Members->Notes->newEmptyEntity();
+        $att = TableRegistry::getTableLocator()->get('AuthorizationTypes');
+        $authorization_types = $att->find('list')
+            ->where(['minimum_age <' => $member->age, 'maximum_age >' => $member->age]);
+        $treeList = $this->Members->Branch->find('treeList', spacer: '--') -> order(['name' => 'ASC']);
+        $this->set(compact('member', 'newNote', 'authorization_types','treeList'));
+    }
+
+    public function approversList($auth_id = null, $member_id = null)
+    {
+        $this->Authorization->skipAuthorization();
+        $this->request->allowMethod(['get']);
+        $this->viewBuilder()->setClassName('Ajax');
+        $query = $this->Members->getCurrentAuthorizationTypeApprovers($auth_id);
+        $query = $query
+            ->where(['Members.id !=' => $member_id])
+            ->order(['Branch.name','Members.sca_name'])
+            ->select(['id', 'sca_name','Branch.name'])->all();
+        $this->response = $this->response->withType('application/json')
+                                     ->withStringBody(json_encode($query));
+        return $this->response;
     }
 
     /**
@@ -56,10 +91,11 @@ class MembersController extends AppController
      */
     public function add()
     {
-        $Member = $this->Members->newEmptyEntity();
+        $member = $this->Members->newEmptyEntity();
+        $this->Authorization->authorize($member);
         if ($this->request->is('post')) {
-            $Member = $this->Members->patchEntity($Member, $this->request->getData());
-            if ($this->Members->save($Member)) {
+            $member = $this->Members->patchEntity($member, $this->request->getData());
+            if ($this->Members->save($member)) {
                 $this->Flash->success(__('The Member has been saved.'));
 
                 return $this->redirect(['action' => 'index']);
@@ -68,6 +104,39 @@ class MembersController extends AppController
         }
         $roles = $this->Members->Roles->find('list', limit: 200)->all();
         $this->set(compact('Member', 'roles'));
+    }
+
+    /**
+     * Add Note method
+     * 
+     * @param string|null $id Member id.
+     *  @return \Cake\Http\Response|null|void Redirects on successful add, renders view otherwise.
+     */
+    public function addNote($id = null)
+    {
+        $member = $this->Members->get($id, contain: ['Notes']);
+        $this->Authorization->authorize($member);
+        $note = $this->Members->Notes->newEmptyEntity();
+        if ($this->request->is('post')) {
+            $note->topic_id = $member->id;
+            $note->author_id = $this->Authentication->getIdentity()->getIdentifier();
+            $note->body = $this->request->getData('body');
+            if ($this->Authorization->can($member, 'viewPrivateNotes')){
+                $note->private = $this->request->getData('private');
+            } else {
+                $note->private = false;
+            }   
+            $note->subject = $this->request->getData('subject');
+            $note->topic_model = 'Members';
+            $member->notes[] = $note;
+            $member->setDirty('notes', true);
+            if ($this->Members->Notes->save($note)) {
+                $this->Flash->success(__('The Note has been saved.'));
+
+                return $this->redirect(['action' => 'view', $member->id]);
+            }
+            $this->Flash->error(__('The Note could not be saved. Please, try again.'));
+        }
     }
 
     /**
@@ -79,20 +148,50 @@ class MembersController extends AppController
      */
     public function edit($id = null)
     {
-        $Member = $this->Members->get($id, contain: ['Roles']);
+        $member = $this->Members->get($id);
+        $this->Authorization->authorize($member);
         if ($this->request->is(['patch', 'post', 'put'])) {
-            $Member = $this->Members->patchEntity($Member, $this->request->getData());
-            if ($this->Members->save($Member)) {
+            $member = $this->Members->patchEntity($member, $this->request->getData());
+            if ($this->Members->save($member)) {
                 $this->Flash->success(__('The Member has been saved.'));
 
-                return $this->redirect(['action' => 'index']);
+                return $this->redirect(['action' => 'view', $member->id]);
             }
             $this->Flash->error(__('The Member could not be saved. Please, try again.'));
         }
-        $roles = $this->Members->Roles->find('list', limit: 200)->all();
-        $this->set(compact('Member', 'roles'));
+        //$this->redirect(['action' => 'view', $member->id]);
     }
 
+    public function requestAuthorization($id = null)
+    {
+        //if id is null get it from the request
+        if ($id == null) {
+            $id = $this->request->getData('member_id');
+        }   
+
+        $member = $this->Members->get($id);
+        $this->Authorization->authorize($member);
+        $auth = $this->Members->Authorizations->newEmptyEntity();
+        $auth->member_id = $id;
+        $auth->authorization_type_id = $this->request->getData('authorization_type');
+        $auth->requested_on = DateTime::now();
+        $auth->status = 'new';
+        if ($this->Members->Authorizations->save($auth)) {
+            $approval = $this->Members->Authorizations->AuthorizationApprovals->newEmptyEntity();
+            $approval->authorization_id = $auth->id;
+            $approval->approver_id = $this->request->getData('approver_id');
+            $approval->requested_on = DateTime::now();
+            $approval->authorization_token = PermissionsLoader::generateToken();
+            if ($this->Members->Authorizations->AuthorizationApprovals->save($approval)) {
+                //$this->Members->Authorizations->AuthorizationApprovals->sendApprovalEmail($approval);
+            }
+            $this->Flash->success(__('The Authorization has been requested.'));
+
+            return $this->redirect(['action' => 'view', $member->id]);
+        }
+        $this->Flash->error(__('The Authorization could not be requested. Please, try again.'));
+        return $this->redirect(['action' => 'view', $member->id]);
+    }
     /**
      * Delete method
      *
@@ -103,8 +202,9 @@ class MembersController extends AppController
     public function delete($id = null)
     {
         $this->request->allowMethod(['post', 'delete']);
-        $Member = $this->Members->get($id);
-        if ($this->Members->delete($Member)) {
+        $member = $this->Members->get($id);
+        $this->Authorization->authorize($member);
+        if ($this->Members->delete($member)) {
             $this->Flash->success(__('The Member has been deleted.'));
         } else {
             $this->Flash->error(__('The Member could not be deleted. Please, try again.'));

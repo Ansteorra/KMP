@@ -85,6 +85,9 @@ class DevSeed extends AbstractSeed
             ["name" => "Region 2", "location"=> "Part of Kingdom 2","parent_id"=>1],
             ["name" => "Barony 3", "location"=> "A Local group 2","parent_id"=>5],
             ["name" => "Shire 1", "location"=> "A sub local group 2","parent_id"=>6],
+            ["name" => "Region 1 Kingdom Land", "location"=> "Part of Kingdom","parent_id"=>2],
+            ["name" => "Region 2 Kingdom Land", "location"=> "Part of Kingdom","parent_id"=>5],
+            ["name" => "Out of Kingdom", "location"=>"Out of Kingdom"],
         ];
         $this->table("branches")->insert($branches)->save();
 
@@ -106,7 +109,6 @@ class DevSeed extends AbstractSeed
                 'membership_number' => '0',
                 'membership_expires_on' => '2030-01-01',
                 'branch_id' => '3',
-                'notes' => '',
                 'parent_name' => '',
                 'background_check_expires_on' => NULL,
                 'hidden' => '0',
@@ -134,7 +136,6 @@ class DevSeed extends AbstractSeed
                 'membership_number' => '0',
                 'membership_expires_on' => NULL,
                 'branch_id' => '4',
-                'notes' => '',
                 'parent_name' => '',
                 'background_check_expires_on' => NULL,
                 'hidden' => '0',
@@ -162,7 +163,6 @@ class DevSeed extends AbstractSeed
                 'membership_number' => '0',
                 'membership_expires_on' => NULL,
                 'branch_id' => '7',
-                'notes' => '',
                 'parent_name' => '',
                 'background_check_expires_on' => NULL,
                 'hidden' => '0',
@@ -175,14 +175,34 @@ class DevSeed extends AbstractSeed
                 'birth_year' => 1977,
             ]
         ];
-
         $table = $this->table('members');
         $table->insert($members)->save();        
         $member_roles = [
-            ["member_id" => 1,"role_id" => 1, 'authorized_by_id'=>1],
-            ["member_id" => 2,"role_id" => 3, 'authorized_by_id'=>1],
+            ["member_id" => 1,"role_id" => 1, 'approver_id'=>1],
+            ["member_id" => 2,"role_id" => 3, 'approver_id'=>1],
         ];
         $this->table("member_roles")->insert($member_roles)->save();
+
+        $member_notes = [
+            [   
+                "topic_model"  => "Members",
+                "topic_id" => 1,
+                "body" => "This is a note",
+                "author_id" => 1,
+                "private" => 0,
+                "subject" => "Note Subject"
+            ],
+            [   
+                "topic_model"  => "Members",
+                "topic_id" => 1,
+                "body" => "This is a note 2",
+                "author_id" => 1,
+                "private" => 0,
+                "subject" => "Note Subject 2"
+            ],
+        ];
+        $this->table("notes")->insert($member_notes)->save();
+
 
     }
 }

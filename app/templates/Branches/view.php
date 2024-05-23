@@ -25,17 +25,13 @@
     </div>
     <div class="table-responsive">
         <table class="table table-striped">
-            <tr>
-                <th scope="row"><?= __('Name') ?></th>
-                <td><?= h($branch->name) ?></td>
+            <trscope="row">
+                <th class="col"><?= __('Location') ?></th>
+                <td class="col-10"><?= h($branch->location) ?></td>
             </tr>
-            <tr>
-                <th scope="row"><?= __('Location') ?></th>
-                <td><?= h($branch->location) ?></td>
-            </tr>
-            <tr>
-                <th scope="row"><?= __('Parent') ?></th>
-                <td><?= $branch->parent === null ? 'Root' : $this->Html->link(__($branch->parent->name), ['action' => 'view', $branch->parent_id], ['title' => __('View')]) ?></td>
+            <tr scope="row">
+                <th class="col"><?= __('Parent') ?></th>
+                <td class="col-10"><?= $branch->parent === null ? 'Root' : $this->Html->link(__($branch->parent->name), ['action' => 'view', $branch->parent_id], ['title' => __('View')]) ?></td>
             </tr>
             </tr>
         </table>

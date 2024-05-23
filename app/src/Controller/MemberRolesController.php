@@ -36,9 +36,9 @@ class MemberRolesController extends AppController
         }
         $MemberRole = $this->MemberRoles->newEmptyEntity();
         $MemberRole->role_id = $roleid;
-        $MemberRole->Member_id = $memberid;
+        $MemberRole->member_id = $memberid;
         $MemberRole->started_on = DateTime::now();
-        $MemberRole->authorized_by_id = $this->Authentication->getIdentity()->get('id');
+        $MemberRole->approver_id = $this->Authentication->getIdentity()->get('id');
         if ($this->MemberRoles->save($MemberRole)) {
             $this->Flash->success(__('The Member role has been saved.'));
             $this->MemberRoles->getConnection()->commit();

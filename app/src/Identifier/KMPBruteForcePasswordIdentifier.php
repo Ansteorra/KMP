@@ -61,7 +61,7 @@ class KMPBruteForcePasswordIdentifier extends PasswordIdentifier
         if($this->_needsPasswordRehash){
             $user->password = $credentials['password'];
         }
-        $this->_resetFailedLoginAttempts($user, $MembersTable);
+        $this->_logSuccessfulLogin($user, $MembersTable);
         return $identity;
         
     }
@@ -75,7 +75,7 @@ class KMPBruteForcePasswordIdentifier extends PasswordIdentifier
         return $user;
     }
 
-    protected function _resetFailedLoginAttempts($user, $MembersTable){
+    protected function _logSuccessfulLogin($user, $MembersTable){
         $user->failed_login_attempts = 0;
         $user->last_failed_login = null;
         $user->password_token = null;

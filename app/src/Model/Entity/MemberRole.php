@@ -13,11 +13,11 @@ use Cake\ORM\Entity;
  * @property int $role_id
  * @property \Cake\I18n\Date|null $ended_on
  * @property \Cake\I18n\Date $start_on
- * @property int $authorized_by_id
+ * @property int $approver_id
  *
  * @property \App\Model\Entity\Member $Member
  * @property \App\Model\Entity\Role $role
- * @property \App\Model\Entity\Member $authorized_by
+ * @property \App\Model\Entity\Member $approved_by
  */
 class MemberRole extends Entity
 {
@@ -35,9 +35,9 @@ class MemberRole extends Entity
         'role_id' => true,
         'ended_on' => true,
         'start_on' => true,
-        'authorized_by_id' => true,
+        'approver_id' => true,
         'Member' => true,
         'role' => true,
-        'authorized_by' => true,
+        'approved_by' => true,
     ];
 }

@@ -24,33 +24,33 @@ $user = $this->request->getAttribute('identity');
     </div>
     <div class="table-responsive">
         <table class="table table-striped">
-            <tr>
-                <th scope="row"><?= __('Name') ?></th>
+            <tr scope="row">
+                <th class='col'><?= __('Name') ?></th>
                 <td><?= h($permission->name) ?></td>
             </tr>
-            <tr>
-                <th scope="row"><?= __('Authorization Type') ?></th>
-                <td><?= $permission->hasValue('authorization_type') ? $this->Html->link($permission->authorization_type->name, ['controller' => 'AuthorizationTypes', 'action' => 'view', $permission->authorization_type->id]) : '' ?></td>
+            <tr scope="row">
+                <th class='col'><?= __('Authorization Type') ?></th>
+                <td class="col-10"><?= $permission->hasValue('authorization_type') ? $this->Html->link($permission->authorization_type->name, ['controller' => 'AuthorizationTypes', 'action' => 'view', $permission->authorization_type->id]) : '' ?></td>
             </tr>
-            <tr>
-                <th scope="row"><?= __('Require Membership') ?></th>
-                <td><?= $this->Kmp->bool($permission->require_active_membership, $this->Html) ?></td>
+            <tr scope="row">
+                <th class='col'><?= __('Require Membership') ?></th>
+                <td class="col-10"><?= $this->Kmp->bool($permission->require_active_membership, $this->Html) ?></td>
             </tr>
-            <tr>
-                <th scope="row"><?= __('Require Background Check') ?></th>
-                <td><?= $this->Kmp->bool($permission->require_active_background_check, $this->Html)?></td>
+            <tr scope="row">
+                <th class='col'><?= __('Require Background Check') ?></th>
+                <td class="col-10"><?= $this->Kmp->bool($permission->require_active_background_check, $this->Html)?></td>
             </tr>
-            <tr>
-                <th scope="row"><?= __('Minimum Age') ?></th>
-                <td><?= h($permission->require_min_age) ?></td>
+            <tr scope="row">
+                <th class='col'><?= __('Minimum Age') ?></th>
+                <td class="col-10"><?= h($permission->require_min_age) ?></td>
             </tr>
-            <tr>
-                <th scope="row"><?= __('System Permission') ?></th>
-                <td><?= $this->Kmp->bool($permission->system, $this->Html)?></td>
+            <tr scope="row">
+                <th class='col'><?= __('System Permission') ?></th>
+                <td class="col-10"><?= $this->Kmp->bool($permission->system, $this->Html)?></td>
             </tr>
-            <tr>
-                <th scope="row"><?= __('Is Super User') ?></th>
-                <td><?= $this->Kmp->bool($permission->is_super_user, $this->Html)?></td>
+            <tr scope="row">
+                <th class='col'><?= __('Is Super User') ?></th>
+                <td class="col-10"><?= $this->Kmp->bool($permission->is_super_user, $this->Html)?></td>
             </tr>
         </table>
     </div>

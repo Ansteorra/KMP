@@ -6,9 +6,9 @@ namespace App\Test\Fixture;
 use Cake\TestSuite\Fixture\TestFixture;
 
 /**
- * MemberRolesFixture
+ * AuthorizationsFixture
  */
-class MemberRolesFixture extends TestFixture
+class AuthorizationsFixture extends TestFixture
 {
     /**
      * Init method
@@ -20,11 +20,10 @@ class MemberRolesFixture extends TestFixture
         $this->records = [
             [
                 'id' => 1,
-                'Member_id' => 1,
-                'role_id' => 1,
-                'ended_on' => '2024-05-16',
-                'start_on' => '2024-05-16',
-                'approver_id' => 1,
+                'member_id' => 1,
+                'authorization_type_id' => 1,
+                'expires_on' => '2024-05-21',
+                'start_on' => '2024-05-21',
             ],
         ];
         parent::init();

@@ -45,7 +45,8 @@ $this->start('tb_body_start');
                     <?php
                         $memberArea = "";
                         $memberArea .= $this->Kmp->appControllerNav($user->sca_name, ['controller' =>'Members', 'action'=> 'view', $user->id], $this->request, $this->Html, $user, 'bi-person-fill', [
-                                ['suburl' => ['controller' =>'Members', 'action'=> 'view_card', $user->id], 'label' => 'My Auth Card', 'icon' => 'bi-person-vcard']
+                                ['suburl' => ['controller' =>'Members', 'action'=> 'ViewCard', $user->id], 'label' => 'My Auth Card', 'icon' => 'bi-person-vcard'],
+                                ['suburl' => ['controller' =>'AuthorizationApprovals', 'action'=> 'MyQueue'], 'label' => 'My Auth Queue', 'icon' => 'bi-person-fill-check']
                             ]);
                         if($memberArea){
                             echo $this->Kmp->appControllerNavSpacer('Members', $this->Html, 'bi-people');

@@ -114,4 +114,14 @@ class BasePolicy implements BeforePolicyInterface
         else
             return $query->where(['id' => -1]);
     }
+
+    public function _hasAuthenticationsPermissions($user): bool{
+        $permissions = $this->_getPermissions($user);
+        foreach($permissions as $permission){
+            if($permission->authentiation_type_id > 0){
+                return true;
+            }
+        }
+        return false;
+    }
 }

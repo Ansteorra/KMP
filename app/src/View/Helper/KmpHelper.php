@@ -29,14 +29,15 @@ class KmpHelper extends Helper
             $controller = $urlparams['controller'];
             $url = $urlparams;
         }
-        if($user->can('index', $controller)) {
+        $isSelf = $user->sca_name === $label && $controller === 'Members' &&  $urlparams['action'] === 'view' && $urlparams[0] === $user->id;
+        if($user->can('index', $controller) || $isSelf) {
             $urlDetails = 
             $return = '';
             $activeclass = $request->getParam('controller') === $controller ? 'active' : '';
             $return .= $Html->link(__(' '. $label), $url, ['class' => 'nav-link fs-5 bi '.$icon.' pb-0 '.$activeclass]);
             foreach($sublinks as $sublink){
                 $suburl = $sublink['suburl'];
-                if($request->getParam('controller') === $controller && $user->can($suburl['action'], $suburl['controller'])) {
+                if($request->getParam('controller') === $controller && ($user->can($suburl['action'], $suburl['controller']) || $isSelf)) {
                     $return .= $Html->link(__(' '.$sublink['label']), $suburl, ['class' => 'nav-link bi '.$sublink['icon'].' ms-3 fs-6 pt-0']);
                 }
             }

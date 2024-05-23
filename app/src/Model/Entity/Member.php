@@ -110,8 +110,6 @@ class Member extends Entity implements AuthorizationIdentity, AuthenticationIden
         'pending_authorizations_to_approve' => true,
         'roles' => true,
     ];
-
-
     /**
      * Authorization\IdentityInterface method
      */
@@ -121,6 +119,13 @@ class Member extends Entity implements AuthorizationIdentity, AuthenticationIden
             $resource = TableRegistry::getTableLocator()->get($resource)->newEmptyEntity();
         }   
         return $this->authorization->can($this, $action, $resource);
+    }
+
+    public function canAuthorizeType(int $authorization_type_id): bool
+    {
+        $permission = $this->getPermissions();
+        $authorization_types = Hash::extract($permission, '{n}.authorization_type_id');
+        return in_array($authorization_type_id, $authorization_types);
     }
 
     /**
@@ -217,8 +222,8 @@ class Member extends Entity implements AuthorizationIdentity, AuthenticationIden
 
     protected function _getBirthdate(){
         $date = new DateTime();
-        $date->setDate($this->birth_year, $this->birth_month, 1);
-        Log::write('debug', $date);
+        $birthmonth = $this->birth_month < 1 ? 1 : $this->birth_month;
+        $date = $date->setDate($this->birth_year, $birthmonth, 1);
         return($date);
     }
 
@@ -226,10 +231,9 @@ class Member extends Entity implements AuthorizationIdentity, AuthenticationIden
     {
         $now = new DateTime();
         $date = new DateTime();
-        $date->setDate($this->birth_year, $this->birth_month, 1);
+        $birthmonth = $this->birth_month < 1 ? 1 : $this->birth_month;
+        $date = $date->setDate($this->birth_year, $birthmonth, 1);
         $interval = $now->diff($date);
-        Log::write('debug', $date);
-        Log::write('debug', $interval->y);
         return $interval->y;
     }
 }

@@ -19,4 +19,9 @@ class RolesTablePolicy extends BasePolicy
     {
         return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
     }
+
+    public function canSearchMembers(IdentityInterface $user, $entity)
+    {
+        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+    }
 }

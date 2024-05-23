@@ -3,15 +3,13 @@ declare(strict_types=1);
 
 namespace App\Model\Table;
 
-use Cake\ORM\Query\SelectQuery;
-use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
+use App\KMP\PermissionsLoader;
 
 /**
  * Members Model
  *
- * @property \App\Model\Table\MemberAuthorizationTypesTable&\Cake\ORM\Association\HasMany $MemberAuthorizationTypes
  * @property \App\Model\Table\PendingAuthorizationsTable&\Cake\ORM\Association\HasMany $PendingAuthorizations
  * @property \App\Model\Table\RolesTable&\Cake\ORM\Association\BelongsToMany $Roles
  *
@@ -45,20 +43,24 @@ class MembersTable extends Table
         $this->setDisplayField('sca_name');
         $this->setPrimaryKey('id');
 
-        $this->hasMany('MemberAuthorizationTypes', [
+        $this->hasMany('Authorizations', [
             'foreignKey' => 'member_id',
         ]);
-        $this->hasMany('PendingAuthorizations', [
-            'foreignKey' => 'member_id',
-        ]);
-        $this->hasMany('PendingAuthorizationsToApprove', [
-            'className'=> 'PendingAuthorizations',
-            'foreignKey' => 'member_authorizer_id'
+        $this->hasMany('AuthorizationApprovals', [
+            'className'=> 'AuthorizationApprovals',
+            'foreignKey' => 'approver_id'
         ]);
 
-
+        $this->hasMany('Notes', [
+            'foreignKey' => 'topic_id',
+            'conditions' => ['Notes.topic_model' => 'Members'],
+        ]);
         $this->belongsToMany('Roles', [
             'through' => 'MemberRoles',
+        ]);
+
+        $this->hasMany('MemberRoles', [
+            'foreignKey' => 'member_id',
         ]);
 
         $this->belongsTo('Branch', [
@@ -90,7 +92,7 @@ class MembersTable extends Table
         $validator
             ->scalar('sca_name')
             ->maxLength('sca_name', 50)
-            ->allowEmptyString('sca_name');
+            ->notEmptyString('sca_name');
 
         $validator
             ->scalar('first_name')
@@ -113,31 +115,31 @@ class MembersTable extends Table
             ->scalar('street_address')
             ->maxLength('street_address', 75)
             ->requirePresence('street_address', 'create')
-            ->notEmptyString('street_address');
+            ->allowEmptyString('street_address');
 
         $validator
             ->scalar('city')
             ->maxLength('city', 30)
             ->requirePresence('city', 'create')
-            ->notEmptyString('city');
+            ->allowEmptyString('city');
 
         $validator
             ->scalar('state')
             ->maxLength('state', 2)
             ->requirePresence('state', 'create')
-            ->notEmptyString('state');
+            ->allowEmptyString('state');
 
         $validator
             ->scalar('zip')
             ->maxLength('zip', 5)
             ->requirePresence('zip', 'create')
-            ->notEmptyString('zip');
+            ->allowEmptyString('zip');
 
         $validator
             ->scalar('phone_number')
             ->maxLength('phone_number', 15)
             ->requirePresence('phone_number', 'create')
-            ->notEmptyString('phone_number');
+            ->allowEmptyString('phone_number');
 
         $validator
             ->scalar('email_address')
@@ -152,15 +154,6 @@ class MembersTable extends Table
         $validator
             ->date('membership_expires_on')
             ->allowEmptyDate('membership_expires_on');
-
-        $validator
-            ->scalar('branch_name')
-            ->maxLength('branch_name', 40)
-            ->allowEmptyString('branch_name');
-
-        $validator
-            ->scalar('notes')
-            ->allowEmptyString('notes');
 
         $validator
             ->scalar('parent_name')
@@ -210,5 +203,9 @@ class MembersTable extends Table
             ->allowEmptyDateTime('deleted_date');
 
         return $validator;
+    }
+
+    static function getCurrentAuthorizationTypeApprovers($auth_id){
+        return PermissionsLoader::getCurrentAuthorizationTypeApprovers($auth_id);
     }
 }
