@@ -52,7 +52,7 @@ class PermissionsLoader{
         $now = DateTime::now();
 
         $query = $memberTable->find()
-            ->contain(['Branch'])
+            ->contain(['Branchs','AuthorizationTypes'])
             ->innerJoinWith('Roles.Permissions')
             ->where(['OR' => ['Permissions.authorization_type_id' => $authorization_type_id, 'Permissions.is_super_user' => true]])
             ->where(['OR' => [

@@ -12,8 +12,6 @@ use Cake\Validation\Validator;
  * AuthorizationTypes Model
  *
  * @property \App\Model\Table\AuthorizationGroupsTable&\Cake\ORM\Association\BelongsTo $AuthorizationGroups
- * @property \App\Model\Table\MemberAuthorizationTypesTable&\Cake\ORM\Association\HasMany $MemberAuthorizationTypes
- * @property \App\Model\Table\PendingAuthorizationsTable&\Cake\ORM\Association\HasMany $PendingAuthorizations
  * @property \App\Model\Table\PermissionsTable&\Cake\ORM\Association\HasMany $Permissions
  *
  * @method \App\Model\Entity\AuthorizationType newEmptyEntity()
@@ -50,17 +48,12 @@ class AuthorizationTypesTable extends Table
             'foreignKey' => 'authorization_groups_id',
             'joinType' => 'INNER',
         ]);
-        $this->hasMany('MemberAuthorizationTypes', [
-            'foreignKey' => 'authorization_type_id',
-        ]);
-        $this->hasMany('PendingAuthorizations', [
+        $this->hasMany('Authorizations', [
             'foreignKey' => 'authorization_type_id',
         ]);
         $this->hasMany('Permissions', [
             'foreignKey' => 'authorization_type_id',
         ]);
-
-        $this->addBehavior('Muffin/Trash.Trash');
     }
 
     /**
@@ -98,6 +91,10 @@ class AuthorizationTypesTable extends Table
         $validator
             ->integer('num_required_authorizors')
             ->notEmptyString('num_required_authorizors');
+
+        $validator
+            ->date('deleted')
+            ->allowEmptyDate('deleted');
 
         return $validator;
     }

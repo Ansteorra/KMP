@@ -49,8 +49,7 @@ class AuthorizationsTable extends Table
             'foreignKey' => 'member_id',
             'joinType' => 'INNER',
         ]);
-        $this->belongsTo('AuthorizationType', [
-            'className' => 'AuthorizationTypes',
+        $this->belongsTo('AuthorizationTypes', [
             'foreignKey' => 'authorization_type_id',
             'joinType' => 'INNER',
         ]);
@@ -97,7 +96,7 @@ class AuthorizationsTable extends Table
     public function buildRules(RulesChecker $rules): RulesChecker
     {
         $rules->add($rules->existsIn(['member_id'], 'Members'), ['errorField' => 'member_id']);
-        $rules->add($rules->existsIn(['authorization_type_id'], 'AuthorizationType'), ['errorField' => 'authorization_type_id']);
+        $rules->add($rules->existsIn(['authorization_type_id'], 'AuthorizationTypes'), ['errorField' => 'authorization_type_id']);
 
         return $rules;
     }

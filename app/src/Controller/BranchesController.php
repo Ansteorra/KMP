@@ -49,7 +49,7 @@ class BranchesController extends AppController
      */
     public function view($id = null)
     {
-        $branch = $this->Branches->get($id, contain: ['parent','members']);
+        $branch = $this->Branches->get($id, contain: ['Parent','Members']);
         $this->Authorization->authorize($branch);
         //get the children for the branch
         $branch->children = $this->Branches->find('children', ['for' => $branch->id])->toArray();

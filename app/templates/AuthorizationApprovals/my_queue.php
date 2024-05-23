@@ -67,9 +67,9 @@ usort($denied, function ($a, $b) {
                 <tbody>
                     <?php foreach ($pending as $request): ?>
                         <tr>
-                            <td><?= h($request->authorization->member->sca_name) ?></td>
+                            <td><?= h($request->authorizations->member->sca_name) ?></td>
                             <td><?= h($request->requested_on) ?></td>
-                            <td><?= h($request->authorization->authorization_type->name) ?></td>
+                            <td><?= h($request->authorizations->authorization_type->name) ?></td>
                             <td class="actions">
                                 <?= $this->Form->postLink(__('Approve'), ['action' => 'approve', $request->id], ['confirm' => __('Are you sure you want to approve {0} for {1}?', $request->authorization->member->sca_name, $request->authorization->authorization_type->name), 'title' => __('Approve'), 'class' => 'btn btn-primary']) ?>
                                 <button type="button" class="btn btn-secondary " data-bs-toggle="modal"

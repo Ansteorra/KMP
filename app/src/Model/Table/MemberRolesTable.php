@@ -41,12 +41,12 @@ class MemberRolesTable extends Table
         $this->setDisplayField(['member_id', 'role_id']);
         $this->setPrimaryKey('id');
 
-        $this->belongsTo('Member', [
+        $this->belongsTo('Members', [
             'className' => 'Members',
             'foreignKey' => 'member_id',
             'joinType' => 'INNER',
         ]);
-        $this->belongsTo('Role', [
+        $this->belongsTo('Roles', [
             'className' => 'Roles',
             'foreignKey' => 'role_id',
             'joinType' => 'INNER',

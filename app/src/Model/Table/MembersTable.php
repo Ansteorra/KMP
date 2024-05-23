@@ -63,7 +63,7 @@ class MembersTable extends Table
             'foreignKey' => 'member_id',
         ]);
 
-        $this->belongsTo('Branch', [
+        $this->belongsTo('Branches', [
             'className' => 'Branches',
             'foreignKey' => 'branch_id',
         ]);

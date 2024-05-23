@@ -18,7 +18,7 @@
 <table class="table table-striped">
     <thead>
     <tr>
-        <th scope="col"><?= $this->Paginator->sort('authorization.member.sca_name', 'Requester') ?></th>
+        <th scope="col"><?= $this->Paginator->sort('authorizations.member.sca_name', 'Requester') ?></th>
         <th scope="col"><?= $this->Paginator->sort('approver_id') ?></th>
         <th scope="col"><?= $this->Paginator->sort('authorization_token') ?></th>
         <th scope="col"><?= $this->Paginator->sort('requested_on') ?></th>
@@ -31,7 +31,7 @@
     <tbody>
         <?php foreach ($authorizationApprovals as $authorizationApproval) : ?>
         <tr>
-            <td><?= h($authorizationApproval->authorization->member->sca_name) ?></td>
+            <td><?= h($authorizationApproval->authorizations->member->sca_name) ?></td>
             <td><?= h($authorizationApproval->approver->sca_name) ?></td>
             <td><?= h($authorizationApproval->requested_on) ?></td>
             <td><?= h($authorizationApproval->approved) ?></td>

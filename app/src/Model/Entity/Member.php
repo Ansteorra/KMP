@@ -183,7 +183,6 @@ class Member extends Entity implements AuthorizationIdentity, AuthenticationIden
         if($this->_last_permissions_update == null || !$this->_last_permissions_update->isWithinNext('1 minute')){
             $this->_permissions = PermissionsLoader::getPermissions($this->id);
             $this->_last_permissions_update = DateTime::now();
-            Log::write('debug', 'load permissions' );
         }
         return $this->_permissions;
     }
@@ -192,11 +191,9 @@ class Member extends Entity implements AuthorizationIdentity, AuthenticationIden
         $permissions = $this->getPermissions();
         foreach($permissions as $permission){
             if($permission->is_super_user){
-                Log::debug('User is a super user');
                 return true;
             }
         }
-        Log::debug('User is not a super user');
         return false;
     }
 

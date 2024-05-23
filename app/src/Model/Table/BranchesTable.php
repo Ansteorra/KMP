@@ -34,12 +34,12 @@ class BranchesTable extends Table
         $this->setDisplayField('name');
         $this->setPrimaryKey('id');
 
-        $this->BelongsTo('parent', [
+        $this->BelongsTo('Parent', [
             'className' => 'Branches',
             'foreignKey' => 'parent_id',
         ]);
 
-        $this->HasMany('members', [
+        $this->HasMany('Members', [
             'className' => 'Members',
             'foreignKey' => 'branch_id',
         ]);

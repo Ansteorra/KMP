@@ -22,7 +22,7 @@ class AuthorizationApprovalsController extends AppController
     public function index($member_id = null)
     {
         $query = $this->AuthorizationApprovals->find()
-            ->contain(['Authorization.Members', 'Authorization.AuthorizationType', 'Approver']);
+            ->contain(['Authorizations.Members', 'Authorizations.AuthorizationTypes', 'Approver']);
         if ($member_id) {
             $query->where(['approver_id' => $member_id])
                 ->where(['responded_on IS ' => null]);
@@ -37,7 +37,7 @@ class AuthorizationApprovalsController extends AppController
     {
         $member_id = $this->Authentication->getIdentity()->getIdentifier();
         $query = $this->AuthorizationApprovals->find()
-            ->contain(['Authorization.Members', 'Authorization.AuthorizationType', 'Approver']);
+            ->contain(['Authorizations.Members', 'Authorizations.AuthorizationTypes', 'Approver']);
 
         $query->where(['approver_id' => $member_id]);
         $this->Authorization->authorize($query);
@@ -56,7 +56,7 @@ class AuthorizationApprovalsController extends AppController
      */
     public function view($id = null)
     {
-        $authorizationApproval = $this->AuthorizationApprovals->get($id, contain: ['Authorization.AuthorizationType', 'Authorization.AuthorizationApprovals']);
+        $authorizationApproval = $this->AuthorizationApprovals->get($id, contain: ['Authorizations.AuthorizationTypes', 'Authorizations.AuthorizationApprovals']);
 
         $this->Authorization->authorize($authorizationApproval);
         $this->set(compact('authorizationApproval'));
@@ -71,7 +71,7 @@ class AuthorizationApprovalsController extends AppController
     public function approve($id = null)
     {
         $this->request->allowMethod(['post']);
-        $authorizationApproval = $this->AuthorizationApprovals->get($id, contain: ['Authorization.AuthorizationType']);
+        $authorizationApproval = $this->AuthorizationApprovals->get($id, contain: ['Authorizations.AuthorizationTypes']);
         $this->Authorization->authorize($authorizationApproval);
         $this->AuthorizationApprovals->getConnection()->begin();
         //Set the approval to approved
@@ -85,15 +85,15 @@ class AuthorizationApprovalsController extends AppController
         }
         //If the authorization requires multiple approvals, check if all approvals have been accepted
         $approve_auth = false;
-        if ($authorizationApproval->authorization->authorization_type->num_required_authorizors > 1) {
+        if ($authorizationApproval->authorizations->authorization_type->num_required_authorizors > 1) {
             $accepted_approvals = $this->AuthorizationApprovals->find()
                 ->where(['authorization_id' => $authorizationApproval->authorization_id, 'approved' => true])
                 ->count();
-            if ($accepted_approvals >= $authorizationApproval->authorization->authorization_type->num_required_authorizors) {
+            if ($accepted_approvals >= $authorizationApproval->authorizations->authorization_type->num_required_authorizors) {
                 $approve_auth = true;
             }else{
-                $authorizationApproval->authorization->status = 'pending';
-                if (!$this->AuthorizationApprovals->Authorization->save($authorizationApproval->authorization)) {
+                $authorizationApproval->authorizations->status = 'pending';
+                if (!$this->AuthorizationApprovals->Authorization->save($authorizationApproval->authorizations)) {
                     $this->AuthorizationApprovals->getConnection()->rollback();
                     $this->Flash->error(__('The authorization approval could not be approved. Please, try again.'));
                     return $this->redirect($this->referer());
@@ -106,8 +106,8 @@ class AuthorizationApprovalsController extends AppController
             //if there are previous authorizations for the same authorization_type that have not ended, end them now
             $previous_authorizations = TableRegistry::getTableLocator()->get('Authorizations')->find()
                 ->where([
-                    'member_id' => $authorizationApproval->authorization->member_id,
-                    'authorization_type_id' => $authorizationApproval->authorization->authorization_type_id,
+                    'member_id' => $authorizationApproval->authorizations->member_id,
+                    'authorization_type_id' => $authorizationApproval->authorizations->authorization_type_id,
                     'status' => 'approved'
                 ])
                 ->where(['expires_on >' => DateTime::now()])
@@ -121,9 +121,9 @@ class AuthorizationApprovalsController extends AppController
                 }
             }
             //Now that the previous auths are closed we can approve and set the time of the new auth.
-            $authorizationApproval->authorization->status = 'approved';
-            $authorizationApproval->authorization->start_on = DateTime::now();
-            $authorizationApproval->authorization->expires_on = DateTime::now()->addYears($authorizationApproval->authorization->authorization_type->length);
+            $authorizationApproval->authorizations->status = 'approved';
+            $authorizationApproval->authorizations->start_on = DateTime::now();
+            $authorizationApproval->authorizations->expires_on = DateTime::now()->addYears($authorizationApproval->authorizations->authorization_type->length);
             if (!$this->AuthorizationApprovals->Authorization->save($authorizationApproval->authorization)) {
                 $this->AuthorizationApprovals->getConnection()->rollback();
                 $this->Flash->error(__('The authorization approval could not be approved. Please, try again.'));
@@ -149,7 +149,7 @@ class AuthorizationApprovalsController extends AppController
         $authorizationApproval->responded_on = DateTime::now();
         $authorizationApproval->approved = false;
         $authorizationApproval->approver_notes = $this->request->getData('approver_notes');
-        $authorizationApproval->authorization->status = 'rejected';
+        $authorizationApproval->authorizations->status = 'rejected';
         if ($this->AuthorizationApprovals->save($authorizationApproval) && $this->AuthorizationApprovals->Authorization->save($authorizationApproval->authorization)) {
             $this->Flash->success(__('The authorization approval has been rejected.'));
         } else {

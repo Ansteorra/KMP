@@ -15,9 +15,10 @@ use Cake\ORM\Entity;
  * @property int|null $minimum_age
  * @property int|null $maximum_age
  * @property int $num_required_authorizors
+ * @property \Cake\I18n\Date|null $deleted
  *
  * @property \App\Model\Entity\AuthorizationGroup $authorization_group
- * @property \App\Model\Entity\MemberAuthorizationType[] $Member_authorization_types
+ * @property \App\Model\Entity\MemberAuthorizationType[] $member_authorization_types
  * @property \App\Model\Entity\PendingAuthorization[] $pending_authorizations
  * @property \App\Model\Entity\Permission[] $permissions
  */
@@ -39,8 +40,9 @@ class AuthorizationType extends Entity
         'minimum_age' => true,
         'maximum_age' => true,
         'num_required_authorizors' => true,
+        'deleted' => true,
         'authorization_group' => true,
-        'Member_authorization_types' => true,
+        'member_authorization_types' => true,
         'pending_authorizations' => true,
         'permissions' => true,
     ];

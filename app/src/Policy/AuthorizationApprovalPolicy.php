@@ -25,14 +25,9 @@ class AuthorizationApprovalPolicy extends BasePolicy
         return false;
     }
 
-    function canIndex(IdentityInterface $user, $query ): bool
-    {
-        $this->_hasAuthenticationsPermissions($user, $query);
-    }
-
     public function canMyQueue(IdentityInterface $user, $entity)
     {
-        $this->_hasAuthenticationsPermissions($user, $entity);
+        return $this->_hasAuthenticationsPermissions($user, $entity);
 
     }
 }

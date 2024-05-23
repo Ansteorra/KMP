@@ -44,23 +44,31 @@ $this->start('tb_body_start');
                 <nav class="nav flex-column nav-underline mx-2">
                     <?php
                         $memberArea = "";
-                        $memberArea .= $this->Kmp->appControllerNav($user->sca_name, ['controller' =>'Members', 'action'=> 'view', $user->id], $this->request, $this->Html, $user, 'bi-person-fill', [
-                                ['suburl' => ['controller' =>'Members', 'action'=> 'ViewCard', $user->id], 'label' => 'My Auth Card', 'icon' => 'bi-person-vcard'],
-                                ['suburl' => ['controller' =>'AuthorizationApprovals', 'action'=> 'MyQueue'], 'label' => 'My Auth Queue', 'icon' => 'bi-person-fill-check']
-                            ]);
+                        $memberArea .= $this->Kmp->appControllerNav ( $user->sca_name, ['controller' =>'Members', 'action'=> 'view', $user->id], $this->request, $this->Html, $user, 'bi-person-fill', true, [
+                                        ['suburl' => ['controller' =>'Members', 'action'=> 'ViewCard', $user->id], 
+                                            'label' => 'My Auth Card', 
+                                            'icon' => 'bi-person-vcard', 
+                                            'overrideSelf' => true
+                                        ],
+                                        ['suburl' => ['controller' =>'AuthorizationApprovals', 'action'=> 'MyQueue'], 
+                                            'label' => 'My Auth Queue', 
+                                            'icon' => 'bi-person-fill-check', 
+                                            'overrideSelf' => false
+                                        ]
+                                ]);
                         if($memberArea){
                             echo $this->Kmp->appControllerNavSpacer('Members', $this->Html, 'bi-people');
                             echo $memberArea;
                         }
                         $sysConfig = "";
-                        $sysConfig .= $this->Kmp->appControllerNav('App Settings', 'AppSettings', $this->request, $this->Html, $user, 'bi-card-list');
-                        $sysConfig .= $this->Kmp->appControllerNav('Branches', 'Branches', $this->request, $this->Html, $user, 'bi-diagram-3', [
+                        $sysConfig .= $this->Kmp->appControllerNav('App Settings', 'AppSettings', $this->request, $this->Html, $user, 'bi-card-list', false);
+                        $sysConfig .= $this->Kmp->appControllerNav('Branches', 'Branches', $this->request, $this->Html, $user, 'bi-diagram-3', false, [
                             ['suburl' => ['controller' =>'Branches', 'action'=> 'add'], 'label' => 'New Branch', 'icon' => 'bi-plus']
                         ]);
-                        $sysConfig .= $this->Kmp->appControllerNav('Authorization Groups', 'AuthorizationGroups', $this->request, $this->Html, $user, 'bi-archive', [
+                        $sysConfig .= $this->Kmp->appControllerNav('Authorization Groups', 'AuthorizationGroups', $this->request, $this->Html, $user, 'bi-archive', false, [
                             ['suburl' => ['controller' =>'AuthorizationGroups', 'action'=> 'add'], 'label' => 'New Auth Group', 'icon' => 'bi-plus']
                         ]);
-                        $sysConfig .= $this->Kmp->appControllerNav('Authorization Types', 'AuthorizationTypes', $this->request, $this->Html, $user, 'bi-collection', [
+                        $sysConfig .= $this->Kmp->appControllerNav('Authorization Types', 'AuthorizationTypes', $this->request, $this->Html, $user, 'bi-collection', false, [
                             ['suburl' => ['controller' =>'AuthorizationTypes', 'action'=> 'add'], 'label' => 'New Auth Type', 'icon' => 'bi-plus']
                         ]);
                         if($sysConfig){
@@ -68,10 +76,10 @@ $this->start('tb_body_start');
                             echo $sysConfig;
                         }
                         $security = "";
-                        $security .= $this->Kmp->appControllerNav('Roles', 'Roles', $this->request, $this->Html, $user, 'bi-universal-access-circle', [
+                        $security .= $this->Kmp->appControllerNav('Roles', 'Roles', $this->request, $this->Html, $user, 'bi-universal-access-circle', false, [
                             ['suburl' => ['controller' =>'Roles', 'action'=> 'add'], 'label' => 'New Role', 'icon' => 'bi-plus']
                         ]);
-                        $security .= $this->Kmp->appControllerNav('Permissions', 'Permissions', $this->request, $this->Html, $user, 'bi-clipboard-check', [
+                        $security .= $this->Kmp->appControllerNav('Permissions', 'Permissions', $this->request, $this->Html, $user, 'bi-clipboard-check', false, [
                             ['suburl' => ['controller' =>'Permissions', 'action'=> 'add'], 'label' => 'New Permission', 'icon' => 'bi-plus']
                         ]);
                         if($security){

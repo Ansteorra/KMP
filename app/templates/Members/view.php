@@ -47,7 +47,8 @@ $user = $this->request->getAttribute('identity');
             <tr scope="row">
                 <th class="col"><?= __('Legal Name') ?></th>
                 <td lass="col-10"><?= h($member->first_name) ?> <?= h($member->middle_name) ?>
-                    <?= h($member->last_name) ?></td>
+                    <?= h($member->last_name) ?>
+                </td>
             </tr>
             <tr scope="row">
                 <th class="col"><?= __('Address') ?></th>
@@ -63,7 +64,7 @@ $user = $this->request->getAttribute('identity');
                 </tr>
                 <tr scope="row">
                     <th class="col"><?= __('Email Address') ?></th>
-                    <td lass="col-10"><?= h($member->email_address) ?> <?= $member->age ?> </td>
+                    <td lass="col-10"><?= h($member->email_address) ?> </td>
                 </tr>
                 <?= $member->age < 18 ? '<tr scope="row">
                 <th class="col">' . __('Parent Name') . '</th>
@@ -113,6 +114,11 @@ $user = $this->request->getAttribute('identity');
                     <button class="nav-link" id="nav-expired-approvals-tab" data-bs-toggle="tab"
                         data-bs-target="#nav-expired-approvals" type="button" role="tab"
                         aria-controls="nav-expired-approvals" aria-selected="false">Expired</button>
+                    <button class="nav-link" id="nav-pending-approvals-tab" data-bs-toggle="tab"
+                        data-bs-target="#nav-pending-approvals" type="button" role="tab"
+                        aria-controls="nav-pending-approvals" aria-selected="false">Pending
+                        <span class="badge bg-danger"><?= count($pending) ?></span>
+                    </button>
                 </div>
             </nav>
             <div class="tab-content" id="nav-tabContent">
@@ -144,11 +150,37 @@ $user = $this->request->getAttribute('identity');
                                 <th scope="col"><?= __('Start On') ?></th>
                                 <th scope="col"><?= __('Expires On') ?></th>
                             </tr>
-                            <?php foreach ($expired as $auth): ?>
+                            <?php foreach ($expired as $auth){ 
+                                $assigned_to = '';
+                                ?>
                                 <tr>
                                     <td><?= h($auth->authorization_type->name) ?></td>
                                     <td><?= h($auth->start_on) ?></td>
                                     <td><?= h($auth->expires_on) ?></td>
+                                </tr>
+                            <?php } ?>
+                        </table>
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="nav-pending-approvals" role="tabpanel"
+                    aria-labelledby="nav-pending-approvals-tab" tabindex="0">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <tr>
+                                <th scope="col"><?= __('Authorization') ?></th>
+                                <th scope="col"><?= __('Requested On') ?></th>
+                                <th scope="col"><?= __('Assigned To') ?></th>
+                            </tr>
+                            <?php foreach ($pending as $auth): ?>
+                                <tr>
+                                    <td><?= h($auth->authorization_type->name) ?></td>
+                                    <td><?= h($auth->requested_on) ?></td>
+                                    <td>
+                                    <?php if (!empty($auth->authorization_approvals)): ?>
+                                        <?= h($auth->authorization_approvals[0]->approver->sca_name) ?></td>
+                                    <?php else: ?>
+                                        Unassigned
+                                    <?php endif; ?>
                                 </tr>
                             <?php endforeach; ?>
                         </table>
@@ -265,30 +297,30 @@ $user = $this->request->getAttribute('identity');
                         </div>
                     </div>
                 <?php endforeach; ?>
-                <div class="accordion-item">
-                    <h2 class="accordion-header">
-                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                            data-bs-target="#note_new" aria-expanded="true" aria-controls="collapseOne">
-                            Add a Note
-                        </button>
-                    </h2>
-                    <div id="note_new" class="accordion-collapse collapse" data-bs-parent="#accordionExample">
-                        <div class="accordion-body">
-                            <?= $this->Form->create($newNote, ['url' => ['action' => 'addNote', $member->id]]) ?>
-                            <fieldset>
-                                <legend><?= __('Add Note') ?></legend>
-                                <?php
-                                echo $this->Form->control('subject');
-                                echo $user->can('viewPrivateNotes', $member) ? $this->Form->control('private', ['type' => 'checkbox', 'label' => 'Private']) : '';
-                                echo $this->Form->control('body', ['label' => 'Note']);
-                                ?>
-                            </fieldset>
-                            <div class='text-end'><?= $this->Form->button(__('Submit'), ['class' => 'btn-primary']) ?></div>
-                            <?= $this->Form->end() ?>
-                        </div>
+            <?php endif; ?>
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                        data-bs-target="#note_new" aria-expanded="true" aria-controls="collapseOne">
+                        Add a Note
+                    </button>
+                </h2>
+                <div id="note_new" class="accordion-collapse collapse" data-bs-parent="#accordionExample">
+                    <div class="accordion-body">
+                        <?= $this->Form->create($newNote, ['url' => ['action' => 'addNote', $member->id]]) ?>
+                        <fieldset>
+                            <legend><?= __('Add Note') ?></legend>
+                            <?php
+                            echo $this->Form->control('subject');
+                            echo $user->can('viewPrivateNotes', $member) ? $this->Form->control('private', ['type' => 'checkbox', 'label' => 'Private']) : '';
+                            echo $this->Form->control('body', ['label' => 'Note']);
+                            ?>
+                        </fieldset>
+                        <div class='text-end'><?= $this->Form->button(__('Submit'), ['class' => 'btn-primary']) ?></div>
+                        <?= $this->Form->end() ?>
                     </div>
                 </div>
-            <?php endif; ?>
+            </div>
         </div>
     </div>
 

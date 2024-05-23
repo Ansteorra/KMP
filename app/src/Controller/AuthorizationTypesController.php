@@ -40,7 +40,15 @@ class AuthorizationTypesController extends AppController
      */
     public function view($id = null)
     {
-        $authorizationType = $this->AuthorizationTypes->get($id, contain: ['AuthorizationGroups', 'MemberAuthorizationTypes', 'PendingAuthorizations']);
+        $authorizationType = $this->AuthorizationTypes->get($id, contain: [
+            'AuthorizationGroups', 
+            'Authorizations.AuthorizationApprovals.Approvers' => function($q){
+                return $q->select(['id', 'sca_name']);
+            },
+            'Authorizations.Members' => function($q){
+                return $q->select(['id', 'sca_name']);
+            },
+        ]);
         $this->Authorization->authorize($authorizationType);
         $roles = $this->AuthorizationTypes->Permissions->Roles->find()->innerJoinWith('Permissions', function ($q) use ($authorizationType){
             return $q->where(['OR'=>['Permissions.authorization_type_id' => $authorizationType->id, 'Permissions.is_super_user'=>true]]);

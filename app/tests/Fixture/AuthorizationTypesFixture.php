@@ -26,6 +26,7 @@ class AuthorizationTypesFixture extends TestFixture
                 'minimum_age' => 1,
                 'maximum_age' => 1,
                 'num_required_authorizors' => 1,
+                'deleted' => '2024-05-23',
             ],
         ];
         parent::init();

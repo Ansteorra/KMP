@@ -6,6 +6,7 @@ namespace App\Controller;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
 use App\KMP\PermissionsLoader;
+use Cake\ORM\Query\SelectQuery;
 
 /**
  * Members Controller
@@ -47,14 +48,21 @@ class MembersController extends AppController
      */
     public function view($id = null)
     {
-        $member = $this->Members->get($id, contain: [
+        $member = $this->Members->find()->contain([
             'Roles', 
-            'Branch',
-            'Notes.Author',
-            'Authorizations.AuthorizationType',
-            'MemberRoles.Role',
+            'Branches',
+            'Notes.Authors' => function (SelectQuery $q) {
+                return $q->select(['Authors.sca_name']);
+            },
+            'Authorizations.AuthorizationTypes',
+            'MemberRoles.Roles',
             'MemberRoles.Approved_By'
-        ]);
+        ]) -> contain('Authorizations.AuthorizationApprovals.Approvers', function (SelectQuery $q) {
+            return $q->select(['Approvers.sca_name'])
+                    ->where(['AuthorizationApprovals.responded_on IS' => null]);
+        })->where(['Members.id' => $id])
+            ->first();
+        $this->Authorization->authorize($member);
         if (!$this->Authorization->can($member, 'viewPrivateNotes')){
             // remove private notes
             $member->notes = array_filter($member->notes, function($note) {
@@ -65,8 +73,26 @@ class MembersController extends AppController
         $att = TableRegistry::getTableLocator()->get('AuthorizationTypes');
         $authorization_types = $att->find('list')
             ->where(['minimum_age <' => $member->age, 'maximum_age >' => $member->age]);
-        $treeList = $this->Members->Branch->find('treeList', spacer: '--') -> order(['name' => 'ASC']);
+        $treeList = $this->Members->Branches->find('treeList', spacer: '--') -> order(['name' => 'ASC']);
         $this->set(compact('member', 'newNote', 'authorization_types','treeList'));
+    }
+
+    public function viewCard($id = null)
+    {
+        $member = $this->Members->find()->contain([
+            'Roles', 
+            'Branches',
+            'Authorizations.AuthorizationTypes.AuthorizationGroup'])
+            ->where(['Members.id' => $id])
+            ->first();
+        $this->Authorization->authorize($member);
+        //sort filter out expired member roles
+        $permissions = $member->getPermissions();
+        $authTypes = [];
+        foreach($permissions as $permission){
+            $authTypes[] = $permission['authorization_type_id'];
+        }
+        $this->set(compact('member'));
     }
 
     public function approversList($auth_id = null, $member_id = null)
@@ -152,6 +178,33 @@ class MembersController extends AppController
         $this->Authorization->authorize($member);
         if ($this->request->is(['patch', 'post', 'put'])) {
             $member = $this->Members->patchEntity($member, $this->request->getData());
+            if ($this->Members->save($member)) {
+                $this->Flash->success(__('The Member has been saved.'));
+
+                return $this->redirect(['action' => 'view', $member->id]);
+            }
+            $this->Flash->error(__('The Member could not be saved. Please, try again.'));
+        }
+        //$this->redirect(['action' => 'view', $member->id]);
+    }
+
+    public function partialEdit($id = null)
+    {
+        $member = $this->Members->get($id);
+        $this->Authorization->authorize($member);
+        if ($this->request->is(['patch', 'post', 'put'])) {
+            $member->sca_name = $this->request->getData('sca_name');
+            $member->branch_id = $this->request->getData('branch_id');
+            $member->first_name = $this->request->getData('first_name');
+            $member->middle_name = $this->request->getData('middle_name');
+            $member->last_name = $this->request->getData('last_name');
+            $member->street_address = $this->request->getData('street_address');
+            $member->city = $this->request->getData('city');
+            $member->state = $this->request->getData('state');
+            $member->zip = $this->request->getData('zip');
+            $member->phone_number = $this->request->getData('phone_number');
+            $member->email_address = $this->request->getData('email_address');
+            $member->parent_name = $this->request->getData('parent_name');
             if ($this->Members->save($member)) {
                 $this->Flash->success(__('The Member has been saved.'));
 

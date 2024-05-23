@@ -55,4 +55,14 @@ class MemberPolicy extends BasePolicy
         } 
         return false;
     }
+
+    function canRequestAuthorization(IdentityInterface $user, $entity)
+    {
+        $canDo = $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+        if ($canDo) {
+            return true;
+        } else {
+            return $entity->id == $user->getIdentifier();
+        }   
+    }
 }

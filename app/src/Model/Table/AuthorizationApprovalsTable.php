@@ -44,12 +44,12 @@ class AuthorizationApprovalsTable extends Table
         $this->setDisplayField('id');
         $this->setPrimaryKey('id');
 
-        $this->belongsTo('Authorization', [
+        $this->belongsTo('Authorizations', [
             'className' => 'Authorizations',
             'foreignKey' => 'authorization_id',
             'joinType' => 'INNER',
         ]);
-        $this->belongsTo('Approver', [
+        $this->belongsTo('Approvers', [
             'className' => 'Members',
             'foreignKey' => 'approver_id',
             'joinType' => 'INNER',

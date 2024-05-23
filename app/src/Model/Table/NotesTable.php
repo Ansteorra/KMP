@@ -41,7 +41,7 @@ class NotesTable extends Table
         $this->setDisplayField('id');
         $this->setPrimaryKey('id');
 
-        $this->belongsTo('Author', [
+        $this->belongsTo('Authors', [
             'className' => 'Members',
             'foreignKey' => 'author_id',
             'joinType' => 'INNER',
