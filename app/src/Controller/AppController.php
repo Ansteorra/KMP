@@ -17,7 +17,8 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use Cake\Controller\Controller;
-
+use Cake\Core\ServiceProvider;
+use App\Model\Table\AppSettingsTable;
 /**
  * Application Controller
  *
@@ -28,6 +29,7 @@ use Cake\Controller\Controller;
  */
 class AppController extends Controller
 {
+    protected AppSettingsTable $appSettings;
     /**
      * Initialization hook method.
      *
@@ -44,6 +46,9 @@ class AppController extends Controller
         $this->loadComponent('Authentication.Authentication');
         $this->loadComponent('Authorization.Authorization');
         $this->loadComponent('Flash');
+        $this->appSettings = $this->getTableLocator()->get('AppSettings');
+
+        //$this->appSettings = ServiceProvider::getContainer()->get(AppSettingsService::class);
 
         /*
          * Enable the following component for recommended CakePHP form protection settings.
@@ -51,4 +56,5 @@ class AppController extends Controller
          */
         //$this->loadComponent('FormProtection');
     }
+ 
 }

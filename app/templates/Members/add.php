@@ -21,38 +21,28 @@
 <?php $this->assign('tb_sidebar', '<ul class="nav flex-column">' . $this->fetch('tb_actions') . '</ul>'); ?>
 
 <div class="Members form content">
-    <?= $this->Form->create($Member) ?>
+    <?= $this->Form->create($member ) ?>
     <fieldset>
         <legend><?= __('Add Member') ?></legend>
         <?php
-            echo $this->Form->control('last_updated');
-            echo $this->Form->control('password');
+   
             echo $this->Form->control('sca_name');
-            echo $this->Form->control('first_name');
+            echo $this->Form->control('branch_id', ['options' => $treeList, 'required' => true]);
+            echo $this->Form->control('first_name', ['required' => true]);
             echo $this->Form->control('middle_name');
-            echo $this->Form->control('last_name');
+            echo $this->Form->control('last_name', ['required' => true]);
             echo $this->Form->control('street_address');
             echo $this->Form->control('city');
             echo $this->Form->control('state');
             echo $this->Form->control('zip');
             echo $this->Form->control('phone_number');
-            echo $this->Form->control('email_address');
+            echo $this->Form->control('email_address', ['required' => true, 'type' => 'email', 'nestedInput' => true, 'labelOptions' => ['class' => 'input-group-text']]);
             echo $this->Form->control('membership_number');
             echo $this->Form->control('membership_expires_on', ['empty' => true]);
-            echo $this->Form->control('branch_name');
-            echo $this->Form->control('notes');
             echo $this->Form->control('parent_name');
+            echo $this->Form->control('birthdate',['type'=>'date','empty'=>true,'minYear'=>1901, 'day'=> false, '']);
             echo $this->Form->control('background_check_expires_on', ['empty' => true]);
-            echo $this->Form->control('hidden');
-            echo $this->Form->control('password_token');
-            echo $this->Form->control('password_token_expires_on', ['empty' => true]);
-            echo $this->Form->control('last_login', ['empty' => true]);
-            echo $this->Form->control('last_failed_login', ['empty' => true]);
-            echo $this->Form->control('failed_login_attempts');
-            echo $this->Form->control('birth_month');
-            echo $this->Form->control('birth_year');
-            echo $this->Form->control('deleted_date', ['empty' => true]);
-            echo $this->Form->control('roles._ids', ['options' => $roles]);
+            echo $this->Form->control('password', ['required' => true]);
                 ?>
     </fieldset>
     <?= $this->Form->button(__('Submit')) ?>

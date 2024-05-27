@@ -45,7 +45,6 @@ class AuthorizationApprovalsTable extends Table
         $this->setPrimaryKey('id');
 
         $this->belongsTo('Authorizations', [
-            'className' => 'Authorizations',
             'foreignKey' => 'authorization_id',
             'joinType' => 'INNER',
         ]);
@@ -108,8 +107,8 @@ class AuthorizationApprovalsTable extends Table
      */
     public function buildRules(RulesChecker $rules): RulesChecker
     {
-        $rules->add($rules->existsIn(['authorization_id'], 'Authorization'), ['errorField' => 'authorization_id']);
-        $rules->add($rules->existsIn(['approver_id'], 'Approver'), ['errorField' => 'approver_id']);
+        $rules->add($rules->existsIn(['authorization_id'], 'Authorizations'), ['errorField' => 'authorization_id']);
+        $rules->add($rules->existsIn(['approver_id'], 'Approvers'), ['errorField' => 'approver_id']);
 
         return $rules;
     }

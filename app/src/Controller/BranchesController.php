@@ -1,10 +1,10 @@
-<?php
-declare(strict_types=1);
+<?php declare(strict_types=1);
 
 namespace App\Controller;
 
 use Cake\Database\Exception\DatabaseException;
 use Cake\Log\Log;
+
 /**
  * Branches Controller
  *
@@ -15,17 +15,15 @@ class BranchesController extends AppController
     public function initialize(): void
     {
         parent::initialize();
-        $this->Authorization->authorizeModel('index','add');
-        $setting = $this->getTableLocator()->get('AppSettings')->find()->where(['name' => '_sys_branches_init'])->first();
-        if(!$setting){
-            $branches = $this->getTableLocator()->get('Branches');
+        $this->Authorization->authorizeModel('index', 'add');
+        $setting = $this->appSettings->getAppSetting('_sys_branches_init');
+        if (!$setting == 'recovered') {
+            $branches = $appSettings->getTableLocator()->get('Branches');
             $branches->recover();
-            $setting = $this->getTableLocator()->get('AppSettings')->newEmptyEntity();
-            $setting->name = '_sys_branches_init';
-            $setting->value = '1';
-            $this->getTableLocator()->get('AppSettings')->save($setting);
+            $this->appSettings->setAppSetting('_sys_branches_init', 'recovered');
         }
     }
+
     /**
      * Index method
      *
@@ -34,8 +32,10 @@ class BranchesController extends AppController
     public function index()
     {
         $this->Authorization->authorizeAction();
-        $branches = $this->Branches
-            ->find('threaded')->order(['name' => 'ASC'])
+        $branches = $this
+            ->Branches
+            ->find('threaded')
+            ->order(['name' => 'ASC'])
             ->toArray();
         $this->set(compact('branches'));
     }
@@ -49,11 +49,18 @@ class BranchesController extends AppController
      */
     public function view($id = null)
     {
-        $branch = $this->Branches->get($id, contain: ['Parent','Members']);
+        $branch = $this->Branches->get($id, contain: [
+            'Parent',
+            'Members' => function ($q) {
+                return $q
+                    ->select(['id', 'sca_name', 'branch_id'])
+                    ->order(['sca_name' => 'ASC']);
+            }
+        ]);
         $this->Authorization->authorize($branch);
-        //get the children for the branch
+        // get the children for the branch
         $branch->children = $this->Branches->find('children', ['for' => $branch->id])->toArray();
-        $treeList = $this->Branches->find('treeList', spacer: '--') -> order(['name' => 'ASC']);
+        $treeList = $this->Branches->find('treeList', spacer: '--')->order(['name' => 'ASC']);
         $this->set(compact('branch', 'treeList'));
     }
 
@@ -74,7 +81,7 @@ class BranchesController extends AppController
             }
             $this->Flash->error(__('The branch could not be saved. Please, try again.'));
         }
-        $treeList = $this->Branches->find('treeList', spacer: '--') -> order(['name' => 'ASC']);
+        $treeList = $this->Branches->find('treeList', spacer: '--')->order(['name' => 'ASC']);
         $this->set(compact('branch', 'treeList'));
     }
 
@@ -91,7 +98,7 @@ class BranchesController extends AppController
         $this->Authorization->authorize($branch);
         if ($this->request->is(['patch', 'post', 'put'])) {
             $branch = $this->Branches->patchEntity($branch, $this->request->getData());
-            try{
+            try {
                 if ($this->Branches->save($branch)) {
                     $branches = $this->getTableLocator()->get('Branches');
                     $branches->recover();
@@ -101,9 +108,9 @@ class BranchesController extends AppController
                 }
                 $this->Flash->error(__('The branch could not be saved. Please, try again.'));
                 return $this->redirect(['action' => 'view', $branch->id]);
-            } catch( DatabaseException $e) {
-                //if the error message starts with 'Cannot use node' then it is a tree error
-                if(strpos($e->getMessage(), 'Cannot use node') === 0){
+            } catch (DatabaseException $e) {
+                // if the error message starts with 'Cannot use node' then it is a tree error
+                if (strpos($e->getMessage(), 'Cannot use node') === 0) {
                     $this->Flash->error(__('The branch could not be saved, save would have created a circular reference.'));
                 } else {
                     $this->Flash->error(__('The branch could not be saved. Please, try again. Error` {0}', $e->getMessage()));
@@ -111,7 +118,7 @@ class BranchesController extends AppController
                 return $this->redirect(['action' => 'view', $branch->id]);
             }
         }
-        $treeList = $this->Branches->find('treeList', spacer: '--') -> order(['name' => 'ASC']);
+        $treeList = $this->Branches->find('treeList', spacer: '--')->order(['name' => 'ASC']);
         $this->set(compact('branch', 'treeList'));
     }
 

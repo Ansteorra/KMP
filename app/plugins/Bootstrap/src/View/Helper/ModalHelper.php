@@ -129,6 +129,7 @@ class ModalHelper extends Helper
             'body' => true,
             'size' => false,
             'templateVars' => [],
+            'show' => false,
         ];
 
         $dialogOptions = [];
@@ -136,6 +137,9 @@ class ModalHelper extends Helper
         if ($options['id']) {
             $this->_currentId = $options['id'];
             $options['aria-labelledby'] = $this->_currentId . 'Label';
+        }
+        if($options['show']){
+            $dialogOptions = $this->addClass($dialogOptions, 'show');
         }
 
         switch ($options['size']) {

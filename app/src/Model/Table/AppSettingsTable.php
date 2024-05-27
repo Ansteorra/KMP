@@ -7,6 +7,7 @@ use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
+use Cake\Datasource\EntityInterface;
 
 /**
  * AppSettings Model
@@ -62,5 +63,73 @@ class AppSettingsTable extends Table
             ->allowEmptyString('value');
 
         return $validator;
+    }
+
+    public function save (EntityInterface $entity, array $options = []): EntityInterface|false{
+        $result = parent::save($entity, $options);
+        if($result){
+            $this->clearAppSettingsCache();
+        }
+        return $result;
+    }
+
+    public function delete(EntityInterface $entity, array $options = []): bool{
+        $result = parent::delete($entity, $options);
+        if($result){
+            $this->clearAppSettingsCache();
+        }
+        return $result;
+    }
+
+    protected $_appSettingsCachs = [];
+    public function getAppSetting($key,$default = '')
+    {
+        if (isset($this->_appSettingsCachs[$key])) {
+            return $this->_appSettingsCachs[$key];
+        }
+        $setting = $this->find()->where(['name' => $key])->first();
+        if (!$setting) {
+            $setting = $this->setAppSetting($key, $default);
+            return $default;
+        }else{
+            $this->_appSettingsCachs[$key] = $setting->value;
+            return $setting->value;
+        }
+        
+    }   
+    public function setAppSetting($key, $value)
+    {
+        $setting = $this->find()->where(['name' => $key])->first();
+        if (!$setting) {
+            $setting = $this->newEmptyEntity();
+            $setting->name = $key;
+        }
+        $setting->value = $value;
+        $this->save($setting);
+        $this->appSettingsCachs[$key] = $value;
+    }
+
+    public function getAllAppSettings(){
+        if($this->appSettingsCachs->count() > 0){
+            return $this->appSettingsCachs;
+        }
+        $settings = $this->find()->all();
+        foreach ($settings as $setting) {
+            $this->appSettingsCachs[$setting->name] = $setting->value;
+        }
+        return $this->appSettingsCachs;
+        
+    }
+
+    public function deleteAppSetting($key){
+        $setting =$this->find()->where(['name' => $key])->first();
+        if ($setting) {
+            $this->getTableLocator()->get('AppSettings')->delete($setting);
+            unset($this->appSettingsCachs[$key]);
+        }
+    }
+
+    public function clearAppSettingsCache(){
+        $this->appSettingsCachs = [];
     }
 }

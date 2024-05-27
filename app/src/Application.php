@@ -48,6 +48,8 @@ use Cake\Routing\Middleware\RoutingMiddleware;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
+use App\KMP\AppSettingsService;
+
 /**
  * Application setup class.
  *
@@ -58,6 +60,8 @@ use Psr\Http\Message\ServerRequestInterface;
  */
 class Application extends BaseApplication implements AuthenticationServiceProviderInterface, AuthorizationServiceProviderInterface
 {
+    //
+    public $applicationVariables = ['hello' => 'world'];
     /**
      * Load all the application configuration and bootstrap logic.
      *
@@ -65,7 +69,6 @@ class Application extends BaseApplication implements AuthenticationServiceProvid
      */
     public function bootstrap(): void
     {
-        DateTime::setToStringFormat('YYYY-MM-dd HH:mm:ss');
         // Call parent to load bootstrap from files.
         parent::bootstrap();
 
@@ -133,6 +136,7 @@ class Application extends BaseApplication implements AuthenticationServiceProvid
      */
     public function services(ContainerInterface $container): void
     {
+        $container->addShared(AppSettingsService::class);
     }
 
     /**

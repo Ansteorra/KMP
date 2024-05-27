@@ -18,29 +18,25 @@
 <table class="table table-striped">
     <thead>
     <tr>
-        <th scope="col"><?= $this->Paginator->sort('authorizations.member.sca_name', 'Requester') ?></th>
-        <th scope="col"><?= $this->Paginator->sort('approver_id') ?></th>
-        <th scope="col"><?= $this->Paginator->sort('authorization_token') ?></th>
-        <th scope="col"><?= $this->Paginator->sort('requested_on') ?></th>
-        <th scope="col"><?= $this->Paginator->sort('responded_on') ?></th>
-        <th scope="col"><?= $this->Paginator->sort('approved') ?></th>
-        <th scope="col"><?= $this->Paginator->sort('approver_notes') ?></th>
+        <th scope="col"><?= $this->Paginator->sort('approver_name', 'Approver') ?></th>
+        <th scope="col"><?= $this->Paginator->sort('last_login', 'Last Login') ?></th>
+        <th scope="col"><?= $this->Paginator->sort('Pending') ?></th>
+        <th scope="col"><?= $this->Paginator->sort('Approved') ?></th>
+        <th scope="col"><?= $this->Paginator->sort('Denied') ?></th>
         <th scope="col" class="actions"><?= __('Actions') ?></th>
     </tr>
     </thead>
     <tbody>
-        <?php foreach ($authorizationApprovals as $authorizationApproval) : ?>
+        <?php foreach ($authorizationApprovals as $authRollup) : ?>
         <tr>
-            <td><?= h($authorizationApproval->authorizations->member->sca_name) ?></td>
-            <td><?= h($authorizationApproval->approver->sca_name) ?></td>
-            <td><?= h($authorizationApproval->requested_on) ?></td>
-            <td><?= h($authorizationApproval->approved) ?></td>
-            <td><?= h($authorizationApproval->approver_notes) ?></td>
+            <td><?= h($authRollup->approver_name) ?></td>
+            <td><?= h($authRollup->last_login) ?></td>
+            <td><?= h($authRollup->pending) ?></td>
+            <td><?= h($authRollup->approved) ?></td>
+            <td><?= h($authRollup->denied) ?></td>
             <td class="actions">
-                <?= $this->Html->link(__('View'), ['action' => 'view', $authorizationApproval->id], ['title' => __('View'), 'class' => 'btn btn-secondary']) ?>
-                <?= $this->Html->link(__('Edit'), ['action' => 'edit', $authorizationApproval->id], ['title' => __('Edit'), 'class' => 'btn btn-secondary']) ?>
-                <?= $this->Form->postLink(__('Delete'), ['action' => 'delete', $authorizationApproval->id], ['confirm' => __('Are you sure you want to delete # {0}?', $authorizationApproval->id), 'title' => __('Delete'), 'class' => 'btn btn-danger']) ?>
-            </td>
+                <?= $this->Html->link(__('View'), ['action' => 'view', $authRollup->id], ['title' => __('View'), 'class' => 'btn btn-secondary']) ?>
+             </td>
         </tr>
         <?php endforeach; ?>
     </tbody>

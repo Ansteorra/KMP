@@ -91,6 +91,7 @@ class MembersTable extends Table
 
         $validator
             ->scalar('sca_name')
+            ->minLength('sca_name', 3)
             ->maxLength('sca_name', 50)
             ->notEmptyString('sca_name');
 
@@ -145,7 +146,8 @@ class MembersTable extends Table
             ->scalar('email_address')
             ->maxLength('email_address', 50)
             ->requirePresence('email_address', 'create')
-            ->notEmptyString('email_address');
+            ->notEmptyString('email_address')
+            ->add('name', 'unique', ['rule' => 'validateUnique', 'provider' => 'table']);
 
         $validator
             ->nonNegativeInteger('membership_number')

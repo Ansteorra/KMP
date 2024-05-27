@@ -481,6 +481,11 @@ class Init extends AbstractMigration
                 'limit' => null,
                 'null' => false,
             ])
+            ->addColumn('approval_count', 'integer', [
+                'default' => 0,
+                'limit' => 11,
+                'null' => false,
+            ])
             ->addColumn('status', 'string', [
                 'default' => 'new',
                 'limit' => 20,
@@ -578,7 +583,7 @@ class Init extends AbstractMigration
                 'limit' => null,
                 'null' => true,
             ])
-            ->addColumn('start_on', 'datetimeß', [
+            ->addColumn('start_on', 'datetime', [
                 'default' => 'CURRENT_TIMESTAMP',
                 'limit' => null,
                 'null' => false,

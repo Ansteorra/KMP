@@ -61,7 +61,7 @@ class DevSeed extends AbstractSeed
             ["name" => "Can Manage Authorization Types", 'authorization_type_id' => NULL, 'system' => true, 'require_active_membership' => true],
             ["name" => "Can Manage Branches", 'authorization_type_id' => NULL, 'system' => true, 'require_active_membership' => true],
             ["name" => "Can Manage Settings", 'authorization_type_id' => NULL, 'system' => true, 'require_active_membership' => true],
-            ["name" => "Can Manage members", 'authorization_type_id' => NULL, 'system' => true, 'require_active_membership' => true]
+            ["name" => "Can Manage Members", 'authorization_type_id' => NULL, 'system' => true, 'require_active_membership' => true]
         ];
 
         $this->table("permissions")->insert($permissions)->save();

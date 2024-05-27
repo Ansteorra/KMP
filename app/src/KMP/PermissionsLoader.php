@@ -10,7 +10,7 @@ use Cake\Log\Log;
 use Cake\ORM\Entity;
 use Cake\ORM\TableRegistry;
 use Cake\Utility\Hash;
-
+use Cake\ORM\Query\SelectQuery;
 use Permission;
 
 class PermissionsLoader{
@@ -20,6 +20,9 @@ class PermissionsLoader{
         $now = DateTime::now();
 
         $query = $permissionsTable->find()
+            ->contain(['AuthorizationTypes' => function(SelectQuery $q){
+                return $q->select(['AuthorizationTypes.name']);
+            }])
             ->innerJoinWith('Roles.Members')
             ->where(['Members.id'=> $member_id])
             ->where(['OR' => [
@@ -52,7 +55,8 @@ class PermissionsLoader{
         $now = DateTime::now();
 
         $query = $memberTable->find()
-            ->contain(['Branchs','AuthorizationTypes'])
+            ->select(['Members.id', 'Members.sca_name', 'Branches.name'])
+            ->contain(['Branches'])
             ->innerJoinWith('Roles.Permissions')
             ->where(['OR' => ['Permissions.authorization_type_id' => $authorization_type_id, 'Permissions.is_super_user' => true]])
             ->where(['OR' => [

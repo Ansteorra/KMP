@@ -1,12 +1,15 @@
 <?php
+
 /**
  * @var \App\View\AppView $this
  * @var \App\Model\Entity\member $member
  */
 ?>
-<?php $this->extend('/layout/TwitterBootstrap/dashboard');
-use Cake\I18n\DateTime;
+<?php
+$this->extend('/layout/TwitterBootstrap/dashboard');
+
 use Cake\I18n\Date;
+use Cake\I18n\DateTime;
 
 $user = $this->request->getAttribute('identity');
 ?>
@@ -24,7 +27,9 @@ $user = $this->request->getAttribute('identity');
         <div class="col text-end">
             <?php if ($user->can('edit', $member) || $user->can('partialEdit', $member)) { ?>
                 <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
-                    data-bs-target="#editModal">Edit</button>
+                    data-bs-target="#editModal" id='editModalBtn'>Edit</button>
+                <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal"
+                    data-bs-target="#passwordModal" id='passwordModalBtn'>Change Password</button>
             <?php } ?>
         </div>
     </div>
@@ -89,23 +94,23 @@ $user = $this->request->getAttribute('identity');
                 <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
                     data-bs-target="#requestAuthModal">Request Authorization</button>
         </h4>
-        <?php if (!empty($member->authorizations)) {
-
-            $pending = [];
-            $approved = [];
-            $expired = [];
-            $exp_date = Date::now();
-            foreach ($member->authorizations as $auth) {
-                if ($auth->expires_on === null) {
-                    $pending[] = $auth;
-                } elseif ($auth->expires_on < $exp_date) {
-                    $expired[] = $auth;
-                } else {
-                    $approved[] = $auth;
+        <?php
+            if (!empty($member->authorizations)) {
+                $pending = [];
+                $approved = [];
+                $expired = [];
+                $exp_date = Date::now();
+                foreach ($member->authorizations as $auth) {
+                    if ($auth->expires_on === null) {
+                        $pending[] = $auth;
+                    } elseif ($auth->expires_on < $exp_date) {
+                        $expired[] = $auth;
+                    } else {
+                        $approved[] = $auth;
+                    }
                 }
-            }
 
-            ?>
+        ?>
             <nav>
                 <div class="nav nav-tabs" id="nav-tab" role="tablist">
                     <button class="nav-link active" id="nav-active-approvals-tab" data-bs-toggle="tab"
@@ -150,7 +155,8 @@ $user = $this->request->getAttribute('identity');
                                 <th scope="col"><?= __('Start On') ?></th>
                                 <th scope="col"><?= __('Expires On') ?></th>
                             </tr>
-                            <?php foreach ($expired as $auth){ 
+                            <?php
+                            foreach ($expired as $auth) {
                                 $assigned_to = '';
                                 ?>
                                 <tr>
@@ -188,25 +194,26 @@ $user = $this->request->getAttribute('identity');
                 </div>
             </div>
         <?php } ?>
-        <?php if (!empty($member->member_roles)) {
-            $active = [];
-            $inactive = [];
-            foreach ($member->member_roles as $role) {
-                if ($role->ended_on === null || $role->ended_on > DateTime::now()) {
-                    $active[] = $role;
-                } else {
-                    $inactive[] = $role;
+        <?php
+            if (!empty($member->member_roles)) {
+                $active = [];
+                $inactive = [];
+                foreach ($member->member_roles as $role) {
+                    if ($role->ended_on === null || $role->ended_on > DateTime::now()) {
+                        $active[] = $role;
+                    } else {
+                        $inactive[] = $role;
+                    }
                 }
-            }
-            //sort $active by start_on
-            usort($active, function ($a, $b) {
-                return $a->start_on <=> $b->start_on;
-            });
-            //sort $inactive by ended_on
-            usort($inactive, function ($a, $b) {
-                return $a->ended_on <=> $b->ended_on;
-            });
-            ?>
+                // sort $active by start_on
+                usort($active, function ($a, $b) {
+                    return $a->start_on <=> $b->start_on;
+                });
+                // sort $inactive by ended_on
+                usort($inactive, function ($a, $b) {
+                    return $a->ended_on <=> $b->ended_on;
+                });
+        ?>
             <div class="related">
                 <h4><?= __('Roles') ?></h4>
 
@@ -230,12 +237,13 @@ $user = $this->request->getAttribute('identity');
                                     <th scope="col"><?= __('Assignment Date') ?></th>
                                     <th scope="col"><?= __('Expire Date') ?></th>
                                     <th scope="col"><?= __('Approved By') ?></th>
-                                    <?php if ($user->can('view', "Roles")) { ?>
+                                    <?php if ($user->can('view', 'Roles')) { ?>
                                         <th scope="col" class="actions"><?= __('Actions') ?></th>
                                     <?php } ?>
                                 </tr>
                                 <?php
-                                foreach ($active as $memberRole): ?>
+                                foreach ($active as $memberRole):
+                                    ?>
                                     <tr>
                                         <td><?= h($memberRole->role->name) ?></td>
                                         <td><?= h($memberRole->start_on) ?></td>
@@ -262,7 +270,8 @@ $user = $this->request->getAttribute('identity');
                                     <th scope="col"><?= __('Approved By') ?></th>
                                 </tr>
                                 <?php
-                                foreach ($inactive as $memberRole): ?>
+                                foreach ($inactive as $memberRole):
+                                    ?>
                                     <tr>
                                         <td><?= h($memberRole->role->name) ?></td>
                                         <td><?= h($memberRole->start_on) ?></td>
@@ -311,9 +320,9 @@ $user = $this->request->getAttribute('identity');
                         <fieldset>
                             <legend><?= __('Add Note') ?></legend>
                             <?php
-                            echo $this->Form->control('subject');
-                            echo $user->can('viewPrivateNotes', $member) ? $this->Form->control('private', ['type' => 'checkbox', 'label' => 'Private']) : '';
-                            echo $this->Form->control('body', ['label' => 'Note']);
+                                echo $this->Form->control('subject');
+                                echo $user->can('viewPrivateNotes', $member) ? $this->Form->control('private', ['type' => 'checkbox', 'label' => 'Private']) : '';
+                                echo $this->Form->control('body', ['label' => 'Note']);
                             ?>
                         </fieldset>
                         <div class='text-end'><?= $this->Form->button(__('Submit'), ['class' => 'btn-primary']) ?></div>
@@ -325,15 +334,15 @@ $user = $this->request->getAttribute('identity');
     </div>
 
     <?php
-    //Start writing to modal block in layout
-    $this->start('modals');
+        // Start writing to modal block in layout
+        $this->start('modals');
     ?>
     <?php
-    echo $this->Modal->create("Edit " . $member->sca_name, ['id' => 'editModal', 'close' => true]);
+        echo $this->Modal->create('Edit ' . $member->sca_name, ['id' => 'editModal', 'close' => true]);
     ?>
     <fieldset>
         <?php if ($user->can('edit', $member)) {
-            echo $this->Form->create($member, ['url' => ['controller' => 'Members', 'action' => 'edit', $member->id], 'id' => 'edit_entity']);
+            echo $this->Form->create($memberForm, ['url' => ['controller' => 'Members', 'action' => 'edit', $member->id], 'id' => 'edit_entity']);
             echo $this->Form->control('sca_name');
             echo $this->Form->control('membership_number');
             echo $this->Form->control('membership_expires_on', ['empty' => true]);
@@ -354,7 +363,7 @@ $user = $this->request->getAttribute('identity');
             echo $this->Form->control('hidden');
         } else {
             if ($user->can('partialEdit', $member)) {
-                echo $this->Form->create($member, ['url' => ['controller' => 'Members', 'action' => 'partialEdit', $member->id], 'id' => 'edit_entity']);
+                echo $this->Form->create($memberForm, ['url' => ['controller' => 'Members', 'action' => 'partialEdit', $member->id], 'id' => 'edit_entity']);
                 echo $this->Form->control('sca_name');
                 echo $this->Form->control('branch_id', ['options' => $treeList]);
                 echo $this->Form->control('first_name');
@@ -368,40 +377,64 @@ $user = $this->request->getAttribute('identity');
                 echo $this->Form->control('email_address');
                 echo $member->age < 18 ? $this->Form->control('parent_name') : '';
             }
-        }
-        echo $this->Form->end()
-            ?>
+        } ?>
     </fieldset>
+        <?= $this->Form->end() ?>
     <?php
-    echo $this->Modal->end([
-        $this->Form->button('Submit', ['class' => 'btn btn-primary', 'id' => 'edit_entity__submit', 'onclick' => '$("#edit_entity").submit();']),
-        $this->Form->button('Close', ['data-bs-dismiss' => 'modal'])
-    ]);
+        echo $this->Modal->end([
+            $this->Form->button('Submit', ['class' => 'btn btn-primary', 'id' => 'edit_entity__submit', 'onclick' => '$("#edit_entity").submit();']),
+            $this->Form->button('Close', ['data-bs-dismiss' => 'modal'])
+        ]);
     ?>
 
+<?php
+echo $this->Modal->create('Edit ' . $member->sca_name, ['id' => 'passwordModal', 'close' => true]);
+?>
+        <?= $this->Form->create($passwordReset, ['id' => 'change_password', 'url'=> ['controller'=>'Members', 'action'=>'changePassword', $member->id]]) ?>
+<fieldset>
+            <legend><?= __('Change Password') ?></legend>
+                <?php
+                    echo $this->Form->control('new_password', ['type' => 'password']);
+                    echo $this->Form->control('confirm_password', ['type' => 'password']);
+                ?>
+        </fieldset>
+        <?= $this->Form->end() ?>
     <?php
-    echo $this->Modal->create("Request Authorization", ['id' => 'requestAuthModal', 'close' => true]);
+        echo $this->Modal->end([
+            $this->Form->button('Submit', ['class' => 'btn btn-primary', 'id' => 'change_password__submit', 'onclick' => '$("#change_password").submit();']),
+            $this->Form->button('Close', ['data-bs-dismiss' => 'modal'])
+        ]);
+    ?>
+
+
+    <?php
+        echo $this->Modal->create('Request Authorization', ['id' => 'requestAuthModal', 'close' => true]);
     ?>
     <fieldset>
         <?php
-        echo $this->Form->create(null, ['id' => 'request_auth__form', 'url' => ['controller' => 'Members', 'action' => 'requestAuthorization']]);
-        echo $this->Form->control('member_id', ['type' => 'hidden', 'value' => $member->id, 'id' => 'request_auth__member_id']);
-        echo $this->Form->control('authorization_type', ['options' => $authorization_types, 'empty' => true, 'id' => 'request_auth__auth_type_id', 'label' => 'Authorization']);
-        echo $this->Form->control('approver_id', ['type' => 'select', 'options' => [], 'id' => 'request_auth__approver_id', 'label' => 'Send Request To', 'disabled' => 'disabled']);
-        echo $this->Form->end()
-            ?>
+            echo $this->Form->create(null, ['id' => 'request_auth__form', 'url' => ['controller' => 'Members', 'action' => 'requestAuthorization']]);
+            echo $this->Form->control('member_id', ['type' => 'hidden', 'value' => $member->id, 'id' => 'request_auth__member_id']);
+            echo $this->Form->control('authorization_type', ['options' => $authorization_types, 'empty' => true, 'id' => 'request_auth__auth_type_id', 'label' => 'Authorization']);
+            echo $this->Form->control('approver_id', ['type' => 'select', 'options' => [], 'id' => 'request_auth__approver_id', 'label' => 'Send Request To', 'disabled' => 'disabled']);
+            echo $this->Form->end()
+        ?>
     </fieldset>
     <?php
-    echo $this->Modal->end([
-        $this->Form->button('Submit', ['class' => 'btn btn-primary', 'id' => 'request_auth__submit', 'disabled' => 'disabled']),
-        $this->Form->button('Close', ['data-bs-dismiss' => 'modal'])
-    ]);
+        echo $this->Modal->end([
+            $this->Form->button('Submit', ['class' => 'btn btn-primary', 'id' => 'request_auth__submit', 'disabled' => 'disabled']),
+            $this->Form->button('Close', ['data-bs-dismiss' => 'modal'])
+        ]);
     ?>
 
     <?php
-    //finish writing to modal block in layout
-    $this->end(); ?>
+        // finish writing to modal block in layout
+        $this->end();
+    ?>
 
     <?php
-    $this->append('script', $this->Html->script(['app/members/view.js']));
+        $this->append('script', $this->Html->script(['app/members/view.js']));
+        if($passwordReset->getErrors())
+            $this->append('script', $this->Html->scriptBlock('$("#passwordModalBtn").click();'));
+        if($memberForm->getErrors())
+            $this->append('script', $this->Html->scriptBlock('$("#editModalBtn").click()'));
     ?>

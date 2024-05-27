@@ -56,6 +56,9 @@ class AuthorizationsTable extends Table
         $this->hasMany('AuthorizationApprovals', [
             'foreignKey' => 'authorization_id',
         ]);
+        $this->hasMany('AuthorizationApprovals', [
+            'foreignKey' => 'authorization_id',
+        ]);
     }
 
     /**

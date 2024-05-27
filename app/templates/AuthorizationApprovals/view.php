@@ -71,12 +71,7 @@ usort($denied, function ($a, $b) {
                             <td><?= h($request->requested_on) ?></td>
                             <td><?= h($request->authorization->authorization_type->name) ?></td>
                             <td class="actions">
-                                <?php if ($request->authorization->authorization_type->num_required_authorizors - $request->authorization->approval_count > 1): ?>
-                                    <button type="button" class="btn btn-primary " data-bs-toggle="modal"
-                                    data-bs-target="#approveAndAssignModal" onclick="$('#approve_and_assign_auth_id').val('<?=$request->id?>'); $('#approve_and_assign_auth_id').trigger('change');" >Approve</button>
-                                <?php else: ?>
-                                    <?= $this->Form->postLink(__('Approve'), ['action' => 'approve', $request->id], ['confirm' => __('Are you sure you want to approve {0} for {1}?', $request->authorization->member->sca_name, $request->authorization->authorization_type->name), 'title' => __('Approve'), 'class' => 'btn btn-primary']) ?>
-                                <?php endif; ?>
+                                <?= $this->Form->postLink(__('Approve'), ['action' => 'approve', $request->id], ['confirm' => __('Are you sure you want to approve {0} for {1}?', $request->authorization->member->sca_name, $request->authorization->authorization_type->name), 'title' => __('Approve'), 'class' => 'btn btn-primary']) ?>
                                 <button type="button" class="btn btn-secondary " data-bs-toggle="modal"
                                     data-bs-target="#denyModal" onclick="$('#deny_auth__id').val('<?=$request->id?>')" >Deny</button>
                             </td>
@@ -144,7 +139,7 @@ usort($denied, function ($a, $b) {
 
 <?php
 $this->start('modals');
-echo $this->Modal->create("Deny Authorization", ['id' => 'denyModal', 'close' => true]);
+echo $this->Modal->create("Add App Setting", ['id' => 'denyModal', 'close' => true]);
 ?>
 <fieldset>
     <?php
@@ -159,29 +154,8 @@ echo $this->Modal->end([
     $this->Form->button('Submit', ['class' => 'btn btn-primary', 'id' => 'deny_auth__submit', 'onclick' => '$("#deny_auth").submit();', 'disabled' => 'disabled']),
     $this->Form->button('Close', ['data-bs-dismiss' => 'modal'])
 ]);
-
-echo $this->Modal->create("Approve and Assign to next", ['id' => 'approveAndAssignModal', 'close' => true]);
 ?>
-<fieldset>
-    <?php
-    echo $this->Form->create(null,['url' => ['controller'=>'AuthorizationApprovals', 'action' => 'Approve'], 'id' => 'approve_and_assign_auth']);
-    echo $this->Form->control('id', ['type' => 'hidden', 'id'=> 'approve_and_assign_auth_id']);
-    echo $this->Form->control('approver_id', ['label' => 'Forward to', 'id'=>'approve_and_assign_auth_approver_id']);
-    echo $this->Form->end()
-        ?>
-</fieldset>
-<?php
-echo $this->Modal->end([
-    $this->Form->button('Submit', ['class' => 'btn btn-primary', 'id' => 'approve_and_assign_auth__submit', 'disabled' => 'disabled']),
-    $this->Form->button('Close', ['data-bs-dismiss' => 'modal'])
-]);
-?>
-
 
 <?php
 //finish writing to modal block in layout
 $this->end(); ?>
-
-<?php
-    $this->append('script', $this->Html->script(['app/authorization_approvals/view_and_my_queue.js']));
-?>

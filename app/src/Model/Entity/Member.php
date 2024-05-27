@@ -92,8 +92,7 @@ class Member extends Entity implements AuthorizationIdentity, AuthenticationIden
         'email_address' => true,
         'membership_number' => true,
         'membership_expires_on' => true,
-        'branch_name' => true,
-        'notes' => true,
+        'branch_id' => true,
         'parent_name' => true,
         'background_check_expires_on' => true,
         'hidden' => true,
@@ -105,11 +104,14 @@ class Member extends Entity implements AuthorizationIdentity, AuthenticationIden
         'birth_month' => true,
         'birth_year' => true,
         'deleted_date' => true,
-        'Member_authorization_types' => true,
-        'pending_authorizations' => true,
-        'pending_authorizations_to_approve' => true,
-        'roles' => true,
     ];
+
+    protected array $_hidden = [
+        'password',
+        'password_token',
+        'password_token_expires_on',
+    ];
+
     /**
      * Authorization\IdentityInterface method
      */
@@ -121,11 +123,32 @@ class Member extends Entity implements AuthorizationIdentity, AuthenticationIden
         return $this->authorization->can($this, $action, $resource);
     }
 
+    public function canAccessUrl($url): bool
+    {
+        $table = TableRegistry::getTableLocator()->get($url['controller']);
+        if(isset($url[0])){
+            $entity = $table->get($url[0]);
+        }else{
+            $entity = $table->newEmptyEntity();
+        }
+        Log::write('debug', 'Checking if ' . $this->sca_name . ' can access ' . $url['controller'] . ' ' . $url['action']);
+        return $this->authorization->can($this, $url['action'], $entity);
+    }
+
     public function canAuthorizeType(int $authorization_type_id): bool
     {
         $permission = $this->getPermissions();
         $authorization_types = Hash::extract($permission, '{n}.authorization_type_id');
         return in_array($authorization_type_id, $authorization_types);
+    }
+
+    public function canHaveAuthorizationQueue(): bool
+    {
+        $permission = $this->getPermissions();
+        $authorization_types = Hash::extract($permission, '{n}.authorization_type_id');
+        // filter out all null's and 0's
+        $authorization_types = array_filter($authorization_types, function($var){return $var !== null;} );
+        return count($authorization_types) > 0;
     }
 
     /**
@@ -197,16 +220,6 @@ class Member extends Entity implements AuthorizationIdentity, AuthenticationIden
         return false;
     }
 
-
-    /**
-     * Fields that are excluded from JSON versions of the entity.
-     *
-     * @var list<string>
-     */
-    protected array $_hidden = [
-        'password'
-    ];
-
     protected function _setPassword($value)
     {
         if(strlen($value) > 0){
@@ -219,8 +232,13 @@ class Member extends Entity implements AuthorizationIdentity, AuthenticationIden
 
     protected function _getBirthdate(){
         $date = new DateTime();
-        $birthmonth = $this->birth_month < 1 ? 1 : $this->birth_month;
-        $date = $date->setDate($this->birth_year, $birthmonth, 1);
+        if($this->birth_month == null){
+            return null;
+        }
+        if($this->birth_year == null){
+            return null;
+        }
+        $date = $date->setDate($this->birth_year, $this->birth_month, 1);
         return($date);
     }
 
@@ -228,8 +246,13 @@ class Member extends Entity implements AuthorizationIdentity, AuthenticationIden
     {
         $now = new DateTime();
         $date = new DateTime();
-        $birthmonth = $this->birth_month < 1 ? 1 : $this->birth_month;
-        $date = $date->setDate($this->birth_year, $birthmonth, 1);
+        if($this->birth_month == null){
+            return null;
+        }
+        if($this->birth_year == null){
+            return null;
+        }
+        $date = $date->setDate($this->birth_year, $this->birth_month, 1);
         $interval = $now->diff($date);
         return $interval->y;
     }
