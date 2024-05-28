@@ -5,16 +5,9 @@
  */
 ?>
 <?php $this->extend('/layout/TwitterBootstrap/dashboard'); ?>
-
-<?php $this->start('tb_actions'); ?>
-<li><?= $this->Html->link(__('New Authorization Approval'), ['action' => 'add'], ['class' => 'nav-link']) ?></li>
-<li><?= $this->Html->link(__('List Authorization'), ['controller' => 'Authorizations', 'action' => 'index'], ['class' => 'nav-link']) ?></li>
-<li><?= $this->Html->link(__('New Authorization'), ['controller' => 'Authorizations', 'action' => 'add'], ['class' => 'nav-link']) ?></li>
-<li><?= $this->Html->link(__('List Approver'), ['controller' => 'Members', 'action' => 'index'], ['class' => 'nav-link']) ?></li>
-<li><?= $this->Html->link(__('New Approver'), ['controller' => 'Members', 'action' => 'add'], ['class' => 'nav-link']) ?></li>
-<?php $this->end(); ?>
-<?php $this->assign('tb_sidebar', '<ul class="nav flex-column">' . $this->fetch('tb_actions') . '</ul>'); ?>
-
+<h3>
+    Authorization Queues 
+</h3>
 <table class="table table-striped">
     <thead>
     <tr>

@@ -53,7 +53,7 @@ $this->start('tb_body_start');
                                         [
                                             ['controller' => 'Members', 'action' => 'view', $user->id],
                                             ['controller' => 'Members', 'action' => 'viewCard', $user->id],
-                                            ['controller' => 'AuthorizationApprovals', 'action' => 'myQueue']
+                                            ['controller' => 'AuthorizationApprovals', 'action' => 'myQueue', '*']
                                         ],
                                     'sublinks' => [
                                         ['label' => 'My Auth Card', 'url' => ['controller' => 'Members', 'action' => 'viewCard', $user->id], 'icon' => 'bi-person-vcard', 'linkOptions' => ['target' => '_blank']],
@@ -66,11 +66,13 @@ $this->start('tb_body_start');
                                             ['controller' => 'Members', 'action' => 'add', '*'],
                                             ['controller' => 'Members', 'action' => 'view', 'NOT ' . $user->id],
                                             ['controller' => 'AuthorizationApprovals', 'action' => 'index', '*'],
-                                            ['controller' => 'AuthorizationApprovals', 'action' => 'view', '*']
+                                            ['controller' => 'AuthorizationApprovals', 'action' => 'view', '*'],
+                                            ['controller' => 'Members', 'action' => 'importExpirationDates']
                                         ],
                                     'sublinks' => [
                                         ['label' => 'New Member', 'url' => ['controller' => 'Members', 'action' => 'add'], 'icon' => 'bi-person-plus'],
-                                        ['label' => 'Auth Queues', 'url' => ['controller' => 'AuthorizationApprovals', 'action' => 'index'], 'icon' => 'bi-card-checklist']
+                                        ['label' => 'Auth Queues', 'url' => ['controller' => 'AuthorizationApprovals', 'action' => 'index'], 'icon' => 'bi-card-checklist'],
+                                        ['label' => 'Import Member Exp. Dates', 'url' => ['controller' => 'Members', 'action' => 'importExpirationDates'], 'icon' => 'bi-filetype-csv']
                                     ]],
                             ]],
                             ['type' => 'parent', 'label' => 'System Config', 'icon' => 'bi-database-gear', 'children' => [

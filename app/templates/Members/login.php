@@ -16,3 +16,4 @@ $Member = [];
 <?= $this->Form->submit(__('Sign in'), ['class' => 'w-100 btn btn-lg btn-primary']) ?>
 <p class="mt-5 mb-3 text-muted">© <?= date('Y') ?></p>
 <?= $this->Form->end() ?>
+<?= $this->html->link(__('Forgot Password?'), ['action' => 'forgotPassword'], ['class' => 'btn btn-link']) ?>   

@@ -8,6 +8,7 @@ use Cake\I18n\DateTime;
 use Cake\Log\Log;
 use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\TableRegistry;
+use Cake\Mailer\MailerAwareTrait;
 
 /**
  * Members Controller
@@ -16,6 +17,7 @@ use Cake\ORM\TableRegistry;
  */
 class MembersController extends AppController
 {
+    use MailerAwareTrait;
     /**
      * controller filters
      */
@@ -23,7 +25,7 @@ class MembersController extends AppController
     {
         parent::beforeFilter($event);
 
-        $this->Authentication->allowUnauthenticated(['login', 'approversList']);
+        $this->Authentication->allowUnauthenticated(['login', 'approversList','forgotPassword','resetPassword']);
     }
 
     /**
@@ -66,6 +68,7 @@ class MembersController extends AppController
                 $query = $query->order(['Branches.name' => 'DESC']);
             }
         }
+        $query = $this->Authorization->applyScope($query);
         $Members = $this->paginate($query);
 
         $this->set(compact('Members', 'sort', 'direction'));
@@ -451,40 +454,22 @@ class MembersController extends AppController
 
     public function forgotPassword()
     {
+        $this->Authorization->skipAuthorization();
         if ($this->request->is('post')) {
             $member = $this
                 ->Members
                 ->find()
                 ->where(
-                    ['email_address' => $this->request->data['email_address']]
+                    ['email_address' => $this->request->getData('email_address')]
                 )
                 ->first();
             if ($member) {
-                $participant->password_token = PermissionsLoader::generateToken();
-                $participant->password_token_expires_on = DateTime::now()->addDays(1);
+                $member->password_token = PermissionsLoader::generateToken();
+                $member->password_token_expires_on = DateTime::now()->addDays(1);
                 $this->Members->save($member);
-                $email = new Email();
-                $email
-                    ->template('resetPasswordReqest', 'default')
-                    ->emailFormat('text')
-                    ->subject('Password Reset Request')
-                    ->viewVars(
-                        [
-                            'email' => $participant->email_address,
-                            'passwordResetUrl' => Router::url(
-                                [
-                                    'controller' => 'Participants',
-                                    'action' => 'resetPassword',
-                                    '_full' => true,
-                                    $participant->password_token
-                                ]
-                            )
-                        ]
-                    )
-                    ->to($participant->email_address)
-                    ->send();
+                $this->getMailer('KMP')->send('resetPassword', [$member]);
                 $this->Flash->success(
-                    __('Password reset request sent to ' . $participant->email_address)
+                    __('Password reset request sent to ' . $member->email_address)
                 );
                 return $this->redirect(['action' => 'login']);
             } else {
@@ -494,4 +479,67 @@ class MembersController extends AppController
             }
         }
     }
+
+    public function resetPassword($token = null)
+    {
+        $this->Authorization->skipAuthorization();
+        $member = $this->Members->find()
+            ->where(['password_token' => $token])
+            ->first();
+        if ($member) {
+            if ($member->password_token_expires_on < DateTime::now()) {
+                $this->Flash->error(__(TOKEN_INVALID));
+                return $this->redirect(['action' => 'forgotPassword']);
+            }
+            $passwordReset = new ResetPasswordForm();
+            if ($this->request->is('post') 
+                && ($passwordReset->validate($this->request->getData()))
+            ) {
+                $member->password = $this->request->getData("new_password");
+                $member->password_token = null;
+                $member->password_token_expires_on = null;
+                $this->Members->save($member);
+                $this->Flash->success(__('Password successfully reset'));
+                return $this->redirect(['action' => 'login']);
+            }
+            $this->set('passwordReset', $passwordReset);
+            
+        } else {
+            $this->Flash->error(__(TOKEN_INVALID));
+            return $this->redirect(['action' => 'forgotPassword']);
+        }
+    }
+
+    /**
+     * Import Member Expiration dates from CSV based on Membership number
+     */
+    public function importExpirationDates(){
+        $this->Authorization->skipAuthorization();
+        if ($this->request->is('post')) {
+            $file = $this->request->getData('importData');
+            $file = $file->getStream()->getMetadata('uri');
+            $csv = array_map('str_getcsv', file($file));
+            $this->Members->getConnection()->begin();
+            foreach ($csv as $row) {
+                if('Member Number' == $row[0] || 'Expiration Date' == $row[1])
+                    continue;
+
+                $member = $this->Members->find()
+                    ->where(['membership_number' => $row[0]])
+                    ->first();
+                if ($member) {
+                    $member->membership_expires_on = new DateTime($row[1]);
+                    $member->setDirty('membership_expires_on',true);
+                    if(!$this->Members->save($member)){
+                        $this->Members->getConnection()->rollback();
+                        $this->Flash->error(__('Error saving member expiration date at ' . $row[0] . ' with date ' . $row[1] . '. All updated have been rolled back.'));
+                        return;
+                    }
+                }
+            }
+            $this->Members->getConnection()->commit();
+            $this->Flash->success(__('Expiration dates imported successfully'));
+        }
+    }
+
 }

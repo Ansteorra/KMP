@@ -11,9 +11,11 @@ namespace App\Controller;
 use App\KMP\PermissionsLoader;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
+use Cake\Mailer\MailerAwareTrait;
 
 class AuthorizationApprovalsController extends AppController
 {
+    use MailerAwareTrait;
     /**
      * Index method
      *
@@ -44,10 +46,13 @@ class AuthorizationApprovalsController extends AppController
         $this->set(compact('authorizationApprovals'));
     }
 
-    public function myQueue()
+    public function myQueue($token = null)
     {
         $member_id = $this->Authentication->getIdentity()->getIdentifier();
         $query = $this->getAuthorizationApprovalsQuery($member_id);
+        if($token){
+            $query = $query->where(['authorization_token' => $token]);
+        }
         $this->Authorization->authorize($query);
         $this->Authorization->applyScope($query);
         $authorizationApprovals = $query->all();
