@@ -1,30 +1,41 @@
 <?php
+
 /**
  * @var \App\View\AppView $this
  * @var \App\Model\Entity\Member[]|\Cake\Collection\CollectionInterface $Members
  */
 ?>
-<?php $this->extend('/layout/TwitterBootstrap/dashboard'); 
-$user = $this->request->getAttribute('identity');?>
+<?php $this->extend('/layout/TwitterBootstrap/dashboard');
+$user = $this->request->getAttribute('identity'); ?>
 <h3>
     Members 
 </h3>
 <table class="table table-striped">
     <thead>
-    <tr>
+        <tr>
+                <td colspan="6">
+                <td colspan="2" class="text-end">
+                <form class="form-inline">
+                    
+                        <div class="input-group">
+                            <div class="input-group-text" id="btnSearch"><span class='bi bi-search'></span></div>
+                            <input type="text" name="search" class="form-control" placeholder="Search..." value="<?= $search ?>" aria-describedby="btnSearch" aria-label="Search">
+                        </div>
+                </form>
+                </td>
+            </tr>
+        <tr>
         <th scope="col"><?= $this->Paginator->sort('sca_name') ?></th>
         <th scope="col">
             <?php
-                if ($sort === 'Branches.name' && $direction === 'asc'){
-                    echo $this->Html->link('Branch', ['controller'=>'Members','?'=>['sort' => 'Branches.name', 'direction' => 'desc'], 'class' => 'asc']);
+                if ($sort === 'Branches.name' && $direction === 'asc') {
+                    echo $this->Html->link('Branch', ['controller' => 'Members', '?' => ['sort' => 'Branches.name', 'direction' => 'desc'], 'class' => 'asc']);
+                } else if ($sort === 'Branches.name' && $direction === 'desc') {
+                    echo $this->Html->link('Branch', ['controller' => 'Members', '?' => ['sort' => 'Branches.name', 'direction' => 'asc'], 'class' => 'desc']);
+                } else {
+                    echo $this->Html->link('Branch', ['controller' => 'Members', '?' => ['sort' => 'Branches.name', 'direction' => 'asc'], 'class' => '']);
                 }
-                else if ($sort === 'Branches.name' && $direction === 'desc'){
-                    echo $this->Html->link('Branch', ['controller'=>'Members','?'=>['sort' => 'Branches.name', 'direction' => 'asc'], 'class' => 'desc']);
-                }
-                else{
-                    echo $this->Html->link('Branch', ['controller'=>'Members','?'=>['sort' => 'Branches.name', 'direction' => 'asc'], 'class' => '']);
-                }
-                ?>
+            ?>
         </th>
         <th scope="col"><?= $this->Paginator->sort('first_name') ?></th>
         <th scope="col"><?= $this->Paginator->sort('last_name') ?></th>
@@ -35,7 +46,7 @@ $user = $this->request->getAttribute('identity');?>
     </tr>
     </thead>
     <tbody>
-        <?php foreach ($Members as $Member) : ?>
+        <?php foreach ($Members as $Member): ?>
         <tr>
             <td><?= h($Member->sca_name) ?></td>
             <td><?= h($Member->branch->name) ?></td>
@@ -46,7 +57,7 @@ $user = $this->request->getAttribute('identity');?>
             <td><?= h($Member->last_login) ?></td>
             <td class="actions">
                 <?= $this->Html->link(__('View'), ['action' => 'view', $Member->id], ['title' => __('View'), 'class' => 'btn btn-secondary']) ?>
-                <?php if ($user->isSuperUser()) {  ?>
+                <?php if ($user->isSuperUser()) { ?>
                     <?= $this->Form->postLink(__('Delete'), ['action' => 'delete', $Member->id], ['confirm' => __('Are you sure you want to delete # {0}?', $Member->id), 'title' => __('Delete'), 'class' => 'btn btn-danger']) ?>
                 <?php } ?>
             </td>

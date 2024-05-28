@@ -35,9 +35,8 @@ class MembersController extends AppController
      */
     public function index()
     {
-        $this->Members->virtualFields = array(
-            'branch_name' => 'Branches.name'
-        );
+        $search = $this->request->getQuery('search');
+        $search = ($search)?trim($search):null;
         //get sort and direction from query string
         $sort = $this->request->getQuery('sort');
         $direction = $this->request->getQuery('direction');
@@ -56,6 +55,19 @@ class MembersController extends AppController
                 'Members.email_address',
                 'Members.last_login',
             ]);
+        //if there is a search term, filter the query
+        if ($search) {
+            $query = $query
+                ->where([
+                    'OR' => [
+                        'Members.sca_name LIKE' => '%' . $search . '%',
+                        'Members.first_name LIKE' => '%' . $search . '%',
+                        'Members.last_name LIKE' => '%' . $search . '%',
+                        'Members.email_address LIKE' => '%' . $search . '%',
+                        'Branches.name LIKE' => '%' . $search . '%',
+                    ],
+                ]);
+        }
         //sort by branches.name manually if its in the query string
         if ($sort == 'Branches.name') {
             //check the direction of the sort
@@ -71,7 +83,7 @@ class MembersController extends AppController
         $query = $this->Authorization->applyScope($query);
         $Members = $this->paginate($query);
 
-        $this->set(compact('Members', 'sort', 'direction'));
+        $this->set(compact('Members', 'sort', 'direction', 'search'));
     }
 
     /**
@@ -514,8 +526,8 @@ class MembersController extends AppController
      * Import Member Expiration dates from CSV based on Membership number
      */
     public function importExpirationDates(){
-        $this->Authorization->skipAuthorization();
         if ($this->request->is('post')) {
+            $this->Authorization->authorize($this->Members->newEmptyEntity());
             $file = $this->request->getData('importData');
             $file = $file->getStream()->getMetadata('uri');
             $csv = array_map('str_getcsv', file($file));
