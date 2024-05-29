@@ -19,14 +19,14 @@ class PermissionsFixture extends TestFixture
     {
         $this->records = [
             [
-                'id' => 1,
-                'name' => 'Lorem ipsum dolor sit amet',
-                'authorization_type_id' => 1,
-                'require_active_membership' => 1,
-                'require_active_background_check' => 1,
-                'require_min_age' => 1,
-                'system' => 1,
-                'is_super_user' => 1,
+                "id" => 1,
+                "name" => "Lorem ipsum dolor sit amet",
+                "authorization_type_id" => 1,
+                "require_active_membership" => 1,
+                "require_active_background_check" => 1,
+                "require_min_age" => 1,
+                "system" => 1,
+                "is_super_user" => 1,
             ],
         ];
         parent::init();

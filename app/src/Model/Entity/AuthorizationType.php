@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Model\Entity;
@@ -34,16 +35,19 @@ class AuthorizationType extends Entity
      * @var array<string, bool>
      */
     protected array $_accessible = [
-        'name' => true,
-        'length' => true,
-        'authorization_groups_id' => true,
-        'minimum_age' => true,
-        'maximum_age' => true,
-        'num_required_authorizors' => true,
-        'deleted' => true,
-        'authorization_group' => true,
-        'member_authorization_types' => true,
-        'pending_authorizations' => true,
-        'permissions' => true,
+        "name" => true,
+        "length" => true,
+        "authorization_groups_id" => true,
+        "minimum_age" => true,
+        "maximum_age" => true,
+        "num_required_authorizors" => true,
+        "deleted" => true,
+        "authorization_group" => true,
+        "member_authorization_types" => true,
+        "pending_authorizations" => true,
+        "permissions" => true,
+        "grants_role_id" => true,
+        "role" => true,
+        "num_required_renewers" => true,
     ];
 }

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 /**
@@ -10,6 +11,7 @@ declare(strict_types=1);
  * @license     https://opensource.org/licenses/mit-license.php MIT License
  * @link        https://holt59.github.io/cakephp3-bootstrap-helpers/
  */
+
 namespace Bootstrap\Utility;
 
 /**
@@ -29,10 +31,14 @@ class Matching
      *
      * @return bool True if the given tag was found, false otherwize.
      **/
-    public static function matchTag($tag, $subject, &$content = null, &$attrs = null)
-    {
+    public static function matchTag(
+        $tag,
+        $subject,
+        &$content = null,
+        &$attrs = null,
+    ) {
         $xml = new \XMLReader();
-        $xml->xml($subject, 'UTF-8', LIBXML_NOERROR | LIBXML_ERR_NONE);
+        $xml->xml($subject, "UTF-8", LIBXML_NOERROR | LIBXML_ERR_NONE);
 
         // failed to parse => false
         if ($xml->read() === false) {
@@ -68,7 +74,7 @@ class Matching
     public static function matchAttribute($attr, $value, $subject)
     {
         $xml = new \XMLReader();
-        $xml->xml($subject, 'UTF-8', LIBXML_NOERROR | LIBXML_ERR_NONE);
+        $xml->xml($subject, "UTF-8", LIBXML_NOERROR | LIBXML_ERR_NONE);
 
         // failed to parse => false
         if ($xml->read() === false) {
@@ -92,7 +98,7 @@ class Matching
     public static function findTagOrAttribute($tag, $attrs, $subject)
     {
         $xml = new \XMLReader();
-        $xml->xml($subject, 'UTF-8', LIBXML_NOERROR | LIBXML_ERR_NONE);
+        $xml->xml($subject, "UTF-8", LIBXML_NOERROR | LIBXML_ERR_NONE);
         // failed to parse => false
         if ($xml->read() === false) {
             return false;
@@ -110,8 +116,8 @@ class Matching
                 foreach ($attrs as $attr => $attrValue) {
                     $value = $xml->getAttribute($attr);
                     if (
-                        !is_null($value)
-                        && (is_null($attrValue) || $value == $attrValue)
+                        !is_null($value) &&
+                        (is_null($attrValue) || $value == $attrValue)
                     ) {
                         return true;
                     }

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 /**
@@ -18,7 +19,7 @@ declare(strict_types=1);
 /*
  * Configure paths required to find CakePHP + general filepath constants
  */
-require __DIR__ . DIRECTORY_SEPARATOR . 'paths.php';
+require __DIR__ . DIRECTORY_SEPARATOR . "paths.php";
 
 /*
  * Bootstrap CakePHP.
@@ -29,7 +30,7 @@ require __DIR__ . DIRECTORY_SEPARATOR . 'paths.php';
  * - Registering the CakePHP autoloader.
  * - Setting the default application paths.
  */
-require CORE_PATH . 'config' . DS . 'bootstrap.php';
+require CORE_PATH . "config" . DS . "bootstrap.php";
 
 use Cake\Cache\Cache;
 use Cake\Core\Configure;
@@ -46,10 +47,11 @@ use Cake\Mailer\TransportFactory;
 use Cake\Routing\Router;
 use Cake\Utility\Security;
 use Cake\I18n\DateTime;
+
 /**
  * Load global functions.
  */
-require CAKE . 'functions.php';
+require CAKE . "functions.php";
 
 /*
  * See https://github.com/josegonzalez/php-dotenv for API details.
@@ -64,24 +66,21 @@ require CAKE . 'functions.php';
  * If you use .env files, be careful to not commit them to source control to avoid
  * security risks. See https://github.com/josegonzalez/php-dotenv#general-security-information
  * for more information for recommended practices.
-*/
-if (!env('APP_NAME') && file_exists(CONFIG . '.env')) {
+ */
+if (!env("APP_NAME") && file_exists(CONFIG . ".env")) {
     $overwrite = true;
-    $dotenv = new \josegonzalez\Dotenv\Loader([CONFIG . '.env']);
-    $dotenv->parse()
-        ->putenv($overwrite)
-        ->toEnv()
-        ->toServer();
+    $dotenv = new \josegonzalez\Dotenv\Loader([CONFIG . ".env"]);
+    $dotenv->parse()->putenv($overwrite)->toEnv()->toServer();
 }
 
-Configure::write('CakePdf', [
-   'engine' => [
-       'className' => 'CakePdf.WkHtmlToPdf',
-       'binary' => env('PATH_WKHTML'),
-       'options'=>[
-           'dpi'=>300,
-       ],
-   ],
+Configure::write("CakePdf", [
+    "engine" => [
+        "className" => "CakePdf.WkHtmlToPdf",
+        "binary" => env("PATH_WKHTML"),
+        "options" => [
+            "dpi" => 300,
+        ],
+    ],
 ]);
 
 /*
@@ -93,8 +92,8 @@ Configure::write('CakePdf', [
  * that changes from configuration that does not. This makes deployment simpler.
  */
 try {
-    Configure::config('default', new PhpConfig());
-    Configure::load('app', 'default', false);
+    Configure::config("default", new PhpConfig());
+    Configure::load("app", "default", false);
 } catch (\Exception $e) {
     exit($e->getMessage() . "\n");
 }
@@ -103,56 +102,56 @@ try {
  * Load an environment local configuration file to provide overrides to your configuration.
  * Notice: For security reasons app_local.php **should not** be included in your git repo.
  */
-if (file_exists(CONFIG . 'app_local.php')) {
-    Configure::load('app_local', 'default');
+if (file_exists(CONFIG . "app_local.php")) {
+    Configure::load("app_local", "default");
 }
 
 /*
  * When debug = true the metadata cache should only last
  * for a short time.
  */
-if (Configure::read('debug')) {
-    Configure::write('Cache._cake_model_.duration', '+2 minutes');
-    Configure::write('Cache._cake_core_.duration', '+2 minutes');
+if (Configure::read("debug")) {
+    Configure::write("Cache._cake_model_.duration", "+2 minutes");
+    Configure::write("Cache._cake_core_.duration", "+2 minutes");
     // disable router cache during development
-    Configure::write('Cache._cake_routes_.duration', '+2 seconds');
+    Configure::write("Cache._cake_routes_.duration", "+2 seconds");
 }
 
 /*
  * Set the default server timezone. Using UTC makes time calculations / conversions easier.
  * Check https://php.net/manual/en/timezones.php for list of valid timezone strings.
  */
-date_default_timezone_set(Configure::read('App.defaultTimezone'));
+date_default_timezone_set(Configure::read("App.defaultTimezone"));
 
 /*
  * Configure the mbstring extension to use the correct encoding.
  */
-mb_internal_encoding(Configure::read('App.encoding'));
+mb_internal_encoding(Configure::read("App.encoding"));
 
 /*
  * Set the default locale. This controls how dates, number and currency is
  * formatted and sets the default language to use for translations.
  */
-ini_set('intl.default_locale', Configure::read('App.defaultLocale'));
+ini_set("intl.default_locale", Configure::read("App.defaultLocale"));
 
 /*
  * Register application error and exception handlers.
  */
-(new ErrorTrap(Configure::read('Error')))->register();
-(new ExceptionTrap(Configure::read('Error')))->register();
+(new ErrorTrap(Configure::read("Error")))->register();
+(new ExceptionTrap(Configure::read("Error")))->register();
 
 /*
  * Include the CLI bootstrap overrides.
  */
-if (PHP_SAPI === 'cli') {
-    require CONFIG . 'bootstrap_cli.php';
+if (PHP_SAPI === "cli") {
+    require CONFIG . "bootstrap_cli.php";
 }
 
 /*
  * Set the full base URL.
  * This URL is used as the base of all absolute links.
  */
-$fullBaseUrl = Configure::read('App.fullBaseUrl');
+$fullBaseUrl = Configure::read("App.fullBaseUrl");
 if (!$fullBaseUrl) {
     /*
      * When using proxies or load balancers, SSL/TLS connections might
@@ -165,13 +164,16 @@ if (!$fullBaseUrl) {
     $trustProxy = false;
 
     $s = null;
-    if (env('HTTPS') || ($trustProxy && env('HTTP_X_FORWARDED_PROTO') === 'https')) {
-        $s = 's';
+    if (
+        env("HTTPS") ||
+        ($trustProxy && env("HTTP_X_FORWARDED_PROTO") === "https")
+    ) {
+        $s = "s";
     }
 
-    $httpHost = env('HTTP_HOST');
+    $httpHost = env("HTTP_HOST");
     if (isset($httpHost)) {
-        $fullBaseUrl = 'http' . $s . '://' . $httpHost;
+        $fullBaseUrl = "http" . $s . "://" . $httpHost;
     }
     unset($httpHost, $s);
 }
@@ -180,24 +182,24 @@ if ($fullBaseUrl) {
 }
 unset($fullBaseUrl);
 
-Cache::setConfig(Configure::consume('Cache'));
-ConnectionManager::setConfig(Configure::consume('Datasources'));
-TransportFactory::setConfig(Configure::consume('EmailTransport'));
-Mailer::setConfig(Configure::consume('Email'));
-Log::setConfig(Configure::consume('Log'));
-Security::setSalt(Configure::consume('Security.salt'));
+Cache::setConfig(Configure::consume("Cache"));
+ConnectionManager::setConfig(Configure::consume("Datasources"));
+TransportFactory::setConfig(Configure::consume("EmailTransport"));
+Mailer::setConfig(Configure::consume("Email"));
+Log::setConfig(Configure::consume("Log"));
+Security::setSalt(Configure::consume("Security.salt"));
 
 /*
  * Setup detectors for mobile and tablet.
  * If you don't use these checks you can safely remove this code
  * and the mobiledetect package from composer.json.
  */
-ServerRequest::addDetector('mobile', function ($request) {
+ServerRequest::addDetector("mobile", function ($request) {
     $detector = new \Detection\MobileDetect();
 
     return $detector->isMobile();
 });
-ServerRequest::addDetector('tablet', function ($request) {
+ServerRequest::addDetector("tablet", function ($request) {
     $detector = new \Detection\MobileDetect();
 
     return $detector->isTablet();
@@ -226,9 +228,9 @@ ServerRequest::addDetector('tablet', function ($request) {
 // \Cake\Database\TypeFactory::build('timestamptimezone')
 //    ->useLocaleParser();
 // There is no time-specific type in Cake
-TypeFactory::map('time', StringType::class);
+TypeFactory::map("time", StringType::class);
 
-DateTime::setToStringFormat('YYYY-MM-dd HH:mm:ss');
+DateTime::setToStringFormat("YYYY-MM-dd HH:mm:ss");
 /*
  * Custom Inflector rules, can be set to correctly pluralize or singularize
  * table, model, controller names or whatever other string is passed to the

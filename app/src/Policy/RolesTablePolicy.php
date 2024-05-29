@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Policy;
@@ -8,7 +9,7 @@ use Authorization\IdentityInterface;
 
 class RolesTablePolicy extends BasePolicy
 {
-    protected string $REQUIRED_PERMISSION = 'Can Manage Roles';
+    protected string $REQUIRED_PERMISSION = "Can Manage Roles";
 
     public function canDeletePermission(IdentityInterface $user, $entity)
     {

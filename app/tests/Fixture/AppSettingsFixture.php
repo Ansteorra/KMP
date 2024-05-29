@@ -19,9 +19,9 @@ class AppSettingsFixture extends TestFixture
     {
         $this->records = [
             [
-                'id' => 1,
-                'name' => 'Lorem ipsum dolor sit amet',
-                'value' => 'Lorem ipsum dolor sit amet',
+                "id" => 1,
+                "name" => "Lorem ipsum dolor sit amet",
+                "value" => "Lorem ipsum dolor sit amet",
             ],
         ];
         parent::init();

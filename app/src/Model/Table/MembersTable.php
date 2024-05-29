@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Model\Table;
@@ -39,36 +40,36 @@ class MembersTable extends Table
     {
         parent::initialize($config);
 
-        $this->setTable('members');
-        $this->setDisplayField('sca_name');
-        $this->setPrimaryKey('id');
+        $this->setTable("members");
+        $this->setDisplayField("sca_name");
+        $this->setPrimaryKey("id");
 
-        $this->hasMany('Authorizations', [
-            'foreignKey' => 'member_id',
+        $this->hasMany("Authorizations", [
+            "foreignKey" => "member_id",
         ]);
-        $this->hasMany('AuthorizationApprovals', [
-            'className'=> 'AuthorizationApprovals',
-            'foreignKey' => 'approver_id'
-        ]);
-
-        $this->hasMany('Notes', [
-            'foreignKey' => 'topic_id',
-            'conditions' => ['Notes.topic_model' => 'Members'],
-        ]);
-        $this->belongsToMany('Roles', [
-            'through' => 'MemberRoles',
+        $this->hasMany("AuthorizationApprovals", [
+            "className" => "AuthorizationApprovals",
+            "foreignKey" => "approver_id",
         ]);
 
-        $this->hasMany('MemberRoles', [
-            'foreignKey' => 'member_id',
+        $this->hasMany("Notes", [
+            "foreignKey" => "topic_id",
+            "conditions" => ["Notes.topic_model" => "Members"],
+        ]);
+        $this->belongsToMany("Roles", [
+            "through" => "MemberRoles",
         ]);
 
-        $this->belongsTo('Branches', [
-            'className' => 'Branches',
-            'foreignKey' => 'branch_id',
+        $this->hasMany("MemberRoles", [
+            "foreignKey" => "member_id",
         ]);
 
-        $this->addBehavior('Muffin/Trash.Trash');
+        $this->belongsTo("Branches", [
+            "className" => "Branches",
+            "foreignKey" => "branch_id",
+        ]);
+
+        $this->addBehavior("Muffin/Trash.Trash");
     }
 
     /**
@@ -79,135 +80,131 @@ class MembersTable extends Table
      */
     public function validationDefault(Validator $validator): Validator
     {
-        $validator
-            ->dateTime('last_updated')
-            ->notEmptyDateTime('last_updated');
+        $validator->dateTime("last_updated")->notEmptyDateTime("last_updated");
 
         $validator
-            ->scalar('password')
-            ->maxLength('password', 33)
-            ->requirePresence('password', 'create')
-            ->notEmptyString('password');
+            ->scalar("password")
+            ->maxLength("password", 33)
+            ->requirePresence("password", "create")
+            ->notEmptyString("password");
 
         $validator
-            ->scalar('sca_name')
-            ->minLength('sca_name', 3)
-            ->maxLength('sca_name', 50)
-            ->notEmptyString('sca_name');
+            ->scalar("sca_name")
+            ->minLength("sca_name", 3)
+            ->maxLength("sca_name", 50)
+            ->notEmptyString("sca_name");
 
         $validator
-            ->scalar('first_name')
-            ->maxLength('first_name', 30)
-            ->requirePresence('first_name', 'create')
-            ->notEmptyString('first_name');
+            ->scalar("first_name")
+            ->maxLength("first_name", 30)
+            ->requirePresence("first_name", "create")
+            ->notEmptyString("first_name");
 
         $validator
-            ->scalar('middle_name')
-            ->maxLength('middle_name', 30)
-            ->allowEmptyString('middle_name');
+            ->scalar("middle_name")
+            ->maxLength("middle_name", 30)
+            ->allowEmptyString("middle_name");
 
         $validator
-            ->scalar('last_name')
-            ->maxLength('last_name', 30)
-            ->requirePresence('last_name', 'create')
-            ->notEmptyString('last_name');
+            ->scalar("last_name")
+            ->maxLength("last_name", 30)
+            ->requirePresence("last_name", "create")
+            ->notEmptyString("last_name");
 
         $validator
-            ->scalar('street_address')
-            ->maxLength('street_address', 75)
-            ->requirePresence('street_address', 'create')
-            ->allowEmptyString('street_address');
+            ->scalar("street_address")
+            ->maxLength("street_address", 75)
+            ->requirePresence("street_address", "create")
+            ->allowEmptyString("street_address");
 
         $validator
-            ->scalar('city')
-            ->maxLength('city', 30)
-            ->requirePresence('city', 'create')
-            ->allowEmptyString('city');
+            ->scalar("city")
+            ->maxLength("city", 30)
+            ->requirePresence("city", "create")
+            ->allowEmptyString("city");
 
         $validator
-            ->scalar('state')
-            ->maxLength('state', 2)
-            ->requirePresence('state', 'create')
-            ->allowEmptyString('state');
+            ->scalar("state")
+            ->maxLength("state", 2)
+            ->requirePresence("state", "create")
+            ->allowEmptyString("state");
 
         $validator
-            ->scalar('zip')
-            ->maxLength('zip', 5)
-            ->requirePresence('zip', 'create')
-            ->allowEmptyString('zip');
+            ->scalar("zip")
+            ->maxLength("zip", 5)
+            ->requirePresence("zip", "create")
+            ->allowEmptyString("zip");
 
         $validator
-            ->scalar('phone_number')
-            ->maxLength('phone_number', 15)
-            ->requirePresence('phone_number', 'create')
-            ->allowEmptyString('phone_number');
+            ->scalar("phone_number")
+            ->maxLength("phone_number", 15)
+            ->requirePresence("phone_number", "create")
+            ->allowEmptyString("phone_number");
 
         $validator
-            ->scalar('email_address')
-            ->maxLength('email_address', 50)
-            ->requirePresence('email_address', 'create')
-            ->notEmptyString('email_address')
-            ->add('name', 'unique', ['rule' => 'validateUnique', 'provider' => 'table']);
+            ->scalar("email_address")
+            ->maxLength("email_address", 50)
+            ->requirePresence("email_address", "create")
+            ->notEmptyString("email_address")
+            ->add("name", "unique", [
+                "rule" => "validateUnique",
+                "provider" => "table",
+            ]);
+
+        $validator->allowEmptyString("membership_number");
 
         $validator
-            ->nonNegativeInteger('membership_number')
-            ->allowEmptyString('membership_number');
+            ->date("membership_expires_on")
+            ->allowEmptyDate("membership_expires_on");
 
         $validator
-            ->date('membership_expires_on')
-            ->allowEmptyDate('membership_expires_on');
+            ->scalar("parent_name")
+            ->maxLength("parent_name", 50)
+            ->allowEmptyString("parent_name");
 
         $validator
-            ->scalar('parent_name')
-            ->maxLength('parent_name', 50)
-            ->allowEmptyString('parent_name');
+            ->date("background_check_expires_on")
+            ->allowEmptyDate("background_check_expires_on");
 
         $validator
-            ->date('background_check_expires_on')
-            ->allowEmptyDate('background_check_expires_on');
+            ->boolean("hidden")
+            ->requirePresence("hidden", "create")
+            ->notEmptyString("hidden");
 
         $validator
-            ->boolean('hidden')
-            ->requirePresence('hidden', 'create')
-            ->notEmptyString('hidden');
+            ->scalar("password_token")
+            ->maxLength("password_token", 255)
+            ->allowEmptyString("password_token");
 
         $validator
-            ->scalar('password_token')
-            ->maxLength('password_token', 255)
-            ->allowEmptyString('password_token');
+            ->dateTime("password_token_expires_on")
+            ->allowEmptyDateTime("password_token_expires_on");
+
+        $validator->dateTime("last_login")->allowEmptyDateTime("last_login");
 
         $validator
-            ->dateTime('password_token_expires_on')
-            ->allowEmptyDateTime('password_token_expires_on');
+            ->dateTime("last_failed_login")
+            ->allowEmptyDateTime("last_failed_login");
 
         $validator
-            ->dateTime('last_login')
-            ->allowEmptyDateTime('last_login');
+            ->integer("failed_login_attempts")
+            ->allowEmptyString("failed_login_attempts");
+
+        $validator->integer("birth_month")->allowEmptyString("birth_month");
+
+        $validator->integer("birth_year")->allowEmptyString("birth_year");
 
         $validator
-            ->dateTime('last_failed_login')
-            ->allowEmptyDateTime('last_failed_login');
-
-        $validator
-            ->integer('failed_login_attempts')
-            ->allowEmptyString('failed_login_attempts');
-
-        $validator
-            ->integer('birth_month')
-            ->allowEmptyString('birth_month');
-
-        $validator
-            ->integer('birth_year')
-            ->allowEmptyString('birth_year');
-
-        $validator
-            ->dateTime('deleted_date')
-            ->allowEmptyDateTime('deleted_date');
+            ->dateTime("deleted_date")
+            ->allowEmptyDateTime("deleted_date");
 
         return $validator;
     }
 
-    static function getCurrentAuthorizationTypeApprovers($auth_id){
-        return PermissionsLoader::getCurrentAuthorizationTypeApprovers($auth_id);
+    static function getCurrentAuthorizationTypeApprovers($auth_id)
+    {
+        return PermissionsLoader::getCurrentAuthorizationTypeApprovers(
+            $auth_id,
+        );
     }
 }

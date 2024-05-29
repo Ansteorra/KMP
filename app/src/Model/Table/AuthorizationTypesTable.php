@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Model\Table;
@@ -40,19 +41,23 @@ class AuthorizationTypesTable extends Table
     {
         parent::initialize($config);
 
-        $this->setTable('authorization_types');
-        $this->setDisplayField('name');
-        $this->setPrimaryKey('id');
+        $this->setTable("authorization_types");
+        $this->setDisplayField("name");
+        $this->setPrimaryKey("id");
 
-        $this->belongsTo('AuthorizationGroups', [
-            'foreignKey' => 'authorization_groups_id',
-            'joinType' => 'INNER',
+        $this->belongsTo("AuthorizationGroups", [
+            "foreignKey" => "authorization_groups_id",
+            "joinType" => "INNER",
         ]);
-        $this->hasMany('Authorizations', [
-            'foreignKey' => 'authorization_type_id',
+        $this->belongsTo("Roles", [
+            "foreignKey" => "grants_role_id",
+            "joinType" => "LEFT",
         ]);
-        $this->hasMany('Permissions', [
-            'foreignKey' => 'authorization_type_id',
+        $this->hasMany("Authorizations", [
+            "foreignKey" => "authorization_type_id",
+        ]);
+        $this->hasMany("Permissions", [
+            "foreignKey" => "authorization_type_id",
         ]);
     }
 
@@ -65,36 +70,33 @@ class AuthorizationTypesTable extends Table
     public function validationDefault(Validator $validator): Validator
     {
         $validator
-            ->scalar('name')
-            ->maxLength('name', 255)
-            ->requirePresence('name', 'create')
-            ->notEmptyString('name')
-            ->add('name', 'unique', ['rule' => 'validateUnique', 'provider' => 'table']);
+            ->scalar("name")
+            ->maxLength("name", 255)
+            ->requirePresence("name", "create")
+            ->notEmptyString("name")
+            ->add("name", "unique", [
+                "rule" => "validateUnique",
+                "provider" => "table",
+            ]);
 
         $validator
-            ->integer('length')
-            ->requirePresence('length', 'create')
-            ->notEmptyString('length');
+            ->integer("length")
+            ->requirePresence("length", "create")
+            ->notEmptyString("length");
 
         $validator
-            ->integer('authorization_groups_id')
-            ->notEmptyString('authorization_groups_id');
+            ->integer("authorization_groups_id")
+            ->notEmptyString("authorization_groups_id");
+
+        $validator->integer("minimum_age")->allowEmptyString("minimum_age");
+
+        $validator->integer("maximum_age")->allowEmptyString("maximum_age");
 
         $validator
-            ->integer('minimum_age')
-            ->allowEmptyString('minimum_age');
+            ->integer("num_required_authorizors")
+            ->notEmptyString("num_required_authorizors");
 
-        $validator
-            ->integer('maximum_age')
-            ->allowEmptyString('maximum_age');
-
-        $validator
-            ->integer('num_required_authorizors')
-            ->notEmptyString('num_required_authorizors');
-
-        $validator
-            ->date('deleted')
-            ->allowEmptyDate('deleted');
+        $validator->date("deleted")->allowEmptyDate("deleted");
 
         return $validator;
     }
@@ -108,8 +110,14 @@ class AuthorizationTypesTable extends Table
      */
     public function buildRules(RulesChecker $rules): RulesChecker
     {
-        $rules->add($rules->isUnique(['name']), ['errorField' => 'name']);
-        $rules->add($rules->existsIn(['authorization_groups_id'], 'AuthorizationGroups'), ['errorField' => 'authorization_groups_id']);
+        $rules->add($rules->isUnique(["name"]), ["errorField" => "name"]);
+        $rules->add(
+            $rules->existsIn(
+                ["authorization_groups_id"],
+                "AuthorizationGroups",
+            ),
+            ["errorField" => "authorization_groups_id"],
+        );
 
         return $rules;
     }

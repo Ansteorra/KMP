@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 /**
@@ -14,11 +15,12 @@ declare(strict_types=1);
  * @since     0.2.9
  * @license   https://opensource.org/licenses/mit-license.php MIT License
  */
+
 namespace App\Controller;
 
-use Cake\Controller\Controller;
-use Cake\Core\ServiceProvider;
 use App\Model\Table\AppSettingsTable;
+use Cake\Controller\Controller;
+
 /**
  * Application Controller
  *
@@ -30,6 +32,7 @@ use App\Model\Table\AppSettingsTable;
 class AppController extends Controller
 {
     protected AppSettingsTable $appSettings;
+
     /**
      * Initialization hook method.
      *
@@ -43,18 +46,17 @@ class AppController extends Controller
     {
         parent::initialize();
 
-        $this->loadComponent('Authentication.Authentication');
-        $this->loadComponent('Authorization.Authorization');
-        $this->loadComponent('Flash');
-        $this->appSettings = $this->getTableLocator()->get('AppSettings');
+        $this->loadComponent("Authentication.Authentication");
+        $this->loadComponent("Authorization.Authorization");
+        $this->loadComponent("Flash");
+        $this->appSettings = $this->getTableLocator()->get("AppSettings");
 
-        //$this->appSettings = ServiceProvider::getContainer()->get(AppSettingsService::class);
+        // $this->appSettings = ServiceProvider::getContainer()->get(AppSettingsService::class);
 
         /*
          * Enable the following component for recommended CakePHP form protection settings.
          * see https://book.cakephp.org/4/en/controllers/components/form-protection.html
          */
-        //$this->loadComponent('FormProtection');
+        // $this->loadComponent('FormProtection');
     }
- 
 }

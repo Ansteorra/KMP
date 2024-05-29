@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Model\Table;
@@ -40,17 +41,17 @@ class PermissionsTable extends Table
     {
         parent::initialize($config);
 
-        $this->setTable('permissions');
-        $this->setDisplayField('name');
-        $this->setPrimaryKey('id');
+        $this->setTable("permissions");
+        $this->setDisplayField("name");
+        $this->setPrimaryKey("id");
 
-        $this->belongsTo('AuthorizationTypes', [
-            'foreignKey' => 'authorization_type_id',
+        $this->belongsTo("AuthorizationTypes", [
+            "foreignKey" => "authorization_type_id",
         ]);
-        $this->belongsToMany('Roles', [
-            'foreignKey' => 'permission_id',
-            'targetForeignKey' => 'role_id',
-            'joinTable' => 'roles_permissions',
+        $this->belongsToMany("Roles", [
+            "foreignKey" => "permission_id",
+            "targetForeignKey" => "role_id",
+            "joinTable" => "roles_permissions",
         ]);
     }
 
@@ -63,34 +64,30 @@ class PermissionsTable extends Table
     public function validationDefault(Validator $validator): Validator
     {
         $validator
-            ->scalar('name')
-            ->maxLength('name', 255)
-            ->requirePresence('name', 'create')
-            ->notEmptyString('name');
+            ->scalar("name")
+            ->maxLength("name", 255)
+            ->requirePresence("name", "create")
+            ->notEmptyString("name");
 
         $validator
-            ->integer('authorization_type_id')
-            ->allowEmptyString('authorization_type_id');
+            ->integer("authorization_type_id")
+            ->allowEmptyString("authorization_type_id");
 
         $validator
-            ->boolean('require_active_membership')
-            ->notEmptyString('require_active_membership');
+            ->boolean("require_active_membership")
+            ->notEmptyString("require_active_membership");
 
         $validator
-            ->boolean('require_active_background_check')
-            ->notEmptyString('require_active_background_check');
+            ->boolean("require_active_background_check")
+            ->notEmptyString("require_active_background_check");
 
         $validator
-            ->integer('require_min_age')
-            ->notEmptyString('require_min_age');
+            ->integer("require_min_age")
+            ->notEmptyString("require_min_age");
 
-        $validator
-            ->boolean('system')
-            ->notEmptyString('system');
+        $validator->boolean("system")->notEmptyString("system");
 
-        $validator
-            ->boolean('is_super_user')
-            ->notEmptyString('is_super_user');
+        $validator->boolean("is_super_user")->notEmptyString("is_super_user");
 
         return $validator;
     }
@@ -104,7 +101,10 @@ class PermissionsTable extends Table
      */
     public function buildRules(RulesChecker $rules): RulesChecker
     {
-        $rules->add($rules->existsIn(['authorization_type_id'], 'AuthorizationTypes'), ['errorField' => 'authorization_type_id']);
+        $rules->add(
+            $rules->existsIn(["authorization_type_id"], "AuthorizationTypes"),
+            ["errorField" => "authorization_type_id"],
+        );
 
         return $rules;
     }

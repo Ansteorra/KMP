@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Model\Entity;
@@ -24,7 +25,7 @@ class AppSetting extends Entity
      * @var array<string, bool>
      */
     protected array $_accessible = [
-        'name' => true,
-        'value' => true,
+        "name" => true,
+        "value" => true,
     ];
 }

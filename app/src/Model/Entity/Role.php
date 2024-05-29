@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Model\Entity;
@@ -29,8 +30,8 @@ class Role extends Entity
      * @var array<string, bool>
      */
     protected array $_accessible = [
-        'name' => true,
-        'Members' => true,
-        'permissions' => true,
+        "name" => true,
+        "Members" => true,
+        "permissions" => true,
     ];
 }

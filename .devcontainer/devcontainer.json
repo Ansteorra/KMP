@@ -3,43 +3,37 @@
 {
 	"name": "Debian",
 	"build": {
-		"dockerfile": "Dockerfile",
+		"dockerfile": "Dockerfile"
 		// Update 'VARIANT' to pick an Debian version: bullseye, buster, stretch
 	},
-
-    "secrets": {
-        "EMAIL_DEV_SMTP_PASSWORD": { }
-    },
-	"containerEnv": {
-			"MYSQL_DEV_DB_NAME": "KMP_DEV",
-			"MYSQL_DEV_USERNAME": "KMPSQLDEV",
-			"MYSQL_DEV_PASSWORD": "P@ssw0rd",
-			"EMAIL_DEV_SMTP_HOST": "ssl://smtp.gmail.com",
-			"EMAIL_DEV_SMTP_PORT": "465",
-			"EMAIL_DEV_SMTP_USERNAME": "webminister@marshal.ansteorra.org",
-			"EMAIL_DEV_SMTP_PASSWORD": "${localEnv:EMAIL_DEV_SMTP_PASSWORD}",
-			"REPO_PATH": "KMP"
+	"secrets": {
+		"EMAIL_DEV_SMTP_PASSWORD": {}
 	},
-
-	// Set *default* container specific settings.json values on container create.
-	"settings": {},
-
+	"containerEnv": {
+		"MYSQL_DEV_DB_NAME": "KMP_DEV",
+		"MYSQL_DEV_USERNAME": "KMPSQLDEV",
+		"MYSQL_DEV_PASSWORD": "P@ssw0rd",
+		"EMAIL_DEV_SMTP_HOST": "ssl://smtp.gmail.com",
+		"EMAIL_DEV_SMTP_PORT": "465",
+		"EMAIL_DEV_SMTP_USERNAME": "webminister@marshal.ansteorra.org",
+		"EMAIL_DEV_SMTP_PASSWORD": "${localEnv:EMAIL_DEV_SMTP_PASSWORD}",
+		"REPO_PATH": "KMP"
+	},
 	// Add the IDs of extensions you want installed when the container is created.
-	"extensions": [
-		"felixfbecker.php-debug",
-		"cweijan.vscode-mysql-client2",
-		"xdebug.php-debug"
-	],
-
-
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"cweijan.vscode-mysql-client2",
+				"xdebug.php-debug",
+				"bmewburn.vscode-intelephense-client"
+			],
+			"settings": {}
+		}
+	},
 	"remoteUser": "vscode",
-
 	"postStartCommand": "bash .devcontainer/init_env/config_space.sh",
-
 	"forwardPorts": [
 		8080,
 		3306
 	]
 }
-
-

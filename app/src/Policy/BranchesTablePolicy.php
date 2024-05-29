@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Policy;
@@ -11,6 +12,5 @@ use Authorization\IdentityInterface;
  */
 class BranchesTablePolicy extends BasePolicy
 {
-    protected string $REQUIRED_PERMISSION = 'Can Manage Branches';
+    protected string $REQUIRED_PERMISSION = "Can Manage Branches";
 }
-

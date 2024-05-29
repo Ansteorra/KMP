@@ -22,9 +22,9 @@ class AuthorizationApprovalsControllerTest extends TestCase
      * @var list<string>
      */
     protected array $fixtures = [
-        'app.AuthorizationApprovals',
-        'app.Authorization',
-        'app.Approver',
+        "app.AuthorizationApprovals",
+        "app.Authorization",
+        "app.Approver",
     ];
 
     /**
@@ -35,7 +35,7 @@ class AuthorizationApprovalsControllerTest extends TestCase
      */
     public function testIndex(): void
     {
-        $this->markTestIncomplete('Not implemented yet.');
+        $this->markTestIncomplete("Not implemented yet.");
     }
 
     /**
@@ -46,7 +46,7 @@ class AuthorizationApprovalsControllerTest extends TestCase
      */
     public function testView(): void
     {
-        $this->markTestIncomplete('Not implemented yet.');
+        $this->markTestIncomplete("Not implemented yet.");
     }
 
     /**
@@ -57,7 +57,7 @@ class AuthorizationApprovalsControllerTest extends TestCase
      */
     public function testAdd(): void
     {
-        $this->markTestIncomplete('Not implemented yet.');
+        $this->markTestIncomplete("Not implemented yet.");
     }
 
     /**
@@ -68,7 +68,7 @@ class AuthorizationApprovalsControllerTest extends TestCase
      */
     public function testEdit(): void
     {
-        $this->markTestIncomplete('Not implemented yet.');
+        $this->markTestIncomplete("Not implemented yet.");
     }
 
     /**
@@ -79,6 +79,6 @@ class AuthorizationApprovalsControllerTest extends TestCase
      */
     public function testDelete(): void
     {
-        $this->markTestIncomplete('Not implemented yet.');
+        $this->markTestIncomplete("Not implemented yet.");
     }
 }

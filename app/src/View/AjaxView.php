@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 /**
@@ -14,6 +15,7 @@ declare(strict_types=1);
  * @since         3.0.4
  * @license       https://opensource.org/licenses/mit-license.php MIT License
  */
+
 namespace App\View;
 
 /**
@@ -30,7 +32,7 @@ class AjaxView extends AppView
      *
      * @var string
      */
-    protected string $layout = 'ajax';
+    protected string $layout = "ajax";
 
     /**
      * Initialization hook method.
@@ -41,6 +43,6 @@ class AjaxView extends AppView
     {
         parent::initialize();
 
-        $this->response = $this->response->withType('ajax');
+        $this->response = $this->response->withType("ajax");
     }
 }

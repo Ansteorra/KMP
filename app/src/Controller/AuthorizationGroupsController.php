@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Controller;
@@ -10,11 +11,10 @@ namespace App\Controller;
  */
 class AuthorizationGroupsController extends AppController
 {
-
     public function initialize(): void
     {
         parent::initialize();
-        $this->Authorization->authorizeModel('index','add');
+        $this->Authorization->authorizeModel("index", "add");
     }
 
     /**
@@ -27,7 +27,7 @@ class AuthorizationGroupsController extends AppController
         $query = $this->AuthorizationGroups->find();
         $authorizationGroups = $this->paginate($query);
 
-        $this->set(compact('authorizationGroups'));
+        $this->set(compact("authorizationGroups"));
     }
 
     /**
@@ -39,8 +39,11 @@ class AuthorizationGroupsController extends AppController
      */
     public function view($id = null)
     {
-        $authorizationGroup = $this->AuthorizationGroups->get($id, contain: ['AuthorizationTypes']);
-        $this->set(compact('authorizationGroup'));
+        $authorizationGroup = $this->AuthorizationGroups->get(
+            $id,
+            contain: ["AuthorizationTypes"],
+        );
+        $this->set(compact("authorizationGroup"));
     }
 
     /**
@@ -51,16 +54,28 @@ class AuthorizationGroupsController extends AppController
     public function add()
     {
         $authorizationGroup = $this->AuthorizationGroups->newEmptyEntity();
-        if ($this->request->is('post')) {
-            $authorizationGroup = $this->AuthorizationGroups->patchEntity($authorizationGroup, $this->request->getData());
+        if ($this->request->is("post")) {
+            $authorizationGroup = $this->AuthorizationGroups->patchEntity(
+                $authorizationGroup,
+                $this->request->getData(),
+            );
             if ($this->AuthorizationGroups->save($authorizationGroup)) {
-                $this->Flash->success(__('The Authorization Group has been saved.'));
+                $this->Flash->success(
+                    __("The Authorization Group has been saved."),
+                );
 
-                return $this->redirect(['action' => 'view', $authorizationGroup->id]);
+                return $this->redirect([
+                    "action" => "view",
+                    $authorizationGroup->id,
+                ]);
             }
-            $this->Flash->error(__('The Authorization Group could not be saved. Please, try again.'));
+            $this->Flash->error(
+                __(
+                    "The Authorization Group could not be saved. Please, try again.",
+                ),
+            );
         }
-        $this->set(compact('authorizationGroup'));
+        $this->set(compact("authorizationGroup"));
     }
 
     /**
@@ -74,16 +89,28 @@ class AuthorizationGroupsController extends AppController
     {
         $authorizationGroup = $this->AuthorizationGroups->get($id, contain: []);
         $this->Authorization->authorize($authorizationGroup);
-        if ($this->request->is(['patch', 'post', 'put'])) {
-            $authorizationGroup = $this->AuthorizationGroups->patchEntity($authorizationGroup, $this->request->getData());
+        if ($this->request->is(["patch", "post", "put"])) {
+            $authorizationGroup = $this->AuthorizationGroups->patchEntity(
+                $authorizationGroup,
+                $this->request->getData(),
+            );
             if ($this->AuthorizationGroups->save($authorizationGroup)) {
-                $this->Flash->success(__('The Authorization Group has been saved.'));
+                $this->Flash->success(
+                    __("The Authorization Group has been saved."),
+                );
 
-                return $this->redirect(['action' => 'view', $authorizationGroup->id]);
+                return $this->redirect([
+                    "action" => "view",
+                    $authorizationGroup->id,
+                ]);
             }
-            $this->Flash->error(__('The Authorization Group could not be saved. Please, try again.'));
+            $this->Flash->error(
+                __(
+                    "The Authorization Group could not be saved. Please, try again.",
+                ),
+            );
         }
-        $this->set(compact('AuthorizationGroup'));
+        $this->set(compact("AuthorizationGroup"));
     }
 
     /**
@@ -95,16 +122,22 @@ class AuthorizationGroupsController extends AppController
      */
     public function delete($id = null)
     {
-        $this->request->allowMethod(['post', 'delete']);
+        $this->request->allowMethod(["post", "delete"]);
         $authorizationGroup = $this->AuthorizationGroups->get($id);
 
         $this->Authorization->authorize($authorizationGroup);
         if ($this->AuthorizationGroups->delete($authorizationGroup)) {
-            $this->Flash->success(__('The Authorization Group has been deleted.'));
+            $this->Flash->success(
+                __("The Authorization Group has been deleted."),
+            );
         } else {
-            $this->Flash->error(__('The Authorization Group could not be deleted. Please, try again.'));
+            $this->Flash->error(
+                __(
+                    "The Authorization Group could not be deleted. Please, try again.",
+                ),
+            );
         }
 
-        return $this->redirect(['action' => 'index']);
+        return $this->redirect(["action" => "index"]);
     }
 }

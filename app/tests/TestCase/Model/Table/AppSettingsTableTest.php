@@ -23,9 +23,7 @@ class AppSettingsTableTest extends TestCase
      *
      * @var list<string>
      */
-    protected array $fixtures = [
-        'app.AppSettings',
-    ];
+    protected array $fixtures = ["app.AppSettings"];
 
     /**
      * setUp method
@@ -35,8 +33,13 @@ class AppSettingsTableTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $config = $this->getTableLocator()->exists('AppSettings') ? [] : ['className' => AppSettingsTable::class];
-        $this->AppSettings = $this->getTableLocator()->get('AppSettings', $config);
+        $config = $this->getTableLocator()->exists("AppSettings")
+            ? []
+            : ["className" => AppSettingsTable::class];
+        $this->AppSettings = $this->getTableLocator()->get(
+            "AppSettings",
+            $config,
+        );
     }
 
     /**
@@ -59,6 +62,6 @@ class AppSettingsTableTest extends TestCase
      */
     public function testValidationDefault(): void
     {
-        $this->markTestIncomplete('Not implemented yet.');
+        $this->markTestIncomplete("Not implemented yet.");
     }
 }

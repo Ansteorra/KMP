@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Model\Table;
@@ -40,27 +41,27 @@ class RolesTable extends Table
     {
         parent::initialize($config);
 
-        $this->setTable('roles');
-        $this->setDisplayField('name');
-        $this->setPrimaryKey('id');
+        $this->setTable("roles");
+        $this->setDisplayField("name");
+        $this->setPrimaryKey("id");
 
-        $this->belongsToMany('Members', [
-            'through' => 'MemberRoles',
+        $this->belongsToMany("Members", [
+            "through" => "MemberRoles",
         ]);
 
-        $this->hasMany('MemberRoles', [
-            'foreignKey' => 'role_id',
-            'bindingKey' => 'id',
-            'joinType' => 'INNER',
+        $this->hasMany("MemberRoles", [
+            "foreignKey" => "role_id",
+            "bindingKey" => "id",
+            "joinType" => "INNER",
         ]);
 
-        $this->belongsToMany('Permissions', [
-            'foreignKey' => 'role_id',
-            'targetForeignKey' => 'permission_id',
-            'joinTable' => 'roles_permissions',
+        $this->belongsToMany("Permissions", [
+            "foreignKey" => "role_id",
+            "targetForeignKey" => "permission_id",
+            "joinTable" => "roles_permissions",
         ]);
-        
-        $this->addBehavior('Muffin/Trash.Trash');
+
+        $this->addBehavior("Muffin/Trash.Trash");
     }
 
     /**
@@ -72,11 +73,14 @@ class RolesTable extends Table
     public function validationDefault(Validator $validator): Validator
     {
         $validator
-            ->scalar('name')
-            ->maxLength('name', 255)
-            ->requirePresence('name', 'create')
-            ->notEmptyString('name')
-            ->add('name', 'unique', ['rule' => 'validateUnique', 'provider' => 'table']);
+            ->scalar("name")
+            ->maxLength("name", 255)
+            ->requirePresence("name", "create")
+            ->notEmptyString("name")
+            ->add("name", "unique", [
+                "rule" => "validateUnique",
+                "provider" => "table",
+            ]);
 
         return $validator;
     }
@@ -90,7 +94,7 @@ class RolesTable extends Table
      */
     public function buildRules(RulesChecker $rules): RulesChecker
     {
-        $rules->add($rules->isUnique(['name']), ['errorField' => 'name']);
+        $rules->add($rules->isUnique(["name"]), ["errorField" => "name"]);
 
         return $rules;
     }

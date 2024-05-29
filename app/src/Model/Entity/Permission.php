@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Model\Entity;
@@ -32,14 +33,14 @@ class Permission extends Entity
      * @var array<string, bool>
      */
     protected array $_accessible = [
-        'name' => true,
-        'authorization_type_id' => true,
-        'require_active_membership' => true,
-        'require_active_background_check' => true,
-        'require_min_age' => true,
-        'system' => true,
-        'is_super_user' => true,
-        'authorization_type' => true,
-        'roles' => true,
+        "name" => true,
+        "authorization_type_id" => true,
+        "require_active_membership" => true,
+        "require_active_background_check" => true,
+        "require_min_age" => true,
+        "system" => true,
+        "is_super_user" => true,
+        "authorization_type" => true,
+        "roles" => true,
     ];
 }

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Policy;
@@ -11,6 +12,5 @@ use Authorization\IdentityInterface;
  */
 class AppSettingsTablePolicy extends BasePolicy
 {
-    protected string $REQUIRED_PERMISSION = 'Can Manage App Settings';
+    protected string $REQUIRED_PERMISSION = "Can Manage App Settings";
 }
-

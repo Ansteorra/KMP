@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 /**
@@ -10,6 +11,7 @@ declare(strict_types=1);
  * @license     https://opensource.org/licenses/mit-license.php MIT License
  * @link        https://holt59.github.io/cakephp3-bootstrap-helpers/
  */
+
 namespace Bootstrap\View\Widget;
 
 use Cake\View\Widget\SelectBoxWidget;
@@ -48,29 +50,37 @@ class ColumnSelectBoxWidget extends SelectBoxWidget
      * @return string A generated select box.
      * @throws \RuntimeException when the name attribute is empty.
      */
-    public function render(array $data, \Cake\View\Form\ContextInterface $context): string
-    {
+    public function render(
+        array $data,
+        \Cake\View\Form\ContextInterface $context,
+    ): string {
         $data += [
-            'name' => '',
-            'empty' => false,
-            'escape' => true,
-            'options' => [],
-            'disabled' => null,
-            'val' => null,
-            'templateVars' => [],
+            "name" => "",
+            "empty" => false,
+            "escape" => true,
+            "options" => [],
+            "disabled" => null,
+            "val" => null,
+            "templateVars" => [],
         ];
         $options = $this->_renderContent($data);
-        $name = $data['name'];
-        unset($data['name'], $data['options'], $data['empty'], $data['val'], $data['escape']);
-        if (isset($data['disabled']) && is_array($data['disabled'])) {
-            unset($data['disabled']);
+        $name = $data["name"];
+        unset(
+            $data["name"],
+            $data["options"],
+            $data["empty"],
+            $data["val"],
+            $data["escape"],
+        );
+        if (isset($data["disabled"]) && is_array($data["disabled"])) {
+            unset($data["disabled"]);
         }
 
-        return $this->_templates->format('selectColumn', [
-            'name' => $name,
-            'templateVars' => $data['templateVars'],
-            'attrs' => $this->_templates->formatAttributes($data),
-            'content' => implode('', $options),
+        return $this->_templates->format("selectColumn", [
+            "name" => $name,
+            "templateVars" => $data["templateVars"],
+            "attrs" => $this->_templates->formatAttributes($data),
+            "content" => implode("", $options),
         ]);
     }
 }

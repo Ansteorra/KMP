@@ -19,12 +19,12 @@ class MemberRolesFixture extends TestFixture
     {
         $this->records = [
             [
-                'id' => 1,
-                'Member_id' => 1,
-                'role_id' => 1,
-                'ended_on' => '2024-05-16',
-                'start_on' => '2024-05-16',
-                'approver_id' => 1,
+                "id" => 1,
+                "Member_id" => 1,
+                "role_id" => 1,
+                "ended_on" => "2024-05-16",
+                "start_on" => "2024-05-16",
+                "approver_id" => 1,
             ],
         ];
         parent::init();

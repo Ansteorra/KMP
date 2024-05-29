@@ -37,11 +37,11 @@ class PagesControllerTest extends TestCase
      */
     public function testDisplay()
     {
-        Configure::write('debug', true);
-        $this->get('/pages/home');
+        Configure::write("debug", true);
+        $this->get("/pages/home");
         $this->assertResponseOk();
-        $this->assertResponseContains('CakePHP');
-        $this->assertResponseContains('<html>');
+        $this->assertResponseContains("CakePHP");
+        $this->assertResponseContains("<html>");
     }
 
     /**
@@ -51,11 +51,11 @@ class PagesControllerTest extends TestCase
      */
     public function testMissingTemplate()
     {
-        Configure::write('debug', false);
-        $this->get('/pages/not_existing');
+        Configure::write("debug", false);
+        $this->get("/pages/not_existing");
 
         $this->assertResponseError();
-        $this->assertResponseContains('Error');
+        $this->assertResponseContains("Error");
     }
 
     /**
@@ -65,13 +65,13 @@ class PagesControllerTest extends TestCase
      */
     public function testMissingTemplateInDebug()
     {
-        Configure::write('debug', true);
-        $this->get('/pages/not_existing');
+        Configure::write("debug", true);
+        $this->get("/pages/not_existing");
 
         $this->assertResponseFailure();
-        $this->assertResponseContains('Missing Template');
-        $this->assertResponseContains('Stacktrace');
-        $this->assertResponseContains('not_existing.php');
+        $this->assertResponseContains("Missing Template");
+        $this->assertResponseContains("Stacktrace");
+        $this->assertResponseContains("not_existing.php");
     }
 
     /**
@@ -81,9 +81,9 @@ class PagesControllerTest extends TestCase
      */
     public function testDirectoryTraversalProtection()
     {
-        $this->get('/pages/../Layout/ajax');
+        $this->get("/pages/../Layout/ajax");
         $this->assertResponseCode(403);
-        $this->assertResponseContains('Forbidden');
+        $this->assertResponseContains("Forbidden");
     }
 
     /**
@@ -93,10 +93,10 @@ class PagesControllerTest extends TestCase
      */
     public function testCsrfAppliedError()
     {
-        $this->post('/pages/home', ['hello' => 'world']);
+        $this->post("/pages/home", ["hello" => "world"]);
 
         $this->assertResponseCode(403);
-        $this->assertResponseContains('CSRF');
+        $this->assertResponseContains("CSRF");
     }
 
     /**
@@ -107,9 +107,12 @@ class PagesControllerTest extends TestCase
     public function testCsrfAppliedOk()
     {
         $this->enableCsrfToken();
-        $this->post('/pages/home', ['hello' => 'world']);
+        $this->post("/pages/home", ["hello" => "world"]);
 
-        $this->assertThat(403, $this->logicalNot(new StatusCode($this->_response)));
-        $this->assertResponseNotContains('CSRF');
+        $this->assertThat(
+            403,
+            $this->logicalNot(new StatusCode($this->_response)),
+        );
+        $this->assertResponseNotContains("CSRF");
     }
 }

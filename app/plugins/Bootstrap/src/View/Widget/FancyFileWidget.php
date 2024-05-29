@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 /**
@@ -10,6 +11,7 @@ declare(strict_types=1);
  * @license     https://opensource.org/licenses/mit-license.php MIT License
  * @link        https://holt59.github.io/cakephp3-bootstrap-helpers/
  */
+
 namespace Bootstrap\View\Widget;
 
 use Cake\View\Widget\WidgetInterface;
@@ -87,73 +89,94 @@ class FancyFileWidget implements WidgetInterface
      * @param \Cake\View\Form\ContextInterface $context The current form context.
      * @return string HTML elements.
      */
-    public function render(array $data, \Cake\View\Form\ContextInterface $context): string
-    {
+    public function render(
+        array $data,
+        \Cake\View\Form\ContextInterface $context,
+    ): string {
         $data += [
-            '_input' => [],
-            '_button' => [],
-            'id' => $data['name'],
-            'count-label' => __('files selected'),
-            'button-label' => isset($data['multiple']) && $data['multiple'] ? __('Choose Files') : __('Choose File'),
-            'templateVars' => [],
+            "_input" => [],
+            "_button" => [],
+            "id" => $data["name"],
+            "count-label" => __("files selected"),
+            "button-label" =>
+            isset($data["multiple"]) && $data["multiple"]
+                ? __("Choose Files")
+                : __("Choose File"),
+            "templateVars" => [],
         ];
 
-        $fakeInputCustomOptions = $data['_input'];
-        $fakeButtonCustomOptions = $data['_button'];
-        $countLabel = $data['count-label'];
-        $buttonLabel = $data['button-label'];
+        $fakeInputCustomOptions = $data["_input"];
+        $fakeButtonCustomOptions = $data["_button"];
+        $countLabel = $data["count-label"];
+        $buttonLabel = $data["button-label"];
         unset(
-            $data['_input'],
-            $data['_button'],
-            $data['type'],
-            $data['count-label'],
-            $data['button-label']
+            $data["_input"],
+            $data["_button"],
+            $data["type"],
+            $data["count-label"],
+            $data["button-label"],
         );
         // avoid javascript errors due to invisible control
-        unset($data['required']);
+        unset($data["required"]);
 
-        $fileInput = $this->_file->render($data + [
-            'style' => 'display: none;',
-            'onchange' => "document.getElementById('" . $data['id'] . "-input').value = " .
-                "(this.files.length <= 1) ? " .
-                "(this.files.length ? this.files[0].name : '') " .
-                ": this.files.length + ' ' + '" . $countLabel . "';",
-            'escape' => false,
-        ], $context);
+        $fileInput = $this->_file->render(
+            $data + [
+                "style" => "display: none;",
+                "onchange" =>
+                "document.getElementById('" .
+                    $data["id"] .
+                    "-input').value = " .
+                    "(this.files.length <= 1) ? " .
+                    "(this.files.length ? this.files[0].name : '') " .
+                    ": this.files.length + ' ' + '" .
+                    $countLabel .
+                    "';",
+                "escape" => false,
+            ],
+            $context,
+        );
 
-        if (!empty($data['val']) && is_array($data['val'])) {
-            if (isset($data['val']['name']) || count($data['val']) == 1) {
+        if (!empty($data["val"]) && is_array($data["val"])) {
+            if (isset($data["val"]["name"]) || count($data["val"]) == 1) {
                 $fakeInputCustomOptions += [
-                    'value' => $data['val']['name'] ?? $data['val'][0]['name'],
+                    "value" => $data["val"]["name"] ?? $data["val"][0]["name"],
                 ];
             } else {
                 $fakeInputCustomOptions += [
-                    'value' => count($data['val']) . ' ' . $countLabel,
+                    "value" => count($data["val"]) . " " . $countLabel,
                 ];
             }
         }
 
-        $fakeInput = $this->_input->render($fakeInputCustomOptions + [
-            'name' => $this->_fakeFieldName($data['name']),
-            'readonly' => 'readonly',
-            'id' => $data['id'] . '-input',
-            'onclick' => "document.getElementById('" . $data['id'] . "').click();",
-            'escape' => false,
-        ], $context);
+        $fakeInput = $this->_input->render(
+            $fakeInputCustomOptions + [
+                "name" => $this->_fakeFieldName($data["name"]),
+                "readonly" => "readonly",
+                "id" => $data["id"] . "-input",
+                "onclick" =>
+                "document.getElementById('" . $data["id"] . "').click();",
+                "escape" => false,
+            ],
+            $context,
+        );
 
-        $fakeButton = $this->_button->render($fakeButtonCustomOptions + [
-            'type' => 'button',
-            'text' => $buttonLabel,
-            'onclick' => "document.getElementById('" . $data['id'] . "').click();",
-            'escape' => false,
-        ], $context);
+        $fakeButton = $this->_button->render(
+            $fakeButtonCustomOptions + [
+                "type" => "button",
+                "text" => $buttonLabel,
+                "onclick" =>
+                "document.getElementById('" . $data["id"] . "').click();",
+                "escape" => false,
+            ],
+            $context,
+        );
 
-        return $this->_templates->format('fancyFileInput', [
-            'fileInput' => $fileInput,
-            'button' => $fakeButton,
-            'input' => $fakeInput,
-            'attrs' => $this->_templates->formatAttributes($data),
-            'templateVars' => $data['templateVars'],
+        return $this->_templates->format("fancyFileInput", [
+            "fileInput" => $fileInput,
+            "button" => $fakeButton,
+            "input" => $fakeInput,
+            "attrs" => $this->_templates->formatAttributes($data),
+            "templateVars" => $data["templateVars"],
         ]);
     }
 
@@ -163,10 +186,10 @@ class FancyFileWidget implements WidgetInterface
     public function secureFields(array $data): array
     {
         // the extra input for display
-        $fields = [$this->_fakeFieldName($data['name'])];
+        $fields = [$this->_fakeFieldName($data["name"])];
         // the file array
-        foreach (['name', 'type', 'tmp_name', 'error', 'size'] as $suffix) {
-            $fields[] = $data['name'] . '[' . $suffix . ']';
+        foreach (["name", "type", "tmp_name", "error", "size"] as $suffix) {
+            $fields[] = $data["name"] . "[" . $suffix . "]";
         }
 
         return $fields;

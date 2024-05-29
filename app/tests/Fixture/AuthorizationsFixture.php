@@ -19,11 +19,11 @@ class AuthorizationsFixture extends TestFixture
     {
         $this->records = [
             [
-                'id' => 1,
-                'member_id' => 1,
-                'authorization_type_id' => 1,
-                'expires_on' => '2024-05-21',
-                'start_on' => '2024-05-21',
+                "id" => 1,
+                "member_id" => 1,
+                "authorization_type_id" => 1,
+                "expires_on" => "2024-05-21",
+                "start_on" => "2024-05-21",
             ],
         ];
         parent::init();

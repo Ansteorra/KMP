@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace App\Controller;
 
@@ -15,12 +17,15 @@ class BranchesController extends AppController
     public function initialize(): void
     {
         parent::initialize();
-        $this->Authorization->authorizeModel('index', 'add');
-        $setting = $this->appSettings->getAppSetting('_sys_branches_init');
-        if (!$setting == 'recovered') {
-            $branches = $appSettings->getTableLocator()->get('Branches');
+        $this->Authorization->authorizeModel("index", "add");
+        $setting = $this->appSettings->getAppSetting("_sys_branches_init");
+        if (!$setting == "recovered") {
+            $branches = $this->Branches;
             $branches->recover();
-            $this->appSettings->setAppSetting('_sys_branches_init', 'recovered');
+            $this->appSettings->setAppSetting(
+                "_sys_branches_init",
+                "recovered",
+            );
         }
     }
 
@@ -32,12 +37,11 @@ class BranchesController extends AppController
     public function index()
     {
         $this->Authorization->authorizeAction();
-        $branches = $this
-            ->Branches
-            ->find('threaded')
-            ->order(['name' => 'ASC'])
+        $branches = $this->Branches
+            ->find("threaded")
+            ->orderBy(["name" => "ASC"])
             ->toArray();
-        $this->set(compact('branches'));
+        $this->set(compact("branches"));
     }
 
     /**
@@ -49,19 +53,26 @@ class BranchesController extends AppController
      */
     public function view($id = null)
     {
-        $branch = $this->Branches->get($id, contain: [
-            'Parent',
-            'Members' => function ($q) {
-                return $q
-                    ->select(['id', 'sca_name', 'branch_id'])
-                    ->order(['sca_name' => 'ASC']);
-            }
-        ]);
+        $branch = $this->Branches->get(
+            $id,
+            contain: [
+                "Parent",
+                "Members" => function ($q) {
+                    return $q
+                        ->select(["id", "sca_name", "branch_id"])
+                        ->orderBy(["sca_name" => "ASC"]);
+                },
+            ],
+        );
         $this->Authorization->authorize($branch);
         // get the children for the branch
-        $branch->children = $this->Branches->find('children', ['for' => $branch->id])->toArray();
-        $treeList = $this->Branches->find('treeList', spacer: '--')->order(['name' => 'ASC']);
-        $this->set(compact('branch', 'treeList'));
+        $branch->children = $this->Branches
+            ->find("children", ["for" => $branch->id])
+            ->toArray();
+        $treeList = $this->Branches
+            ->find("treeList", spacer: "--")
+            ->orderBy(["name" => "ASC"]);
+        $this->set(compact("branch", "treeList"));
     }
 
     /**
@@ -72,17 +83,24 @@ class BranchesController extends AppController
     public function add()
     {
         $branch = $this->Branches->newEmptyEntity();
-        if ($this->request->is('post')) {
-            $branch = $this->Branches->patchEntity($branch, $this->request->getData());
+        if ($this->request->is("post")) {
+            $branch = $this->Branches->patchEntity(
+                $branch,
+                $this->request->getData(),
+            );
             if ($this->Branches->save($branch)) {
-                $this->Flash->success(__('The branch has been saved.'));
+                $this->Flash->success(__("The branch has been saved."));
 
-                return $this->redirect(['action' => 'view', $branch->id]);
+                return $this->redirect(["action" => "view", $branch->id]);
             }
-            $this->Flash->error(__('The branch could not be saved. Please, try again.'));
+            $this->Flash->error(
+                __("The branch could not be saved. Please, try again."),
+            );
         }
-        $treeList = $this->Branches->find('treeList', spacer: '--')->order(['name' => 'ASC']);
-        $this->set(compact('branch', 'treeList'));
+        $treeList = $this->Branches
+            ->find("treeList", spacer: "--")
+            ->orderBy(["name" => "ASC"]);
+        $this->set(compact("branch", "treeList"));
     }
 
     /**
@@ -96,30 +114,48 @@ class BranchesController extends AppController
     {
         $branch = $this->Branches->get($id);
         $this->Authorization->authorize($branch);
-        if ($this->request->is(['patch', 'post', 'put'])) {
-            $branch = $this->Branches->patchEntity($branch, $this->request->getData());
+        if ($this->request->is(["patch", "post", "put"])) {
+            $branch = $this->Branches->patchEntity(
+                $branch,
+                $this->request->getData(),
+            );
             try {
                 if ($this->Branches->save($branch)) {
-                    $branches = $this->getTableLocator()->get('Branches');
+                    $branches = $this->getTableLocator()->get("Branches");
                     $branches->recover();
-                    $this->Flash->success(__('The branch has been saved.'));
+                    $this->Flash->success(__("The branch has been saved."));
 
-                    return $this->redirect(['action' => 'view', $branch->id]);
+                    return $this->redirect(["action" => "view", $branch->id]);
                 }
-                $this->Flash->error(__('The branch could not be saved. Please, try again.'));
-                return $this->redirect(['action' => 'view', $branch->id]);
+                $this->Flash->error(
+                    __("The branch could not be saved. Please, try again."),
+                );
+
+                return $this->redirect(["action" => "view", $branch->id]);
             } catch (DatabaseException $e) {
                 // if the error message starts with 'Cannot use node' then it is a tree error
-                if (strpos($e->getMessage(), 'Cannot use node') === 0) {
-                    $this->Flash->error(__('The branch could not be saved, save would have created a circular reference.'));
+                if (strpos($e->getMessage(), "Cannot use node") === 0) {
+                    $this->Flash->error(
+                        __(
+                            "The branch could not be saved, save would have created a circular reference.",
+                        ),
+                    );
                 } else {
-                    $this->Flash->error(__('The branch could not be saved. Please, try again. Error` {0}', $e->getMessage()));
+                    $this->Flash->error(
+                        __(
+                            "The branch could not be saved. Please, try again. Error` {0}",
+                            $e->getMessage(),
+                        ),
+                    );
                 }
-                return $this->redirect(['action' => 'view', $branch->id]);
+
+                return $this->redirect(["action" => "view", $branch->id]);
             }
         }
-        $treeList = $this->Branches->find('treeList', spacer: '--')->order(['name' => 'ASC']);
-        $this->set(compact('branch', 'treeList'));
+        $treeList = $this->Branches
+            ->find("treeList", spacer: "--")
+            ->orderBy(["name" => "ASC"]);
+        $this->set(compact("branch", "treeList"));
     }
 
     /**
@@ -131,15 +167,17 @@ class BranchesController extends AppController
      */
     public function delete($id = null)
     {
-        $this->request->allowMethod(['post', 'delete']);
+        $this->request->allowMethod(["post", "delete"]);
         $branch = $this->Branches->get($id);
         $this->Authorization->authorize($branch);
         if ($this->Branches->delete($branch)) {
-            $this->Flash->success(__('The branch has been deleted.'));
+            $this->Flash->success(__("The branch has been deleted."));
         } else {
-            $this->Flash->error(__('The branch could not be deleted. Please, try again.'));
+            $this->Flash->error(
+                __("The branch could not be deleted. Please, try again."),
+            );
         }
 
-        return $this->redirect(['action' => 'index']);
+        return $this->redirect(["action" => "index"]);
     }
 }

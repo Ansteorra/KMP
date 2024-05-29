@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Model\Entity;
@@ -32,14 +33,14 @@ class AuthorizationApproval extends Entity
      * @var array<string, bool>
      */
     protected array $_accessible = [
-        'authorization_id' => true,
-        'approver_id' => true,
-        'authorization_token' => true,
-        'requested_on' => true,
-        'responded_on' => true,
-        'approved' => true,
-        'approver_notes' => true,
-        'authorization' => true,
-        'member' => true,
+        "authorization_id" => true,
+        "approver_id" => true,
+        "authorization_token" => true,
+        "requested_on" => true,
+        "responded_on" => true,
+        "approved" => true,
+        "approver_notes" => true,
+        "authorization" => true,
+        "member" => true,
     ];
 }

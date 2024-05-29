@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Model\Entity;
@@ -29,12 +30,12 @@ class Note extends Entity
      * @var array<string, bool>
      */
     protected array $_accessible = [
-        'author_id' => true,
-        'created_on' => true,
-        'topic_model' => true,
-        'topic_id' => true,
-        'subject' => true,
-        'body' => true,
-        'private' => true,
+        "author_id" => true,
+        "created_on" => true,
+        "topic_model" => true,
+        "topic_id" => true,
+        "subject" => true,
+        "body" => true,
+        "private" => true,
     ];
 }

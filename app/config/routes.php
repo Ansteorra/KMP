@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Routes configuration.
  *
@@ -26,11 +27,9 @@ use Cake\Routing\RouteBuilder;
 
 /*
  * This file is loaded in the context of the `Application` class.
-  * So you can use  `$this` to reference the application class instance
-  * if required.
+ * So you can use  `$this` to reference the application class instance
+ * if required.
  */
-
-
 
 return function (RouteBuilder $routes): void {
     /*
@@ -52,18 +51,22 @@ return function (RouteBuilder $routes): void {
      */
     $routes->setRouteClass(DashedRoute::class);
 
-    $routes->scope('/', function (RouteBuilder $builder): void {
+    $routes->scope("/", function (RouteBuilder $builder): void {
         /*
          * Here, we are connecting '/' (base path) to a controller called 'Pages',
          * its action called 'display', and we pass a param to select the view file
          * to use (in this case, templates/Pages/home.php)...
          */
-        $builder->connect('/', ['controller' => 'Pages', 'action' => 'display', 'home']);
+        $builder->connect("/", [
+            "controller" => "Pages",
+            "action" => "display",
+            "home",
+        ]);
 
         /*
          * ...and connect the rest of 'Pages' controller's URLs.
          */
-        $builder->connect('/pages/*', 'Pages::display');
+        $builder->connect("/pages/*", "Pages::display");
 
         /*
          * Connect catchall routes for all controllers.
@@ -80,7 +83,7 @@ return function (RouteBuilder $routes): void {
          */
         $builder->fallbacks();
     });
-    $routes->setExtensions(['json','pdf']);
+    $routes->setExtensions(["json", "pdf"]);
 
     /*
      * If you need a different set of middleware or none at all,

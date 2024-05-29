@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 /**
@@ -10,6 +11,7 @@ declare(strict_types=1);
  * @license     https://opensource.org/licenses/mit-license.php MIT License
  * @link        https://holt59.github.io/cakephp3-bootstrap-helpers/
  */
+
 namespace Bootstrap\View\Helper;
 
 /**
@@ -35,10 +37,10 @@ trait EasyIconTrait
     protected function _easyIconOption(array $options): array
     {
         $options += [
-            'easyIcon' => $this->easyIcon,
+            "easyIcon" => $this->easyIcon,
         ];
-        $easyIcon = $options['easyIcon'];
-        unset($options['easyIcon']);
+        $easyIcon = $options["easyIcon"];
+        unset($options["easyIcon"]);
 
         return [$options, $easyIcon];
     }
@@ -71,23 +73,25 @@ trait EasyIconTrait
         }
 
         // Use $this->icon if available, otherwize fall back to $this->Html->icon.
-        if (method_exists($this, 'icon')) {
-            $ficon = [$this, 'icon'];
+        if (method_exists($this, "icon")) {
+            $ficon = [$this, "icon"];
         } else {
-            $ficon = [$this->Html, 'icon'];
+            $ficon = [$this->Html, "icon"];
         }
 
         // Replace occurences.
         $text = preg_replace_callback(
             '#(^|[>\s]\s*)i:([a-zA-Z0-9\\-_]+)(\s*[\s<]|$)#',
             function ($matches) use ($ficon) {
-                return $matches[1] . call_user_func($ficon, $matches[2]) . $matches[3];
+                return $matches[1] .
+                    call_user_func($ficon, $matches[2]) .
+                    $matches[3];
             },
             $text,
             -1,
-            $count
+            $count,
         );
-        $converted = (bool)$count;
+        $converted = (bool) $count;
 
         return $text;
     }

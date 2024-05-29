@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Model\Table;
@@ -41,23 +42,32 @@ class AuthorizationsTable extends Table
     {
         parent::initialize($config);
 
-        $this->setTable('authorizations');
-        $this->setDisplayField('id');
-        $this->setPrimaryKey('id');
+        $this->setTable("authorizations");
+        $this->setDisplayField("id");
+        $this->setPrimaryKey("id");
 
-        $this->belongsTo('Members', [
-            'foreignKey' => 'member_id',
-            'joinType' => 'INNER',
+        $this->belongsTo("Members", [
+            "foreignKey" => "member_id",
+            "joinType" => "INNER",
         ]);
-        $this->belongsTo('AuthorizationTypes', [
-            'foreignKey' => 'authorization_type_id',
-            'joinType' => 'INNER',
+        $this->belongsTo("MemberRoles", [
+            "foreignKey" => "granted_member_role_id",
+            "joinType" => "INNER",
         ]);
-        $this->hasMany('AuthorizationApprovals', [
-            'foreignKey' => 'authorization_id',
+        $this->belongsTo("AuthorizationTypes", [
+            "foreignKey" => "authorization_type_id",
+            "joinType" => "INNER",
         ]);
-        $this->hasMany('AuthorizationApprovals', [
-            'foreignKey' => 'authorization_id',
+        $this->belongsTo("Revokers", [
+            "className" => "Members",
+            "foreignKey" => "revoker_id",
+            "joinType" => "LEFT",
+        ]);
+        $this->hasMany("AuthorizationApprovals", [
+            "foreignKey" => "authorization_id",
+        ]);
+        $this->hasMany("AuthorizationApprovals", [
+            "foreignKey" => "authorization_id",
         ]);
     }
 
@@ -69,22 +79,18 @@ class AuthorizationsTable extends Table
      */
     public function validationDefault(Validator $validator): Validator
     {
-        $validator
-            ->integer('member_id')
-            ->notEmptyString('member_id');
+        $validator->integer("member_id")->notEmptyString("member_id");
 
         $validator
-            ->integer('authorization_type_id')
-            ->notEmptyString('authorization_type_id');
+            ->integer("authorization_type_id")
+            ->notEmptyString("authorization_type_id");
 
         $validator
-            ->date('expires_on')
-            ->requirePresence('expires_on', 'create')
-            ->notEmptyDate('expires_on');
+            ->date("expires_on")
+            ->requirePresence("expires_on", "create")
+            ->notEmptyDate("expires_on");
 
-        $validator
-            ->date('start_on')
-            ->allowEmptyDate('start_on');
+        $validator->date("start_on")->allowEmptyDate("start_on");
 
         return $validator;
     }
@@ -98,8 +104,13 @@ class AuthorizationsTable extends Table
      */
     public function buildRules(RulesChecker $rules): RulesChecker
     {
-        $rules->add($rules->existsIn(['member_id'], 'Members'), ['errorField' => 'member_id']);
-        $rules->add($rules->existsIn(['authorization_type_id'], 'AuthorizationTypes'), ['errorField' => 'authorization_type_id']);
+        $rules->add($rules->existsIn(["member_id"], "Members"), [
+            "errorField" => "member_id",
+        ]);
+        $rules->add(
+            $rules->existsIn(["authorization_type_id"], "AuthorizationTypes"),
+            ["errorField" => "authorization_type_id"],
+        );
 
         return $rules;
     }

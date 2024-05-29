@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Model\Entity;
@@ -30,12 +31,12 @@ class Authorization extends Entity
      * @var array<string, bool>
      */
     protected array $_accessible = [
-        'member_id' => true,
-        'authorization_type_id' => true,
-        'expires_on' => true,
-        'start_on' => true,
-        'member' => true,
-        'authorization_type' => true,
-        'authorization_approvals' => true,
+        "member_id" => true,
+        "authorization_type_id" => true,
+        "expires_on" => true,
+        "start_on" => true,
+        "member" => true,
+        "authorization_type" => true,
+        "authorization_approvals" => true,
     ];
 }

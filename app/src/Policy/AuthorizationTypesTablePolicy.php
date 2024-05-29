@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Policy;
@@ -8,5 +9,5 @@ use Authorization\IdentityInterface;
 
 class AuthorizationTypesTablePolicy extends BasePolicy
 {
-    protected string $REQUIRED_PERMISSION = 'Can Manage Authorization Types';
+    protected string $REQUIRED_PERMISSION = "Can Manage Authorization Types";
 }

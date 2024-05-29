@@ -22,12 +22,12 @@ class MembersControllerTest extends TestCase
      * @var list<string>
      */
     protected array $fixtures = [
-        'app.Members',
-        'app.MemberAuthorizationTypes',
-        'app.PendingAuthorizations',
-        'app.PendingAuthorizationsToApprove',
-        'app.Roles',
-        'app.MembersRoles',
+        "app.Members",
+        "app.MemberAuthorizationTypes",
+        "app.PendingAuthorizations",
+        "app.PendingAuthorizationsToApprove",
+        "app.Roles",
+        "app.MembersRoles",
     ];
 
     /**
@@ -38,7 +38,7 @@ class MembersControllerTest extends TestCase
      */
     public function testIndex(): void
     {
-        $this->markTestIncomplete('Not implemented yet.');
+        $this->markTestIncomplete("Not implemented yet.");
     }
 
     /**
@@ -49,7 +49,7 @@ class MembersControllerTest extends TestCase
      */
     public function testView(): void
     {
-        $this->markTestIncomplete('Not implemented yet.');
+        $this->markTestIncomplete("Not implemented yet.");
     }
 
     /**
@@ -60,7 +60,7 @@ class MembersControllerTest extends TestCase
      */
     public function testAdd(): void
     {
-        $this->markTestIncomplete('Not implemented yet.');
+        $this->markTestIncomplete("Not implemented yet.");
     }
 
     /**
@@ -71,7 +71,7 @@ class MembersControllerTest extends TestCase
      */
     public function testEdit(): void
     {
-        $this->markTestIncomplete('Not implemented yet.');
+        $this->markTestIncomplete("Not implemented yet.");
     }
 
     /**
@@ -82,6 +82,6 @@ class MembersControllerTest extends TestCase
      */
     public function testDelete(): void
     {
-        $this->markTestIncomplete('Not implemented yet.');
+        $this->markTestIncomplete("Not implemented yet.");
     }
 }

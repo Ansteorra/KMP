@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Model\Table;
 
 use Cake\ORM\Query;
@@ -19,7 +20,6 @@ use Cake\Validation\Validator;
  */
 class BranchesTable extends Table
 {
-
     /**
      * Initialize method
      *
@@ -30,21 +30,21 @@ class BranchesTable extends Table
     {
         parent::initialize($config);
 
-        $this->setTable('branches');
-        $this->setDisplayField('name');
-        $this->setPrimaryKey('id');
+        $this->setTable("branches");
+        $this->setDisplayField("name");
+        $this->setPrimaryKey("id");
 
-        $this->BelongsTo('Parent', [
-            'className' => 'Branches',
-            'foreignKey' => 'parent_id',
+        $this->BelongsTo("Parent", [
+            "className" => "Branches",
+            "foreignKey" => "parent_id",
         ]);
 
-        $this->HasMany('Members', [
-            'className' => 'Members',
-            'foreignKey' => 'branch_id',
+        $this->HasMany("Members", [
+            "className" => "Members",
+            "foreignKey" => "branch_id",
         ]);
 
-        $this->addBehavior('Tree');
+        $this->addBehavior("Tree");
     }
 
     /**
@@ -56,13 +56,16 @@ class BranchesTable extends Table
     public function validationDefault(Validator $validator): Validator
     {
         $validator
-            ->requirePresence('name', 'create')
-            ->notEmptyString('name')
-            ->add('name', 'unique', ['rule' => 'validateUnique', 'provider' => 'table']);
+            ->requirePresence("name", "create")
+            ->notEmptyString("name")
+            ->add("name", "unique", [
+                "rule" => "validateUnique",
+                "provider" => "table",
+            ]);
 
         $validator
-            ->requirePresence('location', 'create')
-            ->notEmptyString('location');
+            ->requirePresence("location", "create")
+            ->notEmptyString("location");
 
         return $validator;
     }
@@ -76,7 +79,7 @@ class BranchesTable extends Table
      */
     public function buildRules(RulesChecker $rules): RulesChecker
     {
-        $rules->add($rules->isUnique(['name']));
+        $rules->add($rules->isUnique(["name"]));
 
         return $rules;
     }

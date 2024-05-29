@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Model\Table;
@@ -40,18 +41,18 @@ class AuthorizationApprovalsTable extends Table
     {
         parent::initialize($config);
 
-        $this->setTable('authorization_approvals');
-        $this->setDisplayField('id');
-        $this->setPrimaryKey('id');
+        $this->setTable("authorization_approvals");
+        $this->setDisplayField("id");
+        $this->setPrimaryKey("id");
 
-        $this->belongsTo('Authorizations', [
-            'foreignKey' => 'authorization_id',
-            'joinType' => 'INNER',
+        $this->belongsTo("Authorizations", [
+            "foreignKey" => "authorization_id",
+            "joinType" => "INNER",
         ]);
-        $this->belongsTo('Approvers', [
-            'className' => 'Members',
-            'foreignKey' => 'approver_id',
-            'joinType' => 'INNER',
+        $this->belongsTo("Approvers", [
+            "className" => "Members",
+            "foreignKey" => "approver_id",
+            "joinType" => "INNER",
         ]);
     }
 
@@ -64,36 +65,30 @@ class AuthorizationApprovalsTable extends Table
     public function validationDefault(Validator $validator): Validator
     {
         $validator
-            ->integer('authorization_id')
-            ->notEmptyString('authorization_id');
+            ->integer("authorization_id")
+            ->notEmptyString("authorization_id");
+
+        $validator->integer("approver_id")->notEmptyString("approver_id");
 
         $validator
-            ->integer('approver_id')
-            ->notEmptyString('approver_id');
+            ->scalar("authorization_token")
+            ->maxLength("authorization_token", 255)
+            ->requirePresence("authorization_token", "create")
+            ->notEmptyString("authorization_token");
 
         $validator
-            ->scalar('authorization_token')
-            ->maxLength('authorization_token', 255)
-            ->requirePresence('authorization_token', 'create')
-            ->notEmptyString('authorization_token');
+            ->date("requested_on")
+            ->requirePresence("requested_on", "create")
+            ->notEmptyDate("requested_on");
+
+        $validator->date("responded_on")->allowEmptyDate("responded_on");
+
+        $validator->boolean("approved")->notEmptyString("approved");
 
         $validator
-            ->date('requested_on')
-            ->requirePresence('requested_on', 'create')
-            ->notEmptyDate('requested_on');
-
-        $validator
-            ->date('responded_on')
-            ->allowEmptyDate('responded_on');
-
-        $validator
-            ->boolean('approved')
-            ->notEmptyString('approved');
-
-        $validator
-            ->scalar('approver_notes')
-            ->maxLength('approver_notes', 255)
-            ->allowEmptyString('approver_notes');
+            ->scalar("approver_notes")
+            ->maxLength("approver_notes", 255)
+            ->allowEmptyString("approver_notes");
 
         return $validator;
     }
@@ -107,8 +102,12 @@ class AuthorizationApprovalsTable extends Table
      */
     public function buildRules(RulesChecker $rules): RulesChecker
     {
-        $rules->add($rules->existsIn(['authorization_id'], 'Authorizations'), ['errorField' => 'authorization_id']);
-        $rules->add($rules->existsIn(['approver_id'], 'Approvers'), ['errorField' => 'approver_id']);
+        $rules->add($rules->existsIn(["authorization_id"], "Authorizations"), [
+            "errorField" => "authorization_id",
+        ]);
+        $rules->add($rules->existsIn(["approver_id"], "Approvers"), [
+            "errorField" => "approver_id",
+        ]);
 
         return $rules;
     }

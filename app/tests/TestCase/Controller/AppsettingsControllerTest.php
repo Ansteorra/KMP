@@ -21,9 +21,7 @@ class AppsettingsControllerTest extends TestCase
      *
      * @var list<string>
      */
-    protected array $fixtures = [
-        'app.Appsettings',
-    ];
+    protected array $fixtures = ["app.Appsettings"];
 
     /**
      * Test index method
@@ -33,7 +31,7 @@ class AppsettingsControllerTest extends TestCase
      */
     public function testIndex(): void
     {
-        $this->markTestIncomplete('Not implemented yet.');
+        $this->markTestIncomplete("Not implemented yet.");
     }
 
     /**
@@ -44,7 +42,7 @@ class AppsettingsControllerTest extends TestCase
      */
     public function testView(): void
     {
-        $this->markTestIncomplete('Not implemented yet.');
+        $this->markTestIncomplete("Not implemented yet.");
     }
 
     /**
@@ -55,7 +53,7 @@ class AppsettingsControllerTest extends TestCase
      */
     public function testAdd(): void
     {
-        $this->markTestIncomplete('Not implemented yet.');
+        $this->markTestIncomplete("Not implemented yet.");
     }
 
     /**
@@ -66,7 +64,7 @@ class AppsettingsControllerTest extends TestCase
      */
     public function testEdit(): void
     {
-        $this->markTestIncomplete('Not implemented yet.');
+        $this->markTestIncomplete("Not implemented yet.");
     }
 
     /**
@@ -77,6 +75,6 @@ class AppsettingsControllerTest extends TestCase
      */
     public function testDelete(): void
     {
-        $this->markTestIncomplete('Not implemented yet.');
+        $this->markTestIncomplete("Not implemented yet.");
     }
 }

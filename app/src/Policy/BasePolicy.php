@@ -12,42 +12,46 @@ use Authorization\Policy\BeforePolicyInterface;
 
 use Cake\Log\Log;
 
-
 class BasePolicy implements BeforePolicyInterface
 {
-    protected string $REQUIRED_PERMISSION = 'OVERRIDE_ME';
-    public function before(?IdentityInterface $user, mixed $resource, string $action): ResultInterface|bool|null
-    {
+    protected string $REQUIRED_PERMISSION = "OVERRIDE_ME";
+    public function before(
+        ?IdentityInterface $user,
+        mixed $resource,
+        string $action,
+    ): ResultInterface|bool|null {
         if ($this->_isSuperUser($user)) {
             return true;
         }
         return null;
     }
 
-    protected function _getPermissions($user): ArrayAccess|array|null{
+    protected function _getPermissions($user): array|null
+    {
         return $user->getPermissions();
     }
-    protected function _isSuperUser($user): bool{
+    protected function _isSuperUser($user): bool
+    {
         return $user->isSuperUser();
     }
 
-    protected function _hasNamedPermission($user, string $permission_name): bool{
-        Log::debug('Checking for permission: ' . $permission_name);
-        if($this->_isSuperUser($user))
-        {
+    protected function _hasNamedPermission($user, string $permission_name): bool
+    {
+        Log::debug("Checking for permission: " . $permission_name);
+        if ($this->_isSuperUser($user)) {
             return true;
         }
         $permissions = $this->_getPermissions($user);
-        foreach($permissions as $permission){
-            if($permission->name == $permission_name){
-                Log::debug('User has permission: ' . $permission_name);
+        foreach ($permissions as $permission) {
+            if ($permission->name == $permission_name) {
+                Log::debug("User has permission: " . $permission_name);
                 return true;
             }
         }
         return false;
     }
 
-        /**
+    /**
      * Check if $user can add RolesPermissions
      *
      * @param \Authorization\IdentityInterface $user The user.
@@ -109,16 +113,18 @@ class BasePolicy implements BeforePolicyInterface
 
     public function scopeIndex(IdentityInterface $user, $query)
     {
-        if ($this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION))
+        if ($this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION)) {
             return $query;
-        else
-            return $query->where(['id' => -1]);
+        } else {
+            return $query->where(["id" => -1]);
+        }
     }
 
-    public function _hasAuthenticationsPermissions($user): bool{
+    public function _hasAuthenticationsPermissions($user): bool
+    {
         $permissions = $this->_getPermissions($user);
-        foreach($permissions as $permission){
-            if($permission->authentiation_type_id > 0){
+        foreach ($permissions as $permission) {
+            if ($permission->authentiation_type_id > 0) {
                 return true;
             }
         }

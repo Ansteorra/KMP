@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 /**
@@ -10,6 +11,7 @@ declare(strict_types=1);
  * @license     https://opensource.org/licenses/mit-license.php MIT License
  * @link        https://holt59.github.io/cakephp3-bootstrap-helpers/
  */
+
 namespace Bootstrap\View;
 
 use Cake\View\StringTemplate;
@@ -32,14 +34,16 @@ trait FlexibleStringTemplateTrait
     public function templater(): StringTemplate
     {
         if ($this->_templater === null) {
-            $class = $this->getConfig('templateClass') ?: 'Bootstrap\View\FlexibleStringTemplate';
-            $callback = $this->getConfig('templateCallback') ?: null;
-            $callbacks = $this->getConfig('templateCallbacks') ?: [];
+            $class =
+                $this->getConfig("templateClass") ?:
+                "Bootstrap\View\FlexibleStringTemplate";
+            $callback = $this->getConfig("templateCallback") ?: null;
+            $callbacks = $this->getConfig("templateCallbacks") ?: [];
             $this->_templater = new $class([], $callback, $callbacks);
-            $templates = $this->getConfig('templates');
+            $templates = $this->getConfig("templates");
             if ($templates) {
                 if (is_string($templates)) {
-                    $this->_templater->add($this->_defaultConfig['templates']);
+                    $this->_templater->add($this->_defaultConfig["templates"]);
                     $this->_templater->load($templates);
                 } else {
                     $this->_templater->add($templates);

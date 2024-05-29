@@ -22,11 +22,11 @@ class AuthorizationTypesControllerTest extends TestCase
      * @var list<string>
      */
     protected array $fixtures = [
-        'app.AuthorizationTypes',
-        'app.AuthorizationGroups',
-        'app.MemberAuthorizationTypes',
-        'app.PendingAuthorizations',
-        'app.Permissions',
+        "app.AuthorizationTypes",
+        "app.AuthorizationGroups",
+        "app.MemberAuthorizationTypes",
+        "app.PendingAuthorizations",
+        "app.Permissions",
     ];
 
     /**
@@ -37,7 +37,7 @@ class AuthorizationTypesControllerTest extends TestCase
      */
     public function testIndex(): void
     {
-        $this->markTestIncomplete('Not implemented yet.');
+        $this->markTestIncomplete("Not implemented yet.");
     }
 
     /**
@@ -48,7 +48,7 @@ class AuthorizationTypesControllerTest extends TestCase
      */
     public function testView(): void
     {
-        $this->markTestIncomplete('Not implemented yet.');
+        $this->markTestIncomplete("Not implemented yet.");
     }
 
     /**
@@ -59,7 +59,7 @@ class AuthorizationTypesControllerTest extends TestCase
      */
     public function testAdd(): void
     {
-        $this->markTestIncomplete('Not implemented yet.');
+        $this->markTestIncomplete("Not implemented yet.");
     }
 
     /**
@@ -70,7 +70,7 @@ class AuthorizationTypesControllerTest extends TestCase
      */
     public function testEdit(): void
     {
-        $this->markTestIncomplete('Not implemented yet.');
+        $this->markTestIncomplete("Not implemented yet.");
     }
 
     /**
@@ -81,6 +81,6 @@ class AuthorizationTypesControllerTest extends TestCase
      */
     public function testDelete(): void
     {
-        $this->markTestIncomplete('Not implemented yet.');
+        $this->markTestIncomplete("Not implemented yet.");
     }
 }

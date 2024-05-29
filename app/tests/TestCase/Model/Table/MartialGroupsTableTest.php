@@ -23,9 +23,7 @@ class AuthorizationGroupsTableTest extends TestCase
      *
      * @var list<string>
      */
-    protected array $fixtures = [
-        'app.AuthorizationGroups',
-    ];
+    protected array $fixtures = ["app.AuthorizationGroups"];
 
     /**
      * setUp method
@@ -35,8 +33,13 @@ class AuthorizationGroupsTableTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $config = $this->getTableLocator()->exists('AuthorizationGroups') ? [] : ['className' => AuthorizationGroupsTable::class];
-        $this->AuthorizationGroups = $this->getTableLocator()->get('AuthorizationGroups', $config);
+        $config = $this->getTableLocator()->exists("AuthorizationGroups")
+            ? []
+            : ["className" => AuthorizationGroupsTable::class];
+        $this->AuthorizationGroups = $this->getTableLocator()->get(
+            "AuthorizationGroups",
+            $config,
+        );
     }
 
     /**
@@ -59,6 +62,6 @@ class AuthorizationGroupsTableTest extends TestCase
      */
     public function testValidationDefault(): void
     {
-        $this->markTestIncomplete('Not implemented yet.');
+        $this->markTestIncomplete("Not implemented yet.");
     }
 }

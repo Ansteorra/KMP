@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Controller;
@@ -10,11 +11,10 @@ namespace App\Controller;
  */
 class AuthorizationTypesController extends AppController
 {
-
     public function initialize(): void
     {
         parent::initialize();
-        $this->Authorization->authorizeModel('index','add');
+        $this->Authorization->authorizeModel("index", "add");
     }
 
     /**
@@ -24,11 +24,17 @@ class AuthorizationTypesController extends AppController
      */
     public function index()
     {
-        $query = $this->AuthorizationTypes->find()
-            ->contain(['AuthorizationGroups']);
+        $query = $this->AuthorizationTypes->find()->contain([
+            "AuthorizationGroups" => function ($q) {
+                return $q->select(["id", "name"]);
+            },
+            "Roles" => function ($q) {
+                return $q->select(["id", "name"]);
+            },
+        ]);
         $authorizationTypes = $this->paginate($query);
 
-        $this->set(compact('authorizationTypes'));
+        $this->set(compact("authorizationTypes"));
     }
 
     /**
@@ -40,21 +46,55 @@ class AuthorizationTypesController extends AppController
      */
     public function view($id = null)
     {
-        $authorizationType = $this->AuthorizationTypes->get($id, contain: [
-            'AuthorizationGroups', 
-            'Authorizations.AuthorizationApprovals.Approvers' => function($q){
-                return $q->select(['id', 'sca_name']);
-            },
-            'Authorizations.Members' => function($q){
-                return $q->select(['id', 'sca_name']);
-            },
-        ]);
+        $authorizationType = $this->AuthorizationTypes->get(
+            $id,
+            contain: [
+                "AuthorizationGroups" => function ($q) {
+                    return $q->select(["id", "name"]);
+                },
+                "Roles" => function ($q) {
+                    return $q->select(["id", "name"]);
+                },
+                "Authorizations.AuthorizationApprovals.Approvers" => function (
+                    $q,
+                ) {
+                    return $q->select(["id", "sca_name"]);
+                },
+                "Authorizations.Members" => function ($q) {
+                    return $q->select(["id", "sca_name"]);
+                },
+            ],
+        );
         $this->Authorization->authorize($authorizationType);
-        $roles = $this->AuthorizationTypes->Permissions->Roles->find()->innerJoinWith('Permissions', function ($q) use ($authorizationType){
-            return $q->where(['OR'=>['Permissions.authorization_type_id' => $authorizationType->id, 'Permissions.is_super_user'=>true]]);
-        })->distinct()->all();
-        $AuthorizationGroups = $this->AuthorizationTypes->AuthorizationGroups->find('list')->all();
-        $this->set(compact('authorizationType', 'AuthorizationGroups', 'roles'));
+        $roles = $this->AuthorizationTypes->Permissions->Roles
+            ->find()
+            ->innerJoinWith("Permissions", function ($q) use (
+                $authorizationType,
+            ) {
+                return $q->where([
+                    "OR" => [
+                        "Permissions.authorization_type_id" =>
+                        $authorizationType->id,
+                        "Permissions.is_super_user" => true,
+                    ],
+                ]);
+            })
+            ->distinct()
+            ->all();
+        $authorizationGroups = $this->AuthorizationTypes->AuthorizationGroups
+            ->find("list")
+            ->all();
+        $authAssignableRoles = $this->AuthorizationTypes->Roles
+            ->find("list")
+            ->all();
+        $this->set(
+            compact(
+                "authorizationType",
+                "authorizationGroups",
+                "roles",
+                "authAssignableRoles",
+            ),
+        );
     }
 
     /**
@@ -65,17 +105,31 @@ class AuthorizationTypesController extends AppController
     public function add()
     {
         $authorizationType = $this->AuthorizationTypes->newEmptyEntity();
-        if ($this->request->is('post')) {
-            $authorizationType = $this->AuthorizationTypes->patchEntity($authorizationType, $this->request->getData());
+        if ($this->request->is("post")) {
+            $authorizationType = $this->AuthorizationTypes->patchEntity(
+                $authorizationType,
+                $this->request->getData(),
+            );
             if ($this->AuthorizationTypes->save($authorizationType)) {
-                $this->Flash->success(__('The authorization type has been saved.'));
+                $this->Flash->success(
+                    __("The authorization type has been saved."),
+                );
 
-                return $this->redirect(['action' => 'view', $authorizationType->id]);
+                return $this->redirect([
+                    "action" => "view",
+                    $authorizationType->id,
+                ]);
             }
-            $this->Flash->error(__('The authorization type could not be saved. Please, try again.'));
+            $this->Flash->error(
+                __(
+                    "The authorization type could not be saved. Please, try again.",
+                ),
+            );
         }
-        $AuthorizationGroups = $this->AuthorizationTypes->AuthorizationGroups->find('list', limit: 200)->all();
-        $this->set(compact('authorizationType', 'AuthorizationGroups'));
+        $AuthorizationGroups = $this->AuthorizationTypes->AuthorizationGroups
+            ->find("list", limit: 200)
+            ->all();
+        $this->set(compact("authorizationType", "AuthorizationGroups"));
     }
 
     /**
@@ -89,17 +143,31 @@ class AuthorizationTypesController extends AppController
     {
         $authorizationType = $this->AuthorizationTypes->get($id, contain: []);
         $this->Authorization->authorize($authorizationType);
-        if ($this->request->is(['patch', 'post', 'put'])) {
-            $authorizationType = $this->AuthorizationTypes->patchEntity($authorizationType, $this->request->getData());
+        if ($this->request->is(["patch", "post", "put"])) {
+            $authorizationType = $this->AuthorizationTypes->patchEntity(
+                $authorizationType,
+                $this->request->getData(),
+            );
             if ($this->AuthorizationTypes->save($authorizationType)) {
-                $this->Flash->success(__('The authorization type has been saved.'));
+                $this->Flash->success(
+                    __("The authorization type has been saved."),
+                );
 
-                return $this->redirect(['action' => 'view', $authorizationType->id]);
+                return $this->redirect([
+                    "action" => "view",
+                    $authorizationType->id,
+                ]);
             }
-            $this->Flash->error(__('The authorization type could not be saved. Please, try again.'));
+            $this->Flash->error(
+                __(
+                    "The authorization type could not be saved. Please, try again.",
+                ),
+            );
         }
-        $AuthorizationGroups = $this->AuthorizationTypes->AuthorizationGroups->find('list', limit: 200)->all();
-        $this->set(compact('authorizationType', 'AuthorizationGroups'));
+        $AuthorizationGroups = $this->AuthorizationTypes->AuthorizationGroups
+            ->find("list", limit: 200)
+            ->all();
+        $this->set(compact("authorizationType", "AuthorizationGroups"));
     }
 
     /**
@@ -111,15 +179,21 @@ class AuthorizationTypesController extends AppController
      */
     public function delete($id = null)
     {
-        $this->request->allowMethod(['post', 'delete']);
+        $this->request->allowMethod(["post", "delete"]);
         $authorizationType = $this->AuthorizationTypes->get($id);
         $this->Authorization->authorize($authorizationType);
         if ($this->AuthorizationTypes->delete($authorizationType)) {
-            $this->Flash->success(__('The authorization type has been deleted.'));
+            $this->Flash->success(
+                __("The authorization type has been deleted."),
+            );
         } else {
-            $this->Flash->error(__('The authorization type could not be deleted. Please, try again.'));
+            $this->Flash->error(
+                __(
+                    "The authorization type could not be deleted. Please, try again.",
+                ),
+            );
         }
 
-        return $this->redirect(['action' => 'index']);
+        return $this->redirect(["action" => "index"]);
     }
 }

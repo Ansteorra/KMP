@@ -23,11 +23,7 @@ class RolesTableTest extends TestCase
      *
      * @var list<string>
      */
-    protected array $fixtures = [
-        'app.Roles',
-        'app.Members',
-        'app.Permissions',
-    ];
+    protected array $fixtures = ["app.Roles", "app.Members", "app.Permissions"];
 
     /**
      * setUp method
@@ -37,8 +33,10 @@ class RolesTableTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $config = $this->getTableLocator()->exists('Roles') ? [] : ['className' => RolesTable::class];
-        $this->Roles = $this->getTableLocator()->get('Roles', $config);
+        $config = $this->getTableLocator()->exists("Roles")
+            ? []
+            : ["className" => RolesTable::class];
+        $this->Roles = $this->getTableLocator()->get("Roles", $config);
     }
 
     /**
@@ -61,7 +59,7 @@ class RolesTableTest extends TestCase
      */
     public function testValidationDefault(): void
     {
-        $this->markTestIncomplete('Not implemented yet.');
+        $this->markTestIncomplete("Not implemented yet.");
     }
 
     /**
@@ -72,6 +70,6 @@ class RolesTableTest extends TestCase
      */
     public function testBuildRules(): void
     {
-        $this->markTestIncomplete('Not implemented yet.');
+        $this->markTestIncomplete("Not implemented yet.");
     }
 }

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Controller;
@@ -10,11 +11,10 @@ namespace App\Controller;
  */
 class AppSettingsController extends AppController
 {
-
     public function initialize(): void
     {
         parent::initialize();
-        $this->Authorization->authorizeModel('index','add');
+        $this->Authorization->authorizeModel("index", "add");
     }
 
     /**
@@ -27,7 +27,7 @@ class AppSettingsController extends AppController
         $query = $this->AppSettings->find();
         $appSettings = $this->paginate($query);
         $emptyAppSetting = $this->AppSettings->newEmptyEntity();
-        $this->set(compact('appSettings', 'emptyAppSetting'));
+        $this->set(compact("appSettings", "emptyAppSetting"));
     }
 
     /**
@@ -40,7 +40,7 @@ class AppSettingsController extends AppController
     public function view($id = null)
     {
         $appSetting = $this->AppSettings->get($id, contain: []);
-        $this->set(compact('appSetting'));
+        $this->set(compact("appSetting"));
     }
 
     /**
@@ -51,16 +51,22 @@ class AppSettingsController extends AppController
     public function add()
     {
         $appSetting = $this->AppSettings->newEmptyEntity();
-        if ($this->request->is('post')) {
-            $appSetting = $this->AppSettings->patchEntity($appSetting, $this->request->getData());
+        if ($this->request->is("post")) {
+            $appSetting = $this->AppSettings->patchEntity(
+                $appSetting,
+                $this->request->getData(),
+            );
             if ($this->AppSettings->save($appSetting)) {
-                $this->Flash->success(__('The app setting has been saved.'));
+                $this->Flash->success(__("The app setting has been saved."));
 
-                return $this->redirect(['action' => 'index']);
+                return $this->redirect(["action" => "index"]);
             }
-            $this->Flash->error(__('The app setting could not be saved. Please, try again.'));
+            $this->Flash->error(
+                __("The app setting could not be saved. Please, try again."),
+            );
         }
-        return $this->redirect(['action' => 'index']);
+
+        return $this->redirect(["action" => "index"]);
     }
 
     /**
@@ -74,16 +80,22 @@ class AppSettingsController extends AppController
     {
         $appSetting = $this->AppSettings->get($id, contain: []);
         $this->Authorization->authorize($appSetting);
-        if ($this->request->is(['patch', 'post', 'put'])) {
-            $appSetting = $this->AppSettings->patchEntity($appSetting, $this->request->getData());
+        if ($this->request->is(["patch", "post", "put"])) {
+            $appSetting = $this->AppSettings->patchEntity(
+                $appSetting,
+                $this->request->getData(),
+            );
             if ($this->AppSettings->save($appSetting)) {
-                $this->Flash->success(__('The app setting has been saved.'));
+                $this->Flash->success(__("The app setting has been saved."));
 
-                return $this->redirect(['action' => 'index']);
+                return $this->redirect(["action" => "index"]);
             }
-            $this->Flash->error(__('The app setting could not be saved. Please, try again.'));
+            $this->Flash->error(
+                __("The app setting could not be saved. Please, try again."),
+            );
         }
-        return $this->redirect(['action' => 'index']);
+
+        return $this->redirect(["action" => "index"]);
     }
 
     /**
@@ -95,15 +107,17 @@ class AppSettingsController extends AppController
      */
     public function delete($id = null)
     {
-        $this->request->allowMethod(['post', 'delete']);
+        $this->request->allowMethod(["post", "delete"]);
         $appSetting = $this->AppSettings->get($id);
         $this->Authorization->authorize($appSetting);
         if ($this->AppSettings->delete($appSetting)) {
-            $this->Flash->success(__('The app setting has been deleted.'));
+            $this->Flash->success(__("The app setting has been deleted."));
         } else {
-            $this->Flash->error(__('The app setting could not be deleted. Please, try again.'));
+            $this->Flash->error(
+                __("The app setting could not be deleted. Please, try again."),
+            );
         }
 
-        return $this->redirect(['action' => 'index']);
+        return $this->redirect(["action" => "index"]);
     }
 }

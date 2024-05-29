@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 /**
@@ -10,6 +11,7 @@ declare(strict_types=1);
  * @license     https://opensource.org/licenses/mit-license.php MIT License
  * @link        https://holt59.github.io/cakephp3-bootstrap-helpers/
  */
+
 namespace Bootstrap\View\Helper;
 
 use Cake\Http\ServerRequest;
@@ -25,7 +27,7 @@ trait UrlComparerTrait
      *
      * @var array
      */
-    protected $_parts = ['plugin', 'prefix', 'controller', 'action', 'pass'];
+    protected $_parts = ["plugin", "prefix", "controller", "action", "pass"];
 
     /**
      * Retrieve the relative path of the root URL from hostname.
@@ -34,7 +36,7 @@ trait UrlComparerTrait
      */
     protected function _relative(): string
     {
-        return trim(Router::url('/'), '/');
+        return trim(Router::url("/"), "/");
     }
 
     /**
@@ -44,9 +46,9 @@ trait UrlComparerTrait
      */
     protected function _hostname(): ?string
     {
-        $components = parse_url(Router::url('/', true));
-        if (isset($components['host'])) {
-            return $components['host'];
+        $components = parse_url(Router::url("/", true));
+        if (isset($components["host"])) {
+            return $components["host"];
         }
 
         return null;
@@ -62,7 +64,10 @@ trait UrlComparerTrait
     {
         $components = parse_url($url);
 
-        return !(isset($components['host']) && $components['host'] != $this->_hostname());
+        return !(
+            isset($components["host"]) &&
+            $components["host"] != $this->_hostname()
+        );
     }
 
     /**
@@ -79,10 +84,10 @@ trait UrlComparerTrait
             return true;
         }
         $components = parse_url($url);
-        if (!isset($components['host'])) {
+        if (!isset($components["host"])) {
             return true;
         }
-        $path = trim($components['path'], '/');
+        $path = trim($components["path"], "/");
 
         return strpos($path, $relative) === 0;
     }
@@ -97,12 +102,12 @@ trait UrlComparerTrait
     {
         $components = parse_url($url);
         $relative = $this->_relative();
-        $path = trim($components['path'], '/');
+        $path = trim($components["path"], "/");
         if ($relative && strpos($path, $relative) === 0) {
-            $path = trim(substr($path, strlen($relative)), '/');
+            $path = trim(substr($path, strlen($relative)), "/");
         }
 
-        return '/' . $path;
+        return "/" . $path;
     }
 
     /**
@@ -123,22 +128,29 @@ trait UrlComparerTrait
         if (!$this->_matchRelative($url)) {
             return null;
         }
-        $url = Router::parseRequest(new ServerRequest(['url' => $this->_removeRelative($url)]));
+        $url = Router::parseRequest(
+            new ServerRequest(["url" => $this->_removeRelative($url)]),
+        );
         $arr = [];
         foreach ($this->_parts as $part) {
-            if (!isset($url[$part]) || (isset($parts[$part]) && !$parts[$part])) {
+            if (
+                !isset($url[$part]) ||
+                (isset($parts[$part]) && !$parts[$part])
+            ) {
                 continue;
             }
             if (is_array($url[$part])) {
-                $url[$part] = implode('/', $url[$part]);
+                $url[$part] = implode("/", $url[$part]);
             }
-            if ($part != 'pass') {
+            if ($part != "pass") {
                 $url[$part] = strtolower($url[$part]);
             }
             $arr[] = $url[$part];
         }
 
-        return $this->_removeRelative(Router::normalize('/' . implode('/', $arr)));
+        return $this->_removeRelative(
+            Router::normalize("/" . implode("/", $arr)),
+        );
     }
 
     /**

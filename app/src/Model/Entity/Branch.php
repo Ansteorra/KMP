@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Model\Entity;
 
 use Cake\ORM\Entity;
@@ -13,7 +14,6 @@ use Cake\ORM\Entity;
  */
 class Branch extends Entity
 {
-
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().
      *
@@ -24,7 +24,7 @@ class Branch extends Entity
      * @var array
      */
     protected array $_accessible = [
-        '*' => true,
-        'id' => false
+        "*" => true,
+        "id" => false,
     ];
 }

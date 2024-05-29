@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Model\Entity;
@@ -31,13 +32,13 @@ class MemberRole extends Entity
      * @var array<string, bool>
      */
     protected array $_accessible = [
-        'Member_id' => true,
-        'role_id' => true,
-        'ended_on' => true,
-        'start_on' => true,
-        'approver_id' => true,
-        'Member' => true,
-        'role' => true,
-        'approved_by' => true,
+        "Member_id" => true,
+        "role_id" => true,
+        "ended_on" => true,
+        "start_on" => true,
+        "approver_id" => true,
+        "Member" => true,
+        "role" => true,
+        "approved_by" => true,
     ];
 }

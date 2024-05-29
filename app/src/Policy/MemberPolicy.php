@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Policy;
@@ -11,7 +12,7 @@ use Authorization\IdentityInterface;
  */
 class MemberPolicy extends BasePolicy
 {
-    protected string $REQUIRED_PERMISSION = 'Can Manage Members';
+    protected string $REQUIRED_PERMISSION = "Can Manage Members";
 
     public function canView(IdentityInterface $user, $entity)
     {
@@ -20,7 +21,7 @@ class MemberPolicy extends BasePolicy
             return true;
         } else {
             return $entity->id == $user->getIdentifier();
-        }   
+        }
     }
 
     public function canPartialEdit(IdentityInterface $user, $entity)
@@ -35,24 +36,24 @@ class MemberPolicy extends BasePolicy
             return true;
         } else {
             return $entity->id == $user->getIdentifier();
-        }   
+        }
     }
 
-    public function canAddNote (IdentityInterface $user, $entity)
+    public function canAddNote(IdentityInterface $user, $entity)
     {
         $canDo = $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
         if ($canDo) {
             return true;
         } else {
             return $entity->id == $user->getIdentifier();
-        }   
+        }
     }
     public function canViewPrivateNotes(IdentityInterface $user, $entity)
     {
         $canDo = $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
         if ($canDo) {
             return true;
-        } 
+        }
         return false;
     }
 
@@ -63,7 +64,7 @@ class MemberPolicy extends BasePolicy
             return true;
         } else {
             return $entity->id == $user->getIdentifier();
-        }   
+        }
     }
 
     function canChangePassword(IdentityInterface $user, $entity)
@@ -73,7 +74,7 @@ class MemberPolicy extends BasePolicy
             return true;
         } else {
             return $entity->id == $user->getIdentifier();
-        }   
+        }
     }
 
     function canDelete(IdentityInterface $user, $entity)

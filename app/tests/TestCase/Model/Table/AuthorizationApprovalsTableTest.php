@@ -24,9 +24,9 @@ class AuthorizationApprovalsTableTest extends TestCase
      * @var list<string>
      */
     protected array $fixtures = [
-        'app.AuthorizationApprovals',
-        'app.Authorizations',
-        'app.Members',
+        "app.AuthorizationApprovals",
+        "app.Authorizations",
+        "app.Members",
     ];
 
     /**
@@ -37,8 +37,13 @@ class AuthorizationApprovalsTableTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $config = $this->getTableLocator()->exists('AuthorizationApprovals') ? [] : ['className' => AuthorizationApprovalsTable::class];
-        $this->AuthorizationApprovals = $this->getTableLocator()->get('AuthorizationApprovals', $config);
+        $config = $this->getTableLocator()->exists("AuthorizationApprovals")
+            ? []
+            : ["className" => AuthorizationApprovalsTable::class];
+        $this->AuthorizationApprovals = $this->getTableLocator()->get(
+            "AuthorizationApprovals",
+            $config,
+        );
     }
 
     /**
@@ -61,7 +66,7 @@ class AuthorizationApprovalsTableTest extends TestCase
      */
     public function testValidationDefault(): void
     {
-        $this->markTestIncomplete('Not implemented yet.');
+        $this->markTestIncomplete("Not implemented yet.");
     }
 
     /**
@@ -72,6 +77,6 @@ class AuthorizationApprovalsTableTest extends TestCase
      */
     public function testBuildRules(): void
     {
-        $this->markTestIncomplete('Not implemented yet.');
+        $this->markTestIncomplete("Not implemented yet.");
     }
 }

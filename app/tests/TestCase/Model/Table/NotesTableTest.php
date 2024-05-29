@@ -23,9 +23,7 @@ class NotesTableTest extends TestCase
      *
      * @var list<string>
      */
-    protected array $fixtures = [
-        'app.Notes',
-    ];
+    protected array $fixtures = ["app.Notes"];
 
     /**
      * setUp method
@@ -35,8 +33,10 @@ class NotesTableTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $config = $this->getTableLocator()->exists('Notes') ? [] : ['className' => NotesTable::class];
-        $this->Notes = $this->getTableLocator()->get('Notes', $config);
+        $config = $this->getTableLocator()->exists("Notes")
+            ? []
+            : ["className" => NotesTable::class];
+        $this->Notes = $this->getTableLocator()->get("Notes", $config);
     }
 
     /**
@@ -59,6 +59,6 @@ class NotesTableTest extends TestCase
      */
     public function testValidationDefault(): void
     {
-        $this->markTestIncomplete('Not implemented yet.');
+        $this->markTestIncomplete("Not implemented yet.");
     }
 }

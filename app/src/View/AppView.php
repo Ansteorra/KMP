@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 /**
@@ -13,12 +14,12 @@ declare(strict_types=1);
  * @since     3.0.0
  * @license   https://opensource.org/licenses/mit-license.php MIT License
  */
+
 namespace App\View;
 
 use BootstrapUI\View\UIViewTrait;
 use Cake\View\View;
 use Cake\I18n\DateTime;
-
 
 /**
  * Application View
@@ -39,10 +40,10 @@ class AppView extends View
         parent::initialize();
 
         // Call the initializeUI method from UIViewTrait
-        $this->initializeUI(['layout' => false]);
-        $this->loadHelper('Authentication.Identity');
-        $this->loadHelper('Bootstrap.Modal');
-        $this->loadHelper('Bootstrap.Navbar');
-        $this->loadHelper('Kmp');
+        $this->initializeUI(["layout" => false]);
+        $this->loadHelper("Authentication.Identity");
+        $this->loadHelper("Bootstrap.Modal");
+        $this->loadHelper("Bootstrap.Navbar");
+        $this->loadHelper("Kmp");
     }
 }

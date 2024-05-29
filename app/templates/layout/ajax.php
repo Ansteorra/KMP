@@ -1,4 +1,5 @@
 <?php
+
 /**
  * CakePHP(tm) : Rapid Development Framework (https://cakephp.org)
  * Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
@@ -14,4 +15,4 @@
  * @var \App\View\AppView $this
  */
 
-echo $this->fetch('content');
+echo $this->fetch("content");

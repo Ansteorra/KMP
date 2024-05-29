@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Policy;
@@ -11,9 +12,9 @@ use Authorization\IdentityInterface;
  */
 class MemberRolesPolicy extends BasePolicy
 {
-    protected string $REQUIRED_PERMISSION = 'Can Manage Permissions';
+    protected string $REQUIRED_PERMISSION = "Can Manage Permissions";
 
-        /**
+    /**
      * Check if $user can view role
      *
      * @param \Authorization\IdentityInterface $user The user.

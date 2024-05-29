@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Model\Table;
@@ -37,14 +38,14 @@ class NotesTable extends Table
     {
         parent::initialize($config);
 
-        $this->setTable('notes');
-        $this->setDisplayField('id');
-        $this->setPrimaryKey('id');
+        $this->setTable("notes");
+        $this->setDisplayField("id");
+        $this->setPrimaryKey("id");
 
-        $this->belongsTo('Authors', [
-            'className' => 'Members',
-            'foreignKey' => 'author_id',
-            'joinType' => 'INNER',
+        $this->belongsTo("Authors", [
+            "className" => "Members",
+            "foreignKey" => "author_id",
+            "joinType" => "INNER",
         ]);
     }
 
@@ -57,36 +58,30 @@ class NotesTable extends Table
     public function validationDefault(Validator $validator): Validator
     {
         $validator
-            ->integer('author_id')
-            ->requirePresence('author_id', 'create')
-            ->notEmptyString('author_id');
+            ->integer("author_id")
+            ->requirePresence("author_id", "create")
+            ->notEmptyString("author_id");
+
+        $validator->dateTime("created_on")->notEmptyDateTime("created_on");
 
         $validator
-            ->dateTime('created_on')
-            ->notEmptyDateTime('created_on');
+            ->scalar("topic_model")
+            ->maxLength("topic_model", 255)
+            ->allowEmptyString("topic_model");
 
         $validator
-            ->scalar('topic_model')
-            ->maxLength('topic_model', 255)
-            ->allowEmptyString('topic_model');
+            ->integer("topic_id")
+            ->requirePresence("topic_id", "create")
+            ->notEmptyString("topic_id");
 
         $validator
-            ->integer('topic_id')
-            ->requirePresence('topic_id', 'create')
-            ->notEmptyString('topic_id');
+            ->scalar("subject")
+            ->maxLength("subject", 255)
+            ->allowEmptyString("subject");
 
-        $validator
-            ->scalar('subject')
-            ->maxLength('subject', 255)
-            ->allowEmptyString('subject');
+        $validator->scalar("body")->allowEmptyString("body");
 
-        $validator
-            ->scalar('body')
-            ->allowEmptyString('body');
-
-        $validator
-            ->boolean('private')
-            ->notEmptyString('private');
+        $validator->boolean("private")->notEmptyString("private");
 
         return $validator;
     }

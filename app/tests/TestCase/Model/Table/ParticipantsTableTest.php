@@ -24,11 +24,11 @@ class MembersTableTest extends TestCase
      * @var list<string>
      */
     protected array $fixtures = [
-        'app.Members',
-        'app.MemberAuthorizationTypes',
-        'app.PendingAuthorizations',
-        'app.PendingAuthorizationsToApprove',
-        'app.Roles',
+        "app.Members",
+        "app.MemberAuthorizationTypes",
+        "app.PendingAuthorizations",
+        "app.PendingAuthorizationsToApprove",
+        "app.Roles",
     ];
 
     /**
@@ -39,8 +39,10 @@ class MembersTableTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $config = $this->getTableLocator()->exists('Members') ? [] : ['className' => MembersTable::class];
-        $this->Members = $this->getTableLocator()->get('Members', $config);
+        $config = $this->getTableLocator()->exists("Members")
+            ? []
+            : ["className" => MembersTable::class];
+        $this->Members = $this->getTableLocator()->get("Members", $config);
     }
 
     /**
@@ -63,7 +65,7 @@ class MembersTableTest extends TestCase
      */
     public function testValidationDefault(): void
     {
-        $this->markTestIncomplete('Not implemented yet.');
+        $this->markTestIncomplete("Not implemented yet.");
     }
 
     /**
@@ -74,6 +76,6 @@ class MembersTableTest extends TestCase
      */
     public function testFindAuth(): void
     {
-        $this->markTestIncomplete('Not implemented yet.');
+        $this->markTestIncomplete("Not implemented yet.");
     }
 }

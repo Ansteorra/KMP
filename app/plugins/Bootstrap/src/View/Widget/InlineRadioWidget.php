@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 /**
@@ -10,6 +11,7 @@ declare(strict_types=1);
  * @license     https://opensource.org/licenses/mit-license.php MIT License
  * @link        https://holt59.github.io/cakephp3-bootstrap-helpers/
  */
+
 namespace Bootstrap\View\Widget;
 
 use Cake\View\Widget\RadioWidget;
@@ -33,65 +35,86 @@ class InlineRadioWidget extends RadioWidget
      */
     protected function _renderInput($val, $text, $data, $context): string
     {
-        $escape = $data['escape'];
-        if (is_int($val) && isset($text['text'], $text['value'])) {
+        $escape = $data["escape"];
+        if (is_int($val) && isset($text["text"], $text["value"])) {
             $radio = $text;
         } else {
-            $radio = ['value' => $val, 'text' => $text];
+            $radio = ["value" => $val, "text" => $text];
         }
-        $radio['name'] = $data['name'];
-        if (!isset($radio['templateVars'])) {
-            $radio['templateVars'] = [];
+        $radio["name"] = $data["name"];
+        if (!isset($radio["templateVars"])) {
+            $radio["templateVars"] = [];
         }
-        if (!empty($data['templateVars'])) {
-            $radio['templateVars'] = array_merge($data['templateVars'], $radio['templateVars']);
+        if (!empty($data["templateVars"])) {
+            $radio["templateVars"] = array_merge(
+                $data["templateVars"],
+                $radio["templateVars"],
+            );
         }
-        if (empty($radio['id'])) {
-            $radio['id'] = $this->_id($radio['name'], $radio['value']);
+        if (empty($radio["id"])) {
+            $radio["id"] = $this->_id($radio["name"], $radio["value"]);
         }
-        if (isset($data['val']) && is_bool($data['val'])) {
-            $data['val'] = $data['val'] ? 1 : 0;
+        if (isset($data["val"]) && is_bool($data["val"])) {
+            $data["val"] = $data["val"] ? 1 : 0;
         }
-        if (isset($data['val']) && (string)$data['val'] === (string)$radio['value']) {
-            $radio['checked'] = true;
+        if (
+            isset($data["val"]) &&
+            (string) $data["val"] === (string) $radio["value"]
+        ) {
+            $radio["checked"] = true;
         }
-        if (!is_bool($data['label']) && isset($radio['checked']) && $radio['checked']) {
-            $data['label'] = $this->_templates->addClass($data['label'], 'selected');
+        if (
+            !is_bool($data["label"]) &&
+            isset($radio["checked"]) &&
+            $radio["checked"]
+        ) {
+            $data["label"] = $this->_templates->addClass(
+                $data["label"],
+                "selected",
+            );
         }
-        $radio['disabled'] = $this->_isDisabled($radio, $data['disabled']);
-        if (!empty($data['required'])) {
-            $radio['required'] = true;
+        $radio["disabled"] = $this->_isDisabled($radio, $data["disabled"]);
+        if (!empty($data["required"])) {
+            $radio["required"] = true;
         }
-        if (!empty($data['form'])) {
-            $radio['form'] = $data['form'];
+        if (!empty($data["form"])) {
+            $radio["form"] = $data["form"];
         }
-        $input = $this->_templates->format('inlineRadio', [
-            'name' => $radio['name'],
-            'value' => $escape ? h($radio['value']) : $radio['value'],
-            'templateVars' => $radio['templateVars'],
-            'attrs' => $this->_templates->formatAttributes(
-                $radio + $data,
-                ['name', 'value', 'text', 'options', 'label', 'val', 'type']
-            ),
+        $input = $this->_templates->format("inlineRadio", [
+            "name" => $radio["name"],
+            "value" => $escape ? h($radio["value"]) : $radio["value"],
+            "templateVars" => $radio["templateVars"],
+            "attrs" => $this->_templates->formatAttributes($radio + $data, [
+                "name",
+                "value",
+                "text",
+                "options",
+                "label",
+                "val",
+                "type",
+            ]),
         ]);
         $label = $this->_renderLabel(
             $radio,
-            $data['label'],
+            $data["label"],
             $input,
             $context,
-            $escape
+            $escape,
         );
         if (
             $label === false &&
-            strpos($this->_templates->get('inlineRadioWrapper'), '{{input}}') === false
+            strpos(
+                $this->_templates->get("inlineRadioWrapper"),
+                "{{input}}",
+            ) === false
         ) {
             $label = $input;
         }
 
-        return $this->_templates->format('inlineRadioWrapper', [
-            'input' => $input,
-            'label' => $label,
-            'templateVars' => $data['templateVars'],
+        return $this->_templates->format("inlineRadioWrapper", [
+            "input" => $input,
+            "label" => $label,
+            "templateVars" => $data["templateVars"],
         ]);
     }
 }

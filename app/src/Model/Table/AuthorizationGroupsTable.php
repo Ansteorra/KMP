@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Model\Table;
@@ -37,12 +38,12 @@ class AuthorizationGroupsTable extends Table
     {
         parent::initialize($config);
 
-        $this->setTable('authorization_groups');
-        $this->setDisplayField('name');
-        $this->setPrimaryKey('id');
+        $this->setTable("authorization_groups");
+        $this->setDisplayField("name");
+        $this->setPrimaryKey("id");
 
-        $this->HasMany('AuthorizationTypes', [
-            'foreignKey' => 'authorization_groups_id',
+        $this->HasMany("AuthorizationTypes", [
+            "foreignKey" => "authorization_groups_id",
         ]);
     }
 
@@ -55,10 +56,10 @@ class AuthorizationGroupsTable extends Table
     public function validationDefault(Validator $validator): Validator
     {
         $validator
-            ->scalar('name')
-            ->maxLength('name', 255)
-            ->requirePresence('name', 'create')
-            ->notEmptyString('name');
+            ->scalar("name")
+            ->maxLength("name", 255)
+            ->requirePresence("name", "create")
+            ->notEmptyString("name");
 
         return $validator;
     }

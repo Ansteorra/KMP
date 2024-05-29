@@ -23,7 +23,8 @@
         "cakephp/debug_kit": "^5.0.0",
         "dereuromark/cakephp-ide-helper": "^2.2",
         "josegonzalez/dotenv": "^4.0",
-        "phpunit/phpunit": "^10.1.0"
+        "phpunit/phpunit": "^10.1.0",
+        "squizlabs/php_codesniffer": "^3.10"
     },
     "suggest": {
         "markstory/asset_compress": "An asset compression plugin which provides file concatenation and a flexible filter system for preprocessing and minification.",

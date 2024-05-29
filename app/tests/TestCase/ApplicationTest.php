@@ -40,14 +40,17 @@ class ApplicationTest extends TestCase
      */
     public function testBootstrap()
     {
-        Configure::write('debug', false);
-        $app = new Application(dirname(dirname(__DIR__)) . '/config');
+        Configure::write("debug", false);
+        $app = new Application(dirname(dirname(__DIR__)) . "/config");
         $app->bootstrap();
         $plugins = $app->getPlugins();
 
-        $this->assertTrue($plugins->has('Bake'), 'plugins has Bake?');
-        $this->assertFalse($plugins->has('DebugKit'), 'plugins has DebugKit?');
-        $this->assertTrue($plugins->has('Migrations'), 'plugins has Migrations?');
+        $this->assertTrue($plugins->has("Bake"), "plugins has Bake?");
+        $this->assertFalse($plugins->has("DebugKit"), "plugins has DebugKit?");
+        $this->assertTrue(
+            $plugins->has("Migrations"),
+            "plugins has Migrations?",
+        );
     }
 
     /**
@@ -57,12 +60,12 @@ class ApplicationTest extends TestCase
      */
     public function testBootstrapInDebug()
     {
-        Configure::write('debug', true);
-        $app = new Application(dirname(dirname(__DIR__)) . '/config');
+        Configure::write("debug", true);
+        $app = new Application(dirname(dirname(__DIR__)) . "/config");
         $app->bootstrap();
         $plugins = $app->getPlugins();
 
-        $this->assertTrue($plugins->has('DebugKit'), 'plugins has DebugKit?');
+        $this->assertTrue($plugins->has("DebugKit"), "plugins has DebugKit?");
     }
 
     /**
@@ -75,12 +78,15 @@ class ApplicationTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
 
         $app = $this->getMockBuilder(Application::class)
-            ->setConstructorArgs([dirname(dirname(__DIR__)) . '/config'])
-            ->onlyMethods(['addPlugin'])
+            ->setConstructorArgs([dirname(dirname(__DIR__)) . "/config"])
+            ->onlyMethods(["addPlugin"])
             ->getMock();
 
-        $app->method('addPlugin')
-            ->will($this->throwException(new InvalidArgumentException('test exception.')));
+        $app->method("addPlugin")->will(
+            $this->throwException(
+                new InvalidArgumentException("test exception."),
+            ),
+        );
 
         $app->bootstrap();
     }
@@ -92,15 +98,21 @@ class ApplicationTest extends TestCase
      */
     public function testMiddleware()
     {
-        $app = new Application(dirname(dirname(__DIR__)) . '/config');
+        $app = new Application(dirname(dirname(__DIR__)) . "/config");
         $middleware = new MiddlewareQueue();
 
         $middleware = $app->middleware($middleware);
 
-        $this->assertInstanceOf(ErrorHandlerMiddleware::class, $middleware->current());
+        $this->assertInstanceOf(
+            ErrorHandlerMiddleware::class,
+            $middleware->current(),
+        );
         $middleware->seek(1);
         $this->assertInstanceOf(AssetMiddleware::class, $middleware->current());
         $middleware->seek(2);
-        $this->assertInstanceOf(RoutingMiddleware::class, $middleware->current());
+        $this->assertInstanceOf(
+            RoutingMiddleware::class,
+            $middleware->current(),
+        );
     }
 }

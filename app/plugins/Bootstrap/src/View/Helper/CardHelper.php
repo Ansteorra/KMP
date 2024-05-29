@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 /**
@@ -10,6 +11,7 @@ declare(strict_types=1);
  * @license     https://opensource.org/licenses/mit-license.php MIT License
  * @link        https://holt59.github.io/cakephp3-bootstrap-helpers/
  */
+
 namespace Bootstrap\View\Helper;
 
 use Bootstrap\Utility\StackedStates;
@@ -34,9 +36,7 @@ class CardHelper extends Helper
      *
      * @var array
      */
-    public array $helpers = [
-        'Html',
-    ];
+    public array $helpers = ["Html"];
 
     /**
      * Default configuration for the helper.
@@ -46,25 +46,32 @@ class CardHelper extends Helper
      * @var array
      */
     protected array $_defaultConfig = [
-        'templates' => [
-            'cardGroupStart' => '<div role="tablist"{{attrs}}>',
-            'cardGroupEnd' => '</div>',
-            'cardStart' => '<div class="card card-{{type}}{{attrs.class}}"{{attrs}}>',
-            'cardEnd' => '</div>',
-            'headerStart' => '<div class="card-header{{attrs.class}}"{{attrs}}>',
-            'headerCollapsibleStart' => '<div class="card-header{{attrs.class}}" role="tab"{{attrs}}>',
-            'headerCollapsibleLink' => '<h5 class="mb-0"><a role="button" data-toggle="collapse" href="#{{target}}" aria-expanded="{{expanded}}" aria-controls="{{target}}"{{attrs}}>{{content}}</a></h5>',
-            'headerEnd' => '</div>',
-            'title' => '<h4 class="card-title{{attrs.class}}"{{attrs}}>{{content}}</h4>',
-            'bodyStart' => '<div class="card-body{{attrs.class}}"{{attrs}}>',
-            'bodyEnd' => '</div>',
-            'bodyCollapsibleStart' => '<div class="collapse{{attrs.class}}" role="tabpanel" aria-labelledby="{{headId}}"{{attrs}}>{{bodyStart}}',
-            'bodyCollapsibleEnd' => '{{bodyEnd}}</div>',
-            'footerStart' => '<div class="card-footer{{attrs.class}}"{{attrs}}>',
-            'footerEnd' => '</div>',
+        "templates" => [
+            "cardGroupStart" => '<div role="tablist"{{attrs}}>',
+            "cardGroupEnd" => "</div>",
+            "cardStart" =>
+            '<div class="card card-{{type}}{{attrs.class}}"{{attrs}}>',
+            "cardEnd" => "</div>",
+            "headerStart" =>
+            '<div class="card-header{{attrs.class}}"{{attrs}}>',
+            "headerCollapsibleStart" =>
+            '<div class="card-header{{attrs.class}}" role="tab"{{attrs}}>',
+            "headerCollapsibleLink" =>
+            '<h5 class="mb-0"><a role="button" data-toggle="collapse" href="#{{target}}" aria-expanded="{{expanded}}" aria-controls="{{target}}"{{attrs}}>{{content}}</a></h5>',
+            "headerEnd" => "</div>",
+            "title" =>
+            '<h4 class="card-title{{attrs.class}}"{{attrs}}>{{content}}</h4>',
+            "bodyStart" => '<div class="card-body{{attrs.class}}"{{attrs}}>',
+            "bodyEnd" => "</div>",
+            "bodyCollapsibleStart" =>
+            '<div class="collapse{{attrs.class}}" role="tabpanel" aria-labelledby="{{headId}}"{{attrs}}>{{bodyStart}}',
+            "bodyCollapsibleEnd" => "{{bodyEnd}}</div>",
+            "footerStart" =>
+            '<div class="card-footer{{attrs.class}}"{{attrs}}>',
+            "footerEnd" => "</div>",
         ],
-        'templateClass' => 'Bootstrap\View\EnhancedStringTemplate',
-        'collapsible' => false,
+        "templateClass" => "Bootstrap\View\EnhancedStringTemplate",
+        "collapsible" => false,
     ];
 
     /**
@@ -96,19 +103,19 @@ class CardHelper extends Helper
     public function __construct(\Cake\View\View $View, array $config = [])
     {
         $this->_states = new StackedStates([
-            'group' => [
-                'groupCardOpen' => false,
-                'groupCardCount' => -1,
-                'groupId' => false,
-                'groupCollapsible' => true,
+            "group" => [
+                "groupCardOpen" => false,
+                "groupCardCount" => -1,
+                "groupId" => false,
+                "groupCollapsible" => true,
             ],
-            'card' => [
-                'part' => null,
-                'bodyId' => null,
-                'headId' => null,
-                'collapsible' => false,
-                'open' => false,
-                'inGroup' => false,
+            "card" => [
+                "part" => null,
+                "bodyId" => null,
+                "headId" => null,
+                "collapsible" => false,
+                "open" => false,
+                "inGroup" => false,
             ],
         ]);
         parent::__construct($View, $config);
@@ -134,21 +141,24 @@ class CardHelper extends Helper
     public function startGroup($options = [])
     {
         $options += [
-            'id' => 'cardGroup-' . (++$this->_groupCount),
-            'collapsible' => true,
-            'open' => 0,
-            'templateVars' => [],
+            "id" => "cardGroup-" . ++$this->_groupCount,
+            "collapsible" => true,
+            "open" => 0,
+            "templateVars" => [],
         ];
-        $this->_states->push('group', [
-            'groupCardOpen' => $options['open'],
-            'groupCardCount' => -1,
-            'groupId' => $options['id'],
-            'groupCollapsible' => $options['collapsible'],
+        $this->_states->push("group", [
+            "groupCardOpen" => $options["open"],
+            "groupCardCount" => -1,
+            "groupId" => $options["id"],
+            "groupCollapsible" => $options["collapsible"],
         ]);
 
-        return $this->formatTemplate('cardGroupStart', [
-            'attrs' => $this->templater()->formatAttributes($options, ['open', 'collapsible']),
-            'templateVars' => $options['templateVars'],
+        return $this->formatTemplate("cardGroupStart", [
+            "attrs" => $this->templater()->formatAttributes($options, [
+                "open",
+                "collapsible",
+            ]),
+            "templateVars" => $options["templateVars"],
         ]);
     }
 
@@ -159,11 +169,12 @@ class CardHelper extends Helper
      */
     public function endGroup()
     {
-        $out = '';
-        while ($this->_states->is('card')) { // cards were not closed
+        $out = "";
+        while ($this->_states->is("card")) {
+            // cards were not closed
             $out .= $this->end();
         }
-        $out .= $this->formatTemplate('cardGroupEnd', []);
+        $out .= $this->formatTemplate("cardGroupEnd", []);
         $this->_states->pop();
 
         return $out;
@@ -220,65 +231,72 @@ class CardHelper extends Helper
             $title = null;
         }
 
-        $out = '';
+        $out = "";
 
         // close previous card if in group
-        if ($this->_states->is('card') && $this->_states->getValue('inGroup')) {
+        if ($this->_states->is("card") && $this->_states->getValue("inGroup")) {
             $out .= $this->end();
         }
 
         $options += [
-            'body' => true,
-            'type' => 'default',
-            'collapsible' => $this->_states->is('group') ?
-                $this->_states->getValue('groupCollapsible') : $this->getConfig('collapsible'),
-            'open' => !$this->_states->is('group'),
-            'card-count' => $this->_cardCount,
-            'title' => [],
-            'templateVars' => [],
+            "body" => true,
+            "type" => "default",
+            "collapsible" => $this->_states->is("group")
+                ? $this->_states->getValue("groupCollapsible")
+                : $this->getConfig("collapsible"),
+            "open" => !$this->_states->is("group"),
+            "card-count" => $this->_cardCount,
+            "title" => [],
+            "templateVars" => [],
         ];
 
-        $this->_cardCount = intval($options['card-count']) + 1;
+        $this->_cardCount = intval($options["card-count"]) + 1;
 
         // check open
-        $open = $options['open'];
-        if ($this->_states->is('group')) {
+        $open = $options["open"];
+        if ($this->_states->is("group")) {
             // increment count inside
             $this->_states->setValue(
-                'groupCardCount',
-                $this->_states->getValue('groupCardCount') + 1
+                "groupCardCount",
+                $this->_states->getValue("groupCardCount") + 1,
             );
-            $open = $open
-                || $this->_states->getValue('groupCardOpen')
-                    == $this->_states->getValue('groupCardCount');
+            $open =
+                $open ||
+                $this->_states->getValue("groupCardOpen") ==
+                $this->_states->getValue("groupCardCount");
         }
 
-        $out .= $this->formatTemplate('cardStart', [
-            'type' => $options['type'],
-            'attrs' => $this->templater()->formatAttributes(
-                $options,
-                ['body', 'type', 'collapsible', 'open', 'card-count', 'title']
-            ),
-            'templateVars' => $options['templateVars'],
+        $out .= $this->formatTemplate("cardStart", [
+            "type" => $options["type"],
+            "attrs" => $this->templater()->formatAttributes($options, [
+                "body",
+                "type",
+                "collapsible",
+                "open",
+                "card-count",
+                "title",
+            ]),
+            "templateVars" => $options["templateVars"],
         ]);
 
-        $this->_states->push('card', [
-            'part' => null,
-            'bodyId' => 'collapse-' . $options['card-count'],
-            'headId' => 'heading-' . $options['card-count'],
-            'collapsible' => $options['collapsible'],
-            'open' => $open,
-            'inGroup' => $this->_states->is('group'),
-            'groupId' => $this->_states->is('group') ?
-                $this->_states->getValue('groupId') : 0,
+        $this->_states->push("card", [
+            "part" => null,
+            "bodyId" => "collapse-" . $options["card-count"],
+            "headId" => "heading-" . $options["card-count"],
+            "collapsible" => $options["collapsible"],
+            "open" => $open,
+            "inGroup" => $this->_states->is("group"),
+            "groupId" => $this->_states->is("group")
+                ? $this->_states->getValue("groupId")
+                : 0,
         ]);
 
         if (is_string($title) && $title) {
             $out .= $this->_createHeader($title, [
-                'title' => $options['title'],
+                "title" => $options["title"],
             ]);
             $out .= $this->_cleanCurrent();
-            if ($options['body']) {
+            if ($options["body"]) {
                 $out .= $this->_createBody();
             }
         }
@@ -304,12 +322,12 @@ class CardHelper extends Helper
     public function end($content = null, $options = [])
     {
         $this->_lastCardClosed = true;
-        $res = '';
+        $res = "";
         $res .= $this->_cleanCurrent();
         if ($content !== null) {
             $res .= $this->footer($content, $options);
         }
-        $res .= $this->formatTemplate('cardEnd', []);
+        $res .= $this->formatTemplate("cardEnd", []);
         $this->_states->pop();
 
         return $res;
@@ -322,23 +340,23 @@ class CardHelper extends Helper
      */
     protected function _cleanCurrent()
     {
-        if (!$this->_states->is('card')) {
-            return '';
+        if (!$this->_states->is("card")) {
+            return "";
         }
-        $current = $this->_states->getValue('part');
+        $current = $this->_states->getValue("part");
         if ($current === null) {
-            return '';
+            return "";
         }
-        $out = $this->formatTemplate($current . 'End', []);
-        if ($this->_states->getValue('collapsible')) {
-            $ctplt = $current . 'CollapsibleEnd';
+        $out = $this->formatTemplate($current . "End", []);
+        if ($this->_states->getValue("collapsible")) {
+            $ctplt = $current . "CollapsibleEnd";
             if ($this->getTemplates($ctplt)) {
                 $out = $this->formatTemplate($ctplt, [
-                    $current . 'End' => $out,
+                    $current . "End" => $out,
                 ]);
             }
         }
-        $this->_states->setValue('part', null);
+        $this->_states->setValue("part", null);
 
         return $out;
     }
@@ -350,7 +368,7 @@ class CardHelper extends Helper
      */
     protected function _isOpen()
     {
-        return $this->_states->getValue('open');
+        return $this->_states->getValue("open");
     }
 
     /**
@@ -371,35 +389,44 @@ class CardHelper extends Helper
     {
         $title = $this->_makeIcon($title, $converted);
         $options += [
-            'escape' => !$converted,
-            'templateVars' => [],
+            "escape" => !$converted,
+            "templateVars" => [],
         ];
-        $out = $this->formatTemplate('headerStart', [
-            'attrs' => $this->templater()->formatAttributes($options, ['title']),
-            'templateVars' => $options['templateVars'],
+        $out = $this->formatTemplate("headerStart", [
+            "attrs" => $this->templater()->formatAttributes($options, [
+                "title",
+            ]),
+            "templateVars" => $options["templateVars"],
         ]);
-        if ($this->_states->getValue('collapsible')) {
-            $out = $this->formatTemplate('headerCollapsibleStart', [
-                'attrs' => $this->templater()->formatAttributes(['id' => $this->_states->getValue('headId')]),
-                'templateVars' => $options['templateVars'],
+        if ($this->_states->getValue("collapsible")) {
+            $out = $this->formatTemplate("headerCollapsibleStart", [
+                "attrs" => $this->templater()->formatAttributes([
+                    "id" => $this->_states->getValue("headId"),
+                ]),
+                "templateVars" => $options["templateVars"],
             ]);
             if ($title) {
-                $title = $this->formatTemplate('headerCollapsibleLink', [
-                    'expanded' => json_encode($this->_isOpen()),
-                    'target' => $this->_states->getValue('bodyId'),
-                    'content' => $options['escape'] ? h($title) : $title,
-                    'attrs' => $this->templater()->formatAttributes($this->_states->getValue('inGroup') ? [
-                        'data-parent' => '#' . $this->_states->getValue('groupId'),
-                    ] : []),
-                    'templateVars' => $options['templateVars'],
+                $title = $this->formatTemplate("headerCollapsibleLink", [
+                    "expanded" => json_encode($this->_isOpen()),
+                    "target" => $this->_states->getValue("bodyId"),
+                    "content" => $options["escape"] ? h($title) : $title,
+                    "attrs" => $this->templater()->formatAttributes(
+                        $this->_states->getValue("inGroup")
+                            ? [
+                                "data-parent" =>
+                                "#" . $this->_states->getValue("groupId"),
+                            ]
+                            : [],
+                    ),
+                    "templateVars" => $options["templateVars"],
                 ]);
             }
-            $options['escape'] = false;
+            $options["escape"] = false;
         }
         $out = $this->_cleanCurrent() . $out;
-        $this->_states->setValue('part', 'header');
+        $this->_states->setValue("part", "header");
         if ($title) {
-            if ($options['escape']) {
+            if ($options["escape"]) {
                 $title = h($title);
             }
             $out .= $title;
@@ -424,26 +451,26 @@ class CardHelper extends Helper
     protected function _createBody($text = null, $options = [])
     {
         $options += [
-            'templateVars' => [],
+            "templateVars" => [],
         ];
 
-        $out = $this->formatTemplate('bodyStart', [
-            'attrs' => $this->templater()->formatAttributes($options),
-            'templateVars' => $options['templateVars'],
+        $out = $this->formatTemplate("bodyStart", [
+            "attrs" => $this->templater()->formatAttributes($options),
+            "templateVars" => $options["templateVars"],
         ]);
-        if ($this->_states->getValue('collapsible')) {
-            $out = $this->formatTemplate('bodyCollapsibleStart', [
-                'bodyStart' => $out,
-                'headId' => $this->_states->getValue('headId'),
-                'attrs' => $this->templater()->formatAttributes([
-                    'id' => $this->_states->getValue('bodyId'),
-                    'class' => $this->_isOpen() ? 'in' : '',
+        if ($this->_states->getValue("collapsible")) {
+            $out = $this->formatTemplate("bodyCollapsibleStart", [
+                "bodyStart" => $out,
+                "headId" => $this->_states->getValue("headId"),
+                "attrs" => $this->templater()->formatAttributes([
+                    "id" => $this->_states->getValue("bodyId"),
+                    "class" => $this->_isOpen() ? "in" : "",
                 ]),
-                'templateVars' => $options['templateVars'],
+                "templateVars" => $options["templateVars"],
             ]);
         }
         $out = $this->_cleanCurrent() . $out;
-        $this->_states->setValue('part', 'body');
+        $this->_states->setValue("part", "body");
         if ($text) {
             $out .= $text;
             $out .= $this->_cleanCurrent();
@@ -468,13 +495,13 @@ class CardHelper extends Helper
     protected function _createFooter($text = null, $options = [])
     {
         $options += [
-            'templateVars' => [],
+            "templateVars" => [],
         ];
         $out = $this->_cleanCurrent();
-        $this->_states->setValue('part', 'footer');
-        $out .= $this->formatTemplate('footerStart', [
-            'attrs' => $this->templater()->formatAttributes($options),
-            'templateVars' => $options['templateVars'],
+        $this->_states->setValue("part", "footer");
+        $out .= $this->formatTemplate("footerStart", [
+            "attrs" => $this->templater()->formatAttributes($options),
+            "templateVars" => $options["templateVars"],
         ]);
         if ($text) {
             $out .= $text;
@@ -537,7 +564,7 @@ class CardHelper extends Helper
             $info = null;
         }
         $options += [
-            'title' => true,
+            "title" => true,
         ];
 
         return $this->_createHeader($info, $options);
@@ -553,16 +580,16 @@ class CardHelper extends Helper
     public function title($title, $options = [])
     {
         $options += [
-            'templateVars' => [],
+            "templateVars" => [],
         ];
-        if ($this->_states->getValue('part') !== 'body') {
+        if ($this->_states->getValue("part") !== "body") {
             $this->body();
         }
 
-        return $this->formatTemplate('title', [
-            'content' => $title,
-            'attrs' => $this->templater()->formatAttributes($options),
-            'templateVars' => $options['templateVars'],
+        return $this->formatTemplate("title", [
+            "content" => $title,
+            "attrs" => $this->templater()->formatAttributes($options),
+            "templateVars" => $options["templateVars"],
         ]);
     }
 

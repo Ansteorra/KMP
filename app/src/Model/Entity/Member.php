@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Model\Entity;
@@ -10,7 +11,7 @@ use Cake\Log\Log;
 use Cake\ORM\Entity;
 use Cake\ORM\TableRegistry;
 use Cake\Utility\Hash;
-
+use Cake\ORM\Exception\MissingTableClassException;
 
 use Authentication\PasswordHasher\DefaultPasswordHasher;
 use Authentication\IdentityInterface as AuthenticationIdentity;
@@ -22,7 +23,6 @@ use Authorization\Policy\ResultInterface;
 use JeremyHarris\LazyLoad\ORM\LazyLoadEntityTrait;
 
 use App\KMP\PermissionsLoader;
-
 
 /**
  * Member Entity
@@ -42,8 +42,6 @@ use App\KMP\PermissionsLoader;
  * @property string $email_address
  * @property int|null $membership_number
  * @property \Cake\I18n\Date|null $membership_expires_on
- * @property string|null $branch_name
- * @property string|null $notes
  * @property string|null $parent_name
  * @property \Cake\I18n\Date|null $background_check_expires_on
  * @property bool $hidden
@@ -60,8 +58,11 @@ use App\KMP\PermissionsLoader;
  * @property \App\Model\Entity\PendingAuthorization[] $pending_authorizations
  * @property \App\Model\Entity\PendingAuthorization[] $pending_authorizations_to_approve
  * @property \App\Model\Entity\Role[] $roles
+ * @property \App\Model\Entity\Notes[] $notes
  */
-class Member extends Entity implements AuthorizationIdentity, AuthenticationIdentity
+class Member extends Entity implements
+    AuthorizationIdentity,
+    AuthenticationIdentity
 {
     use LazyLoadEntityTrait;
 
@@ -78,38 +79,38 @@ class Member extends Entity implements AuthorizationIdentity, AuthenticationIden
      * @var array<string, bool>
      */
     protected array $_accessible = [
-        'last_updated' => true,
-        'password' => true,
-        'sca_name' => true,
-        'first_name' => true,
-        'middle_name' => true,
-        'last_name' => true,
-        'street_address' => true,
-        'city' => true,
-        'state' => true,
-        'zip' => true,
-        'phone_number' => true,
-        'email_address' => true,
-        'membership_number' => true,
-        'membership_expires_on' => true,
-        'branch_id' => true,
-        'parent_name' => true,
-        'background_check_expires_on' => true,
-        'hidden' => true,
-        'password_token' => true,
-        'password_token_expires_on' => true,
-        'last_login' => true,
-        'last_failed_login' => true,
-        'failed_login_attempts' => true,
-        'birth_month' => true,
-        'birth_year' => true,
-        'deleted_date' => true,
+        "last_updated" => true,
+        "password" => true,
+        "sca_name" => true,
+        "first_name" => true,
+        "middle_name" => true,
+        "last_name" => true,
+        "street_address" => true,
+        "city" => true,
+        "state" => true,
+        "zip" => true,
+        "phone_number" => true,
+        "email_address" => true,
+        "membership_number" => true,
+        "membership_expires_on" => true,
+        "branch_id" => true,
+        "parent_name" => true,
+        "background_check_expires_on" => true,
+        "hidden" => true,
+        "password_token" => true,
+        "password_token_expires_on" => true,
+        "last_login" => true,
+        "last_failed_login" => true,
+        "failed_login_attempts" => true,
+        "birth_month" => true,
+        "birth_year" => true,
+        "deleted_date" => true,
     ];
 
     protected array $_hidden = [
-        'password',
-        'password_token',
-        'password_token_expires_on',
+        "password",
+        "password_token",
+        "password_token_expires_on",
     ];
 
     /**
@@ -117,37 +118,65 @@ class Member extends Entity implements AuthorizationIdentity, AuthenticationIden
      */
     public function can(string $action, mixed $resource): bool
     {
-        if(is_string($resource)){
-            $resource = TableRegistry::getTableLocator()->get($resource)->newEmptyEntity();
-        }   
+        if (is_string($resource)) {
+            $resource = TableRegistry::getTableLocator()
+                ->get($resource)
+                ->newEmptyEntity();
+        }
         return $this->authorization->can($this, $action, $resource);
     }
 
     public function canAccessUrl($url): bool
     {
-        $table = TableRegistry::getTableLocator()->get($url['controller']);
-        if(isset($url[0])){
-            $entity = $table->get($url[0]);
-        }else{
-            $entity = $table->newEmptyEntity();
+        try {
+            // try this path to see if the url is to a controller that maps to a table
+            $table = TableRegistry::getTableLocator()->get($url["controller"]);
+            if (isset($url[0])) {
+                $entity = $table->get($url[0]);
+            } else {
+                $entity = $table->newEmptyEntity();
+            }
+            Log::write(
+                "debug",
+                "Checking if " .
+                    $this->sca_name .
+                    " can access " .
+                    $url["controller"] .
+                    " " .
+                    $url["action"],
+            );
+            return $this->authorization->can($this, $url["action"], $entity);
+        } catch (MissingTableClassException $ex) {
+            // if the above fails, then the url is not to a controller that maps to a table
+            // so we will just check if the user can access the controller via the request authorization.
+            return $this->authorization->can($this, $url["action"], $url);
+            //return true;
         }
-        Log::write('debug', 'Checking if ' . $this->sca_name . ' can access ' . $url['controller'] . ' ' . $url['action']);
-        return $this->authorization->can($this, $url['action'], $entity);
     }
 
     public function canAuthorizeType(int $authorization_type_id): bool
     {
         $permission = $this->getPermissions();
-        $authorization_types = Hash::extract($permission, '{n}.authorization_type_id');
+        $authorization_types = Hash::extract(
+            $permission,
+            "{n}.authorization_type_id",
+        );
         return in_array($authorization_type_id, $authorization_types);
     }
 
     public function canHaveAuthorizationQueue(): bool
     {
         $permission = $this->getPermissions();
-        $authorization_types = Hash::extract($permission, '{n}.authorization_type_id');
+        $authorization_types = Hash::extract(
+            $permission,
+            "{n}.authorization_type_id",
+        );
         // filter out all null's and 0's
-        $authorization_types = array_filter($authorization_types, function($var){return $var !== null;} );
+        $authorization_types = array_filter($authorization_types, function (
+            $var,
+        ) {
+            return $var !== null;
+        });
         return count($authorization_types) > 0;
     }
 
@@ -156,17 +185,22 @@ class Member extends Entity implements AuthorizationIdentity, AuthenticationIden
      */
     public function canResult(string $action, mixed $resource): ResultInterface
     {
-        if(is_string($resource)){
-            $resource = TableRegistry::getTableLocator()->get($resource)->newEmptyEntity();
-        }   
+        if (is_string($resource)) {
+            $resource = TableRegistry::getTableLocator()
+                ->get($resource)
+                ->newEmptyEntity();
+        }
         return $this->authorization->canResult($this, $action, $resource);
     }
 
     /**
      * Authorization\IdentityInterface method
      */
-    public function applyScope(string $action, mixed $resource, mixed ...$optionalArgs): mixed
-    {
+    public function applyScope(
+        string $action,
+        mixed $resource,
+        mixed ...$optionalArgs,
+    ): mixed {
         return $this->authorization->applyScope($this, $action, $resource);
     }
 
@@ -202,18 +236,23 @@ class Member extends Entity implements AuthorizationIdentity, AuthenticationIden
      * get permissions for the Member based on their roles
      * @return Permission[]
      */
-    public function getPermissions(): array {
-        if($this->_last_permissions_update == null || !$this->_last_permissions_update->isWithinNext('1 minute')){
+    public function getPermissions(): array
+    {
+        if (
+            $this->_last_permissions_update == null ||
+            !$this->_last_permissions_update->isWithinNext("1 minute")
+        ) {
             $this->_permissions = PermissionsLoader::getPermissions($this->id);
             $this->_last_permissions_update = DateTime::now();
         }
         return $this->_permissions;
     }
 
-    public function isSuperUser(): bool{
+    public function isSuperUser(): bool
+    {
         $permissions = $this->getPermissions();
-        foreach($permissions as $permission){
-            if($permission->is_super_user){
+        foreach ($permissions as $permission) {
+            if ($permission->is_super_user) {
                 return true;
             }
         }
@@ -222,34 +261,35 @@ class Member extends Entity implements AuthorizationIdentity, AuthenticationIden
 
     protected function _setPassword($value)
     {
-        if(strlen($value) > 0){
+        if (strlen($value) > 0) {
             $hasher = new DefaultPasswordHasher();
             return $hasher->hash($value);
-        }else{
-           return $this->password; 
+        } else {
+            return $this->password;
         }
     }
 
-    protected function _getBirthdate(){
+    protected function _getBirthdate()
+    {
         $date = new DateTime();
-        if($this->birth_month == null){
+        if ($this->birth_month == null) {
             return null;
         }
-        if($this->birth_year == null){
+        if ($this->birth_year == null) {
             return null;
         }
         $date = $date->setDate($this->birth_year, $this->birth_month, 1);
-        return($date);
+        return $date;
     }
 
     protected function _getAge()
     {
         $now = new DateTime();
         $date = new DateTime();
-        if($this->birth_month == null){
+        if ($this->birth_month == null) {
             return null;
         }
-        if($this->birth_year == null){
+        if ($this->birth_year == null) {
             return null;
         }
         $date = $date->setDate($this->birth_year, $this->birth_month, 1);

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Model\Entity;
@@ -23,6 +24,6 @@ class AuthorizationGroup extends Entity
      * @var array<string, bool>
      */
     protected array $_accessible = [
-        'name' => true,
+        "name" => true,
     ];
 }

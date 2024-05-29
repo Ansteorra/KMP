@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 /**
@@ -10,6 +11,7 @@ declare(strict_types=1);
  * @license     https://opensource.org/licenses/mit-license.php MIT License
  * @link        https://holt59.github.io/cakephp3-bootstrap-helpers/
  */
+
 namespace Bootstrap\View\Helper;
 
 /**
@@ -27,23 +29,26 @@ trait ClassTrait
      *
      * @return array Array of options with `$key` set or updated.
      */
-    public function addClass(array $options = [], $class = null, $key = 'class'): array
-    {
+    public function addClass(
+        array $options = [],
+        $class = null,
+        $key = "class",
+    ): array {
         if (!is_array($class)) {
-            $class = explode(' ', trim($class));
+            $class = explode(" ", trim($class));
         }
         $optClass = [];
         if (isset($options[$key])) {
             $optClass = $options[$key];
             if (!is_array($optClass)) {
-                $optClass = explode(' ', trim($optClass));
+                $optClass = explode(" ", trim($optClass));
             }
         }
         $class = array_merge($optClass, $class);
-        $class = array_map('trim', $class);
+        $class = array_map("trim", $class);
         $class = array_unique($class);
         $class = array_filter($class);
-        $options[$key] = implode(' ', $class);
+        $options[$key] = implode(" ", $class);
 
         return $options;
     }
@@ -61,39 +66,39 @@ trait ClassTrait
     protected function _addButtonClasses($options)
     {
         $options += [
-            'btype' => $this->getConfig('buttons.type'),
-            'size' => false,
-            'block' => false,
+            "btype" => $this->getConfig("buttons.type"),
+            "size" => false,
+            "block" => false,
         ];
-        if (isset($options['bootstrap-type'])) {
-            $options['btype'] = $options['bootstrap-type'];
+        if (isset($options["bootstrap-type"])) {
+            $options["btype"] = $options["bootstrap-type"];
         }
-        if (isset($options['bootstrap-size'])) {
-            $options['size'] = $options['bootstrap-size'];
+        if (isset($options["bootstrap-size"])) {
+            $options["size"] = $options["bootstrap-size"];
         }
-        if (isset($options['bootstrap-block'])) {
-            $options['block'] = $options['bootstrap-block'];
+        if (isset($options["bootstrap-block"])) {
+            $options["block"] = $options["bootstrap-block"];
         }
-        $type = $options['btype'];
-        $size = $options['size'];
-        $block = $options['block'];
+        $type = $options["btype"];
+        $size = $options["size"];
+        $block = $options["block"];
         unset(
-            $options['btype'],
-            $options['size'],
-            $options['block'],
-            $options['bootstrap-type'],
-            $options['bootstrap-size'],
-            $options['bootstrap-block']
+            $options["btype"],
+            $options["size"],
+            $options["block"],
+            $options["bootstrap-type"],
+            $options["bootstrap-size"],
+            $options["bootstrap-block"],
         );
-        $options = $this->addClass($options, 'btn');
-        if (!preg_match('#btn-[a-z]+#', $options['class'])) {
-            $options = $this->addClass($options, 'btn-' . $type);
+        $options = $this->addClass($options, "btn");
+        if (!preg_match("#btn-[a-z]+#", $options["class"])) {
+            $options = $this->addClass($options, "btn-" . $type);
         }
         if ($size) {
-            $options = $this->addClass($options, 'btn-' . $size);
+            $options = $this->addClass($options, "btn-" . $size);
         }
         if ($block) {
-            $options = $this->addClass($options, 'btn-block');
+            $options = $this->addClass($options, "btn-block");
         }
 
         return $options;

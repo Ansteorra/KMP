@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Model\Table;
@@ -37,25 +38,25 @@ class MemberRolesTable extends Table
     {
         parent::initialize($config);
 
-        $this->setTable('member_roles');
-        $this->setDisplayField(['member_id', 'role_id']);
-        $this->setPrimaryKey('id');
+        $this->setTable("member_roles");
+        $this->setDisplayField(["member_id", "role_id"]);
+        $this->setPrimaryKey("id");
 
-        $this->belongsTo('Members', [
-            'className' => 'Members',
-            'foreignKey' => 'member_id',
-            'joinType' => 'INNER',
+        $this->belongsTo("Members", [
+            "className" => "Members",
+            "foreignKey" => "member_id",
+            "joinType" => "INNER",
         ]);
-        $this->belongsTo('Roles', [
-            'className' => 'Roles',
-            'foreignKey' => 'role_id',
-            'joinType' => 'INNER',
+        $this->belongsTo("Roles", [
+            "className" => "Roles",
+            "foreignKey" => "role_id",
+            "joinType" => "INNER",
         ]);
-        $this->belongsTo('Approved_By', [
-            'className' => 'Members',
-            'foreignKey' => 'approver_id',
-            'joinType' => 'INNER',
-            'propertyName' => 'approved_by'
+        $this->belongsTo("Approved_By", [
+            "className" => "Members",
+            "foreignKey" => "approver_id",
+            "joinType" => "INNER",
+            "propertyName" => "approved_by",
         ]);
     }
 
@@ -67,25 +68,15 @@ class MemberRolesTable extends Table
      */
     public function validationDefault(Validator $validator): Validator
     {
-        $validator
-            ->integer('Member_id')
-            ->notEmptyString('Member_id');
+        $validator->integer("Member_id")->notEmptyString("Member_id");
 
-        $validator
-            ->integer('role_id')
-            ->notEmptyString('role_id');
+        $validator->integer("role_id")->notEmptyString("role_id");
 
-        $validator
-            ->date('ended_on')
-            ->allowEmptyDate('ended_on');
+        $validator->date("ended_on")->allowEmptyDate("ended_on");
 
-        $validator
-            ->date('start_on')
-            ->notEmptyDate('start_on');
+        $validator->date("start_on")->notEmptyDate("start_on");
 
-        $validator
-            ->integer('approver_id')
-            ->notEmptyString('approver_id');
+        $validator->integer("approver_id")->notEmptyString("approver_id");
 
         return $validator;
     }
@@ -99,9 +90,15 @@ class MemberRolesTable extends Table
      */
     public function buildRules(RulesChecker $rules): RulesChecker
     {
-        $rules->add($rules->existsIn(['Member_id'], 'Members'), ['errorField' => 'Member_id']);
-        $rules->add($rules->existsIn(['role_id'], 'Roles'), ['errorField' => 'role_id']);
-        $rules->add($rules->existsIn(['approver_id'], 'Members'), ['errorField' => 'approver_id']);
+        $rules->add($rules->existsIn(["Member_id"], "Members"), [
+            "errorField" => "Member_id",
+        ]);
+        $rules->add($rules->existsIn(["role_id"], "Roles"), [
+            "errorField" => "role_id",
+        ]);
+        $rules->add($rules->existsIn(["approver_id"], "Members"), [
+            "errorField" => "approver_id",
+        ]);
 
         return $rules;
     }

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 /**
@@ -10,6 +11,7 @@ declare(strict_types=1);
  * @license     https://opensource.org/licenses/mit-license.php MIT License
  * @link        https://holt59.github.io/cakephp3-bootstrap-helpers/
  */
+
 namespace Bootstrap\View;
 
 use Cake\View\StringTemplate;
@@ -47,30 +49,30 @@ class EnhancedStringTemplate extends StringTemplate
         [$template, $placeholders] = $this->_compiled[$name];
         // If there is a {{attrs.xxxx}} block in $template, remove the xxxx attribute
         // from $data['attrs'] and add its content to $data['attrs.class'].
-        if (isset($data['attrs'])) {
+        if (isset($data["attrs"])) {
             foreach ($placeholders as $placeholder) {
                 if (
-                    substr($placeholder, 0, 6) == 'attrs.'
-                    && preg_match(
-                        '#' . substr($placeholder, 6) . '="([^"]*)"#',
-                        $data['attrs'],
-                        $matches
+                    substr($placeholder, 0, 6) == "attrs." &&
+                    preg_match(
+                        "#" . substr($placeholder, 6) . '="([^"]*)"#',
+                        $data["attrs"],
+                        $matches,
                     ) > 0
                 ) {
-                    $data['attrs'] = preg_replace(
-                        '#' . substr($placeholder, 6) . '="[^"]*"#',
-                        '',
-                        $data['attrs']
+                    $data["attrs"] = preg_replace(
+                        "#" . substr($placeholder, 6) . '="[^"]*"#',
+                        "",
+                        $data["attrs"],
                     );
                     $data[$placeholder] = trim($matches[1]);
                     if ($data[$placeholder]) {
-                        $data[$placeholder] = ' ' . $data[$placeholder];
+                        $data[$placeholder] = " " . $data[$placeholder];
                     }
                 }
             }
-            $data['attrs'] = trim($data['attrs']);
-            if ($data['attrs']) {
-                $data['attrs'] = ' ' . $data['attrs'];
+            $data["attrs"] = trim($data["attrs"]);
+            if ($data["attrs"]) {
+                $data["attrs"] = " " . $data["attrs"];
             }
         }
 

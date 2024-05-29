@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Model\Entity;
 
 use Cake\ORM\Entity;
@@ -18,7 +19,6 @@ use Cake\ORM\Entity;
  */
 class PendingAuthorization extends Entity
 {
-
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().
      *
@@ -29,7 +29,7 @@ class PendingAuthorization extends Entity
      * @var array
      */
     protected array $_accessible = [
-        '*' => true,
-        'id' => false
+        "*" => true,
+        "id" => false,
     ];
 }

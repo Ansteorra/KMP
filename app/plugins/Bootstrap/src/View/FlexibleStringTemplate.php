@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 /**
@@ -10,6 +11,7 @@ declare(strict_types=1);
  * @license     https://opensource.org/licenses/mit-license.php MIT License
  * @link        https://holt59.github.io/cakephp3-bootstrap-helpers/
  */
+
 namespace Bootstrap\View;
 
 class FlexibleStringTemplate extends EnhancedStringTemplate
@@ -36,8 +38,11 @@ class FlexibleStringTemplate extends EnhancedStringTemplate
      * retrieving any templates.
      * @param \Bootstrap\View\arra $callbacks An array of callbacks.
      */
-    public function __construct(array $config = [], ?callable $callback = null, array $callbacks = [])
-    {
+    public function __construct(
+        array $config = [],
+        ?callable $callback = null,
+        array $callbacks = [],
+    ) {
         parent::__construct($config);
         $this->_callback = $callback;
         $this->_callbacks = $callbacks;
@@ -74,9 +79,9 @@ class FlexibleStringTemplate extends EnhancedStringTemplate
         if ($this->_callback) {
             $data = call_user_func($this->_callback, $name, $data);
         }
-        if (isset($data['templateName'])) {
-            $name = $data['templateName'];
-            unset($data['templateName']);
+        if (isset($data["templateName"])) {
+            $name = $data["templateName"];
+            unset($data["templateName"]);
         }
 
         return $name;

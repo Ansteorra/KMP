@@ -24,9 +24,9 @@ class PermissionsTableTest extends TestCase
      * @var list<string>
      */
     protected array $fixtures = [
-        'app.Permissions',
-        'app.AuthorizationTypes',
-        'app.Roles',
+        "app.Permissions",
+        "app.AuthorizationTypes",
+        "app.Roles",
     ];
 
     /**
@@ -37,8 +37,13 @@ class PermissionsTableTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $config = $this->getTableLocator()->exists('Permissions') ? [] : ['className' => PermissionsTable::class];
-        $this->Permissions = $this->getTableLocator()->get('Permissions', $config);
+        $config = $this->getTableLocator()->exists("Permissions")
+            ? []
+            : ["className" => PermissionsTable::class];
+        $this->Permissions = $this->getTableLocator()->get(
+            "Permissions",
+            $config,
+        );
     }
 
     /**
@@ -61,7 +66,7 @@ class PermissionsTableTest extends TestCase
      */
     public function testValidationDefault(): void
     {
-        $this->markTestIncomplete('Not implemented yet.');
+        $this->markTestIncomplete("Not implemented yet.");
     }
 
     /**
@@ -72,6 +77,6 @@ class PermissionsTableTest extends TestCase
      */
     public function testBuildRules(): void
     {
-        $this->markTestIncomplete('Not implemented yet.');
+        $this->markTestIncomplete("Not implemented yet.");
     }
 }
