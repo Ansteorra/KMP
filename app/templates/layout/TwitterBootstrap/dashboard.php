@@ -9,6 +9,7 @@ use Cake\Core\Configure;
 $user = $this->request->getAttribute("identity");
 
 $this->Html->css("BootstrapUI.dashboard", ["block" => true]);
+$this->Html->css('app/dashboard', ['block' => true]);
 $this->prepend(
     "tb_body_attrs",
     ' class="' .
@@ -41,7 +42,9 @@ $this->start("tb_body_start");
                 ) ?>
             </li>
             <li class="nav-item text-nowrap">
-                <button class="navbar-toggler position-absolute d-md-none collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-expanded="false" aria-label="Toggle navigation">
+                <button class="navbar-toggler position-absolute d-md-none collapsed" type="button"
+                    data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu"
+                    aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
                 </button>
             </li>
@@ -52,7 +55,7 @@ $this->start("tb_body_start");
         <div class="row">
             <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block bg-light sidebar pt-5" style="overflow-y: auto">
                 <div class="position-sticky pt-3">
-                    <nav class="nav flex-column nav-underline mx-2">
+                    <nav class="appnav nav flex-column nav-underline mx-2">
                         <?php
                         $appNav = [
                             [
@@ -108,6 +111,8 @@ $this->start("tb_body_start");
                                                     "action" => "myQueue",
                                                 ],
                                                 "icon" => "bi-person-fill-check",
+                                                "badgeClass" => "bg-danger",
+                                                "badgeValue" => $user->getPendingApprovalsCount(),
                                             ],
                                         ],
                                     ],
@@ -123,6 +128,11 @@ $this->start("tb_body_start");
                                             [
                                                 "controller" => "Members",
                                                 "action" => "index",
+                                                "*",
+                                            ],
+                                            [
+                                                "controller" => "Members",
+                                                "action" => "verifyQueue",
                                                 "*",
                                             ],
                                             [
@@ -169,6 +179,15 @@ $this->start("tb_body_start");
                                                     "action" => "index",
                                                 ],
                                                 "icon" => "bi-card-checklist",
+                                            ],
+                                            [
+                                                "label" => "Verification Queues",
+                                                "url" => [
+                                                    "controller" =>
+                                                    "Members",
+                                                    "action" => "verifyQueue",
+                                                ],
+                                                "icon" => "bi-fingerprint",
                                             ],
                                             [
                                                 "label" => "Import Exp. Dates",
@@ -240,7 +259,7 @@ $this->start("tb_body_start");
                             ],
                             [
                                 "type" => "parent",
-                                "label" => "System Config",
+                                "label" => "Config",
                                 "icon" => "bi-database-gear",
                                 "children" => [
                                     [

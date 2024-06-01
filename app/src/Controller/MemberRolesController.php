@@ -32,12 +32,12 @@ class MemberRolesController extends AppController
         $oldMemberRoles = $this->MemberRoles->find("all")->where([
             "role_id" => $roleid,
             "member_id" => $memberid,
-            "ended_on IS" => null,
+            "expires_on IS" => null,
         ]);
         // begin transaction
         $this->MemberRoles->getConnection()->begin();
         foreach ($oldMemberRoles as $oldMemberRole) {
-            $oldMemberRole->ended_on = DateTime::now();
+            $oldMemberRole->expires_on = DateTime::now();
             $this->MemberRoles->save($oldMemberRole);
         }
         $memberRole = $this->MemberRoles->newEmptyEntity();
@@ -64,7 +64,7 @@ class MemberRolesController extends AppController
     {
         $this->request->allowMethod(["post"]);
         $memberRole = $this->MemberRoles->get($id);
-        $memberRole->ended_on = DateTime::now();
+        $memberRole->expires_on = DateTime::now();
         if ($this->MemberRoles->save($memberRole)) {
             $this->Flash->success(__("The Member role has been deactivated."));
         } else {

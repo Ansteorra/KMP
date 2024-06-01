@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Test\Fixture;
@@ -22,7 +23,7 @@ class MemberRolesFixture extends TestFixture
                 "id" => 1,
                 "Member_id" => 1,
                 "role_id" => 1,
-                "ended_on" => "2024-05-16",
+                "expires_on" => "2024-05-16",
                 "start_on" => "2024-05-16",
                 "approver_id" => 1,
             ],

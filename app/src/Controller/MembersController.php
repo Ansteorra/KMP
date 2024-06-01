@@ -12,6 +12,10 @@ use Cake\Log\Log;
 use Cake\Mailer\MailerAwareTrait;
 use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\TableRegistry;
+use App\KMP\StaticHelpers;
+use App\Model\Entity\Member;
+use Composer\Util\Url;
+use Cake\Routing\Router;
 
 /**
  * Members Controller
@@ -34,10 +38,11 @@ class MembersController extends AppController
             "approversList",
             "forgotPassword",
             "resetPassword",
+            "register"
         ]);
     }
 
-    // region general use calls
+    #region general use calls
 
     /**
      * Index method
@@ -61,9 +66,9 @@ class MembersController extends AppController
                 "Members.first_name",
                 "Members.last_name",
                 "Branches.name",
-                "Members.hidden",
+                "Members.status",
                 "Members.email_address",
-                "Members.last_login",
+                "Members.last_login"
             ]);
         // if there is a search term, filter the query
         if ($search) {
@@ -89,6 +94,63 @@ class MembersController extends AppController
                 $query = $query->orderBy(["Branches.name" => "DESC"]);
             }
         }
+        #is
+        $this->Authorization->authorize($query);
+        $query = $this->Authorization->applyScope($query);
+        $Members = $this->paginate($query);
+
+        $this->set(compact("Members", "sort", "direction", "search"));
+    }
+
+
+    public function verifyQueue()
+    {
+        $search = $this->request->getQuery("search");
+        $search = $search ? trim($search) : null;
+        // get sort and direction from query string
+        $sort = $this->request->getQuery("sort");
+        $direction = $this->request->getQuery("direction");
+
+        $query = $this->Members
+            ->find()
+            ->contain(["Branches"])
+            ->select([
+                "Members.id",
+                "Members.sca_name",
+                "Members.first_name",
+                "Members.last_name",
+                "Branches.name",
+                "Members.status",
+                "Members.email_address",
+                "Members.last_login",
+                "Members.membership_card_path",
+            ]);
+        // if there is a search term, filter the query
+        if ($search) {
+            $query = $query->where([
+                "OR" => [
+                    "Members.sca_name LIKE" => "%" . $search . "%",
+                    "Members.first_name LIKE" => "%" . $search . "%",
+                    "Members.last_name LIKE" => "%" . $search . "%",
+                    "Members.email_address LIKE" => "%" . $search . "%",
+                    "Branches.name LIKE" => "%" . $search . "%",
+                ],
+            ]);
+        }
+        // sort by branches.name manually if its in the query string
+        if ($sort == "Branches.name") {
+            // check the direction of the sort
+            if (!$direction) {
+                $direction = "asc";
+            }
+            if (strtolower($direction) == "asc") {
+                $query = $query->orderBy(["Branches.name" => "ASC"]);
+            } else {
+                $query = $query->orderBy(["Branches.name" => "DESC"]);
+            }
+        }
+        #is
+        $this->Authorization->authorize($query);
         $query = $this->Authorization->applyScope($query);
         $Members = $this->paginate($query);
 
@@ -111,7 +173,7 @@ class MembersController extends AppController
                 "Roles",
                 "Branches",
                 "MemberRoles" => function (SelectQuery $q) {
-                    return $q->select(["start_on", "ended_on", "member_id"]);
+                    return $q->select(["start_on", "expires_on", "member_id"]);
                 },
                 "Notes.Authors" => function (SelectQuery $q) {
                     return $q->select(["Authors.sca_name"]);
@@ -119,7 +181,7 @@ class MembersController extends AppController
                 "Authorizations.AuthorizationTypes" => function (
                     SelectQuery $q,
                 ) {
-                    return $q->select(["AuthorizationTypes.name"]);
+                    return $q->select(["AuthorizationTypes.name", "AuthorizationTypes.id"]);
                 },
                 "Authorizations.Revokers" => function (SelectQuery $q) {
                     return $q->select(["Revokers.sca_name"]);
@@ -174,9 +236,36 @@ class MembersController extends AppController
             $passwordReset->setData($passwordResetData);
             $passwordReset->validate($passwordResetData);
         }
+        $months = array_reduce(range(1, 12), function ($rslt, $m) {
+            $rslt[$m] = date('F', mktime(0, 0, 0, $m, 10));
+            return $rslt;
+        });
+        $years = array_combine(range(date('Y'), date('Y') - 130), range(date('Y'), date('Y') - 130));
         $treeList = $this->Members->Branches
             ->find("treeList", spacer: "--")
             ->orderBy(["name" => "ASC"]);
+        $referer = $this->request->referer(true);
+        $backUrl = [];
+        $user =  $this->Authentication->getIdentity();
+        switch ($referer) {
+            case "/members":
+            case "/members/":
+            case "/members/index":
+            case "/members/index/":
+                if ($user->canAccessUrl(["controller" => "Members", "action" => "index"])) {
+                    $backUrl = ["controller" => "Members", "action" => "index"];
+                }
+                break;
+            case "/members/verify-queue":
+            case "/members/verify-queue/":
+                if ($user->canAccessUrl(["controller" => "Members", "action" => "verifyQueue"])) {
+                    $backUrl = ["controller" => "Members", "action" => "verifyQueue"];
+                }
+                break;
+            default:
+                // Handle other referers here
+                break;
+        }
         $this->set(
             compact(
                 "member",
@@ -185,6 +274,9 @@ class MembersController extends AppController
                 "treeList",
                 "passwordReset",
                 "memberForm",
+                "months",
+                "years",
+                "backUrl",
             ),
         );
     }
@@ -275,7 +367,6 @@ class MembersController extends AppController
 
                 return;
             }
-            $member->hidden = false;
             if ($this->Members->save($member)) {
                 $this->Flash->success(__("The Member has been saved."));
 
@@ -285,11 +376,20 @@ class MembersController extends AppController
                 __("The Member could not be saved. Please, try again."),
             );
         }
-
+        $months = array_reduce(range(1, 12), function ($rslt, $m) {
+            $rslt[$m] = date('F', mktime(0, 0, 0, $m, 10));
+            return $rslt;
+        });
+        $years = array_combine(range(date('Y'), date('Y') - 130), range(date('Y'), date('Y') - 130));
         $treeList = $this->Members->Branches
             ->find("treeList", spacer: "--")
             ->orderBy(["name" => "ASC"]);
-        $this->set(compact("member", "treeList"));
+        $this->set(compact(
+            "member",
+            "treeList",
+            "months",
+            "years",
+        ));
     }
 
     /**
@@ -385,9 +485,9 @@ class MembersController extends AppController
 
         return $this->redirect(["action" => "index"]);
     }
-    // endregion
+    #endregion
 
-    // region Member Specific calls
+    #region Member Specific calls
 
     public function partialEdit($id = null)
     {
@@ -423,9 +523,9 @@ class MembersController extends AppController
         }
         $this->redirect(["action" => "view", $member->id]);
     }
-    // endregion
+    #endregion
 
-    // region JSON calls
+    #region JSON calls
     public function approversList($authId = null, $memberId = null)
     {
         $this->Authorization->skipAuthorization();
@@ -443,9 +543,9 @@ class MembersController extends AppController
 
         return $this->response;
     }
-    // endregion
+    #endregion
 
-    // region Password specific calls
+    #region Password specific calls
     public function changePassword($id = null)
     {
         $member = $this->Members->get($id);
@@ -484,7 +584,7 @@ class MembersController extends AppController
                 ])
                 ->first();
             if ($member) {
-                $member->password_token = PermissionsLoader::generateToken();
+                $member->password_token = StaticHelpers::generateToken(32);
                 $member->password_token_expires_on = DateTime::now()->addDays(
                     1,
                 );
@@ -509,6 +609,11 @@ class MembersController extends AppController
                 );
             }
         }
+        $headerImage = $this->appSettings->getAppSetting(
+            "KMP Login Graphic",
+            "populace_badge.png",
+        );
+        $this->set(compact("headerImage"));
     }
 
     public function resetPassword($token = null)
@@ -537,16 +642,20 @@ class MembersController extends AppController
 
                 return $this->redirect(["action" => "login"]);
             }
-            $this->set("passwordReset", $passwordReset);
+            $headerImage = $this->appSettings->getAppSetting(
+                "KMP Login Graphic",
+                "populace_badge.png",
+            );
+            $this->set(compact("headerImage", "passwordReset"));
         } else {
             $this->Flash->error("Invalid Token, please request a new one.");
 
             return $this->redirect(["action" => "forgotPassword"]);
         }
     }
-    // endregion
+    #endregion
 
-    // region Authorization specific calls
+    #region Authorization specific calls
 
     /**
      * login logic
@@ -587,9 +696,22 @@ class MembersController extends AppController
                             "Your account has been locked. Please try again later.",
                         );
                         break;
-                    case "Account Verification Pending":
+                    case "Account Not Verified":
+                        $contactAddress = $this->appSettings->getAppSetting(
+                            "App Verifier Email",
+                            "please_set",
+                        );
                         $this->Flash->error(
-                            "Your account is being verified. Please try again later.",
+                            "Your account is being verified. This process may take several days after you have verified your email address. Please contact " . $contactAddress . " if you have not been verified within a week."
+                        );
+                        break;
+                    case "Account Disabled":
+                        $contactAddress = $this->appSettings->getAppSetting(
+                            "App Secretary Email",
+                            "please_set",
+                        );
+                        $this->Flash->error(
+                            "Your account deactivated. Please contact " . $contactAddress . " if you feel this is in error.",
                         );
                         break;
                     default:
@@ -602,6 +724,19 @@ class MembersController extends AppController
                 $this->Flash->error("Your email or password is incorrect.");
             }
         }
+        $headerImage = $this->appSettings->getAppSetting(
+            "KMP Login Graphic",
+            "populace_badge.png",
+        );
+        $copyright = $this->appSettings->getAppSetting(
+            "KMP Login Copyright Text",
+            "Society for Creative Anachronism: Kingdom Management System",
+        );
+        $allowRegistration = $this->appSettings->getAppSetting(
+            "Allow Public Registration",
+            "yes",
+        );
+        $this->set(compact("headerImage", "copyright", "allowRegistration"));
     }
 
     public function logout()
@@ -615,17 +750,107 @@ class MembersController extends AppController
         ]);
     }
 
-    // endregion
+    public function register()
+    {
+        $allowRegistration = $this->appSettings->getAppSetting(
+            "Allow Public Registration",
+            "yes",
+        );
+        if (strtolower($allowRegistration) != "yes") {
+            $this->Flash->error(
+                "Public registration is not allowed at this time.",
+            );
+            return $this->redirect(["action" => "login"]);
+        }
+        $member = $this->Members->newEmptyEntity();
+        $this->Authorization->skipAuthorization();
+        $this->Authentication->logout();
+        if ($this->request->is("post")) {
 
-    // region Import/Export calls
+            $file = $this->request->getData("member_card");
+            if ($file->getSize() > 0) {
+                $storageLoc = WWW_ROOT . '../images/uploaded/';
+                $fileName = StaticHelpers::generateToken(10);
+                StaticHelpers::ensureDirectoryExists($storageLoc, 0755);
+                $file->moveTo(WWW_ROOT . '../images/uploaded/' . $fileName);
+                $fileResult = StaticHelpers::saveScaledImage($fileName, 500, 700, $storageLoc, $storageLoc);
+                if (!$fileResult) {
+                    $this->Flash->error("Error saving image, please try again.");
+                }
+                //trim the path off of the filename
+                $fileName = substr($fileResult, strrpos($fileResult, '/') + 1);
+                $member->membership_card_path = $fileName;
+            }
+            $member->sca_name = $this->request->getData("sca_name");
+            $member->branch_id = $this->request->getData("branch_id");
+            $member->first_name = $this->request->getData("first_name");
+            $member->middle_name = $this->request->getData("middle_name");
+            $member->last_name = $this->request->getData("last_name");
+            $member->street_address = $this->request->getData("street_address");
+            $member->city = $this->request->getData("city");
+            $member->state = $this->request->getData("state");
+            $member->zip = $this->request->getData("zip");
+            $member->phone_number = $this->request->getData("phone_number");
+            $member->email_address = $this->request->getData("email_address");
+            $member->birth_month = (int) $this->request->getData("birth_month");
+            $member->birth_year = (int) $this->request->getData("birth_year");
+            if ($member->age > 17) {
+                $member->password_token = StaticHelpers::generateToken(32);
+                $member->password_token_expires_on = DateTime::now()->addDays(1);
+            }
+            $member->password = StaticHelpers::generateToken(12);
+            if ($member->getErrors()) {
+
+                return $this->redirect(["action" => "view", $member->id]);
+            }
+            if ($member->age > 17) {
+                $member->status = Member::STATUS_ACTIVE;
+            } else {
+                $member->status = Member::STATUS_UNVERIFIED_MINOR;
+            }
+            if ($this->Members->save($member)) {
+                if ($member->age > 17) {
+                    $this->Flash->success(__("Your registration has been submitted. Please check your email for a link to set up your password."));
+                    $this->getMailer("KMP")->send("newRegistration", [$member]);
+                    $this->getMailer("KMP")->send("notifySecretaryOfNewMember", [$member]);
+                } else {
+                    $this->Flash->success(__("Your registration has been submitted. The Kingdom Secretary will need to verify your account with your parent or guardian"));
+                    $this->getMailer("KMP")->send("notifySecretaryOfNewMinorMember", [$member]);
+                }
+
+                return $this->redirect(["action" => "login"]);
+            }
+            $this->Flash->error(
+                __("The Member could not be saved. Please, try again."),
+            );
+        }
+        $headerImage = $this->appSettings->getAppSetting(
+            "KMP Login Graphic",
+            "populace_badge.png",
+        );
+        $months = array_reduce(range(1, 12), function ($rslt, $m) {
+            $rslt[$m] = date('F', mktime(0, 0, 0, $m, 10));
+            return $rslt;
+        });
+        $years = array_combine(range(date('Y'), date('Y') - 130), range(date('Y'), date('Y') - 130));
+        $treeList = $this->Members->Branches
+            ->find("treeList", spacer: "--")
+            ->orderBy(["name" => "ASC"]);
+
+        $this->set(compact("member", "treeList", "months", "years", "headerImage"));
+    }
+
+    #endregion
+
+    #region Import/Export calls
 
     /**
      * Import Member Expiration dates from CSV based on Membership number
      */
     public function importExpirationDates()
     {
+        $this->Authorization->authorize($this->Members->newEmptyEntity());
         if ($this->request->is("post")) {
-            $this->Authorization->authorize($this->Members->newEmptyEntity());
             $file = $this->request->getData("importData");
             $file = $file->getStream()->getMetadata("uri");
             $csv = array_map("str_getcsv", file($file));
@@ -666,5 +891,46 @@ class MembersController extends AppController
         }
     }
 
-    // endregion
+    #endregion
+
+    #region Verification calls
+    public function verifyMembership($id = null)
+    {
+        $member = $this->Members->get($id);
+        $this->Authorization->authorize($member);
+        if ($this->request->is(["patch", "post", "put"])) {
+            $membership_number = $this->request->getData("membership_number");
+            $member->membership_number = $membership_number;
+            $member->membership_expires_on = $this->request->getData("membership_expires_on");
+            if ($member->age > 17 && strlen($membership_number) > 0) {
+                $member->status = Member::STATUS_VERIFIED_MEMBERSHIP;
+            } else {
+                if ($member->status == Member::STATUS_UNVERIFIED_MINOR) {
+                    $member->status = Member::STATUS_UNVERIFIED_MINOR;
+                } else {
+                    $member->status = Member::STATUS_VERIFIED_MEMBERSHIP;
+                }
+            }
+            $image = $member->membership_card_path;
+            if ($image != null) {
+                $image = WWW_ROOT . '../images/uploaded/' . $image;
+                $member->membership_card_path = null;
+                if (!StaticHelpers::deleteFile($image)) {
+                    $this->Flash->error("Error deleting image, please try again.");
+                    return $this->redirect(["action" => "view", $member->id]);
+                }
+            }
+            if ($this->Members->save($member)) {
+                $this->Flash->success(__("The Membership has been verified."));
+
+                return $this->redirect(["action" => "view", $member->id]);
+            }
+            $this->Flash->error(
+                __("The Member could not be verified. Please, try again."),
+            );
+        }
+        $this->redirect(["action" => "view", $member->id]);
+    }
+    #endregion
+
 }

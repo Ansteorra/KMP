@@ -82,4 +82,12 @@ class MemberPolicy extends BasePolicy
         //only super users can delete and they should never get hear because of the before policy check.
         return false;
     }
+    function canImportExpirationDates(IdentityInterface $user, $entity)
+    {
+        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+    }
+    function canVerifyMembership(IdentityInterface $user, $entity)
+    {
+        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+    }
 }

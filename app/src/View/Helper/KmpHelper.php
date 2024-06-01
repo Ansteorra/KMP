@@ -94,27 +94,11 @@ class KmpHelper extends Helper
             $activeclass = $useActive ? "active" : "";
             $return .= $Html->link(__(" " . $label), $url, [
                 "class" =>
-                "nav-link fs-5 bi " . $icon . " pb-0 " . $activeclass,
+                "nav-link fs-6 bi " . $icon . " pb-0 " . $activeclass,
             ]);
             if ($useActive) {
                 foreach ($sublinks as $sublink) {
-                    $suburl = $sublink["url"];
-                    if ($user->canAccessUrl($suburl)) {
-                        if (array_key_exists("linkOptions", $sublink)) {
-                            $linkOptions = $sublink["linkOptions"];
-                        } else {
-                            $linkOptions = [];
-                        }
-                        $linkOptions["class"] =
-                            "nav-link bi " .
-                            $sublink["icon"] .
-                            " ms-3 fs-6 pt-0";
-                        $return .= $Html->link(
-                            __(" " . $sublink["label"]),
-                            $suburl,
-                            $linkOptions,
-                        );
-                    }
+                    $return .= $this->generateSubLink($sublink, $user, $Html);
                 }
             }
             if (!$useActive) {
@@ -125,6 +109,43 @@ class KmpHelper extends Helper
         return "";
     }
 
+    protected function generateSubLink($sublink, $user, $Html): string
+    {
+        $return = "";
+        $suburl = $sublink["url"];
+        if ($user->canAccessUrl($suburl)) {
+            if (array_key_exists("linkOptions", $sublink)) {
+                $linkOptions = $sublink["linkOptions"];
+            } else {
+                $linkOptions = [];
+            }
+            $linkLabel = __(" " . $sublink["label"]);
+            if (array_key_exists("badgeValue", $sublink)) {
+                if ($sublink["badgeValue"] > 0) {
+                    $linkLabel .= " " . $Html->badge(strval($sublink["badgeValue"]), [
+                        "class" => $sublink["badgeClass"],
+                    ]);
+                }
+            }
+            $linkBody = $Html->tag(
+                "span",
+                $linkLabel,
+                [
+                    "class" => "fs-7 bi " . $sublink["icon"],
+                    "escape" => false
+                ],
+            );
+            $linkOptions["class"] =
+                "sublink nav-link ms-3 fs-7 pt-0";
+            $linkOptions["escape"] = false;
+            $return .= $Html->link(
+                $linkBody,
+                $suburl,
+                $linkOptions,
+            );
+        }
+        return $return;
+    }
     protected function matchingUrl($url, $request): bool
     {
         $controller = $url["controller"];

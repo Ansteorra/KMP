@@ -1,18 +1,19 @@
 <?php
 
 return [
-    "DebugKit" => [
-        "onlyDebug" => true,
+    'DebugKit' => [
+        'onlyDebug' => true,
     ],
-    "Bake" => [
-        "onlyCli" => true,
-        "optional" => true,
+    'Bake' => [
+        'onlyCli' => true,
+        'optional' => true,
     ],
-    "Migrations" => [
-        "onlyCli" => true,
+    'Migrations' => [
+        'onlyCli' => true,
     ],
-    "BootstrapUI" => [],
-    "Bootstrap" => [],
-    "Authorization" => [],
-    "Muffin/Trash" => [],
+    'BootstrapUI' => [],
+    'Bootstrap' => [],
+    'Authorization' => [],
+    'Muffin/Trash' => [],
+    'ADmad/Glide' => [],
 ];

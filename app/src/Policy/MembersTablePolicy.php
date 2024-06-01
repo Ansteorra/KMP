@@ -13,4 +13,9 @@ use Authorization\IdentityInterface;
 class MembersTablePolicy extends BasePolicy
 {
     protected string $REQUIRED_PERMISSION = "Can Manage Members";
+
+    public function scopeVerifyQueue(IdentityInterface $user, $query)
+    {
+        return $query;
+    }
 }

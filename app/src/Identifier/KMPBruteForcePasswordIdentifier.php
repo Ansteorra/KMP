@@ -5,16 +5,10 @@ declare(strict_types=1);
 namespace App\Identifier;
 
 use ArrayAccess;
-use Authentication\Identifier\Resolver\ResolverAwareTrait;
-use Authentication\Identifier\Resolver\ResolverInterface;
-use Authentication\PasswordHasher\PasswordHasherFactory;
-use Authentication\PasswordHasher\PasswordHasherInterface;
-use Authentication\PasswordHasher\PasswordHasherTrait;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
-use Entity\Member;
-
 use Authentication\Identifier\PasswordIdentifier;
+use App\Model\Entity\Member;
 
 class KMPBruteForcePasswordIdentifier extends PasswordIdentifier
 {
@@ -23,6 +17,8 @@ class KMPBruteForcePasswordIdentifier extends PasswordIdentifier
 
     public function identify(array $credentials): ArrayAccess|array|null
     {
+        $maxAttempts = (int) $this->getConfig('maxAttempts', self::MAX_ATTEMPTS);
+        $timeoutSeconds = (int) $this->getConfig('timeout', self::TIMEOUT);
         $identity = $this->_findIdentity($credentials["username"]);
 
         if ($identity === null) {
@@ -34,9 +30,7 @@ class KMPBruteForcePasswordIdentifier extends PasswordIdentifier
         //@var Membe $user
         $user = $identity;
         $failedLoginAttempts = $user->failed_login_attempts;
-        $maxAttempts = (int) self::MAX_ATTEMPTS;
-        $timeout = DateTime::now()->subSeconds((int) self::TIMEOUT);
-        $time = DateTime::now();
+        $timeout = DateTime::now()->subSeconds($timeoutSeconds);
 
         //check if the user has reached the maximum number of failed login attempts
         if (
@@ -47,7 +41,17 @@ class KMPBruteForcePasswordIdentifier extends PasswordIdentifier
             $this->_errors[] = "Account Locked";
             return null;
         }
-
+        //case statement to check the user status
+        switch ($user->status) {
+            case Member::STATUS_DEACTIVATED:
+                $this->_errors[] = "Account Disabled";
+                return null;
+                break;
+            case Member::STATUS_UNVERIFIED_MINOR:
+                $this->_errors[] = "Account Not Verified";
+                return null;
+                break;
+        }
         //check if the password is correct
         if (array_key_exists("password", $credentials)) {
             $password = $credentials["password"];
@@ -66,9 +70,10 @@ class KMPBruteForcePasswordIdentifier extends PasswordIdentifier
 
     protected function _findIdentity($username): ArrayAccess|array|null
     {
+        $finder = $this->getConfig("finder", 'all');
         $MembersTable = TableRegistry::getTableLocator()->get("Members");
         $user = $MembersTable
-            ->find()
+            ->find($finder)
             ->where(["email_address" => $username])
             ->first();
         return $user;

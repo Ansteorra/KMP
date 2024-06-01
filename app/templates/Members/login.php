@@ -6,29 +6,42 @@
  */
 $Member = []; ?>
 <?php $this->extend("/layout/TwitterBootstrap/signin"); ?>
-
-<?= $this->Form->create($Member, ["class" => "form-signin"]) ?>
-<?= $this->Html->image("BootstrapUI.baked-with-cakephp.svg", [
-    "class" => "mb-4",
-    "width" => "250",
-]) ?>
-<h1 class="h3 mb-3 font-weight-normal"><?= __("Please sign in") ?></h1>
 <?= $this->Flash->render() ?>
-<?= $this->Form->control("email_address", [
-    "label" => ["floating" => true],
-    "autofocus",
-]) ?>
-<?= $this->Form->control("password", [
-    "type" => "password",
-    "label" => ["floating" => true],
-]) ?>
-<?= $this->Form->submit(__("Sign in"), [
-    "class" => "w-100 btn btn-lg btn-primary",
-]) ?>
-<p class="mt-5 mb-3 text-muted">© <?= date("Y") ?></p>
+<?= $this->Form->create($Member, ["class" => "form-signin"]) ?>
+
+<div class="card" style="width: 15rem;">
+    <?= $this->Html->image($headerImage, [
+        "class" => "card-img-top",
+        "alt" => "site logo",
+    ]) ?>
+    <div class="card-body">
+        <h5 class="card-title">Log In</h5>
+        <div class="card-text">
+            <?= $this->Form->control("email_address", [
+                "label" => ["floating" => true],
+                "autofocus",
+            ]) ?>
+            <?= $this->Form->control("password", [
+                "type" => "password",
+                "label" => ["floating" => true],
+            ]) ?>
+            <?= $this->Form->submit(__("Sign in"), [
+                "class" => "w-100 btn btn-lg btn-primary",
+            ]) ?>
+            <?= $this->html->link(
+                __("Forgot Password?"),
+                ["action" => "forgotPassword"],
+                ["class" => "btn btn-sm btn-link"],
+            ) ?>
+            <? if ($allowRegistration == strtolower("yes")) : ?>
+            <?= $this->html->link(
+                    __("New User? Register Here"),
+                    ["action" => "register"],
+                    ["class" => "btn btn-sm btn-link"],
+                ) ?>
+            <? endif; ?>
+        </div>
+    </div>
+</div>
 <?= $this->Form->end() ?>
-<?= $this->html->link(
-    __("Forgot Password?"),
-    ["action" => "forgotPassword"],
-    ["class" => "btn btn-link"],
-) ?>
+<span class="text-muted"><?= $copyright ?></span>

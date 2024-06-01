@@ -13,6 +13,7 @@ use Cake\ORM\TableRegistry;
 use Cake\Utility\Hash;
 use Cake\ORM\Query\SelectQuery;
 use Permission;
+use App\Model\Entity\Member;
 
 class PermissionsLoader
 {
@@ -34,8 +35,8 @@ class PermissionsLoader
             ->where(["Members.id" => $member_id])
             ->where([
                 "OR" => [
-                    "MemberRoles.ended_on IS " => null,
-                    "MemberRoles.ended_on >" => DateTime::now(),
+                    "MemberRoles.expires_on IS " => null,
+                    "MemberRoles.expires_on >" => DateTime::now(),
                 ],
             ])
             ->where([
@@ -75,9 +76,14 @@ class PermissionsLoader
     ) {
         $memberTable = TableRegistry::getTableLocator()->get("Members");
         $now = DateTime::now();
-
+        $validMemberStatuses = [
+            Member::STATUS_ACTIVE,
+            Member::STATUS_VERIFIED_MEMBERSHIP,
+            Member::STATUS_VERIFIED_MINOR,
+        ];
         $query = $memberTable
             ->find()
+            ->where(["status IN " => $validMemberStatuses])
             ->select(["Members.id", "Members.sca_name", "Branches.name"])
             ->contain(["Branches"])
             ->innerJoinWith("Roles.Permissions")
@@ -115,10 +121,5 @@ class PermissionsLoader
             ])
             ->distinct();
         return $query;
-    }
-
-    public static function generateToken()
-    {
-        return bin2hex(random_bytes(32));
     }
 }

@@ -14,7 +14,7 @@ $this->extend("/layout/TwitterBootstrap/dashboard");
 $active = [];
 $inactive = [];
 foreach ($role->member_roles as $assignee) {
-    if ($assignee->ended_on === null || $assignee->ended_on > DateTime::now()) {
+    if ($assignee->expires_on === null || $assignee->expires_on > DateTime::now()) {
         $active[] = $assignee;
     } else {
         $inactive[] = $assignee;
@@ -23,9 +23,9 @@ foreach ($role->member_roles as $assignee) {
 usort($active, function ($a, $b) {
     return $a->start_on <=> $b->start_on;
 });
-//sort $inactive by ended_on
+//sort $inactive by expires_on
 usort($inactive, function ($a, $b) {
-    return $a->ended_on <=> $b->ended_on;
+    return $a->expires_on <=> $b->expires_on;
 });
 ?>
 
@@ -89,7 +89,7 @@ usort($inactive, function ($a, $b) {
                                             $assignee->member->sca_name,
                                         ) ?></td>
                                     <td><?= h($assignee->start_on) ?></td>
-                                    <td><?= h($assignee->ended_on) ?></td>
+                                    <td><?= h($assignee->expires_on) ?></td>
                                     <td><?= h(
                                             $assignee->approved_by->sca_name,
                                         ) ?></td>
@@ -132,7 +132,7 @@ usort($inactive, function ($a, $b) {
                                             $assignee->member->sca_name,
                                         ) ?></td>
                                     <td><?= h($assignee->start_on) ?></td>
-                                    <td><?= h($assignee->ended_on) ?></td>
+                                    <td><?= h($assignee->expires_on) ?></td>
                                     <td><?= h(
                                             $assignee->approved_by->sca_name,
                                         ) ?></td>

@@ -12,7 +12,7 @@ use Cake\ORM\Entity;
  * @property int $id
  * @property int $Member_id
  * @property int $role_id
- * @property \Cake\I18n\Date|null $ended_on
+ * @property \Cake\I18n\Date|null $expires_on
  * @property \Cake\I18n\Date $start_on
  * @property int $approver_id
  *
@@ -34,7 +34,7 @@ class MemberRole extends Entity
     protected array $_accessible = [
         "Member_id" => true,
         "role_id" => true,
-        "ended_on" => true,
+        "expires_on" => true,
         "start_on" => true,
         "approver_id" => true,
         "Member" => true,

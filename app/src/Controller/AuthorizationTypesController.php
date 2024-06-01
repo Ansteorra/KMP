@@ -126,10 +126,13 @@ class AuthorizationTypesController extends AppController
                 ),
             );
         }
-        $AuthorizationGroups = $this->AuthorizationTypes->AuthorizationGroups
+        $authAssignableRoles = $this->AuthorizationTypes->Roles
+            ->find("list")
+            ->all();
+        $authorizationGroups = $this->AuthorizationTypes->AuthorizationGroups
             ->find("list", limit: 200)
             ->all();
-        $this->set(compact("authorizationType", "AuthorizationGroups"));
+        $this->set(compact("authorizationType", "authorizationGroups", "authAssignableRoles"));
     }
 
     /**
@@ -164,10 +167,10 @@ class AuthorizationTypesController extends AppController
                 ),
             );
         }
-        $AuthorizationGroups = $this->AuthorizationTypes->AuthorizationGroups
+        $authorizationGroups = $this->AuthorizationTypes->AuthorizationGroups
             ->find("list", limit: 200)
             ->all();
-        $this->set(compact("authorizationType", "AuthorizationGroups"));
+        $this->set(compact("authorizationType", "authorizationGroups"));
     }
 
     /**

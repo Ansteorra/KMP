@@ -72,7 +72,7 @@ class MemberRolesTable extends Table
 
         $validator->integer("role_id")->notEmptyString("role_id");
 
-        $validator->date("ended_on")->allowEmptyDate("ended_on");
+        $validator->date("expires_on")->allowEmptyDate("expires_on");
 
         $validator->date("start_on")->notEmptyDate("start_on");
 

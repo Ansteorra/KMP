@@ -18,15 +18,15 @@ class AuthorizationsController extends AppController
     {
         $this->request->allowMethod(["post"]);
         if ($id == null) {
-            $id = $this->request->getData("id");
+            $id = (int)$this->request->getData("id");
         }
 
         $authorization = $this->Authorizations->get($id);
         $this->Authorization->authorize($authorization);
 
         $revokedReason = $this->request->getData("revoked_reason");
-        $revokerId = $this->Authentication->getIdentity();
-        if (!$maService->revoke($revokedReason, $id, $revokerId)) {
+        $revokerId = $this->Authentication->getIdentity()->getIdentifier();
+        if (!$maService->revoke($id, $revokerId, $revokedReason)) {
             $this->Flash->error(
                 __("The authorization revocation could not be processed"),
             );
@@ -52,6 +52,37 @@ class AuthorizationsController extends AppController
         $authorization_type_id = $this->request->getData("authorization_type");
         $approverId = $this->request->getData("approver_id");
         $is_renewal = false;
+        if (
+            $maService->request(
+                (int) $memberId,
+                (int) $authorization_type_id,
+                (int) $approverId,
+                (bool) $is_renewal,
+            )
+        ) {
+            $this->Flash->success(__("The Authorization has been requested."));
+
+            return $this->redirect($this->referer());
+        }
+        $this->Flash->error(
+            __("The Authorization could not be requested. Please, try again."),
+        );
+
+        return $this->redirect($this->referer());
+    }
+
+    public function renew(AuthorizationServiceInterface $maService)
+    {
+        $this->request->allowMethod(["post"]);
+        $memberId = $this->request->getData("member_id");
+
+        $authorization = $this->Authorizations->newEmptyEntity();
+        $authorization->member_id = $memberId;
+        $this->Authorization->authorize($authorization);
+
+        $authorization_type_id = $this->request->getData("authorization_type");
+        $approverId = $this->request->getData("approver_id");
+        $is_renewal = true;
         if (
             $maService->request(
                 (int) $memberId,

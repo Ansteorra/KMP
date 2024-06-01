@@ -18,4 +18,15 @@ class AuthorizationPolicy extends BasePolicy
     ): bool {
         return $this->_hasNamedPermission($user, "Can Revoke Authorizations");
     }
+
+    public function canAdd(
+        IdentityInterface $user,
+        $authorization,
+    ): bool {
+        $cando = $this->_hasNamedPermission($user, "Can Add Authorizations");
+        if ($cando) {
+            return true;
+        }
+        return $authorization->member_id == $user->getIdentifier();
+    }
 }

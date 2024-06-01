@@ -2,7 +2,7 @@
 
 namespace App\Services\ActivityAuthorizations;
 
-use App\KMP\PermissionsLoader;
+use App\KMP\StaticHelpers;
 use App\Services\ActivityAuthorizations\AuthorizationServiceInterface;
 use Cake\I18n\DateTime;
 use Cake\Mailer\MailerAwareTrait;
@@ -54,7 +54,7 @@ class DefaultAuthorizationService implements AuthorizationServiceInterface
         $approval->authorization_id = $auth->id;
         $approval->approver_id = $approverId;
         $approval->requested_on = DateTime::now();
-        $approval->authorization_token = PermissionsLoader::generateToken();
+        $approval->authorization_token = StaticHelpers::generateToken(32);
         if (!$table->AuthorizationApprovals->save($approval)) {
             $table->getConnection()->rollback();
 
@@ -214,8 +214,8 @@ class DefaultAuthorizationService implements AuthorizationServiceInterface
     }
 
     public function revoke(
-        int $revokerId,
         int $authorizationId,
+        int $revokerId,
         string $revokedReason,
     ): bool {
         $table = TableRegistry::getTableLocator()->get("Authorizations");
@@ -242,7 +242,7 @@ class DefaultAuthorizationService implements AuthorizationServiceInterface
             $memberRole = $table->MemberRoles->get(
                 $authorization->granted_member_role_id,
             );
-            $memberRole->expires_on = DateTime::now()->subDays(1);
+            $memberRole->expires_on = DateTime::now()->subSeconds(1);
             $memberRole->setDirty("expires_on", true);
             if (!$table->MemberRoles->save($memberRole)) {
                 $table->getConnection()->rollback();
@@ -385,7 +385,7 @@ class DefaultAuthorizationService implements AuthorizationServiceInterface
             $memberRole->role_id =
                 $authorization->authorization_type->grants_role_id;
             $memberRole->start_on = $authorization->start_on;
-            $memberRole->ended_on = $authorization->expires_on;
+            $memberRole->expires_on = $authorization->expires_on;
             $memberRole->approver_id = $approverId;
             if (!$authTable->MemberRoles->save($memberRole)) {
                 return false;
@@ -438,8 +438,8 @@ class DefaultAuthorizationService implements AuthorizationServiceInterface
                 $memberRole = $authTable->MemberRoles->get(
                     $previous_authorization->granted_member_role_id,
                 );
-                $memberRole->ended_on = DateTime::now()->subDays(1);
-                $memberRole->setDirty("ended_on", true);
+                $memberRole->expires_on = DateTime::now()->subSeconds(1);
+                $memberRole->setDirty("expires_on", true);
                 if (!$authTable->MemberRoles->save($memberRole)) {
                     return false;
                 }
@@ -478,7 +478,7 @@ class DefaultAuthorizationService implements AuthorizationServiceInterface
         $nextApproval->authorization_id = $authorization->id;
         $nextApproval->approver_id = $nextApproverId;
         $nextApproval->requested_on = DateTime::now();
-        $nextApproval->authorization_token = PermissionsLoader::generateToken();
+        $nextApproval->authorization_token = StaticHelpers::generateToken(32);
         if (!$approvalTable->save($nextApproval)) {
             return false;
         }

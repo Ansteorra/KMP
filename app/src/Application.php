@@ -46,7 +46,9 @@ use Cake\ORM\Locator\TableLocator;
 use Cake\Routing\Middleware\AssetMiddleware;
 use Cake\Routing\Middleware\RoutingMiddleware;
 use Cake\Routing\Router;
+use Authorization\Exception\MissingIdentityException;
 use Psr\Http\Message\ServerRequestInterface;
+use Authorization\Exception\ForbiddenException;
 
 /**
  * Application setup class.
@@ -125,6 +127,15 @@ class Application extends BaseApplication implements
                     "identityDecorator" => function ($auth, $user) {
                         return $user->setAuthorization($auth);
                     },
+                    'unauthorizedHandler' => [
+                        'className' => 'Authorization.Redirect',
+                        'url' => '/pages/unauthorized',
+                        'queryParam' => 'redirectUrl',
+                        'exceptions' => [
+                            MissingIdentityException::class,
+                            ForbiddenException::class,
+                        ],
+                    ],
                 ]),
             );
 

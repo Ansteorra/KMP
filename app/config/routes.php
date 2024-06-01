@@ -83,6 +83,62 @@ return function (RouteBuilder $routes): void {
          */
         $builder->fallbacks();
     });
+    $routes->scope('/images', function ($routes) {
+        $routes->registerMiddleware('glide', new \ADmad\Glide\Middleware\GlideMiddleware([
+            // Run this middleware only for URLs starting with specified string. Default null.
+            // Setting this option is required only if you want to setup the middleware
+            // in Application::middleware() instead of using router's scoped middleware.
+            // It would normally be set to same value as that of server.base_url below.
+            'path' => null,
+
+            // Either a callable which returns an instance of League\Glide\Server
+            // or config array to be used to create server instance.
+            // http://glide.thephpleague.com/1.0/config/setup/
+            'server' => [
+                // Path or League\Flysystem adapter instance to read images from.
+                // http://glide.thephpleague.com/1.0/config/source-and-cache/
+                'source' => WWW_ROOT . '../images/uploaded',
+
+                // Path or League\Flysystem adapter instance to write cached images to.
+                'cache' => WWW_ROOT . '../images/cache',
+
+                // URL part to be omitted from source path. Defaults to "/images/"
+                // http://glide.thephpleague.com/1.0/config/source-and-cache/#set-a-base-url
+                'base_url' => '/images/',
+
+                // Response class for serving images. If unset (default) an instance of
+                // \ADmad\Glide\Response\PsrResponseFactory() will be used.
+                // http://glide.thephpleague.com/1.0/config/responses/
+                'response' => null,
+            ],
+
+            // http://glide.thephpleague.com/1.0/config/security/
+            'security' => [
+                // Boolean indicating whether secure URLs should be used to prevent URL
+                // parameter manipulation. Default false.
+                'secureUrls' => true,
+
+                // Signing key used to generate / validate URLs if `secureUrls` is `true`.
+                // If unset value of Cake\Utility\Security::salt() will be used.
+                'signKey' => null,
+            ],
+
+            // Cache duration. Default '+1 days'.
+            'cacheTime' => '+1 days',
+
+            // Any response headers you may want to set. Default null.
+            'headers' => null,
+
+            // Allowed query string params. If for e.g. you are only using glide presets
+            // then you can set allowed params as `['p']` to prevent users from using
+            // any other image manipulation params.
+            'allowedParams' => null
+        ]));
+
+        $routes->applyMiddleware('glide');
+
+        $routes->connect('/*');
+    });
     $routes->setExtensions(["json", "pdf"]);
 
     /*

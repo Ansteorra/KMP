@@ -1,0 +1,12 @@
+.sublink.nav-link {
+    padding-bottom: 0;
+
+}
+
+.appnav {
+    line-height: 1 !important;
+}
+
+.appnav .fs-7 {
+    font-size: 0.9rem;
+}

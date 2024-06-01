@@ -25,7 +25,8 @@
 			"extensions": [
 				"cweijan.vscode-mysql-client2",
 				"xdebug.php-debug",
-				"bmewburn.vscode-intelephense-client"
+				"bmewburn.vscode-intelephense-client",
+				"rifi2k.format-html-in-php"
 			],
 			"settings": {}
 		}

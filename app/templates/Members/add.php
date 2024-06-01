@@ -35,14 +35,27 @@
         ]);
         echo $this->Form->control("membership_number");
         echo $this->Form->control("membership_expires_on", ["empty" => true]);
-        echo $this->Form->control("parent_name");
-        echo $this->Form->control("birthdate", [
-            "type" => "date",
-            "empty" => true,
-            "minYear" => 1901,
-            "day" => false,
-            "",
-        ]);
+        echo $this->Form->control("parent_name"); ?>
+        <div class="mb-3 form-group select row">
+            <label class="form-label" for="birth-month">Birth Date</label>
+            <div class="col-2">
+                <select name="birth_month" id="birth-month" class="form-select" required="required">
+                    <option value=""></option>
+                    <?php foreach ($months as $index => $value) : ?>
+                    <option value="<?= $index ?>"><?= $value ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-2">
+                <select name="birth_year" id="birth-year" class="form-select" required="required">
+                    <option value=""></option>
+                    <?php foreach ($years as $index => $value) : ?>
+                    <option value="<?= $index ?>"><?= $value ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+        </div>
+        <?php
         echo $this->Form->control("background_check_expires_on", [
             "empty" => true,
         ]);

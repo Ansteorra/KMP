@@ -24,8 +24,8 @@ interface AuthorizationServiceInterface
     ): bool;
 
     public function revoke(
-        int $revokerId,
         int $authorizationId,
+        int $revokerId,
         string $revokedReason,
     ): bool;
 }

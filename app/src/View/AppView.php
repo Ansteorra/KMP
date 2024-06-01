@@ -45,5 +45,14 @@ class AppView extends View
         $this->loadHelper("Bootstrap.Modal");
         $this->loadHelper("Bootstrap.Navbar");
         $this->loadHelper("Kmp");
+        // All option values should match the corresponding options for `GlideFilter`.
+        $this->loadHelper('ADmad/Glide.Glide', [
+            // Base URL.
+            'baseUrl' => '/images/',
+            // Whether to generate secure URLs.
+            'secureUrls' => true,
+            // Signing key to use when generating secure URLs.
+            'signKey' => null,
+        ]);
     }
 }

@@ -367,10 +367,25 @@ class Init extends AbstractMigration
                 "limit" => null,
                 "null" => true,
             ])
-            ->addColumn("hidden", "boolean", [
+            ->addColumn("status", "string", [
+                "default" => "active",
+                "limit" => 20,
+                "null" => true,
+            ])
+            ->addColumn("verified_date", "date", [
                 "default" => null,
                 "limit" => null,
-                "null" => false,
+                "null" => true,
+            ])
+            ->addColumn("verified_by", "integer", [
+                "default" => null,
+                "limit" => 11,
+                "null" => true,
+            ])
+            ->addColumn("parent_id", "integer", [
+                "default" => null,
+                "limit" => 11,
+                "null" => true,
             ])
             ->addColumn("password_token", "string", [
                 "default" => null,
@@ -410,6 +425,11 @@ class Init extends AbstractMigration
             ->addColumn("deleted", "date", [
                 "default" => null,
                 "limit" => null,
+                "null" => true,
+            ])
+            ->addColumn("membership_card_path", "string", [
+                "default" => null,
+                "limit" => 256,
                 "null" => true,
             ])
             ->create();
@@ -463,7 +483,7 @@ class Init extends AbstractMigration
                 "null" => false,
             ])
             ->addColumn("revoked_reason", "string", [
-                "default" => "new",
+                "default" => "",
                 "limit" => 255,
                 "null" => true,
             ])
@@ -546,7 +566,7 @@ class Init extends AbstractMigration
                 "limit" => 11,
                 "null" => false,
             ])
-            ->addColumn("ended_on", "datetime", [
+            ->addColumn("expires_on", "datetime", [
                 "default" => null,
                 "limit" => null,
                 "null" => true,

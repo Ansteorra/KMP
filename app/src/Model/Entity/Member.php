@@ -69,6 +69,12 @@ class Member extends Entity implements
     protected ?array $_permissions = null;
     protected ?DateTime $_last_permissions_update = null;
 
+    const STATUS_ACTIVE = "active";
+    const STATUS_DEACTIVATED = "deactivated";
+    const STATUS_VERIFIED_MEMBERSHIP = "verified";
+    const STATUS_UNVERIFIED_MINOR = "unverified_minor";
+    const STATUS_VERIFIED_MINOR = "verified_minor";
+
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().
      *
@@ -259,6 +265,19 @@ class Member extends Entity implements
         return false;
     }
 
+    public function getPendingApprovalsCount(): int
+    {
+        $count = 0;
+        $approvalsTable = TableRegistry::getTableLocator()->get("AuthorizationApprovals");
+        $query = $approvalsTable->find()
+            ->where([
+                "approver_id" => $this->id,
+                "responded_on is" => null,
+            ]);
+        $count = $query->count();
+        return $count;
+    }
+
     protected function _setPassword($value)
     {
         if (strlen($value) > 0) {
@@ -280,6 +299,22 @@ class Member extends Entity implements
         }
         $date = $date->setDate($this->birth_year, $this->birth_month, 1);
         return $date;
+    }
+
+    protected function _setStatus($value)
+    {
+        //the status must be of one of the constants defined in this class
+        if (
+            $value != self::STATUS_ACTIVE &&
+            $value != self::STATUS_DEACTIVATED &&
+            $value != self::STATUS_VERIFIED_MEMBERSHIP &&
+            $value != self::STATUS_UNVERIFIED_MINOR &&
+            $value != self::STATUS_VERIFIED_MINOR
+        ) {
+            throw new \InvalidArgumentException("Invalid status");
+        } else {
+            return $value;
+        }
     }
 
     protected function _getAge()

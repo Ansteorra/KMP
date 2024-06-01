@@ -67,7 +67,10 @@ class AuthorizationApprovalsController extends AppController
         $this->Authorization->authorize($query);
         $this->Authorization->applyScope($query);
         $authorizationApprovals = $query->all();
-        $this->set(compact("authorizationApprovals"));
+        $queueFor = $this->Authentication->getIdentity()->sca_name;
+        $isMyQueue = true;
+        $this->set(compact("queueFor", "isMyQueue", "authorizationApprovals"));
+        $this->render('view');
     }
 
     /**
@@ -83,7 +86,12 @@ class AuthorizationApprovalsController extends AppController
         $this->Authorization->authorize($query);
         $this->Authorization->applyScope($query);
         $authorizationApprovals = $query->all();
-        $this->set(compact("authorizationApprovals"));
+        $queueFor = $this->AuthorizationApprovals->Approvers->find()
+            ->select(['sca_name'])
+            ->where(['id' => $id])
+            ->first()->sca_name;
+        $isMyQueue = false;
+        $this->set(compact("queueFor", "isMyQueue", "authorizationApprovals"));
     }
 
     protected function getAuthorizationApprovalsQuery($memberId)
@@ -95,6 +103,7 @@ class AuthorizationApprovalsController extends AppController
                     return $q->select([
                         "Authorizations.status",
                         "Authorizations.approval_count",
+                        "Authorizations.is_renewal",
                     ]);
                 },
                 "Authorizations.Members" => function ($q) {
@@ -104,6 +113,7 @@ class AuthorizationApprovalsController extends AppController
                     return $q->select([
                         "AuthorizationTypes.name",
                         "AuthorizationTypes.num_required_authorizors",
+                        "AuthorizationTypes.num_required_renewers",
                     ]);
                 },
                 "Approvers" => function ($q) {

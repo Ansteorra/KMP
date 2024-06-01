@@ -18,7 +18,11 @@
         <?php
         echo $this->Form->control("name");
         echo $this->Form->control("authorization_groups_id", [
-            "options" => $AuthorizationGroups,
+            "options" => $authorizationGroups,
+        ]);
+        echo $this->Form->control("grants_role_id", [
+            "options" => $authAssignableRoles,
+            "empty" => true
         ]);
         echo $this->Form->control("length", [
             "label" => "Duration (years)",
@@ -27,7 +31,11 @@
         echo $this->Form->control("minimum_age", ["type" => "number"]);
         echo $this->Form->control("maximum_age", ["type" => "number"]);
         echo $this->Form->control("num_required_authorizors", [
-            "label" => "# of Approvers",
+            "label" => "# for Approval",
+            "type" => "number",
+        ]);
+        echo $this->Form->control("num_required_renewers", [
+            "label" => "# for Renewal",
             "type" => "number",
         ]);
         ?>
