@@ -74,6 +74,7 @@ $user = $this->request->getAttribute("identity");
                 "disabled" => "disabled",
             ]);
         }
+        echo $this->Form->control("requires_warrant", ["switch" => true]);
         ?>
     </fieldset>
     <div class='text-end'><?= $this->Form->button(__("Submit"), [

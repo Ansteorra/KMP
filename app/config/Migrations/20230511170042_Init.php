@@ -189,6 +189,11 @@ class Init extends AbstractMigration
                 "limit" => null,
                 "null" => false,
             ])
+            ->addColumn("requires_warrant", "boolean", [
+                "default" => false,
+                "limit" => null,
+                "null" => false,
+            ])
             ->create();
 
         $this->table("roles_permissions")

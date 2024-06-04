@@ -63,7 +63,7 @@ class ReportsController extends AppController
         $this->set(compact('roles', 'validOn'));
     }
 
-    public function warrentsRoster()
+    public function warrantsRoster()
     {
         $hide = false;
         $this->Authorization->authorize($this);

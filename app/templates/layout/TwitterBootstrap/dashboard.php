@@ -239,10 +239,10 @@ $this->start("tb_body_start");
                                     ],
                                     [
                                         "type" => "link",
-                                        "label" => "Warrent Roster",
+                                        "label" => "Warrant Roster",
                                         "url" => [
                                             "controller" => "Reports",
-                                            "action" => "WarrentsRoster",
+                                            "action" => "WarrantsRoster",
                                         ],
                                         "icon" => "bi-person-check-fill",
                                         "activeUrls" => [

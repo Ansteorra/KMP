@@ -18,9 +18,10 @@ $user = $this->request->getAttribute("identity");
             </h3>
         </div>
         <div class="col text-end">
-            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal">Edit</button>
+            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
+                data-bs-target="#editModal">Edit</button>
             <?php if (!$permission->system) { ?>
-                <?= $this->Form->postLink(
+            <?= $this->Form->postLink(
                     __("Delete"),
                     ["action" => "delete", $permission->id],
                     [
@@ -85,27 +86,35 @@ $user = $this->request->getAttribute("identity");
                                         $this->Html,
                                     ) ?></td>
             </tr>
+            <tr scope="row">
+                <th class='col'><?= __("Requires a Warrant") ?></th>
+                <td class="col-10"><?= $this->Kmp->bool(
+                                        $permission->requires_warrant,
+                                        $this->Html,
+                                    ) ?></td>
+            </tr>
         </table>
     </div>
     <div class="related">
         <h4><?= __("Related Roles") ?> :
             <?php if ($user->can("addPermission", "Roles")) { ?>
-                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addRoleModal">Add Role</button>
+            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
+                data-bs-target="#addRoleModal">Add Role</button>
             <?php } ?>
         </h4>
         <?php if (!empty($permission->roles)) : ?>
-            <div class="table-responsive">
-                <table class="table table-striped">
-                    <tr>
-                        <th scope="col"><?= __("Name") ?></th>
-                        <th scope="col" class="actions"><?= __("Actions") ?></th>
-                    </tr>
-                    <?php foreach ($permission->roles as $role) : ?>
-                        <tr>
-                            <td><?= h($role->name) ?></td>
-                            <td class="actions">
-                                <?php if ($user->can("deletePermission", "Roles")) { ?>
-                                    <?= $this->Form->postLink(
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <tr>
+                    <th scope="col"><?= __("Name") ?></th>
+                    <th scope="col" class="actions"><?= __("Actions") ?></th>
+                </tr>
+                <?php foreach ($permission->roles as $role) : ?>
+                <tr>
+                    <td><?= h($role->name) ?></td>
+                    <td class="actions">
+                        <?php if ($user->can("deletePermission", "Roles")) { ?>
+                        <?= $this->Form->postLink(
                                         __("Remove"),
                                         [
                                             "controller" => "Roles",
@@ -123,12 +132,12 @@ $user = $this->request->getAttribute("identity");
                                             ],
                                         ],
                                     ) ?>
-                                <?php } ?>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </table>
-            </div>
+                        <?php } ?>
+                    </td>
+                </tr>
+                <?php endforeach; ?>
+            </table>
+        </div>
         <?php endif; ?>
     </div>
 </div>
@@ -215,6 +224,7 @@ $this->start("modals"); ?>
             "disabled" => "disabled",
         ]);
     }
+    echo $this->Form->control("requires_warrant", ["switch" => true]);
     echo $this->Form->end();
     ?>
 </fieldset>

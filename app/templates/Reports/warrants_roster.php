@@ -6,7 +6,7 @@ $compareDate = new Date($validOn)
 ?>
 
 <div class="row">
-    <?= $this->Form->create(null, ['align' => 'inline', "type" => "get", 'url' => ['controller' => 'reports', 'action' => 'warrents_roster']]); ?>
+    <?= $this->Form->create(null, ['align' => 'inline', "type" => "get", 'url' => ['controller' => 'reports', 'action' => 'warrantsRoster']]); ?>
     <?= $this->Form->control('validOn', ['default' => $validOn, 'type' => 'date', 'placeholder' => 'Valid On']) ?>
     <?php if ($hide) {
         echo $this->Form->control('hide', ['type' => 'checkbox', 'checked' => 'checked', 'switch' => true, 'label' => 'Hide Expired']);
