@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Migrations\AbstractSeed;
+use Cake\I18n\DateTime;
 
 /**
  * Members seed.
@@ -24,7 +25,7 @@ class MembersSeed extends AbstractSeed
         $data = [
             [
                 'id' => 1,
-                'last_updated' => '2021-11-18 20:02:26',
+                'last_updated' => DateTime::now(),
                 'password' => '42f749ade7f9e195bf475f37a44cafcb',
                 'sca_name' => 'Admin von Admin',
                 'first_name' => 'Addy',
@@ -39,7 +40,6 @@ class MembersSeed extends AbstractSeed
                 'membership_number' => '1234',
                 'membership_expires_on' => '2030-01-01',
                 'branch_id' => 3,
-                'parent_name' => '',
                 'background_check_expires_on' => NULL,
                 'status' => 'active',
                 'password_token' => NULL,
@@ -53,7 +53,7 @@ class MembersSeed extends AbstractSeed
             ],
             [
                 'id' => 2,
-                'last_updated' => '2021-11-18 20:02:26',
+                'last_updated' => DateTime::now(),
                 'password' => '42f749ade7f9e195bf475f37a44cafcb',
                 'sca_name' => 'Earl Realm',
                 'first_name' => 'Kingdom',
@@ -68,7 +68,6 @@ class MembersSeed extends AbstractSeed
                 'membership_number' => '2345',
                 'membership_expires_on' => '2030-03-31',
                 'branch_id' => 4,
-                'parent_name' => '',
                 'background_check_expires_on' => NULL,
                 'status' => 'active',
                 'password_token' => NULL,
@@ -82,7 +81,7 @@ class MembersSeed extends AbstractSeed
             ],
             [
                 'id' => 3,
-                'last_updated' => '2021-11-18 20:02:26',
+                'last_updated' => DateTime::now(),
                 'password' => '42f749ade7f9e195bf475f37a44cafcb',
                 'sca_name' => 'Stabby McStab',
                 'first_name' => 'Stan',
@@ -97,7 +96,6 @@ class MembersSeed extends AbstractSeed
                 'membership_number' => '3456',
                 'membership_expires_on' => '2028-12-30',
                 'branch_id' => 7,
-                'parent_name' => '',
                 'background_check_expires_on' => NULL,
                 'status' => 'active',
                 'password_token' => NULL,

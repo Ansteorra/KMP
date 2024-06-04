@@ -52,7 +52,7 @@ class RolesTable extends Table
         $this->hasMany("MemberRoles", [
             "foreignKey" => "role_id",
             "bindingKey" => "id",
-            "joinType" => "INNER",
+            "joinType" => "LEFT",
         ]);
 
         $this->belongsToMany("Permissions", [

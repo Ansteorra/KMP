@@ -69,11 +69,13 @@ class Member extends Entity implements
     protected ?array $_permissions = null;
     protected ?DateTime $_last_permissions_update = null;
 
-    const STATUS_ACTIVE = "active";
-    const STATUS_DEACTIVATED = "deactivated";
-    const STATUS_VERIFIED_MEMBERSHIP = "verified";
-    const STATUS_UNVERIFIED_MINOR = "unverified_minor";
-    const STATUS_VERIFIED_MINOR = "verified_minor";
+    const STATUS_ACTIVE = "active"; //Can login
+    const STATUS_DEACTIVATED = "deactivated"; //Cannot Login
+    const STATUS_VERIFIED_MEMBERSHIP = "verified"; //Can Login
+    const STATUS_UNVERIFIED_MINOR = "unverified minor"; //Cannot Login
+    const STATUS_MINOR_MEMBERSHIP_VERIFIED = "< 18 member verified"; //Cannot Login
+    const STATUS_MINOR_PARENT_VERIFIED = "< 18 parent verified"; //Can Login
+    const STATUS_VERIFIED_MINOR = "verified < 18"; //Can Login
 
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().
@@ -102,7 +104,6 @@ class Member extends Entity implements
         "branch_id" => true,
         "parent_name" => true,
         "background_check_expires_on" => true,
-        "hidden" => true,
         "password_token" => true,
         "password_token_expires_on" => true,
         "last_login" => true,
@@ -111,6 +112,7 @@ class Member extends Entity implements
         "birth_month" => true,
         "birth_year" => true,
         "deleted_date" => true,
+        "status" => true,
     ];
 
     protected array $_hidden = [
@@ -264,7 +266,27 @@ class Member extends Entity implements
         }
         return false;
     }
-
+    public function ageUpReview(): void
+    {
+        if (
+            $this->status !== self::STATUS_ACTIVE
+            && $this->status !== self::STATUS_VERIFIED_MEMBERSHIP
+            && $this->status !==  self::STATUS_DEACTIVATED && $this->age >= 17
+        ) {
+            //the member has aged up and is no longer a minor
+            $this->parent_id = null;
+            switch ($this->status) {
+                case self::STATUS_UNVERIFIED_MINOR:
+                case self::STATUS_MINOR_PARENT_VERIFIED:
+                    $this->status = self::STATUS_ACTIVE;
+                    break;
+                case self::STATUS_VERIFIED_MINOR:
+                case self::STATUS_MINOR_MEMBERSHIP_VERIFIED:
+                    $this->status = self::STATUS_VERIFIED_MEMBERSHIP;
+                    break;
+            }
+        }
+    }
     public function getPendingApprovalsCount(): int
     {
         $count = 0;
@@ -303,17 +325,18 @@ class Member extends Entity implements
 
     protected function _setStatus($value)
     {
-        //the status must be of one of the constants defined in this class
-        if (
-            $value != self::STATUS_ACTIVE &&
-            $value != self::STATUS_DEACTIVATED &&
-            $value != self::STATUS_VERIFIED_MEMBERSHIP &&
-            $value != self::STATUS_UNVERIFIED_MINOR &&
-            $value != self::STATUS_VERIFIED_MINOR
-        ) {
-            throw new \InvalidArgumentException("Invalid status");
-        } else {
-            return $value;
+        //the status must be one of the constants defined in this class
+        switch ($value) {
+            case self::STATUS_ACTIVE:
+            case self::STATUS_DEACTIVATED:
+            case self::STATUS_VERIFIED_MEMBERSHIP:
+            case self::STATUS_UNVERIFIED_MINOR:
+            case self::STATUS_VERIFIED_MINOR:
+            case self::STATUS_MINOR_MEMBERSHIP_VERIFIED:
+            case self::STATUS_MINOR_PARENT_VERIFIED:
+                return $value;
+            default:
+                throw new \InvalidArgumentException("Invalid status");
         }
     }
 

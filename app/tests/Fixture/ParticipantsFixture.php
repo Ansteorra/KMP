@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Test\Fixture;
@@ -36,10 +37,9 @@ class MembersFixture extends TestFixture
                 "membership_expires_on" => "2024-05-15",
                 "branch_name" => "Lorem ipsum dolor sit amet",
                 "notes" =>
-                    "Lorem ipsum dolor sit amet, aliquet feugiat. Convallis morbi fringilla gravida, phasellus feugiat dapibus velit nunc, pulvinar eget sollicitudin venenatis cum nullam, vivamus ut a sed, mollitia lectus. Nulla vestibulum massa neque ut et, id hendrerit sit, feugiat in taciti enim proin nibh, tempor dignissim, rhoncus duis vestibulum nunc mattis convallis.",
+                "Lorem ipsum dolor sit amet, aliquet feugiat. Convallis morbi fringilla gravida, phasellus feugiat dapibus velit nunc, pulvinar eget sollicitudin venenatis cum nullam, vivamus ut a sed, mollitia lectus. Nulla vestibulum massa neque ut et, id hendrerit sit, feugiat in taciti enim proin nibh, tempor dignissim, rhoncus duis vestibulum nunc mattis convallis.",
                 "parent_name" => "Lorem ipsum dolor sit amet",
                 "background_check_expires_on" => "2024-05-15",
-                "hidden" => 1,
                 "password_token" => "Lorem ipsum dolor sit amet",
                 "password_token_expires_on" => "2024-05-15 11:25:34",
                 "last_login" => "2024-05-15 11:25:34",

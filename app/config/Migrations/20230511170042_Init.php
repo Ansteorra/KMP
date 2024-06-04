@@ -281,10 +281,15 @@ class Init extends AbstractMigration
                 "null" => false,
             ])
             ->addPrimaryKey(["id"])
-            ->addColumn("last_updated", "timestamp", [
+            ->addColumn("created_date", "timestamp", [
                 "default" => "CURRENT_TIMESTAMP",
                 "limit" => null,
                 "null" => false,
+            ])
+            ->addColumn("last_updated", "datetime", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
             ])
             ->addColumn("password", "string", [
                 "default" => null,
@@ -356,11 +361,6 @@ class Init extends AbstractMigration
                 "limit" => 11,
                 "null" => true,
                 "signed" => false,
-            ])
-            ->addColumn("parent_name", "string", [
-                "default" => null,
-                "limit" => 100,
-                "null" => true,
             ])
             ->addColumn("background_check_expires_on", "date", [
                 "default" => null,

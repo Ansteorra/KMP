@@ -8,104 +8,176 @@
 <?php
 $this->extend("/layout/TwitterBootstrap/dashboard");
 $user = $this->request->getAttribute("identity");
+$pendingYouth = [];
+$pendingWithCard = [];
+$pendingWithoutCard = [];
+
+// put all members under 18 in the $pendingYouth array
+foreach ($Members as $Member) {
+    if ($Member->age < 18) {
+        $pendingYouth[] = $Member;
+    } elseif ($Member->membership_card_path != null && strlen($Member->membership_card_path) > 0) {
+        $pendingWithCard[] = $Member;
+    } else {
+        $pendingWithoutCard[] = $Member;
+    }
+}
+
 ?>
 <h3>
-    Members
+    Verification Queue
 </h3>
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <td colspan="6">
-            <td colspan="2" class="text-end">
-                <form class="form-inline">
+<nav>
+    <div class="nav nav-tabs" id="nav-tab" role="tablist">
+        <button class="nav-link active" id="nav-youth-tab-btn" data-bs-toggle="tab" data-bs-target="#nav-youth-tab"
+            type="button" role="tab" aria-controls="nav-youth-tab" aria-selected=" true">Youth
+            <?php if (count($pendingYouth) > 0) { ?>
+            <span class="badge bg-danger"><?= count($pendingYouth) ?></span>
+            <?php } ?>
+        </button>
+        <button class="nav-link" id="nav-pendingCard-tab-btn" data-bs-toggle="tab" data-bs-target="#nav-pendingCard-tab"
+            type="button" role="tab" aria-controls="#nav-pendingCard-tab" aria-selected="false">Unverified With
+            Card
+            <?php if (count($pendingWithCard) > 0) { ?>
+            <span class="badge bg-danger"><?= count($pendingWithCard) ?></span>
+            <?php } ?>
+        </button>
+        <button class="nav-link" id="nav-pendingNoCard-btn" data-bs-toggle="tab" data-bs-target="#nav-pendingNoCard-tab"
+            type="button" role="tab" aria-controls="nav-pendingNoCard-tab" aria-selected="false">Unverified Without
+            Card</button>
+    </div>
+</nav>
+<div class="tab-content" id="nav-tabContent">
+    <div class="tab-pane fade show active" id="nav-youth-tab" role="tabpanel" aria-labelledby="nav-youth-tab-btn"
+        tabindex=" 0">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th scope="col">Status</th>
+                        <th scope="col">SCA Name</th>
+                        <th scope="col">Branch</th>
+                        <th scope="col">First Name</th>
+                        <th scope="col">Last Name</th>
+                        <th scope="col">Email Address</th>
+                        <th scope="col" class="text-center">Card</th>
+                        <th scope="col" class="actions"><?= __("Actions") ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($pendingYouth as $Member) : ?>
+                    <tr>
 
-                    <div class="input-group">
-                        <div class="input-group-text" id="btnSearch"><span class='bi bi-search'></span></div>
-                        <input type="text" name="search" class="form-control" placeholder="Search..."
-                            value="<?= $search ?>" aria-describedby="btnSearch" aria-label="Search">
-                    </div>
-                </form>
-            </td>
-        </tr>
-        <tr>
-            <th scope="col"><?= $this->Paginator->sort("sca_name") ?></th>
-            <th scope="col">
-                <?php if ($sort === "Branches.name" && $direction === "asc") {
-                    echo $this->Html->link("Branch", [
-                        "controller" => "Members",
-                        "?" => ["sort" => "Branches.name", "direction" => "desc"],
-                        "class" => "asc",
-                    ]);
-                } elseif ($sort === "Branches.name" && $direction === "desc") {
-                    echo $this->Html->link("Branch", [
-                        "controller" => "Members",
-                        "?" => ["sort" => "Branches.name", "direction" => "asc"],
-                        "class" => "desc",
-                    ]);
-                } else {
-                    echo $this->Html->link("Branch", [
-                        "controller" => "Members",
-                        "?" => ["sort" => "Branches.name", "direction" => "asc"],
-                        "class" => "",
-                    ]);
-                } ?>
-            </th>
-            <th scope="col"><?= $this->Paginator->sort("first_name") ?></th>
-            <th scope="col"><?= $this->Paginator->sort("last_name") ?></th>
-            <th scope="col"><?= $this->Paginator->sort("email_address") ?></th>
-            <th scope="col"><?= $this->Paginator->sort("status") ?></th>
-            <th scope="col"><?= $this->Paginator->sort("last_login") ?></th>
-            <th scope="col" class="actions"><?= __("Actions") ?></th>
-        </tr>
-    </thead>
-    <tbody>
-        <?php foreach ($Members as $Member) : ?>
-        <tr>
-            <td><?= h($Member->sca_name) ?></td>
-            <td><?= h($Member->branch->name) ?></td>
-            <td><?= h($Member->first_name) ?></td>
-            <td><?= h($Member->last_name) ?></td>
-            <td><?= h($Member->email_address) ?></td>
-            <td><?= h($Member->status) ?></td>
-            <td><?= h($Member->last_login) ?></td>
-            <td class="actions">
-                <?= $this->Html->link(
-                        __("View"),
-                        ["action" => "view", $Member->id],
-                        ["title" => __("View"), "class" => "btn btn-secondary"],
-                    ) ?>
-                <?php if ($user->isSuperUser()) { ?>
-                <?= $this->Form->postLink(
-                            __("Delete"),
-                            ["action" => "delete", $Member->id],
-                            [
-                                "confirm" => __(
-                                    "Are you sure you want to delete # {0}?",
-                                    $Member->id,
-                                ),
-                                "title" => __("Delete"),
-                                "class" => "btn btn-danger",
-                            ],
-                        ) ?>
-                <?php } ?>
-            </td>
-        </tr>
-        <?php endforeach; ?>
-    </tbody>
-</table>
-<div class="paginator">
-    <ul class="pagination">
-        <?= $this->Paginator->first("«", ["label" => __("First")]) ?>
-        <?= $this->Paginator->prev("‹", [
-            "label" => __("Previous"),
-        ]) ?>
-        <?= $this->Paginator->numbers() ?>
-        <?= $this->Paginator->next("›", ["label" => __("Next")]) ?>
-        <?= $this->Paginator->last("»", ["label" => __("Last")]) ?>
-    </ul>
-    <p><?= $this->Paginator->counter(
-            __(
-                "Page {{page}} of {{pages}}, showing {{current}} record(s) out of {{count}} total",
-            ),
-        ) ?></p>
+                        <td><?= h($Member->status) ?></td>
+                        <td><?= h($Member->sca_name) ?></td>
+                        <td><?= h($Member->branch->name) ?></td>
+                        <td><?= h($Member->first_name) ?></td>
+                        <td><?= h($Member->last_name) ?></td>
+                        <td><?= h($Member->email_address) ?></td>
+                        <td class="text-center fs-4 align-top">
+                            <?php if ($Member->membership_card_path != null && strlen($Member->membership_card_path) > 0) {
+                                    echo $this->Html->icon("card-heading");
+                                } ?>
+                        </td>
+                        <td class="actions">
+                            <?= $this->Html->link(
+                                    __("View"),
+                                    ["action" => "view", $Member->id],
+                                    ["title" => __("View"), "class" => "btn btn-secondary"],
+                                ) ?>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="tab-pane fade" id="nav-pendingCard-tab" role="tabpanel" aria-labelledby="nav-pendingCard-tab-btn"
+        tabindex=" 1">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th scope="col">Status</th>
+                        <th scope="col">SCA Name</th>
+                        <th scope="col">Branch</th>
+                        <th scope="col">First Name</th>
+                        <th scope="col">Last Name</th>
+                        <th scope="col">Email Address</th>
+                        <th scope="col" class="text-center">Card</th>
+                        <th scope="col" class="actions"><?= __("Actions") ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($pendingWithCard as $Member) : ?>
+                    <tr>
+
+                        <td><?= h($Member->status) ?></td>
+                        <td><?= h($Member->sca_name) ?></td>
+                        <td><?= h($Member->branch->name) ?></td>
+                        <td><?= h($Member->first_name) ?></td>
+                        <td><?= h($Member->last_name) ?></td>
+                        <td><?= h($Member->email_address) ?></td>
+                        <td class="text-center fs-4 align-top">
+                            <?php if ($Member->membership_card_path != null && strlen($Member->membership_card_path) > 0) {
+                                    echo $this->Html->icon("card-heading");
+                                } ?>
+                        </td>
+                        <td class="actions">
+                            <?= $this->Html->link(
+                                    __("View"),
+                                    ["action" => "view", $Member->id],
+                                    ["title" => __("View"), "class" => "btn btn-secondary"],
+                                ) ?>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="tab-pane fade" id="nav-pendingNoCard-tab" role="tabpanel" aria-labelledby="nav-pendingNoCard-tab-btn"
+        tabindex="2">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th scope="col">Status</th>
+                        <th scope="col">SCA Name</th>
+                        <th scope="col">Branch</th>
+                        <th scope="col">First Name</th>
+                        <th scope="col">Last Name</th>
+                        <th scope="col">Email Address</th>
+                        <th scope="col" class="text-center">Card</th>
+                        <th scope="col" class="actions"><?= __("Actions") ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($pendingWithoutCard as $Member) : ?>
+                    <tr>
+
+                        <td><?= h($Member->status) ?></td>
+                        <td><?= h($Member->sca_name) ?></td>
+                        <td><?= h($Member->branch->name) ?></td>
+                        <td><?= h($Member->first_name) ?></td>
+                        <td><?= h($Member->last_name) ?></td>
+                        <td><?= h($Member->email_address) ?></td>
+                        <td class="text-center fs-4 align-top">
+                            <?php if ($Member->membership_card_path != null && strlen($Member->membership_card_path) > 0) {
+                                    echo $this->Html->icon("card-heading");
+                                } ?>
+                        </td>
+                        <td class="actions">
+                            <?= $this->Html->link(
+                                    __("View"),
+                                    ["action" => "view", $Member->id],
+                                    ["title" => __("View"), "class" => "btn btn-secondary"],
+                                ) ?>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>

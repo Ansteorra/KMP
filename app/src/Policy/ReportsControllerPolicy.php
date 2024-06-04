@@ -11,14 +11,14 @@ class ReportsControllerPolicy extends BasePolicy
 {
     protected string $REQUIRED_PERMISSION = "Can View Reports";
 
-    public function canRoles(
+    public function canRolesList(
         IdentityInterface $user,
         mixed $resource,
     ): ResultInterface|bool {
         return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
     }
 
-    public function canWarrants(
+    public function canWarrentsRoster(
         IdentityInterface $user,
         mixed $resource,
     ): ResultInterface|bool {

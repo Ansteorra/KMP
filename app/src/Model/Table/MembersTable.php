@@ -8,6 +8,11 @@ use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
 use App\KMP\PermissionsLoader;
+use Cake\ORM\TableRegistry;
+use App\Model\Entity\Member;
+use Cake\Event\Event;
+use Cake\Datasource\EntityInterface;
+use ArrayObject;
 
 /**
  * Members Model
@@ -68,6 +73,10 @@ class MembersTable extends Table
         $this->belongsTo("Branches", [
             "className" => "Branches",
             "foreignKey" => "branch_id",
+        ]);
+        $this->belongsTo("Parents", [
+            "className" => "Members",
+            "foreignKey" => "parent_id",
         ]);
 
         $this->addBehavior("Muffin/Trash.Trash");
@@ -168,11 +177,6 @@ class MembersTable extends Table
             ->allowEmptyDate("background_check_expires_on");
 
         $validator
-            ->boolean("hidden")
-            ->requirePresence("hidden", "create")
-            ->notEmptyString("hidden");
-
-        $validator
             ->scalar("password_token")
             ->maxLength("password_token", 255)
             ->allowEmptyString("password_token");
@@ -202,10 +206,38 @@ class MembersTable extends Table
         return $validator;
     }
 
+    public function beforeSave(Event $event, EntityInterface $entity, ArrayObject $options)
+    {
+        $entity->ageUpReview();
+        $entity->last_updated = date("Y-m-d H:i:s");
+    }
+
+
     static function getCurrentAuthorizationTypeApprovers($auth_id)
     {
         return PermissionsLoader::getCurrentAuthorizationTypeApprovers(
             $auth_id,
         );
+    }
+
+    static function getValidationQueueCount(): int
+    {
+        // Get the count of pending validations  based on the members status
+        $membersTable = TableRegistry::getTableLocator()->get("Members");
+        return $membersTable->find()
+            ->where([
+                "Members.deleted IS" => null,
+                'OR' => [
+                    [
+                        'Members.status' => Member::STATUS_ACTIVE,
+                        'Members.membership_card_path IS NOT' => null
+                    ],
+                    ['Members.status IN' => [
+                        Member::STATUS_UNVERIFIED_MINOR,
+                        Member::STATUS_MINOR_MEMBERSHIP_VERIFIED,
+                        Member::STATUS_MINOR_PARENT_VERIFIED,
+                    ]]
+                ]
+            ])->count();
     }
 }

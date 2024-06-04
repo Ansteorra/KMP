@@ -1,5 +1,7 @@
 class memberView {
     constructor() {
+        this.ac = null;
+
     };
     //onInput for Autocomplete
 
@@ -64,8 +66,41 @@ class memberView {
             me.handleSubmitBtnClick(me, 'renew_auth__approver_id', 'renew_auth__form');
         });
     }
+
+
+    onInputHandler() {
+        $('#verify_member__parent_id').val(0).trigger('change');
+        var input = this.ac.field.value;
+        var me = this;
+        //AJAX call to get data
+        $.ajax({
+            url: '/members/search_members',
+            dataType: 'json',
+            type: 'GET',
+            data: { q: input },
+            success: function (data) {
+                var sendData = [];
+                for (var i = 0; i < data.length; i++) {
+                    sendData.push({ label: data[i].sca_name, value: data[i].id });
+                }
+                me.ac.setData(sendData);
+            }
+        });
+    };
+
     run() {
         var me = this;
+        if ($('#verify_member__sca_name').length > 0) {
+            this.ac = new Autocomplete($('#verify_member__sca_name')[0], {
+                data: [],
+                treshold: 3,
+                maximumItems: 8,
+                onInput: () => me.onInputHandler(),
+                onSelectItem: ({ label, value }) => {
+                    $('#verify_member__parent_id').val(value).trigger('change');
+                }
+            });
+        }
         me.wireUpRequestEvents();
         me.wireUpRenewalEvents();
     }

@@ -229,21 +229,4 @@ class RolesController extends AppController
      * @return \Cake\Http\Response|null|void ajax only
      * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
      */
-    public function searchMembers()
-    {
-        $q = $this->request->getQuery("q");
-        $this->Authorization->authorizeAction();
-        $this->request->allowMethod(["get"]);
-        $this->viewBuilder()->setClassName("Ajax");
-        $query = $this->Roles->Members
-            ->find("all")
-            ->where(["sca_name LIKE" => "%$q%"])
-            ->select(["id", "sca_name"])
-            ->limit(10);
-        //$query = $this->Authorization->applyScope($query);
-        $this->response = $this->response
-            ->withType("application/json")
-            ->withStringBody(json_encode($query));
-        return $this->response;
-    }
 }

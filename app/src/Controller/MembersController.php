@@ -105,8 +105,8 @@ class MembersController extends AppController
 
     public function verifyQueue()
     {
-        $search = $this->request->getQuery("search");
-        $search = $search ? trim($search) : null;
+        $activeTab = $this->request->getQuery("activeTab");
+        $activeTab = $activeTab ? trim($activeTab) : null;
         // get sort and direction from query string
         $sort = $this->request->getQuery("sort");
         $direction = $this->request->getQuery("direction");
@@ -122,39 +122,24 @@ class MembersController extends AppController
                 "Branches.name",
                 "Members.status",
                 "Members.email_address",
-                "Members.last_login",
                 "Members.membership_card_path",
+                "Members.birth_year",
+                "Members.birth_month",
             ]);
-        // if there is a search term, filter the query
-        if ($search) {
-            $query = $query->where([
-                "OR" => [
-                    "Members.sca_name LIKE" => "%" . $search . "%",
-                    "Members.first_name LIKE" => "%" . $search . "%",
-                    "Members.last_name LIKE" => "%" . $search . "%",
-                    "Members.email_address LIKE" => "%" . $search . "%",
-                    "Branches.name LIKE" => "%" . $search . "%",
-                ],
-            ]);
-        }
-        // sort by branches.name manually if its in the query string
-        if ($sort == "Branches.name") {
-            // check the direction of the sort
-            if (!$direction) {
-                $direction = "asc";
-            }
-            if (strtolower($direction) == "asc") {
-                $query = $query->orderBy(["Branches.name" => "ASC"]);
-            } else {
-                $query = $query->orderBy(["Branches.name" => "DESC"]);
-            }
-        }
+        $query = $query->where([
+            'Members.status IN' => [
+                Member::STATUS_ACTIVE,
+                Member::STATUS_UNVERIFIED_MINOR,
+                Member::STATUS_MINOR_MEMBERSHIP_VERIFIED,
+                Member::STATUS_MINOR_PARENT_VERIFIED
+            ]
+        ]);
         #is
         $this->Authorization->authorize($query);
         $query = $this->Authorization->applyScope($query);
-        $Members = $this->paginate($query);
+        $Members = $query->all();
 
-        $this->set(compact("Members", "sort", "direction", "search"));
+        $this->set(compact("Members"));
     }
 
     /**
@@ -191,6 +176,9 @@ class MembersController extends AppController
                 },
                 "MemberRoles.Approved_By" => function (SelectQuery $q) {
                     return $q->select(["Approved_By.sca_name"]);
+                },
+                "Parents" => function (SelectQuery $q) {
+                    return $q->select(["Parents.sca_name", "Parents.id"]);
                 },
             ])
             ->contain(
@@ -266,6 +254,15 @@ class MembersController extends AppController
                 // Handle other referers here
                 break;
         }
+        $statusList = [
+            Member::STATUS_ACTIVE => Member::STATUS_ACTIVE,
+            Member::STATUS_DEACTIVATED => Member::STATUS_DEACTIVATED,
+            Member::STATUS_VERIFIED_MEMBERSHIP => Member::STATUS_VERIFIED_MEMBERSHIP,
+            Member::STATUS_UNVERIFIED_MINOR => Member::STATUS_UNVERIFIED_MINOR,
+            Member::STATUS_MINOR_MEMBERSHIP_VERIFIED => Member::STATUS_MINOR_MEMBERSHIP_VERIFIED,
+            Member::STATUS_MINOR_PARENT_VERIFIED => Member::STATUS_MINOR_PARENT_VERIFIED,
+            Member::STATUS_VERIFIED_MINOR => Member::STATUS_VERIFIED_MINOR,
+        ];
         $this->set(
             compact(
                 "member",
@@ -277,6 +274,7 @@ class MembersController extends AppController
                 "months",
                 "years",
                 "backUrl",
+                "statusList",
             ),
         );
     }
@@ -541,6 +539,23 @@ class MembersController extends AppController
             ->withType("application/json")
             ->withStringBody(json_encode($query));
 
+        return $this->response;
+    }
+    public function searchMembers()
+    {
+        $q = $this->request->getQuery("q");
+        $this->Authorization->skipAuthorization();
+        $this->request->allowMethod(["get"]);
+        $this->viewBuilder()->setClassName("Ajax");
+        $query = $this->Members
+            ->find("all")
+            ->where(["sca_name LIKE" => "%$q%"])
+            ->select(["id", "sca_name"])
+            ->limit(10);
+        //$query = $this->Authorization->applyScope($query);
+        $this->response = $this->response
+            ->withType("application/json")
+            ->withStringBody(json_encode($query));
         return $this->response;
     }
     #endregion
@@ -899,16 +914,66 @@ class MembersController extends AppController
         $member = $this->Members->get($id);
         $this->Authorization->authorize($member);
         if ($this->request->is(["patch", "post", "put"])) {
-            $membership_number = $this->request->getData("membership_number");
-            $member->membership_number = $membership_number;
-            $member->membership_expires_on = $this->request->getData("membership_expires_on");
-            if ($member->age > 17 && strlen($membership_number) > 0) {
-                $member->status = Member::STATUS_VERIFIED_MEMBERSHIP;
-            } else {
-                if ($member->status == Member::STATUS_UNVERIFIED_MINOR) {
-                    $member->status = Member::STATUS_UNVERIFIED_MINOR;
+            $verifyMembership = $this->request->getData("verify_membership");
+            $verifyParent = $this->request->getData("verify_parent");
+            if ($verifyMembership == "1") {
+                $membership_number = $this->request->getData("membership_number");
+                if (strlen($membership_number) == 0) {
+                    $this->Flash->error("Membership number is required.");
+                    return $this->redirect(["action" => "view", $member->id]);
+                }
+                $member->membership_expires_on = $this->request->getData("membership_expires_on");
+                if ($member->membership_expires_on == null) {
+                    $this->Flash->error("Membership expiration date is required.");
+                    return $this->redirect(["action" => "view", $member->id]);
+                }
+                $member->membership_number = $membership_number;
+                $member->membership_expires_on = $this->request->getData("membership_expires_on");
+            }
+            if ($member->age < 18 && $verifyParent == "1") {
+                $parentId = $this->request->getData("parent_id");
+                if ($parentId) {
+                    if ($parentId && strlen($parentId) > 0)
+
+                        $parent = $this->Members->get($parentId);
+                    if ($parentId == $member->id) {
+                        $this->Flash->error("Parent cannot be the same as the member.");
+                        return $this->redirect(["action" => "view", $member->id]);
+                    }
+                    if ($parent->age < 18) {
+                        $this->Flash->error("Parent must be an adult.");
+                        return $this->redirect(["action" => "view", $member->id]);
+                    }
+                    $member->parent_id = $parent->id;
                 } else {
-                    $member->status = Member::STATUS_VERIFIED_MEMBERSHIP;
+                    $this->Flash->error("Parent is required for minors.");
+                    return $this->redirect(["action" => "view", $member->id]);
+                }
+            }
+            //if the member is an adult and the membership was validated then set the status to active
+            if ($member->age > 17 && $verifyMembership == "1") {
+                $member->status = Member::STATUS_VERIFIED_MEMBERSHIP;
+            }
+            //if the member is a minor and the parent was validated then set the status to verified minor
+            if ($member->age < 18 && $verifyParent == "1" && $verifyMembership == "1") {
+                $member->status = Member::STATUS_VERIFIED_MINOR;
+            }
+            //if the member is a minor and the parent was validated then set the status to parent validataed
+            if ($member->age < 18 && $verifyParent == "1" && $verifyMembership != "1") {
+                //if the member is already membership verified then set to minor verified
+                if ($member->status == Member::STATUS_MINOR_MEMBERSHIP_VERIFIED) {
+                    $member->status = Member::STATUS_VERIFIED_MINOR;
+                } else {
+                    $member->status = Member::STATUS_MINOR_PARENT_VERIFIED;
+                }
+            }
+            //if the the member is a minor and the parent was not validated by the membership was then set the status to minor membership verified
+            if ($member->age < 18 && $verifyParent != "1" && $verifyMembership == "1") {
+
+                if ($member->status == Member::STATUS_MINOR_PARENT_VERIFIED) {
+                    $member->status = Member::STATUS_VERIFIED_MINOR;
+                } else {
+                    $member->status = Member::STATUS_MINOR_MEMBERSHIP_VERIFIED;
                 }
             }
             $image = $member->membership_card_path;
@@ -920,16 +985,15 @@ class MembersController extends AppController
                     return $this->redirect(["action" => "view", $member->id]);
                 }
             }
-            if ($this->Members->save($member)) {
-                $this->Flash->success(__("The Membership has been verified."));
-
-                return $this->redirect(["action" => "view", $member->id]);
+            if (!$this->Members->save($member)) {
+                $this->Flash->error(
+                    __("The Member could not be verified. Please, try again."),
+                );
+                $this->redirect(["action" => "view", $member->id]);
             }
-            $this->Flash->error(
-                __("The Member could not be verified. Please, try again."),
-            );
         }
-        $this->redirect(["action" => "view", $member->id]);
+        $this->Flash->success(__("The Membership has been verified."));
+        return $this->redirect(["action" => "view", $member->id]);
     }
     #endregion
 

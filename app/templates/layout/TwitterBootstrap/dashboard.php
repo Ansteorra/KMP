@@ -5,8 +5,10 @@
  */
 
 use Cake\Core\Configure;
+use App\Model\Table\MembersTable;
 
 $user = $this->request->getAttribute("identity");
+$validationQueueCount = MembersTable::getValidationQueueCount();
 
 $this->Html->css("BootstrapUI.dashboard", ["block" => true]);
 $this->Html->css('app/dashboard', ['block' => true]);
@@ -188,6 +190,8 @@ $this->start("tb_body_start");
                                                     "action" => "verifyQueue",
                                                 ],
                                                 "icon" => "bi-fingerprint",
+                                                "badgeClass" => "bg-danger",
+                                                "badgeValue" => $validationQueueCount,
                                             ],
                                             [
                                                 "label" => "Import Exp. Dates",
@@ -212,13 +216,23 @@ $this->start("tb_body_start");
                                         "label" => "Role Assignments",
                                         "url" => [
                                             "controller" => "Reports",
-                                            "action" => "Roles",
+                                            "action" => "rolesList",
                                         ],
                                         "icon" => "bi-ui-checks",
                                         "activeUrls" => [
                                             [
                                                 "controller" => "Reports",
-                                                "action" => "Roles",
+                                                "action" => "RolesList",
+                                                "*",
+                                            ],
+                                            [
+                                                "controller" => "Reports",
+                                                "action" => "WarrantsRoster",
+                                                "*",
+                                            ],
+                                            [
+                                                "controller" => "Reports",
+                                                "action" => "Authorizations",
                                                 "*",
                                             ],
                                         ],
@@ -228,7 +242,7 @@ $this->start("tb_body_start");
                                         "label" => "Warrent Roster",
                                         "url" => [
                                             "controller" => "Reports",
-                                            "action" => "Warrants",
+                                            "action" => "WarrentsRoster",
                                         ],
                                         "icon" => "bi-person-check-fill",
                                         "activeUrls" => [

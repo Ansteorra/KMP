@@ -10,3 +10,7 @@
 .appnav .fs-7 {
     font-size: 0.9rem;
 }
+
+.danger td {
+    background-color: #f2dede !important;
+}

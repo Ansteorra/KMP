@@ -47,6 +47,7 @@ class KMPBruteForcePasswordIdentifier extends PasswordIdentifier
                 $this->_errors[] = "Account Disabled";
                 return null;
                 break;
+            case Member::STATUS_MINOR_MEMBERSHIP_VERIFIED:
             case Member::STATUS_UNVERIFIED_MINOR:
                 $this->_errors[] = "Account Not Verified";
                 return null;

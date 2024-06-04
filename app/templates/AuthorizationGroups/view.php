@@ -11,11 +11,7 @@
     <div class="row align-items-start">
         <div class="col">
             <h3>
-                <?= $this->Html->link(
-                    "",
-                    ["action" => "index"],
-                    ["class" => "bi bi-arrow-left-circle"],
-                ) ?>
+                <a href="#" onclick="window.history.back();" class="bi bi-arrow-left-circle"></a>
                 <?= h($authorizationGroup->name) ?>
             </h3>
         </div>
