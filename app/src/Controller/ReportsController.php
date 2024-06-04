@@ -67,15 +67,19 @@ class ReportsController extends AppController
     {
         $hide = false;
         $this->Authorization->authorize($this);
-        $rolestbl
-            = TableRegistry::getTableLocator()->get('Roles');
+        $rolestbl = TableRegistry::getTableLocator()->get('Roles');
+        $permissionsTbl = TableRegistry::getTableLocator()->get('Permissions');
+        //we need a list of role_ids that are for roles where the permission requires a warrant
         $validOn = Date::now();
         if ($this->request->getQuery('validOn')) {
             $hide = $this->request->getQuery('hide');
             $validOn = $this->request->getQuery('validOn');
         }
-        $roles = $rolestbl->find("all")
+        $roles = $rolestbl->find()
             ->select(['id', 'name'])
+            ->matching('Permissions', function ($q) {
+                return $q->where(['Permissions.requires_warrant' => 1]);
+            })
             ->contain([
                 "MemberRoles" => function ($q) use ($validOn) {
                     return $q->where([
@@ -112,6 +116,7 @@ class ReportsController extends AppController
                     return $q->select(['name']);
                 }
             ])
+            ->distinct()
             ->all();
         $this->set(compact('roles', 'validOn', "hide"));
     }

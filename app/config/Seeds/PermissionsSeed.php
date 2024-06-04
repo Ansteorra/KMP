@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 use Migrations\AbstractSeed;
@@ -30,6 +31,7 @@ class PermissionsSeed extends AbstractSeed
                 'require_min_age' => 0,
                 'system' => 1,
                 'is_super_user' => 1,
+                'requires_warrant' => 1,
             ],
             [
                 'id' => 2,
@@ -40,6 +42,7 @@ class PermissionsSeed extends AbstractSeed
                 'require_min_age' => 0,
                 'system' => 1,
                 'is_super_user' => 0,
+                'requires_warrant' => 1,
             ],
             [
                 'id' => 3,
@@ -50,6 +53,7 @@ class PermissionsSeed extends AbstractSeed
                 'require_min_age' => 0,
                 'system' => 1,
                 'is_super_user' => 0,
+                'requires_warrant' => 1,
             ],
             [
                 'id' => 4,
@@ -60,6 +64,7 @@ class PermissionsSeed extends AbstractSeed
                 'require_min_age' => 0,
                 'system' => 1,
                 'is_super_user' => 0,
+                'requires_warrant' => 1,
             ],
             [
                 'id' => 5,
@@ -70,6 +75,7 @@ class PermissionsSeed extends AbstractSeed
                 'require_min_age' => 0,
                 'system' => 1,
                 'is_super_user' => 0,
+                'requires_warrant' => 1,
             ],
             [
                 'id' => 6,
@@ -80,6 +86,7 @@ class PermissionsSeed extends AbstractSeed
                 'require_min_age' => 0,
                 'system' => 1,
                 'is_super_user' => 0,
+                'requires_warrant' => 1,
             ],
             [
                 'id' => 7,
@@ -90,6 +97,7 @@ class PermissionsSeed extends AbstractSeed
                 'require_min_age' => 0,
                 'system' => 1,
                 'is_super_user' => 0,
+                'requires_warrant' => 1,
             ],
             [
                 'id' => 8,
@@ -100,6 +108,7 @@ class PermissionsSeed extends AbstractSeed
                 'require_min_age' => 0,
                 'system' => 1,
                 'is_super_user' => 0,
+                'requires_warrant' => 0,
             ],
             [
                 'id' => 9,
@@ -110,6 +119,7 @@ class PermissionsSeed extends AbstractSeed
                 'require_min_age' => 0,
                 'system' => 1,
                 'is_super_user' => 0,
+                'requires_warrant' => 1,
             ],
             [
                 'id' => 10,
@@ -117,9 +127,10 @@ class PermissionsSeed extends AbstractSeed
                 'authorization_type_id' => 1,
                 'require_active_membership' => 1,
                 'require_active_background_check' => 0,
-                'require_min_age' => 0,
+                'require_min_age' => 18,
                 'system' => 0,
                 'is_super_user' => 0,
+                'requires_warrant' => 1,
             ],
             [
                 'id' => 11,
@@ -127,9 +138,10 @@ class PermissionsSeed extends AbstractSeed
                 'authorization_type_id' => 2,
                 'require_active_membership' => 1,
                 'require_active_background_check' => 0,
-                'require_min_age' => 0,
+                'require_min_age' => 18,
                 'system' => 0,
                 'is_super_user' => 0,
+                'requires_warrant' => 1,
             ],
             [
                 'id' => 12,
@@ -137,9 +149,10 @@ class PermissionsSeed extends AbstractSeed
                 'authorization_type_id' => 3,
                 'require_active_membership' => 1,
                 'require_active_background_check' => 0,
-                'require_min_age' => 0,
+                'require_min_age' => 18,
                 'system' => 0,
                 'is_super_user' => 0,
+                'requires_warrant' => 1,
             ],
             [
                 'id' => 13,
@@ -147,9 +160,10 @@ class PermissionsSeed extends AbstractSeed
                 'authorization_type_id' => 4,
                 'require_active_membership' => 1,
                 'require_active_background_check' => 0,
-                'require_min_age' => 0,
+                'require_min_age' => 18,
                 'system' => 0,
                 'is_super_user' => 0,
+                'requires_warrant' => 1,
             ],
             [
                 'id' => 14,
@@ -157,9 +171,10 @@ class PermissionsSeed extends AbstractSeed
                 'authorization_type_id' => 5,
                 'require_active_membership' => 1,
                 'require_active_background_check' => 1,
-                'require_min_age' => 0,
+                'require_min_age' => 18,
                 'system' => 0,
                 'is_super_user' => 0,
+                'requires_warrant' => 1,
             ],
             [
                 'id' => 15,
@@ -167,9 +182,10 @@ class PermissionsSeed extends AbstractSeed
                 'authorization_type_id' => 6,
                 'require_active_membership' => 1,
                 'require_active_background_check' => 1,
-                'require_min_age' => 0,
+                'require_min_age' => 18,
                 'system' => 0,
                 'is_super_user' => 0,
+                'requires_warrant' => 1,
             ],
             [
                 'id' => 16,
@@ -177,9 +193,10 @@ class PermissionsSeed extends AbstractSeed
                 'authorization_type_id' => 7,
                 'require_active_membership' => 1,
                 'require_active_background_check' => 1,
-                'require_min_age' => 0,
+                'require_min_age' => 18,
                 'system' => 0,
                 'is_super_user' => 0,
+                'requires_warrant' => 1,
             ],
             [
                 'id' => 17,
@@ -187,9 +204,10 @@ class PermissionsSeed extends AbstractSeed
                 'authorization_type_id' => 9,
                 'require_active_membership' => 1,
                 'require_active_background_check' => 0,
-                'require_min_age' => 0,
+                'require_min_age' => 18,
                 'system' => 0,
                 'is_super_user' => 0,
+                'requires_warrant' => 1,
             ],
             [
                 'id' => 18,
@@ -197,9 +215,10 @@ class PermissionsSeed extends AbstractSeed
                 'authorization_type_id' => 8,
                 'require_active_membership' => 1,
                 'require_active_background_check' => 1,
-                'require_min_age' => 0,
+                'require_min_age' => 18,
                 'system' => 0,
                 'is_super_user' => 0,
+                'requires_warrant' => 1,
             ],
             [
                 'id' => 19,
@@ -210,6 +229,7 @@ class PermissionsSeed extends AbstractSeed
                 'require_min_age' => 18,
                 'system' => 0,
                 'is_super_user' => 0,
+                'requires_warrant' => 1,
             ],
         ];
 
