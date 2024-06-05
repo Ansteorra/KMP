@@ -11,12 +11,12 @@ use Cake\ORM\Entity;
  *
  * @property int $id
  * @property int $member_id
- * @property int $authorization_type_id
+ * @property int $activity_id
  * @property \Cake\I18n\Date $expires_on
  * @property \Cake\I18n\Date|null $start_on
  *
  * @property \App\Model\Entity\Member $member
- * @property \App\Model\Entity\AuthorizationType $authorization_type
+ * @property \App\Model\Entity\Activity $activity
  * @property \App\Model\Entity\AuthorizationApproval[] $authorization_approvals
  */
 class Authorization extends Entity
@@ -32,11 +32,11 @@ class Authorization extends Entity
      */
     protected array $_accessible = [
         "member_id" => true,
-        "authorization_type_id" => true,
+        "activity_id" => true,
         "expires_on" => true,
         "start_on" => true,
         "member" => true,
-        "authorization_type" => true,
+        "activity" => true,
         "authorization_approvals" => true,
     ];
 }

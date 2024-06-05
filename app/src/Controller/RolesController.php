@@ -57,7 +57,7 @@ class RolesController extends AppController
             contain: [
                 "MemberRoles.Members",
                 "MemberRoles.Approved_By",
-                "Permissions.AuthorizationTypes",
+                "Permissions.Activities",
                 "Permissions",
             ],
         );

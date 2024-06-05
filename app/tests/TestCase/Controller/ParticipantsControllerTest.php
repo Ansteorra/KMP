@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Controller;
@@ -23,7 +24,7 @@ class MembersControllerTest extends TestCase
      */
     protected array $fixtures = [
         "app.Members",
-        "app.MemberAuthorizationTypes",
+        "app.MemberActivities",
         "app.PendingAuthorizations",
         "app.PendingAuthorizationsToApprove",
         "app.Roles",

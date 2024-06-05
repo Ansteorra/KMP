@@ -65,7 +65,7 @@ usort($denied, function ($a, $b) {
                 <tbody>
                     <?php foreach ($pending as $request) {
                         $hasMoreApprovalsToGo = false;
-                        $authsNeeded = $request->authorization->is_renewal ? $request->authorization->authorization_type->num_required_renewers : $request->authorization->authorization_type->num_required_authorizors;
+                        $authsNeeded = $request->authorization->is_renewal ? $request->authorization->activity->num_required_renewers : $request->authorization->activity->num_required_authorizors;
                         $hasMoreApprovalsToGo = ($authsNeeded - $request->authorization->approval_count) > 1;
                     ?>
                         <tr>
@@ -74,7 +74,7 @@ usort($denied, function ($a, $b) {
                                 ) ?></td>
                             <td><?= h($request->requested_on) ?></td>
                             <td><?= h(
-                                    $request->authorization->authorization_type
+                                    $request->authorization->activity
                                         ->name,
                                 ) ?></td>
                             <td class="actions">
@@ -90,7 +90,7 @@ usort($denied, function ($a, $b) {
                                                 $request->authorization->member
                                                     ->sca_name,
                                                 $request->authorization
-                                                    ->authorization_type->name,
+                                                    ->activity->name,
                                             ),
                                             "title" => __("Approve"),
                                             "class" => "btn btn-primary",
@@ -125,7 +125,7 @@ usort($denied, function ($a, $b) {
                             <td><?= h($request->requested_on) ?></td>
                             <td><?= h($request->responded_on) ?></td>
                             <td><?= h(
-                                    $request->authorization->authorization_type
+                                    $request->authorization->activity
                                         ->name,
                                 ) ?></td>
                         </tr>
@@ -155,7 +155,7 @@ usort($denied, function ($a, $b) {
                             <td><?= h($request->requested_on) ?></td>
                             <td><?= h($request->responded_on) ?></td>
                             <td><?= h(
-                                    $request->authorization->authorization_type
+                                    $request->authorization->activity
                                         ->name,
                                 ) ?></td>
                             <td><?= h($request->approver_notes) ?></td>

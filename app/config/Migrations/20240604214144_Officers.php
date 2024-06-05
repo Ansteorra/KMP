@@ -1,0 +1,258 @@
+<?php
+
+declare(strict_types=1);
+
+use Migrations\AbstractMigration;
+use Cake\ORM\TableRegistry;
+
+class Officers extends AbstractMigration
+{
+    public bool $autoId = false;
+
+    public function up(): void
+    {
+        $this->table("departments")
+            ->addColumn("id", "integer", [
+                "autoIncrement" => true,
+                "default" => null,
+                "limit" => 11,
+                "null" => false,
+            ])
+            ->addPrimaryKey(["id"])
+            ->addColumn("name", "string", [
+                "default" => null,
+                "limit" => 255,
+                "null" => false,
+            ])
+            ->addIndex(["name"], ["unique" => true])
+            ->addColumn("deleted", "date", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
+            ->create();
+
+        $this->table("offices")
+            ->addColumn("id", "integer", [
+                "autoIncrement" => true,
+                "default" => null,
+                "limit" => 11,
+                "null" => false,
+            ])
+            ->addPrimaryKey(["id"])
+            ->addColumn("name", "string", [
+                "default" => null,
+                "limit" => 255,
+                "null" => false,
+            ])
+            ->addColumn("department_id", "integer", [
+                "default" => null,
+                "limit" => 11,
+                "null" => true,
+            ])
+            ->addColumn("requires_warrant", "boolean", [
+                "default" => false,
+                "limit" => null,
+                "null" => false,
+            ])
+            ->addColumn("obly_one_per_branch", "boolean", [
+                "default" => false,
+                "limit" => null,
+                "null" => false,
+            ])
+            ->addColumn("is_at_large", "boolean", [
+                "default" => false,
+                "limit" => null,
+                "null" => false,
+            ])
+            ->addColumn("deputy_to_id", "integer", [
+                "default" => null,
+                "limit" => 11,
+                "null" => true,
+            ])
+            ->addColumn("grants_role_id", "integer", [
+                "default" => null,
+                "limit" => 11,
+                "null" => true,
+            ])
+            ->addColumn("length", "integer", [
+                "default" => null,
+                "limit" => 11,
+                "null" => false,
+            ])
+            ->addIndex(["name"], ["unique" => true])
+            ->addColumn("deleted", "date", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
+            ->addIndex(["department_id"])
+            ->create();
+
+        $this->table("officers")
+            ->addColumn("id", "integer", [
+                "autoIncrement" => true,
+                "default" => null,
+                "limit" => 11,
+                "null" => false,
+            ])
+            ->addPrimaryKey(["id"])
+            ->addColumn("member_id", "integer", [
+                "default" => null,
+                "limit" => 11,
+                "null" => false,
+            ])
+            ->addColumn("branch_id", "integer", [
+                "default" => null,
+                "limit" => 11,
+                "null" => false,
+            ])
+            ->addColumn("office_id", "integer", [
+                "default" => null,
+                "limit" => 11,
+                "null" => false,
+            ])
+            ->addColumn("granted_member_role_id", "integer", [
+                "default" => null,
+                "limit" => 11,
+                "null" => true,
+            ])
+            ->addColumn("expires_on", "date", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
+            ->addColumn("start_on", "date", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
+            ->addColumn("status", "string", [
+                "default" => "new",
+                "limit" => 20,
+                "null" => false,
+            ])
+            ->addColumn("revoked_reason", "string", [
+                "default" => "",
+                "limit" => 255,
+                "null" => true,
+            ])
+            ->addColumn("revoker_id", "integer", [
+                "default" => null,
+                "limit" => 11,
+                "null" => true,
+            ])
+            ->addIndex(["branch_id"])
+            ->addIndex(["office_id"])
+            ->addIndex(["member_id"])
+            ->create();
+
+
+        $this->table("offices")
+            ->addForeignKey(
+                "department_id",
+                "departments",
+                "id",
+                [
+                    "update" => "NO_ACTION",
+                    "delete" => "NO_ACTION",
+                ],
+            )
+            ->update();
+        $this->table("officers")
+            ->addForeignKey(
+                "branch_id",
+                "branches",
+                "id",
+                [
+                    "update" => "NO_ACTION",
+                    "delete" => "NO_ACTION",
+                ],
+            )
+            ->addForeignKey(
+                "member_id",
+                "members",
+                "id",
+                [
+                    "update" => "NO_ACTION",
+                    "delete" => "NO_ACTION",
+                ],
+            )
+            ->addForeignKey(
+                "office_id",
+                "offices",
+                "id",
+                [
+                    "update" => "NO_ACTION",
+                    "delete" => "NO_ACTION",
+                ],
+            )
+            ->update();
+        $permissionsTbl = TableRegistry::getTableLocator()->get("Permissions");
+        $permissionsTbl->save(
+            $permissionsTbl->newEntity([
+                "name" => "Can Manage Offices",
+                "require_active_membership" => true,
+                "require_active_background_check" => false,
+                "require_min_age" => 0,
+                "system" => true,
+                "is_super_user" => false,
+                "requires_warrant" => true,
+            ])
+        );
+        $permissionsTbl->save(
+            $permissionsTbl->newEntity([
+                "name" => "Can Manage Officers",
+                "require_active_membership" => true,
+                "require_active_background_check" => false,
+                "require_min_age" => 0,
+                "system" => true,
+                "is_super_user" => false,
+                "requires_warrant" => true,
+            ])
+        );
+
+        $permissionsTbl->save(
+            $permissionsTbl->newEntity([
+                "name" => "Can Manage Departments",
+                "require_active_membership" => true,
+                "require_active_background_check" => false,
+                "require_min_age" => 0,
+                "system" => true,
+                "is_super_user" => false,
+                "requires_warrant" => true,
+            ])
+        );
+    }
+
+
+
+    public function down()
+    {
+        $this->table("offices")
+            ->dropForeignKey(
+                "department_id"
+            )
+            ->save();
+        $this->table("officers")
+            ->dropForeignKey(
+                "branch_id"
+            )
+            ->dropForeignKey(
+                "member_id"
+            )
+            ->dropForeignKey(
+                "office_id"
+            )
+            ->save();
+
+        $this->table("officers")->drop()->save();
+        $this->table("offices")->drop()->save();
+        $this->table("departments")->drop()->save();
+
+        $permissionsTbl = TableRegistry::getTableLocator()->get("Permissions");
+        $permissionsTbl->deleteAll(["name" => "Can Manage Offices"]);
+        $permissionsTbl->deleteAll(["name" => "Can Manage Officers"]);
+        $permissionsTbl->deleteAll(["name" => "Can Manage Departments"]);
+    }
+}

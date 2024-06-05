@@ -13,7 +13,7 @@ use Cake\Validation\Validator;
  * Authorizations Model
  *
  * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $Members
- * @property \App\Model\Table\AuthorizationTypesTable&\Cake\ORM\Association\BelongsTo $AuthorizationTypes
+ * @property \App\Model\Table\ActivitiesTable&\Cake\ORM\Association\BelongsTo $Activities
  * @property \App\Model\Table\AuthorizationApprovalsTable&\Cake\ORM\Association\HasMany $AuthorizationApprovals
  *
  * @method \App\Model\Entity\Authorization newEmptyEntity()
@@ -54,8 +54,8 @@ class AuthorizationsTable extends Table
             "foreignKey" => "granted_member_role_id",
             "joinType" => "INNER",
         ]);
-        $this->belongsTo("AuthorizationTypes", [
-            "foreignKey" => "authorization_type_id",
+        $this->belongsTo("Activities", [
+            "foreignKey" => "activity_id",
             "joinType" => "INNER",
         ]);
         $this->belongsTo("Revokers", [
@@ -82,8 +82,8 @@ class AuthorizationsTable extends Table
         $validator->integer("member_id")->notEmptyString("member_id");
 
         $validator
-            ->integer("authorization_type_id")
-            ->notEmptyString("authorization_type_id");
+            ->integer("activity_id")
+            ->notEmptyString("activity_id");
 
         $validator
             ->date("expires_on")
@@ -108,8 +108,8 @@ class AuthorizationsTable extends Table
             "errorField" => "member_id",
         ]);
         $rules->add(
-            $rules->existsIn(["authorization_type_id"], "AuthorizationTypes"),
-            ["errorField" => "authorization_type_id"],
+            $rules->existsIn(["activity_id"], "Activities"),
+            ["errorField" => "activity_id"],
         );
 
         return $rules;

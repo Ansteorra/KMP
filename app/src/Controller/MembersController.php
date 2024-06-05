@@ -163,10 +163,10 @@ class MembersController extends AppController
                 "Notes.Authors" => function (SelectQuery $q) {
                     return $q->select(["Authors.sca_name"]);
                 },
-                "Authorizations.AuthorizationTypes" => function (
+                "Authorizations.Activities" => function (
                     SelectQuery $q,
                 ) {
-                    return $q->select(["AuthorizationTypes.name", "AuthorizationTypes.id"]);
+                    return $q->select(["Activities.name", "Activities.id"]);
                 },
                 "Authorizations.Revokers" => function (SelectQuery $q) {
                     return $q->select(["Revokers.sca_name"]);
@@ -202,10 +202,10 @@ class MembersController extends AppController
         // Create the new Note form
         $newNote = $this->Members->Notes->newEmptyEntity();
         $authTypeTable = TableRegistry::getTableLocator()->get(
-            "AuthorizationTypes",
+            "Activities",
         );
         // Get the list of authorization types the member can request based on their age
-        $authorization_types = $authTypeTable->find("list")->where([
+        $activities = $authTypeTable->find("list")->where([
             "minimum_age <" => $member->age,
             "maximum_age >" => $member->age,
         ]);
@@ -267,7 +267,7 @@ class MembersController extends AppController
             compact(
                 "member",
                 "newNote",
-                "authorization_types",
+                "activities",
                 "treeList",
                 "passwordReset",
                 "memberForm",
@@ -293,15 +293,15 @@ class MembersController extends AppController
                         "Authorizations.expires_on >" => DateTime::now(),
                     ]);
                 },
-                "Authorizations.AuthorizationTypes.AuthorizationGroups" => function (
+                "Authorizations.Activities.ActivityGroups" => function (
                     SelectQuery $q,
                 ) {
-                    return $q->select(["AuthorizationGroups.name"]);
+                    return $q->select(["ActivityGroups.name"]);
                 },
-                "Authorizations.AuthorizationTypes" => function (
+                "Authorizations.Activities" => function (
                     SelectQuery $q,
                 ) {
-                    return $q->select(["AuthorizationTypes.name"]);
+                    return $q->select(["Activities.name"]);
                 },
             ])
             ->where(["Members.id" => $id])
@@ -311,8 +311,8 @@ class MembersController extends AppController
         $permissions = $member->getPermissions();
         $authTypes = [];
         foreach ($permissions as $permission) {
-            if ($permission->authorization_type != null) {
-                $authTypes[] = $permission->authorization_type->name;
+            if ($permission->activity != null) {
+                $authTypes[] = $permission->activity->name;
             }
         }
         $authTypes = array_unique($authTypes);
@@ -529,7 +529,7 @@ class MembersController extends AppController
         $this->Authorization->skipAuthorization();
         $this->request->allowMethod(["get"]);
         $this->viewBuilder()->setClassName("Ajax");
-        $query = $this->Members->getCurrentAuthorizationTypeApprovers($authId);
+        $query = $this->Members->getCurrentActivityApprovers($authId);
         $query = $query
             ->where(["Members.id !=" => $memberId])
             ->orderBy(["Branches.name", "Members.sca_name"])
@@ -985,6 +985,8 @@ class MembersController extends AppController
                     return $this->redirect(["action" => "view", $member->id]);
                 }
             }
+            $member->verified_by = $this->Authentication->getIdentity()->getIdentifier();
+            $member->verified_date = DateTime::now();
             if (!$this->Members->save($member)) {
                 $this->Flash->error(
                     __("The Member could not be verified. Please, try again."),

@@ -3,7 +3,7 @@
 /**
  * @var \App\View\AppView $this
  * @var \App\Model\Entity\Member $Member
- * @var \App\Model\Entity\MemberAuthorizationType[]|\Cake\Collection\CollectionInterface $MemberAuthorizationTypes
+ * @var \App\Model\Entity\MemberActivity[]|\Cake\Collection\CollectionInterface $MemberActivities
  * @var \App\Model\Entity\PendingAuthorization[]|\Cake\Collection\CollectionInterface $pendingAuthorizations
  * @var \App\Model\Entity\Role[]|\Cake\Collection\CollectionInterface $roles
  */
@@ -49,7 +49,7 @@
                         <select name="birth_month" id="birth-month" class="form-select" required="required">
                             <option value=""></option>
                             <?php foreach ($months as $index => $value) : ?>
-                            <option value="<?= $index ?>"><?= $value ?></option>
+                                <option value="<?= $index ?>"><?= $value ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -57,7 +57,7 @@
                         <select name="birth_year" id="birth-year" class="form-select" required="required">
                             <option value=""></option>
                             <?php foreach ($years as $index => $value) : ?>
-                            <option value="<?= $index ?>"><?= $value ?></option>
+                                <option value="<?= $index ?>"><?= $value ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>

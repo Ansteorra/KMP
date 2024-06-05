@@ -12,7 +12,7 @@ use Cake\Validation\Validator;
 /**
  * Permissions Model
  *
- * @property \App\Model\Table\AuthorizationTypesTable&\Cake\ORM\Association\BelongsTo $AuthorizationTypes
+ * @property \App\Model\Table\ActivitiesTable&\Cake\ORM\Association\BelongsTo $Activities
  * @property \App\Model\Table\RolesTable&\Cake\ORM\Association\BelongsToMany $Roles
  *
  * @method \App\Model\Entity\Permission newEmptyEntity()
@@ -45,8 +45,8 @@ class PermissionsTable extends Table
         $this->setDisplayField("name");
         $this->setPrimaryKey("id");
 
-        $this->belongsTo("AuthorizationTypes", [
-            "foreignKey" => "authorization_type_id",
+        $this->belongsTo("Activities", [
+            "foreignKey" => "activity_id",
         ]);
         $this->belongsToMany("Roles", [
             "foreignKey" => "permission_id",
@@ -70,8 +70,8 @@ class PermissionsTable extends Table
             ->notEmptyString("name");
 
         $validator
-            ->integer("authorization_type_id")
-            ->allowEmptyString("authorization_type_id");
+            ->integer("activity_id")
+            ->allowEmptyString("activity_id");
 
         $validator
             ->boolean("require_active_membership")
@@ -102,8 +102,8 @@ class PermissionsTable extends Table
     public function buildRules(RulesChecker $rules): RulesChecker
     {
         $rules->add(
-            $rules->existsIn(["authorization_type_id"], "AuthorizationTypes"),
-            ["errorField" => "authorization_type_id"],
+            $rules->existsIn(["activity_id"], "Activities"),
+            ["errorField" => "activity_id"],
         );
 
         return $rules;

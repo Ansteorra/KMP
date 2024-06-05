@@ -18,10 +18,9 @@ $user = $this->request->getAttribute("identity");
             </h3>
         </div>
         <div class="col text-end">
-            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
-                data-bs-target="#editModal">Edit</button>
+            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal">Edit</button>
             <?php if (!$permission->system) { ?>
-            <?= $this->Form->postLink(
+                <?= $this->Form->postLink(
                     __("Delete"),
                     ["action" => "delete", $permission->id],
                     [
@@ -43,14 +42,14 @@ $user = $this->request->getAttribute("identity");
                 <td><?= h($permission->name) ?></td>
             </tr>
             <tr scope="row">
-                <th class='col'><?= __("Authorization Type") ?></th>
+                <th class='col'><?= __("Activity") ?></th>
                 <td class="col-10"><?= $permission->hasValue(
-                                        "authorization_type",
+                                        "activity",
                                     )
-                                        ? $this->Html->link($permission->authorization_type->name, [
-                                            "controller" => "AuthorizationTypes",
+                                        ? $this->Html->link($permission->activity->name, [
+                                            "controller" => "Activities",
                                             "action" => "view",
-                                            $permission->authorization_type->id,
+                                            $permission->activity->id,
                                         ])
                                         : "" ?></td>
             </tr>
@@ -98,23 +97,22 @@ $user = $this->request->getAttribute("identity");
     <div class="related">
         <h4><?= __("Related Roles") ?> :
             <?php if ($user->can("addPermission", "Roles")) { ?>
-            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
-                data-bs-target="#addRoleModal">Add Role</button>
+                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addRoleModal">Add Role</button>
             <?php } ?>
         </h4>
         <?php if (!empty($permission->roles)) : ?>
-        <div class="table-responsive">
-            <table class="table table-striped">
-                <tr>
-                    <th scope="col"><?= __("Name") ?></th>
-                    <th scope="col" class="actions"><?= __("Actions") ?></th>
-                </tr>
-                <?php foreach ($permission->roles as $role) : ?>
-                <tr>
-                    <td><?= h($role->name) ?></td>
-                    <td class="actions">
-                        <?php if ($user->can("deletePermission", "Roles")) { ?>
-                        <?= $this->Form->postLink(
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <tr>
+                        <th scope="col"><?= __("Name") ?></th>
+                        <th scope="col" class="actions"><?= __("Actions") ?></th>
+                    </tr>
+                    <?php foreach ($permission->roles as $role) : ?>
+                        <tr>
+                            <td><?= h($role->name) ?></td>
+                            <td class="actions">
+                                <?php if ($user->can("deletePermission", "Roles")) { ?>
+                                    <?= $this->Form->postLink(
                                         __("Remove"),
                                         [
                                             "controller" => "Roles",
@@ -132,12 +130,12 @@ $user = $this->request->getAttribute("identity");
                                             ],
                                         ],
                                     ) ?>
-                        <?php } ?>
-                    </td>
-                </tr>
-                <?php endforeach; ?>
-            </table>
-        </div>
+                                <?php } ?>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </table>
+            </div>
         <?php endif; ?>
     </div>
 </div>
@@ -200,9 +198,10 @@ $this->start("modals"); ?>
     } else {
         echo $this->Form->control("name");
     }
-    echo $this->Form->control("authorization_type_id", [
+    echo $this->Form->control("activity_id", [
         "options" => $authorizationTypes,
         "empty" => true,
+        "label" => "Authorizes Activity",
     ]);
     echo $this->Form->control("require_active_membership", [
         "switch" => true,

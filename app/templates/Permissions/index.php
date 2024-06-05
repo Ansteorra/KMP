@@ -13,63 +13,62 @@
     <thead>
         <tr>
             <th scope="col" colspan='2'></th>
-            <th scope="col" colspan='3' class="text-center table-active">Requirements</th>
+            <th scope="col" colspan='4' class="text-center table-active">Requirements</th>
             <th scope="col" colspan='2'></th>
         </tr>
         <tr>
             <th scope="col"><?= $this->Paginator->sort("name") ?></th>
-            <th scope="col"><?= $this->Paginator->sort(
-                                "authorization_type_id",
-                            ) ?></th>
+            <th scope="col"><?= __("Authorizes Activity") ?></th>
             <th scope="col" class="text-center"><?= __("Membership") ?></th>
             <th scope="col" class="text-center"><?= __(
                                                     "Background Check",
                                                 ) ?></th>
             <th scope="col" class="text-center"><?= __("Minimum Age") ?></th>
+            <th scope="col" class="text-center"><?= __("Warrant") ?></th>
             <th scope="col" class="text-center"><?= __("Super User") ?></th>
-            <th scope="col" class="text-center"><?= __("Requires Warrant") ?></th>
             <th scope="col" class="text-center"><?= __("System") ?></th>
             <th scope="col" class="actions"><?= __("Actions") ?></th>
         </tr>
     </thead>
     <tbody>
         <?php foreach ($permissions as $permission) : ?>
-        <tr>
-            <td><?= h($permission->name) ?></td>
-            <td><?= h(
-                        $permission->authorization_type === null
+            <tr>
+                <td><?= h($permission->name) ?></td>
+                <td><?= h(
+                        $permission->activity === null
                             ? ""
-                            : $permission->authorization_type->name,
+                            : $permission->activity->name,
                     ) ?></td>
-            <td class="text-center"><?= $this->Kmp->bool(
+                <td class="text-center"><?= $this->Kmp->bool(
                                             $permission->require_active_membership,
                                             $this->Html,
                                         ) ?></td>
-            <td class="text-center"><?= $this->Kmp->bool(
+                <td class="text-center"><?= $this->Kmp->bool(
                                             $permission->require_active_background_check,
                                             $this->Html,
                                         ) ?></td>
-            <td class="text-center"><?= h($permission->require_min_age) ?></td>
-            <td class="text-center"><?= $this->Kmp->bool(
-                                            $permission->is_super_user,
-                                            $this->Html,
-                                        ) ?></td>
-            <td class="text-center"><?= $this->Kmp->bool(
+                <td class="text-center"><?= h($permission->require_min_age) ?></td>
+                <td class="text-center"><?= $this->Kmp->bool(
                                             $permission->requires_warrant,
                                             $this->Html,
                                         ) ?></td>
-            <td class="text-center"><?= $this->Kmp->bool(
+                <td class="text-center"><?= $this->Kmp->bool(
+                                            $permission->is_super_user,
+                                            $this->Html,
+                                        ) ?></td>
+
+                <td class="text-center"><?= $this->Kmp->bool(
                                             $permission->system,
                                             $this->Html,
                                         ) ?></td>
-            <td class="actions">
-                <?= $this->Html->link(
+                <td class="actions">
+                    <?= $this->Html->link(
                         __("View"),
                         ["action" => "view", $permission->id],
                         ["title" => __("View"), "class" => "btn btn-secondary"],
                     ) ?>
-            </td>
-        </tr>
+                </td>
+            </tr>
         <?php endforeach; ?>
     </tbody>
 </table>

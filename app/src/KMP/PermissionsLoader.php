@@ -27,8 +27,8 @@ class PermissionsLoader
         $query = $permissionsTable
             ->find()
             ->contain([
-                "AuthorizationTypes" => function (SelectQuery $q) {
-                    return $q->select(["AuthorizationTypes.name"]);
+                "Activities" => function (SelectQuery $q) {
+                    return $q->select(["Activities.name"]);
                 },
             ])
             ->innerJoinWith("Roles.Members")
@@ -71,8 +71,8 @@ class PermissionsLoader
         return $query;
     }
 
-    public static function getCurrentAuthorizationTypeApprovers(
-        $authorization_type_id,
+    public static function getCurrentActivityApprovers(
+        $activity_id,
     ) {
         $memberTable = TableRegistry::getTableLocator()->get("Members");
         $now = DateTime::now();
@@ -89,7 +89,7 @@ class PermissionsLoader
             ->innerJoinWith("Roles.Permissions")
             ->where([
                 "OR" => [
-                    "Permissions.authorization_type_id" => $authorization_type_id,
+                    "Permissions.activity_id" => $activity_id,
                     "Permissions.is_super_user" => true,
                 ],
             ])

@@ -8,7 +8,7 @@ use App\Model\Entity\BranchesTable;
 use Authorization\IdentityInterface;
 
 /**
- * AuthorizationGroupsTable policy
+ * ActivityGroupsTable policy
  */
 class BranchesTablePolicy extends BasePolicy
 {

@@ -1,0 +1,103 @@
+<?php
+declare(strict_types=1);
+
+namespace App\Controller;
+
+/**
+ * Offices Controller
+ *
+ * @property \App\Model\Table\OfficesTable $Offices
+ */
+class OfficesController extends AppController
+{
+    /**
+     * Index method
+     *
+     * @return \Cake\Http\Response|null|void Renders view
+     */
+    public function index()
+    {
+        $query = $this->Offices->find()
+            ->contain(['Departments']);
+        $offices = $this->paginate($query);
+
+        $this->set(compact('offices'));
+    }
+
+    /**
+     * View method
+     *
+     * @param string|null $id Office id.
+     * @return \Cake\Http\Response|null|void Renders view
+     * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
+     */
+    public function view($id = null)
+    {
+        $office = $this->Offices->get($id, contain: ['Departments', 'Officers']);
+        $this->set(compact('office'));
+    }
+
+    /**
+     * Add method
+     *
+     * @return \Cake\Http\Response|null|void Redirects on successful add, renders view otherwise.
+     */
+    public function add()
+    {
+        $office = $this->Offices->newEmptyEntity();
+        if ($this->request->is('post')) {
+            $office = $this->Offices->patchEntity($office, $this->request->getData());
+            if ($this->Offices->save($office)) {
+                $this->Flash->success(__('The office has been saved.'));
+
+                return $this->redirect(['action' => 'index']);
+            }
+            $this->Flash->error(__('The office could not be saved. Please, try again.'));
+        }
+        $departments = $this->Offices->Departments->find('list', limit: 200)->all();
+        $this->set(compact('office', 'departments'));
+    }
+
+    /**
+     * Edit method
+     *
+     * @param string|null $id Office id.
+     * @return \Cake\Http\Response|null|void Redirects on successful edit, renders view otherwise.
+     * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
+     */
+    public function edit($id = null)
+    {
+        $office = $this->Offices->get($id, contain: []);
+        if ($this->request->is(['patch', 'post', 'put'])) {
+            $office = $this->Offices->patchEntity($office, $this->request->getData());
+            if ($this->Offices->save($office)) {
+                $this->Flash->success(__('The office has been saved.'));
+
+                return $this->redirect(['action' => 'index']);
+            }
+            $this->Flash->error(__('The office could not be saved. Please, try again.'));
+        }
+        $departments = $this->Offices->Departments->find('list', limit: 200)->all();
+        $this->set(compact('office', 'departments'));
+    }
+
+    /**
+     * Delete method
+     *
+     * @param string|null $id Office id.
+     * @return \Cake\Http\Response|null Redirects to index.
+     * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
+     */
+    public function delete($id = null)
+    {
+        $this->request->allowMethod(['post', 'delete']);
+        $office = $this->Offices->get($id);
+        if ($this->Offices->delete($office)) {
+            $this->Flash->success(__('The office has been deleted.'));
+        } else {
+            $this->Flash->error(__('The office could not be deleted. Please, try again.'));
+        }
+
+        return $this->redirect(['action' => 'index']);
+    }
+}

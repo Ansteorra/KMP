@@ -44,9 +44,7 @@ $this->start("tb_body_start");
                 ) ?>
             </li>
             <li class="nav-item text-nowrap">
-                <button class="navbar-toggler position-absolute d-md-none collapsed" type="button"
-                    data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu"
-                    aria-expanded="false" aria-label="Toggle navigation">
+                <button class="navbar-toggler position-absolute d-md-none collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
                 </button>
             </li>
@@ -330,38 +328,38 @@ $this->start("tb_body_start");
                                     ],
                                     [
                                         "type" => "link",
-                                        "label" => "Authorization Groups",
+                                        "label" => "Activity Groups",
                                         "url" => [
-                                            "controller" => "AuthorizationGroups",
+                                            "controller" => "ActivityGroups",
                                             "action" => "index",
                                         ],
                                         "icon" => "bi-archive",
                                         "activeUrls" => [
                                             [
                                                 "controller" =>
-                                                "AuthorizationGroups",
+                                                "ActivityGroups",
                                                 "action" => "index",
                                                 "*",
                                             ],
                                             [
                                                 "controller" =>
-                                                "AuthorizationGroups",
+                                                "ActivityGroups",
                                                 "action" => "add",
                                                 "*",
                                             ],
                                             [
                                                 "controller" =>
-                                                "AuthorizationGroups",
+                                                "ActivityGroups",
                                                 "action" => "view",
                                                 "*",
                                             ],
                                         ],
                                         "sublinks" => [
                                             [
-                                                "label" => "New Auth Group",
+                                                "label" => "New Activity Group",
                                                 "url" => [
                                                     "controller" =>
-                                                    "AuthorizationGroups",
+                                                    "ActivityGroups",
                                                     "action" => "add",
                                                 ],
                                                 "icon" => "bi-plus",
@@ -370,38 +368,74 @@ $this->start("tb_body_start");
                                     ],
                                     [
                                         "type" => "link",
-                                        "label" => "Authorization Types",
+                                        "label" => "Activities",
                                         "url" => [
-                                            "controller" => "AuthorizationTypes",
+                                            "controller" => "Activities",
                                             "action" => "index",
                                         ],
                                         "icon" => "bi-collection",
                                         "activeUrls" => [
                                             [
                                                 "controller" =>
-                                                "AuthorizationTypes",
+                                                "Activities",
                                                 "action" => "index",
                                                 "*",
                                             ],
                                             [
                                                 "controller" =>
-                                                "AuthorizationTypes",
+                                                "Activities",
                                                 "action" => "add",
                                                 "*",
                                             ],
                                             [
                                                 "controller" =>
-                                                "AuthorizationTypes",
+                                                "Activities",
                                                 "action" => "view",
                                                 "*",
                                             ],
                                         ],
                                         "sublinks" => [
                                             [
-                                                "label" => "New Auth Type",
+                                                "label" => "New Activity",
                                                 "url" => [
                                                     "controller" =>
-                                                    "AuthorizationTypes",
+                                                    "Activities",
+                                                    "action" => "add",
+                                                ],
+                                                "icon" => "bi-plus",
+                                            ],
+                                        ],
+                                    ],
+                                    [
+                                        "type" => "link",
+                                        "label" => "Departments",
+                                        "url" => [
+                                            "controller" => "Departments",
+                                            "action" => "index",
+                                        ],
+                                        "icon" => "bi-building",
+                                        "activeUrls" => [
+                                            [
+                                                "controller" => "Departments",
+                                                "action" => "index",
+                                                "*",
+                                            ],
+                                            [
+                                                "controller" => "Departments",
+                                                "action" => "add",
+                                                "*",
+                                            ],
+                                            [
+                                                "controller" => "Departments",
+                                                "action" => "view",
+                                                "*",
+                                            ],
+                                        ],
+                                        "sublinks" => [
+                                            [
+                                                "label" => "New Departments",
+                                                "url" => [
+                                                    "controller" => "Departments",
                                                     "action" => "add",
                                                 ],
                                                 "icon" => "bi-plus",

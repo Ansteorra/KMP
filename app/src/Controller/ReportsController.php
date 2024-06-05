@@ -125,9 +125,9 @@ class ReportsController extends AppController
     {
         $this->Authorization->authorize($this);
         $distincMemberCount = 0;
-        $AuthorizationTypesTbl
-            = TableRegistry::getTableLocator()->get('AuthorizationTypes');
-        $authorizationTypesList = $AuthorizationTypesTbl->find('list')->orderBy(['name' => 'ASC']);
+        $ActivitiesTbl
+            = TableRegistry::getTableLocator()->get('Activities');
+        $authorizationTypesList = $ActivitiesTbl->find('list')->orderBy(['name' => 'ASC']);
         $validOn = DateTime::now();
         $memberRollup  = [];
         $memberListQuery = [];
@@ -144,12 +144,12 @@ class ReportsController extends AppController
                         "start_on IS" => null
                     ],
                     "expires_on >" => $validOn,
-                    "authorization_type_id IN" => $authorizations
+                    "activity_id IN" => $authorizations
                 ])
                 ->distinct('member_id')
                 ->count();
             $memberListQuery = $authTbl->find('all')
-                ->contain(['AuthorizationTypes' => function ($q) {
+                ->contain(['Activities' => function ($q) {
                     return $q->select(['name']);
                 }, 'Members' => function ($q) {
                     return $q->select(['membership_number', 'sca_name', 'id']);
@@ -162,13 +162,13 @@ class ReportsController extends AppController
                         "start_on IS" => null
                     ],
                     "expires_on >" => $validOn,
-                    "authorization_type_id IN" => $authorizations
+                    "activity_id IN" => $authorizations
                 ])
-                ->order(['AuthorizationTypes.name' => 'ASC', 'Members.sca_name' => 'ASC'])
+                ->order(['Activities.name' => 'ASC', 'Members.sca_name' => 'ASC'])
                 ->all();
-            $authTypes = $authTbl->find('all')->contain('AuthorizationTypes');
+            $authTypes = $authTbl->find('all')->contain('Activities');
             $memberRollup = $authTypes
-                ->select(["auth" => 'AuthorizationTypes.name', "count" => $authTypes->func()->count('member_id')])
+                ->select(["auth" => 'Activities.name', "count" => $authTypes->func()->count('member_id')])
                 ->where(["start_on <" => $validOn])
                 ->where([
                     "or" => [
@@ -176,9 +176,9 @@ class ReportsController extends AppController
                         "start_on IS" => null
                     ],
                     "expires_on >" => $validOn,
-                    "authorization_type_id IN" => $authorizations
+                    "activity_id IN" => $authorizations
                 ])
-                ->groupBy(['AuthorizationTypes.name'])
+                ->groupBy(['Activities.name'])
                 ->all();
         }
 

@@ -213,9 +213,9 @@ class MembersTable extends Table
     }
 
 
-    static function getCurrentAuthorizationTypeApprovers($auth_id)
+    static function getCurrentActivityApprovers($auth_id)
     {
-        return PermissionsLoader::getCurrentAuthorizationTypeApprovers(
+        return PermissionsLoader::getCurrentActivityApprovers(
             $auth_id,
         );
     }

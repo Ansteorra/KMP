@@ -24,7 +24,7 @@ class PermissionsController extends AppController
     public function index()
     {
         $this->Authorization->authorizeAction();
-        $query = $this->Permissions->find()->contain(["AuthorizationTypes"]);
+        $query = $this->Permissions->find()->contain(["Activities"]);
         $query = $this->Authorization->applyScope($query);
         $permissions = $this->paginate($query);
 
@@ -42,7 +42,7 @@ class PermissionsController extends AppController
     {
         $permission = $this->Permissions->get(
             $id,
-            contain: ["AuthorizationTypes", "Roles"],
+            contain: ["Activities", "Roles"],
         );
         $this->Authorization->authorize($permission);
         //Get all the roles not already assigned to the permission
@@ -59,7 +59,7 @@ class PermissionsController extends AppController
         } else {
             $roles = $this->Permissions->Roles->find("list")->all();
         }
-        $authorizationTypes = $this->Permissions->AuthorizationTypes
+        $authorizationTypes = $this->Permissions->Activities
             ->find("list", limit: 200)
             ->all();
         $this->set(compact("permission", "roles", "authorizationTypes"));
@@ -92,7 +92,7 @@ class PermissionsController extends AppController
                 __("The permission could not be saved. Please, try again."),
             );
         }
-        $authorizationTypes = $this->Permissions->AuthorizationTypes
+        $authorizationTypes = $this->Permissions->Activities
             ->find("list", limit: 200)
             ->all();
         $this->set(compact("permission", "authorizationTypes"));
@@ -128,7 +128,7 @@ class PermissionsController extends AppController
                 __("The permission could not be saved. Please, try again."),
             );
         }
-        $authorizationTypes = $this->Permissions->AuthorizationTypes
+        $authorizationTypes = $this->Permissions->Activities
             ->find("list", limit: 200)
             ->all();
         $roles = $this->Permissions->Roles->find("list", limit: 200)->all();

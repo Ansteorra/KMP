@@ -2,6 +2,8 @@
 
 use Migrations\AbstractMigration;
 
+require_once __DIR__ . '/../Seeds/InitSeed.php';
+
 class Init extends AbstractMigration
 {
     public bool $autoId = false;
@@ -16,7 +18,6 @@ class Init extends AbstractMigration
                 "default" => null,
                 "limit" => 11,
                 "null" => false,
-                "signed" => false,
             ])
             ->addPrimaryKey(["id"])
             ->addColumn("name", "string", [
@@ -52,7 +53,7 @@ class Init extends AbstractMigration
             ->addIndex(["lft"])
             ->create();
 
-        $this->table("authorization_groups")
+        $this->table("activity_groups")
             ->addColumn("id", "integer", [
                 "autoIncrement" => true,
                 "default" => null,
@@ -88,7 +89,7 @@ class Init extends AbstractMigration
             ])
             ->create();
 
-        $this->table("authorization_types")
+        $this->table("activities")
             ->addColumn("id", "integer", [
                 "autoIncrement" => true,
                 "default" => null,
@@ -106,7 +107,7 @@ class Init extends AbstractMigration
                 "limit" => 11,
                 "null" => false,
             ])
-            ->addColumn("authorization_groups_id", "integer", [
+            ->addColumn("activity_group_id", "integer", [
                 "default" => null,
                 "limit" => 11,
                 "null" => false,
@@ -142,7 +143,7 @@ class Init extends AbstractMigration
                 "null" => true,
             ])
             ->addIndex(["name"], ["unique" => true])
-            ->addIndex(["authorization_groups_id"])
+            ->addIndex(["activity_group_id"])
             ->create();
 
         $this->table("permissions")
@@ -158,7 +159,7 @@ class Init extends AbstractMigration
                 "limit" => 255,
                 "null" => false,
             ])
-            ->addColumn("authorization_type_id", "integer", [
+            ->addColumn("activity_id", "integer", [
                 "default" => null,
                 "limit" => 11,
                 "null" => true,
@@ -178,7 +179,7 @@ class Init extends AbstractMigration
                 "limit" => 2,
                 "null" => false,
             ])
-            ->addIndex(["authorization_type_id"])
+            ->addIndex(["activity_id"])
             ->addColumn("system", "boolean", [
                 "default" => false,
                 "limit" => null,
@@ -365,7 +366,6 @@ class Init extends AbstractMigration
                 "default" => null,
                 "limit" => 11,
                 "null" => true,
-                "signed" => false,
             ])
             ->addColumn("background_check_expires_on", "date", [
                 "default" => null,
@@ -452,7 +452,7 @@ class Init extends AbstractMigration
                 "limit" => 11,
                 "null" => false,
             ])
-            ->addColumn("authorization_type_id", "integer", [
+            ->addColumn("activity_id", "integer", [
                 "default" => null,
                 "limit" => 11,
                 "null" => false,
@@ -502,7 +502,7 @@ class Init extends AbstractMigration
                 "limit" => null,
                 "null" => false,
             ])
-            ->addIndex(["authorization_type_id"])
+            ->addIndex(["activity_id"])
             ->addIndex(["member_id"])
             ->create();
 
@@ -593,10 +593,10 @@ class Init extends AbstractMigration
         #endregion
         #region Relationships
 
-        $this->table("authorization_types")
+        $this->table("activities")
             ->addForeignKey(
-                "authorization_groups_id",
-                "authorization_groups",
+                "activity_group_id",
+                "activity_groups",
                 "id",
                 [
                     "update" => "NO_ACTION",
@@ -607,8 +607,8 @@ class Init extends AbstractMigration
 
         $this->table("authorizations")
             ->addForeignKey(
-                "authorization_type_id",
-                "authorization_types",
+                "activity_id",
+                "activities",
                 "id",
                 [
                     "update" => "NO_ACTION",
@@ -660,8 +660,8 @@ class Init extends AbstractMigration
 
         $this->table("permissions")
             ->addForeignKey(
-                "authorization_type_id",
-                "authorization_types",
+                "activity_id",
+                "activities",
                 "id",
                 [
                     "update" => "NO_ACTION",
@@ -681,16 +681,21 @@ class Init extends AbstractMigration
             ])
             ->update();
         #endregion
+        (new InitSeed())
+            ->setAdapter($this->getAdapter())
+            ->setInput($this->getInput())
+            ->setOutput($this->getOutput())
+            ->run();
     }
 
     public function down()
     {
-        $this->table("authorization_types")
-            ->dropForeignKey("authorization_groups_id")
+        $this->table("activities")
+            ->dropForeignKey("activity_group_id")
             ->save();
 
         $this->table("authorizations")
-            ->dropForeignKey("authorization_type_id")
+            ->dropForeignKey("activity_id")
             ->dropForeignKey("granted_member_role_id")
             ->dropForeignKey("member_id")
             ->save();
@@ -709,7 +714,7 @@ class Init extends AbstractMigration
         $this->table("roles_permissions")->dropForeignKey("role_id")->save();
 
         $this->table("permissions")
-            ->dropForeignKey("authorization_type_id")
+            ->dropForeignKey("activity_id")
             ->save();
 
         $this->table("notes")->drop()->save();
@@ -719,9 +724,9 @@ class Init extends AbstractMigration
         $this->table("authorizations")->drop()->save();
         $this->table("authorization_approvals")->drop()->save();
         $this->table("members")->drop()->save();
-        $this->table("authorization_types")->drop()->save();
+        $this->table("activities")->drop()->save();
         $this->table("branches")->drop()->save();
-        $this->table("authorization_groups")->drop()->save();
+        $this->table("activity_groups")->drop()->save();
         $this->table("roles")->drop()->save();
         $this->table("app_settings")->drop()->save();
     }

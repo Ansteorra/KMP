@@ -109,11 +109,11 @@ class AuthorizationApprovalsController extends AppController
                 "Authorizations.Members" => function ($q) {
                     return $q->select(["Members.sca_name"]);
                 },
-                "Authorizations.AuthorizationTypes" => function ($q) {
+                "Authorizations.Activities" => function ($q) {
                     return $q->select([
-                        "AuthorizationTypes.name",
-                        "AuthorizationTypes.num_required_authorizors",
-                        "AuthorizationTypes.num_required_renewers",
+                        "Activities.name",
+                        "Activities.num_required_authorizors",
+                        "Activities.num_required_renewers",
                     ]);
                 },
                 "Approvers" => function ($q) {
@@ -169,7 +169,7 @@ class AuthorizationApprovalsController extends AppController
             $id,
             contain: [
                 "Authorizations" => function ($q) {
-                    return $q->select(["Authorizations.authorization_type_id", 'Authorizations.member_id']);
+                    return $q->select(["Authorizations.activity_id", 'Authorizations.member_id']);
                 },
             ],
         );
@@ -188,8 +188,8 @@ class AuthorizationApprovalsController extends AppController
         $memberId = $this->Authentication->getIdentity()->getIdentifier();
         $previousApprovers[] = $memberId;
         $previousApprovers[] = $authorizationApproval->authorization->member_id;
-        $query = $this->AuthorizationApprovals->Authorizations->Members->getCurrentAuthorizationTypeApprovers(
-            $authorizationApproval->authorization->authorization_type_id,
+        $query = $this->AuthorizationApprovals->Authorizations->Members->getCurrentActivityApprovers(
+            $authorizationApproval->authorization->activity_id,
         );
         $query = $query
             ->where(["Members.id NOT IN " => $previousApprovers])

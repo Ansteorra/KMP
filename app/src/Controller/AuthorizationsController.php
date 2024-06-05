@@ -49,13 +49,13 @@ class AuthorizationsController extends AppController
         $authorization->member_id = $memberId;
         $this->Authorization->authorize($authorization);
 
-        $authorization_type_id = $this->request->getData("authorization_type");
+        $activity_id = $this->request->getData("activity");
         $approverId = $this->request->getData("approver_id");
         $is_renewal = false;
         if (
             $maService->request(
                 (int) $memberId,
-                (int) $authorization_type_id,
+                (int) $activity_id,
                 (int) $approverId,
                 (bool) $is_renewal,
             )
@@ -80,13 +80,13 @@ class AuthorizationsController extends AppController
         $authorization->member_id = $memberId;
         $this->Authorization->authorize($authorization);
 
-        $authorization_type_id = $this->request->getData("authorization_type");
+        $activity_id = $this->request->getData("activity");
         $approverId = $this->request->getData("approver_id");
         $is_renewal = true;
         if (
             $maService->request(
                 (int) $memberId,
-                (int) $authorization_type_id,
+                (int) $activity_id,
                 (int) $approverId,
                 (bool) $is_renewal,
             )

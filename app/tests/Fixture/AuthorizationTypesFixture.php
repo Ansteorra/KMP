@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Test\Fixture;
@@ -6,9 +7,9 @@ namespace App\Test\Fixture;
 use Cake\TestSuite\Fixture\TestFixture;
 
 /**
- * AuthorizationTypesFixture
+ * ActivitiesFixture
  */
-class AuthorizationTypesFixture extends TestFixture
+class ActivitiesFixture extends TestFixture
 {
     /**
      * Init method
@@ -22,7 +23,7 @@ class AuthorizationTypesFixture extends TestFixture
                 "id" => 1,
                 "name" => "Lorem ipsum dolor sit amet",
                 "length" => 1,
-                "authorization_groups_id" => 1,
+                "activity_group_id" => 1,
                 "minimum_age" => 1,
                 "maximum_age" => 1,
                 "num_required_authorizors" => 1,

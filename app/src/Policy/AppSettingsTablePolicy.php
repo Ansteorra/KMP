@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Policy;
 
-use App\Model\Entity\AuthorizationGroupsTable;
+use App\Model\Entity\ActivityGroupsTable;
 use Authorization\IdentityInterface;
 
 /**
- * AuthorizationGroupsTable policy
+ * ActivityGroupsTable policy
  */
 class AppSettingsTablePolicy extends BasePolicy
 {

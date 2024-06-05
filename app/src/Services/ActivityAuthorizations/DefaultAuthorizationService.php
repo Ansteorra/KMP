@@ -29,7 +29,7 @@ class DefaultAuthorizationService implements AuthorizationServiceInterface
                 ->find()
                 ->where([
                     "member_id" => $requesterId,
-                    "authorization_type_id" => $authorizationTypeId,
+                    "activity_id" => $authorizationTypeId,
                     "status" => "approved",
                     "expires_on >" => DateTime::now(),
                 ])
@@ -40,7 +40,7 @@ class DefaultAuthorizationService implements AuthorizationServiceInterface
         }
         $auth = $table->newEmptyEntity();
         $auth->member_id = $requesterId;
-        $auth->authorization_type_id = $authorizationTypeId;
+        $auth->activity_id = $authorizationTypeId;
         $auth->requested_on = DateTime::now();
         $auth->status = "new";
         $auth->is_renewal = $isRenewal;
@@ -89,7 +89,7 @@ class DefaultAuthorizationService implements AuthorizationServiceInterface
         $transConnection = $approvalTable->getConnection();
         $transConnection->begin();
         $approval = $approvalTable->get($authorizationApprovalId, [
-            "contain" => ["Authorizations.AuthorizationTypes"],
+            "contain" => ["Authorizations.Activities"],
         ]);
         if (!$approval) {
             $transConnection->rollback();
@@ -102,7 +102,7 @@ class DefaultAuthorizationService implements AuthorizationServiceInterface
 
             return false;
         }
-        $authorizationType = $authorization->authorization_type;
+        $authorizationType = $authorization->activity;
         if (!$authorizationType) {
             $transConnection->rollback();
 
@@ -197,7 +197,7 @@ class DefaultAuthorizationService implements AuthorizationServiceInterface
         }
         if (
             !$this->sendAuthorizationStatusToRequestor(
-                $approval->authorization->authorization_type_id,
+                $approval->authorization->activity_id,
                 $approval->authorization->member_id,
                 $approverId,
                 $approval->authorization->status,
@@ -252,7 +252,7 @@ class DefaultAuthorizationService implements AuthorizationServiceInterface
         }
         if (
             !$this->sendAuthorizationStatusToRequestor(
-                $authorization->authorization_type_id,
+                $authorization->activity_id,
                 $authorization->member_id,
                 $revokerId,
                 $authorization->status,
@@ -278,7 +278,7 @@ class DefaultAuthorizationService implements AuthorizationServiceInterface
         int $nextApproverId = null,
     ): bool {
         $authTypesTable = TableRegistry::getTableLocator()->get(
-            "AuthorizationTypes",
+            "Activities",
         );
         $membersTable = TableRegistry::getTableLocator()->get("Members");
         $authorizationType = $authTypesTable
@@ -330,7 +330,7 @@ class DefaultAuthorizationService implements AuthorizationServiceInterface
         string $authorizationToken,
     ): bool {
         $authTypesTable = TableRegistry::getTableLocator()->get(
-            "AuthorizationTypes",
+            "Activities",
         );
         $membersTable = TableRegistry::getTableLocator()->get("Members");
         $authorizationType = $authTypesTable
@@ -373,17 +373,17 @@ class DefaultAuthorizationService implements AuthorizationServiceInterface
         $authorization->approval_count = $authorization->approval_count + 1;
         $authorization->start_on = DateTime::now();
         $authorization->expires_on = DateTime::now()->addYears(
-            $authorization->authorization_type->length,
+            $authorization->activity->length,
         );
         if (!$authTable->save($authorization)) {
             return false;
         }
-        // add the member_role if the authorization_type has a grants_role_id
-        if ($authorization->authorization_type->grants_role_id) {
+        // add the member_role if the activity has a grants_role_id
+        if ($authorization->activity->grants_role_id) {
             $memberRole = $authTable->MemberRoles->newEmptyEntity();
             $memberRole->member_id = $authorization->member_id;
             $memberRole->role_id =
-                $authorization->authorization_type->grants_role_id;
+                $authorization->activity->grants_role_id;
             $memberRole->start_on = $authorization->start_on;
             $memberRole->expires_on = $authorization->expires_on;
             $memberRole->approver_id = $approverId;
@@ -399,7 +399,7 @@ class DefaultAuthorizationService implements AuthorizationServiceInterface
         }
         if (
             !$this->sendAuthorizationStatusToRequestor(
-                $authorization->authorization_type_id,
+                $authorization->activity_id,
                 $authorization->member_id,
                 $approverId,
                 $authorization->status,
@@ -420,8 +420,8 @@ class DefaultAuthorizationService implements AuthorizationServiceInterface
             ->find()
             ->where([
                 "member_id" => $authorization->member_id,
-                "authorization_type_id" =>
-                $authorization->authorization_type_id,
+                "activity_id" =>
+                $authorization->activity_id,
                 "status" => "approved",
             ])
             ->where(["expires_on >" => DateTime::now()])
@@ -484,7 +484,7 @@ class DefaultAuthorizationService implements AuthorizationServiceInterface
         }
         if (
             !$this->sendApprovalRequestNotification(
-                $authorization->authorization_type_id,
+                $authorization->activity_id,
                 $authorization->member_id,
                 $nextApproverId,
                 $nextApproval->authorization_token,
@@ -495,7 +495,7 @@ class DefaultAuthorizationService implements AuthorizationServiceInterface
 
         if (
             !$this->sendAuthorizationStatusToRequestor(
-                $authorization->authorization_type_id,
+                $authorization->activity_id,
                 $authorization->member_id,
                 $approverId,
                 $authorization->status,

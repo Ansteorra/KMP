@@ -17,16 +17,16 @@ class AuthorizationApprovalPolicy extends BasePolicy
     {
         $authorization_id = $approval->authorization_id;
         $authorization = $approval->authorization;
-        $authorization_type_id = null;
+        $activity_id = null;
         if ($authorization) {
-            $authorization_type_id = $authorization->authorization_type_id;
+            $activity_id = $authorization->activity_id;
         }
-        if (!$authorization_type_id) {
-            $authorization_type_id = TableRegistry::getTableLocator()
+        if (!$activity_id) {
+            $activity_id = TableRegistry::getTableLocator()
                 ->get("Authorizations")
-                ->get($authorization_id)->authorization_type_id;
+                ->get($authorization_id)->activity_id;
         }
-        return $user->canAuthorizeType($authorization_type_id) &&
+        return $user->canAuthorizeType($activity_id) &&
             $user->getIdentifier() === $approval->approver_id;
     }
 

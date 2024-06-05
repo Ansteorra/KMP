@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Controller;
@@ -23,7 +24,7 @@ class PermissionsControllerTest extends TestCase
      */
     protected array $fixtures = [
         "app.Permissions",
-        "app.AuthorizationTypes",
+        "app.Activities",
         "app.Roles",
         "app.RolesPermissions",
     ];

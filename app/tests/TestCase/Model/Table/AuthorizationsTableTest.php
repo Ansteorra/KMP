@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Model\Table;
@@ -26,7 +27,7 @@ class AuthorizationsTableTest extends TestCase
     protected array $fixtures = [
         "app.Authorizations",
         "app.Members",
-        "app.AuthorizationTypes",
+        "app.Activities",
         "app.AuthorizationApprovals",
     ];
 

@@ -1,22 +1,23 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Model\Table;
 
-use App\Model\Table\AuthorizationTypesTable;
+use App\Model\Table\ActivitiesTable;
 use Cake\TestSuite\TestCase;
 
 /**
- * App\Model\Table\AuthorizationTypesTable Test Case
+ * App\Model\Table\ActivitiesTable Test Case
  */
-class AuthorizationTypesTableTest extends TestCase
+class ActivitiesTableTest extends TestCase
 {
     /**
      * Test subject
      *
-     * @var \App\Model\Table\AuthorizationTypesTable
+     * @var \App\Model\Table\ActivitiesTable
      */
-    protected $AuthorizationTypes;
+    protected $Activities;
 
     /**
      * Fixtures
@@ -24,9 +25,9 @@ class AuthorizationTypesTableTest extends TestCase
      * @var list<string>
      */
     protected array $fixtures = [
-        "app.AuthorizationTypes",
-        "app.AuthorizationGroups",
-        "app.MemberAuthorizationTypes",
+        "app.Activities",
+        "app.ActivityGroups",
+        "app.MemberActivities",
         "app.PendingAuthorizations",
         "app.Permissions",
     ];
@@ -39,11 +40,11 @@ class AuthorizationTypesTableTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $config = $this->getTableLocator()->exists("AuthorizationTypes")
+        $config = $this->getTableLocator()->exists("Activities")
             ? []
-            : ["className" => AuthorizationTypesTable::class];
-        $this->AuthorizationTypes = $this->getTableLocator()->get(
-            "AuthorizationTypes",
+            : ["className" => ActivitiesTable::class];
+        $this->Activities = $this->getTableLocator()->get(
+            "Activities",
             $config,
         );
     }
@@ -55,7 +56,7 @@ class AuthorizationTypesTableTest extends TestCase
      */
     protected function tearDown(): void
     {
-        unset($this->AuthorizationTypes);
+        unset($this->Activities);
 
         parent::tearDown();
     }
@@ -64,7 +65,7 @@ class AuthorizationTypesTableTest extends TestCase
      * Test validationDefault method
      *
      * @return void
-     * @uses \App\Model\Table\AuthorizationTypesTable::validationDefault()
+     * @uses \App\Model\Table\ActivitiesTable::validationDefault()
      */
     public function testValidationDefault(): void
     {
@@ -75,7 +76,7 @@ class AuthorizationTypesTableTest extends TestCase
      * Test buildRules method
      *
      * @return void
-     * @uses \App\Model\Table\AuthorizationTypesTable::buildRules()
+     * @uses \App\Model\Table\ActivitiesTable::buildRules()
      */
     public function testBuildRules(): void
     {

@@ -8,7 +8,7 @@ use Authorization\IdentityInterface;
 use App\Model\Entity\Authorization;
 
 /**
- * AuthorizationGroups policy
+ * ActivityGroups policy
  */
 class AuthorizationPolicy extends BasePolicy
 {

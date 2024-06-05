@@ -1,29 +1,30 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Model\Table;
 
-use App\Model\Table\AuthorizationGroupsTable;
+use App\Model\Table\ActivityGroupsTable;
 use Cake\TestSuite\TestCase;
 
 /**
- * App\Model\Table\AuthorizationGroupsTable Test Case
+ * App\Model\Table\ActivityGroupsTable Test Case
  */
-class AuthorizationGroupsTableTest extends TestCase
+class ActivityGroupsTableTest extends TestCase
 {
     /**
      * Test subject
      *
-     * @var \App\Model\Table\AuthorizationGroupsTable
+     * @var \App\Model\Table\ActivityGroupsTable
      */
-    protected $AuthorizationGroups;
+    protected $ActivityGroups;
 
     /**
      * Fixtures
      *
      * @var list<string>
      */
-    protected array $fixtures = ["app.AuthorizationGroups"];
+    protected array $fixtures = ["app.ActivityGroups"];
 
     /**
      * setUp method
@@ -33,11 +34,11 @@ class AuthorizationGroupsTableTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $config = $this->getTableLocator()->exists("AuthorizationGroups")
+        $config = $this->getTableLocator()->exists("ActivityGroups")
             ? []
-            : ["className" => AuthorizationGroupsTable::class];
-        $this->AuthorizationGroups = $this->getTableLocator()->get(
-            "AuthorizationGroups",
+            : ["className" => ActivityGroupsTable::class];
+        $this->ActivityGroups = $this->getTableLocator()->get(
+            "ActivityGroups",
             $config,
         );
     }
@@ -49,7 +50,7 @@ class AuthorizationGroupsTableTest extends TestCase
      */
     protected function tearDown(): void
     {
-        unset($this->AuthorizationGroups);
+        unset($this->ActivityGroups);
 
         parent::tearDown();
     }
@@ -58,7 +59,7 @@ class AuthorizationGroupsTableTest extends TestCase
      * Test validationDefault method
      *
      * @return void
-     * @uses \App\Model\Table\AuthorizationGroupsTable::validationDefault()
+     * @uses \App\Model\Table\ActivityGroupsTable::validationDefault()
      */
     public function testValidationDefault(): void
     {

@@ -10,12 +10,12 @@ use Cake\ORM\Entity;
  * @property int $id
  * @property int $Member_id
  * @property int $Member_marshal_id
- * @property int $authorization_type_id
+ * @property int $activity_id
  * @property string $authorization_token
  * @property \Cake\I18n\Time $requested_on
  *
  * @property \App\Model\Entity\Member $Member
- * @property \App\Model\Entity\AuthorizationType $authorization_type
+ * @property \App\Model\Entity\Activity $activity
  */
 class PendingAuthorization extends Entity
 {

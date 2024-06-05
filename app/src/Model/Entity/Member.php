@@ -54,7 +54,7 @@ use App\KMP\PermissionsLoader;
  * @property int|null $birth_year
  * @property \Cake\I18n\DateTime|null $deleted_date
  *
- * @property \App\Model\Entity\MemberAuthorizationType[] $Member_authorization_types
+ * @property \App\Model\Entity\MemberActivity[] $Member_activities
  * @property \App\Model\Entity\PendingAuthorization[] $pending_authorizations
  * @property \App\Model\Entity\PendingAuthorization[] $pending_authorizations_to_approve
  * @property \App\Model\Entity\Role[] $roles
@@ -162,30 +162,30 @@ class Member extends Entity implements
         }
     }
 
-    public function canAuthorizeType(int $authorization_type_id): bool
+    public function canAuthorizeType(int $activity_id): bool
     {
         $permission = $this->getPermissions();
-        $authorization_types = Hash::extract(
+        $activities = Hash::extract(
             $permission,
-            "{n}.authorization_type_id",
+            "{n}.activity_id",
         );
-        return in_array($authorization_type_id, $authorization_types);
+        return in_array($activity_id, $activities);
     }
 
     public function canHaveAuthorizationQueue(): bool
     {
         $permission = $this->getPermissions();
-        $authorization_types = Hash::extract(
+        $activities = Hash::extract(
             $permission,
-            "{n}.authorization_type_id",
+            "{n}.activity_id",
         );
         // filter out all null's and 0's
-        $authorization_types = array_filter($authorization_types, function (
+        $activities = array_filter($activities, function (
             $var,
         ) {
             return $var !== null;
         });
-        return count($authorization_types) > 0;
+        return count($activities) > 0;
     }
 
     /**

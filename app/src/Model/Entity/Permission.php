@@ -11,14 +11,14 @@ use Cake\ORM\Entity;
  *
  * @property int $id
  * @property string $name
- * @property int|null $authorization_type_id
+ * @property int|null $activity_id
  * @property bool $require_active_membership
  * @property bool $require_active_background_check
  * @property bool $require_min_age
  * @property bool $system
  * @property bool $is_super_user
  *
- * @property \App\Model\Entity\AuthorizationType $authorization_type
+ * @property \App\Model\Entity\Activity $activity
  * @property \App\Model\Entity\Role[] $roles
  */
 class Permission extends Entity
@@ -34,13 +34,13 @@ class Permission extends Entity
      */
     protected array $_accessible = [
         "name" => true,
-        "authorization_type_id" => true,
+        "activity_id" => true,
         "require_active_membership" => true,
         "require_active_background_check" => true,
         "require_min_age" => true,
         "system" => true,
         "is_super_user" => true,
-        "authorization_type" => true,
+        "activity" => true,
         "requires_warrant" => true,
         "roles" => true,
     ];

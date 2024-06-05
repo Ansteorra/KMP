@@ -23,8 +23,8 @@ $watermarkimg =
     );
 // sort authorization types by group
 usort($member->authorizations, function ($a, $b) {
-    return $a->authorization_type->authorization_group->name <=>
-        $b->authorization_type->authorization_group->name;
+    return $a->activity->activity_group->name <=>
+        $b->activity->activity_group->name;
 });
 $now = Date::now();
 ?>
@@ -304,12 +304,12 @@ $now = Date::now();
                             <?php $authCount++; ?>
                             <?php if (
                                 $group !=
-                                $auth->authorization_type
-                                ->authorization_group->name
+                                $auth->activity
+                                ->activity_group->name
                             ) : ?>
                                 <?php $group =
-                                    $auth->authorization_type
-                                    ->authorization_group->name; ?>
+                                    $auth->activity
+                                    ->activity_group->name; ?>
                                 <?php $authCount++; ?>
                                 <tr>
                                     <td colspan="2" class="cardboxAuthorizationsLabel">
@@ -320,7 +320,7 @@ $now = Date::now();
                             <?php endif; ?>
                             <tr>
                                 <td style="text-align:left"><?= $auth
-                                                                ->authorization_type->name ?></td>
+                                                                ->activity->name ?></td>
                                 <td style="text-align:right"><?= $auth->expires_on ?></td>
                             </tr>
                             <?php if ($authCount == 15) : ?>

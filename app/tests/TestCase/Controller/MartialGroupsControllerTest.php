@@ -1,18 +1,19 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Controller;
 
-use App\Controller\AuthorizationGroupsController;
+use App\Controller\ActivityGroupsController;
 use Cake\TestSuite\IntegrationTestTrait;
 use Cake\TestSuite\TestCase;
 
 /**
- * App\Controller\AuthorizationGroupsController Test Case
+ * App\Controller\ActivityGroupsController Test Case
  *
- * @uses \App\Controller\AuthorizationGroupsController
+ * @uses \App\Controller\ActivityGroupsController
  */
-class AuthorizationGroupsControllerTest extends TestCase
+class ActivityGroupsControllerTest extends TestCase
 {
     use IntegrationTestTrait;
 
@@ -21,13 +22,13 @@ class AuthorizationGroupsControllerTest extends TestCase
      *
      * @var list<string>
      */
-    protected array $fixtures = ["app.AuthorizationGroups"];
+    protected array $fixtures = ["app.ActivityGroups"];
 
     /**
      * Test index method
      *
      * @return void
-     * @uses \App\Controller\AuthorizationGroupsController::index()
+     * @uses \App\Controller\ActivityGroupsController::index()
      */
     public function testIndex(): void
     {
@@ -38,7 +39,7 @@ class AuthorizationGroupsControllerTest extends TestCase
      * Test view method
      *
      * @return void
-     * @uses \App\Controller\AuthorizationGroupsController::view()
+     * @uses \App\Controller\ActivityGroupsController::view()
      */
     public function testView(): void
     {
@@ -49,7 +50,7 @@ class AuthorizationGroupsControllerTest extends TestCase
      * Test add method
      *
      * @return void
-     * @uses \App\Controller\AuthorizationGroupsController::add()
+     * @uses \App\Controller\ActivityGroupsController::add()
      */
     public function testAdd(): void
     {
@@ -60,7 +61,7 @@ class AuthorizationGroupsControllerTest extends TestCase
      * Test edit method
      *
      * @return void
-     * @uses \App\Controller\AuthorizationGroupsController::edit()
+     * @uses \App\Controller\ActivityGroupsController::edit()
      */
     public function testEdit(): void
     {
@@ -71,7 +72,7 @@ class AuthorizationGroupsControllerTest extends TestCase
      * Test delete method
      *
      * @return void
-     * @uses \App\Controller\AuthorizationGroupsController::delete()
+     * @uses \App\Controller\ActivityGroupsController::delete()
      */
     public function testDelete(): void
     {
