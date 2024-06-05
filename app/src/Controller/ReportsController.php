@@ -127,13 +127,13 @@ class ReportsController extends AppController
         $distincMemberCount = 0;
         $ActivitiesTbl
             = TableRegistry::getTableLocator()->get('Activities');
-        $authorizationTypesList = $ActivitiesTbl->find('list')->orderBy(['name' => 'ASC']);
+        $activitiesList = $ActivitiesTbl->find('list')->orderBy(['name' => 'ASC']);
         $validOn = DateTime::now();
         $memberRollup  = [];
         $memberListQuery = [];
         $authorizations = [];
         if ($this->request->getQuery('validOn')) {
-            $authorizations = $this->request->getQuery('authorizationTypes');
+            $authorizations = $this->request->getQuery('activities');
             $validOn = $this->request->getQuery('validOn');
             $authTbl = TableRegistry::getTableLocator()->get('Authorizations');
             $distincMemberCount = $authTbl->find()
@@ -183,7 +183,7 @@ class ReportsController extends AppController
         }
 
         $this->set(compact(
-            'authorizationTypesList',
+            'activitiesList',
             'distincMemberCount',
             'validOn',
             'memberRollup',

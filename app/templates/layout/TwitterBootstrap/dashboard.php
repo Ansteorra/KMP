@@ -44,7 +44,9 @@ $this->start("tb_body_start");
                 ) ?>
             </li>
             <li class="nav-item text-nowrap">
-                <button class="navbar-toggler position-absolute d-md-none collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-expanded="false" aria-label="Toggle navigation">
+                <button class="navbar-toggler position-absolute d-md-none collapsed" type="button"
+                    data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu"
+                    aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
                 </button>
             </li>
@@ -436,6 +438,42 @@ $this->start("tb_body_start");
                                                 "label" => "New Departments",
                                                 "url" => [
                                                     "controller" => "Departments",
+                                                    "action" => "add",
+                                                ],
+                                                "icon" => "bi-plus",
+                                            ],
+                                        ],
+                                    ],
+                                    [
+                                        "type" => "link",
+                                        "label" => "Offices",
+                                        "url" => [
+                                            "controller" => "Offices",
+                                            "action" => "index",
+                                        ],
+                                        "icon" => "bi-person-gear",
+                                        "activeUrls" => [
+                                            [
+                                                "controller" => "Offices",
+                                                "action" => "index",
+                                                "*",
+                                            ],
+                                            [
+                                                "controller" => "Offices",
+                                                "action" => "add",
+                                                "*",
+                                            ],
+                                            [
+                                                "controller" => "Offices",
+                                                "action" => "view",
+                                                "*",
+                                            ],
+                                        ],
+                                        "sublinks" => [
+                                            [
+                                                "label" => "New Office",
+                                                "url" => [
+                                                    "controller" => "Offices",
                                                     "action" => "add",
                                                 ],
                                                 "icon" => "bi-plus",

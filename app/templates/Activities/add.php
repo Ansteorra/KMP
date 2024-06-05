@@ -11,7 +11,7 @@
 ?>
 <?php $this->extend("/layout/TwitterBootstrap/dashboard"); ?>
 
-<div class="authorizationTypes form content">
+<div class="activities form content">
     <?= $this->Form->create($authorizationType) ?>
     <fieldset>
         <legend><?= __("Add Activity") ?></legend>

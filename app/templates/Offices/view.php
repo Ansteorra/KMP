@@ -9,134 +9,90 @@
 $this->extend("/layout/TwitterBootstrap/dashboard");
 $user = $this->request->getAttribute("identity");
 ?>
-<div class="permissions view large-9 medium-8 columns content">
+<div class="officer view large-9 medium-8 columns content">
     <div class="row align-items-start">
         <div class="col">
             <h3>
                 <a href="#" onclick="window.history.back();" class="bi bi-arrow-left-circle"></a>
-                <?= h($permission->name) ?>
+                <?= h($office->name) ?>
             </h3>
         </div>
         <div class="col text-end">
             <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal">Edit</button>
-            <?php if (!$permission->system) { ?>
-                <?= $this->Form->postLink(
-                    __("Delete"),
-                    ["action" => "delete", $permission->id],
-                    [
-                        "confirm" => __(
-                            "Are you sure you want to delete {0}?",
-                            $permission->name,
-                        ),
-                        "title" => __("Delete"),
-                        "class" => "btn btn-danger btn-sm",
-                    ],
-                ) ?>
-            <?php } ?>
+            <?= $this->Form->postLink(
+                __("Delete"),
+                ["action" => "delete", $office->id],
+                [
+                    "confirm" => __(
+                        "Are you sure you want to delete {0}?",
+                        $office->name,
+                    ),
+                    "title" => __("Delete"),
+                    "class" => "btn btn-danger btn-sm",
+                ],
+            ) ?>
         </div>
     </div>
     <div class="table-responsive">
         <table class="table table-striped">
             <tr scope="row">
                 <th class='col'><?= __("Name") ?></th>
-                <td><?= h($permission->name) ?></td>
+                <td><?= h($office->name) ?></td>
             </tr>
             <tr scope="row">
-                <th class='col'><?= __("Activity") ?></th>
-                <td class="col-10"><?= $permission->hasValue(
-                                        "activity",
+                <th class='col'><?= __("Department") ?></th>
+                <td class="col-10"><?= $office->hasValue(
+                                        "department",
                                     )
-                                        ? $this->Html->link($permission->activity->name, [
-                                            "controller" => "Activities",
+                                        ? $this->Html->link($office->department->name, [
+                                            "controller" => "Departments",
                                             "action" => "view",
-                                            $permission->activity->id,
+                                            $office->department->id,
                                         ])
                                         : "" ?></td>
             </tr>
             <tr scope="row">
-                <th class='col'><?= __("Require Membership") ?></th>
+                <th class='col'><?= __("Term (Years)") ?></th>
+                <td><?= h($office->term_length) ?></td>
+            </tr>
+            <tr scope="row">
+                <th class='col'><?= __("Warrant") ?></th>
                 <td class="col-10"><?= $this->Kmp->bool(
-                                        $permission->require_active_membership,
+                                        $office->requires_warrant,
                                         $this->Html,
                                     ) ?></td>
             </tr>
             <tr scope="row">
-                <th class='col'><?= __("Require Background Check") ?></th>
+                <th class='col'><?= __("One Per Branch") ?></th>
                 <td class="col-10"><?= $this->Kmp->bool(
-                                        $permission->require_active_background_check,
+                                        $office->only_one_per_branch,
                                         $this->Html,
                                     ) ?></td>
             </tr>
-            <tr scope="row">
-                <th class='col'><?= __("Minimum Age") ?></th>
-                <td class="col-10"><?= h($permission->require_min_age) ?></td>
+            <th class='col'><?= __("Deputy To") ?></th>
+            <td class="col-10"><?= $office->hasValue(
+                                    "deputy_to",
+                                )
+                                    ? $this->Html->link($office->deputy_to->name, [
+                                        "controller" => "Offices",
+                                        "action" => "view",
+                                        $office->deputy_to->id,
+                                    ])
+                                    : "" ?></td>
             </tr>
-            <tr scope="row">
-                <th class='col'><?= __("System Permission") ?></th>
-                <td class="col-10"><?= $this->Kmp->bool(
-                                        $permission->system,
-                                        $this->Html,
-                                    ) ?></td>
             </tr>
-            <tr scope="row">
-                <th class='col'><?= __("Is Super User") ?></th>
-                <td class="col-10"><?= $this->Kmp->bool(
-                                        $permission->is_super_user,
-                                        $this->Html,
-                                    ) ?></td>
-            </tr>
-            <tr scope="row">
-                <th class='col'><?= __("Requires a Warrant") ?></th>
-                <td class="col-10"><?= $this->Kmp->bool(
-                                        $permission->requires_warrant,
-                                        $this->Html,
-                                    ) ?></td>
+            <th class='col'><?= __("Grants Role") ?></th>
+            <td class="col-10"><?= $office->hasValue(
+                                    "grants_role",
+                                )
+                                    ? $this->Html->link($office->grants_role->name, [
+                                        "controller" => "Roles",
+                                        "action" => "view",
+                                        $office->grants_role->id,
+                                    ])
+                                    : "" ?></td>
             </tr>
         </table>
-    </div>
-    <div class="related">
-        <h4><?= __("Related Roles") ?> :
-            <?php if ($user->can("addPermission", "Roles")) { ?>
-                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addRoleModal">Add Role</button>
-            <?php } ?>
-        </h4>
-        <?php if (!empty($permission->roles)) : ?>
-            <div class="table-responsive">
-                <table class="table table-striped">
-                    <tr>
-                        <th scope="col"><?= __("Name") ?></th>
-                        <th scope="col" class="actions"><?= __("Actions") ?></th>
-                    </tr>
-                    <?php foreach ($permission->roles as $role) : ?>
-                        <tr>
-                            <td><?= h($role->name) ?></td>
-                            <td class="actions">
-                                <?php if ($user->can("deletePermission", "Roles")) { ?>
-                                    <?= $this->Form->postLink(
-                                        __("Remove"),
-                                        [
-                                            "controller" => "Roles",
-                                            "action" => "deletePermission",
-                                        ],
-                                        [
-                                            "confirm" => __(
-                                                "Are you sure you want to remove {0}?",
-                                                $role->name,
-                                            ),
-                                            "class" => "btn btn-danger",
-                                            "data" => [
-                                                "permission_id" => $permission->id,
-                                                "role_id" => $role->id,
-                                            ],
-                                        ],
-                                    ) ?>
-                                <?php } ?>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </table>
-            </div>
-        <?php endif; ?>
     </div>
 </div>
 
@@ -145,84 +101,35 @@ $user = $this->request->getAttribute("identity");
 
 $this->start("modals"); ?>
 
-<?php echo $this->Modal->create("Add Role to Permissions", [
-    "id" => "addRoleModal",
-    "close" => true,
-]); ?>
-<fieldset>
-    <?php
-    echo $this->Form->create(null, [
-        "id" => "add_role__form",
-        "url" => ["controller" => "Roles", "action" => "addPermission"],
-    ]);
-    echo $this->Form->control("role_id", [
-        "options" => $roles,
-        "empty" => true,
-        "id" => "add_role__role_id",
-    ]);
-    echo $this->Form->control("permission_id", [
-        "type" => "hidden",
-        "value" => $permission->id,
-        "id" => "add_role__permission_id",
-    ]);
-    echo $this->Form->end();
-    ?>
-</fieldset>
-<?php echo $this->Modal->end([
-    $this->Form->button("Submit", [
-        "class" => "btn btn-primary",
-        "id" => "add_role__submit",
-        "disabled" => "disabled",
-    ]),
-    $this->Form->button("Close", [
-        "data-bs-dismiss" => "modal",
-    ]),
-]); ?>
-
-<?php echo $this->Modal->create("Edit Permissions", [
+<?php echo $this->Modal->create("Edit Office", [
     "id" => "editModal",
     "close" => true,
 ]); ?>
 <fieldset>
     <?php
-    echo $this->Form->create($permission, [
+    echo $this->Form->create($office, [
         "id" => "edit_entity",
         "url" => [
-            "controller" => "Permissions",
+            "controller" => "Offices",
             "action" => "edit",
-            $permission->id,
+            $office->id,
         ],
     ]);
-    if ($permission->system) {
-        echo $this->Form->control("name", ["disabled" => "disabled"]);
-    } else {
-        echo $this->Form->control("name");
-    }
-    echo $this->Form->control("activity_id", [
-        "options" => $authorizationTypes,
+    echo $this->Form->control("department_id", [
+        "options" => $departments,
         "empty" => true,
     ]);
-    echo $this->Form->control("require_active_membership", [
-        "switch" => true,
-        "label" => "Require Membership",
+    echo $this->Form->control("term_length");
+    echo $this->Form->control("requires_warrant", ["switch" => true, 'label' => 'Warrant']);
+    echo $this->Form->control("only_one_per_branch", ["switch" => true, 'label' => 'One Per Branch']);
+    echo $this->Form->control("deputy_to_id", [
+        "options" => $offices,
+        "empty" => true,
     ]);
-    echo $this->Form->control("require_active_background_check", [
-        "switch" => true,
-        "label" => "Require Background Check",
+    echo $this->Form->control("grants_role_id", [
+        "options" => $roles,
+        "empty" => true,
     ]);
-    echo $this->Form->control("require_min_age", [
-        "label" => "Minimum Age",
-        "type" => "number",
-    ]);
-    if ($user->isSuperUser()) {
-        echo $this->Form->control("is_super_user", ["switch" => true]);
-    } else {
-        echo $this->Form->control("is_super_user", [
-            "switch" => true,
-            "disabled" => "disabled",
-        ]);
-    }
-    echo $this->Form->control("requires_warrant", ["switch" => true]);
     echo $this->Form->end();
     ?>
 </fieldset>

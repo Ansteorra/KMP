@@ -25,7 +25,7 @@ class Officers extends AbstractMigration
                 "null" => false,
             ])
             ->addIndex(["name"], ["unique" => true])
-            ->addColumn("deleted", "date", [
+            ->addColumn("deleted", "datetime", [
                 "default" => null,
                 "limit" => null,
                 "null" => true,
@@ -55,12 +55,7 @@ class Officers extends AbstractMigration
                 "limit" => null,
                 "null" => false,
             ])
-            ->addColumn("obly_one_per_branch", "boolean", [
-                "default" => false,
-                "limit" => null,
-                "null" => false,
-            ])
-            ->addColumn("is_at_large", "boolean", [
+            ->addColumn("only_one_per_branch", "boolean", [
                 "default" => false,
                 "limit" => null,
                 "null" => false,
@@ -75,18 +70,18 @@ class Officers extends AbstractMigration
                 "limit" => 11,
                 "null" => true,
             ])
-            ->addColumn("length", "integer", [
+            ->addColumn("term_length", "integer", [
                 "default" => null,
                 "limit" => 11,
                 "null" => false,
             ])
             ->addIndex(["name"], ["unique" => true])
-            ->addColumn("deleted", "date", [
+            ->addIndex(["department_id"])
+            ->addColumn("deleted", "datetime", [
                 "default" => null,
                 "limit" => null,
                 "null" => true,
             ])
-            ->addIndex(["department_id"])
             ->create();
 
         $this->table("officers")
@@ -132,12 +127,12 @@ class Officers extends AbstractMigration
                 "limit" => 20,
                 "null" => false,
             ])
-            ->addColumn("revoked_reason", "string", [
+            ->addColumn("release_reason", "string", [
                 "default" => "",
                 "limit" => 255,
                 "null" => true,
             ])
-            ->addColumn("revoker_id", "integer", [
+            ->addColumn("release_id", "integer", [
                 "default" => null,
                 "limit" => 11,
                 "null" => true,
@@ -145,6 +140,11 @@ class Officers extends AbstractMigration
             ->addIndex(["branch_id"])
             ->addIndex(["office_id"])
             ->addIndex(["member_id"])
+            ->addColumn("deleted", "datetime", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
             ->create();
 
 
@@ -152,6 +152,24 @@ class Officers extends AbstractMigration
             ->addForeignKey(
                 "department_id",
                 "departments",
+                "id",
+                [
+                    "update" => "NO_ACTION",
+                    "delete" => "NO_ACTION",
+                ],
+            )
+            ->addForeignKey(
+                "grants_role_id",
+                "roles",
+                "id",
+                [
+                    "update" => "NO_ACTION",
+                    "delete" => "NO_ACTION",
+                ],
+            )
+            ->addForeignKey(
+                "deputy_to_id",
+                "offices",
                 "id",
                 [
                     "update" => "NO_ACTION",
@@ -232,6 +250,12 @@ class Officers extends AbstractMigration
         $this->table("offices")
             ->dropForeignKey(
                 "department_id"
+            )
+            ->dropForeignKey(
+                "grants_role_id"
+            )
+            ->dropForeignKey(
+                "deputy_to_id"
             )
             ->save();
         $this->table("officers")

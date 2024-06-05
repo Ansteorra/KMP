@@ -745,7 +745,7 @@ class MembersController extends AppController
         );
         $copyright = $this->appSettings->getAppSetting(
             "KMP Login Copyright Text",
-            "Society for Creative Anachronism: Kingdom Management System",
+            "Society for Creative Anachronism: Kingdom Management Portal",
         );
         $allowRegistration = $this->appSettings->getAppSetting(
             "Allow Public Registration",

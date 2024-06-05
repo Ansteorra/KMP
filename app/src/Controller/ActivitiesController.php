@@ -32,9 +32,9 @@ class ActivitiesController extends AppController
                 return $q->select(["id", "name"]);
             },
         ]);
-        $authorizationTypes = $this->paginate($query);
+        $activities = $this->paginate($query);
 
-        $this->set(compact("authorizationTypes"));
+        $this->set(compact("activities"));
     }
 
     /**

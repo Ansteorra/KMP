@@ -19,7 +19,6 @@
             <th scope="col" class="text-center"><?= __(
                                                     "One Per Branch",
                                                 ) ?></th>
-            <th scope="col" class="text-center"><?= __("At Large") ?></th>
             <th scope="col" class="text-center"><?= __("Deputy To") ?></th>
             <th scope="col" class="text-center"><?= __("Grants Role") ?></th>
             <th scope="col" class="actions"><?= __("Actions") ?></th>
@@ -30,20 +29,13 @@
         <tr>
             <td><?= h($office->name) ?></td>
             <td><?= h($office->department->name) ?></td>
-            <td class="text-center"><?= $this->Kmp->bool(
-                                            $office->require_active_membership,
-                                            $this->Html,
-                                        ) ?></td>
+            <td class="text-center"><?= h($office->term_length) ?></td>
             <td class="text-center"><?= $this->Kmp->bool(
                                             $office->requires_warrant,
                                             $this->Html,
                                         ) ?></td>
             <td class="text-center"><?= $this->Kmp->bool(
                                             $office->one_per_branch,
-                                            $this->Html,
-                                        ) ?></td>
-            <td class="text-center"><?= $this->Kmp->bool(
-                                            $office->at_large,
                                             $this->Html,
                                         ) ?></td>
             <td class="text-center"><?= h(

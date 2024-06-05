@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Model\Table;
@@ -47,9 +48,23 @@ class OfficesTable extends Table
         $this->belongsTo('Departments', [
             'foreignKey' => 'department_id',
         ]);
+        $this->belongsTo("GrantsRole", [
+            "className" => "Roles",
+            "foreignKey" => "grants_role_id",
+            "joinType" => "LEFT",
+        ]);
+        $this->belongsTo('DeputyTo', [
+            'className' => 'Offices',
+            'foreignKey' => 'deputy_to_id',
+        ]);
+        $this->hasMany('Deputies', [
+            'className' => 'Offices',
+        ]);
         $this->hasMany('Officers', [
             'foreignKey' => 'office_id',
         ]);
+
+        $this->addBehavior("Muffin/Trash.Trash");
     }
 
     /**
@@ -76,12 +91,8 @@ class OfficesTable extends Table
             ->notEmptyString('requires_warrant');
 
         $validator
-            ->boolean('obly_one_per_branch')
-            ->notEmptyString('obly_one_per_branch');
-
-        $validator
-            ->boolean('is_at_large')
-            ->notEmptyString('is_at_large');
+            ->boolean('only_one_per_branch')
+            ->notEmptyString('only_one_per_branch');
 
         $validator
             ->integer('deputy_to_id')
@@ -92,9 +103,9 @@ class OfficesTable extends Table
             ->allowEmptyString('grants_role_id');
 
         $validator
-            ->integer('length')
-            ->requirePresence('length', 'create')
-            ->notEmptyString('length');
+            ->integer('term_length')
+            ->requirePresence('term_length', 'create')
+            ->notEmptyString('term_length');
 
         $validator
             ->date('deleted')

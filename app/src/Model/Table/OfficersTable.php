@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Model\Table;
@@ -57,6 +58,8 @@ class OfficersTable extends Table
             'foreignKey' => 'office_id',
             'joinType' => 'INNER',
         ]);
+
+        $this->addBehavior("Muffin/Trash.Trash");
     }
 
     /**

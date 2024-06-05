@@ -199,7 +199,7 @@ $this->start("modals"); ?>
         echo $this->Form->control("name");
     }
     echo $this->Form->control("activity_id", [
-        "options" => $authorizationTypes,
+        "options" => $activities,
         "empty" => true,
         "label" => "Authorizes Activity",
     ]);

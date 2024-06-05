@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Test\Fixture;
@@ -24,7 +25,6 @@ class OfficesFixture extends TestFixture
                 'department_id' => 1,
                 'requires_warrant' => 1,
                 'obly_one_per_branch' => 1,
-                'is_at_large' => 1,
                 'deputy_to_id' => 1,
                 'grants_role_id' => 1,
                 'length' => 1,

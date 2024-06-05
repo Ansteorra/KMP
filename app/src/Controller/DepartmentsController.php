@@ -57,7 +57,7 @@ class DepartmentsController extends AppController
             if ($this->Departments->save($department)) {
                 $this->Flash->success(__('The department has been saved.'));
 
-                return $this->redirect(['action' => 'index']);
+                return $this->redirect(['action' => 'view', $department->id]);
             }
             $this->Flash->error(__('The department could not be saved. Please, try again.'));
         }
@@ -81,7 +81,7 @@ class DepartmentsController extends AppController
             if ($this->Departments->save($department)) {
                 $this->Flash->success(__('The department has been saved.'));
 
-                return $this->redirect(['action' => 'index']);
+                return $this->redirect(['action' => 'view', $department->id]);
             }
             $this->Flash->error(__('The department could not be saved. Please, try again.'));
         }

@@ -1,5 +1,7 @@
 <?php
 
+use Cake\I18n\Date;
+
 /**
  * @var \App\View\AppView $this
  * @var \App\Model\Entity\Branch $branch
@@ -20,7 +22,8 @@
             </h3>
         </div>
         <div class="col text-end">
-            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal">Edit</button>
+            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
+                data-bs-target="#editModal">Edit</button>
             <?php if (empty($branch->children) && empty($branch->members)) {
                 echo $this->Form->postLink(
                     __("Delete"),
@@ -57,8 +60,130 @@
         </table>
     </div>
     <div class="related">
-        <h4><?= __("Children") ?></h4>
-        <?php if (!empty($branch->children)) : ?>
+        <h4><?= __("Officers") ?>
+            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
+                data-bs-target="#assignOfficerModal">Assign Officer</button>
+        </h4>
+        <?php if (!empty($branch->officers)) {
+
+            $inbound = [];
+            $active = [];
+            $expired = [];
+            $exp_date = Date::now();
+            foreach ($member->officers as $auth) {
+                if ($auth->start_on > DateTime::now()) {
+                    $pending[] = $auth;
+                } elseif ($auth->expires_on < $exp_date) {
+                    $expired[] = $auth;
+                } else {
+                    $approved[] = $auth;
+                }
+            }
+        ?>
+        <nav>
+            <div class="nav nav-tabs" id="nav-tab" role="tablist">
+                <button class="nav-link active" id="nav-active-officers-tab" data-bs-toggle="tab"
+                    data-bs-target="#nav-active-officers" type="button" role="tab" aria-controls="nav-active-officers"
+                    aria-selected="true">Current</button>
+                <button class="nav-link" id="nav-inbound-officers-tab" data-bs-toggle="tab"
+                    data-bs-target="#nav-inbound-officers" type="button" role="tab" aria-controls="nav-inbound-officers"
+                    aria-selected="false">Previous</button>
+                <button class="nav-link" id="nav-expired-officers-tab" data-bs-toggle="tab"
+                    data-bs-target="#nav-expired-officers" type="button" role="tab" aria-controls="nav-expired-officers"
+                    aria-selected="false">Previous</button>
+            </div>
+        </nav>
+        <div class="tab-content" id="nav-tabContent">
+            <div class="tab-pane fade show active" id="nav-active-officers" role="tabpanel"
+                aria-labelledby="nav-active-officers-tab" tabindex="0">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <tr>
+                            <th scope="col"><?= __("Name") ?></th>
+                            <th scope="col"><?= __("Office") ?></th>
+                            <th scope="col"><?= __("Start On") ?></th>
+                            <th scope="col"><?= __("Ends On") ?></th>
+                            <th scope="col" class="actions"><?= __(
+                                                                    "Actions",
+                                                                ) ?></th>
+                        </tr>
+                        <?php foreach ($active as $officer) : ?>
+                        <tr>
+                            <td><?= h($officer->member->sca_name) ?></td>
+                            <td><?= h($officer->office->name) ?></td>
+                            <td><?= h($officer->start_on) ?></td>
+                            <td><?= h($officer->expires_on) ?></td>
+                            <td>
+                                <?php if ($user->can("release", "Officer")) { ?>
+                                <button type="button" class="btn btn-danger " data-bs-toggle="modal"
+                                    data-bs-target="#releaseModal"
+                                    onclick="$('#revoke_auth__id').val('<?= $auth->id ?>')">Release</button>
+                                <?php } ?>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </table>
+                </div>
+            </div>
+            <div class="tab-pane fade show active" id="nav-inbound-officers" role="tabpanel"
+                aria-labelledby="nav-inbound-officers-tab" tabindex="0">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <tr>
+                            <th scope="col"><?= __("Name") ?></th>
+                            <th scope="col"><?= __("Office") ?></th>
+                            <th scope="col"><?= __("Start On") ?></th>
+                            <th scope="col"><?= __("Ends On") ?></th>
+                            <th scope="col" class="actions"><?= __(
+                                                                    "Actions",
+                                                                ) ?></th>
+                        </tr>
+                        <?php foreach ($inbound as $officer) : ?>
+                        <tr>
+                            <td><?= h($officer->member->sca_name) ?></td>
+                            <td><?= h($officer->office->name) ?></td>
+                            <td><?= h($officer->start_on) ?></td>
+                            <td><?= h($officer->expires_on) ?></td>
+                            <td>
+                                <?php if ($user->can("release", "Officer")) { ?>
+                                <button type="button" class="btn btn-danger " data-bs-toggle="modal"
+                                    data-bs-target="#releaseModal"
+                                    onclick="$('#release_auth__id').val('<?= $auth->id ?>')">Cancel</button>
+                                <?php } ?>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </table>
+                </div>
+            </div>
+            <div class="tab-pane fade show active" id="nav-expired-officers" role="tabpanel"
+                aria-labelledby="nav-expired-officers-tab" tabindex="0">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <tr>
+                            <th scope="col"><?= __("Name") ?></th>
+                            <th scope="col"><?= __("Office") ?></th>
+                            <th scope="col"><?= __("Start On") ?></th>
+                            <th scope="col"><?= __("Ends On") ?></th>
+                            <th scope="col"><?= __("Reason") ?></th>
+                        </tr>
+                        <?php foreach ($expired as $officer) : ?>
+                        <tr>
+                            <td><?= h($officer->member->sca_name) ?></td>
+                            <td><?= h($officer->office->name) ?></td>
+                            <td><?= h($officer->start_on) ?></td>
+                            <td><?= h($officer->expires_on) ?></td>
+                            <td><?= h($officer->release_reason) ?></td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <?php } ?>
+        <div class="related">
+            <h4><?= __("Children") ?></h4>
+            <?php if (!empty($branch->children)) : ?>
             <div class="table-responsive">
                 <table class="table table-striped">
                     <tr>
@@ -66,27 +191,27 @@
                         <th scope="col" class="actions"><?= __("Actions") ?></th>
                     </tr>
                     <?php foreach ($branch->children as $child) : ?>
-                        <tr>
-                            <td><?= h($child->name) ?></td>
-                            <td class="actions">
-                                <?= $this->Html->link(
-                                    __("View"),
-                                    ["action" => "view", $child->id],
-                                    [
-                                        "title" => __("View"),
-                                        "class" => "btn btn-secondary",
-                                    ],
-                                ) ?>
-                            </td>
-                        </tr>
+                    <tr>
+                        <td><?= h($child->name) ?></td>
+                        <td class="actions">
+                            <?= $this->Html->link(
+                                        __("View"),
+                                        ["action" => "view", $child->id],
+                                        [
+                                            "title" => __("View"),
+                                            "class" => "btn btn-secondary",
+                                        ],
+                                    ) ?>
+                        </td>
+                    </tr>
                     <?php endforeach; ?>
                 </table>
             </div>
-        <?php endif; ?>
-    </div>
-    <div class="related">
-        <h4><?= __("Members") ?></h4>
-        <?php if (!empty($branch->members)) : ?>
+            <?php endif; ?>
+        </div>
+        <div class="related">
+            <h4><?= __("Members") ?></h4>
+            <?php if (!empty($branch->members)) : ?>
             <div class="table-responsive">
                 <table class="table table-striped">
                     <tr>
@@ -94,67 +219,121 @@
                         <th scope="col" class="actions"><?= __("Actions") ?></th>
                     </tr>
                     <?php foreach ($branch->members as $member) : ?>
-                        <tr>
-                            <td><?= h($member->sca_name) ?></td>
-                            <td class="actions">
-                                <?= $this->Html->link(
-                                    __("View"),
-                                    [
-                                        "controller" => "members",
-                                        "action" => "view",
-                                        $member->id,
-                                    ],
-                                    [
-                                        "title" => __("View"),
-                                        "class" => "btn btn-secondary",
-                                    ],
-                                ) ?>
-                            </td>
-                        </tr>
+                    <tr>
+                        <td><?= h($member->sca_name) ?></td>
+                        <td class="actions">
+                            <?= $this->Html->link(
+                                        __("View"),
+                                        [
+                                            "controller" => "members",
+                                            "action" => "view",
+                                            $member->id,
+                                        ],
+                                        [
+                                            "title" => __("View"),
+                                            "class" => "btn btn-secondary",
+                                        ],
+                                    ) ?>
+                        </td>
+                    </tr>
                     <?php endforeach; ?>
                 </table>
             </div>
-        <?php endif; ?>
+            <?php endif; ?>
+        </div>
     </div>
-</div>
 
 
-<?php
-$this->start("modals");
-echo $this->Modal->create("Edit Branch", [
-    "id" => "editModal",
-    "close" => true,
-]);
-?>
-<fieldset>
     <?php
-    echo $this->Form->create($branch, [
-        "id" => "edit_entity",
-        "url" => [
-            "controller" => "Branches",
-            "action" => "edit",
-            $branch->id,
-        ],
+    $this->start("modals");
+    echo $this->Modal->create("Edit Branch", [
+        "id" => "editModal",
+        "close" => true,
     ]);
-    echo $this->Form->control("name");
-    echo $this->Form->control("location");
-    echo $this->Form->control("parent_id", [
-        "options" => $treeList,
-        "empty" => true,
-    ]);
-    echo $this->Form->end();
     ?>
-</fieldset>
-<?php echo $this->Modal->end([
-    $this->Form->button("Submit", [
-        "class" => "btn btn-primary",
-        "id" => "edit_entity__submit",
-        "onclick" => '$("#edit_entity").submit();',
-    ]),
-    $this->Form->button("Close", [
-        "data-bs-dismiss" => "modal",
-    ]),
-]); ?>
+    <fieldset>
+        <?php
+        echo $this->Form->create($branch, [
+            "id" => "edit_entity",
+            "url" => [
+                "controller" => "Branches",
+                "action" => "edit",
+                $branch->id,
+            ],
+        ]);
+        echo $this->Form->control("name");
+        echo $this->Form->control("location");
+        echo $this->Form->control("parent_id", [
+            "options" => $treeList,
+            "empty" => true,
+        ]);
+        echo $this->Form->end();
+        ?>
+    </fieldset>
+    <?php echo $this->Modal->end([
+        $this->Form->button("Submit", [
+            "class" => "btn btn-primary",
+            "id" => "edit_entity__submit",
+            "onclick" => '$("#edit_entity").submit();',
+        ]),
+        $this->Form->button("Close", [
+            "data-bs-dismiss" => "modal",
+        ]),
+    ]);
 
-<?php //finish writing to modal block in layout
-$this->end(); ?>
+    echo $this->Modal->create("Assign Officer", [
+        "id" => "assignOfficerModal",
+        "close" => true,
+    ]);
+    ?>
+    <fieldset>
+        <?php
+        echo $this->Form->create($newOfficer, [
+            "id" => "assign_officer__form",
+            "url" => [
+                "controller" => "Officers",
+                "action" => "add",
+            ],
+        ]);
+        echo $this->Form->control("branch_id", [
+            "type" => "hidden",
+            "value" => $branch->id,
+        ]);
+        echo $this->Form->control("member_id", [
+            "type" => "hidden",
+            "id" => "assign_officer__member_id",
+        ]);
+        echo $this->Form->control("office_id", [
+            "options" => $offices,
+        ]);
+        echo $this->Form->control("sca_name", [
+            "type" => "text",
+            "label" => "SCA Name",
+            "id" => "assign_officer__sca_name",
+        ]);
+        echo $this->Form->control("start_on", [
+            "type" => "date",
+            "label" => __("Start Date"),
+        ]);
+        echo $this->Form->end();
+        ?>
+    </fieldset>
+    <?php echo $this->Modal->end([
+        $this->Form->button("Submit", [
+            "class" => "btn btn-primary",
+            "id" => "assign_officer__submit",
+            "disabled" => "disabled",
+        ]),
+        $this->Form->button("Close", [
+            "data-bs-dismiss" => "modal",
+        ]),
+    ]); ?>
+
+    <?php //finish writing to modal block in layout
+    $this->end(); ?>
+
+
+    <?php
+    $this->append("script", $this->Html->script(["app/autocomplete.js"]));
+    $this->append("script", $this->Html->script(["app/branches/view.js"]));
+    ?>

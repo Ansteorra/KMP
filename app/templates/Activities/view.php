@@ -26,7 +26,7 @@ foreach ($authorizationType->authorizations as $auth) {
 }
 ?>
 
-<div class="authorizationTypes view large-9 medium-8 columns content">
+<div class="activities view large-9 medium-8 columns content">
     <div class="row align-items-start">
         <div class="col">
             <h3>

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Model\Entity;
@@ -13,7 +14,6 @@ use Cake\ORM\Entity;
  * @property int|null $department_id
  * @property bool $requires_warrant
  * @property bool $obly_one_per_branch
- * @property bool $is_at_large
  * @property int|null $deputy_to_id
  * @property int|null $grants_role_id
  * @property int $length
@@ -37,11 +37,10 @@ class Office extends Entity
         'name' => true,
         'department_id' => true,
         'requires_warrant' => true,
-        'obly_one_per_branch' => true,
-        'is_at_large' => true,
+        'only_one_per_branch' => true,
         'deputy_to_id' => true,
         'grants_role_id' => true,
-        'length' => true,
+        'term_length' => true,
         'deleted' => true,
         'department' => true,
         'officers' => true,

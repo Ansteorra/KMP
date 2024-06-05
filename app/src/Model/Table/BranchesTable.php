@@ -44,6 +44,10 @@ class BranchesTable extends Table
             "foreignKey" => "branch_id",
         ]);
 
+        $this->HasMany("Officers", [
+            "className" => "Officers",
+            "foreignKey" => "branch_id",
+        ]);
         $this->addBehavior("Tree");
     }
 

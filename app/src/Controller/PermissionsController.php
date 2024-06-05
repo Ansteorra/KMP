@@ -59,10 +59,10 @@ class PermissionsController extends AppController
         } else {
             $roles = $this->Permissions->Roles->find("list")->all();
         }
-        $authorizationTypes = $this->Permissions->Activities
+        $activities = $this->Permissions->Activities
             ->find("list", limit: 200)
             ->all();
-        $this->set(compact("permission", "roles", "authorizationTypes"));
+        $this->set(compact("permission", "roles", "activities"));
     }
 
     /**
@@ -92,10 +92,10 @@ class PermissionsController extends AppController
                 __("The permission could not be saved. Please, try again."),
             );
         }
-        $authorizationTypes = $this->Permissions->Activities
+        $activities = $this->Permissions->Activities
             ->find("list", limit: 200)
             ->all();
-        $this->set(compact("permission", "authorizationTypes"));
+        $this->set(compact("permission", "activities"));
     }
 
     /**
@@ -128,11 +128,11 @@ class PermissionsController extends AppController
                 __("The permission could not be saved. Please, try again."),
             );
         }
-        $authorizationTypes = $this->Permissions->Activities
+        $activities = $this->Permissions->Activities
             ->find("list", limit: 200)
             ->all();
         $roles = $this->Permissions->Roles->find("list", limit: 200)->all();
-        $this->set(compact("permission", "authorizationTypes", "roles"));
+        $this->set(compact("permission", "activities", "roles"));
     }
 
     /**

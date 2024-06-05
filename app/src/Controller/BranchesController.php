@@ -67,12 +67,15 @@ class BranchesController extends AppController
         $this->Authorization->authorize($branch);
         // get the children for the branch
         $branch->children = $this->Branches
-            ->find("children", ["for" => $branch->id])
+            ->find("children", for: $branch->id, direct: true)
             ->toArray();
         $treeList = $this->Branches
             ->find("treeList", spacer: "--")
             ->orderBy(["name" => "ASC"]);
-        $this->set(compact("branch", "treeList"));
+        $officesTbl = $this->getTableLocator()->get("Offices");
+        $offices = $officesTbl->find("list")->toArray();
+        $newOfficer = $this->Branches->Officers->newEmptyEntity();
+        $this->set(compact("branch", "treeList", "offices", "newOfficer"));
     }
 
     /**

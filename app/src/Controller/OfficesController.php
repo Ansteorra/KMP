@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Controller;
@@ -10,6 +11,11 @@ namespace App\Controller;
  */
 class OfficesController extends AppController
 {
+    public function initialize(): void
+    {
+        parent::initialize();
+        $this->Authorization->authorizeModel("index", "add");
+    }
     /**
      * Index method
      *
@@ -18,7 +24,14 @@ class OfficesController extends AppController
     public function index()
     {
         $query = $this->Offices->find()
-            ->contain(['Departments']);
+            ->contain(['Departments' => function ($q) {
+                return $q->select(['id', 'name']);
+            }, 'GrantsRole' => function ($q) {
+                return $q->select(['id', 'name']);
+            }, 'DeputyTo' => function ($q) {
+                return $q->select(['id', 'name']);
+            }]);
+
         $offices = $this->paginate($query);
 
         $this->set(compact('offices'));
@@ -33,8 +46,20 @@ class OfficesController extends AppController
      */
     public function view($id = null)
     {
-        $office = $this->Offices->get($id, contain: ['Departments', 'Officers']);
-        $this->set(compact('office'));
+        $office = $this->Offices->get($id, [
+            "contain" =>
+            ['Departments' => function ($q) {
+                return $q->select(['id', 'name']);
+            }, 'GrantsRole' => function ($q) {
+                return $q->select(['id', 'name']);
+            }, 'DeputyTo' => function ($q) {
+                return $q->select(['id', 'name']);
+            }]
+        ]);
+        $departments = $this->Offices->Departments->find('list', limit: 200)->all();
+        $offices = $this->Offices->find('list', limit: 200)->all();
+        $roles = $this->Offices->GrantsRole->find('list', limit: 200)->all();
+        $this->set(compact('office', 'departments', 'offices', 'roles'));
     }
 
     /**
@@ -45,6 +70,7 @@ class OfficesController extends AppController
     public function add()
     {
         $office = $this->Offices->newEmptyEntity();
+        $this->Authorization->authorize($office);
         if ($this->request->is('post')) {
             $office = $this->Offices->patchEntity($office, $this->request->getData());
             if ($this->Offices->save($office)) {
@@ -55,7 +81,9 @@ class OfficesController extends AppController
             $this->Flash->error(__('The office could not be saved. Please, try again.'));
         }
         $departments = $this->Offices->Departments->find('list', limit: 200)->all();
-        $this->set(compact('office', 'departments'));
+        $offices = $this->Offices->find('list', limit: 200)->all();
+        $roles = $this->Offices->GrantsRole->find('list', limit: 200)->all();
+        $this->set(compact('office', 'departments', 'offices', 'roles'));
     }
 
     /**
@@ -68,6 +96,8 @@ class OfficesController extends AppController
     public function edit($id = null)
     {
         $office = $this->Offices->get($id, contain: []);
+
+        $this->Authorization->authorize($office);
         if ($this->request->is(['patch', 'post', 'put'])) {
             $office = $this->Offices->patchEntity($office, $this->request->getData());
             if ($this->Offices->save($office)) {
@@ -78,7 +108,9 @@ class OfficesController extends AppController
             $this->Flash->error(__('The office could not be saved. Please, try again.'));
         }
         $departments = $this->Offices->Departments->find('list', limit: 200)->all();
-        $this->set(compact('office', 'departments'));
+        $offices = $this->Offices->find('list', limit: 200)->all();
+        $roles = $this->Offices->GrantsRole->find('list', limit: 200)->all();
+        $this->set(compact('office', 'departments', 'offices', 'roles'));
     }
 
     /**
@@ -92,6 +124,7 @@ class OfficesController extends AppController
     {
         $this->request->allowMethod(['post', 'delete']);
         $office = $this->Offices->get($id);
+        $this->Authorization->authorize($office);
         if ($this->Offices->delete($office)) {
             $this->Flash->success(__('The office has been deleted.'));
         } else {

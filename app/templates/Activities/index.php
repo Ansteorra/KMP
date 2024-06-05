@@ -2,7 +2,7 @@
 
 /**
  * @var \App\View\AppView $this
- * @var \App\Model\Entity\Activity[]|\Cake\Collection\CollectionInterface $authorizationTypes
+ * @var \App\Model\Entity\Activity[]|\Cake\Collection\CollectionInterface $activities
  */
 ?>
 <?php $this->extend("/layout/TwitterBootstrap/dashboard"); ?>
@@ -36,7 +36,7 @@
         </tr>
     </thead>
     <tbody>
-        <?php foreach ($authorizationTypes as $authorizationType) : ?>
+        <?php foreach ($activities as $authorizationType) : ?>
             <tr>
                 <td><?= h($authorizationType->name) ?></td>
                 <td><?= h($authorizationType->activity_group->name) ?></td>

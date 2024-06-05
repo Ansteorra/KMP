@@ -153,10 +153,9 @@ switch ($member->status) {
         </table>
     </div>
     <div class="related">
-        <h4>
-            <h><?= __("Authorization") ?>
-                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
-                    data-bs-target="#requestAuthModal">Request Authorization</button>
+        <h4><?= __("Authorization") ?>
+            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
+                data-bs-target="#requestAuthModal">Request Authorization</button>
         </h4>
         <?php if (!empty($member->authorizations)) {
 
@@ -493,343 +492,37 @@ switch ($member->status) {
         </div>
     </div>
 
-    <?php // Start writing to modal block in layout
-
-$this->start("modals"); ?>
-    <?php echo $this->Modal->create("Edit " . $member->sca_name, [
-    "id" => "editModal",
-    "close" => true,
-]); ?>
-    <fieldset>
-        <?php if ($user->can("edit", $member)) {
-        echo $this->Form->create($memberForm, [
-            "url" => [
-                "controller" => "Members",
-                "action" => "edit",
-                $member->id,
-            ],
-            "id" => "edit_entity",
-        ]);
-        echo $this->Form->control("sca_name");
-        echo $this->Form->control("membership_number");
-        echo $this->Form->control("membership_expires_on", [
-            "empty" => true,
-        ]);
-        echo $this->Form->control("branch_id", ["options" => $treeList]);
-        echo $this->Form->control("first_name");
-        echo $this->Form->control("middle_name");
-        echo $this->Form->control("last_name");
-        echo $this->Form->control("street_address");
-        echo $this->Form->control("city");
-        echo $this->Form->control("state");
-        echo $this->Form->control("zip");
-        echo $this->Form->control("phone_number");
-        echo $this->Form->control("email_address");
-        echo $this->Form->control("background_check_expires_on", [
-            "empty" => true,
-        ]);
-        echo $member->age < 18 ? $this->Form->control("parent_name") : "";
-        echo $this->Form->control("birth_month");
-        echo $this->Form->control("birth_year");
-        echo $this->Form->control("status", [
-            'type' => 'select',
-            "options" => $statusList,
-            ""
-        ]);
-    } else {
-        if ($user->can("partialEdit", $member)) {
-            echo $this->Form->create($memberForm, [
-                "url" => [
-                    "controller" => "Members",
-                    "action" => "partialEdit",
-                    $member->id,
-                ],
-                "id" => "edit_entity",
-            ]);
-            echo $this->Form->control("sca_name");
-            echo $this->Form->control("branch_id", [
-                "options" => $treeList,
-            ]);
-            echo $this->Form->control("first_name");
-            echo $this->Form->control("middle_name");
-            echo $this->Form->control("last_name");
-            echo $this->Form->control("street_address");
-            echo $this->Form->control("city");
-            echo $this->Form->control("state");
-            echo $this->Form->control("zip");
-            echo $this->Form->control("phone_number");
-            echo $this->Form->control("email_address");
-            echo $member->age < 18
-                ? $this->Form->control("parent_name")
-                : "";
-        }
-    } ?>
-    </fieldset>
-    <?= $this->Form->end() ?>
-    <?php echo $this->Modal->end([
-    $this->Form->button("Submit", [
-        "class" => "btn btn-primary",
-        "id" => "edit_entity__submit",
-        "onclick" => '$("#edit_entity").submit();',
-    ]),
-    $this->Form->button("Close", [
-        "data-bs-dismiss" => "modal",
-    ]),
-]); ?>
-
-    <?php echo $this->Modal->create("Edit " . $member->sca_name, [
-    "id" => "passwordModal",
-    "close" => true,
-]); ?>
-    <?= $this->Form->create($passwordReset, [
-    "id" => "change_password",
-    "url" => [
-        "controller" => "Members",
-        "action" => "changePassword",
-        $member->id,
-    ],
-]) ?>
-    <fieldset>
-        <legend><?= __("Change Password") ?></legend>
-        <?php
-    echo $this->Form->control("new_password", [
-        "type" => "password",
-    ]);
-    echo $this->Form->control("confirm_password", [
-        "type" => "password",
-    ]);
-    ?>
-    </fieldset>
-    <?= $this->Form->end() ?>
-    <?php echo $this->Modal->end([
-    $this->Form->button("Submit", [
-        "class" => "btn btn-primary",
-        "id" => "change_password__submit",
-        "onclick" => '$("#change_password").submit();',
-    ]),
-    $this->Form->button("Close", [
-        "data-bs-dismiss" => "modal",
-    ]),
-]); ?>
-
-
-    <?php echo $this->Modal->create("Request Authorization", [
-    "id" => "requestAuthModal",
-    "close" => true,
-]); ?>
-    <fieldset>
-        <?php
-    echo $this->Form->create(null, [
-        "id" => "request_auth__form",
-        "url" => ["controller" => "Authorizations", "action" => "add"],
-    ]);
-    echo $this->Form->control("member_id", [
-        "type" => "hidden",
-        "value" => $member->id,
-        "id" => "request_auth__member_id",
-    ]);
-    echo $this->Form->control("activity", [
-        "options" => $activities,
-        "empty" => true,
-        "id" => "request_auth__auth_type_id",
-        "label" => "Activity",
-    ]);
-    echo $this->Form->control("approver_id", [
-        "type" => "select",
-        "options" => [],
-        "id" => "request_auth__approver_id",
-        "label" => "Send Request To",
-        "disabled" => "disabled",
-    ]);
-    echo $this->Form->end();
-    ?>
-    </fieldset>
-    <?php echo $this->Modal->end([
-    $this->Form->button("Submit", [
-        "class" => "btn btn-primary",
-        "id" => "request_auth__submit",
-        "disabled" => "disabled",
-    ]),
-    $this->Form->button("Close", [
-        "data-bs-dismiss" => "modal",
-    ]),
-]); ?>
-
-    <?php if ($user->can("revoke", "Authorizations")) {
-    echo $this->Modal->create("Revoke Authorization", [
-        "id" => "revokeModal",
-        "close" => true,
-    ]); ?>
-    <fieldset>
-        <?php
-        echo $this->Form->create(null, [
-            "url" => ["controller" => "Authorizations", "action" => "revoke"],
-            "id" => "revoke_auth",
-        ]);
-        echo $this->Form->control("id", [
-            "type" => "hidden",
-            "id" => "revoke_auth__id",
-        ]);
-        echo $this->Form->control("revoked_reason", [
-            "label" => "Reason for Revocation",
-            "onkeypress" => '$("#revoke_auth__submit").removeAttr("disabled");',
-        ]);
-        echo $this->Form->end();
-        ?>
-    </fieldset>
-    <?php echo $this->Modal->end([
-        $this->Form->button("Submit", [
-            "class" => "btn btn-primary",
-            "id" => "revoke_auth__submit",
-            "onclick" => '$("#revoke_auth").submit();',
-            "disabled" => "disabled",
-        ]),
-        $this->Form->button("Close", [
-            "data-bs-dismiss" => "modal",
-        ]),
-    ]);
-} ?>
 
     <?php
-echo $this->Modal->create("Renew Authorization", [
-    "id" => "renewalModal",
-    "close" => true,
-]); ?>
-    <fieldset>
-        <?php
-    echo $this->Form->create(null, [
-        "url" => ["controller" => "Authorizations", "action" => "renew"],
-        "id" => "renew_auth__form",
-    ]);
-    echo $this->Form->control("id", [
-        "type" => "hidden",
-        "id" => "renew_auth__id",
-    ]);
-    echo $this->Form->control("member_id", [
-        "type" => "hidden",
-        "value" => $member->id,
-        "id" => "renew_auth__member_id",
-    ]);
-    echo $this->Form->control("activity", [
-        "type" => "hidden",
-        "id" => "renew_auth__auth_type_id"
-    ]);
-    echo $this->Form->control("approver_id", [
-        "type" => "select",
-        "options" => [],
-        "id" => "renew_auth__approver_id",
-        "label" => "Send Request To",
-        "disabled" => "disabled",
-    ]);
-    echo $this->Form->end();
-    ?>
-    </fieldset>
-    <?php echo $this->Modal->end([
-    $this->Form->button("Submit", [
-        "class" => "btn btn-primary",
-        "id" => "renew_auth__submit",
-        "onclick" => '$("#renew_auth__form").submit();',
-        "disabled" => "disabled",
-    ]),
-    $this->Form->button("Close", [
-        "data-bs-dismiss" => "modal",
-    ]),
+$this->start("modals");
+// Start writing to modal block in layout
+
+echo $this->element('members/editModal', [
+    'user' => $user,
 ]);
-
-
-if ($user->can("verifyMembership", "Members") && $needVerification) {
-    echo $this->Modal->create("Verify Membership", [
-        "id" => "verifyMembershipModal",
-        "close" => true,
-    ]);
-?>
-    <fieldset>
-        <?php
-        echo $this->Form->create(null, [
-            "url" => ["controller" => "Members", "action" => "verifyMembership", $member->id],
-            "id" => "verify__form",
-        ]);
-        echo $this->Form->control("member_id", [
-            "type" => "hidden",
-            "value" => $member->id,
-            "id" => "verify__member_id",
-        ]);
-        if ($needsParentVerification) {
-            if ($needsMemberCardVerification) {
-                echo $this->Form->Control("verify_parent", [
-                    "type" => "checkbox",
-                    "id" => "verify__parent_check",
-                    "value" => 1,
-                    "checked" => "checked",
-                    "onchange" => "$('#verify_member__sca_name').prop('disabled', !this.checked);",
-                ]);
-            } else {
-                echo $this->Form->control("verify_parent", [
-                    "type" => "hidden",
-                    "value" => 1,
-                    "id" => "verify__parent_check",
-                ]);
-            }
-            echo $this->Form->control("sca_name", [
-                "type" => "text",
-                "label" => "Parent SCA Name",
-                "id" => "verify_member__sca_name",
-            ]);
-            echo $this->Form->control("parent_id", [
-                "type" => "hidden",
-                "id" => "verify_member__parent_id",
-            ]);
-        }
-        if ($needsMemberCardVerification) {
-            if (strlen($member->membership_card_path) > 0) {
-                echo $this->Glide->image($member->membership_card_path, [], ['width' => '400']);
-            }
-            if ($needsParentVerification) {
-                echo $this->Form->control("verify_membership", [
-                    "type" => "checkbox",
-                    "id" => "verify__membership_check",
-                    "value" => 1,
-                    "checked" => "checked",
-                    "onchange" => "$('#verify__membership_number').prop('disabled', !this.checked); $('#verify__membership_expires_on').prop('disabled', !this.checked);",
-                ]);
-            } else {
-                echo $this->Form->control("verify_membership", [
-                    "type" => "hidden",
-                    "value" => 1,
-                    "id" => "verify__membership_check",
-                ]);
-            }
-            echo $this->Form->control("membership_number", [
-                "id" => "verify__membership_number",
-            ]);
-            echo $this->Form->control("membership_expires_on", [
-                "type" => "date",
-                "id" => "verify__membership_expires_on",
-                "empty" => true,
-            ]);
-        }
-        echo $this->Form->end();
-        ?>
-    </fieldset>
-    <?php echo $this->Modal->end([
-        $this->Form->button("Submit", [
-            "class" => "btn btn-primary",
-            "id" => "verify__submit",
-            "onclick" => '$("#verify__form").submit();',
-        ]),
-        $this->Form->button("Close", [
-            "data-bs-dismiss" => "modal",
-        ]),
-    ]);
-}
-?>
-
-
-    <?php // finish writing to modal block in layout
-
+echo $this->element('members/changePasswordModal', [
+    'user' => $user,
+]);
+echo $this->element('members/requestAuthorizationModal', [
+    'user' => $user,
+]);
+echo $this->element('members/revokeAuthorizationModal', [
+    'user' => $user,
+]);
+echo $this->element('members/renewAuthorizationModal', [
+    'user' => $user,
+]);
+echo $this->element('members/verifyMembershipModal', [
+    'user' => $user,
+    'needVerification' => $needVerification,
+    'needsParentVerification' => $needsParentVerification,
+    'needsMemberCardVerification' => $needsMemberCardVerification,
+]);
+// End writing to modal block in layout
 $this->end(); ?>
 
     <?php
+// Add scripts
 $this->append("script", $this->Html->script(["app/autocomplete.js"]));
 $this->append("script", $this->Html->script(["app/members/view.js"]));
 if ($passwordReset->getErrors()) {

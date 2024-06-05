@@ -9,10 +9,10 @@
         <h4>Query</h4>
         <?= $this->Form->create(null, ["type" => "get", 'url' => ['controller' => 'reports', 'action' => 'authorizations']]); ?>
         <?= $this->Form->date('validOn', ['default' => $validOn, 'type' => 'date']) ?>
-        <?= $this->Form->control('authorizationTypes', [
+        <?= $this->Form->control('activities', [
             'type' => 'select',
             'multiple' => 'checkbox',
-            'options' => $authorizationTypesList,
+            'options' => $activitiesList,
             'switch' => true,
             'value' => $authorizations,
         ]); ?>
