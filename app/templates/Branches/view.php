@@ -1,13 +1,17 @@
 <?php
 
 use Cake\I18n\Date;
+use Cake\I18n\DateTime;
 
 /**
  * @var \App\View\AppView $this
  * @var \App\Model\Entity\Branch $branch
  */
 ?>
-<?php $this->extend("/layout/TwitterBootstrap/dashboard"); ?>
+<?php $this->extend("/layout/TwitterBootstrap/dashboard");
+
+$user = $this->request->getAttribute("identity");
+?>
 
 <div class="branches view large-9 medium-8 columns content">
     <div class="row align-items-start">
@@ -70,13 +74,13 @@ use Cake\I18n\Date;
             $active = [];
             $expired = [];
             $exp_date = Date::now();
-            foreach ($member->officers as $auth) {
-                if ($auth->start_on > DateTime::now()) {
-                    $pending[] = $auth;
-                } elseif ($auth->expires_on < $exp_date) {
-                    $expired[] = $auth;
+            foreach ($branch->officers as $officer) {
+                if ($officer->start_on > Date::now()) {
+                    $inbound[] = $officer;
+                } elseif ($officer->expires_on < $exp_date) {
+                    $expired[] = $officer;
                 } else {
-                    $approved[] = $auth;
+                    $active[] = $officer;
                 }
             }
         ?>
@@ -87,7 +91,7 @@ use Cake\I18n\Date;
                     aria-selected="true">Current</button>
                 <button class="nav-link" id="nav-inbound-officers-tab" data-bs-toggle="tab"
                     data-bs-target="#nav-inbound-officers" type="button" role="tab" aria-controls="nav-inbound-officers"
-                    aria-selected="false">Previous</button>
+                    aria-selected="false">Inbound</button>
                 <button class="nav-link" id="nav-expired-officers-tab" data-bs-toggle="tab"
                     data-bs-target="#nav-expired-officers" type="button" role="tab" aria-controls="nav-expired-officers"
                     aria-selected="false">Previous</button>
@@ -114,10 +118,10 @@ use Cake\I18n\Date;
                             <td><?= h($officer->start_on) ?></td>
                             <td><?= h($officer->expires_on) ?></td>
                             <td>
-                                <?php if ($user->can("release", "Officer")) { ?>
+                                <?php if ($user->can("release", "Officers")) { ?>
                                 <button type="button" class="btn btn-danger " data-bs-toggle="modal"
                                     data-bs-target="#releaseModal"
-                                    onclick="$('#revoke_auth__id').val('<?= $auth->id ?>')">Release</button>
+                                    onclick="$('#release_officer__id').val('<?= $officer->id ?>')">Release</button>
                                 <?php } ?>
                             </td>
                         </tr>
@@ -125,7 +129,7 @@ use Cake\I18n\Date;
                     </table>
                 </div>
             </div>
-            <div class="tab-pane fade show active" id="nav-inbound-officers" role="tabpanel"
+            <div class="tab-pane fade" id="nav-inbound-officers" role="tabpanel"
                 aria-labelledby="nav-inbound-officers-tab" tabindex="0">
                 <div class="table-responsive">
                     <table class="table table-striped">
@@ -145,10 +149,10 @@ use Cake\I18n\Date;
                             <td><?= h($officer->start_on) ?></td>
                             <td><?= h($officer->expires_on) ?></td>
                             <td>
-                                <?php if ($user->can("release", "Officer")) { ?>
+                                <?php if ($user->can("release", "Officers")) { ?>
                                 <button type="button" class="btn btn-danger " data-bs-toggle="modal"
                                     data-bs-target="#releaseModal"
-                                    onclick="$('#release_auth__id').val('<?= $auth->id ?>')">Cancel</button>
+                                    onclick="$('#release_officer__id').val('<?= $officer->id ?>')">Cancel</button>
                                 <?php } ?>
                             </td>
                         </tr>
@@ -156,7 +160,7 @@ use Cake\I18n\Date;
                     </table>
                 </div>
             </div>
-            <div class="tab-pane fade show active" id="nav-expired-officers" role="tabpanel"
+            <div class="tab-pane fade" id="nav-expired-officers" role="tabpanel"
                 aria-labelledby="nav-expired-officers-tab" tabindex="0">
                 <div class="table-responsive">
                     <table class="table table-striped">
@@ -188,11 +192,13 @@ use Cake\I18n\Date;
                 <table class="table table-striped">
                     <tr>
                         <th scope="col"><?= __("Name") ?></th>
+                        <th scope="col"><?= __("Location") ?></th>
                         <th scope="col" class="actions"><?= __("Actions") ?></th>
                     </tr>
                     <?php foreach ($branch->children as $child) : ?>
                     <tr>
                         <td><?= h($child->name) ?></td>
+                        <td><?= h($child->location) ?></td>
                         <td class="actions">
                             <?= $this->Html->link(
                                         __("View"),
@@ -246,90 +252,20 @@ use Cake\I18n\Date;
 
     <?php
     $this->start("modals");
-    echo $this->Modal->create("Edit Branch", [
-        "id" => "editModal",
-        "close" => true,
-    ]);
-    ?>
-    <fieldset>
-        <?php
-        echo $this->Form->create($branch, [
-            "id" => "edit_entity",
-            "url" => [
-                "controller" => "Branches",
-                "action" => "edit",
-                $branch->id,
-            ],
-        ]);
-        echo $this->Form->control("name");
-        echo $this->Form->control("location");
-        echo $this->Form->control("parent_id", [
-            "options" => $treeList,
-            "empty" => true,
-        ]);
-        echo $this->Form->end();
-        ?>
-    </fieldset>
-    <?php echo $this->Modal->end([
-        $this->Form->button("Submit", [
-            "class" => "btn btn-primary",
-            "id" => "edit_entity__submit",
-            "onclick" => '$("#edit_entity").submit();',
-        ]),
-        $this->Form->button("Close", [
-            "data-bs-dismiss" => "modal",
-        ]),
+
+    echo $this->element('branches/editModal', [
+        'user' => $user,
     ]);
 
-    echo $this->Modal->create("Assign Officer", [
-        "id" => "assignOfficerModal",
-        "close" => true,
+    echo $this->element('branches/releaseModal', [
+        'user' => $user,
     ]);
-    ?>
-    <fieldset>
-        <?php
-        echo $this->Form->create($newOfficer, [
-            "id" => "assign_officer__form",
-            "url" => [
-                "controller" => "Officers",
-                "action" => "add",
-            ],
-        ]);
-        echo $this->Form->control("branch_id", [
-            "type" => "hidden",
-            "value" => $branch->id,
-        ]);
-        echo $this->Form->control("member_id", [
-            "type" => "hidden",
-            "id" => "assign_officer__member_id",
-        ]);
-        echo $this->Form->control("office_id", [
-            "options" => $offices,
-        ]);
-        echo $this->Form->control("sca_name", [
-            "type" => "text",
-            "label" => "SCA Name",
-            "id" => "assign_officer__sca_name",
-        ]);
-        echo $this->Form->control("start_on", [
-            "type" => "date",
-            "label" => __("Start Date"),
-        ]);
-        echo $this->Form->end();
-        ?>
-    </fieldset>
-    <?php echo $this->Modal->end([
-        $this->Form->button("Submit", [
-            "class" => "btn btn-primary",
-            "id" => "assign_officer__submit",
-            "disabled" => "disabled",
-        ]),
-        $this->Form->button("Close", [
-            "data-bs-dismiss" => "modal",
-        ]),
-    ]); ?>
 
-    <?php //finish writing to modal block in layout
+    echo $this->element('branches/assignModal', [
+        'user' => $user,
+    ]);
+
+
     $this->end(); ?>
 
 

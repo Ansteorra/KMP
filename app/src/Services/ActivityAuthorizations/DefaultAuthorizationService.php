@@ -416,36 +416,47 @@ class DefaultAuthorizationService implements AuthorizationServiceInterface
         $authorization,
         $authTable,
     ): bool {
-        $previous_authorizations = $authTable
-            ->find()
-            ->where([
-                "member_id" => $authorization->member_id,
-                "activity_id" =>
-                $authorization->activity_id,
-                "status" => "approved",
-            ])
-            ->where(["expires_on >" => DateTime::now()])
-            ->all();
+        try {
+            //Get all of the granted_member_role_id's for all previous authorizations
+            $previousRoles = $authTable
+                ->find()
+                ->select(["granted_member_role_id"])
+                ->where([
+                    "member_id" => $authorization->member_id,
+                    "activity_id" =>
+                    $authorization->activity_id,
+                    "status" => "approved",
+                ])
+                ->where(["expires_on >" => DateTime::now()])
+                ->toArray();
 
-        foreach ($previous_authorizations as $previous_authorization) {
-            $previous_authorization->expires_on = DateTime::now()->subDays(1);
-            $previous_authorization->setDirty("expires_on", true);
-            if (!$authTable->save($previous_authorization)) {
-                return false;
+            // Expire any previous authorizations that are still active
+            $authTable->updateAll(
+                ["expires_on" => DateTime::now()->subDays(1)],
+                [
+                    "member_id" => $authorization->member_id,
+                    "activity_id" => $authorization->activity_id,
+                    "status" => "approved",
+                    "expires_on >" => DateTime::now(),
+                ],
+            );
+            if (count($previousRoles) == 0) {
+                return true;
             }
-            // revoke the member_role if it was granted
-            if ($previous_authorization->granted_member_role_id) {
-                $memberRole = $authTable->MemberRoles->get(
-                    $previous_authorization->granted_member_role_id,
-                );
-                $memberRole->expires_on = DateTime::now()->subSeconds(1);
-                $memberRole->setDirty("expires_on", true);
-                if (!$authTable->MemberRoles->save($memberRole)) {
-                    return false;
-                }
-            }
+            $previousRolesArray = array_map(function ($role) {
+                return $role->granted_member_role_id;
+            }, $previousRoles);
+
+            $authTable->MemberRoles->updateAll(
+                ["expires_on" => DateTime::now()->subSeconds(1)],
+                [
+                    "id IN" => $previousRolesArray
+                ],
+            );
+            return true;
+        } catch (\Exception $e) {
+            return false;
         }
-        return true;
     }
 
     private function processForwardToNextApprover(

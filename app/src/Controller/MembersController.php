@@ -180,6 +180,8 @@ class MembersController extends AppController
                 "Parents" => function (SelectQuery $q) {
                     return $q->select(["Parents.sca_name", "Parents.id"]);
                 },
+                "Officers.Offices",
+                "Officers.Branches",
             ])
             ->contain(
                 "Authorizations.AuthorizationApprovals.Approvers",

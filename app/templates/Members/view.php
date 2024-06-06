@@ -425,50 +425,238 @@ switch ($member->status) {
             </div>
         </div>
     </div>
-    <?php
-        } ?>
+    <?php } ?>
+    <?php if (!empty($member->officers)) {
+
+    $currentOffices = [];
+    $upcomingOffices = [];
+    $previousOffices = [];
+    $exp_date = Date::now();
+    foreach ($member->officers as $officer) {
+        if ($officer->start_on > Date::now()) {
+            $upcomingOffices[] = $officer;
+        } elseif ($officer->expires_on < $exp_date) {
+            $previousOffices[] = $officer;
+        } else {
+            $currentOffices[] = $officer;
+        }
+    }
+    // sort $active by start_on
+    usort($currentOffices, function ($a, $b) {
+        return $a->start_on <=> $b->start_on;
+    });
+    usort($upcomingOffices, function ($a, $b) {
+        return $a->start_on <=> $b->start_on;
+    });
+    // sort $inactive by expires_on
+    usort($previousOffices, function ($a, $b) {
+        return $a->expires_on <=> $b->expires_on;
+    });
+?>
     <div class="related">
-        <h4><?= __("Notes") ?></h4>
-        <div class="accordion mb-3" id="accordionExample">
-            <?php if (!empty($member->notes)) : ?>
-            <?php foreach ($member->notes as $note) : ?>
-            <div class="accordion-item">
-                <h2 class="accordion-header">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                        data-bs-target="#note_<?= $note->id ?>" aria-expanded="true" aria-controls="collapseOne">
-                        <?= h($note->subject) ?> : <?= h(
-                                                            $note->created_on,
-                                                        ) ?> - by <?= h($note->author->sca_name) ?>
-                        <?= $note->private
-                                ? '<span class="mx-3 badge bg-secondary">Private</span>'
-                                : "" ?>
-                    </button>
-                </h2>
-                <div id="note_<?= $note->id ?>" class="accordion-collapse collapse" data-bs-parent="#accordionExample">
-                    <div class="accordion-body">
-                        <?= $this->Text->autoParagraph(
-                                h($note->body),
-                            ) ?>
-                    </div>
+        <h4><?= __("Offices") ?></h4>
+
+        <nav>
+            <div class="nav nav-tabs" id="nav-tab" role="tablist">
+                <button class="nav-link active" id="nav-current-officer-tab" data-bs-toggle="tab"
+                    data-bs-target="#nav-current-officer" type="button" role="tab" aria-controls="nav-current-officer"
+                    aria-selected="true">Current</button>
+                <button class="nav-link" id="nav-upcoming-officer-tab" data-bs-toggle="tab"
+                    data-bs-target="#nav-upcoming-officer" type="button" role="tab" aria-controls="nav-upcoming-officer"
+                    aria-selected="false">Upcoming</button>
+                <button class="nav-link" id="nav-previous-officer-tab" data-bs-toggle="tab"
+                    data-bs-target="#nav-previous-officer" type="button" role="tab" aria-controls="nav-previous-officer"
+                    aria-selected="false">Previous</button>
+            </div>
+        </nav>
+        <div class="tab-content" id="nav-tabContent">
+            <div class="tab-pane fade show active" id="nav-current-officer" role="tabpanel"
+                aria-labelledby="nav-current-officer-tab" tabindex="0">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <tr>
+                            <th scope="col"><?= __("Office") ?></th>
+                            <th scope="col"><?= __("Branch") ?></th>
+                            <th scope="col"><?= __("Start Date") ?></th>
+                            <th scope="col"><?= __("End Date") ?></th>
+                            <?php if ($user->can("view", "Offices")) { ?>
+                            <th scope="col" class="actions"><?= __(
+                                                                    "Actions",
+                                                                ) ?></th>
+                            <?php } ?>
+                        </tr>
+                        <?php foreach ($currentOffices as $office) : ?>
+                        <tr>
+                            <td><?= h($office->office->name) ?></td>
+                            <td><?= h($office->branch->name) ?></td>
+                            <td><?= h($office->start_on) ?></td>
+                            <td><?= h($office->expires_on) ?></td>
+                            <?php if (
+                                    $user->can(
+                                        "view",
+                                        $office->office,
+                                    )
+                                ) { ?>
+                            <td class="actions">
+                                <?= $this->Html->link(
+                                            __("View"),
+                                            [
+                                                "controller" => "Offices",
+                                                "action" => "view",
+                                                $office->office_id,
+                                            ],
+                                            [
+                                                "class" =>
+                                                "btn btn-secondary",
+                                            ],
+                                        ) ?>
+                            </td>
+                            <?php } ?>
+                        </tr>
+                        <?php endforeach; ?>
+                    </table>
                 </div>
             </div>
-            <?php endforeach; ?>
-            <?php endif; ?>
-            <div class="accordion-item">
-                <h2 class="accordion-header">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                        data-bs-target="#note_new" aria-expanded="true" aria-controls="collapseOne">
-                        Add a Note
-                    </button>
-                </h2>
-                <div id="note_new" class="accordion-collapse collapse" data-bs-parent="#accordionExample">
-                    <div class="accordion-body">
-                        <?= $this->Form->create($newNote, [
+            <div class="tab-pane fade" id="nav-upcoming-officer" role="tabpanel"
+                aria-labelledby="nav-upcoming-officer-tab" tabindex="0">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <tr>
+                            <th scope="col"><?= __("Office") ?></th>
+                            <th scope="col"><?= __("Branch") ?></th>
+                            <th scope="col"><?= __("Start Date") ?></th>
+                            <th scope="col"><?= __("End Date") ?></th>
+                            <?php if ($user->can("view", "Offices")) { ?>
+                            <th scope="col" class="actions"><?= __(
+                                                                    "Actions",
+                                                                ) ?></th>
+                            <?php } ?>
+                        </tr>
+                        <?php foreach ($upcomingOffices as $office) : ?>
+                        <tr>
+                            <td><?= h($office->office->name) ?></td>
+                            <td><?= h($office->branch->name) ?></td>
+                            <td><?= h($office->start_on) ?></td>
+                            <td><?= h($office->expires_on) ?></td>
+                            <?php if (
+                                    $user->can(
+                                        "view",
+                                        $office->office,
+                                    )
+                                ) { ?>
+                            <td class="actions">
+                                <?= $this->Html->link(
+                                            __("View"),
+                                            [
+                                                "controller" => "Offices",
+                                                "action" => "view",
+                                                $office->office_id,
+                                            ],
+                                            [
+                                                "class" =>
+                                                "btn btn-secondary",
+                                            ],
+                                        ) ?>
+                            </td>
+                            <?php } ?>
+                        </tr>
+                        <?php endforeach; ?>
+                    </table>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="nav-previous-officer" role="tabpanel"
+                aria-labelledby="nav-previous-officer-tab" tabindex="0">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <tr>
+                            <th scope="col"><?= __("Office") ?></th>
+                            <th scope="col"><?= __("Branch") ?></th>
+                            <th scope="col"><?= __("Start Date") ?></th>
+                            <th scope="col"><?= __("End Date") ?></th>
+                            <?php if ($user->can("view", "Offices")) { ?>
+                            <th scope="col" class="actions"><?= __(
+                                                                    "Actions",
+                                                                ) ?></th>
+                            <?php } ?>
+                        </tr>
+                        <?php foreach ($previousOffices as $office) : ?>
+                        <tr>
+                            <td><?= h($office->office->name) ?></td>
+                            <td><?= h($office->branch->name) ?></td>
+                            <td><?= h($office->start_on) ?></td>
+                            <td><?= h($office->expires_on) ?></td>
+                            <?php if (
+                                    $user->can(
+                                        "view",
+                                        $office->office,
+                                    )
+                                ) { ?>
+                            <td class="actions">
+                                <?= $this->Html->link(
+                                            __("View"),
+                                            [
+                                                "controller" => "Offices",
+                                                "action" => "view",
+                                                $office->office_id,
+                                            ],
+                                            [
+                                                "class" =>
+                                                "btn btn-secondary",
+                                            ],
+                                        ) ?>
+                            </td>
+                            <?php } ?>
+                        </tr>
+                        <?php endforeach; ?>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<?php } ?>
+<div class="related">
+    <h4><?= __("Notes") ?></h4>
+    <div class="accordion mb-3" id="accordionExample">
+        <?php if (!empty($member->notes)) : ?>
+        <?php foreach ($member->notes as $note) : ?>
+        <div class="accordion-item">
+            <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#note_<?= $note->id ?>" aria-expanded="true" aria-controls="collapseOne">
+                    <?= h($note->subject) ?> : <?= h(
+                                                            $note->created_on,
+                                                        ) ?> - by <?= h($note->author->sca_name) ?>
+                    <?= $note->private
+                                ? '<span class="mx-3 badge bg-secondary">Private</span>'
+                                : "" ?>
+                </button>
+            </h2>
+            <div id="note_<?= $note->id ?>" class="accordion-collapse collapse" data-bs-parent="#accordionExample">
+                <div class="accordion-body">
+                    <?= $this->Text->autoParagraph(
+                                h($note->body),
+                            ) ?>
+                </div>
+            </div>
+        </div>
+        <?php endforeach; ?>
+        <?php endif; ?>
+        <div class="accordion-item">
+            <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#note_new" aria-expanded="true" aria-controls="collapseOne">
+                    Add a Note
+                </button>
+            </h2>
+            <div id="note_new" class="accordion-collapse collapse" data-bs-parent="#accordionExample">
+                <div class="accordion-body">
+                    <?= $this->Form->create($newNote, [
                         "url" => ["action" => "addNote", $member->id],
                     ]) ?>
-                        <fieldset>
-                            <legend><?= __("Add Note") ?></legend>
-                            <?php
+                    <fieldset>
+                        <legend><?= __("Add Note") ?></legend>
+                        <?php
                         echo $this->Form->control("subject");
                         echo $user->can("viewPrivateNotes", $member)
                             ? $this->Form->control("private", [
@@ -480,20 +668,20 @@ switch ($member->status) {
                             "label" => "Note",
                         ]);
                         ?>
-                        </fieldset>
-                        <div class='text-end'><?= $this->Form->button(
+                    </fieldset>
+                    <div class='text-end'><?= $this->Form->button(
                                                 __("Submit"),
                                                 ["class" => "btn-primary"],
                                             ) ?></div>
-                        <?= $this->Form->end() ?>
-                    </div>
+                    <?= $this->Form->end() ?>
                 </div>
             </div>
         </div>
     </div>
+</div>
 
 
-    <?php
+<?php
 $this->start("modals");
 // Start writing to modal block in layout
 
@@ -521,7 +709,7 @@ echo $this->element('members/verifyMembershipModal', [
 // End writing to modal block in layout
 $this->end(); ?>
 
-    <?php
+<?php
 // Add scripts
 $this->append("script", $this->Html->script(["app/autocomplete.js"]));
 $this->append("script", $this->Html->script(["app/members/view.js"]));

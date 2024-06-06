@@ -35,7 +35,7 @@
                                             $this->Html,
                                         ) ?></td>
             <td class="text-center"><?= $this->Kmp->bool(
-                                            $office->one_per_branch,
+                                            $office->only_one_per_branch,
                                             $this->Html,
                                         ) ?></td>
             <td class="text-center"><?= h(

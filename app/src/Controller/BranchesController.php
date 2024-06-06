@@ -62,6 +62,30 @@ class BranchesController extends AppController
                         ->select(["id", "sca_name", "branch_id"])
                         ->orderBy(["sca_name" => "ASC"]);
                 },
+                "Officers" => function ($q) {
+                    return $q
+                        ->select([
+                            "id",
+                            "member_id",
+                            "office_id",
+                            "branch_id",
+                            "start_on",
+                            "expires_on",
+                            'release_reason',
+                        ])
+                        ->contain([
+                            "Members" => function ($q) {
+                                return $q
+                                    ->select(["id", "sca_name"])
+                                    ->order(["sca_name" => "ASC"]);
+                            },
+                            "Offices" => function ($q) {
+                                return $q
+                                    ->select(["id", "name"]);
+                            },
+                        ])
+                        ->order(["start_on" => "DESC"]);
+                },
             ],
         );
         $this->Authorization->authorize($branch);

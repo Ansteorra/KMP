@@ -32,142 +32,141 @@ $now = Date::now();
 
 <head>
     <style>
-        .letter {
-            font-size: 10pt;
-            clear: both;
-            margin-left: 10px;
-            margin-right: 10px;
-            margin-top: 10px;
-            margin-bottom: 20px;
-        }
+    .letter {
+        font-size: 10pt;
+        clear: both;
+        margin-left: 10px;
+        margin-right: 10px;
+        margin-top: 10px;
+        margin-bottom: 20px;
+    }
 
-        .header {
-            width: 100%;
-            height: 68px;
-        }
+    .header {
+        width: 100%;
+        height: 68px;
+    }
 
-        .header-left,
-        .header-right {
-            float: left;
-            width: 20%;
-            text-align: center;
-        }
+    .header-left,
+    .header-right {
+        float: left;
+        width: 20%;
+        text-align: center;
+    }
 
-        .header-left img,
-        .header-right img {
-            height: 68px;
-        }
+    .header-left img,
+    .header-right img {
+        height: 68px;
+    }
 
-        .header-center {
-            background-color: <?= h(
-                                    $message_variables["marshal_auth_header_color"],
-                                ) ?>;
-            float: left;
-            font-size: 18pt;
-            text-align: center;
-            width: 60%;
-            vertical-align: middle;
-            font-weight: bold;
-        }
+    .header-center {
+        background-color: <?=h($message_variables["marshal_auth_header_color"],
+            ) ?>;
+        float: left;
+        font-size: 18pt;
+        text-align: center;
+        width: 60%;
+        vertical-align: middle;
+        font-weight: bold;
+    }
 
-        .cardbox::after {
-            content: "";
-            background-image: url('<?php echo $watermarkimg; ?>');
-            background-size: 45mm 42mm;
-            background-repeat: no-repeat;
-            background-position: center;
-            opacity: 0.05;
-            top: 0;
-            left: 0;
-            bottom: 0;
-            right: 0;
-            position: absolute;
-            z-index: -1;
-            display: inline-block;
-        }
+    .cardbox::after {
+        content: "";
+        background-image: url('<?php echo $watermarkimg; ?>');
+        background-size: 45mm 42mm;
+        background-repeat: no-repeat;
+        background-position: center;
+        opacity: 0.05;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        right: 0;
+        position: absolute;
+        z-index: -1;
+        display: inline-block;
+    }
 
-        .cardbox {
-            border: .5mm;
-            border-style: solid;
-            border-radius: 3mm;
-            border-color: black;
-            width: 48mm;
-            height: 75mm;
-            text-align: center;
-            position: relative;
-            margin: 0px;
-            overflow: hidden;
-            float: left;
-        }
+    .cardbox {
+        border: .5mm;
+        border-style: solid;
+        border-radius: 3mm;
+        border-color: black;
+        width: 48mm;
+        height: 75mm;
+        text-align: center;
+        position: relative;
+        margin: 0px;
+        overflow: hidden;
+        float: left;
+    }
 
-        .auth_cards {
-            text-align: center;
-            font-size: 0;
-        }
+    .auth_cards {
+        text-align: center;
+        font-size: 0;
+    }
 
-        .auth_card {
-            display: inline-block;
-            margin: 0;
-        }
+    .auth_card {
+        display: inline-block;
+        margin: 0;
+    }
 
-        .cardboxheader {
-            font-weight: bold;
-            font-size: 9pt;
-        }
+    .cardboxheader {
+        font-weight: bold;
+        font-size: 9pt;
+    }
 
-        .cardbox dl {
-            display: block;
-            width: 60%;
-            margin: 0px;
-            margin-left: 5px;
-            padding: 0px;
-            text-align: left;
-            font-size: 7pt;
-            margin-bottom: 0px;
-        }
+    .cardbox dl {
+        display: block;
+        width: 60%;
+        margin: 0px;
+        margin-left: 5px;
+        padding: 0px;
+        text-align: left;
+        font-size: 7pt;
+        margin-bottom: 0px;
+    }
 
-        .cardbox dl dt {
-            font-weight: 900;
-            margin: 0px;
-            padding: 0px;
-        }
+    .cardbox dl dt {
+        font-weight: 900;
+        margin: 0px;
+        padding: 0px;
+    }
 
-        .cardbox dl dd {
-            margin-left: 3px;
-        }
+    .cardbox dl dd {
+        margin-left: 3px;
+    }
 
-        .cardboxAuthorizingLabel,
-        .cardboxAuthorizationsLabel {
-            font-size: 7pt;
-            font-weight: 900;
-            width: 95%;
-        }
+    .cardboxAuthorizingLabel,
+    .cardboxAuthorizationsLabel {
+        font-size: 7pt;
+        font-weight: 900;
+        width: 95%;
+    }
 
-        .cardboxAuthorizing {
-            margin: 0px;
-            padding: 0px;
-            margin-left: 5px;
-            font-size: 7pt;
-            list-style: none;
-            text-align: left;
-        }
+    .cardboxAuthorizing {
+        margin: 0px;
+        padding: 0px;
+        margin-left: 5px;
+        font-size: 7pt;
+        list-style: none;
+        text-align: left;
+    }
 
-        .cardboxAuthorizations {
-            margin: 0px;
-            padding: 0px;
-            margin-left: 5px;
-            font-size: 7pt;
-            list-style: none;
-            text-align: center;
-            width: 95%;
-        }
+    .cardboxAuthorizations {
+        margin: 0px;
+        padding: 0px;
+        margin-left: 5px;
+        font-size: 7pt;
+        list-style: none;
+        text-align: center;
+        width: 95%;
+    }
 
-        hr {
-            border: .5mm;
-            border-style: solid;
-            border-color: black;
-            margin: 0px;
-        }
+    hr {
+        border: .5mm;
+        border-style: solid;
+        border-color: black;
+        margin: 0px;
+    }
     </style>
 </head>
 
@@ -202,7 +201,8 @@ $now = Date::now();
             identification when being inspected. </p>
 
         <p>Cut off around the edges of the below box, fold on the dotted line and keep the card safe. Please feel free
-            to print out multiple copies and keep them where you will have them available at SCA events and practices. </p>
+            to print out multiple copies and keep them where you will have them available at SCA events and practices.
+        </p>
 
         <p>It is recommend that you laminate your card to protect from moisture (dew, sweat, water, etc). You can do
             this by buying a laminating pouch or carefully putting clear packing tape on both sides to cover. </p>
@@ -239,112 +239,112 @@ $now = Date::now();
                     <dt>Background Check</dt>
                     <dd>
                         <?php if ($member->background_check_expires_on > $now) { ?>
-                            <b>* Current *</b> : <?= h(
+                        <b>* Current *</b> : <?= h(
                                                         $member->background_check_expires_on,
                                                     ) ?>
                         <?php } else { ?>
-                            <?php if ($member->background_check_expires_on == null) { ?>
-                                <b>* Not on file *</b>
-                            <?php } else { ?>
-                                <b>* Expired *</b>: <?= h(
+                        <?php if ($member->background_check_expires_on == null) { ?>
+                        <b>* Not on file *</b>
+                        <?php } else { ?>
+                        <b>* Expired *</b>: <?= h(
                                                         $member->background_check_expires_on,
                                                     ) ?>
-                            <?php } ?>
+                        <?php } ?>
                         <?php } ?>
                     </dd>
                 </dl>
             </div>
         </div><?php if (count($authTypes) > 0) : ?>
-            <div class="auth_card">
-                <?php $cardCount++; ?>
-                <div class="cardbox">
-                    <div class="cardboxContent">
-                        <div class="cardboxAuthorizingLabel">Authorizing Marshal for:</div>
-                        <table class='cardboxAuthorizing'>
-                            <?php $i = 0; ?>
-                            <?php foreach ($authTypes as $role) : ?>
-                                <?php $i++; ?>
-                                <?php if ($i == 1) : ?>
-                                    <tr>
-                                    <?php endif; ?>
-                                    <td><?= str_replace(
+        <div class="auth_card">
+            <?php $cardCount++; ?>
+            <div class="cardbox">
+                <div class="cardboxContent">
+                    <div class="cardboxAuthorizingLabel">Authorizing Marshal for:</div>
+                    <table class='cardboxAuthorizing'>
+                        <?php $i = 0; ?>
+                        <?php foreach ($authTypes as $role) : ?>
+                        <?php $i++; ?>
+                        <?php if ($i == 1) : ?>
+                        <tr>
+                            <?php endif; ?>
+                            <td><?= str_replace(
                                             "Authorizing Marshal",
                                             "",
                                             $role,
                                         ) ?></td>
-                                    <?php if ($i == 2) : ?>
-                                    </tr>
-                                    <?php $i = 0; ?>
-                                <?php endif; ?>
-                            <?php endforeach; ?>
-                            <?php if ($i == 1) : ?>
-                                </tr>
-                            <?php endif; ?>
-                        </table>
-                    </div>
+                            <?php if ($i == 2) : ?>
+                        </tr>
+                        <?php $i = 0; ?>
+                        <?php endif; ?>
+                        <?php endforeach; ?>
+                        <?php if ($i == 1) : ?>
+                        </tr>
+                        <?php endif; ?>
+                    </table>
                 </div>
-            </div><?php endif; ?>
+            </div>
+        </div><?php endif; ?>
         <?php
         $group = "";
         $authCount = 0;
         ?>
         <?php foreach ($member->authorizations as $auth) : ?>
-            <?php if ($authCount == 0) : ?>
-                <?php
+        <?php if ($authCount == 0) : ?>
+        <?php
                 $cardCount = checkCardCount($cardCount);
                 $cardCount++;
                 $group = "";
                 ?>
-                <div class="auth_card">
-                    <div class="cardbox">
-                        <div class="cardboxContent">
-                            <div class="cardboxAuthorizationsLabel">Authorizations:</div>
-                            <table class='cardboxAuthorizations'>
-                            <?php endif; ?>
-                            <?php $authCount++; ?>
-                            <?php if (
+        <div class="auth_card">
+            <div class="cardbox">
+                <div class="cardboxContent">
+                    <div class="cardboxAuthorizationsLabel">Authorizations:</div>
+                    <table class='cardboxAuthorizations'>
+                        <?php endif; ?>
+                        <?php $authCount++; ?>
+                        <?php if (
                                 $group !=
                                 $auth->activity
                                 ->activity_group->name
                             ) : ?>
-                                <?php $group =
+                        <?php $group =
                                     $auth->activity
                                     ->activity_group->name; ?>
-                                <?php $authCount++; ?>
-                                <tr>
-                                    <td colspan="2" class="cardboxAuthorizationsLabel">
-                                        <hr /><?= $group ?>
-                                        <hr />
-                                    </td>
-                                </tr>
-                            <?php endif; ?>
-                            <tr>
-                                <td style="text-align:left"><?= $auth
+                        <?php $authCount++; ?>
+                        <tr>
+                            <td colspan="2" class="cardboxAuthorizationsLabel">
+                                <hr /><?= $group ?>
+                                <hr />
+                            </td>
+                        </tr>
+                        <?php endif; ?>
+                        <tr>
+                            <td style="text-align:left"><?= $auth
                                                                 ->activity->name ?></td>
-                                <td style="text-align:right"><?= $auth->expires_on ?></td>
-                            </tr>
-                            <?php if ($authCount == 15) : ?>
-                            </table>
-                        </div>
-                    </div>
+                            <td style="text-align:right"><?= $auth->expires_on ?></td>
+                        </tr>
+                        <?php if ($authCount == 15) : ?>
+                    </table>
                 </div>
-                <?php $authCount = 0; ?>
-            <?php endif; ?>
+            </div>
+        </div>
+        <?php $authCount = 0; ?>
+        <?php endif; ?>
         <?php endforeach; ?>
         <?php if ($authCount != 0) : ?>
-            </table>
+        </table>
     </div>
     </div>
     </div>
-<?php endif; ?>
-<?php if ($cardCount == 1) : ?>
+    <?php endif; ?>
+    <?php if ($cardCount == 1) : ?>
     <div class="auth_card">
         <div class="cardbox">
             <div class="cardboxContent">
                 <h3>This card intentionally left blank.</h3>
             </div>
         </div>
-    <?php endif; ?>
+        <?php endif; ?>
     </div>
     </div>
 </body>

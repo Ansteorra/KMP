@@ -137,6 +137,16 @@ class Officers extends AbstractMigration
                 "limit" => 11,
                 "null" => true,
             ])
+            ->addColumn("approver_id", "integer", [
+                "default" => null,
+                "limit" => 11,
+                "null" => false,
+            ])
+            ->addColumn("approval_date", "datetime", [
+                "default" => null,
+                "limit" => null,
+                "null" => false,
+            ])
             ->addIndex(["branch_id"])
             ->addIndex(["office_id"])
             ->addIndex(["member_id"])

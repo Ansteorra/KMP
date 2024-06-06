@@ -70,6 +70,10 @@ class MembersTable extends Table
             "foreignKey" => "member_id",
         ]);
 
+        $this->hasMany("Officers", [
+            "foreignKey" => "member_id",
+        ]);
+
         $this->belongsTo("Branches", [
             "className" => "Branches",
             "foreignKey" => "branch_id",

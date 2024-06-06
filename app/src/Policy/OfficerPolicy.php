@@ -10,7 +10,12 @@ use Authorization\IdentityInterface;
 /**
  * Department policy
  */
-class OfficePolicy extends BasePolicy
+class OfficerPolicy extends BasePolicy
 {
-    protected string $REQUIRED_PERMISSION = "Can Manage Offices";
+    protected string $REQUIRED_PERMISSION = "Can Manage Officers";
+
+    public function canRelease(IdentityInterface $user, $entity)
+    {
+        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+    }
 }
