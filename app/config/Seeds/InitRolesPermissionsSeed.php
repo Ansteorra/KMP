@@ -26,6 +26,7 @@ class InitRolesPermissionsSeed extends AbstractSeed
             [
                 'permission_id' => 1,
                 'role_id' => 1,
+                'created_by' => 1,
             ]
         ];
 

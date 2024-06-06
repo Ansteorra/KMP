@@ -63,7 +63,8 @@ class OfficesTable extends Table
         $this->hasMany('Officers', [
             'foreignKey' => 'office_id',
         ]);
-
+        $this->addBehavior("Timestamp");
+        $this->addBehavior('Muffin/Footprint.Footprint');
         $this->addBehavior("Muffin/Trash.Trash");
     }
 

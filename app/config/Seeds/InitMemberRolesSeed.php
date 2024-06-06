@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 
 use Migrations\AbstractSeed;
+use Cake\I18n\DateTime;
 
 /**
  * MemberRoles seed.
@@ -30,6 +31,8 @@ class InitMemberRolesSeed extends AbstractSeed
                 'expires_on' => NULL,
                 'start_on' => '2024-05-30 01:22:55',
                 'approver_id' => 1,
+                'created' => DateTime::now(),
+                'created_by' => '1',
             ]
         ];
 

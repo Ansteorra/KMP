@@ -60,7 +60,8 @@ class RolesTable extends Table
             "targetForeignKey" => "permission_id",
             "joinTable" => "roles_permissions",
         ]);
-
+        $this->addBehavior("Timestamp");
+        $this->addBehavior('Muffin/Footprint.Footprint');
         $this->addBehavior("Muffin/Trash.Trash");
     }
 

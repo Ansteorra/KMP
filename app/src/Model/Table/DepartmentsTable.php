@@ -47,6 +47,8 @@ class DepartmentsTable extends Table
         $this->hasMany('Offices', [
             'foreignKey' => 'department_id',
         ]);
+        $this->addBehavior("Timestamp");
+        $this->addBehavior('Muffin/Footprint.Footprint');
     }
 
     /**

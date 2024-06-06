@@ -53,6 +53,8 @@ class PermissionsTable extends Table
             "targetForeignKey" => "role_id",
             "joinTable" => "roles_permissions",
         ]);
+        $this->addBehavior("Timestamp");
+        $this->addBehavior('Muffin/Footprint.Footprint');
     }
 
     /**

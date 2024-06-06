@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 
 use Migrations\AbstractSeed;
+use Cake\I18n\DateTime;
 
 
 
@@ -35,6 +36,8 @@ class InitPermissionsSeed extends AbstractSeed
                 'system' => 1,
                 'is_super_user' => 1,
                 'requires_warrant' => 1,
+                'created' => DateTime::now(),
+                'created_by' => '1',
             ],
             [
                 'id' => 2,
@@ -46,6 +49,8 @@ class InitPermissionsSeed extends AbstractSeed
                 'system' => 1,
                 'is_super_user' => 0,
                 'requires_warrant' => 1,
+                'created' => DateTime::now(),
+                'created_by' => '1',
             ],
             [
                 'id' => 3,
@@ -57,6 +62,8 @@ class InitPermissionsSeed extends AbstractSeed
                 'system' => 1,
                 'is_super_user' => 0,
                 'requires_warrant' => 1,
+                'created' => DateTime::now(),
+                'created_by' => '1',
             ],
             [
                 'id' => 4,
@@ -68,6 +75,8 @@ class InitPermissionsSeed extends AbstractSeed
                 'system' => 1,
                 'is_super_user' => 0,
                 'requires_warrant' => 1,
+                'created' => DateTime::now(),
+                'created_by' => '1',
             ],
             [
                 'id' => 5,
@@ -79,6 +88,8 @@ class InitPermissionsSeed extends AbstractSeed
                 'system' => 1,
                 'is_super_user' => 0,
                 'requires_warrant' => 1,
+                'created' => DateTime::now(),
+                'created_by' => '1',
             ],
             [
                 'id' => 6,
@@ -90,6 +101,8 @@ class InitPermissionsSeed extends AbstractSeed
                 'system' => 1,
                 'is_super_user' => 0,
                 'requires_warrant' => 1,
+                'created' => DateTime::now(),
+                'created_by' => '1',
             ],
             [
                 'id' => 7,
@@ -101,6 +114,8 @@ class InitPermissionsSeed extends AbstractSeed
                 'system' => 1,
                 'is_super_user' => 0,
                 'requires_warrant' => 1,
+                'created' => DateTime::now(),
+                'created_by' => '1',
             ],
             [
                 'id' => 8,
@@ -112,6 +127,8 @@ class InitPermissionsSeed extends AbstractSeed
                 'system' => 1,
                 'is_super_user' => 0,
                 'requires_warrant' => 0,
+                'created' => DateTime::now(),
+                'created_by' => '1',
             ],
             [
                 'id' => 9,
@@ -123,6 +140,8 @@ class InitPermissionsSeed extends AbstractSeed
                 'system' => 1,
                 'is_super_user' => 0,
                 'requires_warrant' => 1,
+                'created' => DateTime::now(),
+                'created_by' => '1',
             ]
         ];
 

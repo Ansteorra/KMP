@@ -28,7 +28,7 @@ use App\KMP\PermissionsLoader;
  * Member Entity
  *
  * @property int $id
- * @property \Cake\I18n\DateTime $last_updated
+ * @property \Cake\I18n\DateTime $motified
  * @property string $password
  * @property string|null $sca_name
  * @property string $first_name
@@ -87,7 +87,7 @@ class Member extends Entity implements
      * @var array<string, bool>
      */
     protected array $_accessible = [
-        "last_updated" => true,
+        "motified" => true,
         "password" => true,
         "sca_name" => true,
         "first_name" => true,

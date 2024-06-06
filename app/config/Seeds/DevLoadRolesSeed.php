@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Migrations\AbstractSeed;
+use Cake\I18n\DateTime;
 
 /**
  * Roles seed.
@@ -26,36 +27,50 @@ class DevLoadRolesSeed extends AbstractSeed
                 'id' => 200,
                 'name' => 'Secretary',
                 'deleted' => NULL,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'id' => 201,
                 'name' => 'Kingdom Earl Marshal',
                 'deleted' => NULL,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'id' => 202,
                 'name' => 'Kingdom Rapier Marshal',
                 'deleted' => NULL,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'id' => 203,
                 'name' => 'Kingdom Armored Marshal',
                 'deleted' => NULL,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'id' => 204,
                 'name' => 'Authorizing Rapier Marshal',
                 'deleted' => NULL,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'id' => 205,
                 'name' => 'Authorizing Armored Marshal',
                 'deleted' => NULL,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'id' => 206,
                 'name' => 'Authorizing Youth Armored Marshal',
                 'deleted' => NULL,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
         ];
 

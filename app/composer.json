@@ -16,6 +16,7 @@
         "friendsofcake/cakepdf": "^5.0",
         "jeremyharris/cakephp-lazyload": "^5.0",
         "mobiledetect/mobiledetectlib": "^4.8.03",
+        "muffin/footprint": "^4.0",
         "muffin/trash": "^4.0"
     },
     "require-dev": {

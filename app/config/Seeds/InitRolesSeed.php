@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 
 use Migrations\AbstractSeed;
+use Cake\I18n\DateTime;
 
 /**
  * Roles seed.
@@ -27,6 +28,8 @@ class InitRolesSeed extends AbstractSeed
                 'id' => 1,
                 'name' => 'Admin',
                 'deleted' => NULL,
+                'created' => DateTime::now(),
+                'created_by' => '1',
             ]
         ];
 

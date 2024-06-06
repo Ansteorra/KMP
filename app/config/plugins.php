@@ -13,6 +13,8 @@ return [
     ],
     'BootstrapUI' => [],
     'Bootstrap' => [],
+    'Muffin/Footprint' => [],
+    'Authentication' => [],
     'Authorization' => [],
     'Muffin/Trash' => [],
     'ADmad/Glide' => [],

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Migrations\AbstractSeed;
+use Cake\I18n\DateTime;
 
 /**
  * Permissions seed.
@@ -32,6 +33,8 @@ class DevLoadPermissionsSeed extends AbstractSeed
                 'system' => 0,
                 'is_super_user' => 0,
                 'requires_warrant' => 1,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'id' => 201,
@@ -43,6 +46,8 @@ class DevLoadPermissionsSeed extends AbstractSeed
                 'system' => 0,
                 'is_super_user' => 0,
                 'requires_warrant' => 1,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'id' => 202,
@@ -54,6 +59,8 @@ class DevLoadPermissionsSeed extends AbstractSeed
                 'system' => 0,
                 'is_super_user' => 0,
                 'requires_warrant' => 1,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'id' => 203,
@@ -65,6 +72,8 @@ class DevLoadPermissionsSeed extends AbstractSeed
                 'system' => 0,
                 'is_super_user' => 0,
                 'requires_warrant' => 1,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'id' => 204,
@@ -76,6 +85,8 @@ class DevLoadPermissionsSeed extends AbstractSeed
                 'system' => 0,
                 'is_super_user' => 0,
                 'requires_warrant' => 1,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'id' => 205,
@@ -87,6 +98,8 @@ class DevLoadPermissionsSeed extends AbstractSeed
                 'system' => 0,
                 'is_super_user' => 0,
                 'requires_warrant' => 1,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'id' => 206,
@@ -98,6 +111,8 @@ class DevLoadPermissionsSeed extends AbstractSeed
                 'system' => 0,
                 'is_super_user' => 0,
                 'requires_warrant' => 1,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'id' => 207,
@@ -109,6 +124,8 @@ class DevLoadPermissionsSeed extends AbstractSeed
                 'system' => 0,
                 'is_super_user' => 0,
                 'requires_warrant' => 1,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'id' => 208,
@@ -120,6 +137,8 @@ class DevLoadPermissionsSeed extends AbstractSeed
                 'system' => 0,
                 'is_super_user' => 0,
                 'requires_warrant' => 1,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'id' => 209,
@@ -131,6 +150,8 @@ class DevLoadPermissionsSeed extends AbstractSeed
                 'system' => 0,
                 'is_super_user' => 0,
                 'requires_warrant' => 1,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
         ];
 

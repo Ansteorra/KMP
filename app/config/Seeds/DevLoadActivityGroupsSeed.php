@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Migrations\AbstractSeed;
+use Cake\I18n\DateTime;
 
 /**
  * ActivityGroups seed.
@@ -25,14 +26,20 @@ class DevLoadActivityGroupsSeed extends AbstractSeed
             [
                 'id' => 1,
                 'name' => 'Armored',
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'id' => 2,
                 'name' => 'Rapier',
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'id' => 3,
                 'name' => 'Youth Armored',
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
         ];
 

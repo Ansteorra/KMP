@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Migrations\AbstractSeed;
+use Cake\I18n\DateTime;
 
 /**
  * Branches seed.
@@ -29,6 +30,8 @@ class InitBranchesSeed extends AbstractSeed
                 'parent_id' => NULL,
                 'lft' => 1,
                 'rght' => 18,
+                'created' => DateTime::now(),
+                'created_by' => '1',
             ]
         ];
 

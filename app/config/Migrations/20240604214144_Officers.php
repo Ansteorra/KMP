@@ -30,6 +30,26 @@ class Officers extends AbstractMigration
                 "limit" => null,
                 "null" => true,
             ])
+            ->addColumn("motified", "datetime", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
+            ->addColumn("created", "datetime", [
+                "default" => null,
+                "limit" => null,
+                "null" => false,
+            ])
+            ->addColumn("created_by", "integer", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
+            ->addColumn("modified_by", "integer", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
             ->create();
 
         $this->table("offices")
@@ -78,6 +98,26 @@ class Officers extends AbstractMigration
             ->addIndex(["name"], ["unique" => true])
             ->addIndex(["department_id"])
             ->addColumn("deleted", "datetime", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
+            ->addColumn("motified", "datetime", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
+            ->addColumn("created", "datetime", [
+                "default" => null,
+                "limit" => null,
+                "null" => false,
+            ])
+            ->addColumn("created_by", "integer", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
+            ->addColumn("modified_by", "integer", [
                 "default" => null,
                 "limit" => null,
                 "null" => true,
@@ -147,10 +187,41 @@ class Officers extends AbstractMigration
                 "limit" => null,
                 "null" => false,
             ])
+            ->addColumn("reports_to_branch_id", "integer", [
+                "default" => null,
+                "limit" => 11,
+                "null" => true,
+            ])
+            ->addColumn("reports_to_office_id", "integer", [
+                "default" => null,
+                "limit" => 11,
+                "null" => true,
+            ])
+
             ->addIndex(["branch_id"])
             ->addIndex(["office_id"])
             ->addIndex(["member_id"])
             ->addColumn("deleted", "datetime", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
+            ->addColumn("motified", "datetime", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
+            ->addColumn("created", "datetime", [
+                "default" => null,
+                "limit" => null,
+                "null" => false,
+            ])
+            ->addColumn("created_by", "integer", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
+            ->addColumn("modified_by", "integer", [
                 "default" => null,
                 "limit" => null,
                 "null" => true,
@@ -189,6 +260,15 @@ class Officers extends AbstractMigration
             ->update();
         $this->table("officers")
             ->addForeignKey(
+                "reports_to_branch_id",
+                "branches",
+                "id",
+                [
+                    "update" => "NO_ACTION",
+                    "delete" => "NO_ACTION",
+                ],
+            )
+            ->addForeignKey(
                 "branch_id",
                 "branches",
                 "id",
@@ -215,6 +295,15 @@ class Officers extends AbstractMigration
                     "delete" => "NO_ACTION",
                 ],
             )
+            ->addForeignKey(
+                "reports_to_office_id",
+                "offices",
+                "id",
+                [
+                    "update" => "NO_ACTION",
+                    "delete" => "NO_ACTION",
+                ],
+            )
             ->update();
         $permissionsTbl = TableRegistry::getTableLocator()->get("Permissions");
         $permissionsTbl->save(
@@ -226,6 +315,7 @@ class Officers extends AbstractMigration
                 "system" => true,
                 "is_super_user" => false,
                 "requires_warrant" => true,
+                "created_by" => 1,
             ])
         );
         $permissionsTbl->save(
@@ -237,6 +327,7 @@ class Officers extends AbstractMigration
                 "system" => true,
                 "is_super_user" => false,
                 "requires_warrant" => true,
+                "created_by" => 1,
             ])
         );
 
@@ -249,6 +340,7 @@ class Officers extends AbstractMigration
                 "system" => true,
                 "is_super_user" => false,
                 "requires_warrant" => true,
+                "created_by" => 1,
             ])
         );
     }
@@ -277,6 +369,12 @@ class Officers extends AbstractMigration
             )
             ->dropForeignKey(
                 "office_id"
+            )
+            ->dropForeignKey(
+                "reports_to_branch_id"
+            )
+            ->dropForeignKey(
+                "reports_to_office_id"
             )
             ->save();
 

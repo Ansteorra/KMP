@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Migrations\AbstractSeed;
+use Cake\I18n\DateTime;
 
 /**
  * Activities seed.
@@ -33,6 +34,8 @@ class DevLoadActivitiesSeed extends AbstractSeed
                 'num_required_authorizors' => 1,
                 'num_required_renewers' => 1,
                 'deleted' => NULL,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'id' => 2,
@@ -45,6 +48,8 @@ class DevLoadActivitiesSeed extends AbstractSeed
                 'num_required_authorizors' => 1,
                 'num_required_renewers' => 1,
                 'deleted' => NULL,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'id' => 3,
@@ -57,6 +62,8 @@ class DevLoadActivitiesSeed extends AbstractSeed
                 'num_required_authorizors' => 1,
                 'num_required_renewers' => 1,
                 'deleted' => NULL,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'id' => 4,
@@ -69,6 +76,8 @@ class DevLoadActivitiesSeed extends AbstractSeed
                 'num_required_authorizors' => 1,
                 'num_required_renewers' => 1,
                 'deleted' => NULL,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'id' => 5,
@@ -81,6 +90,8 @@ class DevLoadActivitiesSeed extends AbstractSeed
                 'num_required_authorizors' => 1,
                 'num_required_renewers' => 1,
                 'deleted' => NULL,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'id' => 6,
@@ -93,6 +104,8 @@ class DevLoadActivitiesSeed extends AbstractSeed
                 'num_required_authorizors' => 1,
                 'num_required_renewers' => 1,
                 'deleted' => NULL,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'id' => 7,
@@ -105,6 +118,8 @@ class DevLoadActivitiesSeed extends AbstractSeed
                 'num_required_authorizors' => 1,
                 'num_required_renewers' => 1,
                 'deleted' => NULL,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'id' => 8,
@@ -117,6 +132,8 @@ class DevLoadActivitiesSeed extends AbstractSeed
                 'num_required_authorizors' => 1,
                 'num_required_renewers' => 1,
                 'deleted' => NULL,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'id' => 9,
@@ -129,6 +146,8 @@ class DevLoadActivitiesSeed extends AbstractSeed
                 'num_required_authorizors' => 1,
                 'num_required_renewers' => 1,
                 'deleted' => NULL,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'id' => 10,
@@ -141,6 +160,8 @@ class DevLoadActivitiesSeed extends AbstractSeed
                 'num_required_authorizors' => 2,
                 'num_required_renewers' => 1,
                 'deleted' => NULL,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
         ];
 

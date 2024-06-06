@@ -49,6 +49,8 @@ class BranchesTable extends Table
             "foreignKey" => "branch_id",
         ]);
         $this->addBehavior("Tree");
+        $this->addBehavior("Timestamp");
+        $this->addBehavior('Muffin/Footprint.Footprint');
     }
 
     /**

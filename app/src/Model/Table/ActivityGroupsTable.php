@@ -45,6 +45,8 @@ class ActivityGroupsTable extends Table
         $this->HasMany("Activities", [
             "foreignKey" => "activity_group_id",
         ]);
+        $this->addBehavior("Timestamp");
+        $this->addBehavior('Muffin/Footprint.Footprint');
     }
 
     /**

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Migrations\AbstractSeed;
+use Cake\I18n\DateTime;
 
 /**
  * Branches seed.
@@ -29,6 +30,8 @@ class DevLoadBranchesSeed extends AbstractSeed
                 'parent_id' => 1,
                 'lft' => 2,
                 'rght' => 9,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'id' => 3,
@@ -37,6 +40,8 @@ class DevLoadBranchesSeed extends AbstractSeed
                 'parent_id' => 2,
                 'lft' => 3,
                 'rght' => 4,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'id' => 4,
@@ -45,6 +50,8 @@ class DevLoadBranchesSeed extends AbstractSeed
                 'parent_id' => 2,
                 'lft' => 5,
                 'rght' => 6,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'id' => 5,
@@ -53,6 +60,8 @@ class DevLoadBranchesSeed extends AbstractSeed
                 'parent_id' => 1,
                 'lft' => 10,
                 'rght' => 17,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'id' => 6,
@@ -61,6 +70,8 @@ class DevLoadBranchesSeed extends AbstractSeed
                 'parent_id' => 5,
                 'lft' => 11,
                 'rght' => 14,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'id' => 7,
@@ -69,6 +80,8 @@ class DevLoadBranchesSeed extends AbstractSeed
                 'parent_id' => 6,
                 'lft' => 12,
                 'rght' => 13,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'id' => 8,
@@ -77,6 +90,8 @@ class DevLoadBranchesSeed extends AbstractSeed
                 'parent_id' => 2,
                 'lft' => 7,
                 'rght' => 8,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'id' => 9,
@@ -85,6 +100,8 @@ class DevLoadBranchesSeed extends AbstractSeed
                 'parent_id' => 5,
                 'lft' => 15,
                 'rght' => 16,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'id' => 10,
@@ -93,6 +110,8 @@ class DevLoadBranchesSeed extends AbstractSeed
                 'parent_id' => NULL,
                 'lft' => 19,
                 'rght' => 20,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
         ];
 

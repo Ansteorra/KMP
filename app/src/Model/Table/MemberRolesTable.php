@@ -58,6 +58,8 @@ class MemberRolesTable extends Table
             "joinType" => "INNER",
             "propertyName" => "approved_by",
         ]);
+        $this->addBehavior("Timestamp");
+        $this->addBehavior('Muffin/Footprint.Footprint');
     }
 
     /**

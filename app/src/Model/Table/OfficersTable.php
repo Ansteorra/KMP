@@ -59,6 +59,18 @@ class OfficersTable extends Table
             'joinType' => 'INNER',
         ]);
 
+        $this->belongsTo('ReportsToOffices', [
+            'className' => 'Offices',
+            'foreignKey' => 'office_id',
+            'joinType' => 'LEFT',
+        ]);
+        $this->belongsTo('ReportsToBranches', [
+            'className' => 'Branches',
+            'foreignKey' => 'branch_id',
+            'joinType' => 'LEFT',
+        ]);
+        $this->addBehavior("Timestamp");
+        $this->addBehavior('Muffin/Footprint.Footprint');
         $this->addBehavior("Muffin/Trash.Trash");
     }
 

@@ -219,7 +219,7 @@ class Installer
 
         $result = file_put_contents($config, $content);
         if ($result) {
-            $io->write("Updated Security.salt value in config/" . $file);
+            $io->write("motified Security.salt value in config/" . $file);
 
             return;
         }
@@ -254,7 +254,7 @@ class Installer
 
         $result = file_put_contents($config, $content);
         if ($result) {
-            $io->write("Updated __APP_NAME__ value in config/" . $file);
+            $io->write("motified __APP_NAME__ value in config/" . $file);
 
             return;
         }

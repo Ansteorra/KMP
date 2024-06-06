@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "e2954aa6deaac1840de7ad166059e216",
+    "content-hash": "6d78cc5f5581a812406b468d099148cf",
     "packages": [
         {
             "name": "admad/cakephp-glide",
@@ -1459,6 +1459,66 @@
                 }
             ],
             "time": "2024-03-01T22:28:42+00:00"
+        },
+        {
+            "name": "muffin/footprint",
+            "version": "4.0.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/UseMuffin/Footprint.git",
+                "reference": "10b17a145d2530d59cc4b38f47a21b7d7ac46000"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/UseMuffin/Footprint/zipball/10b17a145d2530d59cc4b38f47a21b7d7ac46000",
+                "reference": "10b17a145d2530d59cc4b38f47a21b7d7ac46000",
+                "shasum": ""
+            },
+            "require": {
+                "cakephp/cakephp": "^5.0"
+            },
+            "require-dev": {
+                "cakephp/cakephp-codesniffer": "^5.0",
+                "phpunit/phpunit": "^10.1"
+            },
+            "type": "cakephp-plugin",
+            "autoload": {
+                "psr-4": {
+                    "Muffin\\Footprint\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Jad Bitar",
+                    "homepage": "http://jadb.io",
+                    "role": "Author"
+                },
+                {
+                    "name": "ADmad",
+                    "homepage": "https://github.com/ADmad",
+                    "role": "Author"
+                },
+                {
+                    "name": "Others",
+                    "homepage": "https://github.com/usemuffin/footprint/graphs/contributors"
+                }
+            ],
+            "description": "CakePHP plugin to allow passing currently logged in user to model layer",
+            "homepage": "https://github.com/usemuffin/footprint",
+            "keywords": [
+                "cakephp",
+                "footprint",
+                "muffin"
+            ],
+            "support": {
+                "issues": "https://github.com/usemuffin/footprint/issues",
+                "source": "https://github.com/usemuffin/footprint"
+            },
+            "time": "2023-11-18T14:44:50+00:00"
         },
         {
             "name": "muffin/trash",

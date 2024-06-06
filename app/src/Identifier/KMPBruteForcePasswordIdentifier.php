@@ -87,6 +87,8 @@ class KMPBruteForcePasswordIdentifier extends PasswordIdentifier
         $user->password_token = null;
         $user->password_token_expires_on = null;
         $user->last_login = DateTime::now();
+        $user->setDirty("modified", true);
+        $user->setDirty("modified_by", true);
         $MembersTable->save($user);
     }
 
@@ -94,6 +96,8 @@ class KMPBruteForcePasswordIdentifier extends PasswordIdentifier
     {
         $user->failed_login_attempts++;
         $user->last_failed_login = DateTime::now();
+        $user->setDirty("modified", true);
+        $user->setDirty("modified_by", true);
         $MembersTable->save($user);
     }
 }

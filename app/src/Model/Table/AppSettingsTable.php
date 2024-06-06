@@ -45,6 +45,8 @@ class AppSettingsTable extends Table
         $this->setTable("app_settings");
         $this->setDisplayField("name");
         $this->setPrimaryKey("id");
+        $this->addBehavior("Timestamp");
+        $this->addBehavior('Muffin/Footprint.Footprint');
     }
 
     /**

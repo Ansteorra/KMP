@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Migrations\AbstractSeed;
+use Cake\I18n\DateTime;
 
 /**
  * RolesPermissions seed.
@@ -25,58 +26,86 @@ class DevLoadRolesPermissionsSeed extends AbstractSeed
             [
                 'permission_id' => 2,
                 'role_id' => 1,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'permission_id' => 3,
                 'role_id' => 1,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'permission_id' => 200,
                 'role_id' => 201,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'permission_id' => 201,
                 'role_id' => 201,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'permission_id' => 202,
                 'role_id' => 201,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'permission_id' => 203,
                 'role_id' => 201,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'permission_id' => 202,
                 'role_id' => 202,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'permission_id' => 203,
                 'role_id' => 202,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'permission_id' => 202,
                 'role_id' => 204,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'permission_id' => 203,
                 'role_id' => 204,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'permission_id' => 200,
                 'role_id' => 205,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'permission_id' => 201,
                 'role_id' => 205,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'permission_id' => 209,
                 'role_id' => 201,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
             [
                 'permission_id' => 209,
                 'role_id' => 202,
+                'created' => DateTime::now(),
+                'created_by' => '1'
             ],
         ];
 

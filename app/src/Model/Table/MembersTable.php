@@ -82,7 +82,8 @@ class MembersTable extends Table
             "className" => "Members",
             "foreignKey" => "parent_id",
         ]);
-
+        $this->addBehavior("Timestamp");
+        $this->addBehavior('Muffin/Footprint.Footprint');
         $this->addBehavior("Muffin/Trash.Trash");
     }
 
@@ -94,7 +95,7 @@ class MembersTable extends Table
      */
     public function validationDefault(Validator $validator): Validator
     {
-        $validator->dateTime("last_updated")->notEmptyDateTime("last_updated");
+        $validator->dateTime("motified")->notEmptyDateTime("motified");
 
         $validator
             ->scalar("password")
@@ -213,7 +214,6 @@ class MembersTable extends Table
     public function beforeSave(Event $event, EntityInterface $entity, ArrayObject $options)
     {
         $entity->ageUpReview();
-        $entity->last_updated = date("Y-m-d H:i:s");
     }
 
 

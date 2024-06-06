@@ -26,7 +26,7 @@ class InitMembersSeed extends AbstractSeed
         $data = [
             [
                 'id' => 1,
-                'last_updated' => DateTime::now(),
+                'motified' => DateTime::now(),
                 'password' => '42f749ade7f9e195bf475f37a44cafcb',
                 'sca_name' => 'Admin von Admin',
                 'first_name' => 'Addy',
@@ -51,6 +51,7 @@ class InitMembersSeed extends AbstractSeed
                 'birth_month' => 4,
                 'birth_year' => 1977,
                 'deleted' => NULL,
+                'created' => DateTime::now(),
             ]
         ];
 

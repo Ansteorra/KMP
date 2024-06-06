@@ -48,6 +48,26 @@ class Init extends AbstractMigration
                 "null" => true,
                 "signed" => true,
             ])
+            ->addColumn("motified", "datetime", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
+            ->addColumn("created", "datetime", [
+                "default" => null,
+                "limit" => null,
+                "null" => false,
+            ])
+            ->addColumn("created_by", "integer", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
+            ->addColumn("modified_by", "integer", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
             ->addIndex(["name"], ["unique" => true])
             ->addIndex(["parent_id"])
             ->addIndex(["lft"])
@@ -66,6 +86,26 @@ class Init extends AbstractMigration
                 "limit" => 255,
                 "null" => false,
             ])
+            ->addColumn("motified", "datetime", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
+            ->addColumn("created", "datetime", [
+                "default" => null,
+                "limit" => null,
+                "null" => false,
+            ])
+            ->addColumn("created_by", "integer", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
+            ->addColumn("modified_by", "integer", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
             ->create();
 
         $this->table("roles")
@@ -83,6 +123,26 @@ class Init extends AbstractMigration
             ])
             ->addIndex(["name"], ["unique" => true])
             ->addColumn("deleted", "date", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
+            ->addColumn("motified", "datetime", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
+            ->addColumn("created", "datetime", [
+                "default" => null,
+                "limit" => null,
+                "null" => false,
+            ])
+            ->addColumn("created_by", "integer", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
+            ->addColumn("modified_by", "integer", [
                 "default" => null,
                 "limit" => null,
                 "null" => true,
@@ -142,6 +202,26 @@ class Init extends AbstractMigration
                 "limit" => null,
                 "null" => true,
             ])
+            ->addColumn("motified", "datetime", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
+            ->addColumn("created", "datetime", [
+                "default" => null,
+                "limit" => null,
+                "null" => false,
+            ])
+            ->addColumn("created_by", "integer", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
+            ->addColumn("modified_by", "integer", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
             ->addIndex(["name"], ["unique" => true])
             ->addIndex(["activity_group_id"])
             ->create();
@@ -195,9 +275,36 @@ class Init extends AbstractMigration
                 "limit" => null,
                 "null" => false,
             ])
+            ->addColumn("motified", "datetime", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
+            ->addColumn("created", "datetime", [
+                "default" => null,
+                "limit" => null,
+                "null" => false,
+            ])
+            ->addColumn("created_by", "integer", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
+            ->addColumn("modified_by", "integer", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
             ->create();
 
         $this->table("roles_permissions")
+            ->addColumn("id", "integer", [
+                "autoIncrement" => true,
+                "default" => null,
+                "limit" => 11,
+                "null" => false,
+            ])
+            ->addPrimaryKey(["id"])
             ->addColumn("permission_id", "integer", [
                 "default" => null,
                 "limit" => 11,
@@ -208,7 +315,16 @@ class Init extends AbstractMigration
                 "limit" => 11,
                 "null" => false,
             ])
-            ->addPrimaryKey(["permission_id", "role_id"])
+            ->addColumn("created", "timestamp", [
+                "default" => "CURRENT_TIMESTAMP",
+                "limit" => null,
+                "null" => false,
+            ])
+            ->addColumn("created_by", "integer", [
+                "default" => null,
+                "limit" => null,
+                "null" => false,
+            ])
             ->create();
 
         $this->table("app_settings")
@@ -229,6 +345,26 @@ class Init extends AbstractMigration
                 "limit" => 255,
                 "null" => true,
             ])
+            ->addColumn("motified", "datetime", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
+            ->addColumn("created", "datetime", [
+                "default" => null,
+                "limit" => null,
+                "null" => false,
+            ])
+            ->addColumn("created_by", "integer", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
+            ->addColumn("modified_by", "integer", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
             ->create();
         #endregion //
         #region Operational Tables
@@ -244,7 +380,7 @@ class Init extends AbstractMigration
                 "limit" => 11,
                 "null" => false,
             ])
-            ->addColumn("created_on", "timestamp", [
+            ->addColumn("created", "timestamp", [
                 "default" => "CURRENT_TIMESTAMP",
                 "limit" => null,
                 "null" => false,
@@ -287,16 +423,6 @@ class Init extends AbstractMigration
                 "null" => false,
             ])
             ->addPrimaryKey(["id"])
-            ->addColumn("created_date", "timestamp", [
-                "default" => "CURRENT_TIMESTAMP",
-                "limit" => null,
-                "null" => false,
-            ])
-            ->addColumn("last_updated", "datetime", [
-                "default" => null,
-                "limit" => null,
-                "null" => true,
-            ])
             ->addColumn("password", "string", [
                 "default" => null,
                 "limit" => 512,
@@ -437,6 +563,26 @@ class Init extends AbstractMigration
                 "limit" => 256,
                 "null" => true,
             ])
+            ->addColumn("motified", "datetime", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
+            ->addColumn("created", "datetime", [
+                "default" => null,
+                "limit" => null,
+                "null" => false,
+            ])
+            ->addColumn("created_by", "integer", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
+            ->addColumn("modified_by", "integer", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
             ->create();
 
         $this->table("authorizations")
@@ -472,8 +618,8 @@ class Init extends AbstractMigration
                 "limit" => null,
                 "null" => true,
             ])
-            ->addColumn("requested_on", "datetime", [
-                "default" => null,
+            ->addColumn("created", "timestamp", [
+                "default" => "CURRENT_TIMESTAMP",
                 "limit" => null,
                 "null" => false,
             ])
@@ -585,6 +731,31 @@ class Init extends AbstractMigration
                 "default" => null,
                 "limit" => 11,
                 "null" => false,
+            ])
+            ->addColumn("revoker_id", "integer", [
+                "default" => null,
+                "limit" => 11,
+                "null" => true,
+            ])
+            ->addColumn("motified", "datetime", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
+            ->addColumn("created", "datetime", [
+                "default" => null,
+                "limit" => null,
+                "null" => false,
+            ])
+            ->addColumn("created_by", "integer", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
+            ->addColumn("modified_by", "integer", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
             ])
             ->addIndex(["member_id"])
             ->addIndex(["role_id"])
