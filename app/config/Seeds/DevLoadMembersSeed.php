@@ -25,7 +25,7 @@ class DevLoadMembersSeed extends AbstractSeed
         $data = [
             [
                 'id' => 200,
-                'motified' => DateTime::now(),
+                'modified' => DateTime::now(),
                 'password' => '42f749ade7f9e195bf475f37a44cafcb',
                 'sca_name' => 'Earl Realm',
                 'first_name' => 'Kingdom',
@@ -54,7 +54,7 @@ class DevLoadMembersSeed extends AbstractSeed
             ],
             [
                 'id' => 201,
-                'motified' => DateTime::now(),
+                'modified' => DateTime::now(),
                 'password' => '42f749ade7f9e195bf475f37a44cafcb',
                 'sca_name' => 'Stabby McStab',
                 'first_name' => 'Stan',

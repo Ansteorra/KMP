@@ -30,7 +30,7 @@ class Officers extends AbstractMigration
                 "limit" => null,
                 "null" => true,
             ])
-            ->addColumn("motified", "datetime", [
+            ->addColumn("modified", "datetime", [
                 "default" => null,
                 "limit" => null,
                 "null" => true,
@@ -102,7 +102,7 @@ class Officers extends AbstractMigration
                 "limit" => null,
                 "null" => true,
             ])
-            ->addColumn("motified", "datetime", [
+            ->addColumn("modified", "datetime", [
                 "default" => null,
                 "limit" => null,
                 "null" => true,
@@ -206,7 +206,7 @@ class Officers extends AbstractMigration
                 "limit" => null,
                 "null" => true,
             ])
-            ->addColumn("motified", "datetime", [
+            ->addColumn("modified", "datetime", [
                 "default" => null,
                 "limit" => null,
                 "null" => true,

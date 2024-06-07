@@ -88,7 +88,7 @@ class Application extends BaseApplication implements
      * Setup the middleware queue your application will use.
      *
      * @param \Cake\Http\MiddlewareQueue $middlewareQueue The middleware queue to setup.
-     * @return \Cake\Http\MiddlewareQueue The motified middleware queue.
+     * @return \Cake\Http\MiddlewareQueue The modified middleware queue.
      */
     public function middleware(
         MiddlewareQueue $middlewareQueue,

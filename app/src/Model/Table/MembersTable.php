@@ -95,7 +95,7 @@ class MembersTable extends Table
      */
     public function validationDefault(Validator $validator): Validator
     {
-        $validator->dateTime("motified")->notEmptyDateTime("motified");
+        $validator->dateTime("modified")->notEmptyDateTime("modified");
 
         $validator
             ->scalar("password")

@@ -895,7 +895,7 @@ class MembersController extends AppController
                                     $row[0] .
                                     " with date " .
                                     $row[1] .
-                                    ". All motified have been rolled back.",
+                                    ". All modified have been rolled back.",
                             ),
                         );
 

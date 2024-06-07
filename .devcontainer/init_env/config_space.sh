@@ -54,6 +54,7 @@ cp /workspaces/$(echo $REPO_PATH)/.devcontainer/init_env/app_local.php /workspac
 
 cd /workspaces/$(echo $REPO_PATH)/app
 composer install -n
-php bin/cake.php migrations migrate
-php bin/cake.php migrations seed --seed LoadDev
+cd ..
+sudo bash reset_dev_database.sh
+cd app
 php bin/cake.php bootstrap install --latest

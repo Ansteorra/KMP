@@ -18,7 +18,7 @@ Good day <?= $memberScaName ?>
 
 
 <?php if ($result == "approved" || $result == "revoked") : ?>
-    You may view your motified member card at the following UR:
+    You may view your modified member card at the following UR:
 
     <?= $memberCardUrl ?>
 <?php endif; ?>

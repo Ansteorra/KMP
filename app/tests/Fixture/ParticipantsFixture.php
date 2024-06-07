@@ -21,7 +21,7 @@ class MembersFixture extends TestFixture
         $this->records = [
             [
                 "id" => 1,
-                "motified" => 1715772334,
+                "modified" => 1715772334,
                 "password" => "Lorem ipsum dolor sit amet",
                 "sca_name" => "Lorem ipsum dolor sit amet",
                 "first_name" => "Lorem ipsum dolor sit amet",

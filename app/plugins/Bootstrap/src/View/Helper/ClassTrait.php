@@ -27,7 +27,7 @@ trait ClassTrait
      * @param string|array $class   The class names to be added.
      * @param string       $key     The key to use for class (default to `'class'`).
      *
-     * @return array Array of options with `$key` set or motified.
+     * @return array Array of options with `$key` set or modified.
      */
     public function addClass(
         array $options = [],

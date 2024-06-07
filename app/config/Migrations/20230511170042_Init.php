@@ -48,7 +48,7 @@ class Init extends AbstractMigration
                 "null" => true,
                 "signed" => true,
             ])
-            ->addColumn("motified", "datetime", [
+            ->addColumn("modified", "datetime", [
                 "default" => null,
                 "limit" => null,
                 "null" => true,
@@ -86,7 +86,7 @@ class Init extends AbstractMigration
                 "limit" => 255,
                 "null" => false,
             ])
-            ->addColumn("motified", "datetime", [
+            ->addColumn("modified", "datetime", [
                 "default" => null,
                 "limit" => null,
                 "null" => true,
@@ -127,7 +127,7 @@ class Init extends AbstractMigration
                 "limit" => null,
                 "null" => true,
             ])
-            ->addColumn("motified", "datetime", [
+            ->addColumn("modified", "datetime", [
                 "default" => null,
                 "limit" => null,
                 "null" => true,
@@ -202,7 +202,7 @@ class Init extends AbstractMigration
                 "limit" => null,
                 "null" => true,
             ])
-            ->addColumn("motified", "datetime", [
+            ->addColumn("modified", "datetime", [
                 "default" => null,
                 "limit" => null,
                 "null" => true,
@@ -275,7 +275,7 @@ class Init extends AbstractMigration
                 "limit" => null,
                 "null" => false,
             ])
-            ->addColumn("motified", "datetime", [
+            ->addColumn("modified", "datetime", [
                 "default" => null,
                 "limit" => null,
                 "null" => true,
@@ -345,7 +345,7 @@ class Init extends AbstractMigration
                 "limit" => 255,
                 "null" => true,
             ])
-            ->addColumn("motified", "datetime", [
+            ->addColumn("modified", "datetime", [
                 "default" => null,
                 "limit" => null,
                 "null" => true,
@@ -563,7 +563,7 @@ class Init extends AbstractMigration
                 "limit" => 256,
                 "null" => true,
             ])
-            ->addColumn("motified", "datetime", [
+            ->addColumn("modified", "datetime", [
                 "default" => null,
                 "limit" => null,
                 "null" => true,
@@ -737,7 +737,7 @@ class Init extends AbstractMigration
                 "limit" => 11,
                 "null" => true,
             ])
-            ->addColumn("motified", "datetime", [
+            ->addColumn("modified", "datetime", [
                 "default" => null,
                 "limit" => null,
                 "null" => true,

@@ -26,7 +26,7 @@ class InitMembersSeed extends AbstractSeed
         $data = [
             [
                 'id' => 1,
-                'motified' => DateTime::now(),
+                'modified' => DateTime::now(),
                 'password' => '42f749ade7f9e195bf475f37a44cafcb',
                 'sca_name' => 'Admin von Admin',
                 'first_name' => 'Addy',
