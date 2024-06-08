@@ -18,17 +18,10 @@ class Officers extends AbstractMigration
                 "limit" => 11,
                 "null" => false,
             ])
-            ->addPrimaryKey(["id"])
             ->addColumn("name", "string", [
                 "default" => null,
                 "limit" => 255,
                 "null" => false,
-            ])
-            ->addIndex(["name"], ["unique" => true])
-            ->addColumn("deleted", "datetime", [
-                "default" => null,
-                "limit" => null,
-                "null" => true,
             ])
             ->addColumn("modified", "datetime", [
                 "default" => null,
@@ -50,6 +43,14 @@ class Officers extends AbstractMigration
                 "limit" => null,
                 "null" => true,
             ])
+            ->addColumn("deleted", "datetime", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
+            ->addPrimaryKey(["id"])
+            ->addIndex(["name"], ["unique" => true])
+            ->addIndex(["deleted"])
             ->create();
 
         $this->table("offices")
@@ -59,7 +60,6 @@ class Officers extends AbstractMigration
                 "limit" => 11,
                 "null" => false,
             ])
-            ->addPrimaryKey(["id"])
             ->addColumn("name", "string", [
                 "default" => null,
                 "limit" => 255,
@@ -95,13 +95,6 @@ class Officers extends AbstractMigration
                 "limit" => 11,
                 "null" => false,
             ])
-            ->addIndex(["name"], ["unique" => true])
-            ->addIndex(["department_id"])
-            ->addColumn("deleted", "datetime", [
-                "default" => null,
-                "limit" => null,
-                "null" => true,
-            ])
             ->addColumn("modified", "datetime", [
                 "default" => null,
                 "limit" => null,
@@ -122,6 +115,15 @@ class Officers extends AbstractMigration
                 "limit" => null,
                 "null" => true,
             ])
+            ->addColumn("deleted", "datetime", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
+            ->addPrimaryKey(["id"])
+            ->addIndex(["name"], ["unique" => true])
+            ->addIndex(["department_id"])
+            ->addIndex(["deleted"])
             ->create();
 
         $this->table("officers")
@@ -131,7 +133,6 @@ class Officers extends AbstractMigration
                 "limit" => 11,
                 "null" => false,
             ])
-            ->addPrimaryKey(["id"])
             ->addColumn("member_id", "integer", [
                 "default" => null,
                 "limit" => 11,
@@ -152,12 +153,12 @@ class Officers extends AbstractMigration
                 "limit" => 11,
                 "null" => true,
             ])
-            ->addColumn("expires_on", "date", [
+            ->addColumn("expires_on", "datetime", [
                 "default" => null,
                 "limit" => null,
                 "null" => true,
             ])
-            ->addColumn("start_on", "date", [
+            ->addColumn("start_on", "datetime", [
                 "default" => null,
                 "limit" => null,
                 "null" => true,
@@ -197,15 +198,6 @@ class Officers extends AbstractMigration
                 "limit" => 11,
                 "null" => true,
             ])
-
-            ->addIndex(["branch_id"])
-            ->addIndex(["office_id"])
-            ->addIndex(["member_id"])
-            ->addColumn("deleted", "datetime", [
-                "default" => null,
-                "limit" => null,
-                "null" => true,
-            ])
             ->addColumn("modified", "datetime", [
                 "default" => null,
                 "limit" => null,
@@ -226,6 +218,12 @@ class Officers extends AbstractMigration
                 "limit" => null,
                 "null" => true,
             ])
+            ->addPrimaryKey(["id"])
+            ->addIndex(["branch_id"])
+            ->addIndex(["office_id"])
+            ->addIndex(["member_id"])
+            ->addIndex(["start_on"])
+            ->addIndex(["expires_on"])
             ->create();
 
 

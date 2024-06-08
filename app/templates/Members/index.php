@@ -81,7 +81,7 @@ $user = $this->request->getAttribute("identity");
                             [
                                 "confirm" => __(
                                     "Are you sure you want to delete # {0}?",
-                                    $Member->id,
+                                    $Member->sca_name,
                                 ),
                                 "title" => __("Delete"),
                                 "class" => "btn btn-danger",

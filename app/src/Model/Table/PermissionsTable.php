@@ -55,6 +55,7 @@ class PermissionsTable extends Table
         ]);
         $this->addBehavior("Timestamp");
         $this->addBehavior('Muffin/Footprint.Footprint');
+        $this->addBehavior("Muffin/Trash.Trash");
     }
 
     /**

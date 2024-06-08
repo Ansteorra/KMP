@@ -66,9 +66,12 @@ class AuthorizationsTable extends Table
         $this->hasMany("AuthorizationApprovals", [
             "foreignKey" => "authorization_id",
         ]);
-        $this->hasMany("AuthorizationApprovals", [
+        $this->hasOne("CurrentPendingApprovals", [
+            "className" => "AuthorizationApprovals",
+            "conditions" => ["CurrentPendingApprovals.responded_on IS" => null],
             "foreignKey" => "authorization_id",
         ]);
+        $this->addBehavior("ActiveWindow");
     }
 
     /**
@@ -113,5 +116,12 @@ class AuthorizationsTable extends Table
         );
 
         return $rules;
+    }
+
+
+    public function findPending(SelectQuery $query): SelectQuery
+    {
+        $query = $query->where(['expires_on IS' => null]);
+        return $query;
     }
 }

@@ -19,7 +19,6 @@ class Init extends AbstractMigration
                 "limit" => 11,
                 "null" => false,
             ])
-            ->addPrimaryKey(["id"])
             ->addColumn("name", "string", [
                 "default" => null,
                 "limit" => 40,
@@ -68,9 +67,17 @@ class Init extends AbstractMigration
                 "limit" => null,
                 "null" => true,
             ])
+            ->addColumn("deleted", "datetime", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
+            ->addPrimaryKey(["id"])
             ->addIndex(["name"], ["unique" => true])
             ->addIndex(["parent_id"])
             ->addIndex(["lft"])
+            ->addIndex(["rght"])
+            ->addIndex(["deleted"])
             ->create();
 
         $this->table("activity_groups")
@@ -80,7 +87,6 @@ class Init extends AbstractMigration
                 "limit" => 11,
                 "null" => false,
             ])
-            ->addPrimaryKey(["id"])
             ->addColumn("name", "string", [
                 "default" => null,
                 "limit" => 255,
@@ -106,6 +112,14 @@ class Init extends AbstractMigration
                 "limit" => null,
                 "null" => true,
             ])
+            ->addColumn("deleted", "datetime", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
+            ->addPrimaryKey(["id"])
+            ->addIndex(["name"], ["unique" => true])
+            ->addIndex(["deleted"])
             ->create();
 
         $this->table("roles")
@@ -115,17 +129,10 @@ class Init extends AbstractMigration
                 "limit" => 11,
                 "null" => false,
             ])
-            ->addPrimaryKey(["id"])
             ->addColumn("name", "string", [
                 "default" => null,
                 "limit" => 255,
                 "null" => false,
-            ])
-            ->addIndex(["name"], ["unique" => true])
-            ->addColumn("deleted", "date", [
-                "default" => null,
-                "limit" => null,
-                "null" => true,
             ])
             ->addColumn("modified", "datetime", [
                 "default" => null,
@@ -147,6 +154,14 @@ class Init extends AbstractMigration
                 "limit" => null,
                 "null" => true,
             ])
+            ->addColumn("deleted", "datetime", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
+            ->addPrimaryKey(["id"])
+            ->addIndex(["name"], ["unique" => true])
+            ->addIndex(["deleted"])
             ->create();
 
         $this->table("activities")
@@ -156,7 +171,6 @@ class Init extends AbstractMigration
                 "limit" => 11,
                 "null" => false,
             ])
-            ->addPrimaryKey(["id"])
             ->addColumn("name", "string", [
                 "default" => null,
                 "limit" => 255,
@@ -197,11 +211,6 @@ class Init extends AbstractMigration
                 "limit" => 2,
                 "null" => false,
             ])
-            ->addColumn("deleted", "date", [
-                "default" => null,
-                "limit" => null,
-                "null" => true,
-            ])
             ->addColumn("modified", "datetime", [
                 "default" => null,
                 "limit" => null,
@@ -222,8 +231,15 @@ class Init extends AbstractMigration
                 "limit" => null,
                 "null" => true,
             ])
+            ->addColumn("deleted", "datetime", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
+            ->addPrimaryKey(["id"])
             ->addIndex(["name"], ["unique" => true])
             ->addIndex(["activity_group_id"])
+            ->addIndex(["deleted"])
             ->create();
 
         $this->table("permissions")
@@ -233,7 +249,6 @@ class Init extends AbstractMigration
                 "limit" => 11,
                 "null" => false,
             ])
-            ->addPrimaryKey(["id"])
             ->addColumn("name", "string", [
                 "default" => null,
                 "limit" => 255,
@@ -259,7 +274,6 @@ class Init extends AbstractMigration
                 "limit" => 2,
                 "null" => false,
             ])
-            ->addIndex(["activity_id"])
             ->addColumn("system", "boolean", [
                 "default" => false,
                 "limit" => null,
@@ -295,6 +309,15 @@ class Init extends AbstractMigration
                 "limit" => null,
                 "null" => true,
             ])
+            ->addColumn("deleted", "datetime", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
+            ->addPrimaryKey(["id"])
+            ->addIndex(["name"], ["unique" => true])
+            ->addIndex(["activity_id"])
+            ->addIndex(["deleted"])
             ->create();
 
         $this->table("roles_permissions")
@@ -304,7 +327,6 @@ class Init extends AbstractMigration
                 "limit" => 11,
                 "null" => false,
             ])
-            ->addPrimaryKey(["id"])
             ->addColumn("permission_id", "integer", [
                 "default" => null,
                 "limit" => 11,
@@ -325,6 +347,7 @@ class Init extends AbstractMigration
                 "limit" => null,
                 "null" => false,
             ])
+            ->addPrimaryKey(["id"])
             ->create();
 
         $this->table("app_settings")
@@ -334,7 +357,6 @@ class Init extends AbstractMigration
                 "limit" => 11,
                 "null" => false,
             ])
-            ->addPrimaryKey(["id"])
             ->addColumn("name", "string", [
                 "default" => null,
                 "limit" => 255,
@@ -365,6 +387,8 @@ class Init extends AbstractMigration
                 "limit" => null,
                 "null" => true,
             ])
+            ->addPrimaryKey(["id"])
+            ->addIndex(["name"], ["unique" => true])
             ->create();
         #endregion //
         #region Operational Tables
@@ -422,7 +446,6 @@ class Init extends AbstractMigration
                 "limit" => 11,
                 "null" => false,
             ])
-            ->addPrimaryKey(["id"])
             ->addColumn("password", "string", [
                 "default" => null,
                 "limit" => 512,
@@ -503,7 +526,7 @@ class Init extends AbstractMigration
                 "limit" => 20,
                 "null" => true,
             ])
-            ->addColumn("verified_date", "date", [
+            ->addColumn("verified_date", "datetime", [
                 "default" => null,
                 "limit" => null,
                 "null" => true,
@@ -553,11 +576,6 @@ class Init extends AbstractMigration
                 "limit" => 11,
                 "null" => true,
             ])
-            ->addColumn("deleted", "date", [
-                "default" => null,
-                "limit" => null,
-                "null" => true,
-            ])
             ->addColumn("membership_card_path", "string", [
                 "default" => null,
                 "limit" => 256,
@@ -583,6 +601,15 @@ class Init extends AbstractMigration
                 "limit" => null,
                 "null" => true,
             ])
+            ->addColumn("deleted", "datetime", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
+            ->addPrimaryKey(["id"])
+            ->addIndex(["branch_id"])
+            ->addIndex(["email_address"], ["unique" => true])
+            ->addIndex(["deleted"])
             ->create();
 
         $this->table("authorizations")
@@ -592,7 +619,6 @@ class Init extends AbstractMigration
                 "limit" => 11,
                 "null" => false,
             ])
-            ->addPrimaryKey(["id"])
             ->addColumn("member_id", "integer", [
                 "default" => null,
                 "limit" => 11,
@@ -608,12 +634,12 @@ class Init extends AbstractMigration
                 "limit" => 11,
                 "null" => true,
             ])
-            ->addColumn("expires_on", "date", [
+            ->addColumn("expires_on", "datetime", [
                 "default" => null,
                 "limit" => null,
                 "null" => true,
             ])
-            ->addColumn("start_on", "date", [
+            ->addColumn("start_on", "datetime", [
                 "default" => null,
                 "limit" => null,
                 "null" => true,
@@ -648,8 +674,11 @@ class Init extends AbstractMigration
                 "limit" => null,
                 "null" => false,
             ])
+            ->addPrimaryKey(["id"])
             ->addIndex(["activity_id"])
             ->addIndex(["member_id"])
+            ->addIndex(["start_on"])
+            ->addIndex(["expires_on"])
             ->create();
 
         $this->table("authorization_approvals")
@@ -659,7 +688,6 @@ class Init extends AbstractMigration
                 "limit" => 11,
                 "null" => false,
             ])
-            ->addPrimaryKey(["id"])
             ->addColumn("authorization_id", "integer", [
                 "default" => null,
                 "limit" => 11,
@@ -695,6 +723,7 @@ class Init extends AbstractMigration
                 "limit" => 255,
                 "null" => true,
             ])
+            ->addPrimaryKey(["id"])
             ->addIndex(["approver_id"])
             ->addIndex(["authorization_id"])
             ->create();
@@ -706,7 +735,6 @@ class Init extends AbstractMigration
                 "limit" => 11,
                 "null" => false,
             ])
-            ->addPrimaryKey(["id"])
             ->addColumn("member_id", "integer", [
                 "default" => null,
                 "limit" => 11,
@@ -757,9 +785,12 @@ class Init extends AbstractMigration
                 "limit" => null,
                 "null" => true,
             ])
+            ->addPrimaryKey(["id"])
             ->addIndex(["member_id"])
             ->addIndex(["role_id"])
             ->addIndex(["approver_id"])
+            ->addIndex(["start_on"])
+            ->addIndex(["expires_on"])
             ->create();
         #endregion
         #region Relationships

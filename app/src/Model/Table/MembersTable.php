@@ -53,6 +53,23 @@ class MembersTable extends Table
         $this->hasMany("Authorizations", [
             "foreignKey" => "member_id",
         ]);
+
+        $this->hasMany("CurrentAuthorizations", [
+            "className" => "Authorizations",
+            "foreignKey" => "member_id",
+            "finder" => "current",
+        ]);
+        $this->hasMany("PendingAuthorizations", [
+            "className" => "Authorizations",
+            "foreignKey" => "member_id",
+            "finder" => "pending",
+        ]);
+        $this->hasMany("PreviousAuthorizations", [
+            "className" => "Authorizations",
+            "foreignKey" => "member_id",
+            "finder" => "previous",
+        ]);
+
         $this->hasMany("AuthorizationApprovals", [
             "className" => "AuthorizationApprovals",
             "foreignKey" => "approver_id",
@@ -69,8 +86,41 @@ class MembersTable extends Table
         $this->hasMany("MemberRoles", [
             "foreignKey" => "member_id",
         ]);
+        $this->hasMany("CurrentMemberRoles", [
+            "className" => "MemberRoles",
+            "finder" => "current",
+            "foreignKey" => "member_id",
+        ]);
+        $this->hasMany("UpcomingMemberRoles", [
+            "className" => "MemberRoles",
+            "finder" => "upcoming",
+            "foreignKey" => "member_id",
+        ]);
+        $this->hasMany("PreviousMemberRoles", [
+            "className" => "MemberRoles",
+            "finder" => "previous",
+            "foreignKey" => "member_id",
+        ]);
 
         $this->hasMany("Officers", [
+            "foreignKey" => "member_id",
+        ]);
+
+        $this->hasMany("UpcomingOfficers", [
+            "className" => "Officers",
+            "finder" => "upcoming",
+            "foreignKey" => "member_id",
+        ]);
+
+        $this->hasMany("CurrentOfficers", [
+            "className" => "Officers",
+            "finder" => "current",
+            "foreignKey" => "member_id",
+        ]);
+
+        $this->hasMany("PreviousOfficers", [
+            "className" => "Officers",
+            "finder" => "previous",
             "foreignKey" => "member_id",
         ]);
 

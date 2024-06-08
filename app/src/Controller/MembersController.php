@@ -157,31 +157,39 @@ class MembersController extends AppController
             ->contain([
                 "Roles",
                 "Branches",
-                "MemberRoles" => function (SelectQuery $q) {
-                    return $q->select(["start_on", "expires_on", "member_id"]);
-                },
                 "Notes.Authors" => function (SelectQuery $q) {
                     return $q->select(["Authors.sca_name"]);
                 },
-                "Authorizations.Activities" => function (
-                    SelectQuery $q,
-                ) {
-                    return $q->select(["Activities.name", "Activities.id"]);
+                "CurrentAuthorizations" => function (SelectQuery $q) {
+                    return $this->_addAuthorizationSelectAndContain($q, "CurrentAuthorizations");
                 },
-                "Authorizations.Revokers" => function (SelectQuery $q) {
-                    return $q->select(["Revokers.sca_name"]);
+                "PendingAuthorizations" => function (SelectQuery $q) {
+                    return $this->_addAuthorizationSelectAndContain($q, "PendingAuthorizations");
                 },
-                "MemberRoles.Roles" => function (SelectQuery $q) {
-                    return $q->select(["Roles.name"]);
-                },
-                "MemberRoles.Approved_By" => function (SelectQuery $q) {
-                    return $q->select(["Approved_By.sca_name"]);
+                "PreviousAuthorizations" => function (SelectQuery $q) {
+                    return $this->_addAuthorizationSelectAndContain($q, "PreviousAuthorizations");
                 },
                 "Parents" => function (SelectQuery $q) {
                     return $q->select(["Parents.sca_name", "Parents.id"]);
                 },
-                "Officers.Offices",
-                "Officers.Branches",
+                "UpcomingOfficers" => function (SelectQuery $q) {
+                    return $this->_addOfficeSelectAndContain($q);
+                },
+                "CurrentOfficers" => function (SelectQuery $q) {
+                    return $this->_addOfficeSelectAndContain($q);
+                },
+                "PreviousOfficers" => function (SelectQuery $q) {
+                    return $this->_addOfficeSelectAndContain($q);
+                },
+                "UpcomingMemberRoles" => function (SelectQuery $q) {
+                    return $this->_addRolesSelectAndContain($q);
+                },
+                "CurrentMemberRoles" => function (SelectQuery $q) {
+                    return $this->_addRolesSelectAndContain($q);
+                },
+                "PreviousMemberRoles" => function (SelectQuery $q) {
+                    return $this->_addRolesSelectAndContain($q);
+                },
             ])
             ->contain(
                 "Authorizations.AuthorizationApprovals.Approvers",
@@ -1001,4 +1009,80 @@ class MembersController extends AppController
     }
     #endregion
 
+    #region protected
+    protected function _addRolesSelectAndContain(SelectQuery $q)
+    {
+        return $q
+            ->select([
+                "member_id",
+                "role_id",
+                "start_on",
+                "expires_on",
+                "role_id",
+                "approver_id"
+            ])
+            ->contain([
+                "Roles" => function (SelectQuery $q) {
+                    return $q->select(["Roles.name"]);
+                },
+                "Approved_By" => function (SelectQuery $q) {
+                    return $q->select(["Approved_By.sca_name"]);
+                }
+            ]);
+    }
+    protected function _addOfficeSelectAndContain(SelectQuery $q)
+    {
+        return $q
+            ->select([
+                "member_id",
+                "office_id",
+                "start_on",
+                "expires_on",
+                'branch_id',
+            ])
+            ->contain([
+                "Offices" => function (SelectQuery $q) {
+                    return $q->select(["Offices.name"]);
+                },
+                "Branches" => function (SelectQuery $q) {
+                    return $q->select(["Branches.name"]);
+                }
+            ]);
+    }
+
+    protected function _addAuthorizationSelectAndContain(SelectQuery $q, $associationName)
+    {
+
+        $revokeReasonCase = $q->newExpr()
+            ->case()
+            ->when([$associationName . '.status' => 'revoked'])
+            ->then($q->func()->concat([$associationName . ".status" => 'identifier', ' - ', "Revokers.sca_name" => 'identifier', " on ", $associationName . ".expires_on" => 'identifier', " note: ", $associationName . ".revoked_reason" => 'identifier']))
+            ->when([$associationName . '.status' => 'approved', $associationName . ".expires_on <" => DateTime::now()])
+            ->then("expired")
+            ->else("");
+        return $q
+            ->select([
+                "id",
+                "member_id",
+                "activity_id",
+                $associationName . ".status",
+                "start_on",
+                "expires_on",
+                "revoked_reason" => $revokeReasonCase,
+                "revoker_id",
+            ])
+            ->contain([
+                "CurrentPendingApprovals" => function (SelectQuery $q) {
+                    return $q->select(["Approvers.sca_name", "requested_on"])
+                        ->contain("Approvers");
+                },
+                "Activities" => function (SelectQuery $q) {
+                    return $q->select(["Activities.name"]);
+                },
+                "Revokers" => function (SelectQuery $q) {
+                    return $q->select(["Revokers.sca_name"]);
+                }
+            ]);
+    }
+    #endregion
 }

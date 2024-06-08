@@ -43,7 +43,7 @@ if ($user->can("verifyMembership", "Members") && $needVerification) {
             ]);
         }
         if ($needsMemberCardVerification) {
-            if (strlen($member->membership_card_path) > 0) {
+            if ($member->membership_card_path != null && strlen($member->membership_card_path) > 0) {
                 echo $this->Glide->image($member->membership_card_path, [], ['width' => '400']);
             }
             if ($needsParentVerification) {

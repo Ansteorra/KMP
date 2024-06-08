@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Model\Entity;
@@ -23,7 +24,7 @@ use Cake\ORM\Entity;
  * @property \App\Model\Entity\Branch $branch
  * @property \App\Model\Entity\Office $office
  */
-class Officer extends Entity
+class Officer extends ActiveWindowBaseEntity
 {
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().

@@ -51,6 +51,7 @@ class BranchesTable extends Table
         $this->addBehavior("Tree");
         $this->addBehavior("Timestamp");
         $this->addBehavior('Muffin/Footprint.Footprint');
+        $this->addBehavior("Muffin/Trash.Trash");
     }
 
     /**

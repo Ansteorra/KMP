@@ -19,7 +19,7 @@ use Cake\ORM\Entity;
  * @property \App\Model\Entity\Activity $activity
  * @property \App\Model\Entity\AuthorizationApproval[] $authorization_approvals
  */
-class Authorization extends Entity
+class Authorization extends ActiveWindowBaseEntity
 {
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().

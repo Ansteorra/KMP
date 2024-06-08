@@ -105,4 +105,25 @@ class StaticHelpers
         }
         return true;
     }
+
+    static function getValue($path, $array)
+    {
+        $path = explode('->', $path);
+        $temp = &$array;
+
+        foreach ($path as $key) {
+            $temp = &$temp[$key];
+        }
+        return $temp;
+    }
+
+    static function processTemplate($string, $data)
+    {
+        $matches = [];
+        preg_match_all('/{{(.*?)}}/', $string, $matches);
+        foreach ($matches[1] as $match) {
+            $string = str_replace('{{' . $match . '}}', self::getValue($match, $data), $string);
+        }
+        return $string;
+    }
 }

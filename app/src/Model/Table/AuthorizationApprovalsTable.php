@@ -52,7 +52,7 @@ class AuthorizationApprovalsTable extends Table
         $this->belongsTo("Approvers", [
             "className" => "Members",
             "foreignKey" => "approver_id",
-            "joinType" => "INNER",
+            "joinType" => "LEFT",
         ]);
     }
 

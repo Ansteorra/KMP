@@ -60,6 +60,7 @@ class MemberRolesTable extends Table
         ]);
         $this->addBehavior("Timestamp");
         $this->addBehavior('Muffin/Footprint.Footprint');
+        $this->addBehavior("ActiveWindow");
     }
 
     /**

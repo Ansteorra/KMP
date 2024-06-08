@@ -20,7 +20,7 @@ use Cake\ORM\Entity;
  * @property \App\Model\Entity\Role $role
  * @property \App\Model\Entity\Member $approved_by
  */
-class MemberRole extends Entity
+class MemberRole extends ActiveWindowBaseEntity
 {
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().
