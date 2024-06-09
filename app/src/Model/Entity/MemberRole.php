@@ -22,6 +22,7 @@ use Cake\ORM\Entity;
  */
 class MemberRole extends ActiveWindowBaseEntity
 {
+    public string $typeIdField = 'role_id';
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().
      *

@@ -168,12 +168,12 @@ class Officers extends AbstractMigration
                 "limit" => 20,
                 "null" => false,
             ])
-            ->addColumn("release_reason", "string", [
+            ->addColumn("revoked_reason", "string", [
                 "default" => "",
                 "limit" => 255,
                 "null" => true,
             ])
-            ->addColumn("release_id", "integer", [
+            ->addColumn("revoker_id", "integer", [
                 "default" => null,
                 "limit" => 11,
                 "null" => true,

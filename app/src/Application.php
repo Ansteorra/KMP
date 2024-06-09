@@ -19,6 +19,8 @@ declare(strict_types=1);
 namespace App;
 
 // Authentication usings
+
+use App\Model\Entity\Activity;
 use Authentication\Identifier\AbstractIdentifier;
 use Authentication\Middleware\AuthenticationMiddleware;
 use Authentication\AuthenticationService;
@@ -26,8 +28,10 @@ use Authentication\AuthenticationServiceInterface;
 use Authentication\AuthenticationServiceProviderInterface;
 // Authorization usings
 use App\Policy\ControllerResolver;
+use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 use App\Services\ActivityAuthorizations\AuthorizationServiceInterface as ActivityAuthorizationServiceInterface;
 use App\Services\ActivityAuthorizations\DefaultAuthorizationService;
+use App\Services\ActiveWindowManager\DefaultActiveWindowManager;
 use Authorization\Middleware\AuthorizationMiddleware;
 use Authorization\Policy\OrmResolver;
 use Authorization\Policy\ResolverCollection;
@@ -155,6 +159,10 @@ class Application extends BaseApplication implements
         $container->add(
             ActivityAuthorizationServiceInterface::class,
             DefaultAuthorizationService::class,
+        );
+        $container->add(
+            ActiveWindowManagerInterface::class,
+            DefaultActiveWindowManager::class,
         );
     }
 

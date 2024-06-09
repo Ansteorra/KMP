@@ -2,7 +2,7 @@
 
 /**
  * @var \App\View\AppView $this
- * @var \App\Model\Entity\Activity $authorizationType
+ * @var \App\Model\Entity\Activity $activity
  * @var \App\Model\Entity\ActivityGroup[]|\Cake\Collection\CollectionInterface $ActivityGroups
  * @var \App\Model\Entity\MemberActivity[]|\Cake\Collection\CollectionInterface $MemberActivities
  * @var \App\Model\Entity\PendingAuthorization[]|\Cake\Collection\CollectionInterface $pendingAuthorizations
@@ -12,19 +12,19 @@
 <?php $this->extend("/layout/TwitterBootstrap/dashboard"); ?>
 
 <div class="activities form content">
-    <?= $this->Form->create($authorizationType) ?>
+    <?= $this->Form->create($activity) ?>
     <fieldset>
         <legend><?= __("Add Activity") ?></legend>
         <?php
         echo $this->Form->control("name");
         echo $this->Form->control("activity_group_id", [
-            "options" => $authorizationGroups,
+            "options" => $activityGroup,
         ]);
         echo $this->Form->control("grants_role_id", [
             "options" => $authAssignableRoles,
             "empty" => true
         ]);
-        echo $this->Form->control("length", [
+        echo $this->Form->control("term_length", [
             "label" => "Duration (years)",
             "type" => "number",
         ]);

@@ -1019,14 +1019,15 @@ class MembersController extends AppController
                 "start_on",
                 "expires_on",
                 "role_id",
-                "approver_id"
+                "approver_id",
+                "granting_model"
             ])
             ->contain([
                 "Roles" => function (SelectQuery $q) {
                     return $q->select(["Roles.name"]);
                 },
-                "Approved_By" => function (SelectQuery $q) {
-                    return $q->select(["Approved_By.sca_name"]);
+                "ApprovedBy" => function (SelectQuery $q) {
+                    return $q->select(["ApprovedBy.sca_name"]);
                 }
             ]);
     }
@@ -1056,7 +1057,7 @@ class MembersController extends AppController
         $revokeReasonCase = $q->newExpr()
             ->case()
             ->when([$associationName . '.status' => 'revoked'])
-            ->then($q->func()->concat([$associationName . ".status" => 'identifier', ' - ', "Revokers.sca_name" => 'identifier', " on ", $associationName . ".expires_on" => 'identifier', " note: ", $associationName . ".revoked_reason" => 'identifier']))
+            ->then($q->func()->concat([$associationName . ".status" => 'identifier', ' - ', "RevokedBy.sca_name" => 'identifier', " on ", $associationName . ".expires_on" => 'identifier', " note: ", $associationName . ".revoked_reason" => 'identifier']))
             ->when([$associationName . '.status' => 'approved', $associationName . ".expires_on <" => DateTime::now()])
             ->then("expired")
             ->else("");
@@ -1077,10 +1078,10 @@ class MembersController extends AppController
                         ->contain("Approvers");
                 },
                 "Activities" => function (SelectQuery $q) {
-                    return $q->select(["Activities.name"]);
+                    return $q->select(["Activities.name", "Activities.id"]);
                 },
-                "Revokers" => function (SelectQuery $q) {
-                    return $q->select(["Revokers.sca_name"]);
+                "RevokedBy" => function (SelectQuery $q) {
+                    return $q->select(["RevokedBy.sca_name"]);
                 }
             ]);
     }

@@ -3,8 +3,8 @@
         "id" => "releaseModal",
         "close" => true,
     ]); ?>
-<fieldset>
-    <?php
+    <fieldset>
+        <?php
         echo $this->Form->create(null, [
             "url" => ["controller" => "Officers", "action" => "release"],
             "id" => "release_officer",
@@ -13,13 +13,13 @@
             "type" => "hidden",
             "id" => "release_officer__id",
         ]);
-        echo $this->Form->control("release_reason", [
+        echo $this->Form->control("revoked_reason", [
             "label" => "Reason for Release",
             "onkeypress" => '$("#release_officer__submit").removeAttr("disabled");',
         ]);
         echo $this->Form->end();
         ?>
-</fieldset>
+    </fieldset>
 <?php echo $this->Modal->end([
         $this->Form->button("Submit", [
             "class" => "btn btn-primary",

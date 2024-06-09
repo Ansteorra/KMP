@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use Cake\I18n\DateTime;
+use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 
 /**
  * MemberRoles Controller
@@ -24,57 +25,59 @@ class MemberRolesController extends AppController
      *
      * @return \Cake\Http\Response|null|void Redirects on successful add, renders view otherwise.
      */
-    public function add()
+    public function add(ActiveWindowManagerInterface $awService)
     {
         $roleid = $this->request->getData("role_id");
         $memberid = $this->request->getData("member_id");
         $this->request->allowMethod(["post"]);
-        $oldMemberRoles = $this->MemberRoles->find("all")->where([
-            "role_id" => $roleid,
-            "member_id" => $memberid,
-            "expires_on IS" => null,
-        ]);
         // begin transaction
         $this->MemberRoles->getConnection()->begin();
-        foreach ($oldMemberRoles as $oldMemberRole) {
-            $oldMemberRole->expires_on = DateTime::now();
-            $this->MemberRoles->save($oldMemberRole);
-        }
-        $memberRole = $this->MemberRoles->newEmptyEntity();
-        $memberRole->role_id = $roleid;
-        $memberRole->member_id = $memberid;
-        $memberRole->started_on = DateTime::now();
-        $memberRole->approver_id = $this->Authentication
-            ->getIdentity()
-            ->get("id");
-        if ($this->MemberRoles->save($memberRole)) {
-            $this->Flash->success(__("The Member role has been saved."));
-            $this->MemberRoles->getConnection()->commit();
-        } else {
+        $newMemberRole = $this->MemberRoles->newEmptyEntity();
+        $newMemberRole->role_id = $roleid;
+        $newMemberRole->member_id = $memberid;
+        $newMemberRole->approver_id = $this->Authentication->getIdentity()->get("id");
+        $newMemberRole->granting_model = "Direct Grant";
+        $newMemberRole->start(DateTime::now());
+        if (!$this->MemberRoles->save($newMemberRole)) {
             $this->Flash->error(
                 __("The Member role could not be saved. Please, try again."),
             );
             $this->MemberRoles->getConnection()->rollback();
+            return $this->redirect($this->referer());
+        }
+        if (!$awService->start("MemberRoles", $newMemberRole->id, $newMemberRole->approver_id, DateTime::now())) {
+            $this->Flash->error(
+                __("The Member role could not be saved. Please, try again."),
+            );
+            $this->MemberRoles->getConnection()->rollback();
+            return $this->redirect($this->referer());
         }
 
+        $this->Flash->success(__("The Member role has been saved."));
+        $this->MemberRoles->getConnection()->commit();
         return $this->redirect($this->referer());
     }
 
-    public function deactivate($id = null)
+    public function deactivate(ActiveWindowManagerInterface $awService, $id = null)
     {
         $this->request->allowMethod(["post"]);
-        $memberRole = $this->MemberRoles->get($id);
-        $memberRole->expires_on = DateTime::now();
-        if ($this->MemberRoles->save($memberRole)) {
-            $this->Flash->success(__("The Member role has been deactivated."));
-        } else {
+        if (!$id) {
+            $id = $this->request->getData("id");
+        }
+        $this->MemberRoles->getConnection()->begin();
+
+        if (!$awService->stop("MemberRoles", (int)$id, $this->Authentication->getIdentity()->get("id"), "deactivated", "", DateTime::now())) {
             $this->Flash->error(
                 __(
                     "The Member role could not be deactivated. Please, try again.",
                 ),
             );
+            $this->MemberRoles->getConnection()->rollback();
+            return $this->redirect($this->referer());
         }
 
+        $this->Flash->success(__("The Member role has been deactivated."));
+        $this->MemberRoles->getConnection()->commit();
         return $this->redirect($this->referer());
     }
 }

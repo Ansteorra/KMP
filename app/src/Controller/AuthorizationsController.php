@@ -11,10 +11,11 @@ namespace App\Controller;
  */
 
 use App\Services\ActivityAuthorizations\AuthorizationServiceInterface;
+use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 
 class AuthorizationsController extends AppController
 {
-    public function revoke(AuthorizationServiceInterface $maService, $id = null)
+    public function revoke(ActiveWindowManagerInterface $awService, AuthorizationServiceInterface $maService, $id = null)
     {
         $this->request->allowMethod(["post"]);
         if ($id == null) {
@@ -26,7 +27,7 @@ class AuthorizationsController extends AppController
 
         $revokedReason = $this->request->getData("revoked_reason");
         $revokerId = $this->Authentication->getIdentity()->getIdentifier();
-        if (!$maService->revoke($id, $revokerId, $revokedReason)) {
+        if (!$maService->revoke($awService, $id, $revokerId, $revokedReason)) {
             $this->Flash->error(
                 __("The authorization revocation could not be processed"),
             );

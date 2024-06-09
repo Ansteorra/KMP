@@ -26,7 +26,7 @@ class DevLoadActivitiesSeed extends AbstractSeed
             [
                 'id' => 1,
                 'name' => 'Armored Combat',
-                'length' => 4,
+                'term_length' => 4,
                 'activity_group_id' => 1,
                 'grants_role_id' => NULL,
                 'minimum_age' => 16,
@@ -40,7 +40,7 @@ class DevLoadActivitiesSeed extends AbstractSeed
             [
                 'id' => 2,
                 'name' => 'Armored Combat Field Marshal',
-                'length' => 4,
+                'term_length' => 4,
                 'activity_group_id' => 1,
                 'grants_role_id' => NULL,
                 'minimum_age' => 16,
@@ -54,7 +54,7 @@ class DevLoadActivitiesSeed extends AbstractSeed
             [
                 'id' => 3,
                 'name' => 'Rapier Combat',
-                'length' => 4,
+                'term_length' => 4,
                 'activity_group_id' => 2,
                 'grants_role_id' => NULL,
                 'minimum_age' => 16,
@@ -68,7 +68,7 @@ class DevLoadActivitiesSeed extends AbstractSeed
             [
                 'id' => 4,
                 'name' => 'Rapier Combat Field Marshal',
-                'length' => 4,
+                'term_length' => 4,
                 'activity_group_id' => 2,
                 'grants_role_id' => NULL,
                 'minimum_age' => 16,
@@ -82,7 +82,7 @@ class DevLoadActivitiesSeed extends AbstractSeed
             [
                 'id' => 5,
                 'name' => 'Youth Boffer 1',
-                'length' => 4,
+                'term_length' => 4,
                 'activity_group_id' => 3,
                 'grants_role_id' => NULL,
                 'minimum_age' => 6,
@@ -96,7 +96,7 @@ class DevLoadActivitiesSeed extends AbstractSeed
             [
                 'id' => 6,
                 'name' => 'Youth Boffer 2',
-                'length' => 4,
+                'term_length' => 4,
                 'activity_group_id' => 3,
                 'grants_role_id' => NULL,
                 'minimum_age' => 10,
@@ -110,7 +110,7 @@ class DevLoadActivitiesSeed extends AbstractSeed
             [
                 'id' => 7,
                 'name' => 'Youth Boffer 3',
-                'length' => 4,
+                'term_length' => 4,
                 'activity_group_id' => 3,
                 'grants_role_id' => NULL,
                 'minimum_age' => 13,
@@ -124,7 +124,7 @@ class DevLoadActivitiesSeed extends AbstractSeed
             [
                 'id' => 8,
                 'name' => 'Youth Boffer Marshal',
-                'length' => 4,
+                'term_length' => 4,
                 'activity_group_id' => 3,
                 'grants_role_id' => NULL,
                 'minimum_age' => 16,
@@ -138,7 +138,7 @@ class DevLoadActivitiesSeed extends AbstractSeed
             [
                 'id' => 9,
                 'name' => 'Youth Boffer Junior Marshal',
-                'length' => 4,
+                'term_length' => 4,
                 'activity_group_id' => 3,
                 'grants_role_id' => NULL,
                 'minimum_age' => 12,
@@ -152,7 +152,7 @@ class DevLoadActivitiesSeed extends AbstractSeed
             [
                 'id' => 10,
                 'name' => 'Authorizing Rapier Marshal',
-                'length' => 2,
+                'term_length' => 2,
                 'activity_group_id' => 2,
                 'grants_role_id' => 6,
                 'minimum_age' => 18,

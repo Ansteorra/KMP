@@ -10,7 +10,7 @@ use Authorization\IdentityInterface;
 /**
  * role policy
  */
-class MemberRolesPolicy extends BasePolicy
+class MemberRolePolicy extends BasePolicy
 {
     protected string $REQUIRED_PERMISSION = "Can Manage Permissions";
 

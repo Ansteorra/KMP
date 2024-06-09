@@ -7,6 +7,7 @@ use App\Services\ActivityAuthorizations\AuthorizationServiceInterface;
 use Cake\I18n\DateTime;
 use Cake\Mailer\MailerAwareTrait;
 use Cake\ORM\TableRegistry;
+use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 
 class DefaultAuthorizationService implements AuthorizationServiceInterface
 {
@@ -18,9 +19,9 @@ class DefaultAuthorizationService implements AuthorizationServiceInterface
     #region public methods
     public function request(
         int $requesterId,
-        int $authorizationTypeId,
+        int $activityId,
         int $approverId,
-        bool $isRenewal,
+        bool $isRenewal
     ): bool {
         $table = TableRegistry::getTableLocator()->get("Authorizations");
         // If its a renewal we will only create the auth if there is an existing auth that has not expired
@@ -29,7 +30,7 @@ class DefaultAuthorizationService implements AuthorizationServiceInterface
                 ->find()
                 ->where([
                     "member_id" => $requesterId,
-                    "activity_id" => $authorizationTypeId,
+                    "activity_id" => $activityId,
                     "status" => "approved",
                     "expires_on >" => DateTime::now(),
                 ])
@@ -40,7 +41,7 @@ class DefaultAuthorizationService implements AuthorizationServiceInterface
         }
         $auth = $table->newEmptyEntity();
         $auth->member_id = $requesterId;
-        $auth->activity_id = $authorizationTypeId;
+        $auth->activity_id = $activityId;
         $auth->requested_on = DateTime::now();
         $auth->status = "new";
         $auth->is_renewal = $isRenewal;
@@ -62,7 +63,7 @@ class DefaultAuthorizationService implements AuthorizationServiceInterface
         }
         if (
             !$this->sendApprovalRequestNotification(
-                $authorizationTypeId,
+                $activityId,
                 $requesterId,
                 $approverId,
                 $approval->authorization_token,
@@ -78,9 +79,10 @@ class DefaultAuthorizationService implements AuthorizationServiceInterface
     }
 
     public function approve(
+        ActiveWindowManagerInterface $activeWindowManager,
         int $authorizationApprovalId,
         int $approverId,
-        int $nextApproverId = null,
+        int $nextApproverId = null
     ): bool {
         $approvalTable = TableRegistry::getTableLocator()->get(
             "AuthorizationApprovals",
@@ -102,8 +104,8 @@ class DefaultAuthorizationService implements AuthorizationServiceInterface
 
             return false;
         }
-        $authorizationType = $authorization->activity;
-        if (!$authorizationType) {
+        $activity = $authorization->activity;
+        if (!$activity) {
             $transConnection->rollback();
 
             return false;
@@ -118,7 +120,7 @@ class DefaultAuthorizationService implements AuthorizationServiceInterface
         // Check if the authorization needs multiple approvers and process accordingly
         $requiredApprovalCount = $this->getApprovalsRequiredCount(
             $authorization->is_renewal,
-            $authorizationType,
+            $activity,
         );
         if (
             $this->getNeedsMoreRenewals(
@@ -147,17 +149,11 @@ class DefaultAuthorizationService implements AuthorizationServiceInterface
         } else {
             // Authorization is ready to approve
             if (
-                !$this->expireExistingAuthorizations($authorization, $authTable)
-            ) {
-                $transConnection->rollback();
-
-                return false;
-            }
-            if (
                 !$this->processApprovedAuthorization(
                     $authorization,
                     $approverId,
                     $authTable,
+                    $activeWindowManager,
                 )
             ) {
                 $transConnection->rollback();
@@ -214,6 +210,7 @@ class DefaultAuthorizationService implements AuthorizationServiceInterface
     }
 
     public function revoke(
+        ActiveWindowManagerInterface $activeWindowManager,
         int $authorizationId,
         int $revokerId,
         string $revokedReason,
@@ -221,44 +218,27 @@ class DefaultAuthorizationService implements AuthorizationServiceInterface
         $table = TableRegistry::getTableLocator()->get("Authorizations");
         $table->getConnection()->begin();
 
-        $authorization = $table->get($authorizationId);
 
-        // revoke the authorization
-        $authorization->status = "revoked";
-        $authorization->revoked_reason = $revokedReason;
-        $authorization->expires_on = DateTime::now()->subDays(1);
-        $authorization->revoker_id = $revokerId;
-        $authorization->setDirty("status", true);
-        $authorization->setDirty("revoked_reason", true);
-        $authorization->setDirty("expires_on", true);
-        $authorization->setDirty("revoker_id", true);
-        if (!$table->save($authorization)) {
+        // revoke the member_role if it was granted
+        if (!$activeWindowManager->stop(
+            "Authorizations",
+            $authorizationId,
+            $revokerId,
+            "revoked",
+            $revokedReason,
+            DateTime::now()
+        )) {
             $table->getConnection()->rollback();
-
             return false;
         }
-        // revoke the member_role if it was granted
-        if ($authorization->granted_member_role_id) {
-            $memberRole = $table->MemberRoles->get(
-                $authorization->granted_member_role_id,
-            );
-            $memberRole->expires_on = DateTime::now()->subSeconds(1);
-            $memberRole->setDirty("expires_on", true);
-            if (!$table->MemberRoles->save($memberRole)) {
-                $table->getConnection()->rollback();
-
-                return false;
-            }
-        }
-        if (
-            !$this->sendAuthorizationStatusToRequestor(
-                $authorization->activity_id,
-                $authorization->member_id,
-                $revokerId,
-                $authorization->status,
-                null,
-            )
-        ) {
+        $authorization = $table->get($authorizationId);
+        if (!$this->sendAuthorizationStatusToRequestor(
+            $authorization->activity_id,
+            $authorization->member_id,
+            $revokerId,
+            $authorization->status,
+            null,
+        )) {
             $table->getConnection()->rollback();
 
             return false;
@@ -271,7 +251,7 @@ class DefaultAuthorizationService implements AuthorizationServiceInterface
 
     #region notifications
     protected function sendAuthorizationStatusToRequestor(
-        int $authorizationTypeId,
+        int $activityId,
         int $requesterId,
         int $approverId,
         string $status,
@@ -281,9 +261,9 @@ class DefaultAuthorizationService implements AuthorizationServiceInterface
             "Activities",
         );
         $membersTable = TableRegistry::getTableLocator()->get("Members");
-        $authorizationType = $authTypesTable
+        $activity = $authTypesTable
             ->find()
-            ->where(["id" => $authorizationTypeId])
+            ->where(["id" => $activityId])
             ->select(["name"])
             ->all()
             ->first();
@@ -317,14 +297,14 @@ class DefaultAuthorizationService implements AuthorizationServiceInterface
             $requesterId,
             $approver->sca_name,
             $nextApproverScaName,
-            $authorizationType->name,
+            $activity->name,
         ]);
 
         return true;
     }
 
     protected function sendApprovalRequestNotification(
-        int $authorizationTypeId,
+        int $activityId,
         int $requesterId,
         int $approverId,
         string $authorizationToken,
@@ -333,9 +313,9 @@ class DefaultAuthorizationService implements AuthorizationServiceInterface
             "Activities",
         );
         $membersTable = TableRegistry::getTableLocator()->get("Members");
-        $authorizationType = $authTypesTable
+        $activity = $authTypesTable
             ->find()
-            ->where(["id" => $authorizationTypeId])
+            ->where(["id" => $activityId])
             ->select(["name"])
             ->all()
             ->first();
@@ -356,7 +336,7 @@ class DefaultAuthorizationService implements AuthorizationServiceInterface
             $authorizationToken,
             $member->sca_name,
             $approver->sca_name,
-            $authorizationType->name,
+            $activity->name,
         ]);
 
         return true;
@@ -368,34 +348,23 @@ class DefaultAuthorizationService implements AuthorizationServiceInterface
         $authorization,
         $approverId,
         $authTable,
+        ActiveWindowManagerInterface $activeWindowManager,
     ): bool {
         $authorization->status = "approved";
         $authorization->approval_count = $authorization->approval_count + 1;
-        $authorization->start_on = DateTime::now();
-        $authorization->expires_on = DateTime::now()->addYears(
-            $authorization->activity->length,
-        );
         if (!$authTable->save($authorization)) {
             return false;
         }
-        // add the member_role if the activity has a grants_role_id
-        if ($authorization->activity->grants_role_id) {
-            $memberRole = $authTable->MemberRoles->newEmptyEntity();
-            $memberRole->member_id = $authorization->member_id;
-            $memberRole->role_id =
-                $authorization->activity->grants_role_id;
-            $memberRole->start_on = $authorization->start_on;
-            $memberRole->expires_on = $authorization->expires_on;
-            $memberRole->approver_id = $approverId;
-            if (!$authTable->MemberRoles->save($memberRole)) {
-                return false;
-            }
-            // add the member_role id to the authorization so we can revoke it later
-            $authorization->granted_member_role_id = $memberRole->id;
-            $authorization->setDirty("granted_member_role_id", true);
-            if (!$authTable->save($authorization)) {
-                return false;
-            }
+        if (!$activeWindowManager->start(
+            "Authorizations",
+            $authorization->id,
+            $approverId,
+            DateTime::now(),
+            null,
+            $authorization->activity->term_length,
+            $authorization->activity->grants_role_id,
+        )) {
+            return false;
         }
         if (
             !$this->sendAuthorizationStatusToRequestor(
@@ -410,53 +379,6 @@ class DefaultAuthorizationService implements AuthorizationServiceInterface
         }
 
         return true;
-    }
-
-    private function expireExistingAuthorizations(
-        $authorization,
-        $authTable,
-    ): bool {
-        try {
-            //Get all of the granted_member_role_id's for all previous authorizations
-            $previousRoles = $authTable
-                ->find()
-                ->select(["granted_member_role_id"])
-                ->where([
-                    "member_id" => $authorization->member_id,
-                    "activity_id" =>
-                    $authorization->activity_id,
-                    "status" => "approved",
-                ])
-                ->where(["expires_on >" => DateTime::now()])
-                ->toArray();
-
-            // Expire any previous authorizations that are still active
-            $authTable->updateAll(
-                ["expires_on" => DateTime::now()->subDays(1)],
-                [
-                    "member_id" => $authorization->member_id,
-                    "activity_id" => $authorization->activity_id,
-                    "status" => "approved",
-                    "expires_on >" => DateTime::now(),
-                ],
-            );
-            if (count($previousRoles) == 0) {
-                return true;
-            }
-            $previousRolesArray = array_map(function ($role) {
-                return $role->granted_member_role_id;
-            }, $previousRoles);
-
-            $authTable->MemberRoles->updateAll(
-                ["expires_on" => DateTime::now()->subSeconds(1)],
-                [
-                    "id IN" => $previousRolesArray
-                ],
-            );
-            return true;
-        } catch (\Exception $e) {
-            return false;
-        }
     }
 
     private function processForwardToNextApprover(
@@ -521,11 +443,11 @@ class DefaultAuthorizationService implements AuthorizationServiceInterface
 
     private function getApprovalsRequiredCount(
         $isRenewal,
-        $authorizationType,
+        $activity,
     ): int {
         return $isRenewal
-            ? $authorizationType->num_required_renewers
-            : $authorizationType->num_required_authorizors;
+            ? $activity->num_required_renewers
+            : $activity->num_required_authorizors;
     }
 
     private function getNeedsMoreRenewals(

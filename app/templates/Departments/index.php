@@ -2,7 +2,7 @@
 
 /**
  * @var \App\View\AppView $this
- * @var \App\Model\Entity\ActivityGroup[]|\Cake\Collection\CollectionInterface $authorizationGroups
+ * @var \App\Model\Entity\ActivityGroup[]|\Cake\Collection\CollectionInterface $activityGroup
  */
 ?>
 <?php $this->extend("/layout/TwitterBootstrap/dashboard"); ?>

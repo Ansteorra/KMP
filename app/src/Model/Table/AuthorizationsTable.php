@@ -58,11 +58,13 @@ class AuthorizationsTable extends Table
             "foreignKey" => "activity_id",
             "joinType" => "INNER",
         ]);
-        $this->belongsTo("Revokers", [
+        $this->belongsTo("RevokedBy", [
             "className" => "Members",
             "foreignKey" => "revoker_id",
             "joinType" => "LEFT",
+            "propertyName" => "revoked_by",
         ]);
+
         $this->hasMany("AuthorizationApprovals", [
             "foreignKey" => "authorization_id",
         ]);

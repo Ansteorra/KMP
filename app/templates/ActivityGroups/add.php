@@ -7,7 +7,7 @@
 ?>
 <?php $this->extend("/layout/TwitterBootstrap/dashboard"); ?>
 
-<div class="authorizationGroups form content">
+<div class="activityGroup form content">
     <?= $this->Form->create($authorizationGroup) ?>
     <fieldset>
         <legend><?= __("Add Activity Group") ?></legend>

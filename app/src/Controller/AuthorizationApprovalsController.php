@@ -11,6 +11,7 @@ namespace App\Controller;
  */
 
 use App\Services\ActivityAuthorizations\AuthorizationServiceInterface;
+use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 use Cake\Mailer\MailerAwareTrait;
 
 class AuthorizationApprovalsController extends AppController
@@ -47,7 +48,7 @@ class AuthorizationApprovalsController extends AppController
                 "denied" => $query
                     ->func()
                     ->count(
-                        "CASE WHEN AuthorizationApprovals.approved = 0 THEN 1 END",
+                        "CASE WHEN AuthorizationApprovals.approved = 0  && AuthorizationApprovals.responded_on IS NOT NULL THEN 1 END",
                     ),
             ])
             ->group("Approvers.id");
@@ -132,6 +133,7 @@ class AuthorizationApprovalsController extends AppController
      * @return \Cake\Http\Response|null|void Redirects on successful approval, renders view otherwise.
      */
     public function approve(
+        ActiveWindowManagerInterface $awService,
         AuthorizationServiceInterface $maService,
         $id = null,
     ) {
@@ -145,7 +147,7 @@ class AuthorizationApprovalsController extends AppController
 
         $approverId = $this->Authentication->getIdentity()->getIdentifier();
         $nextApproverId = $this->request->getData("next_approver_id");
-        if (!$maService->approve((int)$id, (int)$approverId, (int)$nextApproverId)) {
+        if (!$maService->approve($awService, (int)$id, (int)$approverId, (int)$nextApproverId)) {
             $this->Flash->error(
                 __(
                     "The authorization approval could not be approved. Please, try again.",

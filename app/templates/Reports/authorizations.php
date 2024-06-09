@@ -44,7 +44,7 @@
                                 <th>Member Number</th>
                                 <th>Branch</th>
                                 <th>Start On</th>
-                                <th>Expires On</th>
+                                <th>End Date</th>
                             </tr>
                         <?php endif; ?>
                         <tr>

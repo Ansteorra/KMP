@@ -100,7 +100,7 @@ class KMPMailer extends Mailer
         string $approvalToken,
         string $memberScaName,
         string $approverScaName,
-        string $authorizationTypeName,
+        string $activityName,
     ) {
         $url = Router::url([
             "controller" => "AuthorizationApprovals",
@@ -114,7 +114,7 @@ class KMPMailer extends Mailer
                 "authorizationResponseUrl" => $url,
                 "memberScaName" => $memberScaName,
                 "approverScaName" => $approverScaName,
-                "authorizationTypeName" => $authorizationTypeName,
+                "activityName" => $activityName,
                 "siteAdminSignature" => $this->appSettings->getAppSetting("Site Admin Signature", "Webminister"),
             ]);
     }
@@ -126,7 +126,7 @@ class KMPMailer extends Mailer
         int $memberId,
         string $ApproverScaName,
         string $nextApproverScaName,
-        string $authorizationTypeName,
+        string $activityName,
     ) {
         $url = Router::url([
             "controller" => "Members",
@@ -141,7 +141,7 @@ class KMPMailer extends Mailer
                 "memberScaName" => $memberScaName,
                 "approverScaName" => $ApproverScaName,
                 "status" => $status,
-                "authorizationTypeName" => $authorizationTypeName,
+                "activityName" => $activityName,
                 "memberCardUrl" => $url,
                 "nextApproverScaName" => $nextApproverScaName,
                 "siteAdminSignature" => $this->appSettings->getAppSetting("Site Admin Signature", "Webminister"),

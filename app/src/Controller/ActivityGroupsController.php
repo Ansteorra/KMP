@@ -25,9 +25,9 @@ class ActivityGroupsController extends AppController
     public function index()
     {
         $query = $this->ActivityGroups->find();
-        $authorizationGroups = $this->paginate($query);
+        $activityGroup = $this->paginate($query);
 
-        $this->set(compact("authorizationGroups"));
+        $this->set(compact("activityGroup"));
     }
 
     /**

@@ -7,7 +7,7 @@
 ?>
 <?php $this->extend("/layout/TwitterBootstrap/dashboard"); ?>
 
-<div class="authorizationGroups view large-9 medium-8 columns content">
+<div class="activityGroup view large-9 medium-8 columns content">
     <div class="row align-items-start">
         <div class="col">
             <h3>
@@ -57,26 +57,26 @@
                     </thead>
                     <tbody>
                         <?php foreach ($authorizationGroup->activities
-                            as $authorizationType) : ?>
+                            as $activity) : ?>
                             <tr>
-                                <td><?= h($authorizationType->name) ?></td>
+                                <td><?= h($activity->name) ?></td>
                                 <td class="text-center"><?= $this->Number->format(
-                                                            $authorizationType->length,
+                                                            $activity->term_length,
                                                         ) ?></td>
-                                <td class="text-center"><?= $authorizationType->minimum_age ===
+                                <td class="text-center"><?= $activity->minimum_age ===
                                                             null
                                                             ? ""
                                                             : $this->Number->format(
-                                                                $authorizationType->minimum_age,
+                                                                $activity->minimum_age,
                                                             ) ?></td>
-                                <td class="text-center"><?= $authorizationType->maximum_age ===
+                                <td class="text-center"><?= $activity->maximum_age ===
                                                             null
                                                             ? ""
                                                             : $this->Number->format(
-                                                                $authorizationType->maximum_age,
+                                                                $activity->maximum_age,
                                                             ) ?></td>
                                 <td class="text-center"><?= $this->Number->format(
-                                                            $authorizationType->num_required_authorizors,
+                                                            $activity->num_required_authorizors,
                                                         ) ?></td>
                             </tr>
                         <?php endforeach; ?>

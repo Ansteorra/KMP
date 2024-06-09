@@ -2,7 +2,7 @@
 
 /**
  * @var \App\View\AppView $this
- * @var \App\Model\Entity\Activity $authorizationType
+ * @var \App\Model\Entity\Activity $activity
  */
 ?>
 <?php
@@ -15,7 +15,7 @@ $pending = [];
 $approved = [];
 $expired = [];
 $exp_date = Date::now();
-foreach ($authorizationType->authorizations as $auth) {
+foreach ($activity->authorizations as $auth) {
     if ($auth->expires_on === null) {
         $pending[] = $auth;
     } elseif ($auth->expires_on < $exp_date) {
@@ -31,18 +31,19 @@ foreach ($authorizationType->authorizations as $auth) {
         <div class="col">
             <h3>
                 <a href="#" onclick="window.history.back();" class="bi bi-arrow-left-circle"></a>
-                <?= h($authorizationType->name) ?>
+                <?= h($activity->name) ?>
             </h3>
         </div>
         <div class="col text-end">
-            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal">Edit</button>
+            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
+                data-bs-target="#editModal">Edit</button>
             <?= $this->Form->postLink(
                 __("Delete"),
-                ["action" => "delete", $authorizationType->id],
+                ["action" => "delete", $activity->id],
                 [
                     "confirm" => __(
                         "Are you sure you want to delete {0}?",
-                        $authorizationType->name,
+                        $activity->name,
                     ),
                     "title" => __("Delete"),
                     "class" => "btn btn-danger btn-sm",
@@ -54,17 +55,17 @@ foreach ($authorizationType->authorizations as $auth) {
         <table class="table table-striped">
             <tr>
                 <th scope="row"><?= __("Name") ?></th>
-                <td><?= h($authorizationType->name) ?></td>
+                <td><?= h($activity->name) ?></td>
             </tr>
             <tr>
                 <th scope="row"><?= __("Activity Group") ?></th>
-                <td><?= $authorizationType->hasValue("activity_group")
+                <td><?= $activity->hasValue("activity_group")
                         ? $this->Html->link(
-                            $authorizationType->activity_group->name,
+                            $activity->activity_group->name,
                             [
                                 "controller" => "ActivityGroups",
                                 "action" => "view",
-                                $authorizationType->activity_group->id,
+                                $activity->activity_group->id,
                             ],
                         )
                         : "" ?>
@@ -72,11 +73,11 @@ foreach ($authorizationType->authorizations as $auth) {
             </tr>
             <tr>
                 <th scope="row"><?= __("Grants Role") ?></th>
-                <td><?= $authorizationType->hasValue("role")
-                        ? $this->Html->link($authorizationType->role->name, [
+                <td><?= $activity->hasValue("role")
+                        ? $this->Html->link($activity->role->name, [
                             "controller" => "Roles",
                             "action" => "view",
-                            $authorizationType->role->id,
+                            $activity->role->id,
                         ])
                         : "" ?>
                 </td>
@@ -84,33 +85,33 @@ foreach ($authorizationType->authorizations as $auth) {
             <tr>
                 <th scope="row"><?= __("Length") ?></th>
                 <td><?= $this->Number->format(
-                        $authorizationType->length,
+                        $activity->term_length,
                     ) ?></td>
             </tr>
             <tr>
                 <th scope="row"><?= __("Minimum Age") ?></th>
-                <td><?= $authorizationType->minimum_age === null
+                <td><?= $activity->minimum_age === null
                         ? ""
-                        : $this->Number->format($authorizationType->minimum_age) ?>
+                        : $this->Number->format($activity->minimum_age) ?>
                 </td>
             </tr>
             <tr>
                 <th scope="row"><?= __("Maximum Age") ?></th>
-                <td><?= $authorizationType->maximum_age === null
+                <td><?= $activity->maximum_age === null
                         ? ""
-                        : $this->Number->format($authorizationType->maximum_age) ?>
+                        : $this->Number->format($activity->maximum_age) ?>
                 </td>
             </tr>
             <tr>
                 <th scope="row"><?= __("# for Authorization") ?></th>
                 <td><?= $this->Number->format(
-                        $authorizationType->num_required_authorizors,
+                        $activity->num_required_authorizors,
                     ) ?></td>
             </tr>
             <tr>
                 <th scope="row"><?= __("# for Renewal") ?></th>
                 <td><?= $this->Number->format(
-                        $authorizationType->num_required_renewers,
+                        $activity->num_required_renewers,
                     ) ?></td>
             </tr>
         </table>
@@ -118,19 +119,19 @@ foreach ($authorizationType->authorizations as $auth) {
     <div class="related">
         <h4><?= __("Authorizing Roles") ?></h4>
         <?php if (!empty($roles)) : ?>
-            <div class="table-responsive">
-                <table class="table table-striped">
-                    <tr>
-                        <th scope="col"><?= __("Name") ?></th>
-                        <th scope="col" class="actions"><?= __(
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <tr>
+                    <th scope="col"><?= __("Name") ?></th>
+                    <th scope="col" class="actions"><?= __(
                                                             "Actions",
                                                         ) ?></th>
-                    </tr>
-                    <?php foreach ($roles as $role) : ?>
-                        <tr>
-                            <td><?= h($role->name) ?></td>
-                            <td class="actions">
-                                <?= $this->Html->link(
+                </tr>
+                <?php foreach ($roles as $role) : ?>
+                <tr>
+                    <td><?= h($role->name) ?></td>
+                    <td class="actions">
+                        <?= $this->Html->link(
                                     __("View"),
                                     [
                                         "controller" => "Roles",
@@ -139,22 +140,22 @@ foreach ($authorizationType->authorizations as $auth) {
                                     ],
                                     ["class" => "btn btn-secondary"],
                                 ) ?>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </table>
-            </div>
+                    </td>
+                </tr>
+                <?php endforeach; ?>
+            </table>
+        </div>
         <?php endif; ?>
     </div>
     <div class="related">
         <h4><?= __("Authorizations") ?></h4>
-        <?php if (!empty($authorizationType->authorizations)) {
+        <?php if (!empty($activity->authorizations)) {
 
             $pending = [];
             $approved = [];
             $expired = [];
             $exp_date = Date::now();
-            foreach ($authorizationType->authorizations as $auth) {
+            foreach ($activity->authorizations as $auth) {
                 if ($auth->expires_on === null) {
                     $pending[] = $auth;
                 } elseif ($auth->expires_on < $exp_date) {
@@ -164,41 +165,48 @@ foreach ($authorizationType->authorizations as $auth) {
                 }
             }
         ?>
-            <nav>
-                <div class="nav nav-tabs" id="nav-tab" role="tablist">
-                    <button class="nav-link active" id="nav-active-approvals-tab" data-bs-toggle="tab" data-bs-target="#nav-active-approvals" type="button" role="tab" aria-controls="nav-active-approvals" aria-selected="true">Approved</button>
-                    <button class="nav-link" id="nav-expired-approvals-tab" data-bs-toggle="tab" data-bs-target="#nav-expired-approvals" type="button" role="tab" aria-controls="nav-expired-approvals" aria-selected="false">Expired</button>
-                    <button class="nav-link" id="nav-pending-approvals-tab" data-bs-toggle="tab" data-bs-target="#nav-pending-approvals" type="button" role="tab" aria-controls="nav-pending-approvals" aria-selected="false">Pending
-                        <span class="badge bg-danger"><?= count(
+        <nav>
+            <div class="nav nav-tabs" id="nav-tab" role="tablist">
+                <button class="nav-link active" id="nav-active-approvals-tab" data-bs-toggle="tab"
+                    data-bs-target="#nav-active-approvals" type="button" role="tab" aria-controls="nav-active-approvals"
+                    aria-selected="true">Approved</button>
+                <button class="nav-link" id="nav-expired-approvals-tab" data-bs-toggle="tab"
+                    data-bs-target="#nav-expired-approvals" type="button" role="tab"
+                    aria-controls="nav-expired-approvals" aria-selected="false">Expired</button>
+                <button class="nav-link" id="nav-pending-approvals-tab" data-bs-toggle="tab"
+                    data-bs-target="#nav-pending-approvals" type="button" role="tab"
+                    aria-controls="nav-pending-approvals" aria-selected="false">Pending
+                    <span class="badge bg-danger"><?= count(
                                                             $pending,
                                                         ) ?></span>
-                    </button>
-                </div>
-            </nav>
-            <div class="tab-content" id="nav-tabContent">
-                <div class="tab-pane fade show active" id="nav-active-approvals" role="tabpanel" aria-labelledby="nav-active-approvals-tab" tabindex="0">
-                    <div class="table-responsive">
-                        <table class="table table-striped">
-                            <tr>
-                                <th scope="col"><?= __("Member") ?></th>
-                                <th scope="col"><?= __("Start On") ?></th>
-                                <th scope="col"><?= __("Expires On") ?></th>
-                                <th scope="col"><?= __("Approved By") ?></th>
-                            </tr>
-                            <?php foreach ($approved as $auth) : ?>
-                                <tr>
-                                    <td><?= h($auth->member->sca_name) ?></td>
-                                    <td><?= h($auth->start_on) ?></td>
-                                    <td><?= h($auth->expires_on) ?></td>
-                                    <td>
-                                        <?php // if not empty make a list of approvers with their ids and sca_names, then link them to their view page
+                </button>
+            </div>
+        </nav>
+        <div class="tab-content" id="nav-tabContent">
+            <div class="tab-pane fade show active" id="nav-active-approvals" role="tabpanel"
+                aria-labelledby="nav-active-approvals-tab" tabindex="0">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <tr>
+                            <th scope="col"><?= __("Member") ?></th>
+                            <th scope="col"><?= __("Start On") ?></th>
+                            <th scope="col"><?= __("End Date") ?></th>
+                            <th scope="col"><?= __("Approved By") ?></th>
+                        </tr>
+                        <?php foreach ($approved as $auth) : ?>
+                        <tr>
+                            <td><?= h($auth->member->sca_name) ?></td>
+                            <td><?= h($auth->start_on) ?></td>
+                            <td><?= h($auth->expires_on) ?></td>
+                            <td>
+                                <?php // if not empty make a list of approvers with their ids and sca_names, then link them to their view page
 
                                         if (!empty($auth->authorization_approvals)) : ?>
-                                            <ul>
-                                                <?php foreach ($auth->authorization_approvals
+                                <ul>
+                                    <?php foreach ($auth->authorization_approvals
                                                     as $approval) : ?>
-                                                    <li>
-                                                        <?= $this->Html->link(
+                                    <li>
+                                        <?= $this->Html->link(
                                                             $approval->approver
                                                                 ->sca_name,
                                                             [
@@ -211,67 +219,69 @@ foreach ($authorizationType->authorizations as $auth) {
                                                                     ->id,
                                                             ],
                                                         ) ?>
-                                                    </li>
-                                                <?php endforeach; ?>
-                                            </ul>
-                                        <?php endif; ?>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </table>
-                    </div>
+                                    </li>
+                                    <?php endforeach; ?>
+                                </ul>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </table>
                 </div>
-                <div class="tab-pane fade" id="nav-expired-approvals" role="tabpanel" aria-labelledby="nav-expired-approvals-tab" tabindex="0">
-                    <div class="table-responsive">
-                        <table class="table table-striped">
-                            <tr>
-                                <th scope="col"><?= __("Member") ?></th>
-                                <th scope="col"><?= __("Start On") ?></th>
-                                <th scope="col"><?= __("Expires On") ?></th>
-                            </tr>
-                            <?php foreach ($expired as $auth) {
+            </div>
+            <div class="tab-pane fade" id="nav-expired-approvals" role="tabpanel"
+                aria-labelledby="nav-expired-approvals-tab" tabindex="0">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <tr>
+                            <th scope="col"><?= __("Member") ?></th>
+                            <th scope="col"><?= __("Start On") ?></th>
+                            <th scope="col"><?= __("End Date") ?></th>
+                        </tr>
+                        <?php foreach ($expired as $auth) {
                                 $assigned_to = ""; ?>
-                                <tr>
-                                    <td><?= h($auth->member->sca_name) ?></td>
-                                    <td><?= h($auth->start_on) ?></td>
-                                    <td><?= h($auth->expires_on) ?></td>
-                                </tr>
-                            <?php
+                        <tr>
+                            <td><?= h($auth->member->sca_name) ?></td>
+                            <td><?= h($auth->start_on) ?></td>
+                            <td><?= h($auth->expires_on) ?></td>
+                        </tr>
+                        <?php
                             } ?>
-                        </table>
-                    </div>
+                    </table>
                 </div>
-                <div class="tab-pane fade" id="nav-pending-approvals" role="tabpanel" aria-labelledby="nav-pending-approvals-tab" tabindex="0">
-                    <div class="table-responsive">
-                        <table class="table table-striped">
-                            <tr>
-                                <th scope="col"><?= __("Member") ?></th>
-                                <th scope="col"><?= __("Requested On") ?></th>
-                                <th scope="col"><?= __("Assigned To") ?></th>
-                            </tr>
-                            <?php foreach ($pending as $auth) : ?>
-                                <tr>
-                                    <td><?= h($auth->member->sca_name) ?></td>
-                                    <td><?= h($auth->requested_on) ?></td>
-                                    <td>
-                                        <?php if (
+            </div>
+            <div class="tab-pane fade" id="nav-pending-approvals" role="tabpanel"
+                aria-labelledby="nav-pending-approvals-tab" tabindex="0">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <tr>
+                            <th scope="col"><?= __("Member") ?></th>
+                            <th scope="col"><?= __("Requested On") ?></th>
+                            <th scope="col"><?= __("Assigned To") ?></th>
+                        </tr>
+                        <?php foreach ($pending as $auth) : ?>
+                        <tr>
+                            <td><?= h($auth->member->sca_name) ?></td>
+                            <td><?= h($auth->requested_on) ?></td>
+                            <td>
+                                <?php if (
                                             !empty($auth->authorization_approvals)
                                         ) : ?>
-                                            <?= h(
+                                <?= h(
                                                 $auth
                                                     ->authorization_approvals[0]
                                                     ->approver->sca_name,
                                             ) ?>
-                                    </td>
-                                <?php else : ?>
-                                    Unassigned
-                                <?php endif; ?>
-                                </tr>
-                            <?php endforeach; ?>
-                        </table>
-                    </div>
+                            </td>
+                            <?php else : ?>
+                            Unassigned
+                            <?php endif; ?>
+                        </tr>
+                        <?php endforeach; ?>
+                    </table>
                 </div>
             </div>
+        </div>
         <?php
         } ?>
     </div>
@@ -286,23 +296,23 @@ echo $this->Modal->create("Edit Authoriztion Type", [
 ?>
 <fieldset>
     <?php
-    echo $this->Form->create($authorizationType, [
+    echo $this->Form->create($activity, [
         "id" => "edit_entity",
         "url" => [
             "controller" => "Activities",
             "action" => "edit",
-            $authorizationType->id,
+            $activity->id,
         ],
     ]);
     echo $this->Form->control("name");
     echo $this->Form->control("activity_group_id", [
-        "options" => $authorizationGroups,
+        "options" => $activityGroup,
     ]);
     echo $this->Form->control("grants_role_id", [
         "options" => $authAssignableRoles,
         "empty" => true,
     ]);
-    echo $this->Form->control("length", [
+    echo $this->Form->control("term_length", [
         "label" => "Duration (years)",
         "type" => "number",
     ]);

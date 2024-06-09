@@ -110,9 +110,9 @@ class OfficersController extends AppController
         $officer = $this->Officers->get($this->request->getData('id'));
         $this->Authorization->authorize($officer);
         if ($this->request->is('post')) {
-            $releaseReason = $this->request->getData('release_reason');
-            $officer->release_reason = $releaseReason;
-            $officer->release_id = $this->Authentication->getIdentity()->getIdentifier();
+            $releaseReason = $this->request->getData('revoked_reason');
+            $officer->revoked_reason = $releaseReason;
+            $officer->revoker_id = $this->Authentication->getIdentity()->getIdentifier();
             $officer->expires_on = Date::now()->subDays(1);
             $officer->status = 'released';
             if ($officer->start_on > Date::now()) {

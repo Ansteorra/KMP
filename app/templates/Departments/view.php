@@ -7,7 +7,7 @@
 ?>
 <?php $this->extend("/layout/TwitterBootstrap/dashboard"); ?>
 
-<div class="authorizationGroups view large-9 medium-8 columns content">
+<div class="activityGroup view large-9 medium-8 columns content">
     <div class="row align-items-start">
         <div class="col">
             <h3>

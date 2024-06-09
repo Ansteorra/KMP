@@ -31,6 +31,7 @@ class InitMemberRolesSeed extends AbstractSeed
                 'expires_on' => NULL,
                 'start_on' => '2024-05-30 01:22:55',
                 'approver_id' => 1,
+                'granting_model' => 'Direct Grant',
                 'created' => DateTime::now(),
                 'created_by' => '1',
             ]

@@ -52,7 +52,7 @@ class ReportsController extends AppController
                 "MemberRoles.Members" => function ($q) {
                     return $q->select(['membership_number', 'sca_name', 'id', 'membership_expires_on']);
                 },
-                "MemberRoles.Approved_By" => function ($q) {
+                "MemberRoles.ApprovedBy" => function ($q) {
                     return $q->select(['sca_name', 'id']);
                 },
                 "MemberRoles.Members.Branches" => function ($q) {
@@ -109,7 +109,7 @@ class ReportsController extends AppController
                         'zip'
                     ]);
                 },
-                "MemberRoles.Approved_By" => function ($q) {
+                "MemberRoles.ApprovedBy" => function ($q) {
                     return $q->select(['sca_name', 'id']);
                 },
                 "MemberRoles.Members.Branches" => function ($q) {

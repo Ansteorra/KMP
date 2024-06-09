@@ -55,8 +55,13 @@ class RolesController extends AppController
         $role = $this->Roles->get(
             $id,
             contain: [
-                "MemberRoles.Members",
-                "MemberRoles.Approved_By",
+                "CurrentMemberRoles.Members",
+                "CurrentMemberRoles.ApprovedBy",
+                "PreviousMemberRoles.Members",
+                "PreviousMemberRoles.ApprovedBy",
+                "PreviousMemberRoles.RevokedBy",
+                "UpcomingMemberRoles.Members",
+                "UpcomingMemberRoles.ApprovedBy",
                 "Permissions.Activities",
                 "Permissions",
             ],
@@ -116,7 +121,7 @@ class RolesController extends AppController
             $id,
             contain: [
                 "MemberRoles.Members",
-                "MemberRoles.Approved_By",
+                "MemberRoles.ApprovedBy",
                 "Permissions",
             ],
         );

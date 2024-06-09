@@ -176,7 +176,7 @@ class Init extends AbstractMigration
                 "limit" => 255,
                 "null" => false,
             ])
-            ->addColumn("length", "integer", [
+            ->addColumn("term_length", "integer", [
                 "default" => null,
                 "limit" => 11,
                 "null" => false,
@@ -755,6 +755,16 @@ class Init extends AbstractMigration
                 "limit" => null,
                 "null" => false,
             ])
+            ->addColumn("granting_model", "string", [
+                "default" => null,
+                "limit" => 255,
+                "null" => true,
+            ])
+            ->addColumn("granting_id", "integer", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
             ->addColumn("approver_id", "integer", [
                 "default" => null,
                 "limit" => 11,
@@ -791,6 +801,8 @@ class Init extends AbstractMigration
             ->addIndex(["approver_id"])
             ->addIndex(["start_on"])
             ->addIndex(["expires_on"])
+            ->addIndex(["granting_id"])
+            ->addIndex(["granting_model"])
             ->create();
         #endregion
         #region Relationships

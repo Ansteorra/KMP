@@ -54,6 +54,21 @@ class RolesTable extends Table
             "bindingKey" => "id",
             "joinType" => "LEFT",
         ]);
+        $this->hasMany("CurrentMemberRoles", [
+            "className" => "MemberRoles",
+            "finder" => "current",
+            "foreignKey" => "role_id",
+        ]);
+        $this->hasMany("UpcomingMemberRoles", [
+            "className" => "MemberRoles",
+            "finder" => "upcoming",
+            "foreignKey" => "role_id",
+        ]);
+        $this->hasMany("PreviousMemberRoles", [
+            "className" => "MemberRoles",
+            "finder" => "previous",
+            "foreignKey" => "role_id",
+        ]);
 
         $this->belongsToMany("Permissions", [
             "foreignKey" => "role_id",

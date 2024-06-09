@@ -1,7 +1,7 @@
 Good day <?= $memberScaName ?>
 
 <?= $approverScaName ?> has responded to your request and the authorization is now <?= $status ?> for
-<?= $authorizationTypeName ?>.
+<?= $activityName ?>.
 
 
 <?php if ($result == "pending") : ?>

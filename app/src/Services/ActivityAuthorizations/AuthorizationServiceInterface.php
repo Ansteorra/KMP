@@ -2,12 +2,15 @@
 
 namespace App\Services\ActivityAuthorizations;
 
+use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
+
 interface AuthorizationServiceInterface
 {
     public function approve(
+        ActiveWindowManagerInterface $activeWindowManager,
         int $authorizationApprovalId,
         int $approverId,
-        int $nextApproverId = null,
+        int $nextApproverId = null
     ): bool;
 
     public function deny(
@@ -18,14 +21,15 @@ interface AuthorizationServiceInterface
 
     public function request(
         int $requesterId,
-        int $authorizationTypeId,
+        int $activityId,
         int $approverId,
         bool $isRenewal,
     ): bool;
 
     public function revoke(
+        ActiveWindowManagerInterface $activeWindowManager,
         int $authorizationId,
         int $revokerId,
-        string $revokedReason,
+        string $revokedReason
     ): bool;
 }

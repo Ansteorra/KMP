@@ -71,7 +71,7 @@ class BranchesController extends AppController
                             "branch_id",
                             "start_on",
                             "expires_on",
-                            'release_reason',
+                            'revoked_reason',
                         ])
                         ->contain([
                             "Members" => function ($q) {

@@ -52,11 +52,17 @@ class MemberRolesTable extends Table
             "foreignKey" => "role_id",
             "joinType" => "INNER",
         ]);
-        $this->belongsTo("Approved_By", [
+        $this->belongsTo("ApprovedBy", [
             "className" => "Members",
             "foreignKey" => "approver_id",
             "joinType" => "INNER",
             "propertyName" => "approved_by",
+        ]);
+        $this->belongsTo("RevokedBy", [
+            "className" => "Members",
+            "foreignKey" => "revoker_id",
+            "joinType" => "LEFT",
+            "propertyName" => "revoked_by",
         ]);
         $this->addBehavior("Timestamp");
         $this->addBehavior('Muffin/Footprint.Footprint');

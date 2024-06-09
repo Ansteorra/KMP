@@ -46,7 +46,7 @@ class ActivitiesController extends AppController
      */
     public function view($id = null)
     {
-        $authorizationType = $this->Activities->get(
+        $activity = $this->Activities->get(
             $id,
             contain: [
                 "ActivityGroups" => function ($q) {
@@ -65,23 +65,23 @@ class ActivitiesController extends AppController
                 },
             ],
         );
-        $this->Authorization->authorize($authorizationType);
+        $this->Authorization->authorize($activity);
         $roles = $this->Activities->Permissions->Roles
             ->find()
             ->innerJoinWith("Permissions", function ($q) use (
-                $authorizationType,
+                $activity,
             ) {
                 return $q->where([
                     "OR" => [
                         "Permissions.activity_id" =>
-                        $authorizationType->id,
+                        $activity->id,
                         "Permissions.is_super_user" => true,
                     ],
                 ]);
             })
             ->distinct()
             ->all();
-        $authorizationGroups = $this->Activities->ActivityGroups
+        $activityGroup = $this->Activities->ActivityGroups
             ->find("list")
             ->all();
         $authAssignableRoles = $this->Activities->Roles
@@ -89,8 +89,8 @@ class ActivitiesController extends AppController
             ->all();
         $this->set(
             compact(
-                "authorizationType",
-                "authorizationGroups",
+                "activity",
+                "activityGroup",
                 "roles",
                 "authAssignableRoles",
             ),
@@ -104,20 +104,20 @@ class ActivitiesController extends AppController
      */
     public function add()
     {
-        $authorizationType = $this->Activities->newEmptyEntity();
+        $activity = $this->Activities->newEmptyEntity();
         if ($this->request->is("post")) {
-            $authorizationType = $this->Activities->patchEntity(
-                $authorizationType,
+            $activity = $this->Activities->patchEntity(
+                $activity,
                 $this->request->getData(),
             );
-            if ($this->Activities->save($authorizationType)) {
+            if ($this->Activities->save($activity)) {
                 $this->Flash->success(
                     __("The authorization type has been saved."),
                 );
 
                 return $this->redirect([
                     "action" => "view",
-                    $authorizationType->id,
+                    $activity->id,
                 ]);
             }
             $this->Flash->error(
@@ -129,10 +129,10 @@ class ActivitiesController extends AppController
         $authAssignableRoles = $this->Activities->Roles
             ->find("list")
             ->all();
-        $authorizationGroups = $this->Activities->ActivityGroups
+        $activityGroup = $this->Activities->ActivityGroups
             ->find("list", limit: 200)
             ->all();
-        $this->set(compact("authorizationType", "authorizationGroups", "authAssignableRoles"));
+        $this->set(compact("activity", "activityGroup", "authAssignableRoles"));
     }
 
     /**
@@ -144,33 +144,37 @@ class ActivitiesController extends AppController
      */
     public function edit($id = null)
     {
-        $authorizationType = $this->Activities->get($id, contain: []);
-        $this->Authorization->authorize($authorizationType);
+        $activity = $this->Activities->get($id, contain: []);
+        $this->Authorization->authorize($activity);
         if ($this->request->is(["patch", "post", "put"])) {
-            $authorizationType = $this->Activities->patchEntity(
-                $authorizationType,
+            $activity = $this->Activities->patchEntity(
+                $activity,
                 $this->request->getData(),
             );
-            if ($this->Activities->save($authorizationType)) {
+            if ($this->Activities->save($activity)) {
                 $this->Flash->success(
                     __("The authorization type has been saved."),
                 );
 
                 return $this->redirect([
                     "action" => "view",
-                    $authorizationType->id,
+                    $activity->id,
                 ]);
             }
             $this->Flash->error(
                 __(
                     "The authorization type could not be saved. Please, try again.",
-                ),
+                )
             );
+            return $this->redirect([
+                "action" => "view",
+                $activity->id,
+            ]);
         }
-        $authorizationGroups = $this->Activities->ActivityGroups
-            ->find("list", limit: 200)
-            ->all();
-        $this->set(compact("authorizationType", "authorizationGroups"));
+        return $this->redirect([
+            "action" => "view",
+            $activity->id,
+        ]);
     }
 
     /**
@@ -183,16 +187,16 @@ class ActivitiesController extends AppController
     public function delete($id = null)
     {
         $this->request->allowMethod(["post", "delete"]);
-        $authorizationType = $this->Activities->get($id);
-        $this->Authorization->authorize($authorizationType);
-        if ($this->Activities->delete($authorizationType)) {
+        $activity = $this->Activities->get($id);
+        $this->Authorization->authorize($activity);
+        if ($this->Activities->delete($activity)) {
             $this->Flash->success(
-                __("The authorization type has been deleted."),
+                __("The activity has been deleted."),
             );
         } else {
             $this->Flash->error(
                 __(
-                    "The authorization type could not be deleted. Please, try again.",
+                    "The activity could not be deleted. Please, try again.",
                 ),
             );
         }

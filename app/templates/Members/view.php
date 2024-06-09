@@ -152,266 +152,281 @@ switch ($member->status) {
                 </tr>
         </table>
     </div>
-    <div class="related">
-        <h4><?= __("Authorization") ?>
-            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
+    <nav>
+        <div class="nav nav-tabs" id="nav-memberAreas" role="tablist">
+            <button class="nav-link active" id="nav-authorizations-tab" data-bs-toggle="tab"
+                data-bs-target="#nav-authorizations" type="button" role="tab" aria-controls="nav-authorizations"
+                aria-selected="true"><?= __("Authorizations") ?>
+            </button>
+            <button class="nav-link" id="nav-offices-tab" data-bs-toggle="tab" data-bs-target="#nav-offices"
+                type="button" role="tab" aria-controls="nav-offices" aria-selected="false"><?= __("Offices") ?>
+            </button>
+            <button class="nav-link" id="nav-roles-tab" data-bs-toggle="tab" data-bs-target="#nav-roles" type="button"
+                role="tab" aria-controls="nav-roles" aria-selected="false"><?= __("Roles") ?>
+            </button>
+            <button class="nav-link" id="nav-notes-tab" data-bs-toggle="tab" data-bs-target="#nav-notes" type="button"
+                role="tab" aria-controls="nav-notes" aria-selected="false"><?= __("Notes") ?>
+            </button>
+        </div>
+    </nav>
+    <div class="tab-content" id="nav-tabContent">
+        <div class="related tab-pane fade show active" id="nav-authorizations" role="tabpanel"
+            aria-labelledby="nav-authorizations-tab">
+            <button type="button" class="btn btn-primary btn-sm m-3" data-bs-toggle="modal"
                 data-bs-target="#requestAuthModal">Request Authorization</button>
-        </h4>
 
-        <?php if (!empty($member->previous_authorizations) || !empty($member->current_authorizations) || !empty($member->pending_authorizations)) {
-            $renewButton = [
-                "type" => "button",
-                "verify" => false,
-                "label" => "Renew",
-                "options" => [
-                    "class" => "btn btn-primary",
-                    "data-bs-toggle" => "modal",
-                    "data-bs-target" => "#renewalModal",
-                    "onclick" => "$('#renew_auth__id').val('{{id}}'); $('#renew_auth__auth_type_id').val('{{activity->id}}');$('#renew_auth__auth_type_id').trigger('change');",
+            <?php if (!empty($member->previous_authorizations) || !empty($member->current_authorizations) || !empty($member->pending_authorizations)) {
+                $renewButton = [
+                    "type" => "button",
+                    "verify" => false,
+                    "label" => "Renew",
+                    "options" => [
+                        "class" => "btn btn-primary",
+                        "data-bs-toggle" => "modal",
+                        "data-bs-target" => "#renewalModal",
+                        "onclick" => "$('#renew_auth__id').val('{{id}}'); $('#renew_auth__auth_type_id').val('{{activity->id}}');$('#renew_auth__auth_type_id').trigger('change');",
 
-                ],
-            ];
-            $revokeButton = [
-                "type" => "button",
-                "verify" => true,
-                "label" => "Revoke",
-                "controller" => "Authorizations",
-                "action" => "revoke",
-                "options" => [
-                    "class" => "btn btn-danger",
-                    "data-bs-toggle" => "modal",
-                    "data-bs-target" => "#revokeModal",
-                    "onclick" => "$('#revoke_auth__id').val('{{id}}')",
-                ],
-            ];
-            $activeColumnTemplate = [
-                "Authorization" => "activity->name",
-                "Start Date" => "start_on",
-                "End Date" => "expires_on",
-                "Actions" => [
-                    $renewButton,
-                    $revokeButton
-                ]
-            ];
-            $pendingColumnTemplate = [
-                "Authorization" => "activity->name",
-                "Requested Date" => "current_pending_approval->requested_on",
-                "Assigned To" => "current_pending_approval->approver->sca_name",
-            ];
-            $previousColumnTemplate = [
-                "Authorization" => "activity->name",
-                "Start Date" => "start_on",
-                "End Date" => "expires_on",
-                "Reason" => "revoked_reason",
-            ];
-            echo $this->element('activeWindowTabs', [
-                'user' => $user,
-                'tabGroupName' => "authorizationTabs",
-                'tabs' => [
-                    "active" => [
-                        "label" => __("Active"),
-                        "id" => "active-authorization",
-                        "selected" => true,
-                        "columns" => $activeColumnTemplate,
-                        "data" => $member->current_authorizations,
                     ],
-                    "pending" => [
-                        "label" => __("Pending"),
-                        "id" => "upcoming-authorization",
-                        "badge" => count($member->pending_authorizations),
-                        "badgeClass" => "bg-danger",
-                        "selected" => false,
-                        "columns" => $pendingColumnTemplate,
-                        "data" => $member->pending_authorizations,
+                ];
+                $revokeButton = [
+                    "type" => "button",
+                    "verify" => true,
+                    "label" => "Revoke",
+                    "controller" => "Authorizations",
+                    "action" => "revoke",
+                    "options" => [
+                        "class" => "btn btn-danger",
+                        "data-bs-toggle" => "modal",
+                        "data-bs-target" => "#revokeModal",
+                        "onclick" => "$('#revoke_auth__id').val('{{id}}')",
                     ],
-                    "previous" => [
-                        "label" => __("Previous"),
-                        "id" => "previous-authorization",
-                        "selected" => false,
-                        "columns" => $previousColumnTemplate,
-                        "data" => $member->previous_authorizations,
+                ];
+                $activeColumnTemplate = [
+                    "Authorization" => "activity->name",
+                    "Start Date" => "start_on",
+                    "End Date" => "expires_on",
+                    "Actions" => [
+                        $renewButton,
+                        $revokeButton
                     ]
-                ]
-            ]);
-        } else {
-            echo "<p>No Authorizations</p>";
-        } ?>
-    </div>
-
-    <div class="related">
-        <h4><?= __("Roles") ?></h4>
-        <?php if (!empty($member->previous_member_roles) || !empty($member->current_member_roles) || !empty($member->upcoming_member_roles)) {
-            $linkTemplate = [
-                "type" => "link",
-                "verify" => true,
-                "authData" => "role",
-                "label" => "View",
-                "controller" => "Roles",
-                "action" => "view",
-                "id" => "role_id",
-                "options" => ["class" => "btn btn-secondary"],
-            ];
-            $columnsTemplate = [
-                "Role" => "role->name",
-                "Assignment Date" => "start_on",
-                "Expire Date" => "expires_on",
-                "Approved By" => "approved_by->sca_name",
-                "Actions" => [
-                    $linkTemplate
-                ],
-            ];
-
-            echo $this->element('activeWindowTabs', [
-                'user' => $user,
-                'tabGroupName' => "roleTabs",
-                'tabs' => [
-                    "active" => [
-                        "label" => __("Active"),
-                        "id" => "active-roles",
-                        "selected" => true,
-                        "columns" => $columnsTemplate,
-                        "data" => $member->current_member_roles,
-                    ],
-                    "upcoming" => [
-                        "label" => __("Upcoming"),
-                        "id" => "upcoming-roles",
-                        "selected" => false,
-                        "columns" => $columnsTemplate,
-                        "data" => $member->upcoming_member_roles,
-                    ],
-                    "previous" => [
-                        "label" => __("Previous"),
-                        "id" => "previous-roles",
-                        "selected" => false,
-                        "columns" => $columnsTemplate,
-                        "data" => $member->previous_member_roles,
+                ];
+                $pendingColumnTemplate = [
+                    "Authorization" => "activity->name",
+                    "Requested Date" => "current_pending_approval->requested_on",
+                    "Assigned To" => "current_pending_approval->approver->sca_name",
+                ];
+                $previousColumnTemplate = [
+                    "Authorization" => "activity->name",
+                    "Start Date" => "start_on",
+                    "End Date" => "expires_on",
+                    "Reason" => "revoked_reason",
+                ];
+                echo $this->element('activeWindowTabs', [
+                    'user' => $user,
+                    'tabGroupName' => "authorizationTabs",
+                    'tabs' => [
+                        "active" => [
+                            "label" => __("Active"),
+                            "id" => "active-authorization",
+                            "selected" => true,
+                            "columns" => $activeColumnTemplate,
+                            "data" => $member->current_authorizations,
+                        ],
+                        "pending" => [
+                            "label" => __("Pending"),
+                            "id" => "upcoming-authorization",
+                            "badge" => count($member->pending_authorizations),
+                            "badgeClass" => "bg-danger",
+                            "selected" => false,
+                            "columns" => $pendingColumnTemplate,
+                            "data" => $member->pending_authorizations,
+                        ],
+                        "previous" => [
+                            "label" => __("Previous"),
+                            "id" => "previous-authorization",
+                            "selected" => false,
+                            "columns" => $previousColumnTemplate,
+                            "data" => $member->previous_authorizations,
+                        ]
                     ]
-                ]
-            ]);
-        } else {
-            echo "<p>No roles assigned</p>";
-        } ?>
-    </div>
-    <div class="related">
-        <h4><?= __("Offices") ?></h4>
-        <?php if (!empty($member->previous_officers) || !empty($member->current_officers) || !empty($member->upcoming_officers)) {
-            $linkTemplate = [
-                "type" => "link",
-                "verify" => true,
-                "authData" => "office",
-                "label" => "View",
-                "controller" => "Offices",
-                "action" => "view",
-                "id" => "office_id",
-                "options" => ["class" => "btn btn-secondary"],
-            ];
-            $columnsTemplate = [
-                "Office" => "office->name",
-                "Branch" => "branch->name",
-                "Start Date" => "start_on",
-                "End Date" => "expires_on",
-                "Actions" => [
-                    $linkTemplate
-                ],
-            ];
-            echo $this->element('activeWindowTabs', [
-                'user' => $user,
-                'tabGroupName' => "officeTabs",
-                'tabs' => [
-                    "active" => [
-                        "label" => __("Active"),
-                        "id" => "active-office",
-                        "selected" => true,
-                        "columns" => $columnsTemplate,
-                        "data" => $member->current_member_roles,
+                ]);
+            } else {
+                echo "<p>No Authorizations</p>";
+            } ?>
+        </div>
+        <div class="related tab-pane fade m-3" id="nav-offices" role="tabpanel" aria-labelledby="nav-offices-tab">
+            <?php if (!empty($member->previous_officers) || !empty($member->current_officers) || !empty($member->upcoming_officers)) {
+                $linkTemplate = [
+                    "type" => "link",
+                    "verify" => true,
+                    "authData" => "office",
+                    "label" => "View",
+                    "controller" => "Offices",
+                    "action" => "view",
+                    "id" => "office_id",
+                    "options" => ["class" => "btn btn-secondary"],
+                ];
+                $columnsTemplate = [
+                    "Office" => "office->name",
+                    "Branch" => "branch->name",
+                    "Start Date" => "start_on",
+                    "End Date" => "expires_on",
+                    "Actions" => [
+                        $linkTemplate
                     ],
-                    "upcoming" => [
-                        "label" => __("Upcoming"),
-                        "id" => "upcoming-office",
-                        "selected" => false,
-                        "columns" => $columnsTemplate,
-                        "data" => $member->upcoming_member_roles,
-                    ],
-                    "previous" => [
-                        "label" => __("Previous"),
-                        "id" => "previous-office",
-                        "selected" => false,
-                        "columns" => $columnsTemplate,
-                        "data" => $member->previous_member_roles,
+                ];
+                echo $this->element('activeWindowTabs', [
+                    'user' => $user,
+                    'tabGroupName' => "officeTabs",
+                    'tabs' => [
+                        "active" => [
+                            "label" => __("Active"),
+                            "id" => "active-office",
+                            "selected" => true,
+                            "columns" => $columnsTemplate,
+                            "data" => $member->current_member_roles,
+                        ],
+                        "upcoming" => [
+                            "label" => __("Upcoming"),
+                            "id" => "upcoming-office",
+                            "selected" => false,
+                            "columns" => $columnsTemplate,
+                            "data" => $member->upcoming_member_roles,
+                        ],
+                        "previous" => [
+                            "label" => __("Previous"),
+                            "id" => "previous-office",
+                            "selected" => false,
+                            "columns" => $columnsTemplate,
+                            "data" => $member->previous_member_roles,
+                        ]
                     ]
-                ]
-            ]);
-        } else {
-            echo "<p>No Offices assigned</p>";
-        } ?>
-    </div>
-</div>
-<div class="related">
-    <h4><?= __("Notes") ?></h4>
-    <div class="accordion mb-3" id="accordionExample">
-        <?php if (!empty($member->notes)) : ?>
-        <?php foreach ($member->notes as $note) : ?>
-        <div class="accordion-item">
-            <h2 class="accordion-header">
-                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                    data-bs-target="#note_<?= $note->id ?>" aria-expanded="true" aria-controls="collapseOne">
-                    <?= h($note->subject) ?> : <?= h(
-                                                            $note->created_on,
-                                                        ) ?> - by <?= h($note->author->sca_name) ?>
-                    <?= $note->private
-                                ? '<span class="mx-3 badge bg-secondary">Private</span>'
-                                : "" ?>
-                </button>
-            </h2>
-            <div id="note_<?= $note->id ?>" class="accordion-collapse collapse" data-bs-parent="#accordionExample">
-                <div class="accordion-body">
-                    <?= $this->Text->autoParagraph(
-                                h($note->body),
-                            ) ?>
+                ]);
+            } else {
+                echo "<p>No Offices assigned</p>";
+            } ?>
+        </div>
+        <div class="related tab-pane fade m-3" id="nav-roles" role="tabpanel" aria-labelledby="nav-roles-tab">
+            <?php if (!empty($member->previous_member_roles) || !empty($member->current_member_roles) || !empty($member->upcoming_member_roles)) {
+                $linkTemplate = [
+                    "type" => "link",
+                    "verify" => true,
+                    "authData" => "role",
+                    "label" => "View",
+                    "controller" => "Roles",
+                    "action" => "view",
+                    "id" => "role_id",
+                    "options" => ["class" => "btn btn-secondary"],
+                ];
+                $columnsTemplate = [
+                    "Role" => "role->name",
+                    "Start Date" => "start_on",
+                    "End Date" => "expires_on",
+                    "Approved By" => "approved_by->sca_name",
+                    "Granted By" => "granting_model",
+                    "Actions" => [
+                        $linkTemplate
+                    ],
+                ];
+
+                echo $this->element('activeWindowTabs', [
+                    'user' => $user,
+                    'tabGroupName' => "roleTabs",
+                    'tabs' => [
+                        "active" => [
+                            "label" => __("Active"),
+                            "id" => "active-roles",
+                            "selected" => true,
+                            "columns" => $columnsTemplate,
+                            "data" => $member->current_member_roles,
+                        ],
+                        "upcoming" => [
+                            "label" => __("Upcoming"),
+                            "id" => "upcoming-roles",
+                            "selected" => false,
+                            "columns" => $columnsTemplate,
+                            "data" => $member->upcoming_member_roles,
+                        ],
+                        "previous" => [
+                            "label" => __("Previous"),
+                            "id" => "previous-roles",
+                            "selected" => false,
+                            "columns" => $columnsTemplate,
+                            "data" => $member->previous_member_roles,
+                        ]
+                    ]
+                ]);
+            } else {
+                echo "<p>No Roles Assigned</p>";
+            } ?>
+        </div>
+        <div class="related tab-pane fade m-3" id="nav-notes" role="tabpanel" aria-labelledby="nav-notes-tab">
+            <div class="accordion mb-3" id="accordionExample">
+                <?php if (!empty($member->notes)) : ?>
+                <?php foreach ($member->notes as $note) : ?>
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                            data-bs-target="#note_<?= $note->id ?>" aria-expanded="true" aria-controls="collapseOne">
+                            <?= h($note->subject) ?> : <?= h(
+                                                                    $note->created_on,
+                                                                ) ?> - by <?= h($note->author->sca_name) ?>
+                            <?= $note->private
+                                        ? '<span class="mx-3 badge bg-secondary">Private</span>'
+                                        : "" ?>
+                        </button>
+                    </h2>
+                    <div id="note_<?= $note->id ?>" class="accordion-collapse collapse"
+                        data-bs-parent="#accordionExample">
+                        <div class="accordion-body">
+                            <?= $this->Text->autoParagraph(
+                                        h($note->body),
+                                    ) ?>
+
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                    <?php endif; ?>
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                data-bs-target="#note_new" aria-expanded="true" aria-controls="collapseOne">
+                                Add a Note
+                            </button>
+                        </h2>
+                        <div id="note_new" class="accordion-collapse collapse" data-bs-parent="#accordionExample">
+                            <div class="accordion-body">
+                                <?= $this->Form->create($newNote, [
+                                    "url" => ["action" => "addNote", $member->id],
+                                ]) ?>
+                                <fieldset>
+                                    <legend><?= __("Add Note") ?></legend>
+                                    <?php
+                                    echo $this->Form->control("subject");
+                                    echo $user->can("viewPrivateNotes", $member)
+                                        ? $this->Form->control("private", [
+                                            "type" => "checkbox",
+                                            "label" => "Private",
+                                        ])
+                                        : "";
+                                    echo $this->Form->control("body", [
+                                        "label" => "Note",
+                                    ]);
+                                    ?>
+                                </fieldset>
+                                <div class='text-end'><?= $this->Form->button(
+                                                            __("Submit"),
+                                                            ["class" => "btn-primary"],
+                                                        ) ?></div>
+                                <?= $this->Form->end() ?>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-        <?php endforeach; ?>
-        <?php endif; ?>
-        <div class="accordion-item">
-            <h2 class="accordion-header">
-                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                    data-bs-target="#note_new" aria-expanded="true" aria-controls="collapseOne">
-                    Add a Note
-                </button>
-            </h2>
-            <div id="note_new" class="accordion-collapse collapse" data-bs-parent="#accordionExample">
-                <div class="accordion-body">
-                    <?= $this->Form->create($newNote, [
-                        "url" => ["action" => "addNote", $member->id],
-                    ]) ?>
-                    <fieldset>
-                        <legend><?= __("Add Note") ?></legend>
-                        <?php
-                        echo $this->Form->control("subject");
-                        echo $user->can("viewPrivateNotes", $member)
-                            ? $this->Form->control("private", [
-                                "type" => "checkbox",
-                                "label" => "Private",
-                            ])
-                            : "";
-                        echo $this->Form->control("body", [
-                            "label" => "Note",
-                        ]);
-                        ?>
-                    </fieldset>
-                    <div class='text-end'><?= $this->Form->button(
-                                                __("Submit"),
-                                                ["class" => "btn-primary"],
-                                            ) ?></div>
-                    <?= $this->Form->end() ?>
-                </div>
-            </div>
-        </div>
     </div>
 </div>
-
-
 <?php
 $this->start("modals");
 // Start writing to modal block in layout

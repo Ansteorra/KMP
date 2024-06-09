@@ -50,64 +50,94 @@ if (!$selected) {
         aria-labelledby="nav-<?= $tab["id"] ?>-tab" tabindex="0">
         <div class="table-responsive">
             <table class="table table-striped">
-                <tr>
-                    <?php foreach ($tab["columns"] as $column => $value) { ?>
-                    <th scope="col <?= $column == "Actions" ? "actions" : "" ?>"><?= $column ?></th>
-                    <?php } ?>
-                </tr>
-                <?php foreach ($tab["data"] as $data) { ?>
-                <tr>
-                    <?php foreach ($tab["columns"] as $column => $value) {
-                                    if ($column == "Actions") { ?>
-                    <td class="actions">
-                        <?php foreach ($value as $link) {
-                                                $verified = false;
-                                                if (!$link["verify"]) {
-                                                    $verified = true;
-                                                } else {
-                                                    if (isset($link["authData"])) {
-                                                        $authEntity = StaticHelpers::getValue($link["authData"], $data);
-                                                    } else {
-                                                        $authEntity = $data;
-                                                    }
-                                                    $verified = $user->can($link["action"], $authEntity);
-                                                }
+                <thead>
+                    <tr>
+                        <?php foreach ($tab["columns"] as $column => $value) { ?>
+                        <th scope="col <?= $column == "Actions" ? "actions" : "" ?>"><?= $column ?></th>
+                        <?php } ?>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($tab["data"] as $data) { ?>
 
-                                                if ($verified) {
-                                                    //loop through options and process all the templates incase there is data to pull out
-                                                    foreach ($link["options"] as $key => $option) {
-                                                        $link["options"][$key] = StaticHelpers::processTemplate($option, $data);
+                    <tr>
+                        <?php foreach ($tab["columns"] as $column => $value) {
+                                        if ($column == "Actions") { ?>
+                        <td class="actions">
+                            <?php foreach ($value as $link) {
+                                                    if (isset($link["condition"])) {
+                                                        //loop through the conditions and if any of them are false, skip this link
+                                                        $skip = false;
+                                                        foreach ($link["condition"] as $key => $value) {
+                                                            if (StaticHelpers::getValue($key, $data) != $value) {
+                                                                $skip = true;
+                                                                break;
+                                                            }
+                                                        }
+                                                        if ($skip) {
+                                                            continue;
+                                                        }
                                                     }
-                                                    switch ($link["type"]) {
-                                                        case "link":
-                                                            echo $this->Html->link(
-                                                                __($link["label"]),
-                                                                [
-                                                                    "controller" => $link["controller"],
-                                                                    "action" => $link["action"],
-                                                                    StaticHelpers::getValue($link["id"], $data),
-                                                                ],
-                                                                $link["options"]
-                                                            );
-                                                            break;
-                                                        case "button":
-                                                            echo $this->Html->tag(
-                                                                "button",
-                                                                __($link["label"]),
-                                                                $link["options"]
-                                                            );
-                                                            break;
+                                                    $verified = false;
+                                                    if (!$link["verify"]) {
+                                                        $verified = true;
+                                                    } else {
+                                                        if (isset($link["authData"])) {
+                                                            $authEntity = StaticHelpers::getValue($link["authData"], $data);
+                                                        } else {
+                                                            $authEntity = $data;
+                                                        }
+                                                        $verified = $user->can($link["action"], $authEntity);
                                                     }
-                                                    echo " ";
+
+                                                    if ($verified) {
+                                                        //loop through options and process all the templates incase there is data to pull out
+                                                        foreach ($link["options"] as $key => $option) {
+                                                            $link["options"][$key] = StaticHelpers::processTemplate($option, $data);
+                                                        }
+                                                        switch ($link["type"]) {
+                                                            case "link":
+                                                                echo $this->Html->link(
+                                                                    __($link["label"]),
+                                                                    [
+                                                                        "controller" => $link["controller"],
+                                                                        "action" => $link["action"],
+                                                                        StaticHelpers::getValue($link["id"], $data),
+                                                                    ],
+                                                                    $link["options"]
+                                                                );
+                                                                break;
+                                                            case "button":
+                                                                echo $this->Html->tag(
+                                                                    "button",
+                                                                    __($link["label"]),
+                                                                    $link["options"]
+                                                                );
+                                                                break;
+                                                            case "postLink":
+                                                                echo $this->Form->postLink(
+                                                                    __($link["label"]),
+                                                                    [
+                                                                        "controller" => $link["controller"],
+                                                                        "action" => $link["action"],
+                                                                        StaticHelpers::getValue($link["id"], $data),
+                                                                    ],
+                                                                    $link["options"]
+                                                                );
+                                                                break;
+                                                        }
+                                                        echo " ";
+                                                    }
                                                 }
-                                            }
-                                            echo "</td>";
-                                        } else { ?>
-                    <td class="align-middle"><?= StaticHelpers::getValue($value, $data) ?></td>
-                    <?php }
-                                    } ?>
-                </tr>
-                <?php } ?>
+                                                echo "</td>";
+                                            } else { ?>
+                        <td class="align-middle"><?= StaticHelpers::getValue($value, $data) ?></td>
+                        <?php }
+                                        } ?>
+                    </tr>
+
+                    <?php } ?>
+                </tbody>
             </table>
         </div>
     </div>

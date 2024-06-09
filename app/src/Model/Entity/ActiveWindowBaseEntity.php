@@ -16,19 +16,29 @@ use Cake\I18n\Datetime;
  */
 class ActiveWindowBaseEntity extends Entity
 {
-    public function start(int $termYears, Datetime $startOn = null): void
+    public string $typeIdField = 'type';
+    public function start(Datetime $startOn = null, ?DateTime $expiresOn = null, ?int $termYears = null): void
     {
         if ($startOn == null) {
             $startOn = Datetime::now();
         }
-        $this->set('start_on', $startOn);
-        $this->set('expires_on', $startOn->addYears($termYears));
+        $this->start_on = $startOn->toDateTimeString();
+        if ($expiresOn == null) {
+            if ($termYears != null && $termYears != -1) {
+                $this->expires_on = $startOn->addYears($termYears)->toDateTimeString();
+            } else {
+                $this->expiresOn = null;
+            }
+        } else {
+            $this->expiresOn = $expiresOn->toDateTimeString();
+        }
     }
     public function expire(Datetime $expiresOn = null): void
     {
         if ($expiresOn == null) {
             $expiresOn = Datetime::now();
         }
-        $this->set('expires_on', $expiresOn);
+        $expiresOn = $expiresOn->subSeconds(1);
+        $this->set('expires_on', $expiresOn->toDateTimeString());
     }
 }

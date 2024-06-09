@@ -59,6 +59,19 @@ class OfficersTable extends Table
             'joinType' => 'INNER',
         ]);
 
+        $this->belongsTo("ApprovedBy", [
+            "className" => "Members",
+            "foreignKey" => "approver_id",
+            "joinType" => "INNER",
+            "propertyName" => "approved_by",
+        ]);
+        $this->belongsTo("RevokedBy", [
+            "className" => "Members",
+            "foreignKey" => "revoker_id",
+            "joinType" => "LEFT",
+            "propertyName" => "revoked_by",
+        ]);
+
         $this->belongsTo('ReportsToOffices', [
             'className' => 'Offices',
             'foreignKey' => 'office_id',
