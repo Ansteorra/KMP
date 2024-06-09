@@ -16,5 +16,5 @@ jobs:
         host: apps.ansteorra.org
         port: 22
         user: vscribe
-        private_key: ${{ secrets.sshKey }}
+        private_key: ${{ secrets.SSHKEY }}
         command: echo 'Hello, World!'
