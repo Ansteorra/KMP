@@ -1,2 +1,2 @@
 # KingdomMangementPortal
-Kingdom Management Portal
+Membership management system for SCA Kingdoms.
