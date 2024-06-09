@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/../Seeds/OfficersSeed.php';
+
 use Migrations\AbstractMigration;
 use Cake\ORM\TableRegistry;
 
@@ -303,44 +305,12 @@ class Officers extends AbstractMigration
                 ],
             )
             ->update();
-        $permissionsTbl = TableRegistry::getTableLocator()->get("Permissions");
-        $permissionsTbl->save(
-            $permissionsTbl->newEntity([
-                "name" => "Can Manage Offices",
-                "require_active_membership" => true,
-                "require_active_background_check" => false,
-                "require_min_age" => 0,
-                "system" => true,
-                "is_super_user" => false,
-                "requires_warrant" => true,
-                "created_by" => 1,
-            ])
-        );
-        $permissionsTbl->save(
-            $permissionsTbl->newEntity([
-                "name" => "Can Manage Officers",
-                "require_active_membership" => true,
-                "require_active_background_check" => false,
-                "require_min_age" => 0,
-                "system" => true,
-                "is_super_user" => false,
-                "requires_warrant" => true,
-                "created_by" => 1,
-            ])
-        );
 
-        $permissionsTbl->save(
-            $permissionsTbl->newEntity([
-                "name" => "Can Manage Departments",
-                "require_active_membership" => true,
-                "require_active_background_check" => false,
-                "require_min_age" => 0,
-                "system" => true,
-                "is_super_user" => false,
-                "requires_warrant" => true,
-                "created_by" => 1,
-            ])
-        );
+        (new OfficersSeed())
+            ->setAdapter($this->getAdapter())
+            ->setInput($this->getInput())
+            ->setOutput($this->getOutput())
+            ->run();
     }
 
 
