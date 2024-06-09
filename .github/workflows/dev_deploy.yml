@@ -1,9 +1,7 @@
 name: SSH Command Execution
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
   ssh:
