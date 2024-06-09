@@ -85,11 +85,11 @@ switch ($member->status) {
             <tr scope="row">
                 <th class="col"><?= __("Membership") ?></th>
                 <td lass="col-10">
-                    <?php if (strlen($member->membership_number) > 0) { ?>
+                    <?php if ($member->membership_number != null && strlen($member->membership_number) > 0) { ?>
                     <?= h($member->membership_number) ?> Exp:
                     <?= h($member->membership_expires_on) ?>
                     <?php } else { ?>
-                    Information Not Available
+                    <?= __('Information Not Available') ?>
                     <?php } ?>
                 </td>
             </tr>
