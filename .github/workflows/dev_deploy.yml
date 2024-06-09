@@ -3,7 +3,7 @@ name: SSH Command Execution
 on:
   push:
     branches:
-      - master
+      - main
 
 jobs:
   ssh:
