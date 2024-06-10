@@ -18,7 +18,8 @@ $user = $this->request->getAttribute("identity");
             </h3>
         </div>
         <div class="col text-end">
-            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal">Edit</button>
+            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
+                data-bs-target="#editModal">Edit</button>
             <?= $this->Form->postLink(
                 __("Delete"),
                 ["action" => "delete", $office->id],
@@ -36,10 +37,6 @@ $user = $this->request->getAttribute("identity");
     <div class="table-responsive">
         <table class="table table-striped">
             <tr scope="row">
-                <th class='col'><?= __("Name") ?></th>
-                <td><?= h($office->name) ?></td>
-            </tr>
-            <tr scope="row">
                 <th class='col'><?= __("Department") ?></th>
                 <td class="col-10"><?= $office->hasValue(
                                         "department",
@@ -54,6 +51,20 @@ $user = $this->request->getAttribute("identity");
             <tr scope="row">
                 <th class='col'><?= __("Term (Years)") ?></th>
                 <td><?= h($office->term_length) ?></td>
+            </tr>
+            <tr scope="row">
+                <th class='col'><?= __("Required") ?></th>
+                <td class="col-10"><?= $this->Kmp->bool(
+                                        $office->required_office,
+                                        $this->Html,
+                                    ) ?></td>
+            </tr>
+            <tr scope="row">
+                <th class='col'><?= __("Skip Report") ?></th>
+                <td class="col-10"><?= $this->Kmp->bool(
+                                        $office->can_skip_report,
+                                        $this->Html,
+                                    ) ?></td>
             </tr>
             <tr scope="row">
                 <th class='col'><?= __("Warrant") ?></th>
@@ -120,6 +131,8 @@ $this->start("modals"); ?>
         "empty" => true,
     ]);
     echo $this->Form->control("term_length");
+    echo $this->Form->control("required_office", ["switch" => true, 'label' => 'Required']);
+    echo $this->Form->control("can_skip_report", ["switch" => true, 'label' => 'Skip Report']);
     echo $this->Form->control("requires_warrant", ["switch" => true, 'label' => 'Warrant']);
     echo $this->Form->control("only_one_per_branch", ["switch" => true, 'label' => 'One Per Branch']);
     echo $this->Form->control("deputy_to_id", [

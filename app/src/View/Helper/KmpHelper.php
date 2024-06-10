@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\View\Helper;
 
 use Cake\View\Helper;
+use Cake\Core\Configure;
+use Cake\ORM\TableRegistry;
 use Cake\View\StringTemplateTrait;
 use Cake\Log\Log;
 
@@ -85,6 +87,26 @@ class KmpHelper extends Helper
             }
         }
         return $return;
+    }
+
+    /**
+     * Get an app setting
+     *
+     * @param string $key
+     * @param string $fallback
+     * @return string
+     */
+    public function appSetting(string $key, string $fallback): string
+    {
+        //check config first for the key
+        $value = Configure::read($key);
+        if ($value) {
+            return $value;
+        }
+        //check the app settings table
+        $AppSettings = TableRegistry::getTableLocator()->get("AppSettings");
+        $value = $AppSettings->getAppSetting($key, $fallback);
+        return $value;
     }
 
     protected function appControllerNav(

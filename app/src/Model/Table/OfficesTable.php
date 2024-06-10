@@ -60,8 +60,24 @@ class OfficesTable extends Table
         $this->hasMany('Deputies', [
             'className' => 'Offices',
         ]);
-        $this->hasMany('Officers', [
-            'foreignKey' => 'office_id',
+        $this->hasMany("Officers", [
+            "className" => "Officers",
+            "foreignKey" => "office_id"
+        ]);
+        $this->hasMany("CurrentOfficers", [
+            "className" => "Officers",
+            "foreignKey" => "office_id",
+            "finder" => "current",
+        ]);
+        $this->hasMany("UpcomingOfficers", [
+            "className" => "Officers",
+            "foreignKey" => "office_id",
+            "finder" => "upcoming",
+        ]);
+        $this->hasMany("PreviousOfficers", [
+            "className" => "Officers",
+            "foreignKey" => "office_id",
+            "finder" => "previous",
         ]);
         $this->addBehavior("Timestamp");
         $this->addBehavior('Muffin/Footprint.Footprint');

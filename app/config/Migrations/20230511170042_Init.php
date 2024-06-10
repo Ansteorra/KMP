@@ -2,7 +2,7 @@
 
 use Migrations\AbstractMigration;
 
-require_once __DIR__ . '/../Seeds/InitSeed.php';
+require_once __DIR__ . '/../Seeds/InitMigrationSeed.php';
 
 class Init extends AbstractMigration
 {
@@ -895,7 +895,7 @@ class Init extends AbstractMigration
             ])
             ->update();
         #endregion
-        (new InitSeed())
+        (new InitMigrationSeed())
             ->setAdapter($this->getAdapter())
             ->setInput($this->getInput())
             ->setOutput($this->getOutput())

@@ -22,6 +22,8 @@ $user = $this->request->getAttribute("identity");
             "options" => $departments,
         ]);
         echo $this->Form->control("term_length");
+        echo $this->Form->control("required_office", ["switch" => true, 'label' => 'Required']);
+        echo $this->Form->control("can_skip_report", ["switch" => true, 'label' => 'Skip Report']);
         echo $this->Form->control("requires_warrant", ["switch" => true, 'label' => 'Warrant']);
         echo $this->Form->control("only_one_per_branch", ["switch" => true, 'label' => 'One Per Branch']);
         echo $this->Form->control("deputy_to_id", [

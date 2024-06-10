@@ -284,21 +284,21 @@ switch ($member->status) {
                             "id" => "active-office",
                             "selected" => true,
                             "columns" => $columnsTemplate,
-                            "data" => $member->current_member_roles,
+                            "data" => $member->current_officers,
                         ],
                         "upcoming" => [
                             "label" => __("Upcoming"),
                             "id" => "upcoming-office",
                             "selected" => false,
                             "columns" => $columnsTemplate,
-                            "data" => $member->upcoming_member_roles,
+                            "data" => $member->upcoming_officers,
                         ],
                         "previous" => [
                             "label" => __("Previous"),
                             "id" => "previous-office",
                             "selected" => false,
                             "columns" => $columnsTemplate,
-                            "data" => $member->previous_member_roles,
+                            "data" => $member->previous_officers,
                         ]
                     ]
                 ]);

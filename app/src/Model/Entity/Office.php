@@ -37,6 +37,8 @@ class Office extends Entity
         'name' => true,
         'department_id' => true,
         'requires_warrant' => true,
+        'can_skip_report' => true,
+        'required_office' => true,
         'only_one_per_branch' => true,
         'deputy_to_id' => true,
         'grants_role_id' => true,

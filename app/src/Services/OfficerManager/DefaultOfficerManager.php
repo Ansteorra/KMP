@@ -26,7 +26,7 @@ class DefaultOfficerManager implements OfficerManagerInterface
         int $memberId,
         int $branchId,
         DateTime $startOn,
-        string $deputyDescription,
+        ?string $deputyDescription,
         int $approverId,
     ): bool {
         //get officer table
@@ -53,12 +53,35 @@ class DefaultOfficerManager implements OfficerManagerInterface
             $branchTable = TableRegistry::getTableLocator()->get('Branches');
             $branch = $branchTable->get($branchId);
             if ($branch->parent_id != null) {
-                $newOfficer->reports_to_branch_id = $branch->parent_id;
+                if (!$office->can_skip_report) {
+                    $newOfficer->reports_to_branch_id = $branch->parent_id;
+                } else {
+                    //iterate through the parents till we find one that has this office or the root
+                    $currentBranchId = $branch->parent_id;
+                    $previousBranchId = $branchId;
+                    $setReportsToBranch = false;
+                    while ($currentBranchId != null) {
+                        $officersCount = $branchTable->CurrentOfficers->find()
+                            ->where(['branch_id' => $currentBranchId, 'office_id' => $officeId])
+                            ->count();
+                        if ($officersCount > 0) {
+                            $newOfficer->reports_to_branch_id = $currentBranchId;
+                            $setReportsToBranch = true;
+                            break;
+                        }
+                        $previousBranchId = $currentBranchId;
+                        $currentBranch = $branchTable->get($currentBranchId);
+                        $currentBranchId = $currentBranch->parent_id;
+                    }
+                    if (!$setReportsToBranch) {
+                        $newOfficer->reports_to_branch_id = $previousBranchId;
+                    }
+                }
             } else {
-                $newOfficer->reports_to_branch_id = null;
+                $newOfficer->reports_to_branch_id = $branch;
             }
         }
-        if (!$officerTable()->save($newOfficer)) {
+        if (!$officerTable->save($newOfficer)) {
             return false;
         }
         if (!$activeWindowManager->start('Officers', $newOfficer->id, $approverId, $startOn, null, $office->term_length, $office->grants_role_id)) {
@@ -82,7 +105,7 @@ class DefaultOfficerManager implements OfficerManagerInterface
         int $officerId,
         int $revokerId,
         DateTime $revokedOn,
-        string $revokedReason
+        ?string $revokedReason
     ): bool {
         if (!$activeWindowManager->stop('Officers', $officerId, $revokerId, 'released', $revokedReason, $revokedOn)) {
             return false;

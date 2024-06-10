@@ -74,12 +74,12 @@ class OfficersTable extends Table
 
         $this->belongsTo('ReportsToOffices', [
             'className' => 'Offices',
-            'foreignKey' => 'office_id',
+            'foreignKey' => 'reports_to_office_id',
             'joinType' => 'LEFT',
         ]);
         $this->belongsTo('ReportsToBranches', [
             'className' => 'Branches',
-            'foreignKey' => 'branch_id',
+            'foreignKey' => 'reports_to_branch_id',
             'joinType' => 'LEFT',
         ]);
         $this->addBehavior("Timestamp");

@@ -43,6 +43,26 @@ class BranchesTable extends Table
             "className" => "Members",
             "foreignKey" => "branch_id",
         ]);
+        $this->hasMany("Officers", [
+            "className" => "Officers",
+            "foreignKey" => "branch_id"
+        ]);
+        $this->hasMany("CurrentOfficers", [
+            "className" => "Officers",
+            "foreignKey" => "branch_id",
+            "finder" => "current",
+        ]);
+        $this->hasMany("UpcomingOfficers", [
+            "className" => "Officers",
+            "foreignKey" => "branch_id",
+            "finder" => "upcoming",
+        ]);
+        $this->hasMany("PreviousOfficers", [
+            "className" => "Officers",
+            "foreignKey" => "branch_id",
+            "finder" => "previous",
+        ]);
+
 
         $this->HasMany("Officers", [
             "className" => "Officers",
@@ -89,5 +109,26 @@ class BranchesTable extends Table
         $rules->add($rules->isUnique(["name"]));
 
         return $rules;
+    }
+
+    /**
+     * Get a list of required offices for a branch
+     *
+     * @param int $branchId Branch ID
+     * @return array
+     */
+    public function getRequiredOfficesAndOfficers($branchId)
+    {
+        $officesTbl = $this->Officers->Offices;
+        $offices = $officesTbl->find()
+            ->contain(["CurrentOfficers" => function ($q) use ($branchId) {
+                return $q
+                    ->select(["id", "member_id", "office_id", "start_on", "expires_on", "Members.sca_name"])
+                    ->contain(["Members"])
+                    ->where(['CurrentOfficers.branch_id' => $branchId]);
+            }])
+            ->where(['required_office' => true])->toArray();
+
+        return $offices;
     }
 }

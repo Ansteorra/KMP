@@ -67,6 +67,8 @@ return [
             "templates" => [ROOT . DS . "templates" . DS],
             "locales" => [RESOURCES . "locales" . DS],
         ],
+        //get the version from the version.txt file
+        "version" => file_get_contents(CONFIG . "version.txt"),
     ],
 
     /*
@@ -401,5 +403,5 @@ return [
     "Session" => [
         "defaults" => "php",
         "timeout" => 30,
-    ],
+    ]
 ];

@@ -14,7 +14,7 @@ class ActiveWindowBehavior extends Behavior
         if ($effectiveDate == null || !$effectiveDate instanceof Datetime) {
             $effectiveDate = Datetime::now();
         }
-        return $query->where(['start_on >' => $effectiveDate]);
+        return $query->where(['start_on >' => $effectiveDate, 'or' => ['expires_on >' => $effectiveDate, 'expires_on IS' => null]]);
     }
 
     public function findCurrent(SelectQuery $query, Datetime $effectiveDate = null): SelectQuery

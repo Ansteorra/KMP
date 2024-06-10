@@ -131,7 +131,18 @@ if (!$selected) {
                                                 }
                                                 echo "</td>";
                                             } else { ?>
-                        <td class="align-middle"><?= StaticHelpers::getValue($value, $data) ?></td>
+                        <td class="align-middle"><?php
+
+                                                                        $record = StaticHelpers::getValue($value, $data);
+                                                                        //if the value is a DateTime then call ->toDateString() on it
+                                                                        if ($record instanceof Cake\I18n\DateTime) {
+                                                                            echo $record->toDateString();
+                                                                        } elseif (is_string($value) && strpos($value, "{{") !== false) {
+                                                                            echo h(StaticHelpers::processTemplate($value, $data));
+                                                                        } else {
+                                                                            echo h($record);
+                                                                        }
+                                                                        ?></td>
                         <?php }
                                         } ?>
                     </tr>

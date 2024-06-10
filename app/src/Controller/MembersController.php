@@ -753,15 +753,11 @@ class MembersController extends AppController
             "KMP Login Graphic",
             "populace_badge.png",
         );
-        $copyright = $this->appSettings->getAppSetting(
-            "KMP Login Copyright Text",
-            "Society for Creative Anachronism: Kingdom Management Portal",
-        );
         $allowRegistration = $this->appSettings->getAppSetting(
             "Allow Public Registration",
             "yes",
         );
-        $this->set(compact("headerImage", "copyright", "allowRegistration"));
+        $this->set(compact("headerImage", "allowRegistration"));
     }
 
     public function logout()

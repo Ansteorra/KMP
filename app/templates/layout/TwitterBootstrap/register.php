@@ -37,4 +37,6 @@ if (!$this->fetch("tb_flash")) {
     echo " ";
     $this->end();
 
+    echo $this->element('copyrightFooter', []);
+
     echo $this->fetch("content");

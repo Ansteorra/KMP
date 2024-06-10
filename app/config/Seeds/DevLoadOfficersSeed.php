@@ -5,9 +5,9 @@ declare(strict_types=1);
 use Migrations\AbstractSeed;
 
 /**
- * Role seed.
+ * Officers seed.
  */
-class InitSeed extends AbstractSeed
+class DevLoadOfficersSeed extends AbstractSeed
 {
     /**
      * Run Method.
@@ -21,11 +21,9 @@ class InitSeed extends AbstractSeed
      */
     public function run(): void
     {
-        $this->call('InitBranchesSeed');
-        $this->call('InitRolesSeed');
-        $this->call('InitPermissionsSeed');
-        $this->call('InitRolesPermissionsSeed');
-        $this->call('InitMembersSeed');
-        $this->call('InitMemberRolesSeed');
+        $data = [];
+
+        $table = $this->table('officers');
+        $table->insert($data)->save();
     }
 }

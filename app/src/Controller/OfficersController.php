@@ -35,11 +35,11 @@ class OfficersController extends AppController
         if ($this->request->is('post')) {
             //begin transaction
             $this->Officers->getConnection()->begin();
-            $memberId = $this->request->getData('member_id');
-            $officeId = $this->request->getData('office_id');
-            $branchId = $this->request->getData('branch_id');
+            $memberId = (int)$this->request->getData('member_id');
+            $officeId = (int)$this->request->getData('office_id');
+            $branchId = (int)$this->request->getData('branch_id');
             $startOn = new DateTime($this->request->getData('start_on'));
-            $approverId = $this->Authentication->getIdentity()->getIdentifier();
+            $approverId = (int)$this->Authentication->getIdentity()->getIdentifier();
             $deputyDescription = $this->request->getData('deputy_description');
 
             if (!$oManager->assign($awManager, $officeId, $memberId, $branchId, $startOn, $deputyDescription, $approverId)) {

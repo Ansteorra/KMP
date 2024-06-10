@@ -15,6 +15,8 @@
             <th scope="col"><?= $this->Paginator->sort("name") ?></th>
             <th scope="col"><?= __("Department") ?></th>
             <th scope="col" class="text-center"><?= __("Term (years)") ?></th>
+            <th scope="col" class="text-center"><?= __("Required") ?></th>
+            <th scope="col" class="text-center"><?= __("Skip Report") ?></th>
             <th scope="col" class="text-center"><?= __("Warrant") ?></th>
             <th scope="col" class="text-center"><?= __(
                                                     "One Per Branch",
@@ -30,6 +32,14 @@
             <td><?= h($office->name) ?></td>
             <td><?= h($office->department->name) ?></td>
             <td class="text-center"><?= h($office->term_length) ?></td>
+            <td class="text-center"><?= $this->Kmp->bool(
+                                            $office->required_office,
+                                            $this->Html,
+                                        ) ?></td>
+            <td class="text-center"><?= $this->Kmp->bool(
+                                            $office->can_skip_report,
+                                            $this->Html,
+                                        ) ?></td>
             <td class="text-center"><?= $this->Kmp->bool(
                                             $office->requires_warrant,
                                             $this->Html,

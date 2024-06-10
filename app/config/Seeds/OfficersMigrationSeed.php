@@ -11,7 +11,7 @@ use Cake\I18n\DateTime;
 /**
  * Permissions seed.
  */
-class OfficersSeed extends AbstractSeed
+class OfficersMigrationSeed extends AbstractSeed
 {
     /**
      * Run Method.

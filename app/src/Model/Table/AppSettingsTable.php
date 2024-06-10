@@ -92,6 +92,7 @@ class AppSettingsTable extends Table
     }
     public function getAppSetting($key, $default = "")
     {
+        $this->getAllAppSettings();
         if (isset($this->_appSettingsCache[$key])) {
             return $this->_appSettingsCache[$key];
         }
@@ -122,8 +123,8 @@ class AppSettingsTable extends Table
 
     public function getAllAppSettings()
     {
-        if ($this->appSettingsCachs->count() > 0) {
-            return $this->appSettingsCachs;
+        if (count($this->_appSettingsCache) > 0) {
+            return $this->_appSettingsCache;
         }
         $settings = $this->find()->all();
         foreach ($settings as $setting) {

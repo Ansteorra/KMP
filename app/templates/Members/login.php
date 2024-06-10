@@ -44,4 +44,3 @@ $Member = []; ?>
     </div>
 </div>
 <?= $this->Form->end() ?>
-<span class="text-muted"><?= $copyright ?></span>

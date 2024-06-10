@@ -11,3 +11,6 @@ bin/cake bake seed --data Permissions
 bin/cake bake seed --data ActivityGroups
 bin/cake bake seed --data Permissions
 bin/cake bake seed --data Activities
+bin/cake bake seed --data Departments
+bin/cake bake seed --data Offices
+bin/cake bake seed --data Officers

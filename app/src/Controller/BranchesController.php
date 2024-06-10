@@ -62,29 +62,14 @@ class BranchesController extends AppController
                         ->select(["id", "sca_name", "branch_id"])
                         ->orderBy(["sca_name" => "ASC"]);
                 },
-                "Officers" => function ($q) {
-                    return $q
-                        ->select([
-                            "id",
-                            "member_id",
-                            "office_id",
-                            "branch_id",
-                            "start_on",
-                            "expires_on",
-                            'revoked_reason',
-                        ])
-                        ->contain([
-                            "Members" => function ($q) {
-                                return $q
-                                    ->select(["id", "sca_name"])
-                                    ->order(["sca_name" => "ASC"]);
-                            },
-                            "Offices" => function ($q) {
-                                return $q
-                                    ->select(["id", "name"]);
-                            },
-                        ])
-                        ->order(["start_on" => "DESC"]);
+                "CurrentOfficers" => function ($q) {
+                    return $this->officerQuery($q);
+                },
+                "UpcomingOfficers" => function ($q) {
+                    return $this->officerQuery($q);
+                },
+                "PreviousOfficers" => function ($q) {
+                    return $this->officerQuery($q);
                 },
             ],
         );
@@ -98,8 +83,10 @@ class BranchesController extends AppController
             ->orderBy(["name" => "ASC"]);
         $officesTbl = $this->getTableLocator()->get("Offices");
         $offices = $officesTbl->find("list")->toArray();
+        // get a list of required offices and officers for the branch
+        $requiredOffices = $this->Branches->getRequiredOfficesAndOfficers($branch->id);
         $newOfficer = $this->Branches->Officers->newEmptyEntity();
-        $this->set(compact("branch", "treeList", "offices", "newOfficer"));
+        $this->set(compact("branch", "treeList", "offices", "newOfficer", "requiredOffices"));
     }
 
     /**
@@ -206,5 +193,41 @@ class BranchesController extends AppController
         }
 
         return $this->redirect(["action" => "index"]);
+    }
+
+    protected function officerQuery($q)
+    {
+        return $q
+            ->select([
+                "id",
+                "member_id",
+                "office_id",
+                "branch_id",
+                "start_on",
+                "expires_on",
+                'revoked_reason',
+                "ReportsToBranches.name",
+                "ReportsToOffices.name",
+            ])
+            ->contain([
+                "Members" => function ($q) {
+                    return $q
+                        ->select(["id", "sca_name"])
+                        ->order(["sca_name" => "ASC"]);
+                },
+                "Offices" => function ($q) {
+                    return $q
+                        ->select(["id", "name"]);
+                },
+                "ReportsToBranches" => function ($q) {
+                    return $q
+                        ->select(["id", "name"]);
+                },
+                "ReportsToOffices" => function ($q) {
+                    return $q
+                        ->select(["id", "name"]);
+                },
+            ])
+            ->order(["start_on" => "DESC"]);
     }
 }

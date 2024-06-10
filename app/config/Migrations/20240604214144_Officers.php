@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/../Seeds/OfficersSeed.php';
+require_once __DIR__ . '/../Seeds/OfficersMigrationSeed.php';
 
 use Migrations\AbstractMigration;
 use Cake\ORM\TableRegistry;
@@ -73,6 +73,16 @@ class Officers extends AbstractMigration
                 "null" => true,
             ])
             ->addColumn("requires_warrant", "boolean", [
+                "default" => false,
+                "limit" => null,
+                "null" => false,
+            ])
+            ->addColumn("required_office", "boolean", [
+                "default" => false,
+                "limit" => null,
+                "null" => false,
+            ])
+            ->addColumn("can_skip_report", "boolean", [
                 "default" => false,
                 "limit" => null,
                 "null" => false,
@@ -311,7 +321,7 @@ class Officers extends AbstractMigration
             )
             ->update();
 
-        (new OfficersSeed())
+        (new OfficersMigrationSeed())
             ->setAdapter($this->getAdapter())
             ->setInput($this->getInput())
             ->setOutput($this->getOutput())

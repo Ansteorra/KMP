@@ -40,17 +40,12 @@ class DefaultActiveWindowManager implements ActiveWindowManagerInterface
         //stop all like entities for the member_id of the entity
         $peQuery = $entityTable->find('all')
             ->where([
-                'member_id' => $entity->member_id,
                 'id !=' => $entity->id,
                 'OR' => ['expires_on >=' => DateTime::now(), 'expires_on IS' => null]
             ]);
-        if ($entity->typeIdField != null) {
-            if (is_string($entity->typeIdField)) {
-                $peQuery->andWhere([$entity->typeIdField => $entity[$entity->typeIdField]]);
-            } else if (is_array($entity->typeIdField)) {
-                foreach ($entity->typeIdField as $field) {
-                    $peQuery->andWhere([$field => $entity[$field]]);
-                }
+        if (!empty($entity->typeIdField)) {
+            foreach ($entity->typeIdField as $field) {
+                $peQuery->andWhere([$field => $entity[$field]]);
             }
         }
         if ($entityType == "MemberRoles") {

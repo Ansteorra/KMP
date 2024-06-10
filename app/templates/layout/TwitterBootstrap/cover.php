@@ -48,10 +48,5 @@ $this->start("tb_body_start");
 <?php $this->end(); ?>
 
 <?php
-$this->start("tb_footer");
-printf(
-    '<footer class="mt-auto text-white-50"><div class="inner"><p>&copy;%s %s</p></div></footer>',
-    date("Y"),
-    Configure::read("App.title"),
-);
-$this->end();
+echo $this->element('copyrightFooter', []);
+?>

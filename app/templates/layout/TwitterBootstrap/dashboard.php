@@ -27,12 +27,12 @@ $this->start("tb_body_start");
 <body <?= $this->fetch("tb_body_attrs") ?>>
     <header class="navbar navbar-dark sticky-top bg-dark flex-md-nowrap p-0 shadow">
         <div class="navbar-brand col-md-3 col-lg-2 me-0 px-3">
-            <?= $this->Html->image(Configure::read("App.appGraphic"), [
+            <?= $this->Html->image($this->KMP->appSetting("KMP Header Graphic", "badge.png"), [
                 "alt" => "Logo",
                 "height" => "24",
                 "class" => "d-inline-block mb-1",
             ]) ?>
-            <span class="fs-5"><?= h(Configure::read("App.title")) ?></span>
+            <span class="fs-5"><?= h($this->KMP->appSetting("KMP Short Title", "KMP")) ?></span>
         </div>
         <span class="w-100"></span>
         <ul class="navbar-nav px-3">
@@ -239,7 +239,7 @@ $this->start("tb_body_start");
                                     ],
                                     [
                                         "type" => "link",
-                                        "label" => "Warrant Roster",
+                                        "label" => "Activity Warrant Roster",
                                         "url" => [
                                             "controller" => "Reports",
                                             "action" => "WarrantsRoster",
@@ -255,7 +255,7 @@ $this->start("tb_body_start");
                                     ],
                                     [
                                         "type" => "link",
-                                        "label" => "Authorizations",
+                                        "label" => "Activity Authorizations",
                                         "url" => [
                                             "controller" => "Reports",
                                             "action" => "Authorizations",
@@ -593,5 +593,7 @@ $this->start("tb_body_start");
 </body>
 <?php
 $this->end();
+
+echo $this->element('copyrightFooter', []);
 
 echo $this->fetch("content");

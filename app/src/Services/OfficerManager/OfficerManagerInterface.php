@@ -25,7 +25,7 @@ interface OfficerManagerInterface
         int $memberId,
         int $branchId,
         DateTime $startOn,
-        string $deputyDescription,
+        ?string $deputyDescription,
         int $approverId,
     ): bool;
 
@@ -45,6 +45,6 @@ interface OfficerManagerInterface
         int $officerId,
         int $revokerId,
         DateTime $revokedOn,
-        string $revokedReason
+        ?string $revokedReason
     ): bool;
 }

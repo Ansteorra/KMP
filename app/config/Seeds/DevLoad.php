@@ -29,5 +29,8 @@ class DevLoad extends AbstractSeed
         $this->call('DevLoadRolesPermissionsSeed');
         $this->call('DevLoadMembersSeed');
         $this->call('DevLoadMemberRolesSeed');
+        $this->call('DevLoadDepartmentsSeed');
+        $this->call('DevLoadOfficesSeed');
+        $this->call('DevLoadOfficersSeed');
     }
 }
