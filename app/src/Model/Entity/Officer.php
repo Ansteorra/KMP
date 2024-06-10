@@ -26,7 +26,7 @@ use Cake\ORM\Entity;
  */
 class Officer extends ActiveWindowBaseEntity
 {
-    public array $typeIdField = ['office_id', 'branch_id'];
+    public $typeIdField = ['office_id', 'branch_id'];
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().
      *

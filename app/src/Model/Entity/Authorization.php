@@ -21,7 +21,7 @@ use Cake\ORM\Entity;
  */
 class Authorization extends ActiveWindowBaseEntity
 {
-    public string $typeIdField = 'activity_id';
+    public $typeIdField = 'activity_id';
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().
      *

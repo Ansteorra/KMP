@@ -19,7 +19,7 @@ use Cake\I18n\Datetime;
  */
 abstract class ActiveWindowBaseEntity extends Entity
 {
-    public string $typeIdField = 'type';
+    public $typeIdField = 'type';
 
     /**
      * Starts an active window for an entity - save your entity after calling
