@@ -170,6 +170,11 @@ class Officers extends AbstractMigration
                 "limit" => 20,
                 "null" => false,
             ])
+            ->addColumn("deputy_description", "string", [
+                "default" => null,
+                "limit" => 255,
+                "null" => true,
+            ])
             ->addColumn("revoked_reason", "string", [
                 "default" => "",
                 "limit" => 255,

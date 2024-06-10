@@ -15,4 +15,4 @@ jobs:
         port: 22
         user: vscribe
         private_key: ${{ secrets.SSHKEY }}
-        command: echo 'Hello, World!'
+        command: ./deploymentScripts/kmp_dev_deploy.sh
