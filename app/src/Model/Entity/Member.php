@@ -120,9 +120,12 @@ class Member extends Entity implements
         "password_token",
         "password_token_expires_on",
     ];
-
     /**
-     * Authorization\IdentityInterface method
+     * Check whether the current identity can perform an action.
+     *
+     * @param string $action The action/operation being performed.
+     * @param mixed $resource The resource being operated on.
+     * @return bool
      */
     public function can(string $action, mixed $resource): bool
     {
@@ -134,6 +137,10 @@ class Member extends Entity implements
         return $this->authorization->can($this, $action, $resource);
     }
 
+    /**
+     * Check if the user can access a url
+     * @param array $url
+     */
     public function canAccessUrl($url): bool
     {
         try {
@@ -162,16 +169,24 @@ class Member extends Entity implements
         }
     }
 
-    public function canAuthorizeType(int $activity_id): bool
+    /**
+     * Check if a user can authorize a specific activity
+     * @param int $activityId
+     */
+
+    public function canAuthorizeType(int $activityId): bool
     {
         $permission = $this->getPermissions();
         $activities = Hash::extract(
             $permission,
             "{n}.activity_id",
         );
-        return in_array($activity_id, $activities);
+        return in_array($activityId, $activities);
     }
 
+    /**
+     * Shortcut query to see if the user can authorize anything and there for may have an Auth Queue
+     */
     public function canHaveAuthorizationQueue(): bool
     {
         $permission = $this->getPermissions();
@@ -189,7 +204,11 @@ class Member extends Entity implements
     }
 
     /**
-     * Authorization\IdentityInterface method
+     * Check whether the current identity can perform an action.
+     *
+     * @param string $action The action/operation being performed.
+     * @param mixed $resource The resource being operated on.
+     * @return \Authorization\Policy\ResultInterface
      */
     public function canResult(string $action, mixed $resource): ResultInterface
     {
@@ -202,7 +221,12 @@ class Member extends Entity implements
     }
 
     /**
-     * Authorization\IdentityInterface method
+     * Apply authorization scope conditions/restrictions.
+     *
+     * @param string $action The action/operation being performed.
+     * @param mixed $resource The resource being operated on.
+     * @param mixed $optionalArgs Multiple additional arguments which are passed to the scope
+     * @return mixed The modified resource.
      */
     public function applyScope(
         string $action,
@@ -213,7 +237,12 @@ class Member extends Entity implements
     }
 
     /**
-     * Authorization\IdentityInterface method
+     * Get the decorated identity
+     *
+     * If the decorated identity implements `getOriginalData()`
+     * that method should be invoked to expose the original data.
+     *
+     * @return \ArrayAccess|array
      */
     public function getOriginalData(): ArrayAccess|array
     {
@@ -256,6 +285,9 @@ class Member extends Entity implements
         return $this->_permissions;
     }
 
+    /**
+     * Check if one of the users roles grants them super user 
+     */
     public function isSuperUser(): bool
     {
         $permissions = $this->getPermissions();
@@ -266,6 +298,9 @@ class Member extends Entity implements
         }
         return false;
     }
+    /**
+     * reviews the user and updates their status if they have aged up
+     */
     public function ageUpReview(): void
     {
         if (
@@ -287,6 +322,10 @@ class Member extends Entity implements
             }
         }
     }
+
+    /**
+     * Get the number of pending approvals for the user
+     */
     public function getPendingApprovalsCount(): int
     {
         $count = 0;

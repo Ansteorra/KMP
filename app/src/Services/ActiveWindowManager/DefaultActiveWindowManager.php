@@ -4,17 +4,27 @@ namespace App\Services\ActiveWindowManager;
 
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 use Cake\I18n\DateTime;
-use Cake\Mailer\MailerAwareTrait;
 use Cake\ORM\TableRegistry;
 
 class DefaultActiveWindowManager implements ActiveWindowManagerInterface
 {
-    use MailerAwareTrait;
 
     public function __construct()
     {
     }
 
+    /**
+     * Starts an active window for an entity - Make sure to create a transaction before calling this service
+     *
+     * @param string $entityType
+     * @param int $entityId
+     * @param int $memberId
+     * @param DateTime $startOn
+     * @param DateTime|null $expiresOn
+     * @param int|null $termYears
+     * @param int|null $grantRoleId
+     * @return bool
+     */
     public function start(
         string $entityType,
         int $entityId,
@@ -35,7 +45,13 @@ class DefaultActiveWindowManager implements ActiveWindowManagerInterface
                 'OR' => ['expires_on >=' => DateTime::now(), 'expires_on IS' => null]
             ]);
         if ($entity->typeIdField != null) {
-            $peQuery->andWhere([$entity->typeIdField => $entity[$entity->typeIdField]]);
+            if (is_string($entity->typeIdField)) {
+                $peQuery->andWhere([$entity->typeIdField => $entity[$entity->typeIdField]]);
+            } else if (is_array($entity->typeIdField)) {
+                foreach ($entity->typeIdField as $field) {
+                    $peQuery->andWhere([$field => $entity[$field]]);
+                }
+            }
         }
         if ($entityType == "MemberRoles") {
             $peQuery->andWhere(['granting_model' => "Direct Grant"]);
@@ -71,6 +87,17 @@ class DefaultActiveWindowManager implements ActiveWindowManagerInterface
         return true;
     }
 
+    /**
+     * Stops an active window for an entity - Make sure to create a transaction before calling this service
+     *
+     * @param string $entityType
+     * @param int $entityId
+     * @param int $memberId
+     * @param string $status
+     * @param string $reason
+     * @param DateTime $expiresOn
+     * @return bool
+     */
     public function stop(
         string $entityType,
         int $entityId,

@@ -10,12 +10,12 @@ namespace App\Controller;
  * @property \App\Model\Table\AuthorizationApprovalsTable $AuthorizationApprovals
  */
 
-use App\Services\ActivityAuthorizations\AuthorizationServiceInterface;
+use App\Services\AuthorizationManager\AuthorizationManagerInterface;
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 
 class AuthorizationsController extends AppController
 {
-    public function revoke(ActiveWindowManagerInterface $awService, AuthorizationServiceInterface $maService, $id = null)
+    public function revoke(ActiveWindowManagerInterface $awService, AuthorizationManagerInterface $maService, $id = null)
     {
         $this->request->allowMethod(["post"]);
         if ($id == null) {
@@ -41,7 +41,7 @@ class AuthorizationsController extends AppController
         return $this->redirect($this->referer());
     }
 
-    public function add(AuthorizationServiceInterface $maService)
+    public function add(AuthorizationManagerInterface $maService)
     {
         $this->request->allowMethod(["post"]);
         $memberId = $this->request->getData("member_id");
@@ -72,7 +72,7 @@ class AuthorizationsController extends AppController
         return $this->redirect($this->referer());
     }
 
-    public function renew(AuthorizationServiceInterface $maService)
+    public function renew(AuthorizationManagerInterface $maService)
     {
         $this->request->allowMethod(["post"]);
         $memberId = $this->request->getData("member_id");

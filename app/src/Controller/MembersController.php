@@ -6,7 +6,7 @@ namespace App\Controller;
 
 use App\Form\ResetPasswordForm;
 use App\KMP\PermissionsLoader;
-use App\Services\MartialAuthorizations\AuthorizationServiceInterface;
+use App\Services\MartialAuthorizations\AuthorizationManagerInterface;
 use Cake\I18n\DateTime;
 use Cake\Log\Log;
 use Cake\Mailer\MailerAwareTrait;

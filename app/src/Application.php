@@ -29,9 +29,11 @@ use Authentication\AuthenticationServiceProviderInterface;
 // Authorization usings
 use App\Policy\ControllerResolver;
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
-use App\Services\ActivityAuthorizations\AuthorizationServiceInterface as ActivityAuthorizationServiceInterface;
-use App\Services\ActivityAuthorizations\DefaultAuthorizationService;
 use App\Services\ActiveWindowManager\DefaultActiveWindowManager;
+use App\Services\AuthorizationManager\AuthorizationManagerInterface;
+use App\Services\AuthorizationManager\DefaultAuthorizationManager;
+use App\Services\OfficerManager\OfficerManagerInterface;
+use App\Services\OfficerManager\DefaultOfficerManager;
 use Authorization\Middleware\AuthorizationMiddleware;
 use Authorization\Policy\OrmResolver;
 use Authorization\Policy\ResolverCollection;
@@ -157,12 +159,16 @@ class Application extends BaseApplication implements
     public function services(ContainerInterface $container): void
     {
         $container->add(
-            ActivityAuthorizationServiceInterface::class,
-            DefaultAuthorizationService::class,
+            AuthorizationManagerInterface::class,
+            DefaultAuthorizationManager::class,
         );
         $container->add(
             ActiveWindowManagerInterface::class,
             DefaultActiveWindowManager::class,
+        );
+        $container->add(
+            OfficerManagerInterface::class,
+            DefaultOfficerManager::class,
         );
     }
 

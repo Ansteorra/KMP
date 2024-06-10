@@ -67,9 +67,14 @@ class PagesController extends AppController
         try {
             return $this->render(implode("/", $path));
         } catch (MissingTemplateException $exception) {
-            if (Configure::read("debug")) {
-                throw $exception;
+            //get current user
+            $user = $this->Authentication->getIdentity();
+            if ($user) {
+                return $this->redirect(["controller" => "members", "action" => "view", $user["id"]]);
             }
+            //if (Configure::read("debug")) {
+            //    throw $exception;
+            //}
             throw new NotFoundException();
         }
     }

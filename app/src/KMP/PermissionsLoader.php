@@ -17,7 +17,13 @@ use App\Model\Entity\Member;
 
 class PermissionsLoader
 {
-    public static function getPermissions(int $member_id): array
+    /**
+     * Get the permissions for a member
+     *
+     * @param int $memberId
+     * @return array
+     */
+    public static function getPermissions(int $memberId): array
     {
         $permissionsTable = TableRegistry::getTableLocator()->get(
             "Permissions",
@@ -32,7 +38,7 @@ class PermissionsLoader
                 },
             ])
             ->innerJoinWith("Roles.Members")
-            ->where(["Members.id" => $member_id])
+            ->where(["Members.id" => $memberId])
             ->where([
                 "OR" => [
                     "MemberRoles.expires_on IS " => null,
@@ -71,8 +77,14 @@ class PermissionsLoader
         return $query;
     }
 
+    /**
+     * Get the current approvers for an activity
+     *
+     * @param int $activityId
+     * @return SelectQuery
+     */
     public static function getCurrentActivityApprovers(
-        $activity_id,
+        $activityId,
     ) {
         $memberTable = TableRegistry::getTableLocator()->get("Members");
         $now = DateTime::now();
@@ -89,7 +101,7 @@ class PermissionsLoader
             ->innerJoinWith("Roles.Permissions")
             ->where([
                 "OR" => [
-                    "Permissions.activity_id" => $activity_id,
+                    "Permissions.activity_id" => $activityId,
                     "Permissions.is_super_user" => true,
                 ],
             ])

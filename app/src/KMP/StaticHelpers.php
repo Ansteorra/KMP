@@ -6,6 +6,13 @@ use Exception;
 
 class StaticHelpers
 {
+    /**
+     * Ensure a directory exists
+     *
+     * @param string $dirname
+     * @param int $visibility
+     * @return void
+     */
     static function ensureDirectoryExists(string $dirname, int $visibility): void
     {
         if (is_dir($dirname)) {
@@ -26,6 +33,16 @@ class StaticHelpers
             throw new Exception($errorMessage);
         }
     }
+    /**
+     * Save a scaled image
+     *
+     * @param string $imageName
+     * @param int $newWidth
+     * @param int $newHeight
+     * @param string $uploadDir
+     * @param string $moveToDir
+     * @return string
+     */
     static function saveScaledImage($imageName, $newWidth, $newHeight, $uploadDir, $moveToDir)
     {
         $path = $uploadDir . '/' . $imageName;
@@ -84,12 +101,22 @@ class StaticHelpers
         }
         return $new_thumb_loc;
     }
-
+    /**
+     * Generate a random token
+     *
+     * @param int $length
+     * @return string
+     */
     static function generateToken(int $length = 32)
     {
         return bin2hex(random_bytes($length));
     }
-
+    /**
+     * Delete a file
+     *
+     * @param string $path
+     * @return bool
+     */
     static function deleteFile(string $path): bool
     {
 
@@ -105,7 +132,13 @@ class StaticHelpers
         }
         return true;
     }
-
+    /**
+     * Get a value from an array using a path
+     *
+     * @param string $path
+     * @param array $array
+     * @return mixed
+     */
     static function getValue($path, $array)
     {
         $path = explode('->', $path);
@@ -116,7 +149,13 @@ class StaticHelpers
         }
         return $temp;
     }
-
+    /**
+     * Process a string replacing {{path}} with data from the $data array using the getValue method
+     *
+     * @param string $string
+     * @param array $data
+     * @return string
+     */
     static function processTemplate($string, $data)
     {
         $matches = [];

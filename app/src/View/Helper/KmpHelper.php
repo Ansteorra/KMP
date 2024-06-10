@@ -17,12 +17,28 @@ use Cake\Log\Log;
  */
 class KmpHelper extends Helper
 {
+    /**
+     * Returns a boolean icon
+     *
+     * @param bool $value
+     * @param \Cake\View\Helper\HtmlHelper $Html
+     * @return string
+     */
     public function bool($value, $Html): string
     {
         return $value
             ? $Html->icon("check-circle-fill")
             : $Html->icon("x-circle");
     }
+    /**
+     * Builds the navigation for the app
+     *
+     * @param array $appNav
+     * @param \Cake\Http\ServerRequest $request
+     * @param \App\Model\Entity\Member $user
+     * @param \Cake\View\Helper\HtmlHelper $Html
+     * @return string
+     */
     public function appNav($appNav, $request, $user, $Html): string
     {
         $return = "";
@@ -70,7 +86,8 @@ class KmpHelper extends Helper
         }
         return $return;
     }
-    public function appControllerNav(
+
+    protected function appControllerNav(
         $label,
         $url,
         $request,
@@ -146,6 +163,7 @@ class KmpHelper extends Helper
         }
         return $return;
     }
+
     protected function matchingUrl($url, $request): bool
     {
         $controller = $url["controller"];
@@ -175,7 +193,7 @@ class KmpHelper extends Helper
             $id_test;
     }
 
-    public function appControllerNavSpacer($label, $Html, $icon): string
+    protected function appControllerNavSpacer($label, $Html, $icon): string
     {
         $return =
             '<div class="badge fs-5 text-bg-secondary bi ' .

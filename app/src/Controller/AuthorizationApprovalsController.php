@@ -10,7 +10,7 @@ namespace App\Controller;
  * @property \App\Model\Table\AuthorizationApprovalsTable $AuthorizationApprovals
  */
 
-use App\Services\ActivityAuthorizations\AuthorizationServiceInterface;
+use App\Services\AuthorizationManager\AuthorizationManagerInterface;
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 use Cake\Mailer\MailerAwareTrait;
 
@@ -134,7 +134,7 @@ class AuthorizationApprovalsController extends AppController
      */
     public function approve(
         ActiveWindowManagerInterface $awService,
-        AuthorizationServiceInterface $maService,
+        AuthorizationManagerInterface $maService,
         $id = null,
     ) {
         if ($id == null) {
@@ -205,7 +205,7 @@ class AuthorizationApprovalsController extends AppController
         return $this->response;
     }
 
-    public function deny(AuthorizationServiceInterface $maService, $id = null)
+    public function deny(AuthorizationManagerInterface $maService, $id = null)
     {
         $this->request->allowMethod(["post"]);
         if ($id == null) {

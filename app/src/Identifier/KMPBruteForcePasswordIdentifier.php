@@ -15,6 +15,11 @@ class KMPBruteForcePasswordIdentifier extends PasswordIdentifier
     public const MAX_ATTEMPTS = "5";
     public const TIMEOUT = "300";
 
+    /**
+     * Logs in a user based on the information provided and tracks failed login attempts
+     * @param array $credentials
+     * @return ArrayAccess|array|null
+     */
     public function identify(array $credentials): ArrayAccess|array|null
     {
         $maxAttempts = (int) $this->getConfig('maxAttempts', self::MAX_ATTEMPTS);
