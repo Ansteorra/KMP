@@ -33,28 +33,31 @@ class DefaultActiveWindowManager implements ActiveWindowManagerInterface
         ?DateTime $expiresOn = null,
         ?int $termYears = null,
         ?int $grantRoleId = null,
+        bool $closeExisting = true,
     ): bool {
         $entityTable = TableRegistry::getTableLocator()->get($entityType);
         $entity = $entityTable->get($entityId);
 
         //stop all like entities for the member_id of the entity
-        $peQuery = $entityTable->find('all')
-            ->where([
-                'id !=' => $entity->id,
-                'OR' => ['expires_on >=' => DateTime::now(), 'expires_on IS' => null]
-            ]);
-        if (!empty($entity->typeIdField)) {
-            foreach ($entity->typeIdField as $field) {
-                $peQuery->andWhere([$field => $entity[$field]]);
+        if ($closeExisting) {
+            $peQuery = $entityTable->find('all')
+                ->where([
+                    'id !=' => $entity->id,
+                    'OR' => ['expires_on >=' => DateTime::now(), 'expires_on IS' => null]
+                ]);
+            if (!empty($entity->typeIdField)) {
+                foreach ($entity->typeIdField as $field) {
+                    $peQuery->andWhere([$field => $entity[$field]]);
+                }
             }
-        }
-        if ($entityType == "MemberRoles") {
-            $peQuery->andWhere(['granting_model' => "Direct Grant"]);
-        }
-        $previousEntities = $peQuery->all();
-        foreach ($previousEntities as $pe) {
-            if (!$this->stop($entityType, $pe->id, $memberId, "replaced", "", $startOn)) {
-                return false;
+            if ($entityType == "MemberRoles") {
+                $peQuery->andWhere(['granting_model' => "Direct Grant"]);
+            }
+            $previousEntities = $peQuery->all();
+            foreach ($previousEntities as $pe) {
+                if (!$this->stop($entityType, $pe->id, $memberId, "replaced", "", $startOn)) {
+                    return false;
+                }
             }
         }
         $entity->start($startOn, $expiresOn, $termYears);

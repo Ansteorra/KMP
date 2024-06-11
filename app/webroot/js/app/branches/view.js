@@ -49,6 +49,21 @@ class branchesView {
                 $('#assign_officer__form').submit();
             }
         });
+        $('#assign_officer__office_id').change(function () {
+            var officeId = $('#assign_officer__office_id').val();
+            //find the office from the officeData array
+            officeData.forEach(office => {
+                if (office.id == officeId) {
+                    //show the deputy description field
+                    if (office.deputy_to_id > 0) {
+                        $('#assign_officer__deputy_description_block').show();
+                    } else {
+                        $('#assign_officer__deputy_description_block').hide();
+                    }
+                }
+            });
+        });
+        $('#assign_officer__office_id').trigger('change');
     }
 }
 var pageControl = new branchesView();

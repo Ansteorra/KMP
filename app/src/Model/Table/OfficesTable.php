@@ -56,9 +56,11 @@ class OfficesTable extends Table
         $this->belongsTo('DeputyTo', [
             'className' => 'Offices',
             'foreignKey' => 'deputy_to_id',
+            'joinType' => 'LEFT',
         ]);
         $this->hasMany('Deputies', [
             'className' => 'Offices',
+            'foreignKey' => 'deputy_to_id',
         ]);
         $this->hasMany("Officers", [
             "className" => "Officers",

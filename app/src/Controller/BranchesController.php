@@ -82,9 +82,19 @@ class BranchesController extends AppController
             ->find("treeList", spacer: "--")
             ->orderBy(["name" => "ASC"]);
         $officesTbl = $this->getTableLocator()->get("Offices");
-        $offices = $officesTbl->find("list")->toArray();
+        $officeQuery = $officesTbl->find("all")
+            ->contain(["Deputies" => function ($q) {
+                return $q
+                    ->select(["id", "name", "deputy_to_id"]);
+            }])
+            ->select(["id", "name", "deputy_to_id"])
+            ->orderBY(["name" => "ASC"]);
+        if ($branch->parent_id != null) {
+            $officeQuery = $officeQuery->where(['kingdom_only' => false]);
+        }
+        $offices = $officeQuery->toArray();
         // get a list of required offices and officers for the branch
-        $requiredOffices = $this->Branches->getRequiredOfficesAndOfficers($branch->id);
+        $requiredOffices = $this->Branches->getRequiredOfficesAndOfficers($branch->id, $branch->parent_id == null);
         $newOfficer = $this->Branches->Officers->newEmptyEntity();
         $this->set(compact("branch", "treeList", "offices", "newOfficer", "requiredOffices"));
     }
@@ -208,6 +218,7 @@ class BranchesController extends AppController
                 'revoked_reason',
                 "ReportsToBranches.name",
                 "ReportsToOffices.name",
+                "deputy_description",
             ])
             ->contain([
                 "Members" => function ($q) {

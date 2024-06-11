@@ -1,8 +1,30 @@
 <?php
+$officeOptions = [];
+
+function addOptions($office, $depth, &$officeOptions)
+{
+    if (!isset($officeOptions[$office->id])) {
+        $prefix = str_repeat("-", $depth);
+        $officeOptions[$office->id] = $prefix . " " . $office->name;
+        if (!empty($office->deputies)) {
+            foreach ($office->deputies as $deputy) {
+                addOptions($deputy, $depth + 1, $officeOptions);
+            }
+        }
+    }
+}
+foreach ($offices as $office) {
+    if ($office->deputy_to_id == null) {
+        addOptions($office, 0, $officeOptions);
+    }
+}
 echo $this->Modal->create("Assign Officer", [
     "id" => "assignOfficerModal",
     "close" => true,
 ]);
+// get the id and name from the offices to use for dropdown options
+
+
 ?>
 <fieldset>
     <?php
@@ -22,8 +44,17 @@ echo $this->Modal->create("Assign Officer", [
         "id" => "assign_officer__member_id",
     ]);
     echo $this->Form->control("office_id", [
-        "options" => $offices,
-    ]);
+        "id" => "assign_officer__office_id",
+        "options" => $officeOptions,
+    ]); ?>
+    <div class="mb-3 form-group text" id="assign_officer__deputy_description_block">
+        <label class="form-label" for="assign_officer__deputy_description">
+            Deputy Description
+        </label>
+        <input type="text" name="deputy_description" class=" form-control" id="assign_officer__deputy_description"
+            maxlength="255">
+    </div>
+    <?php
     echo $this->Form->control("sca_name", [
         "type" => "text",
         "label" => "SCA Name",
@@ -36,6 +67,9 @@ echo $this->Modal->create("Assign Officer", [
     echo $this->Form->end();
     ?>
 </fieldset>
+<script type="text/javascript">
+var officeData = <?php echo json_encode($offices); ?>;
+</script>
 <?php echo $this->Modal->end([
     $this->Form->button("Submit", [
         "class" => "btn btn-primary",
@@ -45,4 +79,5 @@ echo $this->Modal->create("Assign Officer", [
     $this->Form->button("Close", [
         "data-bs-dismiss" => "modal",
     ]),
-]); ?>
+]);
+?>

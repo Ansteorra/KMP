@@ -49,5 +49,6 @@ class Officer extends ActiveWindowBaseEntity
         'member' => true,
         'branch' => true,
         'office' => true,
+        'deputy_description' => true,
     ];
 }

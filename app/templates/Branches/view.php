@@ -101,7 +101,7 @@ $user = $this->request->getAttribute("identity");
             ];
             $currentAndUpcomingTemplate = [
                 "Name" => "member->sca_name",
-                "Office" => "office->name",
+                "Office" => "{{office->name}} {{deputy_description}}",
                 "Start Date" => "start_on",
                 "End Date" => "expires_on",
                 "Reports To" => "{{reports_to_branch->name}} - {{reports_to_office->name}}",
@@ -111,7 +111,7 @@ $user = $this->request->getAttribute("identity");
             ];
             $previousTemplate = [
                 "Name" => "member->sca_name",
-                "Office" => "office->name",
+                "Office" => "{{office->name}} {{deputy_description}}",
                 "Start Date" => "start_on",
                 "End Date" => "expires_on",
                 "Reason" => "revoked_reason",

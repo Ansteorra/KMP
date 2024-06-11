@@ -82,6 +82,11 @@ class Officers extends AbstractMigration
                 "limit" => null,
                 "null" => false,
             ])
+            ->addColumn("kingdom_only", "boolean", [
+                "default" => false,
+                "limit" => null,
+                "null" => false,
+            ])
             ->addColumn("can_skip_report", "boolean", [
                 "default" => false,
                 "limit" => null,

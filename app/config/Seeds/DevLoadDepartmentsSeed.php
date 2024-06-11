@@ -31,6 +31,33 @@ class DevLoadDepartmentsSeed extends AbstractSeed
                 'modified_by' => 1,
                 'deleted' => NULL,
             ],
+            [
+                'id' => 2,
+                'name' => 'Marshallet',
+                'modified' => '2024-06-10 15:32:06',
+                'created' => '2024-06-10 15:31:18',
+                'created_by' => 1,
+                'modified_by' => 1,
+                'deleted' => NULL,
+            ],
+            [
+                'id' => 3,
+                'name' => 'Hospitallers',
+                'modified' => '2024-06-10 15:32:06',
+                'created' => '2024-06-10 15:31:18',
+                'created_by' => 1,
+                'modified_by' => 1,
+                'deleted' => NULL,
+            ],
+            [
+                'id' => 4,
+                'name' => 'Chroniclers',
+                'modified' => '2024-06-10 15:32:06',
+                'created' => '2024-06-10 15:31:18',
+                'created_by' => 1,
+                'modified_by' => 1,
+                'deleted' => NULL,
+            ],
         ];
 
         $table = $this->table('departments');

@@ -26,6 +26,7 @@ interface ActiveWindowManagerInterface
         ?DateTime $expiresOn = null,
         ?int $termYears = null,
         ?int $grantRoleId = null,
+        bool $closeExisting = true,
     ): bool;
 
     /**

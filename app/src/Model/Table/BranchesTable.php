@@ -62,12 +62,6 @@ class BranchesTable extends Table
             "foreignKey" => "branch_id",
             "finder" => "previous",
         ]);
-
-
-        $this->HasMany("Officers", [
-            "className" => "Officers",
-            "foreignKey" => "branch_id",
-        ]);
         $this->addBehavior("Tree");
         $this->addBehavior("Timestamp");
         $this->addBehavior('Muffin/Footprint.Footprint');
@@ -117,18 +111,21 @@ class BranchesTable extends Table
      * @param int $branchId Branch ID
      * @return array
      */
-    public function getRequiredOfficesAndOfficers($branchId)
+    public function getRequiredOfficesAndOfficers($branchId, $isRoot = false)
     {
         $officesTbl = $this->Officers->Offices;
-        $offices = $officesTbl->find()
+        $officesQuery = $officesTbl->find()
             ->contain(["CurrentOfficers" => function ($q) use ($branchId) {
                 return $q
                     ->select(["id", "member_id", "office_id", "start_on", "expires_on", "Members.sca_name"])
                     ->contain(["Members"])
                     ->where(['CurrentOfficers.branch_id' => $branchId]);
             }])
-            ->where(['required_office' => true])->toArray();
+            ->where(['required_office' => true]);
+        if (!$isRoot) {
+            $officesQuery = $officesQuery->where(['kingdom_only' => false]);
+        }
 
-        return $offices;
+        return $officesQuery->toArray();
     }
 }

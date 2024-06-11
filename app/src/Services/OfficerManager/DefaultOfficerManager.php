@@ -46,9 +46,10 @@ class DefaultOfficerManager implements OfficerManagerInterface
         $newOfficer->approval_date = DateTime::now();
         $newOfficer->status = 'new';
         $newOfficer->reports_to_office_id = $officeId;
-        if ($office->is_deputy) {
+        if ($office->deputy_to_id != null) {
             $newOfficer->deputy_description = $deputyDescription;
-            $newOfficer->reports_to_branch_id = $branchId;
+            $newOfficer->reports_to_branch_id = $newOfficer->branch_id;
+            $newOfficer->reports_to_office_id = $office->deputy_to_id;
         } else {
             $branchTable = TableRegistry::getTableLocator()->get('Branches');
             $branch = $branchTable->get($branchId);
@@ -78,13 +79,13 @@ class DefaultOfficerManager implements OfficerManagerInterface
                     }
                 }
             } else {
-                $newOfficer->reports_to_branch_id = $branch;
+                $newOfficer->reports_to_branch_id = $branch->id;
             }
         }
         if (!$officerTable->save($newOfficer)) {
             return false;
         }
-        if (!$activeWindowManager->start('Officers', $newOfficer->id, $approverId, $startOn, null, $office->term_length, $office->grants_role_id)) {
+        if (!$activeWindowManager->start('Officers', $newOfficer->id, $approverId, $startOn, null, $office->term_length, $office->grants_role_id, $office->only_one_per_branch)) {
             return false;
         }
         return true;
