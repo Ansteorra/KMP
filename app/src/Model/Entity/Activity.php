@@ -36,7 +36,7 @@ class Activity extends Entity
      */
     protected array $_accessible = [
         "name" => true,
-        "length" => true,
+        "term_length" => true,
         "activity_group_id" => true,
         "minimum_age" => true,
         "maximum_age" => true,

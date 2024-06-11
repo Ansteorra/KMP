@@ -26,6 +26,7 @@ class DefaultOfficerManager implements OfficerManagerInterface
         int $memberId,
         int $branchId,
         DateTime $startOn,
+        ?DateTime $endOn,
         ?string $deputyDescription,
         int $approverId,
     ): bool {
@@ -36,8 +37,10 @@ class DefaultOfficerManager implements OfficerManagerInterface
         $officeTable = TableRegistry::getTableLocator()->get('Offices');
         //get the office
         $office = $officeTable->get($officeId);
-        //begin transaction
-        $endOn = $startOn->addYears($office->term_length);
+
+        if ($endOn === null) {
+            $endOn = $startOn->addYears($office->term_length);
+        }
 
         $newOfficer->member_id = $memberId;
         $newOfficer->office_id = $officeId;
@@ -85,7 +88,7 @@ class DefaultOfficerManager implements OfficerManagerInterface
         if (!$officerTable->save($newOfficer)) {
             return false;
         }
-        if (!$activeWindowManager->start('Officers', $newOfficer->id, $approverId, $startOn, null, $office->term_length, $office->grants_role_id, $office->only_one_per_branch)) {
+        if (!$activeWindowManager->start('Officers', $newOfficer->id, $approverId, $startOn, $endOn, $office->term_length, $office->grants_role_id, $office->only_one_per_branch)) {
             return false;
         }
         return true;

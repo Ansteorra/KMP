@@ -56,8 +56,10 @@ class branchesView {
                 if (office.id == officeId) {
                     //show the deputy description field
                     if (office.deputy_to_id > 0) {
+                        $('#assign_officer__end_date_block').show();
                         $('#assign_officer__deputy_description_block').show();
                     } else {
+                        $('#assign_officer__end_date_block').hide();
                         $('#assign_officer__deputy_description_block').hide();
                     }
                 }

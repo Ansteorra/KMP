@@ -25,6 +25,7 @@ interface OfficerManagerInterface
         int $memberId,
         int $branchId,
         DateTime $startOn,
+        ?DateTime $endOn,
         ?string $deputyDescription,
         int $approverId,
     ): bool;

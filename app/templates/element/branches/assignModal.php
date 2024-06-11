@@ -63,7 +63,14 @@ echo $this->Modal->create("Assign Officer", [
     echo $this->Form->control("start_on", [
         "type" => "date",
         "label" => __("Start Date"),
-    ]);
+    ]); ?>
+    <div class="mb-3 form-group date" id="assign_officer__end_date_block">
+        <label class="form-label" for="assign_officer__end_date">
+            End Date
+        </label>
+        <input type="date" name="end_on" id="assign_officer__end_date" class="form-control" value="">
+    </div>
+    <?php
     echo $this->Form->end();
     ?>
 </fieldset>

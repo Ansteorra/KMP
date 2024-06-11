@@ -38,16 +38,7 @@ class ReportsController extends AppController
             ->select(['id', 'name'])
             ->contain([
                 "MemberRoles" => function ($q) use ($validOn) {
-                    return $q->where([
-                        "or" => [
-                            "start_on <=" => $validOn,
-                            "start_on IS" => null
-                        ],
-                        "or" => [
-                            "expires_on >=" => $validOn,
-                            "expires_on IS" => null
-                        ]
-                    ]);
+                    return $this->setValidFilter($q, $validOn);
                 },
                 "MemberRoles.Members" => function ($q) {
                     return $q->select(['membership_number', 'sca_name', 'id', 'membership_expires_on']);
@@ -63,7 +54,7 @@ class ReportsController extends AppController
         $this->set(compact('roles', 'validOn'));
     }
 
-    public function warrantsRoster()
+    public function activityWarrantsRoster()
     {
         $hide = false;
         $this->Authorization->authorize($this);
@@ -82,16 +73,7 @@ class ReportsController extends AppController
             })
             ->contain([
                 "MemberRoles" => function ($q) use ($validOn) {
-                    return $q->where([
-                        "or" => [
-                            "start_on <=" => $validOn,
-                            "start_on IS" => null
-                        ],
-                        "or" => [
-                            "expires_on >=" => $validOn,
-                            "expires_on IS" => null
-                        ]
-                    ]);
+                    return $this->setValidFilter($q, $validOn);
                 },
                 "MemberRoles.Members" => function ($q) {
                     return $q->select([
@@ -131,9 +113,9 @@ class ReportsController extends AppController
         $validOn = DateTime::now();
         $memberRollup  = [];
         $memberListQuery = [];
-        $authorizations = [];
+        $activities = [];
         if ($this->request->getQuery('validOn')) {
-            $authorizations = $this->request->getQuery('activities');
+            $activities = $this->request->getQuery('activities');
             $validOn = $this->request->getQuery('validOn');
             $authTbl = TableRegistry::getTableLocator()->get('Authorizations');
             $distincMemberCount = $authTbl->find()
@@ -144,7 +126,7 @@ class ReportsController extends AppController
                         "start_on IS" => null
                     ],
                     "expires_on >" => $validOn,
-                    "activity_id IN" => $authorizations
+                    "activity_id IN" => $activities
                 ])
                 ->distinct('member_id')
                 ->count();
@@ -162,9 +144,9 @@ class ReportsController extends AppController
                         "start_on IS" => null
                     ],
                     "expires_on >" => $validOn,
-                    "activity_id IN" => $authorizations
+                    "activity_id IN" => $activities
                 ])
-                ->order(['Activities.name' => 'ASC', 'Members.sca_name' => 'ASC'])
+                ->orderBy(['Activities.name' => 'ASC', 'Members.sca_name' => 'ASC'])
                 ->all();
             $authTypes = $authTbl->find('all')->contain('Activities');
             $memberRollup = $authTypes
@@ -176,7 +158,7 @@ class ReportsController extends AppController
                         "start_on IS" => null
                     ],
                     "expires_on >" => $validOn,
-                    "activity_id IN" => $authorizations
+                    "activity_id IN" => $activities
                 ])
                 ->groupBy(['Activities.name'])
                 ->all();
@@ -188,7 +170,97 @@ class ReportsController extends AppController
             'validOn',
             'memberRollup',
             'memberListQuery',
-            'authorizations'
+            'activities'
         ));
+    }
+
+    public function departmentOfficersRoster()
+    {
+        $hide = false;
+        $warrantOnly = false;
+        $this->Authorization->authorize($this);
+        $departmentTbl = TableRegistry::getTableLocator()->get('Departments');
+        $validOn = Date::now();
+        $departments = [];
+        $departmentsData = [];
+        if ($this->request->getQuery('validOn')) {
+            $hide = $this->request->getQuery('hide');
+            $validOn = $this->request->getQuery('validOn');
+            $departments = $this->request->getQuery('departments');
+            $warrantOnly = $this->request->getQuery('warranted');
+            $deptTempQuery = $departmentTbl->find('all')
+                ->where(['id IN' => $departments])
+                ->contain([
+                    'Offices' => function ($q) use ($warrantOnly) {
+                        $q = $q->select(['id', 'name', 'department_id', 'requires_warrant']);
+                        if ($warrantOnly) {
+                            $q = $q->where(['requires_warrant' => 1]);
+                        }
+                        return $q;
+                    },
+                    'Offices.Officers' => function ($q) use ($validOn) {
+                        return $this->setValidFilter($q, $validOn);
+                    },
+                    'Offices.Officers.Members' => function ($q) {
+                        return $q->select([
+                            'membership_number',
+                            'sca_name',
+                            'id',
+                            'membership_expires_on',
+                            'first_name',
+                            'last_name',
+                            'email_address',
+                            'phone_number',
+                            'street_address',
+                            'city',
+                            'state',
+                            'zip'
+                        ]);
+                    },
+                    'Offices.Officers.Branches' => function ($q) {
+                        return $q->select(['name']);
+                    },
+                    'Offices.Officers.Offices' => function ($q) {
+                        return $q->select(['name']);
+                    }
+                ]);
+            $deptTempData = $deptTempQuery->all();
+            //organize the data so we can display it in the view departmentData should have the department name, id, and then an array of officers called dept_officers
+            foreach ($deptTempData as $dept) {
+                $deptData = new \stdClass();
+                $deptData->name = $dept->name;
+                $deptData->id = $dept->id;
+                $deptData->dept_officers = [];
+                foreach ($dept->offices as $office) {
+                    foreach ($office->officers as $officer) {
+                        $deptData->dept_officers[] = $officer;
+                    }
+                }
+                //now lets sort the $deptData->dept_officers by branch name and then office name
+                usort($deptData->dept_officers, function ($a, $b) {
+                    if ($a->branch->name == $b->branch->name) {
+                        return $a->office->name <=> $b->office->name;
+                    }
+                    return $a->branch->name <=> $b->branch->name;
+                });
+                $departmentsData[] = $deptData;
+            }
+        }
+        $departmentList = $departmentTbl->find('list')->orderBy(['name' => 'ASC']);
+        $this->set(compact('validOn', 'departments', 'departmentList', 'departmentsData', 'hide', 'warrantOnly'));
+    }
+
+    protected function setValidFilter($q, $validOn)
+    {
+        return $q->where([
+            "or" => [
+                "start_on <=" => $validOn,
+                "start_on IS" => null
+            ],
+            "or" => [
+                "expires_on >=" => $validOn,
+                "expires_on IS" => null
+            ]
+        ]);
     }
 }

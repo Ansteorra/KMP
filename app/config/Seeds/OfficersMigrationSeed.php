@@ -27,7 +27,7 @@ class OfficersMigrationSeed extends AbstractSeed
     {
         $data = [
             [
-                'id' => 10,
+                'id' => 11,
                 "name" => "Can Manage Offices",
                 "require_active_membership" => true,
                 "require_active_background_check" => false,
@@ -39,7 +39,7 @@ class OfficersMigrationSeed extends AbstractSeed
                 "created" => DateTime::now(),
             ],
             [
-                'id' => 11,
+                'id' => 12,
                 "name" => "Can Manage Officers",
                 "require_active_membership" => true,
                 "require_active_background_check" => false,
@@ -51,7 +51,7 @@ class OfficersMigrationSeed extends AbstractSeed
                 "created" => DateTime::now(),
             ],
             [
-                'id' => 12,
+                'id' => 13,
                 "name" => "Can Manage Departments",
                 "require_active_membership" => true,
                 "require_active_background_check" => false,

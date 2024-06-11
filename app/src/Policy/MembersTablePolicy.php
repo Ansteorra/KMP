@@ -18,4 +18,8 @@ class MembersTablePolicy extends BasePolicy
     {
         return $query;
     }
+    function canVerifyQueue(IdentityInterface $user, $entity)
+    {
+        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+    }
 }

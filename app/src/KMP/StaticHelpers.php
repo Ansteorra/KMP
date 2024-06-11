@@ -143,9 +143,21 @@ class StaticHelpers
     {
         $path = explode('->', $path);
         $temp = &$array;
+        $prepend = '';
+        $postpend = '';
 
         foreach ($path as $key) {
+            if (strpos($key, '(') !== false) {
+                $key = explode('(', $key);
+                $prepend = $key[0];
+                $key = explode(')', $key[1]);
+                $postpend = $key[1];
+                $key = $key[0];
+            }
             $temp = &$temp[$key];
+        }
+        if ($prepend != '' && $postpend != '' && $temp != '') {
+            $temp = $prepend . $temp . $postpend;
         }
         return $temp;
     }

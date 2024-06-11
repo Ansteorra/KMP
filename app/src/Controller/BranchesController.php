@@ -59,7 +59,7 @@ class BranchesController extends AppController
                 "Parent",
                 "Members" => function ($q) {
                     return $q
-                        ->select(["id", "sca_name", "branch_id"])
+                        ->select(["id", "sca_name", "branch_id", "membership_number", "membership_expires_on", "status", "birth_month", "birth_year"])
                         ->orderBy(["sca_name" => "ASC"]);
                 },
                 "CurrentOfficers" => function ($q) {
@@ -239,6 +239,6 @@ class BranchesController extends AppController
                         ->select(["id", "name"]);
                 },
             ])
-            ->order(["start_on" => "DESC"]);
+            ->order(["start_on" => "DESC", "Offices.name" => "ASC"]);
     }
 }

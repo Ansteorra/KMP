@@ -14,3 +14,5 @@
 .danger td {
     background-color: #f2dede !important;
 }
+
+div:has(#reportsDepartmentsList) {}

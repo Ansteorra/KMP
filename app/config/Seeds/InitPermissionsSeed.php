@@ -142,7 +142,21 @@ class InitPermissionsSeed extends AbstractSeed
                 'requires_warrant' => 1,
                 'created' => DateTime::now(),
                 'created_by' => '1',
+            ],
+            [
+                'id' => 10,
+                'name' => 'Can Manage Authorization Queues',
+                'activity_id' => NULL,
+                'require_active_membership' => 1,
+                'require_active_background_check' => 0,
+                'require_min_age' => 0,
+                'system' => 1,
+                'is_super_user' => 0,
+                'requires_warrant' => 1,
+                'created' => DateTime::now(),
+                'created_by' => '1',
             ]
+
         ];
 
         $table = $this->table('permissions');

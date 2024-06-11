@@ -170,9 +170,9 @@ switch ($member->status) {
         </div>
     </nav>
     <div class="tab-content" id="nav-tabContent">
-        <div class="related tab-pane fade show active" id="nav-authorizations" role="tabpanel"
+        <div class="related tab-pane fade show active m-3" id="nav-authorizations" role="tabpanel"
             aria-labelledby="nav-authorizations-tab">
-            <button type="button" class="btn btn-primary btn-sm m-3" data-bs-toggle="modal"
+            <button type="button" class="btn btn-primary btn-sm mb-3" data-bs-toggle="modal"
                 data-bs-target="#requestAuthModal">Request Authorization</button>
 
             <?php if (!empty($member->previous_authorizations) || !empty($member->current_authorizations) || !empty($member->pending_authorizations)) {

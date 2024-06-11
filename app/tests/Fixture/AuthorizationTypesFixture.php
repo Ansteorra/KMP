@@ -22,7 +22,7 @@ class ActivitiesFixture extends TestFixture
             [
                 "id" => 1,
                 "name" => "Lorem ipsum dolor sit amet",
-                "length" => 1,
+                "term_length" => 1,
                 "activity_group_id" => 1,
                 "minimum_age" => 1,
                 "maximum_age" => 1,

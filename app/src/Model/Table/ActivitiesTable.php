@@ -83,9 +83,9 @@ class ActivitiesTable extends Table
             ]);
 
         $validator
-            ->integer("length")
-            ->requirePresence("length", "create")
-            ->notEmptyString("length");
+            ->integer("term_length")
+            ->requirePresence("term_length", "create")
+            ->notEmptyString("term_length");
 
         $validator
             ->integer("activity_group_id")

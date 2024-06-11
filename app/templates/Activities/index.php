@@ -16,7 +16,7 @@
             <th scope="col">Activity Group</th>
             <th scope="col" class="text-center">Grants Role</th>
             <th scope="col" class="text-center"><?= $this->Paginator->sort(
-                                                    "length",
+                                                    "term_length",
                                                     [
                                                         "label" => "Duration (years)",
                                                     ],

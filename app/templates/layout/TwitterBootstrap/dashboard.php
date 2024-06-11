@@ -213,42 +213,16 @@ $this->start("tb_body_start");
                                 "children" => [
                                     [
                                         "type" => "link",
-                                        "label" => "Role Assignments",
-                                        "url" => [
-                                            "controller" => "Reports",
-                                            "action" => "rolesList",
-                                        ],
-                                        "icon" => "bi-ui-checks",
-                                        "activeUrls" => [
-                                            [
-                                                "controller" => "Reports",
-                                                "action" => "RolesList",
-                                                "*",
-                                            ],
-                                            [
-                                                "controller" => "Reports",
-                                                "action" => "WarrantsRoster",
-                                                "*",
-                                            ],
-                                            [
-                                                "controller" => "Reports",
-                                                "action" => "Authorizations",
-                                                "*",
-                                            ],
-                                        ],
-                                    ],
-                                    [
-                                        "type" => "link",
                                         "label" => "Activity Warrant Roster",
                                         "url" => [
                                             "controller" => "Reports",
-                                            "action" => "WarrantsRoster",
+                                            "action" => "ActivityWarrantsRoster",
                                         ],
                                         "icon" => "bi-person-check-fill",
                                         "activeUrls" => [
                                             [
                                                 "controller" => "Reports",
-                                                "action" => "Warrants",
+                                                "action" => "ActivityWarrantsRoster",
                                                 "*",
                                             ],
                                         ],
@@ -265,6 +239,38 @@ $this->start("tb_body_start");
                                             [
                                                 "controller" => "Reports",
                                                 "action" => "Authorizations",
+                                                "*",
+                                            ],
+                                        ],
+                                    ],
+                                    [
+                                        "type" => "link",
+                                        "label" => "Dept. Officer Roster",
+                                        "url" => [
+                                            "controller" => "Reports",
+                                            "action" => "DepartmentOfficersRoster",
+                                        ],
+                                        "icon" => "bi-building-fill-check",
+                                        "activeUrls" => [
+                                            [
+                                                "controller" => "Reports",
+                                                "action" => "DepartmentOfficersRoster",
+                                                "*",
+                                            ],
+                                        ],
+                                    ],
+                                    [
+                                        "type" => "link",
+                                        "label" => "Role Assignments",
+                                        "url" => [
+                                            "controller" => "Reports",
+                                            "action" => "rolesList",
+                                        ],
+                                        "icon" => "bi-ui-checks",
+                                        "activeUrls" => [
+                                            [
+                                                "controller" => "Reports",
+                                                "action" => "RolesList",
                                                 "*",
                                             ],
                                         ],

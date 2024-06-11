@@ -39,10 +39,16 @@ class OfficersController extends AppController
             $officeId = (int)$this->request->getData('office_id');
             $branchId = (int)$this->request->getData('branch_id');
             $startOn = new DateTime($this->request->getData('start_on'));
+            $endOn = null;
+            if ($this->request->getData('end_on') !== null && $this->request->getData('end_on') !== "") {
+                $endOn = new DateTime($this->request->getData('end_on'));
+            } else {
+                $endOn = null;
+            }
             $approverId = (int)$this->Authentication->getIdentity()->getIdentifier();
             $deputyDescription = $this->request->getData('deputy_description');
 
-            if (!$oManager->assign($awManager, $officeId, $memberId, $branchId, $startOn, $deputyDescription, $approverId)) {
+            if (!$oManager->assign($awManager, $officeId, $memberId, $branchId, $startOn, $endOn, $deputyDescription, $approverId)) {
                 $this->Officers->getConnection()->rollback();
                 $this->Flash->error(__('The officer could not be saved. Please, try again.'));
                 $this->redirect($this->referer());

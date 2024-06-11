@@ -18,7 +18,7 @@ class ReportsControllerPolicy extends BasePolicy
         return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
     }
 
-    public function canWarrantsRoster(
+    public function canActivityWarrantsRoster(
         IdentityInterface $user,
         mixed $resource,
     ): ResultInterface|bool {
@@ -26,6 +26,13 @@ class ReportsControllerPolicy extends BasePolicy
     }
 
     public function canAuthorizations(
+        IdentityInterface $user,
+        mixed $resource,
+    ): ResultInterface|bool {
+        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+    }
+
+    public function canDepartmentOfficersRoster(
         IdentityInterface $user,
         mixed $resource,
     ): ResultInterface|bool {

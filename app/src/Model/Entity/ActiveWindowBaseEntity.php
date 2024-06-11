@@ -39,10 +39,10 @@ abstract class ActiveWindowBaseEntity extends Entity
             if ($termYears != null && $termYears != -1) {
                 $this->expires_on = $startOn->addYears($termYears)->toDateTimeString();
             } else {
-                $this->expiresOn = null;
+                $this->expires_on = null;
             }
         } else {
-            $this->expiresOn = $expiresOn->toDateTimeString();
+            $this->expires_on = $expiresOn->toDateTimeString();
         }
     }
 
