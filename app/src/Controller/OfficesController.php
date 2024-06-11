@@ -81,7 +81,7 @@ class OfficesController extends AppController
             $this->Flash->error(__('The office could not be saved. Please, try again.'));
         }
         $departments = $this->Offices->Departments->find('list', limit: 200)->all();
-        $offices = $this->Offices->find('list', limit: 200)->all();
+        $offices = $this->Offices->find('list')->where(["deputy_to_id IS" => null])->all();
         $roles = $this->Offices->GrantsRole->find('list', limit: 200)->all();
         $this->set(compact('office', 'departments', 'offices', 'roles'));
     }
