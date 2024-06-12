@@ -586,6 +586,19 @@ class MembersController extends AppController
 
     #region Member Specific calls
 
+    public function sendMobileCardEmail($id = null)
+    {
+        $member = $this->Members->get($id);
+        if (!$member) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+        $this->Authorization->authorize($member);
+        $this->getMailer("KMP")->send("mobileCard", [$member]);
+        $this->Flash->success(__("The email has been sent."));
+
+        return $this->redirect(["action" => "view", $member->id]);
+    }
+
     public function partialEdit($id = null)
     {
         $member = $this->Members->get($id);

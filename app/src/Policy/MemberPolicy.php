@@ -38,6 +38,15 @@ class MemberPolicy extends BasePolicy
             return $entity->id == $user->getIdentifier();
         }
     }
+    public function canSendMobileCardEmail(IdentityInterface $user, $entity)
+    {
+        $canDo = $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+        if ($canDo) {
+            return true;
+        } else {
+            return $entity->id == $user->getIdentifier();
+        }
+    }
 
     public function canAddNote(IdentityInterface $user, $entity)
     {

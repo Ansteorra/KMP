@@ -35,6 +35,26 @@ class KMPMailer extends Mailer
             ]);
     }
 
+    public function mobileCard($member)
+    {
+
+        $sendFrom = $this->appSettings->getAppSetting("System Email From", "donotreply@webminister.ansteorra.org");
+        $url = Router::url([
+            "controller" => "Members",
+            "action" => "ViewMobileCard",
+            "_full" => true,
+            $member->mobile_card_token,
+        ]);
+        $this->setTo($member->email_address)
+            ->setFrom($sendFrom)
+            ->setSubject("Your Mobile Card URL")
+            ->setViewVars([
+                "email" => $member->email_address,
+                "mobileCardUrl" => $url,
+                "siteAdminSignature" => $this->appSettings->getAppSetting("Email.SiteAdminSignature", "Webminister"),
+            ]);
+    }
+
     public function newRegistration($member)
     {
         $url = Router::url([
@@ -51,7 +71,7 @@ class KMPMailer extends Mailer
                 "email" => $member->email_address,
                 "passwordResetUrl" => $url,
                 "memberScaName" => $member->sca_name,
-                "siteAdminSignature" => $this->appSettings->getAppSetting("Site Admin Signature", "Webminister"),
+                "siteAdminSignature" => $this->appSettings->getAppSetting("Email.SiteAdminSignature", "Webminister"),
             ]);
     }
 
@@ -71,7 +91,7 @@ class KMPMailer extends Mailer
                 "memberViewUrl" => $url,
                 "memberScaName" => $member->sca_name,
                 "memberCardPresent" => strlen($member->membership_card_path) > 0,
-                "siteAdminSignature" => $this->appSettings->getAppSetting("Site Admin Signature", "Webminister"),
+                "siteAdminSignature" => $this->appSettings->getAppSetting("Email.SiteAdminSignature", "Webminister"),
             ]);
     }
 
@@ -91,7 +111,7 @@ class KMPMailer extends Mailer
                 "memberViewUrl" => $url,
                 "memberScaName" => $member->sca_name,
                 "memberCardPresent" => strlen($member->membership_card_path) > 0,
-                "siteAdminSignature" => $this->appSettings->getAppSetting("Site Admin Signature", "Webminister"),
+                "siteAdminSignature" => $this->appSettings->getAppSetting("Email.SiteAdminSignature", "Webminister"),
             ]);
     }
 
@@ -115,7 +135,7 @@ class KMPMailer extends Mailer
                 "memberScaName" => $memberScaName,
                 "approverScaName" => $approverScaName,
                 "activityName" => $activityName,
-                "siteAdminSignature" => $this->appSettings->getAppSetting("Site Admin Signature", "Webminister"),
+                "siteAdminSignature" => $this->appSettings->getAppSetting("Email.SiteAdminSignature", "Webminister"),
             ]);
     }
 
@@ -144,7 +164,7 @@ class KMPMailer extends Mailer
                 "activityName" => $activityName,
                 "memberCardUrl" => $url,
                 "nextApproverScaName" => $nextApproverScaName,
-                "siteAdminSignature" => $this->appSettings->getAppSetting("Site Admin Signature", "Webminister"),
+                "siteAdminSignature" => $this->appSettings->getAppSetting("Email.SiteAdminSignature", "Webminister"),
             ]);
     }
 }
