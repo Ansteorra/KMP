@@ -342,23 +342,23 @@ class MembersController extends AppController
         sort($authTypes);
         $message_variables = [
             "secretary_email" => $this->appSettings->getAppSetting(
-                "Marshalate Secretary Email",
+                "Activity.SecretaryEmail",
                 "please_set",
             ),
             "kingdom" => $this->appSettings->getAppSetting(
-                "Kingdom Name",
+                "KMP.KingdomName",
                 "please_set",
             ),
             "secratary" => $this->appSettings->getAppSetting(
-                "Marshalate Secretary Name",
+                "Activity.SecretaryName",
                 "please_set",
             ),
             "marshal_auth_graphic" => $this->appSettings->getAppSetting(
-                "Marshal Authorization Graphic",
+                "Member.ViewCard.Graphic",
                 "auth_card_back.gif",
             ),
             "marshal_auth_header_color" => $this->appSettings->getAppSetting(
-                "Marshal Authorization Header Color",
+                "Member.ViewCard.HeaderColor",
                 "gold",
             ),
         ];
@@ -692,14 +692,14 @@ class MembersController extends AppController
                     __(
                         "Your email was not found, please contact the Marshalate Secretary at " .
                             $this->getAppSetting->get(
-                                "Marshalate Secretary Email",
+                                "Activity.SecretaryEmail",
                             ),
                     ),
                 );
             }
         }
         $headerImage = $this->appSettings->getAppSetting(
-            "KMP Login Graphic",
+            "KMP.Login.Graphic",
             "populace_badge.png",
         );
         $this->set(compact("headerImage"));
@@ -732,7 +732,7 @@ class MembersController extends AppController
                 return $this->redirect(["action" => "login"]);
             }
             $headerImage = $this->appSettings->getAppSetting(
-                "KMP Login Graphic",
+                "KMP.Login.Graphic",
                 "populace_badge.png",
             );
             $this->set(compact("headerImage", "passwordReset"));
@@ -814,11 +814,11 @@ class MembersController extends AppController
             }
         }
         $headerImage = $this->appSettings->getAppSetting(
-            "KMP Login Graphic",
+            "KMP.Login.Graphic",
             "populace_badge.png",
         );
         $allowRegistration = $this->appSettings->getAppSetting(
-            "Allow Public Registration",
+            "KMP.EnablePublicRegistration",
             "yes",
         );
         $this->set(compact("headerImage", "allowRegistration"));
@@ -838,7 +838,7 @@ class MembersController extends AppController
     public function register()
     {
         $allowRegistration = $this->appSettings->getAppSetting(
-            "Allow Public Registration",
+            "KMP.EnablePublicRegistration",
             "yes",
         );
         if (strtolower($allowRegistration) != "yes") {
@@ -910,7 +910,7 @@ class MembersController extends AppController
             );
         }
         $headerImage = $this->appSettings->getAppSetting(
-            "KMP Login Graphic",
+            "KMP.Login.Graphic",
             "populace_badge.png",
         );
         $months = array_reduce(range(1, 12), function ($rslt, $m) {

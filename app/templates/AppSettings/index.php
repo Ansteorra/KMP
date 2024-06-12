@@ -17,13 +17,12 @@
             data-bs-target="#addModal">Add</button>
     </div>
 </div>
-
 <table class="table table-striped">
     <thead>
         <tr scope="row">
-            <th scope="col-3"><?= $this->Paginator->sort("name") ?></th>
-            <th scope="col-8"><?= $this->Paginator->sort("value") ?></th>
-            <th scope="col-1" class="actions"><?= __("Actions") ?></th>
+            <th class="col-3"><?= $this->Paginator->sort("name") ?></th>
+            <th class="col-6"><?= $this->Paginator->sort("value") ?></th>
+            <th class="col-3" class="actions"><?= __("Actions") ?></th>
         </tr>
     </thead>
     <tbody>
@@ -86,6 +85,88 @@
                 "Page {{page}} of {{pages}}, showing {{current}} record(s) out of {{count}} total",
             ),
         ) ?></p>
+</div>
+<h4>Info</h4>
+<div>
+    <p>
+        <strong>App Settings</strong> are used to store application-wide settings that are not
+        user-specific and are not stored in the configuration file. These settings are stored in the database and can be
+        changed by admins at runtime.
+    </p>
+    <p>
+        Settings will be injected by the application into the database with initial settings so please check here if you
+        see unusual behavior.
+    </p>
+    <p>
+        all settings are strings and are stored in the database as strings. The application will convert the string to
+        the appropriate data type as needed.
+        For true/false settings, use 'yes' or 'no' as the value.
+    </p>
+    <h4>Special Settings</h4>
+    <dl>
+        <dt>_sys_branches_init</dt>
+        <dd class="ms-3">
+            This setting is used to determine if the system has rebuild the branch hierarchy after a database rebuild.
+            setting this to 'recovered' will prevent the system from attempting to rebuild the branch hierarchy again.
+        </dd>
+        <dt>KMP.*</dt>
+        <dd class="ms-3">
+            These settings are used to drive the Kingdom Management Portal site wide behaviors like the name of the
+            site, kingdom, and some site wide feature flags.
+        </dd>
+        <dt>Activity.*</dt>
+        <dd class="ms-3">
+            Display and behavior settings that impacts aspects of authorizations and activities.
+        </dd>
+        <dt>Member.*</dt>
+        <dd class="ms-3">
+            Display and behavior settings that impacts aspects of member management.
+            <dl>
+                <dt>Member.AdditionalInfo</dt>
+                <dd class="ms-3">
+                    <p>
+                        A list of fields that can be added to the member page by adding settings with the prefix
+                        Member.AdditionalInfo. followed by the name.
+                        The value should be the name of the field. The field will be added to the additional_info field
+                        of
+                        the member.
+                    </p>
+                    <p>
+                        <i>Example:</i> Member.AdditionalInfo.Wiki_Page = text will add a field to the additional_info
+                        field
+                        of the member called Wiki_Page.
+                    </p>
+                    <strong>Data Types</strong>
+                    <dl>
+                        <dt>text</dt>
+                        <dd class="ms-3">Text field</dd>
+                        <dt>date</dt>
+                        <dd class="ms-3">Date Field</dd>
+                        <dt>number</dt>
+                        <dd class="ms-3">Numeric Field</dd>
+                        <dt>bool</dt>
+                        <dd class="ms-3">Switch</dd>
+                    </dl>
+                </dd>
+                <dt>Member.ExtenralLink.*</dt>
+                <dd class="ms-3">
+                    <p>
+                        A list of External Links can be added to the member page by adding settings with the prefix
+                        Member.ExternalLink. followed by the name.
+                        The value should be the URL to the external link but you can use {{path->to->data}} to replace
+                        parts
+                        of the URL with member data.
+                    </p>
+                    <p>
+                        <i>Example:</i> Member.ExternalLink.Wiki =
+                        https://wiki.ansteorra.org/{{additional_info->wiki_page}} will replace
+                        {{additional_info->Wiki_Page}} with the
+                        value of the Wiki_Page field in the additional_info of the member.
+                    </p>
+                </dd>
+            </dl>
+        </dd>
+    </dl>
 </div>
 
 <?php

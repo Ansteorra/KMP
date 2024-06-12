@@ -1,5 +1,5 @@
 <?php
-$appName = $this->KMP->appSetting("KMP Long Title", "Kingdom Management Portal");
+$appName = $this->KMP->appSetting("KMP.LongSiteTitle", "Kingdom Management Portal");
 $appVersion = $this->KMP->appSetting("App.version", "0.0.0");
 $this->start("tb_footer"); ?>
 <footer class="mt-auto text-end">

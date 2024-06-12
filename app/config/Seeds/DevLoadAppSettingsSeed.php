@@ -32,35 +32,35 @@ class DevLoadAppSettingsSeed extends AbstractSeed
             ],
             [
                 'id' => 2,
-                'name' => 'Marshalate Secretary Email',
+                'name' => 'Activity.SecretaryEmail',
                 'value' => 'please_set',
                 'created' => DateTime::now(),
                 'created_by' => '1'
             ],
             [
                 'id' => 3,
-                'name' => 'Kingdom Name',
+                'name' => 'KMP.KingdomName',
                 'value' => 'please_set',
                 'created' => DateTime::now(),
                 'created_by' => '1'
             ],
             [
                 'id' => 4,
-                'name' => 'Marshalate Secretary Name',
+                'name' => 'Activity.SecretaryName',
                 'value' => 'please_set',
                 'created' => DateTime::now(),
                 'created_by' => '1'
             ],
             [
                 'id' => 5,
-                'name' => 'Marshal Authorization Graphic',
+                'name' => 'Member.ViewCard.Graphic',
                 'value' => 'auth_card_back.gif',
                 'created' => DateTime::now(),
                 'created_by' => '1'
             ],
             [
                 'id' => 6,
-                'name' => 'Marshal Authorization Header Color',
+                'name' => 'Member.ViewCard.HeaderColor',
                 'value' => 'gold',
                 'created' => DateTime::now(),
                 'created_by' => '1'

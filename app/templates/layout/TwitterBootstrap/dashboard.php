@@ -27,12 +27,12 @@ $this->start("tb_body_start");
 <body <?= $this->fetch("tb_body_attrs") ?>>
     <header class="navbar navbar-dark sticky-top bg-dark flex-md-nowrap p-0 shadow">
         <div class="navbar-brand col-md-3 col-lg-2 me-0 px-3">
-            <?= $this->Html->image($this->KMP->appSetting("KMP Header Graphic", "badge.png"), [
+            <?= $this->Html->image($this->KMP->appSetting("KMP.BannerLogo", "badge.png"), [
                 "alt" => "Logo",
                 "height" => "24",
                 "class" => "d-inline-block mb-1",
             ]) ?>
-            <span class="fs-5"><?= h($this->KMP->appSetting("KMP Short Title", "KMP")) ?></span>
+            <span class="fs-5"><?= h($this->KMP->appSetting("KMP.ShortSiteTitle", "KMP")) ?></span>
         </div>
         <span class="w-100"></span>
         <ul class="navbar-nav px-3">
@@ -44,9 +44,7 @@ $this->start("tb_body_start");
                 ) ?>
             </li>
             <li class="nav-item text-nowrap">
-                <button class="navbar-toggler position-absolute d-md-none collapsed" type="button"
-                    data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu"
-                    aria-expanded="false" aria-label="Toggle navigation">
+                <button class="navbar-toggler position-absolute d-md-none collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
                 </button>
             </li>
