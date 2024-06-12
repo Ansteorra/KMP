@@ -65,6 +65,20 @@ class DevLoadAppSettingsSeed extends AbstractSeed
                 'created' => DateTime::now(),
                 'created_by' => '1'
             ],
+            [
+                'id' => 7,
+                'name' => 'Member.AdditionalInfo.OP_People_Id',
+                'value' => 'number',
+                'created' => DateTime::now(),
+                'created_by' => '1'
+            ],
+            [
+                'id' => 8,
+                'name' => 'Member.ExternalLink.Order of Precedence',
+                'value' => 'https://op.ansteorra.org/people/id/{{additional_info->OP_People_Id}}',
+                'created' => DateTime::now(),
+                'created_by' => '1'
+            ],
         ];
 
         $table = $this->table('app_settings');
