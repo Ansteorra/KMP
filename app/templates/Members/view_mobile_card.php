@@ -1,5 +1,6 @@
 <?php
 
+use Cake\I18n\DateTime;
 use Cake\I18n\Date;
 use Cake\Routing\Asset;
 
@@ -169,7 +170,16 @@ $authCount = 0;
         </table>
     </div>
 </div>
-<div id="status" class="badge rounded-pill ms-3 text-center"></div>
+<div scope="row" class="row ms-3 me-3">
+    <span scope="col" class="col">
+        <span id="status" class="badge rounded-pill text-center bg-danger">Offline</span>
+    </span>
+    <span scope="col" class="col text-end">
+        <span id="status" class="badge bg-secondary rounded-pill text-center">Last Update:
+            <?= DateTime::now()->format("Y-m-d H:i:s") ?>
+        </span>
+    </span>
+</div>
 <?php
 $this->append(
     "script",
