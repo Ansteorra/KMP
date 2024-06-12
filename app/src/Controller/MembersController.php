@@ -16,6 +16,7 @@ use App\KMP\StaticHelpers;
 use App\Model\Entity\Member;
 use Composer\Util\Url;
 use Cake\Routing\Router;
+use Cake\Http\Exception\NotFoundException;
 
 /**
  * Members Controller
@@ -152,7 +153,7 @@ class MembersController extends AppController
     public function view($id = null)
     {
         // Get Member Details
-        $member = $this->Members
+        $memberQuery = $this->Members
             ->find()
             ->contain([
                 "Roles",
@@ -199,10 +200,18 @@ class MembersController extends AppController
                     ]);
                 },
             )
-            ->where(["Members.id" => $id])
-            ->first();
+            ->where(["Members.id" => $id]);
+        //$memberQuery = $this->Members->addJsonWhere($memberQuery, "Members.additional_info", "$.sports", "football");
+        $member = $memberQuery->first();
         // Check to see if the current user can view private notes
+        if (!$member) {
+            throw new NotFoundException();
+        }
+        if (!$member) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
         $this->Authorization->authorize($member);
+        $this->Members->save($member);
         if (!$this->Authorization->can($member, "viewPrivateNotes")) {
             // remove private notes
             $member->notes = array_filter($member->notes, function ($note) {
@@ -316,6 +325,9 @@ class MembersController extends AppController
             ])
             ->where(["Members.id" => $id])
             ->first();
+        if (!$member) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
         $this->Authorization->authorize($member);
         // sort filter out expired member roles
         $permissions = $member->getPermissions();
@@ -409,6 +421,9 @@ class MembersController extends AppController
     public function addNote($id = null)
     {
         $member = $this->Members->get($id, contain: ["Notes"]);
+        if (!$member) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
         $this->Authorization->authorize($member);
         $note = $this->Members->Notes->newEmptyEntity();
         if ($this->request->is("post")) {
@@ -447,6 +462,9 @@ class MembersController extends AppController
     public function edit($id = null)
     {
         $member = $this->Members->get($id);
+        if (!$member) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
         $this->Authorization->authorize($member);
         if ($this->request->is(["patch", "post", "put"])) {
             $member = $this->Members->patchEntity(
@@ -482,6 +500,9 @@ class MembersController extends AppController
     {
         $this->request->allowMethod(["post", "delete"]);
         $member = $this->Members->get($id);
+        if (!$member) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
         $this->Authorization->authorize($member);
         if ($this->Members->delete($member)) {
             $this->Flash->success(__("The Member has been deleted."));
@@ -500,6 +521,9 @@ class MembersController extends AppController
     public function partialEdit($id = null)
     {
         $member = $this->Members->get($id);
+        if (!$member) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
         $this->Authorization->authorize($member);
         if ($this->request->is(["patch", "post", "put"])) {
             $member->sca_name = $this->request->getData("sca_name");
@@ -530,6 +554,43 @@ class MembersController extends AppController
             );
         }
         $this->redirect(["action" => "view", $member->id]);
+    }
+
+    public function editAdditionalInfo($id = null)
+    {
+        $member = $this->Members->get($id);
+        if (!$member) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+        $this->Authorization->authorize($member);
+        if ($this->request->is(["patch", "post", "put"])) {
+            $member->additional_info = [];
+            $aiFormConfig = StaticHelpers::appSettingsStartWith("Member.AdditionalInfo.");
+            $aiForm = [];
+            if (empty($aiFormConfig)) {
+                $this->Flash->error(
+                    __("The Additional Information could not be saved. Please, try again."),
+                );
+                return $this->redirect(["action" => "view", $member->id]);
+            }
+            foreach ($aiFormConfig as $key => $value) {
+                $shortKey = str_replace("Member.AdditionalInfo.", "", $key);
+                $aiForm[$shortKey] = $value;
+            }
+            foreach ($aiForm as $fieldKey => $fieldType) {
+                $newData[$fieldKey] = $this->request->getData($fieldKey);
+            }
+            $member->additional_info = $newData;
+            if ($this->Members->save($member)) {
+                $this->Flash->success(__("The Additional Information saved."));
+
+                return $this->redirect(["action" => "view", $member->id]);
+            }
+            $this->Flash->error(
+                __("The Additional Information could not be saved. Please, try again."),
+            );
+        }
+        return $this->redirect(["action" => "view", $member->id]);
     }
     #endregion
 
@@ -574,6 +635,9 @@ class MembersController extends AppController
     public function changePassword($id = null)
     {
         $member = $this->Members->get($id);
+        if (!$member) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
         $this->Authorization->authorize($member);
         $passwordReset = new ResetPasswordForm();
         if ($this->request->is(["patch", "post", "put"])) {

@@ -77,6 +77,7 @@ class Member extends Entity implements
     const STATUS_MINOR_PARENT_VERIFIED = "< 18 parent verified"; //Can Login
     const STATUS_VERIFIED_MINOR = "verified < 18"; //Can Login
 
+
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().
      *
@@ -113,6 +114,7 @@ class Member extends Entity implements
         "birth_year" => true,
         "deleted_date" => true,
         "status" => true,
+        "additional_info" => true,
     ];
 
     protected array $_hidden = [

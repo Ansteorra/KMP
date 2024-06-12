@@ -1,4 +1,8 @@
-<?php echo $this->Modal->create("Edit " . $member->sca_name, [
+<?php
+
+use App\KMP\StaticHelpers;
+
+echo $this->Modal->create("Edit " . $member->sca_name, [
     "id" => "editModal",
     "close" => true,
 ]); ?>

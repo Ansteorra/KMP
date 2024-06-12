@@ -65,6 +65,9 @@ class ActivitiesController extends AppController
                 },
             ],
         );
+        if (!$activity) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
         $this->Authorization->authorize($activity);
         $roles = $this->Activities->Permissions->Roles
             ->find()
@@ -145,6 +148,9 @@ class ActivitiesController extends AppController
     public function edit($id = null)
     {
         $activity = $this->Activities->get($id, contain: []);
+        if (!$activity) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
         $this->Authorization->authorize($activity);
         if ($this->request->is(["patch", "post", "put"])) {
             $activity = $this->Activities->patchEntity(
@@ -188,6 +194,9 @@ class ActivitiesController extends AppController
     {
         $this->request->allowMethod(["post", "delete"]);
         $activity = $this->Activities->get($id);
+        if (!$activity) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
         $this->Authorization->authorize($activity);
         if ($this->Activities->delete($activity)) {
             $this->Flash->success(

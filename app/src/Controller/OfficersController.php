@@ -63,6 +63,9 @@ class OfficersController extends AppController
     public function release(OfficerManagerInterface $oManager, ActiveWindowManagerInterface $awManager)
     {
         $officer = $this->Officers->get($this->request->getData('id'));
+        if (!$officer) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
         $this->Authorization->authorize($officer);
         if ($this->request->is('post')) {
             $revokeReason = $this->request->getData('revoked_reason');

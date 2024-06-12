@@ -23,6 +23,9 @@ class AuthorizationsController extends AppController
         }
 
         $authorization = $this->Authorizations->get($id);
+        if (!$authorization) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
         $this->Authorization->authorize($authorization);
 
         $revokedReason = $this->request->getData("revoked_reason");
@@ -79,6 +82,9 @@ class AuthorizationsController extends AppController
 
         $authorization = $this->Authorizations->newEmptyEntity();
         $authorization->member_id = $memberId;
+        if (!$authorization) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
         $this->Authorization->authorize($authorization);
 
         $activity_id = $this->request->getData("activity");

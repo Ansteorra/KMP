@@ -56,6 +56,10 @@ class OfficesController extends AppController
                 return $q->select(['id', 'name']);
             }]
         ]);
+        if (!$office) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+        $this->Authorization->authorize($office);
         $departments = $this->Offices->Departments->find('list', limit: 200)->all();
         $offices = $this->Offices->find('list', limit: 200)->all();
         $roles = $this->Offices->GrantsRole->find('list', limit: 200)->all();
@@ -97,6 +101,9 @@ class OfficesController extends AppController
     {
         $office = $this->Offices->get($id, contain: []);
 
+        if (!$office) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
         $this->Authorization->authorize($office);
         if ($this->request->is(['patch', 'post', 'put'])) {
             $office = $this->Offices->patchEntity($office, $this->request->getData());
@@ -124,6 +131,9 @@ class OfficesController extends AppController
     {
         $this->request->allowMethod(['post', 'delete']);
         $office = $this->Offices->get($id);
+        if (!$office) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
         $this->Authorization->authorize($office);
         if ($this->Offices->delete($office)) {
             $this->Flash->success(__('The office has been deleted.'));

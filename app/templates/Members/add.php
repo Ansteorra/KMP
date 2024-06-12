@@ -7,6 +7,8 @@
  * @var \App\Model\Entity\PendingAuthorization[]|\Cake\Collection\CollectionInterface $pendingAuthorizations
  * @var \App\Model\Entity\Role[]|\Cake\Collection\CollectionInterface $roles
  */
+
+use App\KMP\StaticHelpers;
 ?>
 <?php $this->extend("/layout/TwitterBootstrap/dashboard"); ?>
 <div class="Members form content">
@@ -42,7 +44,7 @@
                 <select name="birth_month" id="birth-month" class="form-select" required="required">
                     <option value=""></option>
                     <?php foreach ($months as $index => $value) : ?>
-                        <option value="<?= $index ?>"><?= $value ?></option>
+                    <option value="<?= $index ?>"><?= $value ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
@@ -50,12 +52,24 @@
                 <select name="birth_year" id="birth-year" class="form-select" required="required">
                     <option value=""></option>
                     <?php foreach ($years as $index => $value) : ?>
-                        <option value="<?= $index ?>"><?= $value ?></option>
+                    <option value="<?= $index ?>"><?= $value ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
         </div>
         <?php
+        if (strtolower(StaticHelpers::getSetting("Use External ID 1" . "no")) == "yes") {
+            echo $this->Form->control("external_id_1", ["Label" => StaticHelpers::getSetting("External ID 1 Field Name" . "External ID 1")]);
+        }
+        if (strtolower(StaticHelpers::getSetting("Use External ID 2" . "no")) == "yes") {
+            echo $this->Form->control("external_id_2", ["Label" => StaticHelpers::getSetting("External ID 1 Field Name" . "External ID 2")]);
+        }
+        if (strtolower(StaticHelpers::getSetting("Use External ID 3" . "no")) == "yes") {
+            echo $this->Form->control("external_id_3", ["Label" => StaticHelpers::getSetting("External ID 1 Field Name" . "External ID 3")]);
+        }
+        if (strtolower(StaticHelpers::getSetting("Use External ID 4" . "no")) == "yes") {
+            echo $this->Form->control("external_id_4", ["Label" => StaticHelpers::getSetting("External ID 1 Field Name" . "External ID 4")]);
+        }
         echo $this->Form->control("background_check_expires_on", [
             "empty" => true,
         ]);

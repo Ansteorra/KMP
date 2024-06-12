@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\View\Helper;
 
+use App\KMP\StaticHelpers;
 use Cake\View\Helper;
 use Cake\Core\Configure;
 use Cake\ORM\TableRegistry;
@@ -98,15 +99,12 @@ class KmpHelper extends Helper
      */
     public function appSetting(string $key, string $fallback): string
     {
-        //check config first for the key
-        $value = Configure::read($key);
-        if ($value) {
-            return $value;
-        }
-        //check the app settings table
-        $AppSettings = TableRegistry::getTableLocator()->get("AppSettings");
-        $value = $AppSettings->getAppSetting($key, $fallback);
-        return $value;
+        return StaticHelpers::appSetting($key, $fallback);
+    }
+
+    public function appSettingsStartWith(string $key): array
+    {
+        return StaticHelpers::appSettingsStartWith($key);
     }
 
     protected function appControllerNav(

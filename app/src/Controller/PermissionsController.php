@@ -44,6 +44,9 @@ class PermissionsController extends AppController
             $id,
             contain: ["Activities", "Roles"],
         );
+        if (!$permission) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
         $this->Authorization->authorize($permission);
         //Get all the roles not already assigned to the permission
         $currentRoleIds = [];
@@ -108,6 +111,9 @@ class PermissionsController extends AppController
     public function edit($id = null)
     {
         $permission = $this->Permissions->get($id, contain: ["Roles"]);
+        if (!$permission) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
         $this->Authorization->authorize($permission);
         $patch = $this->request->getData();
         if ($this->request->is(["patch", "post", "put"])) {
@@ -146,6 +152,9 @@ class PermissionsController extends AppController
     {
         $this->request->allowMethod(["post", "delete"]);
         $permission = $this->Permissions->get($id);
+        if (!$permission) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
         $this->Authorization->authorize($permission);
         if ($permission->system) {
             $this->Flash->error(

@@ -13,11 +13,20 @@ $this->extend("/layout/TwitterBootstrap/dashboard");
 
 use Cake\I18n\Date;
 use Cake\I18n\DateTime;
+use App\KMP\StaticHelpers;
 
 $needVerification = false;
 $needsParentVerification = false;
 $needsMemberCardVerification = false;
 $user = $this->request->getAttribute("identity");
+$aiFormConfig = StaticHelpers::appSettingsStartWith("Member.AdditionalInfo.");
+$aiForm = [];
+if (!empty($aiFormConfig)) {
+    foreach ($aiFormConfig as $key => $value) {
+        $shortKey = str_replace("Member.AdditionalInfo.", "", $key);
+        $aiForm[$shortKey] = $value;
+    }
+}
 switch ($member->status) {
     case Member::STATUS_ACTIVE:
         $needVerification = true;
@@ -150,6 +159,16 @@ switch ($member->status) {
                     <th class="col"><?= __("Status") ?></th>
                     <td lass="col-10"><?= $member->status ?></td>
                 </tr>
+                <?php
+                $externalLinks = $this->KMP->appSettingsStartWith("Member.ExternalLink.");
+                foreach ($externalLinks as $key => $link) {
+                    $linkLabel = str_replace("Member.ExternalLink.", "", $key);
+                    $linkUrl = StaticHelpers::processTemplate($link, $member, 1, "__missing__");
+                    if (substr_count($linkUrl, "__missing__") == 0) {
+                        echo "<tr scope='row'><th class='col'>" . $linkLabel . "</th><td class='col-10'><a href='" . $linkUrl . "' target='_blank'>" . $linkUrl . "</a></td></tr>";
+                    }
+                }
+                ?>
         </table>
     </div>
     <nav>
@@ -167,6 +186,13 @@ switch ($member->status) {
             <button class="nav-link" id="nav-notes-tab" data-bs-toggle="tab" data-bs-target="#nav-notes" type="button"
                 role="tab" aria-controls="nav-notes" aria-selected="false"><?= __("Notes") ?>
             </button>
+            <?php if (!empty($aiForm)) : ?>
+            <button class="nav-link" id="nav-add-info-tab" data-bs-toggle="tab" data-bs-target="#nav-add-info"
+                type="button" role="tab" aria-controls="nav-add-info"
+                aria-selected="false"><?= __("Additional Info.") ?>
+            </button>
+            <?php endif; ?>
+
         </div>
     </nav>
     <div class="tab-content" id="nav-tabContent">
@@ -425,6 +451,89 @@ switch ($member->status) {
                 </div>
             </div>
         </div>
+        <?php if (!empty($aiForm)) : ?>
+        <div class="related tab-pane fade m-3" id="nav-add-info" role="tabpanel" aria-labelledby="nav-add-info-tab">
+            <?php
+                $appInfo = $member->additional_info;
+                if ($user->can("editAdditionalInfo", $member)) {
+                    echo $this->Form->create(null, [
+                        //"align" => "horizontal",
+                        "url" => ["controller" => "Members", "action" => "editAdditionalInfo", $member->id],
+                    ]);
+                    foreach ($aiForm as $fieldKey => $fieldType) {
+                        if (!isset($appInfo[$fieldKey])) {
+                            $appInfo[$fieldKey] = "";
+                        }
+                        switch ($fieldType) {
+                            case "text":
+                                echo $this->Form->control($fieldKey, [
+                                    "type" => 'text',
+                                    "value" => $appInfo[$fieldKey],
+                                ]);
+                                break;
+                            case "date":
+                                echo $this->Form->control($fieldKey, [
+                                    "type" => $fieldType,
+                                    "value" => $appInfo[$fieldKey],
+                                ]);
+                                break;
+                            case "number":
+                                echo $this->Form->control($fieldKey, [
+                                    "type" => 'number',
+                                    "value" => $appInfo[$fieldKey],
+                                ]);
+                                break;
+                            case "bool":
+                                if ($appInfo[$fieldKey]) {
+                                    echo $this->Form->control($fieldKey, ['type' => 'checkbox', 'checked' => 'checked', 'switch' => true]);
+                                } else {
+                                    echo $this->Form->control($fieldKey, ['type' => 'checkbox', 'switch' => true]);
+                                }
+                                break;
+                            default:
+                                echo $this->Form->control($fieldKey, [
+                                    "type" => 'text',
+                                    "value" => $appInfo[$fieldName],
+                                ]);
+                                break;
+                        }
+                    }
+                    echo $this->Form->button("Submit", [
+                        "class" => "btn btn-primary"
+                    ]);
+                    echo $this->form->end();
+                } else { ?>
+            <table class='table table-striped'>
+                <?php foreach ($aiForm as $fieldKey => $fieldType) { ?>
+                <tr scope="row">
+                    <th class="col"><?= str_replace("_", " ", $fieldKey) ?></th>
+                    <td class="col-10">
+                        <?php
+                                    switch ($fieldType) {
+                                        case "text":
+                                            echo h($appInfo[$fieldKey]);
+                                            break;
+                                        case "date":
+                                            echo h($appInfo[$fieldKey]);
+                                            break;
+                                        case "number":
+                                            echo h($appInfo[$fieldKey]);
+                                            break;
+                                        case "bool":
+                                            echo $this->KMP->bool($appInfo[$fieldKey], $this->Html);
+                                            break;
+                                        default:
+                                            echo h($appInfo[$fieldKey]);
+                                            break;
+                                    }
+                                    ?>
+                    </td>
+                </tr>
+                <?php } ?>
+            </table>
+            <?php } ?>
+        </div>
+        <?php endif; ?>
     </div>
 </div>
 <?php

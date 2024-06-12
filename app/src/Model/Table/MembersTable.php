@@ -12,6 +12,8 @@ use Cake\ORM\TableRegistry;
 use App\Model\Entity\Member;
 use Cake\Event\Event;
 use Cake\Datasource\EntityInterface;
+
+use Cake\Database\Schema\TableSchemaInterface;
 use ArrayObject;
 
 /**
@@ -135,7 +137,17 @@ class MembersTable extends Table
         $this->addBehavior("Timestamp");
         $this->addBehavior('Muffin/Footprint.Footprint');
         $this->addBehavior("Muffin/Trash.Trash");
+        $this->addBehavior("JsonField");
     }
+
+    public function getSchema(): TableSchemaInterface
+    {
+        $schema = parent::getSchema();
+        $schema->setColumnType('additional_info', 'json');
+
+        return $schema;
+    }
+
 
     /**
      * Default validation rules.

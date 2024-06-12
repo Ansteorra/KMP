@@ -39,6 +39,9 @@ class DepartmentsController extends AppController
     public function view($id = null)
     {
         $department = $this->Departments->get($id, contain: ['Offices']);
+        if (!$department) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
         $this->set(compact('department'));
     }
 
@@ -74,7 +77,9 @@ class DepartmentsController extends AppController
     public function edit($id = null)
     {
         $department = $this->Departments->get($id, contain: []);
-
+        if (!$department) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
         $this->Authorization->authorize($department);
         if ($this->request->is(['patch', 'post', 'put'])) {
             $department = $this->Departments->patchEntity($department, $this->request->getData());
@@ -99,6 +104,9 @@ class DepartmentsController extends AppController
     {
         $this->request->allowMethod(['post', 'delete']);
         $department = $this->Departments->get($id);
+        if (!$department) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
         $this->Authorization->authorize($department);
         if ($this->Departments->delete($department)) {
             $this->Flash->success(__('The department has been deleted.'));

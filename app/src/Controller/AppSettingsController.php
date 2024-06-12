@@ -29,20 +29,6 @@ class AppSettingsController extends AppController
         $emptyAppSetting = $this->AppSettings->newEmptyEntity();
         $this->set(compact("appSettings", "emptyAppSetting"));
     }
-
-    /**
-     * View method
-     *
-     * @param string|null $id App Setting id.
-     * @return \Cake\Http\Response|null|void Renders view
-     * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
-     */
-    public function view($id = null)
-    {
-        $appSetting = $this->AppSettings->get($id, contain: []);
-        $this->set(compact("appSetting"));
-    }
-
     /**
      * Add method
      *
@@ -79,6 +65,9 @@ class AppSettingsController extends AppController
     public function edit($id = null)
     {
         $appSetting = $this->AppSettings->get($id, contain: []);
+        if (!$appSetting) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
         $this->Authorization->authorize($appSetting);
         if ($this->request->is(["patch", "post", "put"])) {
             $appSetting = $this->AppSettings->patchEntity(
@@ -109,6 +98,9 @@ class AppSettingsController extends AppController
     {
         $this->request->allowMethod(["post", "delete"]);
         $appSetting = $this->AppSettings->get($id);
+        if (!$appSetting) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
         $this->Authorization->authorize($appSetting);
         if ($this->AppSettings->delete($appSetting)) {
             $this->Flash->success(__("The app setting has been deleted."));

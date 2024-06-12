@@ -43,6 +43,11 @@ class ActivityGroupsController extends AppController
             $id,
             contain: ["Activities"],
         );
+        if (!$authorizationGroup) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+
+        $this->Authorization->authorize($authorizationGroup);
         $this->set(compact("authorizationGroup"));
     }
 
@@ -88,6 +93,9 @@ class ActivityGroupsController extends AppController
     public function edit($id = null)
     {
         $authorizationGroup = $this->ActivityGroups->get($id, contain: []);
+        if (!$authorizationGroup) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
         $this->Authorization->authorize($authorizationGroup);
         if ($this->request->is(["patch", "post", "put"])) {
             $authorizationGroup = $this->ActivityGroups->patchEntity(
@@ -124,7 +132,9 @@ class ActivityGroupsController extends AppController
     {
         $this->request->allowMethod(["post", "delete"]);
         $authorizationGroup = $this->ActivityGroups->get($id);
-
+        if (!$authorizationGroup) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
         $this->Authorization->authorize($authorizationGroup);
         if ($this->ActivityGroups->delete($authorizationGroup)) {
             $this->Flash->success(

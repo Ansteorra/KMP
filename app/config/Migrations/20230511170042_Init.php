@@ -576,6 +576,10 @@ class Init extends AbstractMigration
                 "limit" => 11,
                 "null" => true,
             ])
+            ->addColumn("additional_info", "json", [
+                "default" => "{}",
+                "null" => false,
+            ])
             ->addColumn("membership_card_path", "string", [
                 "default" => null,
                 "limit" => 256,

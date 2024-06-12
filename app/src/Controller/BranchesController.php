@@ -73,6 +73,9 @@ class BranchesController extends AppController
                 },
             ],
         );
+        if (!$branch) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
         $this->Authorization->authorize($branch);
         // get the children for the branch
         $branch->children = $this->Branches
@@ -137,6 +140,9 @@ class BranchesController extends AppController
     public function edit($id = null)
     {
         $branch = $this->Branches->get($id);
+        if (!$branch) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
         $this->Authorization->authorize($branch);
         if ($this->request->is(["patch", "post", "put"])) {
             $branch = $this->Branches->patchEntity(
@@ -193,6 +199,9 @@ class BranchesController extends AppController
     {
         $this->request->allowMethod(["post", "delete"]);
         $branch = $this->Branches->get($id);
+        if (!$branch) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
         $this->Authorization->authorize($branch);
         if ($this->Branches->delete($branch)) {
             $this->Flash->success(__("The branch has been deleted."));

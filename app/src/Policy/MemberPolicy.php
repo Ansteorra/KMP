@@ -94,4 +94,8 @@ class MemberPolicy extends BasePolicy
     {
         return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
     }
+    function canEditAdditionalInfo(IdentityInterface $user, $entity)
+    {
+        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+    }
 }

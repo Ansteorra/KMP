@@ -66,7 +66,10 @@ class RolesController extends AppController
                 "Permissions",
             ],
         );
-        $this->Authorization->authorize($role, "view");
+        if (!$role) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+        $this->Authorization->authorize($role);
         //get all the permissions not already assigned to the role
         $currentPermissionIds = [];
         foreach ($role->permissions as $permission) {
@@ -125,6 +128,9 @@ class RolesController extends AppController
                 "Permissions",
             ],
         );
+        if (!$role) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
         $this->Authorization->authorize($role);
         if ($this->request->is(["patch", "post", "put"])) {
             $role = $this->Roles->patchEntity($role, $this->request->getData());
@@ -147,6 +153,9 @@ class RolesController extends AppController
         $role_id = $this->request->getData("role_id");
         $permission_id = $this->request->getData("permission_id");
         $role = $this->Roles->get($role_id, contain: ["Permissions"]);
+        if (!$role) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
         $this->Authorization->authorizeAction();
         $permission = $this->Roles->Permissions->get($permission_id);
         for ($i = 0; $i < count($role->permissions); $i++) {
@@ -180,6 +189,9 @@ class RolesController extends AppController
         $role_id = $this->request->getData("role_id");
         $permission_id = $this->request->getData("permission_id");
         $role = $this->Roles->get($role_id, contain: ["Permissions"]);
+        if (!$role) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
         $this->Authorization->authorizeAction();
         $permission = $this->Roles->Permissions->get($permission_id);
         for ($i = 0; $i < count($role->permissions); $i++) {
@@ -215,6 +227,9 @@ class RolesController extends AppController
     {
         $this->request->allowMethod(["post", "delete"]);
         $role = $this->Roles->get($id);
+        if (!$role) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
         $this->Authorization->authorize($role);
         if ($this->Roles->delete($role)) {
             $this->Flash->success(__("The role has been deleted."));

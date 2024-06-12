@@ -143,6 +143,9 @@ class AuthorizationApprovalsController extends AppController
         $this->request->allowMethod(["post"]);
 
         $authorizationApproval = $this->AuthorizationApprovals->get($id);
+        if (!$authorizationApproval) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
         $this->Authorization->authorize($authorizationApproval);
 
         $approverId = $this->Authentication->getIdentity()->getIdentifier();
@@ -175,6 +178,9 @@ class AuthorizationApprovalsController extends AppController
                 },
             ],
         );
+        if (!$authorizationApproval) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
         $this->Authorization->authorize($authorizationApproval);
         $previousApprovers = $this->AuthorizationApprovals
             ->find("list", [
@@ -212,6 +218,9 @@ class AuthorizationApprovalsController extends AppController
             $id = $this->request->getData("id");
         }
         $authorizationApproval = $this->AuthorizationApprovals->get($id);
+        if (!$authorizationApproval) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
         $this->Authorization->authorize($authorizationApproval);
         if (
             !$maService->deny(

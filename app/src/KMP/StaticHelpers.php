@@ -3,6 +3,8 @@
 namespace App\KMP;
 
 use Exception;
+use Cake\Core\Configure;
+use Cake\ORM\TableRegistry;
 
 class StaticHelpers
 {
@@ -139,7 +141,7 @@ class StaticHelpers
      * @param array $array
      * @return mixed
      */
-    static function getValue($path, $array)
+    static function getValue($path, $array, $minLength = 0, $fallback = null)
     {
         $path = explode('->', $path);
         $temp = &$array;
@@ -159,6 +161,12 @@ class StaticHelpers
         if ($prepend != '' && $postpend != '' && $temp != '') {
             $temp = $prepend . $temp . $postpend;
         }
+        if ($temp === null) {
+            return $fallback;
+        }
+        if (strlen($temp) < $minLength) {
+            return $fallback;
+        }
         return $temp;
     }
     /**
@@ -168,13 +176,45 @@ class StaticHelpers
      * @param array $data
      * @return string
      */
-    static function processTemplate($string, $data)
+    static function processTemplate($string, $data, $minLength = 0, $missingValue = '')
     {
         $matches = [];
         preg_match_all('/{{(.*?)}}/', $string, $matches);
         foreach ($matches[1] as $match) {
-            $string = str_replace('{{' . $match . '}}', self::getValue($match, $data), $string);
+            $string = str_replace('{{' . $match . '}}', self::getValue($match, $data, $minLength, $missingValue), $string);
         }
         return $string;
+    }
+
+    /**
+     * Get an app setting
+     *
+     * @param string $key
+     * @param string $fallback
+     * @return string
+     */
+    static function appSetting(string $key, string $fallback): string
+    {
+        //check config first for the key
+        $value = Configure::read($key);
+        if ($value) {
+            return $value;
+        }
+        //check the app settings table
+        $AppSettings = TableRegistry::getTableLocator()->get("AppSettings");
+        $value = $AppSettings->getAppSetting($key, $fallback);
+        return $value;
+    }
+    static function appSettingsStartWith(string $key): array
+    {
+        $AppSettings = TableRegistry::getTableLocator()->get("AppSettings");
+        $allAppSettings = $AppSettings->getAllAppSettings();
+        $return = [];
+        foreach ($allAppSettings as $settingKey => $settingValue) {
+            if (strpos($settingKey, $key) === 0) {
+                $return[$settingKey] = $settingValue;
+            }
+        }
+        return $return;
     }
 }
