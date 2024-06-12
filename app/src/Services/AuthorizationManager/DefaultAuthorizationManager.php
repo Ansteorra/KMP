@@ -107,9 +107,10 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
         $authTable = $approvalTable->Authorizations;
         $transConnection = $approvalTable->getConnection();
         $transConnection->begin();
-        $approval = $approvalTable->get($authorizationApprovalId, [
-            "contain" => ["Authorizations.Activities"],
-        ]);
+        $approval = $approvalTable->get(
+            $authorizationApprovalId,
+            contain: ["Authorizations.Activities"]
+        );
         if (!$approval) {
             $transConnection->rollback();
 

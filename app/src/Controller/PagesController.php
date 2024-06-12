@@ -87,7 +87,7 @@ class PagesController extends AppController
             //if (Configure::read("debug")) {
             //    throw $exception;
             //}
-            throw new NotFoundException();
+            return $this->redirect(["controller" => "members", "action" => "login"]);
         }
     }
 
