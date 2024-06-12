@@ -200,6 +200,11 @@ switch ($member->status) {
             aria-labelledby="nav-authorizations-tab">
             <button type="button" class="btn btn-primary btn-sm mb-3" data-bs-toggle="modal"
                 data-bs-target="#requestAuthModal">Request Authorization</button>
+            <?= $this->Html->link(
+                __("Email Link to Mobile Card"),
+                ["controller" => "Members", "action" => "SendMobileCardEmail", $member->id],
+                ["class" => "btn btn-sm mb-3 btn-secondary"],
+            ) ?>
 
             <?php if (!empty($member->previous_authorizations) || !empty($member->current_authorizations) || !empty($member->pending_authorizations)) {
                 $renewButton = [
