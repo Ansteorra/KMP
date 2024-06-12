@@ -32,5 +32,6 @@ class DevLoad extends AbstractSeed
         $this->call('DevLoadDepartmentsSeed');
         $this->call('DevLoadOfficesSeed');
         $this->call('DevLoadOfficersSeed');
+        $this->call('DevLoadAppSettingsSeed');
     }
 }

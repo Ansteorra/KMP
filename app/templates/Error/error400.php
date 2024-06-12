@@ -40,7 +40,7 @@ else : ?>
         ]) ?>
     <div class="card-img-overlay">
         <h1 class="card-title text-start">
-            <?= __("Page not found") ?>
+            <?= __("Page not found" . $this->request->getPath()) ?>
         </h1>
     </div>
 </div>

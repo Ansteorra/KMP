@@ -52,6 +52,7 @@ class InitMembersSeed extends AbstractSeed
                 'birth_year' => 1977,
                 'deleted' => NULL,
                 'created' => DateTime::now(),
+                'mobile_card_token' => '9cf9fd5c389304f85d5ade102a9c9119',
             ]
         ];
 

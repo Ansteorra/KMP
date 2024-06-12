@@ -51,6 +51,7 @@ class DevLoadMembersSeed extends AbstractSeed
                 'birth_year' => 1977,
                 'deleted' => NULL,
                 'created' => DateTime::now(),
+                'mobile_card_token' => '6519b703451d2d22534d058c456d6133',
             ],
             [
                 'id' => 201,
@@ -80,6 +81,7 @@ class DevLoadMembersSeed extends AbstractSeed
                 'birth_year' => 1977,
                 'deleted' => NULL,
                 'created' => DateTime::now(),
+                'mobile_card_token' => '9ffd0d041d4ff102b2c31f3edbd1cf86',
             ],
         ];
 

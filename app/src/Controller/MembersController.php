@@ -39,7 +39,8 @@ class MembersController extends AppController
             "approversList",
             "forgotPassword",
             "resetPassword",
-            "register"
+            "register",
+            "viewMobileCard"
         ]);
     }
 
@@ -329,6 +330,73 @@ class MembersController extends AppController
             throw new \Cake\Http\Exception\NotFoundException();
         }
         $this->Authorization->authorize($member);
+        // sort filter out expired member roles
+        $permissions = $member->getPermissions();
+        $authTypes = [];
+        foreach ($permissions as $permission) {
+            if ($permission->activity != null) {
+                $authTypes[] = $permission->activity->name;
+            }
+        }
+        $authTypes = array_unique($authTypes);
+        // sort by name
+        sort($authTypes);
+        $message_variables = [
+            "secretary_email" => $this->appSettings->getAppSetting(
+                "Activity.SecretaryEmail",
+                "please_set",
+            ),
+            "kingdom" => $this->appSettings->getAppSetting(
+                "KMP.KingdomName",
+                "please_set",
+            ),
+            "secratary" => $this->appSettings->getAppSetting(
+                "Activity.SecretaryName",
+                "please_set",
+            ),
+            "marshal_auth_graphic" => $this->appSettings->getAppSetting(
+                "Member.ViewCard.Graphic",
+                "auth_card_back.gif",
+            ),
+            "marshal_auth_header_color" => $this->appSettings->getAppSetting(
+                "Member.ViewCard.HeaderColor",
+                "gold",
+            ),
+        ];
+        $this->set(compact("member", "authTypes", "message_variables"));
+    }
+
+    public function viewMobileCard($id = null)
+    {
+        $member = $this->Members
+            ->find()
+            ->contain([
+                "Branches" => function (SelectQuery $q) {
+                    return $q->select(["Branches.name"]);
+                },
+                "Authorizations" => function (SelectQuery $q) {
+                    return $q->where([
+                        "Authorizations.status" => "approved",
+                        "Authorizations.expires_on >" => DateTime::now(),
+                    ]);
+                },
+                "Authorizations.Activities.ActivityGroups" => function (
+                    SelectQuery $q,
+                ) {
+                    return $q->select(["ActivityGroups.name"]);
+                },
+                "Authorizations.Activities" => function (
+                    SelectQuery $q,
+                ) {
+                    return $q->select(["Activities.name"]);
+                },
+            ])
+            ->where(["Members.mobile_card_token" => $id])
+            ->first();
+        if (!$member) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+        $this->Authorization->skipAuthorization();
         // sort filter out expired member roles
         $permissions = $member->getPermissions();
         $authTypes = [];

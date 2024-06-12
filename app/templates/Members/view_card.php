@@ -177,7 +177,7 @@ $now = Date::now();
         </div>
         <div class="header-center">
             Kingdom of <?= h($message_variables["kingdom"]) ?><br />
-            Martial Authorization
+            Activities Authorization
         </div>
         <div class="header-right">
             <img src='<?php echo $watermarkimg; ?>'>
@@ -187,7 +187,7 @@ $now = Date::now();
     <div class="letter">
         <p>Greetings <?= h($message_variables["kingdom"]) ?> Participant, </p>
 
-        <p>You will be pleased to find your new fighter and marshal authorization card below. Please note that while
+        <p>You will be pleased to find your new activities authorization card below. Please note that while
             there is an expiration date, it can be revoked per the customs and laws of the Kingdom of <?= h(
                                                                                                             $message_variables["kingdom"],
                                                                                                         ) ?> and the
@@ -195,7 +195,7 @@ $now = Date::now();
             deputies, so remember that you are representing the Crown and their trust in you everytime you take the
             field. </p>
 
-        <p>Remember to have your fighter authorization card with you at any SCA event or practice that you will be
+        <p>Remember to have your authorization card with you at any SCA event or practice that you will be
             fighting or marshalling. It can also be asked to be seen by the Marshal in Charge or a senior Marshal at any
             time. At most interkingdom wars, it is normal to also be required to provide your site token and legal
             identification when being inspected. </p>
@@ -209,7 +209,7 @@ $now = Date::now();
 
         <p>If something is missing or is incorrect, don't hesitate to contact me. </p>
 
-        <p>Happy Fighting,<br />
+        <p>In Service,<br />
             <?= h($message_variables["secratary"]) ?><br />
             Kingdom of <?= h(
                             $message_variables["kingdom"],

@@ -14,7 +14,7 @@ if (!$this->fetch("html")) {
     if (Configure::check("App.language")) {
         printf('<html lang="%s">', Configure::read("App.language"));
     } else {
-        echo "<html>";
+        echo "<html lang='en'>";
     }
     $this->end();
 }
@@ -33,11 +33,7 @@ if (!$this->fetch("title")) {
  */
 if (!$this->fetch("tb_footer")) {
     $this->start("tb_footer");
-    if (Configure::check("App.title")) {
-        printf("&copy;%s %s", date("Y"), Configure::read("App.title"));
-    } else {
-        printf("&copy;%s", date("Y"));
-    }
+
     $this->end();
 }
 
@@ -93,11 +89,7 @@ $this->prepend(
  * Prepend `css` block with Bootstrap stylesheets
  * Change to bootstrap.min to use the compressed version
  */
-if (Configure::read("debug")) {
-    $this->prepend("css", $this->Html->css(["BootstrapUI.bootstrap"]));
-} else {
-    $this->prepend("css", $this->Html->css(["BootstrapUI.bootstrap.min"]));
-}
+$this->prepend("css", $this->Html->css(["BootstrapUI.bootstrap.min"]));
 $this->prepend(
     "css",
     $this->Html->css([
@@ -110,25 +102,14 @@ $this->prepend(
  * Prepend `script` block with Popper and Bootstrap scripts
  * Change popper.min and bootstrap.min to use the compressed version
  */
-if (Configure::read("debug")) {
-    $this->prepend(
-        "script",
-        $this->Html->script([
-            "https://ajax.aspnetcdn.com/ajax/jQuery/jquery-3.7.1.min.js",
-            "BootstrapUI.popper",
-            "BootstrapUI.bootstrap",
-        ]),
-    );
-} else {
-    $this->prepend(
-        "script",
-        $this->Html->script([
-            "https://ajax.aspnetcdn.com/ajax/jQuery/jquery-3.7.1.min.js",
-            "BootstrapUI.popper.min",
-            "BootstrapUI.bootstrap.min",
-        ]),
-    );
-}
+$this->prepend(
+    "script",
+    $this->Html->script([
+        "https://ajax.aspnetcdn.com/ajax/jQuery/jquery-3.7.1.min.js",
+        "BootstrapUI.popper.min",
+        "BootstrapUI.bootstrap.min",
+    ]),
+);
 ?>
 <!doctype html>
 <?= $this->fetch("html") ?>
@@ -139,12 +120,14 @@ if (Configure::read("debug")) {
     <title><?= h($this->fetch("title")) ?></title>
     <?= $this->fetch("meta") ?>
     <?= $this->fetch("css") ?>
+    <?= $this->fetch("manifest") ?>
 </head>
 
 <?php
 echo $this->fetch("tb_body_start");
 echo $this->fetch("tb_flash");
 echo $this->fetch("content");
+echo $this->element('copyrightFooter', []);
 echo $this->fetch("tb_footer");
 echo $this->fetch("tb_body_end");
 echo $this->fetch("script");

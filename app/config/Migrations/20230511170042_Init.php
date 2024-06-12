@@ -541,6 +541,11 @@ class Init extends AbstractMigration
                 "limit" => 11,
                 "null" => true,
             ])
+            ->addColumn("mobile_card_token", "string", [
+                "default" => null,
+                "limit" => 255,
+                "null" => true,
+            ])
             ->addColumn("password_token", "string", [
                 "default" => null,
                 "limit" => 255,

@@ -115,6 +115,7 @@ class Member extends Entity implements
         "deleted_date" => true,
         "status" => true,
         "additional_info" => true,
+        "mobile_card_token" => true,
     ];
 
     protected array $_hidden = [

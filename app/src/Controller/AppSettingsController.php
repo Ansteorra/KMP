@@ -25,7 +25,11 @@ class AppSettingsController extends AppController
     public function index()
     {
         $query = $this->AppSettings->find();
-        $appSettings = $this->paginate($query);
+        $appSettings = $this->paginate($query, [
+            'order' => [
+                'name' => 'asc',
+            ]
+        ]);
         $emptyAppSetting = $this->AppSettings->newEmptyEntity();
         $this->set(compact("appSettings", "emptyAppSetting"));
     }
