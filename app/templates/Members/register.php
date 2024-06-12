@@ -49,7 +49,7 @@
                         <select name="birth_month" id="birth-month" class="form-select" required="required">
                             <option value=""></option>
                             <?php foreach ($months as $index => $value) : ?>
-                                <option value="<?= $index ?>"><?= $value ?></option>
+                            <option value="<?= $index ?>"><?= $value ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -57,7 +57,7 @@
                         <select name="birth_year" id="birth-year" class="form-select" required="required">
                             <option value=""></option>
                             <?php foreach ($years as $index => $value) : ?>
-                                <option value="<?= $index ?>"><?= $value ?></option>
+                            <option value="<?= $index ?>"><?= $value ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -76,4 +76,8 @@
 
 $this->append("script", $this->Html->script(["lib/imagePreviewer.js"]));
 $this->append("script", $this->Html->script(["app/members/register.js"]));
+$this->append("script", $this->Html->scriptBlock("
+var pageControl = new memberRegister();
+pageControl.run('" . $this->Url->webroot("") . "');
+"));
 ?>

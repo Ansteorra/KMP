@@ -10,7 +10,7 @@ class branchesView {
         var me = this;
         //AJAX call to get data
         $.ajax({
-            url: '/members/search_members',
+            url: me.rootPath + 'members/search_members',
             dataType: 'json',
             type: 'GET',
             data: { q: input },
@@ -24,8 +24,9 @@ class branchesView {
         });
     };
 
-    run() {
+    run(rootPath) {
         var me = this;
+        me.rootPath = rootPath;
         this.ac = new Autocomplete($('#assign_officer__sca_name')[0], {
             data: [],
             treshold: 3,
@@ -67,7 +68,4 @@ class branchesView {
         });
         $('#assign_officer__office_id').trigger('change');
     }
-}
-var pageControl = new branchesView();
-pageControl.run();
-
+};

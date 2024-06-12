@@ -6,7 +6,7 @@ class memberView {
     //onInput for Autocomplete
 
     getApporversList(me, authId, memberId, elementId) {
-        $.get('/members/approvers_list/' + authId + '/' + memberId, function (data) {
+        $.get(me.rootPath + 'members/approvers_list/' + authId + '/' + memberId, function (data) {
             //remove all options
             $('#' + elementId).find('option').remove();
             //add new options
@@ -74,7 +74,7 @@ class memberView {
         var me = this;
         //AJAX call to get data
         $.ajax({
-            url: '/members/search_members',
+            url: me.rootPath + 'members/search_members',
             dataType: 'json',
             type: 'GET',
             data: { q: input },
@@ -88,8 +88,9 @@ class memberView {
         });
     };
 
-    run() {
+    run(rootPath) {
         var me = this;
+        me.rootPath = rootPath;
         if ($('#verify_member__sca_name').length > 0) {
             this.ac = new Autocomplete($('#verify_member__sca_name')[0], {
                 data: [],
@@ -104,7 +105,5 @@ class memberView {
         me.wireUpRequestEvents();
         me.wireUpRenewalEvents();
     }
-}
-var pageControl = new memberView();
-pageControl.run();
+};
 

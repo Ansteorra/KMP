@@ -259,4 +259,8 @@ $this->end(); ?>
 <?php
 $this->append("script", $this->Html->script(["app/autocomplete.js"]));
 $this->append("script", $this->Html->script(["app/branches/view.js"]));
+$this->append("script", $this->Html->scriptBlock("
+        var pageControl = new branchesView();
+        pageControl.run('" . $this->Url->webroot("") . "');
+"));
 ?>

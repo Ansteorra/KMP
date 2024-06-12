@@ -262,4 +262,10 @@ $this->end(); ?>
 <?php $this->append(
     "script",
     $this->Html->script(["app/authorization_approvals/view_and_my_queue.js"]),
-); ?>
+);
+
+$this->append("script", $this->Html->scriptBlock("
+var pageControl = new authorizationApprovalViewAndMyQueue();
+pageControl.run('" . $this->Url->webroot("") . "');
+"));
+?>

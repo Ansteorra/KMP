@@ -4,7 +4,7 @@ class memberRegister {
     //onInput for Autocomplete
 
     getApporversList(me, authId, memberId, elementId) {
-        $.get('/members/approvers_list/' + authId + '/' + memberId, function (data) {
+        $.get(me.rootPath + 'members/approvers_list/' + authId + '/' + memberId, function (data) {
             //remove all options
             $('#' + elementId).find('option').remove();
             //add new options
@@ -64,8 +64,9 @@ class memberRegister {
             me.handleSubmitBtnClick(me, 'renew_auth__approver_id', 'renew_auth__form');
         });
     }
-    run() {
+    run(rootPath) {
         var me = this;
+        me.rootPath = rootPath;
         me.wireUpRequestEvents();
         me.wireUpRenewalEvents();
         $(document).ready(function () {
