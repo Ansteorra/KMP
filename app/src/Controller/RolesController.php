@@ -34,7 +34,11 @@ class RolesController extends AppController
         $this->Authorization->authorizeAction();
         $query = $this->Roles->find();
         $query = $this->Authorization->applyScope($query);
-        $roles = $this->paginate($query);
+        $roles = $this->paginate($query, [
+            'order' => [
+                'name' => 'asc',
+            ]
+        ]);
 
         $this->set(compact("roles"));
     }

@@ -32,7 +32,11 @@ class OfficesController extends AppController
                 return $q->select(['id', 'name']);
             }]);
 
-        $offices = $this->paginate($query);
+        $offices = $this->paginate($query, [
+            'order' => [
+                'name' => 'asc',
+            ]
+        ]);
 
         $this->set(compact('offices'));
     }

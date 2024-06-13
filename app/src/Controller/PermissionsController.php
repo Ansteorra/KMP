@@ -26,7 +26,11 @@ class PermissionsController extends AppController
         $this->Authorization->authorizeAction();
         $query = $this->Permissions->find()->contain(["Activities"]);
         $query = $this->Authorization->applyScope($query);
-        $permissions = $this->paginate($query);
+        $permissions = $this->paginate($query, [
+            'order' => [
+                'name' => 'asc',
+            ]
+        ]);
 
         $this->set(compact("permissions"));
     }

@@ -25,7 +25,11 @@ class ActivityGroupsController extends AppController
     public function index()
     {
         $query = $this->ActivityGroups->find();
-        $activityGroup = $this->paginate($query);
+        $activityGroup = $this->paginate($query, [
+            'order' => [
+                'name' => 'asc',
+            ]
+        ]);
 
         $this->set(compact("activityGroup"));
     }

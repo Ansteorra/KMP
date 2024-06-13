@@ -99,7 +99,11 @@ class MembersController extends AppController
         #is
         $this->Authorization->authorize($query);
         $query = $this->Authorization->applyScope($query);
-        $Members = $this->paginate($query);
+        $Members = $this->paginate($query, [
+            'order' => [
+                'sca_name' => 'asc',
+            ]
+        ]);
 
         $this->set(compact("Members", "sort", "direction", "search"));
     }

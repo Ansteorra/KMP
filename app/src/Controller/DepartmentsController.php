@@ -24,7 +24,11 @@ class DepartmentsController extends AppController
     public function index()
     {
         $query = $this->Departments->find();
-        $departments = $this->paginate($query);
+        $departments = $this->paginate($query, [
+            'order' => [
+                'name' => 'asc',
+            ]
+        ]);
 
         $this->set(compact('departments'));
     }

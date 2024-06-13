@@ -54,7 +54,11 @@ class AuthorizationApprovalsController extends AppController
             ->group("Approvers.id");
         $this->Authorization->authorize($query);
         $this->Authorization->applyScope($query);
-        $authorizationApprovals = $this->paginate($query);
+        $authorizationApprovals = $this->paginate($query, [
+            'order' => [
+                'name' => 'asc',
+            ]
+        ]);
         $this->set(compact("authorizationApprovals"));
     }
 

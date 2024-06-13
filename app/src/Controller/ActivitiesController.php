@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use Cake\ORM\TableRegistry;
+
 /**
  * Activities Controller
  *
@@ -32,7 +34,11 @@ class ActivitiesController extends AppController
                 return $q->select(["id", "name"]);
             },
         ]);
-        $activities = $this->paginate($query);
+        $activities = $this->paginate($query, [
+            'order' => [
+                'name' => 'asc',
+            ]
+        ]);
 
         $this->set(compact("activities"));
     }
@@ -113,21 +119,28 @@ class ActivitiesController extends AppController
                 $activity,
                 $this->request->getData(),
             );
-            if ($this->Activities->save($activity)) {
-                $this->Flash->success(
-                    __("The authorization type has been saved."),
-                );
-
-                return $this->redirect([
-                    "action" => "view",
-                    $activity->id,
-                ]);
+            $this->Activities->getConnection()->begin();
+            if (!$this->Activities->save($activity)) {
+                $this->Flash->error(__("The authorization type could not be saved. Please, try again.",),);
+                return $this->redirect(["action" => "view", $activity->id,]);
             }
-            $this->Flash->error(
-                __(
-                    "The authorization type could not be saved. Please, try again.",
-                ),
-            );
+            $permissionsTbl = TableRegistry::getTableLocator()->get("Permissions");
+            $newPermission = $this->Activities->Roles->newEmptyEntity();
+            $newPermission->name = "Can Authorize " . $activity->name;
+            $newPermission->activity_id = $activity->id;
+            $newPermission->is_super_user = false;
+            $newPermission->is_system = false;
+            $newPermission->require_active_membership = true;
+            $newPermission->require_min_age = 18;
+            $newPermission->requires_warrant = true;
+            if (!$permissionsTbl->save($newPermission)) {
+                $this->Flash->error(__("The authorization type could not be saved. Please, try again.",),);
+                $this->Activities->getConnection()->rollback();
+                return $this->redirect(["action" => "view", $activity->id,]);
+            }
+            $this->Activities->getConnection()->commit();
+            $this->Flash->success(__("The authorization type has been saved."),);
+            return $this->redirect(["action" => "view", $activity->id,]);
         }
         $authAssignableRoles = $this->Activities->Roles
             ->find("list")
