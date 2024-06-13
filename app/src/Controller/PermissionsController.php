@@ -82,7 +82,7 @@ class PermissionsController extends AppController
                 $permission,
                 $this->request->getData(),
             );
-            $permission->system = false;
+            $permission->is_system = false;
             if (!$this->Authentication->getIdentity()->isSuperUser()) {
                 $permission->is_super_user = false;
             }
@@ -117,7 +117,7 @@ class PermissionsController extends AppController
         $this->Authorization->authorize($permission);
         $patch = $this->request->getData();
         if ($this->request->is(["patch", "post", "put"])) {
-            if ($permission->system) {
+            if ($permission->is_system) {
                 //unset the name of the permission if it is a system permission
                 unset($patch["name"]);
             }
@@ -156,7 +156,7 @@ class PermissionsController extends AppController
             throw new \Cake\Http\Exception\NotFoundException();
         }
         $this->Authorization->authorize($permission);
-        if ($permission->system) {
+        if ($permission->is_system) {
             $this->Flash->error(
                 __(
                     "The permission could not be deleted. System permissions cannot be deleted.",

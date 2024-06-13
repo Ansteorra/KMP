@@ -63,7 +63,7 @@ class KMPMailer extends Mailer
             "_full" => true,
             $member->password_token,
         ]);
-        $portalName = $this->appSettings->getAppSetting("Portal Name", "Ansteorran Management System");
+        $portalName = $this->appSettings->getAppSetting("Portal Name", "Ansteorran Management Portal");
         $this->setTo($member->email_address)
             ->setFrom("donotreply@webminister.ansteorra.org")
             ->setSubject("Welcome " . $member->sca_name . " to " . $portalName)

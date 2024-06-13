@@ -46,16 +46,16 @@ class OfficesController extends AppController
      */
     public function view($id = null)
     {
-        $office = $this->Offices->get($id, [
-            "contain" =>
-            ['Departments' => function ($q) {
+        $office = $this->Offices->get(
+            $id,
+            contain: ['Departments' => function ($q) {
                 return $q->select(['id', 'name']);
             }, 'GrantsRole' => function ($q) {
                 return $q->select(['id', 'name']);
             }, 'DeputyTo' => function ($q) {
                 return $q->select(['id', 'name']);
             }]
-        ]);
+        );
         if (!$office) {
             throw new \Cake\Http\Exception\NotFoundException();
         }

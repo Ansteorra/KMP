@@ -19,7 +19,7 @@ $user = $this->request->getAttribute("identity");
         </div>
         <div class="col text-end">
             <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal">Edit</button>
-            <?php if (!$permission->system) { ?>
+            <?php if (!$permission->is_system) { ?>
                 <?= $this->Form->postLink(
                     __("Delete"),
                     ["action" => "delete", $permission->id],
@@ -74,7 +74,7 @@ $user = $this->request->getAttribute("identity");
             <tr scope="row">
                 <th class='col'><?= __("System Permission") ?></th>
                 <td class="col-10"><?= $this->Kmp->bool(
-                                        $permission->system,
+                                        $permission->is_system,
                                         $this->Html,
                                     ) ?></td>
             </tr>
@@ -193,7 +193,7 @@ $this->start("modals"); ?>
             $permission->id,
         ],
     ]);
-    if ($permission->system) {
+    if ($permission->is_system) {
         echo $this->Form->control("name", ["disabled" => "disabled"]);
     } else {
         echo $this->Form->control("name");

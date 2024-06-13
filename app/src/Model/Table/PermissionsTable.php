@@ -88,7 +88,7 @@ class PermissionsTable extends Table
             ->integer("require_min_age")
             ->notEmptyString("require_min_age");
 
-        $validator->boolean("system")->notEmptyString("system");
+        $validator->boolean("is_system")->notEmptyString("is_system");
 
         $validator->boolean("is_super_user")->notEmptyString("is_super_user");
 

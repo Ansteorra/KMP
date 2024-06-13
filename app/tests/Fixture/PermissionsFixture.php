@@ -26,7 +26,7 @@ class PermissionsFixture extends TestFixture
                 "require_active_membership" => 1,
                 "require_active_background_check" => 1,
                 "require_min_age" => 1,
-                "system" => 1,
+                "is_system" => 1,
                 "is_super_user" => 1,
             ],
         ];

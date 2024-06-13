@@ -15,7 +15,7 @@ use Cake\ORM\Entity;
  * @property bool $require_active_membership
  * @property bool $require_active_background_check
  * @property bool $require_min_age
- * @property bool $system
+ * @property bool $is_system
  * @property bool $is_super_user
  *
  * @property \App\Model\Entity\Activity $activity
@@ -38,7 +38,7 @@ class Permission extends Entity
         "require_active_membership" => true,
         "require_active_background_check" => true,
         "require_min_age" => true,
-        "system" => true,
+        "is_system" => true,
         "is_super_user" => true,
         "activity" => true,
         "requires_warrant" => true,

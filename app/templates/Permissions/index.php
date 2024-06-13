@@ -58,7 +58,7 @@
                                         ) ?></td>
 
                 <td class="text-center"><?= $this->Kmp->bool(
-                                            $permission->system,
+                                            $permission->is_system,
                                             $this->Html,
                                         ) ?></td>
                 <td class="actions">

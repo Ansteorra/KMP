@@ -274,7 +274,7 @@ class Init extends AbstractMigration
                 "limit" => 2,
                 "null" => false,
             ])
-            ->addColumn("system", "boolean", [
+            ->addColumn("is_system", "boolean", [
                 "default" => false,
                 "limit" => null,
                 "null" => false,
