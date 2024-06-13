@@ -498,7 +498,7 @@ switch ($member->status) {
                             default:
                                 echo $this->Form->control($fieldKey, [
                                     "type" => 'text',
-                                    "value" => $appInfo[$fieldName],
+                                    "value" => $appInfo[$fieldKey],
                                 ]);
                                 break;
                         }

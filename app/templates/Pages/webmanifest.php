@@ -1,6 +1,6 @@
 {
-"name": "<?= $this->KMP->appSetting("KMP.ShortTitle", "KMP") ?> Authorization Card",
-"short_name": "<?= $this->KMP->appSetting("KMP.ShortTitle", "KMP") ?> Card",
+"name": "<?= $this->KMP->appSetting("KMP.ShortSiteTitle", "KMP") ?> Authorization Card",
+"short_name": "<?= $this->KMP->appSetting("KMP.ShortSiteTitle", "KMP") ?> Card",
 "icons": [
 {
 "src": "<?= $this->Url->image($this->KMP->appSetting("KMP.BannerLogo", "badge.png")) ?>",

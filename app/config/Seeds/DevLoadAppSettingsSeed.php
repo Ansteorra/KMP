@@ -25,7 +25,7 @@ class DevLoadAppSettingsSeed extends AbstractSeed
         $data = [
             [
                 'id' => 1,
-                'name' => '_sys_branches_init',
+                'name' => 'KMP.BranchInitRun',
                 'value' => 'recovered',
                 'created' => DateTime::now(),
                 'created_by' => '1'

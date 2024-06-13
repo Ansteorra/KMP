@@ -104,7 +104,7 @@
     </p>
     <h4>Special Settings</h4>
     <dl>
-        <dt>_sys_branches_init</dt>
+        <dt>KMP.BranchInitRun</dt>
         <dd class="ms-3">
             This setting is used to determine if the system has rebuild the branch hierarchy after a database rebuild.
             setting this to 'recovered' will prevent the system from attempting to rebuild the branch hierarchy again.

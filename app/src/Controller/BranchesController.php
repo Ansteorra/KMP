@@ -6,6 +6,7 @@ namespace App\Controller;
 
 use Cake\Database\Exception\DatabaseException;
 use Cake\Log\Log;
+use App\KMP\StaticHelpers;
 
 /**
  * Branches Controller
@@ -18,12 +19,12 @@ class BranchesController extends AppController
     {
         parent::initialize();
         $this->Authorization->authorizeModel("index", "add");
-        $setting = $this->appSettings->getAppSetting("_sys_branches_init");
+        $setting = StaticHelpers::appSetting("KMP.BranchInitRun", "");
         if (!$setting == "recovered") {
             $branches = $this->Branches;
             $branches->recover();
             $this->appSettings->setAppSetting(
-                "_sys_branches_init",
+                "KMP.BranchInitRun",
                 "recovered",
             );
         }
