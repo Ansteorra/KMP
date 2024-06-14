@@ -34,13 +34,11 @@ class Permission extends Entity
      */
     protected array $_accessible = [
         "name" => true,
-        "activity_id" => true,
         "require_active_membership" => true,
         "require_active_background_check" => true,
         "require_min_age" => true,
         "is_system" => true,
         "is_super_user" => true,
-        "activity" => true,
         "requires_warrant" => true,
         "roles" => true,
     ];

@@ -19,7 +19,7 @@ $needVerification = false;
 $needsParentVerification = false;
 $needsMemberCardVerification = false;
 $user = $this->request->getAttribute("identity");
-$aiFormConfig = StaticHelpers::appSettingsStartWith("Member.AdditionalInfo.");
+$aiFormConfig = $this->KMP->getAppSettingsStartWith("Member.AdditionalInfo.");
 $aiForm = [];
 if (!empty($aiFormConfig)) {
     foreach ($aiFormConfig as $key => $value) {
@@ -160,7 +160,7 @@ switch ($member->status) {
                     <td lass="col-10"><?= $member->status ?></td>
                 </tr>
                 <?php
-                $externalLinks = $this->KMP->appSettingsStartWith("Member.ExternalLink.");
+                $externalLinks = $this->KMP->getAppSettingsStartWith("Member.ExternalLink.");
                 foreach ($externalLinks as $key => $link) {
                     $linkLabel = str_replace("Member.ExternalLink.", "", $key);
                     $linkUrl = StaticHelpers::processTemplate($link, $member, 1, "__missing__");

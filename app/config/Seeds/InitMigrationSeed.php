@@ -2,12 +2,13 @@
 
 declare(strict_types=1);
 
+use App\KMP\KMPMigrationSeedAbstract;
 use Migrations\AbstractSeed;
 
 /**
  * Role seed.
  */
-class InitMigrationSeed extends AbstractSeed
+class InitMigrationSeed extends KMPMigrationSeedAbstract
 {
     /**
      * Run Method.

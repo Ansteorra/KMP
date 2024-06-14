@@ -77,7 +77,13 @@ class ControllerResolver implements ResolverInterface
         }
         if (Is_Array($resource)) {
             $controller = $resource["controller"];
-            return $this->getControllerPolicyByName($controller);
+            if ($resource["plugin"]) {
+                $plugin = $resource["plugin"];
+            } else {
+                $plugin = null;
+            }
+            $prefix = $resource["prefix"] ?? null;
+            return $this->getControllerPolicyByName($controller, $plugin, $prefix);
         }
         throw new MissingPolicyException([get_debug_type($resource)]);
     }
@@ -164,7 +170,7 @@ class ControllerResolver implements ResolverInterface
         if ($namespace !== $this->appNamespace) {
             $policyClass = App::className(
                 $name,
-                "Policy\\" . $namespace,
+                $namespace . "\\Policy",
                 "Policy",
             );
         }
@@ -217,8 +223,7 @@ class ControllerResolver implements ResolverInterface
             $pluginPath = $plugin . ".";
         }
         if ($prefix) {
-            $prefix = $prefix;
-            $namespace .= "/" . $prefix;
+            $namespace .= '/' . $prefix;
         }
         $firstChar = substr($controller, 0, 1);
 

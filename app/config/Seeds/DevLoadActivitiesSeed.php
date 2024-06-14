@@ -33,6 +33,7 @@ class DevLoadActivitiesSeed extends AbstractSeed
                 'maximum_age' => 200,
                 'num_required_authorizors' => 1,
                 'num_required_renewers' => 1,
+                'permission_id' => 200,
                 'deleted' => NULL,
                 'created' => DateTime::now(),
                 'created_by' => '1'
@@ -47,6 +48,7 @@ class DevLoadActivitiesSeed extends AbstractSeed
                 'maximum_age' => 200,
                 'num_required_authorizors' => 1,
                 'num_required_renewers' => 1,
+                'permission_id' => 201,
                 'deleted' => NULL,
                 'created' => DateTime::now(),
                 'created_by' => '1'
@@ -61,6 +63,7 @@ class DevLoadActivitiesSeed extends AbstractSeed
                 'maximum_age' => 200,
                 'num_required_authorizors' => 1,
                 'num_required_renewers' => 1,
+                'permission_id' => 202,
                 'deleted' => NULL,
                 'created' => DateTime::now(),
                 'created_by' => '1'
@@ -75,6 +78,7 @@ class DevLoadActivitiesSeed extends AbstractSeed
                 'maximum_age' => 200,
                 'num_required_authorizors' => 1,
                 'num_required_renewers' => 1,
+                'permission_id' => 203,
                 'deleted' => NULL,
                 'created' => DateTime::now(),
                 'created_by' => '1'
@@ -89,6 +93,7 @@ class DevLoadActivitiesSeed extends AbstractSeed
                 'maximum_age' => 12,
                 'num_required_authorizors' => 1,
                 'num_required_renewers' => 1,
+                'permission_id' => 204,
                 'deleted' => NULL,
                 'created' => DateTime::now(),
                 'created_by' => '1'
@@ -103,6 +108,7 @@ class DevLoadActivitiesSeed extends AbstractSeed
                 'maximum_age' => 14,
                 'num_required_authorizors' => 1,
                 'num_required_renewers' => 1,
+                'permission_id' => 205,
                 'deleted' => NULL,
                 'created' => DateTime::now(),
                 'created_by' => '1'
@@ -117,6 +123,7 @@ class DevLoadActivitiesSeed extends AbstractSeed
                 'maximum_age' => 18,
                 'num_required_authorizors' => 1,
                 'num_required_renewers' => 1,
+                'permission_id' => 206,
                 'deleted' => NULL,
                 'created' => DateTime::now(),
                 'created_by' => '1'
@@ -131,6 +138,7 @@ class DevLoadActivitiesSeed extends AbstractSeed
                 'maximum_age' => 200,
                 'num_required_authorizors' => 1,
                 'num_required_renewers' => 1,
+                'permission_id' => 207,
                 'deleted' => NULL,
                 'created' => DateTime::now(),
                 'created_by' => '1'
@@ -145,6 +153,7 @@ class DevLoadActivitiesSeed extends AbstractSeed
                 'maximum_age' => 18,
                 'num_required_authorizors' => 1,
                 'num_required_renewers' => 1,
+                'permission_id' => 208,
                 'deleted' => NULL,
                 'created' => DateTime::now(),
                 'created_by' => '1'
@@ -159,6 +168,7 @@ class DevLoadActivitiesSeed extends AbstractSeed
                 'maximum_age' => 200,
                 'num_required_authorizors' => 2,
                 'num_required_renewers' => 1,
+                'permission_id' => 209,
                 'deleted' => NULL,
                 'created' => DateTime::now(),
                 'created_by' => '1'

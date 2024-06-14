@@ -216,7 +216,6 @@ class MembersController extends AppController
             throw new \Cake\Http\Exception\NotFoundException();
         }
         $this->Authorization->authorize($member);
-        $this->Members->save($member);
         if (!$this->Authorization->can($member, "viewPrivateNotes")) {
             // remove private notes
             $member->notes = array_filter($member->notes, function ($note) {
@@ -346,23 +345,23 @@ class MembersController extends AppController
         // sort by name
         sort($authTypes);
         $message_variables = [
-            "secretary_email" => StaticHelpers::appSetting(
+            "secretary_email" => StaticHelpers::getAppSetting(
                 "Activity.SecretaryEmail",
                 "please_set",
             ),
-            "kingdom" => StaticHelpers::appSetting(
+            "kingdom" => StaticHelpers::getAppSetting(
                 "KMP.KingdomName",
                 "please_set",
             ),
-            "secratary" => StaticHelpers::appSetting(
+            "secratary" => StaticHelpers::getAppSetting(
                 "Activity.SecretaryName",
                 "please_set",
             ),
-            "marshal_auth_graphic" => StaticHelpers::appSetting(
+            "marshal_auth_graphic" => StaticHelpers::getAppSetting(
                 "Member.ViewCard.Graphic",
                 "auth_card_back.gif",
             ),
-            "marshal_auth_header_color" => StaticHelpers::appSetting(
+            "marshal_auth_header_color" => StaticHelpers::getAppSetting(
                 "Member.ViewCard.HeaderColor",
                 "gold",
             ),
@@ -413,23 +412,23 @@ class MembersController extends AppController
         // sort by name
         sort($authTypes);
         $message_variables = [
-            "secretary_email" => StaticHelpers::appSetting(
+            "secretary_email" => StaticHelpers::getAppSetting(
                 "Activity.SecretaryEmail",
                 "please_set",
             ),
-            "kingdom" => StaticHelpers::appSetting(
+            "kingdom" => StaticHelpers::getAppSetting(
                 "KMP.KingdomName",
                 "please_set",
             ),
-            "secratary" => StaticHelpers::appSetting(
+            "secratary" => StaticHelpers::getAppSetting(
                 "Activity.SecretaryName",
                 "please_set",
             ),
-            "marshal_auth_graphic" => StaticHelpers::appSetting(
+            "marshal_auth_graphic" => StaticHelpers::getAppSetting(
                 "Member.ViewCard.Graphic",
                 "auth_card_back.gif",
             ),
-            "marshal_auth_header_color" => StaticHelpers::appSetting(
+            "marshal_auth_header_color" => StaticHelpers::getAppSetting(
                 "Member.ViewCard.HeaderColor",
                 "gold",
             ),
@@ -459,6 +458,7 @@ class MembersController extends AppController
 
                 return;
             }
+            $member->mobile_card_token = StaticHelpers::generateRandomString(16);
             if ($this->Members->save($member)) {
                 $this->Flash->success(__("The Member has been saved."));
 
@@ -650,7 +650,7 @@ class MembersController extends AppController
         $this->Authorization->authorize($member);
         if ($this->request->is(["patch", "post", "put"])) {
             $member->additional_info = [];
-            $aiFormConfig = StaticHelpers::appSettingsStartWith("Member.AdditionalInfo.");
+            $aiFormConfig = StaticHelpers::getAppSettingsStartWith("Member.AdditionalInfo.");
             $aiForm = [];
             if (empty($aiFormConfig)) {
                 $this->Flash->error(
@@ -776,7 +776,7 @@ class MembersController extends AppController
                 $this->Flash->error(
                     __(
                         "Your email was not found, please contact the Marshalate Secretary at " .
-                            StaticHelpers::appSetting(
+                            StaticHelpers::getAppSetting(
                                 "Activity.SecretaryEmail",
                                 ""
                             ),
@@ -784,7 +784,7 @@ class MembersController extends AppController
                 );
             }
         }
-        $headerImage = StaticHelpers::appSetting(
+        $headerImage = StaticHelpers::getAppSetting(
             "KMP.Login.Graphic",
             "populace_badge.png",
         );
@@ -817,7 +817,7 @@ class MembersController extends AppController
 
                 return $this->redirect(["action" => "login"]);
             }
-            $headerImage = StaticHelpers::appSetting(
+            $headerImage = StaticHelpers::getAppSetting(
                 "KMP.Login.Graphic",
                 "populace_badge.png",
             );
@@ -872,7 +872,7 @@ class MembersController extends AppController
                         );
                         break;
                     case "Account Not Verified":
-                        $contactAddress = StaticHelpers::appSetting(
+                        $contactAddress = StaticHelpers::getAppSetting(
                             "Members.AccountVerificationContactEmail",
                             "please_set",
                         );
@@ -881,7 +881,7 @@ class MembersController extends AppController
                         );
                         break;
                     case "Account Disabled":
-                        $contactAddress = StaticHelpers::appSetting(
+                        $contactAddress = StaticHelpers::getAppSetting(
                             "Members.AccountDisabledContactEmail",
                             "please_set",
                         );
@@ -899,11 +899,11 @@ class MembersController extends AppController
                 $this->Flash->error("Your email or password is incorrect.");
             }
         }
-        $headerImage = StaticHelpers::appSetting(
+        $headerImage = StaticHelpers::getAppSetting(
             "KMP.Login.Graphic",
             "populace_badge.png",
         );
-        $allowRegistration = StaticHelpers::appSetting(
+        $allowRegistration = StaticHelpers::getAppSetting(
             "KMP.EnablePublicRegistration",
             "yes",
         );
@@ -923,7 +923,7 @@ class MembersController extends AppController
 
     public function register()
     {
-        $allowRegistration = StaticHelpers::appSetting(
+        $allowRegistration = StaticHelpers::getAppSetting(
             "KMP.EnablePublicRegistration",
             "yes",
         );
@@ -979,6 +979,7 @@ class MembersController extends AppController
             } else {
                 $member->status = Member::STATUS_UNVERIFIED_MINOR;
             }
+            $member->mobile_card_token = StaticHelpers::generateRandomString(16);
             if ($this->Members->save($member)) {
                 if ($member->age > 17) {
                     $this->Flash->success(__("Your registration has been submitted. Please check your email for a link to set up your password."));
@@ -995,7 +996,7 @@ class MembersController extends AppController
                 __("The Member could not be saved. Please, try again."),
             );
         }
-        $headerImage = StaticHelpers::appSetting(
+        $headerImage = StaticHelpers::getAppSetting(
             "KMP.Login.Graphic",
             "populace_badge.png",
         );

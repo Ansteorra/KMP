@@ -32,11 +32,6 @@ class PermissionsLoader
 
         $query = $permissionsTable
             ->find()
-            ->contain([
-                "Activities" => function (SelectQuery $q) {
-                    return $q->select(["Activities.name"]);
-                },
-            ])
             ->innerJoinWith("Roles.Members")
             ->where(["Members.id" => $memberId])
             ->where([

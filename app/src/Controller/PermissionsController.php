@@ -24,7 +24,7 @@ class PermissionsController extends AppController
     public function index()
     {
         $this->Authorization->authorizeAction();
-        $query = $this->Permissions->find()->contain(["Activities"]);
+        $query = $this->Permissions->find();
         $query = $this->Authorization->applyScope($query);
         $permissions = $this->paginate($query, [
             'order' => [
@@ -46,7 +46,7 @@ class PermissionsController extends AppController
     {
         $permission = $this->Permissions->get(
             $id,
-            contain: ["Activities", "Roles"],
+            contain: ["Roles"],
         );
         if (!$permission) {
             throw new \Cake\Http\Exception\NotFoundException();
@@ -66,10 +66,8 @@ class PermissionsController extends AppController
         } else {
             $roles = $this->Permissions->Roles->find("list")->all();
         }
-        $activities = $this->Permissions->Activities
-            ->find("list", limit: 200)
-            ->all();
-        $this->set(compact("permission", "roles", "activities"));
+        $pluginViewCells = $this->pluginViewCells;
+        $this->set(compact("permission", "roles", "pluginViewCells"));
     }
 
     /**
@@ -99,10 +97,7 @@ class PermissionsController extends AppController
                 __("The permission could not be saved. Please, try again."),
             );
         }
-        $activities = $this->Permissions->Activities
-            ->find("list", limit: 200)
-            ->all();
-        $this->set(compact("permission", "activities"));
+        $this->set(compact("permission"));
     }
 
     /**

@@ -80,47 +80,7 @@ class Init extends AbstractMigration
             ->addIndex(["deleted"])
             ->create();
 
-        $this->table("activity_groups")
-            ->addColumn("id", "integer", [
-                "autoIncrement" => true,
-                "default" => null,
-                "limit" => 11,
-                "null" => false,
-            ])
-            ->addColumn("name", "string", [
-                "default" => null,
-                "limit" => 255,
-                "null" => false,
-            ])
-            ->addColumn("modified", "datetime", [
-                "default" => null,
-                "limit" => null,
-                "null" => true,
-            ])
-            ->addColumn("created", "datetime", [
-                "default" => null,
-                "limit" => null,
-                "null" => false,
-            ])
-            ->addColumn("created_by", "integer", [
-                "default" => null,
-                "limit" => null,
-                "null" => true,
-            ])
-            ->addColumn("modified_by", "integer", [
-                "default" => null,
-                "limit" => null,
-                "null" => true,
-            ])
-            ->addColumn("deleted", "datetime", [
-                "default" => null,
-                "limit" => null,
-                "null" => true,
-            ])
-            ->addPrimaryKey(["id"])
-            ->addIndex(["name"], ["unique" => true])
-            ->addIndex(["deleted"])
-            ->create();
+
 
         $this->table("roles")
             ->addColumn("id", "integer", [
@@ -164,84 +124,6 @@ class Init extends AbstractMigration
             ->addIndex(["deleted"])
             ->create();
 
-        $this->table("activities")
-            ->addColumn("id", "integer", [
-                "autoIncrement" => true,
-                "default" => null,
-                "limit" => 11,
-                "null" => false,
-            ])
-            ->addColumn("name", "string", [
-                "default" => null,
-                "limit" => 255,
-                "null" => false,
-            ])
-            ->addColumn("term_length", "integer", [
-                "default" => null,
-                "limit" => 11,
-                "null" => false,
-            ])
-            ->addColumn("activity_group_id", "integer", [
-                "default" => null,
-                "limit" => 11,
-                "null" => false,
-            ])
-            ->addColumn("grants_role_id", "integer", [
-                "default" => null,
-                "limit" => 11,
-                "null" => true,
-            ])
-            ->addColumn("minimum_age", "integer", [
-                "default" => null,
-                "limit" => 2,
-                "null" => true,
-            ])
-            ->addColumn("maximum_age", "integer", [
-                "default" => null,
-                "limit" => 2,
-                "null" => true,
-            ])
-            ->addColumn("num_required_authorizors", "integer", [
-                "default" => 1,
-                "limit" => 2,
-                "null" => false,
-            ])
-            ->addColumn("num_required_renewers", "integer", [
-                "default" => 1,
-                "limit" => 2,
-                "null" => false,
-            ])
-            ->addColumn("modified", "datetime", [
-                "default" => null,
-                "limit" => null,
-                "null" => true,
-            ])
-            ->addColumn("created", "datetime", [
-                "default" => null,
-                "limit" => null,
-                "null" => false,
-            ])
-            ->addColumn("created_by", "integer", [
-                "default" => null,
-                "limit" => null,
-                "null" => true,
-            ])
-            ->addColumn("modified_by", "integer", [
-                "default" => null,
-                "limit" => null,
-                "null" => true,
-            ])
-            ->addColumn("deleted", "datetime", [
-                "default" => null,
-                "limit" => null,
-                "null" => true,
-            ])
-            ->addPrimaryKey(["id"])
-            ->addIndex(["name"], ["unique" => true])
-            ->addIndex(["activity_group_id"])
-            ->addIndex(["deleted"])
-            ->create();
-
         $this->table("permissions")
             ->addColumn("id", "integer", [
                 "autoIncrement" => true,
@@ -253,11 +135,6 @@ class Init extends AbstractMigration
                 "default" => null,
                 "limit" => 255,
                 "null" => false,
-            ])
-            ->addColumn("activity_id", "integer", [
-                "default" => null,
-                "limit" => 11,
-                "null" => true,
             ])
             ->addColumn("require_active_membership", "boolean", [
                 "default" => false,
@@ -316,7 +193,6 @@ class Init extends AbstractMigration
             ])
             ->addPrimaryKey(["id"])
             ->addIndex(["name"], ["unique" => true])
-            ->addIndex(["activity_id"])
             ->addIndex(["deleted"])
             ->create();
 
@@ -616,126 +492,13 @@ class Init extends AbstractMigration
                 "null" => true,
             ])
             ->addPrimaryKey(["id"])
-            ->addIndex(["branch_id"])
             ->addIndex(["email_address"], ["unique" => true])
             ->addIndex(["deleted"])
             ->create();
 
-        $this->table("authorizations")
-            ->addColumn("id", "integer", [
-                "autoIncrement" => true,
-                "default" => null,
-                "limit" => 11,
-                "null" => false,
-            ])
-            ->addColumn("member_id", "integer", [
-                "default" => null,
-                "limit" => 11,
-                "null" => false,
-            ])
-            ->addColumn("activity_id", "integer", [
-                "default" => null,
-                "limit" => 11,
-                "null" => false,
-            ])
-            ->addColumn("granted_member_role_id", "integer", [
-                "default" => null,
-                "limit" => 11,
-                "null" => true,
-            ])
-            ->addColumn("expires_on", "datetime", [
-                "default" => null,
-                "limit" => null,
-                "null" => true,
-            ])
-            ->addColumn("start_on", "datetime", [
-                "default" => null,
-                "limit" => null,
-                "null" => true,
-            ])
-            ->addColumn("created", "timestamp", [
-                "default" => "CURRENT_TIMESTAMP",
-                "limit" => null,
-                "null" => false,
-            ])
-            ->addColumn("approval_count", "integer", [
-                "default" => 0,
-                "limit" => 11,
-                "null" => false,
-            ])
-            ->addColumn("status", "string", [
-                "default" => "new",
-                "limit" => 20,
-                "null" => false,
-            ])
-            ->addColumn("revoked_reason", "string", [
-                "default" => "",
-                "limit" => 255,
-                "null" => true,
-            ])
-            ->addColumn("revoker_id", "integer", [
-                "default" => null,
-                "limit" => 11,
-                "null" => true,
-            ])
-            ->addColumn("is_renewal", "boolean", [
-                "default" => false,
-                "limit" => null,
-                "null" => false,
-            ])
-            ->addPrimaryKey(["id"])
-            ->addIndex(["activity_id"])
-            ->addIndex(["member_id"])
-            ->addIndex(["start_on"])
-            ->addIndex(["expires_on"])
-            ->create();
 
-        $this->table("authorization_approvals")
-            ->addColumn("id", "integer", [
-                "autoIncrement" => true,
-                "default" => null,
-                "limit" => 11,
-                "null" => false,
-            ])
-            ->addColumn("authorization_id", "integer", [
-                "default" => null,
-                "limit" => 11,
-                "null" => false,
-            ])
-            ->addColumn("approver_id", "integer", [
-                "default" => null,
-                "limit" => 11,
-                "null" => false,
-            ])
-            ->addColumn("authorization_token", "string", [
-                "default" => null,
-                "limit" => 255,
-                "null" => false,
-            ])
-            ->addColumn("requested_on", "datetime", [
-                "default" => null,
-                "limit" => null,
-                "null" => false,
-            ])
-            ->addColumn("responded_on", "datetime", [
-                "default" => null,
-                "limit" => null,
-                "null" => true,
-            ])
-            ->addColumn("approved", "boolean", [
-                "default" => false,
-                "limit" => null,
-                "null" => false,
-            ])
-            ->addColumn("approver_notes", "string", [
-                "default" => null,
-                "limit" => 255,
-                "null" => true,
-            ])
-            ->addPrimaryKey(["id"])
-            ->addIndex(["approver_id"])
-            ->addIndex(["authorization_id"])
-            ->create();
+
+
 
         $this->table("member_roles")
             ->addColumn("id", "integer", [
@@ -815,39 +578,6 @@ class Init extends AbstractMigration
             ->create();
         #endregion
         #region Relationships
-
-        $this->table("activities")
-            ->addForeignKey(
-                "activity_group_id",
-                "activity_groups",
-                "id",
-                [
-                    "update" => "NO_ACTION",
-                    "delete" => "NO_ACTION",
-                ],
-            )
-            ->update();
-
-        $this->table("authorizations")
-            ->addForeignKey(
-                "activity_id",
-                "activities",
-                "id",
-                [
-                    "update" => "NO_ACTION",
-                    "delete" => "CASCADE",
-                ],
-            )
-            ->addForeignKey("member_id", "members", "id", [
-                "update" => "NO_ACTION",
-                "delete" => "CASCADE",
-            ])
-            ->addForeignKey("granted_member_role_id", "member_roles", "id", [
-                "update" => "NO_ACTION",
-                "delete" => "CASCADE",
-            ])
-            ->update();
-
         $this->table("members")
             ->addForeignKey("branch_id", "branches", "id", [
                 "update" => "NO_ACTION",
@@ -870,29 +600,6 @@ class Init extends AbstractMigration
             ])
             ->update();
 
-        $this->table("authorization_approvals")
-            ->addForeignKey("authorization_id", "authorizations", "id", [
-                "update" => "NO_ACTION",
-                "delete" => "CASCADE",
-            ])
-            ->addForeignKey("approver_id", "members", "id", [
-                "update" => "NO_ACTION",
-                "delete" => "CASCADE",
-            ])
-            ->update();
-
-        $this->table("permissions")
-            ->addForeignKey(
-                "activity_id",
-                "activities",
-                "id",
-                [
-                    "update" => "NO_ACTION",
-                    "delete" => "CASCADE",
-                ],
-            )
-            ->update();
-
         $this->table("roles_permissions")
             ->addForeignKey("role_id", "roles", "id", [
                 "update" => "NO_ACTION",
@@ -913,15 +620,6 @@ class Init extends AbstractMigration
 
     public function down()
     {
-        $this->table("activities")
-            ->dropForeignKey("activity_group_id")
-            ->save();
-
-        $this->table("authorizations")
-            ->dropForeignKey("activity_id")
-            ->dropForeignKey("granted_member_role_id")
-            ->dropForeignKey("member_id")
-            ->save();
 
         $this->table("members")->dropForeignKey("branch_id")->save();
 
@@ -930,26 +628,14 @@ class Init extends AbstractMigration
             ->dropForeignKey("role_id")
             ->save();
 
-        $this->table("authorization_approvals")
-            ->dropForeignKey("authorization_id")
-            ->dropForeignKey("approver_id")
-            ->save();
         $this->table("roles_permissions")->dropForeignKey("role_id")->save();
-
-        $this->table("permissions")
-            ->dropForeignKey("activity_id")
-            ->save();
 
         $this->table("notes")->drop()->save();
         $this->table("roles_permissions")->drop()->save();
         $this->table("permissions")->drop()->save();
         $this->table("member_roles")->drop()->save();
-        $this->table("authorizations")->drop()->save();
-        $this->table("authorization_approvals")->drop()->save();
         $this->table("members")->drop()->save();
-        $this->table("activities")->drop()->save();
         $this->table("branches")->drop()->save();
-        $this->table("activity_groups")->drop()->save();
         $this->table("roles")->drop()->save();
         $this->table("app_settings")->drop()->save();
     }

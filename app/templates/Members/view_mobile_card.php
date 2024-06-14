@@ -180,6 +180,9 @@ $authCount = 0;
         </span>
     </span>
 </div>
+<div class="row text-center">
+    <?= $this->element('copyrightFooter', []) ?>
+</div>
 <?php
 $this->append(
     "script",

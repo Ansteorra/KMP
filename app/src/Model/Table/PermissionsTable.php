@@ -45,9 +45,6 @@ class PermissionsTable extends Table
         $this->setDisplayField("name");
         $this->setPrimaryKey("id");
 
-        $this->belongsTo("Activities", [
-            "foreignKey" => "activity_id",
-        ]);
         $this->belongsToMany("Roles", [
             "foreignKey" => "permission_id",
             "targetForeignKey" => "role_id",
@@ -71,10 +68,6 @@ class PermissionsTable extends Table
             ->maxLength("name", 255)
             ->requirePresence("name", "create")
             ->notEmptyString("name");
-
-        $validator
-            ->integer("activity_id")
-            ->allowEmptyString("activity_id");
 
         $validator
             ->boolean("require_active_membership")

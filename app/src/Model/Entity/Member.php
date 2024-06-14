@@ -24,6 +24,8 @@ use JeremyHarris\LazyLoad\ORM\LazyLoadEntityTrait;
 
 use App\KMP\PermissionsLoader;
 
+use Activities\Model\Entity\MemberAuthorizationsTrait;
+
 /**
  * Member Entity
  *
@@ -65,6 +67,7 @@ class Member extends Entity implements
     AuthenticationIdentity
 {
     use LazyLoadEntityTrait;
+    use MemberAuthorizationsTrait;
 
     protected ?array $_permissions = null;
     protected ?DateTime $_last_permissions_update = null;
@@ -148,7 +151,13 @@ class Member extends Entity implements
     {
         try {
             // try this path to see if the url is to a controller that maps to a table
-            $table = TableRegistry::getTableLocator()->get($url["controller"]);
+            $className = "";
+            if (isset($url["model"])) {
+                $className = $url["model"];
+            } else {
+                $className = $url["controller"];
+            }
+            $table = TableRegistry::getTableLocator()->get($className);
             if (isset($url[0])) {
                 $entity = $table->get($url[0]);
             } else {
@@ -324,22 +333,6 @@ class Member extends Entity implements
                     break;
             }
         }
-    }
-
-    /**
-     * Get the number of pending approvals for the user
-     */
-    public function getPendingApprovalsCount(): int
-    {
-        $count = 0;
-        $approvalsTable = TableRegistry::getTableLocator()->get("AuthorizationApprovals");
-        $query = $approvalsTable->find()
-            ->where([
-                "approver_id" => $this->id,
-                "responded_on is" => null,
-            ]);
-        $count = $query->count();
-        return $count;
     }
 
     protected function _setPassword($value)

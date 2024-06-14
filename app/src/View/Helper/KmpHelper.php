@@ -95,16 +95,16 @@ class KmpHelper extends Helper
      *
      * @param string $key
      * @param string $fallback
-     * @return string
+     * @return mixed
      */
-    public function appSetting(string $key, string $fallback): string
+    public function getAppSetting(string $key, $fallback)
     {
-        return StaticHelpers::appSetting($key, $fallback);
+        return StaticHelpers::getAppSetting($key, $fallback);
     }
 
-    public function appSettingsStartWith(string $key): array
+    public function getAppSettingsStartWith(string $key): array
     {
-        return StaticHelpers::appSettingsStartWith($key);
+        return StaticHelpers::getAppSettingsStartWith($key);
     }
 
     protected function appControllerNav(
@@ -125,7 +125,9 @@ class KmpHelper extends Helper
                 $useActive = true;
             }
         }
-
+        if (!isset($url["plugin"])) {
+            $url["plugin"] = false;
+        }
         if ($user->canAccessUrl($url)) {
             $return = "";
             $activeclass = $useActive ? "active" : "";
@@ -150,6 +152,9 @@ class KmpHelper extends Helper
     {
         $return = "";
         $suburl = $sublink["url"];
+        if (!isset($suburl["plugin"])) {
+            $suburl["plugin"] = false;
+        }
         if ($user->canAccessUrl($suburl)) {
             if (array_key_exists("linkOptions", $sublink)) {
                 $linkOptions = $sublink["linkOptions"];

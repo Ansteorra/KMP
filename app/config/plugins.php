@@ -18,4 +18,7 @@ return [
     'Authorization' => [],
     'Muffin/Trash' => [],
     'ADmad/Glide' => [],
+    'GitHubIssueSubmitter' => [],
+    'Activities' => ["migrationOrder" => 1],
+    'Officers' => ["migrationOrder" => 2],
 ];

@@ -19,7 +19,7 @@ class KMPMailer extends Mailer
     public function resetPassword($member)
     {
 
-        $sendFrom = StaticHelpers::appSetting("Email.SystemEmailFromAddress", "donotreply@webminister.ansteorra.org");
+        $sendFrom = StaticHelpers::getAppSetting("Email.SystemEmailFromAddress", "donotreply@webminister.ansteorra.org");
         $url = Router::url([
             "controller" => "Members",
             "action" => "resetPassword",
@@ -32,14 +32,14 @@ class KMPMailer extends Mailer
             ->setViewVars([
                 "email" => $member->email_address,
                 "passwordResetUrl" => $url,
-                "siteAdminSignature" => StaticHelpers::appSetting("Email.SiteAdminSignature", "Webminister"),
+                "siteAdminSignature" => StaticHelpers::getAppSetting("Email.SiteAdminSignature", "Webminister"),
             ]);
     }
 
     public function mobileCard($member)
     {
 
-        $sendFrom = StaticHelpers::appSetting("Email.SystemEmailFromAddress", "donotreply@webminister.ansteorra.org");
+        $sendFrom = StaticHelpers::getAppSetting("Email.SystemEmailFromAddress", "donotreply@webminister.ansteorra.org");
         $url = Router::url([
             "controller" => "Members",
             "action" => "ViewMobileCard",
@@ -52,20 +52,20 @@ class KMPMailer extends Mailer
             ->setViewVars([
                 "email" => $member->email_address,
                 "mobileCardUrl" => $url,
-                "siteAdminSignature" => StaticHelpers::appSetting("Email.SiteAdminSignature", "Webminister"),
+                "siteAdminSignature" => StaticHelpers::getAppSetting("Email.SiteAdminSignature", "Webminister"),
             ]);
     }
 
     public function newRegistration($member)
     {
-        $sendFrom = StaticHelpers::appSetting("Email.SystemEmailFromAddress", "donotreply@webminister.ansteorra.org");
+        $sendFrom = StaticHelpers::getAppSetting("Email.SystemEmailFromAddress", "donotreply@webminister.ansteorra.org");
         $url = Router::url([
             "controller" => "Members",
             "action" => "resetPassword",
             "_full" => true,
             $member->password_token,
         ]);
-        $portalName = StaticHelpers::appSetting("KMP.LongSiteTitle", "Kingdom Management Portal");
+        $portalName = StaticHelpers::getAppSetting("KMP.LongSiteTitle", "Kingdom Management Portal");
         $this->setTo($member->email_address)
             ->setFrom($sendFrom)
             ->setSubject("Welcome " . $member->sca_name . " to " . $portalName)
@@ -73,14 +73,14 @@ class KMPMailer extends Mailer
                 "email" => $member->email_address,
                 "passwordResetUrl" => $url,
                 "memberScaName" => $member->sca_name,
-                "siteAdminSignature" => StaticHelpers::appSetting("Email.SiteAdminSignature", "Webminister"),
+                "siteAdminSignature" => StaticHelpers::getAppSetting("Email.SiteAdminSignature", "Webminister"),
             ]);
     }
 
     public function notifySecretaryOfNewMember($member)
     {
-        $sendFrom = StaticHelpers::appSetting("Email.SystemEmailFromAddress", "donotreply@webminister.ansteorra.org");
-        $to = StaticHelpers::appSetting("Members.NewMemberSecretaryEmail", "webminister@marshal.ansteorra.org");
+        $sendFrom = StaticHelpers::getAppSetting("Email.SystemEmailFromAddress", "donotreply@webminister.ansteorra.org");
+        $to = StaticHelpers::getAppSetting("Members.NewMemberSecretaryEmail", "webminister@marshal.ansteorra.org");
         $url = Router::url([
             "controller" => "Members",
             "action" => "view",
@@ -94,14 +94,14 @@ class KMPMailer extends Mailer
                 "memberViewUrl" => $url,
                 "memberScaName" => $member->sca_name,
                 "memberCardPresent" => strlen($member->membership_card_path) > 0,
-                "siteAdminSignature" => StaticHelpers::appSetting("Email.SiteAdminSignature", "Webminister"),
+                "siteAdminSignature" => StaticHelpers::getAppSetting("Email.SiteAdminSignature", "Webminister"),
             ]);
     }
 
     public function notifySecretaryOfNewMinorMember($member)
     {
-        $sendFrom = StaticHelpers::appSetting("Email.SystemEmailFromAddress", "donotreply@webminister.ansteorra.org");
-        $to = StaticHelpers::appSetting("Members.NewMinorSecretaryEmail", "webminister@marshal.ansteorra.org");
+        $sendFrom = StaticHelpers::getAppSetting("Email.SystemEmailFromAddress", "donotreply@webminister.ansteorra.org");
+        $to = StaticHelpers::getAppSetting("Members.NewMinorSecretaryEmail", "webminister@marshal.ansteorra.org");
         $url = Router::url([
             "controller" => "Members",
             "action" => "view",
@@ -115,7 +115,7 @@ class KMPMailer extends Mailer
                 "memberViewUrl" => $url,
                 "memberScaName" => $member->sca_name,
                 "memberCardPresent" => strlen($member->membership_card_path) > 0,
-                "siteAdminSignature" => StaticHelpers::appSetting("Email.SiteAdminSignature", "Webminister"),
+                "siteAdminSignature" => StaticHelpers::getAppSetting("Email.SiteAdminSignature", "Webminister"),
             ]);
     }
 
@@ -126,7 +126,7 @@ class KMPMailer extends Mailer
         string $approverScaName,
         string $activityName,
     ) {
-        $sendFrom = StaticHelpers::appSetting("Email.SystemEmailFromAddress", "donotreply@webminister.ansteorra.org");
+        $sendFrom = StaticHelpers::getAppSetting("Email.SystemEmailFromAddress", "donotreply@webminister.ansteorra.org");
         $url = Router::url([
             "controller" => "AuthorizationApprovals",
             "action" => "myQueue",
@@ -141,7 +141,7 @@ class KMPMailer extends Mailer
                 "memberScaName" => $memberScaName,
                 "approverScaName" => $approverScaName,
                 "activityName" => $activityName,
-                "siteAdminSignature" => StaticHelpers::appSetting("Email.SiteAdminSignature", "Webminister"),
+                "siteAdminSignature" => StaticHelpers::getAppSetting("Email.SiteAdminSignature", "Webminister"),
             ]);
     }
 
@@ -154,7 +154,7 @@ class KMPMailer extends Mailer
         string $nextApproverScaName,
         string $activityName,
     ) {
-        $sendFrom = StaticHelpers::appSetting("Email.SystemEmailFromAddress", "donotreply@webminister.ansteorra.org");
+        $sendFrom = StaticHelpers::getAppSetting("Email.SystemEmailFromAddress", "donotreply@webminister.ansteorra.org");
         $url = Router::url([
             "controller" => "Members",
             "action" => "viewCard",
@@ -172,7 +172,7 @@ class KMPMailer extends Mailer
                 "activityName" => $activityName,
                 "memberCardUrl" => $url,
                 "nextApproverScaName" => $nextApproverScaName,
-                "siteAdminSignature" => StaticHelpers::appSetting("Email.SiteAdminSignature", "Webminister"),
+                "siteAdminSignature" => StaticHelpers::getAppSetting("Email.SiteAdminSignature", "Webminister"),
             ]);
     }
 }

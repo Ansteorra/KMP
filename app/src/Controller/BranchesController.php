@@ -19,7 +19,7 @@ class BranchesController extends AppController
     {
         parent::initialize();
         $this->Authorization->authorizeModel("index", "add");
-        $setting = StaticHelpers::appSetting("KMP.BranchInitRun", "");
+        $setting = StaticHelpers::getAppSetting("KMP.BranchInitRun", "");
         if (!$setting == "recovered") {
             $branches = $this->Branches;
             $branches->recover();

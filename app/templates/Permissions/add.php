@@ -18,10 +18,6 @@ $user = $this->request->getAttribute("identity");
         <legend><?= __("Add Permission") ?></legend>
         <?php
         echo $this->Form->control("name");
-        echo $this->Form->control("activity_id", [
-            "options" => $activities,
-            "empty" => true,
-        ]);
         echo $this->Form->control("require_active_membership", [
             "switch" => true,
             "label" => "Require Membership",

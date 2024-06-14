@@ -20,6 +20,7 @@ namespace App;
 
 // Authentication usings
 
+use App\Event\CallForNavHandler;
 use App\Model\Entity\Activity;
 use Authentication\Identifier\AbstractIdentifier;
 use Authentication\Middleware\AuthenticationMiddleware;
@@ -30,8 +31,8 @@ use Authentication\AuthenticationServiceProviderInterface;
 use App\Policy\ControllerResolver;
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 use App\Services\ActiveWindowManager\DefaultActiveWindowManager;
-use App\Services\AuthorizationManager\AuthorizationManagerInterface;
-use App\Services\AuthorizationManager\DefaultAuthorizationManager;
+use Activities\Services\AuthorizationManager\AuthorizationManagerInterface;
+use Activities\Services\AuthorizationManager\DefaultAuthorizationManager;
 use App\Services\OfficerManager\OfficerManagerInterface;
 use App\Services\OfficerManager\DefaultOfficerManager;
 use Authorization\Middleware\AuthorizationMiddleware;
@@ -55,6 +56,7 @@ use Cake\Routing\Router;
 use Authorization\Exception\MissingIdentityException;
 use Psr\Http\Message\ServerRequestInterface;
 use Authorization\Exception\ForbiddenException;
+use Cake\Event\EventManager;
 
 /**
  * Application setup class.
@@ -69,7 +71,6 @@ class Application extends BaseApplication implements
     AuthorizationServiceProviderInterface
 {
     //
-    public $applicationVariables = ["hello" => "world"];
 
     /**
      * Load all the application configuration and bootstrap logic.
@@ -88,6 +89,8 @@ class Application extends BaseApplication implements
                 (new TableLocator())->allowFallbackClass(false),
             );
         }
+        $handler = new CallForNavHandler();
+        EventManager::instance()->on($handler);
     }
 
     /**
@@ -158,10 +161,6 @@ class Application extends BaseApplication implements
      */
     public function services(ContainerInterface $container): void
     {
-        $container->add(
-            AuthorizationManagerInterface::class,
-            DefaultAuthorizationManager::class,
-        );
         $container->add(
             ActiveWindowManagerInterface::class,
             DefaultActiveWindowManager::class,

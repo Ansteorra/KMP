@@ -191,13 +191,13 @@ class StaticHelpers
      *
      * @param string $key
      * @param string $fallback
-     * @return string
+     * @return mixed
      */
-    static function appSetting(string $key, string $fallback): string
+    static function getAppSetting(string $key, $fallback)
     {
         //check config first for the key
         $value = Configure::read($key);
-        if ($value) {
+        if ($value !== null) {
             return $value;
         }
         //check the app settings table
@@ -205,7 +205,7 @@ class StaticHelpers
         $value = $AppSettings->getAppSetting($key, $fallback);
         return $value;
     }
-    static function appSettingsStartWith(string $key): array
+    static function getAppSettingsStartWith(string $key): array
     {
         $AppSettings = TableRegistry::getTableLocator()->get("AppSettings");
         $allAppSettings = $AppSettings->getAllAppSettings();

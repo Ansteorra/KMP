@@ -20,6 +20,10 @@ namespace App\Controller;
 
 use App\Model\Table\AppSettingsTable;
 use Cake\Controller\Controller;
+use Cake\Event\EventInterface;
+use Cake\Event\Event;
+use Cake\Log\Log;
+use Cake\Event\EventManager;
 
 /**
  * Application Controller
@@ -31,7 +35,25 @@ use Cake\Controller\Controller;
  */
 class AppController extends Controller
 {
-    protected AppSettingsTable $appSettings;
+    const VIEW_CALL_EVENT = 'KMP.plugins.callForViewCells';
+    protected array $pluginViewCells = [];
+    //use Cake\Event\EventInterface;
+    public function beforeFilter(EventInterface $event)
+    {
+        parent::beforeFilter($event);
+        //get url params
+        $params = [
+            "controller" => $this->request->getParam('controller'),
+            "action" => $this->request->getParam('action'),
+            "plugin" => $this->request->getParam('plugin'),
+            $this->request->getParam('pass')
+        ];
+        $event = new Event(static::VIEW_CALL_EVENT, $this, ['url' => $params]);
+        EventManager::instance()->dispatch($event);
+        if ($event->getResult()) {
+            $this->pluginViewCells = $this->organizeViewCells($event->getResult());
+        }
+    }
 
     /**
      * Initialization hook method.
@@ -49,7 +71,6 @@ class AppController extends Controller
         $this->loadComponent("Authentication.Authentication");
         $this->loadComponent("Authorization.Authorization");
         $this->loadComponent("Flash");
-        $this->appSettings = $this->getTableLocator()->get("AppSettings");
 
         // $this->appSettings = ServiceProvider::getContainer()->get(AppSettingsService::class);
 
@@ -58,5 +79,33 @@ class AppController extends Controller
          * see https://book.cakephp.org/4/en/controllers/components/form-protection.html
          */
         // $this->loadComponent('FormProtection');
+    }
+
+    protected function organizeViewCells($viewCells)
+    {
+        $cells = [];
+        foreach ($viewCells as $cell) {
+            switch ($cell['type']) {
+                case 'tab':
+                    $cells['tabs'][$cell['order']] = $cell;
+                    break;
+                case 'detail':
+                    $cells['details'][$cell['order']] = $cell;
+                    break;
+                case 'modal':
+                    $cells['modals'][$cell['order']] = $cell;
+                    break;
+            }
+        }
+        if (isset($cells['tabs'])) {
+            ksort($cells['tabs']);
+        }
+        if (isset($cells['details'])) {
+            ksort($cells['details']);
+        }
+        if (isset($cells['modals'])) {
+            ksort($cells['modals']);
+        }
+        return $cells;
     }
 }

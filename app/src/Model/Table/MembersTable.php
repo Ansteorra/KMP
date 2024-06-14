@@ -52,31 +52,6 @@ class MembersTable extends Table
         $this->setDisplayField("sca_name");
         $this->setPrimaryKey("id");
 
-        $this->hasMany("Authorizations", [
-            "foreignKey" => "member_id",
-        ]);
-
-        $this->hasMany("CurrentAuthorizations", [
-            "className" => "Authorizations",
-            "foreignKey" => "member_id",
-            "finder" => "current",
-        ]);
-        $this->hasMany("PendingAuthorizations", [
-            "className" => "Authorizations",
-            "foreignKey" => "member_id",
-            "finder" => "pending",
-        ]);
-        $this->hasMany("PreviousAuthorizations", [
-            "className" => "Authorizations",
-            "foreignKey" => "member_id",
-            "finder" => "previous",
-        ]);
-
-        $this->hasMany("AuthorizationApprovals", [
-            "className" => "AuthorizationApprovals",
-            "foreignKey" => "approver_id",
-        ]);
-
         $this->hasMany("Notes", [
             "foreignKey" => "topic_id",
             "conditions" => ["Notes.topic_model" => "Members"],

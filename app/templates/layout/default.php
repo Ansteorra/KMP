@@ -127,7 +127,6 @@ $this->prepend(
 echo $this->fetch("tb_body_start");
 echo $this->fetch("tb_flash");
 echo $this->fetch("content");
-echo $this->element('copyrightFooter', []);
 echo $this->fetch("tb_footer");
 echo $this->fetch("tb_body_end");
 echo $this->fetch("script");
