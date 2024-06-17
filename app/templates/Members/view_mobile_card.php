@@ -29,12 +29,13 @@ $now = Date::now();
 }
 
 .cardbox {
-    background-color: rgb(255 255 255 / 70%) !important;
+    background-color: rgb(255 255 255 / 85%) !important;
 }
 
+.card-body dl,
 table.card-body-table tbody tr td,
 table.card-body-table tbody tr th {
-    background-color: rgb(255 255 255 / 40%) !important;
+    background-color: rgb(255 255 255 / 60%) !important;
 
 }
 
@@ -54,8 +55,10 @@ table.card-body-table tbody tr th {
     display: inline-block;
 }
 </style>
-
-<div class="card cardbox m-3">
+<div scope="col" class="col text-end mx-3 my-2">
+    <span id="status" class="badge rounded-pill text-center bg-danger">Offline</span>
+</div>
+<div class="card cardbox mx-3">
     <div class="card-body">
         <h3 class="card-title text-center display-6">
             <?= h($message_variables["kingdom"]) ?><br />
@@ -77,19 +80,16 @@ table.card-body-table tbody tr th {
             <dd class="col-6" id="member_membership_info"></dd>
             <dt class="col-6 text-end">Background Check</dt>
             <dd class="col-6" id="member_background_check"></dd>
+            <dt class="col-6 text-end">Last Refresh</dt>
+            <dd class="col-6" id="last_update"></dd>
             </dd>
         </dl>
     </div>
 </div>
 <div id="pluginCards"></div>
-<div scope="row" class="row ms-3 me-3">
-    <span scope="col" class="col">
-        <span id="status" class="badge rounded-pill text-center bg-danger">Offline</span>
-    </span>
-    <span scope="col" class="col text-end">
-        <span id="status" class="badge bg-secondary rounded-pill text-center">Last Update:
-            <?= DateTime::now()->format("Y-m-d H:i:s") ?>
-        </span>
+<div scope="row" class="row ms-3 me-3 mb-5">
+    <span scope="col" class="col text-center">
+        <span id="refresh" class="btn btn-small text-center btn-secondary bi bi-arrow-clockwise"></span>
     </span>
 </div>
 <div class="row text-center">
@@ -104,14 +104,17 @@ class memberViewMobileCard {
     };
     updateOnlineStatus() {
         const statusDiv = document.getElementById('status');
+        const refreshButton = $('#refresh');
         if (navigator.onLine) {
             statusDiv.textContent = 'Online';
             statusDiv.classList.remove('bg-danger');
             statusDiv.classList.add('bg-success');
+            refreshButton.show();
         } else {
             statusDiv.textContent = 'Offline';
             statusDiv.classList.remove('bg-success');
             statusDiv.classList.add('bg-danger');
+            refreshButton.hide();
         }
     }
     refreshPageIfOnline() {
@@ -182,9 +185,11 @@ function startCard(title) {
 function appendToCard(element) {
     currentCard.append(element);
 }
-$(document).ready(function() {
-    var pageControl = new memberViewMobileCard();
-    pageControl.run(urlCache, swPath);
+
+function loadCard() {
+    $("#pluginCards").html("");
+    $("#loading").show();
+    $("#memberDetails").hide();
     $.get(url, function(data) {
         $("#loading").hide();
         $("#memberDetails").show();
@@ -215,6 +220,7 @@ $(document).ready(function() {
         } else {
             $('#member_background_check').text("Not on file");
         }
+        $('#last_update').text(new Date().toLocaleString());
         for (let key in data) {
             if (key === 'member') {
                 continue;
@@ -298,6 +304,16 @@ $(document).ready(function() {
                 }
                 appendToCard(groupTable);
             }
+        }
+    });
+}
+$(document).ready(function() {
+    var pageControl = new memberViewMobileCard();
+    pageControl.run(urlCache, swPath);
+    loadCard();
+    $('#refresh').click(function() {
+        if (navigator.onLine) {
+            loadCard();
         }
     });
 });
