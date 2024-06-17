@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\View\Helper;
 
 use App\KMP\StaticHelpers;
+use App\View\AppView;
 use Cake\View\Helper;
 use Cake\Core\Configure;
+use Cake\Event\Event;
 use Cake\ORM\TableRegistry;
 use Cake\View\StringTemplateTrait;
 use Cake\Log\Log;
@@ -20,6 +22,37 @@ use Cake\Log\Log;
  */
 class KmpHelper extends Helper
 {
+    private static AppView $mainView;
+    private static string $currentOpenBlock = "";
+
+    public function beforeRender(Event $event): void
+    {
+        // Each cell has its own view, but the first one created is the main
+        // one that we want to add scripts to, so we'll store it here…
+        if (isset(self::$mainView)) {
+            return;
+        }
+        $view = $event->getSubject();
+        assert($view instanceof AppView);
+        self::$mainView = $view;
+    }
+
+    public function startBlock($block): string
+    {
+        if (self::$currentOpenBlock != "") {
+            Log::error("Block " . self::$currentOpenBlock . " was not closed before opening " . $block);
+        }
+        self::$mainView->start($block);
+        $currentOpenBlock = $block;
+        return self::$mainView->fetch($block);
+    }
+
+    public function endBlock()
+    {
+        self::$mainView->end();
+        $currentOpenBlock = "";
+    }
+
     /**
      * Returns a boolean icon
      *
@@ -42,49 +75,21 @@ class KmpHelper extends Helper
      * @param \Cake\View\Helper\HtmlHelper $Html
      * @return string
      */
-    public function appNav($appNav, $request, $user, $Html): string
+    public function appNav($appNav, $user, $Html): string
     {
         $return = "";
-        foreach ($appNav as $nav) {
-            if ($nav["type"] === "link") {
-                if (!array_key_exists("sublinks", $nav)) {
-                    $nav["sublinks"] = [];
-                }
-                $return .= $this->appControllerNav(
-                    $nav["label"],
-                    $nav["url"],
-                    $request,
-                    $Html,
-                    $user,
-                    $nav["icon"],
-                    $nav["activeUrls"],
-                    $nav["sublinks"],
-                );
-            } elseif ($nav["type"] === "parent") {
-                $sectionHtml = "";
-                foreach ($nav["children"] as $link) {
-                    if (!array_key_exists("sublinks", $link)) {
-                        $link["sublinks"] = [];
+        foreach ($appNav as $parent) {
+            $childHtml = "";
+            foreach ($parent["children"] as $child) {
+                $childHtml .= $this->appNavChild($child, $user, $Html);
+                if ($child["active"] && isset($child["sublinks"])) {
+                    foreach ($child["sublinks"] as $sublink) {
+                        $childHtml .= $this->appNavGrandchild($sublink, $user, $Html);
                     }
-                    $sectionHtml .= $this->appControllerNav(
-                        $link["label"],
-                        $link["url"],
-                        $request,
-                        $Html,
-                        $user,
-                        $link["icon"],
-                        $link["activeUrls"],
-                        $link["sublinks"],
-                    );
                 }
-                if ($sectionHtml !== "") {
-                    $return .=
-                        $this->appControllerNavSpacer(
-                            $nav["label"],
-                            $Html,
-                            $nav["icon"],
-                        ) . $sectionHtml;
-                }
+            }
+            if ($childHtml != "") {
+                $return .= $this->appNavParent($parent["label"], $Html, $parent["icon"]) . $childHtml;
             }
         }
         return $return;
@@ -107,48 +112,33 @@ class KmpHelper extends Helper
         return StaticHelpers::getAppSettingsStartWith($key);
     }
 
-    protected function appControllerNav(
-        $label,
-        $url,
-        $request,
-        $Html,
-        $user,
-        $icon,
-        $activeLinks = [],
-        $sublinks = [],
-    ): string {
-        //is $urlparams a string or an array?
-        $useActive = false;
 
-        foreach ($activeLinks as $activeLink) {
-            if ($this->matchingUrl($activeLink, $request)) {
-                $useActive = true;
-            }
-        }
+    protected function appNavChild(
+        $link,
+        $user,
+        $Html,
+    ): string {
+        $url = $link["url"];
+        $label = $link["label"];
+        $icon = $link["icon"];
+        $return = "";
+        //is $urlparams a string or an array?
         if (!isset($url["plugin"])) {
             $url["plugin"] = false;
         }
         if ($user->canAccessUrl($url)) {
             $return = "";
-            $activeclass = $useActive ? "active" : "";
+            $activeclass = $link["active"] ? "active" : "";
             $return .= $Html->link(__(" " . $label), $url, [
                 "class" =>
                 "nav-link fs-6 bi " . $icon . " pb-0 " . $activeclass,
             ]);
-            if ($useActive) {
-                foreach ($sublinks as $sublink) {
-                    $return .= $this->generateSubLink($sublink, $user, $Html);
-                }
-            }
-            if (!$useActive) {
-                $useActive = $this->matchingUrl($url, $request);
-            }
             return $return;
         }
         return "";
     }
 
-    protected function generateSubLink($sublink, $user, $Html): string
+    protected function appNavGrandchild($sublink, $user, $Html): string
     {
         $return = "";
         $suburl = $sublink["url"];
@@ -156,13 +146,13 @@ class KmpHelper extends Helper
             $suburl["plugin"] = false;
         }
         if ($user->canAccessUrl($suburl)) {
-            if (array_key_exists("linkOptions", $sublink)) {
+            if (isset($sublink["linkOptions"])) {
                 $linkOptions = $sublink["linkOptions"];
             } else {
                 $linkOptions = [];
             }
             $linkLabel = __(" " . $sublink["label"]);
-            if (array_key_exists("badgeValue", $sublink)) {
+            if (isset($sublink["badgeValue"])) {
                 if ($sublink["badgeValue"] > 0) {
                     $linkLabel .= " " . $Html->badge(strval($sublink["badgeValue"]), [
                         "class" => $sublink["badgeClass"],
@@ -188,37 +178,7 @@ class KmpHelper extends Helper
         }
         return $return;
     }
-
-    protected function matchingUrl($url, $request): bool
-    {
-        $controller = $url["controller"];
-        $action = $url["action"];
-        $id = $url[0] ?? null;
-        if (
-            !$request->getParam("pass") ||
-            !array_key_exists(0, $request->getParam("pass"))
-        ) {
-            $request_pass = null;
-        } else {
-            $request_pass = $request->getParam("pass")[0];
-        }
-        if ($id === "*") {
-            $request_pass = "*";
-        }
-        $id = strval($id); //convert to string for comparison
-
-        $id_test = strval($request_pass) === strval($id);
-        //if the ID starts with 'NOT' then we are looking for the opposite
-        if (substr($id, 0, 4) === "NOT ") {
-            $id = substr($id, 4);
-            $id_test = strval($request_pass) !== strval($id);
-        }
-        return $request->getParam("controller") === $controller &&
-            $request->getParam("action") === $action &&
-            $id_test;
-    }
-
-    protected function appControllerNavSpacer($label, $Html, $icon): string
+    protected function appNavParent($label, $Html, $icon): string
     {
         $return =
             '<div class="badge fs-5 text-bg-secondary bi ' .

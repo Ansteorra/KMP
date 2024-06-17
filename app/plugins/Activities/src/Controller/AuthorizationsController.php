@@ -10,7 +10,7 @@ namespace Activities\Controller;
  * @property \App\Model\Table\AuthorizationApprovalsTable $AuthorizationApprovals
  */
 
-use Activities\Services\AuthorizationManager\AuthorizationManagerInterface;
+use Activities\Services\AuthorizationManagerInterface;
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 
 class AuthorizationsController extends AppController

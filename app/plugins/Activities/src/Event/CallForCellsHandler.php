@@ -7,8 +7,11 @@ use Cake\Event\EventListenerInterface;
 class CallForCellsHandler implements EventListenerInterface
 {
     protected array $viewsToTest = [
-        "\Activities\View\Cell\PermissionActivitiesCell"
+        "\Activities\View\Cell\PermissionActivitiesCell",
+        "\Activities\View\Cell\MemberAuthorizationsCell",
+        "\Activities\View\Cell\MemberAuthorizationDetailsJSONCell"
     ];
+
     public function implementedEvents(): array
     {
         return [

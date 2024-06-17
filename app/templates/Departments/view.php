@@ -21,7 +21,7 @@
     </div>
 </div>
 <?php
-$this->start("modals");
+echo $this->KMP->startBlock("modals");
 echo $this->Modal->create("Edit Department", [
     "id" => "editModal",
     "close" => true,
@@ -53,4 +53,4 @@ echo $this->Modal->create("Edit Department", [
 ]); ?>
 
 <?php //finish writing to modal block in layout
-$this->end(); ?>
+$this->KMP->endBlock(); ?>

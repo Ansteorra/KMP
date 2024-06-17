@@ -19,7 +19,7 @@ if (Configure::read("debug")) :
     $this->assign("title", $message);
     $this->assign("templateName", "error400.php");
 
-    $this->start("file");
+    echo $this->KMP->startBlock("file");
 ?>
     <?php if (!empty($error->queryString)) : ?>
         <p class="notice">
@@ -34,7 +34,7 @@ if (Configure::read("debug")) :
 
 <?php
     echo $this->element("auto_table_warning");
-    $this->end();
+    $this->KMP->endBlock();
 
 endif;
 ?>

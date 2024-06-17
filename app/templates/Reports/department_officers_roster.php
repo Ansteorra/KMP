@@ -83,4 +83,4 @@ $compareDate = new Date($validOn)
         <?php } ?>
 </div>
 
-<?php $this->end(); ?>
+<?php $this->KMP->endBlock(); ?>

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Activities\Controller;
 
 use Cake\ORM\TableRegistry;
+use Cake\I18n\DateTime;
 
 /**
  * Activities Controller
@@ -226,5 +227,38 @@ class ActivitiesController extends AppController
         }
 
         return $this->redirect(["action" => "index"]);
+    }
+
+    public function approversList($activityId = null, $memberId = null)
+    {
+        $this->Authorization->skipAuthorization();
+        $this->request->allowMethod(["get"]);
+        $activity = $this->Activities->get($activityId);
+        if (!$activity) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+
+        $this->viewBuilder()->setClassName("Ajax");
+        $query = $activity->getApproversQuery();
+        $result = $query
+            ->contain(["Branches"])
+            ->where(["Members.id !=" => $memberId])
+            ->orderBy(["Branches.name", "Members.sca_name"])
+            ->select(["Members.id", "Members.sca_name", "Branches.name"])
+            ->distinct()
+            ->all()
+            ->toArray();
+        $responseData = [];
+        foreach ($result as $member) {
+            $responseData[] = [
+                "id" => $member->id,
+                "sca_name" => $member->branch->name . ": " . $member->sca_name,
+            ];
+        }
+        $this->response = $this->response
+            ->withType("application/json")
+            ->withStringBody(json_encode($responseData));
+
+        return $this->response;
     }
 }

@@ -24,7 +24,8 @@ $user = $this->request->getAttribute("identity");
             </h3>
         </div>
         <div class="col text-end">
-            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal">Edit</button>
+            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
+                data-bs-target="#editModal">Edit</button>
             <?= $this->Form->postLink(
                 __("Delete"),
                 ["action" => "delete", $role->id],
@@ -42,7 +43,8 @@ $user = $this->request->getAttribute("identity");
     <div class="related pt-2">
         <h4><?= __(
                 "Related Members",
-            ) ?> : <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addMemberModal">Add Member</button></h4>
+            ) ?> : <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
+                data-bs-target="#addMemberModal">Add Member</button></h4>
 
         <?php if (!empty($role->previous_member_roles) || !empty($role->current_member_roles) || !empty($role->upcoming_member_roles)) {
             $linkTemplate = [
@@ -110,71 +112,66 @@ $user = $this->request->getAttribute("identity");
     <div class="related">
         <h4><?= __(
                 "Related Permissions",
-            ) ?> : <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addPermissionModal">Add Permission</button></h4>
+            ) ?> : <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
+                data-bs-target="#addPermissionModal">Add Permission</button></h4>
         </h4>
         <?php if (!empty($role->permissions)) : ?>
-            <div class="table-responsive">
-                <table class="table table-striped">
-                    <thead>
-                        <tr>
-                            <th scope="col" colspan='2'></th>
-                            <th scope="col" colspan='3' class="text-center table-active">Requirements</th>
-                            <th scope="col" colspan='2'></th>
-                        </tr>
-                        <tr>
-                            <th scope="col"><?= __("Name") ?></th>
-                            <th scope="col"><?= __("Activity") ?></th>
-                            <th scope="col" class="text-center"><?= __(
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th scope="col" colspan='2'></th>
+                        <th scope="col" colspan='3' class="text-center table-active">Requirements</th>
+                        <th scope="col" colspan='2'></th>
+                    </tr>
+                    <tr>
+                        <th scope="col"><?= __("Name") ?></th>
+                        <th scope="col" class="text-center"><?= __(
                                                                     "Membership",
                                                                 ) ?></th>
-                            <th scope="col" class="text-center"><?= __(
+                        <th scope="col" class="text-center"><?= __(
                                                                     "Background Check",
                                                                 ) ?></th>
-                            <th scope="col" class="text-center"><?= __(
+                        <th scope="col" class="text-center"><?= __(
                                                                     "Minimum Age",
                                                                 ) ?></th>
-                            <th scope="col" class="text-center"><?= __(
+                        <th scope="col" class="text-center"><?= __(
                                                                     "Super User",
                                                                 ) ?></th>
-                            <th scope="col" class="text-center"><?= __(
+                        <th scope="col" class="text-center"><?= __(
                                                                     "System",
                                                                 ) ?></th>
-                            <th scope="col" class="actions"><?= __(
+                        <th scope="col" class="actions"><?= __(
                                                                 "Actions",
                                                             ) ?></th>
-                        </tr>
-                    </thead>
-                    <?php foreach ($role->permissions as $permission) : ?>
-                        <tr>
-                            <td><?= h($permission->name) ?></td>
-                            <td><?= h(
-                                    $permission->activity === null
-                                        ? ""
-                                        : $permission->activity->name,
-                                ) ?>
-                            </td>
-                            <td class="text-center"><?= $this->Kmp->bool(
+                    </tr>
+                </thead>
+                <?php foreach ($role->permissions as $permission) : ?>
+                <tr>
+                    <td><?= h($permission->name) ?></td>
+
+                    <td class="text-center"><?= $this->Kmp->bool(
                                                         $permission->require_active_membership,
                                                         $this->Html,
                                                     ) ?></td>
-                            <td class="text-center"><?= $this->Kmp->bool(
+                    <td class="text-center"><?= $this->Kmp->bool(
                                                         $permission->require_active_background_check,
                                                         $this->Html,
                                                     ) ?>
-                            </td>
-                            <td class="text-center"><?= h(
+                    </td>
+                    <td class="text-center"><?= h(
                                                         $permission->require_min_age,
                                                     ) ?></td>
-                            <td class="text-center"><?= $this->Kmp->bool(
+                    <td class="text-center"><?= $this->Kmp->bool(
                                                         $permission->is_super_user,
                                                         $this->Html,
                                                     ) ?></td>
-                            <td class="text-center"><?= $this->Kmp->bool(
+                    <td class="text-center"><?= $this->Kmp->bool(
                                                         $permission->is_system,
                                                         $this->Html,
                                                     ) ?></td>
-                            <td class="actions">
-                                <?= $this->Form->postLink(
+                    <td class="actions">
+                        <?= $this->Form->postLink(
                                     __("Remove"),
                                     [
                                         "controller" => "Roles",
@@ -192,34 +189,71 @@ $user = $this->request->getAttribute("identity");
                                         ],
                                     ],
                                 ) ?>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </table>
-            </div>
+                    </td>
+                </tr>
+                <?php endforeach; ?>
+            </table>
+        </div>
         <?php endif; ?>
     </div>
 </div>
 
 
 <?php
-$this->start("modals");
+echo $this->KMP->startBlock("modals");
 
 echo $this->element('roles/addMemberModal', []);
 echo $this->element('roles/addPermissionModal', []);
 echo $this->element('roles/editModal', []);
 
-$this->end();
+$this->KMP->endBlock();
 ?>
 
 
 
 
 <?php
-$this->append("script", $this->Html->script(["app/autocomplete.js"]));
-$this->append("script", $this->Html->script(["app/roles/view.js"]));
-$this->append("script", $this->Html->scriptBlock("
-        var pageControl = new rolesView();
-        pageControl.run(" . $this->Url->webroot("") . ");
-"));
-?>
+echo $this->KMP->startBlock("script"); ?>
+<script>
+class rolesView {
+    constructor() {
+        this.ac = null;
+    };
+    run() {
+        var me = this;
+        var searchUrl = '<?= $this->URL->build(['controller' => 'Members', 'action' => 'SearchMembers']) ?>';
+        KMP_utils.configureAutoComplete(me.ac, searchUrl, 'add_member__sca_name', 'id', 'sca_name',
+            'add_member__member_id')
+        $('#add_member__member_id').change(function() {
+            if ($('#add_member__member_id').val() > 0) {
+                //enable button
+                $('#add_member__submit').prop('disabled', false);
+            } else {
+                //disable button
+                $('#add_member__submit').prop('disabled', true);
+            }
+        });
+        $('#add_member__submit').click(function() {
+            if ($('#add_member__member_id').val() > 0) {
+                $('#add_member__form').submit();
+            }
+        });
+        $("#add_permission__permission_id").change(function() {
+            var end = this.value;
+            if (end > 0) {
+                $('#add_permission__submit').prop('disabled', false);
+            } else {
+                $('#add_permission__submit').prop('disabled', true);
+            }
+        });
+        $('#add_permission__submit').click(function() {
+            if ($('#add_permission__permission_id').val() > 0) {
+                $('#add_permission__form').submit();
+            }
+        });
+    }
+}
+var pageControl = new rolesView();
+pageControl.run();
+</script>
+<?php echo $this->KMP->endBlock(); ?>

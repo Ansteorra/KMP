@@ -253,14 +253,6 @@ class MembersTable extends Table
         $entity->ageUpReview();
     }
 
-
-    static function getCurrentActivityApprovers($auth_id)
-    {
-        return PermissionsLoader::getCurrentActivityApprovers(
-            $auth_id,
-        );
-    }
-
     static function getValidationQueueCount(): int
     {
         // Get the count of pending validations  based on the members status

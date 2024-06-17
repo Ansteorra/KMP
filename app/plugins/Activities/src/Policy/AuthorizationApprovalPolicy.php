@@ -24,7 +24,7 @@ class AuthorizationApprovalPolicy extends BasePolicy
         }
         if (!$activity_id) {
             $activity_id = TableRegistry::getTableLocator()
-                ->get("Authorizations")
+                ->get("Activities.Authorizations")
                 ->get($authorization_id)->activity_id;
         }
         return $user->canAuthorizeType($activity_id) &&

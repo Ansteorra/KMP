@@ -15,7 +15,7 @@ echo $this->Modal->create("Renew Authorization", [
     ]);
     echo $this->Form->control("member_id", [
         "type" => "hidden",
-        "value" => $member->id,
+        "value" => $id,
         "id" => "renew_auth__member_id",
     ]);
     echo $this->Form->control("activity", [

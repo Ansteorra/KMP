@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\View\Cell;
 
+use App\KMP\StaticHelpers;
 use Cake\View\Cell;
 use Cake\Event\Event;
 use Cake\Event\EventManager;
@@ -56,10 +57,19 @@ class NavigationCell extends Cell
     }
     protected function organizeMenu($menuItems)
     {
+        $currentRequestString = $this->request->getParam("controller") . "/" . $this->request->getParam("action");
+        if ($this->request->getParam("plugin")) {
+            $currentRequestString = $this->request->getParam("plugin") . "/" . $currentRequestString;
+        }
+        if ($this->request->getParam("pass")) {
+            $currentRequestString .= "/" . $this->request->getParam("pass")[0];
+        }
+        $currentRequestString = strtolower($currentRequestString);
         $parents = [];
         $mainLinks = [];
         $sublinks = [];
-        foreach ($menuItems as $item) {
+        foreach ($menuItems as &$item) {
+            $item["active"] = false;
             if ($item['type'] === 'parent') {
                 $parents[$item['label']] = $item;
             } elseif ($item['type'] === 'link' && count($item['mergePath']) == 1) {
@@ -68,12 +78,24 @@ class NavigationCell extends Cell
                 $sublinks[] = $item;
             }
         }
+        $activeFound = false;
         // add mainlinks to parents
-        foreach ($mainLinks as $mainlink) {
+        foreach ($mainLinks as &$mainlink) {
+            if (!$activeFound && $this->isActive($mainlink, $currentRequestString)) {
+                $parents[$mainlink['mergePath'][0]]["active"] = true;
+                $mainlink["active"] = true;
+                $activeFound = true;
+            }
             $parents[$mainlink['mergePath'][0]]['children'][$mainlink["label"]] = $mainlink;
         }
         //foreach sublink to mainlink
-        foreach ($sublinks as $sublink) {
+        foreach ($sublinks as &$sublink) {
+            if (!$activeFound && $this->isActive($sublink, $currentRequestString)) {
+                $parents[$mainlink['mergePath'][0]]["active"] = true;
+                $parents[$sublink['mergePath'][0]]['children'][$sublink['mergePath'][1]]["active"] = true;
+                $sublink["active"] = true;
+                $activeFound = true;
+            }
             $parents[$sublink['mergePath'][0]]['children'][$sublink['mergePath'][1]]['sublinks'][$sublink["label"]] = $sublink;
         }
         //sort parents by order
@@ -81,12 +103,14 @@ class NavigationCell extends Cell
             return $a['order'] <=> $b['order'];
         });
         //foreach parent sort children by order
-        foreach ($parents as $parent) {
+        foreach ($parents as &$parent) {
+            if (!isset($parent['children'])) continue;
             uasort($parent['children'], function ($a, $b) {
-                return $a['order'] <=> $b['order'];
+                $returnval = $a['order'] <=> $b['order'];
+                return $returnval;
             });
             //foreach child sort sublinks by order
-            foreach ($parent['children'] as $child) {
+            foreach ($parent['children'] as &$child) {
                 if (!isset($child['sublinks'])) continue;
                 uasort($child['sublinks'], function ($a, $b) {
                     return $a['order'] <=> $b['order'];
@@ -94,5 +118,27 @@ class NavigationCell extends Cell
             }
         }
         return $parents;
+    }
+    protected function isActive($link, $currentRequestString): bool
+    {
+        $itemPath = StaticHelpers::makePathString($link["url"]);
+        if ($itemPath === $currentRequestString) {
+            return true;
+        }
+        if (isset($link["activePaths"])) {
+            foreach ($link["activePaths"] as $activePath) {
+                if ($activePath === $currentRequestString) {
+                    return true;
+                }
+                //if $activepath ends with * then we are looking for a partial match
+                if (substr($activePath, -1) === "*") {
+                    $activePath = substr($activePath, 0, -2);
+                    if (substr($currentRequestString, 0, strlen($activePath)) === $activePath) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 }

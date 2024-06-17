@@ -5,31 +5,27 @@ declare(strict_types=1);
 namespace Activities\View\Cell;
 
 use Cake\View\Cell;
+use App\View\Cell\BasePluginCell;
 
 /**
  * PermissionActivities cell
  */
-class PermissionActivitiesCell extends Cell
+class PermissionActivitiesCell extends BasePluginCell
 {
-    static public function getViewConfigForRoute($route)
+    static protected array $validRoutes = [
+        ['controller' => 'Permissions', 'action' => 'view', 'plugin' => null],
+    ];
+    static protected array $pluginData = [
+        'type' => 'tab', // 'tab' or 'detail' or 'modal'
+        'label' => 'Activities',
+        'id' => 'permission-activities',
+        'order' => 2,
+        'tabBtnBadge' => null,
+        'cell' => 'Activities.PermissionActivities'
+    ];
+    public static function getViewConfigForRoute($route)
     {
-        if (isset($route['plugin'])) {
-            return null;
-        }
-        if ($route['controller'] != 'Permissions') {
-            return null;
-        }
-        if ($route['action'] != 'view') {
-            return null;
-        }
-        return [
-            'type' => 'tab', // 'tab' or 'detail' or 'modal'
-            'label' => 'Activities',
-            'id' => 'permission-activities',
-            'order' => 2,
-            'tabBtnBadge' => null,
-            'cell' => 'Activities.PermissionActivities'
-        ];
+        return parent::getRouteEventResponse($route, self::$pluginData, self::$validRoutes);
     }
     /**
      * List of valid options that can be passed into this
@@ -37,7 +33,6 @@ class PermissionActivitiesCell extends Cell
      *
      * @var array<string, mixed>
      */
-    protected array $_validCellOptions = [];
 
     /**
      * Initialization logic run at the end of object construction.
@@ -53,11 +48,11 @@ class PermissionActivitiesCell extends Cell
      *
      * @return void
      */
-    public function display($permissionId)
+    public function display($id)
     {
         $activities = $this->fetchTable("Activities.Activities")->find('all')
             ->contain(['ActivityGroups'])
-            ->where(['permission_id' => $permissionId])
+            ->where(['permission_id' => $id])
             ->toArray();
         $this->set(compact('activities'));
     }

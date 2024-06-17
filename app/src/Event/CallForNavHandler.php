@@ -84,6 +84,9 @@ class CallForNavHandler implements EventListenerInterface
                     "action" => "index",
                 ],
                 "icon" => "bi-people",
+                "activePatns" => [
+                    "Members/view/*",
+                ]
             ],
             [
                 "type" => "link",
@@ -99,24 +102,10 @@ class CallForNavHandler implements EventListenerInterface
             [
                 "type" => "link",
                 "mergePath" => ["Members", "Members"],
-                "label" => "Auth Queues",
-                "order" => 10,
-                "url" => [
-                    "controller" => "AuthorizationApprovals",
-                    "action" => "index",
-                    "plugin" => "Activities",
-                    "model" => "Activities.AuthorizationApprovals",
-                ],
-                "icon" => "bi-card-checklist",
-            ],
-            [
-                "type" => "link",
-                "mergePath" => ["Members", "Members"],
                 "label" => "Verification Queues",
                 "order" => 20,
                 "url" => [
-                    "controller" =>
-                    "Members",
+                    "controller" => "Members",
                     "action" => "verifyQueue",
                 ],
                 "icon" => "bi-fingerprint",
@@ -130,8 +119,7 @@ class CallForNavHandler implements EventListenerInterface
                 "order" => 30,
                 "url" => [
                     "controller" => "Members",
-                    "action" =>
-                    "importExpirationDates",
+                    "action" => "importExpirationDates",
                 ],
                 "icon" => "bi-filetype-csv",
             ],
@@ -210,57 +198,6 @@ class CallForNavHandler implements EventListenerInterface
                 "url" => [
                     "controller" => "Branches",
                     "action" => "add",
-                ],
-                "icon" => "bi-plus",
-            ],
-            [
-                "type" => "link",
-                "mergePath" => ["Config"],
-                "label" => "Activity Groups",
-                "order" => 20,
-                "url" => [
-                    "controller" => "ActivityGroups",
-                    "plugin" => "Activities",
-                    "action" => "index",
-                    "model" => "Activities.ActivityGroups",
-                ],
-                "icon" => "bi-archive",
-            ], [
-                "type" => "link",
-                "mergePath" => ["Config", "ActivityGroups"],
-                "label" => "New Activity Group",
-                "order" => 0,
-                "url" => [
-                    "controller" => "ActivityGroups",
-                    "plugin" => "Activities",
-                    "action" => "add",
-                    "model" => "Activities.ActivityGroups",
-                ],
-                "icon" => "bi-plus",
-            ],
-            [
-                "type" => "link",
-                "mergePath" => ["Config"],
-                "label" => "Activities",
-                "order" => 30,
-                "url" => [
-                    "controller" => "Activities",
-                    "action" => "index",
-                    "plugin" => "Activities",
-                    "model" => "Activities.Activities",
-                ],
-                "icon" => "bi-collection",
-            ],
-            [
-                "type" => "link",
-                "mergePath" => ["Config", "Activities"],
-                "label" => "New Activity",
-                "order" => 0,
-                "url" => [
-                    "controller" => "Activities",
-                    "action" => "add",
-                    "plugin" => "Activities",
-                    "model" => "Activities.Activities",
                 ],
                 "icon" => "bi-plus",
             ],

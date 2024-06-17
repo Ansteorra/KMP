@@ -188,7 +188,7 @@ class InitActivities extends AbstractMigration
                 "null" => false,
             ])
             ->addColumn("status", "string", [
-                "default" => "new",
+                "default" => "pending",
                 "limit" => 20,
                 "null" => false,
             ])

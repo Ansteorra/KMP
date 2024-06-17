@@ -10,31 +10,31 @@ use Cake\Core\Configure;
  * Default `html` block.
  */
 if (!$this->fetch("html")) {
-    $this->start("html");
+    echo $this->KMP->startBlock("html");
     if (Configure::check("App.language")) {
         printf('<html lang="%s">', Configure::read("App.language"));
     } else {
         echo "<html lang='en'>";
     }
-    $this->end();
+    $this->KMP->endBlock();
 }
 
 /**
  * Default `title` block.
  */
 if (!$this->fetch("title")) {
-    $this->start("title");
+    echo $this->KMP->startBlock("title");
     echo Configure::read("App.title");
-    $this->end();
+    $this->KMP->endBlock();
 }
 
 /**
  * Default `footer` block.
  */
 if (!$this->fetch("tb_footer")) {
-    $this->start("tb_footer");
+    echo $this->KMP->startBlock("tb_footer");
 
-    $this->end();
+    $this->KMP->endBlock();
 }
 
 /**
@@ -50,22 +50,22 @@ $this->prepend(
         '" ',
 );
 if (!$this->fetch("tb_body_start")) {
-    $this->start("tb_body_start");
+    echo $this->KMP->startBlock("tb_body_start");
     echo "<body" . $this->fetch("tb_body_attrs") . ">";
-    $this->end();
+    $this->KMP->endBlock();
 }
 /**
  * Default `flash` block.
  */
 if (!$this->fetch("tb_flash")) {
-    $this->start("tb_flash");
+    echo $this->KMP->startBlock("tb_flash");
     echo $this->Flash->render();
-    $this->end();
+    $this->KMP->endBlock();
 }
 if (!$this->fetch("tb_body_end")) {
-    $this->start("tb_body_end");
+    echo $this->KMP->startBlock("tb_body_end");
     echo "</body>";
-    $this->end();
+    $this->KMP->endBlock();
 }
 
 /**
@@ -108,6 +108,8 @@ $this->prepend(
         "https://ajax.aspnetcdn.com/ajax/jQuery/jquery-3.7.1.min.js",
         "BootstrapUI.popper.min",
         "BootstrapUI.bootstrap.min",
+        "app/utilities.js",
+        "app/autocomplete.js",
     ]),
 );
 ?>

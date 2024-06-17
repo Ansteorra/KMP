@@ -14,28 +14,28 @@ $this->prepend(
         ]) .
         '" ',
 );
-$this->start("tb_body_start");
+echo $this->KMP->startBlock("tb_body_start");
 /**
  * Default `flash` block.
  */
 if (!$this->fetch("tb_flash")) {
-    $this->start("tb_flash");
+    echo $this->KMP->startBlock("tb_flash");
     echo $this->Flash->render();
-    $this->end();
+    $this->KMP->endBlock();
 }
 ?>
 
 <body <?= $this->fetch("tb_body_attrs") ?>>
     <?php
-    $this->end();
+    $this->KMP->endBlock();
 
-    $this->start("tb_body_end");
+    echo $this->KMP->startBlock("tb_body_end");
     echo "</body>";
-    $this->end();
+    $this->KMP->endBlock();
 
-    $this->start("tb_footer");
+    echo $this->KMP->startBlock("tb_footer");
 
-    $this->end();
+    $this->KMP->endBlock();
 
     echo $this->element('copyrightFooter', []);
 

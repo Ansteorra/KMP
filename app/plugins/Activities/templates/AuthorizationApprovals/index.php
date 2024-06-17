@@ -28,20 +28,20 @@
     </thead>
     <tbody>
         <?php foreach ($authorizationApprovals as $authRollup) : ?>
-            <tr>
-                <td><?= h($authRollup->approver_name) ?></td>
-                <td><?= h($authRollup->last_login) ?></td>
-                <td><?= h($authRollup->pending) ?></td>
-                <td><?= h($authRollup->approved) ?></td>
-                <td><?= h($authRollup->denied) ?></td>
-                <td class="actions">
-                    <?= $this->Html->link(
+        <tr>
+            <td><?= h($authRollup->approver_name) ?></td>
+            <td><?= h($authRollup->last_login) ?></td>
+            <td><?= h($authRollup->pending) ?></td>
+            <td><?= h($authRollup->approved) ?></td>
+            <td><?= h($authRollup->denied) ?></td>
+            <td class="actions">
+                <?= $this->Html->link(
                         __("View"),
-                        ["action" => "view", $authRollup->id],
+                        ["action" => "view", $authRollup->approver->id],
                         ["title" => __("View"), "class" => "btn btn-secondary"],
                     ) ?>
-                </td>
-            </tr>
+            </td>
+        </tr>
         <?php endforeach; ?>
     </tbody>
 </table>

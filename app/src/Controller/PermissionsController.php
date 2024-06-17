@@ -66,8 +66,7 @@ class PermissionsController extends AppController
         } else {
             $roles = $this->Permissions->Roles->find("list")->all();
         }
-        $pluginViewCells = $this->pluginViewCells;
-        $this->set(compact("permission", "roles", "pluginViewCells"));
+        $this->set(compact("permission", "roles"));
     }
 
     /**

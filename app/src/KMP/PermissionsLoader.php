@@ -72,61 +72,58 @@ class PermissionsLoader
         return $query;
     }
 
-    /**
-     * Get the current approvers for an activity
-     *
-     * @param int $activityId
-     * @return SelectQuery
-     */
-    public static function getCurrentActivityApprovers(
-        $activityId,
-    ) {
-        $memberTable = TableRegistry::getTableLocator()->get("Members");
-        $now = DateTime::now();
+    public static function getMembersWithPermissionsQuery(array $permissionIds): SelectQuery
+    {
         $validMemberStatuses = [
             Member::STATUS_ACTIVE,
             Member::STATUS_VERIFIED_MEMBERSHIP,
             Member::STATUS_VERIFIED_MINOR,
         ];
+        $memberTable = TableRegistry::getTableLocator()->get(
+            "Members",
+        );
+        $now = DateTime::now();
+
         $query = $memberTable
-            ->find()
-            ->where(["status IN " => $validMemberStatuses])
-            ->select(["Members.id", "Members.sca_name", "Branches.name"])
-            ->contain(["Branches"])
-            ->innerJoinWith("Roles.Permissions")
+            ->find('all')->matching(
+                'CurrentMemberRoles.Roles.Permissions',
+                function ($q) use ($permissionIds, $now) {
+
+                    return $q->where(['OR' => [
+                        "Permissions.id in " => $permissionIds,
+                        "Permissions.is_super_user" => true
+                    ]])
+                        ->where([
+                            "OR" => [
+                                "Permissions.require_active_membership" => false,
+                                "membership_expires_on >" => DateTime::now(),
+                            ],
+                        ])
+                        ->where([
+                            "OR" => [
+                                "Permissions.require_active_background_check" => false,
+                                "background_check_expires_on >" => DateTime::now(),
+                            ],
+                        ])
+                        ->where([
+                            "OR" => [
+                                "Permissions.require_min_age" => 0,
+                                "AND" => [
+                                    "birth_year = " .
+                                        strval($now->year) .
+                                        " - Permissions.require_min_age",
+                                    "birth_month <=" => $now->month,
+                                ],
+                                "birth_year < " .
+                                    strval($now->year) .
+                                    " - Permissions.require_min_age",
+                            ],
+                        ]);
+                }
+            )
             ->where([
-                "OR" => [
-                    "Permissions.activity_id" => $activityId,
-                    "Permissions.is_super_user" => true,
-                ],
-            ])
-            ->where([
-                "OR" => [
-                    "Permissions.require_active_membership" => false,
-                    "Members.membership_expires_on >" => DateTime::now(),
-                ],
-            ])
-            ->where([
-                "OR" => [
-                    "Permissions.require_active_background_check" => false,
-                    "Members.background_check_expires_on >" => DateTime::now(),
-                ],
-            ])
-            ->where([
-                "OR" => [
-                    "Permissions.require_min_age" => 0,
-                    "AND" => [
-                        "Members.birth_year = " .
-                            strval($now->year) .
-                            " - Permissions.require_min_age",
-                        "Members.birth_month <=" => $now->month,
-                    ],
-                    "Members.birth_year < " .
-                        strval($now->year) .
-                        " - Permissions.require_min_age",
-                ],
-            ])
-            ->distinct();
+                "status IN" => $validMemberStatuses
+            ]);
         return $query;
     }
 }

@@ -10,7 +10,7 @@ namespace Activities\Controller;
  * @property \App\Model\Table\AuthorizationApprovalsTable $AuthorizationApprovals
  */
 
-use Activities\Services\AuthorizationManager\AuthorizationManagerInterface;
+use Activities\Services\AuthorizationManagerInterface;
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 use Cake\Mailer\MailerAwareTrait;
 
@@ -25,13 +25,16 @@ class AuthorizationApprovalsController extends AppController
      */
     public function index()
     {
-        $query = $this->AuthorizationApprovals->Approvers
+        $query = $this->AuthorizationApprovals
             ->find()
-            ->contain(["AuthorizationApprovals"])
-            ->innerJoinWith("AuthorizationApprovals");
+            ->contain(["Approvers" => function ($q) {
+                return $q->select(["Approvers.id", "Approvers.sca_name", "Approvers.last_login"]);
+            }])
+            ->innerJoinWith("Approvers");
         // group by approver and count pending, approved, and denied
         $query
             ->select([
+                "approver_id",
                 "Approvers.id",
                 "approver_name" => "Approvers.sca_name",
                 "last_login" => "Approvers.last_login",
@@ -228,7 +231,7 @@ class AuthorizationApprovalsController extends AppController
         $this->Authorization->authorize($authorizationApproval);
         if (
             !$maService->deny(
-                $id,
+                (int)$id,
                 $this->Authentication->getIdentity()->getIdentifier(),
                 $this->request->getData("approver_notes"),
             )
@@ -243,9 +246,6 @@ class AuthorizationApprovalsController extends AppController
                 __("The authorization approval has been rejected."),
             );
         }
-        $this->Flash->success(
-            __("The authorization approval has been rejected."),
-        );
 
         return $this->redirect($this->referer());
     }

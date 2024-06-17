@@ -4,6 +4,7 @@ $feedbackTypes = [
     "Bug" => "Bug",
     "Other" => "Other",
 ];
+echo $this->KMP->startBlock("modals");
 echo $this->Modal->create("Submit Issue", [
     "id" => "githubIssueModal",
     "close" => true,
@@ -37,44 +38,43 @@ echo $this->Modal->end([
         "data-bs-dismiss" => "modal",
     ]),
 ]);
-$rootView->start("script");
-echo $rootView->fetch("script"); ?>
+$this->KMP->endBlock();
+echo $this->KMP->startBlock("script"); ?>
 <script>
-$(document).ready(function() {
-    $('#githubIssue_success').hide();
-    $('#githubIssueModal').on('hidden.bs.modal', function() {
-        $('#githubIssueForm').show();
+    $(document).ready(function() {
         $('#githubIssue_success').hide();
-        $('#githubIssueForm__submit').show();
-    });
-    $('#githubIssueForm').submit(function(e) {
-        e.preventDefault(); // Prevent the default form submission
-        $url = $('#githubIssueForm').attr('action');
-        $.ajax({
-            url: $url, // Your server-side script
-            type: 'POST',
-            data: $(this).serialize(), // Serializes the form's elements
-            success: function(response) {
-                // Handle success
-                if (response.message) {
-                    alert("Error:" + response.message);
-                    return;
+        $('#githubIssueModal').on('hidden.bs.modal', function() {
+            $('#githubIssueForm').show();
+            $('#githubIssue_success').hide();
+            $('#githubIssueForm__submit').show();
+        });
+        $('#githubIssueForm').submit(function(e) {
+            e.preventDefault(); // Prevent the default form submission
+            $url = $('#githubIssueForm').attr('action');
+            $.ajax({
+                url: $url, // Your server-side script
+                type: 'POST',
+                data: $(this).serialize(), // Serializes the form's elements
+                success: function(response) {
+                    // Handle success
+                    if (response.message) {
+                        alert("Error:" + response.message);
+                        return;
+                    }
+                    $('#githubIssueForm').trigger("reset");
+                    $('#githubIssueForm').hide();
+                    $('#githubIssueForm__submit').hide();
+                    $('#githubIssueLink').attr('href', response.url);
+                    $('#githubIssue_success').show();
+                },
+                error: function(xhr, status, error) {
+                    // Handle errors
+                    console.error(error);
+                    alert('An error occurred while creating the issue.');
                 }
-                $('#githubIssueForm').trigger("reset");
-                $('#githubIssueForm').hide();
-                $('#githubIssueForm__submit').hide();
-                $('#githubIssueLink').attr('href', response.url);
-                $('#githubIssue_success').show();
-            },
-            error: function(xhr, status, error) {
-                // Handle errors
-                console.error(error);
-                alert('An error occurred while creating the issue.');
-            }
+            });
         });
     });
-});
 </script>
-<?php $rootView->end(); ?>
-<button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#githubIssueModal"
-    id='githubIssueModalBtn'>Submit Feedback</button>
+<?php $this->KMP->endBlock(); ?>
+<button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#githubIssueModal" id='githubIssueModalBtn'>Submit Feedback</button>

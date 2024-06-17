@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use Activities\Model\Entity\Authorization;
 use App\Form\ResetPasswordForm;
 use App\KMP\PermissionsLoader;
 use App\Services\MartialAuthorizations\AuthorizationManagerInterface;
@@ -40,7 +41,8 @@ class MembersController extends AppController
             "forgotPassword",
             "resetPassword",
             "register",
-            "viewMobileCard"
+            "viewMobileCard",
+            "viewMobileCardJson"
         ]);
     }
 
@@ -166,15 +168,6 @@ class MembersController extends AppController
                 "Notes.Authors" => function (SelectQuery $q) {
                     return $q->select(["Authors.sca_name"]);
                 },
-                "CurrentAuthorizations" => function (SelectQuery $q) {
-                    return $this->_addAuthorizationSelectAndContain($q, "CurrentAuthorizations");
-                },
-                "PendingAuthorizations" => function (SelectQuery $q) {
-                    return $this->_addAuthorizationSelectAndContain($q, "PendingAuthorizations");
-                },
-                "PreviousAuthorizations" => function (SelectQuery $q) {
-                    return $this->_addAuthorizationSelectAndContain($q, "PreviousAuthorizations");
-                },
                 "Parents" => function (SelectQuery $q) {
                     return $q->select(["Parents.sca_name", "Parents.id"]);
                 },
@@ -197,14 +190,6 @@ class MembersController extends AppController
                     return $this->_addRolesSelectAndContain($q);
                 },
             ])
-            ->contain(
-                "Authorizations.AuthorizationApprovals.Approvers",
-                function (SelectQuery $q) {
-                    return $q->select(["Approvers.sca_name"])->where([
-                        "AuthorizationApprovals.responded_on IS" => null,
-                    ]);
-                },
-            )
             ->where(["Members.id" => $id]);
         //$memberQuery = $this->Members->addJsonWhere($memberQuery, "Members.additional_info", "$.sports", "football");
         $member = $memberQuery->first();
@@ -224,14 +209,6 @@ class MembersController extends AppController
         }
         // Create the new Note form
         $newNote = $this->Members->Notes->newEmptyEntity();
-        $authTypeTable = TableRegistry::getTableLocator()->get(
-            "Activities",
-        );
-        // Get the list of authorization types the member can request based on their age
-        $activities = $authTypeTable->find("list")->where([
-            "minimum_age <" => $member->age,
-            "maximum_age >" => $member->age,
-        ]);
         $session = $this->request->getSession();
         // Get the member form data for the edit modal
         $memberForm = $this->Members->get($id);
@@ -290,60 +267,28 @@ class MembersController extends AppController
             compact(
                 "member",
                 "newNote",
-                "activities",
                 "treeList",
                 "passwordReset",
                 "memberForm",
                 "months",
                 "years",
                 "backUrl",
-                "statusList",
+                "statusList"
             ),
         );
     }
-
     public function viewCard($id = null)
     {
         $member = $this->Members
             ->find()
-            ->contain([
-                "Branches" => function (SelectQuery $q) {
-                    return $q->select(["Branches.name"]);
-                },
-                "Authorizations" => function (SelectQuery $q) {
-                    return $q->where([
-                        "Authorizations.status" => "approved",
-                        "Authorizations.expires_on >" => DateTime::now(),
-                    ]);
-                },
-                "Authorizations.Activities.ActivityGroups" => function (
-                    SelectQuery $q,
-                ) {
-                    return $q->select(["ActivityGroups.name"]);
-                },
-                "Authorizations.Activities" => function (
-                    SelectQuery $q,
-                ) {
-                    return $q->select(["Activities.name"]);
-                },
-            ])
+            ->select('id')
             ->where(["Members.id" => $id])
             ->first();
         if (!$member) {
             throw new \Cake\Http\Exception\NotFoundException();
         }
         $this->Authorization->authorize($member);
-        // sort filter out expired member roles
-        $permissions = $member->getPermissions();
-        $authTypes = [];
-        foreach ($permissions as $permission) {
-            if ($permission->activity != null) {
-                $authTypes[] = $permission->activity->name;
-            }
-        }
-        $authTypes = array_unique($authTypes);
         // sort by name
-        sort($authTypes);
         $message_variables = [
             "secretary_email" => StaticHelpers::getAppSetting(
                 "Activity.SecretaryEmail",
@@ -366,51 +311,31 @@ class MembersController extends AppController
                 "gold",
             ),
         ];
-        $this->set(compact("member", "authTypes", "message_variables"));
+        $this->set(compact("member", "message_variables"));
+        $customTemplate = StaticHelpers::getAppSetting(
+            "Member.ViewCard.Template",
+            "view_card",
+        );
+        $this->viewBuilder()->setTemplate($customTemplate);
     }
 
     public function viewMobileCard($id = null)
     {
+        $inactiveStatuses = [
+            Member::STATUS_DEACTIVATED,
+            Member::STATUS_UNVERIFIED_MINOR,
+            Member::STATUS_MINOR_MEMBERSHIP_VERIFIED,
+        ];
         $member = $this->Members
             ->find()
-            ->contain([
-                "Branches" => function (SelectQuery $q) {
-                    return $q->select(["Branches.name"]);
-                },
-                "Authorizations" => function (SelectQuery $q) {
-                    return $q->where([
-                        "Authorizations.status" => "approved",
-                        "Authorizations.expires_on >" => DateTime::now(),
-                    ]);
-                },
-                "Authorizations.Activities.ActivityGroups" => function (
-                    SelectQuery $q,
-                ) {
-                    return $q->select(["ActivityGroups.name"]);
-                },
-                "Authorizations.Activities" => function (
-                    SelectQuery $q,
-                ) {
-                    return $q->select(["Activities.name"]);
-                },
-            ])
-            ->where(["Members.mobile_card_token" => $id])
+            ->select('mobile_card_token')
+            ->where(["Members.mobile_card_token" => $id, "Members.status NOT IN" => $inactiveStatuses])
             ->first();
         if (!$member) {
             throw new \Cake\Http\Exception\NotFoundException();
         }
         $this->Authorization->skipAuthorization();
         // sort filter out expired member roles
-        $permissions = $member->getPermissions();
-        $authTypes = [];
-        foreach ($permissions as $permission) {
-            if ($permission->activity != null) {
-                $authTypes[] = $permission->activity->name;
-            }
-        }
-        $authTypes = array_unique($authTypes);
-        // sort by name
-        sort($authTypes);
         $message_variables = [
             "secretary_email" => StaticHelpers::getAppSetting(
                 "Activity.SecretaryEmail",
@@ -433,7 +358,12 @@ class MembersController extends AppController
                 "gold",
             ),
         ];
-        $this->set(compact("member", "authTypes", "message_variables"));
+        $this->set(compact("member", "message_variables"));
+        $customTemplate = StaticHelpers::getAppSetting(
+            "Member.ViewMobileCard.Template",
+            "view_mobile_card",
+        );
+        $this->viewBuilder()->setTemplate($customTemplate);
     }
 
     /**
@@ -680,23 +610,6 @@ class MembersController extends AppController
     #endregion
 
     #region JSON calls
-    public function approversList($authId = null, $memberId = null)
-    {
-        $this->Authorization->skipAuthorization();
-        $this->request->allowMethod(["get"]);
-        $this->viewBuilder()->setClassName("Ajax");
-        $query = $this->Members->getCurrentActivityApprovers($authId);
-        $query = $query
-            ->where(["Members.id !=" => $memberId])
-            ->orderBy(["Branches.name", "Members.sca_name"])
-            ->select(["id", "sca_name", "Branches.name"])
-            ->all();
-        $this->response = $this->response
-            ->withType("application/json")
-            ->withStringBody(json_encode($query));
-
-        return $this->response;
-    }
     public function searchMembers()
     {
         $q = $this->request->getQuery("q");
@@ -714,6 +627,74 @@ class MembersController extends AppController
             ->withStringBody(json_encode($query));
         return $this->response;
     }
+
+    public function viewCardJson($id = null)
+    {
+        $member = $this->Members
+            ->find()
+            ->select([
+                "Members.id",
+                "Members.sca_name",
+                "Members.first_name",
+                "Members.last_name",
+                "Members.membership_number",
+                "Members.membership_expires_on",
+                "Members.background_check_expires_on",
+                "Members.additional_info",
+            ])
+            ->contain([
+                "Branches" => function (SelectQuery $q) {
+                    return $q->select(["Branches.name"]);
+                }
+            ])
+            ->where(["Members.id" => $id])
+            ->first();
+        if (!$member) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+        $this->Authorization->authorize($member);
+        $this->viewBuilder()
+            ->setClassName("Ajax")
+            ->setOption('serialize', 'responseData');
+        $this->set(compact("member"));
+    }
+    public function viewMobileCardJson($id = null)
+    {
+        $inactiveStatuses = [
+            Member::STATUS_DEACTIVATED,
+            Member::STATUS_UNVERIFIED_MINOR,
+            Member::STATUS_MINOR_MEMBERSHIP_VERIFIED,
+        ];
+        $member = $this->Members
+            ->find()
+            ->select([
+                "Members.id",
+                "Members.sca_name",
+                "Members.first_name",
+                "Members.last_name",
+                "Members.membership_number",
+                "Members.membership_expires_on",
+                "Members.background_check_expires_on",
+                "Members.additional_info",
+            ])
+            ->contain([
+                "Branches" => function (SelectQuery $q) {
+                    return $q->select(["Branches.name"]);
+                }
+            ])
+            ->where(["Members.mobile_card_token" => $id, "Members.status NOT IN" => $inactiveStatuses])
+            ->first();
+        if (!$member) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+        $this->Authorization->skipAuthorization();
+        $this->viewBuilder()
+            ->setClassName("Ajax")
+            ->setOption('serialize', 'responseData');
+        $this->set(compact("member"));
+        $this->viewBuilder()->setTemplate('view_card_json');
+    }
+
     #endregion
 
     #region Password specific calls
@@ -1194,41 +1175,6 @@ class MembersController extends AppController
                 },
                 "Branches" => function (SelectQuery $q) {
                     return $q->select(["Branches.name"]);
-                }
-            ]);
-    }
-
-    protected function _addAuthorizationSelectAndContain(SelectQuery $q, $associationName)
-    {
-
-        $revokeReasonCase = $q->newExpr()
-            ->case()
-            ->when([$associationName . '.status' => 'revoked'])
-            ->then($q->func()->concat([$associationName . ".status" => 'identifier', ' - ', "RevokedBy.sca_name" => 'identifier', " on ", $associationName . ".expires_on" => 'identifier', " note: ", $associationName . ".revoked_reason" => 'identifier']))
-            ->when([$associationName . '.status' => 'approved', $associationName . ".expires_on <" => DateTime::now()])
-            ->then("expired")
-            ->else("");
-        return $q
-            ->select([
-                "id",
-                "member_id",
-                "activity_id",
-                $associationName . ".status",
-                "start_on",
-                "expires_on",
-                "revoked_reason" => $revokeReasonCase,
-                "revoker_id",
-            ])
-            ->contain([
-                "CurrentPendingApprovals" => function (SelectQuery $q) {
-                    return $q->select(["Approvers.sca_name", "requested_on"])
-                        ->contain("Approvers");
-                },
-                "Activities" => function (SelectQuery $q) {
-                    return $q->select(["Activities.name", "Activities.id"]);
-                },
-                "RevokedBy" => function (SelectQuery $q) {
-                    return $q->select(["RevokedBy.sca_name"]);
                 }
             ]);
     }

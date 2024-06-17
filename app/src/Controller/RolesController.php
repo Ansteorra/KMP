@@ -66,7 +66,6 @@ class RolesController extends AppController
                 "PreviousMemberRoles.RevokedBy",
                 "UpcomingMemberRoles.Members",
                 "UpcomingMemberRoles.ApprovedBy",
-                "Permissions.Activities",
                 "Permissions",
             ],
         );

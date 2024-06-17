@@ -3,16 +3,6 @@
 use Cake\I18n\DateTime;
 use Cake\I18n\Date;
 use Cake\Routing\Asset;
-
-function checkCardCount($cardCount)
-{
-    if ($cardCount == 2) {
-        echo "</div><div style='clear:both'></div><div class='auth_cards'>";
-        return 0;
-    } else {
-        return $cardCount;
-    }
-}
 //home_marshal6.gif
 $watermarkimg =
     "data:image/gif;base64," .
@@ -23,24 +13,29 @@ $watermarkimg =
             ]),
         ),
     );
-// sort authorization types by group
-usort($member->authorizations, function ($a, $b) {
-    return $a->activity->activity_group->name <=>
-        $b->activity->activity_group->name;
-});
 $now = Date::now();
 ?>
-<?php $this->start("manifest"); ?>
+<?php echo $this->KMP->startBlock("manifest"); ?>
 <link rel="manifest" href="<?= $this->Url->build([
                                 "controller" => "Members",
                                 "action" => "card.webmanifest",
                                 $member->mobile_card_token,
                             ], ["fullBase" => true]) ?>" />
-<?php $this->end(); ?>
+<?php $this->KMP->endBlock(); ?>
 <style>
 .viewMobileCard {
     background-color: <?=h($message_variables["marshal_auth_header_color"],
         ) ?>;
+}
+
+.cardbox {
+    background-color: rgb(255 255 255 / 70%) !important;
+}
+
+table.card-body-table tbody tr td,
+table.card-body-table tbody tr th {
+    background-color: rgb(255 255 255 / 40%) !important;
+
 }
 
 .card-body::after {
@@ -58,10 +53,6 @@ $now = Date::now();
     z-index: -1;
     display: inline-block;
 }
-
-.cardbox {
-    background-color: rgb(255 255 255 / 85%) !important;
-}
 </style>
 
 <div class="card cardbox m-3">
@@ -70,106 +61,27 @@ $now = Date::now();
             <?= h($message_variables["kingdom"]) ?><br />
             Activity Authorization
         </h3>
-        <dl class="row">
+        <div class="text-center" id="loading">
+            <div class="spinner-border" style="width: 3rem; height: 3rem;" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+        <dl class="row" style="display:none" id="memberDetails">
             <dt class="col-6 text-end">Legal Name</dt>
-            <dd class="col-6"><?= h($member->first_name) ?> <?= h($member->last_name) ?></dd>
+            <dd class="col-6" id="member_name"></dd>
             <dt class="col-6 text-end">Society Name</dt>
-            <dd class="col-6"><?= h($member->sca_name) ?></dd>
+            <dd class="col-6" id="member_sca_name"></dd>
             <dt class="col-6 text-end">Branch</dt>
-            <dd class="col-6"><?= h($member->branch->name) ?></dd>
+            <dd class="col-6" id="member_branch_name"></dd>
             <dt class="col-6 text-end">Membership</dt>
-            <dd class="col-6"><?= h($member->membership_number) ?> Expires:<?= h(
-                                                                                $member->membership_expires_on,
-                                                                            ) ?></dd>
+            <dd class="col-6" id="member_membership_info"></dd>
             <dt class="col-6 text-end">Background Check</dt>
-            <dd class="col-6">
-                <?php if ($member->background_check_expires_on > $now) { ?>
-                <b>* Current *</b> : <?= h(
-                                                $member->background_check_expires_on,
-                                            ) ?>
-                <?php } else { ?>
-                <?php if ($member->background_check_expires_on == null) { ?>
-                <b>* Not on file *</b>
-                <?php } else { ?>
-                <b>* Expired *</b>: <?= h(
-                                                $member->background_check_expires_on,
-                                            ) ?>
-                <?php } ?>
-                <?php } ?>
+            <dd class="col-6" id="member_background_check"></dd>
             </dd>
         </dl>
     </div>
 </div>
-<?php if (count($authTypes) > 0) : ?>
-<div class="card cardbox m-3">
-    <div class="card-body">
-        <h3 class="card-title text-center display-6">Authorizing Marshal for:</h3>
-        <table class='table '>
-            <tbody>
-                <?php $i = 0; ?>
-                <?php foreach ($authTypes as $role) : ?>
-                <?php $i++; ?>
-                <?php if ($i == 1) : ?>
-                <tr scope="row">
-                    <?php endif; ?>
-                    <td class="col-6 text-center"><?= str_replace(
-                                                                "Authorizing Marshal",
-                                                                "",
-                                                                $role,
-                                                            ) ?></td>
-                    <?php if ($i == 2) : ?>
-                </tr>
-                <?php $i = 0; ?>
-                <?php endif; ?>
-                <?php endforeach; ?>
-                <?php if ($i == 1) : ?>
-                </tr>
-                <?php endif; ?>
-            </tbody>
-        </table>
-    </div>
-</div>
-<?php endif; ?>
-<?php
-$group = "";
-$authCount = 0;
-?>
-<div class="card cardbox m-3">
-    <div class="card-body">
-        <h3 class="card-title text-center display-6">Authorizations:</h3>
-        <table class='table '>
-            <tbody>
-                <?php if (empty($member->authorizations)) : ?>
-                <tr scope="row">
-                    <td class="col-12 text-center">No Authorizations</td>
-                </tr>
-                <?php endif; ?>
-                <?php foreach ($member->authorizations as $auth) : ?>
-
-                <?php if (
-                        $group !=
-                        $auth->activity
-                        ->activity_group->name
-                    ) : ?>
-                <?php $group =
-                            $auth->activity
-                            ->activity_group->name; ?>
-                <tr scope="row">
-                    <th class="col-12 text-center" colspan="2" class="cardboxAuthorizationsLabel">
-                        <?= $group ?>
-                    </th>
-                </tr>
-                <?php endif; ?>
-                <tr scope="row">
-                    <td class="col-6 text-end"><?= $auth
-                                                        ->activity->name ?></td>
-                    <td class="col-6 text-start"><?= $auth->expires_on->toDateString() ?></td>
-                </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
-    </div>
-</div>
+<div id="pluginCards"></div>
 <div scope="row" class="row ms-3 me-3">
     <span scope="col" class="col">
         <span id="status" class="badge rounded-pill text-center bg-danger">Offline</span>
@@ -184,31 +96,211 @@ $authCount = 0;
     <?= $this->element('copyrightFooter', []) ?>
 </div>
 <?php
-$this->append(
-    "script",
-    $this->Html->script(["app/members/view_mobile_card.js"])
-);
-$this->append(
-    "script",
-    $this->Html->scriptBlock(
-        "
-    const urlCache = [
-        '" . $this->request->getPath() . "',
-        'https://ajax.aspnetcdn.com/ajax/jQuery/jquery-3.7.1.min.js',
-        '" . Asset::scriptUrl("BootstrapUI.popper.min") . "',
-        '" . Asset::scriptUrl("BootstrapUI.bootstrap.min") . "',
-        '" . Asset::scriptUrl("app/sw.js") . "',
-        '" . Asset::scriptUrl("app/members/view_mobile_card.js") . "',
-        '" . Asset::cssUrl("BootstrapUI.bootstrap.min") . "',
-        '" . Asset::cssUrl("BootstrapUI./font/bootstrap-icons") . "',
-        '" . Asset::cssUrl("BootstrapUI./font/bootstrap-icon-sizes") . "',
-        '" . Asset::imageUrl("favicon.ico") . "'
-    ];
-    swPath = '" . Asset::scriptUrl("app/sw.js") . "';
-    $(document).ready(function() {
-        var pageControl = new memberViewMobileCard();
-        pageControl.run(urlCache,swPath);
-    })",
-    ),
-);
-?>
+echo $this->KMP->startBlock('script'); ?>
+<script>
+class memberViewMobileCard {
+    constructor() {
+        this.ac = null;
+    };
+    updateOnlineStatus() {
+        const statusDiv = document.getElementById('status');
+        if (navigator.onLine) {
+            statusDiv.textContent = 'Online';
+            statusDiv.classList.remove('bg-danger');
+            statusDiv.classList.add('bg-success');
+        } else {
+            statusDiv.textContent = 'Offline';
+            statusDiv.classList.remove('bg-success');
+            statusDiv.classList.add('bg-danger');
+        }
+    }
+    refreshPageIfOnline() {
+        if (navigator.onLine) {
+            window.location.reload();
+        }
+    }
+    run(urlsToCache, swPath) {
+        var me = this;
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                me.updateOnlineStatus();
+                window.addEventListener('online', me.updateOnlineStatus);
+                window.addEventListener('offline', me.updateOnlineStatus);
+                navigator.serviceWorker.register(swPath)
+                    .then(registration => {
+                        console.log('Service Worker registered with scope:', registration.scope);
+                        registration.active.postMessage({
+                            type: 'CACHE_URLS',
+                            payload: urlsToCache
+                        });
+                    }, error => {
+                        console.log('Service Worker registration failed:', error);
+                    });
+            });
+        }
+        setInterval(me.refreshPageIfOnline, 300000);
+    }
+}
+const urlCache = [
+    '<?= $this->request->getPath() ?>',
+    'https://ajax.aspnetcdn.com/ajax/jQuery/jquery-3.7.1.min.js',
+    '<?= Asset::scriptUrl("BootstrapUI.popper.min") ?>',
+    '<?= Asset::scriptUrl("BootstrapUI.bootstrap.min") ?>',
+    '<?= Asset::scriptUrl("app/sw.js") ?>',
+    '<?= Asset::scriptUrl("app/members/view_mobile_card.js") ?>',
+    '<?= Asset::cssUrl("BootstrapUI.bootstrap.min") ?>',
+    '<?= Asset::cssUrl("BootstrapUI./font/bootstrap-icons") ?>',
+    '<?= Asset::cssUrl("BootstrapUI./font/bootstrap-icon-sizes") ?>',
+    '<?= Asset::imageUrl("favicon.ico") ?>',
+    '<?= $this->Url->build(['controller' => 'Members', 'action' => 'viewMobileCardJson', $member->mobile_card_token]) ?>'
+];
+swPath = '<?= Asset::scriptUrl("app/sw.js") ?>';
+
+var url =
+    '<?= $this->Url->build(['controller' => 'Members', 'action' => 'viewMobileCardJson', $member->mobile_card_token]) ?>';
+var currentCard = null;
+var cardCount = 0;
+
+function startCard(title) {
+    cardCount++;
+    var card = $("<div>", {
+        class: "card cardbox m-3",
+        id: "card_" + cardCount
+    });
+    cardDetails = $("<div>", {
+        class: "card-body",
+        id: "cardDetails_" + cardCount
+    });
+    $("<h3>", {
+        class: "card-title text-center display-6"
+    }).text(title).appendTo(cardDetails);
+    card.append(cardDetails);
+    $("#pluginCards").append(card);
+    currentCard = cardDetails;
+}
+
+function appendToCard(element) {
+    currentCard.append(element);
+}
+$(document).ready(function() {
+    var pageControl = new memberViewMobileCard();
+    pageControl.run(urlCache, swPath);
+    $.get(url, function(data) {
+        $("#loading").hide();
+        $("#memberDetails").show();
+        $('#member_name').text(data.member.first_name + ' ' + data.member.last_name);
+        $('#member_sca_name').text(data.member.sca_name);
+        $('#member_branch_name').text(data.member.branch.name);
+        $('#member_membership_info').text(data.member.membership_number + ' ' + data.member
+            .membership_expires_on);
+        if (data.member.membership_number && data.member.membership_number.length > 0) {
+            var memberExpDate = new Date(data.member.membership_expires_on);
+            if (memberExpDate < new Date()) {
+                memberExpDate = "Expired";
+            } else {
+                memberExpDate = " - " + memberExpDate.toLocaleDateString();
+            }
+            $('#member_membership_info').text(data.member.membership_number + ' ' + memberExpDate);
+        } else {
+            $('#member_membership_info').text("No Membership Info");
+        }
+        if (data.member.background_check_expires_on) {
+            var backgroundCheckExpDate = new Date(data.member.background_check_expires_on);
+            if (backgroundCheckExpDate < new Date()) {
+                backgroundCheckExpDate = "Expired";
+            } else {
+                backgroundCheckExpDate = 'Current' + backgroundCheckExpDate.toLocaleDateString();
+            }
+            $('#member_background_check').append("strong").text(backgroundCheckExpDate);
+        } else {
+            $('#member_background_check').text("Not on file");
+        }
+        for (let key in data) {
+            if (key === 'member') {
+                continue;
+            }
+            var pluginData = data[key];
+            for (let sectionKey in pluginData) {
+                var sectionData = pluginData[sectionKey];
+                var keysCount = Object.keys(sectionData).length;
+                if (keysCount > 0) {
+                    startCard(sectionKey);
+                } else {
+                    continue;
+                }
+                var groupTable = $("<table>", {
+                    class: "table card-body-table"
+                });
+                var groupTableBody = $("<tbody>");
+                groupTable.append(groupTableBody);
+
+                for (let groupKey in sectionData) {
+                    groupData = sectionData[groupKey];
+                    if (groupData.length === 0) {
+                        continue;
+                    }
+                    var groupRow = $("<tr>", {
+                        scope: "row"
+                    });
+                    var groupHeader = $("<th>", {
+                        class: "col-12 text-center",
+                        colspan: "2",
+                    }).text(groupKey);
+                    groupRow.append(groupHeader);
+                    groupTableBody.append(groupRow);
+                    var colCount = 0;
+                    var groupRow = $("<tr>", {
+                        scope: "row"
+                    });
+                    var textAlignClass = "text-center";
+                    for (let i = 0; i < groupData.length; i++) {
+                        var itemData = groupData[i];
+                        if (colCount == 2) {
+                            groupTable.append(groupRow);
+                            groupRow = $("<tr>", {
+                                scope: "row"
+                            });
+                            textAlignClass = "text-center";
+                            colCount = 0;
+                        } else {
+                            textAlignClass = "text-center";
+                        }
+                        //if there is a : split it into 2 columns of data
+                        if (itemData.indexOf(":") > 2) {
+                            var itemValue = itemData.split(":");
+                            var itemValueRow = $("<tr>", {
+                                scope: "row"
+                            });
+                            var itemValueCol1 = $("<td>", {
+                                class: "col-6 text-end",
+                            }).text(itemValue[0]);
+                            var itemValueCol2 = $("<td>", {
+                                class: "col-6 text-start",
+                            }).text(itemValue[1]);
+                            itemValueRow.append(itemValueCol1);
+                            itemValueRow.append(itemValueCol2);
+                            groupTable.append(itemValueRow);
+                            colCount = 2;
+                        } else {
+                            var colspan = 1;
+                            if (i + 1 == groupData.length && colCount == 0) {
+                                var colspan = 2;
+                            }
+                            var itemValueCol = $("<td>", {
+                                class: "col-6 " + textAlignClass,
+                                colspan: colspan
+                            }).text(itemData);
+                            groupRow.append(itemValueCol);
+                            colCount++;
+                        }
+                    }
+                    groupTableBody.append(groupRow);
+                }
+                appendToCard(groupTable);
+            }
+        }
+    });
+});
+</script>
+<?php
+echo $this->KMP->endBlock(); ?>

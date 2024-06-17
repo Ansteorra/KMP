@@ -1,4 +1,4 @@
-<?php if ($user->can("revoke", "Authorizations")) {
+<?php if ($user->can("revoke", "Activities.Authorizations")) {
     echo $this->Modal->create("Revoke Authorization", [
         "id" => "revokeModal",
         "close" => true,

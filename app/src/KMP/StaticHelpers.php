@@ -217,4 +217,15 @@ class StaticHelpers
         }
         return $return;
     }
+    static function makePathString($path)
+    {
+        $pathString = $path["controller"] . "/" . $path["action"];
+        if (isset($path["plugin"])) {
+            $pathString = $path["plugin"] . "/" . $pathString;
+        }
+        if (isset($path[0])) {
+            $pathString .= "/" . $path[0];
+        }
+        return strtolower($pathString);
+    }
 }

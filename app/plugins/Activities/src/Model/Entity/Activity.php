@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace Activities\Model\Entity;
 
+use App\KMP\PermissionsLoader;
+use App\Model\Entity\Member;
 use Cake\ORM\Entity;
+use Cake\ORM\TableRegistry;
+use Cake\I18n\DateTime;
 
 /**
  * Activity Entity
@@ -50,4 +54,19 @@ class Activity extends Entity
         "role" => true,
         "num_required_renewers" => true,
     ];
+
+    /**
+     * Get the current approvers for an activity
+     *
+     * @param int $activityId
+     * @return SelectQuery
+     */
+    public function getApproversQuery()
+    {
+
+        if (!isset($this->permission_id)) {
+            throw new \Exception("Permission ID not set");
+        }
+        return PermissionsLoader::getMembersWithPermissionsQuery([$this->permission_id]);;
+    }
 }

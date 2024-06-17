@@ -89,14 +89,10 @@ $user = $this->request->getAttribute("identity");
             <button class="nav-link active" id="nav-roles-tab" data-bs-toggle="tab" data-bs-target="#nav-roles"
                 type="button" role="tab" aria-controls="nav-roles" aria-selected="true"><?= __("Roles") ?>
             </button>
-            <?php if (!empty($pluginViewCells["tabs"])) : ?>
-            <?php foreach ($pluginViewCells["tabs"] as $tab) : ?>
-            <button class="nav-link" id="nav-<?= $tab["id"] ?>-tab" data-bs-toggle="tab"
-                data-bs-target="#nav-<?= $tab["id"] ?>" type="button" role="tab" aria-controls="nav-<?= $tab["id"] ?>"
-                aria-selected="false"><?= __($tab["label"]) ?>
-            </button>
-            <?php endforeach; ?>
-            <?php endif; ?>
+            <?= $this->element('pluginTabButtons', [
+                'pluginViewCells' => $pluginViewCells,
+                'activateFirst' => false,
+            ]) ?>
 
         </div>
     </nav>
@@ -152,20 +148,17 @@ $user = $this->request->getAttribute("identity");
             <p><?= __("No Roles Assigned") ?></p>
             <?php endif; ?>
         </div>
-        <?php if (!empty($pluginViewCells["tabs"])) : ?>
-        <?php foreach ($pluginViewCells["tabs"] as $tab) : ?>
-        <div class="related tab-pane fade m-3" id="nav-<?= $tab["id"] ?>" role="tabpanel"
-            aria-labelledby="nav-<?= $tab["id"] ?>-tab">
-            <?= $this->cell($tab["cell"], [$permission->id]) ?>
-        </div>
-        <?php endforeach; ?>
-        <?php endif; ?>
+        <?= $this->element('pluginTabBodies', [
+            'pluginViewCells' => $pluginViewCells,
+            'id' => $permission->id,
+            'activateFirst' => false,
+        ]) ?>
     </div>
 
 
     <?php //Start writing to modal block in layout
 
-    $this->start("modals"); ?>
+    echo $this->KMP->startBlock("modals"); ?>
 
     <?php echo $this->Modal->create("Add Role to Permissions", [
         "id" => "addRoleModal",
@@ -258,7 +251,7 @@ $user = $this->request->getAttribute("identity");
 
     <?php //finish writing to modal block in layout
 
-    $this->end(); ?>
+    $this->KMP->endBlock(); ?>
 
     <?php $this->append(
         "script",

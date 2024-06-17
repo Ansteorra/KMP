@@ -22,6 +22,11 @@ use App\Model\Entity\ActiveWindowBaseEntity;
  */
 class Authorization extends ActiveWindowBaseEntity
 {
+    const APPROVED_STATUS = "approved";
+    const PENDING_STATUS = "pending";
+    const DENIED_STATUS = "denied";
+    const REVOKED_STATUS = "revoked";
+
     public array $typeIdField = ['activity_id', 'member_id'];
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().

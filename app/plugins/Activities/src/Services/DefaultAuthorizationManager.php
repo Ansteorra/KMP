@@ -2,12 +2,14 @@
 
 namespace Activities\Services;
 
+use Activities\Model\Entity\Authorization;
 use App\KMP\StaticHelpers;
 use Activities\Services\AuthorizationManagerInterface;
 use Cake\I18n\DateTime;
 use Cake\Mailer\MailerAwareTrait;
 use Cake\ORM\TableRegistry;
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
+use PharIo\Manifest\Author;
 
 class DefaultAuthorizationManager implements AuthorizationManagerInterface
 {
@@ -32,7 +34,7 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
         int $approverId,
         bool $isRenewal
     ): bool {
-        $table = TableRegistry::getTableLocator()->get("Authorizations");
+        $table = TableRegistry::getTableLocator()->get("Activities.Authorizations");
         // If its a renewal we will only create the auth if there is an existing auth that has not expired
         if ($isRenewal) {
             $existingAuths = $table
@@ -40,7 +42,7 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
                 ->where([
                     "member_id" => $requesterId,
                     "activity_id" => $activityId,
-                    "status" => "approved",
+                    "status" => Authorization::APPROVED_STATUS,
                     "expires_on >" => DateTime::now(),
                 ])
                 ->count();
@@ -52,7 +54,7 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
         $auth->member_id = $requesterId;
         $auth->activity_id = $activityId;
         $auth->requested_on = DateTime::now();
-        $auth->status = "new";
+        $auth->status = Authorization::PENDING_STATUS;
         $auth->is_renewal = $isRenewal;
         $table->getConnection()->begin();
         if (!$table->save($auth)) {
@@ -102,7 +104,7 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
         int $nextApproverId = null
     ): bool {
         $approvalTable = TableRegistry::getTableLocator()->get(
-            "AuthorizationApprovals",
+            "Activities.AuthorizationApprovals",
         );
         $authTable = $approvalTable->Authorizations;
         $transConnection = $approvalTable->getConnection();
@@ -197,7 +199,7 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
         string $denyReason,
     ): bool {
         $table = TableRegistry::getTableLocator()->get(
-            "AuthorizationApprovals",
+            "Activities.AuthorizationApprovals",
         );
         $approval = $table->get(
             $authorizationApprovalId,
@@ -205,15 +207,19 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
         );
         $approval->responded_on = DateTime::now();
         $approval->approved = false;
+        $approval->approver_id = $approverId;
         $approval->approver_notes = $denyReason;
-        $approval->authorization->status = "rejected";
+        $approval->authorization->revoker_id = $approverId;
+        $approval->authorization->revoked_reason = $denyReason;
+        $approval->authorization->status = Authorization::DENIED_STATUS;
+        $approval->authorization->start_on = DateTime::now()->subSeconds(1);
+        $approval->authorization->expires_on = DateTime::now()->subSeconds(1);
         $table->getConnection()->begin();
         if (
             !$table->save($approval) ||
             !$table->Authorizations->save($approval->authorization)
         ) {
             $table->getConnection()->rollback();
-
             return false;
         }
         if (
@@ -249,16 +255,16 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
         int $revokerId,
         string $revokedReason,
     ): bool {
-        $table = TableRegistry::getTableLocator()->get("Authorizations");
+        $table = TableRegistry::getTableLocator()->get("Activities.Authorizations");
         $table->getConnection()->begin();
 
 
         // revoke the member_role if it was granted
         if (!$activeWindowManager->stop(
-            "Authorizations",
+            "Activities.Authorizations",
             $authorizationId,
             $revokerId,
-            "revoked",
+            Authorization::REVOKED_STATUS,
             $revokedReason,
             DateTime::now()
         )) {
@@ -292,7 +298,7 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
         int $nextApproverId = null,
     ): bool {
         $authTypesTable = TableRegistry::getTableLocator()->get(
-            "Activities",
+            "Activities.Activities",
         );
         $membersTable = TableRegistry::getTableLocator()->get("Members");
         $activity = $authTypesTable
@@ -344,7 +350,7 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
         string $authorizationToken,
     ): bool {
         $authTypesTable = TableRegistry::getTableLocator()->get(
-            "Activities",
+            "Activities.Activities",
         );
         $membersTable = TableRegistry::getTableLocator()->get("Members");
         $activity = $authTypesTable
@@ -384,13 +390,13 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
         $authTable,
         ActiveWindowManagerInterface $activeWindowManager,
     ): bool {
-        $authorization->status = "approved";
+        $authorization->status = Authorization::APPROVED_STATUS;
         $authorization->approval_count = $authorization->approval_count + 1;
         if (!$authTable->save($authorization)) {
             return false;
         }
         if (!$activeWindowManager->start(
-            "Authorizations",
+            "Activities.Authorizations",
             $authorization->id,
             $approverId,
             DateTime::now(),
@@ -433,7 +439,7 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
         ) {
             return false;
         }
-        $authorization->status = "pending";
+        $authorization->status = Authorization::PENDING_STATUS;
         $authorization->approval_count = $authorization->approval_count + 1;
         $authorization->setDirty("status", true);
         $authorization->setDirty("approval_count", true);

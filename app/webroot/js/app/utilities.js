@@ -1,0 +1,50 @@
+KMP_utils = {
+    populateList(url, filterId1, filterid2, valKey, dispKey, selectElementId) {
+        //if url ends with a / remove it
+        if (url.endsWith('/')) {
+            url = url.slice(0, -1);
+        }
+        url = url + '/' + filterId1;
+        if (filterid2) {
+            url = url + '/' + filterid2;
+        }
+        $.get(url, function (data) {
+            //remove all options
+            $('#' + selectElementId).find('option').remove();
+            //add new options
+            $('#' + selectElementId).append('<option value="0"></option>');
+            $.each(data, function (key, value) {
+                $('#' + selectElementId).append('<option value="' + value[valKey] + '">' + value[dispKey] + '</option>');
+            });
+        });
+    },
+    configureAutoComplete(ac, searchUrl, inputFieldId, valKey, dispKey, resultElementId) {
+        ac = new Autocomplete($('#' + inputFieldId)[0], {
+            data: [],
+            treshold: 3,
+            maximumItems: 8,
+            onInput: () => {
+                $('#' + resultElementId).val(0).trigger('change');
+                var input = $('#' + inputFieldId).val();
+                var me = this;
+                //AJAX call to get data
+                $.ajax({
+                    url: searchUrl,
+                    dataType: 'json',
+                    type: 'GET',
+                    data: { q: input },
+                    success: function (data) {
+                        var sendData = [];
+                        for (var i = 0; i < data.length; i++) {
+                            sendData.push({ label: data[i][dispKey], value: data[i][valKey] });
+                        }
+                        ac.setData(sendData);
+                    }
+                });
+            },
+            onSelectItem: ({ label, value }) => {
+                $('#' + resultElementId).val(value).trigger('change');
+            }
+        });
+    }
+}

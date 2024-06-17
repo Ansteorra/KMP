@@ -21,11 +21,6 @@ $watermarkimg =
             ]),
         ),
     );
-// sort authorization types by group
-usort($member->authorizations, function ($a, $b) {
-    return $a->activity->activity_group->name <=>
-        $b->activity->activity_group->name;
-});
 $now = Date::now();
 ?>
 <html>
@@ -129,10 +124,42 @@ $now = Date::now();
         font-weight: 900;
         margin: 0px;
         padding: 0px;
+        display: inline-block;
     }
 
     .cardbox dl dd {
         margin-left: 3px;
+        margin-bottom: 0px;
+        display: inline-block;
+    }
+
+    .cardbox ul {
+        display: block;
+        width: 100%;
+        margin-left: 5px;
+        padding: 0px;
+        text-align: left;
+        font-size: 7pt;
+        margin-bottom: 0px;
+        list-style: none;
+    }
+
+    .cardbox h3 {
+        font-size: 9pt;
+        font-weight: bold;
+        padding-top: 2px;
+        padding-bottom: 2px;
+        margin-top: 3px;
+        margin-bottom: 3px;
+        border-top: black 1px solid;
+        border-bottom: black 1px solid;
+        border: left 0 right 0;
+    }
+
+    .cardbox h5 {
+        font-size: 7pt;
+        font-weight: bold;
+        border: left 0 right 0;
     }
 
     .cardboxAuthorizingLabel,
@@ -217,136 +244,132 @@ $now = Date::now();
             <?= h($message_variables["secretary_email"]) ?><br />
         </p>
     </div>
-    <?php $cardCount = 1; ?>
-    <div class="auth_cards">
-        <div class="auth_card">
-            <div class="cardbox">
+    <div class="auth_cards" id="auth_cards">
+        <div class="auth_card" id="card_1">
+            <div class="cardbox" id="cardDetails_1">
                 <div class="cardboxheader">
                     Kingdom of <?= h($message_variables["kingdom"]) ?><br />
                     Martial Authorization
                 </div>
-                <dl>
-                    <dt>Legal Name</dt>
-                    <dd><?= h($member->first_name) ?> <?= h($member->last_name) ?></dd>
-                    <dt>Society Name</dt>
-                    <dd><?= h($member->sca_name) ?></dd>
-                    <dt>Branch</dt>
-                    <dd><?= h($member->branch->name) ?></dd>
-                    <dt>Membership</dt>
-                    <dd><?= h($member->membership_number) ?> Expires:<?= h(
-                                                                            $member->membership_expires_on,
-                                                                        ) ?></dd>
-                    <dt>Background Check</dt>
-                    <dd>
-                        <?php if ($member->background_check_expires_on > $now) { ?>
-                        <b>* Current *</b> : <?= h(
-                                                        $member->background_check_expires_on,
-                                                    ) ?>
-                        <?php } else { ?>
-                        <?php if ($member->background_check_expires_on == null) { ?>
-                        <b>* Not on file *</b>
-                        <?php } else { ?>
-                        <b>* Expired *</b>: <?= h(
-                                                        $member->background_check_expires_on,
-                                                    ) ?>
-                        <?php } ?>
-                        <?php } ?>
-                    </dd>
-                </dl>
-            </div>
-        </div><?php if (count($authTypes) > 0) : ?>
-        <div class="auth_card">
-            <?php $cardCount++; ?>
-            <div class="cardbox">
-                <div class="cardboxContent">
-                    <div class="cardboxAuthorizingLabel">Authorizing Marshal for:</div>
-                    <table class='cardboxAuthorizing'>
-                        <?php $i = 0; ?>
-                        <?php foreach ($authTypes as $role) : ?>
-                        <?php $i++; ?>
-                        <?php if ($i == 1) : ?>
-                        <tr>
-                            <?php endif; ?>
-                            <td><?= str_replace(
-                                            "Authorizing Marshal",
-                                            "",
-                                            $role,
-                                        ) ?></td>
-                            <?php if ($i == 2) : ?>
-                        </tr>
-                        <?php $i = 0; ?>
-                        <?php endif; ?>
-                        <?php endforeach; ?>
-                        <?php if ($i == 1) : ?>
-                        </tr>
-                        <?php endif; ?>
-                    </table>
-                </div>
-            </div>
-        </div><?php endif; ?>
-        <?php
-        $group = "";
-        $authCount = 0;
-        ?>
-        <?php foreach ($member->authorizations as $auth) : ?>
-        <?php if ($authCount == 0) : ?>
-        <?php
-                $cardCount = checkCardCount($cardCount);
-                $cardCount++;
-                $group = "";
-                ?>
-        <div class="auth_card">
-            <div class="cardbox">
-                <div class="cardboxContent">
-                    <div class="cardboxAuthorizationsLabel">Authorizations:</div>
-                    <table class='cardboxAuthorizations'>
-                        <?php endif; ?>
-                        <?php $authCount++; ?>
-                        <?php if (
-                                $group !=
-                                $auth->activity
-                                ->activity_group->name
-                            ) : ?>
-                        <?php $group =
-                                    $auth->activity
-                                    ->activity_group->name; ?>
-                        <?php $authCount++; ?>
-                        <tr>
-                            <td colspan="2" class="cardboxAuthorizationsLabel">
-                                <hr /><?= $group ?>
-                                <hr />
-                            </td>
-                        </tr>
-                        <?php endif; ?>
-                        <tr>
-                            <td style="text-align:left"><?= $auth
-                                                                ->activity->name ?></td>
-                            <td style="text-align:right"><?= $auth->expires_on ?></td>
-                        </tr>
-                        <?php if ($authCount == 15) : ?>
-                    </table>
-                </div>
+                <h2 id="loading">Loading...</h2>
             </div>
         </div>
-        <?php $authCount = 0; ?>
-        <?php endif; ?>
-        <?php endforeach; ?>
-        <?php if ($authCount != 0) : ?>
-        </table>
-    </div>
-    </div>
-    </div>
-    <?php endif; ?>
-    <?php if ($cardCount == 1) : ?>
-    <div class="auth_card">
-        <div class="cardbox">
-            <div class="cardboxContent">
-                <h3>This card intentionally left blank.</h3>
-            </div>
-        </div>
-        <?php endif; ?>
-    </div>
+
     </div>
 </body>
 
 </html>
+<?php
+echo $this->KMP->startBlock('script'); ?>
+<script>
+var url = '<?= $this->Url->build(['controller' => 'Members', 'action' => 'viewCardJson', $member->id]) ?>';
+var cardCount = 1;
+var currentCard = $("#cardDetails_1");
+var maxCardLength = currentCard.height();
+
+function usedSpaceInCard() {
+    var cardChildren = currentCard.children();
+    var runningTotal = 0;
+    for (var i = 0; i < cardChildren.length; i++) {
+        runningTotal += $(cardChildren[i]).height();
+    }
+    return runningTotal;
+}
+
+function appendToCard(element, minSpace) {
+    currentCard.append(element);
+    if (minSpace === null) {
+        minSpace = 2;
+    }
+    minSpace = maxCardLength * (minSpace / 100);
+    if (usedSpaceInCard() > (maxCardLength - minSpace)) {
+        debugger;
+        currentCard.remove(element);
+        startCard();
+        currentCard.append(element);
+    }
+}
+
+function startCard() {
+    cardCount++;
+    var card = $("<div>", {
+        class: "auth_card",
+        id: "card_" + cardCount
+    });
+    cardDetails = $("<div>", {
+        class: "cardbox",
+        id: "cardDetails_" + cardCount
+    });
+    card.append(cardDetails);
+    $("#auth_cards").append(card);
+    currentCard = cardDetails;
+}
+$(document).ready(function() {
+    $.get(url, function(data) {
+        $("#loading").hide();
+        var detailsList = $("<dl>", {
+            id: "details"
+        });
+        detailsList.append($("<dt>").text("Legal Name"));
+        detailsList.append($("<dd>").text(data.member.first_name + ' ' + data.member.last_name));
+        detailsList.append($("<dt>").text("Society Name"));
+        detailsList.append($("<dd>").text(data.member.sca_name));
+        detailsList.append($("<dt>").text("Branch"));
+        detailsList.append($("<dd>").text(data.member.branch.name));
+        detailsList.append($("<dt>").text("Membership Info"));
+        if (data.member.membership_number && data.member.membership_number.length > 0) {
+            var memberExpDate = new Date(data.member.membership_expires_on);
+            if (memberExpDate < new Date()) {
+                memberExpDate = "Expired";
+            } else {
+                memberExpDate = " - " + memberExpDate.toLocaleDateString();
+            }
+            detailsList.append($("<dd>").text(data.member.membership_number + ' ' + memberExpDate));
+        } else {
+            detailsList.append($("<dd>").text("No Membership Info"));
+        }
+        if (data.member.background_check_expires_on) {
+            var backgroundCheckExpDate = new Date(data.member.background_check_expires_on);
+            if (backgroundCheckExpDate < new Date()) {
+                backgroundCheckExpDate = "Expired";
+            } else {
+                backgroundCheckExpDate = " - " + backgroundCheckExpDate.toLocaleDateString();
+            }
+            detailsList.append($("<dt>").text("Background Check"));
+            detailsList.append($("<dd>").append("strong").text(backgroundCheckExpDate));
+        } else {
+            detailsList.append($("<dt>").text("Background Check"));
+            detailsList.append($("<dd>").text("No Background Check"));
+        }
+        appendToCard(detailsList);
+        for (let key in data) {
+            if (key === 'member') {
+                continue;
+            }
+            var pluginData = data[key];
+            for (let sectionKey in pluginData) {
+                var sectionData = pluginData[sectionKey];
+                var sectionHeader = $("<h3>").text(sectionKey);
+                appendToCard(sectionHeader, 20);
+                for (let groupKey in sectionData) {
+                    var groupData = sectionData[groupKey];
+                    var groupHeader = $("<h5>").text(groupKey);
+                    var groupDiv = $("<div>", {
+                        class: "cardGroup"
+                    });
+                    groupDiv.append(groupHeader);
+                    var groupList = $("<ul>");
+                    for (let i = 0; i < groupData.length; i++) {
+                        var itemValue = groupData[i];
+                        groupList.append($("<li>").text(itemValue));
+                    }
+                    groupDiv.append(groupList);
+                    appendToCard(groupDiv, 10);
+                }
+            }
+        }
+    });
+});
+</script>
+<?php
+echo $this->KMP->endBlock(); ?>

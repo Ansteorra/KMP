@@ -43,6 +43,6 @@ class AjaxView extends AppView
     {
         parent::initialize();
 
-        $this->response = $this->response->withType("ajax");
+        $this->response = $this->response->withType("application/json");
     }
 }

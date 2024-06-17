@@ -10,7 +10,7 @@
         ]);
         echo $this->Form->control("member_id", [
             "type" => "hidden",
-            "value" => $member->id,
+            "value" => $id,
             "id" => "request_auth__member_id",
         ]);
         echo $this->Form->control("activity", [

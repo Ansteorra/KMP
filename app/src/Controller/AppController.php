@@ -43,15 +43,16 @@ class AppController extends Controller
         parent::beforeFilter($event);
         //get url params
         $params = [
-            "controller" => $this->request->getParam('controller'),
-            "action" => $this->request->getParam('action'),
-            "plugin" => $this->request->getParam('plugin'),
+            'controller' => $this->request->getParam('controller'),
+            'action' => $this->request->getParam('action'),
+            'plugin' => $this->request->getParam('plugin'),
             $this->request->getParam('pass')
         ];
         $event = new Event(static::VIEW_CALL_EVENT, $this, ['url' => $params]);
         EventManager::instance()->dispatch($event);
         if ($event->getResult()) {
             $this->pluginViewCells = $this->organizeViewCells($event->getResult());
+            $this->set('pluginViewCells', $this->pluginViewCells);
         }
     }
 
@@ -68,9 +69,9 @@ class AppController extends Controller
     {
         parent::initialize();
 
-        $this->loadComponent("Authentication.Authentication");
-        $this->loadComponent("Authorization.Authorization");
-        $this->loadComponent("Flash");
+        $this->loadComponent('Authentication.Authentication');
+        $this->loadComponent('Authorization.Authorization');
+        $this->loadComponent('Flash');
 
         // $this->appSettings = ServiceProvider::getContainer()->get(AppSettingsService::class);
 
@@ -95,6 +96,9 @@ class AppController extends Controller
                 case 'modal':
                     $cells['modals'][$cell['order']] = $cell;
                     break;
+                case 'json':
+                    $cells['json'][$cell['order']] = $cell;
+                    break;
             }
         }
         if (isset($cells['tabs'])) {
@@ -105,6 +109,9 @@ class AppController extends Controller
         }
         if (isset($cells['modals'])) {
             ksort($cells['modals']);
+        }
+        if (isset($cells['json'])) {
+            ksort($cells['json']);
         }
         return $cells;
     }

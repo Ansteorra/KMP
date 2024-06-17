@@ -21,7 +21,7 @@ $this->prepend(
         ]) .
         '" ',
 );
-$this->start("tb_body_start");
+echo $this->KMP->startBlock("tb_body_start");
 ?>
 
 <body <?= $this->fetch("tb_body_attrs") ?>>
@@ -44,9 +44,7 @@ $this->start("tb_body_start");
                 ) ?>
             </li>
             <li class="nav-item text-nowrap">
-                <button class="navbar-toggler position-absolute d-md-none collapsed" type="button"
-                    data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu"
-                    aria-expanded="false" aria-label="Toggle navigation">
+                <button class="navbar-toggler position-absolute d-md-none collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
                 </button>
             </li>
@@ -67,23 +65,21 @@ $this->start("tb_body_start");
                 <?php
                 /** Default `flash` block. */
                 if (!$this->fetch("tb_flash")) {
-                    $this->start("tb_flash");
+                    echo $this->KMP->startBlock("tb_flash");
                     if (isset($this->Flash)) {
                         echo $this->Flash->render();
                     }
-                    $this->end();
+                    $this->KMP->endBlock();
                 }
-                $this->end();
-                $this->start("tb_body_end");
+                $this->KMP->endBlock();
+                echo $this->KMP->startBlock("tb_body_end");
                 ?>
             </main>
         </div>
     </div>
-    <?php echo $this->fetch("modals"); ?>
 </body>
 <?php
-$this->end();
-
-echo $this->element('copyrightFooter', []);
-
+$this->KMP->endBlock();
 echo $this->fetch("content");
+echo $this->element('copyrightFooter', []);
+echo $this->fetch("modals");

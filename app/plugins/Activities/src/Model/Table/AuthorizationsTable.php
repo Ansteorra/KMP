@@ -8,6 +8,7 @@ use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
+use Activities\Model\Entity\Authorization;
 
 /**
  * Authorizations Model
@@ -125,7 +126,7 @@ class AuthorizationsTable extends Table
 
     public function findPending(SelectQuery $query): SelectQuery
     {
-        $query = $query->where(['expires_on IS' => null]);
+        $query = $query->where(['Authorizations.status' => Authorization::PENDING_STATUS]);
         return $query;
     }
 }

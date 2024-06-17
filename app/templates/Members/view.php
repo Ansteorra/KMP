@@ -173,10 +173,10 @@ switch ($member->status) {
     </div>
     <nav>
         <div class="nav nav-tabs" id="nav-memberAreas" role="tablist">
-            <button class="nav-link active" id="nav-authorizations-tab" data-bs-toggle="tab"
-                data-bs-target="#nav-authorizations" type="button" role="tab" aria-controls="nav-authorizations"
-                aria-selected="true"><?= __("Authorizations") ?>
-            </button>
+            <?= $this->element('pluginTabButtons', [
+                'pluginViewCells' => $pluginViewCells,
+                'activateFirst' => true,
+            ]) ?>
             <button class="nav-link" id="nav-offices-tab" data-bs-toggle="tab" data-bs-target="#nav-offices"
                 type="button" role="tab" aria-controls="nav-offices" aria-selected="false"><?= __("Offices") ?>
             </button>
@@ -196,147 +196,11 @@ switch ($member->status) {
         </div>
     </nav>
     <div class="tab-content" id="nav-tabContent">
-        <div class="related tab-pane fade show active m-3" id="nav-authorizations" role="tabpanel"
-            aria-labelledby="nav-authorizations-tab">
-            <button type="button" class="btn btn-primary btn-sm mb-3" data-bs-toggle="modal"
-                data-bs-target="#requestAuthModal">Request Authorization</button>
-            <?= $this->Html->link(
-                __("Email Link to Mobile Card"),
-                ["controller" => "Members", "action" => "SendMobileCardEmail", $member->id],
-                ["class" => "btn btn-sm mb-3 btn-secondary"],
-            ) ?>
-
-            <?php if (!empty($member->previous_authorizations) || !empty($member->current_authorizations) || !empty($member->pending_authorizations)) {
-                $renewButton = [
-                    "type" => "button",
-                    "verify" => false,
-                    "label" => "Renew",
-                    "options" => [
-                        "class" => "btn btn-primary",
-                        "data-bs-toggle" => "modal",
-                        "data-bs-target" => "#renewalModal",
-                        "onclick" => "$('#renew_auth__id').val('{{id}}'); $('#renew_auth__auth_type_id').val('{{activity->id}}');$('#renew_auth__auth_type_id').trigger('change');",
-
-                    ],
-                ];
-                $revokeButton = [
-                    "type" => "button",
-                    "verify" => true,
-                    "label" => "Revoke",
-                    "controller" => "Authorizations",
-                    "action" => "revoke",
-                    "options" => [
-                        "class" => "btn btn-danger",
-                        "data-bs-toggle" => "modal",
-                        "data-bs-target" => "#revokeModal",
-                        "onclick" => "$('#revoke_auth__id').val('{{id}}')",
-                    ],
-                ];
-                $activeColumnTemplate = [
-                    "Authorization" => "activity->name",
-                    "Start Date" => "start_on",
-                    "End Date" => "expires_on",
-                    "Actions" => [
-                        $renewButton,
-                        $revokeButton
-                    ]
-                ];
-                $pendingColumnTemplate = [
-                    "Authorization" => "activity->name",
-                    "Requested Date" => "current_pending_approval->requested_on",
-                    "Assigned To" => "current_pending_approval->approver->sca_name",
-                ];
-                $previousColumnTemplate = [
-                    "Authorization" => "activity->name",
-                    "Start Date" => "start_on",
-                    "End Date" => "expires_on",
-                    "Reason" => "revoked_reason",
-                ];
-                echo $this->element('activeWindowTabs', [
-                    'user' => $user,
-                    'tabGroupName' => "authorizationTabs",
-                    'tabs' => [
-                        "active" => [
-                            "label" => __("Active"),
-                            "id" => "active-authorization",
-                            "selected" => true,
-                            "columns" => $activeColumnTemplate,
-                            "data" => $member->current_authorizations,
-                        ],
-                        "pending" => [
-                            "label" => __("Pending"),
-                            "id" => "upcoming-authorization",
-                            "badge" => count($member->pending_authorizations),
-                            "badgeClass" => "bg-danger",
-                            "selected" => false,
-                            "columns" => $pendingColumnTemplate,
-                            "data" => $member->pending_authorizations,
-                        ],
-                        "previous" => [
-                            "label" => __("Previous"),
-                            "id" => "previous-authorization",
-                            "selected" => false,
-                            "columns" => $previousColumnTemplate,
-                            "data" => $member->previous_authorizations,
-                        ]
-                    ]
-                ]);
-            } else {
-                echo "<p>No Authorizations</p>";
-            } ?>
-        </div>
-        <div class="related tab-pane fade m-3" id="nav-offices" role="tabpanel" aria-labelledby="nav-offices-tab">
-            <?php if (!empty($member->previous_officers) || !empty($member->current_officers) || !empty($member->upcoming_officers)) {
-                $linkTemplate = [
-                    "type" => "link",
-                    "verify" => true,
-                    "authData" => "office",
-                    "label" => "View",
-                    "controller" => "Offices",
-                    "action" => "view",
-                    "id" => "office_id",
-                    "options" => ["class" => "btn btn-secondary"],
-                ];
-                $columnsTemplate = [
-                    "Office" => "office->name",
-                    "Branch" => "branch->name",
-                    "Start Date" => "start_on",
-                    "End Date" => "expires_on",
-                    "Actions" => [
-                        $linkTemplate
-                    ],
-                ];
-                echo $this->element('activeWindowTabs', [
-                    'user' => $user,
-                    'tabGroupName' => "officeTabs",
-                    'tabs' => [
-                        "active" => [
-                            "label" => __("Active"),
-                            "id" => "active-office",
-                            "selected" => true,
-                            "columns" => $columnsTemplate,
-                            "data" => $member->current_officers,
-                        ],
-                        "upcoming" => [
-                            "label" => __("Upcoming"),
-                            "id" => "upcoming-office",
-                            "selected" => false,
-                            "columns" => $columnsTemplate,
-                            "data" => $member->upcoming_officers,
-                        ],
-                        "previous" => [
-                            "label" => __("Previous"),
-                            "id" => "previous-office",
-                            "selected" => false,
-                            "columns" => $columnsTemplate,
-                            "data" => $member->previous_officers,
-                        ]
-                    ]
-                ]);
-            } else {
-                echo "<p>No Offices assigned</p>";
-            } ?>
-        </div>
+        <?= $this->element('pluginTabBodies', [
+            'pluginViewCells' => $pluginViewCells,
+            'id' => $member->id,
+            'activateFirst' => true
+        ]) ?>
         <div class="related tab-pane fade m-3" id="nav-roles" role="tabpanel" aria-labelledby="nav-roles-tab">
             <?php if (!empty($member->previous_member_roles) || !empty($member->current_member_roles) || !empty($member->upcoming_member_roles)) {
                 $linkTemplate = [
@@ -542,22 +406,12 @@ switch ($member->status) {
     </div>
 </div>
 <?php
-$this->start("modals");
+echo $this->KMP->startBlock("modals");
 // Start writing to modal block in layout
-
 echo $this->element('members/editModal', [
     'user' => $user,
 ]);
 echo $this->element('members/changePasswordModal', [
-    'user' => $user,
-]);
-echo $this->element('members/requestAuthorizationModal', [
-    'user' => $user,
-]);
-echo $this->element('members/revokeAuthorizationModal', [
-    'user' => $user,
-]);
-echo $this->element('members/renewAuthorizationModal', [
     'user' => $user,
 ]);
 echo $this->element('members/verifyMembershipModal', [
@@ -567,26 +421,38 @@ echo $this->element('members/verifyMembershipModal', [
     'needsMemberCardVerification' => $needsMemberCardVerification,
 ]);
 // End writing to modal block in layout
-$this->end(); ?>
+$this->KMP->endBlock(); ?>
 
 <?php
 // Add scripts
-$this->append("script", $this->Html->script(["app/autocomplete.js"]));
-$this->append("script", $this->Html->script(["app/members/view.js"]));
-$this->append("script", $this->Html->scriptBlock("
-        var pageControl = new memberView();
-        pageControl.run('" . $this->Url->webroot("") . "');
-"));
-if ($passwordReset->getErrors()) {
-    $this->append(
-        "script",
-        $this->Html->scriptBlock('$("#passwordModalBtn").click();'),
-    );
-}
-if ($memberForm->getErrors()) {
-    $this->append(
-        "script",
-        $this->Html->scriptBlock('$("#editModalBtn").click()'),
-    );
-}
-?>
+echo $this->KMP->startBlock("script"); ?>
+<script>
+class memberView {
+    constructor() {
+        this.ac = null;
+
+    };
+    run() {
+        var me = this;
+        var searchUrl =
+            '<?= $this->URL->build(['controller' => 'Members', 'action' => 'SearchMembers']) ?>'; //me.rootPath + 'members/search_members';
+        if ($('#verify_member__sca_name').length > 0) {
+            var searchUrl =
+                '<?= $this->URL->build(['controller' => 'Members', 'action' => 'SearchMembers']) ?>'; //me.rootPath + 'members/search_members';
+            KMP_utils.configureAutoComplete(me.ac, searchUrl, 'verify_member__sca_name', 'id', 'sca_name',
+                'verify_member__parent_id')
+        }
+    };
+};
+
+var pageControl = new memberView();
+pageControl.run();
+
+<?php if ($passwordReset->getErrors()) { ?>
+$("#passwordModalBtn").click();
+<?php } ?>
+<?php if ($memberForm->getErrors()) { ?>
+$("#editModalBtn").click();
+<?php } ?>
+</script>
+<?php $this->KMP->endBlock(); ?>

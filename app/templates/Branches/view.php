@@ -26,8 +26,7 @@ $user = $this->request->getAttribute("identity");
             </h3>
         </div>
         <div class="col text-end">
-            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
-                data-bs-target="#editModal">Edit</button>
+            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal">Edit</button>
             <?php if (empty($branch->children) && empty($branch->members)) {
                 echo $this->Form->postLink(
                     __("Delete"),
@@ -61,60 +60,56 @@ $user = $this->request->getAttribute("identity");
                                         ) ?></td>
             </tr>
             <?php if (!empty($requiredOffices)) : ?>
-            <?php foreach ($requiredOffices as $office) : ?>
-            <tr scope="row">
-                <th class="col"><?= h($office->name) ?></th>
-                <td class="col-10">
-                    <?php if (!empty($office->current_officers)) : ?>
-                    <?php foreach ($office->current_officers as $officer) : ?>
-                    <?= h($officer->member->sca_name) ?> (<?= h($officer->start_on->toDateString()) ?> -
-                    <?= h($officer->expires_on->toDateString()) ?>)
-                    <?php endforeach; ?>
-                    <?php else : ?>
-                    <?= __("No officer assigned") ?>
-                    <?php endif; ?>
-                </td>
-            </tr>
-            <?php endforeach; ?>
+                <?php foreach ($requiredOffices as $office) : ?>
+                    <tr scope="row">
+                        <th class="col"><?= h($office->name) ?></th>
+                        <td class="col-10">
+                            <?php if (!empty($office->current_officers)) : ?>
+                                <?php foreach ($office->current_officers as $officer) : ?>
+                                    <?= h($officer->member->sca_name) ?> (<?= h($officer->start_on->toDateString()) ?> -
+                                    <?= h($officer->expires_on->toDateString()) ?>)
+                                <?php endforeach; ?>
+                            <?php else : ?>
+                                <?= __("No officer assigned") ?>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
             <?php endif; ?>
         </table>
     </div>
     <nav>
         <div class="nav nav-tabs" id="nav-memberAreas" role="tablist">
-            <button class="nav-link active" id="nav-members-tab" data-bs-toggle="tab" data-bs-target="#nav-members"
-                type="button" role="tab" aria-controls="nav-members" aria-selected="true"><?= __("Members") ?>
+            <button class="nav-link active" id="nav-members-tab" data-bs-toggle="tab" data-bs-target="#nav-members" type="button" role="tab" aria-controls="nav-members" aria-selected="true"><?= __("Members") ?>
             </button>
-            <button class="nav-link" id="nav-offices-tab" data-bs-toggle="tab" data-bs-target="#nav-offices"
-                type="button" role="tab" aria-controls="nav-offices" aria-selected="false"><?= __("Officers") ?>
+            <button class="nav-link" id="nav-offices-tab" data-bs-toggle="tab" data-bs-target="#nav-offices" type="button" role="tab" aria-controls="nav-offices" aria-selected="false"><?= __("Officers") ?>
             </button>
-            <button class="nav-link" id="nav-branches-tab" data-bs-toggle="tab" data-bs-target="#nav-branches"
-                type="button" role="tab" aria-controls="nav-branches" aria-selected="false"><?= __("Branches") ?>
+            <button class="nav-link" id="nav-branches-tab" data-bs-toggle="tab" data-bs-target="#nav-branches" type="button" role="tab" aria-controls="nav-branches" aria-selected="false"><?= __("Branches") ?>
             </button>
         </div>
     </nav>
     <div class="tab-content" id="nav-tabContent">
-        <div class="related tab-pane fade show active m-3" id="nav-members" role="tabpanel"
-            aria-labelledby="nav-members-tab">
+        <div class="related tab-pane fade show active m-3" id="nav-members" role="tabpanel" aria-labelledby="nav-members-tab">
             <?php if (!empty($branch->members)) : ?>
-            <div class="table-responsive">
-                <table class="table table-striped">
-                    <tr>
-                        <th scope="col"><?= __("Name") ?></th>
-                        <th scope="col"><?= __("Minor") ?></th>
-                        <th scope="col"><?= __("Membership Number") ?></th>
-                        <th scope="col"><?= __("Membership Exp. Date") ?></th>
-                        <th scope="col"><?= __("Status") ?></th>
-                        <th scope="col" class="actions"><?= __("Actions") ?></th>
-                    </tr>
-                    <?php foreach ($branch->members as $member) : ?>
-                    <tr>
-                        <td><?= h($member->sca_name) ?></td>
-                        <td><?= $this->KMP->bool($member->age < 18, $this->Html) ?></td>
-                        <td><?= h($member->membership_number) ?></td>
-                        <td><?= h($member->membership_expires_on->toDateString()) ?></td>
-                        <td><?= h($member->status) ?></td>
-                        <td class="actions">
-                            <?= $this->Html->link(
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <tr>
+                            <th scope="col"><?= __("Name") ?></th>
+                            <th scope="col"><?= __("Minor") ?></th>
+                            <th scope="col"><?= __("Membership Number") ?></th>
+                            <th scope="col"><?= __("Membership Exp. Date") ?></th>
+                            <th scope="col"><?= __("Status") ?></th>
+                            <th scope="col" class="actions"><?= __("Actions") ?></th>
+                        </tr>
+                        <?php foreach ($branch->members as $member) : ?>
+                            <tr>
+                                <td><?= h($member->sca_name) ?></td>
+                                <td><?= $this->KMP->bool($member->age < 18, $this->Html) ?></td>
+                                <td><?= h($member->membership_number) ?></td>
+                                <td><?= h($member->membership_expires_on->toDateString()) ?></td>
+                                <td><?= h($member->status) ?></td>
+                                <td class="actions">
+                                    <?= $this->Html->link(
                                         __("View"),
                                         [
                                             "controller" => "members",
@@ -126,18 +121,17 @@ $user = $this->request->getAttribute("identity");
                                             "class" => "btn btn-secondary",
                                         ],
                                     ) ?>
-                        </td>
-                    </tr>
-                    <?php endforeach; ?>
-                </table>
-            </div>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </table>
+                </div>
             <?php else : ?>
-            <p><?= __("No members found") ?></p>
+                <p><?= __("No members found") ?></p>
             <?php endif; ?>
         </div>
         <div class="related tab-pane fade m-3" id="nav-offices" role="tabpanel" aria-labelledby="nav-offices-tab">
-            <button type="button" class="btn btn-primary btn-sm mb-3" data-bs-toggle="modal"
-                data-bs-target="#assignOfficerModal">Assign Officer</button>
+            <button type="button" class="btn btn-primary btn-sm mb-3" data-bs-toggle="modal" data-bs-target="#assignOfficerModal">Assign Officer</button>
             <?php if (!empty($branch->previous_officers) || !empty($branch->current_officers) || !empty($branch->upcoming_officers)) {
                 $linkTemplate = [
                     "type" => "button",
@@ -203,19 +197,19 @@ $user = $this->request->getAttribute("identity");
         </div>
         <div class="related tab-pane fade m-3" id="nav-branches" role="tabpanel" aria-labelledby="nav-branches-tab">
             <?php if (!empty($branch->children)) : ?>
-            <div class="table-responsive">
-                <table class="table table-striped">
-                    <tr>
-                        <th scope="col"><?= __("Name") ?></th>
-                        <th scope="col"><?= __("Location") ?></th>
-                        <th scope="col" class="actions"><?= __("Actions") ?></th>
-                    </tr>
-                    <?php foreach ($branch->children as $child) : ?>
-                    <tr>
-                        <td><?= h($child->name) ?></td>
-                        <td><?= h($child->location) ?></td>
-                        <td class="actions">
-                            <?= $this->Html->link(
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <tr>
+                            <th scope="col"><?= __("Name") ?></th>
+                            <th scope="col"><?= __("Location") ?></th>
+                            <th scope="col" class="actions"><?= __("Actions") ?></th>
+                        </tr>
+                        <?php foreach ($branch->children as $child) : ?>
+                            <tr>
+                                <td><?= h($child->name) ?></td>
+                                <td><?= h($child->location) ?></td>
+                                <td class="actions">
+                                    <?= $this->Html->link(
                                         __("View"),
                                         ["action" => "view", $child->id],
                                         [
@@ -223,13 +217,13 @@ $user = $this->request->getAttribute("identity");
                                             "class" => "btn btn-secondary",
                                         ],
                                     ) ?>
-                        </td>
-                    </tr>
-                    <?php endforeach; ?>
-                </table>
-            </div>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </table>
+                </div>
             <?php else : ?>
-            <p><?= __("No branches found") ?></p>
+                <p><?= __("No branches found") ?></p>
             <?php endif; ?>
         </div>
     </div>
@@ -238,7 +232,7 @@ $user = $this->request->getAttribute("identity");
 
 
 <?php
-$this->start("modals");
+echo $this->KMP->startBlock("modals");
 
 echo $this->element('branches/editModal', [
     'user' => $user,
@@ -253,7 +247,7 @@ echo $this->element('branches/assignModal', [
 ]);
 
 
-$this->end(); ?>
+$this->KMP->endBlock(); ?>
 
 
 <?php

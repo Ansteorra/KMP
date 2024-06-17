@@ -18,8 +18,7 @@ $user = $this->request->getAttribute("identity");
             </h3>
         </div>
         <div class="col text-end">
-            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
-                data-bs-target="#editModal">Edit</button>
+            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal">Edit</button>
             <?= $this->Form->postLink(
                 __("Delete"),
                 ["action" => "delete", $office->id],
@@ -110,7 +109,7 @@ $user = $this->request->getAttribute("identity");
 
 <?php //Start writing to modal block in layout
 
-$this->start("modals"); ?>
+echo $this->KMP->startBlock("modals"); ?>
 
 <?php echo $this->Modal->create("Edit Office", [
     "id" => "editModal",
@@ -160,7 +159,7 @@ $this->start("modals"); ?>
 
 <?php //finish writing to modal block in layout
 
-$this->end(); ?>
+$this->KMP->endBlock(); ?>
 
 <?php $this->append(
     "script",

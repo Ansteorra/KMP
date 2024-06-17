@@ -6,9 +6,9 @@
 
 use Cake\Core\Configure;
 
-$this->start("html");
+echo $this->KMP->startBlock("html");
 printf('<html lang="%s" class="h-100">', Configure::read("App.language"));
-$this->end();
+$this->KMP->endBlock();
 
 $this->Html->css("BootstrapUI.cover", ["block" => true]);
 
@@ -22,7 +22,7 @@ $this->prepend(
         '" ',
 );
 
-$this->start("tb_body_start");
+echo $this->KMP->startBlock("tb_body_start");
 ?>
 
 <body <?= $this->fetch("tb_body_attrs") ?>>
@@ -40,12 +40,12 @@ $this->start("tb_body_start");
         <main role="main" class="px-3">
             <?= $this->fetch("content") ?>
         </main>
-        <?php $this->end(); ?>
+        <?php $this->KMP->endBlock(); ?>
 
-        <?php $this->start("tb_body_end"); ?>
+        <?php echo $this->KMP->startBlock("tb_body_end"); ?>
     </div>
 </body>
-<?php $this->end(); ?>
+<?php $this->KMP->endBlock(); ?>
 
 <?php
 echo $this->element('copyrightFooter', []);
