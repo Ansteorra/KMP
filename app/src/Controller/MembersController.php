@@ -360,7 +360,7 @@ class MembersController extends AppController
 
                 return;
             }
-            $member->mobile_card_token = StaticHelpers::generateRandomString(16);
+            $member->mobile_card_token = StaticHelpers::generateToken(16);
             if ($this->Members->save($member)) {
                 $this->Flash->success(__("The Member has been saved."));
 
@@ -932,7 +932,7 @@ class MembersController extends AppController
             } else {
                 $member->status = Member::STATUS_UNVERIFIED_MINOR;
             }
-            $member->mobile_card_token = StaticHelpers::generateRandomString(16);
+            $member->mobile_card_token = StaticHelpers::generateToken(16);
             if ($this->Members->save($member)) {
                 if ($member->age > 17) {
                     $this->Flash->success(__("Your registration has been submitted. Please check your email for a link to set up your password."));

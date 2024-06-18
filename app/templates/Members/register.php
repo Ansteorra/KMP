@@ -75,9 +75,28 @@
 <?php
 
 $this->append("script", $this->Html->script(["lib/imagePreviewer.js"]));
-$this->append("script", $this->Html->script(["app/members/register.js"]));
-$this->append("script", $this->Html->scriptBlock("
-var pageControl = new memberRegister();
-pageControl.run('" . $this->Url->webroot("") . "');
-"));
+echo $this->KMP->startBlock("script");
 ?>
+<script>
+class memberRegister {
+    constructor() {};
+    //onInput for Autocomplete
+    run(rootPath) {
+        var me = this;
+        $(document).ready(function() {
+            //$("#upload-images").laiImagePreview();
+            $("#upload-images").laiImagePreview({
+                columns: "col-sm-6 col-md-3",
+                inputFileName: "member_card",
+                imageCaption: false,
+                imageLimit: 1,
+                label: "Picture of Membership Card (Optional)",
+                maxFileSize: 2000000,
+            });
+        });
+    }
+}
+var pageControl = new memberRegister();
+pageControl.run();
+</script>
+<?php echo $this->KMP->endBlock(); ?>

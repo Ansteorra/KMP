@@ -163,7 +163,7 @@ class DevLoadActivitiesSeed extends AbstractSeed
                 'name' => 'Authorizing Rapier Marshal',
                 'term_length' => 2,
                 'activity_group_id' => 2,
-                'grants_role_id' => 6,
+                'grants_role_id' => 204,
                 'minimum_age' => 18,
                 'maximum_age' => 200,
                 'num_required_authorizors' => 2,

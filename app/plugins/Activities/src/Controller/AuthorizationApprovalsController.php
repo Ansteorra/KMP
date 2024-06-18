@@ -183,6 +183,9 @@ class AuthorizationApprovalsController extends AppController
                 "Authorizations" => function ($q) {
                     return $q->select(["Authorizations.activity_id", 'Authorizations.member_id']);
                 },
+                "Authorizations.Activities" => function ($q) {
+                    return $q->select(["Activities.id", "Activities.permission_id"]);
+                },
             ],
         );
         if (!$authorizationApproval) {
@@ -203,17 +206,25 @@ class AuthorizationApprovalsController extends AppController
         $memberId = $this->Authentication->getIdentity()->getIdentifier();
         $previousApprovers[] = $memberId;
         $previousApprovers[] = $authorizationApproval->authorization->member_id;
-        $query = $this->AuthorizationApprovals->Authorizations->Members->getCurrentActivityApprovers(
-            $authorizationApproval->authorization->activity_id,
-        );
-        $query = $query
+        $query = $authorizationApproval->authorization->activity->getApproversQuery();
+        $result = $query
+            ->contain(["Branches"])
             ->where(["Members.id NOT IN " => $previousApprovers])
             ->orderBy(["Branches.name", "Members.sca_name"])
-            ->select(["id", "sca_name", "Branches.name"])
-            ->all();
+            ->select(["Members.id", "Members.sca_name", "Branches.name"])
+            ->distinct()
+            ->all()
+            ->toArray();
+        $responseData = [];
+        foreach ($result as $member) {
+            $responseData[] = [
+                "id" => $member->id,
+                "sca_name" => $member->branch->name . ": " . $member->sca_name,
+            ];
+        }
         $this->response = $this->response
             ->withType("application/json")
-            ->withStringBody(json_encode($query));
+            ->withStringBody(json_encode($responseData));
 
         return $this->response;
     }
