@@ -2,8 +2,6 @@
 
 namespace GitHubIssueSubmitter\Controller;
 
-use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
-use App\Services\AuthorizationManager\AuthorizationManagerInterface;
 use GitHubIssueSubmitter\Controller\AppController;
 use \App\KMP\StaticHelpers;
 
@@ -19,9 +17,9 @@ class IssuesController extends AppController
     }
 
 
-    public function submit(ActiveWindowManagerInterface $awm)
+    public function submit()
     {
-        $this->Authorization->authorize($this);
+        $this->Authorization->skipAuthorization();
         $owner = StaticHelpers::getAppSetting("KMP.GitHub.Owner", "Ansteorra");
         $repo = StaticHelpers::getAppSetting("KMP.GitHub.Project", "KMP");
         $token = StaticHelpers::getAppSetting("KMP.GitHub", "")["Token"];
