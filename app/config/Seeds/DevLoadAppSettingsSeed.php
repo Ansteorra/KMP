@@ -24,56 +24,56 @@ class DevLoadAppSettingsSeed extends AbstractSeed
     {
         $data = [
             [
-                'id' => 1,
+                'id' => 31,
                 'name' => 'KMP.BranchInitRun',
                 'value' => 'recovered',
                 'created' => DateTime::now(),
                 'created_by' => '1'
             ],
             [
-                'id' => 2,
+                'id' => 32,
                 'name' => 'Activity.SecretaryEmail',
                 'value' => 'please_set',
                 'created' => DateTime::now(),
                 'created_by' => '1'
             ],
             [
-                'id' => 3,
+                'id' => 33,
                 'name' => 'KMP.KingdomName',
                 'value' => 'please_set',
                 'created' => DateTime::now(),
                 'created_by' => '1'
             ],
             [
-                'id' => 4,
+                'id' => 34,
                 'name' => 'Activity.SecretaryName',
                 'value' => 'please_set',
                 'created' => DateTime::now(),
                 'created_by' => '1'
             ],
             [
-                'id' => 5,
+                'id' => 35,
                 'name' => 'Member.ViewCard.Graphic',
                 'value' => 'auth_card_back.gif',
                 'created' => DateTime::now(),
                 'created_by' => '1'
             ],
             [
-                'id' => 6,
+                'id' => 36,
                 'name' => 'Member.ViewCard.HeaderColor',
                 'value' => 'gold',
                 'created' => DateTime::now(),
                 'created_by' => '1'
             ],
             [
-                'id' => 7,
+                'id' => 37,
                 'name' => 'Member.AdditionalInfo.OP_People_Id',
                 'value' => 'number',
                 'created' => DateTime::now(),
                 'created_by' => '1'
             ],
             [
-                'id' => 8,
+                'id' => 38,
                 'name' => 'Member.ExternalLink.Order of Precedence',
                 'value' => 'https://op.ansteorra.org/people/id/{{additional_info->OP_People_Id}}',
                 'created' => DateTime::now(),
