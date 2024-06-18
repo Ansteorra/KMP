@@ -40,3 +40,4 @@ if (!$this->fetch("tb_flash")) {
     echo $this->element('copyrightFooter', []);
 
     echo $this->fetch("content");
+    echo $this->fetch("modals");

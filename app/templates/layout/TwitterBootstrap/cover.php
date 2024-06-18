@@ -49,4 +49,6 @@ echo $this->KMP->startBlock("tb_body_start");
 
 <?php
 echo $this->element('copyrightFooter', []);
+
+echo $this->fetch("modals");
 ?>
