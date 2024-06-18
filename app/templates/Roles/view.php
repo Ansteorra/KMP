@@ -120,9 +120,9 @@ $user = $this->request->getAttribute("identity");
             <table class="table table-striped">
                 <thead>
                     <tr>
-                        <th scope="col" colspan='2'></th>
-                        <th scope="col" colspan='3' class="text-center table-active">Requirements</th>
-                        <th scope="col" colspan='2'></th>
+                        <th scope="col" colspan='1'></th>
+                        <th scope="col" colspan='4' class="text-center table-active">Requirements</th>
+                        <th scope="col" colspan='3'></th>
                     </tr>
                     <tr>
                         <th scope="col"><?= __("Name") ?></th>
@@ -134,6 +134,9 @@ $user = $this->request->getAttribute("identity");
                                                                 ) ?></th>
                         <th scope="col" class="text-center"><?= __(
                                                                     "Minimum Age",
+                                                                ) ?></th>
+                        <th scope="col" class="text-center"><?= __(
+                                                                    "Warrant",
                                                                 ) ?></th>
                         <th scope="col" class="text-center"><?= __(
                                                                     "Super User",
@@ -161,6 +164,10 @@ $user = $this->request->getAttribute("identity");
                     </td>
                     <td class="text-center"><?= h(
                                                         $permission->require_min_age,
+                                                    ) ?></td>
+                    <td class="text-center"><?= $this->Kmp->bool(
+                                                        $permission->requires_warrant,
+                                                        $this->Html,
                                                     ) ?></td>
                     <td class="text-center"><?= $this->Kmp->bool(
                                                         $permission->is_super_user,

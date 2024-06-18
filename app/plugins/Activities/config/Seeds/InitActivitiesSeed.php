@@ -25,7 +25,7 @@ class InitActivitiesSeed extends KMPMigrationSeedAbstract
     {
         $data = [
             [
-                'id' => 8,
+                'id' => 11,
                 'name' => 'Can Manage Activities',
                 'require_active_membership' => 1,
                 'require_active_background_check' => 0,
@@ -37,7 +37,7 @@ class InitActivitiesSeed extends KMPMigrationSeedAbstract
                 'created_by' => '1',
             ],
             [
-                'id' => 9,
+                'id' => 12,
                 'name' => 'Can Revoke Authorizations',
                 'require_active_membership' => 1,
                 'require_active_background_check' => 0,
@@ -49,8 +49,20 @@ class InitActivitiesSeed extends KMPMigrationSeedAbstract
                 'created_by' => '1',
             ],
             [
-                'id' => 10,
+                'id' => 13,
                 'name' => 'Can Manage Authorization Queues',
+                'require_active_membership' => 1,
+                'require_active_background_check' => 0,
+                'require_min_age' => 0,
+                'is_system' => 1,
+                'is_super_user' => 0,
+                'requires_warrant' => 1,
+                'created' => DateTime::now(),
+                'created_by' => '1',
+            ],
+            [
+                'id' => 14,
+                'name' => 'Can View Activity Reports',
                 'require_active_membership' => 1,
                 'require_active_background_check' => 0,
                 'require_min_age' => 0,

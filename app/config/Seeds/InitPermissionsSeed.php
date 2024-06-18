@@ -100,7 +100,7 @@ class InitPermissionsSeed extends AbstractSeed
             ],
             [
                 'id' => 7,
-                'name' => 'Can View Reports',
+                'name' => 'Can View Core Reports',
                 'require_active_membership' => 0,
                 'require_active_background_check' => 0,
                 'require_min_age' => 0,

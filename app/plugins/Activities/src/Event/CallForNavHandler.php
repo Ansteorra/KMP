@@ -102,6 +102,18 @@ class CallForNavHandler implements EventListenerInterface
                     "model" => "Activities.Activities",
                 ],
                 "icon" => "bi-plus",
+            ],
+            [
+                "type" => "link",
+                "mergePath" => ["Reports"],
+                "label" => "Activity Authorizations",
+                "order" => 10,
+                "url" => [
+                    "controller" => "Reports",
+                    "action" => "Authorizations",
+                    "plugin" => "Activities",
+                ],
+                "icon" => "bi-person-lines-fill",
             ]
         ];
 

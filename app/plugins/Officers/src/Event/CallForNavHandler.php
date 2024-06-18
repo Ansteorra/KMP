@@ -74,7 +74,19 @@ class CallForNavHandler implements EventListenerInterface
                     "model" => "Officers.Offices",
                 ],
                 "icon" => "bi-plus",
-            ]
+            ],
+            [
+                "type" => "link",
+                "mergePath" => ["Reports"],
+                "label" => "Dept. Officer Roster",
+                "order" => 20,
+                "url" => [
+                    "controller" => "Reports",
+                    "action" => "DepartmentOfficersRoster",
+                    "plugin" => "Officers",
+                ],
+                "icon" => "bi-building-fill-check",
+            ],
         ];
 
 

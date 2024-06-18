@@ -12,9 +12,9 @@
 <table class="table table-striped">
     <thead>
         <tr>
-            <th scope="col" colspan='2'></th>
+            <th scope="col" colspan='1'></th>
             <th scope="col" colspan='4' class="text-center table-active">Requirements</th>
-            <th scope="col" colspan='2'></th>
+            <th scope="col" colspan='3'></th>
         </tr>
         <tr>
             <th scope="col"><?= $this->Paginator->sort("name") ?></th>

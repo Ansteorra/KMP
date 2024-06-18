@@ -126,41 +126,19 @@ class CallForNavHandler implements EventListenerInterface
             [
                 "type" => "link",
                 "mergePath" => ["Reports"],
-                "label" => "Activity Warrant Roster",
+                "label" => "Permissions Warrant Roster",
                 "order" => 0,
                 "url" => [
                     "controller" => "Reports",
-                    "action" => "ActivityWarrantsRoster",
+                    "action" => "PermissionsWarrantsRoster",
                 ],
                 "icon" => "bi-person-check-fill",
             ],
             [
                 "type" => "link",
                 "mergePath" => ["Reports"],
-                "label" => "Activity Authorizations",
-                "order" => 10,
-                "url" => [
-                    "controller" => "Reports",
-                    "action" => "Authorizations",
-                ],
-                "icon" => "bi-person-lines-fill",
-            ],
-            [
-                "type" => "link",
-                "mergePath" => ["Reports"],
-                "label" => "Dept. Officer Roster",
-                "order" => 20,
-                "url" => [
-                    "controller" => "Reports",
-                    "action" => "DepartmentOfficersRoster",
-                ],
-                "icon" => "bi-building-fill-check",
-            ],
-            [
-                "type" => "link",
-                "mergePath" => ["Reports"],
                 "label" => "Role Assignments",
-                "order" => 30,
+                "order" => 1,
                 "url" => [
                     "controller" => "Reports",
                     "action" => "rolesList",
