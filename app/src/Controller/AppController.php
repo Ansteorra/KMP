@@ -19,6 +19,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Model\Table\AppSettingsTable;
+use App\View\Cell\BasePluginCell;
 use Cake\Controller\Controller;
 use Cake\Event\EventInterface;
 use Cake\Event\Event;
@@ -52,8 +53,10 @@ class AppController extends Controller
         EventManager::instance()->dispatch($event);
         if ($event->getResult()) {
             $this->pluginViewCells = $this->organizeViewCells($event->getResult());
-            $this->set('pluginViewCells', $this->pluginViewCells);
+        } else {
+            $this->pluginViewCells = [];
         }
+        $this->set('pluginViewCells', $this->pluginViewCells);
     }
 
     /**
@@ -86,32 +89,11 @@ class AppController extends Controller
     {
         $cells = [];
         foreach ($viewCells as $cell) {
-            switch ($cell['type']) {
-                case 'tab':
-                    $cells['tabs'][$cell['order']] = $cell;
-                    break;
-                case 'detail':
-                    $cells['details'][$cell['order']] = $cell;
-                    break;
-                case 'modal':
-                    $cells['modals'][$cell['order']] = $cell;
-                    break;
-                case 'json':
-                    $cells['json'][$cell['order']] = $cell;
-                    break;
-            }
+            $cells[$cell['type']][$cell['order']] = $cell;
         }
-        if (isset($cells['tabs'])) {
-            ksort($cells['tabs']);
-        }
-        if (isset($cells['details'])) {
-            ksort($cells['details']);
-        }
-        if (isset($cells['modals'])) {
-            ksort($cells['modals']);
-        }
-        if (isset($cells['json'])) {
-            ksort($cells['json']);
+        //loop through the cell keys and sort them
+        foreach ($cells as $key => $value) {
+            ksort($cells[$key]);
         }
         return $cells;
     }

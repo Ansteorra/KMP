@@ -105,9 +105,6 @@ class CallForNavHandler implements EventListenerInterface
             ]
         ];
 
-
-
-
         $results = array_merge($results, $appNav);
         return $results;
     }

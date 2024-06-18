@@ -1,10 +1,10 @@
-<?php if ($user->can("release", "Officers")) {
+<?php if ($user->can("release", "Officers.Officers")) {
     echo $this->Modal->create("Release Office", [
         "id" => "releaseModal",
         "close" => true,
     ]); ?>
-    <fieldset>
-        <?php
+<fieldset>
+    <?php
         echo $this->Form->create(null, [
             "url" => ["controller" => "Officers", "action" => "release"],
             "id" => "release_officer",
@@ -19,7 +19,7 @@
         ]);
         echo $this->Form->end();
         ?>
-    </fieldset>
+</fieldset>
 <?php echo $this->Modal->end([
         $this->Form->button("Submit", [
             "class" => "btn btn-primary",

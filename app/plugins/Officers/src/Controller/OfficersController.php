@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace App\Controller;
+namespace Officers\Controller;
 
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
-use App\Services\OfficerManager\OfficerManagerInterface;
+use Officers\Services\OfficerManagerInterface;
 use Cake\I18n\DateTime;
 
 use Cake\I18n\Date;

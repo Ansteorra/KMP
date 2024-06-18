@@ -79,28 +79,6 @@ class MembersTable extends Table
             "foreignKey" => "member_id",
         ]);
 
-        $this->hasMany("Officers", [
-            "foreignKey" => "member_id",
-        ]);
-
-        $this->hasMany("UpcomingOfficers", [
-            "className" => "Officers",
-            "finder" => "upcoming",
-            "foreignKey" => "member_id",
-        ]);
-
-        $this->hasMany("CurrentOfficers", [
-            "className" => "Officers",
-            "finder" => "current",
-            "foreignKey" => "member_id",
-        ]);
-
-        $this->hasMany("PreviousOfficers", [
-            "className" => "Officers",
-            "finder" => "previous",
-            "foreignKey" => "member_id",
-        ]);
-
         $this->belongsTo("Branches", [
             "className" => "Branches",
             "foreignKey" => "branch_id",

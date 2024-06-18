@@ -177,9 +177,6 @@ switch ($member->status) {
                 'pluginViewCells' => $pluginViewCells,
                 'activateFirst' => true,
             ]) ?>
-            <button class="nav-link" id="nav-offices-tab" data-bs-toggle="tab" data-bs-target="#nav-offices"
-                type="button" role="tab" aria-controls="nav-offices" aria-selected="false"><?= __("Offices") ?>
-            </button>
             <button class="nav-link" id="nav-roles-tab" data-bs-toggle="tab" data-bs-target="#nav-roles" type="button"
                 role="tab" aria-controls="nav-roles" aria-selected="false"><?= __("Roles") ?>
             </button>
@@ -434,11 +431,9 @@ class memberView {
     };
     run() {
         var me = this;
-        var searchUrl =
-            '<?= $this->URL->build(['controller' => 'Members', 'action' => 'SearchMembers']) ?>'; //me.rootPath + 'members/search_members';
         if ($('#verify_member__sca_name').length > 0) {
             var searchUrl =
-                '<?= $this->URL->build(['controller' => 'Members', 'action' => 'SearchMembers']) ?>'; //me.rootPath + 'members/search_members';
+                '<?= $this->URL->build(['controller' => 'Members', 'action' => 'SearchMembers']) ?>';
             KMP_utils.configureAutoComplete(me.ac, searchUrl, 'verify_member__sca_name', 'id', 'sca_name',
                 'verify_member__parent_id')
         }

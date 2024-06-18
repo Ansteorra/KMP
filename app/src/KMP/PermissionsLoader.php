@@ -31,7 +31,7 @@ class PermissionsLoader
         $now = DateTime::now();
 
         $query = $permissionsTable
-            ->find()
+            ->find()->cache("permissions_" . $memberId)
             ->innerJoinWith("Roles.Members")
             ->where(["Members.id" => $memberId])
             ->where([

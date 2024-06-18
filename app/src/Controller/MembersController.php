@@ -171,15 +171,6 @@ class MembersController extends AppController
                 "Parents" => function (SelectQuery $q) {
                     return $q->select(["Parents.sca_name", "Parents.id"]);
                 },
-                "UpcomingOfficers" => function (SelectQuery $q) {
-                    return $this->_addOfficeSelectAndContain($q);
-                },
-                "CurrentOfficers" => function (SelectQuery $q) {
-                    return $this->_addOfficeSelectAndContain($q);
-                },
-                "PreviousOfficers" => function (SelectQuery $q) {
-                    return $this->_addOfficeSelectAndContain($q);
-                },
                 "UpcomingMemberRoles" => function (SelectQuery $q) {
                     return $this->_addRolesSelectAndContain($q);
                 },
@@ -235,25 +226,6 @@ class MembersController extends AppController
         $referer = $this->request->referer(true);
         $backUrl = [];
         $user =  $this->Authentication->getIdentity();
-        switch ($referer) {
-            case "/members":
-            case "/members/":
-            case "/members/index":
-            case "/members/index/":
-                if ($user->canAccessUrl(["controller" => "Members", "action" => "index"])) {
-                    $backUrl = ["controller" => "Members", "action" => "index"];
-                }
-                break;
-            case "/members/verify-queue":
-            case "/members/verify-queue/":
-                if ($user->canAccessUrl(["controller" => "Members", "action" => "verifyQueue"])) {
-                    $backUrl = ["controller" => "Members", "action" => "verifyQueue"];
-                }
-                break;
-            default:
-                // Handle other referers here
-                break;
-        }
         $statusList = [
             Member::STATUS_ACTIVE => Member::STATUS_ACTIVE,
             Member::STATUS_DEACTIVATED => Member::STATUS_DEACTIVATED,
@@ -1156,25 +1128,6 @@ class MembersController extends AppController
                 },
                 "ApprovedBy" => function (SelectQuery $q) {
                     return $q->select(["ApprovedBy.sca_name"]);
-                }
-            ]);
-    }
-    protected function _addOfficeSelectAndContain(SelectQuery $q)
-    {
-        return $q
-            ->select([
-                "member_id",
-                "office_id",
-                "start_on",
-                "expires_on",
-                'branch_id',
-            ])
-            ->contain([
-                "Offices" => function (SelectQuery $q) {
-                    return $q->select(["Offices.name"]);
-                },
-                "Branches" => function (SelectQuery $q) {
-                    return $q->select(["Branches.name"]);
                 }
             ]);
     }

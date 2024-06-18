@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Model\Table;
+namespace Officers\Model\Table;
 
 use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
@@ -45,6 +45,7 @@ class DepartmentsTable extends Table
         $this->setPrimaryKey('id');
 
         $this->hasMany('Offices', [
+            'className' => 'Officers.Offices',
             'foreignKey' => 'department_id',
         ]);
         $this->addBehavior("Timestamp");

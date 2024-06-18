@@ -95,6 +95,9 @@ if (!$selected) {
                                                         foreach ($link["options"] as $key => $option) {
                                                             $link["options"][$key] = StaticHelpers::processTemplate($option, $data);
                                                         }
+                                                        if (!isset($link["plugin"])) {
+                                                            $link["plugin"] = null;
+                                                        }
                                                         switch ($link["type"]) {
                                                             case "link":
                                                                 echo $this->Html->link(
@@ -102,6 +105,7 @@ if (!$selected) {
                                                                     [
                                                                         "controller" => $link["controller"],
                                                                         "action" => $link["action"],
+                                                                        "plugin" => $link["plugin"],
                                                                         StaticHelpers::getValue($link["id"], $data),
                                                                     ],
                                                                     $link["options"]

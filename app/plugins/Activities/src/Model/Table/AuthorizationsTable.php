@@ -9,6 +9,8 @@ use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
 use Activities\Model\Entity\Authorization;
+use App\KMP\StaticHelpers;
+use Cake\I18n\DateTime;
 
 /**
  * Authorizations Model
@@ -77,6 +79,20 @@ class AuthorizationsTable extends Table
             "foreignKey" => "authorization_id",
         ]);
         $this->addBehavior("ActiveWindow");
+
+        $lastExpCheck = new DateTime(StaticHelpers::getAppSetting("Activities.NextStatusCheck", DateTime::now()->subDays(1)->toDateString()));
+        if ($lastExpCheck->isPast()) {
+            $this->checkStatus();
+            StaticHelpers::setAppSetting("Activities.NextStatusCheck", DateTime::now()->addDays(1)->toDateString());
+        }
+    }
+
+    protected function checkStatus(): void
+    {
+        $this->updateAll(
+            ["status" => Authorization::EXPIRED_STATUS],
+            ["expires_on <=" => DateTime::now(), 'status IN' => [Authorization::APPROVED_STATUS, Authorization::PENDING_STATUS]]
+        );
     }
 
     /**

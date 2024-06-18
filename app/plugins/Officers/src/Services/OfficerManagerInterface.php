@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services\OfficerManager;
+namespace Officers\Services;
 
 use Cake\I18n\DateTime;
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;

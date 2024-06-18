@@ -22,10 +22,11 @@ use App\Model\Entity\ActiveWindowBaseEntity;
  */
 class Authorization extends ActiveWindowBaseEntity
 {
-    const APPROVED_STATUS = "approved";
-    const PENDING_STATUS = "pending";
-    const DENIED_STATUS = "denied";
-    const REVOKED_STATUS = "revoked";
+    const APPROVED_STATUS = "Approved";
+    const PENDING_STATUS = "Pending";
+    const DENIED_STATUS = "Denied";
+    const REVOKED_STATUS = "Revoked";
+    const EXPIRED_STATUS = "Expired";
 
     public array $typeIdField = ['activity_id', 'member_id'];
     /**

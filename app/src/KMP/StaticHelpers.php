@@ -217,6 +217,12 @@ class StaticHelpers
         }
         return $return;
     }
+
+    static function setAppSetting(string $key, $value)
+    {
+        $AppSettings = TableRegistry::getTableLocator()->get("AppSettings");
+        $AppSettings->setAppSetting($key, $value);
+    }
     static function makePathString($path)
     {
         $pathString = $path["controller"] . "/" . $path["action"];

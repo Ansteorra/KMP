@@ -20,7 +20,7 @@ class MemberAuthorizationDetailsJSONCell extends BasePluginCell
         ['controller' => 'Members', 'action' => 'viewMobileCardJson', 'plugin' => null],
     ];
     static protected array $pluginData = [
-        'type' => 'json', // 'tab' or 'detail' or 'modal'
+        'type' => BasePluginCell::PLUGIN_TYPE_JSON, // 'tab' or 'detail' or 'modal'
         'id' => 'memberAuthorizations',
         'order' => 1,
         'cell' => 'Activities.MemberAuthorizationDetailsJSON'

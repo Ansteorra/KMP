@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Model\Table;
+namespace Officers\Model\Table;
 
 use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
@@ -46,6 +46,7 @@ class OfficesTable extends Table
         $this->setPrimaryKey('id');
 
         $this->belongsTo('Departments', [
+            'className' => 'Officers.Departments',
             'foreignKey' => 'department_id',
         ]);
         $this->belongsTo("GrantsRole", [
@@ -54,30 +55,30 @@ class OfficesTable extends Table
             "joinType" => "LEFT",
         ]);
         $this->belongsTo('DeputyTo', [
-            'className' => 'Offices',
+            'className' => 'Officers.Offices',
             'foreignKey' => 'deputy_to_id',
             'joinType' => 'LEFT',
         ]);
         $this->hasMany('Deputies', [
-            'className' => 'Offices',
+            'className' => 'Officers.Offices',
             'foreignKey' => 'deputy_to_id',
         ]);
         $this->hasMany("Officers", [
-            "className" => "Officers",
+            "className" => "Officers.Officers",
             "foreignKey" => "office_id"
         ]);
         $this->hasMany("CurrentOfficers", [
-            "className" => "Officers",
+            "className" => "Officers.Officers",
             "foreignKey" => "office_id",
             "finder" => "current",
         ]);
         $this->hasMany("UpcomingOfficers", [
-            "className" => "Officers",
+            "className" => "Officers.Officers",
             "foreignKey" => "office_id",
             "finder" => "upcoming",
         ]);
         $this->hasMany("PreviousOfficers", [
-            "className" => "Officers",
+            "className" => "Officers.Officers",
             "foreignKey" => "office_id",
             "finder" => "previous",
         ]);

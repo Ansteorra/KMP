@@ -2,9 +2,10 @@
 
 declare(strict_types=1);
 
-namespace App\Model\Entity;
+namespace Officers\Model\Entity;
 
 use Cake\ORM\Entity;
+use App\Model\Entity\ActiveWindowBaseEntity;
 
 /**
  * Officer Entity
@@ -26,6 +27,12 @@ use Cake\ORM\Entity;
  */
 class Officer extends ActiveWindowBaseEntity
 {
+    const UPCOMING_STATUS = "Upcoming";
+    const CURRENT_STATUS = "Current";
+    const RELEASED_STATUS = "Released";
+    const REPLACED_STATUS = "Replaced";
+    const EXPIRED_STATUS = "Expired";
+
     public array $typeIdField = ['office_id', 'branch_id'];
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().

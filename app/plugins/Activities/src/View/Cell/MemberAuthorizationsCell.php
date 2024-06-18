@@ -20,7 +20,7 @@ class MemberAuthorizationsCell extends BasePluginCell
         ['controller' => 'Members', 'action' => 'view', 'plugin' => null],
     ];
     static protected array $pluginData = [
-        'type' => 'tab', // 'tab' or 'detail' or 'modal'
+        'type' => BasePluginCell::PLUGIN_TYPE_TAB,
         'label' => 'Authorizations',
         'id' => 'member-authorizations',
         'order' => 1,
@@ -93,8 +93,8 @@ class MemberAuthorizationsCell extends BasePluginCell
             ->then($rejectFragment)
             ->when(['Authorizations.status' => Authorization::REVOKED_STATUS])
             ->then($rejectFragment)
-            ->when(['Authorizations.status' => Authorization::APPROVED_STATUS, "expires_on <" => DateTime::now()])
-            ->then("expired")
+            ->when(['Authorizations.status' => Authorization::EXPIRED_STATUS])
+            ->then("Authorization Expired")
             ->else("");
         return $q
             ->select([

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Controller;
+namespace Officers\Controller;
 
 /**
  * Offices Controller
@@ -146,5 +146,34 @@ class OfficesController extends AppController
         }
 
         return $this->redirect(['action' => 'index']);
+    }
+
+    public function availableOfficesForBranch($id = null)
+    {
+        $branch = $this->getTableLocator()->get("Branches")
+            ->find()->select(['id', 'parent_id'])
+            ->where(['id' => $id])->first();
+        if (!$branch) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+        $this->Authorization->authorize($branch);
+        $officesTbl = $this->Offices;
+        $officeQuery = $officesTbl->find("all")
+            ->contain(["Deputies" => function ($q) {
+                return $q
+                    ->select(["id", "name", "deputy_to_id"]);
+            }])
+            ->select(["id", "name", "deputy_to_id"])
+            ->orderBY(["name" => "ASC"]);
+        if ($branch->parent_id != null) {
+            $officeQuery = $officeQuery->where(['kingdom_only' => false]);
+        }
+        $offices = $officeQuery->toArray();
+        $this->viewBuilder()->setClassName("Ajax");
+        $this->response = $this->response
+            ->withType("application/json")
+            ->withStringBody(json_encode($offices));
+
+        return $this->response;
     }
 }

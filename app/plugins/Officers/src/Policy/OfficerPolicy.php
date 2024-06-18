@@ -2,15 +2,16 @@
 
 declare(strict_types=1);
 
-namespace App\Policy;
+namespace Officers\Policy;
 
-use App\Model\Entity\DepartmentsTable;
+use App\Model\Entity\Department;
 use Authorization\IdentityInterface;
+use App\Policy\BasePolicy;
 
 /**
- * DepartmentsTable policy
+ * Department policy
  */
-class OfficersTablePolicy extends BasePolicy
+class OfficerPolicy extends BasePolicy
 {
     protected string $REQUIRED_PERMISSION = "Can Manage Officers";
 

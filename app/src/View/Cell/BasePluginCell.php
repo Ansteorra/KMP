@@ -15,6 +15,10 @@ use Cake\Log\Log;
  */
 class BasePluginCell extends Cell
 {
+    const PLUGIN_TYPE_TAB = 'tab';
+    const PLUGIN_TYPE_DETAIL = 'detail';
+    const PLUGIN_TYPE_MODAL = 'modal';
+    const PLUGIN_TYPE_JSON = 'json';
 
     static public function getRouteEventResponse($route, $pluginData, $validRoutes)
     {

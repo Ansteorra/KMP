@@ -203,50 +203,6 @@ class CallForNavHandler implements EventListenerInterface
             ],
             [
                 "type" => "link",
-                "mergePath" => ["Config"],
-                "label" => "Departments",
-                "order" => 40,
-                "url" => [
-                    "controller" => "Departments",
-                    "action" => "index",
-                ],
-                "icon" => "bi-building",
-            ],
-            [
-                "type" => "link",
-                "mergePath" => ["Config", "Departments"],
-                "label" => "New Departments",
-                "order" => 0,
-                "url" => [
-                    "controller" => "Departments",
-                    "action" => "add",
-                ],
-                "icon" => "bi-plus",
-            ],
-            [
-                "type" => "link",
-                "mergePath" => ["Config"],
-                "label" => "Offices",
-                "order" => 50,
-                "url" => [
-                    "controller" => "Offices",
-                    "action" => "index",
-                ],
-                "icon" => "bi-person-gear",
-            ],
-            [
-                "type" => "link",
-                "mergePath" => ["Config", "Offices"],
-                "label" => "New Office",
-                "order" => 0,
-                "url" => [
-                    "controller" => "Offices",
-                    "action" => "add",
-                ],
-                "icon" => "bi-plus",
-            ],
-            [
-                "type" => "link",
                 "mergePath" => ["Security"],
                 "label" => "Roles",
                 "order" => 0,

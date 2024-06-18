@@ -43,14 +43,14 @@ class KmpHelper extends Helper
             Log::error("Block " . self::$currentOpenBlock . " was not closed before opening " . $block);
         }
         self::$mainView->start($block);
-        $currentOpenBlock = $block;
+        self::$currentOpenBlock = $block;
         return self::$mainView->fetch($block);
     }
 
     public function endBlock()
     {
         self::$mainView->end();
-        $currentOpenBlock = "";
+        self::$currentOpenBlock = "";
     }
 
     /**

@@ -16,7 +16,7 @@ class PermissionActivitiesCell extends BasePluginCell
         ['controller' => 'Permissions', 'action' => 'view', 'plugin' => null],
     ];
     static protected array $pluginData = [
-        'type' => 'tab', // 'tab' or 'detail' or 'modal'
+        'type' => BasePluginCell::PLUGIN_TYPE_TAB,
         'label' => 'Activities',
         'id' => 'permission-activities',
         'order' => 2,

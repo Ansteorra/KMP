@@ -2,12 +2,15 @@
 
 declare(strict_types=1);
 
-namespace App\Model\Table;
+namespace Officers\Model\Table;
 
 use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
+use App\KMP\StaticHelpers;
+use Cake\I18n\DateTime;
+use Officers\Model\Entity\Officer;
 
 /**
  * Officers Model
@@ -55,6 +58,7 @@ class OfficersTable extends Table
             'joinType' => 'INNER',
         ]);
         $this->belongsTo('Offices', [
+            'className' => 'Officers.Offices',
             'foreignKey' => 'office_id',
             'joinType' => 'INNER',
         ]);
@@ -73,7 +77,7 @@ class OfficersTable extends Table
         ]);
 
         $this->belongsTo('ReportsToOffices', [
-            'className' => 'Offices',
+            'className' => 'Officers.Offices',
             'foreignKey' => 'reports_to_office_id',
             'joinType' => 'LEFT',
         ]);
@@ -85,6 +89,24 @@ class OfficersTable extends Table
         $this->addBehavior("Timestamp");
         $this->addBehavior('Muffin/Footprint.Footprint');
         $this->addBehavior("ActiveWindow");
+
+        $lastOfficerExpCheck = new DateTime(StaticHelpers::getAppSetting("Officer.NextStatusCheck", DateTime::now()->subDays(1)->toDateString()));
+        if ($lastOfficerExpCheck->isPast()) {
+            $this->checkOfficerStatus();
+            StaticHelpers::setAppSetting("Officer.NextStatusCheck", DateTime::now()->addDays(1)->toDateString());
+        }
+    }
+
+    protected function checkOfficerStatus(): void
+    {
+        $this->updateAll(
+            ["status" => Officer::EXPIRED_STATUS],
+            ["expires_on <=" => DateTime::now(), 'status IN' => [Officer::CURRENT_STATUS, Officer::UPCOMING_STATUS]]
+        );
+        $this->updateAll(
+            ["status" => Officer::CURRENT_STATUS],
+            ["start_on <=" => DateTime::now(), 'status ' => Officer::UPCOMING_STATUS]
+        );
     }
 
     /**

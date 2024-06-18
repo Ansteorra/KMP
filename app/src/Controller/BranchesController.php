@@ -23,7 +23,7 @@ class BranchesController extends AppController
         if (!$setting == "recovered") {
             $branches = $this->Branches;
             $branches->recover();
-            $this->appSettings->setAppSetting(
+            StaticHelpers::setAppSetting(
                 "KMP.BranchInitRun",
                 "recovered",
             );
@@ -63,15 +63,6 @@ class BranchesController extends AppController
                         ->select(["id", "sca_name", "branch_id", "membership_number", "membership_expires_on", "status", "birth_month", "birth_year"])
                         ->orderBy(["sca_name" => "ASC"]);
                 },
-                "CurrentOfficers" => function ($q) {
-                    return $this->officerQuery($q);
-                },
-                "UpcomingOfficers" => function ($q) {
-                    return $this->officerQuery($q);
-                },
-                "PreviousOfficers" => function ($q) {
-                    return $this->officerQuery($q);
-                },
             ],
         );
         if (!$branch) {
@@ -85,22 +76,10 @@ class BranchesController extends AppController
         $treeList = $this->Branches
             ->find("treeList", spacer: "--")
             ->orderBy(["name" => "ASC"]);
-        $officesTbl = $this->getTableLocator()->get("Offices");
-        $officeQuery = $officesTbl->find("all")
-            ->contain(["Deputies" => function ($q) {
-                return $q
-                    ->select(["id", "name", "deputy_to_id"]);
-            }])
-            ->select(["id", "name", "deputy_to_id"])
-            ->orderBY(["name" => "ASC"]);
-        if ($branch->parent_id != null) {
-            $officeQuery = $officeQuery->where(['kingdom_only' => false]);
-        }
-        $offices = $officeQuery->toArray();
+
         // get a list of required offices and officers for the branch
-        $requiredOffices = $this->Branches->getRequiredOfficesAndOfficers($branch->id, $branch->parent_id == null);
-        $newOfficer = $this->Branches->Officers->newEmptyEntity();
-        $this->set(compact("branch", "treeList", "offices", "newOfficer", "requiredOffices"));
+
+        $this->set(compact("branch", "treeList"));
     }
 
     /**
@@ -213,42 +192,5 @@ class BranchesController extends AppController
         }
 
         return $this->redirect(["action" => "index"]);
-    }
-
-    protected function officerQuery($q)
-    {
-        return $q
-            ->select([
-                "id",
-                "member_id",
-                "office_id",
-                "branch_id",
-                "start_on",
-                "expires_on",
-                'revoked_reason',
-                "ReportsToBranches.name",
-                "ReportsToOffices.name",
-                "deputy_description",
-            ])
-            ->contain([
-                "Members" => function ($q) {
-                    return $q
-                        ->select(["id", "sca_name"])
-                        ->order(["sca_name" => "ASC"]);
-                },
-                "Offices" => function ($q) {
-                    return $q
-                        ->select(["id", "name"]);
-                },
-                "ReportsToBranches" => function ($q) {
-                    return $q
-                        ->select(["id", "name"]);
-                },
-                "ReportsToOffices" => function ($q) {
-                    return $q
-                        ->select(["id", "name"]);
-                },
-            ])
-            ->order(["start_on" => "DESC", "Offices.name" => "ASC"]);
     }
 }

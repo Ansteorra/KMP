@@ -1,95 +1,92 @@
 <?php
 $user = $this->request->getAttribute("identity");
 ?>
-<div class="related tab-pane fade show active m-3" id="nav-authorizations" role="tabpanel"
-    aria-labelledby="nav-authorizations-tab">
-    <button type="button" class="btn btn-primary btn-sm mb-3" data-bs-toggle="modal"
-        data-bs-target="#requestAuthModal">Request Authorization</button>
-    <?= $this->Html->link(
-        __("Email Link to Mobile Card"),
-        ["controller" => "Members", "action" => "SendMobileCardEmail", $id],
-        ["class" => "btn btn-sm mb-3 btn-secondary"],
-    ) ?>
+<button type="button" class="btn btn-primary btn-sm mb-3" data-bs-toggle="modal"
+    data-bs-target="#requestAuthModal">Request Authorization</button>
+<?= $this->Html->link(
+    __("Email Link to Mobile Card"),
+    ["controller" => "Members", "action" => "SendMobileCardEmail", $id],
+    ["class" => "btn btn-sm mb-3 btn-secondary"],
+) ?>
 
-    <?php if (!empty($pendingAuths) || !empty($currentAuths) || !empty($previousAuths)) {
-        $renewButton = [
-            "type" => "button",
-            "verify" => false,
-            "label" => "Renew",
-            "options" => [
-                "class" => "btn btn-primary",
-                "data-bs-toggle" => "modal",
-                "data-bs-target" => "#renewalModal",
-                "onclick" => "$('#renew_auth__id').val('{{id}}'); $('#renew_auth__auth_type_id').val('{{activity->id}}');$('#renew_auth__auth_type_id').trigger('change');",
+<?php if (!empty($pendingAuths) || !empty($currentAuths) || !empty($previousAuths)) {
+    $renewButton = [
+        "type" => "button",
+        "verify" => false,
+        "label" => "Renew",
+        "options" => [
+            "class" => "btn btn-primary",
+            "data-bs-toggle" => "modal",
+            "data-bs-target" => "#renewalModal",
+            "onclick" => "$('#renew_auth__id').val('{{id}}'); $('#renew_auth__auth_type_id').val('{{activity->id}}');$('#renew_auth__auth_type_id').trigger('change');",
 
+        ],
+    ];
+    $revokeButton = [
+        "type" => "button",
+        "verify" => true,
+        "label" => "Revoke",
+        "controller" => "Authorizations",
+        "action" => "revoke",
+        "options" => [
+            "class" => "btn btn-danger",
+            "data-bs-toggle" => "modal",
+            "data-bs-target" => "#revokeModal",
+            "onclick" => "$('#revoke_auth__id').val('{{id}}')",
+        ],
+    ];
+    $activeColumnTemplate = [
+        "Authorization" => "activity->name",
+        "Start Date" => "start_on",
+        "End Date" => "expires_on",
+        "Actions" => [
+            $renewButton,
+            $revokeButton
+        ]
+    ];
+    $pendingColumnTemplate = [
+        "Authorization" => "activity->name",
+        "Requested Date" => "current_pending_approval->requested_on",
+        "Assigned To" => "current_pending_approval->approver->sca_name",
+    ];
+    $previousColumnTemplate = [
+        "Authorization" => "activity->name",
+        "Start Date" => "start_on",
+        "End Date" => "expires_on",
+        "Reason" => "revoked_reason",
+    ];
+    echo $this->element('activeWindowTabs', [
+        'user' => $user,
+        'tabGroupName' => "authorizationTabs",
+        'tabs' => [
+            "active" => [
+                "label" => __("Active"),
+                "id" => "active-authorization",
+                "selected" => true,
+                "columns" => $activeColumnTemplate,
+                "data" => $currentAuths,
             ],
-        ];
-        $revokeButton = [
-            "type" => "button",
-            "verify" => true,
-            "label" => "Revoke",
-            "controller" => "Authorizations",
-            "action" => "revoke",
-            "options" => [
-                "class" => "btn btn-danger",
-                "data-bs-toggle" => "modal",
-                "data-bs-target" => "#revokeModal",
-                "onclick" => "$('#revoke_auth__id').val('{{id}}')",
+            "pending" => [
+                "label" => __("Pending"),
+                "id" => "upcoming-authorization",
+                "badge" => count($pendingAuths),
+                "badgeClass" => "bg-danger",
+                "selected" => false,
+                "columns" => $pendingColumnTemplate,
+                "data" => $pendingAuths,
             ],
-        ];
-        $activeColumnTemplate = [
-            "Authorization" => "activity->name",
-            "Start Date" => "start_on",
-            "End Date" => "expires_on",
-            "Actions" => [
-                $renewButton,
-                $revokeButton
+            "previous" => [
+                "label" => __("Previous"),
+                "id" => "previous-authorization",
+                "selected" => false,
+                "columns" => $previousColumnTemplate,
+                "data" => $previousAuths,
             ]
-        ];
-        $pendingColumnTemplate = [
-            "Authorization" => "activity->name",
-            "Requested Date" => "current_pending_approval->requested_on",
-            "Assigned To" => "current_pending_approval->approver->sca_name",
-        ];
-        $previousColumnTemplate = [
-            "Authorization" => "activity->name",
-            "Start Date" => "start_on",
-            "End Date" => "expires_on",
-            "Reason" => "revoked_reason",
-        ];
-        echo $this->element('activeWindowTabs', [
-            'user' => $user,
-            'tabGroupName' => "authorizationTabs",
-            'tabs' => [
-                "active" => [
-                    "label" => __("Active"),
-                    "id" => "active-authorization",
-                    "selected" => true,
-                    "columns" => $activeColumnTemplate,
-                    "data" => $currentAuths,
-                ],
-                "pending" => [
-                    "label" => __("Pending"),
-                    "id" => "upcoming-authorization",
-                    "badge" => count($pendingAuths),
-                    "badgeClass" => "bg-danger",
-                    "selected" => false,
-                    "columns" => $pendingColumnTemplate,
-                    "data" => $pendingAuths,
-                ],
-                "previous" => [
-                    "label" => __("Previous"),
-                    "id" => "previous-authorization",
-                    "selected" => false,
-                    "columns" => $previousColumnTemplate,
-                    "data" => $previousAuths,
-                ]
-            ]
-        ]);
-    } else {
-        echo "<p>No Authorizations</p>";
-    } ?>
-</div>
+        ]
+    ]);
+} else {
+    echo "<p>No Authorizations</p>";
+} ?>
 <?php
 $this->KMP->startBlock("modals");
 echo $this->element('requestAuthorizationModal', [

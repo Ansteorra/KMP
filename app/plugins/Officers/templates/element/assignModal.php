@@ -37,7 +37,7 @@ echo $this->Modal->create("Assign Officer", [
     ]);
     echo $this->Form->control("branch_id", [
         "type" => "hidden",
-        "value" => $branch->id,
+        "value" => $id,
     ]);
     echo $this->Form->control("member_id", [
         "type" => "hidden",

@@ -13,6 +13,9 @@ use Cake\Routing\RouteBuilder;
 use App\KMP\KMPPluginInterface;
 use Cake\Event\EventManager;
 use Officers\Event\CallForCellsHandler;
+use Officers\Event\CallForNavHandler;
+use Officers\Services\DefaultOfficerManager;
+use Officers\Services\OfficerManagerInterface;
 
 /**
  * Plugin for Officers
@@ -45,6 +48,9 @@ class OfficersPlugin extends BasePlugin implements KMPPluginInterface
     public function bootstrap(PluginApplicationInterface $app): void
     {
         $handler = new CallForCellsHandler();
+        EventManager::instance()->on($handler);
+
+        $handler = new CallForNavHandler();
         EventManager::instance()->on($handler);
     }
 
@@ -109,5 +115,9 @@ class OfficersPlugin extends BasePlugin implements KMPPluginInterface
     public function services(ContainerInterface $container): void
     {
         // Add your services here
+        $container->add(
+            OfficerManagerInterface::class,
+            DefaultOfficerManager::class,
+        );
     }
 }

@@ -1,10 +1,11 @@
 <?php
 
-namespace App\Services\OfficerManager;
+namespace Officers\Services;
 
 use Cake\I18n\DateTime;
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 use Cake\ORM\TableRegistry;
+use Officers\Model\Entity\Officer;
 
 class DefaultOfficerManager implements OfficerManagerInterface
 {
@@ -31,23 +32,29 @@ class DefaultOfficerManager implements OfficerManagerInterface
         int $approverId,
     ): bool {
         //get officer table
-        $officerTable = TableRegistry::getTableLocator()->get('Officers');
+        $officerTable = TableRegistry::getTableLocator()->get('Officers.Officers');
         $newOfficer = $officerTable->newEmptyEntity();
         //get office table
-        $officeTable = TableRegistry::getTableLocator()->get('Offices');
+        $officeTable = TableRegistry::getTableLocator()->get('Officers.Offices');
         //get the office
         $office = $officeTable->get($officeId);
 
         if ($endOn === null) {
             $endOn = $startOn->addYears($office->term_length);
         }
-
+        $status = Officer::UPCOMING_STATUS;
+        if ($startOn->isToday() || $startOn->isPast()) {
+            $status = Officer::CURRENT_STATUS;
+        }
+        if ($endOn->isPast()) {
+            $status = Officer::EXPIRED_STATUS;
+        }
         $newOfficer->member_id = $memberId;
         $newOfficer->office_id = $officeId;
         $newOfficer->branch_id = $branchId;
         $newOfficer->approver_id = $approverId;
         $newOfficer->approval_date = DateTime::now();
-        $newOfficer->status = 'new';
+        $newOfficer->status = $status;
         $newOfficer->reports_to_office_id = $officeId;
         if ($office->deputy_to_id != null) {
             $newOfficer->deputy_description = $deputyDescription;
@@ -88,7 +95,7 @@ class DefaultOfficerManager implements OfficerManagerInterface
         if (!$officerTable->save($newOfficer)) {
             return false;
         }
-        if (!$activeWindowManager->start('Officers', $newOfficer->id, $approverId, $startOn, $endOn, $office->term_length, $office->grants_role_id, $office->only_one_per_branch)) {
+        if (!$activeWindowManager->start('Officers.Officers', $newOfficer->id, $approverId, $startOn, $endOn, $office->term_length, $office->grants_role_id, $office->only_one_per_branch)) {
             return false;
         }
         return true;
@@ -111,7 +118,7 @@ class DefaultOfficerManager implements OfficerManagerInterface
         DateTime $revokedOn,
         ?string $revokedReason
     ): bool {
-        if (!$activeWindowManager->stop('Officers', $officerId, $revokerId, 'released', $revokedReason, $revokedOn)) {
+        if (!$activeWindowManager->stop('Officers.Officers', $officerId, $revokerId, 'released', $revokedReason, $revokedOn)) {
             return false;
         }
         return true;
