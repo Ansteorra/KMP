@@ -133,7 +133,8 @@ class NavigationCell extends Cell
                 //if $activepath ends with * then we are looking for a partial match
                 if (substr($activePath, -1) === "*") {
                     $activePath = substr($activePath, 0, -2);
-                    if (substr($currentRequestString, 0, strlen($activePath)) === $activePath) {
+                    $testPath = strtolower(substr($currentRequestString, 0, strlen($activePath)));
+                    if ($testPath == strtolower($activePath)) {
                         return true;
                     }
                 }

@@ -36,8 +36,7 @@ use App\KMP\StaticHelpers;
             "labelOptions" => ["class" => "input-group-text"],
         ]);
         echo $this->Form->control("membership_number");
-        echo $this->Form->control("membership_expires_on", ["empty" => true]);
-        echo $this->Form->control("parent_name"); ?>
+        echo $this->Form->control("membership_expires_on", ["empty" => true]); ?>
         <div class="mb-3 form-group select row">
             <label class="form-label" for="birth-month">Birth Date</label>
             <div class="col-2">
@@ -58,18 +57,6 @@ use App\KMP\StaticHelpers;
             </div>
         </div>
         <?php
-        if (strtolower(StaticHelpers::getSetting("Use External ID 1" . "no")) == "yes") {
-            echo $this->Form->control("external_id_1", ["Label" => StaticHelpers::getSetting("External ID 1 Field Name" . "External ID 1")]);
-        }
-        if (strtolower(StaticHelpers::getSetting("Use External ID 2" . "no")) == "yes") {
-            echo $this->Form->control("external_id_2", ["Label" => StaticHelpers::getSetting("External ID 1 Field Name" . "External ID 2")]);
-        }
-        if (strtolower(StaticHelpers::getSetting("Use External ID 3" . "no")) == "yes") {
-            echo $this->Form->control("external_id_3", ["Label" => StaticHelpers::getSetting("External ID 1 Field Name" . "External ID 3")]);
-        }
-        if (strtolower(StaticHelpers::getSetting("Use External ID 4" . "no")) == "yes") {
-            echo $this->Form->control("external_id_4", ["Label" => StaticHelpers::getSetting("External ID 1 Field Name" . "External ID 4")]);
-        }
         echo $this->Form->control("background_check_expires_on", [
             "empty" => true,
         ]);

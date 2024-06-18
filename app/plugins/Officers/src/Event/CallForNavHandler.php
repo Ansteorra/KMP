@@ -35,6 +35,9 @@ class CallForNavHandler implements EventListenerInterface
                     "model" => "Officers.Departments",
                 ],
                 "icon" => "bi-building",
+                "activePaths" => [
+                    "officers/departments/view/*",
+                ]
             ],
             [
                 "type" => "link",
@@ -61,6 +64,9 @@ class CallForNavHandler implements EventListenerInterface
                     "model" => "Officers.Offices",
                 ],
                 "icon" => "bi-person-gear",
+                "activePaths" => [
+                    "officers/offices/view/*",
+                ]
             ],
             [
                 "type" => "link",

@@ -84,7 +84,7 @@ class CallForNavHandler implements EventListenerInterface
                     "action" => "index",
                 ],
                 "icon" => "bi-people",
-                "activePatns" => [
+                "activePaths" => [
                     "Members/view/*",
                 ]
             ],
@@ -166,6 +166,9 @@ class CallForNavHandler implements EventListenerInterface
                     "action" => "index",
                 ],
                 "icon" => "bi-diagram-3",
+                "activePaths" => [
+                    "Branches/view/*",
+                ]
             ],
 
             [
@@ -189,6 +192,9 @@ class CallForNavHandler implements EventListenerInterface
                     "action" => "index",
                 ],
                 "icon" => "bi-universal-access-circle",
+                "activePaths" => [
+                    "Roles/view/*",
+                ]
             ],
             [
                 "type" => "link",
@@ -211,6 +217,9 @@ class CallForNavHandler implements EventListenerInterface
                     "action" => "index",
                 ],
                 "icon" => "bi-clipboard-check",
+                "activePaths" => [
+                    "Permissions/view/*",
+                ]
             ],
             [
                 "type" => "link",

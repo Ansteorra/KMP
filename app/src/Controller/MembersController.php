@@ -352,11 +352,27 @@ class MembersController extends AppController
                 $member,
                 $this->request->getData(),
             );
-            if (!$member->getErrors()) {
+            if ($member->getErrors()) {
+                $this->Flash->error(
+                    __("The Member could not be saved. Please, try again."),
+                );
+                $months = array_reduce(range(1, 12), function ($rslt, $m) {
+                    $rslt[$m] = date('F', mktime(0, 0, 0, $m, 10));
+                    return $rslt;
+                });
+                $years = array_combine(range(date('Y'), date('Y') - 130), range(date('Y'), date('Y') - 130));
                 $treeList = $this->Members->Branches
                     ->find("treeList", spacer: "--")
                     ->orderBy(["name" => "ASC"]);
-                $this->set(compact("member", "treeList"));
+                $treeList = $this->Members->Branches
+                    ->find("treeList", spacer: "--")
+                    ->orderBy(["name" => "ASC"]);
+                $this->set(compact(
+                    "member",
+                    "treeList",
+                    "months",
+                    "years",
+                ));
 
                 return;
             }
@@ -1060,9 +1076,11 @@ class MembersController extends AppController
                     return $this->redirect(["action" => "view", $member->id]);
                 }
             }
+            $deleteImage = false;
             //if the member is an adult and the membership was validated then set the status to active
             if ($member->age > 17 && $verifyMembership == "1") {
                 $member->status = Member::STATUS_VERIFIED_MEMBERSHIP;
+                $deleteImage = true;
             }
             //if the member is a minor and the parent was validated then set the status to verified minor
             if ($member->age < 18 && $verifyParent == "1" && $verifyMembership == "1") {
@@ -1073,8 +1091,10 @@ class MembersController extends AppController
                 //if the member is already membership verified then set to minor verified
                 if ($member->status == Member::STATUS_MINOR_MEMBERSHIP_VERIFIED) {
                     $member->status = Member::STATUS_VERIFIED_MINOR;
+                    $deleteImage = true;
                 } else {
                     $member->status = Member::STATUS_MINOR_PARENT_VERIFIED;
+                    $deleteImage = true;
                 }
             }
             //if the the member is a minor and the parent was not validated by the membership was then set the status to minor membership verified
@@ -1082,12 +1102,14 @@ class MembersController extends AppController
 
                 if ($member->status == Member::STATUS_MINOR_PARENT_VERIFIED) {
                     $member->status = Member::STATUS_VERIFIED_MINOR;
+                    $deleteImage = true;
                 } else {
                     $member->status = Member::STATUS_MINOR_MEMBERSHIP_VERIFIED;
+                    $deleteImage = true;
                 }
             }
             $image = $member->membership_card_path;
-            if ($image != null) {
+            if ($image != null && $deleteImage) {
                 $image = WWW_ROOT . '../images/uploaded/' . $image;
                 $member->membership_card_path = null;
                 if (!StaticHelpers::deleteFile($image)) {

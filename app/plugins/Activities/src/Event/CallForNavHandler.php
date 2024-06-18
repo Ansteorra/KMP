@@ -50,6 +50,10 @@ class CallForNavHandler implements EventListenerInterface
                     "model" => "Activities.AuthorizationApprovals",
                 ],
                 "icon" => "bi-card-checklist",
+                "activePaths" => [
+                    "activities/AuthorizationApprovals/view/*",
+                ]
+
             ],
             [
                 "type" => "link",
@@ -63,6 +67,9 @@ class CallForNavHandler implements EventListenerInterface
                     "model" => "Activities.ActivityGroups",
                 ],
                 "icon" => "bi-archive",
+                "activePaths" => [
+                    "activities/ActivityGroups/view/*",
+                ]
             ],
             [
                 "type" => "link",
@@ -89,6 +96,9 @@ class CallForNavHandler implements EventListenerInterface
                     "model" => "Activities.Activities",
                 ],
                 "icon" => "bi-collection",
+                "activePaths" => [
+                    "activities/activities/view/*",
+                ]
             ],
             [
                 "type" => "link",
