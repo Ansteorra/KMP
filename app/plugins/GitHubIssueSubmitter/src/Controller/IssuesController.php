@@ -24,7 +24,7 @@ class IssuesController extends AppController
         $this->Authorization->authorize($this);
         $owner = StaticHelpers::getAppSetting("KMP.GitHub.Owner", "Ansteorra");
         $repo = StaticHelpers::getAppSetting("KMP.GitHub.Project", "KMP");
-        $token = StaticHelpers::getAppSetting("KMP.GitHub.Token", "");;
+        $token = StaticHelpers::getAppSetting("KMP.GitHub", "")["Token"];
         $body = $this->request->getData('body');
         $title = $this->request->getData('title');
         $category = $this->request->getData('feedbackType');
