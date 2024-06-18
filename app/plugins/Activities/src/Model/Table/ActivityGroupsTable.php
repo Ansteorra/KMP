@@ -38,7 +38,7 @@ class ActivityGroupsTable extends Table
     {
         parent::initialize($config);
 
-        $this->setTable("activity_groups");
+        $this->setTable("activities_activity_groups");
         $this->setDisplayField("name");
         $this->setPrimaryKey("id");
 

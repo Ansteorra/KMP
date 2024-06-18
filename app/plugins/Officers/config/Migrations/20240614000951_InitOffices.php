@@ -13,7 +13,7 @@ class InitOffices extends AbstractMigration
 
     public function up(): void
     {
-        $this->table("departments")
+        $this->table("officers_departments")
             ->addColumn("id", "integer", [
                 "autoIncrement" => true,
                 "default" => null,
@@ -55,7 +55,7 @@ class InitOffices extends AbstractMigration
             ->addIndex(["deleted"])
             ->create();
 
-        $this->table("offices")
+        $this->table("officers_offices")
             ->addColumn("id", "integer", [
                 "autoIncrement" => true,
                 "default" => null,
@@ -143,7 +143,7 @@ class InitOffices extends AbstractMigration
             ->addIndex(["deleted"])
             ->create();
 
-        $this->table("officers")
+        $this->table("officers_officers")
             ->addColumn("id", "integer", [
                 "autoIncrement" => true,
                 "default" => null,
@@ -249,10 +249,10 @@ class InitOffices extends AbstractMigration
             ->create();
 
 
-        $this->table("offices")
+        $this->table("officers_offices")
             ->addForeignKey(
                 "department_id",
-                "departments",
+                "officers_departments",
                 "id",
                 [
                     "update" => "NO_ACTION",
@@ -270,7 +270,7 @@ class InitOffices extends AbstractMigration
             )
             ->addForeignKey(
                 "deputy_to_id",
-                "offices",
+                "officers_offices",
                 "id",
                 [
                     "update" => "NO_ACTION",
@@ -278,7 +278,7 @@ class InitOffices extends AbstractMigration
                 ],
             )
             ->update();
-        $this->table("officers")
+        $this->table("officers_officers")
             ->addForeignKey(
                 "reports_to_branch_id",
                 "branches",
@@ -308,7 +308,7 @@ class InitOffices extends AbstractMigration
             )
             ->addForeignKey(
                 "office_id",
-                "offices",
+                "officers_offices",
                 "id",
                 [
                     "update" => "NO_ACTION",
@@ -317,7 +317,7 @@ class InitOffices extends AbstractMigration
             )
             ->addForeignKey(
                 "reports_to_office_id",
-                "offices",
+                "officers_offices",
                 "id",
                 [
                     "update" => "NO_ACTION",
@@ -337,7 +337,7 @@ class InitOffices extends AbstractMigration
 
     public function down()
     {
-        $this->table("offices")
+        $this->table("officers_offices")
             ->dropForeignKey(
                 "department_id"
             )
@@ -348,7 +348,7 @@ class InitOffices extends AbstractMigration
                 "deputy_to_id"
             )
             ->save();
-        $this->table("officers")
+        $this->table("officers_officers")
             ->dropForeignKey(
                 "branch_id"
             )
@@ -366,13 +366,14 @@ class InitOffices extends AbstractMigration
             )
             ->save();
 
-        $this->table("officers")->drop()->save();
-        $this->table("offices")->drop()->save();
-        $this->table("departments")->drop()->save();
+        $this->table("officers_officers")->drop()->save();
+        $this->table("officers_offices")->drop()->save();
+        $this->table("officers_departments")->drop()->save();
 
         $permissionsTbl = TableRegistry::getTableLocator()->get("Permissions");
         $permissionsTbl->deleteAll(["name" => "Can Manage Offices"]);
         $permissionsTbl->deleteAll(["name" => "Can Manage Officers"]);
         $permissionsTbl->deleteAll(["name" => "Can Manage Departments"]);
+        $permissionsTbl->deleteAll(["name" => "Can View Officer Reports"]);
     }
 }

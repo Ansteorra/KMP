@@ -175,7 +175,7 @@ class DevLoadActivitiesSeed extends AbstractSeed
             ],
         ];
 
-        $table = $this->table('activities');
+        $table = $this->table('activities_activities');
         $table->insert($data)->save();
     }
 }

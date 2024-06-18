@@ -41,7 +41,7 @@ class OfficesTable extends Table
     {
         parent::initialize($config);
 
-        $this->setTable('offices');
+        $this->setTable('officers_offices');
         $this->setDisplayField('name');
         $this->setPrimaryKey('id');
 

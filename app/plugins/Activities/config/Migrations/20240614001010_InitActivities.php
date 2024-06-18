@@ -20,7 +20,7 @@ class InitActivities extends AbstractMigration
     public function up(): void
     {
 
-        $this->table("activity_groups")
+        $this->table("activities_activity_groups")
             ->addColumn("id", "integer", [
                 "autoIncrement" => true,
                 "default" => null,
@@ -62,7 +62,7 @@ class InitActivities extends AbstractMigration
             ->addIndex(["deleted"])
             ->create();
 
-        $this->table("activities")
+        $this->table("activities_activities")
             ->addColumn("id", "integer", [
                 "autoIncrement" => true,
                 "default" => null,
@@ -145,7 +145,7 @@ class InitActivities extends AbstractMigration
             ->addIndex(["deleted"])
             ->create();
 
-        $this->table("authorizations")
+        $this->table("activities_authorizations")
             ->addColumn("id", "integer", [
                 "autoIncrement" => true,
                 "default" => null,
@@ -214,7 +214,7 @@ class InitActivities extends AbstractMigration
             ->addIndex(["expires_on"])
             ->create();
 
-        $this->table("authorization_approvals")
+        $this->table("activities_authorization_approvals")
             ->addColumn("id", "integer", [
                 "autoIncrement" => true,
                 "default" => null,
@@ -261,10 +261,10 @@ class InitActivities extends AbstractMigration
             ->addIndex(["authorization_id"])
             ->create();
 
-        $this->table("activities")
+        $this->table("activities_activities")
             ->addForeignKey(
                 "activity_group_id",
-                "activity_groups",
+                "activities_activity_groups",
                 "id",
                 [
                     "update" => "NO_ACTION",
@@ -283,11 +283,11 @@ class InitActivities extends AbstractMigration
             )
             ->update();
 
-        $this->table("authorizations")
+        $this->table("activities_authorizations")
 
             ->addForeignKey(
                 "activity_id",
-                "activities",
+                "activities_activities",
                 "id",
                 [
                     "update" => "NO_ACTION",
@@ -304,8 +304,8 @@ class InitActivities extends AbstractMigration
             ])
             ->update();
 
-        $this->table("authorization_approvals")
-            ->addForeignKey("authorization_id", "authorizations", "id", [
+        $this->table("activities_authorization_approvals")
+            ->addForeignKey("authorization_id", "activities_authorizations", "id", [
                 "update" => "NO_ACTION",
                 "delete" => "CASCADE",
             ])
@@ -324,30 +324,31 @@ class InitActivities extends AbstractMigration
 
     public function down()
     {
-        $this->table("authorization_approvals")
+        $this->table("activities_authorization_approvals")
             ->dropForeignKey("authorization_id")
             ->dropForeignKey("approver_id")
             ->save();
 
-        $this->table("authorizations")
+        $this->table("activities_authorizations")
             ->dropForeignKey("activity_id")
             ->dropForeignKey("member_id")
             ->dropForeignKey("granted_member_role_id")
             ->save();
 
-        $this->table("activities")
+        $this->table("activities_activities")
             ->dropForeignKey("activity_group_id")
             ->dropForeignKey("permission_id")
             ->save();
 
-        $this->table("authorization_approvals")->drop()->save();
-        $this->table("authorizations")->drop()->save();
-        $this->table("activities")->drop()->save();
-        $this->table("activity_groups")->drop()->save();
+        $this->table("activities_authorization_approvals")->drop()->save();
+        $this->table("activities_authorizations")->drop()->save();
+        $this->table("activities_activities")->drop()->save();
+        $this->table("activities_activity_groups")->drop()->save();
 
         $permissionsTbl = TableRegistry::getTableLocator()->get("Permissions");
         $permissionsTbl->deleteAll(["name" => "Can Manage Activities"]);
         $permissionsTbl->deleteAll(["name" => "Can Revoke Authorizations"]);
         $permissionsTbl->deleteAll(["name" => "Can Manage Authorization Queues"]);
+        $permissionsTbl->deleteAll(["name" => "Can View Activity Reports"]);
     }
 }

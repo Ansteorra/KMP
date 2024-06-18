@@ -45,7 +45,7 @@ class AuthorizationsTable extends Table
     {
         parent::initialize($config);
 
-        $this->setTable("authorizations");
+        $this->setTable("activities_authorizations");
         $this->setDisplayField("id");
         $this->setPrimaryKey("id");
 

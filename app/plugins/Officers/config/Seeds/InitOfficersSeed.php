@@ -62,7 +62,7 @@ class InitOfficersSeed extends KMPMigrationSeedAbstract
             ],
             [
                 'id' => 24,
-                "name" => "Can View Officer",
+                "name" => "Can View Officer Reports",
                 "require_active_membership" => true,
                 "require_active_background_check" => false,
                 "require_min_age" => 0,

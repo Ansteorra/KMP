@@ -40,7 +40,7 @@ class DepartmentsTable extends Table
     {
         parent::initialize($config);
 
-        $this->setTable('departments');
+        $this->setTable('officers_departments');
         $this->setDisplayField('name');
         $this->setPrimaryKey('id');
 

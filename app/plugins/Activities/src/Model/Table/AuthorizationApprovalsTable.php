@@ -41,7 +41,7 @@ class AuthorizationApprovalsTable extends Table
     {
         parent::initialize($config);
 
-        $this->setTable("authorization_approvals");
+        $this->setTable("activities_authorization_approvals");
         $this->setDisplayField("id");
         $this->setPrimaryKey("id");
 

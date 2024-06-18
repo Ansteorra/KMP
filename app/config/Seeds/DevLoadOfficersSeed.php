@@ -23,7 +23,7 @@ class DevLoadOfficersSeed extends AbstractSeed
     {
         $data = [];
 
-        $table = $this->table('officers');
+        $table = $this->table('officers_officers');
         $table->insert($data)->save();
     }
 }

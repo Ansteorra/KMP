@@ -143,7 +143,7 @@ class DevLoadOfficesSeed extends AbstractSeed
             ],
         ];
 
-        $table = $this->table('offices');
+        $table = $this->table('officers_offices');
         $table->insert($data)->save();
     }
 }

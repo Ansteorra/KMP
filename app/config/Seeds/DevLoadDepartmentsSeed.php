@@ -60,7 +60,7 @@ class DevLoadDepartmentsSeed extends AbstractSeed
             ],
         ];
 
-        $table = $this->table('departments');
+        $table = $this->table('officers_departments');
         $table->insert($data)->save();
     }
 }

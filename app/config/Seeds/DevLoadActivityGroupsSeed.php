@@ -43,7 +43,7 @@ class DevLoadActivityGroupsSeed extends AbstractSeed
             ],
         ];
 
-        $table = $this->table('activity_groups');
+        $table = $this->table('activities_activity_groups');
         $table->insert($data)->save();
     }
 }

@@ -45,7 +45,7 @@ class OfficersTable extends Table
     {
         parent::initialize($config);
 
-        $this->setTable('officers');
+        $this->setTable('officers_officers');
         $this->setDisplayField('status');
         $this->setPrimaryKey('id');
 
