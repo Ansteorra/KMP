@@ -150,7 +150,6 @@ const urlCache = [
     '<?= Asset::scriptUrl("BootstrapUI.popper.min") ?>',
     '<?= Asset::scriptUrl("BootstrapUI.bootstrap.min") ?>',
     '<?= Asset::scriptUrl("app/sw.js") ?>',
-    '<?= Asset::scriptUrl("app/members/view_mobile_card.js") ?>',
     '<?= Asset::cssUrl("BootstrapUI.bootstrap.min") ?>',
     '<?= Asset::cssUrl("BootstrapUI./font/bootstrap-icons") ?>',
     '<?= Asset::cssUrl("BootstrapUI./font/bootstrap-icon-sizes") ?>',

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace GitHubIssueSubmitter;
@@ -9,6 +10,7 @@ use Cake\Core\ContainerInterface;
 use Cake\Core\PluginApplicationInterface;
 use Cake\Http\MiddlewareQueue;
 use Cake\Routing\RouteBuilder;
+use App\KMP\StaticHelpers;
 
 /**
  * Plugin for GitHubIssueSubmitter
@@ -26,6 +28,9 @@ class GitHubIssueSubmitterPlugin extends BasePlugin
      */
     public function bootstrap(PluginApplicationInterface $app): void
     {
+        StaticHelpers::getAppSetting("KMP.GitHub.Owner", "Ansteorra");
+        StaticHelpers::getAppSetting("KMP.GitHub.Project", "KMP");
+        StaticHelpers::getAppSetting("KMP.GitHub.AllowIssueSubmission", "yes");
     }
 
     /**

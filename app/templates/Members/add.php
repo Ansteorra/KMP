@@ -59,9 +59,7 @@ use App\KMP\StaticHelpers;
         <?php
         echo $this->Form->control("background_check_expires_on", [
             "empty" => true,
-        ]);
-        echo $this->Form->control("password", ["required" => true]);
-        ?>
+        ]); ?>
     </fieldset>
     <?= $this->Form->button(__("Submit")) ?>
     <?= $this->Form->end() ?>

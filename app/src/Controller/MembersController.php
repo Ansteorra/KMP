@@ -377,9 +377,19 @@ class MembersController extends AppController
                 return;
             }
             $member->mobile_card_token = StaticHelpers::generateToken(16);
+            $member->password = StaticHelpers::generateToken(16);
+            if ($member->age < 18) {
+                $member->status = Member::STATUS_UNVERIFIED_MINOR;
+            } else {
+                $member->status = Member::STATUS_ACTIVE;
+            }
             if ($this->Members->save($member)) {
-                $this->Flash->success(__("The Member has been saved."));
-
+                if ($member->age < 18) {
+                    $this->Flash->success(__("The Member has been saved and the minor registration email has been sent."));
+                    $this->getMailer("KMP")->send("minorRegistration", [$member]);
+                } else {
+                    $this->Flash->success(__("The Member has been saved. Please ask the member to use 'forgot password' to set their password."));
+                }
                 return $this->redirect(["action" => "view", $member->id]);
             }
             $this->Flash->error(
