@@ -32,7 +32,7 @@ class ReportsController extends AppController
             = TableRegistry::getTableLocator()->get('Roles');
         $validOn = Date::now();
         if ($this->request->getQuery('validOn')) {
-            $validOn = $this->request->getQuery('validOn');
+            $validOn = (new DateTime($this->request->getQuery('validOn')))->addDays(1);
         }
         $roles = $rolestbl->find("all")
             ->select(['id', 'name'])
@@ -51,6 +51,7 @@ class ReportsController extends AppController
                 }
             ])
             ->all();
+        $validOn = $validOn->subDays(1);
         $this->set(compact('roles', 'validOn'));
     }
 
@@ -123,6 +124,7 @@ class ReportsController extends AppController
             });
             $permissionsRoster[$permissionName] = $permissionUser;
         }
+        $validOn = $validOn->subDays(1);
         $this->set(compact('permissionsRoster', 'validOn', "hide"));
     }
 
