@@ -29,7 +29,7 @@ class ReportsController extends AppController
         $this->Authorization->authorize($this);
         $rolestbl
             = TableRegistry::getTableLocator()->get('Roles');
-        $validOn = DateTime::now();
+        $validOn = DateTime::now()->addDays(1);
         if ($this->request->getQuery('validOn')) {
             $validOn = (new DateTime($this->request->getQuery('validOn')))->addDays(1);
         }
