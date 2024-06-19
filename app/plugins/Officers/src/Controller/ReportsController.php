@@ -14,7 +14,6 @@ use Cake\Log\Log;
 
 use Cake\ORM\TableRegistry;
 use Cake\I18n\DateTime;
-use Cake\I18n\Date;
 
 class ReportsController extends AppController
 {
@@ -30,7 +29,7 @@ class ReportsController extends AppController
         $warrantOnly = false;
         $this->Authorization->authorize($this);
         $departmentTbl = TableRegistry::getTableLocator()->get('Officers.Departments');
-        $validOn = Date::now();
+        $validOn = DateTime::now()->addDays(1);
         $departments = [];
         $departmentsData = [];
         if ($this->request->getQuery('validOn')) {
@@ -96,6 +95,7 @@ class ReportsController extends AppController
                 $departmentsData[] = $deptData;
             }
         }
+        $validOn = $validOn->subDays(1);
         $departmentList = $departmentTbl->find('list')->orderBy(['name' => 'ASC']);
         $this->set(compact('validOn', 'departments', 'departmentList', 'departmentsData', 'hide', 'warrantOnly'));
     }

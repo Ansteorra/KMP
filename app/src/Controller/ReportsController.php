@@ -14,7 +14,6 @@ use Cake\Log\Log;
 
 use Cake\ORM\TableRegistry;
 use Cake\I18n\DateTime;
-use Cake\I18n\Date;
 
 class ReportsController extends AppController
 {
@@ -30,7 +29,7 @@ class ReportsController extends AppController
         $this->Authorization->authorize($this);
         $rolestbl
             = TableRegistry::getTableLocator()->get('Roles');
-        $validOn = Date::now();
+        $validOn = DateTime::now();
         if ($this->request->getQuery('validOn')) {
             $validOn = (new DateTime($this->request->getQuery('validOn')))->addDays(1);
         }
@@ -59,7 +58,7 @@ class ReportsController extends AppController
     {
         $hide = false;
         $this->Authorization->authorize($this);
-        $validOn = Date::now()->addDays(1);
+        $validOn = DateTime::now()->addDays(1);
         if ($this->request->getQuery('validOn')) {
             $hide = $this->request->getQuery('hide');
             $validOn = (new DateTime($this->request->getQuery('validOn')))->addDays(1);
@@ -107,6 +106,7 @@ class ReportsController extends AppController
             ->where(['requires_warrant' => 1])
             ->orderBy('name')
             ->distinct();
+        Log::debug($permissionsQuery);
         $permissions = $permissionsQuery->all()->toArray();
         $permissionsRoster = [];
         foreach ($permissions as $permission) {
@@ -131,11 +131,12 @@ class ReportsController extends AppController
     protected function setValidFilter($q, $validOn)
     {
         return $q->where([
-            "or" => [
+            "OR" => [
                 "start_on <=" => $validOn,
                 "start_on IS" => null
-            ],
-            "or" => [
+            ]
+        ])->where([
+            "OR" => [
                 "expires_on >=" => $validOn,
                 "expires_on IS" => null
             ]

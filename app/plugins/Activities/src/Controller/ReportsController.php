@@ -30,7 +30,7 @@ class ReportsController extends AppController
         $ActivitiesTbl
             = TableRegistry::getTableLocator()->get('Activities.Activities');
         $activitiesList = $ActivitiesTbl->find('list')->orderBy(['name' => 'ASC']);
-        $validOn = DateTime::now();
+        $validOn = DateTime::now()->addDays(1);
         $memberRollup  = [];
         $memberListQuery = [];
         $activities = [];
@@ -84,6 +84,7 @@ class ReportsController extends AppController
                 ->all();
         }
 
+        $validOn = $validOn->subDays(1);
         $this->set(compact(
             'activitiesList',
             'distincMemberCount',
@@ -97,11 +98,12 @@ class ReportsController extends AppController
     protected function setValidFilter($q, $validOn)
     {
         return $q->where([
-            "or" => [
+            "OR" => [
                 "start_on <=" => $validOn,
                 "start_on IS" => null
-            ],
-            "or" => [
+            ]
+        ])->where([
+            "OR" => [
                 "expires_on >=" => $validOn,
                 "expires_on IS" => null
             ]
