@@ -278,69 +278,11 @@ switch ($member->status) {
             } ?>
         </div>
         <div class="related tab-pane fade m-3" id="nav-notes" role="tabpanel" aria-labelledby="nav-notes-tab">
-            <div class="accordion mb-3" id="accordionExample">
-                <?php if (!empty($member->notes)) : ?>
-                <?php foreach ($member->notes as $note) : ?>
-                <div class="accordion-item">
-                    <h2 class="accordion-header">
-                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                            data-bs-target="#note_<?= $note->id ?>" aria-expanded="true" aria-controls="collapseOne">
-                            <?= h($note->subject) ?> : <?= h(
-                                                                    $note->created_on,
-                                                                ) ?> - by <?= h($note->author->sca_name) ?>
-                            <?= $note->private
-                                        ? '<span class="mx-3 badge bg-secondary">Private</span>'
-                                        : "" ?>
-                        </button>
-                    </h2>
-                    <div id="note_<?= $note->id ?>" class="accordion-collapse collapse"
-                        data-bs-parent="#accordionExample">
-                        <div class="accordion-body">
-                            <?= $this->Text->autoParagraph(
-                                        h($note->body),
-                                    ) ?>
-
-                        </div>
-                    </div>
-                    <?php endforeach; ?>
-                    <?php endif; ?>
-                    <div class="accordion-item">
-                        <h2 class="accordion-header">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                                data-bs-target="#note_new" aria-expanded="true" aria-controls="collapseOne">
-                                Add a Note
-                            </button>
-                        </h2>
-                        <div id="note_new" class="accordion-collapse collapse" data-bs-parent="#accordionExample">
-                            <div class="accordion-body">
-                                <?= $this->Form->create($newNote, [
-                                    "url" => ["action" => "addNote", $member->id],
-                                ]) ?>
-                                <fieldset>
-                                    <legend><?= __("Add Note") ?></legend>
-                                    <?php
-                                    echo $this->Form->control("subject");
-                                    echo $user->can("viewPrivateNotes", $member)
-                                        ? $this->Form->control("private", [
-                                            "type" => "checkbox",
-                                            "label" => "Private",
-                                        ])
-                                        : "";
-                                    echo $this->Form->control("body", [
-                                        "label" => "Note",
-                                    ]);
-                                    ?>
-                                </fieldset>
-                                <div class='text-end'><?= $this->Form->button(
-                                                            __("Submit"),
-                                                            ["class" => "btn-primary"],
-                                                        ) ?></div>
-                                <?= $this->Form->end() ?>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <?= $this->cell('Notes', [
+                'topic_id' => $member->id,
+                'topic_model' => 'Members',
+                'viewPrivate' => $user->can("viewPrivateNotes", "Members"),
+            ]) ?>
         </div>
         <?php if (!empty($aiForm)) : ?>
         <div class="related tab-pane fade m-3" id="nav-add-info" role="tabpanel" aria-labelledby="nav-add-info-tab">

@@ -165,9 +165,6 @@ class MembersController extends AppController
             ->contain([
                 "Roles",
                 "Branches",
-                "Notes.Authors" => function (SelectQuery $q) {
-                    return $q->select(["Authors.sca_name"]);
-                },
                 "Parents" => function (SelectQuery $q) {
                     return $q->select(["Parents.sca_name", "Parents.id"]);
                 },
@@ -184,7 +181,6 @@ class MembersController extends AppController
             ->where(["Members.id" => $id]);
         //$memberQuery = $this->Members->addJsonWhere($memberQuery, "Members.additional_info", "$.sports", "football");
         $member = $memberQuery->first();
-        // Check to see if the current user can view private notes
         if (!$member) {
             throw new NotFoundException();
         }
@@ -192,14 +188,7 @@ class MembersController extends AppController
             throw new \Cake\Http\Exception\NotFoundException();
         }
         $this->Authorization->authorize($member);
-        if (!$this->Authorization->can($member, "viewPrivateNotes")) {
-            // remove private notes
-            $member->notes = array_filter($member->notes, function ($note) {
-                return !$note->private;
-            });
-        }
         // Create the new Note form
-        $newNote = $this->Members->Notes->newEmptyEntity();
         $session = $this->request->getSession();
         // Get the member form data for the edit modal
         $memberForm = $this->Members->get($id);
@@ -238,7 +227,6 @@ class MembersController extends AppController
         $this->set(
             compact(
                 "member",
-                "newNote",
                 "treeList",
                 "passwordReset",
                 "memberForm",
@@ -410,46 +398,6 @@ class MembersController extends AppController
             "months",
             "years",
         ));
-    }
-
-    /**
-     * Add Note method
-     *
-     * @param string|null $id Member id.
-     *  @return \Cake\Http\Response|null|void Redirects on successful add, renders view otherwise.
-     */
-    public function addNote($id = null)
-    {
-        $member = $this->Members->get($id, contain: ["Notes"]);
-        if (!$member) {
-            throw new \Cake\Http\Exception\NotFoundException();
-        }
-        $this->Authorization->authorize($member);
-        $note = $this->Members->Notes->newEmptyEntity();
-        if ($this->request->is("post")) {
-            $note->topic_id = $member->id;
-            $note->author_id = $this->Authentication
-                ->getIdentity()
-                ->getIdentifier();
-            $note->body = $this->request->getData("body");
-            if ($this->Authorization->can($member, "viewPrivateNotes")) {
-                $note->private = $this->request->getData("private");
-            } else {
-                $note->private = false;
-            }
-            $note->subject = $this->request->getData("subject");
-            $note->topic_model = "Members";
-            $member->notes[] = $note;
-            $member->setDirty("notes", true);
-            if ($this->Members->Notes->save($note)) {
-                $this->Flash->success(__("The Note has been saved."));
-
-                return $this->redirect($this->referer());
-            }
-            $this->Flash->error(
-                __("The Note could not be saved. Please, try again."),
-            );
-        }
     }
 
     /**

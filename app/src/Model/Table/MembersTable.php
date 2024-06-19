@@ -52,10 +52,6 @@ class MembersTable extends Table
         $this->setDisplayField("sca_name");
         $this->setPrimaryKey("id");
 
-        $this->hasMany("Notes", [
-            "foreignKey" => "topic_id",
-            "conditions" => ["Notes.topic_model" => "Members"],
-        ]);
         $this->belongsToMany("Roles", [
             "through" => "MemberRoles",
         ]);
