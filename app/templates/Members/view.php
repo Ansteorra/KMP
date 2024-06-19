@@ -175,6 +175,7 @@ switch ($member->status) {
         <div class="nav nav-tabs" id="nav-memberAreas" role="tablist">
             <?= $this->element('pluginTabButtons', [
                 'pluginViewCells' => $pluginViewCells,
+                'model' => 'member',
                 'activateFirst' => true,
             ]) ?>
             <button class="nav-link" id="nav-roles-tab" data-bs-toggle="tab" data-bs-target="#nav-roles" type="button"
@@ -196,6 +197,7 @@ switch ($member->status) {
         <?= $this->element('pluginTabBodies', [
             'pluginViewCells' => $pluginViewCells,
             'id' => $member->id,
+            'model' => 'member',
             'activateFirst' => true
         ]) ?>
         <div class="related tab-pane fade m-3" id="nav-roles" role="tabpanel" aria-labelledby="nav-roles-tab">
@@ -210,7 +212,30 @@ switch ($member->status) {
                     "id" => "role_id",
                     "options" => ["class" => "btn btn-secondary"],
                 ];
-                $columnsTemplate = [
+                $removeLinkTemplate = [
+                    "type" => "postLink",
+                    "verify" => true,
+                    "label" => "Deactivate",
+                    "controller" => "MemberRoles",
+                    "action" => "deactivate",
+                    "id" => "id",
+                    "condition" => ["granting_model" => "Direct Grant"],
+                    "options" => [
+                        "confirm" => "Are you sure you want to deactivate for {{member->sca_name}}?",
+                        "class" => "btn btn-danger"
+                    ],
+                ];
+                $currentTemplate = [
+                    "Role" => "role->name",
+                    "Start Date" => "start_on",
+                    "End Date" => "expires_on",
+                    "Approved By" => "approved_by->sca_name",
+                    "Granted By" => "granting_model",
+                    "Actions" => [
+                        $linkTemplate, $removeLinkTemplate
+                    ],
+                ];
+                $previousTemplate = [
                     "Role" => "role->name",
                     "Start Date" => "start_on",
                     "End Date" => "expires_on",
@@ -229,21 +254,21 @@ switch ($member->status) {
                             "label" => __("Active"),
                             "id" => "active-roles",
                             "selected" => true,
-                            "columns" => $columnsTemplate,
+                            "columns" => $currentTemplate,
                             "data" => $member->current_member_roles,
                         ],
                         "upcoming" => [
                             "label" => __("Upcoming"),
                             "id" => "upcoming-roles",
                             "selected" => false,
-                            "columns" => $columnsTemplate,
+                            "columns" => $currentTemplate,
                             "data" => $member->upcoming_member_roles,
                         ],
                         "previous" => [
                             "label" => __("Previous"),
                             "id" => "previous-roles",
                             "selected" => false,
-                            "columns" => $columnsTemplate,
+                            "columns" => $previousTemplate,
                             "data" => $member->previous_member_roles,
                         ]
                     ]

@@ -98,6 +98,9 @@ if (!$selected) {
                                                         if (!isset($link["plugin"])) {
                                                             $link["plugin"] = null;
                                                         }
+                                                        if (!isset($link["?"])) {
+                                                            $link["?"] = null;
+                                                        }
                                                         switch ($link["type"]) {
                                                             case "link":
                                                                 echo $this->Html->link(
@@ -106,6 +109,7 @@ if (!$selected) {
                                                                         "controller" => $link["controller"],
                                                                         "action" => $link["action"],
                                                                         "plugin" => $link["plugin"],
+                                                                        "?" => $link["?"],
                                                                         StaticHelpers::getValue($link["id"], $data),
                                                                     ],
                                                                     $link["options"]

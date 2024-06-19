@@ -16,6 +16,7 @@
         echo $this->Form->control("revoked_reason", [
             "label" => "Reason for Release",
             "onkeypress" => '$("#release_officer__submit").removeAttr("disabled");',
+            "id" => "release_officer__revoked_reason",
         ]);
         echo $this->Form->end();
         ?>

@@ -4,21 +4,44 @@ if (!empty($currentOfficers) || !empty($upcomingOfficers) || !empty($previousOff
     $linkTemplate = [
         "type" => "link",
         "verify" => true,
-        "authData" => "office",
+        "authData" => "branch",
         "label" => "View",
-        "controller" => "Offices",
-        "plugin" => "Officers",
+        "controller" => "Branches",
         "action" => "view",
-        "id" => "office_id",
+        '?' => ['tab' => 'branch-officers'],
+        "id" => "branch_id",
         "options" => ["class" => "btn btn-secondary"],
     ];
-    $columnsTemplate = [
+    $releaseLinkTemplate = [
+        "type" => "button",
+        "verify" => true,
+        "label" => "Release",
+        "controller" => "Officers",
+        "action" => "release",
+        "id" => "officer_id",
+        "options" => [
+            "class" => "btn btn-danger",
+            "data-bs-toggle" => "modal",
+            "data-bs-target" => "#releaseModal",
+            "onclick" => "$('#release_officer__id').val('{{id}}')",
+        ],
+    ];
+    $currentTemplate = [
         "Office" => "office->name",
         "Branch" => "branch->name",
         "Start Date" => "start_on",
         "End Date" => "expires_on",
         "Actions" => [
-            $linkTemplate
+            $linkTemplate, $releaseLinkTemplate
+        ],
+    ];
+    $previousTemplate = [
+        "Office" => "office->name",
+        "Branch" => "branch->name",
+        "Start Date" => "start_on",
+        "End Date" => "expires_on",
+        "Actions" => [
+            $linkTemplate,
         ],
     ];
     echo $this->element('activeWindowTabs', [
@@ -29,21 +52,21 @@ if (!empty($currentOfficers) || !empty($upcomingOfficers) || !empty($previousOff
                 "label" => __("Active"),
                 "id" => "active-office",
                 "selected" => true,
-                "columns" => $columnsTemplate,
+                "columns" => $currentTemplate,
                 "data" => $currentOfficers,
             ],
             "upcoming" => [
                 "label" => __("Upcoming"),
                 "id" => "upcoming-office",
                 "selected" => false,
-                "columns" => $columnsTemplate,
+                "columns" => $currentTemplate,
                 "data" => $upcomingOfficers,
             ],
             "previous" => [
                 "label" => __("Previous"),
                 "id" => "previous-office",
                 "selected" => false,
-                "columns" => $columnsTemplate,
+                "columns" => $previousTemplate,
                 "data" => $previousOfficers,
             ]
         ]
@@ -51,3 +74,9 @@ if (!empty($currentOfficers) || !empty($upcomingOfficers) || !empty($previousOff
 } else {
     echo "<p>No Offices assigned</p>";
 }
+
+echo $this->KMP->startBlock("modals");
+echo $this->element('releaseModal', [
+    'user' => $user,
+]);
+$this->KMP->endBlock();

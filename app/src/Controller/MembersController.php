@@ -444,7 +444,7 @@ class MembersController extends AppController
             if ($this->Members->Notes->save($note)) {
                 $this->Flash->success(__("The Note has been saved."));
 
-                return $this->redirect(["action" => "view", $member->id]);
+                return $this->redirect($this->referer());
             }
             $this->Flash->error(
                 __("The Note could not be saved. Please, try again."),
@@ -1146,6 +1146,7 @@ class MembersController extends AppController
     {
         return $q
             ->select([
+                "id",
                 "member_id",
                 "role_id",
                 "start_on",

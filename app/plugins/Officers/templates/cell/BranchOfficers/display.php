@@ -128,5 +128,7 @@ class branchesView {
         $('#assign_officer__office_id').trigger('change');
     }
 };
+var view = new branchesView();
+view.run();
 </script>
 <?php $this->KMP->endBlock(); ?>

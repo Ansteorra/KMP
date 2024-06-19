@@ -46,5 +46,25 @@ KMP_utils = {
                 $('#' + resultElementId).val(value).trigger('change');
             }
         });
+    },
+    urlParam(name) {
+        var results = new RegExp('[\?&]' + name + '=([^&#]*)').exec(window.location.href);
+        var result = null;
+        if (results) {
+            result = decodeURIComponent(results[1]);
+        }
+        return result;
     }
 }
+
+$(document).ready(function () {
+    //if the querystring has a tab parameter, show that tab
+    var tab = KMP_utils.urlParam('tab');
+    if (tab) {
+        $('#nav-' + tab + '-tab').click();
+    }
+    $('.nav-link[role=tab]').click(function () {
+        var tab = $(this).attr('id').replace('nav-', '').replace('-tab', '');
+        window.history.pushState({}, '', '?tab=' + tab);
+    });
+});

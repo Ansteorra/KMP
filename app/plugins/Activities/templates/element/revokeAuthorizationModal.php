@@ -16,6 +16,7 @@
         echo $this->Form->control("revoked_reason", [
             "label" => "Reason for Revocation",
             "onkeypress" => '$("#revoke_auth__submit").removeAttr("disabled");',
+            "id" => "revoke_auth__revoked_reason",
         ]);
         echo $this->Form->end();
         ?>

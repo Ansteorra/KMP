@@ -64,6 +64,7 @@ class MemberOfficersCell extends BasePluginCell
     {
         return $q
             ->select([
+                "id",
                 "member_id",
                 "office_id",
                 "start_on",
