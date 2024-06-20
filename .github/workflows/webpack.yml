@@ -13,7 +13,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-
+      with:
+        ref: 'main'
+    
     - name: Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v3
       with:
@@ -23,4 +25,16 @@ jobs:
       working-directory: ./app
       run: |
         npm install
-        npm run production
+        npm run dev
+
+    - name: Commit changes
+      run: |
+        git config --global user.email "actions@github.com"
+        git config --global user.name "Actions Agent"
+        git add -A
+        git commit -m "Build and deploy" || echo "No changes to commit"
+
+
+    - name: Force push to dev_release branch
+      run: |
+        git push origin HEAD:dev_release --force
