@@ -8,308 +8,179 @@
 <?php
 $this->extend("/layout/TwitterBootstrap/dashboard");
 
-use Cake\I18n\Date;
+use Cake\I18n\DateTime;
 
-$user = $this->request->getAttribute("identity");
-$pending = [];
-$approved = [];
-$expired = [];
-$exp_date = Date::now();
-foreach ($activity->authorizations as $auth) {
-    if ($auth->expires_on === null) {
-        $pending[] = $auth;
-    } elseif ($auth->expires_on < $exp_date) {
-        $expired[] = $auth;
-    } else {
-        $approved[] = $auth;
-    }
-}
-?>
+$this->extend("/layout/TwitterBootstrap/view_record");
 
-<div class="activities view large-9 medium-8 columns content">
-    <div class="row align-items-start">
-        <div class="col">
-            <h3>
-                <a href="#" onclick="window.history.back();" class="bi bi-arrow-left-circle"></a>
-                <?= h($activity->name) ?>
-            </h3>
-        </div>
-        <div class="col text-end">
-            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
-                data-bs-target="#editModal">Edit</button>
-            <?= $this->Form->postLink(
-                __("Delete"),
-                ["action" => "delete", $activity->id],
+echo $this->KMP->startBlock("pageTitle") ?>
+<?= h($activity->name) ?>
+<?php $this->KMP->endBlock() ?>
+<?= $this->KMP->startBlock("recordActions") ?>
+<button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal">Edit</button>
+<?= $this->Form->postLink(
+    __("Delete"),
+    ["action" => "delete", $activity->id],
+    [
+        "confirm" => __(
+            "Are you sure you want to delete {0}?",
+            $activity->name,
+        ),
+        "title" => __("Delete"),
+        "class" => "btn btn-danger btn-sm",
+    ],
+) ?>
+<?php $this->KMP->endBlock() ?>
+<?php $this->KMP->startBlock("recordDetails") ?>
+<tr>
+    <th scope="row"><?= __("Activity Group") ?></th>
+    <td><?= $activity->hasValue("activity_group")
+            ? $this->Html->link(
+                $activity->activity_group->name,
                 [
-                    "confirm" => __(
-                        "Are you sure you want to delete {0}?",
-                        $activity->name,
-                    ),
-                    "title" => __("Delete"),
-                    "class" => "btn btn-danger btn-sm",
+                    "controller" => "ActivityGroups",
+                    "action" => "view",
+                    $activity->activity_group->id,
                 ],
-            ) ?>
-        </div>
-    </div>
+            )
+            : "" ?>
+    </td>
+</tr>
+<tr>
+    <th scope="row"><?= __("Authorized By") ?></th>
+    <td><?= $activity->hasValue("permission")
+            ? $this->Html->link($activity->permission->name, [
+                "controller" => "Permissions",
+                "action" => "view",
+                $activity->permission->id,
+            ])
+            : "" ?>
+    </td>
+</tr>
+<tr>
+    <th scope="row"><?= __("Grants Role") ?></th>
+    <td><?= $activity->hasValue("role")
+            ? $this->Html->link($activity->role->name, [
+                "controller" => "Roles",
+                "action" => "view",
+                $activity->role->id,
+            ])
+            : "" ?>
+    </td>
+</tr>
+<tr>
+    <th scope="row"><?= __("Length") ?></th>
+    <td><?= $this->Number->format(
+            $activity->term_length,
+        ) ?></td>
+</tr>
+<tr>
+    <th scope="row"><?= __("Minimum Age") ?></th>
+    <td><?= $activity->minimum_age === null
+            ? ""
+            : $this->Number->format($activity->minimum_age) ?>
+    </td>
+</tr>
+<tr>
+    <th scope="row"><?= __("Maximum Age") ?></th>
+    <td><?= $activity->maximum_age === null
+            ? ""
+            : $this->Number->format($activity->maximum_age) ?>
+    </td>
+</tr>
+<tr>
+    <th scope="row"><?= __("# for Authorization") ?></th>
+    <td><?= $this->Number->format(
+            $activity->num_required_authorizors,
+        ) ?></td>
+</tr>
+<tr>
+    <th scope="row"><?= __("# for Renewal") ?></th>
+    <td><?= $this->Number->format(
+            $activity->num_required_renewers,
+        ) ?></td>
+</tr>
+<?php $this->KMP->endBlock() ?>
+<?php $this->KMP->startBlock("tabButtons") ?>
+<button class="nav-link" id="nav-authorizations-tab" data-bs-toggle="tab" data-bs-target="#nav-authorizations"
+    type="button" role="tab" aria-controls="nav-authorizations" aria-selected="false"><?= __("Authorizations") ?>
+</button>
+<button class="nav-link" id="nav-roles-tab" data-bs-toggle="tab" data-bs-target="#nav-roles" type="button" role="tab"
+    aria-controls="nav-roles" aria-selected="false"><?= __("Authorizing Roles") ?>
+</button>
+<?php $this->KMP->endBlock() ?>
+<?php $this->KMP->startBlock("tabContent") ?>
+<div class="related tab-pane fade m-3" id="nav-authorizations" role="tabpanel" aria-labelledby="nav-authorizations-tab">
+    <?php
+    if (!$isEmpty) {
+        echo $this->element('turboActiveTabs', [
+            'user' => $user,
+            'tabGroupName' => "authorizationTabs",
+            'tabs' => [
+                "active" => [
+                    "label" => __("Active"),
+                    "id" => "current-authorization",
+                    "selected" => true,
+                    "turboUrl" => $this->URL->build(["controller" => "Authorizations", "action" => "ActivityAuthorizations", "plugin" => "Activities", "current", $id])
+                ],
+                "pending" => [
+                    "label" => __("Pending"),
+                    "id" => "pending-authorization",
+                    "badge" => $pendingCount,
+                    "badgeClass" => "bg-danger",
+                    "selected" => false,
+                    "turboUrl" => $this->URL->build(["controller" => "Authorizations", "action" => "ActivityAuthorizations", "plugin" => "Activities", "pending", $id])
+                ],
+                "previous" => [
+                    "label" => __("Previous"),
+                    "id" => "previous-authorization",
+                    "selected" => false,
+                    "turboUrl" => $this->URL->build(["controller" => "Authorizations", "action" => "ActivityAuthorizations", "plugin" => "Activities", "previous", $id])
+                ]
+            ]
+        ]);
+    } else {
+        echo "<p>No Authorizations</p>";
+    } ?>
+    <?php if (
+        !empty($activity->current_authorizations)
+        || !empty($activity->pending_authorizations)
+        || !empty($activity->previous_authorizations)
+    ) {
+    } else {
+        echo "<p>No Authorizations</p>";
+    } ?>
+</div>
+<div class="related tab-pane fade active m-3" id="nav-roles" role="tabpanel" aria-labelledby="nav-roles-tab">
+    <?php if (!empty($roles)) : ?>
     <div class="table-responsive">
         <table class="table table-striped">
             <tr>
-                <th scope="row"><?= __("Name") ?></th>
-                <td><?= h($activity->name) ?></td>
+                <th scope="col"><?= __("Name") ?></th>
+                <th scope="col" class="actions"><?= __(
+                                                        "Actions",
+                                                    ) ?></th>
             </tr>
+            <?php foreach ($roles as $role) : ?>
             <tr>
-                <th scope="row"><?= __("Activity Group") ?></th>
-                <td><?= $activity->hasValue("activity_group")
-                        ? $this->Html->link(
-                            $activity->activity_group->name,
-                            [
-                                "controller" => "ActivityGroups",
-                                "action" => "view",
-                                $activity->activity_group->id,
-                            ],
-                        )
-                        : "" ?>
+                <td><?= h($role->name) ?></td>
+                <td class="actions">
+                    <?= $this->Html->link(
+                                __("View"),
+                                [
+                                    "controller" => "Roles",
+                                    "action" => "view",
+                                    $role->id,
+                                ],
+                                ["class" => "btn btn-secondary"],
+                            ) ?>
                 </td>
             </tr>
-            <tr>
-                <th scope="row"><?= __("Authorized By") ?></th>
-                <td><?= $activity->hasValue("permission")
-                        ? $this->Html->link($activity->permission->name, [
-                            "controller" => "Permissions",
-                            "action" => "view",
-                            $activity->permission->id,
-                        ])
-                        : "" ?>
-                </td>
-            </tr>
-            <tr>
-                <th scope="row"><?= __("Grants Role") ?></th>
-                <td><?= $activity->hasValue("role")
-                        ? $this->Html->link($activity->role->name, [
-                            "controller" => "Roles",
-                            "action" => "view",
-                            $activity->role->id,
-                        ])
-                        : "" ?>
-                </td>
-            </tr>
-            <tr>
-                <th scope="row"><?= __("Length") ?></th>
-                <td><?= $this->Number->format(
-                        $activity->term_length,
-                    ) ?></td>
-            </tr>
-            <tr>
-                <th scope="row"><?= __("Minimum Age") ?></th>
-                <td><?= $activity->minimum_age === null
-                        ? ""
-                        : $this->Number->format($activity->minimum_age) ?>
-                </td>
-            </tr>
-            <tr>
-                <th scope="row"><?= __("Maximum Age") ?></th>
-                <td><?= $activity->maximum_age === null
-                        ? ""
-                        : $this->Number->format($activity->maximum_age) ?>
-                </td>
-            </tr>
-            <tr>
-                <th scope="row"><?= __("# for Authorization") ?></th>
-                <td><?= $this->Number->format(
-                        $activity->num_required_authorizors,
-                    ) ?></td>
-            </tr>
-            <tr>
-                <th scope="row"><?= __("# for Renewal") ?></th>
-                <td><?= $this->Number->format(
-                        $activity->num_required_renewers,
-                    ) ?></td>
-            </tr>
+            <?php endforeach; ?>
         </table>
     </div>
-    <div class="related">
-        <h4><?= __("Authorizing Roles") ?></h4>
-        <?php if (!empty($roles)) : ?>
-        <div class="table-responsive">
-            <table class="table table-striped">
-                <tr>
-                    <th scope="col"><?= __("Name") ?></th>
-                    <th scope="col" class="actions"><?= __(
-                                                            "Actions",
-                                                        ) ?></th>
-                </tr>
-                <?php foreach ($roles as $role) : ?>
-                <tr>
-                    <td><?= h($role->name) ?></td>
-                    <td class="actions">
-                        <?= $this->Html->link(
-                                    __("View"),
-                                    [
-                                        "controller" => "Roles",
-                                        "action" => "view",
-                                        $role->id,
-                                    ],
-                                    ["class" => "btn btn-secondary"],
-                                ) ?>
-                    </td>
-                </tr>
-                <?php endforeach; ?>
-            </table>
-        </div>
-        <?php endif; ?>
-    </div>
-    <div class="related">
-        <h4><?= __("Authorizations") ?></h4>
-        <?php if (!empty($activity->authorizations)) {
-
-            $pending = [];
-            $approved = [];
-            $expired = [];
-            $exp_date = Date::now();
-            foreach ($activity->authorizations as $auth) {
-                if ($auth->expires_on === null) {
-                    $pending[] = $auth;
-                } elseif ($auth->expires_on < $exp_date) {
-                    $expired[] = $auth;
-                } else {
-                    $approved[] = $auth;
-                }
-            }
-        ?>
-        <nav>
-            <div class="nav nav-tabs" id="nav-tab" role="tablist">
-                <button class="nav-link active" id="nav-active-approvals-tab" data-bs-toggle="tab"
-                    data-bs-target="#nav-active-approvals" type="button" role="tab" aria-controls="nav-active-approvals"
-                    aria-selected="true">Approved</button>
-                <button class="nav-link" id="nav-expired-approvals-tab" data-bs-toggle="tab"
-                    data-bs-target="#nav-expired-approvals" type="button" role="tab"
-                    aria-controls="nav-expired-approvals" aria-selected="false">Expired</button>
-                <button class="nav-link" id="nav-pending-approvals-tab" data-bs-toggle="tab"
-                    data-bs-target="#nav-pending-approvals" type="button" role="tab"
-                    aria-controls="nav-pending-approvals" aria-selected="false">Pending
-                    <span class="badge bg-danger"><?= count(
-                                                            $pending,
-                                                        ) ?></span>
-                </button>
-            </div>
-        </nav>
-        <div class="tab-content" id="nav-tabContent">
-            <div class="tab-pane fade show active" id="nav-active-approvals" role="tabpanel"
-                aria-labelledby="nav-active-approvals-tab" tabindex="0">
-                <div class="table-responsive">
-                    <table class="table table-striped">
-                        <tr>
-                            <th scope="col"><?= __("Member") ?></th>
-                            <th scope="col"><?= __("Start On") ?></th>
-                            <th scope="col"><?= __("End Date") ?></th>
-                            <th scope="col"><?= __("Approved By") ?></th>
-                        </tr>
-                        <?php foreach ($approved as $auth) : ?>
-                        <tr>
-                            <td><?= h($auth->member->sca_name) ?></td>
-                            <td><?= h($auth->start_on) ?></td>
-                            <td><?= h($auth->expires_on) ?></td>
-                            <td>
-                                <?php // if not empty make a list of approvers with their ids and sca_names, then link them to their view page
-
-                                        if (!empty($auth->authorization_approvals)) : ?>
-                                <ul>
-                                    <?php foreach ($auth->authorization_approvals
-                                                    as $approval) : ?>
-                                    <li>
-                                        <?= $this->Html->link(
-                                                            $approval->approver
-                                                                ->sca_name,
-                                                            [
-                                                                "controller" =>
-                                                                "Members",
-                                                                "action" =>
-                                                                "view",
-                                                                $approval
-                                                                    ->approver
-                                                                    ->id,
-                                                            ],
-                                                        ) ?>
-                                    </li>
-                                    <?php endforeach; ?>
-                                </ul>
-                                <?php endif; ?>
-                            </td>
-                        </tr>
-                        <?php endforeach; ?>
-                    </table>
-                </div>
-            </div>
-            <div class="tab-pane fade" id="nav-expired-approvals" role="tabpanel"
-                aria-labelledby="nav-expired-approvals-tab" tabindex="0">
-                <div class="table-responsive">
-                    <table class="table table-striped">
-                        <tr>
-                            <th scope="col"><?= __("Member") ?></th>
-                            <th scope="col"><?= __("Start On") ?></th>
-                            <th scope="col"><?= __("End Date") ?></th>
-                        </tr>
-                        <?php foreach ($expired as $auth) {
-                                $assigned_to = ""; ?>
-                        <tr>
-                            <td><?= h($auth->member->sca_name) ?></td>
-                            <td><?= h($auth->start_on) ?></td>
-                            <td><?= h($auth->expires_on) ?></td>
-                        </tr>
-                        <?php
-                            } ?>
-                    </table>
-                </div>
-            </div>
-            <div class="tab-pane fade" id="nav-pending-approvals" role="tabpanel"
-                aria-labelledby="nav-pending-approvals-tab" tabindex="0">
-                <div class="table-responsive">
-                    <table class="table table-striped">
-                        <tr>
-                            <th scope="col"><?= __("Member") ?></th>
-                            <th scope="col"><?= __("Requested On") ?></th>
-                            <th scope="col"><?= __("Assigned To") ?></th>
-                        </tr>
-                        <?php foreach ($pending as $auth) :
-                                $authApprovalsCount = count($auth->authorization_approvals);
-                            ?>
-                        <tr>
-                            <td><?= h($auth->member->sca_name) ?></td>
-                            <td>
-                                <?php if (
-                                            !empty($auth->authorization_approvals)
-                                        ) : ?>
-                                <?= h(
-                                                $auth
-                                                    ->authorization_approvals[$authApprovalsCount - 1]
-                                                    ->requested_on->toDateString(),
-                                            ) ?>
-                                <?php endif; ?>
-                            </td>
-                            <td>
-                                <?php if (
-                                            !empty($auth->authorization_approvals)
-                                        ) : ?>
-                                <?= h(
-                                                $auth
-                                                    ->authorization_approvals[$authApprovalsCount - 1]
-                                                    ->approver->sca_name,
-                                            ) ?>
-                            </td>
-                            <?php else : ?>
-                            Unassigned
-                            <?php endif; ?>
-                        </tr>
-                        <?php endforeach; ?>
-                    </table>
-                </div>
-            </div>
-        </div>
-        <?php
-        } ?>
-    </div>
+    <?php endif; ?>
 </div>
-
+<?php $this->KMP->endBlock() ?>
 <?php
 echo $this->KMP->startBlock("modals");
 echo $this->Modal->create("Edit Authoriztion Type", [
@@ -366,7 +237,10 @@ echo $this->Modal->create("Edit Authoriztion Type", [
     $this->Form->button("Close", [
         "data-bs-dismiss" => "modal",
     ]),
-]); ?>
+]);
 
-<?php //finish writing to modal block in layout
+echo $this->element('revokeAuthorizationModal', [
+    'user' => $user,
+]);
+
 $this->KMP->endBlock(); ?>

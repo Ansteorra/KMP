@@ -80,4 +80,49 @@ class MemberRolesController extends AppController
         $this->MemberRoles->getConnection()->commit();
         return $this->redirect($this->referer());
     }
+
+    public function roleMemberRoles($state, $id)
+    {
+
+        if ($state != 'current' && $state == 'upcoming' && $state == 'previous') {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+        $role = $this->MemberRoles->Roles->find()
+            ->where(["id" => $id])
+            ->select("id")->first();
+        if (!$role) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+        $this->Authorization->authorize($role);
+        $members = $this->MemberRoles->find();
+        switch ($state) {
+            case 'current':
+                $members = $this->addConditions($this->MemberRoles->find('current')->where(['role_id' => $id]));
+                break;
+            case 'upcoming':
+                $members = $this->addConditions($this->MemberRoles->find('upcoming')->where(['role_id' => $id]));
+                break;
+            case 'previous':
+                $members = $this->addConditions($this->MemberRoles->find('previous')->where(['role_id' => $id]));
+                break;
+        }
+        $memberRoles = $this->paginate($members);
+        $this->set(compact('memberRoles', 'role', 'state'));
+    }
+    protected function addConditions($query)
+    {
+        return $query
+            ->select(['id', 'role_id', 'member_id', 'approver_id', 'granting_model', 'start_on', 'expires_on', 'revoker_id'])
+            ->contain([
+                'Members' => function ($q) {
+                    return $q->select(['id', 'sca_name']);
+                },
+                'ApprovedBy' => function ($q) {
+                    return $q->select(['id', 'sca_name']);
+                },
+                'RevokedBy' => function ($q) {
+                    return $q->select(['id', 'sca_name']);
+                },
+            ]);
+    }
 }

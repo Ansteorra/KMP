@@ -58,6 +58,26 @@ class ActivitiesTable extends Table
             "className" => "Activities.Authorizations",
             "foreignKey" => "activity_id",
         ]);
+        $this->hasMany("CurrentAuthorizations", [
+            "className" => "Activities.Authorizations",
+            "foreignKey" => "activity_id",
+            "finder" => "current",
+        ]);
+        $this->hasMany("PendingAuthorizations", [
+            "className" => "Activities.Authorizations",
+            "foreignKey" => "activity_id",
+            "finder" => "pending",
+        ]);
+        $this->hasMany("UpcomingAuthorizations", [
+            "className" => "Activities.Authorizations",
+            "foreignKey" => "activity_id",
+            "finder" => "upcoming",
+        ]);
+        $this->hasMany("PreviousAuthorizations", [
+            "className" => "Activities.Authorizations",
+            "foreignKey" => "activity_id",
+            "finder" => "previous",
+        ]);
         $this->belongsTo("Permissions", [
             "foreignKey" => "permission_id",
         ]);

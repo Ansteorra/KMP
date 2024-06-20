@@ -8,79 +8,31 @@ $user = $this->request->getAttribute("identity");
     ["controller" => "Members", "action" => "SendMobileCardEmail", $id],
     ["class" => "btn btn-sm mb-3 btn-secondary"],
 ) ?>
-
-<?php if (!empty($pendingAuths) || !empty($currentAuths) || !empty($previousAuths)) {
-    $renewButton = [
-        "type" => "button",
-        "verify" => false,
-        "label" => "Renew",
-        "options" => [
-            "class" => "btn btn-primary",
-            "data-bs-toggle" => "modal",
-            "data-bs-target" => "#renewalModal",
-            "onclick" => "$('#renew_auth__id').val('{{id}}'); $('#renew_auth__auth_type_id').val('{{activity->id}}');$('#renew_auth__auth_type_id').trigger('change');",
-
-        ],
-    ];
-    $revokeButton = [
-        "type" => "button",
-        "verify" => true,
-        "label" => "Revoke",
-        "controller" => "Authorizations",
-        "action" => "revoke",
-        "options" => [
-            "class" => "btn btn-danger",
-            "data-bs-toggle" => "modal",
-            "data-bs-target" => "#revokeModal",
-            "onclick" => "$('#revoke_auth__id').val('{{id}}')",
-        ],
-    ];
-    $activeColumnTemplate = [
-        "Authorization" => "activity->name",
-        "Start Date" => "start_on",
-        "End Date" => "expires_on",
-        "Actions" => [
-            $renewButton,
-            $revokeButton
-        ]
-    ];
-    $pendingColumnTemplate = [
-        "Authorization" => "activity->name",
-        "Requested Date" => "current_pending_approval->requested_on",
-        "Assigned To" => "current_pending_approval->approver->sca_name",
-    ];
-    $previousColumnTemplate = [
-        "Authorization" => "activity->name",
-        "Start Date" => "start_on",
-        "End Date" => "expires_on",
-        "Reason" => "revoked_reason",
-    ];
-    echo $this->element('activeWindowTabs', [
+<?php
+if (!$isEmpty) {
+    echo $this->element('turboActiveTabs', [
         'user' => $user,
         'tabGroupName' => "authorizationTabs",
         'tabs' => [
             "active" => [
                 "label" => __("Active"),
-                "id" => "active-authorization",
+                "id" => "current-authorization",
                 "selected" => true,
-                "columns" => $activeColumnTemplate,
-                "data" => $currentAuths,
+                "turboUrl" => $this->URL->build(["controller" => "Authorizations", "action" => "MemberAuthorizations", "plugin" => "Activities", "current", $id])
             ],
             "pending" => [
                 "label" => __("Pending"),
-                "id" => "upcoming-authorization",
-                "badge" => count($pendingAuths),
+                "id" => "pending-authorization",
+                "badge" => $pendingAuthCount,
                 "badgeClass" => "bg-danger",
                 "selected" => false,
-                "columns" => $pendingColumnTemplate,
-                "data" => $pendingAuths,
+                "turboUrl" => $this->URL->build(["controller" => "Authorizations", "action" => "MemberAuthorizations", "plugin" => "Activities", "pending", $id])
             ],
             "previous" => [
                 "label" => __("Previous"),
                 "id" => "previous-authorization",
                 "selected" => false,
-                "columns" => $previousColumnTemplate,
-                "data" => $previousAuths,
+                "turboUrl" => $this->URL->build(["controller" => "Authorizations", "action" => "MemberAuthorizations", "plugin" => "Activities", "previous", $id])
             ]
         ]
     ]);
@@ -164,7 +116,9 @@ class memberAuthorizations {
         me.wireUpRenewalEvents();
     }
 }
-var memberAuth = new memberAuthorizations();
-memberAuth.run();
+window.addEventListener('DOMContentLoaded', function() {
+    var memberAuth = new memberAuthorizations();
+    memberAuth.run();
+});
 </script>
 <?php $this->KMP->endBlock(); ?>

@@ -52,7 +52,6 @@ class KmpHelper extends Helper
         self::$mainView->end();
         self::$currentOpenBlock = "";
     }
-
     /**
      * Returns a boolean icon
      *

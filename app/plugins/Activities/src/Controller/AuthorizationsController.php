@@ -12,9 +12,15 @@ namespace Activities\Controller;
 
 use Activities\Services\AuthorizationManagerInterface;
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
+use Cake\ORM\Query\SelectQuery;
+use Activities\Model\Entity\Authorization;
 
 class AuthorizationsController extends AppController
 {
+    protected array $paginate = [
+        'limit' => 3,
+    ];
+
     public function revoke(ActiveWindowManagerInterface $awService, AuthorizationManagerInterface $maService, $id = null)
     {
         $this->request->allowMethod(["post"]);
@@ -107,5 +113,150 @@ class AuthorizationsController extends AppController
         );
 
         return $this->redirect($this->referer());
+    }
+
+    public function memberAuthorizations($state, $id)
+    {
+        if ($state != 'current' && $state == 'pending' && $state == 'previous') {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+        $member = $this->Authorizations->Members->find()
+            ->where(["id" => $id])
+            ->select("id")->first();
+        if (!$member) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+        $this->Authorization->authorize($member);
+        $auths = $this->Authorizations->find();
+        switch ($state) {
+            case 'current':
+                $auths = $this->addConditionsForMembers($this->Authorizations->find('current')->where(['member_id' => $id]));
+                break;
+            case 'pending':
+                $auths = $this->addConditionsForMembers($this->Authorizations->find('pending')->where(['member_id' => $id]));
+                break;
+            case 'previous':
+                $auths = $this->addConditionsForMembers($this->Authorizations->find('previous')->where(['member_id' => $id]));
+                break;
+        }
+        $authorizations = $this->paginate($auths);
+        $this->set(compact('authorizations', 'member', 'state'));
+    }
+
+    public function activityAuthorizations($state, $id)
+    {
+        if ($state != 'current' && $state == 'pending' && $state == 'previous') {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+        $activity = $this->Authorizations->Activities->find()
+            ->where(["id" => $id])
+            ->select("id")->first();
+        if (!$activity) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+        $this->Authorization->authorize($activity);
+        $auths = $this->Authorizations->find();
+        switch ($state) {
+            case 'current':
+                $auths = $this->addConditionsForActivities($this->Authorizations->find('current')->where(['activity_id' => $id]));
+                break;
+            case 'pending':
+                $auths = $this->addConditionsForActivities($this->Authorizations->find('pending')->where(['activity_id' => $id]));
+                break;
+            case 'previous':
+                $auths = $this->addConditionsForActivities($this->Authorizations->find('previous')->where(['activity_id' => $id]));
+                break;
+        }
+        $authorizations = $this->paginate($auths);
+        $this->set(compact('authorizations', 'activity', 'state'));
+    }
+
+    protected function addConditionsForMembers(SelectQuery $q)
+    {
+
+        $rejectFragment = $q->func()->concat([
+            "Authorizations.status" => 'identifier',
+            ' - ', "RevokedBy.sca_name" => 'identifier',
+            " on ", "expires_on" => 'identifier',
+            " note: ", "revoked_reason" => 'identifier'
+        ]);
+
+        $revokeReasonCase = $q->newExpr()
+            ->case()
+            ->when(['Authorizations.status' => Authorization::DENIED_STATUS])
+            ->then($rejectFragment)
+            ->when(['Authorizations.status' => Authorization::REVOKED_STATUS])
+            ->then($rejectFragment)
+            ->when(['Authorizations.status' => Authorization::EXPIRED_STATUS])
+            ->then("Authorization Expired")
+            ->else("");
+        return $q
+            ->select([
+                "id",
+                "member_id",
+                "activity_id",
+                "Authorizations.status",
+                "start_on",
+                "expires_on",
+                "revoked_reason" => $revokeReasonCase,
+                "revoker_id",
+            ])
+            ->contain([
+                "CurrentPendingApprovals" => function (SelectQuery $q) {
+                    return $q->select(["Approvers.sca_name", "requested_on"])
+                        ->contain("Approvers");
+                },
+                "Activities" => function (SelectQuery $q) {
+                    return $q->select(["Activities.name", "Activities.id"]);
+                },
+                "RevokedBy" => function (SelectQuery $q) {
+                    return $q->select(["RevokedBy.sca_name"]);
+                }
+            ]);
+    }
+
+    protected function addConditionsForActivities($q)
+    {
+
+        $rejectFragment = $q->func()->concat([
+            "Authorizations.status" => 'identifier',
+            ' - ', "RevokedBy.sca_name" => 'identifier',
+            " on ", "expires_on" => 'identifier',
+            " note: ", "revoked_reason" => 'identifier'
+        ]);
+
+        $revokeReasonCase = $q->newExpr()
+            ->case()
+            ->when(['Authorizations.status' => Authorization::DENIED_STATUS])
+            ->then($rejectFragment)
+            ->when(['Authorizations.status' => Authorization::REVOKED_STATUS])
+            ->then($rejectFragment)
+            ->when(['Authorizations.status' => Authorization::EXPIRED_STATUS])
+            ->then("Authorization Expired")
+            ->else("");
+        return $q
+            ->select([
+                "id",
+                "member_id",
+                "activity_id",
+                "Authorizations.status",
+                "start_on",
+                "expires_on",
+                "revoked_reason" => $revokeReasonCase,
+                "revoker_id",
+                "Members.sca_name"
+            ])
+            ->contain([
+                "CurrentPendingApprovals" => function (SelectQuery $q) {
+                    return $q->select(["Approvers.sca_name", "requested_on"])
+                        ->contain("Approvers");
+                },
+                "Members" => function (SelectQuery $q) {
+                    return $q->select(["Members.id", "Members.sca_name"]);
+                },
+                "RevokedBy" => function (SelectQuery $q) {
+                    return $q->select(["RevokedBy.sca_name"]);
+                }
+            ]);
     }
 }

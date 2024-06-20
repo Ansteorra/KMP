@@ -6,6 +6,8 @@ namespace Activities\Controller;
 
 use Cake\ORM\TableRegistry;
 use Cake\I18n\DateTime;
+use Cake\ORM\Query\SelectQuery;
+use Activities\Model\Entity\Authorization;
 
 /**
  * Activities Controller
@@ -64,21 +66,23 @@ class ActivitiesController extends AppController
                 },
                 "Roles" => function ($q) {
                     return $q->select(["id", "name"]);
-                },
-                "Authorizations.AuthorizationApprovals.Approvers" => function (
-                    $q,
-                ) {
-                    return $q->select(["id", "sca_name"]);
-                },
-                "Authorizations.Members" => function ($q) {
-                    return $q->select(["id", "sca_name"]);
-                },
+                }
             ],
         );
         if (!$activity) {
             throw new \Cake\Http\Exception\NotFoundException();
         }
         $this->Authorization->authorize($activity);
+        $activeCount = $this->Activities->CurrentAuthorizations->find()
+            ->where(["activity_id" => $id])
+            ->count();
+        $pendingCount = $this->Activities->PendingAuthorizations->find()
+            ->where(["activity_id" => $id])
+            ->count();
+        $previousCount = $this->Activities->PreviousAuthorizations->find()
+            ->where(["activity_id" => $id])
+            ->count();
+        $isEmpty = $activeCount + $pendingCount + $previousCount == 0;
         if ($activity->permission_id) {
             $roles = $this->Activities->Permissions->Roles
                 ->find()
@@ -114,6 +118,9 @@ class ActivitiesController extends AppController
                 "roles",
                 "authAssignableRoles",
                 "authByPermissions",
+                "pendingCount",
+                "isEmpty",
+                "id"
             ),
         );
     }
@@ -178,25 +185,22 @@ class ActivitiesController extends AppController
                     __("The authorization type has been saved."),
                 );
 
-                return $this->redirect([
-                    "action" => "view",
-                    $activity->id,
-                ]);
+                return $this->redirect(
+                    $this->referer()
+                );
             }
             $this->Flash->error(
                 __(
                     "The authorization type could not be saved. Please, try again.",
                 )
             );
-            return $this->redirect([
-                "action" => "view",
-                $activity->id,
-            ]);
+            return $this->redirect(
+                $this->referer()
+            );
         }
-        return $this->redirect([
-            "action" => "view",
-            $activity->id,
-        ]);
+        return $this->redirect(
+            $this->referer()
+        );
     }
 
     /**

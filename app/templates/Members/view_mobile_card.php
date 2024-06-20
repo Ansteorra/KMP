@@ -306,7 +306,7 @@ function loadCard() {
         }
     });
 }
-$(document).ready(function() {
+window.addEventListener('DOMContentLoaded', function() {
     var pageControl = new memberViewMobileCard();
     pageControl.run(urlCache, swPath);
     loadCard();

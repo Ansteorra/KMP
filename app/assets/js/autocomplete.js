@@ -1,3 +1,6 @@
+import $ from 'jquery';
+import jQuery from 'jquery';
+
 const DEFAULTS = {
     treshold: 2,
     maximumItems: 5,
@@ -6,20 +9,27 @@ const DEFAULTS = {
 };
 
 class Autocomplete {
+    DEFAULTS = {
+        treshold: 2,
+        maximumItems: 5,
+        highlightTyped: true,
+        highlightClass: "text-primary",
+    }
+
     constructor(field, options) {
         this.field = field;
-        this.options = Object.assign({}, DEFAULTS, options);
+        this.options = Object.assign({}, this.DEFAULTS, options);
         this.dropdown = null;
 
         field.parentNode.classList.add("dropdown");
         field.setAttribute("data-toggle", "dropdown");
         field.classList.add("dropdown-toggle");
 
-        const dropdown = ce(`<div class="dropdown-menu" ></div>`);
+        const dropdown = this.ce(`<div class="dropdown-menu" ></div>`);
         if (this.options.dropdownClass)
             dropdown.classList.add(this.options.dropdownClass);
 
-        insertAfter(dropdown, field);
+        this.insertAfter(dropdown, field);
 
         this.dropdown = new bootstrap.Dropdown(
             field,
@@ -65,16 +75,35 @@ class Autocomplete {
             const className = Array.isArray(this.options.highlightClass)
                 ? this.options.highlightClass.join(" ")
                 : typeof this.options.highlightClass == "string"
-                  ? this.options.highlightClass
-                  : "";
+                    ? this.options.highlightClass
+                    : "";
             label =
                 item.label.substring(0, idx) +
                 `<span class="${className}">${item.label.substring(idx, idx + lookup.length)}</span>` +
                 item.label.substring(idx + lookup.length, item.label.length);
         } else label = item.label;
-        return ce(
+        return this.ce(
             `<button type="button" class="dropdown-item" data-value="${item.value}">${label}</button>`,
         );
+    }
+
+    /**
+ * @param html
+ * @returns {Node}
+ */
+    ce(html) {
+        let div = document.createElement("div");
+        div.innerHTML = html;
+        return div.firstChild;
+    }
+
+    /**
+     * @param elem
+     * @param refElem
+     * @returns {*}
+     */
+    insertAfter(elem, refElem) {
+        return refElem.parentNode.insertBefore(elem, refElem.nextSibling);
     }
 
     createItems() {
@@ -120,22 +149,4 @@ class Autocomplete {
         return items.childNodes.length;
     }
 }
-
-/**
- * @param html
- * @returns {Node}
- */
-function ce(html) {
-    let div = document.createElement("div");
-    div.innerHTML = html;
-    return div.firstChild;
-}
-
-/**
- * @param elem
- * @param refElem
- * @returns {*}
- */
-function insertAfter(elem, refElem) {
-    return refElem.parentNode.insertBefore(elem, refElem.nextSibling);
-}
+export default Autocomplete;

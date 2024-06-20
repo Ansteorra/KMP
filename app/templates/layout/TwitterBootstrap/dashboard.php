@@ -7,7 +7,7 @@
 use Cake\Core\Configure;
 use App\Model\Table\MembersTable;
 
-$user = $this->request->getAttribute("identity");
+
 $validationQueueCount = MembersTable::getValidationQueueCount();
 
 $this->Html->css("BootstrapUI.dashboard", ["block" => true]);
@@ -39,7 +39,7 @@ echo $this->KMP->startBlock("tb_body_start");
             <li class="nav-item text-nowrap">
                 <?= $this->Html->link(
                     __("Sign out"),
-                    ["controller" => "Members", "action" => "logout"],
+                    ["controller" => "Members", "action" => "logout", 'plugin' => null],
                     ["class" => "nav-link"],
                 ) ?>
             </li>

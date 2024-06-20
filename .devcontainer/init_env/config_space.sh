@@ -53,7 +53,7 @@ rm /workspaces/$(echo $REPO_PATH)/app/config/app_local.php
 cp /workspaces/$(echo $REPO_PATH)/.devcontainer/init_env/app_local.php /workspaces/$(echo $REPO_PATH)/app/config/app_local.php
 
 cd /workspaces/$(echo $REPO_PATH)/app
-composer install -n
+sudo composer install -n
 cd ..
 sudo bash reset_dev_database.sh
 cd app

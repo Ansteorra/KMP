@@ -14,6 +14,7 @@
         "cakephp/plugin-installer": "^2.0",
         "friendsofcake/bootstrap-ui": "^5.0",
         "friendsofcake/cakepdf": "^5.0",
+        "ishanvyas22/asset-mix": "^2.0",
         "jeremyharris/cakephp-lazyload": "^5.0",
         "mobiledetect/mobiledetectlib": "^4.8.03",
         "muffin/footprint": "^4.0",
@@ -37,7 +38,8 @@
     "autoload": {
         "psr-4": {
             "App\\": "src/",
-            "Activities\\": "plugins/Activities/src/"
+            "Activities\\": "plugins/Activities/src/",
+            "Bootstrap\\": "plugins/Bootstrap/src/"
         }
     },
     "autoload-dev": {

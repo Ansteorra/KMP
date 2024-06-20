@@ -57,6 +57,32 @@ class AppController extends Controller
             $this->pluginViewCells = [];
         }
         $this->set('pluginViewCells', $this->pluginViewCells);
+
+        //check the header for a turbo-frame request
+        if ($this->request->getHeader('Turbo-Frame')) {
+            $this->viewBuilder()->setLayout('turbo_frame');
+            $this->set("isTurboFrame", true);
+            $this->set("turboFrameId", $this->request->getHeader('Turbo-Frame')[0]);
+        } else {
+            $this->set("isTurboFrame", false);
+        }
+        $this->set("user", $this->request->getAttribute("identity"));
+        $recordId = $this->request->getParam('pass');
+        if (is_array($recordId) && count($recordId) > 0) {
+            $recordId = $recordId[0];
+        } elseif (is_array($recordId) && count($recordId) == 0) {
+            $recordId = -1;
+        } elseif (is_array($recordId)) {
+            foreach ($recordId as $key => $value) {
+                $recordId .= $value . ", ";
+            }
+        }
+        $this->set("recordId", $recordId);
+        $recordModel = $params["controller"];
+        if ($params["plugin"] != null) {
+            $recordModel = $params["plugin"] . "." . $recordModel;
+        }
+        $this->set("recordModel", $recordModel);
     }
 
     /**

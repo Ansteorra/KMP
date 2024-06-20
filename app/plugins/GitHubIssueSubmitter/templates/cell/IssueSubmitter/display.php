@@ -44,7 +44,7 @@ echo $this->Modal->end([
 $this->KMP->endBlock();
 echo $this->KMP->startBlock("script"); ?>
 <script>
-$(document).ready(function() {
+window.addEventListener('DOMContentLoaded', function() {
     $('#githubIssue_success').hide();
     $('#githubIssueModal').on('hidden.bs.modal', function() {
         $('#githubIssueForm').show();

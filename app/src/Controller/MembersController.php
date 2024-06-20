@@ -26,6 +26,11 @@ use Cake\Http\Exception\NotFoundException;
  */
 class MembersController extends AppController
 {
+    protected array $paginate = [
+        // Other keys here.
+        'maxLimit' => 2
+    ];
+
     use MailerAwareTrait;
 
     /**

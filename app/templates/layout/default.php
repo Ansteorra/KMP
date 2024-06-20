@@ -12,9 +12,9 @@ use Cake\Core\Configure;
 if (!$this->fetch("html")) {
     echo $this->KMP->startBlock("html");
     if (Configure::check("App.language")) {
-        printf('<html lang="%s">', Configure::read("App.language"));
+        printf('<html data-turbo="false" lang="%s">', Configure::read("App.language"));
     } else {
-        echo "<html lang='en'>";
+        echo "<html data-turbo='false' lang='en' >";
     }
     $this->KMP->endBlock();
 }
@@ -102,16 +102,13 @@ $this->prepend(
  * Prepend `script` block with Popper and Bootstrap scripts
  * Change popper.min and bootstrap.min to use the compressed version
  */
-$this->prepend(
-    "script",
-    $this->Html->script([
-        "https://ajax.aspnetcdn.com/ajax/jQuery/jquery-3.7.1.min.js",
-        "BootstrapUI.popper.min",
-        "BootstrapUI.bootstrap.min",
-        "app/utilities.js",
-        "app/autocomplete.js",
-    ]),
-);
+$this->KMP->startBlock("topscript");
+echo $this->AssetMix->script('manifest');
+echo $this->AssetMix->script('core');
+echo $this->AssetMix->script('hotwired_turbo');
+echo $this->AssetMix->script('startup');
+$this->KMP->endBlock();
+
 ?>
 <!doctype html>
 <?= $this->fetch("html") ?>
@@ -120,9 +117,11 @@ $this->prepend(
     <?= $this->Html->charset() ?>
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title><?= h($this->fetch("title")) ?></title>
+    <meta name="turbo-prefetch" content="false">
     <?= $this->fetch("meta") ?>
     <?= $this->fetch("css") ?>
     <?= $this->fetch("manifest") ?>
+    <?= $this->fetch("topscript") ?>
 </head>
 
 <?php
@@ -132,6 +131,8 @@ echo $this->fetch("content");
 echo $this->fetch("tb_footer");
 echo $this->fetch("tb_body_end");
 echo $this->fetch("script");
+//echo $this->AssetCompress->script('app-combined');
+
 ?>
 
 </html>

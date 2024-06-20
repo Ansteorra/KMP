@@ -5,21 +5,22 @@
  * @var \App\Model\Entity\ActivityGroup $authorizationGroup
  */
 ?>
-<?php $this->extend("/layout/TwitterBootstrap/dashboard"); ?>
+<?php
 
-<div class="activityGroup view large-9 medium-8 columns content">
-    <div class="row align-items-start">
-        <div class="col">
-            <h3>
-                <a href="#" onclick="window.history.back();" class="bi bi-arrow-left-circle"></a>
-                <?= h($department->name) ?>
-            </h3>
-        </div>
-        <div class="col text-end">
-            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal">Edit</button>
-        </div>
-    </div>
-</div>
+$this->extend("/layout/TwitterBootstrap/view_record");
+
+echo $this->KMP->startBlock("pageTitle") ?>
+<?= h($department->name) ?>
+<?php $this->KMP->endBlock() ?>
+<?= $this->KMP->startBlock("recordActions") ?>
+<button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal">Edit</button>
+<?php $this->KMP->endBlock() ?>
+<?php $this->KMP->startBlock("recordDetails") ?>
+<?php $this->KMP->endBlock() ?>
+<?php $this->KMP->startBlock("tabButtons") ?>
+<?php $this->KMP->endBlock() ?>
+<?php $this->KMP->startBlock("tabContent") ?>
+<?php $this->KMP->endBlock() ?>
 <?php
 echo $this->KMP->startBlock("modals");
 echo $this->Modal->create("Edit Department", [

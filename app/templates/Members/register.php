@@ -49,7 +49,7 @@
                         <select name="birth_month" id="birth-month" class="form-select" required="required">
                             <option value=""></option>
                             <?php foreach ($months as $index => $value) : ?>
-                            <option value="<?= $index ?>"><?= $value ?></option>
+                                <option value="<?= $index ?>"><?= $value ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -57,7 +57,7 @@
                         <select name="birth_year" id="birth-year" class="form-select" required="required">
                             <option value=""></option>
                             <?php foreach ($years as $index => $value) : ?>
-                            <option value="<?= $index ?>"><?= $value ?></option>
+                                <option value="<?= $index ?>"><?= $value ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -74,29 +74,32 @@
 
 <?php
 
-$this->append("script", $this->Html->script(["lib/imagePreviewer.js"]));
 echo $this->KMP->startBlock("script");
 ?>
 <script>
-class memberRegister {
-    constructor() {};
-    //onInput for Autocomplete
-    run(rootPath) {
-        var me = this;
-        $(document).ready(function() {
-            //$("#upload-images").laiImagePreview();
-            $("#upload-images").laiImagePreview({
-                columns: "col-sm-6 col-md-3",
-                inputFileName: "member_card",
-                imageCaption: false,
-                imageLimit: 1,
-                label: "Picture of Membership Card (Optional)",
-                maxFileSize: 2000000,
+    class memberRegister {
+        constructor($) {
+            this.$ = $;
+        };
+        //onInput for Autocomplete
+        run(rootPath) {
+            var me = this;
+            me.$(function() {
+                //$("#upload-images").laiImagePreview();
+                me.$("#upload-images").laiImagePreview({
+                    columns: "col-sm-6 col-md-3",
+                    inputFileName: "member_card",
+                    imageCaption: false,
+                    imageLimit: 1,
+                    label: "Picture of Membership Card (Optional)",
+                    maxFileSize: 2000000,
+                });
             });
-        });
+        }
     }
-}
-var pageControl = new memberRegister();
-pageControl.run();
+    window.addEventListener('DOMContentLoaded', function() {
+        var pageControl = new memberRegister(window.$);
+        pageControl.run();
+    });
 </script>
 <?php echo $this->KMP->endBlock(); ?>

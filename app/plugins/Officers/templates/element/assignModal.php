@@ -74,7 +74,7 @@ echo $this->Modal->create("Assign Officer", [
     echo $this->Form->end();
     ?>
 </fieldset>
-<script type="text/javascript">
+<script>
 var officeData = <?php echo json_encode($offices); ?>;
 </script>
 <?php echo $this->Modal->end([

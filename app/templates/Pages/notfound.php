@@ -1,5 +1,5 @@
 <?php
-$user = $this->request->getAttribute("identity");
+
 $this->extend("/layout/TwitterBootstrap/signin");
 
 ?>

@@ -153,7 +153,7 @@ function isEmpty(value) {
 }
 
 
-$(document).ready(function () {
+$(function () {
     "use strict";
     // set style by appending to body
     const cssStyle = ".lai-img-upload-plus-icon{font-size: 2em;}.lai-img-file-name{overflow: hidden;white-space: nowrap;}";

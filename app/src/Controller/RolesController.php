@@ -59,13 +59,6 @@ class RolesController extends AppController
         $role = $this->Roles->get(
             $id,
             contain: [
-                "CurrentMemberRoles.Members",
-                "CurrentMemberRoles.ApprovedBy",
-                "PreviousMemberRoles.Members",
-                "PreviousMemberRoles.ApprovedBy",
-                "PreviousMemberRoles.RevokedBy",
-                "UpcomingMemberRoles.Members",
-                "UpcomingMemberRoles.ApprovedBy",
                 "Permissions",
             ],
         );
@@ -73,6 +66,16 @@ class RolesController extends AppController
             throw new \Cake\Http\Exception\NotFoundException();
         }
         $this->Authorization->authorize($role);
+        $currentMembersCount = $this->Roles->MemberRoles->find('current')
+            ->where(["role_id" => $id])
+            ->count();
+        $upcomingMembersCount = $this->Roles->MemberRoles->find('upcoming')
+            ->where(["role_id" => $id])
+            ->count();
+        $previousMembersCount = $this->Roles->MemberRoles->find('previous')
+            ->where(["role_id" => $id])
+            ->count();
+        $isEmpty = ($currentMembersCount + $upcomingMembersCount + $previousMembersCount) == 0;
         //get all the permissions not already assigned to the role
         $currentPermissionIds = [];
         foreach ($role->permissions as $permission) {
@@ -87,7 +90,7 @@ class RolesController extends AppController
         } else {
             $permissions = $this->Roles->Permissions->find("list")->all();
         }
-        $this->set(compact("role", "permissions"));
+        $this->set(compact("role", "permissions", 'id', 'isEmpty'));
     }
 
     /**

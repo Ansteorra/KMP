@@ -57,9 +57,9 @@ class MemberAuthorizationsCell extends BasePluginCell
     public function display($id)
     {
         $authTable = TableRegistry::getTableLocator()->get("Activities.Authorizations");
-        $currentAuths = $this->addConditions($authTable->find('current')->where(['member_id' => $id]))->toArray();
-        $pendingAuths = $this->addConditions($authTable->find('pending')->where(['member_id' => $id]))->toArray();
-        $previousAuths = $this->addConditions($authTable->find('previous')->where(['member_id' => $id]))->toArray();
+        $currentAuths = $authTable->find('current')->count();
+        $pendingAuths = $authTable->find('pending')->count();
+        $previousAuths = $authTable->find('previous')->count();
 
         $authTypeTable = TableRegistry::getTableLocator()->get(
             "Activities.Activities",
@@ -74,7 +74,9 @@ class MemberAuthorizationsCell extends BasePluginCell
             "minimum_age <" => $member->age,
             "maximum_age >" => $member->age,
         ]);
-        $this->set(compact('currentAuths', 'pendingAuths', 'previousAuths', 'id', 'activities'));
+        $isEmpty = ($currentAuths + $pendingAuths + $previousAuths) == 0;
+        $pendingAuthCount = $pendingAuths;
+        $this->set(compact('pendingAuthCount', 'isEmpty', 'id', 'activities'));
     }
 
     protected function addConditions(SelectQuery $q)

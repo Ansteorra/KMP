@@ -46,7 +46,7 @@ if (Configure::read("debug")) :
 else :
 ?>
     <?php
-    $user = $this->request->getAttribute("identity");
+
     $this->extend("/layout/TwitterBootstrap/signin");
 
     ?>

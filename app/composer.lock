@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "6d78cc5f5581a812406b468d099148cf",
+    "content-hash": "7677d34e5f7b34aa83277a72a7634269",
     "packages": [
         {
             "name": "admad/cakephp-glide",
@@ -867,6 +867,74 @@
                 }
             ],
             "time": "2022-05-21T17:30:32+00:00"
+        },
+        {
+            "name": "ishanvyas22/asset-mix",
+            "version": "2.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/ishanvyas22/asset-mix.git",
+                "reference": "46c794dff8edd85c5b36a6fd606087b19f1e4d25"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/ishanvyas22/asset-mix/zipball/46c794dff8edd85c5b36a6fd606087b19f1e4d25",
+                "reference": "46c794dff8edd85c5b36a6fd606087b19f1e4d25",
+                "shasum": ""
+            },
+            "require": {
+                "cakephp/cakephp": "^5.0",
+                "ext-json": "*",
+                "ext-mbstring": "*"
+            },
+            "require-dev": {
+                "cakephp/cakephp-codesniffer": "^5.1.0",
+                "phpstan/phpstan": "^1.10.27",
+                "phpunit/phpunit": "^10.2"
+            },
+            "type": "cakephp-plugin",
+            "autoload": {
+                "files": [
+                    "src/functions.php"
+                ],
+                "psr-4": {
+                    "AssetMix\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Ishan Vyas",
+                    "homepage": "https://github.com/ishanvyas22",
+                    "role": "Maintainer"
+                }
+            ],
+            "description": "Asset Mix plugin for CakePHP",
+            "homepage": "https://github.com/ishanvyas22/asset-mix",
+            "keywords": [
+                "assets",
+                "cakephp",
+                "cakephp-plugin",
+                "javascript",
+                "laravel-mix",
+                "less",
+                "minifier",
+                "sass"
+            ],
+            "support": {
+                "issues": "https://github.com/ishanvyas22/asset-mix/issues",
+                "source": "https://github.com/ishanvyas22/asset-mix"
+            },
+            "funding": [
+                {
+                    "url": "https://www.patreon.com/ishanvyas",
+                    "type": "patreon"
+                }
+            ],
+            "time": "2023-12-12T10:12:26+00:00"
         },
         {
             "name": "jeremyharris/cakephp-lazyload",

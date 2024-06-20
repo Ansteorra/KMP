@@ -60,7 +60,7 @@ $user = $this->request->getAttribute("identity");
                 "columns" => $previousTemplate,
                 "data" => $previousOfficers,
             ]
-        ]
+        ],
     ]);
 } else {
     echo "<p>No Offices assigned</p>";
@@ -128,7 +128,9 @@ class branchesView {
         $('#assign_officer__office_id').trigger('change');
     }
 };
-var view = new branchesView();
-view.run();
+window.addEventListener('DOMContentLoaded', function() {
+    var view = new branchesView();
+    view.run();
+});
 </script>
 <?php $this->KMP->endBlock(); ?>

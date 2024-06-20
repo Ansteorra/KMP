@@ -165,10 +165,6 @@ class Application extends BaseApplication implements
             ActiveWindowManagerInterface::class,
             DefaultActiveWindowManager::class,
         );
-        $container->add(
-            OfficerManagerInterface::class,
-            DefaultOfficerManager::class,
-        );
     }
 
     /**

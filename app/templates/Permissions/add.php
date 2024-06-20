@@ -9,7 +9,7 @@
 ?>
 <?php
 $this->extend("/layout/TwitterBootstrap/dashboard");
-$user = $this->request->getAttribute("identity");
+
 ?>
 
 <div class="permissions form content">

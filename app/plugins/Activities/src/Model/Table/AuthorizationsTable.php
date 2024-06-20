@@ -142,7 +142,7 @@ class AuthorizationsTable extends Table
 
     public function findPending(SelectQuery $query): SelectQuery
     {
-        $query = $query->where(['Authorizations.status' => Authorization::PENDING_STATUS]);
+        $query = $query->where([$this->getAlias() . '.status' => Authorization::PENDING_STATUS]);
         return $query;
     }
 }

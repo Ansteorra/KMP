@@ -6,105 +6,89 @@
  */
 ?>
 <?php
-$this->extend("/layout/TwitterBootstrap/dashboard");
-$user = $this->request->getAttribute("identity");
+$this->extend("/layout/TwitterBootstrap/view_record");
 
-?>
-<div class="permissions view large-9 medium-8 columns content">
-    <div class="row align-items-start">
-        <div class="col">
-            <h3>
-                <a href="#" onclick="window.history.back();" class="bi bi-arrow-left-circle"></a>
-                <?= h($permission->name) ?>
-            </h3>
-        </div>
-        <div class="col text-end">
-            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
-                data-bs-target="#editModal">Edit</button>
-            <?php if (!$permission->is_system) { ?>
-            <?= $this->Form->postLink(
-                    __("Delete"),
-                    ["action" => "delete", $permission->id],
-                    [
-                        "confirm" => __(
-                            "Are you sure you want to delete {0}?",
-                            $permission->name,
-                        ),
-                        "title" => __("Delete"),
-                        "class" => "btn btn-danger btn-sm",
-                    ],
-                ) ?>
-            <?php } ?>
-        </div>
-    </div>
-    <div class="table-responsive">
-        <table class="table table-striped">
-            <tr scope="row">
-                <th class='col'><?= __("Name") ?></th>
-                <td><?= h($permission->name) ?></td>
-            </tr>
-            <tr scope="row">
-                <th class='col'><?= __("Require Membership") ?></th>
-                <td class="col-10"><?= $this->Kmp->bool(
-                                        $permission->require_active_membership,
-                                        $this->Html,
-                                    ) ?></td>
-            </tr>
-            <tr scope="row">
-                <th class='col'><?= __("Require Background Check") ?></th>
-                <td class="col-10"><?= $this->Kmp->bool(
-                                        $permission->require_active_background_check,
-                                        $this->Html,
-                                    ) ?></td>
-            </tr>
-            <tr scope="row">
-                <th class='col'><?= __("Minimum Age") ?></th>
-                <td class="col-10"><?= h($permission->require_min_age) ?></td>
-            </tr>
-            <tr scope="row">
-                <th class='col'><?= __("System Permission") ?></th>
-                <td class="col-10"><?= $this->Kmp->bool(
-                                        $permission->is_system,
-                                        $this->Html,
-                                    ) ?></td>
-            </tr>
-            <tr scope="row">
-                <th class='col'><?= __("Is Super User") ?></th>
-                <td class="col-10"><?= $this->Kmp->bool(
-                                        $permission->is_super_user,
-                                        $this->Html,
-                                    ) ?></td>
-            </tr>
-            <tr scope="row">
-                <th class='col'><?= __("Requires a Warrant") ?></th>
-                <td class="col-10"><?= $this->Kmp->bool(
-                                        $permission->requires_warrant,
-                                        $this->Html,
-                                    ) ?></td>
-            </tr>
-        </table>
-    </div>
-    <nav>
-        <div class="nav nav-tabs" id="nav-permissionAreas" role="tablist">
-            <button class="nav-link active" id="nav-roles-tab" data-bs-toggle="tab" data-bs-target="#nav-roles"
-                type="button" role="tab" aria-controls="nav-roles" aria-selected="true"><?= __("Roles") ?>
-            </button>
-            <?= $this->element('pluginTabButtons', [
-                'pluginViewCells' => $pluginViewCells,
-                'activateFirst' => false,
-            ]) ?>
+echo $this->KMP->startBlock("pageTitle") ?>
+<?= h($permission->name) ?>
+<?php $this->KMP->endBlock() ?>
+<?= $this->KMP->startBlock("recordActions") ?>
+<button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal">Edit</button>
+<?php if (!$permission->is_system) { ?>
+    <?= $this->Form->postLink(
+        __("Delete"),
+        ["action" => "delete", $permission->id],
+        [
+            "confirm" => __(
+                "Are you sure you want to delete {0}?",
+                $permission->name,
+            ),
+            "title" => __("Delete"),
+            "class" => "btn btn-danger btn-sm",
+        ],
+    ) ?>
+<?php } ?>
+<?php $this->KMP->endBlock() ?>
+<?php $this->KMP->startBlock("recordDetails") ?>
+<tr scope="row">
+    <th class='col'><?= __("Name") ?></th>
+    <td><?= h($permission->name) ?></td>
+</tr>
+<tr scope="row">
+    <th class='col'><?= __("Require Membership") ?></th>
+    <td class="col-10"><?= $this->Kmp->bool(
+                            $permission->require_active_membership,
+                            $this->Html,
+                        ) ?></td>
+</tr>
+<tr scope="row">
+    <th class='col'><?= __("Require Background Check") ?></th>
+    <td class="col-10"><?= $this->Kmp->bool(
+                            $permission->require_active_background_check,
+                            $this->Html,
+                        ) ?></td>
+</tr>
+<tr scope="row">
+    <th class='col'><?= __("Minimum Age") ?></th>
+    <td class="col-10"><?= h($permission->require_min_age) ?></td>
+</tr>
+<tr scope="row">
+    <th class='col'><?= __("System Permission") ?></th>
+    <td class="col-10"><?= $this->Kmp->bool(
+                            $permission->is_system,
+                            $this->Html,
+                        ) ?></td>
+</tr>
+<tr scope="row">
+    <th class='col'><?= __("Is Super User") ?></th>
+    <td class="col-10"><?= $this->Kmp->bool(
+                            $permission->is_super_user,
+                            $this->Html,
+                        ) ?></td>
+</tr>
+<tr scope="row">
+    <th class='col'><?= __("Requires a Warrant") ?></th>
+    <td class="col-10"><?= $this->Kmp->bool(
+                            $permission->requires_warrant,
+                            $this->Html,
+                        ) ?></td>
+</tr>
+<?= $this->element('pluginDetailBodies', [
+    'pluginViewCells' => $pluginViewCells,
+    'id' => $permission->id
+]) ?>
+<?php $this->KMP->endBlock() ?>
+<?php $this->KMP->startBlock("tabButtons") ?>
+<button class="nav-link active" id="nav-roles-tab" data-bs-toggle="tab" data-bs-target="#nav-roles" type="button" role="tab" aria-controls="nav-roles" aria-selected="false"><?= __("Roles") ?>
+</button>
+<?php $this->KMP->endBlock() ?>
+<?php $this->KMP->startBlock("tabContent") ?>
+<div class="tab-content" id="nav-tabContent">
+    <div class="related tab-pane fade active m-3" id="nav-roles" role="tabpanel" aria-labelledby="nav-roles-tab">
 
-        </div>
-    </nav>
-    <div class="tab-content" id="nav-tabContent">
-        <div class="related tab-pane fade show active m-3" id="nav-roles" role="tabpanel"
-            aria-labelledby="nav-roles-tab">
-
-            <?php if ($user->can("addPermission", "Roles")) { ?>
-            <button type="button" class="btn btn-primary btn-sm mb-3" data-bs-toggle="modal"
-                data-bs-target="#addRoleModal">Add Role</button>
-            <?php } ?>
-            <?php if (!empty($permission->roles)) : ?>
+        <?php if ($user->can("addPermission", "Roles")) { ?>
+            <button type="button" class="btn btn-primary btn-sm mb-3" data-bs-toggle="modal" data-bs-target="#addRoleModal">Add Role</button>
+        <?php } ?>
+        <?php if (!empty($permission->roles)) : ?>
             <div class="table-responsive">
                 <table class="table table-striped">
                     <thead>
@@ -115,45 +99,40 @@ $user = $this->request->getAttribute("identity");
                     </thead>
                     <tbody>
                         <?php foreach ($permission->roles as $role) : ?>
-                        <tr>
-                            <td><?= h($role->name) ?></td>
-                            <td class="actions">
-                                <?php if ($user->can("deletePermission", "Roles")) { ?>
-                                <?= $this->Form->postLink(
-                                                __("Remove"),
-                                                [
-                                                    "controller" => "Roles",
-                                                    "action" => "deletePermission",
+                            <tr>
+                                <td><?= h($role->name) ?></td>
+                                <td class="actions">
+                                    <?php if ($user->can("deletePermission", "Roles")) { ?>
+                                        <?= $this->Form->postLink(
+                                            __("Remove"),
+                                            [
+                                                "controller" => "Roles",
+                                                "action" => "deletePermission",
+                                            ],
+                                            [
+                                                "confirm" => __(
+                                                    "Are you sure you want to remove {0}?",
+                                                    $role->name,
+                                                ),
+                                                "class" => "btn btn-danger",
+                                                "data" => [
+                                                    "permission_id" => $permission->id,
+                                                    "role_id" => $role->id,
                                                 ],
-                                                [
-                                                    "confirm" => __(
-                                                        "Are you sure you want to remove {0}?",
-                                                        $role->name,
-                                                    ),
-                                                    "class" => "btn btn-danger",
-                                                    "data" => [
-                                                        "permission_id" => $permission->id,
-                                                        "role_id" => $role->id,
-                                                    ],
-                                                ],
-                                            ) ?>
-                                <?php } ?>
-                            </td>
-                        </tr>
+                                            ],
+                                        ) ?>
+                                    <?php } ?>
+                                </td>
+                            </tr>
                         <?php endforeach; ?>
                     </tbody>
                 </table>
             </div>
-            <?php else : ?>
+        <?php else : ?>
             <p><?= __("No Roles Assigned") ?></p>
-            <?php endif; ?>
-        </div>
-        <?= $this->element('pluginTabBodies', [
-            'pluginViewCells' => $pluginViewCells,
-            'id' => $permission->id,
-            'activateFirst' => false,
-        ]) ?>
+        <?php endif; ?>
     </div>
+    <?php $this->KMP->endBlock() ?>
 
 
     <?php //Start writing to modal block in layout
@@ -254,29 +233,31 @@ $user = $this->request->getAttribute("identity");
     $this->KMP->endBlock();
     echo $this->KMP->startBlock("script"); ?>
     <script>
-    class permissionsView {
-        constructor() {
-            this.ac = null;
+        class permissionsView {
+            constructor() {
+                this.ac = null;
 
-        };
-        run() {
-            var me = this;
-            $("#add_role__role_id").change(function() {
-                var end = this.value;
-                if (end > 0) {
-                    $('#add_role__submit').prop('disabled', false);
-                } else {
-                    $('#add_role__submit').prop('disabled', true);
-                }
-            });
-            $('#add_role__submit').click(function() {
-                if ($('#add_role__role_id').val() > 0) {
-                    $('#add_role__form').submit();
-                }
-            });
+            };
+            run() {
+                var me = this;
+                $("#add_role__role_id").change(function() {
+                    var end = this.value;
+                    if (end > 0) {
+                        $('#add_role__submit').prop('disabled', false);
+                    } else {
+                        $('#add_role__submit').prop('disabled', true);
+                    }
+                });
+                $('#add_role__submit').click(function() {
+                    if ($('#add_role__role_id').val() > 0) {
+                        $('#add_role__form').submit();
+                    }
+                });
+            }
         }
-    }
-    var pageControl = new permissionsView();
-    pageControl.run();
+        window.addEventListener('DOMContentLoaded', function() {
+            var pageControl = new permissionsView();
+            pageControl.run();
+        });
     </script>
     <?php $this->KMP->endBlock(); ?>

@@ -304,7 +304,7 @@ function startCard() {
     $("#auth_cards").append(card);
     currentCard = cardDetails;
 }
-$(document).ready(function() {
+window.addEventListener('DOMContentLoaded', function() {
     $.get(url, function(data) {
         $("#loading").hide();
         var detailsList = $("<dl>", {

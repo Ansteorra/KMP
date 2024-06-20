@@ -195,33 +195,45 @@ class StaticHelpers
      */
     static function getAppSetting(string $key, $fallback)
     {
-        //check config first for the key
-        $value = Configure::read($key);
-        if ($value !== null) {
+        try {
+            //check config first for the key
+            $value = Configure::read($key);
+            if ($value !== null) {
+                return $value;
+            }
+            //check the app settings table
+            $AppSettings = TableRegistry::getTableLocator()->get("AppSettings");
+            $value = $AppSettings->getAppSetting($key, $fallback);
             return $value;
+        } catch (Exception $e) {
+            return $fallback;
         }
-        //check the app settings table
-        $AppSettings = TableRegistry::getTableLocator()->get("AppSettings");
-        $value = $AppSettings->getAppSetting($key, $fallback);
-        return $value;
     }
     static function getAppSettingsStartWith(string $key): array
     {
-        $AppSettings = TableRegistry::getTableLocator()->get("AppSettings");
-        $allAppSettings = $AppSettings->getAllAppSettings();
-        $return = [];
-        foreach ($allAppSettings as $settingKey => $settingValue) {
-            if (strpos($settingKey, $key) === 0) {
-                $return[$settingKey] = $settingValue;
+        try {
+            $AppSettings = TableRegistry::getTableLocator()->get("AppSettings");
+            $allAppSettings = $AppSettings->getAllAppSettings();
+            $return = [];
+            foreach ($allAppSettings as $settingKey => $settingValue) {
+                if (strpos($settingKey, $key) === 0) {
+                    $return[$settingKey] = $settingValue;
+                }
             }
+            return $return;
+        } catch (Exception $e) {
+            return [];
         }
-        return $return;
     }
 
     static function setAppSetting(string $key, $value)
     {
-        $AppSettings = TableRegistry::getTableLocator()->get("AppSettings");
-        $AppSettings->setAppSetting($key, $value);
+        try {
+            $AppSettings = TableRegistry::getTableLocator()->get("AppSettings");
+            $AppSettings->setAppSetting($key, $value);
+        } catch (Exception $e) {
+            return false;
+        }
     }
     static function makePathString($path)
     {

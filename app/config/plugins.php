@@ -19,6 +19,11 @@ return [
     'Muffin/Trash' => [],
     'ADmad/Glide' => [],
     'GitHubIssueSubmitter' => [],
-    'Activities' => ["migrationOrder" => 1],
-    'Officers' => ["migrationOrder" => 2],
+    'Activities' => [
+        'migrationOrder' => 1,
+    ],
+    'Officers' => [
+        'migrationOrder' => 2,
+    ],
+    'AssetMix' => [],
 ];

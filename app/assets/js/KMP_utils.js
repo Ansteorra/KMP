@@ -1,4 +1,5 @@
-KMP_utils = {
+import Autocomplete from './autocomplete.js';
+export default {
     populateList(url, filterId1, filterid2, valKey, dispKey, selectElementId) {
         //if url ends with a / remove it
         if (url.endsWith('/')) {
@@ -18,6 +19,7 @@ KMP_utils = {
             });
         });
     },
+
     configureAutoComplete(ac, searchUrl, inputFieldId, valKey, dispKey, resultElementId) {
         ac = new Autocomplete($('#' + inputFieldId)[0], {
             data: [],
@@ -47,6 +49,7 @@ KMP_utils = {
             }
         });
     },
+
     urlParam(name) {
         var results = new RegExp('[\?&]' + name + '=([^&#]*)').exec(window.location.href);
         var result = null;
@@ -55,16 +58,4 @@ KMP_utils = {
         }
         return result;
     }
-}
-
-$(document).ready(function () {
-    //if the querystring has a tab parameter, show that tab
-    var tab = KMP_utils.urlParam('tab');
-    if (tab) {
-        $('#nav-' + tab + '-tab').click();
-    }
-    $('.nav-link[role=tab]').click(function () {
-        var tab = $(this).attr('id').replace('nav-', '').replace('-tab', '');
-        window.history.pushState({}, '', '?tab=' + tab);
-    });
-});
+};
