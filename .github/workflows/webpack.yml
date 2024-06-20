@@ -1,7 +1,9 @@
-name: NodeJS with Webpack
+name: build dev_release
 
 on:
   workflow_dispatch:
+  schedule:
+  - cron: "0 6 * * *"
 
 jobs:
   build:
