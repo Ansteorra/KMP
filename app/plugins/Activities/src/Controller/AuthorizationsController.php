@@ -17,9 +17,6 @@ use Activities\Model\Entity\Authorization;
 
 class AuthorizationsController extends AppController
 {
-    protected array $paginate = [
-        'limit' => 3,
-    ];
 
     public function revoke(ActiveWindowManagerInterface $awService, AuthorizationManagerInterface $maService, $id = null)
     {
