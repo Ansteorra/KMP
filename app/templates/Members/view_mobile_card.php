@@ -153,9 +153,7 @@ const urlCache = [
     '<?= $this->KMP->getMixScriptUrl('hotwired_turbo', $this->Url) ?>',
     '<?= $this->KMP->getMixScriptUrl('startup', $this->Url) ?>',
     '<?= Asset::scriptUrl("app/sw.js") ?>',
-    '<?= Asset::cssUrl("BootstrapUI.bootstrap.min") ?>',
-    '<?= Asset::cssUrl("BootstrapUI./font/bootstrap-icons") ?>',
-    '<?= Asset::cssUrl("BootstrapUI./font/bootstrap-icon-sizes") ?>',
+    '<?= $this->KMP->getMixStyleUrl('app', $this->Url) ?>',
     '<?= Asset::imageUrl("favicon.ico") ?>',
     '<?= $this->Url->build(['controller' => 'Members', 'action' => 'viewMobileCardJson', $member->mobile_card_token]) ?>'
 ];

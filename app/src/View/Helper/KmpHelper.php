@@ -121,7 +121,7 @@ class KmpHelper extends Helper
 
     public function getMixStyleUrl(string $css, $Url): string
     {
-        $url = $Url->class($css);
+        $url = $Url->css($css);
         $mixPath = (new Mix())($url);
         return $mixPath;
     }
