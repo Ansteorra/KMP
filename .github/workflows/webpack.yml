@@ -1,4 +1,4 @@
-name: NodeJS with Webpack
+name: build dev_release
 
 on:
   workflow_dispatch:
