@@ -1,3 +1,8 @@
+@import 'bootstrap.css';
+@import 'bootstrap-icons.css';
+@import 'bootstrap-icon-sizes.css';
+@import 'dashboard.css';
+
 .sublink.nav-link {
     padding-bottom: 0;
 

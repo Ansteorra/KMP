@@ -10,8 +10,8 @@ use App\Model\Table\MembersTable;
 
 $validationQueueCount = MembersTable::getValidationQueueCount();
 
-$this->Html->css("BootstrapUI.dashboard", ["block" => true]);
-$this->Html->css('app/dashboard', ['block' => true]);
+#$this->Html->css("BootstrapUI.dashboard", ["block" => true]);
+#$this->Html->css('app/dashboard', ['block' => true]);
 $this->prepend(
     "tb_body_attrs",
     ' class="' .
@@ -44,7 +44,9 @@ echo $this->KMP->startBlock("tb_body_start");
                 ) ?>
             </li>
             <li class="nav-item text-nowrap">
-                <button class="navbar-toggler position-absolute d-md-none collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-expanded="false" aria-label="Toggle navigation">
+                <button class="navbar-toggler position-absolute d-md-none collapsed" type="button"
+                    data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu"
+                    aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
                 </button>
             </li>
@@ -82,4 +84,3 @@ echo $this->KMP->startBlock("tb_body_start");
 $this->KMP->endBlock();
 echo $this->fetch("content");
 echo $this->element('copyrightFooter', []);
-echo $this->fetch("modals");

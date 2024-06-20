@@ -154,7 +154,7 @@ class FancyFileWidget implements WidgetInterface
                 "readonly" => "readonly",
                 "id" => $data["id"] . "-input",
                 "onclick" =>
-                "document.getElementById('" . $data["id"] . "').click();",
+                "document.getElementById('" . $data["id"] . "').on('click');",
                 "escape" => false,
             ],
             $context,
@@ -165,7 +165,7 @@ class FancyFileWidget implements WidgetInterface
                 "type" => "button",
                 "text" => $buttonLabel,
                 "onclick" =>
-                "document.getElementById('" . $data["id"] . "').click();",
+                "document.getElementById('" . $data["id"] . "').on('click');",
                 "escape" => false,
             ],
             $context,

@@ -92,7 +92,7 @@ $('body').on('change', '.lai-img-file-input', function (e) {
     if (e.target.files[0].size > maxFileSize) {
         alert("File is too big!");
         $(this).val('');
-        $('.lai-img-upload-reload').click();
+        $('.lai-img-upload-reload').on('click');
     }
     var reader = new FileReader();
     reader.onload = function (e) {
@@ -112,7 +112,7 @@ $('body').on('click', 'img', function (e) {
     console.log('clicked! ' + fileInputId);
 
     // Trigger a click event on the found file input
-    $("#" + fileInputId).click();
+    $("#" + fileInputId).on('click');
 });
 
 //generate image card

@@ -65,7 +65,7 @@ class Autocomplete {
 
     renderIfNeeded() {
         if (this.createItems() > 0) this.dropdown.show();
-        else this.field.click();
+        else this.field.on('click');
     }
 
     createItem(lookup, item) {

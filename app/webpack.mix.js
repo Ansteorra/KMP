@@ -5,7 +5,6 @@ mix.setPublicPath('./webroot')
     .js('assets/js/startup.js', 'webroot/js')
     .extract(['bootstrap', 'jquery', 'popper.js'], 'webroot/js/core.js')
     .extract(['@hotwired/turbo'], 'webroot/js/hotwired_turbo.js')
-    .sass('assets/sass/app.scss', 'webroot/css')
     .webpackConfig({
         plugins: [
             new webpack.ProvidePlugin({
@@ -17,5 +16,6 @@ mix.setPublicPath('./webroot')
             }),
         ],
     })
+    .css('assets/css/app.css', 'webroot/css')
     .version();
 

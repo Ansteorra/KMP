@@ -12,6 +12,7 @@ use Cake\Event\Event;
 use Cake\ORM\TableRegistry;
 use Cake\View\StringTemplateTrait;
 use Cake\Log\Log;
+use AssetMix\Mix;
 
 /**
  * helper for KMP specific UI elements
@@ -109,6 +110,20 @@ class KmpHelper extends Helper
     public function getAppSettingsStartWith(string $key): array
     {
         return StaticHelpers::getAppSettingsStartWith($key);
+    }
+
+    public function getMixScriptUrl(string $script, $Url): string
+    {
+        $url = $Url->script($script);
+        $mixPath = (new Mix())($url);
+        return $mixPath;
+    }
+
+    public function getMixStyleUrl(string $css, $Url): string
+    {
+        $url = $Url->class($css);
+        $mixPath = (new Mix())($url);
+        return $mixPath;
     }
 
 

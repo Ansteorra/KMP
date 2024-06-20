@@ -89,20 +89,23 @@ $this->prepend(
  * Prepend `css` block with Bootstrap stylesheets
  * Change to bootstrap.min to use the compressed version
  */
-$this->prepend("css", $this->Html->css(["BootstrapUI.bootstrap.min"]));
-$this->prepend(
-    "css",
-    $this->Html->css([
-        "BootstrapUI./font/bootstrap-icons",
-        "BootstrapUI./font/bootstrap-icon-sizes",
-    ]),
-);
+#$this->prepend("css", $this->Html->css(["BootstrapUI.bootstrap.min"]));
+#$this->prepend(
+#    "css",
+#    $this->Html->css([
+#        "BootstrapUI./font/bootstrap-icons",
+#        "BootstrapUI./font/bootstrap-icon-sizes",
+#    ]),
+#);
+echo $this->KMP->startBlock("css");
+echo $this->AssetMix->css('app');
+$this->KMP->endBlock();
 
 /**
  * Prepend `script` block with Popper and Bootstrap scripts
  * Change popper.min and bootstrap.min to use the compressed version
  */
-$this->KMP->startBlock("topscript");
+echo $this->KMP->startBlock("topscript");
 echo $this->AssetMix->script('manifest');
 echo $this->AssetMix->script('core');
 echo $this->AssetMix->script('hotwired_turbo');
@@ -129,6 +132,7 @@ echo $this->fetch("tb_body_start");
 echo $this->fetch("tb_flash");
 echo $this->fetch("content");
 echo $this->fetch("tb_footer");
+echo $this->fetch("modals");
 echo $this->fetch("tb_body_end");
 echo $this->fetch("script");
 //echo $this->AssetCompress->script('app-combined');

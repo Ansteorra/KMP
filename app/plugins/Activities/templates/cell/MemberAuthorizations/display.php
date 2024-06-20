@@ -40,7 +40,7 @@ if (!$isEmpty) {
     echo "<p>No Authorizations</p>";
 } ?>
 <?php
-$this->KMP->startBlock("modals");
+echo $this->KMP->startBlock("modals");
 echo $this->element('requestAuthorizationModal', [
     'user' => $user,
 ]);
@@ -94,7 +94,7 @@ class memberAuthorizations {
         $("#request_auth__approver_id").change(function() {
             me.handleApproverIdChange(me, this.value, 'request_auth__submit');
         });
-        $('#request_auth__submit').click(function() {
+        $('#request_auth__submit').on('click', function() {
             me.handleSubmitBtnClick(me, 'request_auth__approver_id', 'request_auth__form');
         });
     }
@@ -106,7 +106,7 @@ class memberAuthorizations {
         $("#renew_auth__approver_id").change(function() {
             me.handleApproverIdChange(me, this.value, 'renew_auth__submit');
         });
-        $('#renew_auth__submit').click(function() {
+        $('#renew_auth__submit').on('click', function() {
             me.handleSubmitBtnClick(me, 'renew_auth__approver_id', 'renew_auth__form');
         });
     }

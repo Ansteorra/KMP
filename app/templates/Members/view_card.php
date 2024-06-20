@@ -264,8 +264,8 @@ echo $this->KMP->startBlock('script'); ?>
 <script>
 var url = '<?= $this->Url->build(['controller' => 'Members', 'action' => 'viewCardJson', $member->id]) ?>';
 var cardCount = 1;
-var currentCard = $("#cardDetails_1");
-var maxCardLength = currentCard.height();
+var currentCard = {};
+var maxCardLength = 0;
 
 function usedSpaceInCard() {
     var cardChildren = currentCard.children();
@@ -305,6 +305,8 @@ function startCard() {
     currentCard = cardDetails;
 }
 window.addEventListener('DOMContentLoaded', function() {
+    currentCard = $("#cardDetails_1");
+    maxCardLength = currentCard.height();
     $.get(url, function(data) {
         $("#loading").hide();
         var detailsList = $("<dl>", {

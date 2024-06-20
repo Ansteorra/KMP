@@ -3,6 +3,7 @@
 use Cake\I18n\DateTime;
 use Cake\I18n\Date;
 use Cake\Routing\Asset;
+
 //home_marshal6.gif
 $watermarkimg =
     "data:image/gif;base64," .
@@ -144,11 +145,13 @@ class memberViewMobileCard {
         setInterval(me.refreshPageIfOnline, 300000);
     }
 }
+
 const urlCache = [
     '<?= $this->request->getPath() ?>',
-    'https://ajax.aspnetcdn.com/ajax/jQuery/jquery-3.7.1.min.js',
-    '<?= Asset::scriptUrl("BootstrapUI.popper.min") ?>',
-    '<?= Asset::scriptUrl("BootstrapUI.bootstrap.min") ?>',
+    '<?= $this->KMP->getMixScriptUrl('manifest', $this->Url) ?>',
+    '<?= $this->KMP->getMixScriptUrl('core', $this->Url) ?>',
+    '<?= $this->KMP->getMixScriptUrl('hotwired_turbo', $this->Url) ?>',
+    '<?= $this->KMP->getMixScriptUrl('startup', $this->Url) ?>',
     '<?= Asset::scriptUrl("app/sw.js") ?>',
     '<?= Asset::cssUrl("BootstrapUI.bootstrap.min") ?>',
     '<?= Asset::cssUrl("BootstrapUI./font/bootstrap-icons") ?>',
@@ -310,7 +313,7 @@ window.addEventListener('DOMContentLoaded', function() {
     var pageControl = new memberViewMobileCard();
     pageControl.run(urlCache, swPath);
     loadCard();
-    $('#refresh').click(function() {
+    $('#refresh').on('click', function() {
         if (navigator.onLine) {
             loadCard();
         }

@@ -6,7 +6,6 @@
  */
 ?>
 <?php
-$this->extend("/layout/TwitterBootstrap/dashboard");
 
 use Cake\I18n\DateTime;
 
@@ -109,7 +108,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
 </button>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("tabContent") ?>
-<div class="related tab-pane fade m-3" id="nav-authorizations" role="tabpanel" aria-labelledby="nav-authorizations-tab">
+<div class="tab-pane fade m-3" id="nav-authorizations" role="tabpanel" aria-labelledby="nav-authorizations-tab">
     <?php
     if (!$isEmpty) {
         echo $this->element('turboActiveTabs', [
@@ -150,7 +149,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
         echo "<p>No Authorizations</p>";
     } ?>
 </div>
-<div class="related tab-pane fade active m-3" id="nav-roles" role="tabpanel" aria-labelledby="nav-roles-tab">
+<div class="tab-pane fade m-3" id="nav-roles" role="tabpanel" aria-labelledby="nav-roles-tab">
     <?php if (!empty($roles)) : ?>
     <div class="table-responsive">
         <table class="table table-striped">
@@ -180,8 +179,8 @@ echo $this->KMP->startBlock("pageTitle") ?>
     </div>
     <?php endif; ?>
 </div>
-<?php $this->KMP->endBlock() ?>
-<?php
+
+<?php $this->KMP->endBlock();
 echo $this->KMP->startBlock("modals");
 echo $this->Modal->create("Edit Authoriztion Type", [
     "id" => "editModal",

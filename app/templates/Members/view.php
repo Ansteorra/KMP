@@ -60,14 +60,17 @@ echo $this->KMP->startBlock("pageTitle") ?>
 <?php $this->KMP->endBlock() ?>
 <?= $this->KMP->startBlock("recordActions") ?>
 <?php if ($user->can("verifyMembership", "Members") && $needVerification) { ?>
-    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#verifyMembershipModal">Verify Membership</button>
+<button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
+    data-bs-target="#verifyMembershipModal">Verify Membership</button>
 <?php } ?>
 <?php if (
     $user->can("edit", $member) ||
     $user->can("partialEdit", $member)
 ) { ?>
-    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal" id='editModalBtn'>Edit</button>
-    <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#passwordModal" id='passwordModalBtn'>Change Password</button>
+<button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal"
+    id='editModalBtn'>Edit</button>
+<button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#passwordModal"
+    id='passwordModalBtn'>Change Password</button>
 <?php } ?>
 <?php $this->KMP->endBlock() ?>
 
@@ -84,10 +87,10 @@ echo $this->KMP->startBlock("pageTitle") ?>
     <th class="col"><?= __("Membership") ?></th>
     <td lass="col-10">
         <?php if ($member->membership_number != null && strlen($member->membership_number) > 0) { ?>
-            <?= h($member->membership_number) ?> Exp:
-            <?= h($member->membership_expires_on) ?>
+        <?= h($member->membership_number) ?> Exp:
+        <?= h($member->membership_expires_on) ?>
         <?php } else { ?>
-            <?= __('Information Not Available') ?>
+        <?= __('Information Not Available') ?>
         <?php } ?>
     </td>
 </tr>
@@ -161,13 +164,16 @@ echo $this->KMP->startBlock("pageTitle") ?>
     ?>
     <?php $this->KMP->endBlock() ?>
     <?php $this->KMP->startBlock("tabButtons") ?>
-    <button class="nav-link" id="nav-roles-tab" data-bs-toggle="tab" data-bs-target="#nav-roles" type="button" role="tab" aria-controls="nav-roles" aria-selected="false"><?= __("Roles") ?>
+    <button class="nav-link" id="nav-roles-tab" data-bs-toggle="tab" data-bs-target="#nav-roles" type="button"
+        role="tab" aria-controls="nav-roles" aria-selected="false"><?= __("Roles") ?>
     </button>
-    <button class="nav-link" id="nav-notes-tab" data-bs-toggle="tab" data-bs-target="#nav-notes" type="button" role="tab" aria-controls="nav-notes" aria-selected="false"><?= __("Notes") ?>
+    <button class="nav-link" id="nav-notes-tab" data-bs-toggle="tab" data-bs-target="#nav-notes" type="button"
+        role="tab" aria-controls="nav-notes" aria-selected="false"><?= __("Notes") ?>
     </button>
     <?php if (!empty($aiForm)) : ?>
-        <button class="nav-link" id="nav-add-info-tab" data-bs-toggle="tab" data-bs-target="#nav-add-info" type="button" role="tab" aria-controls="nav-add-info" aria-selected="false"><?= __("Additional Info.") ?>
-        </button>
+    <button class="nav-link" id="nav-add-info-tab" data-bs-toggle="tab" data-bs-target="#nav-add-info" type="button"
+        role="tab" aria-controls="nav-add-info" aria-selected="false"><?= __("Additional Info.") ?>
+    </button>
     <?php endif; ?>
     <?php $this->KMP->endBlock() ?>
     <?php $this->KMP->startBlock("tabContent") ?>
@@ -256,8 +262,8 @@ echo $this->KMP->startBlock("pageTitle") ?>
         ]) ?>
     </div>
     <?php if (!empty($aiForm)) : ?>
-        <div class="related tab-pane fade m-3" id="nav-add-info" role="tabpanel" aria-labelledby="nav-add-info-tab">
-            <?php
+    <div class="related tab-pane fade m-3" id="nav-add-info" role="tabpanel" aria-labelledby="nav-add-info-tab">
+        <?php
             $appInfo = $member->additional_info;
             if ($user->can("editAdditionalInfo", $member)) {
                 echo $this->Form->create(null, [
@@ -307,12 +313,12 @@ echo $this->KMP->startBlock("pageTitle") ?>
                 ]);
                 echo $this->form->end();
             } else { ?>
-                <table class='table table-striped'>
-                    <?php foreach ($aiForm as $fieldKey => $fieldType) { ?>
-                        <tr scope="row">
-                            <th class="col"><?= str_replace("_", " ", $fieldKey) ?></th>
-                            <td class="col-10">
-                                <?php
+        <table class='table table-striped'>
+            <?php foreach ($aiForm as $fieldKey => $fieldType) { ?>
+            <tr scope="row">
+                <th class="col"><?= str_replace("_", " ", $fieldKey) ?></th>
+                <td class="col-10">
+                    <?php
                                 switch ($fieldType) {
                                     case "text":
                                         echo h($appInfo[$fieldKey]);
@@ -331,12 +337,12 @@ echo $this->KMP->startBlock("pageTitle") ?>
                                         break;
                                 }
                                 ?>
-                            </td>
-                        </tr>
-                    <?php } ?>
-                </table>
+                </td>
+            </tr>
             <?php } ?>
-        </div>
+        </table>
+        <?php } ?>
+    </div>
     <?php endif; ?>
     <?php $this->KMP->endBlock() ?>
     <?php
@@ -361,30 +367,30 @@ echo $this->KMP->startBlock("pageTitle") ?>
     // Add scripts
     echo $this->KMP->startBlock("script"); ?>
     <script>
-        class memberView {
-            constructor() {
-                this.ac = null;
+    class memberView {
+        constructor() {
+            this.ac = null;
 
-            };
-            run() {
-                var me = this;
-                if ($('#verify_member__sca_name').length > 0) {
-                    var searchUrl =
-                        '<?= $this->URL->build(['controller' => 'Members', 'action' => 'SearchMembers']) ?>';
-                    KMP_utils.configureAutoComplete(me.ac, searchUrl, 'verify_member__sca_name', 'id', 'sca_name',
-                        'verify_member__parent_id')
-                }
-            };
         };
-        window.addEventListener('DOMContentLoaded', function() {
-            var pageControl = new memberView();
-            pageControl.run();
-            <?php if ($passwordReset->getErrors()) { ?>
-                $("#passwordModalBtn").click();
-            <?php } ?>
-            <?php if ($memberForm->getErrors()) { ?>
-                $("#editModalBtn").click();
-            <?php } ?>
-        });
+        run() {
+            var me = this;
+            if ($('#verify_member__sca_name').length > 0) {
+                var searchUrl =
+                    '<?= $this->URL->build(['controller' => 'Members', 'action' => 'SearchMembers']) ?>';
+                KMP_utils.configureAutoComplete(me.ac, searchUrl, 'verify_member__sca_name', 'id', 'sca_name',
+                    'verify_member__parent_id')
+            }
+        };
+    };
+    window.addEventListener('DOMContentLoaded', function() {
+        var pageControl = new memberView();
+        pageControl.run();
+        <?php if ($passwordReset->getErrors()) { ?>
+        $("#passwordModalBtn").on('click');
+        <?php } ?>
+        <?php if ($memberForm->getErrors()) { ?>
+        $("#editModalBtn").on('click');
+        <?php } ?>
+    });
     </script>
     <?php $this->KMP->endBlock(); ?>
