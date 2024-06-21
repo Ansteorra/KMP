@@ -5,7 +5,11 @@
  * @var \App\Model\Entity\Branch $branch
  */
 ?>
-<?php $this->extend("/layout/TwitterBootstrap/dashboard"); ?>
+<?php $this->extend("/layout/TwitterBootstrap/dashboard");
+
+echo $this->KMP->startBlock("title");
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Add Branch';
+$this->KMP->endBlock(); ?>
 
 
 <div class="branches form content">

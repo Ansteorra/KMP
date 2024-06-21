@@ -8,6 +8,11 @@
 <?php
 $this->extend("/layout/TwitterBootstrap/dashboard");
 
+
+echo $this->KMP->startBlock("title");
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': View Authorization Queue for ' . $queueFor;
+$this->KMP->endBlock();
+
 $pending = [];
 $approved = [];
 $denied = [];

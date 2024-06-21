@@ -8,13 +8,17 @@
 <?php
 if (!$isTurboFrame) {
     $this->extend("/layout/TwitterBootstrap/dashboard");
+
+    echo $this->KMP->startBlock("title");
+    echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Members';
+    $this->KMP->endBlock();
 }
 
 ?>
 <?php if (!$isTurboFrame) : ?>
-    <h3>
-        Members
-    </h3>
+<h3>
+    Members
+</h3>
 <?php endif; ?>
 <turbo-frame id="membersList" data-turbo='true'>
     <table class="table table-striped">
@@ -26,7 +30,8 @@ if (!$isTurboFrame) {
 
                         <div class="input-group">
                             <div class="input-group-text" id="btnSearch"><span class='bi bi-search'></span></div>
-                            <input type="text" name="search" class="form-control" placeholder="Search..." value="<?= $search ?>" aria-describedby="btnSearch" aria-label="Search">
+                            <input type="text" name="search" class="form-control" placeholder="Search..."
+                                value="<?= $search ?>" aria-describedby="btnSearch" aria-label="Search">
                         </div>
                     </form>
                 </td>
@@ -64,22 +69,22 @@ if (!$isTurboFrame) {
         </thead>
         <tbody>
             <?php foreach ($Members as $Member) : ?>
-                <tr>
-                    <td><?= h($Member->sca_name) ?></td>
-                    <td><?= h($Member->branch->name) ?></td>
-                    <td><?= h($Member->first_name) ?></td>
-                    <td><?= h($Member->last_name) ?></td>
-                    <td><?= h($Member->email_address) ?></td>
-                    <td><?= h($Member->status) ?></td>
-                    <td><?= h($Member->last_login) ?></td>
-                    <td class="actions" data-turbo='false'>
-                        <?= $this->Html->link(
+            <tr>
+                <td><?= h($Member->sca_name) ?></td>
+                <td><?= h($Member->branch->name) ?></td>
+                <td><?= h($Member->first_name) ?></td>
+                <td><?= h($Member->last_name) ?></td>
+                <td><?= h($Member->email_address) ?></td>
+                <td><?= h($Member->status) ?></td>
+                <td><?= h($Member->last_login) ?></td>
+                <td class="actions" data-turbo='false'>
+                    <?= $this->Html->link(
                             __("View"),
                             ["action" => "view", $Member->id],
                             ["title" => __("View"), "class" => "btn btn-secondary"],
                         ) ?>
-                        <?php if ($user->isSuperUser()) { ?>
-                            <?= $this->Form->postLink(
+                    <?php if ($user->isSuperUser()) { ?>
+                    <?= $this->Form->postLink(
                                 __("Delete"),
                                 ["action" => "delete", $Member->id],
                                 [
@@ -91,9 +96,9 @@ if (!$isTurboFrame) {
                                     "class" => "btn btn-danger",
                                 ],
                             ) ?>
-                        <?php } ?>
-                    </td>
-                </tr>
+                    <?php } ?>
+                </td>
+            </tr>
             <?php endforeach; ?>
         </tbody>
     </table>

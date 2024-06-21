@@ -1,4 +1,9 @@
-<?php $this->extend('/layout/TwitterBootstrap/dashboard'); ?>
+<?php $this->extend('/layout/TwitterBootstrap/dashboard');
+
+echo $this->KMP->startBlock("title");
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Member Authorizations Report';
+$this->KMP->endBlock(); ?>
+
 <div class="row">
     <div class="col-lg-12">
         <h3>Authorizations</h3>

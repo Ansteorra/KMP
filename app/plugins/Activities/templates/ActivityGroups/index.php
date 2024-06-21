@@ -5,7 +5,11 @@
  * @var \App\Model\Entity\ActivityGroup[]|\Cake\Collection\CollectionInterface $activityGroup
  */
 ?>
-<?php $this->extend("/layout/TwitterBootstrap/dashboard"); ?>
+<?php $this->extend("/layout/TwitterBootstrap/dashboard");
+
+echo $this->KMP->startBlock("title");
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Activity Groups';
+$this->KMP->endBlock(); ?>
 <h3>
     Activity Groups
 </h3>
@@ -19,16 +23,16 @@
     </thead>
     <tbody>
         <?php foreach ($activityGroup as $authorizationGroup) : ?>
-            <tr>
-                <td><?= h($authorizationGroup->name) ?></td>
-                <td class="actions">
-                    <?= $this->Html->link(
+        <tr>
+            <td><?= h($authorizationGroup->name) ?></td>
+            <td class="actions">
+                <?= $this->Html->link(
                         __("View"),
                         ["action" => "view", $authorizationGroup->id],
                         ["title" => __("View"), "class" => "btn btn-secondary"],
                     ) ?>
-                </td>
-            </tr>
+            </td>
+        </tr>
         <?php endforeach; ?>
     </tbody>
 </table>

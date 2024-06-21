@@ -5,7 +5,12 @@
  * @var \App\Model\Entity\AppSetting[]|\Cake\Collection\CollectionInterface $appSettings
  */
 ?>
-<?php $this->extend("/layout/TwitterBootstrap/dashboard"); ?>
+<?php $this->extend("/layout/TwitterBootstrap/dashboard");
+
+echo $this->KMP->startBlock("title");
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': App Settings';
+$this->KMP->endBlock(); ?>
+
 <div class="row align-items-start">
     <div class="col">
         <h3>

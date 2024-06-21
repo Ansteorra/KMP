@@ -8,7 +8,11 @@
  * @var \App\Model\Entity\Role[]|\Cake\Collection\CollectionInterface $roles
  */
 ?>
-<?php $this->extend("/layout/TwitterBootstrap/register"); ?>
+<?php $this->extend("/layout/TwitterBootstrap/register");
+
+echo $this->KMP->startBlock("title");
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': New Member Register';
+$this->KMP->endBlock(); ?>
 <div class="container-fluid">
     <?= $this->Form->create($member, ["type" => "file"]) ?>
     <div class="card mb-3">
@@ -49,7 +53,7 @@
                         <select name="birth_month" id="birth-month" class="form-select" required="required">
                             <option value=""></option>
                             <?php foreach ($months as $index => $value) : ?>
-                                <option value="<?= $index ?>"><?= $value ?></option>
+                            <option value="<?= $index ?>"><?= $value ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -57,7 +61,7 @@
                         <select name="birth_year" id="birth-year" class="form-select" required="required">
                             <option value=""></option>
                             <?php foreach ($years as $index => $value) : ?>
-                                <option value="<?= $index ?>"><?= $value ?></option>
+                            <option value="<?= $index ?>"><?= $value ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -77,29 +81,29 @@
 echo $this->KMP->startBlock("script");
 ?>
 <script>
-    class memberRegister {
-        constructor($) {
-            this.$ = $;
-        };
-        //onInput for Autocomplete
-        run(rootPath) {
-            var me = this;
-            me.$(function() {
-                //$("#upload-images").laiImagePreview();
-                me.$("#upload-images").laiImagePreview({
-                    columns: "col-sm-6 col-md-3",
-                    inputFileName: "member_card",
-                    imageCaption: false,
-                    imageLimit: 1,
-                    label: "Picture of Membership Card (Optional)",
-                    maxFileSize: 2000000,
-                });
+class memberRegister {
+    constructor($) {
+        this.$ = $;
+    };
+    //onInput for Autocomplete
+    run(rootPath) {
+        var me = this;
+        me.$(function() {
+            //$("#upload-images").laiImagePreview();
+            me.$("#upload-images").laiImagePreview({
+                columns: "col-sm-6 col-md-3",
+                inputFileName: "member_card",
+                imageCaption: false,
+                imageLimit: 1,
+                label: "Picture of Membership Card (Optional)",
+                maxFileSize: 2000000,
             });
-        }
+        });
     }
-    window.addEventListener('DOMContentLoaded', function() {
-        var pageControl = new memberRegister(window.$);
-        pageControl.run();
-    });
+}
+window.addEventListener('DOMContentLoaded', function() {
+    var pageControl = new memberRegister(window.$);
+    pageControl.run();
+});
 </script>
 <?php echo $this->KMP->endBlock(); ?>

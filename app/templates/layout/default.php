@@ -24,7 +24,7 @@ if (!$this->fetch("html")) {
  */
 if (!$this->fetch("title")) {
     echo $this->KMP->startBlock("title");
-    echo Configure::read("App.title");
+    echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP");
     $this->KMP->endBlock();
 }
 

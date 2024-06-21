@@ -10,6 +10,10 @@
 <?php
 $this->extend("/layout/TwitterBootstrap/dashboard");
 
+echo $this->KMP->startBlock("title");
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Add Permission';
+$this->KMP->endBlock();
+
 ?>
 
 <div class="permissions form content">

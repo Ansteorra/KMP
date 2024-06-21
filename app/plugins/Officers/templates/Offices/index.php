@@ -5,7 +5,11 @@
  * @var \App\Model\Entity\Permission[]|\Cake\Collection\CollectionInterface $permissions
  */
 ?>
-<?php $this->extend("/layout/TwitterBootstrap/dashboard"); ?>
+<?php $this->extend("/layout/TwitterBootstrap/dashboard");
+
+echo $this->KMP->startBlock("title");
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Offices';
+$this->KMP->endBlock(); ?>
 <h3>
     Offices
 </h3>

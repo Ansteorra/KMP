@@ -5,7 +5,11 @@
  * @var \App\Model\Entity\ActivityGroup $authorizationGroup
  */
 ?>
-<?php $this->extend("/layout/TwitterBootstrap/dashboard"); ?>
+<?php $this->extend("/layout/TwitterBootstrap/dashboard");
+
+echo $this->KMP->startBlock("title");
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Add Department';
+$this->KMP->endBlock(); ?>
 
 <div class="activityGroup form content">
     <?= $this->Form->create($department) ?>

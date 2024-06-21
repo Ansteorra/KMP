@@ -9,7 +9,11 @@
  * @var \App\Model\Entity\Permission[]|\Cake\Collection\CollectionInterface $permissions
  */
 ?>
-<?php $this->extend("/layout/TwitterBootstrap/dashboard"); ?>
+<?php $this->extend("/layout/TwitterBootstrap/dashboard");
+
+echo $this->KMP->startBlock("title");
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Add Activity';
+$this->KMP->endBlock(); ?>
 
 <div class="activities form content">
     <?= $this->Form->create($activity) ?>

@@ -11,6 +11,10 @@ use App\Model\Entity\Member;
 
 $this->extend("/layout/TwitterBootstrap/view_record");
 
+echo $this->KMP->startBlock("title");
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': View Member - ' . h($member->sca_name);
+$this->KMP->endBlock();
+
 use Cake\I18n\Date;
 use Cake\I18n\DateTime;
 use App\KMP\StaticHelpers;

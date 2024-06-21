@@ -5,7 +5,11 @@
  * @var \App\Model\Entity\ActivityGroup[]|\Cake\Collection\CollectionInterface $activityGroup
  */
 ?>
-<?php $this->extend("/layout/TwitterBootstrap/dashboard"); ?>
+<?php $this->extend("/layout/TwitterBootstrap/dashboard");
+
+echo $this->KMP->startBlock("title");
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Departments';
+$this->KMP->endBlock(); ?>
 <h3>
     Departments
 </h3>
@@ -19,16 +23,16 @@
     </thead>
     <tbody>
         <?php foreach ($departments as $department) : ?>
-            <tr>
-                <td><?= h($department->name) ?></td>
-                <td class="actions">
-                    <?= $this->Html->link(
+        <tr>
+            <td><?= h($department->name) ?></td>
+            <td class="actions">
+                <?= $this->Html->link(
                         __("View"),
                         ["action" => "view", $department->id],
                         ["title" => __("View"), "class" => "btn btn-secondary"],
                     ) ?>
-                </td>
-            </tr>
+            </td>
+        </tr>
         <?php endforeach; ?>
     </tbody>
 </table>

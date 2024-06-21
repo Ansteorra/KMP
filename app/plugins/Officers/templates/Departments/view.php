@@ -9,6 +9,10 @@
 
 $this->extend("/layout/TwitterBootstrap/view_record");
 
+echo $this->KMP->startBlock("title");
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': View Department - ' . h($department->name);
+$this->KMP->endBlock();
+
 echo $this->KMP->startBlock("pageTitle") ?>
 <?= h($department->name) ?>
 <?php $this->KMP->endBlock() ?>

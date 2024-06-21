@@ -5,7 +5,11 @@
  * @var \App\Model\Entity\Role[]|\Cake\Collection\CollectionInterface $roles
  */
 ?>
-<?php $this->extend("/layout/TwitterBootstrap/dashboard"); ?>
+<?php $this->extend("/layout/TwitterBootstrap/dashboard");
+
+echo $this->KMP->startBlock("title");
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Roles';
+$this->KMP->endBlock(); ?>
 <h3>
     Roles
 </h3>
@@ -18,16 +22,16 @@
     </thead>
     <tbody>
         <?php foreach ($roles as $role) : ?>
-            <tr>
-                <td><?= h($role->name) ?></td>
-                <td class="actions">
-                    <?= $this->Html->link(
+        <tr>
+            <td><?= h($role->name) ?></td>
+            <td class="actions">
+                <?= $this->Html->link(
                         __("View"),
                         ["action" => "view", $role->id],
                         ["title" => __("View"), "class" => "btn btn-secondary"],
                     ) ?>
-                </td>
-            </tr>
+            </td>
+        </tr>
         <?php endforeach; ?>
     </tbody>
 </table>

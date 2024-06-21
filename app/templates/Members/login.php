@@ -5,7 +5,12 @@
  * @var \App\Model\Entity\Member $Member
  */
 $Member = []; ?>
-<?php $this->extend("/layout/TwitterBootstrap/signin"); ?>
+<?php $this->extend("/layout/TwitterBootstrap/signin");
+
+echo $this->KMP->startBlock("title");
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Login';
+$this->KMP->endBlock(); ?>
+
 <?= $this->Flash->render() ?>
 <?= $this->Form->create($Member, ["class" => "form-signin"]) ?>
 

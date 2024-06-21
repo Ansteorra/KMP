@@ -7,7 +7,12 @@
  * @var \App\Model\Entity\Permission[]|\Cake\Collection\CollectionInterface $permissions
  */
 ?>
-<?php $this->extend("/layout/TwitterBootstrap/dashboard"); ?>
+<?php $this->extend("/layout/TwitterBootstrap/dashboard");
+
+echo $this->KMP->startBlock("title");
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Add Role';
+$this->KMP->endBlock(); ?>
+
 <div class="roles form content">
     <?= $this->Form->create($role) ?>
     <fieldset>

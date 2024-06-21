@@ -2,6 +2,12 @@
 
 use Cake\I18n\Date;
 
+
+
+echo $this->KMP->startBlock("title");
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Activities Authorization Card';
+$this->KMP->endBlock();
+
 function checkCardCount($cardCount)
 {
     if ($cardCount == 2) {

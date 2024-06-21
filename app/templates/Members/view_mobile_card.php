@@ -4,6 +4,12 @@ use Cake\I18n\DateTime;
 use Cake\I18n\Date;
 use Cake\Routing\Asset;
 
+
+
+echo $this->KMP->startBlock("title");
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Mobile Activities Authorization Card';
+$this->KMP->endBlock();
+
 //home_marshal6.gif
 $watermarkimg =
     "data:image/gif;base64," .
