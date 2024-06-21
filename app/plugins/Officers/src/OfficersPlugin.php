@@ -16,6 +16,8 @@ use Officers\Event\CallForCellsHandler;
 use Officers\Event\CallForNavHandler;
 use Officers\Services\DefaultOfficerManager;
 use Officers\Services\OfficerManagerInterface;
+use App\KMP\StaticHelpers;
+use Cake\I18n\DateTime;
 
 /**
  * Plugin for Officers
@@ -52,6 +54,7 @@ class OfficersPlugin extends BasePlugin implements KMPPluginInterface
 
         $handler = new CallForNavHandler();
         EventManager::instance()->on($handler);
+        StaticHelpers::getAppSetting("Officer.NextStatusCheck", DateTime::now()->subDays(1)->toDateString());
     }
 
     /**

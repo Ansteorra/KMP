@@ -314,7 +314,7 @@ class MembersController extends AppController
                 "auth_card_back.gif",
             ),
             "marshal_auth_header_color" => StaticHelpers::getAppSetting(
-                "Member.ViewCard.HeaderColor",
+                "Member.MobileCard.BgColor",
                 "gold",
             ),
         ];

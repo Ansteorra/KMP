@@ -330,7 +330,7 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
         } else {
             $nextApproverScaName = '';
         }
-        $this->getMailer("KMP")->send("notifyRequester", [
+        $this->getMailer("Activities.Activities")->send("notifyRequester", [
             $member->email_address,
             $status,
             $member->sca_name,
@@ -371,7 +371,7 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
             ->select(["sca_name", "email_address"])
             ->all()
             ->first();
-        $this->getMailer("KMP")->send("notifyApprover", [
+        $this->getMailer("Activities.Activities")->send("notifyApprover", [
             $approver->email_address,
             $authorizationToken,
             $member->sca_name,

@@ -21,7 +21,6 @@ class DevLoad extends AbstractSeed
      */
     public function run(): void
     {
-        $this->call('DevLoadAppSettingsSeed');
         $this->call('DevLoadBranchesSeed');
         $this->call('DevLoadRolesSeed');
         $this->call('DevLoadPermissionsSeed');

@@ -57,6 +57,7 @@ use Authorization\Exception\MissingIdentityException;
 use Psr\Http\Message\ServerRequestInterface;
 use Authorization\Exception\ForbiddenException;
 use Cake\Event\EventManager;
+use App\KMP\StaticHelpers;
 
 /**
  * Application setup class.
@@ -91,6 +92,29 @@ class Application extends BaseApplication implements
         }
         $handler = new CallForNavHandler();
         EventManager::instance()->on($handler);
+        StaticHelpers::getAppSetting("KMP.BranchInitRun", "");
+        StaticHelpers::getAppSetting("Activity.SecretaryEmail", "please_set");
+        StaticHelpers::getAppSetting("KMP.KingdomName", "please_set");
+        StaticHelpers::getAppSetting("Activity.SecretaryName", "please_set");
+        StaticHelpers::getAppSetting("Member.ViewCard.Graphic", "auth_card_back.gif");
+        StaticHelpers::getAppSetting("Member.ViewCard.HeaderColor", "gold");
+        StaticHelpers::getAppSetting("Member.ViewCard.Template", "view_card");
+        StaticHelpers::getAppSetting("Member.ViewMobileCard.Template", "view_mobile_card");
+        StaticHelpers::getAppSetting("KMP.Login.Graphic", "populace_badge.png");
+        StaticHelpers::getAppSetting("Members.AccountVerificationContactEmail", "please_set");
+        StaticHelpers::getAppSetting("Members.AccountDisabledContactEmail", "please_set");
+        StaticHelpers::getAppSetting("KMP.EnablePublicRegistration", "yes");
+        StaticHelpers::getAppSetting("Email.SystemEmailFromAddress", "donotreply@webminister.ansteorra.org");
+        StaticHelpers::getAppSetting("Email.SiteAdminSignature", "Webminister");
+        StaticHelpers::getAppSetting("KMP.LongSiteTitle", "Kingdom Management Portal");
+        StaticHelpers::getAppSetting("Members.NewMemberSecretaryEmail", "webminister@marshal.ansteorra.org");
+        StaticHelpers::getAppSetting("Members.NewMinorSecretaryEmail", "webminister@marshal.ansteorra.org");
+        StaticHelpers::getAppSetting("KMP.AppSettings.HelpUrl", "https://github.com/Ansteorra/KMP/wiki/App-Settings");
+        StaticHelpers::getAppSetting("App.version", "0.0.0");
+        StaticHelpers::getAppSetting("KMP.BannerLogo", "badge.png");
+        StaticHelpers::getAppSetting("KMP.ShortSiteTitle", "KMP");
+        StaticHelpers::getAppSetting("Member.MobileCard.ThemeColor", "gold");
+        StaticHelpers::getAppSetting("Member.MobileCard.BgColor", "gold");
     }
 
     /**

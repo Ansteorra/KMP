@@ -16,6 +16,8 @@ use Activities\Event\CallForCellsHandler;
 use Activities\Services\AuthorizationManagerInterface;
 use Activities\Services\DefaultAuthorizationManager;
 use Activities\Event\CallForNavHandler;
+use App\KMP\StaticHelpers;
+use Cake\I18n\DateTime;
 
 /**
  * Plugin for Activities
@@ -52,6 +54,10 @@ class ActivitiesPlugin extends BasePlugin implements KMPPluginInterface
 
         $handler = new CallForNavHandler();
         EventManager::instance()->on($handler);
+
+        StaticHelpers::getAppSetting("Email.SiteAdminSignature", "Webminister");
+        StaticHelpers::getAppSetting("Email.SystemEmailFromAddress", "donotreply@webminister.ansteorra.org");
+        StaticHelpers::getAppSetting("Activities.NextStatusCheck", DateTime::now()->subDays(1)->toDateString());
     }
 
     /**
