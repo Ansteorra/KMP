@@ -57,9 +57,9 @@ class MemberAuthorizationsCell extends BasePluginCell
     public function display($id)
     {
         $authTable = TableRegistry::getTableLocator()->get("Activities.Authorizations");
-        $currentAuths = $authTable->find('current')->count();
-        $pendingAuths = $authTable->find('pending')->count();
-        $previousAuths = $authTable->find('previous')->count();
+        $currentAuths = $authTable->find('current')->where(['member_id' => $id])->count();
+        $pendingAuths = $authTable->find('pending')->where(['member_id' => $id])->count();
+        $previousAuths = $authTable->find('previous')->where(['member_id' => $id])->count();
 
         $authTypeTable = TableRegistry::getTableLocator()->get(
             "Activities.Activities",
