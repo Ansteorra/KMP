@@ -4,23 +4,23 @@ Good day <?= $memberScaName ?>
 <?= $activityName ?>.
 
 
-<?php if ($result == "pending") : ?>
-    You request has been forwarded to <?= $nextApproverScaName ?> for additional approval.
+<?php if ($status == "Pending") : ?>
+You request has been forwarded to <?= $nextApproverScaName ?> for additional approval.
 <?php endif; ?>
 
-<?php if ($result == "rejected") : ?>
-    If you feel this decision was made in error please reach out to <?= $approverScaName ?> for more information.
+<?php if ($status == "Denied") : ?>
+If you feel this decision was made in error please reach out to <?= $approverScaName ?> for more information.
 <?php endif; ?>
 
-<?php if ($result == "revoked") : ?>
-    If you feel this decision was made in error please reach out to <?= $approverScaName ?> for more information.
+<?php if ($status == "Revoked") : ?>
+If you feel this decision was made in error please reach out to <?= $approverScaName ?> for more information.
 <?php endif; ?>
 
 
-<?php if ($result == "approved" || $result == "revoked") : ?>
-    You may view your modified member card at the following UR:
+<?php if ($status == "Approved" || $status == "Revoked") : ?>
+You may view your updated member card at the following UR:
 
-    <?= $memberCardUrl ?>
+<?= $memberCardUrl ?>
 <?php endif; ?>
 
 Thank you

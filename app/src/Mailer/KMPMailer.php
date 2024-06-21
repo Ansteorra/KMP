@@ -23,6 +23,7 @@ class KMPMailer extends Mailer
         $url = Router::url([
             "controller" => "Members",
             "action" => "resetPassword",
+            "plugin" => null,
             "_full" => true,
             $member->password_token,
         ]);
@@ -43,6 +44,7 @@ class KMPMailer extends Mailer
         $url = Router::url([
             "controller" => "Members",
             "action" => "ViewMobileCard",
+            "plugin" => null,
             "_full" => true,
             $member->mobile_card_token,
         ]);
@@ -62,6 +64,7 @@ class KMPMailer extends Mailer
         $url = Router::url([
             "controller" => "Members",
             "action" => "resetPassword",
+            "plugin" => null,
             "_full" => true,
             $member->password_token,
         ]);
@@ -84,6 +87,7 @@ class KMPMailer extends Mailer
         $url = Router::url([
             "controller" => "Members",
             "action" => "view",
+            "plugin" => null,
             "_full" => true,
             $member->id,
         ]);
@@ -109,6 +113,7 @@ class KMPMailer extends Mailer
         $url = Router::url([
             "controller" => "Members",
             "action" => "view",
+            "plugin" => null,
             "_full" => true,
             $member->id,
         ]);
@@ -134,6 +139,7 @@ class KMPMailer extends Mailer
         $url = Router::url([
             "controller" => "AuthorizationApprovals",
             "action" => "myQueue",
+            "plugin" => 'Activities',
             "_full" => true,
             $approvalToken,
         ]);
@@ -162,6 +168,7 @@ class KMPMailer extends Mailer
         $url = Router::url([
             "controller" => "Members",
             "action" => "viewCard",
+            "plugin" => null,
             "_full" => true,
             $memberId,
         ]);
