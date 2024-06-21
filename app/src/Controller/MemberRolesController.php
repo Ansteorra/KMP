@@ -93,7 +93,7 @@ class MemberRolesController extends AppController
         if (!$role) {
             throw new \Cake\Http\Exception\NotFoundException();
         }
-        $this->Authorization->authorize($role);
+        $this->Authorization->authorize($role, 'View');
         $members = $this->MemberRoles->find();
         switch ($state) {
             case 'current':

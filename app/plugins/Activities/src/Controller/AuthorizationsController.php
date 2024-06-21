@@ -123,7 +123,7 @@ class AuthorizationsController extends AppController
         if (!$member) {
             throw new \Cake\Http\Exception\NotFoundException();
         }
-        $this->Authorization->authorize($member);
+        $this->Authorization->authorize($member, 'view');
         $auths = $this->Authorizations->find();
         switch ($state) {
             case 'current':
@@ -151,7 +151,7 @@ class AuthorizationsController extends AppController
         if (!$activity) {
             throw new \Cake\Http\Exception\NotFoundException();
         }
-        $this->Authorization->authorize($activity);
+        $this->Authorization->authorize($activity, 'view');
         $auths = $this->Authorizations->find();
         switch ($state) {
             case 'current':

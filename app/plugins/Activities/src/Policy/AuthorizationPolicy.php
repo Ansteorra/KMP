@@ -30,4 +30,26 @@ class AuthorizationPolicy extends BasePolicy
         }
         return $authorization->member_id == $user->getIdentifier();
     }
+
+    public function canMemberAuthorizations(
+        IdentityInterface $user,
+        Authorization $authorization,
+    ): bool {
+        $cando = $this->_hasNamedPermission($user, "Can Manage Members");
+        if ($cando) {
+            return true;
+        }
+        return $authorization->member_id == $user->getIdentifier();
+    }
+
+    public function activityAuthorizations(
+        IdentityInterface $user,
+        Authorization $authorization,
+    ): bool {
+        $cando = $this->_hasNamedPermission($user, "Can Manage Activities");
+        if ($cando) {
+            return true;
+        }
+        return $authorization->member_id == $user->getIdentifier();
+    }
 }
