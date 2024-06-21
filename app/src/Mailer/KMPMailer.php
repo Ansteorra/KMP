@@ -87,13 +87,17 @@ class KMPMailer extends Mailer
             "_full" => true,
             $member->id,
         ]);
+        $membershipCardPresent = false;
+        if ($member->membership_card_path != null && strlen($member->membership_card_path) > 0) {
+            $membershipCardPresent = true;
+        }
         $this->setTo($to)
             ->setFrom($sendFrom)
             ->setSubject("New Member Registration")
             ->setViewVars([
                 "memberViewUrl" => $url,
                 "memberScaName" => $member->sca_name,
-                "memberCardPresent" => strlen($member->membership_card_path) > 0,
+                "memberCardPresent" => $membershipCardPresent,
                 "siteAdminSignature" => StaticHelpers::getAppSetting("Email.SiteAdminSignature", "Webminister"),
             ]);
     }
