@@ -86,6 +86,16 @@ class MemberPolicy extends BasePolicy
         }
     }
 
+    function canViewCardJson(IdentityInterface $user, $entity)
+    {
+        $canDo = $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+        if ($canDo) {
+            return true;
+        } else {
+            return $entity->id == $user->getIdentifier();
+        }
+    }
+
     function canDelete(IdentityInterface $user, $entity)
     {
         //only super users can delete and they should never get hear because of the before policy check.

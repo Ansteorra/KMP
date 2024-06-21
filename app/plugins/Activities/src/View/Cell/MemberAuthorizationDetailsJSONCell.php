@@ -10,6 +10,8 @@ use Cake\View\Cell;
 use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\TableRegistry;
 
+use function PHPUnit\Framework\isEmpty;
+
 /**
  * MemberAuthorizationDetailsJSON cell
  */
@@ -76,19 +78,24 @@ class MemberAuthorizationDetailsJSONCell extends BasePluginCell
             $permissionIds[] = $permission->id;
         }
         $currentApproverFor = [];
-        $activitiesTbl = TableRegistry::getTableLocator()->get('Activities.Activities');
-        $activities = $activitiesTbl->find()
-            ->where(['Activities.permission_id IN' => $permissionIds])
-            ->contain(['ActivityGroups' => function (SelectQuery $q) {
-                return $q->select(['ActivityGroups.id', 'ActivityGroups.name']);
-            }])
-            ->distinct()
-            ->toArray();
-        $organizedAuthorisor = [];
-        foreach ($activities as $activity) {
-            $activityGroup = $activity->activity_group->name;
-            $activityName = $activity->name;
-            $organizedAuthorisor[$activityGroup][] = $activityName;
+        if (!isEmpty($permissionIds)) {
+            $activitiesTbl = TableRegistry::getTableLocator()->get('Activities.Activities');
+            $activities = $activitiesTbl->find()
+                ->where(['Activities.permission_id IN' => $permissionIds])
+                ->contain(['ActivityGroups' => function (SelectQuery $q) {
+                    return $q->select(['ActivityGroups.id', 'ActivityGroups.name']);
+                }])
+                ->distinct()
+                ->toArray();
+
+            $organizedAuthorisor = [];
+            foreach ($activities as $activity) {
+                $activityGroup = $activity->activity_group->name;
+                $activityName = $activity->name;
+                $organizedAuthorisor[$activityGroup][] = $activityName;
+            }
+        } else {
+            $organizedAuthorisor = [];
         }
         $responseData = ["Can Authorize" => $organizedAuthorisor, "Authorizations" => $organizedAuths,];
         $this->set(compact('responseData'));
