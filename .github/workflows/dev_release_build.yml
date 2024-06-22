@@ -1,4 +1,4 @@
-name: build dev_release
+name: JS build for dev_release branch
 
 on:
   workflow_dispatch:
