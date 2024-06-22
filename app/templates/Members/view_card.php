@@ -357,6 +357,10 @@ window.addEventListener('DOMContentLoaded', function() {
             var pluginData = data[key];
             for (let sectionKey in pluginData) {
                 var sectionData = pluginData[sectionKey];
+                var groupCount = sectionData.length;
+                if (groupCount === 0) {
+                    continue;
+                }
                 var sectionHeader = $("<h3>").text(sectionKey);
                 appendToCard(sectionHeader, 20);
                 for (let groupKey in sectionData) {
