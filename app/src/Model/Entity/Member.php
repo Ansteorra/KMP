@@ -70,6 +70,7 @@ class Member extends Entity implements
     use MemberAuthorizationsTrait;
 
     protected ?array $_permissions = null;
+    protected ?array $_permissionIDs = null;
     protected ?DateTime $_last_permissions_update = null;
 
     const STATUS_ACTIVE = "active"; //Can login
@@ -183,40 +184,6 @@ class Member extends Entity implements
     }
 
     /**
-     * Check if a user can authorize a specific activity
-     * @param int $activityId
-     */
-
-    public function canAuthorizeType(int $activityId): bool
-    {
-        $permission = $this->getPermissions();
-        $activities = Hash::extract(
-            $permission,
-            "{n}.activity_id",
-        );
-        return in_array($activityId, $activities);
-    }
-
-    /**
-     * Shortcut query to see if the user can authorize anything and there for may have an Auth Queue
-     */
-    public function canHaveAuthorizationQueue(): bool
-    {
-        $permission = $this->getPermissions();
-        $activities = Hash::extract(
-            $permission,
-            "{n}.activity_id",
-        );
-        // filter out all null's and 0's
-        $activities = array_filter($activities, function (
-            $var,
-        ) {
-            return $var !== null;
-        });
-        return count($activities) > 0;
-    }
-
-    /**
      * Check whether the current identity can perform an action.
      *
      * @param string $action The action/operation being performed.
@@ -293,9 +260,21 @@ class Member extends Entity implements
             !$this->_last_permissions_update->isWithinNext("1 minute")
         ) {
             $this->_permissions = PermissionsLoader::getPermissions($this->id);
+            $this->_permissionIDs = Hash::extract($this->_permissions, "{n}.id");
             $this->_last_permissions_update = DateTime::now();
         }
         return $this->_permissions;
+    }
+
+    public function getPermissionIDs(): array
+    {
+        if (
+            $this->_last_permissions_update == null ||
+            !$this->_last_permissions_update->isWithinNext("1 minute")
+        ) {
+            $this->getPermissions();
+        }
+        return $this->_permissionIDs;
     }
 
     /**

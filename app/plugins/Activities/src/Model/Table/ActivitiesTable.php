@@ -8,6 +8,7 @@ use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
+use Cake\ORM\TableRegistry;
 
 /**
  * Activities Model
@@ -145,5 +146,27 @@ class ActivitiesTable extends Table
         );
 
         return $rules;
+    }
+
+    /**
+     * Shortcut query to see if the user can authorize a specific activity
+     */
+    public static function canAuthorizeActivity($user, int $activityId): bool
+    {
+        $permission = $user->getPermissionIDs();
+        $activitiesTable = TableRegistry::getTableLocator()->get("Activities.Activities");
+        $activity = $activitiesTable->find()->select("id")->where(["id" => $activityId, "permission_id IN" => $permission])->first();
+        return $activity !== null;
+    }
+
+    /**
+     * Shortcut query to see if the user can authorize anything and there for may have an Auth Queue
+     */
+    public static function canAuhtorizeAnyActivity($user): bool
+    {
+        $permission = $user->getPermissionIDs();
+        $activitiesTable = TableRegistry::getTableLocator()->get("Activities.Activities");
+        $activityCount = $activitiesTable->find()->select("id")->where(["permission_id IN" => $permission])->count();
+        return $activityCount > 0;
     }
 }

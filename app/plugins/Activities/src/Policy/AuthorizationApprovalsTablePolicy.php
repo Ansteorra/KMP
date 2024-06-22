@@ -7,6 +7,7 @@ namespace Activities\Policy;
 use Activities\Model\Entity\AuthorizationApprovalsTable;
 use Authorization\IdentityInterface;
 use App\Policy\BasePolicy;
+use Activities\Model\Table\ActivitiesTable;
 
 /**
  * AuthorizationApprovalsTable policy
@@ -17,7 +18,7 @@ class AuthorizationApprovalsTablePolicy extends BasePolicy
 
     public function canMyQueue(IdentityInterface $user, $entity)
     {
-        return $user->canHaveAuthorizationQueue();
+        return ActivitiesTable::canAuhtorizeAnyActivity($user);
     }
 
     public function scopeIndex(IdentityInterface $user, $query)

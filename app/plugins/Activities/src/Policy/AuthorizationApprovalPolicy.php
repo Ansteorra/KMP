@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Activities\Policy;
 
 use Activities\Model\Entity\AuthorizationApproval;
+use Activities\Model\Table\ActivitiesTable;
 use Authorization\IdentityInterface;
 use Cake\ORM\TableRegistry;
 use App\Model\Entity\Member;
@@ -27,8 +28,7 @@ class AuthorizationApprovalPolicy extends BasePolicy
                 ->get("Activities.Authorizations")
                 ->get($authorization_id)->activity_id;
         }
-        return $user->canAuthorizeType($activity_id) &&
-            $user->getIdentifier() === $approval->approver_id;
+        return ActivitiesTable::canAuthorizeActivity($user, $activity_id);
     }
 
     function canView(IdentityInterface $user, $approval): bool
@@ -42,7 +42,7 @@ class AuthorizationApprovalPolicy extends BasePolicy
 
     public function canMyQueue(IdentityInterface $user, $entity)
     {
-        return $user->canHaveAuthorizationQueue();
+        return ActivitiesTable::canAuhtorizeAnyActivity($user);
     }
 
     function canAvailableApproversList(IdentityInterface $user, $approval): bool
