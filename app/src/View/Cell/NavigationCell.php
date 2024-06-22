@@ -38,7 +38,7 @@ class NavigationCell extends Cell
      *
      * @return void
      */
-    public function display($validationQueueCount, $myQueueCount)
+    public function display()
     {
         $user = $this->request->getAttribute('identity');
         $params = [
@@ -48,7 +48,7 @@ class NavigationCell extends Cell
             $this->request->getParam('pass')
         ];
 
-        $event = new Event(static::VIEW_CALL_EVENT, $this, ['validationQueueCount' => $validationQueueCount, "user" => $user, "params" => $params]);
+        $event = new Event(static::VIEW_CALL_EVENT, $this, ["user" => $user, "params" => $params]);
         EventManager::instance()->dispatch($event);
         if ($event->getResult()) {
             $menu = $this->organizeMenu($event->getResult());

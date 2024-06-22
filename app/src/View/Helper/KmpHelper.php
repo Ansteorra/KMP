@@ -167,8 +167,21 @@ class KmpHelper extends Helper
             }
             $linkLabel = __(" " . $sublink["label"]);
             if (isset($sublink["badgeValue"])) {
-                if ($sublink["badgeValue"] > 0) {
-                    $linkLabel .= " " . $Html->badge(strval($sublink["badgeValue"]), [
+                if (
+                    is_array($sublink["badgeValue"])
+                    && isset($sublink["badgeValue"]["class"])
+                    && isset($sublink["badgeValue"]["method"])
+                    && isset($sublink["badgeValue"]["argument"])
+                ) {
+                    $class = $sublink["badgeValue"]["class"];
+                    $method = $sublink["badgeValue"]["method"];
+                    $argument = $sublink["badgeValue"]["argument"];
+                    $badgeValue = call_user_func(array($class, $method), $argument);
+                } else {
+                    $badgeValue = $sublink["badgeValue"];
+                }
+                if ($badgeValue > 0) {
+                    $linkLabel .= " " . $Html->badge(strval($badgeValue), [
                         "class" => $sublink["badgeClass"],
                     ]);
                 }

@@ -8,6 +8,7 @@ use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
+use Cake\ORM\TableRegistry;
 
 /**
  * AuthorizationApprovals Model
@@ -111,5 +112,17 @@ class AuthorizationApprovalsTable extends Table
         ]);
 
         return $rules;
+    }
+
+    public static function memberAuthQueueCount($memberId): int
+    {
+        $approvals = TableRegistry::getTableLocator()->get("Activities.AuthorizationApprovals");
+        $query = $approvals->find("all")
+            ->where([
+                "approver_id" => $memberId,
+                "responded_on IS" => null,
+            ]);
+
+        return $query->count();
     }
 }

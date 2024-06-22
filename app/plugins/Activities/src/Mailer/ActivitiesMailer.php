@@ -11,7 +11,6 @@ class ActivitiesMailer extends Mailer
     public function __construct()
     {
         parent::__construct();
-        $this->appSettings = $this->getTableLocator()->get("AppSettings");
     }
 
     public function notifyApprover(

@@ -36,7 +36,8 @@ use Cake\Event\EventManager;
  */
 class AppController extends Controller
 {
-    const VIEW_CALL_EVENT = 'KMP.plugins.callForViewCells';
+    const VIEW_PLUGIN_EVENT = 'KMP.plugins.callForViewCells';
+    const VIEW_DATA_EVENT = 'KMP.plugins.callForViewData';
     protected array $pluginViewCells = [];
     //use Cake\Event\EventInterface;
     public function beforeFilter(EventInterface $event)
@@ -49,7 +50,7 @@ class AppController extends Controller
             'plugin' => $this->request->getParam('plugin'),
             $this->request->getParam('pass')
         ];
-        $event = new Event(static::VIEW_CALL_EVENT, $this, ['url' => $params]);
+        $event = new Event(static::VIEW_PLUGIN_EVENT, $this, ['url' => $params]);
         EventManager::instance()->dispatch($event);
         if ($event->getResult()) {
             $this->pluginViewCells = $this->organizeViewCells($event->getResult());
@@ -83,6 +84,8 @@ class AppController extends Controller
             $recordModel = $params["plugin"] . "." . $recordModel;
         }
         $this->set("recordModel", $recordModel);
+        $event = new Event(static::VIEW_DATA_EVENT, $this, ['url' => $params]);
+        EventManager::instance()->dispatch($event);
     }
 
     /**

@@ -13,7 +13,7 @@ class CallForCellsHandlerBase implements EventListenerInterface
         return [
             // Custom event names let you design your application events
             // as required.
-            \App\Controller\AppController::VIEW_CALL_EVENT => 'callForViewCells',
+            \App\Controller\AppController::VIEW_PLUGIN_EVENT => 'callForViewCells',
         ];
     }
 

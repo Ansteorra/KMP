@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace Activities\Controller;
 
 use App\Controller\AppController as BaseController;
+use Cake\Event\EventInterface;
+use Psr\Http\Message\UriInterface;
+use Cake\Http\Response;
+use Cake\ORM\TableRegistry;
 
 class AppController extends BaseController
 {

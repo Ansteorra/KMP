@@ -36,7 +36,11 @@ class CallForNavHandler implements EventListenerInterface
                 ],
                 "icon" => "bi-person-fill-check",
                 "badgeClass" => "bg-danger",
-                "badgeValue" => $event->getData('myQueueCount'),
+                "badgeValue" => [
+                    "class" => "Activities\Model\Table\AuthorizationApprovalsTable",
+                    "method" => "memberAuthQueueCount",
+                    "argument" => $user->id
+                ],
             ],
             [
                 "type" => "link",

@@ -8,8 +8,6 @@ use Cake\Core\Configure;
 use App\Model\Table\MembersTable;
 
 
-$validationQueueCount = MembersTable::getValidationQueueCount();
-
 #$this->Html->css("BootstrapUI.dashboard", ["block" => true]);
 #$this->Html->css('app/dashboard', ['block' => true]);
 $this->prepend(
@@ -58,7 +56,7 @@ echo $this->KMP->startBlock("tb_body_start");
             <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block bg-light sidebar pt-5" style="overflow-y: auto">
                 <div class="position-sticky pt-3">
                     <nav class="appnav nav flex-column nav-underline mx-2">
-                        <?= $this->cell("Navigation", [$validationQueueCount, 0]) ?>
+                        <?= $this->cell("Navigation") ?>
                     </nav>
                 </div>
             </nav>

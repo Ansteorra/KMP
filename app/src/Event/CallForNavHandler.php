@@ -110,7 +110,11 @@ class CallForNavHandler implements EventListenerInterface
                 ],
                 "icon" => "bi-fingerprint",
                 "badgeClass" => "bg-danger",
-                "badgeValue" => $event->getData('validationQueueCount'),
+                "badgeValue" =>   [
+                    "class" => "App\Model\Table\MembersTable",
+                    "method" => "getValidationQueueCount",
+                    "argument" => 0
+                ],
             ],
             [
                 "type" => "link",

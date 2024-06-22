@@ -425,6 +425,20 @@ class MembersController extends AppController
 
                 return $this->redirect(["action" => "view", $member->id]);
             }
+            if ($member->membership_number == null || $member->membership_number == "") {
+                $member->membership_expires_on = null;
+                switch ($member->status) {
+                    case Member::STATUS_VERIFIED_MEMBERSHIP:
+                        $member->status = Member::STATUS_ACTIVE;
+                        break;
+                    case Member::STATUS_MINOR_MEMBERSHIP_VERIFIED:
+                        $member->status = Member::STATUS_UNVERIFIED_MINOR;
+                        break;
+                    case Member::STATUS_VERIFIED_MINOR:
+                        $member->status = Member::STATUS_MINOR_PARENT_VERIFIED;
+                        break;
+                }
+            }
             if ($this->Members->save($member)) {
                 $this->Flash->success(__("The Member has been saved."));
 

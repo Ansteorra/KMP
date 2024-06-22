@@ -126,6 +126,7 @@ class Member extends Entity implements
         "password_token",
         "password_token_expires_on",
     ];
+
     /**
      * Check whether the current identity can perform an action.
      *
