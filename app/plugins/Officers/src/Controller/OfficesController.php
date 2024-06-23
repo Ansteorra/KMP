@@ -84,7 +84,7 @@ class OfficesController extends AppController
             if ($this->Offices->save($office)) {
                 $this->Flash->success(__('The office has been saved.'));
 
-                return $this->redirect(['action' => 'index']);
+                return $this->redirect(['action' => 'view', $office['id']]);
             }
             $this->Flash->error(__('The office could not be saved. Please, try again.'));
         }
@@ -114,7 +114,7 @@ class OfficesController extends AppController
             if ($this->Offices->save($office)) {
                 $this->Flash->success(__('The office has been saved.'));
 
-                return $this->redirect(['action' => 'index']);
+                return $this->redirect(['action' => 'view', $office['id']]);
             }
             $this->Flash->error(__('The office could not be saved. Please, try again.'));
         }

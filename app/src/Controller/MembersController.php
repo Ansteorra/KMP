@@ -340,6 +340,7 @@ class MembersController extends AppController
                 $member,
                 $this->request->getData(),
             );
+            $member->password = StaticHelpers::generateToken(32);
             if ($member->getErrors()) {
                 $this->Flash->error(
                     __("The Member could not be saved. Please, try again."),

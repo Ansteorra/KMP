@@ -97,11 +97,6 @@ class PermissionsTable extends Table
      */
     public function buildRules(RulesChecker $rules): RulesChecker
     {
-        $rules->add(
-            $rules->existsIn(["activity_id"], "Activities"),
-            ["errorField" => "activity_id"],
-        );
-
         return $rules;
     }
 }

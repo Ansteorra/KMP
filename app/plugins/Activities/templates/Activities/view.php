@@ -144,14 +144,6 @@ echo $this->KMP->startBlock("pageTitle") ?>
     } else {
         echo "<p>No Authorizations</p>";
     } ?>
-    <?php if (
-        !empty($activity->current_authorizations)
-        || !empty($activity->pending_authorizations)
-        || !empty($activity->previous_authorizations)
-    ) {
-    } else {
-        echo "<p>No Authorizations</p>";
-    } ?>
 </div>
 <div class="tab-pane fade m-3" id="nav-roles" role="tabpanel" aria-labelledby="nav-roles-tab">
     <?php if (!empty($roles)) : ?>
