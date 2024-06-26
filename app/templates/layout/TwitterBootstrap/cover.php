@@ -10,7 +10,9 @@ echo $this->KMP->startBlock("html");
 printf('<html lang="%s" class="h-100">', Configure::read("App.language"));
 $this->KMP->endBlock();
 
-$this->Html->css("BootstrapUI.cover", ["block" => true]);
+echo $this->KMP->startBlock("css");
+echo $this->AssetMix->css('cover');
+$this->KMP->endBlock();
 
 $this->prepend(
     "tb_body_attrs",

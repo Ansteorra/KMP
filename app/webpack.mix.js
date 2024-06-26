@@ -17,5 +17,8 @@ mix.setPublicPath('./webroot')
         ],
     })
     .css('assets/css/app.css', 'webroot/css')
+    .css('assets/css/signin.css', 'webroot/css')
+    .css('assets/css/cover.css', 'webroot/css')
+    .css('assets/css/dashboard.css', 'webroot/css')
     .version();
 

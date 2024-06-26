@@ -111,7 +111,10 @@
 /******/ 		// [resolve, reject, Promise] = chunk loading, 0 = chunk loaded
 /******/ 		var installedChunks = {
 /******/ 			"/js/manifest": 0,
-/******/ 			"css/app": 0
+/******/ 			"css/app": 0,
+/******/ 			"css/dashboard": 0,
+/******/ 			"css/cover": 0,
+/******/ 			"css/signin": 0
 /******/ 		};
 /******/ 		
 /******/ 		// no chunk on demand loading
