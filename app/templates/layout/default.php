@@ -120,6 +120,9 @@ $this->KMP->endBlock();
     <?= $this->Html->charset() ?>
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title><?= h($this->fetch("title")) ?></title>
+    <script>
+    window.urlRoot = "<?= $this->Url->build("/") ?>";
+    </script>
     <meta name="turbo-prefetch" content="false">
     <?= $this->fetch("meta") ?>
     <?= $this->fetch("css") ?>

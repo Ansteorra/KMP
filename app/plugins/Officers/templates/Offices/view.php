@@ -157,8 +157,3 @@ echo $this->KMP->startBlock("modals"); ?>
 <?php //finish writing to modal block in layout
 
 $this->KMP->endBlock(); ?>
-
-<?php $this->append(
-    "script",
-    $this->Html->script(["app/permissions/view.js"]),
-); ?>

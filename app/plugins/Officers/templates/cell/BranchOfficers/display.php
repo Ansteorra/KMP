@@ -1,7 +1,8 @@
 <?php
 $user = $this->request->getAttribute("identity");
 ?>
-<button type="button" class="btn btn-primary btn-sm mb-3" data-bs-toggle="modal" data-bs-target="#assignOfficerModal">Assign Officer</button>
+<button type="button" class="btn btn-primary btn-sm mb-3" data-bs-toggle="modal"
+    data-bs-target="#assignOfficerModal">Assign Officer</button>
 <?php if (!empty($previousOfficers) || !empty($currentOfficers) || !empty($upcomingOfficers)) {
     $linkTemplate = [
         "type" => "button",
@@ -79,57 +80,56 @@ echo $this->element('assignModal', [
 $this->KMP->endBlock();
 
 echo $this->KMP->startBlock("script"); ?>
-?>
 <script>
-    class branchesView {
-        constructor() {
-            this.ac = null;
-        };
-        //onInput for Autocomplete
-
-        run() {
-            var me = this;
-            var searchUrl =
-                '<?= $this->URL->build(['controller' => 'Members', 'action' => 'SearchMembers']) ?>';
-            KMP_utils.configureAutoComplete(me.ac, searchUrl, 'assign_officer__sca_name', 'id', 'sca_name',
-                'assign_officer__member_id');
-
-            $('#assign_officer__member_id').change(function() {
-                if ($('#assign_officer__member_id').val() > 0) {
-                    //enable button
-                    $('#assign_officer__submit').prop('disabled', false);
-                } else {
-                    //disable button
-                    $('#assign_officer__submit').prop('disabled', true);
-                }
-            });
-            $('#assign_officer__submit').on('click', function() {
-                if ($('#assign_officer__member_id').val() > 0) {
-                    $('#assign_officer__form').submit();
-                }
-            });
-            $('#assign_officer__office_id').change(function() {
-                var officeId = $('#assign_officer__office_id').val();
-                //find the office from the officeData array
-                officeData.forEach(office => {
-                    if (office.id == officeId) {
-                        //show the deputy description field
-                        if (office.deputy_to_id > 0) {
-                            $('#assign_officer__end_date_block').show();
-                            $('#assign_officer__deputy_description_block').show();
-                        } else {
-                            $('#assign_officer__end_date_block').hide();
-                            $('#assign_officer__deputy_description_block').hide();
-                        }
-                    }
-                });
-            });
-            $('#assign_officer__office_id').trigger('change');
-        }
+class branchesView {
+    constructor() {
+        this.ac = null;
     };
-    window.addEventListener('DOMContentLoaded', function() {
-        var view = new branchesView();
-        view.run();
-    });
+    //onInput for Autocomplete
+
+    run() {
+        var me = this;
+        var searchUrl =
+            '<?= $this->URL->build(['controller' => 'Members', 'action' => 'SearchMembers']) ?>';
+        KMP_utils.configureAutoComplete(me.ac, searchUrl, 'assign_officer__sca_name', 'id', 'sca_name',
+            'assign_officer__member_id');
+
+        $('#assign_officer__member_id').change(function() {
+            if ($('#assign_officer__member_id').val() > 0) {
+                //enable button
+                $('#assign_officer__submit').prop('disabled', false);
+            } else {
+                //disable button
+                $('#assign_officer__submit').prop('disabled', true);
+            }
+        });
+        $('#assign_officer__submit').on('click', function() {
+            if ($('#assign_officer__member_id').val() > 0) {
+                $('#assign_officer__form').submit();
+            }
+        });
+        $('#assign_officer__office_id').change(function() {
+            var officeId = $('#assign_officer__office_id').val();
+            //find the office from the officeData array
+            officeData.forEach(office => {
+                if (office.id == officeId) {
+                    //show the deputy description field
+                    if (office.deputy_to_id > 0) {
+                        $('#assign_officer__end_date_block').show();
+                        $('#assign_officer__deputy_description_block').show();
+                    } else {
+                        $('#assign_officer__end_date_block').hide();
+                        $('#assign_officer__deputy_description_block').hide();
+                    }
+                }
+            });
+        });
+        $('#assign_officer__office_id').trigger('change');
+    }
+};
+window.addEventListener('DOMContentLoaded', function() {
+    var view = new branchesView();
+    view.run();
+});
 </script>
 <?php $this->KMP->endBlock(); ?>

@@ -183,6 +183,7 @@ class BranchesController extends AppController
             throw new \Cake\Http\Exception\NotFoundException();
         }
         $this->Authorization->authorize($branch);
+        $branch->name = "Deleted: " . $branch->name;
         if ($this->Branches->delete($branch)) {
             $this->Flash->success(__("The branch has been deleted."));
         } else {

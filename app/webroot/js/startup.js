@@ -2987,7 +2987,7 @@ __webpack_require__.r(__webpack_exports__);
       });
     });
   },
-  configureAutoComplete: function configureAutoComplete(ac, searchUrl, inputFieldId, valKey, dispKey, resultElementId) {
+  configureAutoComplete: function configureAutoComplete(ac, searchUrl, inputFieldId, valKey, dispKey, resultElementId, findMatchedCallback, findFailCallback) {
     var _this = this;
     ac = new _autocomplete_js__WEBPACK_IMPORTED_MODULE_0__["default"]($('#' + inputFieldId)[0], {
       data: [],
@@ -3013,7 +3013,12 @@ __webpack_require__.r(__webpack_exports__);
                 value: data[i][valKey]
               });
             }
-            ac.setData(sendData);
+            if (data.length == 0 && findFailCallback) {
+              findFailCallback(input);
+            } else {
+              if (findMatchedCallback) findMatchedCallback(sendData);
+              ac.setData(sendData);
+            }
           }
         });
       },
@@ -3391,6 +3396,16 @@ jquery__WEBPACK_IMPORTED_MODULE_0___default()(function () {
   jquery__WEBPACK_IMPORTED_MODULE_0___default()('.nav-link[role=tab]:not([data-level])').on('click', function () {
     var tab = jquery__WEBPACK_IMPORTED_MODULE_0___default()(this).attr('id').replace('nav-', '').replace('-tab', '');
     window.history.pushState({}, '', '?tab=' + tab);
+  });
+  jquery__WEBPACK_IMPORTED_MODULE_0___default()('.navheader').on('click', function () {
+    var state = jquery__WEBPACK_IMPORTED_MODULE_0___default()(this).attr('aria-expanded');
+    if (state == 'true') {
+      var recordExpandUrl = jquery__WEBPACK_IMPORTED_MODULE_0___default()(this).attr('data-expand-url');
+      jquery__WEBPACK_IMPORTED_MODULE_0___default().get(recordExpandUrl);
+    } else {
+      var recordCollapseUrl = jquery__WEBPACK_IMPORTED_MODULE_0___default()(this).attr('data-collapse-url');
+      jquery__WEBPACK_IMPORTED_MODULE_0___default().get(recordCollapseUrl);
+    }
   });
 });
 

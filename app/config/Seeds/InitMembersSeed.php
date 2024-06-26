@@ -36,7 +36,7 @@ class InitMembersSeed extends AbstractSeed
                 'city' => 'a city',
                 'state' => 'TX',
                 'zip' => '00000',
-                'phone_number' => '',
+                'phone_number' => '555-555-5555',
                 'email_address' => 'admin@test.com',
                 'membership_number' => '1234',
                 'membership_expires_on' => '2030-01-01',

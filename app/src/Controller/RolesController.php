@@ -237,6 +237,7 @@ class RolesController extends AppController
             throw new \Cake\Http\Exception\NotFoundException();
         }
         $this->Authorization->authorize($role);
+        $role->name = "Deleted: " . $role->name;
         if ($this->Roles->delete($role)) {
             $this->Flash->success(__("The role has been deleted."));
         } else {

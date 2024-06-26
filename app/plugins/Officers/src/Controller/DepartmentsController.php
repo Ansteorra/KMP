@@ -112,6 +112,8 @@ class DepartmentsController extends AppController
             throw new \Cake\Http\Exception\NotFoundException();
         }
         $this->Authorization->authorize($department);
+
+        $department->name = "Deleted: " . $department->name;
         if ($this->Departments->delete($department)) {
             $this->Flash->success(__('The department has been deleted.'));
         } else {

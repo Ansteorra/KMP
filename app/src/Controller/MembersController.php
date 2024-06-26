@@ -42,7 +42,8 @@ class MembersController extends AppController
             "resetPassword",
             "register",
             "viewMobileCard",
-            "viewMobileCardJson"
+            "viewMobileCardJson",
+            "searchMembers"
         ]);
     }
 
@@ -467,6 +468,8 @@ class MembersController extends AppController
             throw new \Cake\Http\Exception\NotFoundException();
         }
         $this->Authorization->authorize($member);
+
+        $member->email_address = "Deleted: " . $member->email_address;
         if ($this->Members->delete($member)) {
             $this->Flash->success(__("The Member has been deleted."));
         } else {

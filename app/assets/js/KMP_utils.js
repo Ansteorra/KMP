@@ -20,7 +20,7 @@ export default {
         });
     },
 
-    configureAutoComplete(ac, searchUrl, inputFieldId, valKey, dispKey, resultElementId) {
+    configureAutoComplete(ac, searchUrl, inputFieldId, valKey, dispKey, resultElementId, findMatchedCallback, findFailCallback) {
         ac = new Autocomplete($('#' + inputFieldId)[0], {
             data: [],
             treshold: 3,
@@ -40,7 +40,14 @@ export default {
                         for (var i = 0; i < data.length; i++) {
                             sendData.push({ label: data[i][dispKey], value: data[i][valKey] });
                         }
-                        ac.setData(sendData);
+                        if (data.length == 0 && findFailCallback) {
+                            findFailCallback(input);
+                        }
+                        else {
+                            if (findMatchedCallback)
+                                findMatchedCallback(sendData);
+                            ac.setData(sendData);
+                        }
                     }
                 });
             },

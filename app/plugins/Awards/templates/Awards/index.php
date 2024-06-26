@@ -1,0 +1,66 @@
+<?php
+
+/**
+ * @var \App\View\AppView $this
+ * @var \App\Model\Entity\ActivityGroup[]|\Cake\Collection\CollectionInterface $activityGroup
+ */
+?>
+<?php $this->extend("/layout/TwitterBootstrap/dashboard");
+
+echo $this->KMP->startBlock("title");
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Award Domains';
+$this->KMP->endBlock(); ?>
+<h3>
+    Award Domains
+</h3>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th scope="col"><?= $this->Paginator->sort('id') ?></th>
+            <th scope="col"><?= $this->Paginator->sort('name') ?></th>
+            <th scope="col"><?= $this->Paginator->sort('domain_id') ?></th>
+            <th scope="col"><?= $this->Paginator->sort('level_id') ?></th>
+            <th scope="col"><?= $this->Paginator->sort('branch_id') ?></th>
+            <th scope="col" class="actions"><?= __('Actions') ?></th>
+        </tr>
+    </thead>
+    <tbody>
+        <?php foreach ($awards as $award) : ?>
+        <tr>
+            <td><?= $this->Number->format($award->id) ?></td>
+            <td><?= h($award->name) ?></td>
+            <td><?= $award->hasValue('domain') ? $this->Html->link($award->domain->name, ['controller' => 'Domains', 'action' => 'view', $award->domain->id]) : '' ?>
+            </td>
+            <td><?= $award->hasValue('level') ? $this->Html->link($award->level->name, ['controller' => 'Levels', 'action' => 'view', $award->level->id]) : '' ?>
+            </td>
+            <td><?= $award->hasValue('branch') ? $this->Html->link($award->branch->name, ['plugin' => null,  'controller' => 'Branches', 'action' => 'view', $award->branch->id]) : '' ?>
+            </td>
+
+            <td class="actions">
+                <?= $this->Html->link(
+                        __("View"),
+                        ["action" => "view", $award->id],
+                        ["title" => __("View"), "class" => "btn btn-secondary"],
+                    ) ?>
+            </td>
+        </tr>
+        <?php endforeach; ?>
+    </tbody>
+</table>
+<div class="paginator">
+    <ul class="pagination">
+        <?= $this->Paginator->first("«", ["label" => __("First")]) ?>
+        <?= $this->Paginator->prev("‹", [
+            "label" => __("Previous"),
+        ]) ?>
+        <?= $this->Paginator->numbers() ?>
+        <?= $this->Paginator->next("›", ["label" => __("Next")]) ?>
+        <?= $this->Paginator->last("»", ["label" => __("Last")]) ?>
+    </ul>
+    <p><?= $this->Paginator->counter(
+            __(
+                "Page {{page}} of {{pages}}, showing {{current}} record(s) out of {{count}} total",
+            ),
+        ) ?></p>
+</div>

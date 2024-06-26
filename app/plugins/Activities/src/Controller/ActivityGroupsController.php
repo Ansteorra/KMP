@@ -135,11 +135,22 @@ class ActivityGroupsController extends AppController
     public function delete($id = null)
     {
         $this->request->allowMethod(["post", "delete"]);
-        $authorizationGroup = $this->ActivityGroups->get($id);
+        $authorizationGroup = $this->ActivityGroups->get(
+            $id,
+            contain: ["Activities"]
+        );
         if (!$authorizationGroup) {
             throw new \Cake\Http\Exception\NotFoundException();
         }
+        if ($authorizationGroup->activities) {
+            $this->Flash->error(
+                __("The Activity Group could not be deleted because it has associated Activities."),
+            );
+            return $this->redirect(["action" => "index"]);
+        }
         $this->Authorization->authorize($authorizationGroup);
+
+        $authorizationGroup->name = "Deleted: " . $authorizationGroup->name;
         if ($this->ActivityGroups->delete($authorizationGroup)) {
             $this->Flash->success(
                 __("The Activity Group has been deleted."),

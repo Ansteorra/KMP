@@ -22,4 +22,15 @@ $(function () {
         var tab = $(this).attr('id').replace('nav-', '').replace('-tab', '');
         window.history.pushState({}, '', '?tab=' + tab);
     });
+    $('.navheader').on('click', function () {
+        var state = $(this).attr('aria-expanded');
+
+        if (state == 'true') {
+            var recordExpandUrl = $(this).attr('data-expand-url');
+            $.get(recordExpandUrl);
+        } else {
+            var recordCollapseUrl = $(this).attr('data-collapse-url');
+            $.get(recordCollapseUrl);
+        }
+    });
 });

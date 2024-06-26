@@ -218,6 +218,7 @@ class ActivitiesController extends AppController
             throw new \Cake\Http\Exception\NotFoundException();
         }
         $this->Authorization->authorize($activity);
+        $activity->name = "Deleted: " . $activity->name;
         if ($this->Activities->delete($activity)) {
             $this->Flash->success(
                 __("The activity has been deleted."),

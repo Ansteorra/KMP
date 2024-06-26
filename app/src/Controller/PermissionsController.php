@@ -162,6 +162,7 @@ class PermissionsController extends AppController
             );
             return $this->redirect($this->referer());
         }
+        $permission->name = "Deleted: " . $permission->name;
         if ($this->Permissions->delete($permission)) {
             $this->Flash->success(__("The permission has been deleted."));
         } else {

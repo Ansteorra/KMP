@@ -53,11 +53,10 @@ echo $this->KMP->startBlock("tb_body_start");
 
     <div class="container-fluid">
         <div class="row">
-            <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block bg-light sidebar pt-5" style="overflow-y: auto">
+            <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block bg-light sidebar pt-5 collapse"
+                style="overflow-y: auto">
                 <div class="position-sticky pt-3">
-                    <nav class="appnav nav flex-column nav-underline mx-2">
-                        <?= $this->cell("Navigation") ?>
-                    </nav>
+                    <?= $this->cell("Navigation") ?>
                 </div>
             </nav>
 

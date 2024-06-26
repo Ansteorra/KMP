@@ -26,4 +26,7 @@ return [
         'migrationOrder' => 2,
     ],
     'AssetMix' => [],
+    'Awards' => [
+        'migrationOrder' => 3,
+    ],
 ];

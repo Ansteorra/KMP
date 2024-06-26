@@ -223,7 +223,7 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
             return false;
         }
         if (
-            !$this->sendAuthorizationStatusToRequestor(
+            !$this->sendAuthorizationStatusToRequester(
                 $approval->authorization->activity_id,
                 $approval->authorization->member_id,
                 $approverId,
@@ -272,7 +272,7 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
             return false;
         }
         $authorization = $table->get($authorizationId);
-        if (!$this->sendAuthorizationStatusToRequestor(
+        if (!$this->sendAuthorizationStatusToRequester(
             $authorization->activity_id,
             $authorization->member_id,
             $revokerId,
@@ -290,7 +290,7 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
     #endregion
 
     #region notifications
-    protected function sendAuthorizationStatusToRequestor(
+    protected function sendAuthorizationStatusToRequester(
         int $activityId,
         int $requesterId,
         int $approverId,
@@ -407,7 +407,7 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
             return false;
         }
         if (
-            !$this->sendAuthorizationStatusToRequestor(
+            !$this->sendAuthorizationStatusToRequester(
                 $authorization->activity_id,
                 $authorization->member_id,
                 $approverId,
@@ -467,7 +467,7 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
         }
 
         if (
-            !$this->sendAuthorizationStatusToRequestor(
+            !$this->sendAuthorizationStatusToRequester(
                 $authorization->activity_id,
                 $authorization->member_id,
                 $approverId,

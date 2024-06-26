@@ -75,24 +75,31 @@ class KmpHelper extends Helper
      * @param \Cake\View\Helper\HtmlHelper $Html
      * @return string
      */
-    public function appNav($appNav, $user, $Html): string
+    public function appNav($appNav, $user, $Html, $Url, $navBarState): string
     {
-        $return = "";
+        if (!$navBarState) {
+            $navBarState = [];
+        }
+        $return = "<div class='nav flex-column'>\r\n";
         foreach ($appNav as $parent) {
             $childHtml = "";
             foreach ($parent["children"] as $child) {
                 $childHtml .= $this->appNavChild($child, $user, $Html);
                 if ($child["active"] && isset($child["sublinks"])) {
+                    $parent["active"] = true;
                     foreach ($child["sublinks"] as $sublink) {
                         $childHtml .= $this->appNavGrandchild($sublink, $user, $Html);
                     }
                 }
             }
             if ($childHtml != "") {
-                $return .= $this->appNavParent($parent["label"], $Html, $parent["icon"]) . $childHtml;
+                if (!$parent["active"]) {
+                    $parent["active"] = isset($navBarState[$parent["id"]]) && $navBarState[$parent["id"]] == "true";
+                }
+                $return .= $this->appNavParent($parent, $childHtml, $Url);
             }
         }
-        return $return;
+        return $return . "</div>\r\n";
     }
 
     /**
@@ -135,6 +142,14 @@ class KmpHelper extends Helper
         $url = $link["url"];
         $label = $link["label"];
         $icon = $link["icon"];
+        if (!isset($link["otherClasses"])) {
+            $link["otherClasses"] = "";
+        }
+        if (!isset($link["linkTypeClass"])) {
+            $link["linkTypeClass"] = "nav-link";
+        }
+        $linkTypeClass = $link["linkTypeClass"];
+        $otherClasses = $link["otherClasses"];
         $return = "";
         //is $urlparams a string or an array?
         if (!isset($url["plugin"])) {
@@ -145,7 +160,7 @@ class KmpHelper extends Helper
             $activeclass = $link["active"] ? "active" : "";
             $return .= $Html->link(__(" " . $label), $url, [
                 "class" =>
-                "nav-link fs-6 bi " . $icon . " pb-0 " . $activeclass,
+                $linkTypeClass . " fs-6 bi " . $icon . " mb-2 " . $activeclass . " " . $otherClasses,
             ]);
             return $return;
         }
@@ -186,6 +201,15 @@ class KmpHelper extends Helper
                     ]);
                 }
             }
+            if (!isset($link["otherClasses"])) {
+                $link["otherClasses"] = "";
+            }
+            if (!isset($link["linkTypeClass"])) {
+                $link["linkTypeClass"] = "nav-link";
+            }
+            $linkTypeClass = $link["linkTypeClass"];
+            $otherClasses = $link["otherClasses"];
+
             $linkBody = $Html->tag(
                 "span",
                 $linkLabel,
@@ -195,7 +219,7 @@ class KmpHelper extends Helper
                 ],
             );
             $linkOptions["class"] =
-                "sublink nav-link ms-3 fs-7 pt-0";
+                "sublink " . $linkTypeClass . " ms-4 fs-7 mb-2 " . $otherClasses;
             $linkOptions["escape"] = false;
             $return .= $Html->link(
                 $linkBody,
@@ -205,14 +229,23 @@ class KmpHelper extends Helper
         }
         return $return;
     }
-    protected function appNavParent($label, $Html, $icon): string
+    protected function appNavParent($parent, $childHtml, $Url): string
     {
-        $return =
-            '<div class="badge fs-5 text-bg-secondary bi ' .
-            $icon .
+        $randomId = StaticHelpers::generateToken(10);
+        $collaped = $parent["active"] ? "" : "collapsed";
+        $show = $parent["active"] ? "show" : "";
+        $expanded = $parent["active"] ? "true" : "false";
+        $expandUrl = $Url->build(["controller" => "NavBar", "action" => "RecordExpand", $parent["id"], "plugin" => null]);
+        $collapseUrl = $Url->build(["controller" => "NavBar", "action" => "RecordCollapse", $parent["id"], "plugin" => null]);
+        $return = '<div data-bs-target="#' . $randomId . '" data-bs-toggle="collapse" aria-expanded="' . $expanded . '" id="' . $parent['id'] . '" . ' .
+            'data-collapse-url="' . $collapseUrl . '" data-expand-url="' . $expandUrl . '"' .
+            'aria-controls="' . $randomId . '" class="navheader ' . $collaped . ' text-start badge fs-5 mb-2 mx-1 text-bg-secondary bi ' .
+            $parent['icon'] .
             '"> ' .
-            $label .
-            "</div>";
+            $parent['label'] .
+            "</div> \r\n" .
+            "<nav id='" . $randomId . "' class='appnav collapse " . $show . " nav-item ms-2 nav-underline'>" .
+            $childHtml . "</nav> \r\n";
         return $return;
     }
 }

@@ -139,6 +139,7 @@ class OfficesController extends AppController
             throw new \Cake\Http\Exception\NotFoundException();
         }
         $this->Authorization->authorize($office);
+        $office->name = "Deleted: " . $office->name;
         if ($this->Offices->delete($office)) {
             $this->Flash->success(__('The office has been deleted.'));
         } else {
