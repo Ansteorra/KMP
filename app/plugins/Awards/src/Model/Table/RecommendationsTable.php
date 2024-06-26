@@ -56,11 +56,12 @@ class RecommendationsTable extends Table
 
         $this->belongsTo('Requesters', [
             'foreignKey' => 'requester_id',
-            'joinType' => 'INNER',
+            'joinType' => 'LEFT',
             'className' => 'Members',
         ]);
         $this->belongsTo('Members', [
             'foreignKey' => 'member_id',
+            'joinType' => 'LEFT',
             'className' => 'Members',
         ]);
         $this->belongsTo('Branches', [
