@@ -45,6 +45,10 @@ $this->KMP->endBlock(); ?>
                     ["class" => "btn btn-sm btn-link"],
                 ) ?>
             <? endif; ?>
+
+            <a href="<?= $this->Url->build(['plugin' => 'Awards', 'controller' => 'Recommendations', 'action' => 'SubmitRecommendation']) ?>"
+                class="mt-3 btn fs-6 bi bi-megaphone-fill mb-2 <?= $this->KMP->getAppSetting("Awards.RecButtonClass", "btn-warning") ?>">
+                Submit Award Rec.</a>
         </div>
     </div>
 </div>
