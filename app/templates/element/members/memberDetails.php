@@ -1,0 +1,90 @@
+<?php
+
+use App\KMP\StaticHelpers; ?>
+<tr scope="row">
+    <th class="col"><?= __("Sca Name") ?></th>
+    <td class="col-10"><?= h($member->sca_name) ?></td>
+</tr>
+<tr scope="row">
+    <th class="col"><?= __("Branch") ?></th>
+    <td class="col-10"><?= h($member->branch->name) ?></td>
+</tr>
+<tr scope="row">
+    <th class="col"><?= __("Membership") ?></th>
+    <td lass="col-10">
+        <?php if ($member->membership_number != null && strlen($member->membership_number) > 0) { ?>
+        <?= h($member->membership_number) ?> Exp:
+        <?= h($member->membership_expires_on) ?>
+        <?php } else { ?>
+        <?= __('Information Not Available') ?>
+        <?php } ?>
+    </td>
+</tr>
+<tr scope="row">
+    <th class="col"><?= __("Legal Name") ?></th>
+    <td lass="col-10"><?= h($member->first_name) ?>
+        <?= h($member->middle_name) ?>
+        <?= h($member->last_name) ?>
+    </td>
+</tr>
+<tr scope="row">
+    <th class="col"><?= __("Address") ?></th>
+    <td lass="col-10"><?= h($member->street_address) ?></td>
+</tr>
+<t scope="row">
+    <th class="col"></th>
+    <td lass="col-10"><?= h($member->city) ?>, <?= h(
+                                                    $member->state,
+                                                ) ?> <?= h($member->zip) ?></td>
+    </tr>
+    <tr scope="row">
+        <th class="col"><?= __("Phone Number") ?></th>
+        <td lass="col-10"><?= h($member->phone_number) ?></td>
+    </tr>
+    <tr scope="row">
+        <th class="col"><?= __("Email Address") ?></th>
+        <td lass="col-10"><?= h($member->email_address) ?> </td>
+    </tr>
+    <?= $member->age < 18
+        ? '<tr scope="row">
+                <th class="col">' .
+        __("Parent Name") .
+        '</th>
+                <td lass="col-10">' .
+        ($member->parent ?
+            $this->Html->link($member->parent->sca_name, ["controller" => "members", "action" => "view", $member->parent->id]) :
+            "no parent assigned") .
+        '</td>
+            </tr>'
+        : "" ?>
+    <tr scope="row">
+        <th class="col"><?= __("Birth Date") ?></th>
+        <td lass="col-10"><?= h($member->birth_month) ?> / <?= h(
+                                                                $member->birth_year,
+                                                            ) ?></td>
+    </tr>
+    <tr scope="row">
+        <th class="col"><?= __("Background Exp.") ?></th>
+        <td lass="col-10"><?= h(
+                                $member->background_check_expires_on,
+                            ) ?></td>
+    </tr>
+    <tr scope="row">
+        <th class="col"><?= __("Last Login") ?></th>
+        <td lass="col-10"><?= $member->last_login ?></td>
+    </tr>
+    <tr scope="row">
+        <th class="col"><?= __("Status") ?></th>
+        <td lass="col-10"><?= $member->status ?></td>
+    </tr>
+
+    <?php
+    $externalLinks = $this->KMP->getAppSettingsStartWith("Member.ExternalLink.");
+    foreach ($externalLinks as $key => $link) {
+        $linkLabel = str_replace("Member.ExternalLink.", "", $key);
+        $linkUrl = StaticHelpers::processTemplate($link, $member, 1, "__missing__");
+        if (substr_count($linkUrl, "__missing__") == 0) {
+            echo "<tr scope='row'><th class='col'>" . $linkLabel . "</th><td class='col-10'><a href='" . $linkUrl . "' target='_blank'>" . $linkUrl . "</a></td></tr>";
+        }
+    }
+    ?>

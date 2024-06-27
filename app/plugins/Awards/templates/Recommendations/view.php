@@ -10,7 +10,7 @@
 $this->extend("/layout/TwitterBootstrap/view_record");
 
 echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': View Award Recommendation - ' . $$recommendation->member_sca_name . ' for ' . $recommendation->award->name;
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': View Award Recommendation - ' . $recommendation->member_sca_name . ' for ' . $recommendation->award->name;
 $this->KMP->endBlock();
 
 echo $this->KMP->startBlock("pageTitle") ?>
@@ -77,7 +77,22 @@ echo $this->Form->postLink(
         </ul>
     </td>
 </tr>
-<?php $this->KMP->endBlock() ?>
+<?php if ($recommendation->member) : ?>
+<tr>
+    <th colspan='2' scope="row">
+        <h4><?= __('Member Details') ?></h4>
+    </th>
+</tr>
+<?php
+    $member = $recommendation->member;
+    echo $this->element('members/memberDetails', [
+        'member' => $member,
+    ]);
+else :
+    echo '<tr><th colspan="2" scope="row">' . __('Member Details') . '</th></tr>';
+    echo '<tr><td colspan="2">' . __('Member not found in database') . '</td></tr>';
+endif;
+$this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("tabButtons") ?>
 <button class="nav-link active" id="nav-reason-tab" data-bs-toggle="tab" data-bs-target="#nav-reason" type="button"
     role="tab" aria-controls="nav-reason" aria-selected="true"><?= __("Reason") ?>
