@@ -88,9 +88,9 @@ class recommendationsAdd {
                     awardSelect.empty();
                     awardSelect.append('<option value=""></option>');
                     awardDescription.empty();
-                    var tabButtons = $('<ul class="nav nav-tabs" role="tablist"></div>');
+                    var tabButtons = $('<ul class="nav nav-pills" role="tablist"></div>');
                     var tabContentArea = $(
-                        '<div class="tab-content border border-top-0 border-light-subtle p-2"></div>'
+                        '<div class="tab-content border border-light-subtle p-2"></div>'
                     );
                     var active = "active";
                     var show = "show";

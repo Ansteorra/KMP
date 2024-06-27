@@ -13,7 +13,7 @@
 echo $this->KMP->startBlock("title");
 echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': New Member Register';
 $this->KMP->endBlock(); ?>
-<div class="container-fluid">
+<div class="container-sm">
     <?= $this->Form->create($member, ["type" => "file"]) ?>
     <div class="card mb-3">
         <div class="card-body">
@@ -21,7 +21,7 @@ $this->KMP->endBlock(); ?>
             <fieldset>
                 <div class="text-center mt-3"><?= $this->Html->image($headerImage, [
                                                     "alt" => "site logo",
-                                                    'width' => '250',
+                                                    'class' => "img-fluid w-25"
                                                 ]) ?></div>
                 <legend class="text-center">
                     <h5 class="card-title"><?= __("Register") ?></h5>
