@@ -7,8 +7,6 @@
 use Cake\Core\Configure;
 use App\Model\Table\MembersTable;
 
-#$this->Html->css("BootstrapUI.dashboard", ["block" => true]);
-#$this->Html->css('app/dashboard', ['block' => true]);
 $this->prepend(
     "tb_body_attrs",
     ' class="' .

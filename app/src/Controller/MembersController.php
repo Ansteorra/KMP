@@ -43,7 +43,8 @@ class MembersController extends AppController
             "register",
             "viewMobileCard",
             "viewMobileCardJson",
-            "searchMembers"
+            "searchMembers",
+            "publicLinks",
         ]);
     }
 
@@ -657,6 +658,39 @@ class MembersController extends AppController
             ->setOption('serialize', 'responseData');
         $this->set(compact("member"));
         $this->viewBuilder()->setTemplate('view_card_json');
+    }
+
+    public function publicLinks($id = null)
+    {
+        $externalLinks = StaticHelpers::getAppSettingsStartWith("Member.ExternalLink.");
+        if (empty($externalLinks)) {
+            $linkData = [];
+            $this->response = $this->response
+                ->withType("application/json")
+                ->withStringBody(json_encode($linkData));
+            return $this->response;
+        }
+
+        $member = $this->Members
+            ->find()
+            ->where(["Members.id" => $id])
+            ->first();
+        if (!$member) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+        $this->Authorization->skipAuthorization();
+        $linkData = [];
+        foreach ($externalLinks as $key => $link) {
+            $linkLabel = str_replace("Member.ExternalLink.", "", $key);
+            $linkUrl = StaticHelpers::processTemplate($link, $member, 1, "__missing__");
+            if (substr_count($linkUrl, "__missing__") == 0) {
+                $linkData[$linkLabel] = $linkUrl;
+            }
+        }
+        $this->response = $this->response
+            ->withType("application/json")
+            ->withStringBody(json_encode($linkData));
+        return $this->response;
     }
 
     #endregion

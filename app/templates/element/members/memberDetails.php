@@ -87,4 +87,12 @@ use App\KMP\StaticHelpers; ?>
             echo "<tr scope='row'><th class='col'>" . $linkLabel . "</th><td class='col-10'><a href='" . $linkUrl . "' target='_blank'>" . $linkUrl . "</a></td></tr>";
         }
     }
+    $privateExternalLinks = $this->KMP->getAppSettingsStartWith("Member.PrivateExternalLink.");
+    foreach ($privateExternalLinks as $key => $link) {
+        $linkLabel = str_replace("Member.PrivateExternalLink.", "", $key);
+        $linkUrl = StaticHelpers::processTemplate($link, $member, 1, "__missing__");
+        if (substr_count($linkUrl, "__missing__") == 0) {
+            echo "<tr scope='row'><th class='col'>" . $linkLabel . "</th><td class='col-10'><a href='" . $linkUrl . "' target='_blank'>" . $linkUrl . "</a></td></tr>";
+        }
+    }
     ?>

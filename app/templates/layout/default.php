@@ -85,18 +85,6 @@ $this->prepend(
     $this->Html->meta("favicon.ico", "/favicon.ico", ["type" => "icon"]),
 );
 
-/**
- * Prepend `css` block with Bootstrap stylesheets
- * Change to bootstrap.min to use the compressed version
- */
-#$this->prepend("css", $this->Html->css(["BootstrapUI.bootstrap.min"]));
-#$this->prepend(
-#    "css",
-#    $this->Html->css([
-#        "BootstrapUI./font/bootstrap-icons",
-#        "BootstrapUI./font/bootstrap-icon-sizes",
-#    ]),
-#);
 echo $this->KMP->startBlock("css");
 echo $this->AssetMix->css('app');
 $this->KMP->endBlock();
@@ -121,7 +109,7 @@ $this->KMP->endBlock();
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title><?= h($this->fetch("title")) ?></title>
     <script>
-    window.urlRoot = "<?= $this->Url->build("/") ?>";
+        window.urlRoot = "<?= $this->Url->build("/") ?>";
     </script>
     <meta name="turbo-prefetch" content="false">
     <?= $this->fetch("meta") ?>

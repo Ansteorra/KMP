@@ -7,7 +7,6 @@ echo $this->KMP->startBlock("css");
 echo $this->AssetMix->css('signin');
 $this->KMP->endBlock();
 
-$this->Html->css("BootstrapUI.signin", ["block" => true]);
 $this->prepend(
     "tb_body_attrs",
     ' class="' .
