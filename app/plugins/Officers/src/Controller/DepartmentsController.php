@@ -42,7 +42,7 @@ class DepartmentsController extends AppController
      */
     public function view($id = null)
     {
-        $department = $this->Departments->get($id, contain: ['Offices']);
+        $department = $this->Departments->get($id, contain: ['Offices', 'Offices.GrantsRole', 'Offices.DeputyTo']);
         if (!$department) {
             throw new \Cake\Http\Exception\NotFoundException();
         }
