@@ -125,7 +125,9 @@ class RecommendationsTable extends Table
 
         $validator
             ->scalar('reason')
-            ->allowEmptyString('reason');
+            ->allowEmptyString('reason')
+            ->requirePresence('reason', 'create')
+            ->notEmptyString('reason');
 
         $validator
             ->integer('created_by')

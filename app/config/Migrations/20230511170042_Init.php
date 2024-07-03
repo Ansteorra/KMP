@@ -585,6 +585,18 @@ class Init extends AbstractMigration
             ])
             ->update();
 
+        $this->table("branches")
+            ->addForeignKey(
+                "parent_id",
+                "branches",
+                "id",
+                [
+                    "update" => "NO_ACTION",
+                    "delete" => "NO_ACTION",
+                ],
+            )
+            ->update();
+
         $this->table("member_roles")
             ->addForeignKey("member_id", "members", "id", [
                 "update" => "NO_ACTION",

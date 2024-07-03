@@ -33,12 +33,13 @@ $this->KMP->endBlock(); ?>
                         "label" => "Your SCA Name",
                         "id" => "recommendation__requester_sca_name",
                     ]);
-                    echo $this->Form->control('contact_number', ['id' => 'recommendation__contact_number']);
+                    echo $this->Form->control('contact_number', ['id' => 'recommendation__contact_number', 'help' => 'incase we need to contact you',]);
                     echo $this->Form->control("member_id", [
                         "type" => "hidden",
                         "id" => "recommendation__member_id",
                     ]);
                     echo $this->Form->control("member_sca_name", [
+                        'required' => true,
                         "type" => "text",
                         "label" => "Recommendation For",
                         "id" => "recommendation__sca_name",
@@ -58,8 +59,8 @@ $this->KMP->endBlock(); ?>
 
                     </div>
                     <?php
-                    echo $this->Form->control('award_id', ['options' => ["Please select the type of award first."], "disabled" => true, "id" => "recommendation__award_id"]);
-                    echo $this->Form->control('reason', ['id' => 'recommendation_reason']);
+                    echo $this->Form->control('award_id', ['required' => true, 'options' => ["Please select the type of award first."], "disabled" => true, "id" => "recommendation__award_id"]);
+                    echo $this->Form->control('reason', ['id' => 'recommendation_reason', 'required' => true]);
                     echo $this->Form->control('events._ids', [
                         'label' => 'Events They may Attend:',
                         "type" => "select",
@@ -69,7 +70,10 @@ $this->KMP->endBlock(); ?>
                     ?>
                 </fieldset>
                 <?= $this->Form->end() ?>
-                <?= $this->Form->button(__('Submit'), ["disabled" => true, "id" => 'recommendation_submit']) ?>
+                <?= $this->Form->button(__('Submit'), ["id" => 'recommendation_submit', 'class' => 'btn-primary']) ?>
+                <div class="text-end mt-3">
+                    <?= $this->Html->link(__('Return to Login'), ['plugin' => null, 'controller' => 'Members', 'action' => 'login'], ['class' => 'btn btn-secondary']) ?>
+                </div>
 
         </div>
     </div>

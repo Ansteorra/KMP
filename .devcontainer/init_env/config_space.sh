@@ -49,6 +49,14 @@ sudo echo "export EMAIL_SMTP_USERNAME='$EMAIL_DEV_SMTP_USERNAME'" >> /workspaces
 sudo echo "export EMAIL_SMTP_PASSWORD='$EMAIL_DEV_SMTP_PASSWORD'" >> /workspaces/$(echo $REPO_PATH)/app/config/.env
 sudo echo "export PATH_WKHTML='/usr/bin/wkhtmltopdf'" >> /workspaces/$(echo $REPO_PATH)/app/config/.env
 
+rm ~/.meremerd
+cat > ~/.mermerd <<EOF
+showAllConstraints: true
+encloseWithMermaidBackticks: true
+connectionStringSuggestions:
+  - mysql://$PROJECT_NAME:$MYSQL_DEV_PASSWORD@tcp(127.0.0.1:3306)/$MYSQL_DEV_DB_NAME
+EOF
+
 rm /workspaces/$(echo $REPO_PATH)/app/config/app_local.php
 cp /workspaces/$(echo $REPO_PATH)/.devcontainer/init_env/app_local.php /workspaces/$(echo $REPO_PATH)/app/config/app_local.php
 

@@ -46,7 +46,6 @@ class recommendationsAdd {
     }
 
     run() {
-        $('#recommendation__branch_id').parent().addClass('d-none');
         var me = this;
         var searchUrl =
             '<?= $this->URL->build(['controller' => 'Members', 'action' => 'SearchMembers', 'plugin' => null]) ?>';
@@ -65,15 +64,17 @@ class recommendationsAdd {
             }
         });
         $('#recommendation_submit').on('click', function() {
-            if (
-                ($('#recommendation__member_id').val() > 0 ||
-                    $('#recommendation__not_found').prop('checked')
-                ) &&
-                $('#recommendation__award_id').val() > 0
-            ) {
-                $('#recommendation__not_found').prop('disabled', false);
-                $('#recommendation_form').submit();
-            }
+            //if (
+            //    ($('#recommendation__member_id').val() > 0 ||
+            //        $('#recommendation__not_found').prop('checked')
+            //    ) &&
+            //    $('#recommendation__award_id').val() > 0
+            //) {
+            //    $('#recommendation__not_found').prop('disabled', false);
+            //    $('#recommendation_form').submit();
+            // }
+            $('#recommendation__not_found').prop('disabled', false);
+            $('#recommendation_form').submit();
         });
 
         $('#recommendation__domain_id').change(function() {
@@ -94,8 +95,22 @@ class recommendationsAdd {
                     );
                     var active = "active";
                     var show = "show";
+                    var wasSelected = '<?= $recommendation->award_id ?>';
+                    var selected = "";
                     data.forEach(award => {
-                        awardSelect.append('<option value="' + award.id + '">' + award
+                        <?php if ($recommendation->award_id > 0) : ?>
+                        if (award.id == wasSelected) {
+                            selected = "selected='selected'";
+                            show = "show";
+                            active = "active";
+                        } else {
+                            active = "";
+                            show = "";
+                            selected = "";
+                        }
+                        <?php endif; ?>
+                        awardSelect.append('<option value="' + award.id + '" ' + selected +
+                            ' >' + award
                             .name + " - " + award.level.name +
                             '</option>');
                         var tabButton = $(
@@ -132,7 +147,29 @@ class recommendationsAdd {
                 $("#" + tabid).click();
             }
         });
-        $('#recommendation__domain_id').trigger('change');
+
+        <?php if (!$recommendation->isNew()) : ?>
+        $('#recommendation__domain_id').val('');
+        $('#recommendation__sca_name').val('');
+        $('#recommendation__member_id').val('');
+        $('#member_sca_name').val('');
+        $('input[type="checkbox"]').prop('checked', false);
+        $('#member_links').empty();
+        $('#recommendation__branch_id').parent().addClass('d-none');
+        $('#recommendation__award_id').val('');
+        $('#recommendation_reason').val('');
+        $('#recommendation__branch_id').val('');
+        $('#recommendation__branch_id').val('');
+        <?php else : ?>
+        <?php if ($recommendation->branch_id && $recommendation->branch_id > 0) : ?>
+        $('#recommendation__branch_id').parent().removeClass('d-none');
+        $('#recommendation__not_found').prop('checked', true);
+        <?php else : ?>
+        $('#recommendation__branch_id').parent().addClass('d-none');
+        $('#recommendation__not_found').prop('checked', false);
+        <?php endif; ?>
+        <?php endif; ?>
+        $('#recommendation__domain_id').trigger('change')
     }
 };
 window.addEventListener('DOMContentLoaded', function() {

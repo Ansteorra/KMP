@@ -139,7 +139,7 @@ class RecommendationsController extends AppController
         }
 
         $recommendation = $this->Recommendations->newEmptyEntity();
-        if ($this->request->is('post')) {
+        if ($this->request->is(['post', 'put'])) {
             $recommendation = $this->Recommendations->patchEntity($recommendation, $this->request->getData());
             if ($recommendation->requester_id != null) {
                 $recommendation->requester_sca_name = $this->Recommendations->Requesters->get($recommendation->requester_id, fields: ['sca_name'])->sca_name;
@@ -149,7 +149,6 @@ class RecommendationsController extends AppController
                 $recommendation->member_id = null;
             }
             if ($this->Recommendations->save($recommendation)) {
-                $recommendation = $this->Recommendations->newEmptyEntity();
                 $this->Flash->success(__('The recommendation has been submitted.'));
             } else {
                 $this->Flash->error(__('The recommendation could not be submitted. Please, try again.'));

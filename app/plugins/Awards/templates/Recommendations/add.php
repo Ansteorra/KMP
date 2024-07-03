@@ -25,6 +25,7 @@ $this->KMP->endBlock(); ?>
             "id" => "recommendation__member_id",
         ]);
         echo $this->Form->control("member_sca_name", [
+            'required' => true,
             "type" => "text",
             "label" => "Recommendation For",
             "id" => "recommendation__sca_name",
@@ -44,18 +45,18 @@ $this->KMP->endBlock(); ?>
 
         </div>
         <?php
-        echo $this->Form->control('award_id', ['options' => ["Please select the type of award first."], "disabled" => true, "id" => "recommendation__award_id"]);
-        echo $this->Form->control('contact_number', ['value' => $user->phone_number]);
-        echo $this->Form->control('reason');
+        echo $this->Form->control('award_id', ['required' => true, 'options' => ["Please select the type of award first."], "disabled" => true, "id" => "recommendation__award_id"]);
+        echo $this->Form->control('reason', ['id' => 'recommendation_reason', 'required' => true]);
         echo $this->Form->control('events._ids', [
             'label' => 'Events They may Attend:',
             "type" => "select",
             "multiple" => "checkbox",
             'options' => $events
         ]);
+        echo $this->Form->control('contact_number', ['value' => $user->phone_number, 'help' => 'incase we need to contact you', 'id' => 'recommendation__contact_number']);
         ?>
     </fieldset>
     <?= $this->Form->end() ?>
-    <?= $this->Form->button(__('Submit'), ["disabled" => true, "id" => 'recommendation_submit']) ?>
+    <?= $this->Form->button(__('Submit'), ["id" => 'recommendation_submit', 'class' => 'btn-primary']) ?>
 </div>
 <?= $this->element('recommendationScript', ['user' => $user]); ?>
