@@ -20,5 +20,3 @@ RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local
 # Configure Apache.
 RUN echo "Listen 8080" >> /etc/apache2/ports.conf && \
     a2enmod rewrite
-
-RUN cd ~ && go install github.com/KarnerTh/mermerd@latest

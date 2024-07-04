@@ -49,6 +49,9 @@ sudo echo "export EMAIL_SMTP_USERNAME='$EMAIL_DEV_SMTP_USERNAME'" >> /workspaces
 sudo echo "export EMAIL_SMTP_PASSWORD='$EMAIL_DEV_SMTP_PASSWORD'" >> /workspaces/$(echo $REPO_PATH)/app/config/.env
 sudo echo "export PATH_WKHTML='/usr/bin/wkhtmltopdf'" >> /workspaces/$(echo $REPO_PATH)/app/config/.env
 
+cd ~ 
+go install github.com/KarnerTh/mermerd@latest
+
 rm ~/.meremerd
 cat > ~/.mermerd <<EOF
 showAllConstraints: true
