@@ -165,6 +165,9 @@ class ActivitiesTable extends Table
     public static function canAuhtorizeAnyActivity($user): bool
     {
         $permission = $user->getPermissionIDs();
+        if (empty($permission)) {
+            return false;
+        }
         $activitiesTable = TableRegistry::getTableLocator()->get("Activities.Activities");
         $activityCount = $activitiesTable->find()->select("id")->where(["permission_id IN" => $permission])->count();
         return $activityCount > 0;
