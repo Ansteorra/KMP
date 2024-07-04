@@ -70,7 +70,14 @@ echo $this->KMP->startBlock("tb_body_start");
                 <div class="row align-items-start">
                     <div class="col">
                         <h3>
-                            <a href="#" onclick="window.history.back();" class="bi bi-arrow-left-circle"></a>
+                            <?php
+                            $historyCount = count($pageStack);
+                            if ($historyCount < 2) {
+                                echo '<a href="#" onclick="window.history.back();" class="bi "></a>';
+                            } else {
+                                echo '<a href="' . $pageStack[$historyCount - 2] . '" class="bi bi-arrow-left-circle"></a>';
+                            }
+                            ?>
                             <?php echo $this->fetch("pageTitle") ?>
                         </h3>
                     </div>

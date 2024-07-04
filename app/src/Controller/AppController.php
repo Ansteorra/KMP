@@ -43,6 +43,7 @@ class AppController extends Controller
     public function beforeFilter(EventInterface $event)
     {
         parent::beforeFilter($event);
+
         //get url params
         $params = [
             'controller' => $this->request->getParam('controller'),
@@ -50,6 +51,36 @@ class AppController extends Controller
             'plugin' => $this->request->getParam('plugin'),
             $this->request->getParam('pass')
         ];
+
+        $currentUrl = $this->request->getRequestTarget();
+        $session = $this->getRequest()->getSession();
+        $pageStack = $session->read('pageStack', []);
+
+        if ($params['action'] == 'logout') {
+            $session->destroy();
+        }
+        if ($params['action'] == 'index') {
+            $pageStack = [];
+        }
+        if (empty($pageStack)) {
+            $pageStack[] = $currentUrl;
+        }
+        $turboRequest = $this->request->getHeader('Turbo-Frame') != null;
+        //if the method is a post skip the history
+        if (!$turboRequest && !$this->request->is('post') && !$this->request->is('put') && !$this->request->is('delete')) {
+            $historyCount = count($pageStack);
+            if (($historyCount > 1) && ($pageStack[$historyCount - 2] == $currentUrl)) {
+                $historyCount--;
+                array_pop($pageStack);
+            }
+            if ($pageStack[$historyCount - 1] != $currentUrl) {
+                $pageStack[] = $currentUrl;
+                $historyCount++;
+            }
+        }
+        $session->write('pageStack', $pageStack);
+        $this->set('pageStack', $pageStack);
+
         $event = new Event(static::VIEW_PLUGIN_EVENT, $this, ['url' => $params]);
         EventManager::instance()->dispatch($event);
         if ($event->getResult()) {
