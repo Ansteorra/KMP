@@ -57,7 +57,7 @@ cat > ~/.mermerd <<EOF
 showAllConstraints: true
 encloseWithMermaidBackticks: true
 connectionStringSuggestions:
-  - mysql://$PROJECT_NAME:$MYSQL_DEV_PASSWORD@tcp(127.0.0.1:3306)/$MYSQL_DEV_DB_NAME
+  - mysql://$MYSQL_DEV_USERNAME:$MYSQL_DEV_PASSWORD@tcp(127.0.0.1:3306)/$MYSQL_DEV_DB_NAME
 EOF
 
 rm /workspaces/$(echo $REPO_PATH)/app/config/app_local.php
