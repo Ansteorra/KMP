@@ -72,6 +72,7 @@ class Recommendation extends Entity
         'requester_sca_name' => true,
         'member_sca_name' => true,
         'contact_number' => true,
+        'contact_email' => true,
         'reason' => true,
         'modified' => true,
         'created' => true,

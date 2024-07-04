@@ -118,14 +118,19 @@ class RecommendationsTable extends Table
             ->notEmptyString('member_sca_name');
 
         $validator
+            ->scalar('contact_email')
+            ->maxLength('contact_email', 255)
+            ->requirePresence('contact_email', 'create')
+            ->notEmptyString('contact_email');
+
+        $validator
             ->scalar('contact_number')
             ->maxLength('contact_number', 100)
-            ->requirePresence('contact_number', 'create')
-            ->notEmptyString('contact_number');
+            ->allowEmptyString('contact_number');
 
         $validator
             ->scalar('reason')
-            ->allowEmptyString('reason')
+            ->maxLength('contact_number', 10000)
             ->requirePresence('reason', 'create')
             ->notEmptyString('reason');
 

@@ -41,6 +41,7 @@ $this->KMP->endBlock(); ?>
                 echo $this->Form->control("zip");
                 echo $this->Form->control("phone_number");
                 echo $this->Form->control("email_address", [
+                    'type' => 'email',
                     "required" => true,
                     "type" => "email",
                     "nestedInput" => true,

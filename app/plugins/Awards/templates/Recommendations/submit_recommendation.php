@@ -33,7 +33,8 @@ $this->KMP->endBlock(); ?>
                         "label" => "Your SCA Name",
                         "id" => "recommendation__requester_sca_name",
                     ]);
-                    echo $this->Form->control('contact_number', ['id' => 'recommendation__contact_number', 'help' => 'incase we need to contact you',]);
+                    echo $this->Form->control('contact_email', ['type' => 'email', 'help' => 'incase we need to contact you', 'id' => 'recommendation__email_address']);
+                    echo $this->Form->control('contact_number', ['help' => 'optional way for us to contact you', 'id' => 'recommendation__contact_number']);
                     echo $this->Form->control("member_id", [
                         "type" => "hidden",
                         "id" => "recommendation__member_id",

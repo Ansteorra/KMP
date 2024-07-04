@@ -63,20 +63,9 @@ class recommendationsAdd {
                 me.getPublicLinks($('#recommendation__member_id').val());
             }
         });
-        $('#recommendation_submit').on('click', function() {
-            //if (
-            //    ($('#recommendation__member_id').val() > 0 ||
-            //        $('#recommendation__not_found').prop('checked')
-            //    ) &&
-            //    $('#recommendation__award_id').val() > 0
-            //) {
-            //    $('#recommendation__not_found').prop('disabled', false);
-            //    $('#recommendation_form').submit();
-            // }
+        $('#recommendation_form').on('submit', function(e) {
             $('#recommendation__not_found').prop('disabled', false);
-            $('#recommendation_form').submit();
         });
-
         $('#recommendation__domain_id').change(function() {
             var domainId = $('#recommendation__domain_id').val();
             var awardSelect = $('#recommendation__award_id');

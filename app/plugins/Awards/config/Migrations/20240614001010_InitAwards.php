@@ -298,6 +298,11 @@ class InitAwards extends AbstractMigration
             ->addColumn("contact_number", "string", [
                 "default" => null,
                 "limit" => 100,
+                "null" => true,
+            ])
+            ->addColumn("contact_email", "string", [
+                "default" => null,
+                "limit" => 255,
                 "null" => false,
             ])
             ->addColumn("reason", "text", [

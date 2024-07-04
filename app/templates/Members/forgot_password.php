@@ -12,7 +12,7 @@ $this->KMP->endBlock(); ?>
         <h5 class="card-title">Forgot Password</h5>
         <div class="card-text">
             <?= $this->Form->create() ?>
-            <?= $this->Form->control("email_address") ?>
+            <?= $this->Form->control("email_address", ['type' => 'email']) ?>
             <?= $this->Form->button("Send Password Reset") ?>
             <?= $this->Form->end() ?>
         </div>

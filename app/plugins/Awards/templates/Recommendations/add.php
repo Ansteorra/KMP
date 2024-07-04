@@ -53,7 +53,8 @@ $this->KMP->endBlock(); ?>
             "multiple" => "checkbox",
             'options' => $events
         ]);
-        echo $this->Form->control('contact_number', ['value' => $user->phone_number, 'help' => 'incase we need to contact you', 'id' => 'recommendation__contact_number']);
+        echo $this->Form->control('contact_email', ['type' => 'email', 'value' => $user->email_address, 'help' => 'incase we need to contact you', 'id' => 'recommendation__email_address']);
+        echo $this->Form->control('contact_number', ['value' => $user->phone_number, 'help' => 'optional way for us to contact you', 'id' => 'recommendation__contact_number']);
         ?>
     </fieldset>
     <?= $this->Form->end() ?>

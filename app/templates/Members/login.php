@@ -23,6 +23,7 @@ $this->KMP->endBlock(); ?>
         <h5 class="card-title">Log In</h5>
         <div class="card-text">
             <?= $this->Form->control("email_address", [
+                'type' => 'email',
                 "label" => ["floating" => true],
                 "autofocus",
             ]) ?>
@@ -39,15 +40,14 @@ $this->KMP->endBlock(); ?>
                 ["class" => "btn btn-sm btn-link"],
             ) ?>
             <? if ($allowRegistration == strtolower("yes")) : ?>
-            <?= $this->html->link(
+                <?= $this->html->link(
                     __("New User? Register Here"),
                     ["action" => "register"],
                     ["class" => "btn btn-sm btn-link"],
                 ) ?>
             <? endif; ?>
 
-            <a href="<?= $this->Url->build(['plugin' => 'Awards', 'controller' => 'Recommendations', 'action' => 'SubmitRecommendation']) ?>"
-                class="mt-3 btn fs-6 bi bi-megaphone-fill mb-2 <?= $this->KMP->getAppSetting("Awards.RecButtonClass", "btn-warning") ?>">
+            <a href="<?= $this->Url->build(['plugin' => 'Awards', 'controller' => 'Recommendations', 'action' => 'SubmitRecommendation']) ?>" class="mt-3 btn fs-6 bi bi-megaphone-fill mb-2 <?= $this->KMP->getAppSetting("Awards.RecButtonClass", "btn-warning") ?>">
                 Submit Award Rec.</a>
         </div>
     </div>
