@@ -54,8 +54,8 @@ $this->KMP->endBlock(); ?>
                     ]); ?>
                     <div class="row mb-2" id="member_links"></div>
                     <?php
-                    echo $this->Form->control('branch_id', ['options' => $branches, 'empty' => true, "label" => "Member Of", "id" => "recommendation__branch_id"]);
-                    echo $this->Form->control('domain_id', ['options' => $awardsDomains, 'empty' => true, "label" => "Award Type", "id" => "recommendation__domain_id"]); ?>
+                    echo $this->Form->control('branch_id', ['options' => $branches, 'empty' => true, "label" => "Member Of", "id" => "recommendation__branch_id",  'disabled' => true, "required" => true]);
+                    echo $this->Form->control('domain_id', ['options' => $awardsDomains, 'empty' => true, "label" => "Award Type", "id" => "recommendation__domain_id", "required" => true]); ?>
                     <div class="role p-3" id="award_descriptions">
 
                     </div>

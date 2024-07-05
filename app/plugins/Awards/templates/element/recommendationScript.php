@@ -9,6 +9,7 @@ class recommendationsAdd {
         var notFound = $('#recommendation__not_found');
         var branch = $('#recommendation__branch_id').parent();
         notFound.prop('checked', true);
+        $('#recommendation__branch_id').prop('disabled', false);
         branch.removeClass('d-none');
         $('#recommendation_submit').prop('disabled', false);
         var memberLinks = $('#member_links');
@@ -17,6 +18,7 @@ class recommendationsAdd {
     searchHadResults() {
         var notFound = $('#recommendation__not_found');
         var branch = $('#recommendation__branch_id').parent();
+        $('#recommendation__branch_id').prop('disabled', true);
         notFound.prop('checked', false);
         branch.addClass('d-none');
     }
