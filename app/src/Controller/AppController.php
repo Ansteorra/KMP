@@ -25,6 +25,7 @@ use Cake\Event\EventInterface;
 use Cake\Event\Event;
 use Cake\Log\Log;
 use Cake\Event\EventManager;
+use Cake\Core\Configure;
 
 /**
  * Application Controller
@@ -52,10 +53,13 @@ class AppController extends Controller
             $this->request->getParam('pass')
         ];
 
+        $baseSub = Configure::read('App.base');
         $currentUrl = $this->request->getRequestTarget();
+        if ($baseSub != null) {
+            $currentUrl = $baseSub . $currentUrl;
+        }
         $session = $this->getRequest()->getSession();
         $pageStack = $session->read('pageStack', []);
-
         if ($params['action'] == 'logout') {
             $session->destroy();
         }
