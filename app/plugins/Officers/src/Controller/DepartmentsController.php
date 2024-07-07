@@ -89,12 +89,11 @@ class DepartmentsController extends AppController
             $department = $this->Departments->patchEntity($department, $this->request->getData());
             if ($this->Departments->save($department)) {
                 $this->Flash->success(__('The department has been saved.'));
-
-                return $this->redirect(['action' => 'view', $department->id]);
+            } else {
+                $this->Flash->error(__('The department could not be saved. Please, try again.'));
             }
-            $this->Flash->error(__('The department could not be saved. Please, try again.'));
         }
-        $this->set(compact('department'));
+        return $this->redirect(['action' => 'view', $department->id]);
     }
 
     /**

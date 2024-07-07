@@ -104,7 +104,7 @@ class OfficesTable extends Table
 
         $validator
             ->integer('department_id')
-            ->allowEmptyString('department_id');
+            ->notEmptyString('department_id');
 
         $validator
             ->boolean('requires_warrant')

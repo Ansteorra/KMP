@@ -88,6 +88,14 @@ echo $this->KMP->startBlock("pageTitle") ?>
 <?php $this->KMP->endBlock() ?>
 <?php
 echo $this->KMP->startBlock("modals");
+echo $this->Form->create($award, [
+    "id" => "edit_entity",
+    "url" => [
+        "controller" => "Awards",
+        "action" => "edit",
+        $award->id,
+    ],
+]);
 echo $this->Modal->create("Edit Award", [
     "id" => "editModal",
     "close" => true,
@@ -95,14 +103,6 @@ echo $this->Modal->create("Edit Award", [
 ?>
 <fieldset>
     <?php
-    echo $this->Form->create($award, [
-        "id" => "edit_entity",
-        "url" => [
-            "controller" => "Awards",
-            "action" => "edit",
-            $award->id,
-        ],
-    ]);
     echo $this->Form->control('name');
     echo $this->Form->control('description');
     echo $this->Form->control('insignia');
@@ -111,19 +111,19 @@ echo $this->Modal->create("Edit Award", [
     echo $this->Form->control('domain_id', ['options' => $awardsDomains]);
     echo $this->Form->control('level_id', ['options' => $awardsLevels]);
     echo $this->Form->control('branch_id', ['options' => $branches]);
-    echo $this->Form->end();
     ?>
 </fieldset>
 <?php echo $this->Modal->end([
     $this->Form->button("Submit", [
         "class" => "btn btn-primary",
-        "id" => "edit_entity__submit",
-        "onclick" => '$("#edit_entity").submit();',
+        "id" => "edit_entity__submit"
     ]),
     $this->Form->button("Close", [
         "data-bs-dismiss" => "modal",
     ]),
-]); ?>
+]);
+echo $this->Form->end();
+?>
 
 <?php //finish writing to modal block in layout
 $this->KMP->endBlock(); ?>

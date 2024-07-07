@@ -113,15 +113,11 @@ class OfficesController extends AppController
             $office = $this->Offices->patchEntity($office, $this->request->getData());
             if ($this->Offices->save($office)) {
                 $this->Flash->success(__('The office has been saved.'));
-
-                return $this->redirect(['action' => 'view', $office['id']]);
+            } else {
+                $this->Flash->error(__('The office could not be saved. Please, try again.'));
             }
-            $this->Flash->error(__('The office could not be saved. Please, try again.'));
         }
-        $departments = $this->Offices->Departments->find('list', limit: 200)->all();
-        $offices = $this->Offices->find('list', limit: 200)->all();
-        $roles = $this->Offices->GrantsRole->find('list', limit: 200)->all();
-        $this->set(compact('office', 'departments', 'offices', 'roles'));
+        return $this->redirect(['action' => 'view', $office['id']]);
     }
 
     /**

@@ -27,6 +27,7 @@ class InitRolesSeed extends AbstractSeed
             [
                 'id' => 1,
                 'name' => 'Admin',
+                'is_system' => true,
                 'deleted' => NULL,
                 'created' => DateTime::now(),
                 'created_by' => '1',

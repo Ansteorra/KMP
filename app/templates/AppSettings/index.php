@@ -103,6 +103,10 @@ $this->KMP->endBlock(); ?>
 </div>
 <?php
 echo $this->KMP->startBlock("modals");
+echo $this->Form->create($emptyAppSetting, [
+    "url" => ["action" => "add"],
+    "id" => "add_entity",
+]);
 echo $this->Modal->create("Add App Setting", [
     "id" => "addModal",
     "close" => true,
@@ -110,25 +114,22 @@ echo $this->Modal->create("Add App Setting", [
 ?>
 <fieldset>
     <?php
-    echo $this->Form->create($emptyAppSetting, [
-        "url" => ["action" => "add"],
-        "id" => "add_entity",
-    ]);
     echo $this->Form->control("name");
     echo $this->Form->control("value");
-    echo $this->Form->end();
     ?>
 </fieldset>
 <?php echo $this->Modal->end([
     $this->Form->button("Submit", [
         "class" => "btn btn-primary",
         "id" => "add_entity__submit",
-        "onclick" => '$("#add_entity").submit();',
     ]),
     $this->Form->button("Close", [
         "data-bs-dismiss" => "modal",
     ]),
-]); ?>
+]);
+echo $this->Form->end();
+
+?>
 
 <?php //finish writing to modal block in layout
 $this->KMP->endBlock(); ?>

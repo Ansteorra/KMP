@@ -139,19 +139,19 @@ echo $this->KMP->startBlock("modals"); ?>
         "options" => $roles,
         "empty" => true,
     ]);
-    echo $this->Form->end();
     ?>
 </fieldset>
 <?php echo $this->Modal->end([
     $this->Form->button("Submit", [
         "class" => "btn btn-primary",
-        "id" => "edit_entity__submit",
-        "onclick" => '$("#edit_entity").submit();',
+        "id" => "edit_entity__submit"
     ]),
     $this->Form->button("Close", [
         "data-bs-dismiss" => "modal",
     ]),
-]); ?>
+]);
+
+echo $this->Form->end(); ?>
 
 
 <?php //finish writing to modal block in layout

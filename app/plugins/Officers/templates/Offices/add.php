@@ -24,6 +24,7 @@ $this->KMP->endBlock();
         echo $this->Form->control("name");
         echo $this->Form->control("department_id", [
             "options" => $departments,
+            "empty" => true,
         ]);
         echo $this->Form->control("term_length");
         echo $this->Form->control("required_office", ["switch" => true, 'label' => 'Required']);

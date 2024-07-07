@@ -53,6 +53,14 @@ echo $this->Form->postLink(
 <?php $this->KMP->endBlock() ?>
 <?php
 echo $this->KMP->startBlock("modals");
+echo $this->Form->create($event, [
+    "id" => "edit_entity",
+    "url" => [
+        "controller" => "Events",
+        "action" => "edit",
+        $event->id,
+    ],
+]);
 echo $this->Modal->create("Edit Award Req Event", [
     "id" => "editModal",
     "close" => true,
@@ -60,14 +68,6 @@ echo $this->Modal->create("Edit Award Req Event", [
 ?>
 <fieldset>
     <?php
-    echo $this->Form->create($event, [
-        "id" => "edit_entity",
-        "url" => [
-            "controller" => "Events",
-            "action" => "edit",
-            $event->id,
-        ],
-    ]);
     echo $this->Form->control("name");
     echo $this->Form->control("description");
     echo $this->Form->control('branch_id', ['options' => $branches]);
@@ -79,19 +79,18 @@ echo $this->Modal->create("Edit Award Req Event", [
         "type" => "date",
         "label" => __("End Date"),
     ]);
-    echo $this->Form->end();
     ?>
 </fieldset>
 <?php echo $this->Modal->end([
     $this->Form->button("Submit", [
         "class" => "btn btn-primary",
         "id" => "edit_entity__submit",
-        "onclick" => '$("#edit_entity").submit();',
     ]),
     $this->Form->button("Close", [
         "data-bs-dismiss" => "modal",
     ]),
-]); ?>
+]);
+echo $this->Form->end(); ?>
 
 <?php //finish writing to modal block in layout
 $this->KMP->endBlock(); ?>

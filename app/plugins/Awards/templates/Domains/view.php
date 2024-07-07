@@ -88,6 +88,15 @@ echo $this->KMP->startBlock("pageTitle") ?>
 <?php $this->KMP->endBlock() ?>
 <?php
 echo $this->KMP->startBlock("modals");
+echo $this->Form->create($domain, [
+    "id" => "edit_entity",
+    "url" => [
+        "controller" => "Domains",
+        "action" => "edit",
+        $domain->id,
+    ],
+]);
+
 echo $this->Modal->create("Edit Award Domain", [
     "id" => "editModal",
     "close" => true,
@@ -95,28 +104,20 @@ echo $this->Modal->create("Edit Award Domain", [
 ?>
 <fieldset>
     <?php
-    echo $this->Form->create($domain, [
-        "id" => "edit_entity",
-        "url" => [
-            "controller" => "Domains",
-            "action" => "edit",
-            $domain->id,
-        ],
-    ]);
     echo $this->Form->control("name");
-    echo $this->Form->end();
     ?>
 </fieldset>
 <?php echo $this->Modal->end([
     $this->Form->button("Submit", [
         "class" => "btn btn-primary",
-        "id" => "edit_entity__submit",
-        "onclick" => '$("#edit_entity").submit();',
+        "id" => "edit_entity__submit"
     ]),
     $this->Form->button("Close", [
         "data-bs-dismiss" => "modal",
     ]),
-]); ?>
+]);
+echo $this->Form->end();
+?>
 
 <?php //finish writing to modal block in layout
 $this->KMP->endBlock(); ?>

@@ -61,7 +61,11 @@ class AppSettingsTable extends Table
             ->scalar("name")
             ->maxLength("name", 255)
             ->requirePresence("name", "create")
-            ->notEmptyString("name");
+            ->notEmptyString("name")
+            ->add("name", "unique", [
+                "rule" => "validateUnique",
+                "provider" => "table",
+            ]);
 
         $validator
             ->scalar("value")
@@ -69,6 +73,13 @@ class AppSettingsTable extends Table
             ->allowEmptyString("value");
 
         return $validator;
+    }
+
+    public function buildRules(RulesChecker $rules): RulesChecker
+    {
+        $rules->add($rules->isUnique(["name"]), ["errorField" => "name"]);
+
+        return $rules;
     }
 
     public function save(

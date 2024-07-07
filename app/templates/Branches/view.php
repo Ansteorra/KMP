@@ -76,7 +76,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
                 <td><?= h($member->sca_name) ?></td>
                 <td><?= $this->KMP->bool($member->age < 18, $this->Html) ?></td>
                 <td><?= h($member->membership_number) ?></td>
-                <td><?= h($member->membership_expires_on->toDateString()) ?></td>
+                <td><?= h($member->membership_expires_on ? $member->membership_expires_on->toDateString() : "") ?></td>
                 <td><?= h($member->status) ?></td>
                 <td class="actions">
                     <?= $this->Html->link(

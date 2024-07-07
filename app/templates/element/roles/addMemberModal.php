@@ -1,4 +1,9 @@
 <?php
+echo $this->Form->create(null, [
+    "id" => "add_member__form",
+    "url" => ["controller" => "MemberRoles", "action" => "add"],
+]);
+
 echo $this->Modal->create("Add Member to Role", [
     "id" => "addMemberModal",
     "close" => true,
@@ -6,10 +11,6 @@ echo $this->Modal->create("Add Member to Role", [
 ?>
 <fieldset>
     <?php
-    echo $this->Form->create(null, [
-        "id" => "add_member__form",
-        "url" => ["controller" => "MemberRoles", "action" => "add"],
-    ]);
     echo $this->Form->control("sca_name", [
         "type" => "text",
         "label" => "SCA Name",
@@ -24,7 +25,6 @@ echo $this->Modal->create("Add Member to Role", [
         "type" => "hidden",
         "id" => "add_member__member_id",
     ]);
-    echo $this->Form->end();
     ?>
 </fieldset>
 <?php echo $this->Modal->end([
@@ -36,4 +36,6 @@ echo $this->Modal->create("Add Member to Role", [
     $this->Form->button("Close", [
         "data-bs-dismiss" => "modal",
     ]),
-]); ?>
+]);
+echo $this->Form->end();
+?>

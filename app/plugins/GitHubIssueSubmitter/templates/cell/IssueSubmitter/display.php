@@ -8,20 +8,19 @@ $feedbackTypes = [
     "Other" => "Other",
 ];
 echo $this->KMP->startBlock("modals");
+echo $this->Form->create(null, [
+    "id" => "githubIssueForm",
+    "url" => ["controller" => "Issues", "action" => "Submit", "plugin" => "GitHubIssueSubmitter"],
+]);
 echo $this->Modal->create("Submit Issue", [
     "id" => "githubIssueModal",
     "close" => true,
 ]); ?>
 <fieldset class="text-start">
     <?php
-    echo $this->Form->create(null, [
-        "id" => "githubIssueForm",
-        "url" => ["controller" => "Issues", "action" => "Submit", "plugin" => "GitHubIssueSubmitter"],
-    ]);
     echo $this->Form->control("title", ["label" => "Title", "placeholder" => "Enter a title for the issue."]);
     echo $this->Form->control("feedbackType", ["label" => "Feedback", "type" => "select", "options" => $feedbackTypes]);
     echo $this->Form->control("body", ["label" => "Details", "type" => "textarea", "placeholder" => "Please provide a detailed description of the issue."]);
-    echo $this->Form->end();
     ?>
 </fieldset>
 <div id="githubIssue_success" class="text-center">
@@ -34,13 +33,13 @@ echo $this->Modal->create("Submit Issue", [
 echo $this->Modal->end([
     $this->Form->button("Submit", [
         "class" => "btn btn-primary",
-        "id" => "githubIssueForm__submit",
-        "onclick" => '$("#githubIssueForm").submit();',
+        "id" => "githubIssueForm__submit"
     ]),
     $this->Form->button("Close", [
         "data-bs-dismiss" => "modal",
     ]),
 ]);
+echo $this->Form->end();
 $this->KMP->endBlock();
 echo $this->KMP->startBlock("script"); ?>
 <script>

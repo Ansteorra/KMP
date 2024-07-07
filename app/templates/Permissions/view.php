@@ -143,18 +143,18 @@ echo $this->KMP->startBlock("pageTitle") ?>
 
     <?php //Start writing to modal block in layout
 
-    echo $this->KMP->startBlock("modals"); ?>
+    echo $this->KMP->startBlock("modals");
 
-    <?php echo $this->Modal->create("Add Role to Permissions", [
+    echo $this->Form->create(null, [
+        "id" => "add_role__form",
+        "url" => ["controller" => "Roles", "action" => "addPermission"],
+    ]);
+    echo $this->Modal->create("Add Role to Permissions", [
         "id" => "addRoleModal",
         "close" => true,
     ]); ?>
     <fieldset>
         <?php
-        echo $this->Form->create(null, [
-            "id" => "add_role__form",
-            "url" => ["controller" => "Roles", "action" => "addPermission"],
-        ]);
         echo $this->Form->control("role_id", [
             "options" => $roles,
             "empty" => true,
@@ -165,7 +165,6 @@ echo $this->KMP->startBlock("pageTitle") ?>
             "value" => $permission->id,
             "id" => "add_role__permission_id",
         ]);
-        echo $this->Form->end();
         ?>
     </fieldset>
     <?php echo $this->Modal->end([
@@ -177,22 +176,24 @@ echo $this->KMP->startBlock("pageTitle") ?>
         $this->Form->button("Close", [
             "data-bs-dismiss" => "modal",
         ]),
-    ]); ?>
+    ]);
+    echo $this->Form->end();
 
-    <?php echo $this->Modal->create("Edit Permissions", [
+    echo $this->Form->create($permission, [
+        "id" => "edit_entity",
+        "url" => [
+            "controller" => "Permissions",
+            "action" => "edit",
+            $permission->id,
+        ],
+    ]);
+
+    echo $this->Modal->create("Edit Permissions", [
         "id" => "editModal",
         "close" => true,
     ]); ?>
     <fieldset>
         <?php
-        echo $this->Form->create($permission, [
-            "id" => "edit_entity",
-            "url" => [
-                "controller" => "Permissions",
-                "action" => "edit",
-                $permission->id,
-            ],
-        ]);
         if ($permission->is_system) {
             echo $this->Form->control("name", ["disabled" => "disabled"]);
         } else {
@@ -219,19 +220,19 @@ echo $this->KMP->startBlock("pageTitle") ?>
             ]);
         }
         echo $this->Form->control("requires_warrant", ["switch" => true]);
-        echo $this->Form->end();
         ?>
     </fieldset>
     <?php echo $this->Modal->end([
         $this->Form->button("Submit", [
             "class" => "btn btn-primary",
             "id" => "edit_entity__submit",
-            "onclick" => '$("#edit_entity").submit();',
         ]),
         $this->Form->button("Close", [
             "data-bs-dismiss" => "modal",
         ]),
-    ]); ?>
+    ]);
+    echo $this->Form->end();
+    ?>
 
 
     <?php //finish writing to modal block in layout
@@ -254,9 +255,9 @@ echo $this->KMP->startBlock("pageTitle") ?>
                     $('#add_role__submit').prop('disabled', true);
                 }
             });
-            $('#add_role__submit').on('click', function() {
-                if ($('#add_role__role_id').val() > 0) {
-                    $('#add_role__form').submit();
+            $('#add_role__form').on('submit', function(e) {
+                if (!$('#add_role__role_id').val() > 0) {
+                    e.preventDefault();
                 }
             });
         }

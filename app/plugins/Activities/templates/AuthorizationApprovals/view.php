@@ -189,6 +189,10 @@ echo $this->KMP->startBlock("pageTitle") ?>
 <?php
 $this->KMP->endBlock();
 echo $this->KMP->startBlock("modals");
+echo $this->Form->create(null, [
+    "url" => ["controller" => "AuthorizationApprovals", "action" => "deny"],
+    "id" => "deny_auth",
+]);
 echo $this->Modal->create("Deny Authorization", [
     "id" => "denyModal",
     "close" => true,
@@ -196,10 +200,6 @@ echo $this->Modal->create("Deny Authorization", [
 ?>
 <fieldset>
     <?php
-    echo $this->Form->create(null, [
-        "url" => ["controller" => "AuthorizationApprovals", "action" => "deny"],
-        "id" => "deny_auth",
-    ]);
     echo $this->Form->control("id", [
         "type" => "hidden",
         "id" => "deny_auth__id",
@@ -208,7 +208,6 @@ echo $this->Modal->create("Deny Authorization", [
         "label" => "Reason for Denial",
         "onkeypress" => '$("#deny_auth__submit").removeAttr("disabled");',
     ]);
-    echo $this->Form->end();
     ?>
 </fieldset>
 <?php
@@ -216,14 +215,20 @@ echo $this->Modal->end([
     $this->Form->button("Submit", [
         "class" => "btn btn-primary",
         "id" => "deny_auth__submit",
-        "onclick" => '$("#deny_auth").submit();',
         "disabled" => "disabled",
     ]),
     $this->Form->button("Close", [
         "data-bs-dismiss" => "modal",
     ]),
 ]);
-
+echo $this->Form->end();
+echo $this->Form->create(null, [
+    "url" => [
+        "controller" => "AuthorizationApprovals",
+        "action" => "Approve",
+    ],
+    "id" => "approve_and_assign_auth",
+]);
 echo $this->Modal->create("Approve and Assign to next", [
     "id" => "approveAndAssignModal",
     "close" => true,
@@ -231,13 +236,6 @@ echo $this->Modal->create("Approve and Assign to next", [
 ?>
 <fieldset>
     <?php
-    echo $this->Form->create(null, [
-        "url" => [
-            "controller" => "AuthorizationApprovals",
-            "action" => "Approve",
-        ],
-        "id" => "approve_and_assign_auth",
-    ]);
     echo $this->Form->control("id", [
         "type" => "hidden",
         "id" => "approve_and_assign_auth_id",
@@ -246,7 +244,6 @@ echo $this->Modal->create("Approve and Assign to next", [
         "label" => "Forward to",
         "id" => "approve_and_assign_auth_approver_id",
     ]);
-    echo $this->Form->end();
     ?>
 </fieldset>
 <?php echo $this->Modal->end([
@@ -258,7 +255,9 @@ echo $this->Modal->create("Approve and Assign to next", [
     $this->Form->button("Close", [
         "data-bs-dismiss" => "modal",
     ]),
-]); ?>
+]);
+echo $this->Form->end();
+?>
 
 <?php //finish writing to modal block in layout
 
@@ -303,9 +302,9 @@ class authorizationApprovalViewAndMyQueue {
                 $('#approve_and_assign_auth__submit').prop('disabled', true);
             }
         });
-        $('#approve_and_assign_auth__submit').on('click', function() {
-            if ($('#approve_and_assign_auth_approver_id').val() > 0) {
-                $('#approve_and_assign_auth').submit();
+        $('#approve_and_assign_auth').on('submit', function(e) {
+            if (!$('#approve_and_assign_auth_approver_id').val() > 0) {
+                e.preventDefault();
             }
         });
     }

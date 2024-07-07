@@ -1,5 +1,9 @@
 <?php
-if ($user->can("verifyMembership", "Members") && $needVerification) {
+if ($user->can("verifyMembership", "Members") && $needVerification) :
+    echo $this->Form->create(null, [
+        "url" => ["controller" => "Members", "action" => "verifyMembership", $member->id],
+        "id" => "verify__form",
+    ]);
     echo $this->Modal->create("Verify Membership", [
         "id" => "verifyMembershipModal",
         "close" => true,
@@ -7,10 +11,7 @@ if ($user->can("verifyMembership", "Members") && $needVerification) {
 ?>
 <fieldset>
     <?php
-        echo $this->Form->create(null, [
-            "url" => ["controller" => "Members", "action" => "verifyMembership", $member->id],
-            "id" => "verify__form",
-        ]);
+
         echo $this->Form->control("member_id", [
             "type" => "hidden",
             "value" => $member->id,
@@ -36,6 +37,7 @@ if ($user->can("verifyMembership", "Members") && $needVerification) {
                 "type" => "text",
                 "label" => "Parent SCA Name",
                 "id" => "verify_member__sca_name",
+                'required' => true,
             ]);
             echo $this->Form->control("parent_id", [
                 "type" => "hidden",
@@ -63,24 +65,27 @@ if ($user->can("verifyMembership", "Members") && $needVerification) {
             }
             echo $this->Form->control("membership_number", [
                 "id" => "verify__membership_number",
+                'required' => true,
             ]);
             echo $this->Form->control("membership_expires_on", [
                 "type" => "date",
                 "id" => "verify__membership_expires_on",
+                'required' => true,
                 "empty" => true,
             ]);
         }
-        echo $this->Form->end();
         ?>
 </fieldset>
 <?php echo $this->Modal->end([
         $this->Form->button("Submit", [
             "class" => "btn btn-primary",
-            "id" => "verify__submit",
-            "onclick" => '$("#verify__form").submit();',
+            "id" => "verify__submit"
         ]),
         $this->Form->button("Close", [
             "data-bs-dismiss" => "modal",
         ]),
     ]);
-} ?>
+    echo $this->Form->end();
+endif;
+
+?>

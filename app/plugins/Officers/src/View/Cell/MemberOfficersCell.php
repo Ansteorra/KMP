@@ -19,7 +19,7 @@ class MemberOfficersCell extends BasePluginCell
     ];
     static protected array $pluginData = [
         'type' => BasePluginCell::PLUGIN_TYPE_TAB,
-        'label' => 'Officers',
+        'label' => 'Offices',
         'id' => 'member-officers',
         'order' => 2,
         'tabBtnBadge' => null,

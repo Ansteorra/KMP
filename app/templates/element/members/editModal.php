@@ -30,11 +30,15 @@ echo $this->Modal->create("Edit " . $member->sca_name, [
         echo $this->Form->control("state");
         echo $this->Form->control("zip");
         echo $this->Form->control("phone_number");
-        echo $this->Form->control("email_address", ['type' => 'email']);
+        echo $this->Form->control("email_address", [
+            'type' => 'email',
+            'data-original-value' => $member->email_address,
+            'id' => 'edit_entity__email_address',
+            'autoSetCustomValidity' => false,
+        ]);
         echo $this->Form->control("background_check_expires_on", [
             "empty" => true,
         ]);
-        echo $member->age < 18 ? $this->Form->control("parent_name") : "";
         echo $this->Form->control("birth_month");
         echo $this->Form->control("birth_year");
         echo $this->Form->control("status", [
@@ -64,10 +68,6 @@ echo $this->Modal->create("Edit " . $member->sca_name, [
             echo $this->Form->control("state");
             echo $this->Form->control("zip");
             echo $this->Form->control("phone_number");
-            echo $this->Form->control("email_address", ['type' => 'email']);
-            echo $member->age < 18
-                ? $this->Form->control("parent_name")
-                : "";
         }
     } ?>
 </fieldset>

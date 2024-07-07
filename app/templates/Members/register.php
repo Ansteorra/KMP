@@ -45,6 +45,7 @@ $this->KMP->endBlock(); ?>
                     "required" => true,
                     "type" => "email",
                     "nestedInput" => true,
+                    "id" => "entity__email_address",
                     "labelOptions" => ["class" => "input-group-text"],
                 ]);
                 ?>
@@ -105,6 +106,47 @@ class memberRegister {
 window.addEventListener('DOMContentLoaded', function() {
     var pageControl = new memberRegister(window.$);
     pageControl.run();
+});
+</script>
+<?php echo $this->KMP->endBlock(); ?>
+
+<?php echo $this->KMP->startBlock("script"); ?>
+<script>
+window.addEventListener('DOMContentLoaded', function() {
+    $('#entity__email_address').removeAttr('oninput');
+    $('#entity__email_address').removeAttr('oninvalid');
+    $('#entity__email_address').on('change', function() {
+        var email = $('#entity__email_address').val();
+        if (email == '') {
+            $('#entity__email_address').removeClass('is-invalid');
+            $('#entity__email_address').removeClass('is-valid');
+            $('#entity__email_address')[0].setCustomValidity('');
+            return;
+        }
+        var original_email = $('#entity__email_address').data('original-value');
+        if (email == original_email) {
+            $('#entity__email_address').addClass('is-valid');
+            $('#entity__email_address').removeClass('is-invalid');
+            return;
+        }
+        var checkEmailUrl =
+            '<?= $this->URL->build(['controller' => 'Members', 'action' => 'emailTaken']) ?>' +
+            '?email=' + encodeURIComponent(email);
+        $.get(checkEmailUrl, {
+            email: email
+        }, function(data) {
+            if (data) {
+                $('#entity__email_address').addClass('is-invalid');
+                $('#entity__email_address').removeClass('is-valid');
+                $('#entity__email_address')[0].setCustomValidity(
+                    'This email address is already taken.');
+            } else {
+                $('#entity__email_address').addClass('is-valid');
+                $('#entity__email_address').removeClass('is-invalid');
+                $('#entity__email_address')[0].setCustomValidity('');
+            }
+        });
+    });
 });
 </script>
 <?php echo $this->KMP->endBlock(); ?>

@@ -17,22 +17,25 @@ echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': View Role - ' .
 $this->KMP->endBlock();
 
 echo $this->KMP->startBlock("pageTitle") ?>
-<?= h($role->name) ?>
+<?= h($role->name) ?> <?php if ($role->is_system) : ?><br><span class="fs-6 fst-italic text-secondary">System
+    Role</span><?php endif; ?>
 <?php $this->KMP->endBlock() ?>
 <?= $this->KMP->startBlock("recordActions") ?>
+<?php if (!$role->is_system) : ?>
 <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal">Edit</button>
 <?= $this->Form->postLink(
-    __("Delete"),
-    ["action" => "delete", $role->id],
-    [
-        "confirm" => __(
-            "Are you sure you want to delete {0}?",
-            $role->name,
-        ),
-        "title" => __("Delete"),
-        "class" => "btn btn-danger btn-sm",
-    ],
-) ?>
+        __("Delete"),
+        ["action" => "delete", $role->id],
+        [
+            "confirm" => __(
+                "Are you sure you want to delete {0}?",
+                $role->name,
+            ),
+            "title" => __("Delete"),
+            "class" => "btn btn-danger btn-sm",
+        ],
+    ) ?>
+<?php endif; ?>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("recordDetails") ?>
 <?php $this->KMP->endBlock() ?>
@@ -82,9 +85,11 @@ echo $this->KMP->startBlock("pageTitle") ?>
 </div>
 <div class="related tab-pane fade m-3" id="nav-rolePermissions" role="tabpanel"
     aria-labelledby="nav-rolePermissions-tab">
+    <?php if (!$role->is_system) : ?>
     <button type="button" class="btn btn-primary btn-sm mb-3" data-bs-toggle="modal"
         data-bs-target="#addPermissionModal">Add
         Permission</button>
+    <?php endif; ?>
     <?php if (!empty($role->permissions)) : ?>
     <div class="table-responsive">
         <table class="table table-striped">
@@ -114,9 +119,11 @@ echo $this->KMP->startBlock("pageTitle") ?>
                     <th scope="col" class="text-center"><?= __(
                                                                 "System",
                                                             ) ?></th>
+                    <?php if (!$role->is_system) : ?>
                     <th scope="col" class="actions"><?= __(
-                                                            "Actions",
-                                                        ) ?></th>
+                                                                "Actions",
+                                                            ) ?></th>
+                    <?php endif; ?>
                 </tr>
             </thead>
             <?php foreach ($role->permissions as $permission) : ?>
@@ -147,26 +154,28 @@ echo $this->KMP->startBlock("pageTitle") ?>
                                                     $permission->is_system,
                                                     $this->Html,
                                                 ) ?></td>
+                <?php if (!$role->is_system) : ?>
                 <td class="actions">
                     <?= $this->Form->postLink(
-                                __("Remove"),
-                                [
-                                    "controller" => "Roles",
-                                    "action" => "deletePermission",
-                                ],
-                                [
-                                    "confirm" => __(
-                                        "Are you sure you want to remove for {0}?",
-                                        $permission->name,
-                                    ),
-                                    "class" => "btn btn-danger",
-                                    "data" => [
-                                        "permission_id" => $permission->id,
-                                        "role_id" => $role->id,
+                                    __("Remove"),
+                                    [
+                                        "controller" => "Roles",
+                                        "action" => "deletePermission",
                                     ],
-                                ],
-                            ) ?>
+                                    [
+                                        "confirm" => __(
+                                            "Are you sure you want to remove for {0}?",
+                                            $permission->name,
+                                        ),
+                                        "class" => "btn btn-danger",
+                                        "data" => [
+                                            "permission_id" => $permission->id,
+                                            "role_id" => $role->id,
+                                        ],
+                                    ],
+                                ) ?>
                 </td>
+                <?php endif; ?>
             </tr>
             <?php endforeach; ?>
         </table>
@@ -178,10 +187,11 @@ echo $this->KMP->startBlock("pageTitle") ?>
 
 <?php
 echo $this->KMP->startBlock("modals");
-
-echo $this->element('roles/addMemberModal', []);
-echo $this->element('roles/addPermissionModal', []);
-echo $this->element('roles/editModal', []);
+if (!$role->is_system) :
+    echo $this->element('roles/addMemberModal', []);
+    echo $this->element('roles/addPermissionModal', []);
+    echo $this->element('roles/editModal', []);
+endif;
 
 $this->KMP->endBlock();
 ?>
@@ -192,6 +202,7 @@ $this->KMP->endBlock();
 <?php
 echo $this->KMP->startBlock("script"); ?>
 <script>
+<?php if (!$role->is_system) : ?>
 class rolesView {
     constructor() {
         this.ac = null;
@@ -210,9 +221,9 @@ class rolesView {
                 $('#add_member__submit').prop('disabled', true);
             }
         });
-        $('#add_member__submit').on('click', function() {
-            if ($('#add_member__member_id').val() > 0) {
-                $('#add_member__form').submit();
+        $('#add_member__form').on('submit', function(e) {
+            if (!$('#add_member__member_id').val() > 0) {
+                e.preventDefault();
             }
         });
         $("#add_permission__permission_id").change(function() {
@@ -223,9 +234,9 @@ class rolesView {
                 $('#add_permission__submit').prop('disabled', true);
             }
         });
-        $('#add_permission__submit').on('click', function() {
-            if ($('#add_permission__permission_id').val() > 0) {
-                $('#add_permission__form').submit();
+        $('#add_permission__form').on('submit', function(e) {
+            if (!$('#add_permission__permission_id').val() > 0) {
+                e.preventDefault();
             }
         });
     }
@@ -234,5 +245,6 @@ window.addEventListener('DOMContentLoaded', function() {
     var pageControl = new rolesView();
     pageControl.run();
 });
+<?php endif; ?>
 </script>
 <?php echo $this->KMP->endBlock(); ?>

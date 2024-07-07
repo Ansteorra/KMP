@@ -94,6 +94,11 @@ class Init extends AbstractMigration
                 "limit" => 255,
                 "null" => false,
             ])
+            ->addColumn("is_system", "boolean", [
+                "default" => false,
+                "limit" => null,
+                "null" => false,
+            ])
             ->addColumn("modified", "datetime", [
                 "default" => null,
                 "limit" => null,

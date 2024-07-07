@@ -5,6 +5,7 @@ namespace App\KMP;
 use Exception;
 use Cake\Core\Configure;
 use Cake\ORM\TableRegistry;
+use Cake\Utility\Security;
 
 class StaticHelpers
 {
@@ -111,7 +112,7 @@ class StaticHelpers
      */
     static function generateToken(int $length = 32)
     {
-        return bin2hex(random_bytes($length));
+        return Security::randomString($length);
     }
     /**
      * Delete a file

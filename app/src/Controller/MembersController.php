@@ -45,6 +45,7 @@ class MembersController extends AppController
             "viewMobileCardJson",
             "searchMembers",
             "publicLinks",
+            "emailTaken",
         ]);
     }
 
@@ -376,8 +377,8 @@ class MembersController extends AppController
             }
             if ($this->Members->save($member)) {
                 if ($member->age < 18) {
-                    $this->Flash->success(__("The Member has been saved and the minor registration email has been sent."));
-                    $this->getMailer("KMP")->send("minorRegistration", [$member]);
+                    $this->Flash->success(__("The Member has been saved and the minor registration email has been sent for verification."));
+                    $this->getMailer("KMP")->send("notifySecretaryOfNewMinorMember", [$member]);
                 } else {
                     $this->Flash->success(__("The Member has been saved. Please ask the member to use 'forgot password' to set their password."));
                 }
@@ -690,6 +691,28 @@ class MembersController extends AppController
         $this->response = $this->response
             ->withType("application/json")
             ->withStringBody(json_encode($linkData));
+        return $this->response;
+    }
+
+    public function emailTaken()
+    {
+        $email = $this->request->getQuery("email");
+        $this->Authorization->skipAuthorization();
+        $this->request->allowMethod(["get"]);
+        $this->viewBuilder()->setClassName("Ajax");
+        $emailUsed = $this->Members
+            ->find("all")
+            ->where(["email_address" => $email])
+            ->count();
+        $result = "";
+        if ($emailUsed > 0) {
+            $result = true;
+        } else {
+            $result = false;
+        }
+        $this->response = $this->response
+            ->withType("application/json")
+            ->withStringBody(json_encode($result));
         return $this->response;
     }
 

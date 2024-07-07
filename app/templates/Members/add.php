@@ -37,6 +37,7 @@ $this->KMP->endBlock(); ?>
             "required" => true,
             "type" => "email",
             "nestedInput" => true,
+            "id" => "entity__email_address",
             "labelOptions" => ["class" => "input-group-text"],
         ]);
         echo $this->Form->control("membership_number");
@@ -47,7 +48,7 @@ $this->KMP->endBlock(); ?>
                 <select name="birth_month" id="birth-month" class="form-select" required="required">
                     <option value=""></option>
                     <?php foreach ($months as $index => $value) : ?>
-                        <option value="<?= $index ?>"><?= $value ?></option>
+                    <option value="<?= $index ?>"><?= $value ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
@@ -55,7 +56,7 @@ $this->KMP->endBlock(); ?>
                 <select name="birth_year" id="birth-year" class="form-select" required="required">
                     <option value=""></option>
                     <?php foreach ($years as $index => $value) : ?>
-                        <option value="<?= $index ?>"><?= $value ?></option>
+                    <option value="<?= $index ?>"><?= $value ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
@@ -68,3 +69,44 @@ $this->KMP->endBlock(); ?>
     <?= $this->Form->button(__("Submit")) ?>
     <?= $this->Form->end() ?>
 </div>
+
+<?php echo $this->KMP->startBlock("script"); ?>
+<script>
+window.addEventListener('DOMContentLoaded', function() {
+    $('#entity__email_address').removeAttr('oninput');
+    $('#entity__email_address').removeAttr('oninvalid');
+    $('#entity__email_address').on('change', function() {
+        var email = $('#entity__email_address').val();
+        if (email == '') {
+            $('#entity__email_address').removeClass('is-invalid');
+            $('#entity__email_address').removeClass('is-valid');
+            $('#entity__email_address')[0].setCustomValidity('');
+            return;
+        }
+        var original_email = $('#entity__email_address').data('original-value');
+        if (email == original_email) {
+            $('#entity__email_address').addClass('is-valid');
+            $('#entity__email_address').removeClass('is-invalid');
+            return;
+        }
+        var checkEmailUrl =
+            '<?= $this->URL->build(['controller' => 'Members', 'action' => 'emailTaken']) ?>' +
+            '?email=' + encodeURIComponent(email);
+        $.get(checkEmailUrl, {
+            email: email
+        }, function(data) {
+            if (data) {
+                $('#entity__email_address').addClass('is-invalid');
+                $('#entity__email_address').removeClass('is-valid');
+                $('#entity__email_address')[0].setCustomValidity(
+                    'This email address is already taken.');
+            } else {
+                $('#entity__email_address').addClass('is-valid');
+                $('#entity__email_address').removeClass('is-invalid');
+                $('#entity__email_address')[0].setCustomValidity('');
+            }
+        });
+    });
+});
+</script>
+<?php echo $this->KMP->endBlock(); ?>

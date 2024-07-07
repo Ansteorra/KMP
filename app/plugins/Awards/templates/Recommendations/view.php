@@ -115,6 +115,15 @@ $this->KMP->endBlock() ?>
 <?php $this->KMP->endBlock() ?>
 <?php
 echo $this->KMP->startBlock("modals");
+
+echo $this->Form->create($recommendation, [
+    "id" => "recommendation_form",
+    "url" => [
+        "controller" => "Recommendations",
+        "action" => "edit",
+        $recommendation->id,
+    ],
+]);
 echo $this->Modal->create("Edit Recommendation", [
     "id" => "editModal",
     "close" => true,
@@ -122,14 +131,6 @@ echo $this->Modal->create("Edit Recommendation", [
 ?>
 <fieldset>
     <?php
-    echo $this->Form->create($recommendation, [
-        "id" => "recommendation_form",
-        "url" => [
-            "controller" => "Recommendations",
-            "action" => "edit",
-            $recommendation->id,
-        ],
-    ]);
     echo $this->Form->control("requester_id", [
         "type" => "hidden",
         "value" => $this->Identity->get("id"),
@@ -167,19 +168,20 @@ echo $this->Modal->create("Edit Recommendation", [
         "multiple" => "checkbox",
         'options' => $eventList
     ]);
-    echo $this->Form->end();
     ?>
 </fieldset>
 <?php echo $this->Modal->end([
     $this->Form->button("Submit", [
         "class" => "btn btn-primary",
-        "id" => "recommendation_submit",
-        "onclick" => '$("#edit_entity").submit();',
+        "id" => "recommendation_submit"
     ]),
     $this->Form->button("Close", [
         "data-bs-dismiss" => "modal",
     ]),
-]); ?>
+]);
+
+echo $this->Form->end();
+?>
 
 <?php //finish writing to modal block in layout
 $this->KMP->endBlock(); ?>
@@ -226,7 +228,7 @@ class recommendationsAdd {
                 $('#recommendation_submit').prop('disabled', true);
             }
         });
-        $('#recommendation_submit').on('click', function() {
+        $('#recommendation_form').on('submit', function(e) {
             if (
                 ($('#recommendation__member_id').val() > 0 ||
                     $('#recommendation__not_found').prop('checked')
@@ -234,7 +236,6 @@ class recommendationsAdd {
                 $('#recommendation__award_id').val() > 0
             ) {
                 $('#recommendation__not_found').prop('disabled', false);
-                $('#recommendation_form').submit();
             }
         });
 

@@ -45,6 +45,7 @@ class AppView extends View
         $this->loadHelper("Authentication.Identity");
         $this->loadHelper("Bootstrap.Modal");
         $this->loadHelper("Bootstrap.Navbar");
+        $this->loadHelper("Url");
         //$this->loadHelper("AssetCompress.AssetCompress");
         $this->loadHelper("Kmp");
         // All option values should match the corresponding options for `GlideFilter`.

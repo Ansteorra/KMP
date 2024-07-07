@@ -178,6 +178,14 @@ echo $this->KMP->startBlock("pageTitle") ?>
 
 <?php $this->KMP->endBlock();
 echo $this->KMP->startBlock("modals");
+echo $this->Form->create($activity, [
+    "id" => "edit_entity",
+    "url" => [
+        "controller" => "Activities",
+        "action" => "edit",
+        $activity->id,
+    ],
+]);
 echo $this->Modal->create("Edit Authoriztion Type", [
     "id" => "editModal",
     "close" => true,
@@ -185,14 +193,6 @@ echo $this->Modal->create("Edit Authoriztion Type", [
 ?>
 <fieldset>
     <?php
-    echo $this->Form->create($activity, [
-        "id" => "edit_entity",
-        "url" => [
-            "controller" => "Activities",
-            "action" => "edit",
-            $activity->id,
-        ],
-    ]);
     echo $this->Form->control("name");
     echo $this->Form->control("activity_group_id", [
         "options" => $activityGroup,
@@ -220,19 +220,19 @@ echo $this->Modal->create("Edit Authoriztion Type", [
         "label" => "# for Renewal",
         "type" => "number",
     ]);
-    echo $this->Form->end();
+
     ?>
 </fieldset>
 <?php echo $this->Modal->end([
     $this->Form->button("Submit", [
         "class" => "btn btn-primary",
         "id" => "edit_entity__submit",
-        "onclick" => '$("#edit_entity").submit();',
     ]),
     $this->Form->button("Close", [
         "data-bs-dismiss" => "modal",
     ]),
 ]);
+echo $this->Form->end();
 
 echo $this->element('revokeAuthorizationModal', [
     'user' => $user,

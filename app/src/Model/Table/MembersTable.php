@@ -12,6 +12,7 @@ use Cake\ORM\TableRegistry;
 use App\Model\Entity\Member;
 use Cake\Event\Event;
 use Cake\Datasource\EntityInterface;
+use Cake\ORM\RulesChecker;
 
 use Cake\Database\Schema\TableSchemaInterface;
 use ArrayObject;
@@ -172,7 +173,7 @@ class MembersTable extends Table
             ->maxLength("email_address", 50)
             ->requirePresence("email_address", "create")
             ->notEmptyString("email_address")
-            ->add("name", "unique", [
+            ->add("email_address", "unique", [
                 "rule" => "validateUnique",
                 "provider" => "table",
             ]);
@@ -211,15 +212,22 @@ class MembersTable extends Table
             ->integer("failed_login_attempts")
             ->allowEmptyString("failed_login_attempts");
 
-        $validator->integer("birth_month")->allowEmptyString("birth_month");
+        $validator->integer("birth_month")->notEmptyString("birth_month");
 
-        $validator->integer("birth_year")->allowEmptyString("birth_year");
+        $validator->integer("birth_year")->notEmptyString("birth_year");
 
         $validator
             ->dateTime("deleted_date")
             ->allowEmptyDateTime("deleted_date");
 
         return $validator;
+    }
+
+    public function buildRules(RulesChecker $rules): RulesChecker
+    {
+        $rules->add($rules->isUnique(["email_address"]), ["errorField" => "email_address"]);
+
+        return $rules;
     }
 
     public function beforeSave(Event $event, EntityInterface $entity, ArrayObject $options)

@@ -80,9 +80,9 @@ class memberAuthorizations {
         }
     }
 
-    handleSubmitBtnClick(me, approverElementId, formId) {
-        if ($('#' + approverElementId).val() > 0) {
-            $('#' + formId).submit();
+    handleFormSubmit(e, me, approverElementId, formId) {
+        if (!$('#' + approverElementId).val() > 0) {
+            e.preventDefault();
         }
     }
 
@@ -94,8 +94,8 @@ class memberAuthorizations {
         $("#request_auth__approver_id").change(function() {
             me.handleApproverIdChange(me, this.value, 'request_auth__submit');
         });
-        $('#request_auth__submit').on('click', function() {
-            me.handleSubmitBtnClick(me, 'request_auth__approver_id', 'request_auth__form');
+        $('#request_auth__form').on('submit', function() {
+            me.handleFormSubmit(me, 'request_auth__approver_id', 'request_auth__form');
         });
     }
     wireUpRenewalEvents() {
@@ -106,8 +106,8 @@ class memberAuthorizations {
         $("#renew_auth__approver_id").change(function() {
             me.handleApproverIdChange(me, this.value, 'renew_auth__submit');
         });
-        $('#renew_auth__submit').on('click', function() {
-            me.handleSubmitBtnClick(me, 'renew_auth__approver_id', 'renew_auth__form');
+        $('#renew_auth__form').on('submit', function(e) {
+            me.handleFormSubmit(e, me, 'renew_auth__approver_id', 'renew_auth__form');
         });
     }
     run() {

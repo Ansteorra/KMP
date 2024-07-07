@@ -52,10 +52,6 @@ class RolesController extends AppController
      */
     public function view($id = null)
     {
-        Log::write(
-            "debug",
-            "user id " . $this->Authentication->getIdentity()->get("id"),
-        );
         $role = $this->Roles->get(
             $id,
             contain: [
@@ -104,6 +100,7 @@ class RolesController extends AppController
         $this->Authorization->authorizeAction();
         if ($this->request->is("post")) {
             $role = $this->Roles->patchEntity($role, $this->request->getData());
+            $role->is_system = false;
             if ($this->Roles->save($role)) {
                 $this->Flash->success(__("The role has been saved."));
 
@@ -134,7 +131,7 @@ class RolesController extends AppController
                 "Permissions",
             ],
         );
-        if (!$role) {
+        if (!$role || $role->is_system) {
             throw new \Cake\Http\Exception\NotFoundException();
         }
         $this->Authorization->authorize($role);
@@ -159,7 +156,7 @@ class RolesController extends AppController
         $role_id = $this->request->getData("role_id");
         $permission_id = $this->request->getData("permission_id");
         $role = $this->Roles->get($role_id, contain: ["Permissions"]);
-        if (!$role) {
+        if (!$role || $role->is_system) {
             throw new \Cake\Http\Exception\NotFoundException();
         }
         $this->Authorization->authorizeAction();
@@ -195,7 +192,7 @@ class RolesController extends AppController
         $role_id = $this->request->getData("role_id");
         $permission_id = $this->request->getData("permission_id");
         $role = $this->Roles->get($role_id, contain: ["Permissions"]);
-        if (!$role) {
+        if (!$role || $role->is_system) {
             throw new \Cake\Http\Exception\NotFoundException();
         }
         $this->Authorization->authorizeAction();
@@ -233,7 +230,7 @@ class RolesController extends AppController
     {
         $this->request->allowMethod(["post", "delete"]);
         $role = $this->Roles->get($id);
-        if (!$role) {
+        if (!$role || $role->is_system) {
             throw new \Cake\Http\Exception\NotFoundException();
         }
         $this->Authorization->authorize($role);

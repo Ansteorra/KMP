@@ -1,7 +1,3 @@
-<?php echo $this->Modal->create("Edit " . $member->sca_name, [
-    "id" => "passwordModal",
-    "close" => true,
-]); ?>
 <?= $this->Form->create($passwordReset, [
     "id" => "change_password",
     "url" => [
@@ -10,6 +6,10 @@
         $member->id,
     ],
 ]) ?>
+<?php echo $this->Modal->create("Edit " . $member->sca_name, [
+    "id" => "passwordModal",
+    "close" => true,
+]); ?>
 <fieldset>
     <legend><?= __("Change Password") ?></legend>
     <?php
@@ -21,14 +21,15 @@
     ]);
     ?>
 </fieldset>
-<?= $this->Form->end() ?>
+
 <?php echo $this->Modal->end([
     $this->Form->button("Submit", [
         "class" => "btn btn-primary",
         "id" => "change_password__submit",
-        "onclick" => '$("#change_password").submit();',
     ]),
     $this->Form->button("Close", [
         "data-bs-dismiss" => "modal",
     ]),
-]); ?>
+]);
+?>
+<?= $this->Form->end() ?>

@@ -98,6 +98,14 @@ echo $this->KMP->startBlock("pageTitle") ?>
 <?php $this->KMP->endBlock() ?>
 <?php
 echo $this->KMP->startBlock("modals");
+echo $this->Form->create($authorizationGroup, [
+    "id" => "edit_entity",
+    "url" => [
+        "controller" => "ActivityGroups",
+        "action" => "edit",
+        $authorizationGroup->id,
+    ],
+]);
 echo $this->Modal->create("Edit Authoriztion Group", [
     "id" => "editModal",
     "close" => true,
@@ -105,28 +113,20 @@ echo $this->Modal->create("Edit Authoriztion Group", [
 ?>
 <fieldset>
     <?php
-    echo $this->Form->create($authorizationGroup, [
-        "id" => "edit_entity",
-        "url" => [
-            "controller" => "ActivityGroups",
-            "action" => "edit",
-            $authorizationGroup->id,
-        ],
-    ]);
     echo $this->Form->control("name");
-    echo $this->Form->end();
     ?>
 </fieldset>
 <?php echo $this->Modal->end([
     $this->Form->button("Submit", [
         "class" => "btn btn-primary",
         "id" => "edit_entity__submit",
-        "onclick" => '$("#edit_entity").submit();',
     ]),
     $this->Form->button("Close", [
         "data-bs-dismiss" => "modal",
     ]),
-]); ?>
+]);
+echo $this->Form->end();
+?>
 
 <?php //finish writing to modal block in layout
 $this->KMP->endBlock(); ?>
