@@ -3,7 +3,7 @@ $user = $this->request->getAttribute("identity");
 ?>
 <button type="button" class="btn btn-primary btn-sm mb-3" data-bs-toggle="modal"
     data-bs-target="#requestAuthModal">Request Authorization</button>
-<?= $this->Html->link(
+<?= $this->Form->postLink(
     __("Email Link to Mobile Card"),
     ["controller" => "Members", "action" => "SendMobileCardEmail", $id],
     ["class" => "btn btn-sm mb-3 btn-secondary"],

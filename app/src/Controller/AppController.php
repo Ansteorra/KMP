@@ -69,9 +69,14 @@ class AppController extends Controller
         if (empty($pageStack)) {
             $pageStack[] = $currentUrl;
         }
+        //check if the call is Ajax
+        $isAjax = $this->request->is('ajax');
         $turboRequest = $this->request->getHeader('Turbo-Frame') != null;
+        $isAjax = $isAjax || $turboRequest;
+        $isNoStack = $this->request->getQuery('nostack') != null;
+        $isPostType = $this->request->is('post') || $this->request->is('put') || $this->request->is('delete');
         //if the method is a post skip the history
-        if (!$turboRequest && !$this->request->is('post') && !$this->request->is('put') && !$this->request->is('delete')) {
+        if (!$isAjax && !$isPostType && !$isNoStack) {
             $historyCount = count($pageStack);
             if (($historyCount > 1) && ($pageStack[$historyCount - 2] == $currentUrl)) {
                 $historyCount--;

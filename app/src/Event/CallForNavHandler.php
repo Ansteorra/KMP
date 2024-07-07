@@ -72,6 +72,9 @@ class CallForNavHandler implements EventListenerInterface
                     "controller" => "Members",
                     "action" => "viewCard",
                     $user->id,
+                    '?' => [
+                        'nostack' => '1',
+                    ],
                 ],
                 "icon" => "bi-person-vcard",
                 "linkOptions" => [
