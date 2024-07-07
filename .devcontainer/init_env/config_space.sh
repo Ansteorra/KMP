@@ -51,6 +51,17 @@ sudo echo "export PATH_WKHTML='/usr/bin/wkhtmltopdf'" >> /workspaces/$(echo $REP
 
 cd ~ 
 go install github.com/KarnerTh/mermerd@latest
+go install github.com/mailhog/MailHog@latest
+
+# create systemd service file
+sudo rm /etc/init.d/mailhog
+sudo cp /workspaces/$(echo $REPO_PATH)/.devcontainer/init_env/mailhog.init.d /etc/init.d/mailhog
+sudo chmod +x /etc/init.d/mailhog
+sudo update-rc.d mailhog defaults
+
+# enable and start the service
+sudo service mailhog start
+
 
 rm ~/.meremerd
 cat > ~/.mermerd <<EOF
