@@ -130,13 +130,13 @@ $now = Date::now();
         font-weight: 900;
         margin: 0px;
         padding: 0px;
-        display: inline-block;
+        display: block;
     }
 
     .cardbox dl dd {
         margin-left: 3px;
         margin-bottom: 0px;
-        display: inline-block;
+        display: block;
     }
 
     .cardbox ul {

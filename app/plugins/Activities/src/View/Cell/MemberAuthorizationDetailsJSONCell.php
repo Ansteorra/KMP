@@ -10,8 +10,6 @@ use Cake\View\Cell;
 use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\TableRegistry;
 
-use function PHPUnit\Framework\isEmpty;
-
 /**
  * MemberAuthorizationDetailsJSON cell
  */
@@ -78,7 +76,7 @@ class MemberAuthorizationDetailsJSONCell extends BasePluginCell
             $permissionIds[] = $permission->id;
         }
         $currentApproverFor = [];
-        if (!isEmpty($permissionIds)) {
+        if (!empty($permissionIds)) {
             $activitiesTbl = TableRegistry::getTableLocator()->get('Activities.Activities');
             $activities = $activitiesTbl->find()
                 ->where(['Activities.permission_id IN' => $permissionIds])
