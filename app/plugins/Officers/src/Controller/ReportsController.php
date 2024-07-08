@@ -104,13 +104,15 @@ class ReportsController extends AppController
     {
         return $q->where([
             "or" => [
-                "start_on <=" => $validOn,
-                "start_on IS" => null
-            ],
-            "or" => [
                 "expires_on >=" => $validOn,
                 "expires_on IS" => null
             ]
-        ]);
+        ])
+            ->where([
+                "or" => [
+                    "start_on <=" => $validOn,
+                    "start_on IS" => null
+                ],
+            ]);
     }
 }
