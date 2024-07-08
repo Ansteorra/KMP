@@ -15,8 +15,10 @@
 		"MYSQL_DEV_PASSWORD": "P@ssw0rd",
 		"EMAIL_DEV_SMTP_HOST": "localhost",
 		"EMAIL_DEV_SMTP_PORT": "1025",
-		"EMAIL_DEV_SMTP_USERNAME": "",
-		"EMAIL_DEV_SMTP_PASSWORD": "",
+		"EMAIL_DEV_SMTP_USERNAME": "testuser",
+		"EMAIL_DEV_SMTP_PASSWORD": "testpass",
+		"MP_SMTP_AUTH": "testuser:testpass",
+		"MP_SMTP_AUTH_ALLOW_INSECURE": "true",
 		"REPO_PATH": "KMP"
 	},
 	// Add the IDs of extensions you want installed when the container is created.
