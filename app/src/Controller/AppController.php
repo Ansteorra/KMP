@@ -59,24 +59,35 @@ class AppController extends Controller
             $currentUrl = $baseSub . $currentUrl;
         }
         $session = $this->getRequest()->getSession();
-        $pageStack = $session->read('pageStack', []);
-        if ($params['action'] == 'logout') {
-            $session->destroy();
+        $isNoStack = false;
+        if ($params['controller'] == 'Members') {
+            if ($params['action'] == 'logout') {
+                $isNoStack = true;
+                $session->destroy();
+            }
+            if ($params['action'] == 'login') {
+                $isNoStack = true;
+                $session->destroy();
+            }
         }
+        $pageStack = $session->read('pageStack', []);
         if ($params['action'] == 'index') {
             $pageStack = [];
         }
-        if (empty($pageStack)) {
-            $pageStack[] = $currentUrl;
-        }
+
         //check if the call is Ajax
         $isAjax = $this->request->is('ajax');
         $turboRequest = $this->request->getHeader('Turbo-Frame') != null;
         $isAjax = $isAjax || $turboRequest;
-        $isNoStack = $this->request->getQuery('nostack') != null;
+        if (!$isNoStack) {
+            $isNoStack = $this->request->getQuery('nostack') != null;
+        }
         $isPostType = $this->request->is('post') || $this->request->is('put') || $this->request->is('delete');
         //if the method is a post skip the history
         if (!$isAjax && !$isPostType && !$isNoStack) {
+            if (empty($pageStack)) {
+                $pageStack[] = $currentUrl;
+            }
             $historyCount = count($pageStack);
             if (($historyCount > 1) && ($pageStack[$historyCount - 2] == $currentUrl)) {
                 $historyCount--;
