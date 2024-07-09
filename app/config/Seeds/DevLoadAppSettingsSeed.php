@@ -39,7 +39,7 @@ class DevLoadAppSettingsSeed extends AbstractSeed
                 'created' => '2024-06-27 13:25:01',
                 'created_by' => 1,
                 'modified_by' => 1,
-            ],
+            ]
         ];
 
         $table = $this->table('app_settings');

@@ -64,14 +64,17 @@ echo $this->KMP->startBlock("pageTitle") ?>
 <?php $this->KMP->endBlock() ?>
 <?= $this->KMP->startBlock("recordActions") ?>
 <?php if ($user->can("verifyMembership", "Members") && $needVerification) { ?>
-    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#verifyMembershipModal">Verify Membership</button>
+<button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
+    data-bs-target="#verifyMembershipModal">Verify Membership</button>
 <?php } ?>
 <?php if (
     $user->can("edit", $member) ||
     $user->can("partialEdit", $member)
 ) { ?>
-    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal" id='editModalBtn'>Edit</button>
-    <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#passwordModal" id='passwordModalBtn'>Change Password</button>
+<button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal"
+    id='editModalBtn'>Edit</button>
+<button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#passwordModal"
+    id='passwordModalBtn'>Change Password</button>
 <?php } ?>
 <?php $this->KMP->endBlock() ?>
 
@@ -81,13 +84,16 @@ echo $this->element('members/memberDetails', [
 ]);
 $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("tabButtons") ?>
-<button class="nav-link" id="nav-roles-tab" data-bs-toggle="tab" data-bs-target="#nav-roles" type="button" role="tab" aria-controls="nav-roles" aria-selected="false"><?= __("Roles") ?>
+<button class="nav-link" id="nav-roles-tab" data-bs-toggle="tab" data-bs-target="#nav-roles" type="button" role="tab"
+    aria-controls="nav-roles" aria-selected="false"><?= __("Roles") ?>
 </button>
-<button class="nav-link" id="nav-notes-tab" data-bs-toggle="tab" data-bs-target="#nav-notes" type="button" role="tab" aria-controls="nav-notes" aria-selected="false"><?= __("Notes") ?>
+<button class="nav-link" id="nav-notes-tab" data-bs-toggle="tab" data-bs-target="#nav-notes" type="button" role="tab"
+    aria-controls="nav-notes" aria-selected="false"><?= __("Notes") ?>
 </button>
 <?php if (!empty($aiForm)) : ?>
-    <button class="nav-link" id="nav-add-info-tab" data-bs-toggle="tab" data-bs-target="#nav-add-info" type="button" role="tab" aria-controls="nav-add-info" aria-selected="false"><?= __("Additional Info.") ?>
-    </button>
+<button class="nav-link" id="nav-add-info-tab" data-bs-toggle="tab" data-bs-target="#nav-add-info" type="button"
+    role="tab" aria-controls="nav-add-info" aria-selected="false"><?= __("Additional Info") ?>
+</button>
 <?php endif; ?>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("tabContent") ?>
@@ -176,9 +182,10 @@ $this->KMP->endBlock() ?>
     ]) ?>
 </div>
 <?php if (!empty($aiForm)) : ?>
-    <div class="related tab-pane fade m-3" id="nav-add-info" role="tabpanel" aria-labelledby="nav-add-info-tab">
-        <?php
+<div class="related tab-pane fade m-3" id="nav-add-info" role="tabpanel" aria-labelledby="nav-add-info-tab">
+    <?php
         $appInfo = $member->additional_info;
+        $userEditableOnly = !$user->can("edit", $member);
         if ($user->can("editAdditionalInfo", $member)) {
             echo $this->Form->create(null, [
                 //"align" => "horizontal",
@@ -188,36 +195,87 @@ $this->KMP->endBlock() ?>
                 if (!isset($appInfo[$fieldKey])) {
                     $appInfo[$fieldKey] = "";
                 }
+                //check if the field contains a pipe
+                $pipePos = strpos($fieldType, "|");
+                $managerOnly = false;
+                $userEditable = false;
+                if ($pipePos !== false) {
+                    $fieldSecDetails = explode("|", $fieldType);
+                    $fieldType = $fieldSecDetails[0];
+                    $userEditable = $fieldSecDetails[1] == "user";
+                    $editorOnly = $fieldSecDetails[1] == "manager_only";
+                }
+                $disabled = false;
+                if ($userEditableOnly && !$userEditable) {
+                    $disabled = true;
+                }
+                if ($managerOnly && $userEditableOnly) {
+                    continue;
+                }
+                //check if the fieldType contains a :
+                $colonPos = strpos($fieldType, ":");
+                $aiOptions = [];
+                if ($colonPos !== false) {
+                    $fieldDetails = explode(":", $fieldType);
+                    $fieldType =  $fieldDetails[0];
+                    $aiOptions = explode(",", $fieldDetails[1]);
+                }
                 switch ($fieldType) {
                     case "text":
                         echo $this->Form->control($fieldKey, [
                             "type" => 'text',
                             "value" => $appInfo[$fieldKey],
+                            "disabled" => $disabled,
                         ]);
                         break;
                     case "date":
                         echo $this->Form->control($fieldKey, [
                             "type" => $fieldType,
                             "value" => $appInfo[$fieldKey],
+                            "disabled" => $disabled,
                         ]);
                         break;
                     case "number":
                         echo $this->Form->control($fieldKey, [
                             "type" => 'number',
                             "value" => $appInfo[$fieldKey],
+                            "disabled" => $disabled,
                         ]);
                         break;
                     case "bool":
                         if ($appInfo[$fieldKey]) {
-                            echo $this->Form->control($fieldKey, ['type' => 'checkbox', 'checked' => 'checked', 'switch' => true]);
+                            echo $this->Form->control($fieldKey, [
+                                'type' => 'checkbox',
+                                'checked' => 'checked',
+                                'switch' => true,
+                                "disabled" => $disabled,
+                            ]);
                         } else {
-                            echo $this->Form->control($fieldKey, ['type' => 'checkbox', 'switch' => true]);
+                            echo $this->Form->control($fieldKey, [
+                                'type' => 'checkbox',
+                                'switch' => true,
+                                "disabled" => $disabled,
+                            ]);
                         }
+                        break;
+                    case "select":
+                        $selectOptions = [];
+                        foreach ($aiOptions as $option) {
+                            $selectOptions[$option] = $option;
+                        }
+                        echo $this->Form->control($fieldKey, [
+                            "type" => 'select',
+                            'empty' => true,
+                            "options" => $selectOptions,
+                            "value" => $appInfo[$fieldKey],
+                            "disabled" => $disabled,
+                        ]);
                         break;
                     default:
                         echo $this->Form->control($fieldKey, [
                             "type" => 'text',
                             "value" => $appInfo[$fieldKey],
+                            "disabled" => $disabled,
                         ]);
                         break;
                 }
@@ -227,22 +285,32 @@ $this->KMP->endBlock() ?>
             ]);
             echo $this->form->end();
         } else { ?>
-            <table class='table table-striped'>
-                <?php foreach ($aiForm as $fieldKey => $fieldType) { ?>
-                    <tr scope="row">
-                        <th class="col"><?= str_replace("_", " ", $fieldKey) ?></th>
-                        <td class="col-10">
-                            <?php
+    <table class='table table-striped'>
+        <?php foreach ($aiForm as $fieldKey => $fieldType) { ?>
+        <tr scope="row">
+            <th class="col"><?= str_replace("_", " ", $fieldKey) ?></th>
+            <td class="col-10">
+                <?php
+                            $pipePos = strpos($fieldType, "|");
+                            $managerOnly = false;
+                            $userEditable = false;
+                            if ($pipePos !== false) {
+                                $fieldSecDetails = explode("|", $fieldType);
+                                $fieldType = $fieldSecDetails[0];
+                                $editorOnly = $fieldSecDetails[1] == "manager_only";
+                            }
+                            $disabled = false;
+                            if ($managerOnly && $userEditableOnly) {
+                                continue;
+                            }
+                            //check if the fieldType contains a :
+                            $colonPos = strpos($fieldType, ":");
+                            $aiOptions = [];
+                            if ($colonPos !== false) {
+                                $fieldDetails = explode(":", $fieldType);
+                                $fieldType =  $fieldDetails[0];
+                            }
                             switch ($fieldType) {
-                                case "text":
-                                    echo h($appInfo[$fieldKey]);
-                                    break;
-                                case "date":
-                                    echo h($appInfo[$fieldKey]);
-                                    break;
-                                case "number":
-                                    echo h($appInfo[$fieldKey]);
-                                    break;
                                 case "bool":
                                     echo $this->KMP->bool($appInfo[$fieldKey], $this->Html);
                                     break;
@@ -251,12 +319,12 @@ $this->KMP->endBlock() ?>
                                     break;
                             }
                             ?>
-                        </td>
-                    </tr>
-                <?php } ?>
-            </table>
+            </td>
+        </tr>
         <?php } ?>
-    </div>
+    </table>
+    <?php } ?>
+</div>
 <?php endif; ?>
 <?php $this->KMP->endBlock() ?>
 <?php
@@ -281,71 +349,71 @@ $this->KMP->endBlock(); ?>
 // Add scripts
 echo $this->KMP->startBlock("script"); ?>
 <script>
-    class memberView {
-        constructor() {
-            this.ac = null;
+class memberView {
+    constructor() {
+        this.ac = null;
 
-        };
-        run() {
-            var me = this;
-            if ($('#verify_member__sca_name').length > 0) {
-                var searchUrl =
-                    '<?= $this->URL->build(['controller' => 'Members', 'action' => 'SearchMembers']) ?>';
-                KMP_utils.configureAutoComplete(me.ac, searchUrl, 'verify_member__sca_name', 'id', 'sca_name',
-                    'verify_member__parent_id')
+    };
+    run() {
+        var me = this;
+        if ($('#verify_member__sca_name').length > 0) {
+            var searchUrl =
+                '<?= $this->URL->build(['controller' => 'Members', 'action' => 'SearchMembers']) ?>';
+            KMP_utils.configureAutoComplete(me.ac, searchUrl, 'verify_member__sca_name', 'id', 'sca_name',
+                'verify_member__parent_id')
+        }
+        $('#edit_entity__email_address').removeAttr('oninput');
+        $('#edit_entity__email_address').removeAttr('oninvalid');
+        $('#edit_entity__email_address').on('change', function() {
+            var email = $('#edit_entity__email_address').val();
+            if (email == '') {
+                $('#edit_entity__email_address').removeClass('is-invalid');
+                $('#edit_entity__email_address').removeClass('is-valid');
+                $('#edit_entity__email_address')[0].setCustomValidity('');
+                return;
             }
-            $('#edit_entity__email_address').removeAttr('oninput');
-            $('#edit_entity__email_address').removeAttr('oninvalid');
-            $('#edit_entity__email_address').on('change', function() {
-                var email = $('#edit_entity__email_address').val();
-                if (email == '') {
-                    $('#edit_entity__email_address').removeClass('is-invalid');
+            var original_email = $('#edit_entity__email_address').data('original-value');
+            if (email == original_email) {
+                $('#edit_entity__email_address').addClass('is-valid');
+                $('#edit_entity__email_address').removeClass('is-invalid');
+                return;
+            }
+            var checkEmailUrl =
+                '<?= $this->URL->build(['controller' => 'Members', 'action' => 'emailTaken']) ?>' +
+                '?email=' + encodeURIComponent(email);
+            $.get(checkEmailUrl, {
+                email: email
+            }, function(data) {
+                if (data) {
+                    $('#edit_entity__email_address').addClass('is-invalid');
                     $('#edit_entity__email_address').removeClass('is-valid');
-                    $('#edit_entity__email_address')[0].setCustomValidity('');
-                    return;
-                }
-                var original_email = $('#edit_entity__email_address').data('original-value');
-                if (email == original_email) {
+                    $('#edit_entity__email_address')[0].setCustomValidity(
+                        'This email address is already taken.');
+                } else {
                     $('#edit_entity__email_address').addClass('is-valid');
                     $('#edit_entity__email_address').removeClass('is-invalid');
-                    return;
+                    $('#edit_entity__email_address')[0].setCustomValidity('');
                 }
-                var checkEmailUrl =
-                    '<?= $this->URL->build(['controller' => 'Members', 'action' => 'emailTaken']) ?>' +
-                    '?email=' + encodeURIComponent(email);
-                $.get(checkEmailUrl, {
-                    email: email
-                }, function(data) {
-                    if (data) {
-                        $('#edit_entity__email_address').addClass('is-invalid');
-                        $('#edit_entity__email_address').removeClass('is-valid');
-                        $('#edit_entity__email_address')[0].setCustomValidity(
-                            'This email address is already taken.');
-                    } else {
-                        $('#edit_entity__email_address').addClass('is-valid');
-                        $('#edit_entity__email_address').removeClass('is-invalid');
-                        $('#edit_entity__email_address')[0].setCustomValidity('');
-                    }
-                });
             });
-            //on input this.setCustomValidity('')
-            //on invalid this.setCustomValidity(''); if (!this.value) this.setCustomValidity(this.dataset.validityMessage)
-        };
+        });
+        //on input this.setCustomValidity('')
+        //on invalid this.setCustomValidity(''); if (!this.value) this.setCustomValidity(this.dataset.validityMessage)
     };
-    window.addEventListener('DOMContentLoaded', function() {
-        var pageControl = new memberView();
-        pageControl.run();
-        <?php if ($passwordReset->getErrors()) { ?>
-            $("#passwordModalBtn").on('click');
-        <?php } ?>
-        <?php if ($memberForm->getErrors()) { ?>
-            $("#editModalBtn").on('click');
-        <?php } ?>
-    });
+};
+window.addEventListener('DOMContentLoaded', function() {
+    var pageControl = new memberView();
+    pageControl.run();
+    <?php if ($passwordReset->getErrors()) { ?>
+    $("#passwordModalBtn").on('click');
+    <?php } ?>
+    <?php if ($memberForm->getErrors()) { ?>
+    $("#editModalBtn").on('click');
+    <?php } ?>
+});
 </script>
 <?php $this->KMP->endBlock(); ?>
 <?php if ($memberForm->getErrors()) { ?>
-    $("#editModalBtn").on('click');
+$("#editModalBtn").on('click');
 <?php } ?>
 });
 </script>

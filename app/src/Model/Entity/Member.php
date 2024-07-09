@@ -119,6 +119,7 @@ class Member extends Entity implements
         "deleted_date" => true,
         "status" => true,
         "additional_info" => true,
+        "public_custom_fields" => true,
         "mobile_card_token" => true,
     ];
 

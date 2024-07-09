@@ -115,6 +115,11 @@ class MemberPolicy extends BasePolicy
     }
     function canEditAdditionalInfo(IdentityInterface $user, $entity)
     {
-        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+        $canDo = $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+        if ($canDo) {
+            return true;
+        } else {
+            return $entity->id == $user->getIdentifier();
+        }
     }
 }

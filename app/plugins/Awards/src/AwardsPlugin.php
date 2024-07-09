@@ -53,6 +53,8 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
         $handler = new CallForNavHandler();
         EventManager::instance()->on($handler);
         StaticHelpers::getAppSetting("Awards.RecButtonClass", "btn-warning");
+        StaticHelpers::getAppSetting("Member.AdditionalInfo.CourtNotice", "select:Never,With Notice,Without Notice|user");
+        StaticHelpers::getAppSetting("Member.AdditionalInfo.CourtsICanAttend", "select:None,Morning,Evening,Any|user");
     }
 
     /**

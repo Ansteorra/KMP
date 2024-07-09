@@ -544,6 +544,8 @@ class MembersController extends AppController
             throw new \Cake\Http\Exception\NotFoundException();
         }
         $this->Authorization->authorize($member);
+        $user = $this->Authentication->getIdentity();
+        $userEditableOnly = !$user->can("edit", $member);
         if ($this->request->is(["patch", "post", "put"])) {
             $member->additional_info = [];
             $aiFormConfig = StaticHelpers::getAppSettingsStartWith("Member.AdditionalInfo.");
@@ -559,6 +561,34 @@ class MembersController extends AppController
                 $aiForm[$shortKey] = $value;
             }
             foreach ($aiForm as $fieldKey => $fieldType) {
+                $userEditable = false;
+                //check fieldType for |
+                $pipePos = strpos($fieldType, "|");
+                if ($pipePos !== false) {
+                    $fieldSecDetails = explode("|", $fieldType);
+                    $fieldType = $fieldSecDetails[0];
+                    $userEditable = $fieldSecDetails[1] == "user";
+                }
+                if ($userEditableOnly && !$userEditable) {
+                    continue;
+                }
+                $colonPos = strpos($fieldType, ":");
+                $aiOptions = [];
+                if ($colonPos !== false) {
+                    $fieldDetails = explode(":", $fieldType);
+                    $fieldType =  $fieldDetails[0];
+                    $aiOptions = explode(",", $fieldDetails[1]);
+                }
+                //if aiOptions are not emoty then check the value is one of the options
+                if (!empty($aiOptions)) {
+                    $fieldValue = $this->request->getData($fieldKey);
+                    if (!in_array($fieldValue, $aiOptions)) {
+                        $this->Flash->error(
+                            __("The Additional Information could not be saved. Please, try again."),
+                        );
+                        return $this->redirect(["action" => "view", $member->id]);
+                    }
+                }
                 $newData[$fieldKey] = $this->request->getData($fieldKey);
             }
             $member->additional_info = $newData;
