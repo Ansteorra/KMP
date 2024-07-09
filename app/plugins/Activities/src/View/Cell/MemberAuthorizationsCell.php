@@ -27,7 +27,7 @@ class MemberAuthorizationsCell extends BasePluginCell
         'tabBtnBadge' => null,
         'cell' => 'Activities.MemberAuthorizations'
     ];
-    public static function getViewConfigForRoute($route)
+    public static function getViewConfigForRoute($route, $currentUser)
     {
         return parent::getRouteEventResponse($route, self::$pluginData, self::$validRoutes);
     }

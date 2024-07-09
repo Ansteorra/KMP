@@ -45,6 +45,59 @@ class RecommendationsController extends AppController
         $this->set(compact('recommendations', 'statuses'));
     }
 
+    public function memberSubmissions($id)
+    {
+        $member = $this->Recommendations->Members->find()
+            ->where(["id" => $id])
+            ->select("id")->first();
+        if (!$member) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+        $this->Authorization->authorize($member, 'view');
+        $recommendations = $this->Recommendations->find()
+            ->where(["requester_id" => $id])
+            ->contain(['Awards' => function ($q) {
+                return $q->select(['id', 'name']);
+            }])
+            ->select(['id', 'member_sca_name', 'Awards.name', 'Recommendations.created', 'reason'])
+            ->orderBy(['Recommendations.created'])->all();
+        $statuses = Recommendation::getStatues();
+        foreach ($recommendations as $recommendation) {
+            if (!is_array($statuses[$recommendation->status])) {
+                $statuses[$recommendation->status] = [];
+            }
+            $statuses[$recommendation->status][] = $recommendation;
+        }
+        $this->set(compact('recommendations'));
+    }
+
+    public function submittedForMember($id)
+    {
+        $member = $this->Recommendations->Members->find()
+            ->where(["id" => $id])
+            ->select("id")->first();
+        if (!$member) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+        $emptyRecommendation = $this->Recommendations->newEmptyEntity();
+        $this->Authorization->authorize($emptyRecommendation, 'view');
+        $recommendations = $this->Recommendations->find()
+            ->where(["member_id" => $id])
+            ->contain(['Awards' => function ($q) {
+                return $q->select(['id', 'name']);
+            }])
+            ->select(['id', 'requester_sca_name', 'Awards.name', 'Recommendations.created', 'Recommendations.status', 'reason'])
+            ->orderBy(['Recommendations.created'])->all();
+        $statuses = Recommendation::getStatues();
+        foreach ($recommendations as $recommendation) {
+            if (!is_array($statuses[$recommendation->status])) {
+                $statuses[$recommendation->status] = [];
+            }
+            $statuses[$recommendation->status][] = $recommendation;
+        }
+        $this->set(compact('recommendations'));
+    }
+
     /**
      * View method
      *
@@ -266,6 +319,10 @@ class RecommendationsController extends AppController
     {
         $this->request->allowMethod(['post', 'delete']);
         $recommendation = $this->Recommendations->get($id);
+        if (!$recommendation) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+        $this->Authorization->authorize($recommendation);
         if ($this->Recommendations->delete($recommendation)) {
             $this->Flash->success(__('The recommendation has been deleted.'));
         } else {

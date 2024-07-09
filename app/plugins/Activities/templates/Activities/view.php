@@ -114,7 +114,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
 <?php $this->KMP->startBlock("tabContent") ?>
 <div class="tab-pane fade m-3" id="nav-authorizations" role="tabpanel" aria-labelledby="nav-authorizations-tab">
     <?php
-    if (!$isEmpty) {
+    if (!$isEmpty) :
         echo $this->element('turboActiveTabs', [
             'user' => $user,
             'tabGroupName' => "authorizationTabs",
@@ -141,9 +141,9 @@ echo $this->KMP->startBlock("pageTitle") ?>
                 ]
             ]
         ]);
-    } else {
+    else :
         echo "<p>No Authorizations</p>";
-    } ?>
+    endif; ?>
 </div>
 <div class="tab-pane fade m-3" id="nav-roles" role="tabpanel" aria-labelledby="nav-roles-tab">
     <?php if (!empty($roles)) : ?>

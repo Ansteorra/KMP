@@ -2,37 +2,40 @@
 
 declare(strict_types=1);
 
-namespace Activities\View\Cell;
+namespace Awards\View\Cell;
 
 use Cake\View\Cell;
+use Cake\ORM\TableRegistry;
 use App\View\Cell\BasePluginCell;
 
 /**
- * PermissionActivities cell
+ * MemberSubmittedRecs cell
  */
-class PermissionActivitiesCell extends BasePluginCell
+class MemberSubmittedRecsCell extends BasePluginCell
 {
     static protected array $validRoutes = [
-        ['controller' => 'Permissions', 'action' => 'view', 'plugin' => null],
+        ['controller' => 'Members', 'action' => 'view', 'plugin' => null],
     ];
     static protected array $pluginData = [
         'type' => BasePluginCell::PLUGIN_TYPE_TAB,
-        'label' => 'Activities',
-        'id' => 'permission-activities',
-        'order' => 2,
+        'label' => 'Submited Award Recs.',
+        'id' => 'member-submitted-recs',
+        'order' => 3,
         'tabBtnBadge' => null,
-        'cell' => 'Activities.PermissionActivities'
+        'cell' => 'Awards.MemberSubmittedRecs'
     ];
     public static function getViewConfigForRoute($route, $currentUser)
     {
         return parent::getRouteEventResponse($route, self::$pluginData, self::$validRoutes);
     }
+
     /**
      * List of valid options that can be passed into this
      * cell's constructor.
      *
      * @var array<string, mixed>
      */
+    protected array $_validCellOptions = [];
 
     /**
      * Initialization logic run at the end of object construction.
@@ -50,10 +53,8 @@ class PermissionActivitiesCell extends BasePluginCell
      */
     public function display($id)
     {
-        $activities = $this->fetchTable("Activities.Activities")->find('all')
-            ->contain(['ActivityGroups'])
-            ->where(['permission_id' => $id])
-            ->toArray();
-        $this->set(compact('activities'));
+        $recommendationsTbl = TableRegistry::getTableLocator()->get("Awards.Recommendations");
+        $isEmpty = $recommendationsTbl->find('all')->where(['requester_id' => $id])->count() === 0;
+        $this->set(compact('isEmpty', 'id'));
     }
 }

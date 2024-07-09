@@ -25,7 +25,7 @@ class MemberOfficersCell extends BasePluginCell
         'tabBtnBadge' => null,
         'cell' => 'Officers.MemberOfficers'
     ];
-    public static function getViewConfigForRoute($route)
+    public static function getViewConfigForRoute($route, $currentUser)
     {
         return parent::getRouteEventResponse($route, self::$pluginData, self::$validRoutes);
     }

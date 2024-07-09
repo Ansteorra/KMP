@@ -101,7 +101,7 @@ class AppController extends Controller
         $session->write('pageStack', $pageStack);
         $this->set('pageStack', $pageStack);
 
-        $event = new Event(static::VIEW_PLUGIN_EVENT, $this, ['url' => $params]);
+        $event = new Event(static::VIEW_PLUGIN_EVENT, $this, ['url' => $params, "currentUser" => $this->request->getAttribute("identity")]);
         EventManager::instance()->dispatch($event);
         if ($event->getResult()) {
             $this->pluginViewCells = $this->organizeViewCells($event->getResult());

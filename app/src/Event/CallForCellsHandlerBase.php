@@ -24,7 +24,7 @@ class CallForCellsHandlerBase implements EventListenerInterface
             $results = $event->getResult();
         }
         foreach ($this->viewsToTest as $view) {
-            $viewCells = $view::getViewConfigForRoute($event->getData()['url']);
+            $viewCells = $view::getViewConfigForRoute($event->getData()['url'], $event->getData()['currentUser']);
             if ($viewCells) {
                 $results[] = $viewCells;
             }

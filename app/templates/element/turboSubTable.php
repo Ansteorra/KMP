@@ -96,18 +96,26 @@ use App\KMP\StaticHelpers;
                                     }
                                     echo "</td>";
                                 } else { ?>
-                    <td class="align-middle"><?php
+                    <td class="align-top"><?php
 
-                                                            $record = StaticHelpers::getValue($value, $data);
-                                                            //if the value is a DateTime then call ->toDateString() on it
-                                                            if ($record instanceof Cake\I18n\DateTime) {
-                                                                echo $record->toDateString();
-                                                            } elseif (is_string($value) && strpos($value, "{{") !== false) {
-                                                                echo h(StaticHelpers::processTemplate($value, $data));
+                                                        $record = StaticHelpers::getValue($value, $data);
+                                                        //if the value is a DateTime then call ->toDateString() on it
+                                                        if ($record instanceof Cake\I18n\DateTime) {
+                                                            echo $record->toDateString();
+                                                        } elseif (is_string($record)) {
+                                                            if (strpos($record, "{{") > -1) {
+                                                                $record = StaticHelpers::processTemplate($record, $data);
+                                                            }
+                                                            //if the string has a carriage return the run the convert to paragraph
+                                                            if (strpos($record, "\n") > -1) {
+                                                                echo $this->Text->autoParagraph(h($record));
                                                             } else {
                                                                 echo h($record);
                                                             }
-                                                            ?></td>
+                                                        } else {
+                                                            echo h($record);
+                                                        }
+                                                        ?></td>
                     <?php }
                             } ?>
                 </tr>

@@ -54,7 +54,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
         data-bs-target="#addMemberModal">Add
         Member</button>
 
-    <?php if (!$isEmpty) {
+    <?php if (!$isEmpty) :
         echo $this->element('turboActiveTabs', [
             'user' => $user,
             'tabGroupName' => "authorizationTabs",
@@ -79,9 +79,9 @@ echo $this->KMP->startBlock("pageTitle") ?>
                 ]
             ]
         ]);
-    } else {
+    else :
         echo "<p>No Members Assigned</p>";
-    } ?>
+    endif; ?>
 </div>
 <div class="related tab-pane fade m-3" id="nav-rolePermissions" role="tabpanel"
     aria-labelledby="nav-rolePermissions-tab">

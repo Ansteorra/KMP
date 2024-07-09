@@ -23,7 +23,7 @@ class BranchRequiredOfficersCell extends BasePluginCell
         'tabBtnBadge' => null,
         'cell' => 'Officers.BranchRequiredOfficers'
     ];
-    public static function getViewConfigForRoute($route)
+    public static function getViewConfigForRoute($route, $currentUser)
     {
         return parent::getRouteEventResponse($route, self::$pluginData, self::$validRoutes);
     }

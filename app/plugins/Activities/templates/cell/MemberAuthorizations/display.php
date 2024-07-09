@@ -9,7 +9,7 @@ $user = $this->request->getAttribute("identity");
     ["class" => "btn btn-sm mb-3 btn-secondary"],
 ) ?>
 <?php
-if (!$isEmpty) {
+if (!$isEmpty) :
     echo $this->element('turboActiveTabs', [
         'user' => $user,
         'tabGroupName' => "authorizationTabs",
@@ -36,9 +36,9 @@ if (!$isEmpty) {
             ]
         ]
     ]);
-} else {
+else :
     echo "<p>No Authorizations</p>";
-} ?>
+endif; ?>
 <?php
 echo $this->KMP->startBlock("modals");
 echo $this->element('requestAuthorizationModal', [

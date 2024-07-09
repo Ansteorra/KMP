@@ -7,5 +7,8 @@ use App\Event\CallForCellsHandlerBase;
 
 class CallForCellsHandler extends CallForCellsHandlerBase
 {
-    protected array $viewsToTest = [];
+    protected array $viewsToTest = [
+        '\Awards\View\Cell\MemberSubmittedRecsCell',
+        '\Awards\View\Cell\RecsForMemberCell',
+    ];
 }

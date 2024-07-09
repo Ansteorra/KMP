@@ -25,7 +25,7 @@ class MemberAuthorizationDetailsJSONCell extends BasePluginCell
         'order' => 1,
         'cell' => 'Activities.MemberAuthorizationDetailsJSON'
     ];
-    public static function getViewConfigForRoute($route)
+    public static function getViewConfigForRoute($route, $currentUser)
     {
         return parent::getRouteEventResponse($route, self::$pluginData, self::$validRoutes);
     }
