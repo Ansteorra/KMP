@@ -19,7 +19,8 @@
 		"EMAIL_DEV_SMTP_PASSWORD": "testpass",
 		"MP_SMTP_AUTH": "testuser:testpass",
 		"MP_SMTP_AUTH_ALLOW_INSECURE": "true",
-		"REPO_PATH": "KMP"
+		"REPO_PATH": "${containerWorkspaceFolder}",
+		"REPO_ROOT_PATH": "${containerWorkspaceFolderBasename}"
 	},
 	// Add the IDs of extensions you want installed when the container is created.
 	"customizations": {

@@ -1,8 +1,7 @@
 # A script for initializing codespace dev env.
 # Note the script is intended to be run at root of project.
 # It needs to be adjusted for projects using a non-web docroot.
-cd /workspaces/$(echo $REPO_PATH)
-PROJECT_NAME="/workspaces/$(echo $REPO_PATH)"
+cd $(echo $REPO_PATH)
 
 
 #phpdebug 
@@ -13,8 +12,8 @@ sudo cp .devcontainer/init_env/20-xdebug.ini /etc/php/8.3/cli/conf.d/20-xdebug.i
 sudo rm /etc/apache2/sites-available/000-default.conf
 cat > 000-default.conf <<EOF
 <VirtualHost *:8080>
-  DocumentRoot $PROJECT_NAME/app
-  <Directory "$PROJECT_NAME/app" >
+  DocumentRoot $REPO_PATH/app
+  <Directory "$REPO_PATH/app" >
     Options FollowSymLinks
     AllowOverride All
     DirectoryIndex index.php
@@ -38,16 +37,16 @@ sudo mysql <<EOFMYSQL
     CREATE DATABASE IF NOT EXISTS $(echo $MYSQL_DEV_DB_NAME) collate utf8_unicode_ci ;
     flush privileges;
 EOFMYSQL
-sudo rm /workspaces/$(echo $REPO_PATH)/app/config/.env
+sudo rm $(echo $REPO_PATH)/app/config/.env
 
-sudo echo "export MYSQL_USERNAME='$MYSQL_DEV_USERNAME'" >> /workspaces/$(echo $REPO_PATH)/app/config/.env
-sudo echo "export MYSQL_PASSWORD='$MYSQL_DEV_PASSWORD'" >> /workspaces/$(echo $REPO_PATH)/app/config/.env
-sudo echo "export MYSQL_DB_NAME='$MYSQL_DEV_DB_NAME'" >> /workspaces/$(echo $REPO_PATH)/app/config/.env
-sudo echo "export EMAIL_SMTP_HOST='$EMAIL_DEV_SMTP_HOST'" >> /workspaces/$(echo $REPO_PATH)/app/config/.env
-sudo echo "export EMAIL_SMTP_PORT='$EMAIL_DEV_SMTP_PORT'" >> /workspaces/$(echo $REPO_PATH)/app/config/.env
-sudo echo "export EMAIL_SMTP_USERNAME='$EMAIL_DEV_SMTP_USERNAME'" >> /workspaces/$(echo $REPO_PATH)/app/config/.env
-sudo echo "export EMAIL_SMTP_PASSWORD='$EMAIL_DEV_SMTP_PASSWORD'" >> /workspaces/$(echo $REPO_PATH)/app/config/.env
-sudo echo "export PATH_WKHTML='/usr/bin/wkhtmltopdf'" >> /workspaces/$(echo $REPO_PATH)/app/config/.env
+sudo echo "export MYSQL_USERNAME='$MYSQL_DEV_USERNAME'" >> $(echo $REPO_PATH)/app/config/.env
+sudo echo "export MYSQL_PASSWORD='$MYSQL_DEV_PASSWORD'" >> $(echo $REPO_PATH)/app/config/.env
+sudo echo "export MYSQL_DB_NAME='$MYSQL_DEV_DB_NAME'" >> $(echo $REPO_PATH)/app/config/.env
+sudo echo "export EMAIL_SMTP_HOST='$EMAIL_DEV_SMTP_HOST'" >> $(echo $REPO_PATH)/app/config/.env
+sudo echo "export EMAIL_SMTP_PORT='$EMAIL_DEV_SMTP_PORT'" >> $(echo $REPO_PATH)/app/config/.env
+sudo echo "export EMAIL_SMTP_USERNAME='$EMAIL_DEV_SMTP_USERNAME'" >> $(echo $REPO_PATH)/app/config/.env
+sudo echo "export EMAIL_SMTP_PASSWORD='$EMAIL_DEV_SMTP_PASSWORD'" >> $(echo $REPO_PATH)/app/config/.env
+sudo echo "export PATH_WKHTML='/usr/bin/wkhtmltopdf'" >> $(echo $REPO_PATH)/app/config/.env
 
 cd ~ 
 go install github.com/KarnerTh/mermerd@latest
@@ -58,13 +57,14 @@ sudo bash < <(curl -sL https://raw.githubusercontent.com/axllent/mailpit/develop
 
 # create systemd service file
 sudo rm /etc/init.d/mailpit
-sudo cp /workspaces/$(echo $REPO_PATH)/.devcontainer/init_env/mailpit.init.d /etc/init.d/mailpit
+sudo cp $(echo $REPO_PATH)/.devcontainer/init_env/mailpit.init.d /etc/init.d/mailpit
 sudo chmod +x /etc/init.d/mailpit
 sudo update-rc.d mailpit defaults
 
 #make default config for mailpit
 sudo rm /etc/default/mailpit
 sudo touch /etc/default/mailpit
+sudo rm -rf  $(echo $REPO_PATH)/app/webroot/bootstrap_u_l
 sudo sh -c "echo \"export MP_SMTP_AUTH='$MP_SMTP_AUTH'\" >> /etc/default/mailpit"
 sudo sh -c "echo \"export MP_SMTP_AUTH_ALLOW_INSECURE='$MP_SMTP_AUTH_ALLOW_INSECURE'\" >> /etc/default/mailpit"
 
@@ -80,10 +80,10 @@ connectionStringSuggestions:
   - mysql://$MYSQL_DEV_USERNAME:$MYSQL_DEV_PASSWORD@tcp(127.0.0.1:3306)/$MYSQL_DEV_DB_NAME
 EOF
 
-rm /workspaces/$(echo $REPO_PATH)/app/config/app_local.php
-cp /workspaces/$(echo $REPO_PATH)/.devcontainer/init_env/app_local.php /workspaces/$(echo $REPO_PATH)/app/config/app_local.php
+rm $(echo $REPO_PATH)/app/config/app_local.php
+cp $(echo $REPO_PATH)/.devcontainer/init_env/app_local.php $(echo $REPO_PATH)/app/config/app_local.php
 
-cd /workspaces/$(echo $REPO_PATH)/app
+cd $(echo $REPO_PATH)/app
 sudo composer install -n
 cd ..
 sudo bash reset_dev_database.sh
