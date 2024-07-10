@@ -63,6 +63,10 @@ echo $this->Form->postLink(
     </td>
 </tr>
 <tr>
+    <th scope="row"><?= __('Contact Email') ?></th>
+    <td><?= h($recommendation->contact_email) ?></td>
+</tr>
+<tr>
     <th scope="row"><?= __('Contact Number') ?></th>
     <td><?= h($recommendation->contact_number) ?></td>
 </tr>
@@ -76,6 +80,14 @@ echo $this->Form->postLink(
             <?php endforeach; ?>
         </ul>
     </td>
+</tr>
+<tr>
+    <th scope="row"><?= __('Call Into Court') ?></th>
+    <td><?= h($recommendation->call_into_court) ?></td>
+</tr>
+<tr>
+    <th scope="row"><?= __('Court Availability') ?></th>
+    <td><?= h($recommendation->court_availability) ?></td>
 </tr>
 <?php if ($recommendation->member) : ?>
 <tr>
@@ -153,6 +165,32 @@ echo $this->Modal->create("Edit Recommendation", [
         "checked" => ($recommendation->member_id == null)
     ]);
     echo $this->Form->control('branch_id', ['options' => $branches, 'empty' => true, "label" => "Member Of", "id" => "recommendation__branch_id"]);
+    $selectOptions = [];
+    foreach ($callIntoCourtOptions as $option) {
+        $selectOptions[$option] = $option;
+    }
+    echo $this->Form->control(
+        'call_into_court',
+        [
+            'options' => $selectOptions,
+            'empty' => true,
+            "id" => "recommendation__call_into_court",
+            "required" => true
+        ]
+    );
+    $selectOptions = [];
+    foreach ($courtAvailabilityOptions as $option) {
+        $selectOptions[$option] = $option;
+    }
+    echo $this->Form->control(
+        'court_availability',
+        [
+            'options' => $selectOptions,
+            'empty' => true,
+            "id" => "recommendation__court_availability",
+            "required" => true
+        ]
+    );
     echo $this->Form->control('status', ['options' => $statusList]);
     echo $this->Form->control('domain_id', ['options' => $awardsDomains, 'empty' => true, "label" => "Award Type", "id" => "recommendation__domain_id"]); ?>
     <div class="role p-3" id="award_descriptions">
@@ -160,7 +198,8 @@ echo $this->Modal->create("Edit Recommendation", [
     </div>
     <?php
     echo $this->Form->control('award_id', ['options' => ["Please select the type of award first."], "disabled" => true, "id" => "recommendation__award_id"]);
-    echo $this->Form->control('contact_number', ['value' => $user->phone_number]);
+    echo $this->Form->control('contact_number');
+    echo $this->Form->control('contact_email');
     echo $this->Form->control('reason');
     echo $this->Form->control('events._ids', [
         'label' => 'Events They may Attend:',
@@ -204,6 +243,30 @@ class recommendationsAdd {
         var branch = $('#recommendation__branch_id').parent();
         notFound.prop('checked', false);
         branch.addClass('d-none');
+    }
+
+    getPublicProfile(memberId) {
+        var url =
+            '<?= $this->URL->build(['controller' => 'Members', 'action' => 'PublicProfile', 'plugin' => null]) ?>/' +
+            memberId;
+        $.get(url, function(data) {
+            if (data) {
+                var memberLinks = $('#member_links');
+                memberLinks.empty();
+                $("#recommendation__call_into_court").prop('disabled', false);
+                $("#recommendation__court_availability").prop('disabled', false);
+                if (data["additional_info"]) {
+                    var callIntoCourt = data["additional_info"]["CallIntoCourt"];
+                    var courtAvailability = data["additional_info"]["CourtAvailability"];
+                    if (callIntoCourt && callIntoCourt != "") {
+                        $("#recommendation__call_into_court").val(callIntoCourt);
+                    }
+                    if (courtAvailability && courtAvailability != "") {
+                        $("#recommendation__court_availability").val(courtAvailability);
+                    }
+                }
+            }
+        });
     }
 
     run() {

@@ -131,7 +131,9 @@ class RecommendationsController extends AppController
         foreach ($eventsData as $event) {
             $eventList[$event->id] = $event->name . " in " . $event->branch->name . " on " . $event->start_date->toDateString() . " - " . $event->end_date->toDateString();
         }
-        $this->set(compact('recommendation', 'branches', 'awards', 'eventList', 'awardsDomains', 'awardsLevels', 'statusList'));
+        $callIntoCourtOptions = explode(",", StaticHelpers::getAppSetting("Awards.CallIntoCourtOptions", "Never,With Notice,Without Notice"));
+        $courtAvailabilityOptions = explode(",", StaticHelpers::getAppSetting("Awards.CourtAvailabilityOptions", "None,Morning,Evening,Any"));
+        $this->set(compact('recommendation', 'branches', 'awards', 'eventList', 'awardsDomains', 'awardsLevels', 'statusList', 'callIntoCourtOptions', 'courtAvailabilityOptions'));
     }
 
     /**
@@ -147,7 +149,8 @@ class RecommendationsController extends AppController
         if ($this->request->is('post')) {
             $recommendation = $this->Recommendations->patchEntity($recommendation, $this->request->getData());
             if ($recommendation->requester_id != null) {
-                $recommendation->requester_sca_name = $this->Recommendations->Requesters->get($recommendation->requester_id, fields: ['sca_name'])->sca_name;
+                $member = $this->Recommendations->Requesters->get($recommendation->requester_id, fields: ['sca_name', 'additional_info']);
+                $recommendation->requester_sca_name = $member->sca_name;
             }
             $recommendation["not_found"] = $this->request->getData("not_found") == "on";
             if ($recommendation->not_found) {
@@ -179,7 +182,9 @@ class RecommendationsController extends AppController
         foreach ($eventsData as $event) {
             $events[$event->id] = $event->name . " in " . $event->branch->name . " on " . $event->start_date->toDateString() . " - " . $event->end_date->toDateString();
         }
-        $this->set(compact('recommendation', 'branches', 'awards', 'events', 'awardsDomains', 'awardsLevels'));
+        $callIntoCourtOptions = explode(",", StaticHelpers::getAppSetting("Awards.CallIntoCourtOptions", "Never,With Notice,Without Notice"));
+        $courtAvailabilityOptions = explode(",", StaticHelpers::getAppSetting("Awards.CourtAvailabilityOptions", "None,Morning,Evening,Any"));
+        $this->set(compact('recommendation', 'branches', 'awards', 'events', 'awardsDomains', 'awardsLevels', 'callIntoCourtOptions', 'courtAvailabilityOptions'));
     }
 
 
@@ -228,7 +233,9 @@ class RecommendationsController extends AppController
         foreach ($eventsData as $event) {
             $events[$event->id] = $event->name . " in " . $event->branch->name . " on " . $event->start_date->toDateString() . " - " . $event->end_date->toDateString();
         }
-        $this->set(compact('recommendation', 'branches', 'awards', 'events', 'awardsDomains', 'awardsLevels', 'headerImage'));
+        $callIntoCourtOptions = explode(",", StaticHelpers::getAppSetting("Awards.CallIntoCourtOptions", "Never,With Notice,Without Notice"));
+        $courtAvailabilityOptions = explode(",", StaticHelpers::getAppSetting("Awards.CourtAvailabilityOptions", "None,Morning,Evening,Any"));
+        $this->set(compact('recommendation', 'branches', 'awards', 'events', 'awardsDomains', 'awardsLevels', 'headerImage', 'callIntoCourtOptions', 'courtAvailabilityOptions'));
     }
 
 

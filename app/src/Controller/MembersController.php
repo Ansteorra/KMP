@@ -44,7 +44,7 @@ class MembersController extends AppController
             "viewMobileCard",
             "viewMobileCardJson",
             "searchMembers",
-            "publicLinks",
+            "publicProfile",
             "emailTaken",
         ]);
     }
@@ -690,18 +690,8 @@ class MembersController extends AppController
         $this->set(compact("member"));
         $this->viewBuilder()->setTemplate('view_card_json');
     }
-
-    public function publicLinks($id = null)
+    public function publicProfile($id = null)
     {
-        $externalLinks = StaticHelpers::getAppSettingsStartWith("Member.ExternalLink.");
-        if (empty($externalLinks)) {
-            $linkData = [];
-            $this->response = $this->response
-                ->withType("application/json")
-                ->withStringBody(json_encode($linkData));
-            return $this->response;
-        }
-
         $member = $this->Members
             ->find()
             ->where(["Members.id" => $id])
@@ -710,17 +700,15 @@ class MembersController extends AppController
             throw new \Cake\Http\Exception\NotFoundException();
         }
         $this->Authorization->skipAuthorization();
-        $linkData = [];
-        foreach ($externalLinks as $key => $link) {
-            $linkLabel = str_replace("Member.ExternalLink.", "", $key);
-            $linkUrl = StaticHelpers::processTemplate($link, $member, 1, "__missing__");
-            if (substr_count($linkUrl, "__missing__") == 0) {
-                $linkData[$linkLabel] = $linkUrl;
-            }
-        }
+        $publicProfile = [
+            "sca_name" => $member->sca_name,
+            "branch" => $member->branch->name,
+            "external_links" => $this->publicExternalLinks($member),
+            "additional_info" => $this->publicAdditionalInfo($member),
+        ];
         $this->response = $this->response
             ->withType("application/json")
-            ->withStringBody(json_encode($linkData));
+            ->withStringBody(json_encode($publicProfile));
         return $this->response;
     }
 
@@ -1216,6 +1204,46 @@ class MembersController extends AppController
                     return $q->select(["ApprovedBy.sca_name"]);
                 }
             ]);
+    }
+
+    protected function publicAdditionalInfo($member)
+    {
+        $additionalInfoList = StaticHelpers::getAppSettingsStartWith("Member.AdditionalInfo.");
+        if (empty($additionalInfoList)) {
+            return [];
+        }
+        $publicKeys = [];
+        foreach ($additionalInfoList as $key => $value) {
+            $pipePos = strpos($value, "|");
+            if ($pipePos !== false) {
+                $fieldSecDetails = explode("|", $value);
+                if (count($fieldSecDetails) >= 3 && $fieldSecDetails[2] == "public") {
+                    $publicKeys[] = str_replace("Member.AdditionalInfo.", "", $key);
+                }
+            }
+        }
+        $publicData = [];
+        foreach ($publicKeys as $key) {
+            $publicData[$key] = $member->additional_info[$key] ?? "";
+        }
+        return $publicData;
+    }
+
+    protected function publicExternalLinks($member)
+    {
+        $externalLinks = StaticHelpers::getAppSettingsStartWith("Member.ExternalLink.");
+        if (empty($externalLinks)) {
+            return [];
+        }
+        $linkData = [];
+        foreach ($externalLinks as $key => $link) {
+            $linkLabel = str_replace("Member.ExternalLink.", "", $key);
+            $linkUrl = StaticHelpers::processTemplate($link, $member, 1, "__missing__");
+            if (substr_count($linkUrl, "__missing__") == 0) {
+                $linkData[$linkLabel] = $linkUrl;
+            }
+        }
+        return $linkData;
     }
     #endregion
 }

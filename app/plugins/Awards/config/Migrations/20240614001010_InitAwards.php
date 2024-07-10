@@ -310,6 +310,16 @@ class InitAwards extends AbstractMigration
                 "limit" => null,
                 "null" => true,
             ])
+            ->addColumn("call_into_court", "string", [
+                "default" => null,
+                "limit" => 100,
+                "null" => false,
+            ])
+            ->addColumn("court_availability", "string", [
+                "default" => null,
+                "limit" => 100,
+                "null" => false,
+            ])
             ->addColumn("status", "string", [
                 "default" => "submitted",
                 "limit" => 100,

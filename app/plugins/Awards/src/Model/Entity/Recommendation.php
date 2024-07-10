@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Awards\Model\Entity;
 
 use Cake\ORM\Entity;
+use App\KMP\StaticHelpers;
 
 /**
  * Recommendation Entity
@@ -74,6 +75,8 @@ class Recommendation extends Entity
         'contact_number' => true,
         'contact_email' => true,
         'reason' => true,
+        'call_into_court' => true,
+        'court_availability' => true,
         'modified' => true,
         'created' => true,
         'created_by' => true,
@@ -82,6 +85,30 @@ class Recommendation extends Entity
         'member' => true,
         'events' => true,
     ];
+
+    protected function _setCallIntoCourt($value)
+    {
+        $optionsStr = StaticHelpers::getAppSetting("Awards.CallIntoCourtOptions", "Never,With Notice,Without Notice");
+        //the court notice must be one of the constants defined in this class
+        $options = explode(",", $optionsStr);
+        if (in_array($value, $options)) {
+            return $value;
+        } else {
+            throw new \InvalidArgumentException("Invalid Court Notice");
+        }
+    }
+
+    protected function _setCourtAvailability($value)
+    {
+        $optionsStr = StaticHelpers::getAppSetting("Awards.CourtAvailabilityOptions", "None,Morning,Evening,Any");
+        //the court availability must be one of the constants defined in this class
+        $options = explode(",", $optionsStr);
+        if (in_array($value, $options)) {
+            return $value;
+        } else {
+            throw new \InvalidArgumentException("Invalid Court Availability");
+        }
+    }
 
     protected function _setStatus($value)
     {

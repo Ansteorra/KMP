@@ -23,25 +23,41 @@ class recommendationsAdd {
         branch.addClass('d-none');
     }
 
-    getPublicLinks(memberId) {
+    getPublicProfile(memberId) {
         var url =
-            '<?= $this->URL->build(['controller' => 'Members', 'action' => 'PublicLinks', 'plugin' => null]) ?>/' +
+            '<?= $this->URL->build(['controller' => 'Members', 'action' => 'PublicProfile', 'plugin' => null]) ?>/' +
             memberId;
         $.get(url, function(data) {
             if (data) {
                 var memberLinks = $('#member_links');
                 memberLinks.empty();
-                if (data.length != 0) {
-                    var links = $('<div class="col-12"><h5>Links of Interest</h5></div>');
-                    //data is an an array where the key is the name and the value is the url
-
-                    for (var key in data) {
-                        var link = $('<a href="' + data[key] + '" target="_blank">' + key + '</a>');
-                        var linkDiv = $('<div class="col-12"></div>');
-                        linkDiv.append(link);
-                        links.append(linkDiv);
+                $("#recommendation__call_into_court").prop('disabled', false);
+                $("#recommendation__court_availability").prop('disabled', false);
+                if (data["external_links"]) {
+                    var extLinks = data["external_links"];
+                    if (extLinks.length != 0) {
+                        var links = $('<div class="col-12"><h5>Links of Interest</h5></div>');
+                        //data is an an array where the key is the name and the value is the url
+                        for (var key in extLinks) {
+                            var link = $('<a href="' + data[key] + '" target="_blank">' + key + '</a>');
+                            var linkDiv = $('<div class="col-12"></div>');
+                            linkDiv.append(link);
+                            links.append(linkDiv);
+                        }
+                        memberLinks.append(links);
                     }
-                    memberLinks.append(links);
+                }
+                if (data["additional_info"]) {
+                    var callIntoCourt = data["additional_info"]["CallIntoCourt"];
+                    var courtAvailability = data["additional_info"]["CourtAvailability"];
+                    if (callIntoCourt && callIntoCourt != "") {
+                        $("#recommendation__call_into_court").val(callIntoCourt);
+                        $("#recommendation__call_into_court").prop('disabled', true);
+                    }
+                    if (courtAvailability && courtAvailability != "") {
+                        $("#recommendation__court_availability").val(courtAvailability);
+                        $("#recommendation__court_availability").prop('disabled', true);
+                    }
                 }
             }
         });
@@ -62,11 +78,13 @@ class recommendationsAdd {
                 var branch = $('#recommendation__branch_id').parent();
                 notFound.prop('checked', false);
                 branch.addClass('d-none');
-                me.getPublicLinks($('#recommendation__member_id').val());
+                me.getPublicProfile($('#recommendation__member_id').val());
             }
         });
         $('#recommendation_form').on('submit', function(e) {
             $('#recommendation__not_found').prop('disabled', false);
+            $("#recommendation__call_into_court").prop('disabled', false);
+            $("#recommendation__court_availability").prop('disabled', false);
         });
         $('#recommendation__domain_id').change(function() {
             var domainId = $('#recommendation__domain_id').val();

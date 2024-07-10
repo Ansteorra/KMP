@@ -51,6 +51,32 @@ $this->KMP->endBlock(); ?>
                     <div class="row mb-2" id="member_links"></div>
                     <?php
                     echo $this->Form->control('branch_id', ['options' => $branches, 'empty' => true, "label" => "Member Of", "id" => "recommendation__branch_id",  'disabled' => true, "required" => true]);
+                    $selectOptions = [];
+                    foreach ($callIntoCourtOptions as $option) {
+                        $selectOptions[$option] = $option;
+                    }
+                    echo $this->Form->control(
+                        'call_into_court',
+                        [
+                            'options' => $selectOptions,
+                            'empty' => true,
+                            "id" => "recommendation__call_into_court",
+                            "required" => true
+                        ]
+                    );
+                    $selectOptions = [];
+                    foreach ($courtAvailabilityOptions as $option) {
+                        $selectOptions[$option] = $option;
+                    }
+                    echo $this->Form->control(
+                        'court_availability',
+                        [
+                            'options' => $selectOptions,
+                            'empty' => true,
+                            "id" => "recommendation__court_availability",
+                            "required" => true
+                        ]
+                    );
                     echo $this->Form->control('domain_id', ['options' => $awardsDomains, 'empty' => true, "label" => "Award Type", "id" => "recommendation__domain_id", "required" => true]); ?>
                     <div class="role p-3" id="award_descriptions">
 
