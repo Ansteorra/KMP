@@ -69,6 +69,9 @@ class NavigationCell extends Cell
         $mainLinks = [];
         $sublinks = [];
         foreach ($menuItems as &$item) {
+            if (!$item) {
+                continue;
+            }
             $item["active"] = false;
             if ($item['type'] === 'parent') {
                 $parents[$item['label']] = $item;

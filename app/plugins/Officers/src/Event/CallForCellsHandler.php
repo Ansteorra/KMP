@@ -7,6 +7,7 @@ use App\Event\CallForCellsHandlerBase;
 
 class CallForCellsHandler extends CallForCellsHandlerBase
 {
+    protected string $pluginName = 'Officers';
     protected array $viewsToTest = [
         "\Officers\View\Cell\BranchOfficersCell",
         "\Officers\View\Cell\BranchRequiredOfficersCell",

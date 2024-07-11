@@ -3,9 +3,11 @@
 namespace App\Event;
 
 use Cake\Event\EventListenerInterface;
+use App\KMP\StaticHelpers;
 
 class CallForCellsHandlerBase implements EventListenerInterface
 {
+    protected string $pluginName = '';
     protected array $viewsToTest = [];
 
     public function implementedEvents(): array
@@ -19,6 +21,9 @@ class CallForCellsHandlerBase implements EventListenerInterface
 
     public function callForViewCells($event)
     {
+        if ($this->pluginName && !StaticHelpers::pluginEnabled($this->pluginName)) {
+            return [];
+        }
         $results = [];
         if ($event->getResult() && is_array($event->getResult())) {
             $results = $event->getResult();

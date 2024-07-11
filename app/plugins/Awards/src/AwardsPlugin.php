@@ -57,6 +57,7 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
         StaticHelpers::getAppSetting("Awards.CourtAvailabilityOptions", "None,Morning,Evening,Any");
         StaticHelpers::getAppSetting("Member.AdditionalInfo.CallIntoCourt", "select:Never,With Notice,Without Notice|user|public");
         StaticHelpers::getAppSetting("Member.AdditionalInfo.CourtAvailability", "select:None,Morning,Evening,Any|user|public");
+        StaticHelpers::getAppSetting("Plugin.Awards.Active", "yes");
     }
 
     /**

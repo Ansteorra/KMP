@@ -187,6 +187,11 @@ class StaticHelpers
         return $string;
     }
 
+    static function pluginEnabled($pluginName)
+    {
+        return self::getAppSetting("Plugin." . $pluginName . ".Active", "no") == "yes";
+    }
+
     /**
      * Get an app setting
      *

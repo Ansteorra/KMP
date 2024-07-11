@@ -16,6 +16,9 @@ class CallForNavHandler implements EventListenerInterface
 
     public function callForNav($event)
     {
+        if (StaticHelpers::pluginEnabled('Awards') == false) {
+            return null;
+        }
         $user = $event->getData('user');
         $results = [];
         if ($event->getResult() && is_array($event->getResult())) {

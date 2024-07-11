@@ -58,6 +58,7 @@ class ActivitiesPlugin extends BasePlugin implements KMPPluginInterface
         StaticHelpers::getAppSetting("Email.SiteAdminSignature", "Webminister");
         StaticHelpers::getAppSetting("Email.SystemEmailFromAddress", "donotreply@webminister.ansteorra.org");
         StaticHelpers::getAppSetting("Activities.NextStatusCheck", DateTime::now()->subDays(1)->toDateString());
+        StaticHelpers::getAppSetting("Plugin.Activities.Active", "yes");
     }
 
     /**

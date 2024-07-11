@@ -3,6 +3,7 @@
 namespace Activities\Event;
 
 use Cake\Event\EventListenerInterface;
+use App\KMP\StaticHelpers;
 
 class CallForNavHandler implements EventListenerInterface
 {
@@ -17,6 +18,9 @@ class CallForNavHandler implements EventListenerInterface
 
     public function callForNav($event)
     {
+        if (StaticHelpers::pluginEnabled('Activities') == false) {
+            return null;
+        }
         $user = $event->getData('user');
         $results = [];
         if ($event->getResult() && is_array($event->getResult())) {

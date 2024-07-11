@@ -2,6 +2,7 @@
 
 namespace Officers\Event;
 
+use App\KMP\StaticHelpers;
 use Cake\Event\EventListenerInterface;
 
 class CallForNavHandler implements EventListenerInterface
@@ -17,6 +18,9 @@ class CallForNavHandler implements EventListenerInterface
 
     public function callForNav($event)
     {
+        if (StaticHelpers::pluginEnabled('Officers') == false) {
+            return null;
+        }
         $user = $event->getData('user');
         $results = [];
         if ($event->getResult() && is_array($event->getResult())) {

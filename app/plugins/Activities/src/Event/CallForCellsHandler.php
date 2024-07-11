@@ -7,6 +7,7 @@ use App\Event\CallForCellsHandlerBase;
 
 class CallForCellsHandler extends CallForCellsHandlerBase
 {
+    protected string $pluginName = 'Activities';
     protected array $viewsToTest = [
         "\Activities\View\Cell\PermissionActivitiesCell",
         "\Activities\View\Cell\MemberAuthorizationsCell",

@@ -18,6 +18,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\KMP\StaticHelpers;
 use App\Model\Table\AppSettingsTable;
 use App\View\Cell\BasePluginCell;
 use Cake\Controller\Controller;
@@ -43,6 +44,18 @@ class AppController extends Controller
     //use Cake\Event\EventInterface;
     public function beforeFilter(EventInterface $event)
     {
+        $plugin = $this->request->getParam('plugin');
+        if ($plugin != null) {
+            if (StaticHelpers::pluginEnabled($plugin) == false) {
+                $this->Flash->error("The plugin $plugin is not enabled.");
+                $currentUser = $this->request->getAttribute('identity');
+                if ($currentUser != null) {
+                    $this->redirect(['controller' => 'Members', 'action' => 'view', $currentUser->id]);
+                } else {
+                    $this->redirect(['controller' => 'Members', 'action' => 'login']);
+                }
+            }
+        }
         parent::beforeFilter($event);
 
         //get url params
