@@ -193,10 +193,11 @@ class AuthorizationApprovalsController extends AppController
         }
         $this->Authorization->authorize($authorizationApproval);
         $previousApprovers = $this->AuthorizationApprovals
-            ->find("list", [
-                "keyField" => "approver_id",
-                "valueField" => "approver_id",
-            ])
+            ->find(
+                "list",
+                keyField: "approver_id",
+                valueField: "approver_id"
+            )
             ->where([
                 "authorization_id" => $authorizationApproval->authorization_id,
             ])
