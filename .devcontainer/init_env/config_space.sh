@@ -88,4 +88,4 @@ sudo composer install -n
 cd ..
 sudo bash reset_dev_database.sh
 cd app
-php bin/cake.php bootstrap install --latest
+sudo php bin/cake.php bootstrap install --latest
