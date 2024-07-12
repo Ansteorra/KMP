@@ -50,6 +50,22 @@ class CallForNavHandler implements EventListenerInterface
             ],
             [
                 "type" => "link",
+                "mergePath" => ["Award Recs."],
+                "label" => "Kanban Board",
+                "order" => 30,
+                "url" => [
+                    "controller" => "Recommendations",
+                    "plugin" => "Awards",
+                    "action" => "board",
+                    "model" => "Awards.Recommendations",
+                ],
+                "icon" => "bi-kanban",
+                "activePaths" => [
+                    "awards/Recommendations/view/*",
+                ]
+            ],
+            [
+                "type" => "link",
                 "mergePath" => ["Award Recs.", "Recommendations"],
                 "label" => "New Recommendation",
                 "order" => 0,
