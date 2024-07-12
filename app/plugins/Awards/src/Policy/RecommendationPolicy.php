@@ -14,6 +14,11 @@ class RecommendationPolicy extends BasePolicy
 {
     protected string $REQUIRED_PERMISSION = "Can Manage Recommendations";
 
+    public function canBoard(IdentityInterface $user, $entity)
+    {
+        return true;
+    }
+
     public function canAdd(IdentityInterface $user, $entity)
     {
         return true;

@@ -26,12 +26,75 @@ class RecommendationsController extends AppController
         ]);
     }
 
+    public function index()
+    {
+        $recommendations = $this->Recommendations->find()
+            ->contain(['Requesters', 'Members', 'Branches', 'Awards', "Awards.Domains"]);
+
+
+        if ($this->request->getQuery("award_id")) {
+            $recommendations->where(["award_id" => $this->request->getQuery("award_id")]);
+        }
+        if ($this->request->getQuery("branch_id")) {
+            $recommendations->where(["Recommendations.branch_id" => $this->request->getQuery("branch_id")]);
+        }
+        if ($this->request->getQuery("for")) {
+            $recommendations->where(["member_sca_name LIKE" => "%" . $this->request->getQuery("for") . "%"]);
+        }
+        if ($this->request->getQuery("call_into_court")) {
+            $recommendations->where(["call_into_court" => $this->request->getQuery("call_into_court")]);
+        }
+        if ($this->request->getQuery("court_avail")) {
+            $recommendations->where(["court_availability" => $this->request->getQuery("court_avail")]);
+        }
+        if ($this->request->getQuery("requester_sca_name")) {
+            $recommendations->where(["requester_sca_name" => $this->request->getQuery("requester_sca_name")]);
+        }
+        if ($this->request->getQuery("domain_id")) {
+            $recommendations->where(["Awards.domain_id" => $this->request->getQuery("domain_id")]);
+        }
+        $statuses = Recommendation::getStatues();
+        $awards = $this->Recommendations->Awards->find('list', limit: 200)->all();
+        $domains = $this->Recommendations->Awards->Domains->find('list', limit: 200)->all();
+        $branches = $this->Recommendations->Branches
+            ->find("treeList", spacer: "--")
+            ->orderBy(["name" => "ASC"]);
+        $callIntoCourtOptions = explode(",", StaticHelpers::getAppSetting("Awards.CallIntoCourtOptions", "Never,With Notice,Without Notice"));
+        $callIntoCourt = [];
+        foreach ($callIntoCourtOptions as $option) {
+            $callIntoCourt[$option] = $option;
+        }
+        $courtAvailabilityOptions = explode(",", StaticHelpers::getAppSetting("Awards.CourtAvailabilityOptions", "None,Morning,Evening,Any"));
+        $courtAvailability = [];
+        foreach ($courtAvailabilityOptions as $option) {
+            $courtAvailability[$option] = $option;
+        }
+        $this->paginate = [
+            'sortableFields' => [
+                'Branches.name',
+                'Awards.name',
+                'Domains.name',
+                'member_sca_name',
+                'created',
+                'status',
+                'call_into_court',
+                'court_availability',
+                'requester_sca_name',
+                'contact_email',
+                'contact_phone',
+                'status_date',
+            ],
+        ];
+        $recommendations = $this->paginate($recommendations);
+        $this->set(compact('recommendations', 'statuses', 'awards', 'domains', 'branches', 'callIntoCourt', 'courtAvailability'));
+    }
+
     /**
-     * Index method
+     * board view
      *
      * @return \Cake\Http\Response|null|void Renders view
      */
-    public function index()
+    public function board()
     {
         $recommendations = $this->Recommendations->find()
             ->contain(['Requesters', 'Members', 'Branches', 'Awards'])->orderBy(['Recommendations.status', 'stack_rank'])->all();
@@ -152,9 +215,12 @@ class RecommendationsController extends AppController
                 $member = $this->Recommendations->Requesters->get($recommendation->requester_id, fields: ['sca_name', 'additional_info']);
                 $recommendation->requester_sca_name = $member->sca_name;
             }
+            $recommendation->status_date = DateTime::now();
             $recommendation["not_found"] = $this->request->getData("not_found") == "on";
             if ($recommendation->not_found) {
                 $recommendation->member_id = null;
+            } else {
+                $recommendation->branch_id = $this->Recommendations->Members->get($recommendation->member_id, select: ["branch_id"])->branch_id;
             }
             if ($this->Recommendations->save($recommendation)) {
                 $this->Flash->success(__('The recommendation has been saved.'));
@@ -202,9 +268,12 @@ class RecommendationsController extends AppController
             if ($recommendation->requester_id != null) {
                 $recommendation->requester_sca_name = $this->Recommendations->Requesters->get($recommendation->requester_id, fields: ['sca_name'])->sca_name;
             }
+            $recommendation->status_date = DateTime::now();
             $recommendation["not_found"] = $this->request->getData("not_found") == "on";
             if ($recommendation->not_found) {
                 $recommendation->member_id = null;
+            } else {
+                $recommendation->branch_id = $this->Recommendations->Members->get($recommendation->member_id, select: ["branch_id"])->branch_id;
             }
             if ($this->Recommendations->save($recommendation)) {
                 $this->Flash->success(__('The recommendation has been submitted.'));

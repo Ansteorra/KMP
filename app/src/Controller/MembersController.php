@@ -89,21 +89,22 @@ class MembersController extends AppController
                 ],
             ]);
         }
-        // sort by branches.name manually if its in the query string
-        if ($sort == "Branches.name") {
-            // check the direction of the sort
-            if (!$direction) {
-                $direction = "asc";
-            }
-            if (strtolower($direction) == "asc") {
-                $query = $query->orderBy(["Branches.name" => "ASC"]);
-            } else {
-                $query = $query->orderBy(["Branches.name" => "DESC"]);
-            }
-        }
         #is
         $this->Authorization->authorize($query);
         $query = $this->Authorization->applyScope($query);
+
+        $this->paginate = [
+            'sortableFields' => [
+                'Branches.name',
+                'sca_name',
+                'first_name',
+                'last_name',
+                'email_address',
+                'status',
+                'last_login',
+            ],
+        ];
+
         $Members = $this->paginate($query, [
             'order' => [
                 'sca_name' => 'asc',

@@ -39,25 +39,7 @@ if (!$isTurboFrame) {
             <tr>
                 <th scope="col"><?= $this->Paginator->sort("sca_name") ?></th>
                 <th scope="col">
-                    <?php if ($sort === "Branches.name" && $direction === "asc") {
-                        echo $this->Html->link("Branch", [
-                            "controller" => "Members",
-                            "?" => ["sort" => "Branches.name", "direction" => "desc"],
-                            "class" => "asc",
-                        ]);
-                    } elseif ($sort === "Branches.name" && $direction === "desc") {
-                        echo $this->Html->link("Branch", [
-                            "controller" => "Members",
-                            "?" => ["sort" => "Branches.name", "direction" => "asc"],
-                            "class" => "desc",
-                        ]);
-                    } else {
-                        echo $this->Html->link("Branch", [
-                            "controller" => "Members",
-                            "?" => ["sort" => "Branches.name", "direction" => "asc"],
-                            "class" => "",
-                        ]);
-                    } ?>
+                    <?= $this->Paginator->sort("Branches.name", "Branch") ?>
                 </th>
                 <th scope="col"><?= $this->Paginator->sort("first_name") ?></th>
                 <th scope="col"><?= $this->Paginator->sort("last_name") ?></th>

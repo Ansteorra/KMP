@@ -4,153 +4,187 @@
  * @var \App\View\AppView $this
  * @var \App\Model\Entity\ActivityGroup[]|\Cake\Collection\CollectionInterface $activityGroup
  */
-?>
-<?php $this->extend("/layout/TwitterBootstrap/dashboard");
+$ticks = microtime(true);
+if (!$isTurboFrame) {
+    $this->extend("/layout/TwitterBootstrap/dashboard");
 
-echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Award Recommendations';
-$this->KMP->endBlock(); ?>
+    echo $this->KMP->startBlock("title");
+    echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Award Recommendations';
+    $this->KMP->endBlock();
+}
+
+?>
+<?php if (!$isTurboFrame) : ?>
 <h3>
     Award Recommendations
 </h3>
-<div class="overflow-x-auto table-responsive">
-    <table class="table table-striped-columns" width="100%" style="min-width:1020px">
+<?php endif; ?>
+<turbo-frame id="recommendationList" data-turbo='true'>
+    <?= $this->Form->create(null, ["url" => ["action" => "index"], "type" => "get", "data-turbo-frame" => "recommendationList"]) ?>
+    <?= $this->Form->hidden("sort", ["value" => $this->request->getQuery("sort")]) ?>
+    <?= $this->Form->hidden("direction", ["value" => $this->request->getQuery("direction")]) ?>
+    <table class="table table-striped">
         <thead>
-            <tr>
-                <?php foreach ($statuses as $statusName => $status) : ?>
-                <th scope="col" width="14.28%"><?= h($statusName) ?></th>
-                <?php endforeach; ?>
+            <tr class="align-top">
+                <th scope="col"><?= $this->Paginator->sort("created", "Submitted") ?></th>
+                <th scope="col"><?= $this->Paginator->sort("member_sca_name", "For") ?>
+                    <?= $this->Form->control("for", [
+                        "type" => "text",
+                        "label" => false,
+                        "placeholder" => "For",
+                        "value" => $this->request->getQuery("for"),
+                        "onchange" => "document.getElementById('filter_btn').click();",
+                    ]) ?>
+                </th>
+                <th scope="col">OP</th>
+                <th scope="col"><?= $this->Paginator->sort("Branches.name", "Branch") ?>
+                    <?= $this->Form->control("branch_id", [
+                        "type" => "select",
+                        "label" => false,
+                        "value" => $this->request->getQuery("branch_id"),
+                        "options" => $branches,
+                        "empty" => true,
+                        "onchange" => "document.getElementById('filter_btn').click();",
+                    ]) ?>
+                </th>
+                <th scope="col"><?= $this->Paginator->sort("call_into_court") ?>
+                    <?= $this->Form->control("call_into_court", [
+                        "type" => "select",
+                        "label" => false,
+                        "value" => $this->request->getQuery("call_into_court"),
+                        "options" => $callIntoCourt,
+                        "empty" => true,
+                        "onchange" => "document.getElementById('filter_btn').click();",
+                    ]) ?>
+                </th>
+                <th scope="col"><?= $this->Paginator->sort("Court Avail.") ?>
+                    <?= $this->Form->control("court_avail", [
+                        "type" => "select",
+                        "label" => false,
+                        "value" => $this->request->getQuery("court_avail"),
+                        "options" => $courtAvailability,
+                        "empty" => true,
+                        "onchange" => "document.getElementById('filter_btn').click();",
+                    ]) ?>
+                </th>
+                <th scope="col"><?= $this->Paginator->sort("requester_sca_name", "Submitted By") ?>
+                    <?= $this->Form->control("requester_sca_name", [
+                        "type" => "text",
+                        "label" => false,
+                        "placeholder" => "Submitted By",
+                        "value" => $this->request->getQuery("requester_sca_name"),
+                        "onchange" => "document.getElementById('filter_btn').click();",
+                    ]) ?>
+                </th>
+                <th scope="col"><?= $this->Paginator->sort("Contact Email") ?></th>
+                <th scope="col"><?= $this->Paginator->sort("Contact Phone") ?></th>
+                <th scope="col"><?= $this->Paginator->sort("Domains.name", "Domain") ?>
+                    <?= $this->Form->control("domain_id", [
+                        "type" => "select",
+                        "label" => false,
+                        "value" => $this->request->getQuery("domain_id"),
+                        "options" => $domains,
+                        "empty" => true,
+                        "onchange" => "document.getElementById('filter_btn').click();",
+                    ]) ?>
+                </th>
+                <th scope="col"><?= $this->Paginator->sort("Awards.name", "Award") ?>
+                    <?= $this->Form->control("award_id", [
+                        "type" => "select",
+                        "label" => false,
+                        "placeholder" => "Award",
+                        "value" => $this->request->getQuery("award_id"),
+                        "options" => $awards,
+                        "empty" => true,
+                        "onchange" => "document.getElementById('filter_btn').click();",
+                    ]) ?>
+                </th>
+                <th scope="col">Reason</th>
+                <th scope="col">Events</th>
+                <th scope="col">Notes</th>
+                <th scope="col"><?= $this->Paginator->sort("Status") ?>
+                    <?= $this->Form->control("status", [
+                        "type" => "select",
+                        "label" => false,
+                        "placeholder" => "Status",
+                        "value" => $this->request->getQuery("status"),
+                        "options" => $statuses,
+                        "empty" => true,
+                        "onchange" => "document.getElementById('filter_btn').click();",
+                    ]) ?>
+                </th>
+                <th scope="col"><?= $this->Paginator->sort("Status Date") ?></th>
+                <th scope="col" class="actions"><?= __("Actions") ?>
+                    <?= $this->Form->button('Filter', ["id" => "filter_btn", "class" => "d-show"]); ?>
+                </th>
             </tr>
         </thead>
         <tbody>
+            <?php foreach ($recommendations as $recommendation) : ?>
             <tr>
-                <?php
-                foreach ($statuses as $statusName => $status) : ?>
-                <td class="sortable" width="14.28%" data-status="<?= h($statusName) ?>">
-
-                    <?php
-                        if (is_array($status)) :
-                            foreach ($status as $recommendation) : ?>
-                    <div class="card m-1" style="cursor: pointer;" draggable="true"
-                        data-stackRank="<?= $recommendation->stack_rank ?>" data-recId="<?= $recommendation->id ?>"
-                        id="card_<?= $recommendation->id ?>">
-                        <div class="card-body">
-                            <div class="card-title">
-                                <?= $this->Html->link($recommendation->award->name, ['action' => 'view', $recommendation->id]) ?>
-                            </div>
-                            <h6 class="card-subtitle mb-2 text-body-secondary"><?= $recommendation->member_sca_name ?>
-                            </h6>
-                            <p class="card-text"><?= $this->Text->autoParagraph(
-                                                                    h($this->Text->truncate($recommendation->reason, 100)),
-                                                                ) ?></p>
-                        </div>
-                    </div>
-                    <?php endforeach;
-                        endif; ?>
+                <td><?= h($recommendation->created) ?></td>
+                <td><?php
+                        if ($recommendation->member_id) {
+                            echo $this->Html->link(
+                                h($recommendation->member_sca_name),
+                                ["controller" => "Members", "plugin" => null, "action" => "view", $recommendation->member_id],
+                                ["title" => __("View"), "data-turbo-frame" => "_top"],
+                            );
+                        } else {
+                            echo h($recommendation->member_sca_name);
+                        }
+                        ?></td>
+                <td>TBD: External Links</td>
+                <td><?= h($recommendation->branch->name) ?></td>
+                <td><?= h($recommendation->call_into_court) ?></td>
+                <td><?= h($recommendation->court_availability) ?></td>
+                <td><?php
+                        if ($recommendation->requester_id) {
+                            echo $this->Html->link(
+                                h($recommendation->requester_sca_name),
+                                ["controller" => "Members", "plugin" => null, "action" => "view", $recommendation->requester_id],
+                                ["title" => __("View"), "data-turbo-frame" => "_top"],
+                            );
+                        } else {
+                            echo h($recommendation->requester_sca_name);
+                        }
+                        ?></td>
+                <td><?= h($recommendation->contact_email) ?></td>
+                <td><?= h($recommendation->contact_phone) ?></td>
+                <td><?= h($recommendation->award->domain->name) ?></td>
+                <td><?= h($recommendation->award->name) ?></td>
+                <td><?= $this->Text->autoParagraph($recommendation->reason) ?></td>
+                <td>TBD: Events </td>
+                <td>TBD: Notes</td>
+                <td><?= h($recommendation->status) ?></td>
+                <td><?= $recommendation->status_date ? h($recommendation->status_date) : h($recommendation->created) ?>
                 </td>
-                <?php endforeach; ?>
+                <td class="actions">
+                    <?= $this->Html->link(
+                            __("View"),
+                            ["action" => "view", $recommendation->id],
+                            ["title" => __("View"), "class" => "btn btn-secondary"],
+                        ) ?>
+                </td>
+            </tr>
+            <?php endforeach; ?>
         </tbody>
     </table>
-</div>
-<?php $this->KMP->startBlock("script") ?>
-<script>
-<?= sprintf('var csrfToken = %s;', json_encode($this->request->getAttribute('csrfToken'))) ?>
-class recommendationsIndex {
-    constructor() {
-        this.draggedItem = null;
-        this.ac = null;
-    };
-    startDragListen(event, me) {
-        var target = event.target;
-        while (!target.classList.contains('card')) {
-            if (target.tagName == 'BODY') {
-                return;
-            }
-            target = target.parentElement;
-        }
-        $(target).addClass("opacity-25");
-        me.draggedItem = target;
-    }
-    processDrag(event, me, isDrop) {
-        //console.log(event);
-        var targetCol = event.target;
-        var entityId = me.draggedItem.getAttribute('data-recId');
-        var targetStackRank = null;
-        while (!targetCol.classList.contains('sortable')) {
-            if (targetCol.tagName == 'BODY') {
-                return;
-            }
-            targetCol = targetCol.parentElement;
-        }
-        var targetBefore = event.target;
-        var foundBefore = true;
-        while (!targetBefore.classList.contains('card')) {
-            if (targetBefore.tagName == 'TD') {
-                foundBefore = false;
-                break;
-            }
-            targetBefore = targetBefore.parentElement;
-        }
-        if (foundBefore) {
-            targetStackRank = targetBefore.getAttribute('data-stackRank');
-        }
-        if (targetCol.classList.contains('sortable')) {
-            const data = event.dataTransfer.getData('Text');
-            if (foundBefore) {
-                targetCol.insertBefore(me.draggedItem, targetBefore);
-            } else {
-                targetCol.appendChild(me.draggedItem);
-            }
-            if (isDrop) {
-                //in the targetCol get the card before the draggedItem
-                var palaceAfter = -1;
-                var palaceBefore = -1;
-                var previousSibling = $(me.draggedItem).prev()
-                if (previousSibling) {
-                    palaceAfter = previousSibling.attr('data-recId');
-                } else {
-                    palaceAfter = -1;
-                }
-                var nextSibling = $(me.draggedItem).next()
-                if (nextSibling) {
-                    palaceBefore = nextSibling.attr('data-recId');
-                } else {
-                    palaceBefore = -1;
-                }
-
-                $.ajax({
-                    url: "<?= $this->Url->build(['action' => 'kanbanUpdate']) ?>/" + entityId,
-                    type: "POST",
-                    data: {
-                        _csrfToken: csrfToken,
-                        status: targetCol.getAttribute('data-status'),
-                        placeAfter: palaceAfter,
-                        placeBefore: palaceBefore
-                    }
-                });
-            }
-        }
-    }
-    run() {
-        var me = this;
-        document.addEventListener('dragstart', event => {
-            me.startDragListen(event, me);
-        });
-        document.addEventListener('dragover', event => {
-            event.preventDefault();
-            me.processDrag(event, me, false);
-        });
-        document.addEventListener('drop', event => {
-            event.preventDefault();
-            me.processDrag(event, me, true);
-            $(me.draggedItem).removeClass("opacity-25");
-            me.draggedItem = null;
-        });
-    };
-}
-window.addEventListener('DOMContentLoaded', function() {
-    var ri = new recommendationsIndex();
-    ri.run();
-});
-</script>
-<?php $this->KMP->endBlock() ?>
+    <?= $this->Form->end() ?>
+    <div class="paginator">
+        <ul class="pagination">
+            <?= $this->Paginator->first("«", ["label" => __("First")]) ?>
+            <?= $this->Paginator->prev("‹", [
+                "label" => __("Previous"),
+            ]) ?>
+            <?= $this->Paginator->numbers() ?>
+            <?= $this->Paginator->next("›", ["label" => __("Next")]) ?>
+            <?= $this->Paginator->last("»", ["label" => __("Last")]) ?>
+        </ul>
+        <p><?= $this->Paginator->counter(
+                __(
+                    "Page {{page}} of {{pages}}, showing {{current}} record(s) out of {{count}} total",
+                ),
+            ) ?></p>
+    </div>
+</turbo-frame>
