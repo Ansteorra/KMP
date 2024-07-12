@@ -2,7 +2,7 @@
 
 use App\KMP\StaticHelpers;
 
-if (StaticHelpers::pluginEnabled('Github') == false) {
+if (!$activeFeature) {
     return;
 }
 $feedbackTypes = [

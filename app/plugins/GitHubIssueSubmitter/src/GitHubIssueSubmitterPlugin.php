@@ -29,7 +29,7 @@ class GitHubIssueSubmitterPlugin extends BasePlugin
     public function bootstrap(PluginApplicationInterface $app): void
     {
         StaticHelpers::getAppSetting("KMP.GitHub.Owner", "Ansteorra");
-        StaticHelpers::getAppSetting("KMP.GitHub.Project", "AMP");
+        StaticHelpers::getAppSetting("KMP.GitHub.Project", "KMP");
         StaticHelpers::getAppSetting("Plugin.GitHubIssueSubmitter.Active", "yes");
     }
 
