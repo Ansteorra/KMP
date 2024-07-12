@@ -25,6 +25,7 @@ use JeremyHarris\LazyLoad\ORM\LazyLoadEntityTrait;
 use App\KMP\PermissionsLoader;
 
 use Activities\Model\Entity\MemberAuthorizationsTrait;
+use App\KMP\StaticHelpers;
 
 /**
  * Member Entity
@@ -144,6 +145,46 @@ class Member extends Entity implements
                 ->newEmptyEntity();
         }
         return $this->authorization->can($this, $action, $resource);
+    }
+
+    public function publicLinks()
+    {
+        $externalLinks = StaticHelpers::getAppSettingsStartWith("Member.ExternalLink.");
+        if (empty($externalLinks)) {
+            return [];
+        }
+        $linkData = [];
+        foreach ($externalLinks as $key => $link) {
+            $linkLabel = str_replace("Member.ExternalLink.", "", $key);
+            $linkUrl = StaticHelpers::processTemplate($link, $this, 1, "__missing__");
+            if (substr_count($linkUrl, "__missing__") == 0) {
+                $linkData[$linkLabel] = $linkUrl;
+            }
+        }
+        return $linkData;
+    }
+
+    public function publicAdditionalInfo()
+    {
+        $additionalInfoList = StaticHelpers::getAppSettingsStartWith("Member.AdditionalInfo.");
+        if (empty($additionalInfoList)) {
+            return [];
+        }
+        $publicKeys = [];
+        foreach ($additionalInfoList as $key => $value) {
+            $pipePos = strpos($value, "|");
+            if ($pipePos !== false) {
+                $fieldSecDetails = explode("|", $value);
+                if (count($fieldSecDetails) >= 3 && $fieldSecDetails[2] == "public") {
+                    $publicKeys[] = str_replace("Member.AdditionalInfo.", "", $key);
+                }
+            }
+        }
+        $publicData = [];
+        foreach ($publicKeys as $key) {
+            $publicData[$key] = $this->additional_info[$key] ?? "";
+        }
+        return $publicData;
     }
 
     /**

@@ -29,8 +29,30 @@ class RecommendationsController extends AppController
     public function index()
     {
         $recommendations = $this->Recommendations->find()
-            ->contain(['Requesters', 'Members', 'Branches', 'Awards', "Awards.Domains"]);
-
+            ->contain([
+                'Requesters' => function ($q) {
+                    return $q->select(['id', 'sca_name']);
+                },
+                'Members',
+                'Branches' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+                'Awards' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+                'Awards.Domains' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+                'Events' => function ($q) {
+                    return $q->select(['id', 'name', 'start_date', 'end_date']);
+                },
+                'Notes' => function ($q) {
+                    return $q->select(['id', 'topic_id', 'subject', 'body', 'created']);
+                },
+                'Notes.Authors' => function ($q) {
+                    return $q->select(['id', 'sca_name']);
+                }
+            ]);
 
         if ($this->request->getQuery("award_id")) {
             $recommendations->where(["award_id" => $this->request->getQuery("award_id")]);

@@ -79,6 +79,11 @@ class RecommendationsTable extends Table
             "targetForeignKey" => "event_id",
             "className" => "Awards.Events",
         ]);
+        $this->hasMany("Notes", [
+            "foreignKey" => "topic_id",
+            "className" => "Notes",
+            "conditions" => ["Notes.topic_model" => "Awards.Recommendations"],
+        ]);
     }
 
     /**

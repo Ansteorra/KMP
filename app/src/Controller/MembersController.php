@@ -704,8 +704,8 @@ class MembersController extends AppController
         $publicProfile = [
             "sca_name" => $member->sca_name,
             "branch" => $member->branch->name,
-            "external_links" => $this->publicExternalLinks($member),
-            "additional_info" => $this->publicAdditionalInfo($member),
+            "external_links" => $member->publicLinks(),
+            "additional_info" => $member->publicAdditionalInfo(),
         ];
         $this->response = $this->response
             ->withType("application/json")
@@ -1205,46 +1205,6 @@ class MembersController extends AppController
                     return $q->select(["ApprovedBy.sca_name"]);
                 }
             ]);
-    }
-
-    protected function publicAdditionalInfo($member)
-    {
-        $additionalInfoList = StaticHelpers::getAppSettingsStartWith("Member.AdditionalInfo.");
-        if (empty($additionalInfoList)) {
-            return [];
-        }
-        $publicKeys = [];
-        foreach ($additionalInfoList as $key => $value) {
-            $pipePos = strpos($value, "|");
-            if ($pipePos !== false) {
-                $fieldSecDetails = explode("|", $value);
-                if (count($fieldSecDetails) >= 3 && $fieldSecDetails[2] == "public") {
-                    $publicKeys[] = str_replace("Member.AdditionalInfo.", "", $key);
-                }
-            }
-        }
-        $publicData = [];
-        foreach ($publicKeys as $key) {
-            $publicData[$key] = $member->additional_info[$key] ?? "";
-        }
-        return $publicData;
-    }
-
-    protected function publicExternalLinks($member)
-    {
-        $externalLinks = StaticHelpers::getAppSettingsStartWith("Member.ExternalLink.");
-        if (empty($externalLinks)) {
-            return [];
-        }
-        $linkData = [];
-        foreach ($externalLinks as $key => $link) {
-            $linkLabel = str_replace("Member.ExternalLink.", "", $key);
-            $linkUrl = StaticHelpers::processTemplate($link, $member, 1, "__missing__");
-            if (substr_count($linkUrl, "__missing__") == 0) {
-                $linkData[$linkLabel] = $linkUrl;
-            }
-        }
-        return $linkData;
     }
     #endregion
 }

@@ -134,7 +134,24 @@ if (!$isTurboFrame) {
                             echo h($recommendation->member_sca_name);
                         }
                         ?></td>
-                <td>TBD: External Links</td>
+                <td>
+                    <?php
+                        if ($recommendation->member) :
+                            $member = $recommendation->member;
+                            $externalLinks =  $member->publicLinks();
+                            if ($externalLinks) :
+                                foreach ($externalLinks as $name => $link) : ?>
+                    <ul>
+                        <li><?= $this->Html->link(
+                                                $name,
+                                                $link,
+                                                ["title" => $name, "target" => "_blank"],
+                                            ) ?></li>
+                    </ul>
+                    <?php endforeach;
+                            endif;
+                        endif; ?>
+                </td>
                 <td><?= h($recommendation->branch->name) ?></td>
                 <td><?= h($recommendation->call_into_court) ?></td>
                 <td><?= h($recommendation->court_availability) ?></td>
@@ -154,8 +171,21 @@ if (!$isTurboFrame) {
                 <td><?= h($recommendation->award->domain->name) ?></td>
                 <td><?= h($recommendation->award->name) ?></td>
                 <td><?= $this->Text->autoParagraph($recommendation->reason) ?></td>
-                <td>TBD: Events </td>
-                <td>TBD: Notes</td>
+                <td>
+                    <ul>
+                        <?php foreach ($recommendation->events as $event) : ?>
+                        <li><?= h($event->name) ?> : <br> <?= h($event->start_date->toDateString()) ?> -
+                            <?= h($event->end_date->toDateString()) ?></li>
+                        <?php endforeach; ?>
+                    </ul>
+                </td>
+                <td>
+                    <ul>
+                        <?php foreach ($recommendation->notes as $note) : ?>
+                        <li><?= h($note->created->toDateTimeString()) ?> :
+                            <?= $this->Text->autoParagraph($note->body) ?></li>
+                        <?php endforeach; ?>
+                </td>
                 <td><?= h($recommendation->status) ?></td>
                 <td><?= $recommendation->status_date ? h($recommendation->status_date) : h($recommendation->created) ?>
                 </td>
@@ -163,7 +193,7 @@ if (!$isTurboFrame) {
                     <?= $this->Html->link(
                             __("View"),
                             ["action" => "view", $recommendation->id],
-                            ["title" => __("View"), "class" => "btn btn-secondary"],
+                            ["title" => __("View"), "class" => "btn btn-secondary", "data-turbo-frame" => "_top"],
                         ) ?>
                 </td>
             </tr>
