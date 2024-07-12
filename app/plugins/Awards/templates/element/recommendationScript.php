@@ -39,7 +39,7 @@ class recommendationsAdd {
                         var links = $('<div class="col-12"><h5>Links of Interest</h5></div>');
                         //data is an an array where the key is the name and the value is the url
                         for (var key in extLinks) {
-                            var link = $('<a href="' + data[key] + '" target="_blank">' + key + '</a>');
+                            var link = $('<a href="' + extLinks[key] + '" target="_blank">' + key + '</a>');
                             var linkDiv = $('<div class="col-12"></div>');
                             linkDiv.append(link);
                             links.append(linkDiv);
