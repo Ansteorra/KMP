@@ -330,6 +330,16 @@ class InitAwards extends AbstractMigration
                 "limit" => null,
                 "null" => true,
             ])
+            ->addColumn("event_id", "integer", [
+                "default" => null,
+                "limit" => 11,
+                "null" => true,
+            ])
+            ->addColumn("given", "datetime", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
             ->addColumn("modified", "datetime", [
                 "default" => null,
                 "limit" => null,

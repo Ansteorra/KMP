@@ -50,7 +50,14 @@ echo $this->Form->postLink(
 </tr>
 <tr>
     <th scope="row"><?= __('Status') ?></th>
-    <td><?= h($recommendation->status) ?></td>
+    <td><?= h($recommendation->status) ?>
+        <?php if ($recommendation->status == "given") {
+            echo " at " . h($recommendation->scheduled_event->name) . "  on " . h($recommendation->given->toFormattedDateString());
+        } ?>
+        <?php if ($recommendation->status == "scheduled") {
+            echo "to be given at " . h($recommendation->scheduled_event->name);
+        } ?>
+    </td>
 </tr>
 <tr>
     <th scope="row"><?= __('Requester Sca Name') ?></th>
@@ -76,6 +83,9 @@ echo $this->Form->postLink(
         <ul>
             <?php foreach ($recommendation->events as $events) : ?>
             <li><?= $this->Html->link($events->name, ['controller' => 'Events', 'action' => 'view', $events->id]) ?>
+                <?php if ($recommendation->event_id == $events->id) {
+                        echo " (Plan to Give)";
+                    } ?>
             </li>
             <?php endforeach; ?>
         </ul>
@@ -191,7 +201,6 @@ echo $this->Modal->create("Edit Recommendation", [
             "required" => true
         ]
     );
-    echo $this->Form->control('status', ['options' => $statusList]);
     echo $this->Form->control('domain_id', ['options' => $awardsDomains, 'empty' => true, "label" => "Award Type", "id" => "recommendation__domain_id"]); ?>
     <div class="role p-3" id="award_descriptions">
 
@@ -206,6 +215,15 @@ echo $this->Modal->create("Edit Recommendation", [
         "type" => "select",
         "multiple" => "checkbox",
         'options' => $eventList
+    ]);
+    echo $this->Form->control('status', ['options' => $statusList, "id" => "recommendation__status"]);
+    echo $this->Form->control('given', ['type' => 'date', 'label' => 'Given On', 'id' => 'recommendation_given']);
+    echo $this->Form->control('event_id', [
+        'label' => 'Plan to Give At:',
+        "type" => "select",
+        'options' => $eventList,
+        'empty' => true,
+        'id' => 'recommendation__event_id'
     ]);
     ?>
 </fieldset>
@@ -271,6 +289,7 @@ class recommendationsAdd {
 
     run() {
         $('#recommendation__branch_id').parent().addClass('d-none');
+        $('#recommendation_given').parent().addClass('d-none');
         var me = this;
         var searchUrl =
             '<?= $this->URL->build(['controller' => 'Members', 'action' => 'SearchMembers', 'plugin' => null]) ?>';
@@ -363,9 +382,39 @@ class recommendationsAdd {
                 $("#" + tabid).click();
             }
         });
+        $('#recommendation__status').on('change', function() {
+            var status = $('#recommendation__status').val();
+            switch (status) {
+                case "given":
+                    $('#recommendation_given').parent().removeClass('d-none');
+                    $('#recommendation__event_id').parent().removeClass('d-none');
+                    $('#recommendation_given').attr('required', true);
+                    $('#recommendation__event_id').attr('required', true);
+                    break;
+                case "scheduled":
+                    $('#recommendation_given').parent().addClass('d-none');
+                    $('#recommendation__event_id').parent().removeClass('d-none');
+                    $('#recommendation_given').removeAttr('required');
+                    $('#recommendation__event_id').attr('required', true);
+                    break;
+                case "scheduling":
+                    $('#recommendation_given').parent().addClass('d-none');
+                    $('#recommendation__event_id').parent().removeClass('d-none');
+                    $('#recommendation_given').removeAttr('required');
+                    $('#recommendation__event_id').removeAttr('required');
+                    break;
+                default:
+                    $('#recommendation_given').parent().addClass('d-none');
+                    $('#recommendation__event_id').parent().addClass('d-none');
+                    $('#recommendation_given').removeAttr('required');
+                    $('#recommendation__event_id').removeAttr('required');
+                    break;
+            }
+        });
         $('#recommendation__domain_id').trigger('change');
+        $('#recommendation__status').trigger('change');
     }
-};
+}
 window.addEventListener('DOMContentLoaded', function() {
     var view = new recommendationsAdd();
     view.run();

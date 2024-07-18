@@ -192,7 +192,7 @@ class RecommendationsController extends AppController
      */
     public function view($id = null)
     {
-        $recommendation = $this->Recommendations->get($id, contain: ['Requesters', 'Members', 'Branches', 'Awards', 'Events']);
+        $recommendation = $this->Recommendations->get($id, contain: ['Requesters', 'Members', 'Branches', 'Awards', 'Events', 'ScheduledEvent']);
         if (!$recommendation) {
             throw new \Cake\Http\Exception\NotFoundException();
         }
@@ -346,6 +346,9 @@ class RecommendationsController extends AppController
         $this->Authorization->authorize($recommendation, 'edit');
         if ($this->request->is(['patch', 'post', 'put'])) {
             $recommendation = $this->Recommendations->patchEntity($recommendation, $this->request->getData());
+            if ($this->request->getData()["given"] != null) {
+                $recommendation->given = new DateTime($this->request->getData()["given"]);
+            }
             if ($this->Recommendations->save($recommendation)) {
                 $this->Flash->success(__('The recommendation has been saved.'));
 

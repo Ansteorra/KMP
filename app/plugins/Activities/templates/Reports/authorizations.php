@@ -59,7 +59,7 @@ $this->KMP->endBlock(); ?>
                                     ['plugin' => null, 'controller' => 'Members', 'action' => 'view', $auth->member->id]
                                 ) ?>
                     </td>
-                    <td><?= h(strlen($auth->member->membership_number) > 0 ? $auth->member->membership_number : "Non Member") ?>
+                    <td><?= h($auth->member->membership_number ? $auth->member->membership_number : "Non Member") ?>
                     </td>
                     <td><?= h($auth->member->branch->name) ?></td>
                     <td><?= h($auth->start_on) ?></td>

@@ -67,6 +67,8 @@ class Recommendation extends Entity
         'member_id' => true,
         'branch_id' => true,
         'award_id' => true,
+        'event_id' => true,
+        'given' => true,
         'status' => true,
         'status_date' => true,
         'stack_rank' => true,
@@ -85,6 +87,14 @@ class Recommendation extends Entity
         'member' => true,
         'events' => true,
     ];
+
+    protected function _setGiven($value)
+    {
+        if (is_string($value)) {
+            $value = new \DateTime($value);
+        }
+        return $value;
+    }
 
     protected function _setCallIntoCourt($value)
     {

@@ -64,6 +64,11 @@ class RecommendationsTable extends Table
             'joinType' => 'LEFT',
             'className' => 'Members',
         ]);
+        $this->belongsTo('ScheduledEvent', [
+            'foreignKey' => 'event_id',
+            'joinType' => 'LEFT',
+            'className' => 'Awards.Events',
+        ]);
         $this->belongsTo('Branches', [
             'foreignKey' => 'branch_id',
             'className' => 'Branches',
@@ -150,6 +155,11 @@ class RecommendationsTable extends Table
         $validator
             ->dateTime('deleted')
             ->allowEmptyDateTime('deleted');
+
+
+        $validator
+            ->date('given')
+            ->allowEmptyDate('given');
 
         return $validator;
     }
