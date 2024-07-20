@@ -111,6 +111,94 @@ class RecommendationsController extends AppController
         $this->set(compact('recommendations', 'statuses', 'awards', 'domains', 'branches', 'callIntoCourt', 'courtAvailability'));
     }
 
+    public function toBeProcessed()
+    {
+        $recommendations = $this->Recommendations->find()
+            ->where(["Recommendations.status not IN" => [Recommendation::STATUS_DECLINED, Recommendation::STATUS_NEED_TO_SCHEDULE, Recommendation::STATUS_SCHEDULED, Recommendation::STATUS_GIVEN]])
+            ->contain([
+                'Requesters' => function ($q) {
+                    return $q->select(['id', 'sca_name']);
+                },
+                'Members',
+                'Branches' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+                'Awards' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+                'Awards.Domains' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+                'Events' => function ($q) {
+                    return $q->select(['id', 'name', 'start_date', 'end_date']);
+                },
+                'Notes' => function ($q) {
+                    return $q->select(['id', 'topic_id', 'subject', 'body', 'created']);
+                },
+                'Notes.Authors' => function ($q) {
+                    return $q->select(['id', 'sca_name']);
+                }
+            ]);
+
+        if ($this->request->getQuery("award_id")) {
+            $recommendations->where(["award_id" => $this->request->getQuery("award_id")]);
+        }
+        if ($this->request->getQuery("branch_id")) {
+            $recommendations->where(["Recommendations.branch_id" => $this->request->getQuery("branch_id")]);
+        }
+        if ($this->request->getQuery("for")) {
+            $recommendations->where(["member_sca_name LIKE" => "%" . $this->request->getQuery("for") . "%"]);
+        }
+        if ($this->request->getQuery("call_into_court")) {
+            $recommendations->where(["call_into_court" => $this->request->getQuery("call_into_court")]);
+        }
+        if ($this->request->getQuery("court_avail")) {
+            $recommendations->where(["court_availability" => $this->request->getQuery("court_avail")]);
+        }
+        if ($this->request->getQuery("requester_sca_name")) {
+            $recommendations->where(["requester_sca_name" => $this->request->getQuery("requester_sca_name")]);
+        }
+        if ($this->request->getQuery("domain_id")) {
+            $recommendations->where(["Awards.domain_id" => $this->request->getQuery("domain_id")]);
+        }
+        $statuses = Recommendation::getStatues();
+        $awards = $this->Recommendations->Awards->find('list', limit: 200)->all();
+        $domains = $this->Recommendations->Awards->Domains->find('list', limit: 200)->all();
+        $branches = $this->Recommendations->Branches
+            ->find("treeList", spacer: "--")
+            ->orderBy(["name" => "ASC"]);
+        $callIntoCourtOptions = explode(",", StaticHelpers::getAppSetting("Awards.CallIntoCourtOptions", "Never,With Notice,Without Notice"));
+        $callIntoCourt = [];
+        foreach ($callIntoCourtOptions as $option) {
+            $callIntoCourt[$option] = $option;
+        }
+        $courtAvailabilityOptions = explode(",", StaticHelpers::getAppSetting("Awards.CourtAvailabilityOptions", "None,Morning,Evening,Any"));
+        $courtAvailability = [];
+        foreach ($courtAvailabilityOptions as $option) {
+            $courtAvailability[$option] = $option;
+        }
+        $this->paginate = [
+            'sortableFields' => [
+                'Branches.name',
+                'Awards.name',
+                'Domains.name',
+                'member_sca_name',
+                'created',
+                'status',
+                'call_into_court',
+                'court_availability',
+                'requester_sca_name',
+                'contact_email',
+                'contact_phone',
+                'status_date',
+            ],
+        ];
+        $recommendations = $this->paginate($recommendations);
+        $this->set(compact('recommendations', 'statuses', 'awards', 'domains', 'branches', 'callIntoCourt', 'courtAvailability'));
+        $this->render("index");
+    }
+
+
     /**
      * board view
      *
@@ -198,27 +286,7 @@ class RecommendationsController extends AppController
         }
         $this->Authorization->authorize($recommendation, 'edit');
         $recommendation->domain_id = $recommendation->award->domain_id;
-        $awardsDomains = $this->Recommendations->Awards->Domains->find('list', limit: 200)->all();
-        $awardsLevels = $this->Recommendations->Awards->Levels->find('list', limit: 200)->all();
-        $branches = $this->Recommendations->Awards->Branches
-            ->find("treeList", spacer: "--")
-            ->orderBy(["name" => "ASC"]);
-        $awards = $this->Recommendations->Awards->find('list', limit: 200)->all();
-        $eventsData = $this->Recommendations->Events->find()
-            ->contain(['Branches' => function ($q) {
-                return $q->select(['id', 'name']);
-            }])
-            ->where(["start_date >" => DateTime::now()])
-            ->select(['id', 'name', 'start_date', 'end_date', 'Branches.name'])
-            ->all();
-        $statusList = Recommendation::getStatues();
-        $eventList = [];
-        foreach ($eventsData as $event) {
-            $eventList[$event->id] = $event->name . " in " . $event->branch->name . " on " . $event->start_date->toDateString() . " - " . $event->end_date->toDateString();
-        }
-        $callIntoCourtOptions = explode(",", StaticHelpers::getAppSetting("Awards.CallIntoCourtOptions", "Never,With Notice,Without Notice"));
-        $courtAvailabilityOptions = explode(",", StaticHelpers::getAppSetting("Awards.CourtAvailabilityOptions", "None,Morning,Evening,Any"));
-        $this->set(compact('recommendation', 'branches', 'awards', 'eventList', 'awardsDomains', 'awardsLevels', 'statusList', 'callIntoCourtOptions', 'courtAvailabilityOptions'));
+        $this->set(compact('recommendation'));
     }
 
     /**
@@ -346,15 +414,43 @@ class RecommendationsController extends AppController
         $this->Authorization->authorize($recommendation, 'edit');
         if ($this->request->is(['patch', 'post', 'put'])) {
             $recommendation = $this->Recommendations->patchEntity($recommendation, $this->request->getData());
+            if ($recommendation->member_id == 0) {
+                $recommendation->member_id = null;
+            }
             if ($this->request->getData()["given"] != null) {
                 $recommendation->given = new DateTime($this->request->getData()["given"]);
             }
-            if ($this->Recommendations->save($recommendation)) {
-                $this->Flash->success(__('The recommendation has been saved.'));
-
+            //begin transaction
+            $this->Recommendations->getConnection()->begin();
+            if (!$this->Recommendations->save($recommendation)) {
+                $this->Recommendations->getConnection()->rollback();
+                $this->Flash->error(__('The recommendation could not be saved. Please, try again.'));
+                if ($this->request->getData("current_page")) {
+                    return $this->redirect($this->request->getData("current_page"));
+                }
                 return $this->redirect(['action' => 'view', $id]);
             }
-            $this->Flash->error(__('The recommendation could not be saved. Please, try again.'));
+            if ($this->request->getData("note")) {
+                $newNote = $this->Recommendations->Notes->newEmptyEntity();
+                $newNote->topic_id = $recommendation->id;
+                $newNote->subject = "Recommendation Updated";
+                $newNote->topic_model = "Awards.Recommendations";
+                $newNote->body = $this->request->getData("note");
+                $newNote->author_id = $this->request->getAttribute("identity")->id;
+                if (!$this->Recommendations->Notes->save($newNote)) {
+                    $this->Recommendations->getConnection()->rollback();
+                    $this->Flash->error(__('The note could not be saved. Please, try again.'));
+                    if ($this->request->getData("current_page")) {
+                        return $this->redirect($this->request->getData("current_page"));
+                    }
+                    return $this->redirect(['action' => 'view', $id]);
+                }
+            }
+            $this->Recommendations->getConnection()->commit();
+            $this->Flash->success(__('The recommendation has been saved.'));
+        }
+        if ($this->request->getData("current_page")) {
+            return $this->redirect($this->request->getData("current_page"));
         }
         return $this->redirect(['action' => 'view', $id]);
     }
@@ -432,4 +528,38 @@ class RecommendationsController extends AppController
 
         return $this->redirect(['action' => 'index']);
     }
+
+    #region JSON calls
+    public function turboEditForm($id = null)
+    {
+        $recommendation = $this->Recommendations->get($id, contain: ['Requesters', 'Members', 'Branches', 'Awards', 'Events', 'ScheduledEvent']);
+        if (!$recommendation) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+        $this->Authorization->authorize($recommendation, 'edit');
+        $recommendation->domain_id = $recommendation->award->domain_id;
+        $awardsDomains = $this->Recommendations->Awards->Domains->find('list', limit: 200)->all();
+        $awardsLevels = $this->Recommendations->Awards->Levels->find('list', limit: 200)->all();
+        $branches = $this->Recommendations->Awards->Branches
+            ->find("treeList", spacer: "--")
+            ->orderBy(["name" => "ASC"]);
+        $awards = $this->Recommendations->Awards->find('list', limit: 200)->all();
+        $eventsData = $this->Recommendations->Events->find()
+            ->contain(['Branches' => function ($q) {
+                return $q->select(['id', 'name']);
+            }])
+            ->where(["start_date >" => DateTime::now()])
+            ->select(['id', 'name', 'start_date', 'end_date', 'Branches.name'])
+            ->all();
+        $statusList = Recommendation::getStatues();
+        $eventList = [];
+        foreach ($eventsData as $event) {
+            $eventList[$event->id] = $event->name . " in " . $event->branch->name . " on " . $event->start_date->toDateString() . " - " . $event->end_date->toDateString();
+        }
+        $callIntoCourtOptions = explode(",", StaticHelpers::getAppSetting("Awards.CallIntoCourtOptions", "Never,With Notice,Without Notice"));
+        $courtAvailabilityOptions = explode(",", StaticHelpers::getAppSetting("Awards.CourtAvailabilityOptions", "None,Morning,Evening,Any"));
+        $this->set(compact('recommendation', 'branches', 'awards', 'eventList', 'awardsDomains', 'awardsLevels', 'statusList', 'callIntoCourtOptions', 'courtAvailabilityOptions'));
+    }
+
+    #endregion
 }

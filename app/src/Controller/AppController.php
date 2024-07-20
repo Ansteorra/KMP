@@ -71,6 +71,7 @@ class AppController extends Controller
         if ($baseSub != null) {
             $currentUrl = $baseSub . $currentUrl;
         }
+        $this->set('currentUrl', $currentUrl);
         $session = $this->getRequest()->getSession();
         $isNoStack = false;
         if ($params['controller'] == 'Members') {

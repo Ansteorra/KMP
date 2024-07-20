@@ -37,6 +37,9 @@ $this->KMP->endBlock(); ?>
                         <div class="card-body">
                             <div class="card-title">
                                 <?= $this->Html->link($recommendation->award->name, ['action' => 'view', $recommendation->id]) ?>
+                                <button type="button" class="btn btn-primary btn-sm float-end" data-bs-toggle="modal"
+                                    data-bs-target="#editModal"
+                                    onclick="loadRec(<?= $recommendation->id ?>, '<?= $currentUrl ?>')">Edit</button>
                             </div>
                             <h6 class="card-subtitle mb-2 text-body-secondary"><?= $recommendation->member_sca_name ?>
                             </h6>
@@ -154,3 +157,68 @@ window.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 <?php $this->KMP->endBlock() ?>
+<?php
+echo $this->KMP->startBlock("modals"); ?>
+
+<?php
+echo $this->Form->create($recommendation, [
+    "id" => "recommendation_form",
+    "url" => [
+        "controller" => "Recommendations",
+        "action" => "edit",
+    ],
+]);
+echo $this->Form->control(
+    "current_page",
+    [
+        "type" => "hidden",
+        "id" => "recommendation__current_page",
+        "value" => $currentUrl,
+    ]
+
+);
+echo $this->Modal->create("Edit Recommendation", [
+    "id" => "editModal",
+    "close" => true,
+]);
+?>
+<turbo-frame id="editRecommendation">
+    loading
+</turbo-frame>
+<?php echo $this->Modal->end([
+    $this->Form->button("Submit", [
+        "class" => "btn btn-primary",
+        "id" => "recommendation_submit"
+    ]),
+    $this->Form->button("Close", [
+        "data-bs-dismiss" => "modal",
+    ]),
+]);
+
+echo $this->Form->end();
+?>
+
+<?php //finish writing to modal block in layout
+$this->KMP->endBlock(); ?>
+<?= $this->element('recommendationEditScript') ?>
+<?php echo $this->KMP->startBlock("script"); ?>
+<script>
+loadRec = function(id, returnUrl) {
+    formSrc =
+        "<?= $this->URL->build(['plugin' => 'Awards', 'controller' => 'Recommendations', 'action' => 'edit']) ?>" +
+        "/" + id;
+    src =
+        "<?= $this->URL->build(['plugin' => 'Awards', 'controller' => 'Recommendations', 'action' => 'TurboEditForm']) ?>" +
+        "/" + id;
+    $("#recommendation_form").attr("action", formSrc);
+    $("#recommendation__current_page").val(returnUrl);
+    $("#editRecommendation").attr("src", src);
+}
+window.addEventListener('DOMContentLoaded', function() {
+    $("#editRecommendation").on("turbo:frame-load", function() {
+        var recAdd = new recommendationsAdd();
+        recAdd.run();
+    });
+});
+</script>
+<?php echo $this->KMP->endBlock(); ?>

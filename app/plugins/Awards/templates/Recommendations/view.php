@@ -136,14 +136,14 @@ $this->KMP->endBlock() ?>
 </div>
 <?php $this->KMP->endBlock() ?>
 <?php
-echo $this->KMP->startBlock("modals");
+echo $this->KMP->startBlock("modals"); ?>
 
+<?php
 echo $this->Form->create($recommendation, [
     "id" => "recommendation_form",
     "url" => [
         "controller" => "Recommendations",
         "action" => "edit",
-        $recommendation->id,
     ],
 ]);
 echo $this->Modal->create("Edit Recommendation", [
@@ -151,82 +151,9 @@ echo $this->Modal->create("Edit Recommendation", [
     "close" => true,
 ]);
 ?>
-<fieldset>
-    <?php
-    echo $this->Form->control("requester_id", [
-        "type" => "hidden",
-        "value" => $this->Identity->get("id"),
-    ]);
-    echo $this->Form->control("member_id", [
-        "type" => "hidden",
-        "id" => "recommendation__member_id",
-    ]);
-    echo $this->Form->control("member_sca_name", [
-        "type" => "text",
-        "label" => "Recommendation For",
-        "id" => "recommendation__sca_name",
-    ]);
-    echo $this->Form->control('not_found', [
-        'type' => 'checkbox',
-        'label' => "Name not registered in " . $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . " database",
-        "id" => "recommendation__not_found",
-        "value" => "on",
-        "disabled" => true,
-        "checked" => ($recommendation->member_id == null)
-    ]);
-    echo $this->Form->control('branch_id', ['options' => $branches, 'empty' => true, "label" => "Member Of", "id" => "recommendation__branch_id"]);
-    $selectOptions = [];
-    foreach ($callIntoCourtOptions as $option) {
-        $selectOptions[$option] = $option;
-    }
-    echo $this->Form->control(
-        'call_into_court',
-        [
-            'options' => $selectOptions,
-            'empty' => true,
-            "id" => "recommendation__call_into_court",
-            "required" => true
-        ]
-    );
-    $selectOptions = [];
-    foreach ($courtAvailabilityOptions as $option) {
-        $selectOptions[$option] = $option;
-    }
-    echo $this->Form->control(
-        'court_availability',
-        [
-            'options' => $selectOptions,
-            'empty' => true,
-            "id" => "recommendation__court_availability",
-            "required" => true
-        ]
-    );
-    echo $this->Form->control('domain_id', ['options' => $awardsDomains, 'empty' => true, "label" => "Award Type", "id" => "recommendation__domain_id"]); ?>
-    <div class="role p-3" id="award_descriptions">
-
-    </div>
-    <?php
-    echo $this->Form->control('award_id', ['options' => ["Please select the type of award first."], "disabled" => true, "id" => "recommendation__award_id"]);
-    echo $this->Form->control('contact_number');
-    echo $this->Form->control('contact_email');
-    echo $this->Form->control('reason');
-    echo $this->Form->control('events._ids', [
-        'label' => 'Events They may Attend:',
-        "type" => "select",
-        "multiple" => "checkbox",
-        'options' => $eventList
-    ]);
-    echo $this->Form->control('status', ['options' => $statusList, "id" => "recommendation__status"]);
-    echo $this->Form->control('given', ['type' => 'date', 'label' => 'Given On', 'id' => 'recommendation_given']);
-    echo $this->Form->control('event_id', [
-        'label' => 'Plan to Give At:',
-        "type" => "select",
-        'options' => $eventList,
-        'empty' => true,
-        'id' => 'recommendation__event_id'
-    ]);
-    ?>
-</fieldset>
+<turbo-frame id="editRecommendation">
+    loading
+</turbo-frame>
 <?php echo $this->Modal->end([
     $this->Form->button("Submit", [
         "class" => "btn btn-primary",
@@ -242,182 +169,23 @@ echo $this->Form->end();
 
 <?php //finish writing to modal block in layout
 $this->KMP->endBlock(); ?>
+<?= $this->element('recommendationEditScript') ?>
 <?php echo $this->KMP->startBlock("script"); ?>
 <script>
-class recommendationsAdd {
-    constructor() {
-        this.ac = null;
-    };
-    //onInput for Autocomplete
-    nameNotFound() {
-        var notFound = $('#recommendation__not_found');
-        var branch = $('#recommendation__branch_id').parent();
-        notFound.prop('checked', true);
-        branch.removeClass('d-none');
-        $('#recommendation_submit').prop('disabled', false);
-    }
-    searchHadResults() {
-        var notFound = $('#recommendation__not_found');
-        var branch = $('#recommendation__branch_id').parent();
-        notFound.prop('checked', false);
-        branch.addClass('d-none');
-    }
-
-    getPublicProfile(memberId) {
-        var url =
-            '<?= $this->URL->build(['controller' => 'Members', 'action' => 'PublicProfile', 'plugin' => null]) ?>/' +
-            memberId;
-        $.get(url, function(data) {
-            if (data) {
-                var memberLinks = $('#member_links');
-                memberLinks.empty();
-                $("#recommendation__call_into_court").prop('disabled', false);
-                $("#recommendation__court_availability").prop('disabled', false);
-                if (data["additional_info"]) {
-                    var callIntoCourt = data["additional_info"]["CallIntoCourt"];
-                    var courtAvailability = data["additional_info"]["CourtAvailability"];
-                    if (callIntoCourt && callIntoCourt != "") {
-                        $("#recommendation__call_into_court").val(callIntoCourt);
-                    }
-                    if (courtAvailability && courtAvailability != "") {
-                        $("#recommendation__court_availability").val(courtAvailability);
-                    }
-                }
-            }
-        });
-    }
-
-    run() {
-        $('#recommendation__branch_id').parent().addClass('d-none');
-        $('#recommendation_given').parent().addClass('d-none');
-        var me = this;
-        var searchUrl =
-            '<?= $this->URL->build(['controller' => 'Members', 'action' => 'SearchMembers', 'plugin' => null]) ?>';
-        KMP_utils.configureAutoComplete(me.ac, searchUrl, 'recommendation__sca_name', 'id', 'sca_name',
-            'recommendation__member_id', me.searchHadResults, me.nameNotFound);
-
-
-        $('#recommendation__member_id').change(function() {
-            if ($('#recommendation__member_id').val() > 0) {
-                //enable button
-                var notFound = $('#recommendation__not_found');
-                var branch = $('#recommendation__branch_id').parent();
-                notFound.prop('checked', false);
-                branch.addClass('d-none');
-                $('#recommendation_submit').prop('disabled', false);
-            } else {
-                //disable button
-                $('#recommendation_submit').prop('disabled', true);
-            }
-        });
-        $('#recommendation_form').on('submit', function(e) {
-            if (
-                ($('#recommendation__member_id').val() > 0 ||
-                    $('#recommendation__not_found').prop('checked')
-                ) &&
-                $('#recommendation__award_id').val() > 0
-            ) {
-                $('#recommendation__not_found').prop('disabled', false);
-            }
-        });
-
-        $('#recommendation__domain_id').change(function() {
-            var domainId = $('#recommendation__domain_id').val();
-            var awardSelect = $('#recommendation__award_id');
-            var awardDescription = $('#award_descriptions');
-            if (domainId > 0) {
-                var awardUrl =
-                    '<?= $this->URL->build(['controller' => 'Awards', 'action' => 'awardsByDomain', 'plugin' => "Awards"]) ?>/' +
-                    domainId;
-                $.get(awardUrl, function(data) {
-                    awardSelect.empty();
-                    awardSelect.append('<option value=""></option>');
-                    awardDescription.empty();
-                    var tabButtons = $('<ul class="nav nav-tabs" role="tablist"></div>');
-                    var tabContentArea = $(
-                        '<div class="tab-content border border-top-0 border-light-subtle p-2"></div>'
-                    );
-                    var active = "active";
-                    var show = "show";
-                    data.forEach(award => {
-                        var selected = "";
-                        if (award.id == <?= $recommendation->award_id ?>) {
-                            selected = "selected";
-                        };
-                        awardSelect.append('<option value="' + award.id + '" ' + selected +
-                            ' >' + award
-                            .name + " - " + award.level.name +
-                            '</option>');
-                        var tabButton = $(
-                            '<li class="nav-item" role="presentation"><button class="nav-link ' +
-                            active +
-                            '" id="award_' + award.id +
-                            '_btn" data-bs-toggle="tab" data-bs-target="#award_' + award
-                            .id + '"' +
-                            ' type="button" role="tab" aria-controls="haward_' + award
-                            .id + '" aria-selected="true">' + award.name +
-                            '</button></li>');
-                        var tabContent = $('<div class="tab-pane fade ' + active + ' ' +
-                            show + '" id="award_' + award.id +
-                            '" role="tabpanel" aria-labelledby="award_' + award.id +
-                            '_btn">' + award.name + ": " + award.description + '</div>');
-                        active = "";
-                        show = "";
-                        tabButtons.append(tabButton);
-                        tabContentArea.append(tabContent);
-                    });
-                    awardDescription.append(tabButtons);
-                    awardDescription.append(tabContentArea);
-                    awardSelect.prop('disabled', false);
-                });
-            } else {
-                awardSelect.prop('disabled', true);
-                awardSelect.append('<option value="">Please select the type of award first.</option>');
-            }
-        });
-        $('#recommendation__award_id').on("change", function() {
-            var awardId = $('#recommendation__award_id').val();
-            if (awardId > 0) {
-                var tabid = "award_" + awardId + "_btn";
-                $("#" + tabid).click();
-            }
-        });
-        $('#recommendation__status').on('change', function() {
-            var status = $('#recommendation__status').val();
-            switch (status) {
-                case "given":
-                    $('#recommendation_given').parent().removeClass('d-none');
-                    $('#recommendation__event_id').parent().removeClass('d-none');
-                    $('#recommendation_given').attr('required', true);
-                    $('#recommendation__event_id').attr('required', true);
-                    break;
-                case "scheduled":
-                    $('#recommendation_given').parent().addClass('d-none');
-                    $('#recommendation__event_id').parent().removeClass('d-none');
-                    $('#recommendation_given').removeAttr('required');
-                    $('#recommendation__event_id').attr('required', true);
-                    break;
-                case "scheduling":
-                    $('#recommendation_given').parent().addClass('d-none');
-                    $('#recommendation__event_id').parent().removeClass('d-none');
-                    $('#recommendation_given').removeAttr('required');
-                    $('#recommendation__event_id').removeAttr('required');
-                    break;
-                default:
-                    $('#recommendation_given').parent().addClass('d-none');
-                    $('#recommendation__event_id').parent().addClass('d-none');
-                    $('#recommendation_given').removeAttr('required');
-                    $('#recommendation__event_id').removeAttr('required');
-                    break;
-            }
-        });
-        $('#recommendation__domain_id').trigger('change');
-        $('#recommendation__status').trigger('change');
-    }
-}
 window.addEventListener('DOMContentLoaded', function() {
-    var view = new recommendationsAdd();
-    view.run();
+    $("#editModal").on("show.bs.modal", function() {
+        formSrc =
+            "<?= $this->URL->build(['plugin' => 'Awards', 'controller' => 'Recommendations', 'action' => 'edit', $recommendation->id]) ?>";
+        src =
+            "<?= $this->URL->build(['plugin' => 'Awards', 'controller' => 'Recommendations', 'action' => 'TurboEditForm', $recommendation->id]) ?>";
+        $("#recommendation_form").attr("action", formSrc);
+        $("#editRecommendation").attr("src", src);
+
+    });
+    $("#editRecommendation").on("turbo:frame-load", function() {
+        var recAdd = new recommendationsAdd();
+        recAdd.run();
+    });
 });
 </script>
 <?php echo $this->KMP->endBlock(); ?>
