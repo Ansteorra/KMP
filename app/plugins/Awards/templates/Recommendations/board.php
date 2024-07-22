@@ -9,6 +9,7 @@
 
 echo $this->KMP->startBlock("title");
 echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Award Recommendations';
+$recommendation = [];
 $this->KMP->endBlock(); ?>
 <h3>
     Award Recommendations
@@ -39,7 +40,7 @@ $this->KMP->endBlock(); ?>
                                 <?= $this->Html->link($recommendation->award->name, ['action' => 'view', $recommendation->id]) ?>
                                 <button type="button" class="btn btn-primary btn-sm float-end" data-bs-toggle="modal"
                                     data-bs-target="#editModal"
-                                    onclick="loadRec(<?= $recommendation->id ?>, '<?= $currentUrl ?>')">Edit</button>
+                                    onclick="loadRec(<?= $recommendation->id ?>, '<?= $this->request->getRequestTarget(); ?>')">Edit</button>
                             </div>
                             <h6 class="card-subtitle mb-2 text-body-secondary"><?= $recommendation->member_sca_name ?>
                             </h6>
@@ -173,7 +174,7 @@ echo $this->Form->control(
     [
         "type" => "hidden",
         "id" => "recommendation__current_page",
-        "value" => $currentUrl,
+        "value" => $this->request->getRequestTarget(),
     ]
 
 );

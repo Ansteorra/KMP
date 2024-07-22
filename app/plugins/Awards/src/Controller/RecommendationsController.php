@@ -75,6 +75,9 @@ class RecommendationsController extends AppController
         if ($this->request->getQuery("domain_id")) {
             $recommendations->where(["Awards.domain_id" => $this->request->getQuery("domain_id")]);
         }
+        if ($this->request->getQuery("status")) {
+            $recommendations->where(["Recommendations.status" => $this->request->getQuery("status")]);
+        }
         $statuses = Recommendation::getStatues();
         $awards = $this->Recommendations->Awards->find('list', limit: 200)->all();
         $domains = $this->Recommendations->Awards->Domains->find('list', limit: 200)->all();

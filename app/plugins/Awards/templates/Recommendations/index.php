@@ -12,7 +12,7 @@ if (!$isTurboFrame) {
     echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Award Recommendations';
     $this->KMP->endBlock();
 }
-
+$recommendation = [];
 ?>
 <?php if (!$isTurboFrame) : ?>
 <h3>
@@ -192,7 +192,7 @@ if (!$isTurboFrame) {
                 <td class="actions">
                     <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
                         data-bs-target="#editModal"
-                        onclick="loadRec(<?= $recommendation->id ?>,'<?= $currentUrl ?>');">Edit</button>
+                        onclick="loadRec(<?= $recommendation->id ?>,'<?= $this->request->getRequestTarget(); ?>');">Edit</button>
                     <?= $this->Html->link(
                             __("View"),
                             ["action" => "view", $recommendation->id],
@@ -238,7 +238,7 @@ echo $this->Form->control(
     [
         "type" => "hidden",
         "id" => "recommendation__current_page",
-        "value" => $currentUrl,
+        "value" => $this->request->getRequestTarget()
     ]
 
 );
