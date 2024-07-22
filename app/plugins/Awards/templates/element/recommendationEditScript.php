@@ -45,7 +45,7 @@ class recommendationsAdd {
 
     run() {
         $('#recommendation__branch_id').parent().addClass('d-none');
-        $('#recommendation_given').parent().addClass('d-none');
+        $('#recommendation__given').parent().addClass('d-none');
         var me = this;
         var searchUrl =
             '<?= $this->URL->build(['controller' => 'Members', 'action' => 'SearchMembers', 'plugin' => null]) ?>';
@@ -160,9 +160,9 @@ class recommendationsAdd {
                     $('#recommendation__event_id').removeAttr('required');
                     break;
                 default:
-                    $('#recommendation_given').parent().addClass('d-none');
+                    $('#recommendation__given').parent().addClass('d-none');
                     $('#recommendation__event_id').parent().addClass('d-none');
-                    $('#recommendation_given').removeAttr('required');
+                    $('#recommendation__given').removeAttr('required');
                     $('#recommendation__event_id').removeAttr('required');
                     break;
             }
