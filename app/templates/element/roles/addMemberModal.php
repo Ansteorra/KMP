@@ -35,6 +35,7 @@ echo $this->Modal->create("Add Member to Role", [
     ]),
     $this->Form->button("Close", [
         "data-bs-dismiss" => "modal",
+        "type" => "button",
     ]),
 ]);
 echo $this->Form->end();

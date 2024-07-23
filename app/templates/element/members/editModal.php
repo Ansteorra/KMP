@@ -79,6 +79,7 @@ echo $this->Modal->create("Edit " . $member->sca_name, [
     ]),
     $this->Form->button("Close", [
         "data-bs-dismiss" => "modal",
+        "type" => "button",
     ]),
 ]); ?>
 <?= $this->Form->end() ?>

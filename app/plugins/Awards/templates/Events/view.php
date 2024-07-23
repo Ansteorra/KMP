@@ -88,6 +88,7 @@ echo $this->Modal->create("Edit Award Req Event", [
     ]),
     $this->Form->button("Close", [
         "data-bs-dismiss" => "modal",
+        "type" => "button",
     ]),
 ]);
 echo $this->Form->end(); ?>

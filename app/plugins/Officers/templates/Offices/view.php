@@ -148,6 +148,7 @@ echo $this->KMP->startBlock("modals"); ?>
     ]),
     $this->Form->button("Close", [
         "data-bs-dismiss" => "modal",
+        "type" => "button",
     ]),
 ]);
 

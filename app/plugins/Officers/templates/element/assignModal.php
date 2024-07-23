@@ -51,8 +51,7 @@ echo $this->Modal->create("Assign Officer", [
         <label class="form-label" for="assign_officer__deputy_description">
             Deputy Description
         </label>
-        <input type="text" name="deputy_description" class=" form-control" id="assign_officer__deputy_description"
-            maxlength="255">
+        <input type="text" name="deputy_description" class=" form-control" id="assign_officer__deputy_description" maxlength="255">
     </div>
     <?php
     echo $this->Form->control("sca_name", [
@@ -75,7 +74,7 @@ echo $this->Modal->create("Assign Officer", [
     ?>
 </fieldset>
 <script>
-var officeData = <?php echo json_encode($offices); ?>;
+    var officeData = <?php echo json_encode($offices); ?>;
 </script>
 <?php echo $this->Modal->end([
     $this->Form->button("Submit", [
@@ -85,6 +84,7 @@ var officeData = <?php echo json_encode($offices); ?>;
     ]),
     $this->Form->button("Close", [
         "data-bs-dismiss" => "modal",
+        "type" => "button",
     ]),
 ]);
 ?>

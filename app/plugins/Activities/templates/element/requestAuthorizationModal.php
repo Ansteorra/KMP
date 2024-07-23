@@ -38,6 +38,7 @@ echo $this->Modal->create("Request Authorization", [
     ]),
     $this->Form->button("Close", [
         "data-bs-dismiss" => "modal",
+        "type" => "button",
     ]),
 ]);
 echo $this->Form->end();

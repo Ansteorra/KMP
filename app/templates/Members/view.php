@@ -404,17 +404,11 @@ window.addEventListener('DOMContentLoaded', function() {
     var pageControl = new memberView();
     pageControl.run();
     <?php if ($passwordReset->getErrors()) { ?>
-    $("#passwordModalBtn").on('click');
+    $("#passwordModalBtn").trigger('click');
     <?php } ?>
     <?php if ($memberForm->getErrors()) { ?>
-    $("#editModalBtn").on('click');
+    $("#editModalBtn").trigger('click');
     <?php } ?>
-});
-</script>
-<?php $this->KMP->endBlock(); ?>
-<?php if ($memberForm->getErrors()) { ?>
-$("#editModalBtn").on('click');
-<?php } ?>
 });
 </script>
 <?php $this->KMP->endBlock(); ?>

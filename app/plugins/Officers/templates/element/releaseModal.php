@@ -7,8 +7,8 @@
         "id" => "releaseModal",
         "close" => true,
     ]); ?>
-<fieldset>
-    <?php
+    <fieldset>
+        <?php
         echo $this->Form->control("id", [
             "type" => "hidden",
             "id" => "release_officer__id",
@@ -20,7 +20,7 @@
         ]);
 
         ?>
-</fieldset>
+    </fieldset>
 <?php echo $this->Modal->end([
         $this->Form->button("Submit", [
             "class" => "btn btn-primary",
@@ -29,6 +29,7 @@
         ]),
         $this->Form->button("Close", [
             "data-bs-dismiss" => "modal",
+            "type" => "button",
         ]),
     ]);
     echo $this->Form->end();

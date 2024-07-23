@@ -7,8 +7,8 @@
         "id" => "revokeModal",
         "close" => true,
     ]); ?>
-<fieldset>
-    <?php
+    <fieldset>
+        <?php
         echo $this->Form->control("id", [
             "type" => "hidden",
             "id" => "revoke_auth__id",
@@ -19,7 +19,7 @@
             "id" => "revoke_auth__revoked_reason",
         ]);
         ?>
-</fieldset>
+    </fieldset>
 <?php echo $this->Modal->end([
         $this->Form->button("Submit", [
             "class" => "btn btn-primary",
@@ -28,6 +28,7 @@
         ]),
         $this->Form->button("Close", [
             "data-bs-dismiss" => "modal",
+            "type" => "button",
         ]),
     ]);
 }

@@ -9,8 +9,8 @@ if ($user->can("verifyMembership", "Members") && $needVerification) :
         "close" => true,
     ]);
 ?>
-<fieldset>
-    <?php
+    <fieldset>
+        <?php
 
         echo $this->Form->control("member_id", [
             "type" => "hidden",
@@ -75,7 +75,7 @@ if ($user->can("verifyMembership", "Members") && $needVerification) :
             ]);
         }
         ?>
-</fieldset>
+    </fieldset>
 <?php echo $this->Modal->end([
         $this->Form->button("Submit", [
             "class" => "btn btn-primary",
@@ -83,6 +83,7 @@ if ($user->can("verifyMembership", "Members") && $needVerification) :
         ]),
         $this->Form->button("Close", [
             "data-bs-dismiss" => "modal",
+            "type" => "button",
         ]),
     ]);
     echo $this->Form->end();

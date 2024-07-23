@@ -18,8 +18,7 @@ $this->KMP->endBlock(); ?>
         </h3>
     </div>
     <div class="col text-end">
-        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
-            data-bs-target="#addModal">Add</button>
+        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addModal">Add</button>
         <?php
         $infoHelpUrl = $this->KMP->getAppSetting("KMP.AppSettings.HelpUrl", "https://github.com/Ansteorra/KMP/wiki/App-Settings");
         echo $this->Html->link(
@@ -42,14 +41,14 @@ $this->KMP->endBlock(); ?>
     </thead>
     <tbody>
         <?php foreach ($appSettings as $appSetting) : ?>
-        <tr>
+            <tr>
 
-            <td class='align-middle'><?= h($appSetting->name) ?></td>
-            <td><?= $this->Form->create($appSetting, [
+                <td class='align-middle'><?= h($appSetting->name) ?></td>
+                <td><?= $this->Form->create($appSetting, [
                         "url" => ["action" => "edit", $appSetting->id],
                         "id" => "edit_entity__" . $appSetting->id,
                     ]) ?>
-                <?= $this->Form->control("value", [
+                    <?= $this->Form->control("value", [
                         "label" => false,
                         "spacing" => "inline",
                         "id" => "edit_form_" . $appSetting->id . "_value",
@@ -58,16 +57,16 @@ $this->KMP->endBlock(); ?>
                             $appSetting->id .
                             '_submit").prop("disabled",false);',
                     ]) ?>
-                <?= $this->Form->end() ?></td>
-            <td class="actions">
-                <?= $this->Form->button("Save", [
+                    <?= $this->Form->end() ?></td>
+                <td class="actions">
+                    <?= $this->Form->button("Save", [
                         "class" => "btn btn-secondary",
                         "id" => "edit_entity_" . $appSetting->id . "_submit",
                         "onclick" =>
                         '$("#edit_entity__' . $appSetting->id . '").submit();',
                         "disabled" => true,
                     ]) ?>
-                <?= $this->Form->postLink(
+                    <?= $this->Form->postLink(
                         __("Delete"),
                         ["action" => "delete", $appSetting->id],
                         [
@@ -79,9 +78,9 @@ $this->KMP->endBlock(); ?>
                             "class" => "btn btn-danger",
                         ],
                     ) ?>
-            </td>
+                </td>
 
-        </tr>
+            </tr>
         <?php endforeach; ?>
     </tbody>
 </table>
@@ -125,6 +124,7 @@ echo $this->Modal->create("Add App Setting", [
     ]),
     $this->Form->button("Close", [
         "data-bs-dismiss" => "modal",
+        "type" => "button",
     ]),
 ]);
 echo $this->Form->end();

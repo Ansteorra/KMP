@@ -29,6 +29,7 @@ echo $this->Modal->create("Edit Branch", [
     ]),
     $this->Form->button("Close", [
         "data-bs-dismiss" => "modal",
+        "type" => "button",
     ]),
 ]);
 echo $this->Form->end();

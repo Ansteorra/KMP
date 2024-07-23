@@ -209,8 +209,13 @@ class RecommendationsController extends AppController
      */
     public function board()
     {
+
+        $emptyRecommendation = $this->Recommendations->newEmptyEntity();
+        $this->Authorization->authorize($emptyRecommendation, 'board');
+
         $recommendations = $this->Recommendations->find()
             ->contain(['Requesters', 'Members', 'Branches', 'Awards'])->orderBy(['Recommendations.status', 'stack_rank'])->all();
+
         $statuses = Recommendation::getStatues();
         foreach ($recommendations as $recommendation) {
             if (!is_array($statuses[$recommendation->status])) {

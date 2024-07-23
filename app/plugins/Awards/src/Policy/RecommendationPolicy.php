@@ -16,15 +16,10 @@ class RecommendationPolicy extends BasePolicy
 
     public function canBoard(IdentityInterface $user, $entity)
     {
-        return true;
+        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
     }
 
     public function canAdd(IdentityInterface $user, $entity)
-    {
-        return true;
-    }
-
-    public function canEdit(IdentityInterface $user, $entity)
     {
         return true;
     }

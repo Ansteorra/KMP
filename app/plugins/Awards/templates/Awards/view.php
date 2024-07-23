@@ -120,6 +120,7 @@ echo $this->Modal->create("Edit Award", [
     ]),
     $this->Form->button("Close", [
         "data-bs-dismiss" => "modal",
+        "type" => "button",
     ]),
 ]);
 echo $this->Form->end();
