@@ -82,11 +82,11 @@ echo $this->Form->postLink(
     <td>
         <ul>
             <?php foreach ($recommendation->events as $events) : ?>
-                <li><?= $this->Html->link($events->name, ['controller' => 'Events', 'action' => 'view', $events->id]) ?>
-                    <?php if ($recommendation->event_id == $events->id) {
+            <li><?= $this->Html->link($events->name, ['controller' => 'Events', 'action' => 'view', $events->id]) ?>
+                <?php if ($recommendation->event_id == $events->id) {
                         echo " (Plan to Give)";
                     } ?>
-                </li>
+            </li>
             <?php endforeach; ?>
         </ul>
     </td>
@@ -100,11 +100,11 @@ echo $this->Form->postLink(
     <td><?= h($recommendation->court_availability) ?></td>
 </tr>
 <?php if ($recommendation->member) : ?>
-    <tr>
-        <th colspan='2' scope="row">
-            <h4><?= __('Member Details') ?></h4>
-        </th>
-    </tr>
+<tr>
+    <th colspan='2' scope="row">
+        <h4><?= __('Member Details') ?></h4>
+    </th>
+</tr>
 <?php
     $member = $recommendation->member;
     echo $this->element('members/memberDetails', [
@@ -116,16 +116,20 @@ else :
 endif;
 $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("tabButtons") ?>
-<button class="nav-link active" id="nav-reason-tab" data-bs-toggle="tab" data-bs-target="#nav-reason" type="button" role="tab" aria-controls="nav-reason" aria-selected="true"><?= __("Reason") ?>
+<button class="nav-link active" id="nav-reason-tab" data-bs-toggle="tab" data-bs-target="#nav-reason" type="button"
+    role="tab" aria-controls="nav-reason" aria-selected="true" data-detail-tabs-target='tabBtn'><?= __("Reason") ?>
 </button>
-<button class="nav-link" id="nav-notes-tab" data-bs-toggle="tab" data-bs-target="#nav-notes" type="button" role="tab" aria-controls="nav-notes" aria-selected="false"><?= __("Notes") ?>
+<button class="nav-link" id="nav-notes-tab" data-bs-toggle="tab" data-bs-target="#nav-notes" type="button" role="tab"
+    aria-controls="nav-notes" aria-selected="false" data-detail-tabs-target='tabBtn'><?= __("Notes") ?>
 </button>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("tabContent") ?>
-<div class="related tab-pane fade active show m-3" id="nav-reason" role="tabpanel" aria-labelledby="nav-reason-tab">
+<div class="related tab-pane fade active show m-3" id="nav-reason" role="tabpanel" aria-labelledby="nav-reason-tab"
+    data-detail-tabs-target="tabContent">
     <?= $this->Text->autoParagraph(h($recommendation->reason)) ?>
 </div>
-<div class="related tab-pane fade m-3" id="nav-notes" role="tabpanel" aria-labelledby="nav-notes-tab">
+<div class="related tab-pane fade m-3" id="nav-notes" role="tabpanel" aria-labelledby="nav-notes-tab"
+    data-detail-tabs-target="tabContent">
     <?= $this->cell('Notes', [
         'topic_id' => $recommendation->id,
         'topic_model' => 'Awards.Recommendations',
@@ -171,20 +175,20 @@ $this->KMP->endBlock(); ?>
 <?= $this->element('recommendationEditScript') ?>
 <?php echo $this->KMP->startBlock("script"); ?>
 <script>
-    window.addEventListener('DOMContentLoaded', function() {
-        $("#editModal").on("show.bs.modal", function() {
-            formSrc =
-                "<?= $this->URL->build(['plugin' => 'Awards', 'controller' => 'Recommendations', 'action' => 'edit', $recommendation->id]) ?>";
-            src =
-                "<?= $this->URL->build(['plugin' => 'Awards', 'controller' => 'Recommendations', 'action' => 'TurboEditForm', $recommendation->id]) ?>";
-            $("#recommendation_form").attr("action", formSrc);
-            $("#editRecommendation").attr("src", src);
+window.addEventListener('DOMContentLoaded', function() {
+    $("#editModal").on("show.bs.modal", function() {
+        formSrc =
+            "<?= $this->URL->build(['plugin' => 'Awards', 'controller' => 'Recommendations', 'action' => 'edit', $recommendation->id]) ?>";
+        src =
+            "<?= $this->URL->build(['plugin' => 'Awards', 'controller' => 'Recommendations', 'action' => 'TurboEditForm', $recommendation->id]) ?>";
+        $("#recommendation_form").attr("action", formSrc);
+        $("#editRecommendation").attr("src", src);
 
-        });
-        $("#editRecommendation").on("turbo:frame-load", function() {
-            var recAdd = new recommendationsAdd();
-            recAdd.run();
-        });
     });
+    $("#editRecommendation").on("turbo:frame-load", function() {
+        var recAdd = new recommendationsAdd();
+        recAdd.run();
+    });
+});
 </script>
 <?php echo $this->KMP->endBlock(); ?>

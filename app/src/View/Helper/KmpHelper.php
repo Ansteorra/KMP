@@ -79,7 +79,7 @@ class KmpHelper extends Helper
             "data-ac-target" => "input",
             "container" => ["style" => "margin:0 !important;",]
         ]);
-        echo "<ul data-ac-target='results' class='list-group z-3 col-3 position-absolute'></ul></div>";
+        echo "<ul data-ac-target='results' class='list-group z-3 col-12 position-absolute'></ul></div>";
     }
 
     public function autoCompleteControl($Form, $inputField, $resultField, $url, $label, $required, $allowOtherValues, $minLength, $additionalAttrs,)
@@ -104,7 +104,7 @@ class KmpHelper extends Helper
             "data-ac-target" => "input",
             "container" => ["style" => "margin:0 !important;",]
         ]);
-        echo "<ul data-ac-target='results' class='list-group z-3 col-3 position-absolute'></ul></div>";
+        echo "<ul data-ac-target='results' class='list-group z-3 col-12 position-absolute'></ul></div>";
     }
     /**
      * Returns a boolean icon
@@ -133,7 +133,7 @@ class KmpHelper extends Helper
         if (!$navBarState) {
             $navBarState = [];
         }
-        $return = "<div class='nav flex-column'>\r\n";
+        $return = "<div class='nav flex-column' data-controller='nav-bar'>\r\n";
         foreach ($appNav as $parent) {
             $childHtml = "";
             foreach ($parent["children"] as $child) {
@@ -295,7 +295,7 @@ class KmpHelper extends Helper
             ' data-collapse-url="' . $collapseUrl . '" data-expand-url="' . $expandUrl . '"' .
             ' aria-controls="' . $randomId . '" class="navheader ' . $collaped . ' text-start badge fs-5 mb-2 mx-1 text-bg-secondary bi ' .
             $parent['icon'] .
-            '"> ' .
+            '" data-nav-bar-target="navHeader"> ' .
             $parent['label'] .
             "</div> \r\n" .
             "<nav id='" . $randomId . "' class='appnav collapse " . $show . " nav-item ms-2 nav-underline'>" .

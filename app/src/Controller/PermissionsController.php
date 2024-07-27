@@ -61,10 +61,10 @@ class PermissionsController extends AppController
         if (count($currentRoleIds) > 0) {
             $roles = $this->Permissions->Roles
                 ->find("list")
-                ->where(["NOT" => ["id IN" => $currentRoleIds]])
+                ->where(["NOT" => ["id IN" => $currentRoleIds], "is_system !=" => true])
                 ->all();
         } else {
-            $roles = $this->Permissions->Roles->find("list")->all();
+            $roles = $this->Permissions->Roles->find("list")->where(['is_system !=' => true])->all();
         }
         $this->set(compact("permission", "roles"));
     }

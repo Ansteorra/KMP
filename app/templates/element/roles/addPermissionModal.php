@@ -1,7 +1,8 @@
 <?php
 echo $this->Form->create(null, [
-    "id" => "add_permission__form",
     "url" => ["controller" => "Roles", "action" => "addPermission"],
+    "role-add-permission-target" => "form",
+    "data-controller" => "role-add-permission",
 ]);
 
 echo $this->Modal->create("Add Permission to Role", [
@@ -10,15 +11,22 @@ echo $this->Modal->create("Add Permission to Role", [
 ]); ?>
 <fieldset>
     <?php
-    echo $this->Form->control("permission_id", [
-        "options" => $permissions,
-        "empty" => true,
-        "id" => "add_permission__permission_id",
-    ]);
+    echo $this->KMP->comboBoxControl(
+        $this->Form,
+        'permission_name',
+        'permission_id',
+        $permissions,
+        "Permission",
+        true,
+        false,
+        [
+            'data-role-add-permission-target' => 'permission',
+            'data-action' => 'change->role-add-permission#checkSubmitEnable',
+        ]
+    );
     echo $this->Form->control("role_id", [
         "type" => "hidden",
-        "value" => $role->id,
-        "id" => "add_permission__role_id",
+        "value" => $role->id
     ]);
     ?>
 </fieldset>
@@ -26,8 +34,8 @@ echo $this->Modal->create("Add Permission to Role", [
 echo $this->Modal->end([
     $this->Form->button("Submit", [
         "class" => "btn btn-primary",
-        "id" => "add_permission__submit",
         "disabled" => "disabled",
+        "data-role-add-permission-target" => "submitBtn",
     ]),
     $this->Form->button("Close", [
         "data-bs-dismiss" => "modal",

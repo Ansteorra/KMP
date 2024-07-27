@@ -33,8 +33,13 @@ echo $this->Modal->create("Edit " . $member->sca_name, [
         echo $this->Form->control("email_address", [
             'type' => 'email',
             'data-original-value' => $member->email_address,
-            'id' => 'edit_entity__email_address',
             'autoSetCustomValidity' => false,
+            'data-controller' => 'member-unique-email',
+            'data-member-unique-email-url-value' => $this->URL->build([
+                'controller' => 'Members',
+                'action' => 'emailTaken',
+                'plugin' => null,
+            ]),
         ]);
         echo $this->Form->control("background_check_expires_on", [
             "empty" => true,
@@ -83,3 +88,6 @@ echo $this->Modal->create("Edit " . $member->sca_name, [
     ]),
 ]); ?>
 <?= $this->Form->end() ?>
+<?php if ($memberForm->getErrors()) : ?>
+<div data-controller="modal-opener" data-modal-opener-modal-btn-value="editModalBtn"></div>
+<?php endif; ?>

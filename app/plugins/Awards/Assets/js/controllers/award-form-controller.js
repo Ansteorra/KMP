@@ -7,7 +7,6 @@ class awardForm extends Controller {
     }
 
     add(event) {
-        debugger;
         event.preventDefault();
         if (!this.newTarget.value) {
             return;

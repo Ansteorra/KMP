@@ -52,14 +52,15 @@ echo $this->KMP->startBlock("pageTitle") ?>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("tabButtons") ?>
 <button class="nav-link active" id="nav-members-tab" data-bs-toggle="tab" data-bs-target="#nav-members" type="button"
-    role="tab" aria-controls="nav-members" aria-selected="false"><?= __("Members") ?>
+    role="tab" aria-controls="nav-members" aria-selected="false" data-detail-tabs-target='tabBtn'><?= __("Members") ?>
 </button>
 <button class="nav-link" id="nav-branches-tab" data-bs-toggle="tab" data-bs-target="#nav-branches" type="button"
-    role="tab" aria-controls="nav-branches" aria-selected="false"><?= __("Branches") ?>
+    role="tab" aria-controls="nav-branches" aria-selected="false" data-detail-tabs-target='tabBtn'><?= __("Branches") ?>
 </button>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("tabContent") ?>
-<div class="related tab-pane fade active m-3" id="nav-members" role="tabpanel" aria-labelledby="nav-members-tab">
+<div class="related tab-pane fade active m-3" id="nav-members" role="tabpanel" aria-labelledby="nav-members-tab"
+    data-detail-tabs-target="tabContent">
     <?php if (!empty($branch->members)) : ?>
     <div class="table-responsive">
         <table class="table table-striped">
@@ -100,7 +101,8 @@ echo $this->KMP->startBlock("pageTitle") ?>
     <p><?= __("No members found") ?></p>
     <?php endif; ?>
 </div>
-<div class="related tab-pane fade m-3" id="nav-branches" role="tabpanel" aria-labelledby="nav-branches-tab">
+<div class="related tab-pane fade m-3" id="nav-branches" role="tabpanel" aria-labelledby="nav-branches-tab"
+    data-detail-tabs-target="tabContent">
     <?php if (!empty($branch->children)) : ?>
     <div class="table-responsive">
         <table class="table table-striped">

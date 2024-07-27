@@ -41,15 +41,17 @@ echo $this->KMP->startBlock("pageTitle") ?>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("tabButtons") ?>
 <button class="nav-link" id="nav-assignedMembers-tab" data-bs-toggle="tab" data-bs-target="#nav-assignedMembers"
-    type="button" role="tab" aria-controls="nav-assignedMembers" aria-selected="false"><?= __("Assigned Members") ?>
+    type="button" role="tab" aria-controls="nav-assignedMembers" aria-selected="false"
+    data-detail-tabs-target='tabBtn'><?= __("Assigned Members") ?>
 </button>
 <button class="nav-link" id="nav-rolePermissions-tab" data-bs-toggle="tab" data-bs-target="#nav-rolePermissions"
-    type="button" role="tab" aria-controls="nav-rolePermissions" aria-selected="false"><?= __("Permissions") ?>
+    type="button" role="tab" aria-controls="nav-rolePermissions" aria-selected="false"
+    data-detail-tabs-target='tabBtn'><?= __("Permissions") ?>
 </button>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("tabContent") ?>
 <div class="related tab-pane fade m-3" id="nav-assignedMembers" role="tabpanel"
-    aria-labelledby="nav-assignedMembers-tab">
+    aria-labelledby="nav-assignedMembers-tab" data-detail-tabs-target="tabContent">
     <button type="button" class="btn btn-primary btn-sm mb-3" data-bs-toggle="modal"
         data-bs-target="#addMemberModal">Add
         Member</button>
@@ -84,7 +86,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
     endif; ?>
 </div>
 <div class="related tab-pane fade m-3" id="nav-rolePermissions" role="tabpanel"
-    aria-labelledby="nav-rolePermissions-tab">
+    aria-labelledby="nav-rolePermissions-tab" data-detail-tabs-target="tabContent">
     <?php if (!$role->is_system) : ?>
     <button type="button" class="btn btn-primary btn-sm mb-3" data-bs-toggle="modal"
         data-bs-target="#addPermissionModal">Add
@@ -187,64 +189,11 @@ echo $this->KMP->startBlock("pageTitle") ?>
 
 <?php
 echo $this->KMP->startBlock("modals");
+echo $this->element('roles/addMemberModal', []);
 if (!$role->is_system) :
-    echo $this->element('roles/addMemberModal', []);
     echo $this->element('roles/addPermissionModal', []);
     echo $this->element('roles/editModal', []);
 endif;
 
 $this->KMP->endBlock();
 ?>
-
-
-
-
-<?php
-echo $this->KMP->startBlock("script"); ?>
-<script>
-<?php if (!$role->is_system) : ?>
-class rolesView {
-    constructor() {
-        this.ac = null;
-    };
-    run() {
-        var me = this;
-        var searchUrl = '<?= $this->URL->build(['controller' => 'Members', 'action' => 'SearchMembers']) ?>';
-        KMP_utils.configureAutoComplete(me.ac, searchUrl, 'add_member__sca_name', 'id', 'sca_name',
-            'add_member__member_id')
-        $('#add_member__member_id').change(function() {
-            if ($('#add_member__member_id').val() > 0) {
-                //enable button
-                $('#add_member__submit').prop('disabled', false);
-            } else {
-                //disable button
-                $('#add_member__submit').prop('disabled', true);
-            }
-        });
-        $('#add_member__form').on('submit', function(e) {
-            if (!$('#add_member__member_id').val() > 0) {
-                e.preventDefault();
-            }
-        });
-        $("#add_permission__permission_id").change(function() {
-            var end = this.value;
-            if (end > 0) {
-                $('#add_permission__submit').prop('disabled', false);
-            } else {
-                $('#add_permission__submit').prop('disabled', true);
-            }
-        });
-        $('#add_permission__form').on('submit', function(e) {
-            if (!$('#add_permission__permission_id').val() > 0) {
-                e.preventDefault();
-            }
-        });
-    }
-}
-window.addEventListener('DOMContentLoaded', function() {
-    var pageControl = new rolesView();
-    pageControl.run();
-});
-<?php endif; ?>
-</script>
-<?php echo $this->KMP->endBlock(); ?>

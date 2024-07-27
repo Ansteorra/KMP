@@ -2,47 +2,53 @@
 if ($user->can("verifyMembership", "Members") && $needVerification) :
     echo $this->Form->create(null, [
         "url" => ["controller" => "Members", "action" => "verifyMembership", $member->id],
-        "id" => "verify__form",
+        "data-controller" => "member-verify-form",
+
     ]);
     echo $this->Modal->create("Verify Membership", [
         "id" => "verifyMembershipModal",
         "close" => true,
     ]);
 ?>
-    <fieldset>
-        <?php
+<fieldset>
+    <?php
 
         echo $this->Form->control("member_id", [
             "type" => "hidden",
-            "value" => $member->id,
-            "id" => "verify__member_id",
+            "value" => $member->id
         ]);
         if ($needsParentVerification) {
             if ($needsMemberCardVerification) {
                 echo $this->Form->Control("verify_parent", [
                     "type" => "checkbox",
-                    "id" => "verify__parent_check",
                     "value" => 1,
                     "checked" => "checked",
-                    "onchange" => "$('#verify_member__sca_name').prop('disabled', !this.checked);",
+                    "data-action" => "member-verify-form#toggleParent",
                 ]);
             } else {
                 echo $this->Form->control("verify_parent", [
                     "type" => "hidden",
                     "value" => 1,
-                    "id" => "verify__parent_check",
                 ]);
             }
-            echo $this->Form->control("sca_name", [
-                "type" => "text",
-                "label" => "Parent SCA Name",
-                "id" => "verify_member__sca_name",
-                'required' => true,
+            $url = $this->Url->build([
+                'controller' => 'Members',
+                'action' => 'AutoComplete',
+                'plugin' => null
             ]);
-            echo $this->Form->control("parent_id", [
-                "type" => "hidden",
-                "id" => "verify_member__parent_id",
-            ]);
+            $this->KMP->autoCompleteControl(
+                $this->Form,
+                'sca_name',
+                'parent_id',
+                $url,
+                "Parent",
+                true,
+                false,
+                3,
+                [
+                    'data-member-verify-form-target' => 'scaMember',
+                ]
+            );
         }
         if ($needsMemberCardVerification) {
             if ($member->membership_card_path != null && strlen($member->membership_card_path) > 0) {
@@ -51,35 +57,32 @@ if ($user->can("verifyMembership", "Members") && $needVerification) :
             if ($needsParentVerification) {
                 echo $this->Form->control("verify_membership", [
                     "type" => "checkbox",
-                    "id" => "verify__membership_check",
                     "value" => 1,
                     "checked" => "checked",
-                    "onchange" => "$('#verify__membership_number').prop('disabled', !this.checked); $('#verify__membership_expires_on').prop('disabled', !this.checked);",
+                    "data-action" => "member-verify-form#toggleMembership",
                 ]);
             } else {
                 echo $this->Form->control("verify_membership", [
                     "type" => "hidden",
                     "value" => 1,
-                    "id" => "verify__membership_check",
                 ]);
             }
             echo $this->Form->control("membership_number", [
-                "id" => "verify__membership_number",
                 'required' => true,
+                'data-member-verify-form-target' => 'membershipNumber',
             ]);
             echo $this->Form->control("membership_expires_on", [
                 "type" => "date",
-                "id" => "verify__membership_expires_on",
                 'required' => true,
                 "empty" => true,
+                'data-member-verify-form-target' => 'membershipExpDate',
             ]);
         }
         ?>
-    </fieldset>
+</fieldset>
 <?php echo $this->Modal->end([
         $this->Form->button("Submit", [
             "class" => "btn btn-primary",
-            "id" => "verify__submit"
         ]),
         $this->Form->button("Close", [
             "data-bs-dismiss" => "modal",
@@ -87,6 +90,4 @@ if ($user->can("verifyMembership", "Members") && $needVerification) :
         ]),
     ]);
     echo $this->Form->end();
-endif;
-
-?>
+endif; ?>

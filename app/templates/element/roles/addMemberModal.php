@@ -1,7 +1,8 @@
 <?php
 echo $this->Form->create(null, [
-    "id" => "add_member__form",
     "url" => ["controller" => "MemberRoles", "action" => "add"],
+    "data-role-add-member-target" => "form",
+    "data-controller" => "role-add-member",
 ]);
 
 echo $this->Modal->create("Add Member to Role", [
@@ -11,27 +12,36 @@ echo $this->Modal->create("Add Member to Role", [
 ?>
 <fieldset>
     <?php
-    echo $this->Form->control("sca_name", [
-        "type" => "text",
-        "label" => "SCA Name",
-        "id" => "add_member__sca_name",
+    $url = $this->Url->build([
+        'controller' => 'Members',
+        'action' => 'AutoComplete',
+        'plugin' => null
     ]);
+    $this->KMP->autoCompleteControl(
+        $this->Form,
+        'sca_name',
+        'member_id',
+        $url,
+        "SCA Name",
+        true,
+        false,
+        3,
+        [
+            'data-role-add-member-target' => 'scaMember',
+            'data-action' => 'change->role-add-member#checkSubmitEnable',
+        ]
+    );
     echo $this->Form->control("role_id", [
         "type" => "hidden",
         "value" => $role->id,
-        "id" => "add_member__role_id",
-    ]);
-    echo $this->Form->control("member_id", [
-        "type" => "hidden",
-        "id" => "add_member__member_id",
     ]);
     ?>
 </fieldset>
 <?php echo $this->Modal->end([
     $this->Form->button("Submit", [
         "class" => "btn btn-primary",
-        "id" => "add_member__submit",
         "disabled" => "disabled",
+        'data-role-add-member-target' => 'submitBtn',
     ]),
     $this->Form->button("Close", [
         "data-bs-dismiss" => "modal",

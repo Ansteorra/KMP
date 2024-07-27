@@ -85,19 +85,21 @@ echo $this->element('members/memberDetails', [
 $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("tabButtons") ?>
 <button class="nav-link" id="nav-roles-tab" data-bs-toggle="tab" data-bs-target="#nav-roles" type="button" role="tab"
-    aria-controls="nav-roles" aria-selected="false"><?= __("Roles") ?>
+    aria-controls="nav-roles" aria-selected="false" data-detail-tabs-target='tabBtn'><?= __("Roles") ?>
 </button>
 <button class="nav-link" id="nav-notes-tab" data-bs-toggle="tab" data-bs-target="#nav-notes" type="button" role="tab"
-    aria-controls="nav-notes" aria-selected="false"><?= __("Notes") ?>
+    aria-controls="nav-notes" aria-selected="false data-detail-tabs-target='tabBtn'><?= __("Notes") ?>
 </button>
 <?php if (!empty($aiForm)) : ?>
-<button class="nav-link" id="nav-add-info-tab" data-bs-toggle="tab" data-bs-target="#nav-add-info" type="button"
-    role="tab" aria-controls="nav-add-info" aria-selected="false"><?= __("Additional Info") ?>
+<button class=" nav-link" id="nav-add-info-tab" data-bs-toggle="tab" data-bs-target="#nav-add-info" type="button"
+    role="tab" aria-controls="nav-add-info" aria-selected="false"
+    data-detail-tabs-target='tabBtn'><?= __("Additional Info") ?>
 </button>
 <?php endif; ?>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("tabContent") ?>
-<div class="related tab-pane fade m-3" id="nav-roles" role="tabpanel" aria-labelledby="nav-roles-tab">
+<div class="related tab-pane fade m-3" id="nav-roles" role="tabpanel" aria-labelledby="nav-roles-tab"
+    data-detail-tabs-target="tabContent">
     <?php if (!empty($member->previous_member_roles) || !empty($member->current_member_roles) || !empty($member->upcoming_member_roles)) {
         $linkTemplate = [
             "type" => "link",
@@ -174,7 +176,8 @@ $this->KMP->endBlock() ?>
         echo "<p>No Roles Assigned</p>";
     } ?>
 </div>
-<div class="related tab-pane fade m-3" id="nav-notes" role="tabpanel" aria-labelledby="nav-notes-tab">
+<div class="related tab-pane fade m-3" id="nav-notes" role="tabpanel" aria-labelledby="nav-notes-tab"
+    data-detail-tabs-target="tabContent">
     <?= $this->cell('Notes', [
         'topic_id' => $member->id,
         'topic_model' => 'Members',
@@ -182,7 +185,8 @@ $this->KMP->endBlock() ?>
     ]) ?>
 </div>
 <?php if (!empty($aiForm)) : ?>
-<div class="related tab-pane fade m-3" id="nav-add-info" role="tabpanel" aria-labelledby="nav-add-info-tab">
+<div class="related tab-pane fade m-3" id="nav-add-info" role="tabpanel" aria-labelledby="nav-add-info-tab"
+    data-detail-tabs-target="tabContent">
     <?php
         $appInfo = $member->additional_info;
         $userEditableOnly = !$user->can("edit", $member);
@@ -344,71 +348,3 @@ echo $this->element('members/verifyMembershipModal', [
 ]);
 // End writing to modal block in layout
 $this->KMP->endBlock(); ?>
-
-<?php
-// Add scripts
-echo $this->KMP->startBlock("script"); ?>
-<script>
-class memberView {
-    constructor() {
-        this.ac = null;
-
-    };
-    run() {
-        var me = this;
-        if ($('#verify_member__sca_name').length > 0) {
-            var searchUrl =
-                '<?= $this->URL->build(['controller' => 'Members', 'action' => 'SearchMembers']) ?>';
-            KMP_utils.configureAutoComplete(me.ac, searchUrl, 'verify_member__sca_name', 'id', 'sca_name',
-                'verify_member__parent_id')
-        }
-        $('#edit_entity__email_address').removeAttr('oninput');
-        $('#edit_entity__email_address').removeAttr('oninvalid');
-        $('#edit_entity__email_address').on('change', function() {
-            var email = $('#edit_entity__email_address').val();
-            if (email == '') {
-                $('#edit_entity__email_address').removeClass('is-invalid');
-                $('#edit_entity__email_address').removeClass('is-valid');
-                $('#edit_entity__email_address')[0].setCustomValidity('');
-                return;
-            }
-            var original_email = $('#edit_entity__email_address').data('original-value');
-            if (email == original_email) {
-                $('#edit_entity__email_address').addClass('is-valid');
-                $('#edit_entity__email_address').removeClass('is-invalid');
-                return;
-            }
-            var checkEmailUrl =
-                '<?= $this->URL->build(['controller' => 'Members', 'action' => 'emailTaken']) ?>' +
-                '?email=' + encodeURIComponent(email);
-            $.get(checkEmailUrl, {
-                email: email
-            }, function(data) {
-                if (data) {
-                    $('#edit_entity__email_address').addClass('is-invalid');
-                    $('#edit_entity__email_address').removeClass('is-valid');
-                    $('#edit_entity__email_address')[0].setCustomValidity(
-                        'This email address is already taken.');
-                } else {
-                    $('#edit_entity__email_address').addClass('is-valid');
-                    $('#edit_entity__email_address').removeClass('is-invalid');
-                    $('#edit_entity__email_address')[0].setCustomValidity('');
-                }
-            });
-        });
-        //on input this.setCustomValidity('')
-        //on invalid this.setCustomValidity(''); if (!this.value) this.setCustomValidity(this.dataset.validityMessage)
-    };
-};
-window.addEventListener('DOMContentLoaded', function() {
-    var pageControl = new memberView();
-    pageControl.run();
-    <?php if ($passwordReset->getErrors()) { ?>
-    $("#passwordModalBtn").trigger('click');
-    <?php } ?>
-    <?php if ($memberForm->getErrors()) { ?>
-    $("#editModalBtn").trigger('click');
-    <?php } ?>
-});
-</script>
-<?php $this->KMP->endBlock(); ?>

@@ -104,13 +104,17 @@ echo $this->KMP->startBlock("pageTitle") ?>
 </tr>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("tabButtons") ?>
-<button class="nav-link" id="nav-authorizations-tab" data-bs-toggle="tab" data-bs-target="#nav-authorizations" type="button" role="tab" aria-controls="nav-authorizations" aria-selected="false"><?= __("Authorizations") ?>
+<button class="nav-link" id="nav-authorizations-tab" data-bs-toggle="tab" data-bs-target="#nav-authorizations"
+    type="button" role="tab" aria-controls="nav-authorizations" aria-selected="false"
+    data-detail-tabs-target='tabBtn'><?= __("Authorizations") ?>
 </button>
-<button class="nav-link" id="nav-roles-tab" data-bs-toggle="tab" data-bs-target="#nav-roles" type="button" role="tab" aria-controls="nav-roles" aria-selected="false"><?= __("Authorizing Roles") ?>
+<button class="nav-link" id="nav-roles-tab" data-bs-toggle="tab" data-bs-target="#nav-roles" type="button" role="tab"
+    aria-controls="nav-roles" aria-selected="false" data-detail-tabs-target='tabBtn'><?= __("Authorizing Roles") ?>
 </button>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("tabContent") ?>
-<div class="tab-pane fade m-3" id="nav-authorizations" role="tabpanel" aria-labelledby="nav-authorizations-tab">
+<div class="tab-pane fade m-3" id="nav-authorizations" role="tabpanel" aria-labelledby="nav-authorizations-tab"
+    data-detail-tabs-target="tabContent">
     <?php
     if (!$isEmpty) :
         echo $this->element('turboActiveTabs', [
@@ -143,21 +147,22 @@ echo $this->KMP->startBlock("pageTitle") ?>
         echo "<p>No Authorizations</p>";
     endif; ?>
 </div>
-<div class="tab-pane fade m-3" id="nav-roles" role="tabpanel" aria-labelledby="nav-roles-tab">
+<div class="tab-pane fade m-3" id="nav-roles" role="tabpanel" aria-labelledby="nav-roles-tab"
+    data-detail-tabs-target="tabContent">
     <?php if (!empty($roles)) : ?>
-        <div class="table-responsive">
-            <table class="table table-striped">
-                <tr>
-                    <th scope="col"><?= __("Name") ?></th>
-                    <th scope="col" class="actions"><?= __(
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <tr>
+                <th scope="col"><?= __("Name") ?></th>
+                <th scope="col" class="actions"><?= __(
                                                         "Actions",
                                                     ) ?></th>
-                </tr>
-                <?php foreach ($roles as $role) : ?>
-                    <tr>
-                        <td><?= h($role->name) ?></td>
-                        <td class="actions">
-                            <?= $this->Html->link(
+            </tr>
+            <?php foreach ($roles as $role) : ?>
+            <tr>
+                <td><?= h($role->name) ?></td>
+                <td class="actions">
+                    <?= $this->Html->link(
                                 __("View"),
                                 [
                                     "controller" => "Roles",
@@ -166,11 +171,11 @@ echo $this->KMP->startBlock("pageTitle") ?>
                                 ],
                                 ["class" => "btn btn-secondary"],
                             ) ?>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
-            </table>
-        </div>
+                </td>
+            </tr>
+            <?php endforeach; ?>
+        </table>
+    </div>
     <?php endif; ?>
 </div>
 

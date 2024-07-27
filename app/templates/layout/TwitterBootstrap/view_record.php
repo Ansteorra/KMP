@@ -58,15 +58,6 @@ echo $this->KMP->startBlock("tb_body_start");
             </nav>
 
             <main role="main" class="col-md-9 ms-sm-auto col-lg-10 px-md-4 my-3">
-                <?php
-                /** Default `flash` block. */
-                if (!$this->fetch("tb_flash")) {
-                    echo $this->KMP->startBlock("tb_flash");
-                    if (isset($this->Flash)) {
-                        echo $this->Flash->render();
-                    }
-                    $this->KMP->endBlock();
-                } ?>
                 <div class="row align-items-start">
                     <div class="col">
                         <h3>
@@ -99,25 +90,27 @@ echo $this->KMP->startBlock("tb_body_start");
                         </tbody>
                     </table>
                 </div>
-                <nav>
-                    <div class="nav nav-tabs" id="nav-tabButtons" role="tablist">
-                        <?= $this->element('pluginTabButtons', [
+                <div class="row" data-controller="detail-tabs">
+                    <nav>
+                        <div class="nav nav-tabs" id="nav-tabButtons" role="tablist">
+                            <?= $this->element('pluginTabButtons', [
+                                'pluginViewCells' => $pluginViewCells,
+                                'id' => $recordId,
+                                'model' => $recordModel,
+                                'activateFirst' => false
+                            ]) ?>
+                            <?= $this->fetch("tabButtons") ?>
+                        </div>
+                    </nav>
+                    <div class="tab-content" id="nav-tabContent">
+                        <?= $this->element('pluginTabBodies', [
                             'pluginViewCells' => $pluginViewCells,
                             'id' => $recordId,
                             'model' => $recordModel,
                             'activateFirst' => false
                         ]) ?>
-                        <?= $this->fetch("tabButtons") ?>
+                        <?= $this->fetch("tabContent") ?>
                     </div>
-                </nav>
-                <div class="tab-content" id="nav-tabContent">
-                    <?= $this->element('pluginTabBodies', [
-                        'pluginViewCells' => $pluginViewCells,
-                        'id' => $recordId,
-                        'model' => $recordModel,
-                        'activateFirst' => false
-                    ]) ?>
-                    <?= $this->fetch("tabContent") ?>
                 </div>
                 <?= $this->KMP->startBlock("tb_body_end"); ?>
             </main>
@@ -126,5 +119,13 @@ echo $this->KMP->startBlock("tb_body_start");
 </body>
 <?php
 $this->KMP->endBlock();
+if (!$this->fetch("tb_flash")) {
+    echo $this->KMP->startBlock("tb_flash");
+    if (isset($this->Flash)) {
+        echo $this->Flash->render();
+    }
+    $this->KMP->endBlock();
+}
+
 echo $this->fetch("content");
 echo $this->element('copyrightFooter', []);

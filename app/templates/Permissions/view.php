@@ -82,13 +82,14 @@ echo $this->KMP->startBlock("pageTitle") ?>
 ]) ?>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("tabButtons") ?>
-<button class="nav-link active" id="nav-roles-tab" data-bs-toggle="tab" data-bs-target="#nav-roles" type="button"
-    role="tab" aria-controls="nav-roles" aria-selected="false"><?= __("Roles") ?>
+<button class="nav-link" id="nav-roles-tab" data-bs-toggle="tab" data-bs-target="#nav-roles" type="button" role="tab"
+    aria-controls="nav-roles" aria-selected="false" data-detail-tabs-target='tabBtn'><?= __("Roles") ?>
 </button>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("tabContent") ?>
 <div class="tab-content" id="nav-tabContent">
-    <div class="related tab-pane fade active m-3" id="nav-roles" role="tabpanel" aria-labelledby="nav-roles-tab">
+    <div class="related tab-pane fade m-3" id="nav-roles" role="tabpanel" aria-labelledby="nav-roles-tab"
+        data-detail-tabs-target="tabContent" data-detail-tabs-target="tabContent">
 
         <?php if ($user->can("addPermission", "Roles")) { ?>
         <button type="button" class="btn btn-primary btn-sm mb-3" data-bs-toggle="modal"
@@ -146,8 +147,9 @@ echo $this->KMP->startBlock("pageTitle") ?>
     echo $this->KMP->startBlock("modals");
 
     echo $this->Form->create(null, [
-        "id" => "add_role__form",
         "url" => ["controller" => "Roles", "action" => "addPermission"],
+        "data-permission-add-role-target" => "form",
+        "data-controller" => "permission-add-role",
     ]);
     echo $this->Modal->create("Add Role to Permissions", [
         "id" => "addRoleModal",
@@ -155,11 +157,19 @@ echo $this->KMP->startBlock("pageTitle") ?>
     ]); ?>
     <fieldset>
         <?php
-        echo $this->Form->control("role_id", [
-            "options" => $roles,
-            "empty" => true,
-            "id" => "add_role__role_id",
-        ]);
+        echo $this->KMP->comboBoxControl(
+            $this->Form,
+            'role_name',
+            'role_id',
+            $roles,
+            "Role",
+            true,
+            false,
+            [
+                'data-permission-add-role-target' => 'role',
+                'data-action' => 'change->permission-add-role#checkSubmitEnable',
+            ]
+        );
         echo $this->Form->control("permission_id", [
             "type" => "hidden",
             "value" => $permission->id,
@@ -170,8 +180,8 @@ echo $this->KMP->startBlock("pageTitle") ?>
     <?php echo $this->Modal->end([
         $this->Form->button("Submit", [
             "class" => "btn btn-primary",
-            "id" => "add_role__submit",
             "disabled" => "disabled",
+            "data-permission-add-role-target" => "submitBtn",
         ]),
         $this->Form->button("Close", [
             "data-bs-dismiss" => "modal",
@@ -234,39 +244,4 @@ echo $this->KMP->startBlock("pageTitle") ?>
         ]),
     ]);
     echo $this->Form->end();
-    ?>
-
-
-    <?php //finish writing to modal block in layout
-
-    $this->KMP->endBlock();
-    echo $this->KMP->startBlock("script"); ?>
-    <script>
-    class permissionsView {
-        constructor() {
-            this.ac = null;
-
-        };
-        run() {
-            var me = this;
-            $("#add_role__role_id").change(function() {
-                var end = this.value;
-                if (end > 0) {
-                    $('#add_role__submit').prop('disabled', false);
-                } else {
-                    $('#add_role__submit').prop('disabled', true);
-                }
-            });
-            $('#add_role__form').on('submit', function(e) {
-                if (!$('#add_role__role_id').val() > 0) {
-                    e.preventDefault();
-                }
-            });
-        }
-    }
-    window.addEventListener('DOMContentLoaded', function() {
-        var pageControl = new permissionsView();
-        pageControl.run();
-    });
-    </script>
-    <?php $this->KMP->endBlock(); ?>
+    $this->KMP->endBlock(); ?>

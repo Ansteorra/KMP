@@ -34,3 +34,6 @@
 ]);
 ?>
 <?= $this->Form->end() ?>
+<?php if ($passwordReset->getErrors()) : ?>
+<div data-controller="modal-opener" data-modal-opener-modal-btn-value="passwordModalBtn"></div>
+<?php endif; ?>

@@ -120,7 +120,6 @@ class RecommendationForm extends Controller {
             });
     }
     populateSpecialties(event) {
-        debugger;
         let awardId = this.awardTarget.value;
         let specialtyData = this.specialtyTarget.querySelector("[data-ac-target='dataList']");
         specialtyData.innerHTML = "";

@@ -28,10 +28,19 @@ $this->KMP->endBlock(); ?>
                 </legend>
                 <?php
                 echo $this->Form->control("sca_name");
-                echo $this->Form->control("branch_id", [
-                    "options" => $treeList,
-                    "required" => true,
-                ]);
+                echo $this->KMP->comboBoxControl(
+                    $this->Form,
+                    'branch_name',
+                    'branch_id',
+                    $treeList,
+                    "Branch",
+                    true,
+                    false,
+                    [
+                        'data-awards-rec-form-target' => 'branch',
+                        'data-action' => 'ready->awards-rec-form#acConnected'
+                    ]
+                );
                 echo $this->Form->control("first_name", ["required" => true]);
                 echo $this->Form->control("middle_name");
                 echo $this->Form->control("last_name", ["required" => true]);
@@ -45,8 +54,13 @@ $this->KMP->endBlock(); ?>
                     "required" => true,
                     "type" => "email",
                     "nestedInput" => true,
-                    "id" => "entity__email_address",
                     "labelOptions" => ["class" => "input-group-text"],
+                    'data-controller' => 'member-unique-email',
+                    'data-member-unique-email-url-value' => $this->URL->build([
+                        'controller' => 'Members',
+                        'action' => 'emailTaken',
+                        'plugin' => null,
+                    ]),
                 ]);
                 ?>
                 <div class="mb-3 form-group select row">
@@ -68,85 +82,27 @@ $this->KMP->endBlock(); ?>
                         </select>
                     </div>
                 </div>
-                <div class="row" id="upload-images">
-                </div>
+                <div class="mb-3 form-group">
+                    <label class="form-label">Upload Membership Card (optional)</label>
+                    <div class="card col-3" data-controller="image-preview">
+                        <div class="card-body text-center">
+                            <svg class="bi bi-card-image text-secondary text-center" width="200" height="200"
+                                fill="currentColor" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"
+                                data-image-preview-target="loading">
+                                <path d="M6.002 5.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0" />
+                                <path
+                                    d="M1.5 2A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h13a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 14.5 2zm13 1a.5.5 0 0 1 .5.5v6l-3.775-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.062L1.002 12v.54L1 12.5v-9a.5.5 0 0 1 .5-.5z" />
+                            </svg>
+                            <img src="#" hidden alt="Image Preview" class="w-100" data-image-preview-target="preview">
+                        </div>
+                        <div class="card-footer">
+                            <input type="file" name="member_card" class="form-control" accept="image/*"
+                                data-image-preview-target="file" data-action="change->image-preview#preview">
+                        </div>
+                    </div>
             </fieldset>
-            <?= $this->Form->button(__("Submit")) ?>
+            <?= $this->Form->button(__("Submit"), ["class" => "btn-primary"]) ?>
             <?= $this->Form->end() ?>
         </div>
     </div>
 </div>
-
-
-<?php
-
-echo $this->KMP->startBlock("script");
-?>
-<script>
-class memberRegister {
-    constructor($) {
-        this.$ = $;
-    };
-    //onInput for Autocomplete
-    run(rootPath) {
-        var me = this;
-        me.$(function() {
-            //$("#upload-images").laiImagePreview();
-            me.$("#upload-images").laiImagePreview({
-                columns: "col-sm-6 col-md-3",
-                inputFileName: "member_card",
-                imageCaption: false,
-                imageLimit: 1,
-                label: "Picture of Membership Card (Optional)",
-                maxFileSize: 2000000,
-            });
-        });
-    }
-}
-window.addEventListener('DOMContentLoaded', function() {
-    var pageControl = new memberRegister(window.$);
-    pageControl.run();
-});
-</script>
-<?php echo $this->KMP->endBlock(); ?>
-
-<?php echo $this->KMP->startBlock("script"); ?>
-<script>
-window.addEventListener('DOMContentLoaded', function() {
-    $('#entity__email_address').removeAttr('oninput');
-    $('#entity__email_address').removeAttr('oninvalid');
-    $('#entity__email_address').on('change', function() {
-        var email = $('#entity__email_address').val();
-        if (email == '') {
-            $('#entity__email_address').removeClass('is-invalid');
-            $('#entity__email_address').removeClass('is-valid');
-            $('#entity__email_address')[0].setCustomValidity('');
-            return;
-        }
-        var original_email = $('#entity__email_address').data('original-value');
-        if (email == original_email) {
-            $('#entity__email_address').addClass('is-valid');
-            $('#entity__email_address').removeClass('is-invalid');
-            return;
-        }
-        var checkEmailUrl =
-            '<?= $this->URL->build(['controller' => 'Members', 'action' => 'emailTaken']) ?>' +
-            '?email=' + encodeURIComponent(email);
-        $.get(checkEmailUrl, {
-            email: email
-        }, function(data) {
-            if (data) {
-                $('#entity__email_address').addClass('is-invalid');
-                $('#entity__email_address').removeClass('is-valid');
-                $('#entity__email_address')[0].setCustomValidity(
-                    'This email address is already taken.');
-            } else {
-                $('#entity__email_address').addClass('is-valid');
-                $('#entity__email_address').removeClass('is-invalid');
-                $('#entity__email_address')[0].setCustomValidity('');
-            }
-        });
-    });
-});
-</script>
-<?php echo $this->KMP->endBlock(); ?>
