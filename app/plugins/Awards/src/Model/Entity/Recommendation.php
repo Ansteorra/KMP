@@ -77,6 +77,7 @@ class Recommendation extends Entity
         'contact_number' => true,
         'contact_email' => true,
         'reason' => true,
+        'specialty' => true,
         'call_into_court' => true,
         'court_availability' => true,
         'modified' => true,

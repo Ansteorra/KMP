@@ -53,6 +53,59 @@ class KmpHelper extends Helper
         self::$mainView->end();
         self::$currentOpenBlock = "";
     }
+    public function comboBoxControl($Form, $inputField, $resultField, $data, $label, $required, $allowOtherValues, $additionalAttrs)
+    {
+        echo "<div data-controller='ac' role='combobox'";
+        echo "class='position-relative mb-3 kmp_autoComplete' data-ac-allow-other-value='" . ($allowOtherValues ? "true" : "false") . "' data-ac-min-length-value=0 ";
+        if ($additionalAttrs) {
+            foreach ($additionalAttrs as $key => $value) {
+                echo $key . "='" . $value . "' ";
+            }
+        }
+        echo ">";
+        echo "<ul data-ac-target='dataList' class='d-none'>";
+        foreach ($data as $value => $item) {
+            echo "<li class='list-group-item' data-ac-value='" . $value . "'>" . $item . "</li>";
+        }
+        echo "</ul>";
+        echo $Form->control($resultField, [
+            "type" => "hidden",
+            "data-ac-target" => "hidden",
+        ]);
+        echo $Form->control($inputField, [
+            'required' => !$required ? false : true,
+            "type" => "text",
+            "label" => $label != null ? $label : null,
+            "data-ac-target" => "input",
+            "container" => ["style" => "margin:0 !important;",]
+        ]);
+        echo "<ul data-ac-target='results' class='list-group z-3 col-3 position-absolute'></ul></div>";
+    }
+
+    public function autoCompleteControl($Form, $inputField, $resultField, $url, $label, $required, $allowOtherValues, $minLength, $additionalAttrs,)
+    {
+        echo "<div data-controller='ac' data-ac-url-value='" . $url . "'role='combobox'";
+        echo "class='position-relative mb-3 kmp_autoComplete' data-ac-allow-other-value='" . ($allowOtherValues ? "true" : "false") . "' ";
+        echo "data-ac-min-length-value='" . $minLength . "' ";
+        if ($additionalAttrs) {
+            foreach ($additionalAttrs as $key => $value) {
+                echo $key . "='" . $value . "' ";
+            }
+        }
+        echo ">";
+        echo $Form->control($resultField, [
+            "type" => "hidden",
+            "data-ac-target" => "hidden",
+        ]);
+        echo $Form->control($inputField, [
+            'required' => !$required ? false : true,
+            "type" => "text",
+            "label" => $label != null ? $label : null,
+            "data-ac-target" => "input",
+            "container" => ["style" => "margin:0 !important;",]
+        ]);
+        echo "<ul data-ac-target='results' class='list-group z-3 col-3 position-absolute'></ul></div>";
+    }
     /**
      * Returns a boolean icon
      *
@@ -237,9 +290,10 @@ class KmpHelper extends Helper
         $expanded = $parent["active"] ? "true" : "false";
         $expandUrl = $Url->build(["controller" => "NavBar", "action" => "RecordExpand", $parent["id"], "plugin" => null]);
         $collapseUrl = $Url->build(["controller" => "NavBar", "action" => "RecordCollapse", $parent["id"], "plugin" => null]);
-        $return = '<div data-bs-target="#' . $randomId . '" data-bs-toggle="collapse" aria-expanded="' . $expanded . '" id="' . $parent['id'] . '" . ' .
-            'data-collapse-url="' . $collapseUrl . '" data-expand-url="' . $expandUrl . '"' .
-            'aria-controls="' . $randomId . '" class="navheader ' . $collaped . ' text-start badge fs-5 mb-2 mx-1 text-bg-secondary bi ' .
+        $return = '<div data-bs-target="#' . $randomId . '" data-bs-toggle="collapse" aria-expanded="' . $expanded . '"
+    id="' . $parent['id'] . '" . ' .
+            ' data-collapse-url="' . $collapseUrl . '" data-expand-url="' . $expandUrl . '"' .
+            ' aria-controls="' . $randomId . '" class="navheader ' . $collaped . ' text-start badge fs-5 mb-2 mx-1 text-bg-secondary bi ' .
             $parent['icon'] .
             '"> ' .
             $parent['label'] .

@@ -46,6 +46,7 @@ class MembersController extends AppController
             "searchMembers",
             "publicProfile",
             "emailTaken",
+            "autoComplete",
         ]);
     }
 
@@ -606,7 +607,7 @@ class MembersController extends AppController
     }
     #endregion
 
-    #region JSON calls
+    #region ASYNC calls
     public function searchMembers()
     {
         $q = $this->request->getQuery("q");
@@ -711,6 +712,19 @@ class MembersController extends AppController
             ->withType("application/json")
             ->withStringBody(json_encode($publicProfile));
         return $this->response;
+    }
+    public function autoComplete()
+    {
+        $q = $this->request->getQuery("q");
+        $this->Authorization->skipAuthorization();
+        $this->request->allowMethod(["get"]);
+        $this->viewBuilder()->setClassName("Ajax");
+        $query = $this->Members
+            ->find("all")
+            ->where(["sca_name LIKE" => "%$q%"])
+            ->select(["id", "sca_name"])
+            ->limit(50);
+        $this->set(compact("query", "q"));
     }
 
     public function emailTaken()

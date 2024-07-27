@@ -289,7 +289,6 @@ function appendToCard(element, minSpace) {
     }
     minSpace = maxCardLength * (minSpace / 100);
     if (usedSpaceInCard() > (maxCardLength - minSpace)) {
-        debugger;
         currentCard.remove(element);
         startCard();
         currentCard.append(element);

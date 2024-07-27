@@ -95,6 +95,12 @@ class AwardsTable extends Table
             ->allowEmptyString('description');
 
         $validator
+            ->scalar('abbriviation')
+            ->maxLength('abbriviation', 20)
+            ->requirePresence('name', 'create')
+            ->notEmptyString('abbriviation');
+
+        $validator
             ->scalar('insignia')
             ->allowEmptyString('insignia');
 

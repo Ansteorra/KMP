@@ -25,6 +25,7 @@ class DevLoadAwardsAwardsSeed extends AbstractSeed
             [
                 'id' => 1,
                 'name' => 'Award of the Sable Falcon',
+                'abbreviation' => 'Falcon',
                 'description' => 'Given to those who have striven greatly to further their skill level and capabilities in heavy weapons combat. Often given for a single notable deed.',
                 'insignia' => 'A cord braided sable and Or tied to a metal ring worn on the belt.',
                 'badge' => 'None',
@@ -41,6 +42,7 @@ class DevLoadAwardsAwardsSeed extends AbstractSeed
             [
                 'id' => 2,
                 'name' => 'Award of the Sable Talon of Ansteorra for Chivalric',
+                'abbreviation' => 'Talon',
                 'description' => 'Confers an Award of Arms. Given to those who have striven greatly to further their skill levels and capabilities in any recognized marshallate activity, who have positively influenced the skills and capabilities of others in these fields, and who lead by example when on and off the field of endeavor. May be given repeatedly  for different martial activities. ',
                 'insignia' => 'The badge worn as a medallion or pin',
                 'badge' => '(Fieldless) An eagle’s leg erased à la quise sable.',
@@ -57,6 +59,7 @@ class DevLoadAwardsAwardsSeed extends AbstractSeed
             [
                 'id' => 3,
                 'name' => 'Order of the Centurions of the Sable Star of Ansteorra',
+                'abbreviation' => 'Centurion',
                 'description' => 'Polling order. Confers a Grant of Arms. Given to those who have demonstrated exceptional leadership, skill and honor in chivalric combat.',
                 'insignia' => 'A ribbon Or edged gules charged with an Ansteorran star (a mullet of five greater
 and five lesser points) sable worn as a garter, and/or the badge of the order prominently
@@ -76,6 +79,7 @@ sable.',
             [
                 'id' => 4,
                 'name' => 'Order of Knighthood or Order of Mastery of Arms',
+                'abbreviation' => 'Order of Chivalry',
                 'description' => 'Polling order. The highest award for chivalric combat.',
                 'insignia' => 'Knighthood : White belt and unadorned gold chain
 Master at Arms: White baldric',

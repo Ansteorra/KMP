@@ -1,10 +1,10 @@
 {
-    "/js/startup.js": "/js/startup.js?id=41dd89b8a64a273326b28af0801a7161",
-    "/js/manifest.js": "/js/manifest.js?id=97286c490f834045449e5ffff349e771",
+    "/js/controllers.js": "/js/controllers.js?id=73e6dcb596830b8c14441a8f968a9ade",
+    "/js/index.js": "/js/index.js?id=e30285cfad52a790b1194661b0af7924",
+    "/js/manifest.js": "/js/manifest.js?id=24cdd342c86ed04f85b3725fab6adf0a",
+    "/js/core.js": "/js/core.js?id=1ed4eb6010b1c9abcde50292b65550c4",
     "/css/app.css": "/css/app.css?id=e70211d0f67906dfc7c9898365d1860a",
-    "/js/core.js": "/js/core.js?id=aa814b3f7d7d907b88c22d4328d0030d",
     "/css/dashboard.css": "/css/dashboard.css?id=7debc8290e0b7cbd75b8810caee34164",
     "/css/cover.css": "/css/cover.css?id=bcade51c5f803d146afff80c45fbf8b2",
-    "/css/signin.css": "/css/signin.css?id=46a5386914895dc31a2caa7cebacb515",
-    "/js/hotwired_turbo.js": "/js/hotwired_turbo.js?id=45da699b66a45b0f6e715b4813af4e53"
+    "/css/signin.css": "/css/signin.css?id=46a5386914895dc31a2caa7cebacb515"
 }

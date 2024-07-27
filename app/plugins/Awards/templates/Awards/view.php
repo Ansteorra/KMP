@@ -35,6 +35,25 @@ echo $this->KMP->startBlock("pageTitle") ?>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("recordDetails") ?>
 <tr>
+    <th scope="row"><?= __('Abbreviation') ?></th>
+    <td> <?= h($award->abbreviation) ?></td>
+</tr>
+<?php if ($award->specialties && strlen($award->specialties) > 0) : ?>
+<tr>
+    <th scope="row"><?= __('Specialties') ?></th>
+    <td>
+        <ul>
+            <?php
+                // parse the JSON to get the list of specialties
+                $list =  json_decode($award->specialties);
+                foreach ($list as $specialty) : ?>
+            <li><?= h($specialty) ?></li>
+            <?php endforeach; ?>
+        </ul>
+    </td>
+</tr>
+<?php endif; ?>
+<tr>
     <th scope="row"><?= __('Description') ?></th>
     <td> <?= $this->Text->autoParagraph(
                 h($award->description),
@@ -95,6 +114,7 @@ echo $this->Form->create($award, [
         "action" => "edit",
         $award->id,
     ],
+    'data-controller' => 'awards-award-form'
 ]);
 echo $this->Modal->create("Edit Award", [
     "id" => "editModal",
@@ -104,6 +124,17 @@ echo $this->Modal->create("Edit Award", [
 <fieldset>
     <?php
     echo $this->Form->control('name');
+    echo $this->Form->control('abbreviation');
+    echo $this->Form->hidden('specialties', ['id' => 'specialties', 'data-awards-award-form-target' => 'formValue']); ?>
+    <div class="mb-3 form-group specialties">
+        <label class="form-label" for="specialtyInput">Specialties</label>
+        <ul class="list-group mb-3" data-awards-award-form-target='displayList'></ul>
+        <div class="input-group">
+            <input type="text" data-awards-award-form-target="new" class="form-control" placeholder="Add Specialty">
+            <button type="button" class="btn btn-primary btn-sm" data-action="awards-award-form#add">Add</button>
+        </div>
+    </div>
+    <?php
     echo $this->Form->control('description');
     echo $this->Form->control('insignia');
     echo $this->Form->control('badge');

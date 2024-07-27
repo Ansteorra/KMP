@@ -121,6 +121,16 @@ class InitAwards extends AbstractMigration
                 "limit" => 255,
                 "null" => false,
             ])
+            ->addColumn("abbreviation", "string", [
+                "default" => null,
+                "limit" => 20,
+                "null" => false,
+            ])
+            ->addColumn("specialties", "text", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
             ->addColumn("description", "text", [
                 "default" => null,
                 "limit" => null,
@@ -284,6 +294,11 @@ class InitAwards extends AbstractMigration
                 "default" => null,
                 "limit" => 11,
                 "null" => false,
+            ])
+            ->addColumn("specialty", "string", [
+                "default" => null,
+                "limit" => 255,
+                "null" => true,
             ])
             ->addColumn("requester_sca_name", "string", [
                 "default" => null,

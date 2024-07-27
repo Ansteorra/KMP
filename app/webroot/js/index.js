@@ -1,5 +1,5 @@
 "use strict";
-(self["webpackChunk"] = self["webpackChunk"] || []).push([["/js/startup"],{
+(self["webpackChunk"] = self["webpackChunk"] || []).push([["/js/index"],{
 
 /***/ "./node_modules/@popperjs/core/lib/createPopper.js":
 /*!*********************************************************!*\
@@ -3036,6 +3036,20 @@ __webpack_require__.r(__webpack_exports__);
       result = decodeURIComponent(results[1]);
     }
     return result;
+  },
+  sanitizeString: function sanitizeString(str) {
+    var map = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#x27;',
+      "/": '&#x2F;'
+    };
+    var reg = /[&<>"'/]/ig;
+    return str.replace(reg, function (match) {
+      return map[match];
+    });
   }
 });
 
@@ -3359,110 +3373,68 @@ $(function () {
 
 /***/ }),
 
-/***/ "./assets/js/startup.js":
-/*!******************************!*\
-  !*** ./assets/js/startup.js ***!
-  \******************************/
+/***/ "./assets/js/index.js":
+/*!****************************!*\
+  !*** ./assets/js/index.js ***!
+  \****************************/
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
-/* harmony import */ var jquery__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! jquery */ "./node_modules/jquery/dist/jquery.js");
-/* harmony import */ var jquery__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(jquery__WEBPACK_IMPORTED_MODULE_0__);
-/* harmony import */ var bootstrap__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! bootstrap */ "./node_modules/bootstrap/dist/js/bootstrap.esm.js");
-/* harmony import */ var _hotwired_turbo__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @hotwired/turbo */ "./node_modules/@hotwired/turbo/dist/turbo.es2017-esm.js");
-/* harmony import */ var _KMP_utils_js__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./KMP_utils.js */ "./assets/js/KMP_utils.js");
-/* harmony import */ var _imagePreviewer_js__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./imagePreviewer.js */ "./assets/js/imagePreviewer.js");
-/* harmony import */ var _imagePreviewer_js__WEBPACK_IMPORTED_MODULE_4___default = /*#__PURE__*/__webpack_require__.n(_imagePreviewer_js__WEBPACK_IMPORTED_MODULE_4__);
-/* provided dependency */ var __webpack_provided_window_dot_jQuery = __webpack_require__(/*! jquery */ "./node_modules/jquery/dist/jquery.js");
-
-
+/* harmony import */ var bootstrap__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! bootstrap */ "./node_modules/bootstrap/dist/js/bootstrap.esm.js");
+/* harmony import */ var _hotwired_turbo__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @hotwired/turbo */ "./node_modules/@hotwired/turbo/dist/turbo.es2017-esm.js");
+/* harmony import */ var _imagePreviewer_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./imagePreviewer.js */ "./assets/js/imagePreviewer.js");
+/* harmony import */ var _imagePreviewer_js__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(_imagePreviewer_js__WEBPACK_IMPORTED_MODULE_2__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+/* harmony import */ var _hotwired_stimulus_webpack_helpers__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @hotwired/stimulus-webpack-helpers */ "./node_modules/@hotwired/stimulus-webpack-helpers/dist/stimulus-webpack-helpers.js");
+/* harmony import */ var _KMP_utils_js__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./KMP_utils.js */ "./assets/js/KMP_utils.js");
+/* provided dependency */ var $ = __webpack_require__(/*! jquery */ "./node_modules/jquery/dist/jquery.js");
+/* provided dependency */ var jQuery = __webpack_require__(/*! jquery */ "./node_modules/jquery/dist/jquery.js");
 // export for others scripts to use
 
 
 
 
-window.$ = (jquery__WEBPACK_IMPORTED_MODULE_0___default());
-__webpack_provided_window_dot_jQuery = (jquery__WEBPACK_IMPORTED_MODULE_0___default());
-window.KMP_utils = _KMP_utils_js__WEBPACK_IMPORTED_MODULE_3__["default"];
-jquery__WEBPACK_IMPORTED_MODULE_0___default()(function () {
+
+
+window.$ = $;
+window.jQuery = jQuery;
+window.KMP_utils = _KMP_utils_js__WEBPACK_IMPORTED_MODULE_5__["default"];
+window.Stimulus = _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_3__.Application.start();
+// load all the controllers that have registered in the window.Controllers object
+for (var controller in window.Controllers) {
+  Stimulus.register(controller, window.Controllers[controller]);
+}
+$(function () {
   //if the querystring has a tab parameter, show that tab
-  var tab = _KMP_utils_js__WEBPACK_IMPORTED_MODULE_3__["default"].urlParam('tab');
+  var tab = _KMP_utils_js__WEBPACK_IMPORTED_MODULE_5__["default"].urlParam('tab');
   if (tab) {
-    jquery__WEBPACK_IMPORTED_MODULE_0___default()('#nav-' + tab + '-tab').trigger('click');
+    $('#nav-' + tab + '-tab').trigger('click');
   } else {
-    jquery__WEBPACK_IMPORTED_MODULE_0___default()('.nav-link[role=tab]:not([data-level])').first().trigger('click');
+    $('.nav-link[role=tab]:not([data-level])').first().trigger('click');
   }
   ;
-  jquery__WEBPACK_IMPORTED_MODULE_0___default()('.nav-link[role=tab]:not([data-level])').on('click', function () {
-    var tab = jquery__WEBPACK_IMPORTED_MODULE_0___default()(this).attr('id').replace('nav-', '').replace('-tab', '');
+  $('.nav-link[role=tab]:not([data-level])').on('click', function () {
+    var tab = $(this).attr('id').replace('nav-', '').replace('-tab', '');
     window.history.pushState({}, '', '?tab=' + tab);
   });
-  jquery__WEBPACK_IMPORTED_MODULE_0___default()('.navheader').on('click', function () {
-    var state = jquery__WEBPACK_IMPORTED_MODULE_0___default()(this).attr('aria-expanded');
+  $('.navheader').on('click', function () {
+    var state = $(this).attr('aria-expanded');
     if (state == 'true') {
-      var recordExpandUrl = jquery__WEBPACK_IMPORTED_MODULE_0___default()(this).attr('data-expand-url');
-      jquery__WEBPACK_IMPORTED_MODULE_0___default().get(recordExpandUrl);
+      var recordExpandUrl = $(this).attr('data-expand-url');
+      $.get(recordExpandUrl);
     } else {
-      var recordCollapseUrl = jquery__WEBPACK_IMPORTED_MODULE_0___default()(this).attr('data-collapse-url');
-      jquery__WEBPACK_IMPORTED_MODULE_0___default().get(recordCollapseUrl);
+      var recordCollapseUrl = $(this).attr('data-collapse-url');
+      $.get(recordCollapseUrl);
     }
   });
 });
-
-/***/ }),
-
-/***/ "./assets/css/app.css":
-/*!****************************!*\
-  !*** ./assets/css/app.css ***!
-  \****************************/
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-__webpack_require__.r(__webpack_exports__);
-// extracted by mini-css-extract-plugin
-
-
-/***/ }),
-
-/***/ "./assets/css/signin.css":
-/*!*******************************!*\
-  !*** ./assets/css/signin.css ***!
-  \*******************************/
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-__webpack_require__.r(__webpack_exports__);
-// extracted by mini-css-extract-plugin
-
-
-/***/ }),
-
-/***/ "./assets/css/cover.css":
-/*!******************************!*\
-  !*** ./assets/css/cover.css ***!
-  \******************************/
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-__webpack_require__.r(__webpack_exports__);
-// extracted by mini-css-extract-plugin
-
-
-/***/ }),
-
-/***/ "./assets/css/dashboard.css":
-/*!**********************************!*\
-  !*** ./assets/css/dashboard.css ***!
-  \**********************************/
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-__webpack_require__.r(__webpack_exports__);
-// extracted by mini-css-extract-plugin
-
 
 /***/ })
 
 },
 /******/ __webpack_require__ => { // webpackRuntimeModules
 /******/ var __webpack_exec__ = (moduleId) => (__webpack_require__(__webpack_require__.s = moduleId))
-/******/ __webpack_require__.O(0, ["css/app","js/core","css/dashboard","css/cover","css/signin","js/hotwired_turbo"], () => (__webpack_exec__("./assets/js/startup.js"), __webpack_exec__("./assets/css/app.css"), __webpack_exec__("./assets/css/signin.css"), __webpack_exec__("./assets/css/cover.css"), __webpack_exec__("./assets/css/dashboard.css")));
+/******/ __webpack_require__.O(0, ["js/core"], () => (__webpack_exec__("./assets/js/index.js")));
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);

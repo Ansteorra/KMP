@@ -12,11 +12,30 @@ echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Add Award';
 $this->KMP->endBlock(); ?>
 
 <div class="activityGroup form content">
-    <?= $this->Form->create($award) ?>
+    <?= $this->Form->create(
+        $award,
+        [
+            'data-controller' => 'awards-award-form',
+        ]
+    ) ?>
     <fieldset>
         <legend><?= __('Add Award') ?></legend>
         <?php
         echo $this->Form->control('name');
+        echo $this->Form->control('abbreviation');
+        echo $this->Form->hidden('specialties', ['id' => 'specialties', 'data-awards-award-form-target' => 'formValue']); ?>
+
+        <div class="mb-3 form-group specialties">
+            <label class="form-label" for="specialtyInput">Specialties</label>
+            <ul id="specialtiesList" class="list-group mb-3 col-2" data-awards-award-form-target='displayList'></ul>
+            <div class="input-group">
+                <input type="text" data-awards-award-form-target="new" class="form-control" id="specialtyInput"
+                    placeholder="Add Specialty">
+                <button type="button" class="btn btn-primary btn-sm" data-action="award-form#add"
+                    id="addSpecialty">Add</button>
+            </div>
+        </div>
+        <?php
         echo $this->Form->control('description');
         echo $this->Form->control('insignia');
         echo $this->Form->control('badge');

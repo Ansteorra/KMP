@@ -10,7 +10,17 @@ echo $this->KMP->startBlock("title");
 echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Recommend an Award';
 $this->KMP->endBlock(); ?>
 <div class="container-sm">
-    <?= $this->Form->create($recommendation, ['id' => 'recommendation_form']) ?>
+    <?= $this->Form->create($recommendation, [
+        'id' => 'recommendation_form',
+        'data-controller' => 'awards-rec-form',
+        'data-awards-rec-form-public-profile-url-value' => $this->URL->build([
+            'controller' => 'Members',
+            'action' => 'PublicProfile',
+            'plugin' => null
+        ]),
+        'data-action' => 'submit->awards-rec-form#submit',
+        'data-awards-rec-form-award-list-url-value' => $this->URL->build(['controller' => 'Awards', 'action' => 'awardsByDomain', 'plugin' => "Awards"])
+    ]) ?>
     <div class="card mb-3">
         <div class="card-body">
 
@@ -29,66 +39,133 @@ $this->KMP->endBlock(); ?>
                         "label" => "Your SCA Name",
                         "id" => "recommendation__requester_sca_name",
                     ]);
-                    echo $this->Form->control('contact_email', ['type' => 'email', 'help' => 'incase we need to contact you', 'id' => 'recommendation__email_address']);
-                    echo $this->Form->control('contact_number', ['help' => 'optional way for us to contact you', 'id' => 'recommendation__contact_number']);
-                    echo $this->Form->control("member_id", [
-                        "type" => "hidden",
-                        "id" => "recommendation__member_id",
+                    echo $this->Form->control('contact_email', ['type' => 'email', 'help' => 'incase we need to contact you']);
+                    echo $this->Form->control('contact_number', ['help' => 'optional way for us to contact you']);
+                    $url = $this->Url->build([
+                        'controller' => 'Members',
+                        'action' => 'AutoComplete',
+                        'plugin' => null
                     ]);
-                    echo $this->Form->control("member_sca_name", [
-                        'required' => true,
-                        "type" => "text",
-                        "label" => "Recommendation For",
-                        "id" => "recommendation__sca_name",
-                    ]);
+                    $this->KMP->autoCompleteControl(
+                        $this->Form,
+                        'member_sca_name',
+                        'member_id',
+                        $url,
+                        "Recommendation For",
+                        true,
+                        true,
+                        3,
+                        [
+                            'data-awards-rec-form-target' => 'scaMember',
+                            'data-action' => 'change->awards-rec-form#loadScaMemberInfo ready->awards-rec-form#acConnected'
+                        ]
+                    );
                     echo $this->Form->control('not_found', [
                         'type' => 'checkbox',
                         'label' => "Name not registered in " . $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . " database",
-                        "id" => "recommendation__not_found",
                         "value" => "on",
-                        "disabled" => true
+                        "disabled" => true,
+                        "data-awards-rec-form-target" => "notFound"
                     ]); ?>
-                    <div class="row mb-2" id="member_links"></div>
+                    <div class="row mb-2" data-awards-rec-form-target="externalLinks"></div>
                     <?php
-                    echo $this->Form->control('branch_id', ['options' => $branches, 'empty' => true, "label" => "Member Of", "id" => "recommendation__branch_id",  'disabled' => true, "required" => true]);
+                    echo $this->KMP->comboBoxControl(
+                        $this->Form,
+                        'branch_name',
+                        'branch_id',
+                        $branches,
+                        "Member Of",
+                        true,
+                        false,
+                        [
+                            'data-awards-rec-form-target' => 'branch',
+                            'data-action' => 'ready->awards-rec-form#acConnected'
+                        ]
+                    );
                     $selectOptions = [];
                     foreach ($callIntoCourtOptions as $option) {
                         $selectOptions[$option] = $option;
                     }
-                    echo $this->Form->control(
+                    echo $this->KMP->comboBoxControl(
+                        $this->Form,
+                        'call_into_court_val',
                         'call_into_court',
+                        $selectOptions,
+                        "Call Into Court",
+                        true,
+                        false,
                         [
-                            'options' => $selectOptions,
-                            'empty' => true,
-                            "id" => "recommendation__call_into_court",
-                            "required" => true
+                            'data-awards-rec-form-target' => 'callIntoCourt',
+                            'data-action' => 'ready->awards-rec-form#acConnected'
                         ]
                     );
                     $selectOptions = [];
                     foreach ($courtAvailabilityOptions as $option) {
                         $selectOptions[$option] = $option;
                     }
-                    echo $this->Form->control(
+                    echo $this->KMP->comboBoxControl(
+                        $this->Form,
+                        'court_availability_val',
                         'court_availability',
+                        $selectOptions,
+                        "Court Availability",
+                        true,
+                        false,
                         [
-                            'options' => $selectOptions,
-                            'empty' => true,
-                            "id" => "recommendation__court_availability",
-                            "required" => true
+                            'data-awards-rec-form-target' => 'courtAvailability',
+                            'data-action' => 'ready->awards-rec-form#acConnected'
                         ]
                     );
-                    echo $this->Form->control('domain_id', ['options' => $awardsDomains, 'empty' => true, "label" => "Award Type", "id" => "recommendation__domain_id", "required" => true]); ?>
-                    <div class="role p-3" id="award_descriptions">
+                    echo $this->KMP->comboBoxControl(
+                        $this->Form,
+                        'domain_name',
+                        'domain_id',
+                        $awardsDomains,
+                        "Award Type",
+                        true,
+                        false,
+                        ['data-action' => 'change->awards-rec-form#populateAwardDescriptions ready->awards-rec-form#acConnected']
+                    ); ?>
+                    <div class="role p-3" id="award_descriptions" data-awards-rec-form-target="awardDescriptions">
 
                     </div>
                     <?php
-                    echo $this->Form->control('award_id', ['required' => true, 'options' => ["Please select the type of award first."], "disabled" => true, "id" => "recommendation__award_id"]);
-                    echo $this->Form->control('reason', ['id' => 'recommendation_reason', 'required' => true]);
+                    echo $this->KMP->comboBoxControl(
+                        $this->Form,
+                        'award_name',
+                        'award_id',
+                        ["Select Award Type First" => "Select Award Type First"],
+                        "Award",
+                        true,
+                        false,
+                        [
+                            'data-awards-rec-form-target' => 'award',
+                            'data-action' => 'ready->awards-rec-form#acConnected change->awards-rec-form#populateSpecialties'
+                        ]
+                    );
+                    echo $this->KMP->comboBoxControl(
+                        $this->Form,
+                        'specialty',
+                        'specialty_hidden',
+                        ["Select Award First" => "Select Award First"],
+                        "Award",
+                        true,
+                        true,
+                        [
+                            'data-awards-rec-form-target' => 'specialty',
+                            'data-action' => 'ready->awards-rec-form#acConnected'
+                        ]
+                    );
+                    echo $this->Form->control('reason', [
+                        'id' => 'recommendation_reason', 'required' => true,
+                        'label' => 'Reason for Recommendation', 'data-awards-rec-form-target' => 'reason'
+                    ]);
                     echo $this->Form->control('events._ids', [
                         'label' => 'Events They may Attend:',
                         "type" => "select",
                         "multiple" => "checkbox",
-                        'options' => $events
+                        'options' => $events,
+                        'data-awards-rec-form-target' => 'events'
                     ]);
                     ?>
                 </fieldset>
@@ -101,5 +178,3 @@ $this->KMP->endBlock(); ?>
         </div>
     </div>
 </div>
-
-<?= $this->element('recommendationScript', ['user' => $user]); ?>

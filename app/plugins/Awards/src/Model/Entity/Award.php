@@ -43,6 +43,8 @@ class Award extends Entity
      */
     protected array $_accessible = [
         'name' => true,
+        'specialties' => true,
+        'abbreviation' => true,
         'description' => true,
         'insignia' => true,
         'badge' => true,

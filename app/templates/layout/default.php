@@ -96,8 +96,8 @@ $this->KMP->endBlock();
 echo $this->KMP->startBlock("topscript");
 echo $this->AssetMix->script('manifest');
 echo $this->AssetMix->script('core');
-echo $this->AssetMix->script('hotwired_turbo');
-echo $this->AssetMix->script('startup');
+echo $this->AssetMix->script('controllers');
+echo $this->AssetMix->script('index');
 $this->KMP->endBlock();
 
 ?>
@@ -109,7 +109,7 @@ $this->KMP->endBlock();
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title><?= h($this->fetch("title")) ?></title>
     <script>
-        window.urlRoot = "<?= $this->Url->build("/") ?>";
+    window.urlRoot = "<?= $this->Url->build("/") ?>";
     </script>
     <meta name="turbo-prefetch" content="false">
     <?= $this->fetch("meta") ?>
