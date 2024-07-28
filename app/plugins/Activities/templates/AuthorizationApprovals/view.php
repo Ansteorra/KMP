@@ -93,9 +93,10 @@ echo $this->KMP->startBlock("pageTitle") ?>
                             ) ?></td>
                     <td class="actions">
                         <?php if ($hasMoreApprovalsToGo) : ?>
-                        <button type="button" class="btn btn-primary " data-bs-toggle="modal"
-                            data-bs-target="#approveAndAssignModal"
-                            onclick="$('#approve_and_assign_auth_id').val('<?= $request->id ?>'); $('#approve_and_assign_auth_id').trigger('change');">Approve</button>
+                        <button type="button" class="btn btn-primary approve-btn" data-bs-toggle="modal"
+                            data-bs-target="#approveAndAssignModal" data-bs-target="#denyModal"
+                            data-controller="grid-btn" data-action="click->grid-btn#fireNotice"
+                            data-grid-btn-row-data-value='{"id":<?= $request->id ?>}'>Approve</button>
                         <?php else : ?>
                         <?= $this->Form->postLink(
                                     __("Approve"),
@@ -113,9 +114,11 @@ echo $this->KMP->startBlock("pageTitle") ?>
                                     ],
                                 ) ?>
                         <?php endif; ?>
-                        <button type="button" class="btn btn-secondary " data-bs-toggle="modal"
-                            data-bs-target="#denyModal"
-                            onclick="$('#deny_auth__id').val('<?= $request->id ?>')">Deny</button>
+                        <button type="button" class="btn btn-secondary deny-btn" data-bs-toggle="modal"
+                            data-bs-target="#denyModal" data-controller="grid-btn"
+                            data-action="click->grid-btn#fireNotice"
+                            data-grid-btn-row-data-value='{"id":<?= $request->id ?>}'>
+                            Deny</button>
                     </td>
                 </tr>
                 <?php } ?>
@@ -194,7 +197,8 @@ $this->KMP->endBlock();
 echo $this->KMP->startBlock("modals");
 echo $this->Form->create(null, [
     "url" => ["controller" => "AuthorizationApprovals", "action" => "deny"],
-    "id" => "deny_auth",
+    "data-controller" => "revoke-form",
+    "data-revoke-form-grid-btn-outlet" => ".deny-btn",
 ]);
 echo $this->Modal->create("Deny Authorization", [
     "id" => "denyModal",
@@ -205,11 +209,12 @@ echo $this->Modal->create("Deny Authorization", [
     <?php
     echo $this->Form->control("id", [
         "type" => "hidden",
-        "id" => "deny_auth__id",
+        "data-revoke-form-target" => "id",
     ]);
     echo $this->Form->control("approver_notes", [
         "label" => "Reason for Denial",
-        "onkeypress" => '$("#deny_auth__submit").removeAttr("disabled");',
+        "data-revoke-form-target" => "reason",
+        "data-action" => "input->revoke-form#checkReadyToSubmit",
     ]);
     ?>
 </fieldset>
@@ -217,8 +222,7 @@ echo $this->Modal->create("Deny Authorization", [
 echo $this->Modal->end([
     $this->Form->button("Submit", [
         "class" => "btn btn-primary",
-        "id" => "deny_auth__submit",
-        "disabled" => "disabled",
+        "data-revoke-form-target" => "submitBtn",
     ]),
     $this->Form->button("Close", [
         "data-bs-dismiss" => "modal",
@@ -231,7 +235,9 @@ echo $this->Form->create(null, [
         "controller" => "AuthorizationApprovals",
         "action" => "Approve",
     ],
-    "id" => "approve_and_assign_auth",
+    "data-controller" => "activities-approve-and-assign-auth",
+    "data-activities-approve-and-assign-auth-grid-btn-outlet" => ".approve-btn",
+    "data-activities-approve-and-assign-auth-url-value" => $this->Url->build(['plugin' => 'activities', 'controller' => 'AuthorizationApprovals', 'action' => 'AvailableApproversList']),
 ]);
 echo $this->Modal->create("Approve and Assign to next", [
     "id" => "approveAndAssignModal",
@@ -242,19 +248,27 @@ echo $this->Modal->create("Approve and Assign to next", [
     <?php
     echo $this->Form->control("id", [
         "type" => "hidden",
-        "id" => "approve_and_assign_auth_id",
+        "data-activities-approve-and-assign-auth-target" => 'id'
     ]);
-    echo $this->Form->control("next_approver_id", [
-        "label" => "Forward to",
-        "id" => "approve_and_assign_auth_approver_id",
-    ]);
+    echo $this->KMP->comboBoxControl(
+        $this->Form,
+        'next_approver_name',
+        'next_approver_id',
+        [],
+        "Forward to",
+        true,
+        false,
+        [
+            'data-activities-approve-and-assign-auth-target' => 'approvers',
+            'data-action' => 'change->activities-approve-and-assign-auth#checkReadyToSubmit'
+        ]
+    );
     ?>
 </fieldset>
 <?php echo $this->Modal->end([
     $this->Form->button("Submit", [
         "class" => "btn btn-primary",
-        "id" => "approve_and_assign_auth__submit",
-        "disabled" => "disabled",
+        "data-activities-approve-and-assign-auth-target" => 'submitBtn'
     ]),
     $this->Form->button("Close", [
         "data-bs-dismiss" => "modal",
@@ -262,62 +276,4 @@ echo $this->Modal->create("Approve and Assign to next", [
     ]),
 ]);
 echo $this->Form->end();
-?>
-
-<?php //finish writing to modal block in layout
-
-$this->KMP->endBlock();
-echo $this->KMP->startBlock("script"); ?>
-<script>
-class authorizationApprovalViewAndMyQueue {
-    constructor() {};
-    //onInput for Autocomplete
-
-    run() {
-        var me = this;
-        $("#approve_and_assign_auth_id").change(function() {
-            var auth_id = this.value;
-            if (auth_id > 0) {
-                var approversUrl =
-                    '<?= $this->Url->build(['plugin' => 'activities', 'controller' => 'AuthorizationApprovals', 'action' => 'AvailableApproversList']) ?>';
-                //query GET: members/approvers_list/{auth_type_id}
-                $.get(approversUrl + '/' + auth_id, function(
-                    data) {
-                    //remove all options
-                    $('#approve_and_assign_auth_approver_id').find('option').remove();
-                    //add new options
-                    $('#approve_and_assign_auth_approver_id').append('<option value="0"></option>');
-                    $.each(data, function(key, value) {
-                        $('#approve_and_assign_auth_approver_id').append('<option value="' +
-                            value.id + '">' + value.sca_name + '</option>');
-                    });
-                });
-                $('#approve_and_assign_auth_approver_id').prop('disabled', false);
-            } else {
-                //remove all options
-                $('#approve_and_assign_auth_approver_id').find('option').remove();
-                $('#approve_and_assign_auth_approver_id').prop('disabled', true);
-            }
-        });
-        $("#approve_and_assign_auth_approver_id").change(function() {
-            var end = this.value;
-            if (end > 0) {
-                $('#approve_and_assign_auth__submit').prop('disabled', false);
-            } else {
-                $('#approve_and_assign_auth__submit').prop('disabled', true);
-            }
-        });
-        $('#approve_and_assign_auth').on('submit', function(e) {
-            if (!$('#approve_and_assign_auth_approver_id').val() > 0) {
-                e.preventDefault();
-            }
-        });
-    }
-}
-window.addEventListener('DOMContentLoaded', function() {
-    var pageControl = new authorizationApprovalViewAndMyQueue();
-    pageControl.run();
-});
-</script>
-
-<?php $this->KMP->endBlock(); ?>
+$this->KMP->endBlock(); ?>

@@ -1,6 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 
-class awardForm extends Controller {
+class AwardsAwardForm extends Controller {
     static targets = ["new", "formValue", "displayList"];
     initialize() {
         this.items = [];
@@ -31,7 +31,7 @@ class awardForm extends Controller {
     }
 
     connect() {
-        if (this.formValueTarget.value) {
+        if (this.formValueTarget.value && this.formValueTarget.value.length > 0) {
             this.items = JSON.parse(this.formValueTarget.value);
             this.items.forEach(item => {
                 //create a remove button
@@ -62,4 +62,4 @@ class awardForm extends Controller {
 if (!window.Controllers) {
     window.Controllers = {};
 }
-window.Controllers["awards-award-form"] = awardForm;
+window.Controllers["awards-award-form"] = AwardsAwardForm;

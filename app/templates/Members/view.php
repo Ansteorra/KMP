@@ -88,12 +88,12 @@ $this->KMP->endBlock() ?>
     aria-controls="nav-roles" aria-selected="false" data-detail-tabs-target='tabBtn'><?= __("Roles") ?>
 </button>
 <button class="nav-link" id="nav-notes-tab" data-bs-toggle="tab" data-bs-target="#nav-notes" type="button" role="tab"
-    aria-controls="nav-notes" aria-selected="false data-detail-tabs-target='tabBtn'><?= __("Notes") ?>
+    aria-controls="nav-notes" aria-selected="false" data-detail-tabs-target='tabBtn'><?= __("Notes") ?>
 </button>
 <?php if (!empty($aiForm)) : ?>
 <button class=" nav-link" id="nav-add-info-tab" data-bs-toggle="tab" data-bs-target="#nav-add-info" type="button"
-    role="tab" aria-controls="nav-add-info" aria-selected="false"
-    data-detail-tabs-target='tabBtn'><?= __("Additional Info") ?>
+    role="tab" aria-controls="nav-add-info" aria-selected="false" data-detail-tabs-target='tabBtn'>
+    <?= __("Additional Info") ?>
 </button>
 <?php endif; ?>
 <?php $this->KMP->endBlock() ?>

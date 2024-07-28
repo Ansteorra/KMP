@@ -3,7 +3,6 @@
 import 'bootstrap';
 import * as Turbo from "@hotwired/turbo"
 import { Application, Controller } from "@hotwired/stimulus"
-import { definitionsFromContext } from "@hotwired/stimulus-webpack-helpers"
 import KMP_utils from './KMP_utils.js';
 
 window.$ = $;

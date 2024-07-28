@@ -148,7 +148,7 @@ $this->KMP->endBlock(); ?>
                         'specialty',
                         'specialty_hidden',
                         ["Select Award First" => "Select Award First"],
-                        "Award",
+                        "Specialty",
                         true,
                         true,
                         [

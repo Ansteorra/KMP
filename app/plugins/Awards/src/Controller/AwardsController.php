@@ -127,6 +127,8 @@ class AwardsController extends AppController
 
         if ($this->request->is(['patch', 'post', 'put'])) {
             $award = $this->Awards->patchEntity($award, $this->request->getData());
+            $specialties = json_decode($this->request->getData('specialties'), true);
+            $award->specialties = $specialties;
             if ($this->Awards->save($award)) {
                 $this->Flash->success(__('The award has been saved.'));
 

@@ -11966,6 +11966,8 @@ textarea.form-control-lg {
     display: none !important;
   }
 }
+
+/*# sourceMappingURL=bootstrap.css.map */
 .bi-2xs {
     font-size: .625rem;
     line-height: .1em;
@@ -12207,3 +12209,10 @@ body {
         transition: none;
     }
 }
+
+.auto-complete-list {
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+/*# sourceMappingURL=app.css.map*/

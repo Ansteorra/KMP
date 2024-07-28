@@ -203,7 +203,8 @@ $now = Date::now();
     </style>
 </head>
 
-<body>
+<body data-controller="member-card-profile"
+    data-member-card-profile-url-value="<?= $this->Url->build(['controller' => 'Members', 'action' => 'viewCardJson', $member->id]) ?>">
     <div class="header">
         <div class="header-left">
             <img src='<?php echo $watermarkimg; ?>'>
@@ -250,14 +251,28 @@ $now = Date::now();
             <?= h($message_variables["secretary_email"]) ?><br />
         </p>
     </div>
-    <div class="auth_cards" id="auth_cards">
+    <div class="auth_cards" id="auth_cards" data-member-Card-profile-target="cardSet">
         <div class="auth_card" id="card_1">
-            <div class="cardbox" id="cardDetails_1">
+            <div class="cardbox" data-member-Card-profile-target="firstCard" id="cardDetails_1">
                 <div class="cardboxheader">
                     Kingdom of <?= h($message_variables["kingdom"]) ?><br />
                     Martial Authorization
                 </div>
-                <h2 id="loading">Loading...</h2>
+                <h2 data-member-Card-profile-target="loading">Loading...</h2>
+                <dl data-member-Card-profile-target="memberDetails" hidden>
+                    <dt>Legal Name</dt>
+                    <dd data-member-Card-profile-target="name"></dd>
+                    <dt>Society Name</dt>
+                    <dd data-member-Card-profile-target="scaName"></dd>
+                    <dt>Branch</dt>
+                    <dd data-member-Card-profile-target="branchName"></dd>
+                    <dt>Membership Info</dt>
+                    <dd data-member-Card-profile-target="membershipInfo"></dd>
+                    <dt>Background Check</dt>
+                    <dd data-member-Card-profile-target="backgroundCheck"></dd>
+                    <dt>Last Updated</dt>
+                    <dd data-member-Card-profile-target="lastUpdate"></dd>
+                </dl>
             </div>
         </div>
 
@@ -265,122 +280,3 @@ $now = Date::now();
 </body>
 
 </html>
-<?php
-echo $this->KMP->startBlock('script'); ?>
-<script>
-var url = '<?= $this->Url->build(['controller' => 'Members', 'action' => 'viewCardJson', $member->id]) ?>';
-var cardCount = 1;
-var currentCard = {};
-var maxCardLength = 0;
-
-function usedSpaceInCard() {
-    var cardChildren = currentCard.children();
-    var runningTotal = 0;
-    for (var i = 0; i < cardChildren.length; i++) {
-        runningTotal += $(cardChildren[i]).height();
-    }
-    return runningTotal;
-}
-
-function appendToCard(element, minSpace) {
-    currentCard.append(element);
-    if (minSpace === null) {
-        minSpace = 2;
-    }
-    minSpace = maxCardLength * (minSpace / 100);
-    if (usedSpaceInCard() > (maxCardLength - minSpace)) {
-        currentCard.remove(element);
-        startCard();
-        currentCard.append(element);
-    }
-}
-
-function startCard() {
-    cardCount++;
-    var card = $("<div>", {
-        class: "auth_card",
-        id: "card_" + cardCount
-    });
-    cardDetails = $("<div>", {
-        class: "cardbox",
-        id: "cardDetails_" + cardCount
-    });
-    card.append(cardDetails);
-    $("#auth_cards").append(card);
-    currentCard = cardDetails;
-}
-window.addEventListener('DOMContentLoaded', function() {
-    currentCard = $("#cardDetails_1");
-    maxCardLength = currentCard.height();
-    $.get(url, function(data) {
-        $("#loading").hide();
-        var detailsList = $("<dl>", {
-            id: "details"
-        });
-        detailsList.append($("<dt>").text("Legal Name"));
-        detailsList.append($("<dd>").text(data.member.first_name + ' ' + data.member.last_name));
-        detailsList.append($("<dt>").text("Society Name"));
-        detailsList.append($("<dd>").text(data.member.sca_name));
-        detailsList.append($("<dt>").text("Branch"));
-        detailsList.append($("<dd>").text(data.member.branch.name));
-        detailsList.append($("<dt>").text("Membership Info"));
-        if (data.member.membership_number && data.member.membership_number.length > 0) {
-            var memberExpDate = new Date(data.member.membership_expires_on);
-            if (memberExpDate < new Date()) {
-                memberExpDate = "Expired";
-            } else {
-                memberExpDate = " - " + memberExpDate.toLocaleDateString();
-            }
-            detailsList.append($("<dd>").text(data.member.membership_number + ' ' + memberExpDate));
-        } else {
-            detailsList.append($("<dd>").text("No Membership Info"));
-        }
-        if (data.member.background_check_expires_on) {
-            var backgroundCheckExpDate = new Date(data.member.background_check_expires_on);
-            if (backgroundCheckExpDate < new Date()) {
-                backgroundCheckExpDate = "Expired";
-            } else {
-                backgroundCheckExpDate = " - " + backgroundCheckExpDate.toLocaleDateString();
-            }
-            detailsList.append($("<dt>").text("Background Check"));
-            detailsList.append($("<dd>").append("strong").text(backgroundCheckExpDate));
-        } else {
-            detailsList.append($("<dt>").text("Background Check"));
-            detailsList.append($("<dd>").text("No Background Check"));
-        }
-        appendToCard(detailsList);
-        for (let key in data) {
-            if (key === 'member') {
-                continue;
-            }
-            var pluginData = data[key];
-            for (let sectionKey in pluginData) {
-                var sectionData = pluginData[sectionKey];
-                var groupCount = sectionData.length;
-                if (groupCount === 0) {
-                    continue;
-                }
-                var sectionHeader = $("<h3>").text(sectionKey);
-                appendToCard(sectionHeader, 20);
-                for (let groupKey in sectionData) {
-                    var groupData = sectionData[groupKey];
-                    var groupHeader = $("<h5>").text(groupKey);
-                    var groupDiv = $("<div>", {
-                        class: "cardGroup"
-                    });
-                    groupDiv.append(groupHeader);
-                    var groupList = $("<ul>");
-                    for (let i = 0; i < groupData.length; i++) {
-                        var itemValue = groupData[i];
-                        groupList.append($("<li>").text(itemValue));
-                    }
-                    groupDiv.append(groupList);
-                    appendToCard(groupDiv, 10);
-                }
-            }
-        }
-    });
-});
-</script>
-<?php
-echo $this->KMP->endBlock(); ?>

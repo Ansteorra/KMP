@@ -63,11 +63,18 @@ class KmpHelper extends Helper
             }
         }
         echo ">";
-        echo "<ul data-ac-target='dataList' class='d-none'>";
-        foreach ($data as $value => $item) {
-            echo "<li class='list-group-item' data-ac-value='" . $value . "'>" . $item . "</li>";
+        echo "<script type='application/json' data-ac-target='dataList' class='d-none'>";
+        $listData = [];
+        foreach ($data as $key => $value) {
+            //check if the value is a string
+            if (is_string($value)) {
+                $listData[] = ["value" => $key, "text" => $value];
+            } else {
+                $listData[] = ["value" => $key, "text" => $value["text"], "data" => $value];
+            }
         }
-        echo "</ul>";
+        echo json_encode($listData);
+        echo "</script>";
         echo $Form->control($resultField, [
             "type" => "hidden",
             "data-ac-target" => "hidden",
@@ -79,7 +86,7 @@ class KmpHelper extends Helper
             "data-ac-target" => "input",
             "container" => ["style" => "margin:0 !important;",]
         ]);
-        echo "<ul data-ac-target='results' class='list-group z-3 col-12 position-absolute'></ul></div>";
+        echo "<ul data-ac-target='results' class='list-group z-3 col-12 position-absolute auto-complete-list'></ul></div>";
     }
 
     public function autoCompleteControl($Form, $inputField, $resultField, $url, $label, $required, $allowOtherValues, $minLength, $additionalAttrs,)
@@ -104,7 +111,7 @@ class KmpHelper extends Helper
             "data-ac-target" => "input",
             "container" => ["style" => "margin:0 !important;",]
         ]);
-        echo "<ul data-ac-target='results' class='list-group z-3 col-12 position-absolute'></ul></div>";
+        echo "<ul data-ac-target='results' class='list-group z-3 col-12 position-absolute auto-complete-list'></ul></div>";
     }
     /**
      * Returns a boolean icon

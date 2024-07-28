@@ -1,4 +1,4 @@
-import { Controller } from "@hotwired/stimulus"
+const { Controller } = require("@hotwired/stimulus");
 
 class NavBarController extends Controller {
     static targets = ["navHeader"]

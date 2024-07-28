@@ -1,6 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 
-class RecommendationForm extends Controller {
+class AwardsRecommendationForm extends Controller {
     static targets = [
         "scaMember",
         "notFound",
@@ -45,26 +45,16 @@ class RecommendationForm extends Controller {
                 tabContentArea.classList.add("border-light-subtle");
                 tabContentArea.classList.add("p-2");
 
-                let awardComboData = this.awardTarget.querySelector("[data-ac-target='dataList']");
-                let specialtyComboData = this.specialtyTarget.querySelector("[data-ac-target='dataList']");
-                let specialtyTarget = this.specialtyTarget;
-                awardComboData.innerHTML = "";
                 tabContentArea.innerHTML = "";
                 this.awardTarget.value = "";
                 let active = "active";
                 let show = "show";
                 let selected = "true";
+                let awardList = [];
                 if (data.length > 0) {
                     data.forEach(function (award) {
                         //create list item
-                        let li = document.createElement("li");
-                        li.classList.add("list-group-item");
-                        li.innerHTML = award.name;
-                        li.setAttribute("data-ac-value", award.id);
-                        if (award.specialties != null) {
-                            li.setAttribute("data-specialties", award.specialties);
-                        }
-                        awardComboData.appendChild(li);
+                        awardList.push({ value: award.id, text: award.name, specialties: award.specialties });
                         //create tab info
                         var tabButton = document.createElement("li");
                         tabButton.classList.add("nav-item");
@@ -107,13 +97,11 @@ class RecommendationForm extends Controller {
                     });
                     this.awardDescriptionsTarget.appendChild(tabButtons);
                     this.awardDescriptionsTarget.appendChild(tabContentArea);
+                    this.awardTarget.options = awardList;
                     this.awardTarget.disabled = false;
                 } else {
-                    let li = document.createElement("li");
-                    li.classList.add("list-group-item");
-                    li.innerHTML = "No awards available";
-                    li.setAttribute("data-ac-value", "No awards available");
                     awardComboData.appendChild(li);
+                    this.awardTarget.options = [{ id: "No awards available", text: "No awards available" }];
                     this.awardTarget.value = "No awards available";
                     this.awardTarget.disabled = true;
                 }
@@ -121,29 +109,22 @@ class RecommendationForm extends Controller {
     }
     populateSpecialties(event) {
         let awardId = this.awardTarget.value;
-        let specialtyData = this.specialtyTarget.querySelector("[data-ac-target='dataList']");
-        specialtyData.innerHTML = "";
-        let specialties = this.awardTarget.querySelector("[data-ac-value='" + awardId + "']").getAttribute("data-specialties");
-        if (specialties != "" && specialties != null) {
-            let specialtyArray = JSON.parse(specialties);
-            specialtyArray.forEach(function (specialty) {
-                let li = document.createElement("li");
-                li.classList.add("list-group-item");
-                li.innerHTML = specialty;
-                li.setAttribute("data-ac-value", specialty);
-                specialtyData.appendChild(li);
+        let options = this.awardTarget.options;
+        let award = this.awardTarget.options.find(award => award.value == awardId);
+        let specialtyArray = [];
+        if (award.specialties != null && award.specialties.length > 0) {
+            award.specialties.forEach(function (specialty) {
+                specialtyArray.push({ value: specialty, text: specialty });
             });
+            this.specialtyTarget.options = specialtyArray;
             this.specialtyTarget.value = "";
             this.specialtyTarget.disabled = false;
             this.specialtyTarget.hidden = false;
         } else {
-            let li = document.createElement("li");
-            li.classList.add("list-group-item");
-            li.innerHTML = "No specialties available";
-            li.setAttribute("data-ac-value", "No specialties available");
-            specialtyData.appendChild(li);
+            this.specialtyTarget.options = [{ value: "No specialties available", text: "No specialties available" }];
             this.specialtyTarget.value = "No specialties available";
             this.specialtyTarget.disabled = true
+            this.specialtyTarget.hidden = true;
         }
     }
 
@@ -250,4 +231,4 @@ class RecommendationForm extends Controller {
 if (!window.Controllers) {
     window.Controllers = {};
 }
-window.Controllers["awards-rec-form"] = RecommendationForm;
+window.Controllers["awards-rec-form"] = AwardsRecommendationForm;

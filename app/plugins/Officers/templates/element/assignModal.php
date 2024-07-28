@@ -5,7 +5,11 @@ function addOptions($office, $depth, &$officeOptions)
 {
     if (!isset($officeOptions[$office->id])) {
         $prefix = str_repeat("-", $depth);
-        $officeOptions[$office->id] = $prefix . " " . $office->name;
+        $officeOptions[$office->id] = [
+            'text' => $prefix . " " . $office->name,
+            'value' => $office->id,
+            'is_deputy' => $office->deputy_to_id != null,
+        ];
         if (!empty($office->deputies)) {
             foreach ($office->deputies as $deputy) {
                 addOptions($deputy, $depth + 1, $officeOptions);
@@ -18,6 +22,14 @@ foreach ($offices as $office) {
         addOptions($office, 0, $officeOptions);
     }
 }
+echo $this->Form->create($newOfficer, [
+    "id" => "assign_officer__form",
+    "url" => [
+        "controller" => "Officers",
+        "action" => "add",
+    ],
+    "data-controller" => "officers-assign-officer"
+]);
 echo $this->Modal->create("Assign Officer", [
     "id" => "assignOfficerModal",
     "close" => true,
@@ -28,63 +40,76 @@ echo $this->Modal->create("Assign Officer", [
 ?>
 <fieldset>
     <?php
-    echo $this->Form->create($newOfficer, [
-        "id" => "assign_officer__form",
-        "url" => [
-            "controller" => "Officers",
-            "action" => "add",
-        ],
-    ]);
     echo $this->Form->control("branch_id", [
         "type" => "hidden",
         "value" => $id,
     ]);
-    echo $this->Form->control("member_id", [
-        "type" => "hidden",
-        "id" => "assign_officer__member_id",
-    ]);
-    echo $this->Form->control("office_id", [
-        "id" => "assign_officer__office_id",
-        "options" => $officeOptions,
-    ]); ?>
-    <div class="mb-3 form-group text" id="assign_officer__deputy_description_block">
+    echo $this->KMP->comboBoxControl(
+        $this->Form,
+        'office_name',
+        'office_id',
+        $officeOptions,
+        "Office",
+        true,
+        false,
+        [
+            'data-officers-assign-officer-target' => 'office',
+            'data-action' => 'change->officers-assign-officer#setOfficeQuestions'
+        ]
+    );
+    ?>
+
+    <div class="mb-3 form-group text" data-officers-assign-officer-target="deputyDescBlock">
         <label class="form-label" for="assign_officer__deputy_description">
             Deputy Description
         </label>
-        <input type="text" name="deputy_description" class=" form-control" id="assign_officer__deputy_description" maxlength="255">
+        <input type="text" name="deputy_description" class=" form-control" maxlength="255"
+            data-officers-assign-officer-target="deputyDesc">
     </div>
     <?php
-    echo $this->Form->control("sca_name", [
-        "type" => "text",
-        "label" => "SCA Name",
-        "id" => "assign_officer__sca_name",
+    $url = $this->Url->build([
+        'controller' => 'Members',
+        'action' => 'AutoComplete',
+        'plugin' => null
     ]);
+    $this->KMP->autoCompleteControl(
+        $this->Form,
+        'sca_name',
+        'member_id',
+        $url,
+        "Officer",
+        true,
+        true,
+        3,
+        [
+            'data-officers-assign-officer-target' => 'assignee',
+            'data-action' => 'change->officers-assign-officer#checkReadyToSubmit'
+        ]
+    );
     echo $this->Form->control("start_on", [
         "type" => "date",
         "label" => __("Start Date"),
     ]); ?>
-    <div class="mb-3 form-group date" id="assign_officer__end_date_block">
+    <div class="mb-3 form-group date" data-officers-assign-officer-target="endDateBlock">
         <label class="form-label" for="assign_officer__end_date">
             End Date
         </label>
-        <input type="date" name="end_on" id="assign_officer__end_date" class="form-control" value="">
+        <input type="date" name="end_on" id="assign_officer__end_date" class="form-control" value=""
+            data-officers-assign-officer-target="endDate">
     </div>
-    <?php
-    echo $this->Form->end();
-    ?>
+
 </fieldset>
-<script>
-    var officeData = <?php echo json_encode($offices); ?>;
-</script>
-<?php echo $this->Modal->end([
+<?php
+
+echo $this->Modal->end([
     $this->Form->button("Submit", [
         "class" => "btn btn-primary",
-        "id" => "assign_officer__submit",
-        "disabled" => "disabled",
+        "data-officers-assign-officer-target" => "submitBtn",
     ]),
     $this->Form->button("Close", [
         "data-bs-dismiss" => "modal",
         "type" => "button",
     ]),
 ]);
+echo $this->Form->end();
 ?>

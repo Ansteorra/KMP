@@ -23,7 +23,9 @@ if (!empty($currentOfficers) || !empty($upcomingOfficers) || !empty($previousOff
             "class" => "btn btn-danger",
             "data-bs-toggle" => "modal",
             "data-bs-target" => "#releaseModal",
-            "onclick" => "$('#release_officer__id').val('{{id}}')",
+            "data-controller" => "grid-btn",
+            "data-action" => "click->grid-btn#fireNotice",
+            "data-grid-btn-row-data-value" => '{ "id":{{id}} }',
         ],
     ];
     $currentTemplate = [

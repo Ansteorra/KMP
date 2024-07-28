@@ -1,4 +1,4 @@
-import { Controller } from "@hotwired/stimulus"
+const { Controller } = require("@hotwired/stimulus");
 
 class AppSettingForm extends Controller {
     static targets = ["submitBtn", "form"]

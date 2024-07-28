@@ -1,7 +1,9 @@
 <?php
 echo $this->Form->create(null, [
     "url" => ["controller" => "Authorizations", "action" => "renew"],
-    "id" => "renew_auth__form",
+    'data-controller' => 'activities-renew-auth',
+    'data-activities-renew-auth-url-value' => $this->Url->build(['controller' => 'Activities', 'action' => 'ApproversList', "plugin" => "Activities"]),
+    'data-activities-renew-auth-grid-btn-outlet' => '.renew-btn',
 ]);
 echo $this->Modal->create("Renew Authorization", [
     "id" => "renewalModal",
@@ -12,31 +14,36 @@ echo $this->Modal->create("Renew Authorization", [
 
     echo $this->Form->control("id", [
         "type" => "hidden",
-        "id" => "renew_auth__id",
+        "data-activities-renew-auth-target" => "id",
     ]);
     echo $this->Form->control("member_id", [
         "type" => "hidden",
         "value" => $id,
-        "id" => "renew_auth__member_id",
+        "data-activities-renew-auth-target" => "memberId",
     ]);
     echo $this->Form->control("activity", [
         "type" => "hidden",
-        "id" => "renew_auth__auth_type_id"
+        "data-activities-renew-auth-target" => "activity",
     ]);
-    echo $this->Form->control("approver_id", [
-        "type" => "select",
-        "options" => [],
-        "id" => "renew_auth__approver_id",
-        "label" => "Send Request To",
-        "disabled" => "disabled",
-    ]);
+    echo $this->KMP->comboBoxControl(
+        $this->Form,
+        'approver_name',
+        'approver_id',
+        [],
+        "Send Request To",
+        true,
+        false,
+        [
+            'data-activities-renew-auth-target' => 'approvers',
+            'data-action' => 'change->activities-renew-auth#checkReadyToSubmit'
+        ]
+    );
     ?>
 </fieldset>
 <?php echo $this->Modal->end([
     $this->Form->button("Submit", [
         "class" => "btn btn-primary",
-        "id" => "renew_auth__submit",
-        "disabled" => "disabled",
+        "data-activities-renew-auth-target" => "submitBtn",
     ]),
     $this->Form->button("Close", [
         "data-bs-dismiss" => "modal",

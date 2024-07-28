@@ -42,6 +42,10 @@ mix.setPublicPath('./webroot')
     .js('assets/js/index.js', 'webroot/js')
     .extract(['bootstrap', 'jquery', 'popper.js', '@hotwired/turbo', '@hotwired/stimulus', '@hotwired/stimulus-webpack-helpers'], 'webroot/js/core.js')
     .webpackConfig({
+        devtool: "source-map",
+        optimization: {
+            runtimeChunk: true
+        },
         plugins: [
             new webpack.ProvidePlugin({
                 $: 'jquery',
@@ -54,5 +58,6 @@ mix.setPublicPath('./webroot')
     .css('assets/css/signin.css', 'webroot/css')
     .css('assets/css/cover.css', 'webroot/css')
     .css('assets/css/dashboard.css', 'webroot/css')
-    .version();
+    .version()
+    .sourceMaps();
 

@@ -81,3 +81,8 @@
         transition: none;
     }
 }
+
+.auto-complete-list {
+    max-height: 250px;
+    overflow-y: auto;
+}

@@ -11,10 +11,12 @@ class DetailTabsController extends Controller {
             if (tab == urlTab) {
                 event.click();
                 this.foundFirst = true;
+                window.scrollTo(0, 0);
             }
         } else {
             if (!this.foundFirst) {
                 this.tabBtnTargets[0].click();
+                window.scrollTo(0, 0);
             }
         }
         event.addEventListener('click', this.tabBtnClicked.bind(this));

@@ -4,7 +4,6 @@ class MemberUniqueEmail extends Controller {
     static values = { url: String }
 
     connect() {
-        console.log("MemberUniqueEmail connected");
         this.element.removeAttribute('oninput');
         this.element.removeAttribute('oninvalid');
         this.element.addEventListener('change', this.checkEmail.bind(this));

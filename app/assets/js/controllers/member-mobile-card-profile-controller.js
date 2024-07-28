@@ -127,15 +127,15 @@ class MemberMobileCardProfile extends Controller {
                                     if (i + 1 == groupData.length && colCount == 0) {
                                         var colspan = 2;
                                     }
-                                    var itemValueCol = $("<td>", {
-                                        class: "col-6 " + textAlignClass,
-                                        colspan: colspan
-                                    }).text(itemData);
-                                    groupRow.append(itemValueCol);
+                                    var itemValueCol = document.createElement("td");
+                                    itemValueCol.classList.add("col-6", textAlignClass);
+                                    itemValueCol.colSpan = colspan;
+                                    itemValueCol.textContent = itemData;
+                                    groupRow.appendChild(itemValueCol);
                                     colCount++;
                                 }
                             }
-                            groupTableBody.append(groupRow);
+                            groupTableBody.appendChild(groupRow);
                         }
                         this.currentCard.appendChild(groupTable);
                     }

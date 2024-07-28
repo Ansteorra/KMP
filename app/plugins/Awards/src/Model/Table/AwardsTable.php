@@ -8,6 +8,7 @@ use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
+use Cake\Database\Schema\TableSchemaInterface;
 
 /**
  * Awards Model
@@ -74,6 +75,15 @@ class AwardsTable extends Table
         $this->addBehavior('Muffin/Footprint.Footprint');
         $this->addBehavior("Muffin/Trash.Trash");
     }
+
+    public function getSchema(): TableSchemaInterface
+    {
+        $schema = parent::getSchema();
+        $schema->setColumnType('specialties', 'json');
+
+        return $schema;
+    }
+
 
     /**
      * Default validation rules.

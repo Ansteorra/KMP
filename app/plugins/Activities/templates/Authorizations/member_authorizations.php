@@ -5,11 +5,12 @@ $renewButton = [
     "verify" => false,
     "label" => "Renew",
     "options" => [
-        "class" => "btn btn-primary",
+        "class" => "btn btn-primary renew-btn",
         "data-bs-toggle" => "modal",
         "data-bs-target" => "#renewalModal",
-        "onclick" => "$('#renew_auth__id').val('{{id}}'); $('#renew_auth__auth_type_id').val('{{activity->id}}');$('#renew_auth__auth_type_id').trigger('change');",
-
+        "data-controller" => "grid-btn",
+        "data-action" => "click->grid-btn#fireNotice",
+        "data-grid-btn-row-data-value" => '{ "id":{{id}}, "activity": {{activity->id}} }',
     ],
 ];
 $revokeButton = [
@@ -19,10 +20,12 @@ $revokeButton = [
     "controller" => "Authorizations",
     "action" => "revoke",
     "options" => [
-        "class" => "btn btn-danger",
+        "class" => "btn btn-danger revoke-btn",
         "data-bs-toggle" => "modal",
         "data-bs-target" => "#revokeModal",
-        "onclick" => "$('#revoke_auth__id').val('{{id}}')",
+        "data-controller" => "grid-btn",
+        "data-action" => "click->grid-btn#fireNotice",
+        "data-grid-btn-row-data-value" => '{ "id":{{id}}, "activity": {{activity->id}} }',
     ],
 ];
 $columnTemplate = [

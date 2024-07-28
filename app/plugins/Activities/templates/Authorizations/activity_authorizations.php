@@ -7,10 +7,12 @@ $revokeButton = [
     "controller" => "Authorizations",
     "action" => "revoke",
     "options" => [
-        "class" => "btn btn-danger",
+        "class" => "btn btn-danger revoke-btn",
         "data-bs-toggle" => "modal",
         "data-bs-target" => "#revokeModal",
-        "onclick" => "$('#revoke_auth__id').val('{{id}}')",
+        "data-controller" => "grid-btn",
+        "data-action" => "click->grid-btn#fireNotice",
+        "data-grid-btn-row-data-value" => '{ "id":{{id}} }',
     ],
 ];
 $columnTemplate = [

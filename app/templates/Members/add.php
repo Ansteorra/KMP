@@ -21,10 +21,19 @@ $this->KMP->endBlock(); ?>
         <legend><?= __("Add Member") ?></legend>
         <?php
         echo $this->Form->control("sca_name");
-        echo $this->Form->control("branch_id", [
-            "options" => $treeList,
-            "required" => true,
-        ]);
+        echo $this->KMP->comboBoxControl(
+            $this->Form,
+            'branch_name',
+            'branch_id',
+            $treeList,
+            "Branch",
+            true,
+            false,
+            [
+                'data-awards-rec-form-target' => 'branch',
+                'data-action' => 'ready->awards-rec-form#acConnected'
+            ]
+        );
         echo $this->Form->control("first_name", ["required" => true]);
         echo $this->Form->control("middle_name");
         echo $this->Form->control("last_name", ["required" => true]);
@@ -34,11 +43,17 @@ $this->KMP->endBlock(); ?>
         echo $this->Form->control("zip");
         echo $this->Form->control("phone_number");
         echo $this->Form->control("email_address", [
+            'type' => 'email',
             "required" => true,
             "type" => "email",
             "nestedInput" => true,
-            "id" => "entity__email_address",
             "labelOptions" => ["class" => "input-group-text"],
+            'data-controller' => 'member-unique-email',
+            'data-member-unique-email-url-value' => $this->URL->build([
+                'controller' => 'Members',
+                'action' => 'emailTaken',
+                'plugin' => null,
+            ]),
         ]);
         echo $this->Form->control("membership_number");
         echo $this->Form->control("membership_expires_on", ["empty" => true]); ?>
@@ -69,44 +84,3 @@ $this->KMP->endBlock(); ?>
     <?= $this->Form->button(__("Submit")) ?>
     <?= $this->Form->end() ?>
 </div>
-
-<?php echo $this->KMP->startBlock("script"); ?>
-<script>
-window.addEventListener('DOMContentLoaded', function() {
-    $('#entity__email_address').removeAttr('oninput');
-    $('#entity__email_address').removeAttr('oninvalid');
-    $('#entity__email_address').on('change', function() {
-        var email = $('#entity__email_address').val();
-        if (email == '') {
-            $('#entity__email_address').removeClass('is-invalid');
-            $('#entity__email_address').removeClass('is-valid');
-            $('#entity__email_address')[0].setCustomValidity('');
-            return;
-        }
-        var original_email = $('#entity__email_address').data('original-value');
-        if (email == original_email) {
-            $('#entity__email_address').addClass('is-valid');
-            $('#entity__email_address').removeClass('is-invalid');
-            return;
-        }
-        var checkEmailUrl =
-            '<?= $this->URL->build(['controller' => 'Members', 'action' => 'emailTaken']) ?>' +
-            '?email=' + encodeURIComponent(email);
-        $.get(checkEmailUrl, {
-            email: email
-        }, function(data) {
-            if (data) {
-                $('#entity__email_address').addClass('is-invalid');
-                $('#entity__email_address').removeClass('is-valid');
-                $('#entity__email_address')[0].setCustomValidity(
-                    'This email address is already taken.');
-            } else {
-                $('#entity__email_address').addClass('is-valid');
-                $('#entity__email_address').removeClass('is-invalid');
-                $('#entity__email_address')[0].setCustomValidity('');
-            }
-        });
-    });
-});
-</script>
-<?php echo $this->KMP->endBlock(); ?>

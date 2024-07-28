@@ -18,6 +18,10 @@ class AutoComplete extends Controller {
     }
     static uniqOptionId = 0
 
+    initialize() {
+        this._selectOptions = [];
+    }
+
     // Getter for the value property
     get value() {
         // if there is a hidden value return that
@@ -42,15 +46,17 @@ class AutoComplete extends Controller {
         }
         //if the value matches an option set the input value to the option text
         if (newValue != "" && newValue != null) {
-            let option = this.resultsTarget.querySelector(`[data-ac-value='${newValue}']`);
+            let option = this._selectOptions.find(option => option.value == newValue);
             if (!option) {
                 if (this.hasDataListTarget) {
-                    option = this.dataListTarget.querySelector(`[data-ac-value='${newValue}']`);
+                    var newOptions = this.options;
+                    newOptions.push({ value: newValue, text: newValue });
+                    this.options = newOptions;
                 }
             }
             if (option) {
-                this.inputTarget.value = option.textContent;
-                this.hiddenTarget.value = newValue;
+                this.inputTarget.value = option.text;
+                this.hiddenTarget.value = option.value;
                 return;
             } else {
                 if (this.allowOtherValue) {
@@ -80,6 +86,27 @@ class AutoComplete extends Controller {
     }
     set hidden(newValue) {
         this.element.hidden = newValue;
+    }
+
+    get options() {
+        return this._selectOptions;
+    }
+    set options(newValue) {
+        this._selectOptions = newValue;
+        this.makeDataListItems();
+    }
+
+    makeDataListItems() {
+        if (this.hasDataListTarget) {
+            this.dataListTarget.textContent = "";
+            var items = JSON.stringify(this._selectOptions);
+            this.dataListTarget.textContent = items;
+        }
+    }
+
+    dataListTargetConnected() {
+        console.log("DataList Target Connected");
+        this._selectOptions = JSON.parse(this.dataListTarget.textContent);
     }
 
     connect() {
@@ -154,6 +181,15 @@ class AutoComplete extends Controller {
             },
             set: (newValue) => {
                 this.disabled = newValue;
+            }
+        });
+
+        Object.defineProperty(this.element, 'options', {
+            get: () => {
+                return this.options;
+            },
+            set: (newValue) => {
+                this.options = newValue;
             }
         });
     }
@@ -340,12 +376,15 @@ class AutoComplete extends Controller {
                 throw new Error("You must provide a URL or a DataList target")
             } else {
                 this.resultsTarget.innerHTML = null;
-                let allItems = this.dataListTarget.querySelectorAll("li")
+                let allItems = this._selectOptions;
                 for (let item of allItems) {
-                    if (item.textContent.toLowerCase().includes(query.toLowerCase())) {
-                        let itemHtml = item.cloneNode(true);
+                    if (item.text.toLowerCase().includes(query.toLowerCase())) {
+                        let itemHtml = document.createElement("li");
+                        itemHtml.setAttribute("data-ac-value", item.value);
+                        itemHtml.classList.add("list-group-item");
                         itemHtml.setAttribute("role", "option")
                         itemHtml.setAttribute("aria-selected", "false")
+                        itemHtml.textContent = item.text;
                         //add a span around matching string to highlight it
                         itemHtml.innerHTML = itemHtml.innerHTML.replace(new RegExp(query, 'gi'), match => `<span class="text-primary">${match}</span>`);
                         this.resultsTarget.appendChild(itemHtml);
@@ -437,14 +476,6 @@ class AutoComplete extends Controller {
 
     set resultsShown(value) {
         this.resultsTarget.hidden = !value
-    }
-
-    get options() {
-        return Array.from(this.resultsTarget.querySelectorAll(optionSelector))
-    }
-
-    get selectedOption() {
-        return this.resultsTarget.querySelector(activeSelector)
     }
 
     get selectedClassesOrDefault() {

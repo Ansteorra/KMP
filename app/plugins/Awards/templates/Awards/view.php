@@ -38,15 +38,14 @@ echo $this->KMP->startBlock("pageTitle") ?>
     <th scope="row"><?= __('Abbreviation') ?></th>
     <td> <?= h($award->abbreviation) ?></td>
 </tr>
-<?php if ($award->specialties && strlen($award->specialties) > 0) : ?>
+<?php if ($award->specialties) : ?>
 <tr>
     <th scope="row"><?= __('Specialties') ?></th>
     <td>
         <ul>
             <?php
                 // parse the JSON to get the list of specialties
-                $list =  json_decode($award->specialties);
-                foreach ($list as $specialty) : ?>
+                foreach ($award->specialties as $specialty) : ?>
             <li><?= h($specialty) ?></li>
             <?php endforeach; ?>
         </ul>
@@ -125,7 +124,11 @@ echo $this->Modal->create("Edit Award", [
     <?php
     echo $this->Form->control('name');
     echo $this->Form->control('abbreviation');
-    echo $this->Form->hidden('specialties', ['id' => 'specialties', 'data-awards-award-form-target' => 'formValue']); ?>
+    $specialties = json_encode($award->specialties);
+    if ($specialties === 'null') {
+        $specialties = '[]';
+    }
+    echo $this->Form->hidden('specialties', ['value' => $specialties, 'id' => 'specialties', 'data-awards-award-form-target' => 'formValue']); ?>
     <div class="mb-3 form-group specialties">
         <label class="form-label" for="specialtyInput">Specialties</label>
         <ul class="list-group mb-3" data-awards-award-form-target='displayList'></ul>
