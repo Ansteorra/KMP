@@ -37,8 +37,8 @@ $this->KMP->endBlock(); ?>
                     true,
                     false,
                     [
-                        'data-awards-rec-form-target' => 'branch',
-                        'data-action' => 'ready->awards-rec-form#acConnected'
+                        'data-awards-rec-add-target' => 'branch',
+                        'data-action' => 'ready->awards-rec-add#acConnected'
                     ]
                 );
                 echo $this->Form->control("first_name", ["required" => true]);
@@ -69,7 +69,7 @@ $this->KMP->endBlock(); ?>
                         <select name="birth_month" id="birth-month" class="form-select" required="required">
                             <option value=""></option>
                             <?php foreach ($months as $index => $value) : ?>
-                            <option value="<?= $index ?>"><?= $value ?></option>
+                                <option value="<?= $index ?>"><?= $value ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -77,7 +77,7 @@ $this->KMP->endBlock(); ?>
                         <select name="birth_year" id="birth-year" class="form-select" required="required">
                             <option value=""></option>
                             <?php foreach ($years as $index => $value) : ?>
-                            <option value="<?= $index ?>"><?= $value ?></option>
+                                <option value="<?= $index ?>"><?= $value ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -86,18 +86,14 @@ $this->KMP->endBlock(); ?>
                     <label class="form-label">Upload Membership Card (optional)</label>
                     <div class="card col-3" data-controller="image-preview">
                         <div class="card-body text-center">
-                            <svg class="bi bi-card-image text-secondary text-center" width="200" height="200"
-                                fill="currentColor" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"
-                                data-image-preview-target="loading">
+                            <svg class="bi bi-card-image text-secondary text-center" width="200" height="200" fill="currentColor" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" data-image-preview-target="loading">
                                 <path d="M6.002 5.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0" />
-                                <path
-                                    d="M1.5 2A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h13a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 14.5 2zm13 1a.5.5 0 0 1 .5.5v6l-3.775-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.062L1.002 12v.54L1 12.5v-9a.5.5 0 0 1 .5-.5z" />
+                                <path d="M1.5 2A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h13a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 14.5 2zm13 1a.5.5 0 0 1 .5.5v6l-3.775-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.062L1.002 12v.54L1 12.5v-9a.5.5 0 0 1 .5-.5z" />
                             </svg>
                             <img src="#" hidden alt="Image Preview" class="w-100" data-image-preview-target="preview">
                         </div>
                         <div class="card-footer">
-                            <input type="file" name="member_card" class="form-control" accept="image/*"
-                                data-image-preview-target="file" data-action="change->image-preview#preview">
+                            <input type="file" name="member_card" class="form-control" accept="image/*" data-image-preview-target="file" data-action="change->image-preview#preview">
                         </div>
                     </div>
             </fieldset>

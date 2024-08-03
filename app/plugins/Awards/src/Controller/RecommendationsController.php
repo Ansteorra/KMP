@@ -309,10 +309,10 @@ class RecommendationsController extends AppController
         $this->Authorization->authorize($recommendation);
         if ($this->request->is('post')) {
             $recommendation = $this->Recommendations->patchEntity($recommendation, $this->request->getData());
-            if ($recommendation->requester_id != null) {
-                $member = $this->Recommendations->Requesters->get($recommendation->requester_id, fields: ['sca_name', 'additional_info']);
-                $recommendation->requester_sca_name = $member->sca_name;
-            }
+            $recommendation->requester_id = $user->id;
+            $recommendation->requester_sca_name = $user->sca_name;
+            $recommendation->contact_email = $user->email_address;
+            $recommendation->contact_number = $user->phone_number;
             $recommendation->status_date = DateTime::now();
             $recommendation["not_found"] = $this->request->getData("not_found") == "on";
             if ($recommendation->not_found) {
@@ -540,7 +540,7 @@ class RecommendationsController extends AppController
     #region JSON calls
     public function turboEditForm($id = null)
     {
-        $recommendation = $this->Recommendations->get($id, contain: ['Requesters', 'Members', 'Branches', 'Awards', 'Events', 'ScheduledEvent']);
+        $recommendation = $this->Recommendations->get($id, contain: ['Requesters', 'Members', 'Branches', 'Awards', 'Events', 'ScheduledEvent', 'Awards.Domains']);
         if (!$recommendation) {
             throw new \Cake\Http\Exception\NotFoundException();
         }
@@ -551,7 +551,7 @@ class RecommendationsController extends AppController
         $branches = $this->Recommendations->Awards->Branches
             ->find("treeList", spacer: "--")
             ->orderBy(["name" => "ASC"]);
-        $awards = $this->Recommendations->Awards->find('list', limit: 200)->all();
+        $awards = $this->Recommendations->Awards->find('all', limit: 200)->select(["id", "name", "specialties"])->where(['domain_id' => $recommendation->domain_id])->all();
         $eventsData = $this->Recommendations->Events->find()
             ->contain(['Branches' => function ($q) {
                 return $q->select(['id', 'name']);

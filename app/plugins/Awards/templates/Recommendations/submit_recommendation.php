@@ -12,14 +12,14 @@ $this->KMP->endBlock(); ?>
 <div class="container-sm">
     <?= $this->Form->create($recommendation, [
         'id' => 'recommendation_form',
-        'data-controller' => 'awards-rec-form',
-        'data-awards-rec-form-public-profile-url-value' => $this->URL->build([
+        'data-controller' => 'awards-rec-add',
+        'data-awards-rec-add-public-profile-url-value' => $this->URL->build([
             'controller' => 'Members',
             'action' => 'PublicProfile',
             'plugin' => null
         ]),
-        'data-action' => 'submit->awards-rec-form#submit',
-        'data-awards-rec-form-award-list-url-value' => $this->URL->build(['controller' => 'Awards', 'action' => 'awardsByDomain', 'plugin' => "Awards"])
+        'data-action' => 'submit->awards-rec-add#submit',
+        'data-awards-rec-add-award-list-url-value' => $this->URL->build(['controller' => 'Awards', 'action' => 'awardsByDomain', 'plugin' => "Awards"])
     ]) ?>
     <div class="card mb-3">
         <div class="card-body">
@@ -56,8 +56,8 @@ $this->KMP->endBlock(); ?>
                         true,
                         3,
                         [
-                            'data-awards-rec-form-target' => 'scaMember',
-                            'data-action' => 'change->awards-rec-form#loadScaMemberInfo ready->awards-rec-form#acConnected'
+                            'data-awards-rec-add-target' => 'scaMember',
+                            'data-action' => 'change->awards-rec-add#loadScaMemberInfo ready->awards-rec-add#acConnected'
                         ]
                     );
                     echo $this->Form->control('not_found', [
@@ -65,9 +65,9 @@ $this->KMP->endBlock(); ?>
                         'label' => "Name not registered in " . $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . " database",
                         "value" => "on",
                         "disabled" => true,
-                        "data-awards-rec-form-target" => "notFound"
+                        "data-awards-rec-add-target" => "notFound"
                     ]); ?>
-                    <div class="row mb-2" data-awards-rec-form-target="externalLinks"></div>
+                    <div class="row mb-2" data-awards-rec-add-target="externalLinks"></div>
                     <?php
                     echo $this->KMP->comboBoxControl(
                         $this->Form,
@@ -78,8 +78,8 @@ $this->KMP->endBlock(); ?>
                         true,
                         false,
                         [
-                            'data-awards-rec-form-target' => 'branch',
-                            'data-action' => 'ready->awards-rec-form#acConnected'
+                            'data-awards-rec-add-target' => 'branch',
+                            'data-action' => 'ready->awards-rec-add#acConnected'
                         ]
                     );
                     $selectOptions = [];
@@ -95,8 +95,8 @@ $this->KMP->endBlock(); ?>
                         true,
                         false,
                         [
-                            'data-awards-rec-form-target' => 'callIntoCourt',
-                            'data-action' => 'ready->awards-rec-form#acConnected'
+                            'data-awards-rec-add-target' => 'callIntoCourt',
+                            'data-action' => 'ready->awards-rec-add#acConnected'
                         ]
                     );
                     $selectOptions = [];
@@ -112,8 +112,8 @@ $this->KMP->endBlock(); ?>
                         true,
                         false,
                         [
-                            'data-awards-rec-form-target' => 'courtAvailability',
-                            'data-action' => 'ready->awards-rec-form#acConnected'
+                            'data-awards-rec-add-target' => 'courtAvailability',
+                            'data-action' => 'ready->awards-rec-add#acConnected'
                         ]
                     );
                     echo $this->KMP->comboBoxControl(
@@ -124,9 +124,9 @@ $this->KMP->endBlock(); ?>
                         "Award Type",
                         true,
                         false,
-                        ['data-action' => 'change->awards-rec-form#populateAwardDescriptions ready->awards-rec-form#acConnected']
+                        ['data-action' => 'change->awards-rec-add#populateAwardDescriptions ready->awards-rec-add#acConnected']
                     ); ?>
-                    <div class="role p-3" id="award_descriptions" data-awards-rec-form-target="awardDescriptions">
+                    <div class="role p-3" id="award_descriptions" data-awards-rec-add-target="awardDescriptions">
 
                     </div>
                     <?php
@@ -139,8 +139,8 @@ $this->KMP->endBlock(); ?>
                         true,
                         false,
                         [
-                            'data-awards-rec-form-target' => 'award',
-                            'data-action' => 'ready->awards-rec-form#acConnected change->awards-rec-form#populateSpecialties'
+                            'data-awards-rec-add-target' => 'award',
+                            'data-action' => 'ready->awards-rec-add#acConnected change->awards-rec-add#populateSpecialties'
                         ]
                     );
                     echo $this->KMP->comboBoxControl(
@@ -152,20 +152,20 @@ $this->KMP->endBlock(); ?>
                         true,
                         true,
                         [
-                            'data-awards-rec-form-target' => 'specialty',
-                            'data-action' => 'ready->awards-rec-form#acConnected'
+                            'data-awards-rec-add-target' => 'specialty',
+                            'data-action' => 'ready->awards-rec-add#acConnected'
                         ]
                     );
                     echo $this->Form->control('reason', [
                         'id' => 'recommendation_reason', 'required' => true,
-                        'label' => 'Reason for Recommendation', 'data-awards-rec-form-target' => 'reason'
+                        'label' => 'Reason for Recommendation', 'data-awards-rec-add-target' => 'reason'
                     ]);
                     echo $this->Form->control('events._ids', [
                         'label' => 'Events They may Attend:',
                         "type" => "select",
                         "multiple" => "checkbox",
                         'options' => $events,
-                        'data-awards-rec-form-target' => 'events'
+                        'data-awards-rec-add-target' => 'events'
                     ]);
                     ?>
                 </fieldset>

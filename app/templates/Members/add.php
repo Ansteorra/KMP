@@ -30,8 +30,8 @@ $this->KMP->endBlock(); ?>
             true,
             false,
             [
-                'data-awards-rec-form-target' => 'branch',
-                'data-action' => 'ready->awards-rec-form#acConnected'
+                'data-awards-rec-add-target' => 'branch',
+                'data-action' => 'ready->awards-rec-add#acConnected'
             ]
         );
         echo $this->Form->control("first_name", ["required" => true]);
@@ -63,7 +63,7 @@ $this->KMP->endBlock(); ?>
                 <select name="birth_month" id="birth-month" class="form-select" required="required">
                     <option value=""></option>
                     <?php foreach ($months as $index => $value) : ?>
-                    <option value="<?= $index ?>"><?= $value ?></option>
+                        <option value="<?= $index ?>"><?= $value ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
@@ -71,7 +71,7 @@ $this->KMP->endBlock(); ?>
                 <select name="birth_year" id="birth-year" class="form-select" required="required">
                     <option value=""></option>
                     <?php foreach ($years as $index => $value) : ?>
-                    <option value="<?= $index ?>"><?= $value ?></option>
+                        <option value="<?= $index ?>"><?= $value ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>

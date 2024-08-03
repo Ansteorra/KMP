@@ -49,6 +49,7 @@ class AutoComplete extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Contr
     minLength: Number,
     allowOther: Boolean,
     required: Boolean,
+    initSelection: Object,
     delay: {
       type: Number,
       default: 300
@@ -61,6 +62,7 @@ class AutoComplete extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Contr
   static uniqOptionId = 0;
   initialize() {
     this._selectOptions = [];
+    this._datalistLoaded = false;
   }
 
   // Getter for the value property
@@ -116,6 +118,9 @@ class AutoComplete extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Contr
     this.inputTarget.value = "";
     this.hiddenTarget.value = "";
   }
+  get value() {
+    return this.hiddenTarget.value;
+  }
   get disabled() {
     return this.inputTarget.disabled;
   }
@@ -136,21 +141,8 @@ class AutoComplete extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Contr
     this._selectOptions = newValue;
     this.makeDataListItems();
   }
-  makeDataListItems() {
-    if (this.hasDataListTarget) {
-      this.dataListTarget.textContent = "";
-      var items = JSON.stringify(this._selectOptions);
-      this.dataListTarget.textContent = items;
-    }
-  }
-  dataListTargetConnected() {
-    console.log("DataList Target Connected");
-    this._selectOptions = JSON.parse(this.dataListTarget.textContent);
-  }
   connect() {
-    this.state = "start";
     this.close();
-    this.state = "ready";
     if (!this.inputTarget.hasAttribute("autocomplete")) this.inputTarget.setAttribute("autocomplete", "off");
     this.inputTarget.setAttribute("spellcheck", "false");
     this.mouseDown = false;
@@ -170,6 +162,65 @@ class AutoComplete extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Contr
     this.element.dispatchEvent(new CustomEvent("ready", {
       detail: this.element.dataset
     }));
+  }
+  disconnect() {
+    if (this.hasInputTarget) {
+      this.inputTarget.removeEventListener("keydown", this.onKeydown);
+      this.inputTarget.removeEventListener("blur", this.onInputBlur);
+      this.inputTarget.removeEventListener("input", this.onInputChange);
+      this.inputTarget.removeEventListener("click", this.onInputClick);
+      this.inputTarget.removeEventListener("change", this.onInputChangeTriggered);
+    }
+    if (this.hasResultsTarget) {
+      this.resultsTarget.removeEventListener("mousedown", this.onResultsMouseDown);
+      this.resultsTarget.removeEventListener("click", this.onResultsClick);
+    }
+  }
+  initSelectionValueChanged() {
+    if (this._datalistLoaded) {
+      if (this.initSelectionValue == null) {
+        return;
+      }
+      let newOption = this.initSelectionValue;
+      if (!newOption.value && (!newOption.text || newOption.text == "")) {
+        return;
+      }
+      if (this.allowOtherValue) {
+        if (newOption.value == null) {
+          newOption.value = newOption.text;
+        }
+      }
+      let option = this._selectOptions.find(option => option.value == newOption.value);
+      if (option) {
+        this.value = option.value;
+      } else {
+        this.addOption(newOption);
+        this.value = newOption.value;
+      }
+    } else {
+      this.hiddenTarget.value = this.initSelectionValue.value;
+      this.inputTarget.value = this.initSelectionValue.text;
+    }
+  }
+  addOption(option) {
+    if (option.hasOwnProperty("value") && option.hasOwnProperty("text")) {
+      this._selectOptions.push(option);
+      this.makeDataListItems();
+    }
+  }
+  makeDataListItems() {
+    if (this.hasDataListTarget) {
+      this.dataListTarget.textContent = "";
+      var items = JSON.stringify(this._selectOptions);
+      this.dataListTarget.textContent = items;
+    }
+  }
+  dataListTargetConnected() {
+    this._selectOptions = JSON.parse(this.dataListTarget.textContent);
+    this._datalistLoaded = true;
+    if (this.hasInitSelectionValue) {
+      this.initSelectionValueChanged();
+    }
   }
   shimElement() {
     Object.defineProperty(this.element, 'value', {
@@ -222,19 +273,6 @@ class AutoComplete extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Contr
         this.options = newValue;
       }
     });
-  }
-  disconnect() {
-    if (this.hasInputTarget) {
-      this.inputTarget.removeEventListener("keydown", this.onKeydown);
-      this.inputTarget.removeEventListener("blur", this.onInputBlur);
-      this.inputTarget.removeEventListener("input", this.onInputChange);
-      this.inputTarget.removeEventListener("click", this.onInputClick);
-      this.inputTarget.removeEventListener("change", this.onInputChangeTriggered);
-    }
-    if (this.hasResultsTarget) {
-      this.resultsTarget.removeEventListener("mousedown", this.onResultsMouseDown);
-      this.resultsTarget.removeEventListener("click", this.onResultsClick);
-    }
   }
   sibling(next) {
     const options = this.options;
@@ -619,6 +657,112 @@ if (!window.Controllers) {
   window.Controllers = {};
 }
 window.Controllers["image-preview"] = ImagePreview;
+
+/***/ }),
+
+/***/ "./assets/js/controllers/kanban-controller.js":
+/*!****************************************************!*\
+  !*** ./assets/js/controllers/kanban-controller.js ***!
+  \****************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+const optionSelector = "[role='option']:not([aria-disabled])";
+const activeSelector = "[aria-selected='true']";
+class Kanban extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static targets = ["card", "column"];
+  static values = {
+    csrfToken: String,
+    url: String
+  };
+  initialize() {
+    this.draggedItem = null;
+  }
+  cardDrag(event) {
+    console.log("cardDrag");
+    event.preventDefault();
+    this.processDrag(event, false);
+  }
+  dropCard(event) {
+    event.preventDefault();
+    this.processDrag(event, true);
+    this.draggedItem.classList.remove("opacity-25");
+    this.draggedItem = null;
+  }
+  grabCard(event) {
+    var target = event.target;
+    target.classList.add("opacity-25");
+    this.draggedItem = target;
+  }
+  processDrag(event, isDrop) {
+    //console.log(event);
+    var targetCol = event.target;
+    var entityId = this.draggedItem.dataset['recId'];
+    var targetStackRank = null;
+    while (!targetCol.classList.contains('sortable')) {
+      if (targetCol.tagName == 'BODY') {
+        return;
+      }
+      targetCol = targetCol.parentElement;
+    }
+    var targetBefore = event.target;
+    var foundBefore = true;
+    while (!targetBefore.classList.contains('card')) {
+      if (targetBefore.tagName == 'TD') {
+        foundBefore = false;
+        break;
+      }
+      targetBefore = targetBefore.parentElement;
+    }
+    if (foundBefore) {
+      targetStackRank = targetBefore.dataset['stackRank'];
+    }
+    if (targetCol.classList.contains('sortable')) {
+      const data = event.dataTransfer.getData('Text');
+      if (foundBefore) {
+        targetCol.insertBefore(this.draggedItem, targetBefore);
+      } else {
+        targetCol.appendChild(this.draggedItem);
+      }
+      if (isDrop) {
+        //in the targetCol get the card before the draggedItem
+        var palaceAfter = -1;
+        var palaceBefore = -1;
+        var previousSibling = this.draggedItem.previousElementSibling;
+        if (previousSibling) {
+          palaceAfter = previousSibling.dataset['recId'];
+        } else {
+          palaceAfter = -1;
+        }
+        var nextSibling = this.draggedItem.nextElementSibling;
+        if (nextSibling) {
+          palaceBefore = nextSibling.dataset['recId'];
+        } else {
+          palaceBefore = -1;
+        }
+        fetch(this.urlValue + "/" + entityId, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-Token": this.csrfTokenValue
+          },
+          body: JSON.stringify({
+            status: targetCol.dataset['status'],
+            placeAfter: palaceAfter,
+            placeBefore: palaceBefore
+          })
+        });
+      }
+    }
+  }
+}
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["kanban"] = Kanban;
 
 /***/ }),
 
@@ -1535,17 +1679,17 @@ window.Controllers["awards-award-form"] = AwardsAwardForm;
 
 /***/ }),
 
-/***/ "./plugins/Awards/Assets/js/controllers/recommendation-form-controller.js":
-/*!********************************************************************************!*\
-  !*** ./plugins/Awards/Assets/js/controllers/recommendation-form-controller.js ***!
-  \********************************************************************************/
+/***/ "./plugins/Awards/Assets/js/controllers/rec-add-controller.js":
+/*!********************************************************************!*\
+  !*** ./plugins/Awards/Assets/js/controllers/rec-add-controller.js ***!
+  \********************************************************************/
 /***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
 __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
 
-class AwardsRecommendationForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+class AwardsRecommendationAddForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
   static targets = ["scaMember", "notFound", "branch", "callIntoCourt", "courtAvailability", "externalLinks", "awardDescriptions", "award", "reason", "events", "specialty"];
   static values = {
     publicProfileUrl: String,
@@ -1585,7 +1729,7 @@ class AwardsRecommendationForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODU
           awardList.push({
             value: award.id,
             text: award.name,
-            specialties: award.specialties
+            data: award
           });
           //create tab info
           var tabButton = document.createElement("li");
@@ -1596,7 +1740,7 @@ class AwardsRecommendationForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODU
           if (active == "active") {
             button.classList.add("active");
           }
-          button.setAttribute("data-action", "click->awards-rec-form#setAward");
+          button.setAttribute("data-action", "click->awards-rec-add#setAward");
           button.setAttribute("id", "award_" + award.id + "_btn");
           button.setAttribute("data-bs-toggle", "tab");
           button.setAttribute("data-bs-target", "#award_" + award.id);
@@ -1631,9 +1775,8 @@ class AwardsRecommendationForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODU
         this.awardTarget.options = awardList;
         this.awardTarget.disabled = false;
       } else {
-        awardComboData.appendChild(li);
         this.awardTarget.options = [{
-          id: "No awards available",
+          value: "No awards available",
           text: "No awards available"
         }];
         this.awardTarget.value = "No awards available";
@@ -1646,8 +1789,8 @@ class AwardsRecommendationForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODU
     let options = this.awardTarget.options;
     let award = this.awardTarget.options.find(award => award.value == awardId);
     let specialtyArray = [];
-    if (award.specialties != null && award.specialties.length > 0) {
-      award.specialties.forEach(function (specialty) {
+    if (award.data.specialties != null && award.data.specialties.length > 0) {
+      award.data.specialties.forEach(function (specialty) {
         specialtyArray.push({
           value: specialty,
           text: specialty
@@ -1728,7 +1871,7 @@ class AwardsRecommendationForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODU
     });
   }
   acConnected(event) {
-    var target = event.detail["awardsRecFormTarget"];
+    var target = event.detail["awardsRecAddTarget"];
     switch (target) {
       case "branch":
         this.branchTarget.disabled = true;
@@ -1765,7 +1908,274 @@ class AwardsRecommendationForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODU
 if (!window.Controllers) {
   window.Controllers = {};
 }
-window.Controllers["awards-rec-form"] = AwardsRecommendationForm;
+window.Controllers["awards-rec-add"] = AwardsRecommendationAddForm;
+
+/***/ }),
+
+/***/ "./plugins/Awards/Assets/js/controllers/rec-edit-controller.js":
+/*!*********************************************************************!*\
+  !*** ./plugins/Awards/Assets/js/controllers/rec-edit-controller.js ***!
+  \*********************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+class AwardsRecommendationEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static targets = ["scaMember", "notFound", "branch", "callIntoCourt", "courtAvailability", "externalLinks", "domain", "award", "reason", "events", "specialty", "status", "planToGiveBlock", "givenBlock", "recId", "externalLinks", "turboFrame"];
+  static values = {
+    publicProfileUrl: String,
+    awardListUrl: String,
+    formUrl: String,
+    turboFrameUrl: String
+  };
+  static outlets = ['grid-btn'];
+  setId(event) {
+    this.turboFrameTarget.setAttribute("src", this.turboFrameUrlValue + "/" + event.detail.id);
+    this.element.setAttribute("action", this.formUrlValue + "/" + event.detail.id);
+  }
+  gridBtnOutletConnected(outlet, element) {
+    outlet.addListener(this.setId.bind(this));
+  }
+  gridBtnOutletDisconnected(outlet) {
+    outlet.removeListener(this.setId.bind(this));
+  }
+  submit(event) {
+    this.callIntoCourtTarget.disabled = false;
+    this.courtAvailabilityTarget.disabled = false;
+    this.notFoundTarget.disabled = false;
+  }
+  setAward(event) {
+    let awardId = event.target.dataset.awardId;
+    this.awardTarget.value = awardId;
+    this.populateSpecialties(event);
+  }
+  populateAwardDescriptions(event) {
+    let url = this.awardListUrlValue + "/" + event.target.value;
+    fetch(url).then(response => response.json()).then(data => {
+      this.awardTarget.value = "";
+      let active = "active";
+      let show = "show";
+      let selected = "true";
+      let awardList = [];
+      if (data.length > 0) {
+        data.forEach(function (award) {
+          awardList.push({
+            value: award.id,
+            text: award.name,
+            data: award
+          });
+        });
+        this.awardTarget.options = awardList;
+        this.awardTarget.disabled = false;
+        if (this.awardTarget.dataset.acInitSelectionValue) {
+          let val = JSON.parse(this.awardTarget.dataset.acInitSelectionValue);
+          this.awardTarget.value = val.value;
+          this.populateSpecialties({
+            target: {
+              value: val.value
+            }
+          });
+        }
+      } else {
+        this.awardTarget.options = [{
+          value: "No awards available",
+          text: "No awards available"
+        }];
+        this.awardTarget.value = "No awards available";
+        this.awardTarget.disabled = true;
+        this.specialtyTarget.options = [{
+          value: "No specialties available",
+          text: "No specialties available"
+        }];
+        this.specialtyTarget.value = "No specialties available";
+        this.specialtyTarget.disabled = true;
+        this.specialtyTarget.hidden = true;
+      }
+    });
+  }
+  populateSpecialties(event) {
+    let awardId = this.awardTarget.value;
+    let options = this.awardTarget.options;
+    let award = this.awardTarget.options.find(award => award.value == awardId);
+    let specialtyArray = [];
+    if (award.data.specialties != null && award.data.specialties.length > 0) {
+      award.data.specialties.forEach(function (specialty) {
+        specialtyArray.push({
+          value: specialty,
+          text: specialty
+        });
+      });
+      this.specialtyTarget.options = specialtyArray;
+      this.specialtyTarget.value = "";
+      this.specialtyTarget.disabled = false;
+      this.specialtyTarget.hidden = false;
+      if (this.specialtyTarget.dataset.acInitSelectionValue) {
+        let val = JSON.parse(this.specialtyTarget.dataset.acInitSelectionValue);
+        this.specialtyTarget.value = val.value;
+      }
+    } else {
+      this.specialtyTarget.options = [{
+        value: "No specialties available",
+        text: "No specialties available"
+      }];
+      this.specialtyTarget.value = "No specialties available";
+      this.specialtyTarget.disabled = true;
+      this.specialtyTarget.hidden = true;
+    }
+  }
+  loadScaMemberInfo(event) {
+    //reset member metadata area
+    this.externalLinksTarget.innerHTML = "";
+    this.courtAvailabilityTarget.value = "";
+    this.callIntoCourtTarget.value = "";
+    this.callIntoCourtTarget.disabled = false;
+    this.courtAvailabilityTarget.disabled = false;
+    let memberId = Number(event.target.value.replace(/_/g, ""));
+    if (memberId > 0) {
+      this.notFoundTarget.checked = false;
+      this.branchTarget.hidden = true;
+      this.branchTarget.disabled = true;
+      this.loadMember(memberId);
+    } else {
+      this.notFoundTarget.checked = true;
+      this.branchTarget.hidden = false;
+      this.branchTarget.disabled = false;
+      this.branchTarget.focus();
+    }
+  }
+  loadMember(memberId) {
+    let url = this.publicProfileUrlValue + "/" + memberId;
+    fetch(url).then(response => response.json()).then(data => {
+      this.callIntoCourtTarget.value = data.additional_info.CallIntoCourt;
+      this.courtAvailabilityTarget.value = data.additional_info.CourtAvailability;
+      if (this.callIntoCourtTarget.value != "") {
+        this.callIntoCourtTarget.disabled = true;
+      } else {
+        this.callIntoCourtTarget.disabled = false;
+      }
+      if (this.courtAvailabilityTarget.value != "") {
+        this.courtAvailabilityTarget.disabled = true;
+      } else {
+        this.courtAvailabilityTarget.disabled = false;
+      }
+      this.externalLinksTarget.innerHTML = "";
+      let keys = Object.keys(data.external_links);
+      if (keys.length > 0) {
+        var LinksTitle = document.createElement("div");
+        LinksTitle.innerHTML = "<h5>Public Links</h5>";
+        LinksTitle.classList.add("col-12");
+        this.externalLinksTarget.appendChild(LinksTitle);
+        for (let key in data.external_links) {
+          let div = document.createElement("div");
+          div.classList.add("col-12");
+          let a = document.createElement("a");
+          a.href = data.external_links[key];
+          a.text = key;
+          a.target = "_blank";
+          div.appendChild(a);
+          this.externalLinksTarget.appendChild(div);
+        }
+      } else {
+        var noLink = document.createElement("div");
+        noLink.innerHTML = "<h5>No links available</h5>";
+        noLink.classList.add("col-12");
+        this.externalLinksTarget.appendChild(noLink);
+      }
+    });
+  }
+  scaMemberTargetConnected() {
+    if (this.scaMemberTarget.value != "") {
+      this.loadScaMemberInfo({
+        target: {
+          value: this.scaMemberTarget.value
+        }
+      });
+    }
+  }
+  statusTargetConnected() {
+    console.log("status connected");
+    this.setFieldVisibility();
+  }
+  setFieldVisibility() {
+    let STATUS_SUBMITTED = "submitted";
+    let STATUS_IN_CONSIDERATION = "in consideration";
+    let STATUS_AWAITING_FEEDBACK = "awaiting feedback";
+    let STATUS_DECLINED = "declined";
+    let STATUS_NEED_TO_SCHEDULE = "scheduling";
+    let STATUS_SCHEDULED = "scheduled";
+    let STATUS_GIVEN = "given";
+    switch (this.statusTarget.value) {
+      case STATUS_NEED_TO_SCHEDULE:
+        this.planToGiveBlockTarget.style.display = "block";
+        this.givenBlockTarget.style.display = "none";
+        this.domainTarget.disabled = true;
+        this.awardTarget.disabled = true;
+        this.specialtyTarget.disabled = true;
+        this.scaMemberTarget.disabled = true;
+        this.branchTarget.disabled = true;
+        this.courtAvailabilityTarget.disabled = true;
+        this.callIntoCourtTarget.disabled = true;
+        break;
+      case STATUS_SCHEDULED:
+        this.planToGiveBlockTarget.style.display = "block";
+        this.givenBlockTarget.style.display = "none";
+        this.domainTarget.disabled = true;
+        this.awardTarget.disabled = true;
+        this.specialtyTarget.disabled = true;
+        this.scaMemberTarget.disabled = true;
+        this.branchTarget.disabled = true;
+        this.courtAvailabilityTarget.disabled = true;
+        this.callIntoCourtTarget.disabled = true;
+        break;
+      case STATUS_GIVEN:
+        this.planToGiveBlockTarget.style.display = "block";
+        this.givenBlockTarget.style.display = "block";
+        this.domainTarget.disabled = true;
+        this.awardTarget.disabled = true;
+        this.specialtyTarget.disabled = true;
+        this.scaMemberTarget.disabled = true;
+        this.branchTarget.disabled = true;
+        this.courtAvailabilityTarget.disabled = true;
+        this.callIntoCourtTarget.disabled = true;
+        break;
+      default:
+        this.planToGiveBlockTarget.style.display = "none";
+        this.givenBlockTarget.style.display = "none";
+        this.domainTarget.disabled = false;
+        this.awardTarget.disabled = false;
+        this.specialtyTarget.disabled = false;
+        this.scaMemberTarget.disabled = false;
+        if (this.notFoundTarget.checked) {
+          this.branchTarget.disabled = false;
+          this.branchTarget.hidden = false;
+          this.courtAvailabilityTarget.disabled = false;
+          this.callIntoCourtTarget.disabled = false;
+        } else {
+          this.branchTarget.disabled = true;
+          this.branchTarget.hidden = true;
+          this.courtAvailabilityTarget.disabled = this.courtAvailabilityTarget.value != "";
+          this.callIntoCourtTarget.disabled = this.callIntoCourtTarget.value != "";
+        }
+        break;
+    }
+  }
+  connect() {}
+  recIdTargetConnected() {
+    let recId = this.recIdTarget.value;
+    let actionUrl = this.element.getAttribute("action");
+    //trim the last / off of the end of the action url
+    actionUrl = actionUrl.replace(/\/\d+$/, "");
+    actionUrl = actionUrl + "/" + recId;
+    this.element.setAttribute("action", actionUrl);
+  }
+}
+// add to window.Controllers with a name of the controller
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["awards-rec-edit"] = AwardsRecommendationEditForm;
 
 /***/ }),
 
@@ -1963,7 +2373,7 @@ __webpack_require__.r(__webpack_exports__);
 },
 /******/ function(__webpack_require__) { // webpackRuntimeModules
 /******/ var __webpack_exec__ = function(moduleId) { return __webpack_require__(__webpack_require__.s = moduleId); }
-/******/ __webpack_require__.O(0, ["js/core","css/app","css/cover","css/signin","css/dashboard"], function() { return __webpack_exec__("./assets/js/controllers/app-setting-form-controller.js"), __webpack_exec__("./assets/js/controllers/auto-complete-controller.js"), __webpack_exec__("./assets/js/controllers/detail-tabs-controller.js"), __webpack_exec__("./assets/js/controllers/grid-button-controller.js"), __webpack_exec__("./assets/js/controllers/image-preview-controller.js"), __webpack_exec__("./assets/js/controllers/member-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-pwa-controller.js"), __webpack_exec__("./assets/js/controllers/member-unique-email-controller.js"), __webpack_exec__("./assets/js/controllers/member-verify-form-controller.js"), __webpack_exec__("./assets/js/controllers/modal-opener-controller.js"), __webpack_exec__("./assets/js/controllers/nav-bar-controller.js"), __webpack_exec__("./assets/js/controllers/permission-add-role-controller.js"), __webpack_exec__("./assets/js/controllers/revoke-form-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-member-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-permission-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/renew-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/request-auth-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/award-form-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/recommendation-form-controller.js"), __webpack_exec__("./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/assign-officer-controller.js"), __webpack_exec__("./assets/css/app.css"), __webpack_exec__("./assets/css/signin.css"), __webpack_exec__("./assets/css/cover.css"), __webpack_exec__("./assets/css/dashboard.css"); });
+/******/ __webpack_require__.O(0, ["js/core","css/app","css/dashboard","css/cover","css/signin"], function() { return __webpack_exec__("./assets/js/controllers/app-setting-form-controller.js"), __webpack_exec__("./assets/js/controllers/auto-complete-controller.js"), __webpack_exec__("./assets/js/controllers/detail-tabs-controller.js"), __webpack_exec__("./assets/js/controllers/grid-button-controller.js"), __webpack_exec__("./assets/js/controllers/image-preview-controller.js"), __webpack_exec__("./assets/js/controllers/kanban-controller.js"), __webpack_exec__("./assets/js/controllers/member-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-pwa-controller.js"), __webpack_exec__("./assets/js/controllers/member-unique-email-controller.js"), __webpack_exec__("./assets/js/controllers/member-verify-form-controller.js"), __webpack_exec__("./assets/js/controllers/modal-opener-controller.js"), __webpack_exec__("./assets/js/controllers/nav-bar-controller.js"), __webpack_exec__("./assets/js/controllers/permission-add-role-controller.js"), __webpack_exec__("./assets/js/controllers/revoke-form-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-member-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-permission-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/renew-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/request-auth-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/award-form-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-add-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-edit-controller.js"), __webpack_exec__("./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/assign-officer-controller.js"), __webpack_exec__("./assets/css/app.css"), __webpack_exec__("./assets/css/signin.css"), __webpack_exec__("./assets/css/cover.css"), __webpack_exec__("./assets/css/dashboard.css"); });
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);

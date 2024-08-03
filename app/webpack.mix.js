@@ -40,7 +40,7 @@ console.log('Files to mix:', files);
 mix.setPublicPath('./webroot')
     .js(files, 'webroot/js/controllers.js')
     .js('assets/js/index.js', 'webroot/js')
-    .extract(['bootstrap', 'jquery', 'popper.js', '@hotwired/turbo', '@hotwired/stimulus', '@hotwired/stimulus-webpack-helpers'], 'webroot/js/core.js')
+    .extract(['bootstrap', 'popper.js', '@hotwired/turbo', '@hotwired/stimulus', '@hotwired/stimulus-webpack-helpers'], 'webroot/js/core.js')
     .webpackConfig({
         devtool: "source-map",
         optimization: {
@@ -48,8 +48,6 @@ mix.setPublicPath('./webroot')
         },
         plugins: [
             new webpack.ProvidePlugin({
-                $: 'jquery',
-                jQuery: 'jquery',
                 'bootstrap': 'bootstrap',
             }),
         ],

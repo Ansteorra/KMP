@@ -15,9 +15,9 @@ if (!$isTurboFrame) {
 $recommendation = [];
 ?>
 <?php if (!$isTurboFrame) : ?>
-    <h3>
-        Award Recommendations
-    </h3>
+<h3>
+    Award Recommendations
+</h3>
 <?php endif; ?>
 <turbo-frame id="recommendationList" data-turbo='true'>
     <?= $this->Form->create(null, ["url" => ["action" => "index"], "type" => "get", "data-turbo-frame" => "recommendationList"]) ?>
@@ -121,9 +121,9 @@ $recommendation = [];
         </thead>
         <tbody>
             <?php foreach ($recommendations as $recommendation) : ?>
-                <tr>
-                    <td><?= h($recommendation->created) ?></td>
-                    <td><?php
+            <tr>
+                <td><?= h($recommendation->created) ?></td>
+                <td><?php
                         if ($recommendation->member_id) {
                             echo $this->Html->link(
                                 h($recommendation->member_sca_name),
@@ -134,28 +134,28 @@ $recommendation = [];
                             echo h($recommendation->member_sca_name);
                         }
                         ?></td>
-                    <td>
-                        <?php
+                <td>
+                    <?php
                         if ($recommendation->member) :
                             $member = $recommendation->member;
                             $externalLinks =  $member->publicLinks();
                             if ($externalLinks) :
                                 foreach ($externalLinks as $name => $link) : ?>
-                                    <ul>
-                                        <li><?= $this->Html->link(
+                    <ul>
+                        <li><?= $this->Html->link(
                                                 $name,
                                                 $link,
                                                 ["title" => $name, "target" => "_blank"],
                                             ) ?></li>
-                                    </ul>
-                        <?php endforeach;
+                    </ul>
+                    <?php endforeach;
                             endif;
                         endif; ?>
-                    </td>
-                    <td><?= h($recommendation->branch->name) ?></td>
-                    <td><?= h($recommendation->call_into_court) ?></td>
-                    <td><?= h($recommendation->court_availability) ?></td>
-                    <td><?php
+                </td>
+                <td><?= h($recommendation->branch->name) ?></td>
+                <td><?= h($recommendation->call_into_court) ?></td>
+                <td><?= h($recommendation->court_availability) ?></td>
+                <td><?php
                         if ($recommendation->requester_id) {
                             echo $this->Html->link(
                                 h($recommendation->requester_sca_name),
@@ -166,38 +166,40 @@ $recommendation = [];
                             echo h($recommendation->requester_sca_name);
                         }
                         ?></td>
-                    <td><?= h($recommendation->contact_email) ?></td>
-                    <td><?= h($recommendation->contact_phone) ?></td>
-                    <td><?= h($recommendation->award->domain->name) ?></td>
-                    <td><?= h($recommendation->award->name) ?></td>
-                    <td><?= $this->Text->autoParagraph($recommendation->reason) ?></td>
-                    <td>
-                        <ul>
-                            <?php foreach ($recommendation->events as $event) : ?>
-                                <li><?= h($event->name) ?> : <br> <?= h($event->start_date->toDateString()) ?> -
-                                    <?= h($event->end_date->toDateString()) ?></li>
-                            <?php endforeach; ?>
-                        </ul>
-                    </td>
-                    <td>
-                        <ul>
-                            <?php foreach ($recommendation->notes as $note) : ?>
-                                <li><?= h($note->created->toDateTimeString()) ?> :
-                                    <?= $this->Text->autoParagraph($note->body) ?></li>
-                            <?php endforeach; ?>
-                    </td>
-                    <td><?= h($recommendation->status) ?></td>
-                    <td><?= $recommendation->status_date ? h($recommendation->status_date->toDateString()) : h($recommendation->created->toDateString()) ?>
-                    </td>
-                    <td class="actions">
-                        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal" onclick="loadRec(<?= $recommendation->id ?>,'<?= $this->request->getRequestTarget(); ?>');">Edit</button>
-                        <?= $this->Html->link(
+                <td><?= h($recommendation->contact_email) ?></td>
+                <td><?= h($recommendation->contact_phone) ?></td>
+                <td><?= h($recommendation->award->domain->name) ?></td>
+                <td><?= h($recommendation->award->name) ?></td>
+                <td><?= $this->Text->autoParagraph($recommendation->reason) ?></td>
+                <td>
+                    <ul>
+                        <?php foreach ($recommendation->events as $event) : ?>
+                        <li><?= h($event->name) ?> : <br> <?= h($event->start_date->toDateString()) ?> -
+                            <?= h($event->end_date->toDateString()) ?></li>
+                        <?php endforeach; ?>
+                    </ul>
+                </td>
+                <td>
+                    <ul>
+                        <?php foreach ($recommendation->notes as $note) : ?>
+                        <li><?= h($note->created->toDateTimeString()) ?> :
+                            <?= $this->Text->autoParagraph($note->body) ?></li>
+                        <?php endforeach; ?>
+                </td>
+                <td><?= h($recommendation->status) ?></td>
+                <td><?= $recommendation->status_date ? h($recommendation->status_date->toDateString()) : h($recommendation->created->toDateString()) ?>
+                </td>
+                <td class="actions">
+                    <button type="button" class="btn btn-primary btn-sm edit-rec" data-bs-toggle="modal"
+                        data-bs-target="#editModal" data-controller="grid-btn" data-action="click->grid-btn#fireNotice"
+                        data-grid-btn-row-data-value='{ "id":<?= $recommendation->id ?>}' ,>Edit</button>
+                    <?= $this->Html->link(
                             __("View"),
                             ["action" => "view", $recommendation->id],
                             ["title" => __("View"), "class" => "btn btn-secondary btn-sm", "data-turbo-frame" => "_top"],
                         ) ?>
-                    </td>
-                </tr>
+                </td>
+            </tr>
             <?php endforeach; ?>
         </tbody>
     </table>
@@ -223,66 +225,8 @@ $recommendation = [];
 <?php
 echo $this->KMP->startBlock("modals"); ?>
 
-<?php
-echo $this->Form->create($recommendation, [
-    "id" => "recommendation_form",
-    "url" => [
-        "controller" => "Recommendations",
-        "action" => "edit",
-    ],
-]);
-echo $this->Form->control(
-    "current_page",
-    [
-        "type" => "hidden",
-        "id" => "recommendation__current_page",
-        "value" => $this->request->getRequestTarget()
-    ]
+<?= $this->element('recommendationEditModal') ?>
 
-);
-echo $this->Modal->create("Edit Recommendation", [
-    "id" => "editModal",
-    "close" => true,
-]);
-?>
-<turbo-frame id="editRecommendation">
-    loading
-</turbo-frame>
-<?php echo $this->Modal->end([
-    $this->Form->button("Submit", [
-        "class" => "btn btn-primary",
-        "id" => "recommendation_submit"
-    ]),
-    $this->Form->button("Close", [
-        "data-bs-dismiss" => "modal",
-        "type" => "button",
-    ]),
-]);
-
-echo $this->Form->end();
-?>
 
 <?php //finish writing to modal block in layout
 $this->KMP->endBlock(); ?>
-<?= $this->element('recommendationEditScript') ?>
-<?php echo $this->KMP->startBlock("script"); ?>
-<script>
-    loadRec = function(id, returnUrl) {
-        formSrc =
-            "<?= $this->URL->build(['plugin' => 'Awards', 'controller' => 'Recommendations', 'action' => 'edit']) ?>" +
-            "/" + id;
-        src =
-            "<?= $this->URL->build(['plugin' => 'Awards', 'controller' => 'Recommendations', 'action' => 'TurboEditForm']) ?>" +
-            "/" + id;
-        $("#recommendation_form").attr("action", formSrc);
-        $("#recommendation__current_page").val(returnUrl);
-        $("#editRecommendation").attr("src", src);
-    }
-    window.addEventListener('DOMContentLoaded', function() {
-        $("#editRecommendation").on("turbo:frame-load", function() {
-            var recAdd = new recommendationsAdd();
-            recAdd.run();
-        });
-    });
-</script>
-<?php echo $this->KMP->endBlock(); ?>

@@ -13,6 +13,7 @@ class AutoComplete extends Controller {
         minLength: Number,
         allowOther: Boolean,
         required: Boolean,
+        initSelection: Object,
         delay: { type: Number, default: 300 },
         queryParam: { type: String, default: "q" },
     }
@@ -20,6 +21,7 @@ class AutoComplete extends Controller {
 
     initialize() {
         this._selectOptions = [];
+        this._datalistLoaded = false;
     }
 
     // Getter for the value property
@@ -72,6 +74,9 @@ class AutoComplete extends Controller {
         this.inputTarget.value = "";
         this.hiddenTarget.value = "";
     }
+    get value() {
+        return this.hiddenTarget.value;
+    }
 
     get disabled() {
         return this.inputTarget.disabled;
@@ -96,23 +101,8 @@ class AutoComplete extends Controller {
         this.makeDataListItems();
     }
 
-    makeDataListItems() {
-        if (this.hasDataListTarget) {
-            this.dataListTarget.textContent = "";
-            var items = JSON.stringify(this._selectOptions);
-            this.dataListTarget.textContent = items;
-        }
-    }
-
-    dataListTargetConnected() {
-        console.log("DataList Target Connected");
-        this._selectOptions = JSON.parse(this.dataListTarget.textContent);
-    }
-
     connect() {
-        this.state = "start";
         this.close()
-        this.state = "ready";
 
         if (!this.inputTarget.hasAttribute("autocomplete")) this.inputTarget.setAttribute("autocomplete", "off")
         this.inputTarget.setAttribute("spellcheck", "false")
@@ -137,6 +127,71 @@ class AutoComplete extends Controller {
 
         this.readyValue = true
         this.element.dispatchEvent(new CustomEvent("ready", { detail: this.element.dataset }));
+    }
+
+    disconnect() {
+        if (this.hasInputTarget) {
+            this.inputTarget.removeEventListener("keydown", this.onKeydown)
+            this.inputTarget.removeEventListener("blur", this.onInputBlur)
+            this.inputTarget.removeEventListener("input", this.onInputChange)
+            this.inputTarget.removeEventListener("click", this.onInputClick)
+            this.inputTarget.removeEventListener("change", this.onInputChangeTriggered);
+        }
+
+        if (this.hasResultsTarget) {
+            this.resultsTarget.removeEventListener("mousedown", this.onResultsMouseDown)
+            this.resultsTarget.removeEventListener("click", this.onResultsClick)
+        }
+    }
+
+    initSelectionValueChanged() {
+        if (this._datalistLoaded) {
+            if (this.initSelectionValue == null) {
+                return;
+            }
+            let newOption = this.initSelectionValue;
+            if (!newOption.value && (!newOption.text || newOption.text == "")) {
+                return;
+            }
+            if (this.allowOtherValue) {
+                if (newOption.value == null) {
+                    newOption.value = newOption.text;
+                }
+            }
+            let option = this._selectOptions.find(option => option.value == newOption.value);
+            if (option) {
+                this.value = option.value;
+            } else {
+                this.addOption(newOption);
+                this.value = newOption.value;
+            }
+        } else {
+            this.hiddenTarget.value = this.initSelectionValue.value;
+            this.inputTarget.value = this.initSelectionValue.text;
+        }
+    }
+
+    addOption(option) {
+        if (option.hasOwnProperty("value") && option.hasOwnProperty("text")) {
+            this._selectOptions.push(option);
+            this.makeDataListItems();
+        }
+    }
+
+    makeDataListItems() {
+        if (this.hasDataListTarget) {
+            this.dataListTarget.textContent = "";
+            var items = JSON.stringify(this._selectOptions);
+            this.dataListTarget.textContent = items;
+        }
+    }
+
+    dataListTargetConnected() {
+        this._selectOptions = JSON.parse(this.dataListTarget.textContent);
+        this._datalistLoaded = true;
+        if (this.hasInitSelectionValue) {
+            this.initSelectionValueChanged();
+        }
     }
 
     shimElement() {
@@ -192,21 +247,6 @@ class AutoComplete extends Controller {
                 this.options = newValue;
             }
         });
-    }
-
-    disconnect() {
-        if (this.hasInputTarget) {
-            this.inputTarget.removeEventListener("keydown", this.onKeydown)
-            this.inputTarget.removeEventListener("blur", this.onInputBlur)
-            this.inputTarget.removeEventListener("input", this.onInputChange)
-            this.inputTarget.removeEventListener("click", this.onInputClick)
-            this.inputTarget.removeEventListener("change", this.onInputChangeTriggered);
-        }
-
-        if (this.hasResultsTarget) {
-            this.resultsTarget.removeEventListener("mousedown", this.onResultsMouseDown)
-            this.resultsTarget.removeEventListener("click", this.onResultsClick)
-        }
     }
 
     sibling(next) {
