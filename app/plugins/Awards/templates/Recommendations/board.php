@@ -40,7 +40,7 @@ $this->KMP->endBlock(); ?>
                         id="card_<?= $recommendation->id ?>" data-kanban-target="card">
                         <div class="card-body">
                             <div class="card-title">
-                                <?= $this->Html->link($recommendation->award->name, ['action' => 'view', $recommendation->id]) ?>
+                                <?= $this->Html->link($recommendation->award->abbreviation, ['action' => 'view', $recommendation->id]) ?>
                                 <button type="button" class="btn btn-primary btn-sm float-end edit-rec"
                                     data-bs-toggle="modal" data-bs-target="#editModal" data-controller="grid-btn"
                                     data-action="click->grid-btn#fireNotice"

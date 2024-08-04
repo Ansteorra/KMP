@@ -38,7 +38,7 @@ class RecommendationsController extends AppController
                     return $q->select(['id', 'name']);
                 },
                 'Awards' => function ($q) {
-                    return $q->select(['id', 'name']);
+                    return $q->select(['id', 'abbreviation']);
                 },
                 'Awards.Domains' => function ($q) {
                     return $q->select(['id', 'name']);
@@ -79,7 +79,11 @@ class RecommendationsController extends AppController
             $recommendations->where(["Recommendations.status" => $this->request->getQuery("status")]);
         }
         $statuses = Recommendation::getStatues();
-        $awards = $this->Recommendations->Awards->find('list', limit: 200)->all();
+        $awards = $this->Recommendations->Awards->find('list', limit: 200, keyField: 'id', valueField: 'abbreviation');
+        if ($this->request->getQuery("domain_id")) {
+            $awards->where(["domain_id" => $this->request->getQuery("domain_id")]);
+        }
+        $awards = $awards->all();
         $domains = $this->Recommendations->Awards->Domains->find('list', limit: 200)->all();
         $branches = $this->Recommendations->Branches
             ->find("treeList", spacer: "--")

@@ -20,7 +20,7 @@ $recommendation = [];
 </h3>
 <?php endif; ?>
 <turbo-frame id="recommendationList" data-turbo='true'>
-    <?= $this->Form->create(null, ["url" => ["action" => "index"], "type" => "get", "data-turbo-frame" => "recommendationList"]) ?>
+    <?= $this->Form->create(null, ["url" => ["action" => "index"], "type" => "get", "data-turbo-frame" => "recommendationList", "data-controller" => "filter-grid"]) ?>
     <?= $this->Form->hidden("sort", ["value" => $this->request->getQuery("sort")]) ?>
     <?= $this->Form->hidden("direction", ["value" => $this->request->getQuery("direction")]) ?>
     <table class="table table-striped">
@@ -33,7 +33,7 @@ $recommendation = [];
                         "label" => false,
                         "placeholder" => "For",
                         "value" => $this->request->getQuery("for"),
-                        "onchange" => "document.getElementById('filter_btn').click();",
+                        "data-action" => "change->filter-grid#submitForm",
                     ]) ?>
                 </th>
                 <th scope="col">OP</th>
@@ -44,7 +44,7 @@ $recommendation = [];
                         "value" => $this->request->getQuery("branch_id"),
                         "options" => $branches,
                         "empty" => true,
-                        "onchange" => "document.getElementById('filter_btn').click();",
+                        "data-action" => "change->filter-grid#submitForm",
                     ]) ?>
                 </th>
                 <th scope="col"><?= $this->Paginator->sort("call_into_court") ?>
@@ -54,7 +54,7 @@ $recommendation = [];
                         "value" => $this->request->getQuery("call_into_court"),
                         "options" => $callIntoCourt,
                         "empty" => true,
-                        "onchange" => "document.getElementById('filter_btn').click();",
+                        "data-action" => "change->filter-grid#submitForm",
                     ]) ?>
                 </th>
                 <th scope="col"><?= $this->Paginator->sort("Court Avail.") ?>
@@ -64,7 +64,7 @@ $recommendation = [];
                         "value" => $this->request->getQuery("court_avail"),
                         "options" => $courtAvailability,
                         "empty" => true,
-                        "onchange" => "document.getElementById('filter_btn').click();",
+                        "data-action" => "change->filter-grid#submitForm",
                     ]) ?>
                 </th>
                 <th scope="col"><?= $this->Paginator->sort("requester_sca_name", "Submitted By") ?>
@@ -73,7 +73,7 @@ $recommendation = [];
                         "label" => false,
                         "placeholder" => "Submitted By",
                         "value" => $this->request->getQuery("requester_sca_name"),
-                        "onchange" => "document.getElementById('filter_btn').click();",
+                        "data-action" => "change->filter-grid#submitForm",
                     ]) ?>
                 </th>
                 <th scope="col"><?= $this->Paginator->sort("Contact Email") ?></th>
@@ -85,7 +85,7 @@ $recommendation = [];
                         "value" => $this->request->getQuery("domain_id"),
                         "options" => $domains,
                         "empty" => true,
-                        "onchange" => "document.getElementById('filter_btn').click();",
+                        "data-action" => "change->filter-grid#submitForm",
                     ]) ?>
                 </th>
                 <th scope="col"><?= $this->Paginator->sort("Awards.name", "Award") ?>
@@ -96,7 +96,7 @@ $recommendation = [];
                         "value" => $this->request->getQuery("award_id"),
                         "options" => $awards,
                         "empty" => true,
-                        "onchange" => "document.getElementById('filter_btn').click();",
+                        "data-action" => "change->filter-grid#submitForm",
                     ]) ?>
                 </th>
                 <th scope="col">Reason</th>
@@ -110,7 +110,7 @@ $recommendation = [];
                         "value" => $this->request->getQuery("status"),
                         "options" => $statuses,
                         "empty" => true,
-                        "onchange" => "document.getElementById('filter_btn').click();",
+                        "data-action" => "change->filter-grid#submitForm",
                     ]) ?>
                 </th>
                 <th scope="col"><?= $this->Paginator->sort("Status Date") ?></th>
@@ -169,7 +169,7 @@ $recommendation = [];
                 <td><?= h($recommendation->contact_email) ?></td>
                 <td><?= h($recommendation->contact_phone) ?></td>
                 <td><?= h($recommendation->award->domain->name) ?></td>
-                <td><?= h($recommendation->award->name) ?></td>
+                <td><?= h($recommendation->award->abbreviation) ?></td>
                 <td><?= $this->Text->autoParagraph($recommendation->reason) ?></td>
                 <td>
                     <ul>
