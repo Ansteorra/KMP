@@ -10,10 +10,8 @@ class BrancheLinks extends Controller {
         event.preventDefault();
         let linkType = event.target.getAttribute('data-value');
         let previousLinkType = this.linkTypeTarget.dataset.value;
-        if (previousLinkType !== linkType) {
-            this.linkTypeTarget.classList.remove('bi-' + previousLinkType);
-            this.linkTypeTarget.classList.add('bi-' + linkType);
-        }
+        this.linkTypeTarget.classList.remove('bi-' + previousLinkType);
+        this.linkTypeTarget.classList.add('bi-' + linkType);
         this.linkTypeTarget.dataset.value = linkType;
     }
 
@@ -26,18 +24,18 @@ class BrancheLinks extends Controller {
         if (!this.newTarget.value) {
             return;
         }
-        let url = KMP_utils.sanitizeString(this.newTarget.value);
+        let url = KMP_utils.sanitizeUrl(this.newTarget.value);
         let type = this.linkTypeTarget.dataset.value;
         //check urls for duplicate url and type
         if (this.items.find(item => item.url === url && item.type === type)) {
             return;
         }
-        let item = { "url": KMP_utils.sanitizeString(this.newTarget.value), "type": this.linkTypeTarget.dataset.value };
+        let item = { "url": KMP_utils.sanitizeUrl(this.newTarget.value), "type": this.linkTypeTarget.dataset.value };
         this.items.push(item);
         this.createListItem(item);
         this.formValueTarget.value = JSON.stringify(this.items);
         this.newTarget.value = '';
-        this.linkTypeTarget.value = 'link';
+        this.linkTypeTarget.dataset.value = 'link';
         this.linkTypeTarget.classList.remove('bi-' + type);
         this.linkTypeTarget.classList.add('bi-link');
     }

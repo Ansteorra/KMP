@@ -57,7 +57,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
             <?php foreach ($branch->links as $linkItem) : ?>
             <li class='list-group-item'>
                 <span class="bi bi-<?= $linkItem['type'] ?>"></span>
-                <a href="<?= h($linkItem['url']) ?>" title="<?= h($linkItem['url']) ?>">
+                <a href="<?= h($linkItem['url']) ?>" title="<?= h($linkItem['url']) ?>" target="_blank">
                     <?= $linkItem['url'] ?></a>
             </li>
             <?php endforeach; ?>
