@@ -6,6 +6,7 @@ use Cake\ORM\Query;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
+use Cake\Database\Schema\TableSchemaInterface;
 
 /**
  * Branches Model
@@ -48,6 +49,15 @@ class BranchesTable extends Table
         $this->addBehavior('Muffin/Footprint.Footprint');
         $this->addBehavior("Muffin/Trash.Trash");
     }
+
+    public function getSchema(): TableSchemaInterface
+    {
+        $schema = parent::getSchema();
+        $schema->setColumnType('links', 'json');
+
+        return $schema;
+    }
+
 
     /**
      * Default validation rules.

@@ -49,10 +49,28 @@ echo $this->KMP->startBlock("pageTitle") ?>
                                 ["title" => __("View")],
                             ) ?></td>
 </tr>
+<tr scope="row">
+    <th class="col"><?= __("links") ?></th>
+    <td class="col-10">
+        <?php if (!empty($branch->links)) : ?>
+        <ul class='list-group'>
+            <?php foreach ($branch->links as $linkItem) : ?>
+            <li class='list-group-item'>
+                <span class="bi bi-<?= $linkItem['type'] ?>"></span>
+                <a href="<?= h($linkItem['url']) ?>" title="<?= h($linkItem['url']) ?>">
+                    <?= $linkItem['url'] ?></a>
+            </li>
+            <?php endforeach; ?>
+        </ul>
+        <?php else : ?>
+        <p><?= __("No links found") ?></p>
+        <?php endif; ?>
+    </td>
+</tr>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("tabButtons") ?>
 <button class="nav-link active" id="nav-members-tab" data-bs-toggle="tab" data-bs-target="#nav-members" type="button"
-    role="tab" aria-controls="nav-members" aria-selected="false" data-detail-tabs-target='tabBtn'><?= __("Members") ?>
+    role="tab" aria-controls="nav-members" aria-selected="false" data-detail-tabs-target=' tabBtn'><?= __("Members") ?>
 </button>
 <button class="nav-link" id="nav-branches-tab" data-bs-toggle="tab" data-bs-target="#nav-branches" type="button"
     role="tab" aria-controls="nav-branches" aria-selected="false" data-detail-tabs-target='tabBtn'><?= __("Branches") ?>
@@ -77,7 +95,8 @@ echo $this->KMP->startBlock("pageTitle") ?>
                 <td><?= h($member->sca_name) ?></td>
                 <td><?= $this->KMP->bool($member->age < 18, $this->Html) ?></td>
                 <td><?= h($member->membership_number) ?></td>
-                <td><?= h($member->membership_expires_on ? $member->membership_expires_on->toDateString() : "") ?></td>
+                <td><?= h($member->membership_expires_on ? $member->membership_expires_on->toDateString() : "") ?>
+                </td>
                 <td><?= h($member->status) ?></td>
                 <td class="actions">
                     <?= $this->Html->link(

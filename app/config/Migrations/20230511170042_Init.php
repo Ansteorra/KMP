@@ -35,6 +35,11 @@ class Init extends AbstractMigration
                 "null" => true,
                 "signed" => true,
             ])
+            ->addColumn("links", "text", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
             ->addColumn("lft", "integer", [
                 "default" => null,
                 "limit" => 11,
@@ -79,53 +84,6 @@ class Init extends AbstractMigration
             ->addIndex(["rght"])
             ->addIndex(["deleted"])
             ->create();
-
-        $this->table("branch_links")
-            ->addColumn("id", "integer", [
-                "autoIncrement" => true,
-                "default" => null,
-                "limit" => 11,
-                "null" => false,
-            ])
-            ->addColumn("branch_id", "integer", [
-                "default" => null,
-                "limit" => 11,
-                "null" => true,
-                "signed" => true,
-            ])
-            ->addColumn("name", "string", [
-                "default" => null,
-                "limit" => 128,
-                "null" => false,
-            ])
-            ->addColumn("url", "string", [
-                "default" => null,
-                "limit" => 512,
-                "null" => false,
-            ])
-            ->addColumn("modified", "datetime", [
-                "default" => null,
-                "limit" => null,
-                "null" => true,
-            ])
-            ->addColumn("created", "datetime", [
-                "default" => null,
-                "limit" => null,
-                "null" => false,
-            ])
-            ->addColumn("created_by", "integer", [
-                "default" => null,
-                "limit" => null,
-                "null" => true,
-            ])
-            ->addColumn("modified_by", "integer", [
-                "default" => null,
-                "limit" => null,
-                "null" => true,
-            ])
-            ->addPrimaryKey(["id"])
-            ->create();
-
 
         $this->table("roles")
             ->addColumn("id", "integer", [
@@ -647,18 +605,6 @@ class Init extends AbstractMigration
             )
             ->update();
 
-        $this->table("branch_links")
-            ->addForeignKey(
-                "branch_id",
-                "branches",
-                "id",
-                [
-                    "update" => "NO_ACTION",
-                    "delete" => "NO_ACTION",
-                ],
-            )
-            ->update();
-
         $this->table("member_roles")
             ->addForeignKey("member_id", "members", "id", [
                 "update" => "NO_ACTION",
@@ -703,10 +649,6 @@ class Init extends AbstractMigration
             ->save();
 
         $this->table("roles_permissions")->dropForeignKey("role_id")->save();
-
-
-        $this->table("branch_links")->dropForeignKey("branch_id")->save();
-
         $this->table("notes")->drop()->save();
         $this->table("roles_permissions")->drop()->save();
         $this->table("permissions")->drop()->save();

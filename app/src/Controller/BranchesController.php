@@ -95,6 +95,8 @@ class BranchesController extends AppController
                 $branch,
                 $this->request->getData(),
             );
+            $links = json_decode($this->request->getData('branch_links'), true);
+            $branch->links = $links;
             if ($this->Branches->save($branch)) {
                 $this->Flash->success(__("The branch has been saved."));
 
@@ -129,6 +131,8 @@ class BranchesController extends AppController
                 $branch,
                 $this->request->getData(),
             );
+            $links = json_decode($this->request->getData('branch_links'), true);
+            $branch->links = $links;
             try {
                 if ($this->Branches->save($branch)) {
                     $branches = $this->getTableLocator()->get("Branches");

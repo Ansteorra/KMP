@@ -542,6 +542,102 @@ window.Controllers["ac"] = AutoComplete;
 
 /***/ }),
 
+/***/ "./assets/js/controllers/branch-links-controller.js":
+/*!**********************************************************!*\
+  !*** ./assets/js/controllers/branch-links-controller.js ***!
+  \**********************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+class BrancheLinks extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static targets = ["new", "formValue", "displayList", "linkType"];
+  initialize() {
+    this.items = [];
+  }
+  setLinkType(event) {
+    event.preventDefault();
+    let linkType = event.target.getAttribute('data-value');
+    let previousLinkType = this.linkTypeTarget.dataset.value;
+    if (previousLinkType !== linkType) {
+      this.linkTypeTarget.classList.remove('bi-' + previousLinkType);
+      this.linkTypeTarget.classList.add('bi-' + linkType);
+    }
+    this.linkTypeTarget.dataset.value = linkType;
+  }
+  add(event) {
+    event.preventDefault();
+    if (!this.newTarget.value) {
+      return;
+    }
+    let url = KMP_utils.sanitizeString(this.newTarget.value);
+    let type = this.linkTypeTarget.dataset.value;
+    //check urls for duplicate url and type
+    if (this.items.find(item => item.url === url && item.type === type)) {
+      return;
+    }
+    let item = {
+      "url": KMP_utils.sanitizeString(this.newTarget.value),
+      "type": this.linkTypeTarget.dataset.value
+    };
+    this.items.push(item);
+    this.createListItem(item);
+    this.formValueTarget.value = JSON.stringify(this.items);
+    this.newTarget.value = '';
+    this.linkTypeTarget.value = 'link';
+    this.linkTypeTarget.classList.remove('bi-' + type);
+    this.linkTypeTarget.classList.add('bi-link');
+  }
+  remove(event) {
+    event.preventDefault();
+    let id = event.target.getAttribute('data-id');
+    let removeItem = JSON.parse(id);
+    this.items = this.items.filter(item => {
+      return item.url !== removeItem.url || item.type !== removeItem.type;
+    });
+    this.formValueTarget.value = JSON.stringify(this.items);
+    event.target.parentElement.remove();
+  }
+  connect() {
+    if (this.formValueTarget.value && this.formValueTarget.value.length > 0) {
+      this.items = JSON.parse(this.formValueTarget.value);
+      this.items.forEach(item => {
+        //create a remove button
+        this.createListItem(item);
+      });
+    }
+  }
+  createListItem(item) {
+    let removeButton = document.createElement('button');
+    removeButton.innerHTML = 'Remove';
+    removeButton.setAttribute('data-action', 'branch-links#remove');
+    removeButton.setAttribute('data-id', JSON.stringify(item));
+    removeButton.setAttribute('class', 'btn btn-danger btn-sm');
+    removeButton.setAttribute('type', 'button');
+    //create a list item
+    let inputGroup = document.createElement('div');
+    inputGroup.setAttribute('class', 'input-group mb-1');
+    let iconSpan = document.createElement('span');
+    iconSpan.setAttribute('class', 'input-group-text bi bi-' + item.type);
+    inputGroup.appendChild(iconSpan);
+    let span = document.createElement('span');
+    span.innerHTML = item.url;
+    span.setAttribute('class', 'form-control');
+    inputGroup.appendChild(span);
+    inputGroup.appendChild(removeButton);
+    this.displayListTarget.appendChild(inputGroup);
+  }
+}
+// add to window.Controllers with a name of the controller
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["branch-links"] = BrancheLinks;
+
+/***/ }),
+
 /***/ "./assets/js/controllers/detail-tabs-controller.js":
 /*!*********************************************************!*\
   !*** ./assets/js/controllers/detail-tabs-controller.js ***!
@@ -2397,7 +2493,7 @@ __webpack_require__.r(__webpack_exports__);
 },
 /******/ function(__webpack_require__) { // webpackRuntimeModules
 /******/ var __webpack_exec__ = function(moduleId) { return __webpack_require__(__webpack_require__.s = moduleId); }
-/******/ __webpack_require__.O(0, ["js/core","css/app","css/cover","css/signin","css/dashboard"], function() { return __webpack_exec__("./assets/js/controllers/app-setting-form-controller.js"), __webpack_exec__("./assets/js/controllers/auto-complete-controller.js"), __webpack_exec__("./assets/js/controllers/detail-tabs-controller.js"), __webpack_exec__("./assets/js/controllers/filter-grid-controller.js"), __webpack_exec__("./assets/js/controllers/grid-button-controller.js"), __webpack_exec__("./assets/js/controllers/image-preview-controller.js"), __webpack_exec__("./assets/js/controllers/kanban-controller.js"), __webpack_exec__("./assets/js/controllers/member-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-pwa-controller.js"), __webpack_exec__("./assets/js/controllers/member-unique-email-controller.js"), __webpack_exec__("./assets/js/controllers/member-verify-form-controller.js"), __webpack_exec__("./assets/js/controllers/modal-opener-controller.js"), __webpack_exec__("./assets/js/controllers/nav-bar-controller.js"), __webpack_exec__("./assets/js/controllers/permission-add-role-controller.js"), __webpack_exec__("./assets/js/controllers/revoke-form-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-member-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-permission-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/renew-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/request-auth-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/award-form-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-add-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-edit-controller.js"), __webpack_exec__("./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/assign-officer-controller.js"), __webpack_exec__("./assets/css/app.css"), __webpack_exec__("./assets/css/signin.css"), __webpack_exec__("./assets/css/cover.css"), __webpack_exec__("./assets/css/dashboard.css"); });
+/******/ __webpack_require__.O(0, ["js/core","css/app","css/cover","css/signin","css/dashboard"], function() { return __webpack_exec__("./assets/js/controllers/app-setting-form-controller.js"), __webpack_exec__("./assets/js/controllers/auto-complete-controller.js"), __webpack_exec__("./assets/js/controllers/branch-links-controller.js"), __webpack_exec__("./assets/js/controllers/detail-tabs-controller.js"), __webpack_exec__("./assets/js/controllers/filter-grid-controller.js"), __webpack_exec__("./assets/js/controllers/grid-button-controller.js"), __webpack_exec__("./assets/js/controllers/image-preview-controller.js"), __webpack_exec__("./assets/js/controllers/kanban-controller.js"), __webpack_exec__("./assets/js/controllers/member-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-pwa-controller.js"), __webpack_exec__("./assets/js/controllers/member-unique-email-controller.js"), __webpack_exec__("./assets/js/controllers/member-verify-form-controller.js"), __webpack_exec__("./assets/js/controllers/modal-opener-controller.js"), __webpack_exec__("./assets/js/controllers/nav-bar-controller.js"), __webpack_exec__("./assets/js/controllers/permission-add-role-controller.js"), __webpack_exec__("./assets/js/controllers/revoke-form-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-member-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-permission-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/renew-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/request-auth-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/award-form-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-add-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-edit-controller.js"), __webpack_exec__("./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/assign-officer-controller.js"), __webpack_exec__("./assets/css/app.css"), __webpack_exec__("./assets/css/signin.css"), __webpack_exec__("./assets/css/cover.css"), __webpack_exec__("./assets/css/dashboard.css"); });
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
