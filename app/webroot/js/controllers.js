@@ -569,6 +569,10 @@ class BrancheLinks extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Contr
   }
   add(event) {
     event.preventDefault();
+    if (!this.newTarget.checkValidity()) {
+      this.newTarget.reportValidity();
+      return;
+    }
     if (!this.newTarget.value) {
       return;
     }

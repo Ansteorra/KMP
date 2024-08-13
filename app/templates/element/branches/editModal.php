@@ -50,7 +50,8 @@ echo $this->Modal->create("Edit Branch", [
                 <li><a class="dropdown-item bi bi-youtube" href="#" data-value="youtube"
                         data-action="branch-links#setLinkType"></a></li>
             </ul>
-            <input type="url" data-branch-links-target="new" class="form-control col-8" placeholder="Link">
+            <input type="url" data-branch-links-target="new" class="form-control col-8"
+                placeholder="https://example.com">
             <button type="button" class="btn btn-primary btn-sm" data-action="branch-links#add">Add</button>
         </div>
     </div>

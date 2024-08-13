@@ -19,6 +19,10 @@ class BrancheLinks extends Controller {
 
     add(event) {
         event.preventDefault();
+        if (!this.newTarget.checkValidity()) {
+            this.newTarget.reportValidity();
+            return;
+        }
         if (!this.newTarget.value) {
             return;
         }
