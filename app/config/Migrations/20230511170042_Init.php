@@ -21,12 +21,12 @@ class Init extends AbstractMigration
             ])
             ->addColumn("name", "string", [
                 "default" => null,
-                "limit" => 40,
+                "limit" => 128,
                 "null" => false,
             ])
             ->addColumn("location", "string", [
                 "default" => null,
-                "limit" => 40,
+                "limit" => 128,
                 "null" => false,
             ])
             ->addColumn("parent_id", "integer", [
@@ -80,6 +80,51 @@ class Init extends AbstractMigration
             ->addIndex(["deleted"])
             ->create();
 
+        $this->table("branch_links")
+            ->addColumn("id", "integer", [
+                "autoIncrement" => true,
+                "default" => null,
+                "limit" => 11,
+                "null" => false,
+            ])
+            ->addColumn("branch_id", "integer", [
+                "default" => null,
+                "limit" => 11,
+                "null" => true,
+                "signed" => true,
+            ])
+            ->addColumn("name", "string", [
+                "default" => null,
+                "limit" => 128,
+                "null" => false,
+            ])
+            ->addColumn("url", "string", [
+                "default" => null,
+                "limit" => 512,
+                "null" => false,
+            ])
+            ->addColumn("modified", "datetime", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
+            ->addColumn("created", "datetime", [
+                "default" => null,
+                "limit" => null,
+                "null" => false,
+            ])
+            ->addColumn("created_by", "integer", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
+            ->addColumn("modified_by", "integer", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
+            ->addPrimaryKey(["id"])
+            ->create();
 
 
         $this->table("roles")
@@ -602,6 +647,18 @@ class Init extends AbstractMigration
             )
             ->update();
 
+        $this->table("branch_links")
+            ->addForeignKey(
+                "branch_id",
+                "branches",
+                "id",
+                [
+                    "update" => "NO_ACTION",
+                    "delete" => "NO_ACTION",
+                ],
+            )
+            ->update();
+
         $this->table("member_roles")
             ->addForeignKey("member_id", "members", "id", [
                 "update" => "NO_ACTION",
@@ -647,11 +704,15 @@ class Init extends AbstractMigration
 
         $this->table("roles_permissions")->dropForeignKey("role_id")->save();
 
+
+        $this->table("branch_links")->dropForeignKey("branch_id")->save();
+
         $this->table("notes")->drop()->save();
         $this->table("roles_permissions")->drop()->save();
         $this->table("permissions")->drop()->save();
         $this->table("member_roles")->drop()->save();
         $this->table("members")->drop()->save();
+        $this->table("branch_links")->drop()->save();
         $this->table("branches")->drop()->save();
         $this->table("roles")->drop()->save();
         $this->table("app_settings")->drop()->save();
