@@ -66,11 +66,21 @@ class KmpHelper extends Helper
         echo "<script type='application/json' data-ac-target='dataList' class='d-none'>";
         $listData = [];
         foreach ($data as $key => $value) {
+            $enabled = true;
+            //check if the key is a string or an int
+            if (!is_int($key)) {
+                //if the key includes a | then the first part is the key and the second part is the enable check
+                if (strpos($key, "|") !== false) {
+                    $keyParts = explode("|", $key);
+                    $key = $keyParts[0];
+                    $enabled = $keyParts[1] == 'true';
+                }
+            }
             //check if the value is a string
             if (is_string($value)) {
-                $listData[] = ["value" => $key, "text" => $value];
+                $listData[] = ["value" => $key, "text" => $value, "enabled" => $enabled];
             } else {
-                $listData[] = ["value" => $key, "text" => $value["text"], "data" => $value];
+                $listData[] = ["value" => $key, "text" => $value["text"], "data" => $value, "enabled" => $enabled];
             }
         }
         echo json_encode($listData);

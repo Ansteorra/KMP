@@ -1,6 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 
-const optionSelector = "[role='option']:not([aria-disabled])"
+const optionSelector = "[role='option']:not([aria-disabled='true'])"
 const activeSelector = "[aria-selected='true']"
 
 class AutoComplete extends Controller {
@@ -48,7 +48,7 @@ class AutoComplete extends Controller {
         }
         //if the value matches an option set the input value to the option text
         if (newValue != "" && newValue != null) {
-            let option = this._selectOptions.find(option => option.value == newValue);
+            let option = this._selectOptions.find(option => option.value == newValue && option.enabled != false);
             if (!option) {
                 if (this.hasDataListTarget) {
                     var newOptions = this.options;
@@ -264,7 +264,6 @@ class AutoComplete extends Controller {
             previouslySelected.removeAttribute("aria-selected")
             previouslySelected.classList.remove(...this.selectedClassesOrDefault)
         }
-
         target.setAttribute("aria-selected", "true")
         target.classList.add(...this.selectedClassesOrDefault)
         this.inputTarget.setAttribute("aria-activedescendant", target.id)
@@ -418,10 +417,16 @@ class AutoComplete extends Controller {
                 this.resultsTarget.innerHTML = null;
                 let allItems = this._selectOptions;
                 for (let item of allItems) {
-                    if (item.text.toLowerCase().includes(query.toLowerCase())) {
+                    if (item.text.toLowerCase().includes(query.toLowerCase()) && (item.enabled != false || query == "")) {
                         let itemHtml = document.createElement("li");
                         itemHtml.setAttribute("data-ac-value", item.value);
                         itemHtml.classList.add("list-group-item");
+                        if (item.enabled == false) {
+                            itemHtml.setAttribute("aria-disabled", "true");
+                            itemHtml.classList.add("disabled");
+                        } else {
+                            itemHtml.setAttribute("aria-disabled", "false");
+                        }
                         itemHtml.setAttribute("role", "option")
                         itemHtml.setAttribute("aria-selected", "false")
                         itemHtml.textContent = item.text;

@@ -50,6 +50,10 @@ echo $this->KMP->startBlock("pageTitle") ?>
                             ) ?></td>
 </tr>
 <tr scope="row">
+    <th class="col"><?= __("Can Have Members") ?></th>
+    <td class="col-10"><?= $this->KMP->bool($branch->can_have_members, $this->Html) ?></td>
+</tr>
+<tr scope="row">
     <th class="col"><?= __("links") ?></th>
     <td class="col-10">
         <?php if (!empty($branch->links)) : ?>
@@ -69,14 +73,17 @@ echo $this->KMP->startBlock("pageTitle") ?>
 </tr>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("tabButtons") ?>
+<?php if ($branch->can_have_members) : ?>
 <button class="nav-link active" id="nav-members-tab" data-bs-toggle="tab" data-bs-target="#nav-members" type="button"
     role="tab" aria-controls="nav-members" aria-selected="false" data-detail-tabs-target=' tabBtn'><?= __("Members") ?>
 </button>
+<?php endif; ?>
 <button class="nav-link" id="nav-branches-tab" data-bs-toggle="tab" data-bs-target="#nav-branches" type="button"
     role="tab" aria-controls="nav-branches" aria-selected="false" data-detail-tabs-target='tabBtn'><?= __("Branches") ?>
 </button>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("tabContent") ?>
+<?php if ($branch->can_have_members) : ?>
 <div class="related tab-pane fade active m-3" id="nav-members" role="tabpanel" aria-labelledby="nav-members-tab"
     data-detail-tabs-target="tabContent">
     <?php if (!empty($branch->members)) : ?>
@@ -100,17 +107,17 @@ echo $this->KMP->startBlock("pageTitle") ?>
                 <td><?= h($member->status) ?></td>
                 <td class="actions">
                     <?= $this->Html->link(
-                                __("View"),
-                                [
-                                    "controller" => "members",
-                                    "action" => "view",
-                                    $member->id,
-                                ],
-                                [
-                                    "title" => __("View"),
-                                    "class" => "btn btn-secondary",
-                                ],
-                            ) ?>
+                                    __("View"),
+                                    [
+                                        "controller" => "members",
+                                        "action" => "view",
+                                        $member->id,
+                                    ],
+                                    [
+                                        "title" => __("View"),
+                                        "class" => "btn btn-secondary",
+                                    ],
+                                ) ?>
                 </td>
             </tr>
             <?php endforeach; ?>
@@ -120,6 +127,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
     <p><?= __("No members found") ?></p>
     <?php endif; ?>
 </div>
+<?php endif; ?>
 <div class="related tab-pane fade m-3" id="nav-branches" role="tabpanel" aria-labelledby="nav-branches-tab"
     data-detail-tabs-target="tabContent">
     <?php if (!empty($branch->children)) : ?>

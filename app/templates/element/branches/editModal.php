@@ -17,6 +17,10 @@ echo $this->Modal->create("Edit Branch", [
     <?php
     echo $this->Form->control("name");
     echo $this->Form->control("location");
+    echo $this->Form->control("can_have_members", [
+        "switch" => true,
+        "label" => "Can Have Members",
+    ]);
     echo $this->Form->control("parent_id", [
         "options" => $treeList,
         "empty" => true,

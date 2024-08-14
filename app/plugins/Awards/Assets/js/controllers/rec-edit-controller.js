@@ -110,10 +110,10 @@ class AwardsRecommendationEditForm extends Controller {
     loadScaMemberInfo(event) {
         //reset member metadata area
         this.externalLinksTarget.innerHTML = "";
-        this.courtAvailabilityTarget.value = "";
-        this.callIntoCourtTarget.value = "";
-        this.callIntoCourtTarget.disabled = false;
-        this.courtAvailabilityTarget.disabled = false;
+        //this.courtAvailabilityTarget.value = "";
+        //this.callIntoCourtTarget.value = "";
+        //this.callIntoCourtTarget.disabled = false;
+        //this.courtAvailabilityTarget.disabled = false;
 
         let memberId = Number(event.target.value.replace(/_/g, ""));
         if (memberId > 0) {
@@ -135,8 +135,12 @@ class AwardsRecommendationEditForm extends Controller {
         fetch(url)
             .then(response => response.json())
             .then(data => {
-                this.callIntoCourtTarget.value = data.additional_info.CallIntoCourt;
-                this.courtAvailabilityTarget.value = data.additional_info.CourtAvailability;
+                if (data.additional_info.CallIntoCourt != null && data.additional_info.CallIntoCourt != "") {
+                    this.callIntoCourtTarget.value = data.additional_info.CallIntoCourt;
+                }
+                if (data.additional_info.CourtAvailability != null && data.additional_info.CourtAvailability != "") {
+                    this.courtAvailabilityTarget.value = data.additional_info.CourtAvailability;
+                }
                 if (this.callIntoCourtTarget.value != "") {
                     this.callIntoCourtTarget.disabled = true;
                 } else {

@@ -215,8 +215,10 @@ class MembersController extends AppController
         });
         $years = array_combine(range(date('Y'), date('Y') - 130), range(date('Y'), date('Y') - 130));
         $treeList = $this->Members->Branches
-            ->find("treeList", spacer: "--")
-            ->orderBy(["name" => "ASC"]);
+            ->find("treeList", spacer: "--", keyPath: function ($entity) {
+                return $entity->id . '|' . ($entity->can_have_members == 1 ? "true" : "false");
+            })
+            ->orderBy(["name" => "ASC"])->toArray();
         $referer = $this->request->referer(true);
         $backUrl = [];
         $user =  $this->Authentication->getIdentity();
@@ -356,11 +358,10 @@ class MembersController extends AppController
                 });
                 $years = array_combine(range(date('Y'), date('Y') - 130), range(date('Y'), date('Y') - 130));
                 $treeList = $this->Members->Branches
-                    ->find("treeList", spacer: "--")
-                    ->orderBy(["name" => "ASC"]);
-                $treeList = $this->Members->Branches
-                    ->find("treeList", spacer: "--")
-                    ->orderBy(["name" => "ASC"]);
+                    ->find("treeList", spacer: "--", keyPath: function ($entity) {
+                        return $entity->id . '|' . ($entity->can_have_members == 1 ? "true" : "false");
+                    })
+                    ->orderBy(["name" => "ASC"])->toArray();
                 $this->set(compact(
                     "member",
                     "treeList",
@@ -396,8 +397,10 @@ class MembersController extends AppController
         });
         $years = array_combine(range(date('Y'), date('Y') - 130), range(date('Y'), date('Y') - 130));
         $treeList = $this->Members->Branches
-            ->find("treeList", spacer: "--")
-            ->orderBy(["name" => "ASC"]);
+            ->find("treeList", spacer: "--", keyPath: function ($entity) {
+                return $entity->id . '|' . ($entity->can_have_members == 1 ? "true" : "false");
+            })
+            ->orderBy(["name" => "ASC"])->toArray();
         $this->set(compact(
             "member",
             "treeList",
@@ -1041,8 +1044,10 @@ class MembersController extends AppController
         });
         $years = array_combine(range(date('Y'), date('Y') - 130), range(date('Y'), date('Y') - 130));
         $treeList = $this->Members->Branches
-            ->find("treeList", spacer: "--")
-            ->orderBy(["name" => "ASC"]);
+            ->find("treeList", spacer: "--", keyPath: function ($entity) {
+                return $entity->id . '|' . ($entity->can_have_members == 1 ? "true" : "false");
+            })
+            ->orderBy(["name" => "ASC"])->toArray();
 
         $this->set(compact("member", "treeList", "months", "years", "headerImage"));
     }

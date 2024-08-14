@@ -37,7 +37,7 @@ window.Controllers["app-setting-form"] = AppSettingForm;
 __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
 
-const optionSelector = "[role='option']:not([aria-disabled])";
+const optionSelector = "[role='option']:not([aria-disabled='true'])";
 const activeSelector = "[aria-selected='true']";
 class AutoComplete extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
   static targets = ["input", "hidden", "results", "dataList"];
@@ -89,7 +89,7 @@ class AutoComplete extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Contr
     }
     //if the value matches an option set the input value to the option text
     if (newValue != "" && newValue != null) {
-      let option = this._selectOptions.find(option => option.value == newValue);
+      let option = this._selectOptions.find(option => option.value == newValue && option.enabled != false);
       if (!option) {
         if (this.hasDataListTarget) {
           var newOptions = this.options;
@@ -427,10 +427,16 @@ class AutoComplete extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Contr
         this.resultsTarget.innerHTML = null;
         let allItems = this._selectOptions;
         for (let item of allItems) {
-          if (item.text.toLowerCase().includes(query.toLowerCase())) {
+          if (item.text.toLowerCase().includes(query.toLowerCase()) && (item.enabled != false || query == "")) {
             let itemHtml = document.createElement("li");
             itemHtml.setAttribute("data-ac-value", item.value);
             itemHtml.classList.add("list-group-item");
+            if (item.enabled == false) {
+              itemHtml.setAttribute("aria-disabled", "true");
+              itemHtml.classList.add("disabled");
+            } else {
+              itemHtml.setAttribute("aria-disabled", "false");
+            }
             itemHtml.setAttribute("role", "option");
             itemHtml.setAttribute("aria-selected", "false");
             itemHtml.textContent = item.text;
@@ -2150,10 +2156,11 @@ class AwardsRecommendationEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_
   loadScaMemberInfo(event) {
     //reset member metadata area
     this.externalLinksTarget.innerHTML = "";
-    this.courtAvailabilityTarget.value = "";
-    this.callIntoCourtTarget.value = "";
-    this.callIntoCourtTarget.disabled = false;
-    this.courtAvailabilityTarget.disabled = false;
+    //this.courtAvailabilityTarget.value = "";
+    //this.callIntoCourtTarget.value = "";
+    //this.callIntoCourtTarget.disabled = false;
+    //this.courtAvailabilityTarget.disabled = false;
+
     let memberId = Number(event.target.value.replace(/_/g, ""));
     if (memberId > 0) {
       this.notFoundTarget.checked = false;
@@ -2170,8 +2177,12 @@ class AwardsRecommendationEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_
   loadMember(memberId) {
     let url = this.publicProfileUrlValue + "/" + memberId;
     fetch(url).then(response => response.json()).then(data => {
-      this.callIntoCourtTarget.value = data.additional_info.CallIntoCourt;
-      this.courtAvailabilityTarget.value = data.additional_info.CourtAvailability;
+      if (data.additional_info.CallIntoCourt != null && data.additional_info.CallIntoCourt != "") {
+        this.callIntoCourtTarget.value = data.additional_info.CallIntoCourt;
+      }
+      if (data.additional_info.CourtAvailability != null && data.additional_info.CourtAvailability != "") {
+        this.courtAvailabilityTarget.value = data.additional_info.CourtAvailability;
+      }
       if (this.callIntoCourtTarget.value != "") {
         this.callIntoCourtTarget.disabled = true;
       } else {

@@ -40,6 +40,11 @@ class Init extends AbstractMigration
                 "limit" => null,
                 "null" => true,
             ])
+            ->addColumn("can_have_members", "boolean", [
+                "default" => true,
+                "limit" => null,
+                "null" => false,
+            ])
             ->addColumn("lft", "integer", [
                 "default" => null,
                 "limit" => 11,

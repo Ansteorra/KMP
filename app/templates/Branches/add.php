@@ -17,15 +17,19 @@ $this->KMP->endBlock(); ?>
     <fieldset>
         <legend><?= __("Add Branch") ?></legend>
         <?php
-        echo $this->Form->control("name");
-        echo $this->Form->control("location");
-        echo $this->Form->control("parent_id", [
-            "options" => $treeList,
-            "empty" => true,
-        ]);
+                echo $this->Form->control("name");
+                echo $this->Form->control("location");
+                echo $this->Form->control("can_have_members", [
+                        "switch" => true,
+                        "label" => "Can Have Members",
+                ]);
+                echo $this->Form->control("parent_id", [
+                        "options" => $treeList,
+                        "empty" => true,
+                ]);
 
-        $links = '[]';
-        echo $this->Form->hidden('branch_links', ['value' => $links, 'id' => 'links', 'data-branch-links-target' => 'formValue']); ?>
+                $links = '[]';
+                echo $this->Form->hidden('branch_links', ['value' => $links, 'id' => 'links', 'data-branch-links-target' => 'formValue']); ?>
         <div class="mb-3 form-group links">
             <label class="form-label" for="links">Links</label>
             <div data-branch-links-target='displayList' class="mb-3"></div>

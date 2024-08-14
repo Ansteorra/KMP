@@ -21,7 +21,19 @@ echo $this->Modal->create("Edit " . $member->sca_name, [
         echo $this->Form->control("membership_expires_on", [
             "empty" => true,
         ]);
-        echo $this->Form->control("branch_id", ["options" => $treeList]);
+
+        echo $this->KMP->comboBoxControl(
+            $this->Form,
+            'branch_name',
+            'branch_id',
+            $treeList,
+            "Branch",
+            true,
+            false,
+            [
+                'data-ac-init-selection-value' => json_encode(['value' => $member->branch_id, 'text' => $member->branch->name]),
+            ]
+        );
         echo $this->Form->control("first_name");
         echo $this->Form->control("middle_name");
         echo $this->Form->control("last_name");

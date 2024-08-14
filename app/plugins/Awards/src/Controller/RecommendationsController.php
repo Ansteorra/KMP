@@ -86,8 +86,10 @@ class RecommendationsController extends AppController
         $awards = $awards->all();
         $domains = $this->Recommendations->Awards->Domains->find('list', limit: 200)->all();
         $branches = $this->Recommendations->Branches
-            ->find("treeList", spacer: "--")
-            ->orderBy(["name" => "ASC"]);
+            ->find("treeList", spacer: "--", keyPath: function ($entity) {
+                return $entity->id . '|' . ($entity->can_have_members == 1 ? "true" : "false");
+            })
+            ->orderBy(["name" => "ASC"])->toArray();
         $callIntoCourtOptions = explode(",", StaticHelpers::getAppSetting("Awards.CallIntoCourtOptions", "Never,With Notice,Without Notice"));
         $callIntoCourt = [];
         foreach ($callIntoCourtOptions as $option) {
@@ -172,8 +174,10 @@ class RecommendationsController extends AppController
         $awards = $this->Recommendations->Awards->find('list', limit: 200)->all();
         $domains = $this->Recommendations->Awards->Domains->find('list', limit: 200)->all();
         $branches = $this->Recommendations->Branches
-            ->find("treeList", spacer: "--")
-            ->orderBy(["name" => "ASC"]);
+            ->find("treeList", spacer: "--", keyPath: function ($entity) {
+                return $entity->id . '|' . ($entity->can_have_members == 1 ? "true" : "false");
+            })
+            ->orderBy(["name" => "ASC"])->toArray();
         $callIntoCourtOptions = explode(",", StaticHelpers::getAppSetting("Awards.CallIntoCourtOptions", "Never,With Notice,Without Notice"));
         $callIntoCourt = [];
         foreach ($callIntoCourtOptions as $option) {
@@ -336,8 +340,10 @@ class RecommendationsController extends AppController
         $awardsDomains = $this->Recommendations->Awards->Domains->find('list', limit: 200)->all();
         $awardsLevels = $this->Recommendations->Awards->Levels->find('list', limit: 200)->all();
         $branches = $this->Recommendations->Awards->Branches
-            ->find("treeList", spacer: "--")
-            ->orderBy(["name" => "ASC"]);
+            ->find("treeList", spacer: "--", keyPath: function ($entity) {
+                return $entity->id . '|' . ($entity->can_have_members == 1 ? "true" : "false");
+            })
+            ->orderBy(["name" => "ASC"])->toArray();
         $awards = $this->Recommendations->Awards->find('list', limit: 200)->all();
         $eventsData = $this->Recommendations->Events->find()
             ->contain(['Branches' => function ($q) {
@@ -390,8 +396,10 @@ class RecommendationsController extends AppController
         $awardsDomains = $this->Recommendations->Awards->Domains->find('list', limit: 200)->all();
         $awardsLevels = $this->Recommendations->Awards->Levels->find('list', limit: 200)->all();
         $branches = $this->Recommendations->Awards->Branches
-            ->find("treeList", spacer: "--")
-            ->orderBy(["name" => "ASC"]);
+            ->find("treeList", spacer: "--", keyPath: function ($entity) {
+                return $entity->id . '|' . ($entity->can_have_members == 1 ? "true" : "false");
+            })
+            ->orderBy(["name" => "ASC"])->toArray();
         $awards = $this->Recommendations->Awards->find('list', limit: 200)->all();
         $eventsData = $this->Recommendations->Events->find()
             ->contain(['Branches' => function ($q) {
@@ -553,8 +561,10 @@ class RecommendationsController extends AppController
         $awardsDomains = $this->Recommendations->Awards->Domains->find('list', limit: 200)->all();
         $awardsLevels = $this->Recommendations->Awards->Levels->find('list', limit: 200)->all();
         $branches = $this->Recommendations->Awards->Branches
-            ->find("treeList", spacer: "--")
-            ->orderBy(["name" => "ASC"]);
+            ->find("treeList", spacer: "--", keyPath: function ($entity) {
+                return $entity->id . '|' . ($entity->can_have_members == 1 ? "true" : "false");
+            })
+            ->orderBy(["name" => "ASC"])->toArray();
         $awards = $this->Recommendations->Awards->find('all', limit: 200)->select(["id", "name", "specialties"])->where(['domain_id' => $recommendation->domain_id])->all();
         $eventsData = $this->Recommendations->Events->find()
             ->contain(['Branches' => function ($q) {
