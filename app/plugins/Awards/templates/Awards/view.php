@@ -131,7 +131,7 @@ echo $this->Modal->create("Edit Award", [
     echo $this->Form->hidden('specialties', ['value' => $specialties, 'id' => 'specialties', 'data-awards-award-form-target' => 'formValue']); ?>
     <div class="mb-3 form-group specialties">
         <label class="form-label" for="specialtyInput">Specialties</label>
-        <ul class="list-group mb-3" data-awards-award-form-target='displayList'></ul>
+        <div data-awards-award-form-target='displayList' class="mb-3"></div>
         <div class="input-group">
             <input type="text" data-awards-award-form-target="new" class="form-control" placeholder="Add Specialty">
             <button type="button" class="btn btn-primary btn-sm" data-action="awards-award-form#add">Add</button>

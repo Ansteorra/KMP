@@ -43,19 +43,19 @@ class AwardsAwardForm extends Controller {
     createListItem(item) {
         let removeButton = document.createElement('button');
         removeButton.innerHTML = 'Remove';
-        removeButton.setAttribute('data-action', 'click->awards-award-form#remove');
+        removeButton.setAttribute('data-action', 'awards-award-form#remove');
         removeButton.setAttribute('data-id', item);
         removeButton.setAttribute('class', 'btn btn-danger btn-sm');
         removeButton.setAttribute('type', 'button');
         //create a list item
-        let listItem = document.createElement('li');
+        let inputGroup = document.createElement('div');
+        inputGroup.setAttribute('class', 'input-group mb-1');
         let span = document.createElement('span');
         span.innerHTML = item
-        span.setAttribute('class', 'ms-2 me-auto');
-        listItem.innerHTML = item;
-        listItem.setAttribute('class', 'list-group-item d-flex justify-content-between align-items-start');
-        listItem.appendChild(removeButton);
-        this.displayListTarget.appendChild(listItem);
+        span.setAttribute('class', 'form-control');
+        inputGroup.appendChild(span);
+        inputGroup.appendChild(removeButton);
+        this.displayListTarget.appendChild(inputGroup);
     }
 }
 // add to window.Controllers with a name of the controller
