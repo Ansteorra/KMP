@@ -80,7 +80,7 @@ class AwardsController extends AppController
         $awardsLevels = $this->Awards->Levels->find('list', limit: 200, orderBy: ["progression_order"])->all();
         $branches = $this->Awards->Branches
             ->find("treeList", spacer: "--", keyPath: function ($entity) {
-                return $entity->id . '|' . ($entity->can_have_members == 1 ? "true" : "false");
+                return $entity->id;
             })
             ->orderBy(["name" => "ASC"])->toArray();
         $this->set(compact('award', 'awardsDomains', 'awardsLevels', 'branches'));
@@ -107,7 +107,7 @@ class AwardsController extends AppController
         $awardsLevels = $this->Awards->Levels->find('list', limit: 200)->all();
         $branches = $this->Awards->Branches
             ->find("treeList", spacer: "--", keyPath: function ($entity) {
-                return $entity->id . '|' . ($entity->can_have_members == 1 ? "true" : "false");
+                return $entity->id;
             })
             ->orderBy(["name" => "ASC"])->toArray();
         $this->set(compact('award', 'awardsDomains', 'awardsLevels', 'branches'));
