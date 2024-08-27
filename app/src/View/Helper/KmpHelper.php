@@ -38,6 +38,11 @@ class KmpHelper extends Helper
         self::$mainView = $view;
     }
 
+    public function makeCsv($data)
+    {
+        return StaticHelpers::arrayToCsv($data);
+    }
+
     public function startBlock($block): string
     {
         if (self::$currentOpenBlock != "") {

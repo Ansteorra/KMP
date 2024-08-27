@@ -50,6 +50,9 @@ class EventsController extends AppController
             ->contain([
                 'Branches' => function ($q) {
                     return $q->select(['id', 'name']);
+                },
+                'Recommendations' => function ($q) {
+                    return $q->contain(['Awards'])->select(['id', 'member_sca_name', 'award_id', 'specialty', 'call_into_court', 'court_availability', 'status', 'Awards.name'])->orderBy(['member_sca_name' => 'ASC']);
                 }
             ])
             ->first();

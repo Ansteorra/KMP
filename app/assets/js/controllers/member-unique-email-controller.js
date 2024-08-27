@@ -26,7 +26,7 @@ class MemberUniqueEmail extends Controller {
             this.element.classList.remove('is-invalid');
             return;
         }
-        var checkEmailUrl = this.urlValue + '?email=' + encodeURIComponent(email);
+        var checkEmailUrl = this.urlValue + '?nostack=yes&email=' + encodeURIComponent(email);
         fetch(checkEmailUrl)
             .then(response => response.json())
             .then(data => {

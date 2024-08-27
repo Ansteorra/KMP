@@ -1294,7 +1294,7 @@ class MemberUniqueEmail extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.
       this.element.classList.remove('is-invalid');
       return;
     }
-    var checkEmailUrl = this.urlValue + '?email=' + encodeURIComponent(email);
+    var checkEmailUrl = this.urlValue + '?nostack=yes&email=' + encodeURIComponent(email);
     fetch(checkEmailUrl).then(response => response.json()).then(data => {
       if (data) {
         this.element.classList.add('is-invalid');

@@ -48,8 +48,76 @@ echo $this->Form->postLink(
 
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("tabButtons") ?>
+<button class="nav-link" id="nav-scheduledAwards-tab" data-bs-toggle="tab" data-bs-target="#nav-scheduledAwards"
+    type="button" role="tab" aria-controls="nav-scheduledAwards" aria-selected="false"
+    data-detail-tabs-target='tabBtn'><?= __("Scheduled Awards") ?></button>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("tabContent") ?>
+<div class="related tab-pane fade m-3" id="nav-scheduledAwards" role="tabpanel"
+    aria-labelledby="nav-scheduledAwards-tab" data-detail-tabs-target="tabContent">
+    <?php if (!empty($event->recommendations)) :
+        $csv = [];
+        $csv[] = ["Name", "Award", "Court Availability", "Call Into Court", "Status"];
+        foreach ($event->recommendations as $rec) {
+            $csv[] = [
+                $rec->member_sca_name,
+                $rec->award->name . ($rec->specialty ? " (" . $rec->specialty . ")" : ""),
+                $rec->court_availability,
+                $rec->call_into_court,
+                $rec->status,
+            ];
+        }
+        $exportString = $this->KMP->makeCsv($csv);
+        //url encode the csv string
+        $exportString = urlencode($exportString);
+        //replace encoded spaces with spaces
+        $exportString = str_replace("+", " ", $exportString);
+    ?>
+    <div class="table-responsive">
+        <a href="data:text/csv;charset=utf-8,<?= $exportString ?>" download="recommendations.csv"
+            class="btn btn-primary btn-sm">Export CSV</a>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th scope="col"><?= h("Name") ?></th>
+                    <th scope="col"><?= h(
+                                            "Award",
+                                        ) ?></th>
+                    <th scope="col"><?= h(
+                                            "Court Availability",
+                                        ) ?></th>
+                    <th scope="col"><?= h(
+                                            "Call Into Court",
+                                        ) ?></th>
+                    <th scope="col"><?= h(
+                                            "Status",
+                                        ) ?></th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach (
+                        $event->recommendations
+                        as $rec
+                    ) : ?>
+                <tr>
+                    <td><?= h($rec->member_sca_name) ?></td>
+                    <td><?= h($rec->award->name) ?>
+                        <?php if ($rec->specialty) : ?>
+                        (<?= h($rec->specialty) ?>)
+                        <?php endif; ?>
+                    </td>
+                    <td><?= h($rec->call_into_court) ?></td>
+                    <td><?= h($rec->court_availability) ?></td>
+                    <td><?= h($rec->status) ?></td>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+    <?php else: ?>
+    <p>No Recommendations</p>
+    <?php endif; ?>
+</div>
 <?php $this->KMP->endBlock() ?>
 <?php
 echo $this->KMP->startBlock("modals");

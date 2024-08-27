@@ -252,4 +252,22 @@ class StaticHelpers
         }
         return strtolower($pathString);
     }
+
+    static function arrayToCsv(array $data, $delimiter = ',', $enclosure = '"', $escapeChar = '\\')
+    {
+        $csvString = '';
+        $f = fopen('php://memory', 'r+');
+
+        foreach ($data as $row) {
+            fputcsv($f, $row, $delimiter, $enclosure, $escapeChar);
+        }
+
+        rewind($f);
+        while (($line = fgets($f)) !== false) {
+            $csvString .= $line;
+        }
+
+        fclose($f);
+        return $csvString;
+    }
 }
