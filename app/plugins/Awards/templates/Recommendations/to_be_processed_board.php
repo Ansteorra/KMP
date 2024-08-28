@@ -20,6 +20,10 @@ $this->KMP->endBlock(); ?>
     <?php endif; ?>
 </h3>
 <div class="overflow-x-auto table-responsive">
+    <div class="text-end">
+        <a href="<?= $this->Url->build(['action' => 'ToBeProcessedBoard', '?' => ['includeDeclined' => 'true']]) ?>"
+            class="btn btn-primary btn-sm end">Show Declined In last 30 days</a>
+    </div>
     <table class="table table-striped-columns" width="100%" style="min-width:1020px" data-controller="kanban"
         data-kanban-csrf-token-value="<?= $this->request->getAttribute('csrfToken') ?>"
         data-kanban-url-value="<?= $this->Url->build(['action' => 'kanbanUpdate']) ?>">

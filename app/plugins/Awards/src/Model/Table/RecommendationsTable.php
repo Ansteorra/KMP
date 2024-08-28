@@ -84,6 +84,11 @@ class RecommendationsTable extends Table
             "targetForeignKey" => "event_id",
             "className" => "Awards.Events",
         ]);
+        $this->belongsTo("AssignedEvent", [
+            'foreignKey' => 'event_id',
+            'joinType' => 'LEFT',
+            "className" => "Awards.Events",
+        ]);
         $this->hasMany("Notes", [
             "foreignKey" => "topic_id",
             "className" => "Notes",

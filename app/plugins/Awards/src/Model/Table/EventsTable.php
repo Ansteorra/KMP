@@ -52,12 +52,20 @@ class EventsTable extends Table
             'className' => 'Branches',
         ]);
 
+        $this->hasMany('RecommendationsToGive', [
+            'foreignKey' => 'event_id',
+            'joinType' => 'LEFT',
+            'className' => 'Awards.Recommendations',
+        ]);
+
         $this->belongsToMany("Recommendations", [
             "joinTable" => "awards_recommendations_events",
             "foreignKey" => "event_id",
             "targetForeignKey" => "recommendation_id",
             "className" => "Awards.Recommendations",
         ]);
+
+
 
         $this->addBehavior("Timestamp");
         $this->addBehavior('Muffin/Footprint.Footprint');

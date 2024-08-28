@@ -52,6 +52,31 @@ class Recommendation extends Entity
         ];
     }
 
+    public static function getToBeProcessedStatues(): array
+    {
+        return [
+            self::STATUS_SUBMITTED => "Submitted",
+            self::STATUS_IN_CONSIDERATION => "In Consideration",
+            self::STATUS_AWAITING_FEEDBACK => "Awaiting Feedback",
+        ];
+    }
+
+    public static function getToBeScheduledStatues(): array
+    {
+        return [
+            self::STATUS_NEED_TO_SCHEDULE => "Need to Schedule",
+            self::STATUS_SCHEDULED => "Scheduled",
+        ];
+    }
+
+    public static function getTerminalStatues(): array
+    {
+        return [
+            self::STATUS_DECLINED => "Declined",
+            self::STATUS_GIVEN => "Given",
+        ];
+    }
+
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().
      *

@@ -18,14 +18,21 @@ $recommendation = [];
 ?>
 <?php if (!$isTurboFrame) : ?>
 <h3>
-    Award Recommendations
-    <?php if ($viewAction != "Index") : ?>
-    : <?= Inflector::humanize($viewAction) ?>
-    <?php endif; ?>
+    Award Recommendations : To Be Given
 </h3>
 <?php endif; ?>
+
 <turbo-frame id="recommendationList" data-turbo='true'>
-    <?= $this->Form->create(null, ["url" => ["action" => $viewAction], "type" => "get", "data-turbo-frame" => "recommendationList", "data-controller" => "filter-grid"]) ?>
+    <?php
+    $currentUrl = $this->request->getRequestTarget();
+    //if current url includes ? then append & else append ?
+    $exportUrl = strpos($currentUrl, "?") ? $currentUrl . "&csv=true" : $currentUrl . "?csv=true";
+    ?>
+    <div class="text-end">
+        <a href="<?= $exportUrl ?>" download="recommendations.csv" data-turbo-frame="_top"
+            class="btn btn-primary btn-sm end">Export</a>
+    </div>
+    <?= $this->Form->create(null, ["url" => ["action" => "ToBeGiven"], "type" => "get", "data-turbo-frame" => "recommendationList", "data-controller" => "filter-grid"]) ?>
     <?= $this->Form->hidden("sort", ["value" => $this->request->getQuery("sort")]) ?>
     <?= $this->Form->hidden("direction", ["value" => $this->request->getQuery("direction")]) ?>
     <table class="table table-striped">
@@ -41,7 +48,6 @@ $recommendation = [];
                         "data-action" => "change->filter-grid#submitForm",
                     ]) ?>
                 </th>
-                <th scope="col">OP</th>
                 <th scope="col"><?= $this->Paginator->sort("Branches.name", "Branch") ?>
                     <?= $this->Form->control("branch_id", [
                         "type" => "select",
@@ -82,7 +88,6 @@ $recommendation = [];
                     ]) ?>
                 </th>
                 <th scope="col"><?= $this->Paginator->sort("Contact Email") ?></th>
-                <th scope="col"><?= $this->Paginator->sort("Contact Phone") ?></th>
                 <th scope="col"><?= $this->Paginator->sort("Domains.name", "Domain") ?>
                     <?= $this->Form->control("domain_id", [
                         "type" => "select",
@@ -104,20 +109,18 @@ $recommendation = [];
                         "data-action" => "change->filter-grid#submitForm",
                     ]) ?>
                 </th>
-                <th scope="col">Reason</th>
-                <th scope="col">Events</th>
-                <th scope="col">Notes</th>
-                <th scope="col"><?= $this->Paginator->sort("Status") ?>
-                    <?= $this->Form->control("status", [
+                <th scope="col"><?= $this->Paginator->sort("Event.start_date", "Events") ?>
+                    <?= $this->Form->control("event_id", [
                         "type" => "select",
                         "label" => false,
-                        "placeholder" => "Status",
-                        "value" => $this->request->getQuery("status"),
-                        "options" => $statuses,
+                        "placeholder" => "Events",
+                        "value" => $this->request->getQuery("event_id"),
+                        "options" => $events,
                         "empty" => true,
                         "data-action" => "change->filter-grid#submitForm",
                     ]) ?>
                 </th>
+                <th scope="col">Events</th>
                 <th scope="col"><?= $this->Paginator->sort("Status Date") ?></th>
                 <th scope="col" class="actions"><?= __("Actions") ?>
                     <?= $this->Form->button('Filter', ["id" => "filter_btn", "class" => "d-show"]); ?>
@@ -139,24 +142,6 @@ $recommendation = [];
                             echo h($recommendation->member_sca_name);
                         }
                         ?></td>
-                <td>
-                    <?php
-                        if ($recommendation->member) :
-                            $member = $recommendation->member;
-                            $externalLinks =  $member->publicLinks();
-                            if ($externalLinks) :
-                                foreach ($externalLinks as $name => $link) : ?>
-                    <ul>
-                        <li><?= $this->Html->link(
-                                                $name,
-                                                $link,
-                                                ["title" => $name, "target" => "_blank"],
-                                            ) ?></li>
-                    </ul>
-                    <?php endforeach;
-                            endif;
-                        endif; ?>
-                </td>
                 <td><?= h($recommendation->branch->name) ?></td>
                 <td><?= h($recommendation->call_into_court) ?></td>
                 <td><?= h($recommendation->court_availability) ?></td>
@@ -172,18 +157,17 @@ $recommendation = [];
                         }
                         ?></td>
                 <td><?= h($recommendation->contact_email) ?></td>
-                <td><?= h($recommendation->contact_phone) ?></td>
                 <td><?= h($recommendation->award->domain->name) ?></td>
                 <td><?= h($recommendation->award->abbreviation) . ($recommendation->specialty ? " (" . $recommendation->specialty . ")" : "") ?>
                 </td>
-                <td><?= $this->Text->autoParagraph($recommendation->reason) ?></td>
                 <td>
-                    <ul>
-                        <?php foreach ($recommendation->events as $event) : ?>
-                        <li><?= h($event->name) ?> : <br> <?= h($event->start_date->toDateString()) ?> -
-                            <?= h($event->end_date->toDateString()) ?></li>
-                        <?php endforeach; ?>
-                    </ul>
+                    <?php echo $this->Html->link(
+                            h($recommendation->assigned_event->name),
+                            ["controller" => "Events", "action" => "view", $recommendation->assigned_event->id],
+                            ["title" => __("View"), "data-turbo-frame" => "_top"],
+                        ) ?>:
+                    <br> <?= h($recommendation->assigned_event->start_date->toDateString()) ?> -
+                    <?= h($recommendation->assigned_event->end_date->toDateString()) ?>
                 </td>
                 <td>
                     <ul>
@@ -192,7 +176,6 @@ $recommendation = [];
                             <?= $this->Text->autoParagraph($note->body) ?></li>
                         <?php endforeach; ?>
                 </td>
-                <td><?= h($recommendation->status) ?></td>
                 <td><?= $recommendation->status_date ? h($recommendation->status_date->toDateString()) : h($recommendation->created->toDateString()) ?>
                 </td>
                 <td class="actions">

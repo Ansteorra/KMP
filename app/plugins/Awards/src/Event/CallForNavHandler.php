@@ -50,13 +50,13 @@ class CallForNavHandler implements EventListenerInterface
             ],
             [
                 "type" => "link",
-                "mergePath" => ["Award Recs."],
-                "label" => "Kanban Board",
-                "order" => 30,
+                "mergePath" => ["Award Recs.", "Recommendations"],
+                "label" => "To Be Processed Board",
+                "order" => 1,
                 "url" => [
                     "controller" => "Recommendations",
                     "plugin" => "Awards",
-                    "action" => "board",
+                    "action" => "toBeProcessedBoard",
                     "model" => "Awards.Recommendations",
                 ],
                 "icon" => "bi-kanban",
@@ -67,8 +67,67 @@ class CallForNavHandler implements EventListenerInterface
             [
                 "type" => "link",
                 "mergePath" => ["Award Recs.", "Recommendations"],
+                "label" => "To Be Scheduled Board",
+                "order" => 5,
+                "url" => [
+                    "controller" => "Recommendations",
+                    "plugin" => "Awards",
+                    "action" => "toBeScheduledBoard",
+                    "model" => "Awards.Recommendations",
+                ],
+                "icon" => "bi-kanban-fill",
+                "activePaths" => [
+                    "awards/Recommendations/view/*",
+                ]
+            ],
+            [
+                "type" => "link",
+                "mergePath" => ["Award Recs.", "Recommendations"],
+                "label" => "To Be Processed List",
+                "order" => 10,
+                "url" => [
+                    "controller" => "Recommendations",
+                    "plugin" => "Awards",
+                    "action" => "ToBeProcessed",
+                    "model" => "Awards.Recommendations",
+                ],
+                "icon" => "bi-file-earmark-check",
+
+
+            ],
+            [
+                "type" => "link",
+                "mergePath" => ["Award Recs.", "Recommendations"],
+                "label" => "To Be Scheduled List",
+                "order" => 11,
+                "url" => [
+                    "controller" => "Recommendations",
+                    "plugin" => "Awards",
+                    "action" => "ToBeScheduled",
+                    "model" => "Awards.Recommendations",
+                ],
+                "icon" => "bi-clipboard-heart",
+
+
+            ],
+            [
+                "type" => "link",
+                "mergePath" => ["Award Recs.", "Recommendations"],
+                "label" => "To Be Given",
+                "order" => 12,
+                "url" => [
+                    "controller" => "Recommendations",
+                    "plugin" => "Awards",
+                    "action" => "ToBeGiven",
+                    "model" => "Awards.Recommendations",
+                ],
+                "icon" => "bi-emoji-heart-eyes",
+            ],
+            [
+                "type" => "link",
+                "mergePath" => ["Award Recs.", "Recommendations"],
                 "label" => "New Recommendation",
-                "order" => 0,
+                "order" => 20,
                 "url" => [
                     "controller" => "Recommendations",
                     "plugin" => "Awards",
@@ -166,7 +225,7 @@ class CallForNavHandler implements EventListenerInterface
             ],
             [
                 "type" => "link",
-                "mergePath" => ["Config"],
+                "mergePath" => ["Award Recs."],
                 "label" => "Award Events",
                 "order" => 33,
                 "url" => [
@@ -182,7 +241,7 @@ class CallForNavHandler implements EventListenerInterface
             ],
             [
                 "type" => "link",
-                "mergePath" => ["Config", "Award Events"],
+                "mergePath" => ["Award Recs.", "Award Events"],
                 "label" => "New Award Events",
                 "order" => 0,
                 "url" => [

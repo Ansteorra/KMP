@@ -55,13 +55,13 @@ echo $this->Form->postLink(
 <?php $this->KMP->startBlock("tabContent") ?>
 <div class="related tab-pane fade m-3" id="nav-scheduledAwards" role="tabpanel"
     aria-labelledby="nav-scheduledAwards-tab" data-detail-tabs-target="tabContent">
-    <?php if (!empty($event->recommendations)) :
+    <?php if (!empty($event->recommendations_to_give)) :
         $csv = [];
         $csv[] = ["Name", "Award", "Court Availability", "Call Into Court", "Status"];
-        foreach ($event->recommendations as $rec) {
+        foreach ($event->recommendations_to_give as $rec) {
             $csv[] = [
                 $rec->member_sca_name,
-                $rec->award->name . ($rec->specialty ? " (" . $rec->specialty . ")" : ""),
+                $rec->award->abbreviation . ($rec->specialty ? " (" . $rec->specialty . ")" : ""),
                 $rec->court_availability,
                 $rec->call_into_court,
                 $rec->status,
@@ -96,12 +96,12 @@ echo $this->Form->postLink(
             </thead>
             <tbody>
                 <?php foreach (
-                        $event->recommendations
+                        $event->recommendations_to_give
                         as $rec
                     ) : ?>
                 <tr>
                     <td><?= h($rec->member_sca_name) ?></td>
-                    <td><?= h($rec->award->name) ?>
+                    <td><?= h($rec->award->abbreviation) ?>
                         <?php if ($rec->specialty) : ?>
                         (<?= h($rec->specialty) ?>)
                         <?php endif; ?>
@@ -115,7 +115,7 @@ echo $this->Form->postLink(
         </table>
     </div>
     <?php else: ?>
-    <p>No Recommendations</p>
+    <p>No Awards Scheduled</p>
     <?php endif; ?>
 </div>
 <?php $this->KMP->endBlock() ?>
