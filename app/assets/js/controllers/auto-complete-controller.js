@@ -146,7 +146,7 @@ class AutoComplete extends Controller {
 
     initSelectionValueChanged() {
         if (this._datalistLoaded) {
-            if (this.initSelectionValue == null) {
+            if (this.initSelectionValue == null || !this.initSelectionValue.hasOwnProperty("value")) {
                 return;
             }
             let newOption = this.initSelectionValue;
@@ -166,8 +166,11 @@ class AutoComplete extends Controller {
                 this.value = newOption.value;
             }
         } else {
-            this.hiddenTarget.value = this.initSelectionValue.value;
-            this.inputTarget.value = this.initSelectionValue.text;
+            //check if there is a value key in the initSelectionValue object
+            if (this.initSelectionValue.hasOwnProperty("value")) {
+                this.hiddenTarget.value = this.initSelectionValue.value;
+                this.inputTarget.value = this.initSelectionValue.text;
+            }
         }
     }
 
@@ -429,9 +432,14 @@ class AutoComplete extends Controller {
                         }
                         itemHtml.setAttribute("role", "option")
                         itemHtml.setAttribute("aria-selected", "false")
-                        itemHtml.textContent = item.text;
+
                         //add a span around matching string to highlight it
-                        itemHtml.innerHTML = itemHtml.innerHTML.replace(new RegExp(query, 'gi'), match => `<span class="text-primary">${match}</span>`);
+                        if (query != "") {
+                            let filteredOptions = item.text;
+                            itemHtml.innerHTML = filteredOptions.replace(new RegExp(query, 'gi'), match => `<span class="text-primary">${match}</span>`);
+                        } else {
+                            itemHtml.innerHTML = item.text;
+                        }
                         this.resultsTarget.appendChild(itemHtml);
                     }
                 }

@@ -101,7 +101,7 @@ class KmpHelper extends Helper
             "data-ac-target" => "input",
             "container" => ["style" => "margin:0 !important;",]
         ]);
-        echo "<ul data-ac-target='results' class='list-group z-3 col-12 position-absolute auto-complete-list'></ul></div>";
+        echo "<ul data-ac-target='results' class='list-group z-3 col-12 position-absolute auto-complete-list' hidden='hidden' ></ul></div>";
     }
 
     public function autoCompleteControl($Form, $inputField, $resultField, $url, $label, $required, $allowOtherValues, $minLength, $additionalAttrs,)
@@ -126,7 +126,7 @@ class KmpHelper extends Helper
             "data-ac-target" => "input",
             "container" => ["style" => "margin:0 !important;",]
         ]);
-        echo "<ul data-ac-target='results' class='list-group z-3 col-12 position-absolute auto-complete-list'></ul></div>";
+        echo "<ul data-ac-target='results' class='list-group z-3 col-12 position-absolute auto-complete-list' hidden='hidden' ></ul></div>";
     }
     /**
      * Returns a boolean icon
