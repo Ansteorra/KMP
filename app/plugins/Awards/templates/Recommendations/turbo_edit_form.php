@@ -155,7 +155,7 @@
             $selectedEvents[] = $event->id;
         }
         echo $this->Form->control('events._ids', [
-            'label' => 'Events They may Attend:',
+            'label' => 'Events They May Attend:',
             "type" => "select",
             "multiple" => "checkbox",
             'options' => $eventList,

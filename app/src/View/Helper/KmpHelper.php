@@ -94,13 +94,17 @@ class KmpHelper extends Helper
             "type" => "hidden",
             "data-ac-target" => "hidden",
         ]);
-        echo $Form->control($inputField, [
+        $textEntry = $Form->control($inputField, [
             'required' => !$required ? false : true,
             "type" => "text",
             "label" => $label != null ? $label : null,
             "data-ac-target" => "input",
-            "container" => ["style" => "margin:0 !important;",]
+            "container" => ["style" => "margin:0 !important;",],
+            "append" => ["clearBtn"]
         ]);
+        //replace <span class="input-group-text">clearBtn</span>
+        $textEntry = str_replace("<span class=\"input-group-text\">clearBtn</span>", "<button class='btn btn-outline-secondary' data-ac-target='clearBtn' data-action='ac#clear' disabled >Clear</button>", $textEntry);
+        echo $textEntry;
         echo "<ul data-ac-target='results' class='list-group z-3 col-12 position-absolute auto-complete-list' hidden='hidden' ></ul></div>";
     }
 
@@ -119,13 +123,17 @@ class KmpHelper extends Helper
             "type" => "hidden",
             "data-ac-target" => "hidden",
         ]);
-        echo $Form->control($inputField, [
+        $textEntry = $Form->control($inputField, [
             'required' => !$required ? false : true,
             "type" => "text",
             "label" => $label != null ? $label : null,
             "data-ac-target" => "input",
-            "container" => ["style" => "margin:0 !important;",]
+            "container" => ["style" => "margin:0 !important;",],
+            "append" => ["clearBtn"]
         ]);
+        //replace <span class="input-group-text">clearBtn</span>
+        $textEntry = str_replace("<span class=\"input-group-text\">clearBtn</span>", "<button class='btn btn-outline-secondary' data-ac-target='clearBtn' data-action='ac#clear' disabled >Clear</button>", $textEntry);
+        echo $textEntry;
         echo "<ul data-ac-target='results' class='list-group z-3 col-12 position-absolute auto-complete-list' hidden='hidden' ></ul></div>";
     }
     /**

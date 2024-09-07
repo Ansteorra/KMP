@@ -143,11 +143,13 @@ $this->KMP->endBlock(); ?>
             ]
         );
         echo $this->Form->control('reason', [
-            'id' => 'recommendation_reason', 'required' => true,
-            'label' => 'Reason for Recommendation', 'data-awards-rec-add-target' => 'reason'
+            'id' => 'recommendation_reason',
+            'required' => true,
+            'label' => 'Reason for Recommendation',
+            'data-awards-rec-add-target' => 'reason'
         ]);
         echo $this->Form->control('events._ids', [
-            'label' => 'Events They may Attend:',
+            'label' => 'Events They May Attend:',
             "type" => "select",
             "multiple" => "checkbox",
             'options' => $events,

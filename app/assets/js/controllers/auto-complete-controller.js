@@ -4,7 +4,7 @@ const optionSelector = "[role='option']:not([aria-disabled='true'])"
 const activeSelector = "[aria-selected='true']"
 
 class AutoComplete extends Controller {
-    static targets = ["input", "hidden", "results", "dataList"]
+    static targets = ["input", "hidden", "results", "dataList", "clearBtn"]
     static classes = ["selected"]
     static values = {
         ready: Boolean,
@@ -44,6 +44,8 @@ class AutoComplete extends Controller {
         if (typeof newValue === "object" && newValue.hasOwnProperty("value") && newValue.hasOwnProperty("text")) {
             this.inputTarget.value = newValue.text;
             this.hiddenTarget.value = newValue.value;
+            this.clearBtnTarget.disabled = false;
+            this.inputTarget.disabled = true;
             return;
         }
         //if the value matches an option set the input value to the option text
@@ -59,6 +61,8 @@ class AutoComplete extends Controller {
             if (option) {
                 this.inputTarget.value = option.text;
                 this.hiddenTarget.value = option.value;
+                this.clearBtnTarget.disabled = false;
+                this.inputTarget.disabled = true;
                 return;
             } else {
                 if (this.allowOtherValue) {
@@ -68,11 +72,20 @@ class AutoComplete extends Controller {
                     this.inputTarget.value = "";
                     this.hiddenTarget.value = "";
                 }
+                if (newValue != "") {
+                    this.clearBtnTarget.disabled = false;
+                    this.inputTarget.disabled = true;
+                } else {
+                    this.clearBtnTarget.disabled = true;
+                    this.inputTarget.disabled = false;
+                }
                 return;
             }
         }
         this.inputTarget.value = "";
         this.hiddenTarget.value = "";
+        this.clearBtnTarget.disabled = true;
+        this.inputTarget.disabled = false;
     }
     get value() {
         return this.hiddenTarget.value;
@@ -84,6 +97,11 @@ class AutoComplete extends Controller {
     set disabled(newValue) {
         this.inputTarget.disabled = newValue;
         this.hiddenTarget.disabled = newValue;
+        if (this.inputTarget.value != "") {
+            this.clearBtnTarget.disabled = newValue;
+        } else {
+            this.clearBtnTarget.disabled = true;
+        }
     }
 
     get hidden() {
@@ -278,6 +296,7 @@ class AutoComplete extends Controller {
     }
 
     onInputClick = (event) => {
+        this.state = "start";
         if (this.hasDataListTarget) {
             const query = this.inputTarget.value.trim()
             this.fetchResults(query);
@@ -325,15 +344,24 @@ class AutoComplete extends Controller {
     }
 
     onInputBlur = () => {
-        if (this.mouseDown) return;
-        if (this.state !== "finished" && this.state !== "start") {
+        if (this.mouseDown) {
+            return;
+        }
+        if (this.state == "open") {
             if (this.allowOtherValue) {
                 this.fireChangeEvent(this.inputTarget.value, this.inputTarget.value, null);
             } else {
-                this.clear();
+                if (this.inputTarget.value != "") {
+                    let newValue = this.inputTarget.value;
+                    let option = this._selectOptions.find(option => option.text == newValue && option.enabled != false);
+                    this.value = option ? option.value : "";
+                } else {
+                    this.clear();
+                }
             }
         }
         this.close();
+        console.log("leaving");
     }
 
     commit(selected) {
@@ -370,12 +398,23 @@ class AutoComplete extends Controller {
                 detail: { value: value, textValue: textValue, selected: selected }
             })
         )
+        if (this.inputTarget.value == "") {
+            this.clearBtnTarget.disabled = true;
+            this.inputTarget.disabled = false;
+        } else {
+            this.clearBtnTarget.disabled = false;
+            this.inputTarget.disabled = true;
+        }
         this.element.dispatchEvent(new CustomEvent("change"), { bubbles: true });
+        this.state = "finished";
     }
 
     clear() {
         this.inputTarget.value = ""
         if (this.hasHiddenTarget) this.hiddenTarget.value = ""
+        this.clearBtnTarget.disabled = true;
+        this.inputTarget.disabled = false;
+        this.close();
     }
 
     onResultsClick = (event) => {
@@ -443,8 +482,12 @@ class AutoComplete extends Controller {
                         this.resultsTarget.appendChild(itemHtml);
                     }
                 }
-                this.identifyOptions();
-                this.open();
+                if (this.state != "finished") {
+                    this.identifyOptions();
+                    this.open();
+                    this.state = "open";
+                }
+
                 return
             }
         }
@@ -452,8 +495,11 @@ class AutoComplete extends Controller {
         const url = this.buildURL(query)
         try {
             this.element.dispatchEvent(new CustomEvent("loadstart"))
-            const html = await this.doFetch(url)
-            this.replaceResults(html)
+            const html = await this.doFetch(url);
+            if (this.state != "finished") {
+                this.replaceResults(html)
+                this.state = "open";
+            }
             this.element.dispatchEvent(new CustomEvent("load"))
             this.element.dispatchEvent(new CustomEvent("loadend"))
         } catch (error) {
@@ -512,7 +558,7 @@ class AutoComplete extends Controller {
 
             return
         }
-
+        this.state = "finished";
         this.resultsShown = false
         this.inputTarget.removeAttribute("aria-activedescendant")
         this.element.setAttribute("aria-expanded", "false")

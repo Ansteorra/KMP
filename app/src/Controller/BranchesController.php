@@ -107,7 +107,7 @@ class BranchesController extends AppController
             );
         }
         $treeList = $this->Branches
-            ->find("treeList", spacer: "--")
+            ->find("list")
             ->orderBy(["name" => "ASC"]);
         $this->set(compact("branch", "treeList"));
     }
@@ -167,7 +167,7 @@ class BranchesController extends AppController
             }
         }
         $treeList = $this->Branches
-            ->find("treeList", spacer: "--")
+            ->find("list")
             ->orderBy(["name" => "ASC"]);
         $this->set(compact("branch", "treeList"));
     }

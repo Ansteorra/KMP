@@ -40,7 +40,7 @@ __webpack_require__.r(__webpack_exports__);
 const optionSelector = "[role='option']:not([aria-disabled='true'])";
 const activeSelector = "[aria-selected='true']";
 class AutoComplete extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
-  static targets = ["input", "hidden", "results", "dataList"];
+  static targets = ["input", "hidden", "results", "dataList", "clearBtn"];
   static classes = ["selected"];
   static values = {
     ready: Boolean,
@@ -85,6 +85,8 @@ class AutoComplete extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Contr
     if (typeof newValue === "object" && newValue.hasOwnProperty("value") && newValue.hasOwnProperty("text")) {
       this.inputTarget.value = newValue.text;
       this.hiddenTarget.value = newValue.value;
+      this.clearBtnTarget.disabled = false;
+      this.inputTarget.disabled = true;
       return;
     }
     //if the value matches an option set the input value to the option text
@@ -103,6 +105,8 @@ class AutoComplete extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Contr
       if (option) {
         this.inputTarget.value = option.text;
         this.hiddenTarget.value = option.value;
+        this.clearBtnTarget.disabled = false;
+        this.inputTarget.disabled = true;
         return;
       } else {
         if (this.allowOtherValue) {
@@ -112,11 +116,20 @@ class AutoComplete extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Contr
           this.inputTarget.value = "";
           this.hiddenTarget.value = "";
         }
+        if (newValue != "") {
+          this.clearBtnTarget.disabled = false;
+          this.inputTarget.disabled = true;
+        } else {
+          this.clearBtnTarget.disabled = true;
+          this.inputTarget.disabled = false;
+        }
         return;
       }
     }
     this.inputTarget.value = "";
     this.hiddenTarget.value = "";
+    this.clearBtnTarget.disabled = true;
+    this.inputTarget.disabled = false;
   }
   get value() {
     return this.hiddenTarget.value;
@@ -127,6 +140,11 @@ class AutoComplete extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Contr
   set disabled(newValue) {
     this.inputTarget.disabled = newValue;
     this.hiddenTarget.disabled = newValue;
+    if (this.inputTarget.value != "") {
+      this.clearBtnTarget.disabled = newValue;
+    } else {
+      this.clearBtnTarget.disabled = true;
+    }
   }
   get hidden() {
     return this.element.hidden;
@@ -178,7 +196,7 @@ class AutoComplete extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Contr
   }
   initSelectionValueChanged() {
     if (this._datalistLoaded) {
-      if (this.initSelectionValue == null) {
+      if (this.initSelectionValue == null || !this.initSelectionValue.hasOwnProperty("value")) {
         return;
       }
       let newOption = this.initSelectionValue;
@@ -198,8 +216,11 @@ class AutoComplete extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Contr
         this.value = newOption.value;
       }
     } else {
-      this.hiddenTarget.value = this.initSelectionValue.value;
-      this.inputTarget.value = this.initSelectionValue.text;
+      //check if there is a value key in the initSelectionValue object
+      if (this.initSelectionValue.hasOwnProperty("value")) {
+        this.hiddenTarget.value = this.initSelectionValue.value;
+        this.inputTarget.value = this.initSelectionValue.text;
+      }
     }
   }
   addOption(option) {
@@ -300,6 +321,7 @@ class AutoComplete extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Contr
     event.stopPropagation();
   };
   onInputClick = event => {
+    this.state = "start";
     if (this.hasDataListTarget) {
       const query = this.inputTarget.value.trim();
       this.fetchResults(query);
@@ -339,15 +361,24 @@ class AutoComplete extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Contr
     }
   };
   onInputBlur = () => {
-    if (this.mouseDown) return;
-    if (this.state !== "finished" && this.state !== "start") {
+    if (this.mouseDown) {
+      return;
+    }
+    if (this.state == "open") {
       if (this.allowOtherValue) {
         this.fireChangeEvent(this.inputTarget.value, this.inputTarget.value, null);
       } else {
-        this.clear();
+        if (this.inputTarget.value != "") {
+          let newValue = this.inputTarget.value;
+          let option = this._selectOptions.find(option => option.text == newValue && option.enabled != false);
+          this.value = option ? option.value : "";
+        } else {
+          this.clear();
+        }
       }
     }
     this.close();
+    console.log("leaving");
   };
   commit(selected) {
     if (selected.getAttribute("aria-disabled") === "true") return;
@@ -380,13 +411,24 @@ class AutoComplete extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Contr
         selected: selected
       }
     }));
+    if (this.inputTarget.value == "") {
+      this.clearBtnTarget.disabled = true;
+      this.inputTarget.disabled = false;
+    } else {
+      this.clearBtnTarget.disabled = false;
+      this.inputTarget.disabled = true;
+    }
     this.element.dispatchEvent(new CustomEvent("change"), {
       bubbles: true
     });
+    this.state = "finished";
   }
   clear() {
     this.inputTarget.value = "";
     if (this.hasHiddenTarget) this.hiddenTarget.value = "";
+    this.clearBtnTarget.disabled = true;
+    this.inputTarget.disabled = false;
+    this.close();
   }
   onResultsClick = event => {
     if (!(event.target instanceof Element)) return;
@@ -439,14 +481,22 @@ class AutoComplete extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Contr
             }
             itemHtml.setAttribute("role", "option");
             itemHtml.setAttribute("aria-selected", "false");
-            itemHtml.textContent = item.text;
+
             //add a span around matching string to highlight it
-            itemHtml.innerHTML = itemHtml.innerHTML.replace(new RegExp(query, 'gi'), match => `<span class="text-primary">${match}</span>`);
+            if (query != "") {
+              let filteredOptions = item.text;
+              itemHtml.innerHTML = filteredOptions.replace(new RegExp(query, 'gi'), match => `<span class="text-primary">${match}</span>`);
+            } else {
+              itemHtml.innerHTML = item.text;
+            }
             this.resultsTarget.appendChild(itemHtml);
           }
         }
-        this.identifyOptions();
-        this.open();
+        if (this.state != "finished") {
+          this.identifyOptions();
+          this.open();
+          this.state = "open";
+        }
         return;
       }
     }
@@ -454,7 +504,10 @@ class AutoComplete extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Contr
     try {
       this.element.dispatchEvent(new CustomEvent("loadstart"));
       const html = await this.doFetch(url);
-      this.replaceResults(html);
+      if (this.state != "finished") {
+        this.replaceResults(html);
+        this.state = "open";
+      }
       this.element.dispatchEvent(new CustomEvent("load"));
       this.element.dispatchEvent(new CustomEvent("loadend"));
     } catch (error) {
@@ -505,6 +558,7 @@ class AutoComplete extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Contr
     if (!this.resultsShown) {
       return;
     }
+    this.state = "finished";
     this.resultsShown = false;
     this.inputTarget.removeAttribute("aria-activedescendant");
     this.element.setAttribute("aria-expanded", "false");
@@ -2506,7 +2560,7 @@ __webpack_require__.r(__webpack_exports__);
 },
 /******/ function(__webpack_require__) { // webpackRuntimeModules
 /******/ var __webpack_exec__ = function(moduleId) { return __webpack_require__(__webpack_require__.s = moduleId); }
-/******/ __webpack_require__.O(0, ["js/core","css/app","css/dashboard","css/cover","css/signin"], function() { return __webpack_exec__("./assets/js/controllers/app-setting-form-controller.js"), __webpack_exec__("./assets/js/controllers/auto-complete-controller.js"), __webpack_exec__("./assets/js/controllers/branch-links-controller.js"), __webpack_exec__("./assets/js/controllers/detail-tabs-controller.js"), __webpack_exec__("./assets/js/controllers/filter-grid-controller.js"), __webpack_exec__("./assets/js/controllers/grid-button-controller.js"), __webpack_exec__("./assets/js/controllers/image-preview-controller.js"), __webpack_exec__("./assets/js/controllers/kanban-controller.js"), __webpack_exec__("./assets/js/controllers/member-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-pwa-controller.js"), __webpack_exec__("./assets/js/controllers/member-unique-email-controller.js"), __webpack_exec__("./assets/js/controllers/member-verify-form-controller.js"), __webpack_exec__("./assets/js/controllers/modal-opener-controller.js"), __webpack_exec__("./assets/js/controllers/nav-bar-controller.js"), __webpack_exec__("./assets/js/controllers/permission-add-role-controller.js"), __webpack_exec__("./assets/js/controllers/revoke-form-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-member-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-permission-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/renew-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/request-auth-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/award-form-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-add-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-edit-controller.js"), __webpack_exec__("./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/assign-officer-controller.js"), __webpack_exec__("./assets/css/app.css"), __webpack_exec__("./assets/css/signin.css"), __webpack_exec__("./assets/css/cover.css"), __webpack_exec__("./assets/css/dashboard.css"); });
+/******/ __webpack_require__.O(0, ["js/core","css/app","css/cover","css/signin","css/dashboard"], function() { return __webpack_exec__("./assets/js/controllers/app-setting-form-controller.js"), __webpack_exec__("./assets/js/controllers/auto-complete-controller.js"), __webpack_exec__("./assets/js/controllers/branch-links-controller.js"), __webpack_exec__("./assets/js/controllers/detail-tabs-controller.js"), __webpack_exec__("./assets/js/controllers/filter-grid-controller.js"), __webpack_exec__("./assets/js/controllers/grid-button-controller.js"), __webpack_exec__("./assets/js/controllers/image-preview-controller.js"), __webpack_exec__("./assets/js/controllers/kanban-controller.js"), __webpack_exec__("./assets/js/controllers/member-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-pwa-controller.js"), __webpack_exec__("./assets/js/controllers/member-unique-email-controller.js"), __webpack_exec__("./assets/js/controllers/member-verify-form-controller.js"), __webpack_exec__("./assets/js/controllers/modal-opener-controller.js"), __webpack_exec__("./assets/js/controllers/nav-bar-controller.js"), __webpack_exec__("./assets/js/controllers/permission-add-role-controller.js"), __webpack_exec__("./assets/js/controllers/revoke-form-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-member-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-permission-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/renew-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/request-auth-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/award-form-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-add-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-edit-controller.js"), __webpack_exec__("./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/assign-officer-controller.js"), __webpack_exec__("./assets/css/app.css"), __webpack_exec__("./assets/css/signin.css"), __webpack_exec__("./assets/css/cover.css"), __webpack_exec__("./assets/css/dashboard.css"); });
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
