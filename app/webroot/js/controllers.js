@@ -1881,6 +1881,7 @@ class AwardsRecommendationAddForm extends _hotwired_stimulus__WEBPACK_IMPORTED_M
     this.callIntoCourtTarget.disabled = false;
     this.courtAvailabilityTarget.disabled = false;
     this.notFoundTarget.disabled = false;
+    this.scaMemberTarget.disabled = false;
   }
   setAward(event) {
     let awardId = event.target.dataset.awardId;

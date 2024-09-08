@@ -573,7 +573,7 @@ class RecommendationsController extends AppController
         if (!$recommendation) {
             throw new \Cake\Http\Exception\NotFoundException();
         }
-        $this->Authorization->authorize($recommendation, 'edit');
+        $this->Authorization->authorize($recommendation, 'view');
         $recommendation->domain_id = $recommendation->award->domain_id;
         $awardsDomains = $this->Recommendations->Awards->Domains->find('list', limit: 200)->all();
         $awardsLevels = $this->Recommendations->Awards->Levels->find('list', limit: 200)->all();

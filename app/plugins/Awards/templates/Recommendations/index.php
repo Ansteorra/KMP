@@ -196,9 +196,11 @@ $recommendation = [];
                 <td><?= $recommendation->status_date ? h($recommendation->status_date->toDateString()) : h($recommendation->created->toDateString()) ?>
                 </td>
                 <td class="actions">
+                    <?php if ($user->can("edit", $recommendation)) : ?>
                     <button type="button" class="btn btn-primary btn-sm edit-rec" data-bs-toggle="modal"
                         data-bs-target="#editModal" data-controller="grid-btn" data-action="click->grid-btn#fireNotice"
                         data-grid-btn-row-data-value='{ "id":<?= $recommendation->id ?>}' ,>Edit</button>
+                    <?php endif; ?>
                     <?= $this->Html->link(
                             __("View"),
                             ["action" => "view", $recommendation->id],

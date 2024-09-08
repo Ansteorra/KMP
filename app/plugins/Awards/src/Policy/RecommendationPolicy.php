@@ -13,17 +13,27 @@ use Authorization\IdentityInterface;
 class RecommendationPolicy extends BasePolicy
 {
     protected string $REQUIRED_PERMISSION = "Can View Recommendations";
+    protected string $REQUIRED_PERMISSION_MANAGE = "Can Manage Recommendations";
+
+    public function canEdit(IdentityInterface $user, $entity)
+    {
+        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION_MANAGE);
+    }
+
+    public function canDelete(IdentityInterface $user, $entity)
+    {
+        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION_MANAGE);
+    }
 
     public function canToBeProcessedBoard(IdentityInterface $user, $entity)
     {
-        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION_MANAGE);
     }
 
     public function canToBeScheduledBoard(IdentityInterface $user, $entity)
     {
-        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION_MANAGE);
     }
-
 
     public function canToBeProcessed(IdentityInterface $user, $entity)
     {

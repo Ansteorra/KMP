@@ -551,6 +551,6 @@ class InitAwards extends AbstractMigration
         $permissionsTbl = TableRegistry::getTableLocator()->get("Permissions");
         $permissionsTbl->deleteAll(["name" => "Can Manage Awards"]);
         $permissionsTbl->deleteAll(["name" => "Can View Recommendations"]);
-        $permissionsTbl->deleteAll(["name" => "Can View Recommendations Reports"]);
+        $permissionsTbl->deleteAll(["name" => "Can Manage Recommendations"]);
     }
 }

@@ -50,7 +50,7 @@ class InitAwardsSeed extends KMPMigrationSeedAbstract
             ],
             [
                 'id' => 33,
-                'name' => 'Can View Recommendations Reports',
+                'name' => 'Can Manage Recommendations',
                 'require_active_membership' => 1,
                 'require_active_background_check' => 0,
                 'require_min_age' => 0,

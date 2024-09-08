@@ -22,6 +22,7 @@ class AwardsRecommendationAddForm extends Controller {
         this.callIntoCourtTarget.disabled = false;
         this.courtAvailabilityTarget.disabled = false;
         this.notFoundTarget.disabled = false;
+        this.scaMemberTarget.disabled = false;
     }
     setAward(event) {
         let awardId = event.target.dataset.awardId;
