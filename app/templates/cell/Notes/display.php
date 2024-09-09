@@ -24,6 +24,7 @@
     </div>
     <?php endforeach; ?>
     <?php endif; ?>
+    <?php if ($canCreate) : ?>
     <div class="accordion-item">
         <h2 class="accordion-header">
             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
@@ -34,31 +35,32 @@
         <div id="note_new" class="accordion-collapse collapse" data-bs-parent="#notesAccordian">
             <div class="accordion-body">
                 <?= $this->Form->create($newNote, [
-                    "url" => ["action" => "Add", 'controller' => 'Notes'],
-                ]) ?>
+                        "url" => ["action" => "Add", 'controller' => 'Notes'],
+                    ]) ?>
                 <fieldset>
                     <legend><?= __("Add Note") ?></legend>
                     <?php
-                    echo $this->Form->hidden("topic_id", ["value" => $topic_id]);
-                    echo $this->Form->hidden("topic_model", ["value" => $topic_model]);
-                    echo $this->Form->control("subject");
-                    echo $viewPrivate
-                        ? $this->Form->control("private", [
-                            "type" => "checkbox",
-                            "label" => "Private",
-                        ])
-                        : "";
-                    echo $this->Form->control("body", [
-                        "label" => "Note",
-                    ]);
-                    ?>
+                        echo $this->Form->hidden("topic_id", ["value" => $topic_id]);
+                        echo $this->Form->hidden("topic_model", ["value" => $topic_model]);
+                        echo $this->Form->control("subject");
+                        echo $viewPrivate
+                            ? $this->Form->control("private", [
+                                "type" => "checkbox",
+                                "label" => "Private",
+                            ])
+                            : "";
+                        echo $this->Form->control("body", [
+                            "label" => "Note",
+                        ]);
+                        ?>
                 </fieldset>
                 <div class='text-end'><?= $this->Form->button(
-                                            __("Submit"),
-                                            ["class" => "btn-primary"],
-                                        ) ?></div>
+                                                __("Submit"),
+                                                ["class" => "btn-primary"],
+                                            ) ?></div>
                 <?= $this->Form->end() ?>
             </div>
         </div>
     </div>
+    <?php endif; ?>
 </div>

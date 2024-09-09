@@ -17,22 +17,24 @@ echo $this->KMP->startBlock("pageTitle") ?>
 <?= h($recommendation->member_sca_name . ' for ' . $recommendation->award->name) ?>
 <?php $this->KMP->endBlock() ?>
 <?= $this->KMP->startBlock("recordActions") ?>
+<?php if ($user->can('edit', $recommendation)) : ?>
 <button type="button" class="btn btn-primary btn-sm edit-rec" data-bs-toggle="modal" data-bs-target="#editModal"
     data-controller="grid-btn" data-action="click->grid-btn#fireNotice"
     data-grid-btn-row-data-value='{ "id":<?= $recommendation->id ?>}'>Edit</button>
 <?php
-echo $this->Form->postLink(
-    __("Delete"),
-    ["action" => "delete", $recommendation->id],
-    [
-        "confirm" => __(
-            "Are you sure you want to delete recommendation for {0}?",
-            h($recommendation->member_sca_name . ' about ' . $recommendation->award->name),
-        ),
-        "title" => __("Delete"),
-        "class" => "btn btn-danger btn-sm",
-    ],
-); ?>
+    echo $this->Form->postLink(
+        __("Delete"),
+        ["action" => "delete", $recommendation->id],
+        [
+            "confirm" => __(
+                "Are you sure you want to delete recommendation for {0}?",
+                h($recommendation->member_sca_name . ' about ' . $recommendation->award->name),
+            ),
+            "title" => __("Delete"),
+            "class" => "btn btn-danger btn-sm",
+        ],
+    ); ?>
+<?php endif; ?>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("recordDetails") ?>
 <tr>
@@ -136,6 +138,7 @@ $this->KMP->endBlock() ?>
         'topic_id' => $recommendation->id,
         'topic_model' => 'Awards.Recommendations',
         'viewPrivate' => $user->can("viewPrivateNotes", "Awards.Recommendations"),
+        'canCreate' => $user->can('edit', $recommendation),
     ]) ?>
 </div>
 <?php $this->KMP->endBlock() ?>

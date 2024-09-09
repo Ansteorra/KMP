@@ -25,16 +25,14 @@ class NotesCell extends Cell
      *
      * @return void
      */
-    public function initialize(): void
-    {
-    }
+    public function initialize(): void {}
 
     /**
      * Default display method.
      *
      * @return void
      */
-    public function display($topic_id, $topic_model, $viewPrivate = false)
+    public function display($topic_id, $topic_model, $viewPrivate = false, $canCreate = true): void
     {
         $notesTable = TableRegistry::getTableLocator()->get('Notes');
         $newNote = $notesTable->newEmptyEntity();
@@ -50,6 +48,6 @@ class NotesCell extends Cell
             $notesQuery->where(['private' => false]);
         }
         $notes = $notesQuery->orderBy(['Notes.created' => 'ASC'])->all();
-        $this->set(compact('newNote', 'notes', 'topic_id', 'topic_model', 'viewPrivate'));
+        $this->set(compact('newNote', 'notes', 'topic_id', 'topic_model', 'viewPrivate', 'canCreate'));
     }
 }
