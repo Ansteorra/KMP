@@ -12,5 +12,5 @@ use Authorization\IdentityInterface;
  */
 class AppSettingPolicy extends BasePolicy
 {
-    protected string $REQUIRED_PERMISSION = "Can Manage App Settings";
+    protected string $REQUIRED_PERMISSION = "Can Manage Settings";
 }
