@@ -1872,7 +1872,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
 
 class AwardsRecommendationAddForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
-  static targets = ["scaMember", "notFound", "branch", "callIntoCourt", "courtAvailability", "externalLinks", "awardDescriptions", "award", "reason", "events", "specialty"];
+  static targets = ["scaMember", "notFound", "branch", "callIntoCourt", "courtAvailability", "externalLinks", "awardDescriptions", "award", "reason", "events", "specialty", "personToNotify"];
   static values = {
     publicProfileUrl: String,
     awardListUrl: String
@@ -1882,6 +1882,7 @@ class AwardsRecommendationAddForm extends _hotwired_stimulus__WEBPACK_IMPORTED_M
     this.courtAvailabilityTarget.disabled = false;
     this.notFoundTarget.disabled = false;
     this.scaMemberTarget.disabled = false;
+    this.personToNotifyTarget.disabled = false;
   }
   setAward(event) {
     let awardId = event.target.dataset.awardId;
@@ -2000,6 +2001,8 @@ class AwardsRecommendationAddForm extends _hotwired_stimulus__WEBPACK_IMPORTED_M
     this.callIntoCourtTarget.value = "";
     this.callIntoCourtTarget.disabled = false;
     this.courtAvailabilityTarget.disabled = false;
+    this.personToNotifyTarget.value = "";
+    this.personToNotifyTarget.disabled = false;
     let memberId = Number(event.target.value.replace(/_/g, ""));
     if (memberId > 0) {
       this.notFoundTarget.checked = false;
@@ -2018,6 +2021,7 @@ class AwardsRecommendationAddForm extends _hotwired_stimulus__WEBPACK_IMPORTED_M
     fetch(url).then(response => response.json()).then(data => {
       this.callIntoCourtTarget.value = data.additional_info.CallIntoCourt;
       this.courtAvailabilityTarget.value = data.additional_info.CourtAvailability;
+      this.personToNotifyTarget.value = data.additional_info.PersonToGiveNoticeTo;
       if (this.callIntoCourtTarget.value != "") {
         this.callIntoCourtTarget.disabled = true;
       } else {
@@ -2027,6 +2031,11 @@ class AwardsRecommendationAddForm extends _hotwired_stimulus__WEBPACK_IMPORTED_M
         this.courtAvailabilityTarget.disabled = true;
       } else {
         this.courtAvailabilityTarget.disabled = false;
+      }
+      if (this.personToNotifyTarget.value != "") {
+        this.personToNotifyTarget.disabled = true;
+      } else {
+        this.personToNotifyTarget.disabled = false;
       }
       this.externalLinksTarget.innerHTML = "";
       let keys = Object.keys(data.external_links);
@@ -2106,7 +2115,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
 
 class AwardsRecommendationEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
-  static targets = ["scaMember", "notFound", "branch", "callIntoCourt", "courtAvailability", "externalLinks", "domain", "award", "reason", "events", "specialty", "status", "planToGiveBlock", "givenBlock", "recId", "externalLinks", "turboFrame"];
+  static targets = ["scaMember", "notFound", "branch", "callIntoCourt", "courtAvailability", "externalLinks", "domain", "award", "reason", "events", "specialty", "status", "planToGiveBlock", "planToGiveEvent", "givenBlock", "recId", "externalLinks", "personToNotify", "turboFrame"];
   static values = {
     publicProfileUrl: String,
     awardListUrl: String,
@@ -2238,6 +2247,9 @@ class AwardsRecommendationEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_
       if (data.additional_info.CourtAvailability != null && data.additional_info.CourtAvailability != "") {
         this.courtAvailabilityTarget.value = data.additional_info.CourtAvailability;
       }
+      if (data.additional_info.PersonToGiveNoticeTo != null && data.additional_info.PersonToGiveNoticeTo != "") {
+        this.personToNotifyTarget.value = data.additional_info.PersonToGiveNoticeTo;
+      }
       if (this.callIntoCourtTarget.value != "") {
         this.callIntoCourtTarget.disabled = true;
       } else {
@@ -2247,6 +2259,11 @@ class AwardsRecommendationEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_
         this.courtAvailabilityTarget.disabled = true;
       } else {
         this.courtAvailabilityTarget.disabled = false;
+      }
+      if (this.personToNotifyTarget.value != "") {
+        this.personToNotifyTarget.disabled = true;
+      } else {
+        this.personToNotifyTarget.disabled = false;
       }
       this.externalLinksTarget.innerHTML = "";
       let keys = Object.keys(data.external_links);
@@ -2297,6 +2314,7 @@ class AwardsRecommendationEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_
     switch (this.statusTarget.value) {
       case STATUS_NEED_TO_SCHEDULE:
         this.planToGiveBlockTarget.style.display = "block";
+        this.planToGiveEventTarget.required = false;
         this.givenBlockTarget.style.display = "none";
         this.domainTarget.disabled = true;
         this.awardTarget.disabled = true;
@@ -2308,6 +2326,7 @@ class AwardsRecommendationEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_
         break;
       case STATUS_SCHEDULED:
         this.planToGiveBlockTarget.style.display = "block";
+        this.planToGiveEventTarget.required = true;
         this.givenBlockTarget.style.display = "none";
         this.domainTarget.disabled = true;
         this.awardTarget.disabled = true;
@@ -2316,7 +2335,7 @@ class AwardsRecommendationEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_
         this.branchTarget.disabled = true;
         this.courtAvailabilityTarget.disabled = true;
         this.callIntoCourtTarget.disabled = true;
-        break;
+        this.break;
       case STATUS_GIVEN:
         this.planToGiveBlockTarget.style.display = "block";
         this.givenBlockTarget.style.display = "block";
@@ -2340,11 +2359,13 @@ class AwardsRecommendationEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_
           this.branchTarget.hidden = false;
           this.courtAvailabilityTarget.disabled = false;
           this.callIntoCourtTarget.disabled = false;
+          this.personToNotifyTarget.disabled = false;
         } else {
           this.branchTarget.disabled = true;
           this.branchTarget.hidden = true;
-          this.courtAvailabilityTarget.disabled = this.courtAvailabilityTarget.value != "";
-          this.callIntoCourtTarget.disabled = this.callIntoCourtTarget.value != "";
+          this.courtAvailabilityTarget.disabled = this.courtAvailabilityTarget.value != "" && this.courtAvailabilityTarget.value != "Don't Know";
+          this.callIntoCourtTarget.disabled = this.callIntoCourtTarget.value != "" && this.callIntoCourtTarget.value != "Don't Know";
+          this.personToNotifyTarget.disabled = this.personToNotifyTarget.value != "";
         }
         break;
     }

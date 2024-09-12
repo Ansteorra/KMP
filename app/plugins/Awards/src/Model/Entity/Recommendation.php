@@ -112,6 +112,7 @@ class Recommendation extends Entity
         'deleted' => true,
         'member' => true,
         'events' => true,
+        'person_to_notify' => true,
     ];
 
     protected function _setGiven($value)

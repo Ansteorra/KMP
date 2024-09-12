@@ -7,6 +7,7 @@ namespace Awards\View\Cell;
 use Cake\View\Cell;
 use Cake\ORM\TableRegistry;
 use App\View\Cell\BasePluginCell;
+use Cake\Log\Log;
 use Cake\ORM\Table;
 
 /**
@@ -27,9 +28,12 @@ class RecsForMemberCell extends BasePluginCell
     ];
     public static function getViewConfigForRoute($route, $currentUser)
     {
-
-        if ($currentUser != null && $currentUser->can('view', 'Awards.Recommendations')) {
-            return parent::getRouteEventResponse($route, self::$pluginData, self::$validRoutes);
+        if ($currentUser == null) {
+            return null;
+        }
+        $pluginData = parent::getRouteEventResponse($route, self::$pluginData, self::$validRoutes);
+        if ($pluginData != null && $currentUser != null && ($currentUser->can('view', 'Awards.Recommendations'))) {
+            return $pluginData;
         }
         return null;
     }
@@ -47,9 +51,7 @@ class RecsForMemberCell extends BasePluginCell
      *
      * @return void
      */
-    public function initialize(): void
-    {
-    }
+    public function initialize(): void {}
 
     /**
      * Default display method.

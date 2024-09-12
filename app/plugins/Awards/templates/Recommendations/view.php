@@ -103,6 +103,10 @@ echo $this->KMP->startBlock("pageTitle") ?>
     <th scope="row"><?= __('Court Availability') ?></th>
     <td><?= h($recommendation->court_availability) ?></td>
 </tr>
+<tr>
+    <th scope="row"><?= __('Person to Notify') ?></th>
+    <td><?= h($recommendation->person_to_notify) ?></td>
+</tr>
 <?php if ($recommendation->member) : ?>
 <tr>
     <th colspan='2' scope="row">

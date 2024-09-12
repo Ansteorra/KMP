@@ -82,6 +82,11 @@
                 $recommendation->court_availability]),
             ]
         );
+        echo $this->Form->control('person_to_notify', [
+            'label' => 'Person to Notify',
+            'value' => $recommendation->person_to_notify,
+            'disabled' => 'disabled',
+        ]);
         echo $this->KMP->comboBoxControl(
             $this->Form,
             'domain_name',
@@ -96,8 +101,7 @@
                 $recommendation->award->domain->name]),
                 'data-awards-rec-edit-target' => 'domain',
             ]
-        ); ?>
-        <?php
+        );
         echo $this->Form->control('current_award_id', [
             'type' => 'hidden',
             'value' => $recommendation->award_id,
@@ -189,6 +193,7 @@
             'options' => $eventList,
             'empty' => true,
             'value' => $recommendation->event_id,
+            'data-awards-rec-edit-target' => 'planToGiveEvent',
             'container' => ['data-awards-rec-edit-target' => 'planToGiveBlock'],
         ]);
         echo $this->Form->control(

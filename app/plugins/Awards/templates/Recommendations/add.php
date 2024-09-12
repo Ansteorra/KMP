@@ -102,6 +102,11 @@ $this->KMP->endBlock(); ?>
                 'data-action' => 'ready->awards-rec-add#acConnected'
             ]
         );
+        echo $this->Form->control('person_to_notify', [
+            'label' => 'Person to Notify',
+            'value' => $recommendation->person_to_notify,
+            'data-awards-rec-add-target' => 'personToNotify'
+        ]);
         echo $this->KMP->comboBoxControl(
             $this->Form,
             'domain_name',

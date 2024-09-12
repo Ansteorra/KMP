@@ -13,6 +13,7 @@ class AwardsRecommendationAddForm extends Controller {
         "reason",
         "events",
         "specialty",
+        "personToNotify"
     ];
     static values = {
         publicProfileUrl: String,
@@ -23,6 +24,7 @@ class AwardsRecommendationAddForm extends Controller {
         this.courtAvailabilityTarget.disabled = false;
         this.notFoundTarget.disabled = false;
         this.scaMemberTarget.disabled = false;
+        this.personToNotifyTarget.disabled = false;
     }
     setAward(event) {
         let awardId = event.target.dataset.awardId;
@@ -135,6 +137,8 @@ class AwardsRecommendationAddForm extends Controller {
         this.callIntoCourtTarget.value = "";
         this.callIntoCourtTarget.disabled = false;
         this.courtAvailabilityTarget.disabled = false;
+        this.personToNotifyTarget.value = "";
+        this.personToNotifyTarget.disabled = false;
 
         let memberId = Number(event.target.value.replace(/_/g, ""));
         if (memberId > 0) {
@@ -158,6 +162,7 @@ class AwardsRecommendationAddForm extends Controller {
             .then(data => {
                 this.callIntoCourtTarget.value = data.additional_info.CallIntoCourt;
                 this.courtAvailabilityTarget.value = data.additional_info.CourtAvailability;
+                this.personToNotifyTarget.value = data.additional_info.PersonToGiveNoticeTo;
                 if (this.callIntoCourtTarget.value != "") {
                     this.callIntoCourtTarget.disabled = true;
                 } else {
@@ -167,6 +172,11 @@ class AwardsRecommendationAddForm extends Controller {
                     this.courtAvailabilityTarget.disabled = true;
                 } else {
                     this.courtAvailabilityTarget.disabled = false;
+                }
+                if (this.personToNotifyTarget.value != "") {
+                    this.personToNotifyTarget.disabled = true;
+                } else {
+                    this.personToNotifyTarget.disabled = false;
                 }
                 this.externalLinksTarget.innerHTML = "";
                 let keys = Object.keys(data.external_links);

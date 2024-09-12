@@ -15,9 +15,11 @@ class AwardsRecommendationEditForm extends Controller {
         "specialty",
         "status",
         "planToGiveBlock",
+        "planToGiveEvent",
         "givenBlock",
         "recId",
         "externalLinks",
+        "personToNotify",
         "turboFrame",
     ];
     static values = {
@@ -141,6 +143,9 @@ class AwardsRecommendationEditForm extends Controller {
                 if (data.additional_info.CourtAvailability != null && data.additional_info.CourtAvailability != "") {
                     this.courtAvailabilityTarget.value = data.additional_info.CourtAvailability;
                 }
+                if (data.additional_info.PersonToGiveNoticeTo != null && data.additional_info.PersonToGiveNoticeTo != "") {
+                    this.personToNotifyTarget.value = data.additional_info.PersonToGiveNoticeTo;
+                }
                 if (this.callIntoCourtTarget.value != "") {
                     this.callIntoCourtTarget.disabled = true;
                 } else {
@@ -150,6 +155,11 @@ class AwardsRecommendationEditForm extends Controller {
                     this.courtAvailabilityTarget.disabled = true;
                 } else {
                     this.courtAvailabilityTarget.disabled = false;
+                }
+                if (this.personToNotifyTarget.value != "") {
+                    this.personToNotifyTarget.disabled = true;
+                } else {
+                    this.personToNotifyTarget.disabled = false;
                 }
                 this.externalLinksTarget.innerHTML = "";
                 let keys = Object.keys(data.external_links);
@@ -197,6 +207,7 @@ class AwardsRecommendationEditForm extends Controller {
         switch (this.statusTarget.value) {
             case STATUS_NEED_TO_SCHEDULE:
                 this.planToGiveBlockTarget.style.display = "block";
+                this.planToGiveEventTarget.required = false;
                 this.givenBlockTarget.style.display = "none";
                 this.domainTarget.disabled = true;
                 this.awardTarget.disabled = true;
@@ -208,6 +219,7 @@ class AwardsRecommendationEditForm extends Controller {
                 break;
             case STATUS_SCHEDULED:
                 this.planToGiveBlockTarget.style.display = "block";
+                this.planToGiveEventTarget.required = true;
                 this.givenBlockTarget.style.display = "none";
                 this.domainTarget.disabled = true;
                 this.awardTarget.disabled = true;
@@ -216,7 +228,8 @@ class AwardsRecommendationEditForm extends Controller {
                 this.branchTarget.disabled = true;
                 this.courtAvailabilityTarget.disabled = true;
                 this.callIntoCourtTarget.disabled = true;
-                break;
+                this.
+                    break;
             case STATUS_GIVEN:
                 this.planToGiveBlockTarget.style.display = "block";
                 this.givenBlockTarget.style.display = "block";
@@ -240,11 +253,13 @@ class AwardsRecommendationEditForm extends Controller {
                     this.branchTarget.hidden = false;
                     this.courtAvailabilityTarget.disabled = false;
                     this.callIntoCourtTarget.disabled = false;
+                    this.personToNotifyTarget.disabled = false;
                 } else {
                     this.branchTarget.disabled = true;
                     this.branchTarget.hidden = true;
-                    this.courtAvailabilityTarget.disabled = this.courtAvailabilityTarget.value != "";
-                    this.callIntoCourtTarget.disabled = this.callIntoCourtTarget.value != "";
+                    this.courtAvailabilityTarget.disabled = this.courtAvailabilityTarget.value != "" && this.courtAvailabilityTarget.value != "Don't Know";
+                    this.callIntoCourtTarget.disabled = this.callIntoCourtTarget.value != "" && this.callIntoCourtTarget.value != "Don't Know";
+                    this.personToNotifyTarget.disabled = this.personToNotifyTarget.value != "";
                 }
                 break;
         }
