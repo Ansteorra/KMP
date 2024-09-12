@@ -84,6 +84,9 @@ class AppController extends Controller
                 $session->destroy();
             }
         }
+        if ($params['controller'] == 'NavBar') {
+            $isNoStack = true;
+        }
         $pageStack = $session->read('pageStack', []);
         if ($params['action'] == 'index') {
             $pageStack = [];
