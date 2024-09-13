@@ -162,7 +162,9 @@ class AwardsRecommendationAddForm extends Controller {
             .then(data => {
                 this.callIntoCourtTarget.value = data.additional_info.CallIntoCourt;
                 this.courtAvailabilityTarget.value = data.additional_info.CourtAvailability;
-                this.personToNotifyTarget.value = data.additional_info.PersonToGiveNoticeTo;
+                if (data.additional_info.PersonToGiveNoticeTo) {
+                    this.personToNotifyTarget.value = data.additional_info.PersonToGiveNoticeTo;
+                }
                 if (this.callIntoCourtTarget.value != "") {
                     this.callIntoCourtTarget.disabled = true;
                 } else {

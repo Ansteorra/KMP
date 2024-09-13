@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Awards\Controller;
 
 use Awards\Controller\AppController;
+use Awards\Model\Entity\Recommendation;
 
 /**
  * Awards Controller
@@ -51,11 +52,17 @@ class EventsController extends AppController
                 'Branches' => function ($q) {
                     return $q->select(['id', 'name']);
                 },
+            ]);
+
+        $currentUser = $this->request->getAttribute('identity');
+        if ($currentUser->can("view", "Awards.Recommendations")) {
+            $event->contain([
                 'RecommendationsToGive' => function ($q) {
                     return $q->contain(['Awards'])->select(['id', 'event_id', 'member_sca_name', 'award_id', 'specialty', 'call_into_court', 'court_availability', 'status', 'Awards.abbreviation'])->orderBy(['member_sca_name' => 'ASC']);
                 }
-            ])
-            ->first();
+            ]);
+        }
+        $event = $event->first();
 
         if (!$event) {
             throw new \Cake\Http\Exception\NotFoundException();
@@ -144,6 +151,12 @@ class EventsController extends AppController
         $event->name = "Deleted: " . $event->name;
         if ($this->Events->delete($event)) {
             $this->Flash->success(__('The Event has been deleted.'));
+            $recs = $this->Events->RecommendationsToGive->find('all')->where(['event_id' => $event->id])->all();
+            foreach ($recs as $rec) {
+                $rec->event_id = null;
+                $rec->status = Recommendation::STATUS_NEED_TO_SCHEDULE;
+                $this->Events->RecommendationsToGive->save($rec);
+            }
         } else {
             $this->Flash->error(__('The Event could not be deleted. Please, try again.'));
             return $this->redirect(['action' => 'view', $event->id]);
