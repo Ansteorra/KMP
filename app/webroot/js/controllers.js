@@ -1188,7 +1188,7 @@ class MemberMobileCardProfile extends _hotwired_stimulus__WEBPACK_IMPORTED_MODUL
             for (let i = 0; i < groupData.length; i++) {
               var itemData = groupData[i];
               if (colCount == 2) {
-                groupTable.appendChild(groupRow);
+                groupTableBody.appendChild(groupRow);
                 groupRow = document.createElement("tr");
                 textAlignClass = "text-center";
                 colCount = 0;
@@ -1207,7 +1207,7 @@ class MemberMobileCardProfile extends _hotwired_stimulus__WEBPACK_IMPORTED_MODUL
                 itemValueCol2.textContent = itemValue[1];
                 itemValueRow.appendChild(itemValueCol1);
                 itemValueRow.appendChild(itemValueCol2);
-                groupTable.appendChild(itemValueRow);
+                groupTableBody.appendChild(itemValueRow);
               } else {
                 var colspan = 1;
                 if (i + 1 == groupData.length && colCount == 0) {
