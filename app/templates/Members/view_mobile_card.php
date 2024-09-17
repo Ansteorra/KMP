@@ -8,6 +8,7 @@ echo $this->KMP->startBlock("title");
 echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Mobile Activities Authorization Card';
 $this->KMP->endBlock();
 $cardUrl = $this->Url->build(['controller' => 'Members', 'action' => 'viewMobileCardJson', $member->mobile_card_token], ["fullBase" => true]);
+$cardManifest = $this->Url->build(['controller' => 'Members', 'action' => 'card.webmanifest', $member->mobile_card_token], ["fullBase" => true]);
 $swUrl = Asset::scriptUrl("app/sw.js");
 //home_marshal6.gif
 $watermarkimg =
@@ -22,7 +23,7 @@ $watermarkimg =
 $now = Date::now();
 ?>
 <?php echo $this->KMP->startBlock("manifest"); ?>
-<link rel="manifest" href="<?= $cardUrl ?>" />
+<link rel="manifest" href="<?= $cardManifest ?>" />
 <?php $this->KMP->endBlock(); ?>
 <style>
 json {
