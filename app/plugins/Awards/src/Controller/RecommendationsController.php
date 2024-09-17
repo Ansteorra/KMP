@@ -189,8 +189,10 @@ class RecommendationsController extends AppController
                 'type' => 'LEFT',
                 'conditions' => 'Recommendations.modified_by = ModifiedByMembers.id'
             ]);
+        $ShowDeclined = false;
         //if get30DaysDenied is true
         if ($this->request->getQuery('includeDeclined') == 'true') {
+            $ShowDeclined = true;
             $recommendations =
                 $recommendations->where([
                     'OR' => [
@@ -215,7 +217,7 @@ class RecommendationsController extends AppController
             $statuses[$recommendation->status][] = $recommendation;
         }
         $viewAction = "To_Be_Processed";
-        $this->set(compact('recommendations', 'statuses', 'viewAction', 'statusNames'));
+        $this->set(compact('recommendations', 'statuses', 'viewAction', 'statusNames', 'ShowDeclined'));
     }
 
     /**
