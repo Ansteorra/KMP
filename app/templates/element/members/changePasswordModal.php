@@ -15,6 +15,7 @@
     <?php
     echo $this->Form->control("new_password", [
         "type" => "password",
+        'help' => "Password must have a minimum of 12 characters"
     ]);
     echo $this->Form->control("confirm_password", [
         "type" => "password",
@@ -35,5 +36,5 @@
 ?>
 <?= $this->Form->end() ?>
 <?php if ($passwordReset->getErrors()) : ?>
-<div data-controller="modal-opener" data-modal-opener-modal-btn-value="passwordModalBtn"></div>
+    <div data-controller="modal-opener" data-modal-opener-modal-btn-value="passwordModalBtn"></div>
 <?php endif; ?>

@@ -1,6 +1,8 @@
 <?php
 
-use App\KMP\StaticHelpers; ?>
+use App\KMP\StaticHelpers;
+use App\Model\Entity\Member;
+?>
 <tr scope="row">
     <th class="col"><?= __("Sca Name") ?></th>
     <td class="col-10"><?= h($member->sca_name) ?></td>
@@ -13,10 +15,10 @@ use App\KMP\StaticHelpers; ?>
     <th class="col"><?= __("Membership") ?></th>
     <td lass="col-10">
         <?php if ($member->membership_number != null && strlen($member->membership_number) > 0) { ?>
-        <?= h($member->membership_number) ?> Exp:
-        <?= h($member->membership_expires_on) ?>
+            <?= h($member->membership_number) ?> Exp:
+            <?= h($member->membership_expires_on) ?>
         <?php } else { ?>
-        <?= __('Information Not Available') ?>
+            <?= __('Information Not Available') ?>
         <?php } ?>
     </td>
 </tr>
@@ -75,7 +77,15 @@ use App\KMP\StaticHelpers; ?>
     </tr>
     <tr scope="row">
         <th class="col"><?= __("Status") ?></th>
-        <td lass="col-10"><?= $member->status ?></td>
+        <td lass="col-10">
+            <?= $member->status ?>
+            <?php if ($member->status == Member::STATUS_ACTIVE || $member->status != Member::STATUS_MINOR_PARENT_VERIFIED): ?>
+                <br><small class="text-secondary">To verify your account please reach out to the site Secretary at <a
+                        href="mailto:<?= $this->KMP->getAppSetting("Members.AccountVerificationContactEmail", "") ?>"><?= $this->KMP->getAppSetting("Members.AccountVerificationContactEmail", "") ?></a>
+                    with
+                    your account email address and a picture of your membership card</small>
+            <?php endif; ?>
+        </td>
     </tr>
 
     <?php

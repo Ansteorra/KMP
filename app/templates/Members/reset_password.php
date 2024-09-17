@@ -13,7 +13,7 @@ $this->KMP->endBlock(); ?>
         <h5 class="card-title">Set New Password</h5>
         <div class="card-text">
             <?= $this->Form->create($passwordReset) ?>
-            <?= $this->Form->control("new_password", ["type" => "password"]) ?>
+            <?= $this->Form->control("new_password", ["type" => "password", 'help' => "Password must have a minimum of 12 characters"]) ?>
             <?= $this->Form->control("confirm_password", ["type" => "password"]) ?>
             <?= $this->Form->button("Reset Password") ?>
             <?= $this->Form->end() ?>

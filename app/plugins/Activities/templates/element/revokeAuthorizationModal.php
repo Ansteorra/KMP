@@ -8,8 +8,8 @@
         "id" => "revokeModal",
         "close" => true,
     ]); ?>
-<fieldset>
-    <?php
+    <fieldset>
+        <?php
         echo $this->Form->control("id", [
             "type" => "hidden",
             "data-revoke-form-target" => "id",
@@ -18,9 +18,10 @@
             "label" => "Reason for Revocation",
             "data-revoke-form-target" => "reason",
             "data-action" => "input->revoke-form#checkReadyToSubmit",
+            "help" => "This message will be visible to the member."
         ]);
         ?>
-</fieldset>
+    </fieldset>
 <?php echo $this->Modal->end([
         $this->Form->button("Submit", [
             "class" => "btn btn-primary",
