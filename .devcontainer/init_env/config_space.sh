@@ -89,3 +89,4 @@ cd ..
 sudo bash reset_dev_database.sh
 cd app
 sudo php bin/cake.php bootstrap install --latest
+sudo npm install
