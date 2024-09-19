@@ -48,7 +48,7 @@ use App\KMP\StaticHelpers;
                                         }
 
                                         if ($verified) {
-                                            //loop through options and process all the templates incase there is data to pull out
+                                            //loop through options and process all the templates in case there is data to pull out
                                             foreach ($link["options"] as $key => $option) {
                                                 $link["options"][$key] = StaticHelpers::processTemplate($option, $data);
                                             }

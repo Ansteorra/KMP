@@ -234,6 +234,7 @@ class AwardsRecommendationAddForm extends Controller {
         this.notFoundTarget.checked = false;
         this.notFoundTarget.disabled = true;
         this.reasonTarget.value = "";
+        this.personToNotifyTarget.value = "";
         this.eventsTargets.forEach((element) => {
             element.checked = false;
         });

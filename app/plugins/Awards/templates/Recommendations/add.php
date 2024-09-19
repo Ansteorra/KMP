@@ -104,8 +104,8 @@ $this->KMP->endBlock(); ?>
         );
         echo $this->Form->control('person_to_notify', [
             'label' => 'Person to Notify',
-            'value' => $recommendation->person_to_notify,
             'data-awards-rec-add-target' => 'personToNotify',
+            'required' => false,
             'help' => 'Only enter a name if you know who should be notified if the crown proceeds with the recommendation.'
         ]);
         echo $this->KMP->comboBoxControl(

@@ -39,7 +39,7 @@ $this->KMP->endBlock(); ?>
                         "label" => "Your SCA Name",
                         "id" => "recommendation__requester_sca_name",
                     ]);
-                    echo $this->Form->control('contact_email', ['type' => 'email', 'help' => 'incase we need to contact you']);
+                    echo $this->Form->control('contact_email', ['type' => 'email', 'help' => 'in case we need to contact you']);
                     echo $this->Form->control('contact_number', ['help' => 'optional way for us to contact you']);
                     $url = $this->Url->build([
                         'controller' => 'Members',
@@ -119,7 +119,7 @@ $this->KMP->endBlock(); ?>
 
                     echo $this->Form->control('person_to_notify', [
                         'label' => 'Person to Notify',
-                        'value' => $recommendation->person_to_notify,
+                        'required' => false,
                         'data-awards-rec-add-target' => 'personToNotify',
                         'help' => 'Only enter a name if you know who should be notified if the crown proceeds with the recommendation.'
                     ]);
