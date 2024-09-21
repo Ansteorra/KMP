@@ -4,6 +4,7 @@ class MemberMobileCardProfile extends Controller {
     static targets = ["cardSet", "name", "scaName", "branchName", "membershipInfo", "backgroundCheck", "lastUpdate", "loading", "memberDetails"];
     static values = {
         url: String,
+        pwaReady: Boolean
     }
     initialize() {
         this.currentCard = null;
@@ -30,11 +31,23 @@ class MemberMobileCardProfile extends Controller {
 
         this.currentCard = cardDetails;
     }
+    pwaReadyValueChanged() {
+        console.log("pwaReadyValueChanged");
+        if (this.pwaReadyValue) {
+            this.loadCard();
+        }
+    }
 
     loadCard() {
         this.cardSetTarget.innerHTML = "";
         this.loadingTarget.hidden = false;
         this.memberDetailsTarget.hidden = true;
+        if (!this.pwaReadyValue) {
+            console.log("PWA not ready");
+            return;
+        } else {
+            console.log("PWA ready");
+        }
         fetch(this.urlValue)
             .then(response => response.json())
             .then(data => {

@@ -34,11 +34,13 @@ class MemberMobileCardPWA extends Controller {
         window.addEventListener('offline', this.updateOnlineStatus.bind(this));
         navigator.serviceWorker.register(this.swUrlValue)
             .then(registration => {
+                registration.update();
                 console.log('Service Worker registered with scope:', registration.scope);
                 registration.active.postMessage({
                     type: 'CACHE_URLS',
                     payload: this.urlCacheValue
                 });
+                this.element.attributes['data-member-mobile-card-profile-pwa-ready-value'].value = true;
             }, error => {
                 console.log('Service Worker registration failed:', error);
             });

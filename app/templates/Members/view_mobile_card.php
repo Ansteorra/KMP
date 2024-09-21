@@ -7,9 +7,9 @@ use Cake\Routing\Asset;
 echo $this->KMP->startBlock("title");
 echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Mobile Activities Authorization Card';
 $this->KMP->endBlock();
-$cardUrl = $this->Url->build(['controller' => 'Members', 'action' => 'viewMobileCardJson', $member->mobile_card_token], ["fullBase" => true]);
-$cardManifest = $this->Url->build(['controller' => 'Members', 'action' => 'card.webmanifest', $member->mobile_card_token], ["fullBase" => true]);
-$swUrl = Asset::scriptUrl("app/sw.js");
+$cardUrl = $this->Url->build(['controller' => 'Members', 'action' => 'viewMobileCardJson', $member->mobile_card_token]);
+$cardManifest = $this->Url->build(['controller' => 'Members', 'action' => 'card.webmanifest', $member->mobile_card_token]);
+$swUrl = Asset::url("sw.js");
 //home_marshal6.gif
 $watermarkimg =
     "data:image/gif;base64," .
@@ -63,8 +63,8 @@ table.card-body-table tbody tr th {
 }
 </style>
 <div data-controller="member-mobile-card-pwa member-mobile-card-profile"
-    data-member-mobile-card-profile-url-value="<?= $cardUrl ?>"
-    data-member-mobile-card-pwa-sw-url-value="<?= $swUrl ?>">
+    data-member-mobile-card-profile-url-value="<?= $cardUrl ?>" data-member-mobile-card-pwa-sw-url-value="<?= $swUrl ?>"
+    data-member-mobile-card-profile-pwa-ready-value="false">
     <div scope="col" class="col text-end mx-3 my-2">
         <span data-member-mobile-card-pwa-target="status"
             class="badge rounded-pill text-center bg-danger">Offline</span>

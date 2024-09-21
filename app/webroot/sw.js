@@ -1,4 +1,15 @@
+//change
 const CACHE_NAME = 'offline-cache-activity-card';
+
+const addResourcesToCache = async (resources) => {
+    const cache = await caches.open('v1');
+    await cache.addAll(resources);
+};
+
+const putInCache = async (request, response) => {
+    const cache = await caches.open('v1');
+    await cache.put(request, response);
+};
 
 self.addEventListener('install', event => {
     // Skip waiting to activate the new service worker immediately
@@ -19,26 +30,11 @@ self.addEventListener('message', event => {
 });
 
 self.addEventListener('fetch', event => {
+
     event.respondWith(
-        caches.match(event.request)
-            .then(response => {
-                if (response) {
-                    return response;
-                }
-                return fetch(event.request).then(
-                    response => {
-                        if (!response || response.status !== 200 || response.type !== 'basic') {
-                            return response;
-                        }
-                        const responseToCache = response.clone();
-                        caches.open(CACHE_NAME)
-                            .then(cache => {
-                                cache.put(event.request, responseToCache);
-                            });
-                        return response;
-                    }
-                );
-            })
+        handelRequest(event).catch(error => {
+            return caches.match(event.request);
+        })
     );
 });
 
