@@ -78,14 +78,7 @@ $recommendation = [];
                         "data-action" => "change->filter-grid#submitForm",
                     ]) ?>
                 </th>
-                <th scope="col"><?= $this->Paginator->sort("requester_sca_name", "Submitted By") ?>
-                    <?= $this->Form->control("requester_sca_name", [
-                        "type" => "text",
-                        "label" => false,
-                        "placeholder" => "Submitted By",
-                        "value" => $this->request->getQuery("requester_sca_name"),
-                        "data-action" => "change->filter-grid#submitForm",
-                    ]) ?>
+                <th scope="col"><?= $this->Paginator->sort("person_to_notify", "Person to Notify") ?>
                 </th>
                 <th scope="col"><?= $this->Paginator->sort("Contact Email") ?></th>
                 <th scope="col"><?= $this->Paginator->sort("Domains.name", "Domain") ?>

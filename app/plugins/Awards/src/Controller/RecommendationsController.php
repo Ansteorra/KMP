@@ -130,7 +130,7 @@ class RecommendationsController extends AppController
                 'member_sca_name',
                 'call_into_court',
                 'court_availability',
-                'requester_sca_name',
+                'person_to_notify',
                 'contact_email',
                 'status_date',
                 'Event.start_date',
@@ -138,15 +138,15 @@ class RecommendationsController extends AppController
         ];
         if ($this->request->getQuery("csv") == "true") {
             $csvData = [];
-            $csvData[] = ['Name', 'Award', 'Court Availability', 'Submitted By','Call Into Court', 'Event', 'Status'];
+            $csvData[] = ['Name', 'Award', 'Court Availability', 'Call Into Court', 'Person To Notify', 'Event', 'Status'];
             $recommendations = $recommendations->toArray();
             foreach ($recommendations as $rec) {
                 $csvData[] = [
                     $rec->member_sca_name,
                     $rec->award->abbreviation . ($rec->specialty ? " (" . $rec->specialty . ")" : ""),
                     $rec->court_availability,
-                    $rec->requester_sca_name,
                     $rec->call_into_court,
+                    $rec->person_to_notify,
                     $rec->assigned_event->name,
                     $rec->status
                 ];

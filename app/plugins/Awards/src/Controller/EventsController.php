@@ -58,7 +58,7 @@ class EventsController extends AppController
         if ($currentUser->can("view", "Awards.Recommendations")) {
             $event->contain([
                 'RecommendationsToGive' => function ($q) {
-                    return $q->contain(['Awards'])->select(['id', 'event_id', 'member_sca_name', 'award_id', 'specialty', 'call_into_court', 'court_availability', 'status', 'Awards.abbreviation'])->orderBy(['member_sca_name' => 'ASC']);
+                    return $q->contain(['Awards'])->select(['id', 'event_id', 'member_sca_name', 'award_id', 'specialty', 'call_into_court', 'court_availability', 'person_to_notify', 'status', 'Awards.abbreviation'])->orderBy(['member_sca_name' => 'ASC']);
                 }
             ]);
         }

@@ -63,13 +63,14 @@ if ($currentUser->can("view", "Awards.Recommendations")): ?>
     aria-labelledby="nav-scheduledAwards-tab" data-detail-tabs-target="tabContent">
     <?php if (!empty($event->recommendations_to_give)) :
             $csv = [];
-            $csv[] = ["Name", "Award", "Court Availability", "Call Into Court", "Status"];
+            $csv[] = ["Name", "Award", "Court Availability", "Call Into Court", "Person To Notify", "Status"];
             foreach ($event->recommendations_to_give as $rec) {
                 $csv[] = [
                     $rec->member_sca_name,
                     $rec->award->abbreviation . ($rec->specialty ? " (" . $rec->specialty . ")" : ""),
                     $rec->court_availability,
                     $rec->call_into_court,
+                    $rec->person_to_notify,
                     $rec->status,
                 ];
             }
@@ -96,6 +97,9 @@ if ($currentUser->can("view", "Awards.Recommendations")): ?>
                                                 "Call Into Court",
                                             ) ?></th>
                     <th scope="col"><?= h(
+                                                "Person To Notify",
+                                            ) ?></th>
+                    <th scope="col"><?= h(
                                                 "Status",
                                             ) ?></th>
                 </tr>
@@ -114,6 +118,7 @@ if ($currentUser->can("view", "Awards.Recommendations")): ?>
                     </td>
                     <td><?= h($rec->call_into_court) ?></td>
                     <td><?= h($rec->court_availability) ?></td>
+                    <td><?= h($rec->person_to_notify) ?></td>
                     <td><?= h($rec->status) ?></td>
                 </tr>
                 <?php endforeach; ?>
