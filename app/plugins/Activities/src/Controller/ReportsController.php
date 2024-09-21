@@ -31,11 +31,11 @@ class ReportsController extends AppController
             = TableRegistry::getTableLocator()->get('Activities.Activities');
         $activitiesList = $ActivitiesTbl->find('list')->orderBy(['name' => 'ASC'])->toArray();
         $default_activities = [];
-        foreach ($activitiesList as $activityId => $activityName){
+        foreach ($activitiesList as $activityId => $activityName) {
             $default_activities[] = $activityId;
         }
         $branchesTbl = TableRegistry::getTableLocator()->get('Branches');
-        $branchesList = $branchesTbl->find('treeList', spacer:'- ')->toArray();
+        $branchesList = $branchesTbl->find('treeList', spacer: '-')->toArray();
         $validOn = DateTime::now()->addDays(1);
         $memberRollup  = [];
         $memberListQuery = [];
@@ -44,7 +44,7 @@ class ReportsController extends AppController
             $activities = $this->request->getQuery('activities');
             $filter_branch = $this->request->getQuery('branches');
             $valid_branches = $branchesTbl->find('children', for: $filter_branch)->all()->extract('id')->toArray();
-            $valid_branches[]=$filter_branch;
+            $valid_branches[] = $filter_branch;
             $validOn = (new DateTime($this->request->getQuery('validOn')))->addDays(1);
             $authTbl = TableRegistry::getTableLocator()->get('Activities.Authorizations');
             $distincMemberCount = $authTbl->find()
@@ -62,7 +62,7 @@ class ReportsController extends AppController
             $memberListQuery = $authTbl->find('all')
                 ->contain(['Activities' => function ($q) {
                     return $q->select(['name']);
-                }, 'Members' => function ($q) use ($valid_branches){
+                }, 'Members' => function ($q) use ($valid_branches) {
                     return $q->select(['membership_number', 'sca_name', 'id'])->where(['branch_id IN' => $valid_branches]);
                 }, "Members.Branches" => function ($q) {
                     return $q->select(['name']);
@@ -94,7 +94,7 @@ class ReportsController extends AppController
         }
 
         $validOn = $validOn->subDays(1);
-        if (!$activities){
+        if (!$activities) {
             $activities = $default_activities;
         }
         $this->set(compact(
