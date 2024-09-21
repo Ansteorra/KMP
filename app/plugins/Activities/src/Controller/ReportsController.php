@@ -29,7 +29,11 @@ class ReportsController extends AppController
         $distincMemberCount = 0;
         $ActivitiesTbl
             = TableRegistry::getTableLocator()->get('Activities.Activities');
-        $activitiesList = $ActivitiesTbl->find('list')->orderBy(['name' => 'ASC']);
+        $activitiesList = $ActivitiesTbl->find('list')->orderBy(['name' => 'ASC'])->toArray();
+        $default_activities = [];
+        foreach ($activitiesList as $activityId => $activityName){
+            $default_activities[] = $activityId;
+        }
         $branchesTbl = TableRegistry::getTableLocator()->get('Branches');
         $branchesList = $branchesTbl->find('treeList', spacer:'- ')->toArray();
         $validOn = DateTime::now()->addDays(1);
@@ -90,6 +94,9 @@ class ReportsController extends AppController
         }
 
         $validOn = $validOn->subDays(1);
+        if (!$activities){
+            $activities = $default_activities;
+        }
         $this->set(compact(
             'activitiesList',
             'branchesList',
@@ -97,7 +104,7 @@ class ReportsController extends AppController
             'validOn',
             'memberRollup',
             'memberListQuery',
-            'activities'
+            'activities',
         ));
     }
 
