@@ -501,6 +501,10 @@ class MembersController extends AppController
             throw new \Cake\Http\Exception\NotFoundException();
         }
         $this->Authorization->authorize($member);
+        if ($member->mobile_card_token == null || $member->mobile_card_token == "") {
+            $member->mobile_card_token = StaticHelpers::generateToken(16);
+            $this->Members->save($member);
+        }
         $this->getMailer("KMP")->send("mobileCard", [$member]);
         $this->Flash->success(__("The email has been sent."));
 
