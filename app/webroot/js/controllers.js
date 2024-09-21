@@ -1279,12 +1279,22 @@ class MemberMobileCardPWA extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0_
       statusDiv.classList.remove('bg-danger');
       statusDiv.classList.add('bg-success');
       refreshButton.hidden = false;
+      if (this.sw) {
+        this.sw.active.postMessage({
+          type: 'ONLINE'
+        });
+      }
       refreshButton.click();
     } else {
       statusDiv.textContent = 'Offline';
       statusDiv.classList.remove('bg-success');
       statusDiv.classList.add('bg-danger');
       refreshButton.hidden = true;
+      if (this.sw) {
+        this.sw.active.postMessage({
+          type: 'OFFLINE'
+        });
+      }
     }
   }
   manageOnlineStatus() {
@@ -1293,6 +1303,7 @@ class MemberMobileCardPWA extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0_
     window.addEventListener('offline', this.updateOnlineStatus.bind(this));
     navigator.serviceWorker.register(this.swUrlValue).then(registration => {
       registration.update();
+      this.sw = registration;
       console.log('Service Worker registered with scope:', registration.scope);
       registration.active.postMessage({
         type: 'CACHE_URLS',

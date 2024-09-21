@@ -15,25 +15,45 @@ self.addEventListener('install', event => {
     // Skip waiting to activate the new service worker immediately
     self.skipWaiting();
 });
-
+self.offline = false;
 self.addEventListener('message', event => {
-    if (event.data && event.data.type === 'CACHE_URLS') {
-        const urlsToCache = event.data.payload;
-        caches.open(CACHE_NAME).then(cache => {
-            cache.addAll(urlsToCache).then(() => {
-                console.log('All URLs have been cached');
-            }).catch(error => {
-                console.error('Failed to cache:', error);
-            });
-        });
+    if (event.data && event.data.type) {
+        switch (event.data.type) {
+            case 'CACHE_URLS':
+                const urlsToCache = event.data.payload;
+                caches.open(CACHE_NAME).then(cache => {
+                    cache.addAll(urlsToCache).then(() => {
+                        console.log('All URLs have been cached');
+                    }).catch(error => {
+                        console.error('Failed to cache:', error);
+                    });
+                });
+                break;
+            case 'OFFLINE':
+                console.log('Offline event received');
+                self.offline = true;
+                break;
+            case 'ONLINE':
+                console.log('Online event received');
+                self.offline = false;
+                break;
+            // Add more cases here for other event data types
+            default:
+                console.warn('Unknown event data type:', event.data.type);
+        }
     }
 });
 
 self.addEventListener('fetch', event => {
-
+    if (self.offline) {
+        console.log("offline pulling from cache")
+        event.respondWith(caches.match(event.request).then(response => { return response; }));
+        return;
+    }
+    console.log("online pulling from web")
     event.respondWith(
         handelRequest(event).catch(error => {
-            return caches.match(event.request);
+            return caches.match(event.request).then(response => { return response; });
         })
     );
 });

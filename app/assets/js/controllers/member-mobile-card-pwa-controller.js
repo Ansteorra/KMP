@@ -19,12 +19,22 @@ class MemberMobileCardPWA extends Controller {
             statusDiv.classList.remove('bg-danger');
             statusDiv.classList.add('bg-success');
             refreshButton.hidden = false;
+            if (this.sw) {
+                this.sw.active.postMessage({
+                    type: 'ONLINE'
+                });
+            }
             refreshButton.click();
         } else {
             statusDiv.textContent = 'Offline';
             statusDiv.classList.remove('bg-success');
             statusDiv.classList.add('bg-danger');
             refreshButton.hidden = true;
+            if (this.sw) {
+                this.sw.active.postMessage({
+                    type: 'OFFLINE'
+                });
+            }
         }
     }
 
@@ -35,6 +45,7 @@ class MemberMobileCardPWA extends Controller {
         navigator.serviceWorker.register(this.swUrlValue)
             .then(registration => {
                 registration.update();
+                this.sw = registration;
                 console.log('Service Worker registered with scope:', registration.scope);
                 registration.active.postMessage({
                     type: 'CACHE_URLS',
