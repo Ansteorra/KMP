@@ -14,6 +14,7 @@ $this->KMP->endBlock(); ?>
         <h4>Query</h4>
         <?= $this->Form->create(null, ["type" => "get", 'url' => ['controller' => 'reports', 'action' => 'authorizations']]); ?>
         <?= $this->Form->date('validOn', ['default' => $validOn, 'type' => 'date']) ?>
+        <?= $this->Form->control('branches', ['options' => $branchesList]) ?>
         <?= $this->Form->control('activities', [
             'type' => 'select',
             'multiple' => 'checkbox',
