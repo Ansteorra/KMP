@@ -85,7 +85,7 @@ class MemberCardProfile extends Controller {
                         backgroundCheckExpDate = " - " + backgroundCheckExpDate.toLocaleDateString();
                     }
 
-                    strong = document.createElement("strong");
+                    var strong = document.createElement("strong");
                     strong.textContent = backgroundCheckExpDate;
                     this.backgroundCheckTarget.innerHtml = "";
                     this.backgroundCheckTarget.appendChild(strong);
