@@ -79,7 +79,7 @@ use App\Model\Entity\Member;
         <th class="col"><?= __("Status") ?></th>
         <td lass="col-10">
             <?= $member->status ?>
-            <?php if ($member->status == Member::STATUS_ACTIVE || $member->status != Member::STATUS_MINOR_PARENT_VERIFIED): ?>
+            <?php if ($member->status == Member::STATUS_ACTIVE || $member->status == Member::STATUS_MINOR_PARENT_VERIFIED): ?>
                 <br><small class="text-secondary">To verify your account please reach out to the site Secretary at <a
                         href="mailto:<?= $this->KMP->getAppSetting("Members.AccountVerificationContactEmail", "") ?>"><?= $this->KMP->getAppSetting("Members.AccountVerificationContactEmail", "") ?></a>
                     with
