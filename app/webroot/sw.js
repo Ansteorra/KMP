@@ -43,6 +43,20 @@ self.addEventListener('message', event => {
     }
 });
 
+self.addEventListener('fetch', (event) => {
+    event.respondWith(
+        (async function () {
+            try {
+                return await fetch(event.request);
+            } catch (err) {
+                console.log(event.request);
+                var response = await caches.open(CACHE_NAME).then((cache) => cache.match(event.request, { ignoreVary: true }));
+                return response;
+            }
+        })(),
+    );
+});
+/*
 self.addEventListener('fetch', event => {
     event.respondWith(
         fetch(event.request)
@@ -53,10 +67,17 @@ self.addEventListener('fetch', event => {
                 return response;
             })
             .catch(() => {
-                return caches.match(event.request);
+                var cache await caches.open(CACHE_NAME);
+                cache.match(event.request).then(response => {
+                    if (response) {
+                        return response;
+                    }
+                    throw new Error('Resource not found in cache');
+                });
             })
     );
 });
+*/
 
 self.addEventListener('activate', event => {
     const cacheWhitelist = [CACHE_NAME];
