@@ -50,7 +50,9 @@ class AwardsRecommendationEditForm extends Controller {
     setAward(event) {
         let awardId = event.target.dataset.awardId;
         this.awardTarget.value = awardId;
-        this.populateSpecialties(event);
+        if (this.awardTarget.value != "") {
+            this.populateSpecialties(event);
+        }
     }
     populateAwardDescriptions(event) {
         let url = this.awardListUrlValue + "/" + event.target.value;
@@ -71,7 +73,9 @@ class AwardsRecommendationEditForm extends Controller {
                     if (this.awardTarget.dataset.acInitSelectionValue) {
                         let val = JSON.parse(this.awardTarget.dataset.acInitSelectionValue);
                         this.awardTarget.value = val.value;
-                        this.populateSpecialties({ target: { value: val.value } });
+                        if (this.awardTarget.value != "") {
+                            this.populateSpecialties({ target: { value: val.value } });
+                        }
                     }
                 } else {
                     this.awardTarget.options = [{ value: "No awards available", text: "No awards available" }];

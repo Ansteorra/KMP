@@ -86,6 +86,7 @@
             'label' => 'Person to Notify',
             'value' => $recommendation->person_to_notify,
             'disabled' => 'disabled',
+            'data-awards-rec-edit-target' => 'personToNotify',
         ]);
         echo $this->KMP->comboBoxControl(
             $this->Form,

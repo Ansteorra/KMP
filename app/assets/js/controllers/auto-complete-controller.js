@@ -51,13 +51,6 @@ class AutoComplete extends Controller {
         //if the value matches an option set the input value to the option text
         if (newValue != "" && newValue != null) {
             let option = this._selectOptions.find(option => option.value == newValue && option.enabled != false);
-            if (!option) {
-                if (this.hasDataListTarget) {
-                    var newOptions = this.options;
-                    newOptions.push({ value: newValue, text: newValue });
-                    this.options = newOptions;
-                }
-            }
             if (option) {
                 this.inputTarget.value = option.text;
                 this.hiddenTarget.value = option.value;
@@ -66,11 +59,17 @@ class AutoComplete extends Controller {
                 return;
             } else {
                 if (this.allowOtherValue) {
+                    if (this.hasDataListTarget) {
+                        var newOptions = this.options;
+                        newOptions.push({ value: newValue, text: newValue });
+                        this.options = newOptions;
+                    }
                     this.inputTarget.value = newValue;
                     this.hiddenTarget.value = newValue;
                 } else {
                     this.inputTarget.value = "";
                     this.hiddenTarget.value = "";
+                    newValue = "";
                 }
                 if (newValue != "") {
                     this.clearBtnTarget.disabled = false;
