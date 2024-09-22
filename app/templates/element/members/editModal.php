@@ -21,7 +21,7 @@ echo $this->Modal->create("Edit " . $member->sca_name, [
         echo $this->Form->control("membership_expires_on", [
             "empty" => true,
         ]);
-
+        //initial value needs to be json and then made safe to be in an html attribute
         echo $this->KMP->comboBoxControl(
             $this->Form,
             'branch_name',

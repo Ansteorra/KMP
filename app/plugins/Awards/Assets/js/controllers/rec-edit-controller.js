@@ -208,6 +208,10 @@ class AwardsRecommendationEditForm extends Controller {
         let STATUS_NEED_TO_SCHEDULE = "scheduling";
         let STATUS_SCHEDULED = "scheduled";
         let STATUS_GIVEN = "given";
+        if (this.specialtyTarget.options.length == 0) {
+            this.specialtyTarget.hidden = true;
+            this.specialtyTarget.disabled = true;
+        }
         switch (this.statusTarget.value) {
             case STATUS_NEED_TO_SCHEDULE:
                 this.planToGiveBlockTarget.style.display = "block";
@@ -250,7 +254,7 @@ class AwardsRecommendationEditForm extends Controller {
                 this.givenBlockTarget.style.display = "none";
                 this.domainTarget.disabled = false;
                 this.awardTarget.disabled = false;
-                this.specialtyTarget.disabled = false;
+                this.specialtyTarget.disabled = this.specialtyTarget.hidden;
                 this.scaMemberTarget.disabled = false;
                 if (this.notFoundTarget.checked) {
                     this.branchTarget.disabled = false;

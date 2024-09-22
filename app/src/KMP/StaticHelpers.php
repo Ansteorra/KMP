@@ -270,4 +270,9 @@ class StaticHelpers
         fclose($f);
         return $csvString;
     }
+
+    static function makeSafeForHtmlAttribute($string)
+    {
+        return htmlspecialchars($string, ENT_QUOTES, 'UTF-8');
+    }
 }

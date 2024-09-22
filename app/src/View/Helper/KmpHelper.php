@@ -64,7 +64,7 @@ class KmpHelper extends Helper
         echo "class='position-relative mb-3 kmp_autoComplete' data-ac-allow-other-value='" . ($allowOtherValues ? "true" : "false") . "' data-ac-min-length-value=0 ";
         if ($additionalAttrs) {
             foreach ($additionalAttrs as $key => $value) {
-                echo $key . "='" . $value . "' ";
+                echo $key . "='" . staticHelpers::makeSafeForHtmlAttribute($value) . "' ";
             }
         }
         echo ">";
@@ -115,7 +115,7 @@ class KmpHelper extends Helper
         echo "data-ac-min-length-value='" . $minLength . "' ";
         if ($additionalAttrs) {
             foreach ($additionalAttrs as $key => $value) {
-                echo $key . "='" . $value . "' ";
+                echo $key . "='" . staticHelpers::makeSafeForHtmlAttribute($value) . "' ";
             }
         }
         echo ">";
