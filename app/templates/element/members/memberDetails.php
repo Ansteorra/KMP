@@ -21,7 +21,8 @@ $today = new Date();
         <?= h($member->membership_number) ?> Exp:
         <?= h($member->membership_expires_on) ?>
         <?php if ($member->membership_expires_on < $today) : ?>
-        <span class="badge text-bg-warning">Expired</span>
+        <span class="badge text-bg-warning">Expired</span> - <a href="https://sca.app.neoncrm.com/login"> log into SCA
+            portal to renew your membership</a>
         <?php endif; ?>
         <?php } else { ?>
         <?= __('Information Not Available') ?>
