@@ -56,7 +56,13 @@ echo $this->KMP->startBlock("pageTitle") ?>
     <th scope="row"><?= __('Status') ?></th>
     <td><?= h($recommendation->status) ?>
         <?php if ($recommendation->status == "given") {
-            echo " at " . h($recommendation->scheduled_event->name) . "  on " . h($recommendation->given->toFormattedDateString());
+            $given = "";
+            if ($recommendation->given == null) {
+                $given = "(Date not set)";
+            } else {
+                $given =  h($recommendation->given->toFormattedDateString());
+            }
+            echo " at " . h($recommendation->scheduled_event->name) . "  on " . $given;
         } ?>
         <?php if ($recommendation->status == "scheduled") {
             echo "to be given at " . h($recommendation->scheduled_event->name);

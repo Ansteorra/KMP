@@ -2,6 +2,9 @@
 
 use App\KMP\StaticHelpers;
 use App\Model\Entity\Member;
+use Cake\I18n\Date;
+
+$today = new Date();
 ?>
 <tr scope="row">
     <th class="col"><?= __("Sca Name") ?></th>
@@ -15,10 +18,13 @@ use App\Model\Entity\Member;
     <th class="col"><?= __("Membership") ?></th>
     <td lass="col-10">
         <?php if ($member->membership_number != null && strlen($member->membership_number) > 0) { ?>
-            <?= h($member->membership_number) ?> Exp:
-            <?= h($member->membership_expires_on) ?>
+        <?= h($member->membership_number) ?> Exp:
+        <?= h($member->membership_expires_on) ?>
+        <?php if ($member->membership_expires_on < $today) : ?>
+        <span class="badge text-bg-warning">Expired</span>
+        <?php endif; ?>
         <?php } else { ?>
-            <?= __('Information Not Available') ?>
+        <?= __('Information Not Available') ?>
         <?php } ?>
     </td>
 </tr>
@@ -80,10 +86,10 @@ use App\Model\Entity\Member;
         <td lass="col-10">
             <?= $member->status ?>
             <?php if ($member->status == Member::STATUS_ACTIVE || $member->status == Member::STATUS_MINOR_PARENT_VERIFIED): ?>
-                <br><small class="text-secondary">To verify your account please reach out to the site Secretary at <a
-                        href="mailto:<?= $this->KMP->getAppSetting("Members.AccountVerificationContactEmail", "") ?>"><?= $this->KMP->getAppSetting("Members.AccountVerificationContactEmail", "") ?></a>
-                    with
-                    your account email address and a picture of your membership card</small>
+            <br><small class="text-secondary">To verify your account please reach out to the site Secretary at <a
+                    href="mailto:<?= $this->KMP->getAppSetting("Members.AccountVerificationContactEmail", "") ?>"><?= $this->KMP->getAppSetting("Members.AccountVerificationContactEmail", "") ?></a>
+                with
+                your account email address and a picture of your membership card</small>
             <?php endif; ?>
         </td>
     </tr>
