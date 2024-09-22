@@ -527,7 +527,7 @@ class MembersController extends AppController
             $member->zip = $this->request->getData("zip");
             $member->phone_number = $this->request->getData("phone_number");
             $member->email_address = $this->request->getData("email_address");
-            $member->parent_name = $this->request->getData("parent_name");
+            //$member->parent_name = $this->request->getData("parent_name");
             if ($member->getErrors()) {
                 $session = $this->request->getSession();
                 $session->write("memberFormData", $this->request->getData());

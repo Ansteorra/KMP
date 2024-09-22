@@ -2,14 +2,28 @@
 
 use App\KMP\StaticHelpers;
 
-echo $this->Form->create($memberForm, [
-    "url" => [
-        "controller" => "Members",
-        "action" => "edit",
-        $member->id,
-    ],
-    "id" => "edit_entity",
-]);
+$canEdit = $user->can("edit", $member);
+$canPartialEdit = $user->can("partialEdit", $member);
+
+if ($canEdit) {
+    echo $this->Form->create($memberForm, [
+        "url" => [
+            "controller" => "Members",
+            "action" => "edit",
+            $member->id,
+        ],
+        "id" => "edit_entity",
+    ]);
+} else if ($canPartialEdit) {
+    echo $this->Form->create($memberForm, [
+        "url" => [
+            "controller" => "Members",
+            "action" => "partialEdit",
+            $member->id,
+        ],
+        "id" => "edit_entity",
+    ]);
+}
 echo $this->Modal->create("Edit " . $member->sca_name, [
     "id" => "editModal",
     "close" => true,
@@ -63,29 +77,30 @@ echo $this->Modal->create("Edit " . $member->sca_name, [
             "options" => $statusList,
             ""
         ]);
-    } else {
-        if ($user->can("partialEdit", $member)) {
-            echo $this->Form->create($memberForm, [
-                "url" => [
-                    "controller" => "Members",
-                    "action" => "partialEdit",
-                    $member->id,
-                ],
-                "id" => "edit_entity",
-            ]);
-            echo $this->Form->control("sca_name");
-            echo $this->Form->control("branch_id", [
-                "options" => $treeList,
-            ]);
-            echo $this->Form->control("first_name");
-            echo $this->Form->control("middle_name");
-            echo $this->Form->control("last_name");
-            echo $this->Form->control("street_address");
-            echo $this->Form->control("city");
-            echo $this->Form->control("state");
-            echo $this->Form->control("zip");
-            echo $this->Form->control("phone_number");
-        }
+    } elseif ($user->can("partialEdit", $member)) {
+        echo $this->Form->control("sca_name");
+        echo $this->Form->control("branch_id", [
+            "options" => $treeList,
+        ]);
+        echo $this->Form->control("first_name");
+        echo $this->Form->control("middle_name");
+        echo $this->Form->control("last_name");
+        echo $this->Form->control("street_address");
+        echo $this->Form->control("city");
+        echo $this->Form->control("state");
+        echo $this->Form->control("zip");
+        echo $this->Form->control("phone_number");
+        echo $this->Form->control("email_address", [
+            'type' => 'email',
+            'data-original-value' => $member->email_address,
+            'autoSetCustomValidity' => false,
+            'data-controller' => 'member-unique-email',
+            'data-member-unique-email-url-value' => $this->URL->build([
+                'controller' => 'Members',
+                'action' => 'emailTaken',
+                'plugin' => null,
+            ]),
+        ]);
     } ?>
 </fieldset>
 

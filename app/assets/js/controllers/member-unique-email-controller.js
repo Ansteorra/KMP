@@ -20,8 +20,8 @@ class MemberUniqueEmail extends Controller {
             this.element.setCustomValidity('');
             return;
         }
-        var originalEmail = this.element.dataset.originalValue;
-        if (email == originalEmail) {
+        var originalEmail = this.element.dataset.originalValue.toLowerCase();
+        if (email.toLowerCase() == originalEmail) {
             this.element.classList.add('is-valid');
             this.element.classList.remove('is-invalid');
             return;
