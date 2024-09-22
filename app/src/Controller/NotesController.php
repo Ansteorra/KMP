@@ -2,7 +2,11 @@
 
 declare(strict_types=1);
 
+
 namespace App\Controller;
+
+use Cake\ORM\TableRegistry;
+use Cake\Datasource\Exception\NotFoundException;
 
 /**
  * Notes Controller
@@ -24,7 +28,13 @@ class NotesController extends AppController
             $note->author_id = $this->Authentication
                 ->getIdentity()
                 ->getIdentifier();
-            $this->Authorization->authorize($note);
+            //get the table based on the name "Model"
+            $modelTbl = TableRegistry::getTableLocator()->get($note->topic_model);
+            $model = $modelTbl->get($note->topic_id);
+            if (!$model) {
+                throw new \Cake\Http\Exception\NotFoundException();
+            }
+            $this->Authorization->authorize($model, 'addNote');
             if ($this->Notes->save($note)) {
                 $this->Flash->success(__('The note has been saved.'));
             } else {

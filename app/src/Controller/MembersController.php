@@ -189,9 +189,6 @@ class MembersController extends AppController
         if (!$member) {
             throw new NotFoundException();
         }
-        if (!$member) {
-            throw new \Cake\Http\Exception\NotFoundException();
-        }
         $this->Authorization->authorize($member);
         // Create the new Note form
         $session = $this->request->getSession();

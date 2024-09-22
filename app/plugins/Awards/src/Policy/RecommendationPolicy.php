@@ -55,6 +55,11 @@ class RecommendationPolicy extends BasePolicy
         return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
     }
 
+    public function canAddNote(IdentityInterface $user, $entity)
+    {
+        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION_MANAGE);
+    }
+
     public function canAdd(IdentityInterface $user, $entity)
     {
         return true;
