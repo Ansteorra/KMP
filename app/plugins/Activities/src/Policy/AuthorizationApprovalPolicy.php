@@ -31,6 +31,25 @@ class AuthorizationApprovalPolicy extends BasePolicy
         return ActivitiesTable::canAuthorizeActivity($user, $activity_id);
     }
 
+    function canDeny(IdentityInterface $user, $approval): bool
+    {
+        $authorization_id = $approval->authorization_id;
+        $authorization = $approval->authorization;
+        $activity_id = null;
+        if ($authorization) {
+            $activity_id = $authorization->activity_id;
+        }
+        if (!$activity_id) {
+            $activity_id = TableRegistry::getTableLocator()
+                ->get("Activities.Authorizations")
+                ->get($authorization_id)->activity_id;
+        }
+        return ActivitiesTable::canAuthorizeActivity($user, $activity_id);
+    }
+
+
+
+
     function canView(IdentityInterface $user, $approval): bool
     {
         $member_id = $user->getIdentifier();
