@@ -1,4 +1,5 @@
 #! /bin/sh.
+#use this to reset the database for development
 
 cd ./app
 bin/cake resetDatabase
