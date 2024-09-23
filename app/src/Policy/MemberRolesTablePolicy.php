@@ -12,5 +12,10 @@ use Authorization\IdentityInterface;
  */
 class MemberRolesTablePolicy extends BasePolicy
 {
-    protected string $REQUIRED_PERMISSION = "Can Manage Permissions";
+    protected string $REQUIRED_PERMISSION = "Can Manage Roles";
+
+    public function canDeactivate(IdentityInterface $user, $entity)
+    {
+        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+    }
 }

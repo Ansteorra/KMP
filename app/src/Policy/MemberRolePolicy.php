@@ -12,7 +12,7 @@ use Authorization\IdentityInterface;
  */
 class MemberRolePolicy extends BasePolicy
 {
-    protected string $REQUIRED_PERMISSION = "Can Manage Permissions";
+    protected string $REQUIRED_PERMISSION = "Can Manage Roles";
 
     /**
      * Check if $user can view role
