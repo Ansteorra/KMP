@@ -113,6 +113,7 @@ $this->KMP->endBlock();
     </script>
     <meta name="turbo-prefetch" content="false">
     <?= $this->fetch("meta") ?>
+    <?php $css = $this->fetch("css"); ?>
     <?= $this->fetch("css") ?>
     <?= $this->fetch("manifest") ?>
     <?= $this->fetch("topscript") ?>

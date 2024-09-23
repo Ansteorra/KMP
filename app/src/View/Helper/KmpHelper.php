@@ -30,11 +30,11 @@ class KmpHelper extends Helper
     {
         // Each cell has its own view, but the first one created is the main
         // one that we want to add scripts to, so we'll store it here…
-        if (isset(self::$mainView)) {
-            return;
-        }
         $view = $event->getSubject();
         assert($view instanceof AppView);
+        if (isset(self::$mainView) && $view->getTemplatePath() != 'Error') {
+            return;
+        }
         self::$mainView = $view;
     }
 

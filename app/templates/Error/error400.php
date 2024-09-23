@@ -2,6 +2,7 @@
 
 use Cake\Core\Configure;
 use Cake\Error\Debugger;
+use Cake\Routing\Asset;
 
 if (Configure::read("debug")) :
 
@@ -12,38 +13,39 @@ if (Configure::read("debug")) :
 
     echo $this->KMP->startBlock("file");
 ?>
-    <?php if (!empty($error->queryString)) : ?>
-        <p class="notice">
-            <strong>SQL Query: </strong>
-            <?= h($error->queryString) ?>
-        </p>
-    <?php endif; ?>
-    <?php if (!empty($error->params)) : ?>
-        <strong>SQL Query Params: </strong>
-        <?php Debugger::dump($error->params); ?>
-    <?php endif; ?>
+<?php if (!empty($error->queryString)) : ?>
+<p class="notice">
+    <strong>SQL Query: </strong>
+    <?= h($error->queryString) ?>
+</p>
+<?php endif; ?>
+<?php if (!empty($error->params)) : ?>
+<strong>SQL Query Params: </strong>
+<?php Debugger::dump($error->params); ?>
+<?php endif; ?>
 <?php
     echo $this->element("auto_table_warning");
     $this->KMP->endBlock();
 
 else : ?>
-    <?php
+<?php
 
     $this->extend("/layout/TwitterBootstrap/signin");
 
     ?>
 
-    <div class="card">
-        <?= $this->html->image("NoAccessKnight.png", [
+<div class="card" data-controller="delay-forward" data-delay-forward-delay-ms-value="5000"
+    data-delay-forward-url-value="<?= Asset::Url("/", ['fullBase' => true]) ?>">
+    <?= $this->html->image("NoAccessKnight.png", [
             "class" => "card-img",
             "alt" => "No Access Knight",
         ]) ?>
-        <div class="card-img-overlay">
-            <h1 class="card-title text-start">
-                <?= __("Page not found" . $this->request->getPath()) ?>
-            </h1>
-        </div>
+    <div class="card-img-overlay">
+        <h3 class="card-title text-start">
+            <?= __("Page not found " . $this->request->getPath()) ?>
+        </h3>
     </div>
+</div>
 <?php
 endif;
 ?>

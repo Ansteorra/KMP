@@ -10,7 +10,6 @@
 use App\Model\Entity\Member;
 
 $this->extend("/layout/TwitterBootstrap/view_record");
-
 echo $this->KMP->startBlock("title");
 echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': View Member - ' . h($member->sca_name);
 $this->KMP->endBlock();
@@ -131,7 +130,8 @@ $this->KMP->endBlock() ?>
             "Approved By" => "approved_by->sca_name",
             "Granted By" => "granting_model",
             "Actions" => [
-                $linkTemplate, $removeLinkTemplate
+                $linkTemplate,
+                $removeLinkTemplate
             ],
         ];
         $previousTemplate = [
