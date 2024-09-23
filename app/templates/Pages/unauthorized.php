@@ -12,8 +12,9 @@ $this->extend("/layout/TwitterBootstrap/signin");
         "class" => "card-img",
         "alt" => "No Access Knight",
     ]) ?>
-    <div class="card-img-overlay">
-        <h1 class="card-title text-start">Unauthorized Request</h1>
+    <div class="card-img-overlay text-start pt-1">
+        <h4 class="card-title text-start mb-0">Unauthorized Request</h4>
+        <span class="card-title ">Redirecting you to your profile...</span>
     </div>
 </div>
 <?= $this->Html->link(

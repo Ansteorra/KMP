@@ -40,10 +40,9 @@ else : ?>
             "class" => "card-img",
             "alt" => "No Access Knight",
         ]) ?>
-    <div class="card-img-overlay">
-        <h3 class="card-title text-start">
-            <?= __("Page not found " . $this->request->getPath()) ?>
-        </h3>
+    <div class="card-img-overlay text-start pt-1">
+        <h4 class="card-title text-start mb-0">Page Not Found</h4>
+        <span class="card-title ">Redirecting you to your profile...</span>
     </div>
 </div>
 <?php
