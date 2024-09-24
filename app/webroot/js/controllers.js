@@ -2287,7 +2287,7 @@ class AwardsRecommendationEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_
   }
   populateAwardDescriptions(event) {
     let url = this.awardListUrlValue + "/" + event.target.value;
-    fetch(ur, this.optionsForFetch()).then(response => response.json()).then(data => {
+    fetch(url, this.optionsForFetch()).then(response => response.json()).then(data => {
       this.awardTarget.value = "";
       let active = "active";
       let show = "show";

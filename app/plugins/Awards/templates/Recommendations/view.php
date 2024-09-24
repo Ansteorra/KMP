@@ -40,6 +40,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
 <tr>
     <th scope="row"><?= __('Award') ?></th>
     <td><?= $recommendation->hasValue('award') ? $this->Html->link($recommendation->award->name, ['controller' => 'Awards', 'action' => 'view', $recommendation->award->id]) : '' ?>
+        <?= h(($recommendation->specialty ? " (" . $recommendation->specialty . ")" : "")) ?>
     </td>
 </tr>
 <tr>
