@@ -12,6 +12,15 @@ class MemberUniqueEmail extends Controller {
         this.element.removeEventListener('change', this.checkEmail.bind(this));
     }
 
+    optionsForFetch() {
+        return {
+            headers: {
+                "X-Requested-With": "XMLHttpRequest",
+                "Accept": "application/json"
+            }
+        }
+    }
+
     checkEmail(event) {
         var email = this.element.value;
         if (email == '') {
@@ -27,7 +36,7 @@ class MemberUniqueEmail extends Controller {
             return;
         }
         var checkEmailUrl = this.urlValue + '?nostack=yes&email=' + encodeURIComponent(email);
-        fetch(checkEmailUrl)
+        fetch(checkEmailUrl, this.optionsForFetch())
             .then(response => response.json())
             .then(data => {
                 if (data) {

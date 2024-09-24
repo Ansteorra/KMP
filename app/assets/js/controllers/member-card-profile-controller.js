@@ -55,11 +55,20 @@ class MemberCardProfile extends Controller {
         this.currentCard = cardDetails;
     }
 
+    optionsForFetch() {
+        return {
+            headers: {
+                "X-Requested-With": "XMLHttpRequest",
+                "Accept": "application/json"
+            }
+        }
+    }
+
     loadCard() {
         this.currentCard = this.firstCardTarget;
         this.maxCardLength = this.firstCardTarget.offsetHeight;
         this.cardCount = 1;
-        fetch(this.urlValue)
+        fetch(this.urlValue, this.optionsForFetch())
             .then(response => response.json())
             .then(data => {
                 this.nameTarget.textContent = data.member.first_name + ' ' + data.member.last_name;

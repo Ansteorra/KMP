@@ -92,8 +92,6 @@ class Kanban extends Controller {
             }
         }
     }
-
-
 }
 
 if (!window.Controllers) {

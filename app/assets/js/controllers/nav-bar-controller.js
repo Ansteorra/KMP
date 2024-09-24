@@ -8,10 +8,10 @@ class NavBarController extends Controller {
 
         if (state === 'true') {
             var recordExpandUrl = event.target.getAttribute('data-expand-url');
-            fetch(recordExpandUrl);
+            fetch(recordExpandUrl, this.optionsForFetch());
         } else {
             var recordCollapseUrl = event.target.getAttribute('data-collapse-url');
-            fetch(recordCollapseUrl);
+            fetch(recordCollapseUrl, this.optionsForFetch());
         }
     }
 
@@ -20,6 +20,15 @@ class NavBarController extends Controller {
     }
     navHeaderTargetDisconnected(event) {
         event.removeEventListener('click', this.navHeaderClicked.bind(this));
+    }
+
+    optionsForFetch() {
+        return {
+            headers: {
+                "X-Requested-With": "XMLHttpRequest",
+                "Accept": "application/json"
+            }
+        }
     }
 }
 if (!window.Controllers) {

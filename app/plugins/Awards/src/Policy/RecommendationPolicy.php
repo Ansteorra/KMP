@@ -20,6 +20,11 @@ class RecommendationPolicy extends BasePolicy
         return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION_MANAGE);
     }
 
+    public function canViewDeclined(IdentityInterface $user, $entity)
+    {
+        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION_MANAGE);
+    }
+
     public function canDelete(IdentityInterface $user, $entity)
     {
         return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION_MANAGE);

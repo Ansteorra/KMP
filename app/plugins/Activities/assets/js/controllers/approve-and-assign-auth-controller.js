@@ -25,7 +25,7 @@ class ActivitiesApproveAndAssignAuthorization extends Controller {
             this.approversTarget.value = "";
             let activityId = this.idTarget.value;
             let url = this.urlValue + "/" + activityId;
-            fetch(url)
+            fetch(url, this.optionsForFetch())
                 .then(response => response.json())
                 .then(data => {
                     let list = [];
@@ -39,6 +39,16 @@ class ActivitiesApproveAndAssignAuthorization extends Controller {
                     this.submitBtnTarget.disabled = true;
                     this.approversTarget.disabled = false;
                 });
+        }
+    }
+
+
+    optionsForFetch() {
+        return {
+            headers: {
+                "X-Requested-With": "XMLHttpRequest",
+                "Accept": "application/json"
+            }
         }
     }
 

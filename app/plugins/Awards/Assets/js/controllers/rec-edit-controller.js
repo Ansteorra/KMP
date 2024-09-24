@@ -46,6 +46,9 @@ class AwardsRecommendationEditForm extends Controller {
         this.callIntoCourtTarget.disabled = false;
         this.courtAvailabilityTarget.disabled = false;
         this.notFoundTarget.disabled = false;
+        this.scaMemberTarget.disabled = false;
+        this.personToNotifyTarget.disabled = false;
+        this.specialtyTarget.disabled = false;
     }
     setAward(event) {
         let awardId = event.target.dataset.awardId;
@@ -56,7 +59,7 @@ class AwardsRecommendationEditForm extends Controller {
     }
     populateAwardDescriptions(event) {
         let url = this.awardListUrlValue + "/" + event.target.value;
-        fetch(url)
+        fetch(ur, this.optionsForFetch())
             .then(response => response.json())
             .then(data => {
                 this.awardTarget.value = "";
@@ -136,9 +139,18 @@ class AwardsRecommendationEditForm extends Controller {
 
     }
 
+    optionsForFetch() {
+        return {
+            headers: {
+                "X-Requested-With": "XMLHttpRequest",
+                "Accept": "application/json"
+            }
+        }
+    }
+
     loadMember(memberId) {
         let url = this.publicProfileUrlValue + "/" + memberId;
-        fetch(url)
+        fetch(url, this.optionsForFetch())
             .then(response => response.json())
             .then(data => {
                 if (data.additional_info.CallIntoCourt != null && data.additional_info.CallIntoCourt != "") {

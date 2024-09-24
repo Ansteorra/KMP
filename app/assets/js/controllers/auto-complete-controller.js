@@ -581,7 +581,12 @@ class AutoComplete extends Controller {
     }
 
     optionsForFetch() {
-        return { headers: { "X-Requested-With": "XMLHttpRequest" } } // override if you need
+        return {
+            headers: {
+                "X-Requested-With": "XMLHttpRequest",
+                "Accept": "application/json"
+            }
+        }
     }
 }
 

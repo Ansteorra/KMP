@@ -28,7 +28,7 @@ class ActivitiesRenewAuthorization extends Controller {
             this.approversTarget.value = "";
             let activityId = this.activityTarget.value;
             let url = this.urlValue + "/" + activityId + "/" + this.memberIdTarget.value;
-            fetch(url)
+            fetch(url, this.optionsForFetch())
                 .then(response => response.json())
                 .then(data => {
                     let list = [];
@@ -42,6 +42,15 @@ class ActivitiesRenewAuthorization extends Controller {
                     this.submitBtnTarget.disabled = true;
                     this.approversTarget.disabled = false;
                 });
+        }
+    }
+
+    optionsForFetch() {
+        return {
+            headers: {
+                "X-Requested-With": "XMLHttpRequest",
+                "Accept": "application/json"
+            }
         }
     }
 

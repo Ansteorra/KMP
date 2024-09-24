@@ -581,9 +581,10 @@ class AutoComplete extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Contr
   optionsForFetch() {
     return {
       headers: {
-        "X-Requested-With": "XMLHttpRequest"
+        "X-Requested-With": "XMLHttpRequest",
+        "Accept": "application/json"
       }
-    }; // override if you need
+    };
   }
 }
 const debounce = function (fn) {
@@ -1040,11 +1041,19 @@ class MemberCardProfile extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.
     this.cardSetTarget.appendChild(card);
     this.currentCard = cardDetails;
   }
+  optionsForFetch() {
+    return {
+      headers: {
+        "X-Requested-With": "XMLHttpRequest",
+        "Accept": "application/json"
+      }
+    };
+  }
   loadCard() {
     this.currentCard = this.firstCardTarget;
     this.maxCardLength = this.firstCardTarget.offsetHeight;
     this.cardCount = 1;
-    fetch(this.urlValue).then(response => response.json()).then(data => {
+    fetch(this.urlValue, this.optionsForFetch()).then(response => response.json()).then(data => {
       this.nameTarget.textContent = data.member.first_name + ' ' + data.member.last_name;
       this.scaNameTarget.textContent = data.member.sca_name;
       this.branchNameTarget.textContent = data.member.branch.name;
@@ -1167,6 +1176,14 @@ class MemberMobileCardProfile extends _hotwired_stimulus__WEBPACK_IMPORTED_MODUL
       this.loadCard();
     }
   }
+  optionsForFetch() {
+    return {
+      headers: {
+        "X-Requested-With": "XMLHttpRequest",
+        "Accept": "application/json"
+      }
+    };
+  }
   loadCard() {
     this.cardSetTarget.innerHTML = "";
     this.loadingTarget.hidden = false;
@@ -1177,7 +1194,7 @@ class MemberMobileCardProfile extends _hotwired_stimulus__WEBPACK_IMPORTED_MODUL
     } else {
       console.log("PWA ready");
     }
-    fetch(this.urlValue).then(response => response.json()).then(data => {
+    fetch(this.urlValue, this.optionsForFetch()).then(response => response.json()).then(data => {
       this.loadingTarget.hidden = true;
       this.memberDetailsTarget.hidden = false;
       this.nameTarget.textContent = data.member.first_name + ' ' + data.member.last_name;
@@ -1402,6 +1419,14 @@ class MemberUniqueEmail extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.
   disconnect(event) {
     this.element.removeEventListener('change', this.checkEmail.bind(this));
   }
+  optionsForFetch() {
+    return {
+      headers: {
+        "X-Requested-With": "XMLHttpRequest",
+        "Accept": "application/json"
+      }
+    };
+  }
   checkEmail(event) {
     var email = this.element.value;
     if (email == '') {
@@ -1417,7 +1442,7 @@ class MemberUniqueEmail extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.
       return;
     }
     var checkEmailUrl = this.urlValue + '?nostack=yes&email=' + encodeURIComponent(email);
-    fetch(checkEmailUrl).then(response => response.json()).then(data => {
+    fetch(checkEmailUrl, this.optionsForFetch()).then(response => response.json()).then(data => {
       if (data) {
         this.element.classList.add('is-invalid');
         this.element.classList.remove('is-valid');
@@ -1507,10 +1532,10 @@ class NavBarController extends Controller {
     var state = event.target.getAttribute('aria-expanded');
     if (state === 'true') {
       var recordExpandUrl = event.target.getAttribute('data-expand-url');
-      fetch(recordExpandUrl);
+      fetch(recordExpandUrl, this.optionsForFetch());
     } else {
       var recordCollapseUrl = event.target.getAttribute('data-collapse-url');
-      fetch(recordCollapseUrl);
+      fetch(recordCollapseUrl, this.optionsForFetch());
     }
   }
   navHeaderTargetConnected(event) {
@@ -1518,6 +1543,14 @@ class NavBarController extends Controller {
   }
   navHeaderTargetDisconnected(event) {
     event.removeEventListener('click', this.navHeaderClicked.bind(this));
+  }
+  optionsForFetch() {
+    return {
+      headers: {
+        "X-Requested-With": "XMLHttpRequest",
+        "Accept": "application/json"
+      }
+    };
   }
 }
 if (!window.Controllers) {
@@ -1693,7 +1726,7 @@ class ActivitiesApproveAndAssignAuthorization extends _hotwired_stimulus__WEBPAC
       this.approversTarget.value = "";
       let activityId = this.idTarget.value;
       let url = this.urlValue + "/" + activityId;
-      fetch(url).then(response => response.json()).then(data => {
+      fetch(url, this.optionsForFetch()).then(response => response.json()).then(data => {
         let list = [];
         data.forEach(item => {
           list.push({
@@ -1706,6 +1739,14 @@ class ActivitiesApproveAndAssignAuthorization extends _hotwired_stimulus__WEBPAC
         this.approversTarget.disabled = false;
       });
     }
+  }
+  optionsForFetch() {
+    return {
+      headers: {
+        "X-Requested-With": "XMLHttpRequest",
+        "Accept": "application/json"
+      }
+    };
   }
   checkReadyToSubmit() {
     let approverValue = this.approversTarget.value;
@@ -1760,7 +1801,7 @@ class ActivitiesRenewAuthorization extends _hotwired_stimulus__WEBPACK_IMPORTED_
       this.approversTarget.value = "";
       let activityId = this.activityTarget.value;
       let url = this.urlValue + "/" + activityId + "/" + this.memberIdTarget.value;
-      fetch(url).then(response => response.json()).then(data => {
+      fetch(url, this.optionsForFetch()).then(response => response.json()).then(data => {
         let list = [];
         data.forEach(item => {
           list.push({
@@ -1773,6 +1814,14 @@ class ActivitiesRenewAuthorization extends _hotwired_stimulus__WEBPACK_IMPORTED_
         this.approversTarget.disabled = false;
       });
     }
+  }
+  optionsForFetch() {
+    return {
+      headers: {
+        "X-Requested-With": "XMLHttpRequest",
+        "Accept": "application/json"
+      }
+    };
   }
   checkReadyToSubmit() {
     let approverValue = this.approversTarget.value;
@@ -1814,7 +1863,7 @@ class ActivitiesRequestAuthorization extends _hotwired_stimulus__WEBPACK_IMPORTE
     this.approversTarget.value = "";
     let activityId = this.activityTarget.value;
     let url = this.urlValue + "/" + activityId + "/" + this.memberIdTarget.value;
-    fetch(url).then(response => response.json()).then(data => {
+    fetch(url, this.optionsForFetch()).then(response => response.json()).then(data => {
       let list = [];
       data.forEach(item => {
         list.push({
@@ -1831,6 +1880,14 @@ class ActivitiesRequestAuthorization extends _hotwired_stimulus__WEBPACK_IMPORTE
     if (this.hasApproversTarget) {
       this.approversTarget.disabled = true;
     }
+  }
+  optionsForFetch() {
+    return {
+      headers: {
+        "X-Requested-With": "XMLHttpRequest",
+        "Accept": "application/json"
+      }
+    };
   }
   checkReadyToSubmit() {
     let approverValue = this.approversTarget.value;
@@ -1951,15 +2008,24 @@ class AwardsRecommendationAddForm extends _hotwired_stimulus__WEBPACK_IMPORTED_M
     this.notFoundTarget.disabled = false;
     this.scaMemberTarget.disabled = false;
     this.personToNotifyTarget.disabled = false;
+    this.specialtyTarget.disabled = false;
   }
   setAward(event) {
     let awardId = event.target.dataset.awardId;
     this.awardTarget.value = awardId;
     this.populateSpecialties(event);
   }
+  optionsForFetch() {
+    return {
+      headers: {
+        "X-Requested-With": "XMLHttpRequest",
+        "Accept": "application/json"
+      }
+    };
+  }
   populateAwardDescriptions(event) {
     let url = this.awardListUrlValue + "/" + event.target.value;
-    fetch(url).then(response => response.json()).then(data => {
+    fetch(url, this.optionsForFetch()).then(response => response.json()).then(data => {
       this.awardDescriptionsTarget.innerHTML = "";
       let tabButtons = document.createElement("ul");
       tabButtons.classList.add("nav", "nav-pills");
@@ -2086,7 +2152,7 @@ class AwardsRecommendationAddForm extends _hotwired_stimulus__WEBPACK_IMPORTED_M
   }
   loadMember(memberId) {
     let url = this.publicProfileUrlValue + "/" + memberId;
-    fetch(url).then(response => response.json()).then(data => {
+    fetch(url, this.optionsForFetch()).then(response => response.json()).then(data => {
       this.callIntoCourtTarget.value = data.additional_info.CallIntoCourt;
       this.courtAvailabilityTarget.value = data.additional_info.CourtAvailability;
       if (data.additional_info.PersonToGiveNoticeTo) {
@@ -2208,6 +2274,9 @@ class AwardsRecommendationEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_
     this.callIntoCourtTarget.disabled = false;
     this.courtAvailabilityTarget.disabled = false;
     this.notFoundTarget.disabled = false;
+    this.scaMemberTarget.disabled = false;
+    this.personToNotifyTarget.disabled = false;
+    this.specialtyTarget.disabled = false;
   }
   setAward(event) {
     let awardId = event.target.dataset.awardId;
@@ -2218,7 +2287,7 @@ class AwardsRecommendationEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_
   }
   populateAwardDescriptions(event) {
     let url = this.awardListUrlValue + "/" + event.target.value;
-    fetch(url).then(response => response.json()).then(data => {
+    fetch(ur, this.optionsForFetch()).then(response => response.json()).then(data => {
       this.awardTarget.value = "";
       let active = "active";
       let show = "show";
@@ -2313,9 +2382,17 @@ class AwardsRecommendationEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_
       this.branchTarget.focus();
     }
   }
+  optionsForFetch() {
+    return {
+      headers: {
+        "X-Requested-With": "XMLHttpRequest",
+        "Accept": "application/json"
+      }
+    };
+  }
   loadMember(memberId) {
     let url = this.publicProfileUrlValue + "/" + memberId;
-    fetch(url).then(response => response.json()).then(data => {
+    fetch(url, this.optionsForFetch()).then(response => response.json()).then(data => {
       if (data.additional_info.CallIntoCourt != null && data.additional_info.CallIntoCourt != "") {
         this.callIntoCourtTarget.value = data.additional_info.CallIntoCourt;
       }

@@ -10,7 +10,7 @@ class ActivitiesRequestAuthorization extends Controller {
         this.approversTarget.value = "";
         let activityId = this.activityTarget.value;
         let url = this.urlValue + "/" + activityId + "/" + this.memberIdTarget.value;
-        fetch(url)
+        fetch(url, this.optionsForFetch())
             .then(response => response.json())
             .then(data => {
                 let list = [];
@@ -29,6 +29,15 @@ class ActivitiesRequestAuthorization extends Controller {
     acConnected() {
         if (this.hasApproversTarget) {
             this.approversTarget.disabled = true;
+        }
+    }
+
+    optionsForFetch() {
+        return {
+            headers: {
+                "X-Requested-With": "XMLHttpRequest",
+                "Accept": "application/json"
+            }
         }
     }
 

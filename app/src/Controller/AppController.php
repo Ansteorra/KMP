@@ -93,7 +93,7 @@ class AppController extends Controller
         }
 
         //check if the call is Ajax
-        $isAjax = $this->request->is('ajax');
+        $isAjax = $this->request->is('ajax') || $this->request->is('json') || $this->request->is('xml');
         $turboRequest = $this->request->getHeader('Turbo-Frame') != null;
         $isAjax = $isAjax || $turboRequest;
         if (!$isNoStack) {

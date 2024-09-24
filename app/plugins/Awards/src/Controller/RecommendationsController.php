@@ -180,6 +180,7 @@ class RecommendationsController extends AppController
                 'Recommendations.stack_rank',
                 'Recommendations.status',
                 'Recommendations.modified',
+                'Recommendations.specialty',
                 'Members.sca_name',
                 'Awards.abbreviation',
                 'ModifiedByMembers.sca_name'
@@ -234,7 +235,26 @@ class RecommendationsController extends AppController
 
         $recommendations = $this->Recommendations->find()
             ->where(["Recommendations.status not IN" => [Recommendation::STATUS_DECLINED, Recommendation::STATUS_AWAITING_FEEDBACK, Recommendation::STATUS_IN_CONSIDERATION, Recommendation::STATUS_SUBMITTED]])
-            ->contain(['Requesters', 'Members', 'Branches', 'Awards'])->orderBy(['Recommendations.status', 'stack_rank'])->all();
+            ->contain(['Requesters', 'Members', 'Branches', 'Awards'])->orderBy(['Recommendations.status', 'stack_rank'])
+            ->select([
+                'Recommendations.id',
+                'Recommendations.member_sca_name',
+                'Recommendations.reason',
+                'Recommendations.stack_rank',
+                'Recommendations.status',
+                'Recommendations.modified',
+                'Recommendations.specialty',
+                'Members.sca_name',
+                'Awards.abbreviation',
+                'ModifiedByMembers.sca_name'
+            ])
+            ->join([
+                'table' => 'members',
+                'alias' => 'ModifiedByMembers',
+                'type' => 'LEFT',
+                'conditions' => 'Recommendations.modified_by = ModifiedByMembers.id'
+            ])
+            ->all();
 
         $statuses = Recommendation::getToBeScheduledStatues();
 
@@ -660,6 +680,14 @@ class RecommendationsController extends AppController
             $recommendations->where(["Recommendations.status" => $this->request->getQuery("status")]);
         }
         $statuses = $pageStatuses;
+
+        $user = $this->request->getAttribute("identity");
+        if (!$user->can("ViewDeclined", $recommendations->first())) {
+            $recommendations->where(["Recommendations.status <> " => Recommendation::STATUS_DECLINED]);
+            //remove declined from statuses
+            unset($statuses[Recommendation::STATUS_DECLINED]);
+        }
+
         $awards = $this->Recommendations->Awards->find(
             'list',
             limit: 200,

@@ -38,6 +38,15 @@ class MemberMobileCardProfile extends Controller {
         }
     }
 
+    optionsForFetch() {
+        return {
+            headers: {
+                "X-Requested-With": "XMLHttpRequest",
+                "Accept": "application/json"
+            }
+        }
+    }
+
     loadCard() {
         this.cardSetTarget.innerHTML = "";
         this.loadingTarget.hidden = false;
@@ -48,7 +57,7 @@ class MemberMobileCardProfile extends Controller {
         } else {
             console.log("PWA ready");
         }
-        fetch(this.urlValue)
+        fetch(this.urlValue, this.optionsForFetch())
             .then(response => response.json())
             .then(data => {
                 this.loadingTarget.hidden = true;

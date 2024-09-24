@@ -44,8 +44,13 @@ $this->KMP->endBlock(); ?>
                         data-stack-rank="<?= $recommendation->stack_rank ?>" data-rec-id="<?= $recommendation->id ?>"
                         id="card_<?= $recommendation->id ?>" data-kanban-target="card">
                         <div class="card-body">
-                            <div class="card-title">
-                                <?= $this->Html->link($recommendation->award->abbreviation, ['action' => 'view', $recommendation->id]) ?>
+                            <div class="card-title"> <?php
+                                                                    $awardTitle = $recommendation->award->abbreviation;
+                                                                    if ($recommendation->specialty != null && $recommendation->specialty != ""):
+                                                                        $awardTitle = $awardTitle . " (" . $recommendation->specialty . ")";
+                                                                    endif;
+                                                                    ?>
+                                <?= $this->Html->link($awardTitle, ['action' => 'view', $recommendation->id]) ?>
                                 <button type="button" class="btn btn-primary btn-sm float-end edit-rec"
                                     data-bs-toggle="modal" data-bs-target="#editModal" data-controller="grid-btn"
                                     data-action="click->grid-btn#fireNotice"
