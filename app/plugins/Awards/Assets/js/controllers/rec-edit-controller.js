@@ -59,7 +59,7 @@ class AwardsRecommendationEditForm extends Controller {
     }
     populateAwardDescriptions(event) {
         let url = this.awardListUrlValue + "/" + event.target.value;
-        fetch(ur, this.optionsForFetch())
+        fetch(url, this.optionsForFetch())
             .then(response => response.json())
             .then(data => {
                 this.awardTarget.value = "";
