@@ -60,7 +60,7 @@ class EventsController extends AppController
                 'RecommendationsToGive' => function ($q) {
                     return $q->contain(['Awards'])
                         ->where(['status in ' => [Recommendation::STATUS_NEED_TO_SCHEDULE, Recommendation::STATUS_SCHEDULED, Recommendation::STATUS_GIVEN]])
-                        ->select(['id', 'event_id', 'member_sca_name', 'award_id', 'specialty', 'call_into_court', 'court_availability', 'person_to_notify', 'status', 'Awards.abbreviation'])
+                        ->select(['id', 'event_id', 'member_sca_name', 'award_id', 'specialty', 'call_into_court', 'court_availability', 'person_to_notify', 'status', 'Awards.abbreviation', 'reason'])
                         ->orderBy(['member_sca_name' => 'ASC']);
                 }
             ]);

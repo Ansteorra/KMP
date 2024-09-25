@@ -138,7 +138,7 @@ class RecommendationsController extends AppController
         ];
         if ($this->request->getQuery("csv") == "true") {
             $csvData = [];
-            $csvData[] = ['Name', 'Award', 'Court Availability', 'Call Into Court', 'Person To Notify', 'Event', 'Status'];
+            $csvData[] = ['Name', 'Award', 'Court Availability', 'Call Into Court', 'Person To Notify', 'Event', 'Status', 'Reason'];
             $recommendations = $recommendations->toArray();
             foreach ($recommendations as $rec) {
                 $csvData[] = [
@@ -148,7 +148,8 @@ class RecommendationsController extends AppController
                     $rec->call_into_court,
                     $rec->person_to_notify,
                     $rec->assigned_event->name,
-                    $rec->status
+                    $rec->status,
+                    $rec->reason
                 ];
             }
             $csv = StaticHelpers::arrayToCsv($csvData);

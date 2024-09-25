@@ -63,7 +63,7 @@ if ($currentUser->can("view", "Awards.Recommendations")): ?>
     aria-labelledby="nav-scheduledAwards-tab" data-detail-tabs-target="tabContent">
     <?php if (!empty($event->recommendations_to_give)) :
             $csv = [];
-            $csv[] = ["Name", "Award", "Court Availability", "Call Into Court", "Person To Notify", "Status"];
+            $csv[] = ["Name", "Award", "Court Availability", "Call Into Court", "Person To Notify", "Status", "Reason"];
             foreach ($event->recommendations_to_give as $rec) {
                 $csv[] = [
                     $rec->member_sca_name,
@@ -72,6 +72,7 @@ if ($currentUser->can("view", "Awards.Recommendations")): ?>
                     $rec->call_into_court,
                     $rec->person_to_notify,
                     $rec->status,
+                    $rec->reason,
                 ];
             }
             $exportString = $this->KMP->makeCsv($csv);
