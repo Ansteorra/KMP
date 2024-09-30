@@ -24,7 +24,18 @@ class AuthorizationPolicy extends BasePolicy
         IdentityInterface $user,
         $authorization,
     ): bool {
-        $cando = $this->_hasNamedPermission($user, "Can Add Authorizations");
+        $cando = $this->_hasNamedPermission($user, "Can Manage Members");
+        if ($cando) {
+            return true;
+        }
+        return $authorization->member_id == $user->getIdentifier();
+    }
+
+    public function canRenew(
+        IdentityInterface $user,
+        $authorization,
+    ): bool {
+        $cando = $this->_hasNamedPermission($user, "Can Manage Members");
         if ($cando) {
             return true;
         }

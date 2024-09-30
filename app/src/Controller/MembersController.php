@@ -589,16 +589,18 @@ class MembersController extends AppController
                     $aiOptions = explode(",", $fieldDetails[1]);
                 }
                 //if aiOptions are not emoty then check the value is one of the options
+                $fieldValue = $this->request->getData($fieldKey);
                 if (!empty($aiOptions)) {
-                    $fieldValue = $this->request->getData($fieldKey);
-                    if (!in_array($fieldValue, $aiOptions)) {
+                    if ($fieldValue != "" && !in_array($fieldValue, $aiOptions)) {
                         $this->Flash->error(
                             __("The Additional Information could not be saved. Please, try again."),
                         );
                         return $this->redirect(["action" => "view", $member->id]);
                     }
                 }
-                $newData[$fieldKey] = $this->request->getData($fieldKey);
+                if ($fieldValue != "") {
+                    $newData[$fieldKey] = $this->request->getData($fieldKey);
+                }
             }
             $member->additional_info = $newData;
             if ($this->Members->save($member)) {
