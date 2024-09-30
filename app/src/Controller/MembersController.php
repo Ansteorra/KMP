@@ -730,7 +730,7 @@ class MembersController extends AppController
         $this->viewBuilder()->setClassName("Ajax");
         $query = $this->Members
             ->find("all")
-            ->where(["sca_name LIKE" => "%$q%"])
+            ->where(["sca_name LIKE" => "%$q%", 'status <>' => Member::STATUS_DEACTIVATED])
             ->select(["id", "sca_name"])
             ->limit(50);
         $this->set(compact("query", "q"));
