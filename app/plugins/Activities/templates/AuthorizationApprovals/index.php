@@ -16,6 +16,19 @@ $this->KMP->endBlock(); ?>
 <table class="table table-striped">
     <thead>
         <tr>
+            <td colspan="2">
+            <td colspan="4" class="text-end">
+                <form class="form-inline">
+
+                    <div class="input-group">
+                        <div class="input-group-text" id="btnSearch"><span class='bi bi-search'></span></div>
+                        <input type="text" name="search" class="form-control" placeholder="Search..."
+                            value="<?= $search ?>" aria-describedby="btnSearch" aria-label="Search">
+                    </div>
+                </form>
+            </td>
+        </tr>
+        <tr>
             <th scope="col"><?= $this->Paginator->sort(
                                 "approver_name",
                                 "Approver",
@@ -24,9 +37,9 @@ $this->KMP->endBlock(); ?>
                                 "last_login",
                                 "Last Login",
                             ) ?></th>
-            <th scope="col"><?= $this->Paginator->sort("Pending") ?></th>
-            <th scope="col"><?= $this->Paginator->sort("Approved") ?></th>
-            <th scope="col"><?= $this->Paginator->sort("Denied") ?></th>
+            <th scope="col"><?= $this->Paginator->sort("pending_count", "Pending") ?></th>
+            <th scope="col"><?= $this->Paginator->sort("approved_count", "Approved") ?></th>
+            <th scope="col"><?= $this->Paginator->sort("denied_count", "Denied") ?></th>
             <th scope="col" class="actions"><?= __("Actions") ?></th>
         </tr>
     </thead>
@@ -35,9 +48,9 @@ $this->KMP->endBlock(); ?>
         <tr>
             <td><?= h($authRollup->approver_name) ?></td>
             <td><?= h($authRollup->last_login) ?></td>
-            <td><?= h($authRollup->pending) ?></td>
-            <td><?= h($authRollup->approved) ?></td>
-            <td><?= h($authRollup->denied) ?></td>
+            <td><?= h($authRollup->pending_count) ?></td>
+            <td><?= h($authRollup->approved_count) ?></td>
+            <td><?= h($authRollup->denied_count) ?></td>
             <td class="actions">
                 <?= $this->Html->link(
                         __("View"),

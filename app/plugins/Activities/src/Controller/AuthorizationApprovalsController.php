@@ -25,6 +25,9 @@ class AuthorizationApprovalsController extends AppController
      */
     public function index()
     {
+        $search = $this->request->getQuery("search");
+        $search = $search ? trim($search) : null;
+
         $query = $this->AuthorizationApprovals
             ->find()
             ->contain(["Approvers" => function ($q) {
@@ -38,31 +41,48 @@ class AuthorizationApprovalsController extends AppController
                 "Approvers.id",
                 "approver_name" => "Approvers.sca_name",
                 "last_login" => "Approvers.last_login",
-                "pending" => $query
+                "pending_count" => $query
                     ->func()
                     ->count(
                         "CASE WHEN AuthorizationApprovals.responded_on IS NULL THEN 1 END",
                     ),
-                "approved" => $query
+                "approved_count" => $query
                     ->func()
                     ->count(
                         "CASE WHEN AuthorizationApprovals.approved = 1 THEN 1 END",
                     ),
-                "denied" => $query
+                "denied_count" => $query
                     ->func()
                     ->count(
                         "CASE WHEN AuthorizationApprovals.approved = 0  && AuthorizationApprovals.responded_on IS NOT NULL THEN 1 END",
                     ),
             ])
             ->group("Approvers.id");
+        if ($search) {
+            $query = $query->where([
+                "OR" => [
+                    "Approvers.sca_name LIKE" => "%" . $search . "%",
+                    "Approvers.email_address LIKE" => "%" . $search . "%",
+                ],
+            ]);
+        }
         $this->Authorization->authorize($query);
         $this->Authorization->applyScope($query);
+        $this->paginate = [
+            'sortableFields' => [
+                'approver_name',
+                'last_login',
+                'pending_count',
+                'approved_count',
+                'denied_count'
+            ],
+        ];
         $authorizationApprovals = $this->paginate($query, [
             'order' => [
-                'name' => 'asc',
+                'approver_name' => 'asc',
             ]
         ]);
-        $this->set(compact("authorizationApprovals"));
+        $this->set(compact("authorizationApprovals", "search"));
     }
 
     public function myQueue($token = null)
