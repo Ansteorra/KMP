@@ -40,6 +40,6 @@ class Permission extends Entity
         "is_system" => true,
         "is_super_user" => true,
         "requires_warrant" => true,
-        "roles" => true,
+        "roles" => true
     ];
 }

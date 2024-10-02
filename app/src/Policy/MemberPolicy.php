@@ -13,15 +13,32 @@ use Authorization\IdentityInterface;
 class MemberPolicy extends BasePolicy
 {
     protected string $REQUIRED_PERMISSION = "Can Manage Members";
+    protected string $REQUIRED_VIEW_PERMISSION = "Can View Members";
+
+    public function canIndex(IdentityInterface $user, $entity)
+    {
+        $canDo = $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+        if ($canDo) {
+            return true;
+        }
+        $canDo = $this->_hasNamedPermission($user, $this->REQUIRED_VIEW_PERMISSION);
+        if ($canDo) {
+            return true;
+        }
+        return false;
+    }
 
     public function canView(IdentityInterface $user, $entity)
     {
         $canDo = $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
         if ($canDo) {
             return true;
-        } else {
-            return $entity->id == $user->getIdentifier();
         }
+        $canDo = $this->_hasNamedPermission($user, $this->REQUIRED_VIEW_PERMISSION);
+        if ($canDo) {
+            return true;
+        }
+        return $entity->id == $user->getIdentifier();
     }
 
     public function canPartialEdit(IdentityInterface $user, $entity)
