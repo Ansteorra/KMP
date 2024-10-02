@@ -12215,4 +12215,9 @@ body {
     overflow-y: auto;
 }
 
+.form-group.required label::after {
+    content: " *";
+    color: red;
+}
+
 /*# sourceMappingURL=app.css.map*/

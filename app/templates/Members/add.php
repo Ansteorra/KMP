@@ -54,7 +54,7 @@ $this->KMP->endBlock(); ?>
         ]);
         echo $this->Form->control("membership_number");
         echo $this->Form->control("membership_expires_on", ["empty" => true]); ?>
-        <div class="mb-3 form-group select row">
+        <div class="mb-3 form-group select required row">
             <label class="form-label" for="birth-month">Birth Date</label>
             <div class="col-2">
                 <select name="birth_month" id="birth-month" class="form-select" required="required">

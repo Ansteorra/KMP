@@ -86,3 +86,8 @@
     max-height: 250px;
     overflow-y: auto;
 }
+
+.form-group.required label::after {
+    content: " *";
+    color: red;
+}
