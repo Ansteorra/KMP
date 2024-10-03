@@ -1,0 +1,59 @@
+[
+    {
+        "id": 8,
+        "last_updated": "2024-07-08T11:44:08+00:00",
+        "password": "[users current password in MD5 or blank to force all users to reset their password]",
+        "sca_name": "SCA Name",
+        "first_name": "First Name",
+        "middle_name": "M.",
+        "last_name": "Last Name",
+        "street_address": "Address",
+        "city": "City",
+        "state": "TX",
+        "zip": "77573",
+        "phone_number": "1235555555",
+        "email_address": "user@email.com",
+        "membership_number": 1000001,
+        "membership_expires_on": "2027-03-31T00:00:00+00:00",
+        "branch_name": "branch name",
+        "notes": "",
+        "parent_name": "",
+        "background_check_expires_on": null,
+        "hidden": false,
+        "password_token": null,
+        "password_token_expires_on": null,
+        "last_login": "2024-02-22T22:05:21+00:00",
+        "last_failed_login": null,
+        "failed_login_attempts": 0,
+        "birth_month": 12,
+        "birth_year": 1971,
+        "roles": [
+            {
+                "id": 6,
+                "name": "Cut And Thrust Authorizing Marshal",
+                "_joinData": {
+                    "participant_id": 8,
+                    "role_id": 6
+                }
+            },
+            {
+                "id": 5,
+                "name": "Rapier Combat Authorizing Marshal",
+                "_joinData": {
+                    "participant_id": 8,
+                    "role_id": 5
+                }
+            }
+        ],
+        "participant_authorization_types": [
+            {
+                "id": 2,
+                "participant_id": 8,
+                "authorization_type_id": 1,
+                "authorized_by": "Ulsted the Unsteady",
+                "expires_on": "2017-12-01T00:00:00+00:00",
+                "start_on": null
+            }
+        ]
+    }
+]

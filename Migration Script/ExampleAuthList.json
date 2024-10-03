@@ -1,0 +1,378 @@
+[
+    {
+        "id": 1,
+        "name": "Armored",
+        "length": 4,
+        "martial_groups_id": 1,
+        "minimum_age": 16,
+        "maximum_age": 200
+    },
+    {
+        "id": 2,
+        "name": "Fiberglass Spear",
+        "length": 4,
+        "martial_groups_id": 1,
+        "minimum_age": 16,
+        "maximum_age": 200
+    },
+    {
+        "id": 3,
+        "name": "armored field marshal",
+        "length": 4,
+        "martial_groups_id": 1,
+        "minimum_age": 18,
+        "maximum_age": 200
+    },
+    {
+        "id": 4,
+        "name": "Rapier",
+        "length": 4,
+        "martial_groups_id": 2,
+        "minimum_age": 16,
+        "maximum_age": 200
+    },
+    {
+        "id": 5,
+        "name": "rapier field marshal",
+        "length": 4,
+        "martial_groups_id": 2,
+        "minimum_age": 18,
+        "maximum_age": 200
+    },
+    {
+        "id": 6,
+        "name": "Cut And Thrust",
+        "length": 4,
+        "martial_groups_id": 3,
+        "minimum_age": 16,
+        "maximum_age": 200
+    },
+    {
+        "id": 7,
+        "name": "Rapier Spear",
+        "length": 4,
+        "martial_groups_id": 2,
+        "minimum_age": 16,
+        "maximum_age": 200
+    },
+    {
+        "id": 8,
+        "name": "Siege",
+        "length": 4,
+        "martial_groups_id": 1,
+        "minimum_age": 16,
+        "maximum_age": 200
+    },
+    {
+        "id": 9,
+        "name": "Siege Marshal",
+        "length": 4,
+        "martial_groups_id": 1,
+        "minimum_age": 16,
+        "maximum_age": 200
+    },
+    {
+        "id": 10,
+        "name": "Armored Combat Archery",
+        "length": 4,
+        "martial_groups_id": 1,
+        "minimum_age": 16,
+        "maximum_age": 200
+    },
+    {
+        "id": 11,
+        "name": "Rapier Combat Archery",
+        "length": 4,
+        "martial_groups_id": 2,
+        "minimum_age": 16,
+        "maximum_age": 200
+    },
+    {
+        "id": 12,
+        "name": "Combat Archery Marshal",
+        "length": 4,
+        "martial_groups_id": 1,
+        "minimum_age": 18,
+        "maximum_age": 200
+    },
+    {
+        "id": 13,
+        "name": "Target Archery Marshal",
+        "length": 4,
+        "martial_groups_id": 4,
+        "minimum_age": 18,
+        "maximum_age": 200
+    },
+    {
+        "id": 14,
+        "name": "Thrown Weapons Marshal",
+        "length": 4,
+        "martial_groups_id": 4,
+        "minimum_age": 18,
+        "maximum_age": 200
+    },
+    {
+        "id": 15,
+        "name": "Youth Boffer 1",
+        "length": 4,
+        "martial_groups_id": 7,
+        "minimum_age": 6,
+        "maximum_age": 13
+    },
+    {
+        "id": 16,
+        "name": "Youth Boffer 2",
+        "length": 4,
+        "martial_groups_id": 7,
+        "minimum_age": 6,
+        "maximum_age": 13
+    },
+    {
+        "id": 17,
+        "name": "Youth Boffer 3",
+        "length": 4,
+        "martial_groups_id": 7,
+        "minimum_age": 6,
+        "maximum_age": 13
+    },
+    {
+        "id": 18,
+        "name": "Youth Boffer Marshal",
+        "length": 4,
+        "martial_groups_id": 7,
+        "minimum_age": 18,
+        "maximum_age": 200
+    },
+    {
+        "id": 19,
+        "name": "Youth Boffer Junior Marshal",
+        "length": 4,
+        "martial_groups_id": 7,
+        "minimum_age": 13,
+        "maximum_age": 17
+    },
+    {
+        "id": 20,
+        "name": "Youth Armored Combat",
+        "length": 4,
+        "martial_groups_id": 7,
+        "minimum_age": 13,
+        "maximum_age": 17
+    },
+    {
+        "id": 21,
+        "name": "Youth Armored Combat Two Weapons",
+        "length": 4,
+        "martial_groups_id": 7,
+        "minimum_age": 13,
+        "maximum_age": 17
+    },
+    {
+        "id": 22,
+        "name": "Youth Armored Combat Spear",
+        "length": 4,
+        "martial_groups_id": 7,
+        "minimum_age": 13,
+        "maximum_age": 27
+    },
+    {
+        "id": 23,
+        "name": "Youth Armored Combat Weapon Shield",
+        "length": 4,
+        "martial_groups_id": 7,
+        "minimum_age": 13,
+        "maximum_age": 17
+    },
+    {
+        "id": 24,
+        "name": "Youth Armored Combat Grea Weapons",
+        "length": 4,
+        "martial_groups_id": 7,
+        "minimum_age": 13,
+        "maximum_age": 17
+    },
+    {
+        "id": 25,
+        "name": "youth armored field marshal",
+        "length": 4,
+        "martial_groups_id": 7,
+        "minimum_age": 18,
+        "maximum_age": 200
+    },
+    {
+        "id": 26,
+        "name": "Youth Armored Combat Junior Marshal",
+        "length": 4,
+        "martial_groups_id": 7,
+        "minimum_age": 13,
+        "maximum_age": 17
+    },
+    {
+        "id": 27,
+        "name": "Youth Rapier Combat Foil",
+        "length": 4,
+        "martial_groups_id": 6,
+        "minimum_age": 10,
+        "maximum_age": 17
+    },
+    {
+        "id": 28,
+        "name": "Youth Rapier Combat Epee",
+        "length": 4,
+        "martial_groups_id": 6,
+        "minimum_age": 10,
+        "maximum_age": 17
+    },
+    {
+        "id": 29,
+        "name": "Youth Rapier Combat Heavy Rapier",
+        "length": 4,
+        "martial_groups_id": 6,
+        "minimum_age": 12,
+        "maximum_age": 17
+    },
+    {
+        "id": 30,
+        "name": "Youth Rapier Combat Plastic Sword",
+        "length": 4,
+        "martial_groups_id": 6,
+        "minimum_age": 6,
+        "maximum_age": 13
+    },
+    {
+        "id": 31,
+        "name": "Youth Rapier Combat Melee",
+        "length": 4,
+        "martial_groups_id": 6,
+        "minimum_age": 13,
+        "maximum_age": 17
+    },
+    {
+        "id": 32,
+        "name": "Youth Rapier Combat Offensive Secondary",
+        "length": 4,
+        "martial_groups_id": 6,
+        "minimum_age": 13,
+        "maximum_age": 17
+    },
+    {
+        "id": 33,
+        "name": "Youth Rapier Combat Defensive Secondary",
+        "length": 4,
+        "martial_groups_id": 6,
+        "minimum_age": 13,
+        "maximum_age": 17
+    },
+    {
+        "id": 34,
+        "name": "youth rapier field marshal",
+        "length": 4,
+        "martial_groups_id": 6,
+        "minimum_age": 18,
+        "maximum_age": 200
+    },
+    {
+        "id": 35,
+        "name": "Youth Rapier Combat Plastic Sword Marshal",
+        "length": 4,
+        "martial_groups_id": 6,
+        "minimum_age": 18,
+        "maximum_age": 200
+    },
+    {
+        "id": 36,
+        "name": "Experimental: Rapier Spear",
+        "length": 4,
+        "martial_groups_id": 2,
+        "minimum_age": 99,
+        "maximum_age": 101
+    },
+    {
+        "id": 37,
+        "name": "C&T 2 Handed Weapon",
+        "length": 4,
+        "martial_groups_id": 3,
+        "minimum_age": 16,
+        "maximum_age": 200
+    },
+    {
+        "id": 38,
+        "name": "equestrian field marshal",
+        "length": 4,
+        "martial_groups_id": 5,
+        "minimum_age": 18,
+        "maximum_age": 200
+    },
+    {
+        "id": 39,
+        "name": "General Riding",
+        "length": 4,
+        "martial_groups_id": 5,
+        "minimum_age": 5,
+        "maximum_age": 200
+    },
+    {
+        "id": 40,
+        "name": "Mounted Games",
+        "length": 4,
+        "martial_groups_id": 5,
+        "minimum_age": 5,
+        "maximum_age": 200
+    },
+    {
+        "id": 41,
+        "name": "Mounted Combat",
+        "length": 4,
+        "martial_groups_id": 5,
+        "minimum_age": 18,
+        "maximum_age": 200
+    },
+    {
+        "id": 42,
+        "name": "Foam Jousting",
+        "length": 4,
+        "martial_groups_id": 5,
+        "minimum_age": 18,
+        "maximum_age": 200
+    },
+    {
+        "id": 43,
+        "name": "Driving",
+        "length": 4,
+        "martial_groups_id": 5,
+        "minimum_age": 18,
+        "maximum_age": 200
+    },
+    {
+        "id": 44,
+        "name": "Wooden Lance",
+        "length": 4,
+        "martial_groups_id": 5,
+        "minimum_age": 18,
+        "maximum_age": 200
+    },
+    {
+        "id": 45,
+        "name": "Mounted Archery",
+        "length": 4,
+        "martial_groups_id": 5,
+        "minimum_age": 18,
+        "maximum_age": 200
+    },
+    {
+        "id": 50,
+        "name": "C&T - Historic Combat Experiment",
+        "length": 4,
+        "martial_groups_id": 3,
+        "minimum_age": 16,
+        "maximum_age": 200
+    },
+    {
+        "id": 51,
+        "name": "Reduced Rapier Armor Experiment ",
+        "length": 4,
+        "martial_groups_id": 2,
+        "minimum_age": 18,
+        "maximum_age": 99
+    }
+]
