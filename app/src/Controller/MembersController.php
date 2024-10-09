@@ -642,6 +642,7 @@ class MembersController extends AppController
             ->select([
                 "Members.id",
                 "Members.sca_name",
+                "Members.title",
                 "Members.first_name",
                 "Members.last_name",
                 "Members.membership_number",
@@ -658,6 +659,9 @@ class MembersController extends AppController
             ->first();
         if (!$member) {
             throw new \Cake\Http\Exception\NotFoundException();
+        }
+        if($member->title){
+            $member->sca_name = $member->title . " " . $member->sca_name;
         }
         $this->Authorization->authorize($member);
         $this->viewBuilder()
@@ -676,6 +680,7 @@ class MembersController extends AppController
             ->find()
             ->select([
                 "Members.id",
+                "Members.title",
                 "Members.sca_name",
                 "Members.first_name",
                 "Members.last_name",
@@ -693,6 +698,9 @@ class MembersController extends AppController
             ->first();
         if (!$member) {
             throw new \Cake\Http\Exception\NotFoundException();
+        }
+        if($member->title){
+            $member->sca_name = $member->title . " " . $member->sca_name;
         }
         $this->Authorization->skipAuthorization();
         $this->viewBuilder()

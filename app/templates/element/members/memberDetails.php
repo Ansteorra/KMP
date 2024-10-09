@@ -7,8 +7,20 @@ use Cake\I18n\Date;
 $today = new Date();
 ?>
 <tr scope="row">
+    <th class="col"><?= __("Title") ?></th>
+    <td class="col-10"><?= h($member->title) ?></td>
+</tr>
+<tr scope="row">
     <th class="col"><?= __("Sca Name") ?></th>
     <td class="col-10"><?= h($member->sca_name) ?></td>
+</tr>
+<tr scope="row">
+    <th class="col"><?= __("Pronunciation") ?></th>
+    <td class="col-10"><?= h($member->pronunciation) ?></td>
+</tr>
+<tr scope="row">
+    <th class="col"><?= __("Pronouns") ?></th>
+    <td class="col-10"><?= h($member->pronouns) ?></td>
 </tr>
 <tr scope="row">
     <th class="col"><?= __("Branch") ?></th>

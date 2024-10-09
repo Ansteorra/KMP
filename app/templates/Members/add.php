@@ -20,7 +20,10 @@ $this->KMP->endBlock(); ?>
     <fieldset>
         <legend><?= __("Add Member") ?></legend>
         <?php
+        echo $this->Form->control("title");
         echo $this->Form->control("sca_name");
+        echo $this->Form->control("pronunciation");
+        echo $this->Form->control("pronouns");
         echo $this->KMP->comboBoxControl(
             $this->Form,
             'branch_name',

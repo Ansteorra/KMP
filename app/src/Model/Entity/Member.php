@@ -122,6 +122,9 @@ class Member extends Entity implements
         "additional_info" => true,
         "public_custom_fields" => true,
         "mobile_card_token" => true,
+        "title" => true,
+        "pronouns" => true,
+        "pronunciation" => true,
     ];
 
     protected array $_hidden = [

@@ -30,7 +30,10 @@ echo $this->Modal->create("Edit " . $member->sca_name, [
 ]); ?>
 <fieldset>
     <?php if ($user->can("edit", $member)) {
+        echo $this->Form->control("title");
         echo $this->Form->control("sca_name");
+        echo $this->Form->control("pronunciation");
+        echo $this->Form->control("pronouns");
         echo $this->Form->control("membership_number");
         echo $this->Form->control("membership_expires_on", [
             "empty" => true,
