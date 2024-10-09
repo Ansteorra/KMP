@@ -18,6 +18,7 @@ $this->prepend(
         '" ',
 );
 echo $this->KMP->startBlock("tb_body_start");
+$headerLinks = $this->KMP->getAppSettingsStartWith("KMP.HeaderLink.");
 ?>
 
 <body <?= $this->fetch("tb_body_attrs") ?>>
@@ -30,17 +31,36 @@ echo $this->KMP->startBlock("tb_body_start");
             ]) ?>
             <span class="fs-5"><?= h($this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP")) ?></span>
         </div>
-        <span class="w-100"></span>
-        <ul class="navbar-nav px-3">
-            <li class="nav-item text-nowrap">
+        <ul class="navbar-nav flex-row px-3">
+            <?php foreach ($headerLinks as $key => $value) :
+                $key = str_replace("KMP.HeaderLink.", "", $key);
+                $keys = explode(".", $key);
+                $key = $keys[0];
+                if (count($keys) > 1) {
+                    $key = $keys[1] == "no-label" ? "" : $keys[0];
+                }
+                $parts = explode("|", $value);
+                $url = $parts[0];
+                $css = "";
+                if (count($parts) > 1) {
+                    $css = $parts[1];
+                }
+            ?>
+            <li class="nav-item text-nowrap mx-1">
+                <a class="btn btn-outline-secondary <?= $css ?>" href="<?= $url ?>"><?= $key ?></a>
+            </li>
+            <?php endforeach; ?>
+            <li class="nav-item text-nowrap mx-1">
                 <?= $this->Html->link(
                     __("Sign out"),
                     ["controller" => "Members", "action" => "logout", 'plugin' => null],
-                    ["class" => "nav-link"],
+                    ["class" => "btn btn-outline-secondary"],
                 ) ?>
             </li>
-            <li class="nav-item text-nowrap">
-                <button class="navbar-toggler position-absolute d-md-none collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-expanded="false" aria-label="Toggle navigation">
+            <li class="nav-item text-nowrap mx-1">
+                <button class="btn btn-outline-secondary d-md-none collapsed" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-expanded="false"
+                    aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
                 </button>
             </li>
@@ -49,7 +69,8 @@ echo $this->KMP->startBlock("tb_body_start");
 
     <div class="container-fluid">
         <div class="row">
-            <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block bg-light sidebar pt-5 collapse" style="overflow-y: auto">
+            <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block bg-light sidebar pt-5 collapse"
+                style="overflow-y: auto">
                 <div class="position-sticky pt-3">
                     <?= $this->cell("Navigation") ?>
                 </div>
@@ -57,14 +78,6 @@ echo $this->KMP->startBlock("tb_body_start");
 
             <main role="main" class="col-md-9 ms-sm-auto col-lg-10 px-md-4 my-3">
                 <?php
-                /** Default `flash` block. */
-                if (!$this->fetch("tb_flash")) {
-                    echo $this->KMP->startBlock("tb_flash");
-                    if (isset($this->Flash)) {
-                        echo $this->Flash->render();
-                    }
-                    $this->KMP->endBlock();
-                }
                 $this->KMP->endBlock();
                 echo $this->KMP->startBlock("tb_body_end");
                 ?>
@@ -74,5 +87,15 @@ echo $this->KMP->startBlock("tb_body_start");
 </body>
 <?php
 $this->KMP->endBlock();
+
+
+/** Default `flash` block. */
+if (!$this->fetch("tb_flash")) {
+    echo $this->KMP->startBlock("tb_flash");
+    if (isset($this->Flash)) {
+        echo $this->Flash->render();
+    }
+    $this->KMP->endBlock();
+}
 echo $this->fetch("content");
 echo $this->element('copyrightFooter', []);
