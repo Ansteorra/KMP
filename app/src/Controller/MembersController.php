@@ -1162,11 +1162,9 @@ class MembersController extends AppController
                     return $this->redirect(["action" => "view", $member->id]);
                 }
             }
-            $deleteImage = false;
             //if the member is an adult and the membership was validated then set the status to active
             if ($member->age > 17 && $verifyMembership == "1") {
                 $member->status = Member::STATUS_VERIFIED_MEMBERSHIP;
-                $deleteImage = true;
             }
             //if the member is a minor and the parent was validated then set the status to verified minor
             if ($member->age < 18 && $verifyParent == "1" && $verifyMembership == "1") {
@@ -1177,10 +1175,8 @@ class MembersController extends AppController
                 //if the member is already membership verified then set to minor verified
                 if ($member->status == Member::STATUS_MINOR_MEMBERSHIP_VERIFIED) {
                     $member->status = Member::STATUS_VERIFIED_MINOR;
-                    $deleteImage = true;
                 } else {
                     $member->status = Member::STATUS_MINOR_PARENT_VERIFIED;
-                    $deleteImage = true;
                 }
             }
             //if the the member is a minor and the parent was not validated by the membership was then set the status to minor membership verified
@@ -1188,13 +1184,26 @@ class MembersController extends AppController
 
                 if ($member->status == Member::STATUS_MINOR_PARENT_VERIFIED) {
                     $member->status = Member::STATUS_VERIFIED_MINOR;
-                    $deleteImage = true;
                 } else {
                     $member->status = Member::STATUS_MINOR_MEMBERSHIP_VERIFIED;
-                    $deleteImage = true;
                 }
             }
             $image = $member->membership_card_path;
+            $deleteImage =  $member->status == Member::STATUS_VERIFIED_MEMBERSHIP ||
+                $member->status == Member::STATUS_VERIFIED_MINOR ||
+                $member->status == Member::STATUS_MINOR_MEMBERSHIP_VERIFIED;
+
+            $member->verified_by = $this->Authentication->getIdentity()->getIdentifier();
+            $member->verified_date = DateTime::now();
+            if ($deleteImage) {
+                $member->membership_card_path = null;
+            }
+            if (!$this->Members->save($member)) {
+                $this->Flash->error(
+                    __("The Member could not be verified. Please, try again."),
+                );
+                $this->redirect(["action" => "view", $member->id]);
+            }
             if ($image != null && $deleteImage) {
                 $image = WWW_ROOT . '../images/uploaded/' . $image;
                 $member->membership_card_path = null;
@@ -1202,14 +1211,6 @@ class MembersController extends AppController
                     $this->Flash->error("Error deleting image, please try again.");
                     return $this->redirect(["action" => "view", $member->id]);
                 }
-            }
-            $member->verified_by = $this->Authentication->getIdentity()->getIdentifier();
-            $member->verified_date = DateTime::now();
-            if (!$this->Members->save($member)) {
-                $this->Flash->error(
-                    __("The Member could not be verified. Please, try again."),
-                );
-                $this->redirect(["action" => "view", $member->id]);
             }
         }
         $this->Flash->success(__("The Membership has been verified."));
