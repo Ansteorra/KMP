@@ -154,13 +154,18 @@ $recommendation = [];
                 <td><?= h($recommendation->award->abbreviation) . ($recommendation->specialty ? " (" . $recommendation->specialty . ")" : "") ?>
                 </td>
                 <td>
-                    <?php echo $this->Html->link(
-                            h($recommendation->assigned_event->name),
-                            ["controller" => "Events", "action" => "view", $recommendation->assigned_event->id],
-                            ["title" => __("View"), "data-turbo-frame" => "_top"],
-                        ) ?>:
+                    <?php
+                        if ($recommendation->assigned_event):
+                            echo $this->Html->link(
+                                h($recommendation->assigned_event->name),
+                                ["controller" => "Events", "action" => "view", $recommendation->assigned_event->id],
+                                ["title" => __("View"), "data-turbo-frame" => "_top"],
+                            ) ?>:
                     <br> <?= h($recommendation->assigned_event->start_date->toDateString()) ?> -
                     <?= h($recommendation->assigned_event->end_date->toDateString()) ?>
+                    <?php else: ?>
+                    <span class="text-danger">Not Assigned</span>
+                    <?php endif; ?>
                 </td>
                 <td>
                     <ul>

@@ -683,11 +683,17 @@ class RecommendationsController extends AppController
         $statuses = $pageStatuses;
 
         $user = $this->request->getAttribute("identity");
-        if (!$user->can("ViewDeclined", $recommendations->first())) {
-            $recommendations->where(["Recommendations.status <> " => Recommendation::STATUS_DECLINED]);
-            //remove declined from statuses
+        $firstRec = $recommendations->first();
+        if ($firstRec) {
+            if (!$user->can("ViewDeclined", $firstRec)) {
+                $recommendations->where(["Recommendations.status <> " => Recommendation::STATUS_DECLINED]);
+                //remove declined from statuses
+                unset($statuses[Recommendation::STATUS_DECLINED]);
+            }
+        } else {
             unset($statuses[Recommendation::STATUS_DECLINED]);
         }
+
 
         $awards = $this->Recommendations->Awards->find(
             'list',
