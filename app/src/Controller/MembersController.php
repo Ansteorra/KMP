@@ -80,13 +80,33 @@ class MembersController extends AppController
             ]);
         // if there is a search term, filter the query
         if ($search) {
+            //detect th and replace with Þ
+            $nsearch = $search;
+            if (preg_match("/th/", $search)) {
+                $nsearch = str_replace("th", "Þ", $search);
+            }
+            //detect Þ and replace with th
+            $usearch = $search;
+            if (preg_match("/Þ/", $search)) {
+                $usearch = str_replace("Þ", "th", $search);
+            }
             $query = $query->where([
                 "OR" => [
-                    "Members.sca_name LIKE" => "%" . $search . "%",
-                    "Members.first_name LIKE" => "%" . $search . "%",
-                    "Members.last_name LIKE" => "%" . $search . "%",
-                    "Members.email_address LIKE" => "%" . $search . "%",
-                    "Branches.name LIKE" => "%" . $search . "%",
+                    ["Members.sca_name LIKE" => "%" . $search . "%"],
+                    ["Members.sca_name LIKE" => "%" . $nsearch . "%"],
+                    ["Members.sca_name LIKE" => "%" . $usearch . "%"],
+                    ["Members.first_name LIKE" => "%" . $search . "%"],
+                    ["Members.last_name LIKE" => "%" . $search . "%"],
+                    ["Members.email_address LIKE" => "%" . $search . "%"],
+                    ["Branches.name LIKE" => "%" . $search . "%"],
+                    ["Members.first_name LIKE" => "%" . $nsearch . "%"],
+                    ["Members.last_name LIKE" => "%" . $nsearch . "%"],
+                    ["Members.email_address LIKE" => "%" . $nsearch . "%"],
+                    ["Branches.name LIKE" => "%" . $nsearch . "%"],
+                    ["Members.first_name LIKE" => "%" . $usearch . "%"],
+                    ["Members.last_name LIKE" => "%" . $usearch . "%"],
+                    ["Members.email_address LIKE" => "%" . $usearch . "%"],
+                    ["Branches.name LIKE" => "%" . $usearch . "%"],
                 ],
             ]);
         }
@@ -620,12 +640,25 @@ class MembersController extends AppController
     public function searchMembers()
     {
         $q = $this->request->getQuery("q");
+        //detect th and replace with Þ
+        $nq = $q;
+        if (preg_match("/th/", $q)) {
+            $nq = str_replace("th", "Þ", $q);
+        }
+        //detect Þ and replace with th
+        $uq = $q;
+        if (preg_match("/Þ/", $q)) {
+            $uq = str_replace("Þ", "th", $q);
+        }
         $this->Authorization->skipAuthorization();
         $this->request->allowMethod(["get"]);
         $this->viewBuilder()->setClassName("Ajax");
         $query = $this->Members
             ->find("all")
-            ->where(["sca_name LIKE" => "%$q%"])
+            ->where([
+                'status <>' => Member::STATUS_DEACTIVATED,
+                'OR' => [["sca_name LIKE" => "%$q%"], ["sca_name LIKE" => "%$nq%"], ["sca_name LIKE" => "%$uq%"]]
+            ])
             ->select(["id", "sca_name"])
             ->limit(10);
         //$query = $this->Authorization->applyScope($query);
@@ -660,7 +693,7 @@ class MembersController extends AppController
         if (!$member) {
             throw new \Cake\Http\Exception\NotFoundException();
         }
-        if($member->title){
+        if ($member->title) {
             $member->sca_name = $member->title . " " . $member->sca_name;
         }
         $this->Authorization->authorize($member);
@@ -699,7 +732,7 @@ class MembersController extends AppController
         if (!$member) {
             throw new \Cake\Http\Exception\NotFoundException();
         }
-        if($member->title){
+        if ($member->title) {
             $member->sca_name = $member->title . " " . $member->sca_name;
         }
         $this->Authorization->skipAuthorization();
