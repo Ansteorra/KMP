@@ -736,15 +736,29 @@ class MembersController extends AppController
     public function autoComplete()
     {
         $q = $this->request->getQuery("q");
+        //detect th and replace with Þ
+        $nq = $q;
+        if (preg_match("/th/", $q)) {
+            $nq = str_replace("th", "Þ", $q);
+        }
+        //detect Þ and replace with th
+        $uq = $q;
+        if (preg_match("/Þ/", $q)) {
+            $uq = str_replace("Þ", "th", $q);
+        }
+
         $this->Authorization->skipAuthorization();
         $this->request->allowMethod(["get"]);
         $this->viewBuilder()->setClassName("Ajax");
         $query = $this->Members
             ->find("all")
-            ->where(["sca_name LIKE" => "%$q%", 'status <>' => Member::STATUS_DEACTIVATED])
+            ->where([
+                'status <>' => Member::STATUS_DEACTIVATED,
+                'OR' => [["sca_name LIKE" => "%$q%"], ["sca_name LIKE" => "%$nq%"], ["sca_name LIKE" => "%$uq%"]]
+            ])
             ->select(["id", "sca_name"])
             ->limit(50);
-        $this->set(compact("query", "q"));
+        $this->set(compact("query", "q", "nq", "uq"));
     }
 
     public function emailTaken()
