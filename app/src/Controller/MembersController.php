@@ -516,7 +516,10 @@ class MembersController extends AppController
         }
         $this->Authorization->authorize($member);
         if ($this->request->is(["patch", "post", "put"])) {
+            $member->title = $this->request->getData("title");
             $member->sca_name = $this->request->getData("sca_name");
+            $member->pronunciation = $this->request->getData("pronunciation");
+            $member->pronouns = $this->request->getData("pronouns");
             $member->branch_id = $this->request->getData("branch_id");
             $member->first_name = $this->request->getData("first_name");
             $member->middle_name = $this->request->getData("middle_name");
@@ -660,7 +663,7 @@ class MembersController extends AppController
         if (!$member) {
             throw new \Cake\Http\Exception\NotFoundException();
         }
-        if($member->title){
+        if ($member->title) {
             $member->sca_name = $member->title . " " . $member->sca_name;
         }
         $this->Authorization->authorize($member);
@@ -699,7 +702,7 @@ class MembersController extends AppController
         if (!$member) {
             throw new \Cake\Http\Exception\NotFoundException();
         }
-        if($member->title){
+        if ($member->title) {
             $member->sca_name = $member->title . " " . $member->sca_name;
         }
         $this->Authorization->skipAuthorization();

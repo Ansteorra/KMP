@@ -81,7 +81,10 @@ echo $this->Modal->create("Edit " . $member->sca_name, [
             ""
         ]);
     } elseif ($user->can("partialEdit", $member)) {
+        echo $this->Form->control("title");
         echo $this->Form->control("sca_name");
+        echo $this->Form->control("pronunciation");
+        echo $this->Form->control("pronouns");
         echo $this->Form->control("branch_id", [
             "options" => $treeList,
         ]);

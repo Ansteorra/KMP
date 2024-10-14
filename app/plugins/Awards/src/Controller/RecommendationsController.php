@@ -96,6 +96,7 @@ class RecommendationsController extends AppController
             $recommendations->where(["event_id" => $this->request->getQuery("event_id")]);
         }
         $recommendations->where(["Recommendations.status" => Recommendation::STATUS_SCHEDULED]);
+
         $awards = $this->Recommendations->Awards->find(
             'list',
             limit: 200,
@@ -138,11 +139,14 @@ class RecommendationsController extends AppController
         ];
         if ($this->request->getQuery("csv") == "true") {
             $csvData = [];
-            $csvData[] = ['Name', 'Award', 'Court Availability', 'Call Into Court', 'Person To Notify', 'Event', 'Status', 'Reason'];
+            $csvData[] = ['Title', 'Name', "Pronunciation", "Pronouns", 'Award', 'Court Availability', 'Call Into Court', 'Person To Notify', 'Event', 'Status', 'Reason'];
             $recommendations = $recommendations->toArray();
             foreach ($recommendations as $rec) {
                 $csvData[] = [
+                    $rec->member->title,
                     $rec->member_sca_name,
+                    $rec->member->pronunciation,
+                    $rec->member->pronouns,
                     $rec->award->abbreviation . ($rec->specialty ? " (" . $rec->specialty . ")" : ""),
                     $rec->court_availability,
                     $rec->call_into_court,
