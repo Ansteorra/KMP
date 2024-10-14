@@ -50,6 +50,20 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
                 return false;
             }
         }
+        //Checking for existing pending requests
+        $existingRequests = $table
+            ->find()
+            ->where([
+                "member_id" => $requesterId,
+                "activity_id" => $activityId,
+                "status" => Authorization::PENDING_STATUS
+            ])
+            ->count();
+        if ($existingRequests > 0) {
+            return false;
+        }
+
+
         $auth = $table->newEmptyEntity();
         $auth->member_id = $requesterId;
         $auth->activity_id = $activityId;
