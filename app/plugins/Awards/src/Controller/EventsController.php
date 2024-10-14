@@ -6,6 +6,7 @@ namespace Awards\Controller;
 
 use Awards\Controller\AppController;
 use Awards\Model\Entity\Recommendation;
+use App\Model\Entity\Member;
 
 /**
  * Awards Controller
@@ -60,12 +61,26 @@ class EventsController extends AppController
                 'RecommendationsToGive' => function ($q) {
                     return $q->contain(['Awards'])
                         ->where(['status in ' => [Recommendation::STATUS_NEED_TO_SCHEDULE, Recommendation::STATUS_SCHEDULED, Recommendation::STATUS_GIVEN]])
-                        ->select(['id', 'event_id', 'member_sca_name', 'award_id', 'specialty', 'call_into_court', 'court_availability', 'person_to_notify', 'status', 'Awards.abbreviation', 'reason'])
+                        ->select(['id', 'event_id', 'member_sca_name', 'award_id', 'specialty', 'call_into_court', 'court_availability', 'person_to_notify', 'status', 'Awards.abbreviation', 'reason', 'member_id'])
                         ->orderBy(['member_sca_name' => 'ASC']);
                 }
             ]);
         }
+        // $event = $event->leftJoin(
+        //     ['Members' => 'members'],
+        //     ['Members.id = recommendations_to_give.members_id']
+        // );
         $event = $event->first();
+        $members = $this->fetchTable('Members');
+        foreach ($event->recommendations_to_give as $rec) {
+            $member = $members->find()->where(['Members.id ' => $rec->member_id]);
+            $member = $member->first();
+            $rec->title = $member->title;
+            $rec->pronunciation = $member->pronunciation;
+            $rec->pronouns = $member->pronouns;
+        }
+
+        //debug($event);
 
         if (!$event) {
             throw new \Cake\Http\Exception\NotFoundException();
