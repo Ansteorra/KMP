@@ -755,7 +755,7 @@ class MembersController extends AppController
             ])
             ->select(["id", "sca_name"])
             ->limit(50);
-        $this->set(compact("query", "q"));
+        $this->set(compact("query", "q", "nq", "uq"));
     }
 
     public function emailTaken()
