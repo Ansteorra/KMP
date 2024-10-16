@@ -92,6 +92,8 @@ class MembersController extends AppController
             }
             $query = $query->where([
                 "OR" => [
+
+                    ["Members.membership_number LIKE" => "%" . $search . "%"],
                     ["Members.sca_name LIKE" => "%" . $search . "%"],
                     ["Members.sca_name LIKE" => "%" . $nsearch . "%"],
                     ["Members.sca_name LIKE" => "%" . $usearch . "%"],
