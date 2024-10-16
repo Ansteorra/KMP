@@ -26,6 +26,7 @@ class AuthorizationApprovalsController extends AppController
     public function index()
     {
         $search = $this->request->getQuery("search");
+
         $search = $search ? trim($search) : null;
 
         $query = $this->AuthorizationApprovals
@@ -58,11 +59,26 @@ class AuthorizationApprovalsController extends AppController
                     ),
             ])
             ->group("Approvers.id");
+
         if ($search) {
+            //detect th and replace with Þ
+            $nsearch = $search;
+            if (preg_match("/th/", $search)) {
+                $nsearch = str_replace("th", "Þ", $search);
+            }
+            //detect Þ and replace with th
+            $usearch = $search;
+            if (preg_match("/Þ/", $search)) {
+                $usearch = str_replace("Þ", "th", $search);
+            }
             $query = $query->where([
                 "OR" => [
-                    "Approvers.sca_name LIKE" => "%" . $search . "%",
-                    "Approvers.email_address LIKE" => "%" . $search . "%",
+                    ["Approvers.sca_name LIKE" => "%" . $search . "%"],
+                    ["Approvers.sca_name LIKE" => "%" . $nsearch . "%"],
+                    ["Approvers.sca_name LIKE" => "%" . $usearch . "%"],
+                    ["Approvers.email_address LIKE" => "%" . $search . "%"],
+                    ["Approvers.email_address LIKE" => "%" . $nsearch . "%"],
+                    ["Approvers.email_address LIKE" => "%" . $usearch . "%"],
                 ],
             ]);
         }
