@@ -318,7 +318,7 @@ $columnCount = count(array_filter($columns, function ($value) {
                                 foreach ($remainingEvents as $event) :
                                     $eventsRendered++ ?>
                         <li style="white-space:nowrap">
-                            <?= h($event->name) ?><br><?= h($event->start_date->toDateString()) ?></li>
+                            <?= h($event->name) ?></li>
                         <?php if ($eventsRendered >= 3) :
                                         break;
                                     endif; ?>
