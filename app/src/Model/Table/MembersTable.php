@@ -94,8 +94,6 @@ class MembersTable extends Table
     {
         $schema = parent::getSchema();
         $schema->setColumnType('additional_info', 'json');
-        $schema->setColumnType('public_custom_fields', 'json');
-
         return $schema;
     }
 

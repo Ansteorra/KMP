@@ -15,12 +15,48 @@ class RecommendationPolicy extends BasePolicy
     protected string $REQUIRED_PERMISSION = "Can View Recommendations";
     protected string $REQUIRED_PERMISSION_MANAGE = "Can Manage Recommendations";
 
+    public function canIndex(IdentityInterface $user, $entity, ...$args)
+    {
+        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+    }
+
+    public function canViewSubmittedByMember(IdentityInterface $user, $entity, ...$args)
+    {
+        $member_id = $args[2]['member_id'];
+        $canDo = $member_id == $user->get('id');
+        return $canDo || $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+    }
+
+    public function canViewSubmittedForMember(IdentityInterface $user, $entity, ...$args)
+    {
+        //$member_id = $args[2]['member_id'];
+        //$canDo = $member_id == $user->get('id');
+        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+    }
+
+    public function canViewEventRecommendations(IdentityInterface $user, $entity, ...$args)
+    {
+        //$member_id = $args[2]['member_id'];
+        //$canDo = $member_id == $user->get('id');
+        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+    }
+
+    public function canExport(IdentityInterface $user, $entity, ...$args)
+    {
+        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+    }
+
     public function canEdit(IdentityInterface $user, $entity)
     {
         return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION_MANAGE);
     }
 
-    public function canViewDeclined(IdentityInterface $user, $entity)
+    public function canUseBoard(IdentityInterface $user, $entity, ...$args)
+    {
+        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION_MANAGE);
+    }
+
+    public function canViewHidden(IdentityInterface $user, $entity)
     {
         return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION_MANAGE);
     }
@@ -28,31 +64,6 @@ class RecommendationPolicy extends BasePolicy
     public function canDelete(IdentityInterface $user, $entity)
     {
         return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION_MANAGE);
-    }
-
-    public function canToBeProcessedBoard(IdentityInterface $user, $entity)
-    {
-        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION_MANAGE);
-    }
-
-    public function canToBeScheduledBoard(IdentityInterface $user, $entity)
-    {
-        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION_MANAGE);
-    }
-
-    public function canToBeProcessed(IdentityInterface $user, $entity)
-    {
-        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
-    }
-
-    public function canToBeScheduled(IdentityInterface $user, $entity)
-    {
-        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
-    }
-
-    public function canToBeGiven(IdentityInterface $user, $entity)
-    {
-        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
     }
 
     public function canViewPrivateNotes(IdentityInterface $user, $entity)
@@ -64,6 +75,8 @@ class RecommendationPolicy extends BasePolicy
     {
         return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION_MANAGE);
     }
+
+
 
     public function canAdd(IdentityInterface $user, $entity)
     {

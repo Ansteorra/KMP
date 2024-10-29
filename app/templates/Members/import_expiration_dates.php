@@ -2,7 +2,7 @@
 $this->extend("/layout/TwitterBootstrap/dashboard");
 
 echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Member Expiration Dates Import';
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Member Expiration Dates Import';
 $this->KMP->endBlock(); ?>
 <h3>
     Import Expiration Dates

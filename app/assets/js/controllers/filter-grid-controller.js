@@ -2,7 +2,7 @@ import { Controller } from "@hotwired/stimulus"
 class FilterGrid extends Controller {
     submitForm(event) {
         console.log("submitting form");
-        this.element.submit();
+        this.element.requestSubmit();
     }
 }
 // add to window.Controllers with a name of the controller

@@ -20,7 +20,7 @@ class ActivitiesMailer extends Mailer
         string $approverScaName,
         string $activityName,
     ) {
-        $sendFrom = StaticHelpers::getAppSetting("Email.SystemEmailFromAddress", "donotreply@webminister.ansteorra.org");
+        $sendFrom = StaticHelpers::getAppSetting("Email.SystemEmailFromAddress");
         $url = Router::url([
             "controller" => "AuthorizationApprovals",
             "action" => "myQueue",
@@ -36,7 +36,7 @@ class ActivitiesMailer extends Mailer
                 "memberScaName" => $memberScaName,
                 "approverScaName" => $approverScaName,
                 "activityName" => $activityName,
-                "siteAdminSignature" => StaticHelpers::getAppSetting("Email.SiteAdminSignature", "Webminister"),
+                "siteAdminSignature" => StaticHelpers::getAppSetting("Email.SiteAdminSignature"),
             ]);
     }
 
@@ -49,7 +49,7 @@ class ActivitiesMailer extends Mailer
         string $nextApproverScaName,
         string $activityName,
     ) {
-        $sendFrom = StaticHelpers::getAppSetting("Email.SystemEmailFromAddress", "donotreply@webminister.ansteorra.org");
+        $sendFrom = StaticHelpers::getAppSetting("Email.SystemEmailFromAddress");
         $url = Router::url([
             "controller" => "Members",
             "action" => "viewCard",
@@ -68,7 +68,7 @@ class ActivitiesMailer extends Mailer
                 "activityName" => $activityName,
                 "memberCardUrl" => $url,
                 "nextApproverScaName" => $nextApproverScaName,
-                "siteAdminSignature" => StaticHelpers::getAppSetting("Email.SiteAdminSignature", "Webminister"),
+                "siteAdminSignature" => StaticHelpers::getAppSetting("Email.SiteAdminSignature"),
             ]);
     }
 }

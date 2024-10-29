@@ -32,7 +32,7 @@ class RecsForMemberCell extends BasePluginCell
             return null;
         }
         $pluginData = parent::getRouteEventResponse($route, self::$pluginData, self::$validRoutes);
-        if ($pluginData != null && $currentUser != null && ($currentUser->can('view', 'Awards.Recommendations'))) {
+        if ($pluginData != null && $currentUser != null && ($currentUser->checkCan('view', 'Awards.Recommendations'))) {
             return $pluginData;
         }
         return null;

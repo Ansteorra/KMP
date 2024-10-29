@@ -8,7 +8,7 @@
 <?php $this->extend("/layout/TwitterBootstrap/dashboard");
 
 echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Add Award Level';
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Add Award Level';
 $this->KMP->endBlock(); ?>
 
 <div class="activityGroup form content">

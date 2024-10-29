@@ -10,7 +10,7 @@ $this->extend("/layout/TwitterBootstrap/dashboard");
 
 
 echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': View Authorization Queue for ' . $queueFor;
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': View Authorization Queue for ' . $queueFor;
 $this->KMP->endBlock();
 
 $pending = [];

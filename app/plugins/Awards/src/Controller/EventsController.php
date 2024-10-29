@@ -56,31 +56,8 @@ class EventsController extends AppController
             ]);
 
         $currentUser = $this->request->getAttribute('identity');
-        if ($currentUser->can("view", "Awards.Recommendations")) {
-            $event->contain([
-                'RecommendationsToGive' => function ($q) {
-                    return $q->contain(['Awards'])
-                        ->where(['status in ' => [Recommendation::STATUS_NEED_TO_SCHEDULE, Recommendation::STATUS_SCHEDULED, Recommendation::STATUS_GIVEN]])
-                        ->select(['id', 'event_id', 'member_sca_name', 'award_id', 'specialty', 'call_into_court', 'court_availability', 'person_to_notify', 'status', 'Awards.abbreviation', 'reason', 'member_id'])
-                        ->orderBy(['member_sca_name' => 'ASC']);
-                }
-            ]);
-        }
-        // $event = $event->leftJoin(
-        //     ['Members' => 'members'],
-        //     ['Members.id = recommendations_to_give.members_id']
-        // );
+        $showAwards = $currentUser->checkCan("view", "Awards.Recommendations");
         $event = $event->first();
-        $members = $this->fetchTable('Members');
-        foreach ($event->recommendations_to_give as $rec) {
-            $member = $members->find()->where(['Members.id ' => $rec->member_id]);
-            $member = $member->first();
-            $rec->title = $member->title;
-            $rec->pronunciation = $member->pronunciation;
-            $rec->pronouns = $member->pronouns;
-        }
-
-        //debug($event);
 
         if (!$event) {
             throw new \Cake\Http\Exception\NotFoundException();
@@ -91,7 +68,7 @@ class EventsController extends AppController
         $branches = $this->Events->Branches
             ->find("treeList", spacer: "--")
             ->orderBy(["name" => "ASC"]);
-        $this->set(compact('event', 'branches'));
+        $this->set(compact('event', 'branches', 'showAwards'));
     }
 
     /**
@@ -106,6 +83,7 @@ class EventsController extends AppController
             $event = $this->Events->patchEntity($event, $this->request->getData());
             $event->start_date = $this->request->getData('start_date');
             $event->end_date = $this->request->getData('end_date');
+            $event->closed = false;
             if ($this->Events->save($event)) {
                 $this->Flash->success(__('The Event has been saved.'));
 
@@ -169,10 +147,11 @@ class EventsController extends AppController
         $event->name = "Deleted: " . $event->name;
         if ($this->Events->delete($event)) {
             $this->Flash->success(__('The Event has been deleted.'));
+            $revertState = Recommendation::getStates()[0];
             $recs = $this->Events->RecommendationsToGive->find('all')->where(['event_id' => $event->id])->all();
             foreach ($recs as $rec) {
                 $rec->event_id = null;
-                $rec->status = Recommendation::STATUS_NEED_TO_SCHEDULE;
+                $rec->state = $revertState;
                 $this->Events->RecommendationsToGive->save($rec);
             }
         } else {

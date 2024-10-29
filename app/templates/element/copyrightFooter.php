@@ -1,6 +1,6 @@
 <?php
-$appName = $this->KMP->getAppSetting("KMP.LongSiteTitle", "Kingdom Management Portal");
-$appVersion = $this->KMP->getAppSetting("App.version", "0.0.0");
+$appName = $this->KMP->getAppSetting("KMP.LongSiteTitle");
+$appVersion = $this->KMP->getAppSetting("App.version");
 
 $footerLinks = $this->KMP->getAppSettingsStartWith("KMP.FooterLink.");
 echo $this->KMP->startBlock("tb_footer"); ?>
@@ -23,9 +23,9 @@ echo $this->KMP->startBlock("tb_footer"); ?>
                     $css = $parts[1];
                 }
             ?>
-            <li class="nav-item text-nowrap mx-2">
-                <a class="nav-link <?= $css ?>" href="<?= $url ?>"><?= $key ?></a>
-            </li>
+                <li class="nav-item text-nowrap mx-2">
+                    <a class="nav-link <?= $css ?>" href="<?= $url ?>"><?= $key ?></a>
+                </li>
             <?php endforeach; ?>
             <li class="nav-item text-nowrap mx-2">
                 <?= $this->cell('GitHubIssueSubmitter.IssueSubmitter::display', []) ?>

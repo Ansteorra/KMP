@@ -10,18 +10,18 @@ use App\KMP\StaticHelpers;
             <thead>
                 <tr>
                     <?php foreach ($tableConfig["columns"] as $column => $value) { ?>
-                    <th scope="col <?= $column == "Actions" ? "actions" : "" ?>"><?= $column ?></th>
+                        <th scope="col <?= $column == "Actions" ? "actions" : "" ?>"><?= $column ?></th>
                     <?php } ?>
                 </tr>
             </thead>
             <tbody>
                 <?php foreach ($tableConfig["data"] as $data) { ?>
 
-                <tr>
-                    <?php foreach ($tableConfig["columns"] as $column => $value) {
+                    <tr>
+                        <?php foreach ($tableConfig["columns"] as $column => $value) {
                             if ($column == "Actions") { ?>
-                    <td class="actions">
-                        <?php foreach ($value as $link) {
+                                <td class="actions">
+                                    <?php foreach ($value as $link) {
                                         if (isset($link["condition"])) {
                                             //loop through the conditions and if any of them are false, skip this link
                                             $skip = false;
@@ -44,7 +44,7 @@ use App\KMP\StaticHelpers;
                                             } else {
                                                 $authEntity = $data;
                                             }
-                                            $verified = $user->can($link["action"], $authEntity);
+                                            $verified = $user->checkCan($link["action"], $authEntity);
                                         }
 
                                         if ($verified) {
@@ -96,7 +96,7 @@ use App\KMP\StaticHelpers;
                                     }
                                     echo "</td>";
                                 } else { ?>
-                    <td class="align-top"><?php
+                                <td class="align-top"><?php
 
                                                         $record = StaticHelpers::getValue($value, $data);
                                                         //if the value is a DateTime then call ->toDateString() on it
@@ -116,29 +116,29 @@ use App\KMP\StaticHelpers;
                                                             echo h($record);
                                                         }
                                                         ?></td>
-                    <?php }
+                        <?php }
                             } ?>
-                </tr>
+                    </tr>
 
                 <?php } ?>
             </tbody>
         </table>
         <?php if ($tableConfig["usePagination"]) { ?>
-        <div class="paginator">
-            <ul class="pagination">
-                <?= $this->Paginator->first("«", ["label" => __("First")]) ?>
-                <?= $this->Paginator->prev("‹", [
+            <div class="paginator">
+                <ul class="pagination">
+                    <?= $this->Paginator->first("«", ["label" => __("First")]) ?>
+                    <?= $this->Paginator->prev("‹", [
                         "label" => __("Previous"),
                     ]) ?>
-                <?= $this->Paginator->numbers() ?>
-                <?= $this->Paginator->next("›", ["label" => __("Next")]) ?>
-                <?= $this->Paginator->last("»", ["label" => __("Last")]) ?>
-            </ul>
-            <p><?= $this->Paginator->counter(
+                    <?= $this->Paginator->numbers() ?>
+                    <?= $this->Paginator->next("›", ["label" => __("Next")]) ?>
+                    <?= $this->Paginator->last("»", ["label" => __("Last")]) ?>
+                </ul>
+                <p><?= $this->Paginator->counter(
                         __(
                             "Page {{page}} of {{pages}}, showing {{current}} record(s) out of {{count}} total",
                         ),
                     ) ?></p>
-        </div>
+            </div>
         <?php } ?>
 </turbo-frame>

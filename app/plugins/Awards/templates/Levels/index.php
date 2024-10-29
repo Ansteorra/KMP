@@ -8,7 +8,7 @@
 <?php $this->extend("/layout/TwitterBootstrap/dashboard");
 
 echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Award Levels';
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Award Levels';
 $this->KMP->endBlock(); ?>
 <h3>
     Award Levels
@@ -24,17 +24,17 @@ $this->KMP->endBlock(); ?>
     </thead>
     <tbody>
         <?php foreach ($levels as $level) : ?>
-        <tr>
-            <td><?= h($level->name) ?></td>
-            <td><?= h($level->progression_order) ?></td>
-            <td class="actions">
-                <?= $this->Html->link(
+            <tr>
+                <td><?= h($level->name) ?></td>
+                <td><?= h($level->progression_order) ?></td>
+                <td class="actions">
+                    <?= $this->Html->link(
                         __("View"),
                         ["action" => "view", $level->id],
                         ["title" => __("View"), "class" => "btn btn-secondary"],
                     ) ?>
-            </td>
-        </tr>
+                </td>
+            </tr>
         <?php endforeach; ?>
     </tbody>
 </table>

@@ -21,7 +21,7 @@ class NotePolicy
      */
     public function canAdd(IdentityInterface $user, Note $note)
     {
-        return $user->can("addNote", $note->topic_model);
+        return $user->checkCan("addNote", $note->topic_model);
     }
 
     /**
@@ -31,9 +31,7 @@ class NotePolicy
      * @param \App\Model\Entity\Note $note
      * @return bool
      */
-    public function canEdit(IdentityInterface $user, Note $note)
-    {
-    }
+    public function canEdit(IdentityInterface $user, Note $note) {}
 
     /**
      * Check if $user can delete Note
@@ -42,9 +40,7 @@ class NotePolicy
      * @param \App\Model\Entity\Note $note
      * @return bool
      */
-    public function canDelete(IdentityInterface $user, Note $note)
-    {
-    }
+    public function canDelete(IdentityInterface $user, Note $note) {}
 
     /**
      * Check if $user can view Note
@@ -53,7 +49,5 @@ class NotePolicy
      * @param \App\Model\Entity\Note $note
      * @return bool
      */
-    public function canView(IdentityInterface $user, Note $note)
-    {
-    }
+    public function canView(IdentityInterface $user, Note $note) {}
 }

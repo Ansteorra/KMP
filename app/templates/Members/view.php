@@ -11,7 +11,7 @@ use App\Model\Entity\Member;
 
 $this->extend("/layout/TwitterBootstrap/view_record");
 echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': View Member - ' . h($member->sca_name);
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': View Member - ' . h($member->sca_name);
 $this->KMP->endBlock();
 
 use Cake\I18n\Date;
@@ -62,18 +62,18 @@ echo $this->KMP->startBlock("pageTitle") ?>
 <?= h($member->sca_name) ?>
 <?php $this->KMP->endBlock() ?>
 <?= $this->KMP->startBlock("recordActions") ?>
-<?php if ($user->can("verifyMembership", "Members") && $needVerification) { ?>
-<button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
-    data-bs-target="#verifyMembershipModal">Verify Membership</button>
+<?php if ($user->checkCan("verifyMembership", "Members") && $needVerification) { ?>
+    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
+        data-bs-target="#verifyMembershipModal">Verify Membership</button>
 <?php } ?>
 <?php if (
-    $user->can("edit", $member) ||
-    $user->can("partialEdit", $member)
+    $user->checkCan("edit", $member) ||
+    $user->checkCan("partialEdit", $member)
 ) { ?>
-<button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal"
-    id='editModalBtn'>Edit</button>
-<button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#passwordModal"
-    id='passwordModalBtn'>Change Password</button>
+    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal"
+        id='editModalBtn'>Edit</button>
+    <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#passwordModal"
+        id='passwordModalBtn'>Change Password</button>
 <?php } ?>
 <?php $this->KMP->endBlock() ?>
 
@@ -90,10 +90,10 @@ $this->KMP->endBlock() ?>
     aria-controls="nav-notes" aria-selected="false" data-detail-tabs-target='tabBtn'><?= __("Notes") ?>
 </button>
 <?php if (!empty($aiForm)) : ?>
-<button class=" nav-link" id="nav-add-info-tab" data-bs-toggle="tab" data-bs-target="#nav-add-info" type="button"
-    role="tab" aria-controls="nav-add-info" aria-selected="false" data-detail-tabs-target='tabBtn'>
-    <?= __("Additional Info") ?>
-</button>
+    <button class=" nav-link" id="nav-add-info-tab" data-bs-toggle="tab" data-bs-target="#nav-add-info" type="button"
+        role="tab" aria-controls="nav-add-info" aria-selected="false" data-detail-tabs-target='tabBtn'>
+        <?= __("Additional Info") ?>
+    </button>
 <?php endif; ?>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("tabContent") ?>
@@ -181,16 +181,16 @@ $this->KMP->endBlock() ?>
     <?= $this->cell('Notes', [
         'topic_id' => $member->id,
         'topic_model' => 'Members',
-        'viewPrivate' => $user->can("viewPrivateNotes", "Members"),
+        'viewPrivate' => $user->checkCan("viewPrivateNotes", "Members"),
     ]) ?>
 </div>
 <?php if (!empty($aiForm)) : ?>
-<div class="related tab-pane fade m-3" id="nav-add-info" role="tabpanel" aria-labelledby="nav-add-info-tab"
-    data-detail-tabs-target="tabContent">
-    <?php
+    <div class="related tab-pane fade m-3" id="nav-add-info" role="tabpanel" aria-labelledby="nav-add-info-tab"
+        data-detail-tabs-target="tabContent">
+        <?php
         $appInfo = $member->additional_info;
-        $userEditableOnly = !$user->can("edit", $member);
-        if ($user->can("editAdditionalInfo", $member)) {
+        $userEditableOnly = !$user->checkCan("edit", $member);
+        if ($user->checkCan("editAdditionalInfo", $member)) {
             echo $this->Form->create(null, [
                 //"align" => "horizontal",
                 "url" => ["controller" => "Members", "action" => "editAdditionalInfo", $member->id],
@@ -289,12 +289,12 @@ $this->KMP->endBlock() ?>
             ]);
             echo $this->form->end();
         } else { ?>
-    <table class='table table-striped'>
-        <?php foreach ($aiForm as $fieldKey => $fieldType) { ?>
-        <tr scope="row">
-            <th class="col"><?= str_replace("_", " ", $fieldKey) ?></th>
-            <td class="col-10">
-                <?php
+            <table class='table table-striped'>
+                <?php foreach ($aiForm as $fieldKey => $fieldType) { ?>
+                    <tr scope="row">
+                        <th class="col"><?= str_replace("_", " ", $fieldKey) ?></th>
+                        <td class="col-10">
+                            <?php
                             $pipePos = strpos($fieldType, "|");
                             $managerOnly = false;
                             $userEditable = false;
@@ -323,12 +323,12 @@ $this->KMP->endBlock() ?>
                                     break;
                             }
                             ?>
-            </td>
-        </tr>
+                        </td>
+                    </tr>
+                <?php } ?>
+            </table>
         <?php } ?>
-    </table>
-    <?php } ?>
-</div>
+    </div>
 <?php endif; ?>
 <?php $this->KMP->endBlock() ?>
 <?php

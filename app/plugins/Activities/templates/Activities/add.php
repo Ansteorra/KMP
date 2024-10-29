@@ -12,7 +12,7 @@
 <?php $this->extend("/layout/TwitterBootstrap/dashboard");
 
 echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Add Activity';
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Add Activity';
 $this->KMP->endBlock(); ?>
 
 <div class="activities form content">

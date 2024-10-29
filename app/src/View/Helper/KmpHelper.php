@@ -94,7 +94,11 @@ class KmpHelper extends Helper
             "type" => "hidden",
             "data-ac-target" => "hidden",
         ]);
-        $textEntry = $Form->control($inputField, [
+        echo $Form->control($inputField, [
+            "type" => "hidden",
+            "data-ac-target" => "hiddenText",
+        ]);
+        $textEntry = $Form->control($inputField . "-Disp", [
             'required' => !$required ? false : true,
             "type" => "text",
             "label" => $label != null ? $label : null,
@@ -123,7 +127,11 @@ class KmpHelper extends Helper
             "type" => "hidden",
             "data-ac-target" => "hidden",
         ]);
-        $textEntry = $Form->control($inputField, [
+        echo $Form->control($inputField, [
+            "type" => "hidden",
+            "data-ac-target" => "hiddenText",
+        ]);
+        $textEntry = $Form->control($inputField . "-Disp", [
             'required' => !$required ? false : true,
             "type" => "text",
             "label" => $label != null ? $label : null,
@@ -192,7 +200,7 @@ class KmpHelper extends Helper
      * @param string $fallback
      * @return mixed
      */
-    public function getAppSetting(string $key, $fallback)
+    public function getAppSetting(string $key, $fallback = null)
     {
         return StaticHelpers::getAppSetting($key, $fallback);
     }

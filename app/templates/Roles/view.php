@@ -13,17 +13,17 @@ use Cake\Log\Log;
 $this->extend("/layout/TwitterBootstrap/view_record");
 
 echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': View Role - ' . $role->name;
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': View Role - ' . $role->name;
 $this->KMP->endBlock();
 
 echo $this->KMP->startBlock("pageTitle") ?>
 <?= h($role->name) ?> <?php if ($role->is_system) : ?><br><span class="fs-6 fst-italic text-secondary">System
-    Role</span><?php endif; ?>
+        Role</span><?php endif; ?>
 <?php $this->KMP->endBlock() ?>
 <?= $this->KMP->startBlock("recordActions") ?>
 <?php if (!$role->is_system) : ?>
-<button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal">Edit</button>
-<?= $this->Form->postLink(
+    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal">Edit</button>
+    <?= $this->Form->postLink(
         __("Delete"),
         ["action" => "delete", $role->id],
         [
@@ -88,77 +88,77 @@ echo $this->KMP->startBlock("pageTitle") ?>
 <div class="related tab-pane fade m-3" id="nav-rolePermissions" role="tabpanel"
     aria-labelledby="nav-rolePermissions-tab" data-detail-tabs-target="tabContent">
     <?php if (!$role->is_system) : ?>
-    <button type="button" class="btn btn-primary btn-sm mb-3" data-bs-toggle="modal"
-        data-bs-target="#addPermissionModal">Add
-        Permission</button>
+        <button type="button" class="btn btn-primary btn-sm mb-3" data-bs-toggle="modal"
+            data-bs-target="#addPermissionModal">Add
+            Permission</button>
     <?php endif; ?>
     <?php if (!empty($role->permissions)) : ?>
-    <div class="table-responsive">
-        <table class="table table-striped">
-            <thead>
-                <tr>
-                    <th scope="col" colspan='1'></th>
-                    <th scope="col" colspan='4' class="text-center table-active">Requirements</th>
-                    <th scope="col" colspan='3'></th>
-                </tr>
-                <tr>
-                    <th scope="col"><?= __("Name") ?></th>
-                    <th scope="col" class="text-center"><?= __(
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th scope="col" colspan='1'></th>
+                        <th scope="col" colspan='4' class="text-center table-active">Requirements</th>
+                        <th scope="col" colspan='3'></th>
+                    </tr>
+                    <tr>
+                        <th scope="col"><?= __("Name") ?></th>
+                        <th scope="col" class="text-center"><?= __(
                                                                 "Membership",
                                                             ) ?></th>
-                    <th scope="col" class="text-center"><?= __(
+                        <th scope="col" class="text-center"><?= __(
                                                                 "Background Check",
                                                             ) ?></th>
-                    <th scope="col" class="text-center"><?= __(
+                        <th scope="col" class="text-center"><?= __(
                                                                 "Minimum Age",
                                                             ) ?></th>
-                    <th scope="col" class="text-center"><?= __(
+                        <th scope="col" class="text-center"><?= __(
                                                                 "Warrant",
                                                             ) ?></th>
-                    <th scope="col" class="text-center"><?= __(
+                        <th scope="col" class="text-center"><?= __(
                                                                 "Super User",
                                                             ) ?></th>
-                    <th scope="col" class="text-center"><?= __(
+                        <th scope="col" class="text-center"><?= __(
                                                                 "System",
                                                             ) ?></th>
-                    <?php if (!$role->is_system) : ?>
-                    <th scope="col" class="actions"><?= __(
+                        <?php if (!$role->is_system) : ?>
+                            <th scope="col" class="actions"><?= __(
                                                                 "Actions",
                                                             ) ?></th>
-                    <?php endif; ?>
-                </tr>
-            </thead>
-            <?php foreach ($role->permissions as $permission) : ?>
-            <tr>
-                <td><?= h($permission->name) ?></td>
+                        <?php endif; ?>
+                    </tr>
+                </thead>
+                <?php foreach ($role->permissions as $permission) : ?>
+                    <tr>
+                        <td><?= h($permission->name) ?></td>
 
-                <td class="text-center"><?= $this->Kmp->bool(
+                        <td class="text-center"><?= $this->Kmp->bool(
                                                     $permission->require_active_membership,
                                                     $this->Html,
                                                 ) ?></td>
-                <td class="text-center"><?= $this->Kmp->bool(
+                        <td class="text-center"><?= $this->Kmp->bool(
                                                     $permission->require_active_background_check,
                                                     $this->Html,
                                                 ) ?>
-                </td>
-                <td class="text-center"><?= h(
+                        </td>
+                        <td class="text-center"><?= h(
                                                     $permission->require_min_age,
                                                 ) ?></td>
-                <td class="text-center"><?= $this->Kmp->bool(
+                        <td class="text-center"><?= $this->Kmp->bool(
                                                     $permission->requires_warrant,
                                                     $this->Html,
                                                 ) ?></td>
-                <td class="text-center"><?= $this->Kmp->bool(
+                        <td class="text-center"><?= $this->Kmp->bool(
                                                     $permission->is_super_user,
                                                     $this->Html,
                                                 ) ?></td>
-                <td class="text-center"><?= $this->Kmp->bool(
+                        <td class="text-center"><?= $this->Kmp->bool(
                                                     $permission->is_system,
                                                     $this->Html,
                                                 ) ?></td>
-                <?php if (!$role->is_system) : ?>
-                <td class="actions">
-                    <?= $this->Form->postLink(
+                        <?php if (!$role->is_system) : ?>
+                            <td class="actions">
+                                <?= $this->Form->postLink(
                                     __("Remove"),
                                     [
                                         "controller" => "Roles",
@@ -176,12 +176,12 @@ echo $this->KMP->startBlock("pageTitle") ?>
                                         ],
                                     ],
                                 ) ?>
-                </td>
-                <?php endif; ?>
-            </tr>
-            <?php endforeach; ?>
-        </table>
-    </div>
+                            </td>
+                        <?php endif; ?>
+                    </tr>
+                <?php endforeach; ?>
+            </table>
+        </div>
     <?php endif; ?>
 </div>
 <?php $this->KMP->endBlock() ?>

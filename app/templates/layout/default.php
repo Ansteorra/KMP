@@ -24,7 +24,7 @@ if (!$this->fetch("html")) {
  */
 if (!$this->fetch("title")) {
     echo $this->KMP->startBlock("title");
-    echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP");
+    echo $this->KMP->getAppSetting("KMP.ShortSiteTitle");
     $this->KMP->endBlock();
 }
 
@@ -109,7 +109,7 @@ $this->KMP->endBlock();
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title><?= h($this->fetch("title")) ?></title>
     <script>
-    window.urlRoot = "<?= $this->Url->build("/") ?>";
+        window.urlRoot = "<?= $this->Url->build("/") ?>";
     </script>
     <meta name="turbo-prefetch" content="false">
     <?= $this->fetch("meta") ?>

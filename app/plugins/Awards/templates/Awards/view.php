@@ -10,7 +10,7 @@
 $this->extend("/layout/TwitterBootstrap/view_record");
 
 echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': View Award Domain - ' . $award->name;
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': View Award Domain - ' . $award->name;
 $this->KMP->endBlock();
 
 echo $this->KMP->startBlock("pageTitle") ?>
@@ -39,18 +39,18 @@ echo $this->KMP->startBlock("pageTitle") ?>
     <td> <?= h($award->abbreviation) ?></td>
 </tr>
 <?php if ($award->specialties) : ?>
-<tr>
-    <th scope="row"><?= __('Specialties') ?></th>
-    <td>
-        <ul>
-            <?php
+    <tr>
+        <th scope="row"><?= __('Specialties') ?></th>
+        <td>
+            <ul>
+                <?php
                 // parse the JSON to get the list of specialties
                 foreach ($award->specialties as $specialty) : ?>
-            <li><?= h($specialty) ?></li>
-            <?php endforeach; ?>
-        </ul>
-    </td>
-</tr>
+                    <li><?= h($specialty) ?></li>
+                <?php endforeach; ?>
+            </ul>
+        </td>
+    </tr>
 <?php endif; ?>
 <tr>
     <th scope="row"><?= __('Description') ?></th>

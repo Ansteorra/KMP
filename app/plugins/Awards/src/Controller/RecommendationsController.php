@@ -8,6 +8,7 @@ use Awards\Controller\AppController;
 use Awards\Model\Entity\Recommendation;
 use Cake\I18n\DateTime;
 use App\KMP\StaticHelpers;
+use Authorization\Exception\ForbiddenException;
 
 /**
  * Recommendations Controller
@@ -28,306 +29,157 @@ class RecommendationsController extends AppController
 
     public function index()
     {
-        $filter = [];
-        $this->runIndexPage("Index", $filter, Recommendation::getStatues());
-    }
+        $view = $this->request->getQuery("view");
+        if ($view == null) {
+            $view = "Index";
+        }
+        $status = $this->request->getQuery("status");
+        if ($status == null) {
+            $status = "All";
+        }
+        $emptyRecommendation = $this->Recommendations->newEmptyEntity();
+        $queryArgs = $this->request->getQuery();
+        $user = $this->request->getAttribute("identity");
+        $user->authorizeWithArgs($emptyRecommendation, "index", $view, $status, $queryArgs);
 
-    public function toBeProcessed()
-    {
-        $filter = ["Recommendations.status not IN" => [Recommendation::STATUS_DECLINED, Recommendation::STATUS_NEED_TO_SCHEDULE, Recommendation::STATUS_SCHEDULED, Recommendation::STATUS_GIVEN]];
-        $this->runIndexPage("To_Be_Processed", $filter, Recommendation::getToBeProcessedStatues());
-    }
 
-    public function toBeScheduled()
-    {
-        $filter = ["Recommendations.status not IN" => [Recommendation::STATUS_DECLINED, Recommendation::STATUS_SUBMITTED, Recommendation::STATUS_IN_CONSIDERATION, Recommendation::STATUS_AWAITING_FEEDBACK, Recommendation::STATUS_GIVEN]];
-        $this->runIndexPage("To_Be_Scheduled", $filter, Recommendation::getToBeProcessedStatues());
-    }
-
-    public function toBeGiven()
-    {
-        $recommendations = $this->Recommendations->find()
-            ->contain([
-                'Requesters' => function ($q) {
-                    return $q->select(['id', 'sca_name']);
-                },
-                'Members',
-                'Branches' => function ($q) {
-                    return $q->select(['id', 'name']);
-                },
-                'Awards' => function ($q) {
-                    return $q->select(['id', 'abbreviation']);
-                },
-                'Awards.Domains' => function ($q) {
-                    return $q->select(['id', 'name']);
-                },
-                'AssignedEvent' => function ($q) {
-                    return $q->select(['id', 'name', 'start_date', 'end_date']);
-                },
-                'Notes' => function ($q) {
-                    return $q->select(['id', 'topic_id', 'subject', 'body', 'created']);
-                },
-                'Notes.Authors' => function ($q) {
-                    return $q->select(['id', 'sca_name']);
-                }
-            ]);
-        if ($this->request->getQuery("award_id")) {
-            $recommendations->where(["award_id" => $this->request->getQuery("award_id")]);
-        }
-        if ($this->request->getQuery("branch_id")) {
-            $recommendations->where(["Recommendations.branch_id" => $this->request->getQuery("branch_id")]);
-        }
-        if ($this->request->getQuery("for")) {
-            $recommendations->where(["member_sca_name LIKE" => "%" . $this->request->getQuery("for") . "%"]);
-        }
-        if ($this->request->getQuery("call_into_court")) {
-            $recommendations->where(["call_into_court" => $this->request->getQuery("call_into_court")]);
-        }
-        if ($this->request->getQuery("court_avail")) {
-            $recommendations->where(["court_availability" => $this->request->getQuery("court_avail")]);
-        }
-        if ($this->request->getQuery("requester_sca_name")) {
-            $recommendations->where(["requester_sca_name" => $this->request->getQuery("requester_sca_name")]);
-        }
-        if ($this->request->getQuery("domain_id")) {
-            $recommendations->where(["Awards.domain_id" => $this->request->getQuery("domain_id")]);
-        }
-        if ($this->request->getQuery("event_id")) {
-            $recommendations->where(["event_id" => $this->request->getQuery("event_id")]);
-        }
-        $recommendations->where(["Recommendations.status" => Recommendation::STATUS_SCHEDULED]);
-
-        $awards = $this->Recommendations->Awards->find(
-            'list',
-            limit: 200,
-            keyField: 'id',
-            valueField: 'abbreviation'
-        )->all();
-        $domains = $this->Recommendations->Awards->Domains->find('list', limit: 200)->all();
-        $branches = $this->Recommendations->Branches
-            ->find("list", keyPath: function ($entity) {
-                return $entity->id . '|' . ($entity->can_have_members == 1 ? "true" : "false");
-            })
-            ->where(["can_have_members" => true])
-            ->orderBy(["name" => "ASC"])->toArray();
-        $callIntoCourtOptions = explode(",", StaticHelpers::getAppSetting("Awards.CallIntoCourtOptions", "Never,With Notice,Without Notice"));
-        $callIntoCourt = [];
-        foreach ($callIntoCourtOptions as $option) {
-            $callIntoCourt[$option] = $option;
-        }
-        $courtAvailabilityOptions = explode(",", StaticHelpers::getAppSetting("Awards.CourtAvailabilityOptions", "None,Morning,Evening,Any"));
-        $courtAvailability = [];
-        foreach ($courtAvailabilityOptions as $option) {
-            $courtAvailability[$option] = $option;
-        }
-        $events = $this->Recommendations->Events->find('list', limit: 200)
-            ->where(["start_date >" => DateTime::now()])
-            ->all();
-        $this->paginate = [
-            'sortableFields' => [
-                'Branches.name',
-                'Awards.name',
-                'Domains.name',
-                'member_sca_name',
-                'call_into_court',
-                'court_availability',
-                'person_to_notify',
-                'contact_email',
-                'status_date',
-                'Event.start_date',
-            ],
-        ];
-        if ($this->request->getQuery("csv") == "true") {
-            $csvData = [];
-            $csvData[] = ['Title', 'Name', "Pronunciation", "Pronouns", 'Award', 'Court Availability', 'Call Into Court', 'Person To Notify', 'Event', 'Status', 'Reason'];
-            $recommendations = $recommendations->toArray();
-            foreach ($recommendations as $rec) {
-                $csvData[] = [
-                    $rec->member->title,
-                    $rec->member_sca_name,
-                    $rec->member->pronunciation,
-                    $rec->member->pronouns,
-                    $rec->award->abbreviation . ($rec->specialty ? " (" . $rec->specialty . ")" : ""),
-                    $rec->court_availability,
-                    $rec->call_into_court,
-                    $rec->person_to_notify,
-                    $rec->assigned_event->name,
-                    $rec->status,
-                    $rec->reason
-                ];
+        if ($view || $view != "Index") {
+            try {
+                $pageConfig = StaticHelpers::getAppSetting("Awards.ViewConfig." . $view);
+            } catch (\Exception $e) {
+                $pageConfig = StaticHelpers::getAppSetting("Awards.ViewConfig.Default");
             }
-            $csv = StaticHelpers::arrayToCsv($csvData);
-            $this->response = $this->response->withType("csv")->withDownload("recommendations.csv")->withStringBody($csv);
-            return $this->response;
         } else {
-            $recommendations = $this->paginate($recommendations);
-            $this->set(compact('recommendations', 'awards', 'domains', 'branches', 'callIntoCourt', 'courtAvailability', 'events'));
+            $pageConfig = StaticHelpers::getAppSetting("Awards.ViewConfig.Default");
         }
+
+
+        if ($pageConfig['board']['use']) {
+            $pageConfig['board']['use'] = $user->checkCan("UseBoard", $emptyRecommendation, $status, $view);
+        }
+
+        $this->set(compact('view', 'status', 'pageConfig'));
     }
 
-    /**
-     * board view
-     *
-     * @return \Cake\Http\Response|null|void Renders view
-     */
-    public function toBeProcessedBoard()
+    public function table($view = null, $status = null)
     {
+        if ($view == null) {
+            $view = "Default";
+        }
+
+        if ($status == null) {
+            $status = "All";
+        }
 
         $emptyRecommendation = $this->Recommendations->newEmptyEntity();
-        $this->Authorization->authorize($emptyRecommendation, 'toBeProcessedBoard');
-
-        $recommendations = $this->Recommendations->find()
-            ->contain(['Requesters', 'Members', 'Awards'])->orderBy(['Recommendations.status', 'stack_rank'])
-            ->select([
-                'Recommendations.id',
-                'Recommendations.member_sca_name',
-                'Recommendations.reason',
-                'Recommendations.stack_rank',
-                'Recommendations.status',
-                'Recommendations.modified',
-                'Recommendations.specialty',
-                'Members.sca_name',
-                'Awards.abbreviation',
-                'ModifiedByMembers.sca_name'
-            ])
-            ->join([
-                'table' => 'members',
-                'alias' => 'ModifiedByMembers',
-                'type' => 'LEFT',
-                'conditions' => 'Recommendations.modified_by = ModifiedByMembers.id'
-            ]);
-        $ShowDeclined = false;
-        //if get30DaysDenied is true
-        if ($this->request->getQuery('includeDeclined') == 'true') {
-            $ShowDeclined = true;
-            $recommendations =
-                $recommendations->where([
-                    'OR' => [
-                        "Recommendations.status not IN" => [Recommendation::STATUS_DECLINED, Recommendation::STATUS_NEED_TO_SCHEDULE, Recommendation::STATUS_SCHEDULED, Recommendation::STATUS_GIVEN],
-                        'AND' => ['Recommendations.modified >=' => DateTime::now()->subDays(30), 'Recommendations.status' => Recommendation::STATUS_DECLINED]
-                    ]
-                ]);
+        if ($view && $view != "Default") {
+            try {
+                $pageConfig = StaticHelpers::getAppSetting("Awards.ViewConfig." . $view);
+            } catch (\Exception $e) {
+                $pageConfig = StaticHelpers::getAppSetting("Awards.ViewConfig.Default");
+            }
+            $filter = $pageConfig['table']['filter'];
         } else {
-            $recommendations = $recommendations->where(["Recommendations.status not IN" => [Recommendation::STATUS_DECLINED, Recommendation::STATUS_NEED_TO_SCHEDULE, Recommendation::STATUS_SCHEDULED, Recommendation::STATUS_GIVEN]]);
+            $pageConfig = StaticHelpers::getAppSetting("Awards.ViewConfig.Default");
+            $filter = $pageConfig['table']['filter'];
         }
-        $recommendations = $recommendations->all();
-        $statuses = Recommendation::getToBeProcessedStatues();
-        $statuses[Recommendation::STATUS_NEED_TO_SCHEDULE] = "Need to Schedule";
-        $statuses[Recommendation::STATUS_DECLINED] = "Declined";
-
-        $statusNames = $statuses;
-
-        foreach ($recommendations as $recommendation) {
-            if (!is_array($statuses[$recommendation->status])) {
-                $statuses[$recommendation->status] = [];
-            }
-            $statuses[$recommendation->status][] = $recommendation;
+        $permission = "index";
+        if ($pageConfig['table']['optionalPermission']) {
+            $permission = $pageConfig['table']['optionalPermission'];
         }
-        $viewAction = "To_Be_Processed";
-        $this->set(compact('recommendations', 'statuses', 'viewAction', 'statusNames', 'ShowDeclined'));
+        $queryArgs = $this->request->getQuery();
+        $user = $this->request->getAttribute("identity");
+        $user->authorizeWithArgs($emptyRecommendation, $permission, $view, $status, $queryArgs);
+
+
+
+        $filter = $this->processFilter($filter);
+
+        $enableExport = $pageConfig['table']['enableExport'];
+        $this->set(compact('pageConfig', 'enableExport'));
+        $this->runTable($filter, $status, $view);
     }
 
-    /**
-     * board view
-     *
-     * @return \Cake\Http\Response|null|void Renders view
-     */
-    public function toBeScheduledBoard()
+    public function board($view = null, $status = null)
     {
+
+        if ($view == null) {
+            $view = "Default";
+        }
+        if ($status == null) {
+            $status = "All";
+        }
 
         $emptyRecommendation = $this->Recommendations->newEmptyEntity();
-        $this->Authorization->authorize($emptyRecommendation, 'toBeScheduledBoard');
+        $queryArgs = $this->request->getQuery();
+        $user = $this->request->getAttribute("identity");
+        $user->authorizeWithArgs($emptyRecommendation, "index", $view, $status, $queryArgs);
 
-        $recommendations = $this->Recommendations->find()
-            ->where(["Recommendations.status not IN" => [Recommendation::STATUS_DECLINED, Recommendation::STATUS_AWAITING_FEEDBACK, Recommendation::STATUS_IN_CONSIDERATION, Recommendation::STATUS_SUBMITTED]])
-            ->contain(['Requesters', 'Members', 'Branches', 'Awards'])->orderBy(['Recommendations.status', 'stack_rank'])
-            ->select([
-                'Recommendations.id',
-                'Recommendations.member_sca_name',
-                'Recommendations.reason',
-                'Recommendations.stack_rank',
-                'Recommendations.status',
-                'Recommendations.modified',
-                'Recommendations.specialty',
-                'Members.sca_name',
-                'Awards.abbreviation',
-                'ModifiedByMembers.sca_name'
-            ])
-            ->join([
-                'table' => 'members',
-                'alias' => 'ModifiedByMembers',
-                'type' => 'LEFT',
-                'conditions' => 'Recommendations.modified_by = ModifiedByMembers.id'
-            ])
-            ->all();
-
-        $statuses = Recommendation::getToBeScheduledStatues();
-
-        $statuses[Recommendation::STATUS_GIVEN] = "Given";
-        $statusNames = $statuses;
-
-        foreach ($recommendations as $recommendation) {
-            if (!is_array($statuses[$recommendation->status])) {
-                $statuses[$recommendation->status] = [];
+        if ($view && $view != "Index") {
+            try {
+                $pageConfig = StaticHelpers::getAppSetting("Awards.ViewConfig." . $view);
+            } catch (\Exception $e) {
+                $pageConfig = StaticHelpers::getAppSetting("Awards.ViewConfig.Default");
             }
-            $statuses[$recommendation->status][] = $recommendation;
+        } else {
+            $pageConfig = StaticHelpers::getAppSetting("Awards.ViewConfig.Default");
         }
-        $viewAction = "To_Be_Scheduled";
-        $this->set(compact('recommendations', 'statuses', 'viewAction', 'statusNames'));
-        $this->render('board');
+        if (!$pageConfig['board']['use']) {
+            return;
+        }
+        $this->set(compact('pageConfig'));
+
+
+
+        $this->runBoard($view, $pageConfig, $emptyRecommendation);
     }
 
-    public function memberSubmissions($id)
+    public function export($view = null, $status = null)
     {
-        $member = $this->Recommendations->Members->find()
-            ->where(["id" => $id])
-            ->select("id")->first();
-        if (!$member) {
-            throw new \Cake\Http\Exception\NotFoundException();
+        if ($view == null) {
+            $view = "Default";
         }
-        $this->Authorization->authorize($member, 'view');
-        $recommendations = $this->Recommendations->find()
-            ->where(["requester_id" => $id])
-            ->contain(['Awards' => function ($q) {
-                return $q->select(['id', 'name']);
-            }])
-            ->select(['id', 'member_sca_name', 'Awards.name', 'Recommendations.created', 'reason'])
-            ->orderBy(['Recommendations.created'])->all();
-        $statuses = Recommendation::getStatues();
-        foreach ($recommendations as $recommendation) {
-            if (!is_array($statuses[$recommendation->status])) {
-                $statuses[$recommendation->status] = [];
-            }
-            $statuses[$recommendation->status][] = $recommendation;
-        }
-        $this->set(compact('recommendations'));
-    }
 
-    public function submittedForMember($id)
-    {
-        $member = $this->Recommendations->Members->find()
-            ->where(["id" => $id])
-            ->select("id")->first();
-        if (!$member) {
-            throw new \Cake\Http\Exception\NotFoundException();
+
+        if ($status == null) {
+            $status = "All";
         }
+
         $emptyRecommendation = $this->Recommendations->newEmptyEntity();
-        $this->Authorization->authorize($emptyRecommendation, 'view');
-        $recommendations = $this->Recommendations->find()
-            ->where(["member_id" => $id])
-            ->contain(['Awards' => function ($q) {
-                return $q->select(['id', 'name']);
-            }])
-            ->select(['id', 'requester_sca_name', 'Awards.name', 'Recommendations.created', 'Recommendations.status', 'reason'])
-            ->orderBy(['Recommendations.created'])->all();
-        $statuses = Recommendation::getStatues();
-        foreach ($recommendations as $recommendation) {
-            if (!is_array($statuses[$recommendation->status])) {
-                $statuses[$recommendation->status] = [];
+        if ($view && $view != "Default") {
+            try {
+                $pageConfig = StaticHelpers::getAppSetting("Awards.ViewConfig." . $view);
+            } catch (\Exception $e) {
+                $pageConfig = StaticHelpers::getAppSetting("Awards.ViewConfig.Default");
             }
-            $statuses[$recommendation->status][] = $recommendation;
+            $filter = $pageConfig['table']['filter'];
+        } else {
+            $pageConfig = StaticHelpers::getAppSetting("Awards.ViewConfig.Default");
+            $filter = $pageConfig['table']['filter'];
         }
-        $this->set(compact('recommendations'));
+
+        if (!$pageConfig['table']['enableExport']) {
+            throw new ForbiddenException();
+        }
+
+        $permission = "index";
+        if ($pageConfig['table']['optionalPermission']) {
+            $permission = $pageConfig['table']['optionalPermission'];
+        }
+        $queryArgs = $this->request->getQuery();
+        $user = $this->request->getAttribute("identity");
+
+
+
+        $user->authorizeWithArgs($emptyRecommendation, $permission, $view, $status, $queryArgs);
+
+
+
+        $filter = $this->processFilter($filter);
+
+        $columns = $pageConfig['table']['export'];
+
+        $this->runExport($filter, $columns);
     }
 
     /**
@@ -364,16 +216,45 @@ class RecommendationsController extends AppController
             $recommendation->requester_sca_name = $user->sca_name;
             $recommendation->contact_email = $user->email_address;
             $recommendation->contact_number = $user->phone_number;
-            $recommendation->status_date = DateTime::now();
+            $statuses = Recommendation::getStatuses();
+            $recommendation->status = array_key_first($statuses);
+            $recommendation->state = $statuses[$recommendation->status][0];
+            $recommendation->state_date = DateTime::now();
             $recommendation["not_found"] = $this->request->getData("not_found") == "on";
+            if ($recommendation->specialty == "No specialties available") {
+                $recommendation->specialty = null;
+            }
+            $setCourtPrefs = false;
             if ($recommendation->not_found) {
                 $recommendation->member_id = null;
             } else {
+                $member = $this->Recommendations->Members->get($recommendation->member_id, select: ["branch_id", "additional_info"]);
                 $recommendation->branch_id = $this->Recommendations->Members->get($recommendation->member_id, select: ["branch_id"])->branch_id;
+                if ($member->additional_info != null && $member->additional_info != "") {
+                    $addInfo = $member->additional_info;
+                    if (isset($addInfo["CallIntoCourt"])) {
+                        $recommendation->call_into_court = $addInfo["CallIntoCourt"];
+                    }
+                    if (isset($addInfo["CourtAvailability"])) {
+                        $recommendation->court_availability = $addInfo["CourtAvailability"];
+                    }
+                    if (isset($addInfo["PersonToGiveNoticeTo"])) {
+                        $recommendation->person_to_notify = $addInfo["PersonToGiveNoticeTo"];
+                    }
+                }
+            }
+            if (!isset($recommendation->call_into_court)) {
+                $recommendation->call_into_court = "Not Set";
+            }
+            if (!isset($recommendation->court_availability)) {
+                $recommendation->court_availability = "Not Set";
+            }
+            if (!isset($recommendation->person_to_notify)) {
+                $recommendation->person_to_notify = "";
             }
             if ($this->Recommendations->save($recommendation)) {
                 $this->Flash->success(__('The recommendation has been saved.'));
-                if ($user->can("view", $recommendation)) {
+                if ($user->checkCan("view", $recommendation)) {
                     return $this->redirect(['action' => 'view', $recommendation->id]);
                 }
                 return $this->redirect(['controller' => 'members', 'plugin' => null, 'action' => 'view', $this->request->getAttribute("identity")->id]);
@@ -393,16 +274,14 @@ class RecommendationsController extends AppController
             ->contain(['Branches' => function ($q) {
                 return $q->select(['id', 'name']);
             }])
-            ->where(["start_date >" => DateTime::now()])
+            ->where(["start_date >" => DateTime::now(), 'OR' => ['closed' => false, 'closed IS' => null]])
             ->select(['id', 'name', 'start_date', 'end_date', 'Branches.name'])
             ->all();
         $events = [];
         foreach ($eventsData as $event) {
             $events[$event->id] = $event->name . " in " . $event->branch->name . " on " . $event->start_date->toDateString() . " - " . $event->end_date->toDateString();
         }
-        $callIntoCourtOptions = explode(",", StaticHelpers::getAppSetting("Awards.CallIntoCourtOptions", "Never,With Notice,Without Notice"));
-        $courtAvailabilityOptions = explode(",", StaticHelpers::getAppSetting("Awards.CourtAvailabilityOptions", "None,Morning,Evening,Any"));
-        $this->set(compact('recommendation', 'branches', 'awards', 'events', 'awardsDomains', 'awardsLevels', 'callIntoCourtOptions', 'courtAvailabilityOptions'));
+        $this->set(compact('recommendation', 'branches', 'awards', 'events', 'awardsDomains', 'awardsLevels'));
     }
 
 
@@ -420,12 +299,40 @@ class RecommendationsController extends AppController
             if ($recommendation->requester_id != null) {
                 $recommendation->requester_sca_name = $this->Recommendations->Requesters->get($recommendation->requester_id, fields: ['sca_name'])->sca_name;
             }
-            $recommendation->status_date = DateTime::now();
+            $statuses = Recommendation::getStatuses();
+            $recommendation->status = array_key_first($statuses);
+            $recommendation->state = $statuses[$recommendation->status][0];
+            $recommendation->state_date = DateTime::now();
+            if ($recommendation->specialty == "No specialties available") {
+                $recommendation->specialty = null;
+            }
             $recommendation["not_found"] = $this->request->getData("not_found") == "on";
             if ($recommendation->not_found) {
                 $recommendation->member_id = null;
             } else {
+                $member = $this->Recommendations->Members->get($recommendation->member_id, select: ["branch_id", "additional_info"]);
                 $recommendation->branch_id = $this->Recommendations->Members->get($recommendation->member_id, select: ["branch_id"])->branch_id;
+                if ($member->additional_info != null && $member->additional_info != "") {
+                    $addInfo = $member->additional_info;
+                    if (isset($addInfo["CallIntoCourt"])) {
+                        $recommendation->call_into_court = $addInfo["CallIntoCourt"];
+                    }
+                    if (isset($addInfo["CourtAvailability"])) {
+                        $recommendation->court_availability = $addInfo["CourtAvailability"];
+                    }
+                    if (isset($addInfo["PersonToGiveNoticeTo"])) {
+                        $recommendation->person_to_notify = $addInfo["PersonToGiveNoticeTo"];
+                    }
+                }
+            }
+            if (!isset($recommendation->call_into_court)) {
+                $recommendation->call_into_court = "Not Set";
+            }
+            if (!isset($recommendation->court_availability)) {
+                $recommendation->court_availability = "Not Set";
+            }
+            if (!isset($recommendation->person_to_notify)) {
+                $recommendation->person_to_notify = "";
             }
             if ($this->Recommendations->save($recommendation)) {
                 $this->Flash->success(__('The recommendation has been submitted.'));
@@ -435,7 +342,6 @@ class RecommendationsController extends AppController
         }
         $headerImage = StaticHelpers::getAppSetting(
             "KMP.Login.Graphic",
-            "populace_badge.png",
         );
         $awardsDomains = $this->Recommendations->Awards->Domains->find('list', limit: 200)->all();
         $awardsLevels = $this->Recommendations->Awards->Levels->find('list', limit: 200)->all();
@@ -457,9 +363,7 @@ class RecommendationsController extends AppController
         foreach ($eventsData as $event) {
             $events[$event->id] = $event->name . " in " . $event->branch->name . " on " . $event->start_date->toDateString() . " - " . $event->end_date->toDateString();
         }
-        $callIntoCourtOptions = explode(",", StaticHelpers::getAppSetting("Awards.CallIntoCourtOptions", "Never,With Notice,Without Notice"));
-        $courtAvailabilityOptions = explode(",", StaticHelpers::getAppSetting("Awards.CourtAvailabilityOptions", "None,Morning,Evening,Any"));
-        $this->set(compact('recommendation', 'branches', 'awards', 'events', 'awardsDomains', 'awardsLevels', 'headerImage', 'callIntoCourtOptions', 'courtAvailabilityOptions'));
+        $this->set(compact('recommendation', 'branches', 'awards', 'events', 'awardsDomains', 'awardsLevels', 'headerImage'));
     }
 
 
@@ -478,9 +382,43 @@ class RecommendationsController extends AppController
         }
         $this->Authorization->authorize($recommendation, 'edit');
         if ($this->request->is(['patch', 'post', 'put'])) {
+            $beforeMemberId = $recommendation->member_id;
             $recommendation = $this->Recommendations->patchEntity($recommendation, $this->request->getData());
-            if ($recommendation->member_id == 0) {
+            if ($recommendation->specialty == "No specialties available") {
+                $recommendation->specialty = null;
+            }
+            if ($recommendation->member_id == 0 || $recommendation->member_id == null) {
                 $recommendation->member_id = null;
+                $recommendation->call_into_court = null;
+                $recommendation->court_availability = null;
+                $recommendation->person_to_notify = null;
+            } elseif ($recommendation->member_id != $beforeMemberId) {
+                $recommendation->call_into_court = null;
+                $recommendation->court_availability = null;
+                $recommendation->person_to_notify = null;
+                $member = $this->Recommendations->Members->get($recommendation->member_id, select: ["branch_id", "additional_info"]);
+                $recommendation->branch_id = $this->Recommendations->Members->get($recommendation->member_id, select: ["branch_id"])->branch_id;
+                if ($member->additional_info != null && $member->additional_info != "") {
+                    $addInfo = $member->additional_info;
+                    if (isset($addInfo["CallIntoCourt"])) {
+                        $recommendation->call_into_court = $addInfo["CallIntoCourt"];
+                    }
+                    if (isset($addInfo["CourtAvailability"])) {
+                        $recommendation->court_availability = $addInfo["CourtAvailability"];
+                    }
+                    if (isset($addInfo["PersonToGiveNoticeTo"])) {
+                        $recommendation->person_to_notify = $addInfo["PersonToGiveNoticeTo"];
+                    }
+                }
+            }
+            if (!isset($recommendation->call_into_court)) {
+                $recommendation->call_into_court = "Not Set";
+            }
+            if (!isset($recommendation->court_availability)) {
+                $recommendation->court_availability = "Not Set";
+            }
+            if (!isset($recommendation->person_to_notify)) {
+                $recommendation->person_to_notify = "";
             }
             if ($this->request->getData()["given"] != null) {
                 $recommendation->given = new DateTime($this->request->getData()["given"]);
@@ -528,7 +466,7 @@ class RecommendationsController extends AppController
         }
         $this->Authorization->authorize($recommendation, 'edit');
         if ($this->request->is(['patch', 'post', 'put'])) {
-            $recommendation->status = $this->request->getData('status');
+            $recommendation->state = $this->request->getData('newCol');
             $placeBefore = $this->request->getData('placeBefore');
             $placeAfter = $this->request->getData('placeAfter');
             if ($placeAfter == null) {
@@ -537,7 +475,7 @@ class RecommendationsController extends AppController
             if ($placeBefore == null) {
                 $placeBefore = -1;
             }
-            $recommendation->status_date = DateTime::now();
+            $recommendation->state_date = DateTime::now();
             $this->Recommendations->getConnection()->begin();
             $failed = false;
             if (!$this->Recommendations->save($recommendation)) {
@@ -616,28 +554,372 @@ class RecommendationsController extends AppController
             ->contain(['Branches' => function ($q) {
                 return $q->select(['id', 'name']);
             }])
-            ->where(["start_date >" => DateTime::now()])
+            ->where(["start_date >" => DateTime::now(), 'OR' => ['closed' => false, 'closed IS' => null]])
             ->select(['id', 'name', 'start_date', 'end_date', 'Branches.name'])
             ->all();
-        $statusList = Recommendation::getStatues();
+        $statusList = Recommendation::getStatuses();
+        foreach ($statusList as $key => $value) {
+            $states = $value;
+            $statusList[$key] = [];
+            foreach ($states as $state) {
+                $statusList[$key][$state] = $state;
+            }
+        }
         $eventList = [];
         foreach ($eventsData as $event) {
             $eventList[$event->id] = $event->name . " in " . $event->branch->name . " on " . $event->start_date->toDateString() . " - " . $event->end_date->toDateString();
         }
-        $callIntoCourtOptions = explode(",", StaticHelpers::getAppSetting("Awards.CallIntoCourtOptions", "Never,With Notice,Without Notice"));
-        $courtAvailabilityOptions = explode(",", StaticHelpers::getAppSetting("Awards.CourtAvailabilityOptions", "None,Morning,Evening,Any"));
-        $this->set(compact('recommendation', 'branches', 'awards', 'eventList', 'awardsDomains', 'awardsLevels', 'statusList', 'callIntoCourtOptions', 'courtAvailabilityOptions'));
+        $rules = StaticHelpers::getAppSetting("Awards.RecommendationStateRules");
+        $this->set(compact('rules', 'recommendation', 'branches', 'awards', 'eventList', 'awardsDomains', 'awardsLevels', 'statusList'));
+    }
+
+    public function turboQuickEditForm($id = null)
+    {
+        $recommendation = $this->Recommendations->get($id, contain: ['Requesters', 'Members', 'Branches', 'Awards', 'Events', 'ScheduledEvent', 'Awards.Domains']);
+        if (!$recommendation) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+        $this->Authorization->authorize($recommendation, 'view');
+        $recommendation->domain_id = $recommendation->award->domain_id;
+        $awardsDomains = $this->Recommendations->Awards->Domains->find('list', limit: 200)->all();
+        $awardsLevels = $this->Recommendations->Awards->Levels->find('list', limit: 200)->all();
+        $branches = $this->Recommendations->Awards->Branches
+            ->find("list", keyPath: function ($entity) {
+                return $entity->id . '|' . ($entity->can_have_members == 1 ? "true" : "false");
+            })
+            ->where(["can_have_members" => true])
+            ->orderBy(["name" => "ASC"])->toArray();
+        $awards = $this->Recommendations->Awards->find('all', limit: 200)->select(["id", "name", "specialties"])->where(['domain_id' => $recommendation->domain_id])->all();
+        $eventsData = $this->Recommendations->Events->find()
+            ->contain(['Branches' => function ($q) {
+                return $q->select(['id', 'name']);
+            }])
+            ->where(["start_date >" => DateTime::now(), 'OR' => ['closed' => false, 'closed IS' => null]])
+            ->select(['id', 'name', 'start_date', 'end_date', 'Branches.name'])
+            ->all();
+        $statusList = Recommendation::getStatuses();
+        foreach ($statusList as $key => $value) {
+            $states = $value;
+            $statusList[$key] = [];
+            foreach ($states as $state) {
+                $statusList[$key][$state] = $state;
+            }
+        }
+        $eventList = [];
+        foreach ($eventsData as $event) {
+            $eventList[$event->id] = $event->name . " in " . $event->branch->name . " on " . $event->start_date->toDateString() . " - " . $event->end_date->toDateString();
+        }
+        $rules = StaticHelpers::getAppSetting("Awards.RecommendationStateRules");
+        $this->set(compact('rules', 'recommendation', 'branches', 'awards', 'eventList', 'awardsDomains', 'awardsLevels', 'statusList'));
     }
     #endregion
 
-    protected function runIndexPage($action, $filterArray, $pageStatuses)
+    protected function runTable($filterArray, $status, $view = "Default")
+    {
+        $recommendations = $this->getRecommendationQuery($filterArray);
+        if ($status == "All") {
+            $statusList = Recommendation::getStatuses();
+        } else {
+            $statusList[$status] = Recommendation::getStatuses()[$status];
+        }
+        foreach ($statusList as $key => $value) {
+            $statusList[$key] = array_combine($value, $value);
+        }
+        $user = $this->request->getAttribute("identity");
+        $blank = $this->Recommendations->newEmptyEntity();
+        if (!$user->checkCan("ViewHidden", $blank)) {
+            $hiddenStates = StaticHelpers::getAppSetting("Awards.RecommendationStatesRequireCanViewHidden");
+            $recommendations->where(["Recommendations.status not IN  " => $hiddenStates]);
+            foreach ($statusList as $key => $value) {
+                $tmpStatus = $statusList[$key];
+                foreach ($hiddenStates as $hiddenState) {
+                    try {
+                        unset($tmpStatus[$hiddenState]);
+                    } catch (\Exception $e) {
+                        //do nothing
+                    }
+                }
+                if (empty($tmpStatus)) {
+                    unset($statusList[$key]);
+                } else {
+                    $statusList[$key] = $tmpStatus;
+                }
+            }
+        }
+
+
+        $awards = $this->Recommendations->Awards->find(
+            'list',
+            limit: 200,
+            keyField: 'id',
+            valueField: 'abbreviation'
+        )->all();
+        $domains = $this->Recommendations->Awards->Domains->find('list', limit: 200)->all();
+        $branches = $this->Recommendations->Branches
+            ->find("list", keyPath: function ($entity) {
+                return $entity->id . '|' . ($entity->can_have_members == 1 ? "true" : "false");
+            })
+
+            ->where(["can_have_members" => true])
+            ->orderBy(["name" => "ASC"])->toArray();
+        $this->paginate = [
+            'sortableFields' => [
+                'Branches.name',
+                'Awards.name',
+                'Domains.name',
+                'member_sca_name',
+                'created',
+                'state',
+                'Events.name',
+                'call_into_court',
+                'court_availability',
+                'requester_sca_name',
+                'contact_email',
+                'contact_phone',
+                'state_date',
+            ],
+        ];
+        $action = $view;
+        $recommendations = $this->paginate($recommendations);
+        $this->set(compact('recommendations', 'statusList', 'awards', 'domains', 'branches', 'view', 'status', 'action'));
+    }
+
+    protected function runBoard($view, $pageConfig, $emptyRecommendation)
+    {
+        $statesList = $pageConfig['board']['states'];
+        $states = [];
+        foreach ($statesList as $state) {
+            $states[$state] = [];
+        }
+        $statesToLoad = $pageConfig['board']['states'];
+        $hiddenByDefault = $pageConfig['board']['hiddenByDefault'];
+        $hiddenByDefaultStates = [];
+        if (is_array($hiddenByDefault) && !empty($hiddenByDefault)) {
+            foreach ($hiddenByDefault["states"] as $state) {
+                //remove values that match the key from the statesToLoad
+                $hiddenByDefaultStates[] = $state;
+                $statesToLoad = array_diff($statesToLoad, [$state]);
+            }
+        }
+        $user = $this->request->getAttribute("identity");
+        $hiddenByDefault = $pageConfig['board']['hiddenByDefault'];
+        $hiddenByDefaultStates = [];
+        if (is_array($hiddenByDefault) && !empty($hiddenByDefault)) {
+            foreach ($hiddenByDefault["states"] as $state) {
+                //remove values that match the key from the statesToLoad
+                $hiddenByDefaultStates[] = $state;
+            }
+        }
+        $recommendations = $this->Recommendations->find()
+            ->contain(['Requesters', 'Members', 'Awards'])->orderBy(['Recommendations.state', 'stack_rank'])
+            ->select([
+                'Recommendations.id',
+                'Recommendations.member_sca_name',
+                'Recommendations.reason',
+                'Recommendations.stack_rank',
+                'Recommendations.state',
+                'Recommendations.status',
+                'Recommendations.modified',
+                'Recommendations.specialty',
+                'Members.sca_name',
+                'Awards.abbreviation',
+                'ModifiedByMembers.sca_name'
+            ])
+            ->join([
+                'table' => 'members',
+                'alias' => 'ModifiedByMembers',
+                'type' => 'LEFT',
+                'conditions' => 'Recommendations.modified_by = ModifiedByMembers.id'
+            ]);
+
+        if (!$user->checkCan("ViewHidden", $emptyRecommendation)) {
+            $hiddenStates = StaticHelpers::getAppSetting("Awards.RecommendationStatesRequireCanViewHidden");
+            $recommendations = $recommendations->where(["Recommendations.state not IN  " => $hiddenStates]);
+            foreach ($hiddenStates as $state) {
+                if (in_array($state, $hiddenByDefaultStates)) {
+                    $hiddenByDefaultStates = array_diff($hiddenByDefaultStates, [$state]);
+                }
+            }
+        }
+        $showHidden = $this->request->getQuery("showHidden") == 'true';
+        $range = $hiddenByDefault["lookback"];
+        $hiddenStates = "";
+        if (is_array($hiddenByDefaultStates) && !empty($hiddenByDefaultStates)) {
+            $hiddenStates = implode(",", $hiddenByDefaultStates);
+            if ($showHidden) {
+                $recommendations = $recommendations->where([
+                    'OR' => [
+                        "Recommendations.state IN" => $statesToLoad,
+                        'AND' => ["Recommendations.state IN  " => $hiddenByDefaultStates, "Recommendations.state_date >" => DateTime::now()->subDays($range)]
+                    ]
+                ]);
+            } else {
+                $recommendations = $recommendations->where(["Recommendations.state IN" => $statesToLoad]);
+            }
+        } else {
+            $recommendations = $recommendations->where(["Recommendations.state IN" => $statesToLoad]);
+        }
+
+        $recommendations = $recommendations->all();
+
+        foreach ($recommendations as $recommendation) {
+            if (!is_array($states[$recommendation->state])) {
+                $states[$recommendation->state] = [];
+            }
+            $states[$recommendation->state][] = $recommendation;
+        }
+        $rules = StaticHelpers::getAppSetting("Awards.RecommendationStateRules");
+        $this->set(compact('recommendations', 'states', 'view', 'showHidden', 'range', 'hiddenStates', 'rules'));
+    }
+
+    protected function runExport($filterArray, $columns)
+    {
+        $recommendations = $this->getRecommendationQuery($filterArray);
+        $recommendations = $recommendations->all();
+
+        $header = [];
+        $data[] = [];
+        foreach ($columns as $key => $use) {
+            if ($use) {
+                $header[] = $key;
+            }
+        }
+
+        foreach ($recommendations as $recommendation) {
+            $row = [];
+            if ($columns["Submitted"]) {
+                $row[] = $recommendation->created;
+            }
+            if ($columns["For"]) {
+                $row[] = $recommendation->member_sca_name;
+            }
+            if ($columns["For Herald"]) {
+                if ($recommendation->member) {
+                    $row[] = $recommendation->member->name_for_herald;
+                } else {
+                    $row[] = $recommendation->member_sca_name;
+                }
+            }
+            if ($columns["Title"]) {
+                if ($recommendation->member) {
+                    $row[] = $recommendation->member->title;
+                } else {
+                    $row[] = "";
+                }
+            }
+            if ($columns["Pronouns"]) {
+                if ($recommendation->member) {
+                    $row[] = $recommendation->member->pronouns;
+                } else {
+                    $row[] = "";
+                }
+            }
+            if ($columns["Pronunciation"]) {
+                if ($recommendation->member) {
+                    $row[] = $recommendation->member->pronunciation;
+                } else {
+                    $row[] = "";
+                }
+            }
+            if ($columns["OP"]) {
+                $links = "";
+                if ($recommendation->member) {
+                    $member = $recommendation->member;
+                    $externalLinks =  $member->publicLinks();
+                    if ($externalLinks) {
+                        foreach ($externalLinks as $name => $link) {
+                            $links = "$links | $name : $link";
+                        }
+                        $links = "$links |";
+                    }
+                }
+                $row[] = $links;
+            }
+            if ($columns["Branch"]) {
+                $row[] = $recommendation->branch->name;
+            }
+            if ($columns["Call Into Court"]) {
+                $row[] = $recommendation->call_into_court;
+            }
+            if ($columns["Court Avail"]) {
+                $row[] = $recommendation->court_availability;
+            }
+            if ($columns["Person to Notify"]) {
+                $row[] = $recommendation->person_to_notify;
+            }
+            if ($columns["Submitted By"]) {
+                $row[] = $recommendation->requester_sca_name;
+            }
+            if ($columns["Contact Email"]) {
+                $row[] = $recommendation->contact_email;
+            }
+            if ($columns["Contact Phone"]) {
+                $row[] = $recommendation->contact_phone;
+            }
+            if ($columns["Domain"]) {
+                $row[] = $recommendation->award->domain->name;
+            }
+            if ($columns["Award"]) {
+                $row[] = $recommendation->award->abbreviation . ($recommendation->specialty ? " (" . $recommendation->specialty . ")" : "");
+            }
+            if ($columns["Reason"]) {
+                $row[] = $recommendation->reason;
+            }
+            if ($columns["Events"]) {
+                $events = "";
+                foreach ($recommendation->events as $event) {
+                    $startDate = $event->start_date->toDateString();
+                    $endDate = $event->end_date->toDateString();
+                    $events = "$events$event->name : $startDate  - $endDate\n\n";
+                }
+                $row[] = $events;
+            }
+            if ($columns["Notes"]) {
+                $notes = "";
+                foreach ($recommendation->notes as $note) {
+                    $createDate = $note->created->toDateTimeString();
+                    $notes = "$notes$createDate : $note->body\n\n";
+                }
+                $row[] = $notes;
+            }
+            if ($columns["Status"]) {
+                $row[] = $recommendation->status;
+            }
+            if ($columns["Event"]) {
+                $row[] = $recommendation->assigned_event ? $recommendation->assigned_event->name : "";
+            }
+            if ($columns["State"]) {
+                $row[] = $recommendation->state;
+            }
+            if ($columns["Close Reason"]) {
+                $row[] = $recommendation->close_reason;
+            }
+            if ($columns["State Date"]) {
+                $row[] = $recommendation->state_date->toDateString();
+            }
+            if ($columns["Given Date"]) {
+                $row[] = $recommendation->given ? $recommendation->given->toDateString() : "";
+            }
+            $data[] = $row;
+        }
+
+
+        $this->set(compact('data'));
+        $this->viewBuilder()
+            ->setClassName('CsvView.Csv')
+            ->setOptions(['serialize' => 'data', 'header' => $header]);
+    }
+
+    protected function getRecommendationQuery($filterArray = null)
     {
         $recommendations = $this->Recommendations->find()
             ->contain([
                 'Requesters' => function ($q) {
                     return $q->select(['id', 'sca_name']);
                 },
-                'Members',
+                'Members' => function ($q) {
+                    return $q->select(['id', 'sca_name', 'title', 'pronouns', 'pronunciation']);
+                },
                 'Branches' => function ($q) {
                     return $q->select(['id', 'name']);
                 },
@@ -655,6 +937,9 @@ class RecommendationsController extends AppController
                 },
                 'Notes.Authors' => function ($q) {
                     return $q->select(['id', 'sca_name']);
+                },
+                'AssignedEvent' => function ($q) {
+                    return $q->select(['id', 'name']);
                 }
             ]);
         if ($filterArray) {
@@ -681,67 +966,25 @@ class RecommendationsController extends AppController
         if ($this->request->getQuery("domain_id")) {
             $recommendations->where(["Awards.domain_id" => $this->request->getQuery("domain_id")]);
         }
-        if ($this->request->getQuery("status")) {
-            $recommendations->where(["Recommendations.status" => $this->request->getQuery("status")]);
+        if ($this->request->getQuery("state")) {
+            $recommendations->where(["Recommendations.state" => $this->request->getQuery("state")]);
         }
-        $statuses = $pageStatuses;
+        return $recommendations;
+    }
 
-        $user = $this->request->getAttribute("identity");
-        $firstRec = $recommendations->first();
-        if ($firstRec) {
-            if (!$user->can("ViewDeclined", $firstRec)) {
-                $recommendations->where(["Recommendations.status <> " => Recommendation::STATUS_DECLINED]);
-                //remove declined from statuses
-                unset($statuses[Recommendation::STATUS_DECLINED]);
+    protected function processFilter($filter)
+    {
+        $filterArray = [];
+        foreach ($filter as $key => $value) {
+            $fixedKey = str_replace("->", ".", $key);
+            //if value starts with { and ends with } then it grab it from the query
+            if (substr($value, 0, 1) == "-" && substr($value, -1) == "-") {
+                $value = substr($value, 1, -1);
+                $filterArray[$fixedKey] = $this->request->getQuery($value);
+            } else {
+                $filterArray[$fixedKey] = $value;
             }
-        } else {
-            unset($statuses[Recommendation::STATUS_DECLINED]);
         }
-
-
-        $awards = $this->Recommendations->Awards->find(
-            'list',
-            limit: 200,
-            keyField: 'id',
-            valueField: 'abbreviation'
-        )->all();
-        $domains = $this->Recommendations->Awards->Domains->find('list', limit: 200)->all();
-        $branches = $this->Recommendations->Branches
-            ->find("list", keyPath: function ($entity) {
-                return $entity->id . '|' . ($entity->can_have_members == 1 ? "true" : "false");
-            })
-
-            ->where(["can_have_members" => true])
-            ->orderBy(["name" => "ASC"])->toArray();
-        $callIntoCourtOptions = explode(",", StaticHelpers::getAppSetting("Awards.CallIntoCourtOptions", "Never,With Notice,Without Notice"));
-        $callIntoCourt = [];
-        foreach ($callIntoCourtOptions as $option) {
-            $callIntoCourt[$option] = $option;
-        }
-        $courtAvailabilityOptions = explode(",", StaticHelpers::getAppSetting("Awards.CourtAvailabilityOptions", "None,Morning,Evening,Any"));
-        $courtAvailability = [];
-        foreach ($courtAvailabilityOptions as $option) {
-            $courtAvailability[$option] = $option;
-        }
-        $this->paginate = [
-            'sortableFields' => [
-                'Branches.name',
-                'Awards.name',
-                'Domains.name',
-                'member_sca_name',
-                'created',
-                'status',
-                'call_into_court',
-                'court_availability',
-                'requester_sca_name',
-                'contact_email',
-                'contact_phone',
-                'status_date',
-            ],
-        ];
-        $viewAction = $action;
-        $recommendations = $this->paginate($recommendations);
-        $this->set(compact('recommendations', 'statuses', 'awards', 'domains', 'branches', 'callIntoCourt', 'courtAvailability', 'viewAction'));
-        $this->render("index");
+        return $filterArray;
     }
 }

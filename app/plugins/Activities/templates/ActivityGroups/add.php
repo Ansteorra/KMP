@@ -8,7 +8,7 @@
 <?php $this->extend("/layout/TwitterBootstrap/dashboard");
 
 echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Add Activity Group';
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Add Activity Group';
 $this->KMP->endBlock(); ?>
 
 <div class="activityGroup form content">

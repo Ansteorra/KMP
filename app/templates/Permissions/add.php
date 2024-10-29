@@ -11,7 +11,7 @@
 $this->extend("/layout/TwitterBootstrap/dashboard");
 
 echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Add Permission';
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Add Permission';
 $this->KMP->endBlock();
 
 ?>

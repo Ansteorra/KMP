@@ -8,7 +8,7 @@
 <?php $this->extend("/layout/TwitterBootstrap/dashboard");
 
 echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Submit Award Recoomendation';
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Submit Award Recoomendation';
 $this->KMP->endBlock(); ?>
 
 <div class="recommendations form content">
@@ -47,7 +47,7 @@ $this->KMP->endBlock(); ?>
         );
         echo $this->Form->control('not_found', [
             'type' => 'checkbox',
-            'label' => "Name not registered in " . $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . " database",
+            'label' => "Name not registered in " . $this->KMP->getAppSetting("KMP.ShortSiteTitle") . " database",
             "id" => "recommendation__not_found",
             "value" => "on",
             "disabled" => true,
@@ -68,46 +68,6 @@ $this->KMP->endBlock(); ?>
                 'data-action' => 'ready->awards-rec-add#acConnected'
             ]
         );
-        $selectOptions = [];
-        foreach ($callIntoCourtOptions as $option) {
-            $selectOptions[$option] = $option;
-        }
-        echo $this->KMP->comboBoxControl(
-            $this->Form,
-            'call_into_court_val',
-            'call_into_court',
-            $selectOptions,
-            "Call Into Court",
-            true,
-            false,
-            [
-                'data-awards-rec-add-target' => 'callIntoCourt',
-                'data-action' => 'ready->awards-rec-add#acConnected'
-            ]
-        );
-        $selectOptions = [];
-        foreach ($courtAvailabilityOptions as $option) {
-            $selectOptions[$option] = $option;
-        }
-        echo $this->KMP->comboBoxControl(
-            $this->Form,
-            'court_availability_val',
-            'court_availability',
-            $selectOptions,
-            "Court Availability",
-            true,
-            false,
-            [
-                'data-awards-rec-add-target' => 'courtAvailability',
-                'data-action' => 'ready->awards-rec-add#acConnected'
-            ]
-        );
-        echo $this->Form->control('person_to_notify', [
-            'label' => 'Person to Notify',
-            'data-awards-rec-add-target' => 'personToNotify',
-            'required' => false,
-            'help' => 'Only enter a name if you know who should be notified if the crown proceeds with the recommendation.'
-        ]);
         echo $this->KMP->comboBoxControl(
             $this->Form,
             'domain_name',

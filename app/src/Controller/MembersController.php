@@ -278,30 +278,24 @@ class MembersController extends AppController
         // sort by name
         $message_variables = [
             "secretary_email" => StaticHelpers::getAppSetting(
-                "Activity.SecretaryEmail",
-                "please_set",
+                "Activity.SecretaryEmail"
             ),
             "kingdom" => StaticHelpers::getAppSetting(
-                "KMP.KingdomName",
-                "please_set",
+                "KMP.KingdomName"
             ),
             "secratary" => StaticHelpers::getAppSetting(
-                "Activity.SecretaryName",
-                "please_set",
+                "Activity.SecretaryName"
             ),
             "marshal_auth_graphic" => StaticHelpers::getAppSetting(
-                "Member.ViewCard.Graphic",
-                "auth_card_back.gif",
+                "Member.ViewCard.Graphic"
             ),
             "marshal_auth_header_color" => StaticHelpers::getAppSetting(
-                "Member.ViewCard.HeaderColor",
-                "gold",
+                "Member.ViewCard.HeaderColor"
             ),
         ];
         $this->set(compact("member", "message_variables"));
         $customTemplate = StaticHelpers::getAppSetting(
-            "Member.ViewCard.Template",
-            "view_card",
+            "Member.ViewCard.Template"
         );
         $this->viewBuilder()->setTemplate($customTemplate);
     }
@@ -326,29 +320,23 @@ class MembersController extends AppController
         $message_variables = [
             "secretary_email" => StaticHelpers::getAppSetting(
                 "Activity.SecretaryEmail",
-                "please_set",
             ),
             "kingdom" => StaticHelpers::getAppSetting(
                 "KMP.KingdomName",
-                "please_set",
             ),
             "secratary" => StaticHelpers::getAppSetting(
                 "Activity.SecretaryName",
-                "please_set",
             ),
             "marshal_auth_graphic" => StaticHelpers::getAppSetting(
                 "Member.ViewCard.Graphic",
-                "auth_card_back.gif",
             ),
             "marshal_auth_header_color" => StaticHelpers::getAppSetting(
                 "Member.MobileCard.BgColor",
-                "gold",
             ),
         ];
         $this->set(compact("member", "message_variables"));
         $customTemplate = StaticHelpers::getAppSetting(
             "Member.ViewMobileCard.Template",
-            "view_mobile_card",
         );
         $this->viewBuilder()->setTemplate($customTemplate);
     }
@@ -579,7 +567,7 @@ class MembersController extends AppController
         }
         $this->Authorization->authorize($member);
         $user = $this->Authentication->getIdentity();
-        $userEditableOnly = !$user->can("edit", $member);
+        $userEditableOnly = !$user->checkCan("edit", $member);
         if ($this->request->is(["patch", "post", "put"])) {
             $member->additional_info = [];
             $aiFormConfig = StaticHelpers::getAppSettingsStartWith("Member.AdditionalInfo.");
@@ -881,8 +869,7 @@ class MembersController extends AppController
                     __(
                         "Your email was not found, please contact the Marshalate Secretary at " .
                             StaticHelpers::getAppSetting(
-                                "Activity.SecretaryEmail",
-                                ""
+                                "Activity.SecretaryEmail"
                             ),
                     ),
                 );
@@ -890,7 +877,6 @@ class MembersController extends AppController
         }
         $headerImage = StaticHelpers::getAppSetting(
             "KMP.Login.Graphic",
-            "populace_badge.png",
         );
         $this->set(compact("headerImage"));
     }
@@ -923,7 +909,6 @@ class MembersController extends AppController
             }
             $headerImage = StaticHelpers::getAppSetting(
                 "KMP.Login.Graphic",
-                "populace_badge.png",
             );
             $this->set(compact("headerImage", "passwordReset"));
         } else {
@@ -978,7 +963,6 @@ class MembersController extends AppController
                     case "Account Not Verified":
                         $contactAddress = StaticHelpers::getAppSetting(
                             "Members.AccountVerificationContactEmail",
-                            "please_set",
                         );
                         $this->Flash->error(
                             "Your account is being verified. This process may take several days after you have verified your email address. Please contact " . $contactAddress . " if you have not been verified within a week."
@@ -987,7 +971,6 @@ class MembersController extends AppController
                     case "Account Disabled":
                         $contactAddress = StaticHelpers::getAppSetting(
                             "Members.AccountDisabledContactEmail",
-                            "please_set",
                         );
                         $this->Flash->error(
                             "Your account deactivated. Please contact " . $contactAddress . " if you feel this is in error.",
@@ -1005,11 +988,9 @@ class MembersController extends AppController
         }
         $headerImage = StaticHelpers::getAppSetting(
             "KMP.Login.Graphic",
-            "populace_badge.png",
         );
         $allowRegistration = StaticHelpers::getAppSetting(
             "KMP.EnablePublicRegistration",
-            "yes",
         );
         $this->set(compact("headerImage", "allowRegistration"));
     }
@@ -1028,8 +1009,7 @@ class MembersController extends AppController
     public function register()
     {
         $allowRegistration = StaticHelpers::getAppSetting(
-            "KMP.EnablePublicRegistration",
-            "yes",
+            "KMP.EnablePublicRegistration"
         );
         if (strtolower($allowRegistration) != "yes") {
             $this->Flash->error(
@@ -1101,8 +1081,7 @@ class MembersController extends AppController
             );
         }
         $headerImage = StaticHelpers::getAppSetting(
-            "KMP.Login.Graphic",
-            "populace_badge.png",
+            "KMP.Login.Graphic"
         );
         $months = array_reduce(range(1, 12), function ($rslt, $m) {
             $rslt[$m] = date('F', mktime(0, 0, 0, $m, 10));

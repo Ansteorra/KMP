@@ -10,7 +10,7 @@ $this->extend("/layout/TwitterBootstrap/dashboard");
 
 
 echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': New Members Verifcation Queue';
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': New Members Verifcation Queue';
 $this->KMP->endBlock();
 
 $pendingYouth = [];
@@ -39,7 +39,7 @@ foreach ($Members as $Member) {
                 type="button" role="tab" aria-controls="nav-youth-tab" aria-selected=" true"
                 data-detail-tabs-target='tabBtn' data-detail-tabs-target='tabBtn'>Youth
                 <?php if (count($pendingYouth) > 0) { ?>
-                <span class="badge bg-danger"><?= count($pendingYouth) ?></span>
+                    <span class="badge bg-danger"><?= count($pendingYouth) ?></span>
                 <?php } ?>
             </button>
             <button class="nav-link" id="nav-pendingCard-tab-btn" data-bs-toggle="tab"
@@ -47,7 +47,7 @@ foreach ($Members as $Member) {
                 aria-selected="false" data-detail-tabs-target='tabBtn' data-detail-tabs-target='tabBtn'>Unverified With
                 Card
                 <?php if (count($pendingWithCard) > 0) { ?>
-                <span class="badge bg-danger"><?= count($pendingWithCard) ?></span>
+                    <span class="badge bg-danger"><?= count($pendingWithCard) ?></span>
                 <?php } ?>
             </button>
             <button class="nav-link" id="nav-pendingNoCard-btn" data-bs-toggle="tab"
@@ -76,27 +76,27 @@ foreach ($Members as $Member) {
                     </thead>
                     <tbody>
                         <?php foreach ($pendingYouth as $Member) : ?>
-                        <tr>
+                            <tr>
 
-                            <td><?= h($Member->status) ?></td>
-                            <td><?= h($Member->sca_name) ?></td>
-                            <td><?= h($Member->branch->name) ?></td>
-                            <td><?= h($Member->first_name) ?></td>
-                            <td><?= h($Member->last_name) ?></td>
-                            <td><?= h($Member->email_address) ?></td>
-                            <td class="text-center fs-4 align-top">
-                                <?php if ($Member->membership_card_path != null && strlen($Member->membership_card_path) > 0) {
+                                <td><?= h($Member->status) ?></td>
+                                <td><?= h($Member->sca_name) ?></td>
+                                <td><?= h($Member->branch->name) ?></td>
+                                <td><?= h($Member->first_name) ?></td>
+                                <td><?= h($Member->last_name) ?></td>
+                                <td><?= h($Member->email_address) ?></td>
+                                <td class="text-center fs-4 align-top">
+                                    <?php if ($Member->membership_card_path != null && strlen($Member->membership_card_path) > 0) {
                                         echo $this->Html->icon("card-heading");
                                     } ?>
-                            </td>
-                            <td class="actions">
-                                <?= $this->Html->link(
+                                </td>
+                                <td class="actions">
+                                    <?= $this->Html->link(
                                         __("View"),
                                         ["action" => "view", $Member->id],
                                         ["title" => __("View"), "class" => "btn btn-secondary"],
                                     ) ?>
-                            </td>
-                        </tr>
+                                </td>
+                            </tr>
                         <?php endforeach; ?>
                     </tbody>
                 </table>
@@ -120,27 +120,27 @@ foreach ($Members as $Member) {
                     </thead>
                     <tbody>
                         <?php foreach ($pendingWithCard as $Member) : ?>
-                        <tr>
+                            <tr>
 
-                            <td><?= h($Member->status) ?></td>
-                            <td><?= h($Member->sca_name) ?></td>
-                            <td><?= h($Member->branch->name) ?></td>
-                            <td><?= h($Member->first_name) ?></td>
-                            <td><?= h($Member->last_name) ?></td>
-                            <td><?= h($Member->email_address) ?></td>
-                            <td class="text-center fs-4 align-top">
-                                <?php if ($Member->membership_card_path != null && strlen($Member->membership_card_path) > 0) {
+                                <td><?= h($Member->status) ?></td>
+                                <td><?= h($Member->sca_name) ?></td>
+                                <td><?= h($Member->branch->name) ?></td>
+                                <td><?= h($Member->first_name) ?></td>
+                                <td><?= h($Member->last_name) ?></td>
+                                <td><?= h($Member->email_address) ?></td>
+                                <td class="text-center fs-4 align-top">
+                                    <?php if ($Member->membership_card_path != null && strlen($Member->membership_card_path) > 0) {
                                         echo $this->Html->icon("card-heading");
                                     } ?>
-                            </td>
-                            <td class="actions">
-                                <?= $this->Html->link(
+                                </td>
+                                <td class="actions">
+                                    <?= $this->Html->link(
                                         __("View"),
                                         ["action" => "view", $Member->id],
                                         ["title" => __("View"), "class" => "btn btn-secondary"],
                                     ) ?>
-                            </td>
-                        </tr>
+                                </td>
+                            </tr>
                         <?php endforeach; ?>
                     </tbody>
                 </table>
@@ -164,27 +164,27 @@ foreach ($Members as $Member) {
                     </thead>
                     <tbody>
                         <?php foreach ($pendingWithoutCard as $Member) : ?>
-                        <tr>
+                            <tr>
 
-                            <td><?= h($Member->status) ?></td>
-                            <td><?= h($Member->sca_name) ?></td>
-                            <td><?= h($Member->branch->name) ?></td>
-                            <td><?= h($Member->first_name) ?></td>
-                            <td><?= h($Member->last_name) ?></td>
-                            <td><?= h($Member->email_address) ?></td>
-                            <td class="text-center fs-4 align-top">
-                                <?php if ($Member->membership_card_path != null && strlen($Member->membership_card_path) > 0) {
+                                <td><?= h($Member->status) ?></td>
+                                <td><?= h($Member->sca_name) ?></td>
+                                <td><?= h($Member->branch->name) ?></td>
+                                <td><?= h($Member->first_name) ?></td>
+                                <td><?= h($Member->last_name) ?></td>
+                                <td><?= h($Member->email_address) ?></td>
+                                <td class="text-center fs-4 align-top">
+                                    <?php if ($Member->membership_card_path != null && strlen($Member->membership_card_path) > 0) {
                                         echo $this->Html->icon("card-heading");
                                     } ?>
-                            </td>
-                            <td class="actions">
-                                <?= $this->Html->link(
+                                </td>
+                                <td class="actions">
+                                    <?= $this->Html->link(
                                         __("View"),
                                         ["action" => "view", $Member->id],
                                         ["title" => __("View"), "class" => "btn btn-secondary"],
                                     ) ?>
-                            </td>
-                        </tr>
+                                </td>
+                            </tr>
                         <?php endforeach; ?>
                     </tbody>
                 </table>

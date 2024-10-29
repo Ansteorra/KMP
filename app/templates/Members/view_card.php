@@ -5,7 +5,7 @@ use Cake\I18n\Date;
 
 
 echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Activities Authorization Card';
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Activities Authorization Card';
 $this->KMP->endBlock();
 
 function checkCardCount($cardCount)
@@ -33,173 +33,174 @@ $now = Date::now();
 
 <head>
     <style>
-    .letter {
-        font-size: 10pt;
-        clear: both;
-        margin-left: 10px;
-        margin-right: 10px;
-        margin-top: 10px;
-        margin-bottom: 20px;
-    }
+        .letter {
+            font-size: 10pt;
+            clear: both;
+            margin-left: 10px;
+            margin-right: 10px;
+            margin-top: 10px;
+            margin-bottom: 20px;
+        }
 
-    .header {
-        width: 100%;
-        height: 68px;
-    }
+        .header {
+            width: 100%;
+            height: 68px;
+        }
 
-    .header-left,
-    .header-right {
-        float: left;
-        width: 20%;
-        text-align: center;
-    }
+        .header-left,
+        .header-right {
+            float: left;
+            width: 20%;
+            text-align: center;
+        }
 
-    .header-left img,
-    .header-right img {
-        height: 68px;
-    }
+        .header-left img,
+        .header-right img {
+            height: 68px;
+        }
 
-    .header-center {
-        background-color: <?=h($message_variables["marshal_auth_header_color"],
-            ) ?>;
-        float: left;
-        font-size: 18pt;
-        text-align: center;
-        width: 60%;
-        vertical-align: middle;
-        font-weight: bold;
-    }
+        .header-center {
+            background-color: <?= h(
+                                    $message_variables["marshal_auth_header_color"],
+                                ) ?>;
+            float: left;
+            font-size: 18pt;
+            text-align: center;
+            width: 60%;
+            vertical-align: middle;
+            font-weight: bold;
+        }
 
-    .cardbox::after {
-        content: "";
-        background-image: url('<?php echo $watermarkimg; ?>');
-        background-size: 45mm 42mm;
-        background-repeat: no-repeat;
-        background-position: center;
-        opacity: 0.05;
-        top: 0;
-        left: 0;
-        bottom: 0;
-        right: 0;
-        position: absolute;
-        z-index: -1;
-        display: inline-block;
-    }
+        .cardbox::after {
+            content: "";
+            background-image: url('<?php echo $watermarkimg; ?>');
+            background-size: 45mm 42mm;
+            background-repeat: no-repeat;
+            background-position: center;
+            opacity: 0.05;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            position: absolute;
+            z-index: -1;
+            display: inline-block;
+        }
 
-    .cardbox {
-        border: .5mm;
-        border-style: solid;
-        border-radius: 3mm;
-        border-color: black;
-        width: 48mm;
-        height: 75mm;
-        text-align: center;
-        position: relative;
-        margin: 0px;
-        overflow: hidden;
-        float: left;
-    }
+        .cardbox {
+            border: .5mm;
+            border-style: solid;
+            border-radius: 3mm;
+            border-color: black;
+            width: 48mm;
+            height: 75mm;
+            text-align: center;
+            position: relative;
+            margin: 0px;
+            overflow: hidden;
+            float: left;
+        }
 
-    .auth_cards {
-        text-align: center;
-        font-size: 0;
-    }
+        .auth_cards {
+            text-align: center;
+            font-size: 0;
+        }
 
-    .auth_card {
-        display: inline-block;
-        margin: 0;
-    }
+        .auth_card {
+            display: inline-block;
+            margin: 0;
+        }
 
-    .cardboxheader {
-        font-weight: bold;
-        font-size: 9pt;
-    }
+        .cardboxheader {
+            font-weight: bold;
+            font-size: 9pt;
+        }
 
-    .cardbox dl {
-        display: block;
-        width: 60%;
-        margin: 0px;
-        margin-left: 5px;
-        padding: 0px;
-        text-align: left;
-        font-size: 7pt;
-        margin-bottom: 0px;
-    }
+        .cardbox dl {
+            display: block;
+            width: 60%;
+            margin: 0px;
+            margin-left: 5px;
+            padding: 0px;
+            text-align: left;
+            font-size: 7pt;
+            margin-bottom: 0px;
+        }
 
-    .cardbox dl dt {
-        font-weight: 900;
-        margin: 0px;
-        padding: 0px;
-        display: block;
-    }
+        .cardbox dl dt {
+            font-weight: 900;
+            margin: 0px;
+            padding: 0px;
+            display: block;
+        }
 
-    .cardbox dl dd {
-        margin-left: 3px;
-        margin-bottom: 0px;
-        display: block;
-    }
+        .cardbox dl dd {
+            margin-left: 3px;
+            margin-bottom: 0px;
+            display: block;
+        }
 
-    .cardbox ul {
-        display: block;
-        width: 100%;
-        margin-left: 5px;
-        padding: 0px;
-        text-align: left;
-        font-size: 7pt;
-        margin-bottom: 0px;
-        list-style: none;
-    }
+        .cardbox ul {
+            display: block;
+            width: 100%;
+            margin-left: 5px;
+            padding: 0px;
+            text-align: left;
+            font-size: 7pt;
+            margin-bottom: 0px;
+            list-style: none;
+        }
 
-    .cardbox h3 {
-        font-size: 9pt;
-        font-weight: bold;
-        padding-top: 2px;
-        padding-bottom: 2px;
-        margin-top: 3px;
-        margin-bottom: 3px;
-        border-top: black 1px solid;
-        border-bottom: black 1px solid;
-        border: left 0 right 0;
-    }
+        .cardbox h3 {
+            font-size: 9pt;
+            font-weight: bold;
+            padding-top: 2px;
+            padding-bottom: 2px;
+            margin-top: 3px;
+            margin-bottom: 3px;
+            border-top: black 1px solid;
+            border-bottom: black 1px solid;
+            border: left 0 right 0;
+        }
 
-    .cardbox h5 {
-        font-size: 7pt;
-        font-weight: bold;
-        border: left 0 right 0;
-    }
+        .cardbox h5 {
+            font-size: 7pt;
+            font-weight: bold;
+            border: left 0 right 0;
+        }
 
-    .cardboxAuthorizingLabel,
-    .cardboxAuthorizationsLabel {
-        font-size: 7pt;
-        font-weight: 900;
-        width: 95%;
-    }
+        .cardboxAuthorizingLabel,
+        .cardboxAuthorizationsLabel {
+            font-size: 7pt;
+            font-weight: 900;
+            width: 95%;
+        }
 
-    .cardboxAuthorizing {
-        margin: 0px;
-        padding: 0px;
-        margin-left: 5px;
-        font-size: 7pt;
-        list-style: none;
-        text-align: left;
-    }
+        .cardboxAuthorizing {
+            margin: 0px;
+            padding: 0px;
+            margin-left: 5px;
+            font-size: 7pt;
+            list-style: none;
+            text-align: left;
+        }
 
-    .cardboxAuthorizations {
-        margin: 0px;
-        padding: 0px;
-        margin-left: 5px;
-        font-size: 7pt;
-        list-style: none;
-        text-align: center;
-        width: 95%;
-    }
+        .cardboxAuthorizations {
+            margin: 0px;
+            padding: 0px;
+            margin-left: 5px;
+            font-size: 7pt;
+            list-style: none;
+            text-align: center;
+            width: 95%;
+        }
 
-    hr {
-        border: .5mm;
-        border-style: solid;
-        border-color: black;
-        margin: 0px;
-    }
+        hr {
+            border: .5mm;
+            border-style: solid;
+            border-color: black;
+            margin: 0px;
+        }
     </style>
 </head>
 

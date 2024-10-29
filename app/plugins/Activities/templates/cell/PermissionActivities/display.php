@@ -15,7 +15,7 @@ $user = $this->request->getAttribute("identity");
             <tr>
                 <td><?= h($activity->name) ?></td>
                 <td class="actions">
-                    <?php if ($user->can("view", "Activities.Activities")) { ?>
+                    <?php if ($user->checkCan("view", "Activities.Activities")) { ?>
                     <?= $this->Html->link(
                                     __("View"),
                                     [

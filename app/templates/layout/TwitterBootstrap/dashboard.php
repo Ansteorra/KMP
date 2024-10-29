@@ -31,12 +31,12 @@ $headerLinks = $this->KMP->getAppSettingsStartWith("KMP.HeaderLink.");
     </script>
     <header class="navbar navbar-dark sticky-top bg-dark flex-md-nowrap p-0 shadow">
         <div class="navbar-brand col-md-3 col-lg-2 me-0 px-3">
-            <?= $this->Html->image($this->KMP->getAppSetting("KMP.BannerLogo", "badge.png"), [
+            <?= $this->Html->image($this->KMP->getAppSetting("KMP.BannerLogo"), [
                 "alt" => "Logo",
                 "height" => "24",
                 "class" => "d-inline-block mb-1",
             ]) ?>
-            <span class="fs-5"><?= h($this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP")) ?></span>
+            <span class="fs-5"><?= h($this->KMP->getAppSetting("KMP.ShortSiteTitle")) ?></span>
         </div>
         <ul class="navbar-nav flex-row px-3">
             <?php foreach ($headerLinks as $key => $value) :

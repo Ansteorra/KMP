@@ -2,8 +2,8 @@
 
 use App\KMP\StaticHelpers;
 
-$canEdit = $user->can("edit", $member);
-$canPartialEdit = $user->can("partialEdit", $member);
+$canEdit = $user->checkCan("edit", $member);
+$canPartialEdit = $user->checkCan("partialEdit", $member);
 
 if ($canEdit) {
     echo $this->Form->create($memberForm, [
@@ -29,7 +29,7 @@ echo $this->Modal->create("Edit " . $member->sca_name, [
     "close" => true,
 ]); ?>
 <fieldset>
-    <?php if ($user->can("edit", $member)) {
+    <?php if ($user->checkCan("edit", $member)) {
         echo $this->Form->control("title");
         echo $this->Form->control("sca_name");
         echo $this->Form->control("pronunciation");
@@ -80,7 +80,7 @@ echo $this->Modal->create("Edit " . $member->sca_name, [
             "options" => $statusList,
             ""
         ]);
-    } elseif ($user->can("partialEdit", $member)) {
+    } elseif ($user->checkCan("partialEdit", $member)) {
         echo $this->Form->control("title");
         echo $this->Form->control("sca_name");
         echo $this->Form->control("pronunciation");
@@ -122,5 +122,5 @@ echo $this->Modal->create("Edit " . $member->sca_name, [
 ]); ?>
 <?= $this->Form->end() ?>
 <?php if ($memberForm->getErrors()) : ?>
-<div data-controller="modal-opener" data-modal-opener-modal-btn-value="editModalBtn"></div>
+    <div data-controller="modal-opener" data-modal-opener-modal-btn-value="editModalBtn"></div>
 <?php endif; ?>

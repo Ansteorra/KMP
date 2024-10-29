@@ -18,6 +18,8 @@ use Authentication\IdentityInterface as AuthenticationIdentity;
 
 use Authorization\IdentityInterface as AuthorizationIdentity;
 use Authorization\AuthorizationServiceInterface;
+
+use Authorization\Exception\ForbiddenException;
 use Authorization\Policy\ResultInterface;
 
 use JeremyHarris\LazyLoad\ORM\LazyLoadEntityTrait;
@@ -120,7 +122,6 @@ class Member extends Entity implements
         "deleted_date" => true,
         "status" => true,
         "additional_info" => true,
-        "public_custom_fields" => true,
         "mobile_card_token" => true,
         "title" => true,
         "pronouns" => true,
@@ -140,14 +141,24 @@ class Member extends Entity implements
      * @param mixed $resource The resource being operated on.
      * @return bool
      */
-    public function can(string $action, mixed $resource): bool
+    public function can(string $action, mixed $resource, ...$optionalArgs): bool
     {
         if (is_string($resource)) {
             $resource = TableRegistry::getTableLocator()
                 ->get($resource)
                 ->newEmptyEntity();
         }
-        return $this->authorization->can($this, $action, $resource);
+        return $this->authorization->can($this, $action, $resource, ...$optionalArgs);
+    }
+
+    public function checkCan(string $action, mixed $resource, ...$optionalArgs): bool
+    {
+        if (is_string($resource)) {
+            $resource = TableRegistry::getTableLocator()
+                ->get($resource)
+                ->newEmptyEntity();
+        }
+        return $this->authorization->checkCan($this, $action, $resource, ...$optionalArgs);
     }
 
     public function publicLinks()
@@ -219,11 +230,11 @@ class Member extends Entity implements
                     " " .
                     $url["action"],
             );
-            return $this->authorization->can($this, $url["action"], $entity);
+            return $this->authorization->checkCan($this, $url["action"], $entity);
         } catch (MissingTableClassException $ex) {
             // if the above fails, then the url is not to a controller that maps to a table
             // so we will just check if the user can access the controller via the request authorization.
-            return $this->authorization->can($this, $url["action"], $url);
+            return $this->authorization->checkCan($this, $url["action"], $url);
             //return true;
         }
     }
@@ -235,14 +246,39 @@ class Member extends Entity implements
      * @param mixed $resource The resource being operated on.
      * @return \Authorization\Policy\ResultInterface
      */
-    public function canResult(string $action, mixed $resource): ResultInterface
+    public function canResult(string $action, mixed $resource, ...$optionalArgs): ResultInterface
     {
         if (is_string($resource)) {
             $resource = TableRegistry::getTableLocator()
                 ->get($resource)
                 ->newEmptyEntity();
         }
-        return $this->authorization->canResult($this, $action, $resource);
+        return $this->authorization->canResult($this, $action, $resource, ...$optionalArgs);
+    }
+
+    /**
+     * Authorize the current identity to perform an action.
+     *
+     * @param mixed $resource The resource being operated on.
+     * @param string|null $action The action/operation being performed.
+     * @return void
+     */
+    public function authorizeWithArgs(mixed $resource, ?string $action = null, ...$args): void
+    {
+
+        $result = $this->canResult($action, $resource, ...$args);
+        if ($result->getStatus()) {
+            return;
+        }
+
+        if (is_object($resource)) {
+            $name = get_class($resource);
+        } elseif (is_string($resource)) {
+            $name = $resource;
+        } else {
+            $name = gettype($resource);
+        }
+        throw new ForbiddenException($result, [$action, $name]);
     }
 
     /**
@@ -381,6 +417,21 @@ class Member extends Entity implements
         }
         $date = $date->setDate($this->birth_year, $this->birth_month, 1);
         return $date;
+    }
+
+    protected function _getNameForHerald()
+    {
+        $returnVal = $this->sca_name;
+        if ($this->title != null && $this->title != "") {
+            $returnVal = $this->title . " " . $returnVal;
+        }
+        if ($this->pronunciation != null && $this->pronunciation != "") {
+            $returnVal = $returnVal . " (" . $this->pronunciation . ")";
+        }
+        if ($this->pronouns != null && $this->pronouns != "") {
+            $returnVal = $returnVal . " - " . $this->pronouns;
+        }
+        return $returnVal;
     }
 
     protected function _setStatus($value)
