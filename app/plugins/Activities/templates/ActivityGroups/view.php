@@ -10,7 +10,7 @@
 $this->extend("/layout/TwitterBootstrap/view_record");
 
 echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': View Activity Group - ' . $authorizationGroup->name;
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': View Activity Group - ' . $authorizationGroup->name;
 $this->KMP->endBlock();
 
 echo $this->KMP->startBlock("pageTitle") ?>
@@ -45,55 +45,57 @@ echo $this->KMP->startBlock("pageTitle") ?>
 <div class="related tab-pane fade active m-3" id="nav-relatedActivities" role="tabpanel"
     aria-labelledby="nav-relatedActivities-tab" data-detail-tabs-target="tabContent">
     <?php if (!empty($authorizationGroup->activities)) { ?>
-    <div class="table-responsive">
-        <table class="table table-striped">
-            <thead>
-                <tr>
-                    <th scope="col"><?= h("name") ?></th>
-                    <th scope="col" class="text-center"><?= h(
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th scope="col"><?= h("name") ?></th>
+                        <th scope="col" class="text-center"><?= h(
                                                                 "Duration (years)",
                                                             ) ?></th>
-                    <th scope="col" class="text-center"><?= h(
+                        <th scope="col" class="text-center"><?= h(
                                                                 "minimum_age",
                                                             ) ?></th>
-                    <th scope="col" class="text-center"><?= h(
+                        <th scope="col" class="text-center"><?= h(
                                                                 "maximum_age",
                                                             ) ?></th>
-                    <th scope="col" class="text-center"><?= h(
+                        <th scope="col" class="text-center"><?= h(
                                                                 "# of Approvers",
                                                             ) ?></th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($authorizationGroup->activities
-                        as $activity) : ?>
-                <tr>
-                    <td><?= h($activity->name) ?></td>
-                    <td class="text-center"><?= $this->Number->format(
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach (
+                        $authorizationGroup->activities
+                        as $activity
+                    ) : ?>
+                        <tr>
+                            <td><?= h($activity->name) ?></td>
+                            <td class="text-center"><?= $this->Number->format(
                                                         $activity->term_length,
                                                     ) ?></td>
-                    <td class="text-center"><?= $activity->minimum_age ===
+                            <td class="text-center"><?= $activity->minimum_age ===
                                                         null
                                                         ? ""
                                                         : $this->Number->format(
                                                             $activity->minimum_age,
                                                         ) ?></td>
-                    <td class="text-center"><?= $activity->maximum_age ===
+                            <td class="text-center"><?= $activity->maximum_age ===
                                                         null
                                                         ? ""
                                                         : $this->Number->format(
                                                             $activity->maximum_age,
                                                         ) ?></td>
-                    <td class="text-center"><?= $this->Number->format(
+                            <td class="text-center"><?= $this->Number->format(
                                                         $activity->num_required_authorizors,
                                                     ) ?></td>
-                </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
-    </div>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
     <?php } else { ?>
-    <p>No Activities Assigned</p>
+        <p>No Activities Assigned</p>
     <?php } ?>
 </div>
 <?php $this->KMP->endBlock() ?>

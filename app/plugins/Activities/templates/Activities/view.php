@@ -12,7 +12,7 @@ use Cake\I18n\DateTime;
 $this->extend("/layout/TwitterBootstrap/view_record");
 
 echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': View Activity - ' . h($activity->name);
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': View Activity - ' . h($activity->name);
 $this->KMP->endBlock();
 
 echo $this->KMP->startBlock("pageTitle") ?>

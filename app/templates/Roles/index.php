@@ -8,7 +8,7 @@
 <?php $this->extend("/layout/TwitterBootstrap/dashboard");
 
 echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Roles';
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Roles';
 $this->KMP->endBlock(); ?>
 <h3>
     Roles
@@ -22,16 +22,16 @@ $this->KMP->endBlock(); ?>
     </thead>
     <tbody>
         <?php foreach ($roles as $role) : ?>
-        <tr>
-            <td><?= h($role->name) ?></td>
-            <td class="actions">
-                <?= $this->Html->link(
+            <tr>
+                <td><?= h($role->name) ?></td>
+                <td class="actions">
+                    <?= $this->Html->link(
                         __("View"),
                         ["action" => "view", $role->id],
                         ["title" => __("View"), "class" => "btn btn-secondary"],
                     ) ?>
-            </td>
-        </tr>
+                </td>
+            </tr>
         <?php endforeach; ?>
     </tbody>
 </table>

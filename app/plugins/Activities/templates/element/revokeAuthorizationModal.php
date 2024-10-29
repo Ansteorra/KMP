@@ -1,4 +1,4 @@
-<?php if ($user->can("revoke", "Activities.Authorizations")) {
+<?php if ($user->checkCan("revoke", "Activities.Authorizations")) {
     echo $this->Form->create(null, [
         "url" => ["controller" => "Authorizations", "action" => "revoke"],
         'data-controller' => 'revoke-form',

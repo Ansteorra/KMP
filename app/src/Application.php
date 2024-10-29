@@ -35,6 +35,7 @@ use Activities\Services\AuthorizationManager\AuthorizationManagerInterface;
 use Activities\Services\AuthorizationManager\DefaultAuthorizationManager;
 use App\Services\OfficerManager\OfficerManagerInterface;
 use App\Services\OfficerManager\DefaultOfficerManager;
+use App\Services\AuthorizationService as KmpAuthorizationService;
 use Authorization\Middleware\AuthorizationMiddleware;
 use Authorization\Policy\OrmResolver;
 use Authorization\Policy\ResolverCollection;
@@ -93,9 +94,7 @@ class Application extends BaseApplication implements
         $handler = new CallForNavHandler();
         EventManager::instance()->on($handler);
         StaticHelpers::getAppSetting("KMP.BranchInitRun", "");
-        StaticHelpers::getAppSetting("Activity.SecretaryEmail", "please_set");
         StaticHelpers::getAppSetting("KMP.KingdomName", "please_set");
-        StaticHelpers::getAppSetting("Activity.SecretaryName", "please_set");
         StaticHelpers::getAppSetting("Member.ViewCard.Graphic", "auth_card_back.gif");
         StaticHelpers::getAppSetting("Member.ViewCard.HeaderColor", "gold");
         StaticHelpers::getAppSetting("Member.ViewCard.Template", "view_card");
@@ -104,17 +103,19 @@ class Application extends BaseApplication implements
         StaticHelpers::getAppSetting("Members.AccountVerificationContactEmail", "please_set");
         StaticHelpers::getAppSetting("Members.AccountDisabledContactEmail", "please_set");
         StaticHelpers::getAppSetting("KMP.EnablePublicRegistration", "yes");
-        StaticHelpers::getAppSetting("Email.SystemEmailFromAddress", "donotreply@webminister.ansteorra.org");
-        StaticHelpers::getAppSetting("Email.SiteAdminSignature", "Webminister");
+        StaticHelpers::getAppSetting("Email.SystemEmailFromAddress", "site@test.com");
+        StaticHelpers::getAppSetting("Email.SiteAdminSignature", "site");
         StaticHelpers::getAppSetting("KMP.LongSiteTitle", "Kingdom Management Portal");
-        StaticHelpers::getAppSetting("Members.NewMemberSecretaryEmail", "webminister@marshal.ansteorra.org");
-        StaticHelpers::getAppSetting("Members.NewMinorSecretaryEmail", "webminister@marshal.ansteorra.org");
+        StaticHelpers::getAppSetting("Members.NewMemberSecretaryEmail", "member@test.com");
+        StaticHelpers::getAppSetting("Members.NewMinorSecretaryEmail", "minorSet@test.com");
         StaticHelpers::getAppSetting("KMP.AppSettings.HelpUrl", "https://github.com/Ansteorra/KMP/wiki/App-Settings");
         StaticHelpers::getAppSetting("App.version", "0.0.0");
         StaticHelpers::getAppSetting("KMP.BannerLogo", "badge.png");
         StaticHelpers::getAppSetting("KMP.ShortSiteTitle", "KMP");
         StaticHelpers::getAppSetting("Member.MobileCard.ThemeColor", "gold");
         StaticHelpers::getAppSetting("Member.MobileCard.BgColor", "gold");
+        StaticHelpers::getAppSetting("Activity.SecretaryEmail", "please_set");
+        StaticHelpers::getAppSetting("Activity.SecretaryName", "please_set");
     }
 
     /**
@@ -160,6 +161,7 @@ class Application extends BaseApplication implements
                     "identityDecorator" => function ($auth, $user) {
                         return $user->setAuthorization($auth);
                     },
+                    'requireAuthorizationCheck' => true,
                     'unauthorizedHandler' => [
                         'className' => 'Authorization.Redirect',
                         'url' => '/pages/unauthorized',
@@ -260,6 +262,6 @@ class Application extends BaseApplication implements
         $ormResolver = new OrmResolver();
         $resolver = new ResolverCollection([$ormResolver, $lastResortResolver]);
 
-        return new AuthorizationService($resolver);
+        return new KmpAuthorizationService($resolver);
     }
 }

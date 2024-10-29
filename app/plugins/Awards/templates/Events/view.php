@@ -10,7 +10,7 @@
 $this->extend("/layout/TwitterBootstrap/view_record");
 
 echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': View Award Rec Event - ' . $event->name;
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': View Award Rec Event - ' . $event->name;
 $this->KMP->endBlock();
 
 echo $this->KMP->startBlock("pageTitle") ?>
@@ -34,6 +34,10 @@ echo $this->Form->postLink(
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("recordDetails") ?>
 <tr>
+    <th scope="row"><?= __("Branch") ?></th>
+    <td><?= h($event->branch->name) ?></td>
+</tr>
+<tr>
     <th scope="row"><?= __("Description") ?></th>
     <td><?= h($event->description) ?></td>
 </tr>
@@ -45,12 +49,15 @@ echo $this->Form->postLink(
     <th scope="row"><?= __("End Date") ?></th>
     <td><?= h(($event->end_date ? $event->end_date->toDateString() : "")) ?></td>
 </tr>
+<tr>
+    <th scope="row"><?= __("Closed") ?></th>
+    <td><?= h(($event->closed ? "Yes" : "No")) ?></td>
+</tr>
 
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("tabButtons") ?>
 <?php
-$currentUser = $this->request->getAttribute('identity');
-if ($currentUser->can("view", "Awards.Recommendations")): ?>
+if ($showAwards): ?>
 <button class="nav-link" id="nav-scheduledAwards-tab" data-bs-toggle="tab" data-bs-target="#nav-scheduledAwards"
     type="button" role="tab" aria-controls="nav-scheduledAwards" aria-selected="false"
     data-detail-tabs-target='tabBtn'><?= __("Scheduled Awards") ?></button>
@@ -58,86 +65,13 @@ if ($currentUser->can("view", "Awards.Recommendations")): ?>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("tabContent") ?>
 <?php
-if ($currentUser->can("view", "Awards.Recommendations")): ?>
+if ($showAwards):
+    $turboUrl = $this->URL->build(["controller" => "Recommendations", "action" => "Table", "plugin" => "Awards", "Event", "?" => ["event_id" => $event->id]]);
+?>
 <div class="related tab-pane fade m-3" id="nav-scheduledAwards" role="tabpanel"
     aria-labelledby="nav-scheduledAwards-tab" data-detail-tabs-target="tabContent">
-    <?php if (!empty($event->recommendations_to_give)) :
-            $csv = [];
-            $csv[] = ["Title", "Name", "Pronunciation", "Pronouns", "Award", "Court Availability", "Call Into Court", "Person To Notify", "Status", "Reason"];
-            foreach ($event->recommendations_to_give as $rec) {
-                $csv[] = [
-                    $rec->title,
-                    $rec->member_sca_name,
-                    $rec->pronunciation,
-                    $rec->pronouns,
-                    $rec->award->abbreviation . ($rec->specialty ? " (" . $rec->specialty . ")" : ""),
-                    $rec->court_availability,
-                    $rec->call_into_court,
-                    $rec->person_to_notify,
-                    $rec->status,
-                    $rec->reason,
-                ];
-            }
-            $exportString = $this->KMP->makeCsv($csv);
-            //url encode the csv string
-            $exportString = urlencode($exportString);
-            //replace encoded spaces with spaces
-            $exportString = str_replace("+", " ", $exportString);
-        ?>
-    <div class="table-responsive">
-        <a href="data:text/csv;charset=utf-8,<?= $exportString ?>" download="recommendations.csv"
-            class="btn btn-primary btn-sm">Export CSV</a>
-        <table class="table table-striped">
-            <thead>
-                <tr>
-                    <th scope="col"><?= h("Title") ?></th>
-                    <th scope="col"><?= h("Name") ?></th>
-                    <th scope="col"><?= h("Pronunciation") ?></th>
-                    <th scope="col"><?= h("Pronouns") ?></th>
-                    <th scope="col"><?= h(
-                                                "Award",
-                                            ) ?></th>
-                    <th scope="col"><?= h(
-                                                "Court Availability",
-                                            ) ?></th>
-                    <th scope="col"><?= h(
-                                                "Call Into Court",
-                                            ) ?></th>
-                    <th scope="col"><?= h(
-                                                "Person To Notify",
-                                            ) ?></th>
-                    <th scope="col"><?= h(
-                                                "Status",
-                                            ) ?></th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach (
-                            $event->recommendations_to_give
-                            as $rec
-                        ) : ?>
-                <tr>
-                    <td><?= h($rec->title) ?></td>
-                    <td><?= h($rec->member_sca_name) ?></td>
-                    <td><?= h($rec->pronunciation) ?></td>
-                    <td><?= h($rec->pronouns) ?></td>
-                    <td><?= h($rec->award->abbreviation) ?>
-                        <?php if ($rec->specialty) : ?>
-                        (<?= h($rec->specialty) ?>)
-                        <?php endif; ?>
-                    </td>
-                    <td><?= h($rec->call_into_court) ?></td>
-                    <td><?= h($rec->court_availability) ?></td>
-                    <td><?= h($rec->person_to_notify) ?></td>
-                    <td><?= h($rec->status) ?></td>
-                </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
-    </div>
-    <?php else: ?>
-    <p>No Awards Scheduled</p>
-    <?php endif; ?>
+    <turbo-frame id="tableView-frame" loading="lazy" data-turbo="true" src="<?= $turboUrl ?>">
+    </turbo-frame>
 </div>
 <?php endif; ?>
 <?php $this->KMP->endBlock() ?>
@@ -169,6 +103,7 @@ echo $this->Modal->create("Edit Award Rec Event", [
         "type" => "date",
         "label" => __("End Date"),
     ]);
+    echo $this->Form->control("closed", ['switch' => true]);
     ?>
 </fieldset>
 <?php echo $this->Modal->end([

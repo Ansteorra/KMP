@@ -8,7 +8,7 @@
 <?php $this->extend("/layout/TwitterBootstrap/dashboard");
 
 echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Award Domains';
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Award Domains';
 $this->KMP->endBlock(); ?>
 <h3>
     Award Domains
@@ -27,24 +27,24 @@ $this->KMP->endBlock(); ?>
     </thead>
     <tbody>
         <?php foreach ($awards as $award) : ?>
-        <tr>
-            <td><?= $this->Number->format($award->id) ?></td>
-            <td><?= h($award->name) ?></td>
-            <td><?= $award->hasValue('domain') ? $this->Html->link($award->domain->name, ['controller' => 'Domains', 'action' => 'view', $award->domain->id]) : '' ?>
-            </td>
-            <td><?= $award->hasValue('level') ? $this->Html->link($award->level->name, ['controller' => 'Levels', 'action' => 'view', $award->level->id]) : '' ?>
-            </td>
-            <td><?= $award->hasValue('branch') ? $this->Html->link($award->branch->name, ['plugin' => null,  'controller' => 'Branches', 'action' => 'view', $award->branch->id]) : '' ?>
-            </td>
+            <tr>
+                <td><?= $this->Number->format($award->id) ?></td>
+                <td><?= h($award->name) ?></td>
+                <td><?= $award->hasValue('domain') ? $this->Html->link($award->domain->name, ['controller' => 'Domains', 'action' => 'view', $award->domain->id]) : '' ?>
+                </td>
+                <td><?= $award->hasValue('level') ? $this->Html->link($award->level->name, ['controller' => 'Levels', 'action' => 'view', $award->level->id]) : '' ?>
+                </td>
+                <td><?= $award->hasValue('branch') ? $this->Html->link($award->branch->name, ['plugin' => null,  'controller' => 'Branches', 'action' => 'view', $award->branch->id]) : '' ?>
+                </td>
 
-            <td class="actions">
-                <?= $this->Html->link(
+                <td class="actions">
+                    <?= $this->Html->link(
                         __("View"),
                         ["action" => "view", $award->id],
                         ["title" => __("View"), "class" => "btn btn-secondary"],
                     ) ?>
-            </td>
-        </tr>
+                </td>
+            </tr>
         <?php endforeach; ?>
     </tbody>
 </table>

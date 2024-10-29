@@ -29,4 +29,5 @@ return [
     'Awards' => [
         'migrationOrder' => 3,
     ],
+    'CsvView' => [],
 ];

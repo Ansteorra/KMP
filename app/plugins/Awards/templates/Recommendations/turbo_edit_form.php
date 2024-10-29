@@ -1,4 +1,7 @@
 <turbo-frame id="editRecommendation">
+    <script type="application/json" data-awards-rec-edit-target="stateRulesBlock" class="d-none">
+    <?= json_encode($rules) ?>
+    </script>
     <fieldset>
         <?php
         echo $this->Form->hidden('id', ['value' => $recommendation->id, 'data-awards-rec-edit-target' => 'recId']);
@@ -24,7 +27,7 @@
         );
         echo $this->Form->control('not_found', [
             'type' => 'checkbox',
-            'label' => "Name not registered in " . $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . " database",
+            'label' => "Name not registered in " . $this->KMP->getAppSetting("KMP.ShortSiteTitle") . " database",
             "id" => "recommendation__not_found",
             "value" => "on",
             "disabled" => true,
@@ -46,48 +49,6 @@
                 $recommendation->branch->name]),
             ]
         );
-        $selectOptions = [];
-        foreach ($callIntoCourtOptions as $option) {
-            $selectOptions[$option] = $option;
-        }
-        echo $this->KMP->comboBoxControl(
-            $this->Form,
-            'call_into_court_val',
-            'call_into_court',
-            $selectOptions,
-            "Call Into Court",
-            true,
-            false,
-            [
-                'data-awards-rec-edit-target' => 'callIntoCourt',
-                'data-ac-init-selection-value' => json_encode(['value' => $recommendation->call_into_court, 'text' =>
-                $recommendation->call_into_court]),
-            ]
-        );
-        $selectOptions = [];
-        foreach ($courtAvailabilityOptions as $option) {
-            $selectOptions[$option] = $option;
-        }
-        echo $this->KMP->comboBoxControl(
-            $this->Form,
-            'court_availability_val',
-            'court_availability',
-            $selectOptions,
-            "Court Availability",
-            true,
-            false,
-            [
-                'data-awards-rec-edit-target' => 'courtAvailability',
-                'data-ac-init-selection-value' => json_encode(['value' => $recommendation->court_availability, 'text' =>
-                $recommendation->court_availability]),
-            ]
-        );
-        echo $this->Form->control('person_to_notify', [
-            'label' => 'Person to Notify',
-            'value' => $recommendation->person_to_notify,
-            'disabled' => 'disabled',
-            'data-awards-rec-edit-target' => 'personToNotify',
-        ]);
         echo $this->KMP->comboBoxControl(
             $this->Form,
             'domain_name',
@@ -180,16 +141,25 @@
             'disabled' => 'disabled',
         ]);
         echo $this->Form->control(
-            'status',
+            'state',
             [
                 'options' => $statusList,
-                'value' => $recommendation->status,
-                'data-awards-rec-edit-target' => 'status',
-                'data-action' => 'change->awards-rec-edit#setFieldVisibility',
+                'value' => $recommendation->state,
+                'data-awards-rec-edit-target' => 'state',
+                'data-action' => 'change->awards-rec-edit#setFieldRules',
+            ]
+        );
+        echo $this->Form->control(
+            'close_reason',
+            [
+                'label' => 'Reason for No Action',
+                'value' => $recommendation->close_reason,
+                'data-awards-rec-edit-target' => 'closeReason',
+                'container' => ['data-awards-rec-edit-target' => 'closeReasonBlock'],
             ]
         );
         echo $this->Form->control('event_id', [
-            'label' => 'Plan to Give At:',
+            'label' => 'Plan to Give At',
             "type" => "select",
             'options' => $eventList,
             'empty' => true,
@@ -203,6 +173,7 @@
                 'type' => 'date',
                 'label' => 'Given On',
                 'value' => $recommendation->given,
+                'data-awards-rec-edit-target' => 'givenDate',
                 'container' => ['data-awards-rec-edit-target' => 'givenBlock'],
             ]
         );

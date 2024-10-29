@@ -10,7 +10,7 @@
 $this->extend("/layout/TwitterBootstrap/view_record");
 
 echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': View Office - ' . h($office->name);
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': View Office - ' . h($office->name);
 $this->KMP->endBlock();
 echo $this->KMP->startBlock("pageTitle") ?>
 <?= h($office->name) ?>

@@ -14,6 +14,7 @@
         "cakephp/plugin-installer": "^2.0",
         "friendsofcake/bootstrap-ui": "^5.0",
         "friendsofcake/cakepdf": "^5.0",
+        "friendsofcake/cakephp-csvview": "^5.0",
         "ishanvyas22/asset-mix": "^2.0",
         "jeremyharris/cakephp-lazyload": "^5.0",
         "mobiledetect/mobiledetectlib": "^4.8.03",

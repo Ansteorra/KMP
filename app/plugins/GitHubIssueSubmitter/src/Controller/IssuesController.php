@@ -20,8 +20,8 @@ class IssuesController extends AppController
     public function submit()
     {
         $this->Authorization->skipAuthorization();
-        $owner = StaticHelpers::getAppSetting("KMP.GitHub.Owner", "Ansteorra");
-        $repo = StaticHelpers::getAppSetting("KMP.GitHub.Project", "KMP");
+        $owner = StaticHelpers::getAppSetting("KMP.GitHub.Owner");
+        $repo = StaticHelpers::getAppSetting("KMP.GitHub.Project");
         $token = StaticHelpers::getAppSetting("KMP.GitHub", "")["Token"];
         $body = $this->request->getData('body');
         $title = $this->request->getData('title');

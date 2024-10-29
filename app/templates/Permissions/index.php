@@ -8,7 +8,7 @@
 <?php $this->extend("/layout/TwitterBootstrap/dashboard");
 
 echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Permissions';
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Permissions';
 $this->KMP->endBlock(); ?>
 <h3>
     Permissions
@@ -35,38 +35,38 @@ $this->KMP->endBlock(); ?>
     </thead>
     <tbody>
         <?php foreach ($permissions as $permission) : ?>
-        <tr>
-            <td><?= h($permission->name) ?></td>
-            <td class="text-center"><?= $this->Kmp->bool(
+            <tr>
+                <td><?= h($permission->name) ?></td>
+                <td class="text-center"><?= $this->Kmp->bool(
                                             $permission->require_active_membership,
                                             $this->Html,
                                         ) ?></td>
-            <td class="text-center"><?= $this->Kmp->bool(
+                <td class="text-center"><?= $this->Kmp->bool(
                                             $permission->require_active_background_check,
                                             $this->Html,
                                         ) ?></td>
-            <td class="text-center"><?= h($permission->require_min_age) ?></td>
-            <td class="text-center"><?= $this->Kmp->bool(
+                <td class="text-center"><?= h($permission->require_min_age) ?></td>
+                <td class="text-center"><?= $this->Kmp->bool(
                                             $permission->requires_warrant,
                                             $this->Html,
                                         ) ?></td>
-            <td class="text-center"><?= $this->Kmp->bool(
+                <td class="text-center"><?= $this->Kmp->bool(
                                             $permission->is_super_user,
                                             $this->Html,
                                         ) ?></td>
 
-            <td class="text-center"><?= $this->Kmp->bool(
+                <td class="text-center"><?= $this->Kmp->bool(
                                             $permission->is_system,
                                             $this->Html,
                                         ) ?></td>
-            <td class="actions">
-                <?= $this->Html->link(
+                <td class="actions">
+                    <?= $this->Html->link(
                         __("View"),
                         ["action" => "view", $permission->id],
                         ["title" => __("View"), "class" => "btn btn-secondary"],
                     ) ?>
-            </td>
-        </tr>
+                </td>
+            </tr>
         <?php endforeach; ?>
     </tbody>
 </table>

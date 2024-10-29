@@ -6,6 +6,7 @@ namespace Awards\Model\Entity;
 
 use Cake\ORM\Entity;
 use App\KMP\StaticHelpers;
+use Cake\I18n\DateTime;
 
 /**
  * Recommendation Entity
@@ -31,52 +32,6 @@ class Recommendation extends Entity
 {
 
 
-    const STATUS_SUBMITTED = "submitted";
-    const STATUS_IN_CONSIDERATION = "in consideration";
-    const STATUS_AWAITING_FEEDBACK = "awaiting feedback";
-    const STATUS_DECLINED = "declined";
-    const STATUS_NEED_TO_SCHEDULE = "scheduling";
-    const STATUS_SCHEDULED = "scheduled";
-    const STATUS_GIVEN = "given";
-
-    public static function getStatues(): array
-    {
-        return [
-            self::STATUS_SUBMITTED => "Submitted",
-            self::STATUS_IN_CONSIDERATION => "In Consideration",
-            self::STATUS_AWAITING_FEEDBACK => "Awaiting Feedback",
-            self::STATUS_DECLINED => "Declined",
-            self::STATUS_NEED_TO_SCHEDULE => "Need to Schedule",
-            self::STATUS_SCHEDULED => "Scheduled",
-            self::STATUS_GIVEN => "Given",
-        ];
-    }
-
-    public static function getToBeProcessedStatues(): array
-    {
-        return [
-            self::STATUS_SUBMITTED => "Submitted",
-            self::STATUS_IN_CONSIDERATION => "In Consideration",
-            self::STATUS_AWAITING_FEEDBACK => "Awaiting Feedback",
-        ];
-    }
-
-    public static function getToBeScheduledStatues(): array
-    {
-        return [
-            self::STATUS_NEED_TO_SCHEDULE => "Need to Schedule",
-            self::STATUS_SCHEDULED => "Scheduled",
-        ];
-    }
-
-    public static function getTerminalStatues(): array
-    {
-        return [
-            self::STATUS_DECLINED => "Declined",
-            self::STATUS_GIVEN => "Given",
-        ];
-    }
-
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().
      *
@@ -95,7 +50,8 @@ class Recommendation extends Entity
         'event_id' => true,
         'given' => true,
         'status' => true,
-        'status_date' => true,
+        'state' => true,
+        'state_date' => true,
         'stack_rank' => true,
         'requester_sca_name' => true,
         'member_sca_name' => true,
@@ -113,6 +69,7 @@ class Recommendation extends Entity
         'member' => true,
         'events' => true,
         'person_to_notify' => true,
+        'close_reason' => true,
     ];
 
     protected function _setGiven($value)
@@ -122,45 +79,58 @@ class Recommendation extends Entity
         }
         return $value;
     }
-
-    protected function _setCallIntoCourt($value)
+    protected function _setState($value)
     {
-        $optionsStr = StaticHelpers::getAppSetting("Awards.CallIntoCourtOptions", "Never,With Notice,Without Notice");
-        //the court notice must be one of the constants defined in this class
-        $options = explode(",", $optionsStr);
-        if (in_array($value, $options)) {
-            return $value;
-        } else {
-            throw new \InvalidArgumentException("Invalid Court Notice");
+        $this->beforeState = $this->state;
+        $this->beforeStatus = $this->status;
+
+        $states = self::getStates();
+        if (!in_array($value, $states)) {
+            throw new \InvalidArgumentException("Invalid State");
         }
+        $statuses = self::getStatuses();
+        $nextStatus = $this->status;
+        foreach ($statuses as $statusKey => $status) {
+            if (in_array($value, $status)) {
+                $nextStatus = $statusKey;
+                break;
+            }
+        }
+        if ($nextStatus != $this->status) {
+            $this->status = $nextStatus;
+        }
+        $this->state_date = new DateTime();
+        $stateRules = StaticHelpers::getAppSetting("Awards.RecommendationStateRules");
+        if (isset($stateRules[$value])) {
+            $rule = $stateRules[$value];
+            if (isset($rule['Set'])) {
+                $fieldsToSet = $rule['Set'];
+                foreach ($fieldsToSet as $field => $fieldValue) {
+                    $this->$field = $fieldValue;
+                }
+            }
+        }
+        return $value;
     }
 
-    protected function _setCourtAvailability($value)
+    public static function getStatuses(): array
     {
-        $optionsStr = StaticHelpers::getAppSetting("Awards.CourtAvailabilityOptions", "None,Morning,Evening,Any");
-        //the court availability must be one of the constants defined in this class
-        $options = explode(",", $optionsStr);
-        if (in_array($value, $options)) {
-            return $value;
-        } else {
-            throw new \InvalidArgumentException("Invalid Court Availability");
-        }
+        $statusList = StaticHelpers::getAppSetting("Awards.RecommendationStatuses");
+        return $statusList;
     }
-
-    protected function _setStatus($value)
+    public static function getStates($status = null): array
     {
-        //the status must be one of the constants defined in this class
-        switch ($value) {
-            case self::STATUS_SUBMITTED:
-            case self::STATUS_IN_CONSIDERATION:
-            case self::STATUS_AWAITING_FEEDBACK:
-            case self::STATUS_DECLINED:
-            case self::STATUS_NEED_TO_SCHEDULE:
-            case self::STATUS_SCHEDULED:
-            case self::STATUS_GIVEN:
-                return $value;
-            default:
-                throw new \InvalidArgumentException("Invalid status");
+        if ($status) {
+            $statusList = self::getStatuses();
+            return $statusList[$status];
         }
+        $statuses = self::getStatuses();
+        $states = [];
+        foreach ($statuses as $status) {
+            foreach ($status as $state) {
+                $states[] = $state;
+            }
+        }
+        return $states;
     }
 }

@@ -13,7 +13,7 @@ use App\KMP\StaticHelpers;
 <?php $this->extend("/layout/TwitterBootstrap/dashboard");
 
 echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Add Member';
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Add Member';
 $this->KMP->endBlock(); ?>
 <div class="Members form content">
     <?= $this->Form->create($member) ?>
@@ -63,7 +63,7 @@ $this->KMP->endBlock(); ?>
                 <select name="birth_month" id="birth-month" class="form-select" required="required">
                     <option value=""></option>
                     <?php foreach ($months as $index => $value) : ?>
-                    <option value="<?= $index ?>"><?= $value ?></option>
+                        <option value="<?= $index ?>"><?= $value ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
@@ -71,7 +71,7 @@ $this->KMP->endBlock(); ?>
                 <select name="birth_year" id="birth-year" class="form-select" required="required">
                     <option value=""></option>
                     <?php foreach ($years as $index => $value) : ?>
-                    <option value="<?= $index ?>"><?= $value ?></option>
+                        <option value="<?= $index ?>"><?= $value ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>

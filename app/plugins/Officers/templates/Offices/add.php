@@ -11,7 +11,7 @@
 $this->extend("/layout/TwitterBootstrap/dashboard");
 
 echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Add Office';
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Add Office';
 $this->KMP->endBlock();
 
 ?>

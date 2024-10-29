@@ -5,7 +5,7 @@ use Cake\I18n\Date;
 use Cake\Routing\Asset;
 
 echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Mobile Activities Authorization Card';
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Mobile Activities Authorization Card';
 $this->KMP->endBlock();
 $cardUrl = $this->Url->build(['controller' => 'Members', 'action' => 'viewMobileCardJson', $member->mobile_card_token]);
 $cardManifest = $this->Url->build(['controller' => 'Members', 'action' => 'card.webmanifest', $member->mobile_card_token]);
@@ -26,41 +26,42 @@ $now = Date::now();
 <link rel="manifest" href="<?= $cardManifest ?>" />
 <?php $this->KMP->endBlock(); ?>
 <style>
-json {
-    display: none;
-}
+    json {
+        display: none;
+    }
 
-.viewMobileCard {
-    background-color: <?=h($message_variables["marshal_auth_header_color"],
-        ) ?>;
-}
+    .viewMobileCard {
+        background-color: <?= h(
+                                $message_variables["marshal_auth_header_color"],
+                            ) ?>;
+    }
 
-.cardbox {
-    background-color: rgb(255 255 255 / 85%) !important;
-}
+    .cardbox {
+        background-color: rgb(255 255 255 / 85%) !important;
+    }
 
-.card-body dl,
-table.card-body-table tbody tr td,
-table.card-body-table tbody tr th {
-    background-color: rgb(255 255 255 / 60%) !important;
+    .card-body dl,
+    table.card-body-table tbody tr td,
+    table.card-body-table tbody tr th {
+        background-color: rgb(255 255 255 / 60%) !important;
 
-}
+    }
 
-.card-body::after {
-    content: "";
-    background-image: url('<?php echo $watermarkimg; ?>');
-    background-size: 21.4rem 20rem;
-    background-repeat: no-repeat;
-    background-position: center;
-    opacity: 1;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    right: 0;
-    position: absolute;
-    z-index: -1;
-    display: inline-block;
-}
+    .card-body::after {
+        content: "";
+        background-image: url('<?php echo $watermarkimg; ?>');
+        background-size: 21.4rem 20rem;
+        background-repeat: no-repeat;
+        background-position: center;
+        opacity: 1;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        right: 0;
+        position: absolute;
+        z-index: -1;
+        display: inline-block;
+    }
 </style>
 <div data-controller="member-mobile-card-pwa member-mobile-card-profile"
     data-member-mobile-card-profile-url-value="<?= $cardUrl ?>" data-member-mobile-card-pwa-sw-url-value="<?= $swUrl ?>"

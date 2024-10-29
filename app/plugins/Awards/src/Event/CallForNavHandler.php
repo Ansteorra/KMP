@@ -4,6 +4,7 @@ namespace Awards\Event;
 
 use Cake\Event\EventListenerInterface;
 use App\KMP\StaticHelpers;
+use Awards\Model\Entity\Recommendation;
 
 class CallForNavHandler implements EventListenerInterface
 {
@@ -18,6 +19,32 @@ class CallForNavHandler implements EventListenerInterface
     {
         if (StaticHelpers::pluginEnabled('Awards') == false) {
             return null;
+        }
+        $statuses = Recommendation::getStatuses();
+        $listLinks = [];
+        $boardLinks = [];
+        $order = 0;
+        foreach ($statuses as $statusKey => $statusKey) {
+            $listLinks[] = [
+                "type" => "link",
+                "mergePath" => ["Award Recs.", "Recommendations"],
+                "label" => $statusKey,
+                "order" => $order++,
+                "url" => [
+                    "controller" => "Recommendations",
+                    "plugin" => "Awards",
+                    "action" => "index",
+                    "model" => "Awards.Recommendations",
+                    "?" => [
+                        "status" => $statusKey,
+                        "view" => $statusKey,
+                    ],
+                ],
+                "icon" => "bi-file-earmark-check",
+                "activePaths" => [
+                    "awards/Recommendations/view/*",
+                ]
+            ];
         }
         $user = $event->getData('user');
         $results = [];
@@ -47,81 +74,6 @@ class CallForNavHandler implements EventListenerInterface
                 "activePaths" => [
                     "awards/Recommendations/view/*",
                 ]
-            ],
-            [
-                "type" => "link",
-                "mergePath" => ["Award Recs.", "Recommendations"],
-                "label" => "To Be Processed Board",
-                "order" => 1,
-                "url" => [
-                    "controller" => "Recommendations",
-                    "plugin" => "Awards",
-                    "action" => "toBeProcessedBoard",
-                    "model" => "Awards.Recommendations",
-                ],
-                "icon" => "bi-kanban",
-                "activePaths" => [
-                    "awards/Recommendations/view/*",
-                ]
-            ],
-            [
-                "type" => "link",
-                "mergePath" => ["Award Recs.", "Recommendations"],
-                "label" => "To Be Scheduled Board",
-                "order" => 5,
-                "url" => [
-                    "controller" => "Recommendations",
-                    "plugin" => "Awards",
-                    "action" => "toBeScheduledBoard",
-                    "model" => "Awards.Recommendations",
-                ],
-                "icon" => "bi-kanban-fill",
-                "activePaths" => [
-                    "awards/Recommendations/view/*",
-                ]
-            ],
-            [
-                "type" => "link",
-                "mergePath" => ["Award Recs.", "Recommendations"],
-                "label" => "To Be Processed List",
-                "order" => 10,
-                "url" => [
-                    "controller" => "Recommendations",
-                    "plugin" => "Awards",
-                    "action" => "ToBeProcessed",
-                    "model" => "Awards.Recommendations",
-                ],
-                "icon" => "bi-file-earmark-check",
-
-
-            ],
-            [
-                "type" => "link",
-                "mergePath" => ["Award Recs.", "Recommendations"],
-                "label" => "To Be Scheduled List",
-                "order" => 11,
-                "url" => [
-                    "controller" => "Recommendations",
-                    "plugin" => "Awards",
-                    "action" => "ToBeScheduled",
-                    "model" => "Awards.Recommendations",
-                ],
-                "icon" => "bi-clipboard-heart",
-
-
-            ],
-            [
-                "type" => "link",
-                "mergePath" => ["Award Recs.", "Recommendations"],
-                "label" => "To Be Given",
-                "order" => 12,
-                "url" => [
-                    "controller" => "Recommendations",
-                    "plugin" => "Awards",
-                    "action" => "ToBeGiven",
-                    "model" => "Awards.Recommendations",
-                ],
-                "icon" => "bi-emoji-heart-eyes",
             ],
             [
                 "type" => "link",
@@ -265,9 +217,11 @@ class CallForNavHandler implements EventListenerInterface
                 ],
                 "icon" => "bi-megaphone-fill",
                 "linkTypeClass" => "btn",
-                "otherClasses" => StaticHelpers::getAppSetting("Awards.RecButtonClass", "btn-warning"),
+                "otherClasses" => StaticHelpers::getAppSetting("Awards.RecButtonClass"),
             ]
         ];
+
+        $appNav = array_merge($appNav, $listLinks);
 
         $results = array_merge($results, $appNav);
         return $results;

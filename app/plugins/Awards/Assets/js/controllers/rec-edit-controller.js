@@ -7,22 +7,22 @@ class AwardsRecommendationEditForm extends Controller {
         "scaMember",
         "notFound",
         "branch",
-        "callIntoCourt",
-        "courtAvailability",
         "externalLinks",
         "domain",
         "award",
         "reason",
         "events",
         "specialty",
-        "status",
+        "state",
         "planToGiveBlock",
         "planToGiveEvent",
         "givenBlock",
         "recId",
-        "externalLinks",
-        "personToNotify",
         "turboFrame",
+        "givenDate",
+        "closeReason",
+        "closeReasonBlock",
+        "stateRulesBlock",
     ];
     static values = {
         publicProfileUrl: String,
@@ -45,11 +45,8 @@ class AwardsRecommendationEditForm extends Controller {
 
 
     submit(event) {
-        this.callIntoCourtTarget.disabled = false;
-        this.courtAvailabilityTarget.disabled = false;
         this.notFoundTarget.disabled = false;
         this.scaMemberTarget.disabled = false;
-        this.personToNotifyTarget.disabled = false;
         this.specialtyTarget.disabled = false;
     }
     setAward(event) {
@@ -119,12 +116,7 @@ class AwardsRecommendationEditForm extends Controller {
     }
 
     loadScaMemberInfo(event) {
-        //reset member metadata area
         this.externalLinksTarget.innerHTML = "";
-        //this.courtAvailabilityTarget.value = "";
-        //this.callIntoCourtTarget.value = "";
-        //this.callIntoCourtTarget.disabled = false;
-        //this.courtAvailabilityTarget.disabled = false;
 
         let memberId = Number(event.target.value.replace(/_/g, ""));
         if (memberId > 0) {
@@ -155,30 +147,6 @@ class AwardsRecommendationEditForm extends Controller {
         fetch(url, this.optionsForFetch())
             .then(response => response.json())
             .then(data => {
-                if (data.additional_info.CallIntoCourt != null && data.additional_info.CallIntoCourt != "") {
-                    this.callIntoCourtTarget.value = data.additional_info.CallIntoCourt;
-                }
-                if (data.additional_info.CourtAvailability != null && data.additional_info.CourtAvailability != "") {
-                    this.courtAvailabilityTarget.value = data.additional_info.CourtAvailability;
-                }
-                if (data.additional_info.PersonToGiveNoticeTo != null && data.additional_info.PersonToGiveNoticeTo != "") {
-                    this.personToNotifyTarget.value = data.additional_info.PersonToGiveNoticeTo;
-                }
-                if (this.callIntoCourtTarget.value != "") {
-                    this.callIntoCourtTarget.disabled = true;
-                } else {
-                    this.callIntoCourtTarget.disabled = false;
-                }
-                if (this.courtAvailabilityTarget.value != "") {
-                    this.courtAvailabilityTarget.disabled = true;
-                } else {
-                    this.courtAvailabilityTarget.disabled = false;
-                }
-                if (this.personToNotifyTarget.value != "") {
-                    this.personToNotifyTarget.disabled = true;
-                } else {
-                    this.personToNotifyTarget.disabled = false;
-                }
                 this.externalLinksTarget.innerHTML = "";
                 let keys = Object.keys(data.external_links);
                 if (keys.length > 0) {
@@ -209,81 +177,65 @@ class AwardsRecommendationEditForm extends Controller {
             this.loadScaMemberInfo({ target: { value: this.scaMemberTarget.value } });
         }
     }
-    statusTargetConnected() {
+    stateTargetConnected() {
         console.log("status connected");
-        this.setFieldVisibility();
+        this.setFieldRules();
     }
 
-    setFieldVisibility() {
-        let STATUS_SUBMITTED = "submitted";
-        let STATUS_IN_CONSIDERATION = "in consideration";
-        let STATUS_AWAITING_FEEDBACK = "awaiting feedback";
-        let STATUS_DECLINED = "declined";
-        let STATUS_NEED_TO_SCHEDULE = "scheduling";
-        let STATUS_SCHEDULED = "scheduled";
-        let STATUS_GIVEN = "given";
+    setFieldRules() {
+        console.log("setting field rules");
+        var rulesstring = this.stateRulesBlockTarget.textContent;
+        var rules = JSON.parse(rulesstring);
         if (this.specialtyTarget.options.length == 0) {
             this.specialtyTarget.hidden = true;
             this.specialtyTarget.disabled = true;
         }
-        switch (this.statusTarget.value) {
-            case STATUS_NEED_TO_SCHEDULE:
-                this.planToGiveBlockTarget.style.display = "block";
-                this.planToGiveEventTarget.required = false;
-                this.givenBlockTarget.style.display = "none";
-                this.domainTarget.disabled = true;
-                this.awardTarget.disabled = true;
-                this.specialtyTarget.disabled = true;
-                this.scaMemberTarget.disabled = true;
-                this.branchTarget.disabled = true;
-                this.courtAvailabilityTarget.disabled = true;
-                this.callIntoCourtTarget.disabled = true;
-                break;
-            case STATUS_SCHEDULED:
-                this.planToGiveBlockTarget.style.display = "block";
-                this.planToGiveEventTarget.required = true;
-                this.givenBlockTarget.style.display = "none";
-                this.domainTarget.disabled = true;
-                this.awardTarget.disabled = true;
-                this.specialtyTarget.disabled = true;
-                this.scaMemberTarget.disabled = true;
-                this.branchTarget.disabled = true;
-                this.courtAvailabilityTarget.disabled = true;
-                this.callIntoCourtTarget.disabled = true;
-                this.
-                    break;
-            case STATUS_GIVEN:
-                this.planToGiveBlockTarget.style.display = "block";
-                this.givenBlockTarget.style.display = "block";
-                this.domainTarget.disabled = true;
-                this.awardTarget.disabled = true;
-                this.specialtyTarget.disabled = true;
-                this.scaMemberTarget.disabled = true;
-                this.branchTarget.disabled = true;
-                this.courtAvailabilityTarget.disabled = true;
-                this.callIntoCourtTarget.disabled = true;
-                break;
-            default:
-                this.planToGiveBlockTarget.style.display = "none";
-                this.givenBlockTarget.style.display = "none";
-                this.domainTarget.disabled = false;
-                this.awardTarget.disabled = false;
-                this.specialtyTarget.disabled = this.specialtyTarget.hidden;
-                this.scaMemberTarget.disabled = false;
-                if (this.notFoundTarget.checked) {
-                    this.branchTarget.disabled = false;
-                    this.branchTarget.hidden = false;
-                    this.courtAvailabilityTarget.disabled = false;
-                    this.callIntoCourtTarget.disabled = false;
-                    this.personToNotifyTarget.disabled = false;
-                } else {
-                    this.branchTarget.disabled = true;
-                    this.branchTarget.hidden = true;
-                    this.courtAvailabilityTarget.disabled = this.courtAvailabilityTarget.value != "" && this.courtAvailabilityTarget.value != "Don't Know";
-                    this.callIntoCourtTarget.disabled = this.callIntoCourtTarget.value != "" && this.callIntoCourtTarget.value != "Don't Know";
-                    this.personToNotifyTarget.disabled = this.personToNotifyTarget.value != "";
-                }
-                break;
+
+        this.planToGiveBlockTarget.style.display = "none";
+        this.givenBlockTarget.style.display = "none";
+        this.domainTarget.disabled = false;
+        this.awardTarget.disabled = false;
+        this.specialtyTarget.disabled = this.specialtyTarget.hidden;
+        this.scaMemberTarget.disabled = false;
+        this.planToGiveEventTarget.required = false;
+        this.givenDateTarget.required = false;
+        this.closeReasonBlockTarget.style.display = "none";
+        this.closeReasonTarget.required = false;
+        if (this.notFoundTarget.checked) {
+            this.branchTarget.disabled = false;
+            this.branchTarget.hidden = false;
+        } else {
+            this.branchTarget.disabled = true;
+            this.branchTarget.hidden = true;
+        }
+
+        var state = this.stateTarget.value;
+
+        //check status rules for the status
+        if (rules[state]) {
+            var statusRules = rules[state];
+            var controller = this;
+            if (statusRules["Visible"]) {
+                statusRules["Visible"].forEach(function (field) {
+                    if (controller[field]) {
+                        controller[field].style.display = "block";
+                    }
+                });
+            }
+            if (statusRules["Disabled"]) {
+                statusRules["Disabled"].forEach(function (field) {
+                    if (controller[field]) {
+                        controller[field].disabled = true;
+                    }
+                });
+            }
+            if (statusRules["Required"]) {
+                statusRules["Required"].forEach(function (field) {
+                    if (controller[field]) {
+                        controller[field].required = true;
+                    }
+                });
+            }
         }
     }
     connect() {

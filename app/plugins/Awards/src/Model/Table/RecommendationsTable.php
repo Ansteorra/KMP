@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Awards\Model\Table;
 
+use App\KMP\StaticHelpers;
 use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
+use Cake\ORM\TableRegistry;
 
 /**
  * Recommendations Model
@@ -93,6 +95,10 @@ class RecommendationsTable extends Table
             "foreignKey" => "topic_id",
             "className" => "Notes",
             "conditions" => ["Notes.topic_model" => "Awards.Recommendations"],
+        ]);
+        $this->hasMany("RecommendationStateLogs", [
+            "foreignKey" => "recommendation_id",
+            "className" => "Awards.RecommendationsStatesLog",
         ]);
     }
 
@@ -184,5 +190,25 @@ class RecommendationsTable extends Table
         $rules->add($rules->existsIn(['award_id'], 'Awards'), ['errorField' => 'award_id']);
 
         return $rules;
+    }
+
+    public function afterSave($created, $entity, $options)
+    {
+        //check if the state is marked dirty in the entity->dirty array
+        if ($entity->isDirty('state')) {
+            $this->logStateChange($entity);
+        }
+    }
+    protected function logStateChange($entity)
+    {
+        $logTbl = TableRegistry::getTableLocator()->get('Awards.RecommendationsStatesLogs');
+        $log = $logTbl->newEmptyEntity();
+        $log->recommendation_id = $entity->id;
+        $log->to_state = $entity->state;
+        $log->to_status = $entity->status;
+        $log->from_status = $entity->beforeStatus ? $entity->beforeStatus : "New";
+        $log->from_state = $entity->beforeState ? $entity->beforeState : "New";
+        $log->created_by = $entity->modified_by;
+        $logTbl->save($log);
     }
 }

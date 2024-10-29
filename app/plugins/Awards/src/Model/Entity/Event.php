@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Awards\Model\Entity;
@@ -45,5 +46,6 @@ class Event extends Entity
         'modified_by' => true,
         'deleted' => true,
         'branch' => true,
+        'closed' => true,
     ];
 }

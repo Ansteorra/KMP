@@ -2,6 +2,7 @@ import { Controller } from "@hotwired/stimulus"
 
 class DetailTabsController extends Controller {
     static targets = ["tabBtn", "tabContent"]
+    static values = { updateUrl: { type: Boolean, default: true } }
     foundFirst = false;
 
     tabBtnTargetConnected(event) {
@@ -25,15 +26,21 @@ class DetailTabsController extends Controller {
     tabBtnClicked(event) {
         var firstTabId = this.tabBtnTargets[0].id;
         var eventTabId = event.target.id;
-        if (firstTabId != eventTabId) {
-            var tab = event.target.id.replace('nav-', '').replace('-tab', '');
-            window.history.pushState({}, '', '?tab=' + tab);
-        } else {
-            //only push state if there is a tab in the querystring
-            var urlTab = KMP_utils.urlParam('tab');
-            if (urlTab) {
-                window.history.pushState({}, '', window.location.pathname);
+        var tab = event.target.id.replace('nav-', '').replace('-tab', '');
+        if (this.updateUrlValue) {
+            if (firstTabId != eventTabId) {
+                window.history.pushState({}, '', '?tab=' + tab);
+            } else {
+                //only push state if there is a tab in the querystring
+                var urlTab = KMP_utils.urlParam('tab');
+                if (urlTab) {
+                    window.history.pushState({}, '', window.location.pathname);
+                }
             }
+        }
+        var frame = document.getElementById(tab + '-frame');
+        if (frame) {
+            frame.reload();
         }
     }
 

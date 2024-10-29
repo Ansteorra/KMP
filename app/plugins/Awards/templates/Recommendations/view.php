@@ -10,14 +10,14 @@
 $this->extend("/layout/TwitterBootstrap/view_record");
 
 echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': View Award Recommendation - ' . $recommendation->member_sca_name . ' for ' . $recommendation->award->name;
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': View Award Recommendation - ' . $recommendation->member_sca_name . ' for ' . $recommendation->award->name;
 $this->KMP->endBlock();
 
 echo $this->KMP->startBlock("pageTitle") ?>
 <?= h($recommendation->member_sca_name . ' for ' . $recommendation->award->name) ?>
 <?php $this->KMP->endBlock() ?>
 <?= $this->KMP->startBlock("recordActions") ?>
-<?php if ($user->can('edit', $recommendation)) : ?>
+<?php if ($user->checkCan('edit', $recommendation)) : ?>
 <button type="button" class="btn btn-primary btn-sm edit-rec" data-bs-toggle="modal" data-bs-target="#editModal"
     data-controller="grid-btn" data-action="click->grid-btn#fireNotice"
     data-grid-btn-row-data-value='{ "id":<?= $recommendation->id ?>}'>Edit</button>
@@ -54,20 +54,30 @@ echo $this->KMP->startBlock("pageTitle") ?>
     </td>
 </tr>
 <tr>
+    <th scope="row"><?= __('Reason') ?></th>
+    <td><?= $this->Text->autoParagraph(h($recommendation->reason)) ?>
+    </td>
+</tr>
+<tr>
     <th scope="row"><?= __('Status') ?></th>
-    <td><?= h($recommendation->status) ?>
-        <?php if ($recommendation->status == "given") {
-            $given = "";
-            if ($recommendation->given == null) {
-                $given = "(Date not set)";
-            } else {
-                $given =  h($recommendation->given->toFormattedDateString());
-            }
+    <td><?= h($recommendation->status)  ?>
+        <?php
+        if ($recommendation->close_reason) {
+            echo " - " . h($recommendation->close_reason);
+        } ?>
+    </td>
+</tr>
+<tr>
+    <th scope="row"><?= __('State') ?></th>
+    <td><?= h($recommendation->state) ?>
+        <?php
+        if ($recommendation->given != null) :
+            $given =  h($recommendation->given->toFormattedDateString());
             echo " at " . h($recommendation->scheduled_event->name) . "  on " . $given;
-        } ?>
-        <?php if ($recommendation->status == "scheduled") {
+        endif;
+        if ($recommendation->scheduled_event && $recommendation->given == null):
             echo "to be given at " . h($recommendation->scheduled_event->name);
-        } ?>
+        endif; ?>
     </td>
 </tr>
 <tr>
@@ -114,42 +124,21 @@ echo $this->KMP->startBlock("pageTitle") ?>
     <th scope="row"><?= __('Person to Notify') ?></th>
     <td><?= h($recommendation->person_to_notify) ?></td>
 </tr>
-<?php if ($recommendation->member) : ?>
-<tr>
-    <th colspan='2' scope="row">
-        <h4><?= __('Member Details') ?></h4>
-    </th>
-</tr>
 <?php
-    $member = $recommendation->member;
-    echo $this->element('members/memberDetails', [
-        'member' => $member,
-    ]);
-else :
-    echo '<tr><th colspan="2" scope="row">' . __('Member Details') . '</th></tr>';
-    echo '<tr><td colspan="2">' . __('Member not found in database') . '</td></tr>';
-endif;
 $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("tabButtons") ?>
-<button class="nav-link active" id="nav-reason-tab" data-bs-toggle="tab" data-bs-target="#nav-reason" type="button"
-    role="tab" aria-controls="nav-reason" aria-selected="true" data-detail-tabs-target='tabBtn'><?= __("Reason") ?>
-</button>
 <button class="nav-link" id="nav-notes-tab" data-bs-toggle="tab" data-bs-target="#nav-notes" type="button" role="tab"
     aria-controls="nav-notes" aria-selected="false" data-detail-tabs-target='tabBtn'><?= __("Notes") ?>
 </button>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("tabContent") ?>
-<div class="related tab-pane fade active show m-3" id="nav-reason" role="tabpanel" aria-labelledby="nav-reason-tab"
-    data-detail-tabs-target="tabContent">
-    <?= $this->Text->autoParagraph(h($recommendation->reason)) ?>
-</div>
 <div class="related tab-pane fade m-3" id="nav-notes" role="tabpanel" aria-labelledby="nav-notes-tab"
     data-detail-tabs-target="tabContent">
     <?= $this->cell('Notes', [
         'topic_id' => $recommendation->id,
         'topic_model' => 'Awards.Recommendations',
-        'viewPrivate' => $user->can("viewPrivateNotes", "Awards.Recommendations"),
-        'canCreate' => $user->can('edit', $recommendation),
+        'viewPrivate' => $user->checkCan("viewPrivateNotes", "Awards.Recommendations"),
+        'canCreate' => $user->checkCan('edit', $recommendation),
     ]) ?>
 </div>
 <?php $this->KMP->endBlock() ?>

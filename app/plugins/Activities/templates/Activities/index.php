@@ -8,7 +8,7 @@
 <?php $this->extend("/layout/TwitterBootstrap/dashboard");
 
 echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Activities';
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Activities';
 $this->KMP->endBlock(); ?>
 <h3>
     Activities
@@ -41,32 +41,32 @@ $this->KMP->endBlock(); ?>
     </thead>
     <tbody>
         <?php foreach ($activities as $activity) : ?>
-        <tr>
-            <td><?= h($activity->name) ?></td>
-            <td><?= h($activity->activity_group->name) ?></td>
-            <td class="text-center"><?= $activity->role
+            <tr>
+                <td><?= h($activity->name) ?></td>
+                <td><?= h($activity->activity_group->name) ?></td>
+                <td class="text-center"><?= $activity->role
                                             ? h($activity->role->name)
                                             : "None" ?></td>
-            <td class="text-center"><?= $this->Number->format(
+                <td class="text-center"><?= $this->Number->format(
                                             $activity->term_length,
                                         ) ?></td>
-            <td class="text-center"><?= $activity->minimum_age === null
+                <td class="text-center"><?= $activity->minimum_age === null
                                             ? ""
                                             : $this->Number->format($activity->minimum_age) ?></td>
-            <td class="text-center"><?= $activity->maximum_age === null
+                <td class="text-center"><?= $activity->maximum_age === null
                                             ? ""
                                             : $this->Number->format($activity->maximum_age) ?></td>
-            <td class="text-center"><?= $this->Number->format(
+                <td class="text-center"><?= $this->Number->format(
                                             $activity->num_required_authorizors,
                                         ) ?></td>
-            <td class="actions">
-                <?= $this->Html->link(
+                <td class="actions">
+                    <?= $this->Html->link(
                         __("View"),
                         ["action" => "view", $activity->id],
                         ["title" => __("View"), "class" => "btn btn-secondary"],
                     ) ?>
-            </td>
-        </tr>
+                </td>
+            </tr>
         <?php endforeach; ?>
     </tbody>
 </table>

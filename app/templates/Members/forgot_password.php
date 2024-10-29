@@ -1,7 +1,7 @@
 <?php $this->extend("/layout/TwitterBootstrap/signin");
 
 echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Forgot Password';
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Forgot Password';
 $this->KMP->endBlock(); ?>
 <div class="card" style="width: 15rem;">
     <?= $this->Html->image($headerImage, [

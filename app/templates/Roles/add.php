@@ -10,7 +10,7 @@
 <?php $this->extend("/layout/TwitterBootstrap/dashboard");
 
 echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Add Role';
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Add Role';
 $this->KMP->endBlock(); ?>
 
 <div class="roles form content">

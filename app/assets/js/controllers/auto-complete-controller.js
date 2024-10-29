@@ -4,7 +4,7 @@ const optionSelector = "[role='option']:not([aria-disabled='true'])"
 const activeSelector = "[aria-selected='true']"
 
 class AutoComplete extends Controller {
-    static targets = ["input", "hidden", "results", "dataList", "clearBtn"]
+    static targets = ["input", "hidden", "hiddenText", "results", "dataList", "clearBtn"]
     static classes = ["selected"]
     static values = {
         ready: Boolean,
@@ -44,6 +44,7 @@ class AutoComplete extends Controller {
         if (typeof newValue === "object" && newValue.hasOwnProperty("value") && newValue.hasOwnProperty("text")) {
             this.inputTarget.value = newValue.text;
             this.hiddenTarget.value = newValue.value;
+            this.hiddenTextTarget.value = newValue.text;
             this.clearBtnTarget.disabled = false;
             this.inputTarget.disabled = true;
             return;
@@ -53,6 +54,7 @@ class AutoComplete extends Controller {
             let option = this._selectOptions.find(option => option.value == newValue && option.enabled != false);
             if (option) {
                 this.inputTarget.value = option.text;
+                this.hiddenTextTarget.value = option.text;
                 this.hiddenTarget.value = option.value;
                 this.clearBtnTarget.disabled = false;
                 this.inputTarget.disabled = true;
@@ -65,9 +67,11 @@ class AutoComplete extends Controller {
                         this.options = newOptions;
                     }
                     this.inputTarget.value = newValue;
+                    this.hiddenTextTarget.value = newValue;
                     this.hiddenTarget.value = newValue;
                 } else {
                     this.inputTarget.value = "";
+                    this.hiddenTextTarget.value = "";
                     this.hiddenTarget.value = "";
                     newValue = "";
                 }
@@ -83,6 +87,7 @@ class AutoComplete extends Controller {
         }
         this.inputTarget.value = "";
         this.hiddenTarget.value = "";
+        this.hiddenTextTarget.value = "";
         this.clearBtnTarget.disabled = true;
         this.inputTarget.disabled = false;
     }
@@ -94,12 +99,14 @@ class AutoComplete extends Controller {
         return this.inputTarget.disabled;
     }
     set disabled(newValue) {
-        this.inputTarget.disabled = newValue;
         this.hiddenTarget.disabled = newValue;
+        this.hiddenTextTarget.disabled = newValue;
         if (this.inputTarget.value != "") {
+            this.inputTarget.disabled = true;
             this.clearBtnTarget.disabled = newValue;
         } else {
             this.clearBtnTarget.disabled = true;
+            this.inputTarget.disabled = newValue;
         }
     }
 
@@ -186,6 +193,7 @@ class AutoComplete extends Controller {
             //check if there is a value key in the initSelectionValue object
             if (this.initSelectionValue.hasOwnProperty("value")) {
                 this.hiddenTarget.value = this.initSelectionValue.value;
+                this.hiddenTextTarget.value = this.initSelectionValue.text;
                 this.inputTarget.value = this.initSelectionValue.text;
             }
         }
@@ -241,10 +249,12 @@ class AutoComplete extends Controller {
                     this.baseHidden.set.call(this.element, newValue);
                     if (newValue) {
                         this.hiddenTarget.disabled = true;
+                        this.hiddenTextTarget.disabled = true;
                         this.inputTarget.disabled = true;
                         this.close();
                     } else {
                         this.hiddenTarget.disabled = false;
+                        this.hiddenTextTarget.disabled = false;
                         this.inputTarget.disabled = false;
                     }
                 }
@@ -292,6 +302,7 @@ class AutoComplete extends Controller {
 
     onInputChangeTriggered = (event) => {
         event.stopPropagation();
+        this.hiddenTextTarget.value = this.inputTarget.value;
     }
 
     onInputClick = (event) => {
@@ -300,15 +311,20 @@ class AutoComplete extends Controller {
             const query = this.inputTarget.value.trim()
             this.fetchResults(query);
         }
+        this.hiddenTextTarget.value = this.inputTarget.value;
     }
 
 
     onKeydown = (event) => {
+        this.hiddenTextTarget.value = this.inputTarget.value;
         const handler = this[`on${event.key}Keydown`]
+        this.hiddenTextTarget.value = this.inputTarget.value;
         if (handler) handler(event)
+
     }
 
     onEscapeKeydown = (event) => {
+        this.hiddenTextTarget.value = this.inputTarget.value;
         if (!this.resultsShown) return
         this.hideAndRemoveOptions()
         event.stopPropagation()
@@ -316,23 +332,36 @@ class AutoComplete extends Controller {
     }
 
     onArrowDownKeydown = (event) => {
+        this.hiddenTextTarget.value = this.inputTarget.value;
         const item = this.sibling(true)
         if (item) this.select(item)
         event.preventDefault()
     }
 
     onArrowUpKeydown = (event) => {
+        this.hiddenTextTarget.value = this.inputTarget.value;
         const item = this.sibling(false)
         if (item) this.select(item)
         event.preventDefault()
     }
 
     onTabKeydown = (event) => {
-        const selected = this.selectedOption
-        if (selected) this.commit(selected)
+        this.hiddenTextTarget.value = this.inputTarget.value;
+        if (this.allowOtherValue) {
+            this.fireChangeEvent(this.inputTarget.value, this.inputTarget.value, null);
+        } else {
+            if (this.inputTarget.value != "") {
+                let newValue = this.inputTarget.value;
+                let option = this._selectOptions.find(option => option.text == newValue && option.enabled != false);
+                this.value = option ? option.value : "";
+            } else {
+                this.clear();
+            }
+        }
     }
 
     onEnterKeydown = (event) => {
+        this.hiddenTextTarget.value = this.inputTarget.value;
         const selected = this.selectedOption
         if (selected && this.resultsShown) {
             this.commit(selected)
@@ -343,6 +372,7 @@ class AutoComplete extends Controller {
     }
 
     onInputBlur = () => {
+        this.hiddenTextTarget.value = this.inputTarget.value;
         if (this.mouseDown) {
             return;
         }
@@ -364,6 +394,7 @@ class AutoComplete extends Controller {
     }
 
     commit(selected) {
+        this.hiddenTextTarget.value = this.inputTarget.value;
         if (selected.getAttribute("aria-disabled") === "true") return
 
         if (selected instanceof HTMLAnchorElement) {
@@ -384,6 +415,10 @@ class AutoComplete extends Controller {
             this.inputTarget.value = value
         }
 
+        if (this.hasHiddenTextTarget) {
+            this.hiddenTextTarget.value = textValue;
+        }
+
         this.inputTarget.focus()
         this.state = "finished";
         this.fireChangeEvent(value, textValue, selected);
@@ -391,6 +426,7 @@ class AutoComplete extends Controller {
     }
 
     fireChangeEvent(value, textValue, selected) {
+        this.hiddenTextTarget.value = this.inputTarget.value;
         this.element.dispatchEvent(
             new CustomEvent("autocomplete.change", {
                 bubbles: true,
@@ -409,33 +445,38 @@ class AutoComplete extends Controller {
     }
 
     clear() {
-        this.inputTarget.value = ""
-        if (this.hasHiddenTarget) this.hiddenTarget.value = ""
+        this.inputTarget.value = "";
+        if (this.hasHiddenTarget) this.hiddenTarget.value = "";
+        if (this.hasHiddenTextTarget) this.hiddenTextTarget.value = "";
         this.clearBtnTarget.disabled = true;
         this.inputTarget.disabled = false;
         this.close();
     }
 
     onResultsClick = (event) => {
+        this.hiddenTextTarget.value = this.inputTarget.value;
         if (!(event.target instanceof Element)) return
         const selected = event.target.closest(optionSelector)
         if (selected) this.commit(selected)
     }
 
     onResultsMouseDown = () => {
+        this.hiddenTextTarget.value = this.inputTarget.value;
         this.mouseDown = true
         this.resultsTarget.addEventListener("mouseup", () => {
             this.mouseDown = false
         }, { once: true })
     }
     onInputChange = () => {
-        if (this.hasHiddenTarget) this.hiddenTarget.value = ""
+        this.hiddenTextTarget.value = this.inputTarget.value;
+        if (this.hasHiddenTarget) this.hiddenTarget.value = "";
+        if (this.hasHiddenTextTarget) this.hiddenTextTarget.value = "";
 
-        const query = this.inputTarget.value.trim()
+        const query = this.inputTarget.value.trim();
         if ((query && query.length >= this.minLengthValue) || this.hasDataListTarget) {
-            this.fetchResults(query)
+            this.fetchResults(query);
         } else {
-            this.hideAndRemoveOptions()
+            this.hideAndRemoveOptions();
         }
     }
 
@@ -529,6 +570,7 @@ class AutoComplete extends Controller {
     }
 
     replaceResults(html) {
+        this.hiddenTextTarget.value = this.inputTarget.value;
         this.resultsTarget.innerHTML = html
         this.identifyOptions()
         if (!!this.options) {
@@ -545,6 +587,7 @@ class AutoComplete extends Controller {
 
         this.resultsShown = true
         this.element.setAttribute("aria-expanded", "true")
+        this.hiddenTextTarget.value = this.inputTarget.value;
         this.element.dispatchEvent(
             new CustomEvent("toggle", {
                 detail: { action: "open", inputTarget: this.inputTarget, resultsTarget: this.resultsTarget }
@@ -561,6 +604,7 @@ class AutoComplete extends Controller {
         this.resultsShown = false
         this.inputTarget.removeAttribute("aria-activedescendant")
         this.element.setAttribute("aria-expanded", "false")
+        this.hiddenTextTarget.value = this.inputTarget.value;
         this.element.dispatchEvent(
             new CustomEvent("toggle", {
                 detail: { action: "close", inputTarget: this.inputTarget, resultsTarget: this.resultsTarget }

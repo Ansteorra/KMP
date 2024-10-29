@@ -88,7 +88,7 @@ if (!$selected) {
                                                             } else {
                                                                 $authEntity = $data;
                                                             }
-                                                            $verified = $user->can($link["action"], $authEntity);
+                                                            $verified = $user->checkCan($link["action"], $authEntity);
                                                         }
 
                                                         if ($verified) {

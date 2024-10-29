@@ -1,4 +1,4 @@
-<?php if ($user->can("release", "Officers.Officers")) {
+<?php if ($user->checkCan("release", "Officers.Officers")) {
     echo $this->Form->create(null, [
         "url" => ["controller" => "Officers", "action" => "release"],
         "data-controller" => "revoke-form",

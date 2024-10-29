@@ -8,7 +8,7 @@
 <?php $this->extend("/layout/TwitterBootstrap/dashboard");
 
 echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Award Rec Events';
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Award Rec Events';
 $this->KMP->endBlock(); ?>
 <h3>
     Award Rec Events
@@ -26,20 +26,20 @@ $this->KMP->endBlock(); ?>
     </thead>
     <tbody>
         <?php foreach ($events as $event) : ?>
-        <tr>
-            <td><?= h($event->name) ?></td>
-            <td><?= $event->hasValue('branch') ? $this->Html->link($event->branch->name, ['plugin' => null, 'controller' => 'Branches', 'action' => 'view', $event->branch->id]) : '' ?>
-            </td>
-            <td><?= h(($event->start_date ? $event->start_date->toDateString() : "")) ?></td>
-            <td><?= h(($event->end_date ? $event->end_date->toDateString() : "")) ?></td>
-            <td class="actions">
-                <?= $this->Html->link(
+            <tr>
+                <td><?= h($event->name) ?></td>
+                <td><?= $event->hasValue('branch') ? $this->Html->link($event->branch->name, ['plugin' => null, 'controller' => 'Branches', 'action' => 'view', $event->branch->id]) : '' ?>
+                </td>
+                <td><?= h(($event->start_date ? $event->start_date->toDateString() : "")) ?></td>
+                <td><?= h(($event->end_date ? $event->end_date->toDateString() : "")) ?></td>
+                <td class="actions">
+                    <?= $this->Html->link(
                         __("View"),
                         ["action" => "view", $event->id],
                         ["title" => __("View"), "class" => "btn btn-secondary"],
                     ) ?>
-            </td>
-        </tr>
+                </td>
+            </tr>
         <?php endforeach; ?>
     </tbody>
 </table>

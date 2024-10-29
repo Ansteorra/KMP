@@ -9,7 +9,7 @@
 $this->extend("/layout/TwitterBootstrap/dashboard");
 
 echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Branches';
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Branches';
 $this->KMP->endBlock();
 function branchHierachyTable($branches, $me, $parent_string = "")
 {

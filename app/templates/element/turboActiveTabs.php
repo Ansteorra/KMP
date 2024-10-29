@@ -16,28 +16,33 @@ if (!$selected) {
         $tabs[0]["selected"] = true;
     }
 }
+if (!isset($updateUrl)) {
+    $updateUrl = true;
+}
 //if no tab is selected, select the first tab with data
 ?>
-<nav>
-    <div class="nav nav-tabs" id="nav-<?= $tabGroupName ?>" role="tablist">
-        <?php foreach ($tabs as &$tab) { ?>
-        <button class="nav-link <?= $tab["selected"] ? "active" : "" ?>" id="nav-<?= $tab["id"] ?>-tab"
-            data-bs-toggle="tab" data-bs-target="#nav-<?= $tab["id"] ?>" type="button" role="tab"
-            data-level="activityWindow" aria-controls="nav-<?= $tab["id"] ?>"
-            aria-selected="<?= $tab["selected"] ? "true" : "false" ?>"><?= $tab["label"] ?>
-            <?php if (isset($tab["badge"]) && $tab["badge"] != "" && $tab["badge"] > 0) { ?>
-            <span class="badge <?= $tab["badgeClass"] ?>"><?= $tab["badge"] ?></span>
+<div class="row" data-controller="detail-tabs" data-detail-tabs-update-url-value="<?= $updateUrl ? 'true' : 'false' ?>">
+    <nav>
+        <div class="nav nav-tabs" id="nav-<?= $tabGroupName ?>" role="tablist">
+            <?php foreach ($tabs as &$tab) { ?>
+            <button class="nav-link" id="nav-<?= $tab["id"] ?>-tab" data-bs-toggle="tab"
+                data-bs-target="#nav-<?= $tab["id"] ?>" type="button" role="tab" data-level="activityWindow"
+                aria-controls="nav-<?= $tab["id"] ?>" aria-selected="false"
+                data-detail-tabs-target='tabBtn'><?= $tab["label"] ?>
+                <?php if (isset($tab["badge"]) && $tab["badge"] != "" && $tab["badge"] > 0) { ?>
+                <span class="badge <?= $tab["badgeClass"] ?>"><?= $tab["badge"] ?></span>
+                <?php } ?>
+            </button>
             <?php } ?>
-        </button>
+        </div>
+    </nav>
+    <div class="tab-content" id="nav-tabContent">
+        <?php foreach ($tabs as &$tab) { ?>
+        <div class="tab-pane fade" id="nav-<?= $tab["id"] ?>" role="tabpanel"
+            aria-labelledby="nav-<?= $tab["id"] ?>-tab" data-detail-tabs-target="tabContent">
+            <turbo-frame id="<?= $tab["id"] ?>-frame" loading="lazy" src="<?= $tab["turboUrl"] ?>" data-turbo='true'>
+            </turbo-frame>
+        </div>
         <?php } ?>
     </div>
-</nav>
-<div class="tab-content" id="nav-tabContent">
-    <?php foreach ($tabs as &$tab) { ?>
-    <div class="tab-pane fade <?= $tab["selected"] ? "show active" : "" ?>" id="nav-<?= $tab["id"] ?>" role="tabpanel"
-        aria-labelledby="nav-<?= $tab["id"] ?>-tab" tabindex="0">
-        <turbo-frame id="<?= $tab["id"] ?>-frame" loading="lazy" src="<?= $tab["turboUrl"] ?>" data-turbo='true'>
-        </turbo-frame>
-    </div>
-    <?php } ?>
 </div>

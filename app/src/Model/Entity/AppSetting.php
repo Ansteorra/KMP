@@ -27,5 +27,54 @@ class AppSetting extends Entity
     protected array $_accessible = [
         "name" => true,
         "value" => true,
+        "type" => true,
+        "raw_value" => true,
     ];
+
+    protected function _getRawValue()
+    {
+        switch ($this->type) {
+            case 'json':
+                return json_encode($this->value);
+            case 'yaml':
+                return yaml_emit($this->value);
+            default:
+                return $this->value;
+        }
+    }
+    protected function _setRawValue($value)
+    {
+        switch ($this->type) {
+            case 'json':
+                $this->value = json_decode($value);
+            case 'yaml':
+                $this->value = yaml_parse($value);
+            default:
+                $this->value = $value;
+        }
+    }
+
+    protected function _setValue($value)
+    {
+        switch ($this->type) {
+            case 'json':
+                return json_encode($value);
+            case 'yaml':
+                return yaml_emit($value);
+            default:
+                return $value;
+        }
+    }
+
+    protected function _getValue($value)
+    {
+        switch ($this->type) {
+            case 'json':
+                return json_decode($value);
+            case 'yaml':
+                return yaml_parse($value);
+            default:
+                return $value;
+        }
+    }
 }

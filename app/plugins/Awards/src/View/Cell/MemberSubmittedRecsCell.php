@@ -35,7 +35,7 @@ class MemberSubmittedRecsCell extends BasePluginCell
         if (isset($route["0"]) && isset($route["0"][0])) {
             $memberId = $route["0"][0];
         }
-        if ($pluginData != null && $currentUser != null && ($currentUser->id == $memberId) || $currentUser->can('view', 'Awards.Recommendations')) {
+        if ($pluginData != null && $currentUser != null && ($currentUser->id == $memberId || $currentUser->checkCan('view', 'Awards.Recommendations'))) {
             return $pluginData;
         }
         return null;
@@ -64,7 +64,7 @@ class MemberSubmittedRecsCell extends BasePluginCell
     public function display($id)
     {
         $currentUser = $this->request->getAttribute('identity');
-        if ($currentUser->id != $id && !$currentUser->can('view', 'Awards.Recommendations')) {
+        if ($currentUser->id != $id && !$currentUser->checkCan('view', 'Awards.Recommendations')) {
             return;
         }
         $recommendationsTbl = TableRegistry::getTableLocator()->get("Awards.Recommendations");

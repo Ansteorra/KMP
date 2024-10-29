@@ -1,5 +1,5 @@
 <?php
-if ($user->can("verifyMembership", "Members") && $needVerification) :
+if ($user->checkCan("verifyMembership", "Members") && $needVerification) :
     echo $this->Form->create(null, [
         "url" => ["controller" => "Members", "action" => "verifyMembership", $member->id],
         "data-controller" => "member-verify-form",
@@ -10,8 +10,8 @@ if ($user->can("verifyMembership", "Members") && $needVerification) :
         "close" => true,
     ]);
 ?>
-<fieldset>
-    <?php
+    <fieldset>
+        <?php
 
         echo $this->Form->control("member_id", [
             "type" => "hidden",
@@ -79,7 +79,7 @@ if ($user->can("verifyMembership", "Members") && $needVerification) :
             ]);
         }
         ?>
-</fieldset>
+    </fieldset>
 <?php echo $this->Modal->end([
         $this->Form->button("Submit", [
             "class" => "btn btn-primary",

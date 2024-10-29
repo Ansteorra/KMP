@@ -8,7 +8,7 @@ $Member = []; ?>
 <?php $this->extend("/layout/TwitterBootstrap/signin");
 
 echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Login';
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Login';
 $this->KMP->endBlock(); ?>
 
 <?= $this->Flash->render() ?>
@@ -20,7 +20,7 @@ $this->KMP->endBlock(); ?>
         "alt" => "site logo",
     ]) ?>
     <div class="card-body">
-        <h5 class="card-title">Log In</h5>
+        <h5 class="card-title">Log in</h5>
         <div class="card-text">
             <?= $this->Form->control("email_address", [
                 'type' => 'email',
@@ -47,7 +47,8 @@ $this->KMP->endBlock(); ?>
                 ) ?>
             <? endif; ?>
 
-            <a href="<?= $this->Url->build(['plugin' => 'Awards', 'controller' => 'Recommendations', 'action' => 'SubmitRecommendation']) ?>" class="mt-3 btn fs-6 bi bi-megaphone-fill mb-2 <?= $this->KMP->getAppSetting("Awards.RecButtonClass", "btn-warning") ?>">
+            <a href="<?= $this->Url->build(['plugin' => 'Awards', 'controller' => 'Recommendations', 'action' => 'SubmitRecommendation']) ?>"
+                class="mt-3 btn fs-6 bi bi-megaphone-fill mb-2 <?= $this->KMP->getAppSetting("Awards.RecButtonClass") ?>">
                 Submit Award Rec.</a>
         </div>
     </div>

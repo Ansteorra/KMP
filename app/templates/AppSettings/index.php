@@ -8,7 +8,7 @@
 <?php $this->extend("/layout/TwitterBootstrap/dashboard");
 
 echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': App Settings';
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': App Settings';
 $this->KMP->endBlock(); ?>
 
 <div class="row align-items-start">
@@ -21,7 +21,7 @@ $this->KMP->endBlock(); ?>
         <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
             data-bs-target="#addModal">Add</button>
         <?php
-        $infoHelpUrl = $this->KMP->getAppSetting("KMP.AppSettings.HelpUrl", "https://github.com/Ansteorra/KMP/wiki/App-Settings");
+        $infoHelpUrl = $this->KMP->getAppSetting("KMP.AppSettings.HelpUrl");
         echo $this->Html->link(
             "App Settings Help",
             $infoHelpUrl,
@@ -49,12 +49,28 @@ $this->KMP->endBlock(); ?>
                         "url" => ["action" => "edit", $appSetting->id],
                         "data-app-setting-form-target" => "form",
                     ]) ?>
-                <?= $this->Form->control("value", [
-                        "label" => false,
-                        "spacing" => "inline",
-                        "data-action" => "change->app-setting-form#enableSubmit",
-                    ]) ?>
-                <?= $this->Form->end() ?></td>
+                <?php if ($appSetting->type == "json" || $appSetting->type == "yaml") : ?>
+                <div data-controller="guifier-control" data-guifier-control-value='<?= $appSetting->raw_value ?>'
+                    data-guifier-control-type-value='<?= $appSetting->type ?>'>
+                    <?= $this->Form->hidden("raw_value", [
+                                "value" => $appSetting->raw_value,
+                                "id" => "raw_value_" . $appSetting->id,
+                                "label" => false,
+                                "spacing" => "inline",
+                                "data-action" => "change->app-setting-form#enableSubmit",
+                                "data-guifier-control-target" => "hidden",
+                            ]) ?>
+                    <div id="guifier_<?= $appSetting->id ?>" data-guifier-control-target="container">
+                    </div>
+                    <?php else : ?>
+                    <?= $this->Form->textarea("raw_value", [
+                                "label" => false,
+                                "spacing" => "inline",
+                                "data-action" => "change->app-setting-form#enableSubmit",
+                            ]) ?>
+                    <?php endif; ?>
+                    <?= $this->Form->end() ?>
+            </td>
             <td class="actions">
                 <?= $this->Form->button("Save", [
                         "class" => "btn btn-secondary",

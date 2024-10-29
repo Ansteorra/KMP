@@ -5,26 +5,20 @@ class AwardsRecommendationAddForm extends Controller {
         "scaMember",
         "notFound",
         "branch",
-        "callIntoCourt",
-        "courtAvailability",
         "externalLinks",
         "awardDescriptions",
         "award",
         "reason",
         "events",
         "specialty",
-        "personToNotify"
     ];
     static values = {
         publicProfileUrl: String,
         awardListUrl: String
     };
     submit(event) {
-        this.callIntoCourtTarget.disabled = false;
-        this.courtAvailabilityTarget.disabled = false;
         this.notFoundTarget.disabled = false;
         this.scaMemberTarget.disabled = false;
-        this.personToNotifyTarget.disabled = false;
         this.specialtyTarget.disabled = false;
     }
     setAward(event) {
@@ -144,13 +138,6 @@ class AwardsRecommendationAddForm extends Controller {
     loadScaMemberInfo(event) {
         //reset member metadata area
         this.externalLinksTarget.innerHTML = "";
-        this.courtAvailabilityTarget.value = "";
-        this.callIntoCourtTarget.value = "";
-        this.callIntoCourtTarget.disabled = false;
-        this.courtAvailabilityTarget.disabled = false;
-        this.personToNotifyTarget.value = "";
-        this.personToNotifyTarget.disabled = false;
-
         let memberId = Number(event.target.value.replace(/_/g, ""));
         if (memberId > 0) {
             this.notFoundTarget.checked = false;
@@ -171,26 +158,6 @@ class AwardsRecommendationAddForm extends Controller {
         fetch(url, this.optionsForFetch())
             .then(response => response.json())
             .then(data => {
-                this.callIntoCourtTarget.value = data.additional_info.CallIntoCourt;
-                this.courtAvailabilityTarget.value = data.additional_info.CourtAvailability;
-                if (data.additional_info.PersonToGiveNoticeTo) {
-                    this.personToNotifyTarget.value = data.additional_info.PersonToGiveNoticeTo;
-                }
-                if (this.callIntoCourtTarget.value != "") {
-                    this.callIntoCourtTarget.disabled = true;
-                } else {
-                    this.callIntoCourtTarget.disabled = false;
-                }
-                if (this.courtAvailabilityTarget.value != "") {
-                    this.courtAvailabilityTarget.disabled = true;
-                } else {
-                    this.courtAvailabilityTarget.disabled = false;
-                }
-                if (this.personToNotifyTarget.value != "") {
-                    this.personToNotifyTarget.disabled = true;
-                } else {
-                    this.personToNotifyTarget.disabled = false;
-                }
                 this.externalLinksTarget.innerHTML = "";
                 let keys = Object.keys(data.external_links);
                 if (keys.length > 0) {

@@ -69,7 +69,6 @@ class AppSettingsTable extends Table
 
         $validator
             ->scalar("value")
-            ->maxLength("value", 255)
             ->allowEmptyString("value");
 
         return $validator;
@@ -101,7 +100,7 @@ class AppSettingsTable extends Table
         }
         return $result;
     }
-    public function getAppSetting($key, $default = "")
+    public function getAppSetting($key, $default = null, $type = null)
     {
         $this->getAllAppSettings();
         if (isset($this->_appSettingsCache[$key])) {
@@ -110,15 +109,18 @@ class AppSettingsTable extends Table
         $setting = $this->find()
             ->where(["name" => $key])
             ->first();
-        if (!$setting) {
-            $setting = $this->setAppSetting($key, $default);
-            return $default;
-        } else {
+        if ($setting) {
             $this->_appSettingsCache[$key] = $setting->value;
             return $setting->value;
         }
+        if ($default !== null) {
+            $setting = $this->setAppSetting($key, $default, $type);
+            return $default;
+        } else {
+            throw new \Exception("AppSetting $key not found");
+        }
     }
-    public function setAppSetting($key, $value)
+    public function setAppSetting($key, $value, $type = null)
     {
         $setting = $this->find()
             ->where(["name" => $key])
@@ -126,6 +128,7 @@ class AppSettingsTable extends Table
         if (!$setting) {
             $setting = $this->newEmptyEntity();
             $setting->name = $key;
+            $setting->type = $type;
         }
         $setting->value = $value;
         $this->save($setting);

@@ -8,7 +8,7 @@
 <?php $this->extend("/layout/TwitterBootstrap/dashboard");
 
 echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Authorization Queues';
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Authorization Queues';
 $this->KMP->endBlock(); ?>
 <h3>
     Authorization Queues
@@ -45,20 +45,20 @@ $this->KMP->endBlock(); ?>
     </thead>
     <tbody>
         <?php foreach ($authorizationApprovals as $authRollup) : ?>
-        <tr>
-            <td><?= h($authRollup->approver_name) ?></td>
-            <td><?= h($authRollup->last_login) ?></td>
-            <td><?= h($authRollup->pending_count) ?></td>
-            <td><?= h($authRollup->approved_count) ?></td>
-            <td><?= h($authRollup->denied_count) ?></td>
-            <td class="actions">
-                <?= $this->Html->link(
+            <tr>
+                <td><?= h($authRollup->approver_name) ?></td>
+                <td><?= h($authRollup->last_login) ?></td>
+                <td><?= h($authRollup->pending_count) ?></td>
+                <td><?= h($authRollup->approved_count) ?></td>
+                <td><?= h($authRollup->denied_count) ?></td>
+                <td class="actions">
+                    <?= $this->Html->link(
                         __("View"),
                         ["action" => "view", $authRollup->approver->id],
                         ["title" => __("View"), "class" => "btn btn-secondary"],
                     ) ?>
-            </td>
-        </tr>
+                </td>
+            </tr>
         <?php endforeach; ?>
     </tbody>
 </table>
