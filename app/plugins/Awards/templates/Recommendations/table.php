@@ -359,7 +359,8 @@ $columnCount = count(array_filter($columns, function ($value) {
                 <td class="actions">
                     <?php if ($user->checkCan("edit", $recommendation)) : ?>
                     <button type="button" class="btn btn-primary btn-sm edit-rec" data-bs-toggle="modal"
-                        data-bs-target="#editModal" data-controller="grid-btn" data-action="click->grid-btn#fireNotice"
+                        data-bs-target="#tableEditModal" data-controller="grid-btn"
+                        data-action="click->grid-btn#fireNotice"
                         data-grid-btn-row-data-value='{ "id":<?= $recommendation->id ?>}' ,>Edit</button>
                     <?php endif; ?>
                     <?php if ($user->checkCan("view", $recommendation)) : ?>
@@ -448,4 +449,5 @@ $columnCount = count(array_filter($columns, function ($value) {
                 ),
             ) ?></p>
     </div>
+    <?= $this->element('recommendationQuickEditModal', ['modalId' => 'tableEditModal']) ?>
 </turbo-frame>

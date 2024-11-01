@@ -2636,7 +2636,9 @@ class AwardsRecommendationQuickEditForm extends _hotwired_stimulus__WEBPACK_IMPO
   gridBtnOutletDisconnected(outlet) {
     outlet.removeListener(this.setId.bind(this));
   }
-  submit(event) {}
+  submit(event) {
+    document.getElementById("recommendation_edit_close").click();
+  }
   setAward(event) {
     let awardId = event.target.dataset.awardId;
     this.awardTarget.value = awardId;

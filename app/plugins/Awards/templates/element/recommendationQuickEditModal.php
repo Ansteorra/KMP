@@ -33,7 +33,7 @@ echo $this->Form->control(
 
 );
 echo $this->Modal->create("Edit Recommendation", [
-    "id" => "editModal",
+    "id" => $modalId,
     "close" => true,
 ]);
 ?>
@@ -48,6 +48,7 @@ echo $this->Modal->create("Edit Recommendation", [
     $this->Form->button("Close", [
         "data-bs-dismiss" => "modal",
         "type" => "button",
+        "id" => "recommendation_edit_close"
     ]),
 ]);
 

@@ -48,7 +48,5 @@ echo $this->element('turboActiveTabs', [
     'updateUrl' => false,
 ]);
 echo $this->KMP->startBlock("modals"); ?>
-
-<?= $this->element('recommendationQuickEditModal') ?>
 <?php //finish writing to modal block in layout
 $this->KMP->endBlock(); ?>
