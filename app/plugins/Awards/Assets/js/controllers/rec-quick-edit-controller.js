@@ -41,6 +41,7 @@ class AwardsRecommendationQuickEditForm extends Controller {
 
 
     submit(event) {
+        document.getElementById("recommendation_edit_close").click();
     }
     setAward(event) {
         let awardId = event.target.dataset.awardId;

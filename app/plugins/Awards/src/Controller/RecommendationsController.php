@@ -427,7 +427,9 @@ class RecommendationsController extends AppController
             $this->Recommendations->getConnection()->begin();
             if (!$this->Recommendations->save($recommendation)) {
                 $this->Recommendations->getConnection()->rollback();
-                $this->Flash->error(__('The recommendation could not be saved. Please, try again.'));
+                if (!$this->request->getHeader('Turbo-Frame')) {
+                    $this->Flash->error(__('The recommendation could not be saved. Please, try again.'));
+                }
                 if ($this->request->getData("current_page")) {
                     return $this->redirect($this->request->getData("current_page"));
                 }
@@ -442,7 +444,9 @@ class RecommendationsController extends AppController
                 $newNote->author_id = $this->request->getAttribute("identity")->id;
                 if (!$this->Recommendations->Notes->save($newNote)) {
                     $this->Recommendations->getConnection()->rollback();
-                    $this->Flash->error(__('The note could not be saved. Please, try again.'));
+                    if (!$this->request->getHeader('Turbo-Frame')) {
+                        $this->Flash->error(__('The note could not be saved. Please, try again.'));
+                    }
                     if ($this->request->getData("current_page")) {
                         return $this->redirect($this->request->getData("current_page"));
                     }
@@ -450,7 +454,9 @@ class RecommendationsController extends AppController
                 }
             }
             $this->Recommendations->getConnection()->commit();
-            $this->Flash->success(__('The recommendation has been saved.'));
+            if (!$this->request->getHeader('Turbo-Frame')) {
+                $this->Flash->success(__('The recommendation has been saved.'));
+            }
         }
         if ($this->request->getData("current_page")) {
             return $this->redirect($this->request->getData("current_page"));
@@ -554,8 +560,9 @@ class RecommendationsController extends AppController
             ->contain(['Branches' => function ($q) {
                 return $q->select(['id', 'name']);
             }])
-            ->where(["start_date >" => DateTime::now(), 'OR' => ['closed' => false, 'closed IS' => null]])
+            ->where(['OR' => ['closed' => false, 'closed IS' => null]])
             ->select(['id', 'name', 'start_date', 'end_date', 'Branches.name'])
+            ->orderBy(['start_date' => 'ASC'])
             ->all();
         $statusList = Recommendation::getStatuses();
         foreach ($statusList as $key => $value) {
@@ -594,8 +601,9 @@ class RecommendationsController extends AppController
             ->contain(['Branches' => function ($q) {
                 return $q->select(['id', 'name']);
             }])
-            ->where(["start_date >" => DateTime::now(), 'OR' => ['closed' => false, 'closed IS' => null]])
+            ->where(['OR' => ['closed' => false, 'closed IS' => null]])
             ->select(['id', 'name', 'start_date', 'end_date', 'Branches.name'])
+            ->orderBy(['start_date' => 'ASC'])
             ->all();
         $statusList = Recommendation::getStatuses();
         foreach ($statusList as $key => $value) {
