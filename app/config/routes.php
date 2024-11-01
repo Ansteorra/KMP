@@ -82,8 +82,10 @@ return function (RouteBuilder $routes): void {
          * You can remove these routes once you've connected the
          * routes you want in your application.
          */
+
         $builder->fallbacks();
     });
+    $routes->connect('/keepalive', ['controller' => 'Sessions', 'action' => 'keepalive']);
     $routes->scope('/images', function ($routes) {
         $routes->registerMiddleware('glide', new \ADmad\Glide\Middleware\GlideMiddleware([
             // Run this middleware only for URLs starting with specified string. Default null.
