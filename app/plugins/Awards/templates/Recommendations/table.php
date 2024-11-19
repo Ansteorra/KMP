@@ -179,7 +179,7 @@ $columnCount = count(array_filter($columns, function ($value) {
                 <?php endif; ?>
                 <?php if ($columns["For"]): ?>
                 <td><?php
-                            if ($recommendation->member_id) {
+                            if ($recommendation->member_id && $user->checkCan('view', "Members")) {
                                 echo $this->Html->link(
                                     h($recommendation->member_sca_name),
                                     ["controller" => "Members", "plugin" => null, "action" => "view", $recommendation->member_id],
