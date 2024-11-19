@@ -379,7 +379,7 @@ class Member extends Entity implements
         if (
             $this->status !== self::STATUS_ACTIVE
             && $this->status !== self::STATUS_VERIFIED_MEMBERSHIP
-            && $this->status !==  self::STATUS_DEACTIVATED && $this->age >= 17
+            && $this->status !==  self::STATUS_DEACTIVATED && $this->age > 17
         ) {
             //the member has aged up and is no longer a minor
             $this->parent_id = null;
