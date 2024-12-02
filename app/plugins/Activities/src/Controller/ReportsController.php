@@ -49,6 +49,9 @@ class ReportsController extends AppController
             $authTbl = TableRegistry::getTableLocator()->get('Activities.Authorizations');
             $distincMemberCount = $authTbl->find()
                 ->select('member_id')
+                ->contain(['Members' => function ($q) use ($valid_branches) {
+                    return $q->select(['id'])->where(['branch_id IN' => $valid_branches]);
+                }])
                 ->where([
                     "or" => [
                         "start_on <=" => $validOn,
@@ -80,7 +83,9 @@ class ReportsController extends AppController
             $authTypes = $authTbl->find('all')->contain('Activities');
             $memberRollup = $authTypes
                 ->select(["auth" => 'Activities.name', "count" => $authTypes->func()->count('member_id')])
-                ->where(["start_on <" => $validOn])
+                ->contain(['Members' => function ($q) use ($valid_branches) {
+                    return $q->select(['id'])->where(['branch_id IN' => $valid_branches]);
+                }])
                 ->where([
                     "or" => [
                         "start_on <=" => $validOn,

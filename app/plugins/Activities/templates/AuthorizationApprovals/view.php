@@ -71,6 +71,9 @@ echo $this->KMP->startBlock("pageTitle") ?>
                     <th scope="col">Requester</th>
                     <th scope="col">Request Date</th>
                     <th scope="col">Authorization</th>
+                    <th scope="col">Member Number</th>
+                    <th scope="col">Member Exp</th>
+                    <th scope="col">Background Check Exp</th>
                     <th scope="col" class="actions"><?= __(
                                                         "Actions",
                                                     ) ?></th>
@@ -82,23 +85,32 @@ echo $this->KMP->startBlock("pageTitle") ?>
                     $authsNeeded = $request->authorization->is_renewal ? $request->authorization->activity->num_required_renewers : $request->authorization->activity->num_required_authorizors;
                     $hasMoreApprovalsToGo = ($authsNeeded - $request->authorization->approval_count) > 1;
                 ?>
-                    <tr>
-                        <td><?= h(
+                <tr>
+                    <td><?= h(
                                 $request->authorization->member->sca_name,
                             ) ?></td>
-                        <td><?= h($request->requested_on) ?></td>
-                        <td><?= h(
+                    <td><?= h($request->requested_on) ?></td>
+                    <td><?= h(
                                 $request->authorization->activity
                                     ->name,
                             ) ?></td>
-                        <td class="actions">
-                            <?php if ($hasMoreApprovalsToGo) : ?>
-                                <button type="button" class="btn btn-primary approve-btn" data-bs-toggle="modal"
-                                    data-bs-target="#approveAndAssignModal" data-bs-target="#denyModal"
-                                    data-controller="grid-btn" data-action="click->grid-btn#fireNotice"
-                                    data-grid-btn-row-data-value='{"id":<?= $request->id ?>}'>Approve</button>
-                            <?php else : ?>
-                                <?= $this->Form->postLink(
+                    <td><?= h(
+                                $request->authorization->member->membership_number,
+                            ) ?></td>
+                    <td><?= h(
+                                $request->authorization->member->membership_expires_on,
+                            ) ?></td>
+                    <td><?= h(
+                                $request->authorization->member->background_check_expires_on,
+                            ) ?></td>
+                    <td class="actions">
+                        <?php if ($hasMoreApprovalsToGo) : ?>
+                        <button type="button" class="btn btn-primary approve-btn" data-bs-toggle="modal"
+                            data-bs-target="#approveAndAssignModal" data-bs-target="#denyModal"
+                            data-controller="grid-btn" data-action="click->grid-btn#fireNotice"
+                            data-grid-btn-row-data-value='{"id":<?= $request->id ?>}'>Approve</button>
+                        <?php else : ?>
+                        <?= $this->Form->postLink(
                                     __("Approve"),
                                     ["action" => "approve", $request->id],
                                     [
@@ -113,14 +125,14 @@ echo $this->KMP->startBlock("pageTitle") ?>
                                         "class" => "btn btn-primary",
                                     ],
                                 ) ?>
-                            <?php endif; ?>
-                            <button type="button" class="btn btn-secondary deny-btn" data-bs-toggle="modal"
-                                data-bs-target="#denyModal" data-controller="grid-btn"
-                                data-action="click->grid-btn#fireNotice"
-                                data-grid-btn-row-data-value='{"id":<?= $request->id ?>}'>
-                                Deny</button>
-                        </td>
-                    </tr>
+                        <?php endif; ?>
+                        <button type="button" class="btn btn-secondary deny-btn" data-bs-toggle="modal"
+                            data-bs-target="#denyModal" data-controller="grid-btn"
+                            data-action="click->grid-btn#fireNotice"
+                            data-grid-btn-row-data-value='{"id":<?= $request->id ?>}'>
+                            Deny</button>
+                    </td>
+                </tr>
                 <?php } ?>
             </tbody>
         </table>
@@ -140,17 +152,17 @@ echo $this->KMP->startBlock("pageTitle") ?>
             </thead>
             <tbody>
                 <?php foreach ($approved as $request) : ?>
-                    <tr>
-                        <td><?= h(
+                <tr>
+                    <td><?= h(
                                 $request->authorization->member->sca_name,
                             ) ?></td>
-                        <td><?= h($request->requested_on) ?></td>
-                        <td><?= h($request->responded_on) ?></td>
-                        <td><?= h(
+                    <td><?= h($request->requested_on) ?></td>
+                    <td><?= h($request->responded_on) ?></td>
+                    <td><?= h(
                                 $request->authorization->activity
                                     ->name,
                             ) ?></td>
-                    </tr>
+                </tr>
                 <?php endforeach; ?>
             </tbody>
         </table>
@@ -171,18 +183,18 @@ echo $this->KMP->startBlock("pageTitle") ?>
             </thead>
             <tbody>
                 <?php foreach ($denied as $request) : ?>
-                    <tr>
-                        <td><?= h(
+                <tr>
+                    <td><?= h(
                                 $request->authorization->member->sca_name,
                             ) ?></td>
-                        <td><?= h($request->requested_on) ?></td>
-                        <td><?= h($request->responded_on) ?></td>
-                        <td><?= h(
+                    <td><?= h($request->requested_on) ?></td>
+                    <td><?= h($request->responded_on) ?></td>
+                    <td><?= h(
                                 $request->authorization->activity
                                     ->name,
                             ) ?></td>
-                        <td><?= h($request->approver_notes) ?></td>
-                    </tr>
+                    <td><?= h($request->approver_notes) ?></td>
+                </tr>
                 <?php endforeach; ?>
             </tbody>
         </table>
