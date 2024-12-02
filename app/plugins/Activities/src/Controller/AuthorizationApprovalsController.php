@@ -151,7 +151,7 @@ class AuthorizationApprovalsController extends AppController
                     ]);
                 },
                 "Authorizations.Members" => function ($q) {
-                    return $q->select(["Members.sca_name"]);
+                    return $q->select(["Members.sca_name", "Members.membership_number", "Members.membership_expires_on", "Members.background_check_expires_on"]);
                 },
                 "Authorizations.Activities" => function ($q) {
                     return $q->select([

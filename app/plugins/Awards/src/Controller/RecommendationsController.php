@@ -795,118 +795,122 @@ class RecommendationsController extends AppController
 
         foreach ($recommendations as $recommendation) {
             $row = [];
-            if ($columns["Submitted"]) {
-                $row[] = $recommendation->created;
-            }
-            if ($columns["For"]) {
-                $row[] = $recommendation->member_sca_name;
-            }
-            if ($columns["For Herald"]) {
-                if ($recommendation->member) {
-                    $row[] = $recommendation->member->name_for_herald;
-                } else {
-                    $row[] = $recommendation->member_sca_name;
-                }
-            }
-            if ($columns["Title"]) {
-                if ($recommendation->member) {
-                    $row[] = $recommendation->member->title;
-                } else {
-                    $row[] = "";
-                }
-            }
-            if ($columns["Pronouns"]) {
-                if ($recommendation->member) {
-                    $row[] = $recommendation->member->pronouns;
-                } else {
-                    $row[] = "";
-                }
-            }
-            if ($columns["Pronunciation"]) {
-                if ($recommendation->member) {
-                    $row[] = $recommendation->member->pronunciation;
-                } else {
-                    $row[] = "";
-                }
-            }
-            if ($columns["OP"]) {
-                $links = "";
-                if ($recommendation->member) {
-                    $member = $recommendation->member;
-                    $externalLinks =  $member->publicLinks();
-                    if ($externalLinks) {
-                        foreach ($externalLinks as $name => $link) {
-                            $links = "$links | $name : $link";
+            foreach ($header as $key) {
+                switch ($key) {
+                    case "Submitted":
+                        $row[] = $recommendation->created;
+                        break;
+                    case "For":
+                        $row[] = $recommendation->member_sca_name;
+                        break;
+                    case "For Herald":
+                        if ($recommendation->member) {
+                            $row[] = $recommendation->member->name_for_herald;
+                        } else {
+                            $row[] = $recommendation->member_sca_name;
                         }
-                        $links = "$links |";
-                    }
+                        break;
+                    case "Title":
+                        if ($recommendation->member) {
+                            $row[] = $recommendation->member->title;
+                        } else {
+                            $row[] = "";
+                        }
+                        break;
+                    case "Pronouns":
+                        if ($recommendation->member) {
+                            $row[] = $recommendation->member->pronouns;
+                        } else {
+                            $row[] = "";
+                        }
+                        break;
+                    case "Pronunciation":
+                        if ($recommendation->member) {
+                            $row[] = $recommendation->member->pronunciation;
+                        } else {
+                            $row[] = "";
+                        }
+                        break;
+                    case "OP":
+                        $links = "";
+                        if ($recommendation->member) {
+                            $member = $recommendation->member;
+                            $externalLinks =  $member->publicLinks();
+                            if ($externalLinks) {
+                                foreach ($externalLinks as $name => $link) {
+                                    $links = "$links | $name : $link";
+                                }
+                                $links = "$links |";
+                            }
+                        }
+                        $row[] = $links;
+                        break;
+                    case "Branch":
+                        $row[] = $recommendation->branch->name;
+                        break;
+                    case "Call Into Court":
+                        $row[] = $recommendation->call_into_court;
+                        break;
+                    case "Court Avail":
+                        $row[] = $recommendation->court_availability;
+                        break;
+                    case "Person to Notify":
+                        $row[] = $recommendation->person_to_notify;
+                        break;
+                    case "Submitted By":
+                        $row[] = $recommendation->requester_sca_name;
+                        break;
+                    case "Contact Email":
+                        $row[] = $recommendation->contact_email;
+                        break;
+                    case "Contact Phone":
+                        $row[] = $recommendation->contact_phone;
+                        break;
+                    case "Domain":
+                        $row[] = $recommendation->award->domain->name;
+                        break;
+                    case "Award":
+                        $row[] = $recommendation->award->abbreviation . ($recommendation->specialty ? " (" . $recommendation->specialty . ")" : "");
+                        break;
+                    case "Reason":
+                        $row[] = $recommendation->reason;
+                        break;
+                    case "Events":
+                        $events = "";
+                        foreach ($recommendation->events as $event) {
+                            $startDate = $event->start_date->toDateString();
+                            $endDate = $event->end_date->toDateString();
+                            $events = "$events$event->name : $startDate  - $endDate\n\n";
+                        }
+                        $row[] = $events;
+                        break;
+                    case "Notes":
+                        $notes = "";
+                        foreach ($recommendation->notes as $note) {
+                            $createDate = $note->created->toDateTimeString();
+                            $notes = "$notes$createDate : $note->body\n\n";
+                        }
+                        $row[] = $notes;
+                        break;
+                    case "Status":
+                        $row[] = $recommendation->status;
+                        break;
+                    case "Event":
+                        $row[] = $recommendation->assigned_event ? $recommendation->assigned_event->name : "";
+                        break;
+                    case "State":
+                        $row[] = $recommendation->state;
+                        break;
+                    case "Close Reason":
+                        $row[] = $recommendation->close_reason;
+                        break;
+                    case "State Date":
+                        $row[] = $recommendation->state_date->toDateString();
+                        break;
+                    case "Given Date":
+                        $row[] = $recommendation->given ? $recommendation->given->toDateString() : "";
+                        break;
                 }
-                $row[] = $links;
-            }
-            if ($columns["Branch"]) {
-                $row[] = $recommendation->branch->name;
-            }
-            if ($columns["Call Into Court"]) {
-                $row[] = $recommendation->call_into_court;
-            }
-            if ($columns["Court Avail"]) {
-                $row[] = $recommendation->court_availability;
-            }
-            if ($columns["Person to Notify"]) {
-                $row[] = $recommendation->person_to_notify;
-            }
-            if ($columns["Submitted By"]) {
-                $row[] = $recommendation->requester_sca_name;
-            }
-            if ($columns["Contact Email"]) {
-                $row[] = $recommendation->contact_email;
-            }
-            if ($columns["Contact Phone"]) {
-                $row[] = $recommendation->contact_phone;
-            }
-            if ($columns["Domain"]) {
-                $row[] = $recommendation->award->domain->name;
-            }
-            if ($columns["Award"]) {
-                $row[] = $recommendation->award->abbreviation . ($recommendation->specialty ? " (" . $recommendation->specialty . ")" : "");
-            }
-            if ($columns["Reason"]) {
-                $row[] = $recommendation->reason;
-            }
-            if ($columns["Events"]) {
-                $events = "";
-                foreach ($recommendation->events as $event) {
-                    $startDate = $event->start_date->toDateString();
-                    $endDate = $event->end_date->toDateString();
-                    $events = "$events$event->name : $startDate  - $endDate\n\n";
-                }
-                $row[] = $events;
-            }
-            if ($columns["Notes"]) {
-                $notes = "";
-                foreach ($recommendation->notes as $note) {
-                    $createDate = $note->created->toDateTimeString();
-                    $notes = "$notes$createDate : $note->body\n\n";
-                }
-                $row[] = $notes;
-            }
-            if ($columns["Status"]) {
-                $row[] = $recommendation->status;
-            }
-            if ($columns["Event"]) {
-                $row[] = $recommendation->assigned_event ? $recommendation->assigned_event->name : "";
-            }
-            if ($columns["State"]) {
-                $row[] = $recommendation->state;
-            }
-            if ($columns["Close Reason"]) {
-                $row[] = $recommendation->close_reason;
-            }
-            if ($columns["State Date"]) {
-                $row[] = $recommendation->state_date->toDateString();
-            }
-            if ($columns["Given Date"]) {
-                $row[] = $recommendation->given ? $recommendation->given->toDateString() : "";
             }
             $data[] = $row;
         }

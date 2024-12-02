@@ -9,6 +9,7 @@ class SessionsController extends AppController
 {
     public function keepalive()
     {
+        $this->Authorization->skipAuthorization();
 
         // $session = $this->request->getSession();
         // if ($session->check('count')) {

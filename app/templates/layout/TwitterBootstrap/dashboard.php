@@ -19,15 +19,14 @@ $this->prepend(
 );
 echo $this->KMP->startBlock("tb_body_start");
 $headerLinks = $this->KMP->getAppSettingsStartWith("KMP.HeaderLink.");
+$url = (empty($_SERVER['HTTPS']) ? 'http' : 'https') . "://$_SERVER[HTTP_HOST]" . "/keepalive";
 ?>
 
-<body <?= $this->fetch("tb_body_attrs") ?>>
-    <?php
-    echo $this->Html->script('sessionExtender')
-    ?>
+<body <?= $this->fetch("tb_body_attrs") ?> data-controller="session-extender"
+    data-session-extender-url-value="<?= $url ?>">
+
     <script>
-        url = <?= json_encode((empty($_SERVER['HTTPS']) ? 'http' : 'https') . "://$_SERVER[HTTP_HOST]" . "/keepalive") ?>;
-        extendSesh(url)
+    extendSesh(url)
     </script>
     <header class="navbar navbar-dark sticky-top bg-dark flex-md-nowrap p-0 shadow">
         <div class="navbar-brand col-md-3 col-lg-2 me-0 px-3">
@@ -53,9 +52,9 @@ $headerLinks = $this->KMP->getAppSettingsStartWith("KMP.HeaderLink.");
                     $css = $parts[1];
                 }
             ?>
-                <li class="nav-item text-nowrap mx-1">
-                    <a class="btn btn-outline-secondary <?= $css ?>" href="<?= $url ?>"><?= $key ?></a>
-                </li>
+            <li class="nav-item text-nowrap mx-1">
+                <a class="btn btn-outline-secondary <?= $css ?>" href="<?= $url ?>"><?= $key ?></a>
+            </li>
             <?php endforeach; ?>
             <li class="nav-item text-nowrap mx-1">
                 <?= $this->Html->link(
