@@ -793,43 +793,43 @@ class RecommendationsController extends AppController
             }
         }
 
-        foreach ($recommendations as $recommendation) {
-            $row = [];
-            if ($columns["Submitted"]) {
-                $row[] = $recommendation->created;
+        function dataFromColumn($column, $recommendation)
+        {
+            if ($column == "Submitted") {
+                return $recommendation->created;
             }
-            if ($columns["For"]) {
-                $row[] = $recommendation->member_sca_name;
+            if ($column == "For") {
+                return $recommendation->member_sca_name;
             }
-            if ($columns["For Herald"]) {
+            if ($column == "For Herald") {
                 if ($recommendation->member) {
-                    $row[] = $recommendation->member->name_for_herald;
+                    return $recommendation->member->name_for_herald;
                 } else {
-                    $row[] = $recommendation->member_sca_name;
+                    return $recommendation->member_sca_name;
                 }
             }
-            if ($columns["Title"]) {
+            if ($column == "Title") {
                 if ($recommendation->member) {
-                    $row[] = $recommendation->member->title;
+                    return $recommendation->member->title;
                 } else {
-                    $row[] = "";
+                    return "";
                 }
             }
-            if ($columns["Pronouns"]) {
+            if ($column == "Pronouns") {
                 if ($recommendation->member) {
-                    $row[] = $recommendation->member->pronouns;
+                    return $recommendation->member->pronouns;
                 } else {
-                    $row[] = "";
+                    return "";
                 }
             }
-            if ($columns["Pronunciation"]) {
+            if ($column == "Pronunciation") {
                 if ($recommendation->member) {
-                    $row[] = $recommendation->member->pronunciation;
+                    return $recommendation->member->pronunciation;
                 } else {
-                    $row[] = "";
+                    return "";
                 }
             }
-            if ($columns["OP"]) {
+            if ($column == "OP") {
                 $links = "";
                 if ($recommendation->member) {
                     $member = $recommendation->member;
@@ -841,72 +841,80 @@ class RecommendationsController extends AppController
                         $links = "$links |";
                     }
                 }
-                $row[] = $links;
+                return $links;
             }
-            if ($columns["Branch"]) {
-                $row[] = $recommendation->branch->name;
+            if ($column == "Branch") {
+                return $recommendation->branch->name;
             }
-            if ($columns["Call Into Court"]) {
-                $row[] = $recommendation->call_into_court;
+            if ($column == "Call Into Court") {
+                return $recommendation->call_into_court;
             }
-            if ($columns["Court Avail"]) {
-                $row[] = $recommendation->court_availability;
+            if ($column == "Court Avail") {
+                return $recommendation->court_availability;
             }
-            if ($columns["Person to Notify"]) {
-                $row[] = $recommendation->person_to_notify;
+            if ($column == "Person to Notify") {
+                return $recommendation->person_to_notify;
             }
-            if ($columns["Submitted By"]) {
-                $row[] = $recommendation->requester_sca_name;
+            if ($column == "Submitted By") {
+                return $recommendation->requester_sca_name;
             }
-            if ($columns["Contact Email"]) {
-                $row[] = $recommendation->contact_email;
+            if ($column == "Contact Email") {
+                return $recommendation->contact_email;
             }
-            if ($columns["Contact Phone"]) {
-                $row[] = $recommendation->contact_phone;
+            if ($column == "Contact Phone") {
+                return $recommendation->contact_phone;
             }
-            if ($columns["Domain"]) {
-                $row[] = $recommendation->award->domain->name;
+            if ($column == "Domain") {
+                return $recommendation->award->domain->name;
             }
-            if ($columns["Award"]) {
-                $row[] = $recommendation->award->abbreviation . ($recommendation->specialty ? " (" . $recommendation->specialty . ")" : "");
+            if ($column == "Award") {
+                return $recommendation->award->abbreviation . ($recommendation->specialty ? " (" . $recommendation->specialty . ")" : "");
             }
-            if ($columns["Reason"]) {
-                $row[] = $recommendation->reason;
+            if ($column == "Reason") {
+                return $recommendation->reason;
             }
-            if ($columns["Events"]) {
+            if ($column == "Events") {
                 $events = "";
                 foreach ($recommendation->events as $event) {
                     $startDate = $event->start_date->toDateString();
                     $endDate = $event->end_date->toDateString();
                     $events = "$events$event->name : $startDate  - $endDate\n\n";
                 }
-                $row[] = $events;
+                return $events;
             }
-            if ($columns["Notes"]) {
+            if ($column == "Notes") {
                 $notes = "";
                 foreach ($recommendation->notes as $note) {
                     $createDate = $note->created->toDateTimeString();
                     $notes = "$notes$createDate : $note->body\n\n";
                 }
-                $row[] = $notes;
+                return $notes;
             }
-            if ($columns["Status"]) {
-                $row[] = $recommendation->status;
+            if ($column == "Event") {
+                return $recommendation->assigned_event ? $recommendation->assigned_event->name : "";
             }
-            if ($columns["Event"]) {
-                $row[] = $recommendation->assigned_event ? $recommendation->assigned_event->name : "";
+            if ($column == "Close Reason") {
+                return $recommendation->close_reason;
             }
-            if ($columns["State"]) {
-                $row[] = $recommendation->state;
+            if ($column == "State Date") {
+                return $recommendation->state_date->toDateString();
             }
-            if ($columns["Close Reason"]) {
-                $row[] = $recommendation->close_reason;
+            if ($column == "Given Date") {
+                return $recommendation->given ? $recommendation->given->toDateString() : "";
             }
-            if ($columns["State Date"]) {
-                $row[] = $recommendation->state_date->toDateString();
+            if ($column == "Status") {
+                return $recommendation->status;
             }
-            if ($columns["Given Date"]) {
-                $row[] = $recommendation->given ? $recommendation->given->toDateString() : "";
+            if ($column == "State") {
+                return $recommendation->state;
+            }
+        }
+
+
+        foreach ($recommendations as $recommendation) {
+            $row = [];
+            foreach ($header as $column) {
+                $row[] = dataFromColumn($column, $recommendation);
             }
             $data[] = $row;
         }
