@@ -9,6 +9,7 @@ use Awards\Model\Entity\Recommendation;
 use Cake\I18n\DateTime;
 use App\KMP\StaticHelpers;
 use Authorization\Exception\ForbiddenException;
+use Cake\Log\Log;
 
 /**
  * Recommendations Controller
@@ -29,6 +30,7 @@ class RecommendationsController extends AppController
 
     public function index()
     {
+        Log::debug("indexing");
         $view = $this->request->getQuery("view");
         if ($view == null) {
             $view = "Index";
@@ -102,6 +104,7 @@ class RecommendationsController extends AppController
 
     public function board($view = null, $status = null)
     {
+
 
         if ($view == null) {
             $view = "Default";
@@ -182,6 +185,17 @@ class RecommendationsController extends AppController
         $this->runExport($filter, $columns);
     }
 
+
+    public function bulk()
+    {
+        Log::debug("bulk running");
+        $this->request->allowMethod(['post', 'get']);
+        $user = $this->request->getAttribute("identity");
+        $recommendation = $this->Recommendations->newEmptyEntity();
+        $this->Authorization->authorize($recommendation);
+        //echo "you made it";
+        $this->redirect(['action' => 'view',  1]);
+    }
     /**
      * View method
      *

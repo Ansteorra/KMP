@@ -34,9 +34,11 @@ $columnCount = count(array_filter($columns, function ($value) {
     } ?>
     <?= $this->Form->hidden("sort", ["value" => $this->request->getQuery("sort")]) ?>
     <?= $this->Form->hidden("direction", ["value" => $this->request->getQuery("direction")]) ?>
+
     <table class="table table-striped">
         <thead>
             <tr class="align-top">
+                <th scope="col"></th>
                 <?php if ($columns["Submitted"]): ?>
                 <th scope="col"><?= $this->Paginator->sort("created", "Submitted") ?></th>
                 <?php endif; ?>
@@ -83,6 +85,7 @@ $columnCount = count(array_filter($columns, function ($value) {
                 <?php endif; ?>
                 <?php if ($columns["Court Avail"]): ?>
                 <th scope="col"><?= $this->Paginator->sort("Court Avail.") ?></th>
+
                 <?php endif; ?>
                 <?php if ($columns["Person to Notify"]): ?>
                 <th scope="col">Person to Notify</th>
@@ -174,6 +177,7 @@ $columnCount = count(array_filter($columns, function ($value) {
         <tbody>
             <?php foreach ($recommendations as $recommendation) : ?>
             <tr>
+                <td><input type="checkbox" name="check_list[]" value=<?= h($recommendation->id) ?> form="bulkForm"></td>
                 <?php if ($columns["Submitted"]): ?>
                 <td><?= h($recommendation->created) ?></td>
                 <?php endif; ?>
@@ -372,6 +376,7 @@ $columnCount = count(array_filter($columns, function ($value) {
                     <?php endif; ?>
                 </td>
             </tr>
+
             <?php $rowCount = 1; ?>
             <?php if ($columns["Notes"]):
                     $rowCount++ ?>
@@ -430,8 +435,30 @@ $columnCount = count(array_filter($columns, function ($value) {
             </tr>
             <?php endif; ?>
             <?php endforeach; ?>
+
         </tbody>
     </table>
+    <?= $this->Form->end() ?>
+
+    <?php
+    $bulkUrl = $this->URL->build(["controller" => "Recommendations", "action" => "bulk", "plugin" => "Awards",]);
+    ?>
+    <?= $this->Form->create(null, ["url" => $bulkUrl, "type" => "post", "id" => "bulkForm"]) ?>
+
+
+
+    <?= $this->Form->control("state", [
+        "type" => "select",
+        "label" => false,
+        "placeholder" => "State",
+        "value" => $this->request->getQuery("state"),
+        "options" => $statusList,
+        "empty" => true,
+        "form" => "bulkForm",
+    ]) ?>
+    <?= $this->Form->button('Submit', ["id" => 'bulk_submit', 'class' => 'btn-primary', 'form' => 'bulkForm', 'type' => 'submit']) ?>
+
+
     <?= $this->Form->end() ?>
     <div class="paginator">
         <ul class="pagination">
