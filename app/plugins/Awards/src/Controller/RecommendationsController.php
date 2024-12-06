@@ -989,7 +989,7 @@ class RecommendationsController extends AppController
         $this->set(compact('data'));
         $this->viewBuilder()
             ->setClassName('CsvView.Csv')
-            ->setOptions(['serialize' => 'data', 'header' => $header]);
+            ->setOptions(['serialize' => 'data', 'header' => $header, 'bom' => true]);
     }
 
     protected function getRecommendationQuery($filterArray = null)
