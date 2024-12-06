@@ -441,18 +441,25 @@ $columnCount = count(array_filter($columns, function ($value) {
     <?= $this->Form->end() ?>
 
     <?php
-    $bulkUrl = $this->URL->build(["controller" => "Recommendations", "action" => "bulk", "plugin" => "Awards",]);
+    $bulkUrl = $this->URL->build(["controller" => "Recommendations", "action" => "updateStates", "plugin" => "Awards",]);
     ?>
-    <?= $this->Form->create(null, ["url" => $bulkUrl, "type" => "post", "id" => "bulkForm"]) ?>
+    <?= $this->Form->create(null, ["url" => $bulkUrl, "type" => "post", "id" => "bulkForm",]) ?>
+    <?= $this->Form->hidden('view', [
+
+        "value" => $view,
+    ]) ?>
+    <?= $this->Form->hidden('status', [
+
+        "value" => $status,
+    ]) ?>
 
 
-
-    <?= $this->Form->control("state", [
+    <?= $this->Form->control("newState", [
         "type" => "select",
         "label" => false,
         "placeholder" => "State",
         "value" => $this->request->getQuery("state"),
-        "options" => $statusList,
+        "options" => $fullStatusList,
         "empty" => true,
         "form" => "bulkForm",
     ]) ?>

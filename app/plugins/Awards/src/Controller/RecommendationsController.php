@@ -10,6 +10,8 @@ use Cake\I18n\DateTime;
 use App\KMP\StaticHelpers;
 use Authorization\Exception\ForbiddenException;
 use Cake\Log\Log;
+use Exception;
+use PhpParser\Node\Stmt\TryCatch;
 
 /**
  * Recommendations Controller
@@ -30,7 +32,7 @@ class RecommendationsController extends AppController
 
     public function index()
     {
-        Log::debug("indexing");
+
         $view = $this->request->getQuery("view");
         if ($view == null) {
             $view = "Index";
@@ -186,15 +188,65 @@ class RecommendationsController extends AppController
     }
 
 
-    public function bulk()
+    public function updateStates()
     {
-        Log::debug("bulk running");
+        $view = $this->request->getData("view");
+        if ($view == null) {
+            $view = "Index";
+        }
+        $status = $this->request->getData("status");
+        if ($status == null) {
+            $status = "All";
+        }
+
         $this->request->allowMethod(['post', 'get']);
         $user = $this->request->getAttribute("identity");
         $recommendation = $this->Recommendations->newEmptyEntity();
         $this->Authorization->authorize($recommendation);
-        //echo "you made it";
-        $this->redirect(['action' => 'view',  1]);
+
+
+        $ids = $this->request->getData("check_list");
+        $newState = $this->request->getData("newState");
+
+
+        if (empty($ids) || empty($newState)) {
+            //TODO flash error
+        } else {
+            $this->Recommendations->getConnection()->begin();
+            $statusList = Recommendation::getStatuses();
+            $newStatus = "";
+
+            //get newStatus corresponding to newState
+            foreach ($statusList as $key => $value) {
+                foreach ($value as $state) {
+                    if ($state == $newState) {
+                        $newStatus = $key;
+                        break;
+                    }
+                }
+                if ($newStatus != "") {
+                    break;
+                }
+            }
+
+            if (!$this->Recommendations->updateAll(
+                ['state ' => $newState, 'status' => $newStatus],
+                ['id IN' => $ids]
+            )) {
+                $this->Recommendations->getConnection()->rollback();
+                if (!$this->request->getHeader('Turbo-Frame')) {
+                    $this->Flash->error(__('The recommendations could not be updated. Please, try again.'));
+                }
+                if ($this->request->getData("current_page")) {
+                    return $this->redirect($this->request->getData("current_page"));
+                }
+                return $this->redirect(['action' => 'table', $view, $status]);
+            }
+
+            $this->Recommendations->getConnection()->commit();
+        }
+
+        $this->redirect(['action' => 'table', $view, $status]);
     }
     /**
      * View method
@@ -639,10 +691,14 @@ class RecommendationsController extends AppController
     protected function runTable($filterArray, $status, $view = "Default")
     {
         $recommendations = $this->getRecommendationQuery($filterArray);
+        $fullStatusList = Recommendation::getStatuses();
         if ($status == "All") {
             $statusList = Recommendation::getStatuses();
         } else {
             $statusList[$status] = Recommendation::getStatuses()[$status];
+        }
+        foreach ($fullStatusList as $key => $value) {
+            $fullStatusList[$key] = array_combine($value, $value);
         }
         foreach ($statusList as $key => $value) {
             $statusList[$key] = array_combine($value, $value);
@@ -703,7 +759,7 @@ class RecommendationsController extends AppController
         ];
         $action = $view;
         $recommendations = $this->paginate($recommendations);
-        $this->set(compact('recommendations', 'statusList', 'awards', 'domains', 'branches', 'view', 'status', 'action'));
+        $this->set(compact('recommendations', 'statusList', 'awards', 'domains', 'branches', 'view', 'status', 'action', 'fullStatusList'));
     }
 
     protected function runBoard($view, $pageConfig, $emptyRecommendation)
