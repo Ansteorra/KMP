@@ -10,13 +10,6 @@ class SessionsController extends AppController
     public function keepalive()
     {
         $this->Authorization->skipAuthorization();
-
-        // $session = $this->request->getSession();
-        // if ($session->check('count')) {
-        //     $session->write(['count' => $session->read('count') + 1]);
-        // } else {
-        //     $session->write(['count' => 1]);
-        // }
         $response = $this->response;
         $response = $response->withStringBody('My Body');
         $response = $response->withType('application/json')

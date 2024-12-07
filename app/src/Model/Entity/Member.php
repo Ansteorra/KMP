@@ -465,4 +465,32 @@ class Member extends Entity implements
         $interval = $now->diff($date);
         return $interval->y;
     }
+
+    protected function _getWarrantable()
+    {
+        if ($this->status != self::STATUS_VERIFIED_MEMBERSHIP) {
+            return false;
+        }
+        //check if the member is older than 17
+        if ($this->age < 18) {
+            return false;
+        }
+        //check that the member has a legal name saved
+        if ($this->first_name == null || $this->last_name == null) {
+            return false;
+        }
+        //check that the member has a valid address
+        if ($this->street_address == null || $this->city == null || $this->state == null || $this->zip == null) {
+            return false;
+        }
+        //check that the member has a valid phone number
+        if ($this->phone_number == null) {
+            return false;
+        }
+        //check that there membership is not expired
+        if ($this->membership_expires_on == null || $this->membership_expires_on->isPast()) {
+            return false;
+        }
+        return true;
+    }
 }

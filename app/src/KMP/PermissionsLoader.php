@@ -43,7 +43,13 @@ class PermissionsLoader
             ->where([
                 "OR" => [
                     "Permissions.require_active_membership" => false,
-                    "Members.membership_expires_on >" => DateTime::now(),
+                    "AND" => [
+                        "Members.status IN " => [
+                            Member::STATUS_VERIFIED_MEMBERSHIP,
+                            Member::STATUS_VERIFIED_MINOR,
+                        ],
+                        "Members.membership_expires_on >" => DateTime::now(),
+                    ],
                 ],
             ])
             ->where([
