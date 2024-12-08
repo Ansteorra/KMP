@@ -1,7 +1,12 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Controller;
+
+use App\Model\Entity\Warrant;
+use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
+use Cake\I18n\DateTime;
 
 /**
  * Warrants Controller
@@ -21,6 +26,8 @@ class WarrantsController extends AppController
         parent::initialize();
 
         $this->loadComponent('Authorization.Authorization');
+
+        $this->Authorization->authorizeModel("index", "deactivate");
     }
 
     /**
@@ -38,88 +45,65 @@ class WarrantsController extends AppController
         $this->set(compact('warrants'));
     }
 
-    /**
-     * View method
-     *
-     * @param string|null $id Warrant id.
-     * @return \Cake\Http\Response|null|void Renders view
-     * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
-     */
-    public function view($id = null)
+    public function allWarrants($state)
     {
-        $warrant = $this->Warrants->get($id, contain: ['Members', 'WarrantApprovalSets', 'MemberRoles']);
-        $this->Authorization->authorize($warrant);
-        $this->set(compact('warrant'));
+
+
+        if ($state != 'current' && $state == 'pending' && $state == 'previous') {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+        $securityWarrant = $this->Warrants->newEmptyEntity();
+        $this->Authorization->authorize($securityWarrant);
+        $warrantsQuery = $this->Warrants->find()
+            ->contain(['Members', 'WarrantApprovalSets', 'MemberRoles']);
+
+        switch ($state) {
+            case 'current':
+                $warrantsQuery = $warrantsQuery->where(['Warrants.expires_on >=' => date('Y-m-d'), 'Warrants.start_on <=' => date('Y-m-d'), 'Warrants.status' => Warrant::STATUS_ACTIVE]);
+                break;
+            case 'previous':
+                $warrantsQuery = $warrantsQuery->where(["OR" => ['Warrants.expires_on <' => date('Y-m-d'), 'Warrants.status' => Warrant::STATUS_DEACTIVATED]]);
+                break;
+        }
+        $warrantsQuery = $this->addConditions($warrantsQuery);
+        $warrants = $this->paginate($warrantsQuery);
+        $this->set(compact('warrants', 'state'));
+    }
+    protected function addConditions($query)
+    {
+        return $query
+            ->select(['id', 'member_id', 'warrant_for_model', 'start_on', 'expires_on', 'revoker_id', 'warrant_approval_set_id', 'status', 'revoked_reason'])
+            ->contain([
+                'Members' => function ($q) {
+                    return $q->select(['id', 'sca_name']);
+                },
+                'RevokedBy' => function ($q) {
+                    return $q->select(['id', 'sca_name']);
+                },
+            ]);
     }
 
-    /**
-     * Add method
-     *
-     * @return \Cake\Http\Response|null|void Redirects on successful add, renders view otherwise.
-     */
-    public function add()
-    {
-        $warrant = $this->Warrants->newEmptyEntity();
-        $this->Authorization->authorize($warrant);
-        if ($this->request->is('post')) {
-            $warrant = $this->Warrants->patchEntity($warrant, $this->request->getData());
-            if ($this->Warrants->save($warrant)) {
-                $this->Flash->success(__('The warrant has been saved.'));
 
-                return $this->redirect(['action' => 'index']);
-            }
-            $this->Flash->error(__('The warrant could not be saved. Please, try again.'));
+    public function deactivate(ActiveWindowManagerInterface $awService, $id = null)
+    {
+        $this->request->allowMethod(["post"]);
+        if (!$id) {
+            $id = $this->request->getData("id");
         }
-        $members = $this->Warrants->Members->find('list', limit: 200)->all();
-        $warrantApprovalSets = $this->Warrants->WarrantApprovalSets->find('list', limit: 200)->all();
-        $memberRoles = $this->Warrants->MemberRoles->find('list', limit: 200)->all();
-        $this->set(compact('warrant', 'members', 'warrantApprovalSets', 'memberRoles'));
-    }
+        $this->Warrants->getConnection()->begin();
 
-    /**
-     * Edit method
-     *
-     * @param string|null $id Warrant id.
-     * @return \Cake\Http\Response|null|void Redirects on successful edit, renders view otherwise.
-     * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
-     */
-    public function edit($id = null)
-    {
-        $warrant = $this->Warrants->get($id, contain: []);
-        $this->Authorization->authorize($warrant);
-        if ($this->request->is(['patch', 'post', 'put'])) {
-            $warrant = $this->Warrants->patchEntity($warrant, $this->request->getData());
-            if ($this->Warrants->save($warrant)) {
-                $this->Flash->success(__('The warrant has been saved.'));
-
-                return $this->redirect(['action' => 'index']);
-            }
-            $this->Flash->error(__('The warrant could not be saved. Please, try again.'));
-        }
-        $members = $this->Warrants->Members->find('list', limit: 200)->all();
-        $warrantApprovalSets = $this->Warrants->WarrantApprovalSets->find('list', limit: 200)->all();
-        $memberRoles = $this->Warrants->MemberRoles->find('list', limit: 200)->all();
-        $this->set(compact('warrant', 'members', 'warrantApprovalSets', 'memberRoles'));
-    }
-
-    /**
-     * Delete method
-     *
-     * @param string|null $id Warrant id.
-     * @return \Cake\Http\Response|null Redirects to index.
-     * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
-     */
-    public function delete($id = null)
-    {
-        $this->request->allowMethod(['post', 'delete']);
-        $warrant = $this->Warrants->get($id);
-        $this->Authorization->authorize($warrant);
-        if ($this->Warrants->delete($warrant)) {
-            $this->Flash->success(__('The warrant has been deleted.'));
-        } else {
-            $this->Flash->error(__('The warrant could not be deleted. Please, try again.'));
+        if (!$awService->stop("Warrants", (int)$id, $this->Authentication->getIdentity()->get("id"), "deactivated", "", DateTime::now())) {
+            $this->Flash->error(
+                __(
+                    "The warrant could not be deactivated. Please, try again.",
+                ),
+            );
+            $this->Warrants->getConnection()->rollback();
+            return $this->redirect($this->referer());
         }
 
-        return $this->redirect(['action' => 'index']);
+        $this->Flash->success(__("The warrant has been deactivated."));
+        $this->Warrants->getConnection()->commit();
+        return $this->redirect($this->referer());
     }
 }

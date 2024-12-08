@@ -34,8 +34,9 @@ class Warrant extends ActiveWindowBaseEntity
     public array $typeIdField = ['member_role_id'];
 
     const STATUS_ACTIVE = "active"; //usable warrant
-    const STATUS_INACTIVE = "revoked"; //deactivated warrant
+    const STATUS_DEACTIVATED = "deactivated"; //deactivated warrant
     const STATUS_PENDING = "pending"; //warrant awaiting approval
+    const STATUS_EXPIRED = "expired"; //warrant awaiting approval
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().
      *

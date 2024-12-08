@@ -54,6 +54,12 @@ class WarrantsTable extends Table
             'foreignKey' => 'member_id',
             'joinType' => 'INNER',
         ]);
+        $this->belongsTo("RevokedBy", [
+            "className" => "Members",
+            "foreignKey" => "revoker_id",
+            "joinType" => "LEFT",
+            "propertyName" => "revoked_by",
+        ]);
         $this->belongsTo('WarrantApprovalSets', [
             'foreignKey' => 'warrant_approval_set_id',
             'joinType' => 'INNER',
