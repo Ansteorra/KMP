@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Model\Entity;
@@ -27,8 +28,14 @@ use Cake\ORM\Entity;
  * @property \App\Model\Entity\WarrantApprovalSet $warrant_approval_set
  * @property \App\Model\Entity\MemberRole $member_role
  */
-class Warrant extends Entity
+class Warrant extends ActiveWindowBaseEntity
 {
+
+    public array $typeIdField = ['member_role_id'];
+
+    const STATUS_ACTIVE = "active"; //usable warrant
+    const STATUS_INACTIVE = "revoked"; //deactivated warrant
+    const STATUS_PENDING = "pending"; //warrant awaiting approval
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().
      *

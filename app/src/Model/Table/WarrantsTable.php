@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Model\Table;
@@ -60,6 +61,10 @@ class WarrantsTable extends Table
         $this->belongsTo('MemberRoles', [
             'foreignKey' => 'member_role_id',
         ]);
+
+        $this->addBehavior("ActiveWindow");
+        $this->addBehavior("Timestamp");
+        $this->addBehavior('Muffin/Footprint.Footprint');
     }
 
     /**

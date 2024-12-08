@@ -46,6 +46,13 @@ class CallForNavHandler implements EventListenerInterface
             ],
             [
                 "type" => "parent",
+                "label" => "Warrants",
+                "icon" => "bi-shield-lock",
+                "id" => "navheader_warrants",
+                "order" => 30,
+            ],
+            [
+                "type" => "parent",
                 "label" => "Security",
                 "icon" => "bi-house-lock",
                 "id" => "navheader_security",
@@ -192,6 +199,17 @@ class CallForNavHandler implements EventListenerInterface
                     "action" => "add",
                 ],
                 "icon" => "bi-plus",
+            ],
+            [
+                "type" => "link",
+                "mergePath" => ["Warrants"],
+                "label" => "Roster",
+                "order" => 0,
+                "url" => [
+                    "controller" => "Warrants",
+                    "action" => "index",
+                ],
+                "icon" => "bi-people",
             ],
             [
                 "type" => "link",

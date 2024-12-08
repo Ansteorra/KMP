@@ -457,6 +457,10 @@ class MembersController extends AppController
                         break;
                 }
             }
+            if ($member->membership_expires_on != null && $member->membership_expires_on != "" && is_string($member->membership_expires_on)) {
+                //convert to a date
+                $member->membership_expires_on = DateTime::createFromFormat('Y-m-d', $member->membership_expires_on);
+            }
             if ($this->Members->save($member)) {
                 $this->Flash->success(__("The Member has been saved."));
 
@@ -1171,6 +1175,10 @@ class MembersController extends AppController
                 }
                 $member->membership_number = $membership_number;
                 $member->membership_expires_on = $this->request->getData("membership_expires_on");
+                if ($member->membership_expires_on != null && $member->membership_expires_on != "" && is_string($member->membership_expires_on)) {
+                    //convert to a date
+                    $member->membership_expires_on = DateTime::createFromFormat('Y-m-d', $member->membership_expires_on);
+                }
             }
             if ($member->age < 18 && $verifyParent == "1") {
                 $parentId = $this->request->getData("parent_id");

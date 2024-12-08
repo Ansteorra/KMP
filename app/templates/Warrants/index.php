@@ -16,20 +16,10 @@ $this->KMP->endBlock(); ?>
 <table class="table table-striped">
     <thead>
         <tr>
-            <th scope="col" colspan='1'></th>
-            <th scope="col" colspan='4' class="text-center table-active">Requirements</th>
-            <th scope="col" colspan='3'></th>
-        </tr>
-        <tr>
-            <th scope="col"><?= $this->Paginator->sort("name") ?></th>
-            <th scope="col" class="text-center"><?= __("Membership") ?></th>
-            <th scope="col" class="text-center"><?= __(
-                                                    "Background Check",
-                                                ) ?></th>
-            <th scope="col" class="text-center"><?= __("Minimum Age") ?></th>
-            <th scope="col" class="text-center"><?= __("Warrant") ?></th>
-            <th scope="col" class="text-center"><?= __("Super User") ?></th>
-            <th scope="col" class="text-center"><?= __("System") ?></th>
+            <th scope="col"><?= $this->Paginator->sort("sca_name") ?></th>
+            <th scope="col"><?= $this->Paginator->sort("start_on") ?></th>
+            <th scope="col"><?= $this->Paginator->sort("expires_on") ?></th>
+            <th scope="col"><?= $this->Paginator->sort("status") ?></th>
             <th scope="col" class="actions"><?= __("Actions") ?></th>
         </tr>
     </thead>

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Model\Table;
@@ -54,6 +55,9 @@ class WarrantApprovalSetsTable extends Table
         $this->hasMany('Warrants', [
             'foreignKey' => 'warrant_approval_set_id',
         ]);
+
+        $this->addBehavior("Timestamp");
+        $this->addBehavior('Muffin/Footprint.Footprint');
     }
 
     /**

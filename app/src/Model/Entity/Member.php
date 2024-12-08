@@ -396,6 +396,65 @@ class Member extends Entity implements
         }
     }
 
+    public function warrantableReview(): void
+    {
+        if ($this->status != self::STATUS_VERIFIED_MEMBERSHIP) {
+            $this->warrantable = false;
+            return;
+        }
+        //check if the member is older than 17
+        if ($this->age < 18) {
+            $this->warrantable = false;
+            return;
+        }
+        //check that the member has a legal name saved
+        if ($this->first_name == null || $this->last_name == null) {
+            $this->warrantable = false;
+            return;
+        }
+        //check that the member has a valid address
+        if ($this->street_address == null || $this->city == null || $this->state == null || $this->zip == null) {
+            $this->warrantable = false;
+            return;
+        }
+        //check that the member has a valid phone number
+        if ($this->phone_number == null) {
+            $this->warrantable = false;
+            return;
+        }
+        //check that there membership is not expired
+        if ($this->membership_expires_on == null || $this->membership_expires_on->isPast()) {
+            $this->warrantable = false;
+            return;
+        }
+        $this->warrantable = true;
+    }
+
+    protected function _getNonWarrantableReasons()
+    {
+        $reasons = [];
+        if ($this->age < 18) {
+            $reasons[] = "Member is under 18";
+        }
+        if ($this->status != self::STATUS_VERIFIED_MEMBERSHIP) {
+            $reasons[] = "Membership is not verified";
+        } else {
+            if ($this->membership_expires_on == null || $this->membership_expires_on->isPast()) {
+                $reasons[] = "Membership is expired";
+            }
+        }
+        if ($this->first_name == null || $this->last_name == null) {
+            $reasons[] = "Legal name is not set";
+        }
+        if ($this->street_address == null || $this->city == null || $this->state == null || $this->zip == null) {
+            $reasons[] = "Address is not set";
+        }
+        if ($this->phone_number == null) {
+            $reasons[] = "Phone number is not set";
+        }
+        return $reasons;
+    }
+
     protected function _setPassword($value)
     {
         if (strlen($value) > 0) {
@@ -464,33 +523,5 @@ class Member extends Entity implements
         $date = $date->setDate($this->birth_year, $this->birth_month, 1);
         $interval = $now->diff($date);
         return $interval->y;
-    }
-
-    protected function _getWarrantable()
-    {
-        if ($this->status != self::STATUS_VERIFIED_MEMBERSHIP) {
-            return false;
-        }
-        //check if the member is older than 17
-        if ($this->age < 18) {
-            return false;
-        }
-        //check that the member has a legal name saved
-        if ($this->first_name == null || $this->last_name == null) {
-            return false;
-        }
-        //check that the member has a valid address
-        if ($this->street_address == null || $this->city == null || $this->state == null || $this->zip == null) {
-            return false;
-        }
-        //check that the member has a valid phone number
-        if ($this->phone_number == null) {
-            return false;
-        }
-        //check that there membership is not expired
-        if ($this->membership_expires_on == null || $this->membership_expires_on->isPast()) {
-            return false;
-        }
-        return true;
     }
 }

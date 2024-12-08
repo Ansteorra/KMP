@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use Migrations\AbstractMigration;
 
+require_once __DIR__ . '/../Seeds/DevLoadWarrantsSeed.php';
+
 class Warrants extends AbstractMigration
 {
     public bool $autoId = false;
@@ -78,15 +80,25 @@ class Warrants extends AbstractMigration
                 "limit" => 11,
                 "null" => true,
             ])
-            ->addColumn("created_by", "integer", [
+            ->addColumn("modified", "datetime", [
                 "default" => null,
-                "limit" => 11,
+                "limit" => null,
                 "null" => true,
             ])
-            ->addColumn("created", "timestamp", [
-                "default" => "CURRENT_TIMESTAMP",
+            ->addColumn("created", "datetime", [
+                "default" => null,
                 "limit" => null,
                 "null" => false,
+            ])
+            ->addColumn("created_by", "integer", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
+            ->addColumn("modified_by", "integer", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
             ])
 
             ->addPrimaryKey(["id"])
@@ -133,15 +145,25 @@ class Warrants extends AbstractMigration
                 "limit" => 11,
                 "null" => true,
             ])
-            ->addColumn("created_by", "integer", [
+            ->addColumn("modified", "datetime", [
                 "default" => null,
-                "limit" => 11,
+                "limit" => null,
                 "null" => true,
             ])
-            ->addColumn("created", "timestamp", [
-                "default" => "CURRENT_TIMESTAMP",
+            ->addColumn("created", "datetime", [
+                "default" => null,
                 "limit" => null,
                 "null" => false,
+            ])
+            ->addColumn("created_by", "integer", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
+            ->addColumn("modified_by", "integer", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
             ])
             ->addPrimaryKey(["id"])
             ->create();
@@ -244,6 +266,12 @@ class Warrants extends AbstractMigration
                 ],
             )
             ->update();
+
+        (new DevLoadWarrantsSeed())
+            ->setAdapter($this->getAdapter())
+            ->setInput($this->getInput())
+            ->setOutput($this->getOutput())
+            ->run();
     }
     public function down()
     {

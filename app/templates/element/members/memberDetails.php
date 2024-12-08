@@ -110,6 +110,11 @@ $today = new Date();
         <th class="col"><?= __("Warrantable") ?></th>
         <td lass="col-10">
             <?= $member->warrantable ? "Yes" : "No" ?>
+            <?php if (!$member->warrantable) : ?>
+            <br><small class="text-secondary">
+                (<?= implode(' ,', $member->non_warrantable_reasons) ?>)
+            </small>
+            <?php endif; ?>
         </td>
     </tr>
 

@@ -249,6 +249,7 @@ class MembersTable extends Table
     public function beforeSave(Event $event, EntityInterface $entity, ArrayObject $options)
     {
         $entity->ageUpReview();
+        $entity->warrantableReview();
     }
 
     static function getValidationQueueCount(): int

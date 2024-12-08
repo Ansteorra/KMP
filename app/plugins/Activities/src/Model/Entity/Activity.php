@@ -67,6 +67,6 @@ class Activity extends Entity
         if (!isset($this->permission_id)) {
             throw new \Exception("Permission ID not set");
         }
-        return PermissionsLoader::getMembersWithPermissionsQuery([$this->permission_id]);;
+        return PermissionsLoader::getMembersWithPermissionsQuery($this->permission_id);
     }
 }
