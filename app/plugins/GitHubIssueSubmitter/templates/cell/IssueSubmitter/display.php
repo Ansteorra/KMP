@@ -21,7 +21,10 @@ echo $this->Modal->create("Submit Issue", [
     "data-github-submitter-target" => "modal",
 ]); ?>
 <div data-github-submitter-target="formBlock">
+
     <fieldset class="text-start">
+        <div class="mb-3 text-wrap"><?= StaticHelpers::getAppSetting("Plugin.GitHubIssueSubmitter.PopupMessage") ?>
+        </div>
         <?php
         echo $this->Form->control("title", ["label" => "Title", "placeholder" => "Enter a title for the issue."]);
         echo $this->Form->control("feedbackType", ["label" => "Feedback", "type" => "select", "options" => $feedbackTypes]);
