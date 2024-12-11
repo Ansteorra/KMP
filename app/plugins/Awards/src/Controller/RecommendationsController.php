@@ -686,6 +686,45 @@ class RecommendationsController extends AppController
         $rules = StaticHelpers::getAppSetting("Awards.RecommendationStateRules");
         $this->set(compact('rules', 'recommendation', 'branches', 'awards', 'eventList', 'awardsDomains', 'awardsLevels', 'statusList'));
     }
+
+    public function turboBulkEditForm()
+    {
+        $recommendation = $this->Recommendations->newEmptyEntity();
+
+        $this->Authorization->authorize($recommendation, 'view');
+        //$recommendation->domain_id = $recommendation->award->domain_id;
+        //$awardsDomains = $this->Recommendations->Awards->Domains->find('list', limit: 200)->all();
+        //$awardsLevels = $this->Recommendations->Awards->Levels->find('list', limit: 200)->all();
+        $branches = $this->Recommendations->Awards->Branches
+            ->find("list", keyPath: function ($entity) {
+                return $entity->id . '|' . ($entity->can_have_members == 1 ? "true" : "false");
+            })
+            ->where(["can_have_members" => true])
+            ->orderBy(["name" => "ASC"])->toArray();
+        //$awards = $this->Recommendations->Awards->find('all', limit: 200)->select(["id", "name", "specialties"])->where(['domain_id' => $recommendation->domain_id])->all();
+        $eventsData = $this->Recommendations->Events->find()
+            ->contain(['Branches' => function ($q) {
+                return $q->select(['id', 'name']);
+            }])
+            ->where(['OR' => ['closed' => false, 'closed IS' => null]])
+            ->select(['id', 'name', 'start_date', 'end_date', 'Branches.name'])
+            ->orderBy(['start_date' => 'ASC'])
+            ->all();
+        $statusList = Recommendation::getStatuses();
+        foreach ($statusList as $key => $value) {
+            $states = $value;
+            $statusList[$key] = [];
+            foreach ($states as $state) {
+                $statusList[$key][$state] = $state;
+            }
+        }
+        $eventList = [];
+        foreach ($eventsData as $event) {
+            $eventList[$event->id] = $event->name . " in " . $event->branch->name . " on " . $event->start_date->toDateString() . " - " . $event->end_date->toDateString();
+        }
+        $rules = StaticHelpers::getAppSetting("Awards.RecommendationStateRules");
+        $this->set(compact('rules', 'branches', 'awards', 'eventList', 'statusList'));
+    }
     #endregion
 
     protected function runTable($filterArray, $status, $view = "Default")

@@ -467,7 +467,12 @@ $columnCount = count(array_filter($columns, function ($value) {
 
 
     <?= $this->Form->end() ?>
+
+    <button type="button" class="btn btn-primary btn-sm edit-rec" data-bs-toggle="modal"
+        data-bs-target="#tableBulkEditModal" data-controller="grid-btn" data-action="click->grid-btn#fireNotice"
+        data-grid-btn-row-data-value='{ "id":1}' ,>BulkEdit</button>
     <div class="paginator">
+
         <ul class="pagination">
             <?= $this->Paginator->first("«", ["label" => __("First")]) ?>
             <?= $this->Paginator->prev("‹", [
@@ -484,4 +489,6 @@ $columnCount = count(array_filter($columns, function ($value) {
             ) ?></p>
     </div>
     <?= $this->element('recommendationQuickEditModal', ['modalId' => 'tableEditModal']) ?>
+    <?= $this->element('recommendationsBulkEditModal', ['modalId' => 'tableBulkEditModal']) ?>
+
 </turbo-frame>
