@@ -73,16 +73,16 @@ class AwardsRecommendationBulkEditForm extends Controller {
         var rulesstring = this.stateRulesBlockTarget.textContent;
         var rules = JSON.parse(rulesstring);
         console.log(rules);
-        if (this.specialtyTarget.options.length == 0) {
-            this.specialtyTarget.hidden = true;
-            this.specialtyTarget.disabled = true;
-        }
+        // if (this.specialtyTarget.options.length == 0) {
+        //     this.specialtyTarget.hidden = true;
+        //     this.specialtyTarget.disabled = true;
+        // }
 
         this.planToGiveBlockTarget.style.display = "none";
         this.givenBlockTarget.style.display = "none";
         this.domainTarget.disabled = false;
-        this.awardTarget.disabled = false;
-        this.specialtyTarget.disabled = this.specialtyTarget.hidden;
+        //this.awardTarget.disabled = false;
+        //this.specialtyTarget.disabled = this.specialtyTarget.hidden;
         this.planToGiveEventTarget.required = false;
         this.givenDateTarget.required = false;
         this.closeReasonBlockTarget.style.display = "none";
