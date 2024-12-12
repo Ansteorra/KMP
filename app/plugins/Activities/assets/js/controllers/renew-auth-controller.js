@@ -7,7 +7,7 @@ class ActivitiesRenewAuthorization extends Controller {
         url: String,
     }
     static targets = ["activity", "approvers", "submitBtn", "memberId", "id"]
-    static outlets = ["grid-btn"]
+    static outlets = ["outlet-btn"]
 
     setId(event) {
         this.idTarget.value = event.detail.id;

@@ -30,7 +30,7 @@ class AwardsRecommendationEditForm extends Controller {
         formUrl: String,
         turboFrameUrl: String,
     };
-    static outlets = ['grid-btn'];
+    static outlets = ['outlet-btn'];
 
     setId(event) {
         this.turboFrameTarget.setAttribute("src", this.turboFrameUrlValue + "/" + event.detail.id);

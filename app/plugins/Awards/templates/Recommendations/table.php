@@ -10,8 +10,13 @@ $columnCount = count(array_filter($columns, function ($value) {
     if ($enableExport != ""):
         $exportUrl = str_replace('/table', '/export', $currentUrl);
     ?>
+
     <div class="row">
         <div class="col-12 text-end">
+            <button type="button" class="btn btn-primary btn-sm bulk-edit-btn" data-bs-toggle="modal"
+                data-bs-target="#tableBulkEditModal" data-controller="outlet-btn"
+                data-outlet-btn-require-data-value="true" data-action="click->outlet-btn#fireNotice" disabled>Bulk
+                Edit</button>
             <?= $this->Html->link(
                     "Export",
                     $exportUrl,
@@ -34,8 +39,7 @@ $columnCount = count(array_filter($columns, function ($value) {
     } ?>
     <?= $this->Form->hidden("sort", ["value" => $this->request->getQuery("sort")]) ?>
     <?= $this->Form->hidden("direction", ["value" => $this->request->getQuery("direction")]) ?>
-    <div data-controller='awards-rec-table'
-        data-action="awards-rec-bulk-edit:stateTargetConnected@window->awards-rec-table#getSelected">
+    <div data-controller='awards-rec-table' data-awards-rec-table-outlet-btn-outlet=".bulk-edit-btn">
         <table class="table table-striped">
             <thead>
                 <tr class="align-top">
@@ -179,7 +183,7 @@ $columnCount = count(array_filter($columns, function ($value) {
                 <?php foreach ($recommendations as $recommendation) : ?>
                 <tr>
                     <td><input type="checkbox" name="check_list[]" value=<?= h($recommendation->id) ?> form="bulkForm"
-                            data-awards-rec-table-target="input"></td>
+                            data-awards-rec-table-target="rowCheckbox" data-action="awards-rec-table#checked"></td>
                     <?php if ($columns["Submitted"]): ?>
                     <td><?= h($recommendation->created) ?></td>
                     <?php endif; ?>
@@ -365,9 +369,9 @@ $columnCount = count(array_filter($columns, function ($value) {
                     <td class="actions">
                         <?php if ($user->checkCan("edit", $recommendation)) : ?>
                         <button type="button" class="btn btn-primary btn-sm edit-rec" data-bs-toggle="modal"
-                            data-bs-target="#tableEditModal" data-controller="grid-btn"
-                            data-action="click->grid-btn#fireNotice"
-                            data-grid-btn-row-data-value='{ "id":<?= $recommendation->id ?>}' ,>Edit</button>
+                            data-bs-target="#tableEditModal" data-controller="outlet-btn"
+                            data-action="click->outlet-btn#fireNotice"
+                            data-outlet-btn-btn-data-value='{ "id":<?= $recommendation->id ?>}' ,>Edit</button>
                         <?php endif; ?>
                         <?php if ($user->checkCan("view", $recommendation)) : ?>
                         <?= $this->Html->link(
@@ -449,12 +453,6 @@ $columnCount = count(array_filter($columns, function ($value) {
     <?php
     $bulkUrl = $this->URL->build(["controller" => "Recommendations", "action" => "updateStates", "plugin" => "Awards",]);
     ?>
-
-
-
-    <button type="button" class="btn btn-primary btn-sm edit-rec" data-bs-toggle="modal"
-        data-bs-target="#tableBulkEditModal" data-controller="grid-btn" data-action="click->grid-btn#fireNotice">Bulk
-        Edit</button>
     <div class="paginator">
 
         <ul class="pagination">

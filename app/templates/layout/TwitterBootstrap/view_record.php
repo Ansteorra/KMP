@@ -48,31 +48,10 @@ $url = (empty($_SERVER['HTTPS']) ? 'http' : 'https') . "://$_SERVER[HTTP_HOST]" 
                     $css = $parts[1];
                 }
             ?>
-            <li class="nav-item text-nowrap mx-1">
-                <a class="btn btn-outline-secondary <?= $css ?>" href="<?= $url ?>"><?= $key ?></a>
-            </li>
+                <li class="nav-item text-nowrap mx-1">
+                    <a class="btn btn-outline-secondary <?= $css ?>" href="<?= $url ?>"><?= $key ?></a>
+                </li>
             <?php endforeach; ?>
-            <!-- <script>
-            function extendSesh() {
-                console.log('start session')
-                setTimeout(function() {
-                    alert('Session Expiring! Click ok to extend session.');
-                    fetch(
-                            <?= json_encode((empty($_SERVER['HTTPS']) ? 'http' : 'https') . "://$_SERVER[HTTP_HOST]" . "/keepalive") ?>
-                        )
-                        .then(res => {
-                            return res.json()
-                        })
-                        .then(data => {
-                            console.log(data.response)
-                            extendSesh()
-                        })
-
-                }, 45000)
-
-            }
-            extendSesh()
-            </script> -->
             <li class="nav-item text-nowrap mx-1">
                 <?= $this->Html->link(
                     __("Sign out"),

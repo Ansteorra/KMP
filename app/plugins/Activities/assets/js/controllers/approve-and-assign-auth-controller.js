@@ -7,7 +7,7 @@ class ActivitiesApproveAndAssignAuthorization extends Controller {
         url: String,
     }
     static targets = ["approvers", "submitBtn", "id"]
-    static outlets = ["grid-btn"]
+    static outlets = ["outlet-btn"]
 
     setId(event) {
         this.idTarget.value = event.detail.id;

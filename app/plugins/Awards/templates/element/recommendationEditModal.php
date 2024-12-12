@@ -16,7 +16,7 @@ echo $this->Form->create(null, [
     ]),
     'data-action' => 'submit->awards-rec-edit#submit',
     'data-controller' => 'awards-rec-edit',
-    'data-awards-rec-edit-grid-btn-outlet' => '.edit-rec',
+    'data-awards-rec-edit-outlet-btn-outlet' => '.edit-rec',
     'data-awards-rec-edit-award-list-url-value' => $this->URL->build(['controller' => 'Awards', 'action' => 'awardsByDomain', 'plugin' => "Awards"]),
     'data-awards-rec-edit-form-url-value' => $formUrl,
     'data-awards-rec-edit-turbo-frame-url-value' => $turboFrameUrl,
