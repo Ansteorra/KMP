@@ -39,6 +39,7 @@ echo $this->Form->control(
         "id" => "recommendation__ids",
         "value" => [],
         'data-controller' => 'awards-rec-bulk-edit',
+        'data-awards-rec-bulk-edit-target' => 'bulkIds',
     ]
 
 );
@@ -58,7 +59,8 @@ echo $this->Modal->create("Bulk Edit Recommendations", [
     $this->Form->button("Close", [
         "data-bs-dismiss" => "modal",
         "type" => "button",
-        "id" => "recommendation_bulk_edit_close"
+        "id" => "recommendation_bulk_edit_close",
+
     ]),
 ]);
 

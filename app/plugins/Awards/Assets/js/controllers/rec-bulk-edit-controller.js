@@ -27,8 +27,11 @@ class AwardsRecommendationBulkEditForm extends Controller {
     static outlets = ['grid-btn'];
 
     setId(event) {
-        this.turboFrameTarget.setAttribute("src", this.turboFrameUrlValue + "/" + event.detail.id);
-        this.element.setAttribute("action", this.formUrlValue + "/" + event.detail.id);
+        if (!event.detail.id) {
+            this.turboFrameTarget.setAttribute("src", this.turboFrameUrlValue);
+            this.element.setAttribute("action", this.formUrlValue);
+
+        }
     }
     gridBtnOutletConnected(outlet, element) {
         outlet.addListener(this.setId.bind(this));
@@ -63,11 +66,14 @@ class AwardsRecommendationBulkEditForm extends Controller {
         this.setFieldRules();
         const event = this.dispatch("stateTargetConnected", { detail: { content: 'hellow data' } })
         if (event.selected.length) {
-            console.log('selected', event.selected)
             this.bulkIdsValue = event.selected;
+            this.bulkIdsTarget.value = event.selected;
+            let actionUrl = this.element.getAttribute("action");
+            //repalce url
+            actionUrl = actionUrl.replace(/update-states/, "updateStates");
+            this.element.setAttribute("action", actionUrl);
         } else {
-            console.log('none selected')
-            //TODO handle feedback about empty form
+            //TODO better handle feedback about empty form
         }
     }
 
@@ -112,14 +118,6 @@ class AwardsRecommendationBulkEditForm extends Controller {
     }
     connect() {
 
-    }
-    recIdTargetConnected() {
-        let recId = this.recIdTarget.value;
-        let actionUrl = this.element.getAttribute("action");
-        //trim the last / off of the end of the action url
-        actionUrl = actionUrl.replace(/\/\d+$/, "");
-        actionUrl = actionUrl + "/" + recId;
-        this.element.setAttribute("action", actionUrl);
     }
 }
 // add to window.Controllers with a name of the controller

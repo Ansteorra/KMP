@@ -205,8 +205,12 @@ class RecommendationsController extends AppController
         $this->Authorization->authorize($recommendation);
 
 
-        $ids = $this->request->getData("check_list");
+        $ids = explode(',', $this->request->getData("ids"));
         $newState = $this->request->getData("newState");
+        $event_id = $this->request->getData("event_id");
+        $given = $this->request->getData("given");
+        $note = $this->request->getData("note");
+        $close_reason = $this->request->getData("close_reason");
 
 
         if (empty($ids) || empty($newState)) {
@@ -228,9 +232,19 @@ class RecommendationsController extends AppController
                     break;
                 }
             }
+            $updateFields = ['state ' => $newState, 'status' => $newStatus];
+            if ($event_id) {
+                $updateFields[] = ['event_id' => $event_id];
+            }
+            if ($given) {
+                $updateFields[] = ['given' => new DateTime($given)];
+            }
+            if ($close_reason) {
+                $updateFields[] = ['close_reason' => $close_reason];
+            }
 
             if (!$this->Recommendations->updateAll(
-                ['state ' => $newState, 'status' => $newStatus],
+                $updateFields,
                 ['id IN' => $ids]
             )) {
                 $this->Recommendations->getConnection()->rollback();
@@ -241,6 +255,26 @@ class RecommendationsController extends AppController
                     return $this->redirect($this->request->getData("current_page"));
                 }
                 return $this->redirect(['action' => 'table', $view, $status]);
+            }
+            if ($note) {
+                foreach ($ids as $id) {
+                    $newNote = $this->Recommendations->Notes->newEmptyEntity();
+                    $newNote->topic_id = $id;
+                    $newNote->subject = "Recommendation Bulk Updated";
+                    $newNote->topic_model = "Awards.Recommendations";
+                    $newNote->body = $note;
+                    $newNote->author_id = $this->request->getAttribute("identity")->id;
+                    if (!$this->Recommendations->Notes->save($newNote)) {
+                        $this->Recommendations->getConnection()->rollback();
+                        if (!$this->request->getHeader('Turbo-Frame')) {
+                            $this->Flash->error(__('The note could not be saved. Please, try again.'));
+                        }
+                        if ($this->request->getData("current_page")) {
+                            return $this->redirect($this->request->getData("current_page"));
+                        }
+                        return $this->redirect(['action' => 'view', $id]);
+                    }
+                }
             }
 
             $this->Recommendations->getConnection()->commit();

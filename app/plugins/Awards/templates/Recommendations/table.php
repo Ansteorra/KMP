@@ -443,42 +443,18 @@ $columnCount = count(array_filter($columns, function ($value) {
         </table>
         <?= $this->Form->end() ?>
 
-        <button type="button" class="btn btn-primary btn-sm edit-rec" data-action="click->awards-rec-table#getClicked"
-            ,>Test Controller</button>
+
     </div>
 
     <?php
     $bulkUrl = $this->URL->build(["controller" => "Recommendations", "action" => "updateStates", "plugin" => "Awards",]);
     ?>
-    <?= $this->Form->create(null, ["url" => $bulkUrl, "type" => "post", "id" => "bulkForm", "data-controller" => "awards-rec-table"]) ?>
-    <?= $this->Form->hidden('view', [
 
-        "value" => $view,
-    ]) ?>
-    <?= $this->Form->hidden('status', [
-
-        "value" => $status,
-    ]) ?>
-
-
-    <?= $this->Form->control("newState", [
-        "type" => "select",
-        "label" => false,
-        "placeholder" => "State",
-        "value" => $this->request->getQuery("state"),
-        "options" => $fullStatusList,
-        "empty" => true,
-        "form" => "bulkForm",
-    ]) ?>
-    <?= $this->Form->button('Submit', ["id" => 'bulk_submit', 'class' => 'btn-primary', 'form' => 'bulkForm', 'type' => 'submit']) ?>
-
-
-    <?= $this->Form->end() ?>
 
 
     <button type="button" class="btn btn-primary btn-sm edit-rec" data-bs-toggle="modal"
-        data-bs-target="#tableBulkEditModal" data-controller="grid-btn" data-action="click->grid-btn#fireNotice"
-        data-grid-btn-row-data-value='{ "id":1}' ,>BulkEdit</button>
+        data-bs-target="#tableBulkEditModal" data-controller="grid-btn" data-action="click->grid-btn#fireNotice">Bulk
+        Edit</button>
     <div class="paginator">
 
         <ul class="pagination">
