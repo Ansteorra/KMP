@@ -5,7 +5,7 @@
     <fieldset>
 
         <?php
-        echo $this->Form->hidden('id', ['value' => 1, 'data-awards-rec-bulk-edit-target' => 'recId']);
+        echo $this->Form->hidden('ids', ['value' => 0, 'data-awards-rec-bulk-edit-target' => 'bulkIds']);
         ?>
         <div style="margin:0 !important;" class="form-group text pb-3"><label class="form-label"
                 for="member-sca-name">Bulk Recommendations</label>

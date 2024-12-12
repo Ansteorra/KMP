@@ -14,7 +14,7 @@ echo $this->Form->create(null, [
         'plugin' => null
     ]),
     'data-action' => 'submit->awards-rec-bulk-edit#submit',
-    'data-controller' => 'awards-rec-bulk-edit',
+    'data-controller' => 'awards-rec-bulk-edit awards-rec-table',
     'data-awards-rec-bulk-edit-grid-btn-outlet' => '.edit-rec',
     'data-awards-rec-bulk-edit-award-list-url-value' => $this->URL->build(['controller' => 'Awards', 'action' => 'awardsByDomain', 'plugin' => "Awards"]),
     'data-awards-rec-bulk-edit-form-url-value' => $formUrl,
@@ -28,6 +28,17 @@ echo $this->Form->control(
         "type" => "hidden",
         "id" => "recommendation__current_page",
         "value" => $this->request->getRequestTarget()
+    ]
+
+);
+echo $this->Form->control(
+    "bulkIds",
+    [
+
+        "type" => "hidden",
+        "id" => "recommendation__ids",
+        "value" => [],
+        'data-controller' => 'awards-rec-bulk-edit',
     ]
 
 );

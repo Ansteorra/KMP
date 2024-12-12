@@ -4,7 +4,7 @@ import { Controller } from "@hotwired/stimulus"
 
 class AwardsRecommendationBulkEditForm extends Controller {
     static targets = [
-        "award",
+        "bulkIds",
         "events",
         "state",
         "planToGiveBlock",
@@ -22,6 +22,7 @@ class AwardsRecommendationBulkEditForm extends Controller {
         awardListUrl: String,
         formUrl: String,
         turboFrameUrl: String,
+        bulkIds: Array,
     };
     static outlets = ['grid-btn'];
 
@@ -40,13 +41,7 @@ class AwardsRecommendationBulkEditForm extends Controller {
     submit(event) {
         document.getElementById("recommendation_bulk_edit_close").click();
     }
-    setAward(event) {
-        let awardId = event.target.dataset.awardId;
-        this.awardTarget.value = awardId;
-        if (this.awardTarget.value != "") {
-            this.populateSpecialties(event);
-        }
-    }
+
 
 
 
@@ -66,28 +61,26 @@ class AwardsRecommendationBulkEditForm extends Controller {
     stateTargetConnected() {
         console.log("bulk status connected");
         this.setFieldRules();
+        const event = this.dispatch("stateTargetConnected", { detail: { content: 'hellow data' } })
+        if (event.selected.length) {
+            console.log('selected', event.selected)
+            this.bulkIdsValue = event.selected;
+        } else {
+            console.log('none selected')
+            //TODO handle feedback about empty form
+        }
     }
 
     setFieldRules() {
         console.log("bulk setting field rules");
         var rulesstring = this.stateRulesBlockTarget.textContent;
         var rules = JSON.parse(rulesstring);
-        console.log(rules);
-        // if (this.specialtyTarget.options.length == 0) {
-        //     this.specialtyTarget.hidden = true;
-        //     this.specialtyTarget.disabled = true;
-        // }
-
         this.planToGiveBlockTarget.style.display = "none";
         this.givenBlockTarget.style.display = "none";
-        this.domainTarget.disabled = false;
-        //this.awardTarget.disabled = false;
-        //this.specialtyTarget.disabled = this.specialtyTarget.hidden;
         this.planToGiveEventTarget.required = false;
         this.givenDateTarget.required = false;
         this.closeReasonBlockTarget.style.display = "none";
         this.closeReasonTarget.required = false;
-
         var state = this.stateTarget.value;
 
         //check status rules for the status
