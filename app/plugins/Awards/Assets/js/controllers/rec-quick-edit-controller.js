@@ -29,8 +29,10 @@ class AwardsRecommendationQuickEditForm extends Controller {
     static outlets = ['grid-btn'];
 
     setId(event) {
-        this.turboFrameTarget.setAttribute("src", this.turboFrameUrlValue + "/" + event.detail.id);
-        this.element.setAttribute("action", this.formUrlValue + "/" + event.detail.id);
+        if (event.detail.id) {
+            this.turboFrameTarget.setAttribute("src", this.turboFrameUrlValue + "/" + event.detail.id);
+            this.element.setAttribute("action", this.formUrlValue + "/" + event.detail.id);
+        }
     }
     gridBtnOutletConnected(outlet, element) {
         outlet.addListener(this.setId.bind(this));

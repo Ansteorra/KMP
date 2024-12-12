@@ -9,6 +9,9 @@ use Awards\Model\Entity\Recommendation;
 use Cake\I18n\DateTime;
 use App\KMP\StaticHelpers;
 use Authorization\Exception\ForbiddenException;
+use Cake\Log\Log;
+use Exception;
+use PhpParser\Node\Stmt\TryCatch;
 
 /**
  * Recommendations Controller
@@ -29,6 +32,7 @@ class RecommendationsController extends AppController
 
     public function index()
     {
+
         $view = $this->request->getQuery("view");
         if ($view == null) {
             $view = "Index";
@@ -102,6 +106,7 @@ class RecommendationsController extends AppController
 
     public function board($view = null, $status = null)
     {
+
 
         if ($view == null) {
             $view = "Default";
@@ -182,6 +187,101 @@ class RecommendationsController extends AppController
         $this->runExport($filter, $columns);
     }
 
+
+    public function updateStates()
+    {
+        $view = $this->request->getData("view");
+        if ($view == null) {
+            $view = "Index";
+        }
+        $status = $this->request->getData("status");
+        if ($status == null) {
+            $status = "All";
+        }
+
+        $this->request->allowMethod(['post', 'get']);
+        $user = $this->request->getAttribute("identity");
+        $recommendation = $this->Recommendations->newEmptyEntity();
+        $this->Authorization->authorize($recommendation);
+
+
+        $ids = explode(',', $this->request->getData("ids"));
+        $newState = $this->request->getData("newState");
+        $event_id = $this->request->getData("event_id");
+        $given = $this->request->getData("given");
+        $note = $this->request->getData("note");
+        $close_reason = $this->request->getData("close_reason");
+
+
+        if (empty($ids) || empty($newState)) {
+            //TODO flash error
+        } else {
+            $this->Recommendations->getConnection()->begin();
+            $statusList = Recommendation::getStatuses();
+            $newStatus = "";
+
+            //get newStatus corresponding to newState
+            foreach ($statusList as $key => $value) {
+                foreach ($value as $state) {
+                    if ($state == $newState) {
+                        $newStatus = $key;
+                        break;
+                    }
+                }
+                if ($newStatus != "") {
+                    break;
+                }
+            }
+            $updateFields = ['state ' => $newState, 'status' => $newStatus];
+            if ($event_id) {
+                $updateFields[] = ['event_id' => $event_id];
+            }
+            if ($given) {
+                $updateFields[] = ['given' => new DateTime($given)];
+            }
+            if ($close_reason) {
+                $updateFields[] = ['close_reason' => $close_reason];
+            }
+
+            if (!$this->Recommendations->updateAll(
+                $updateFields,
+                ['id IN' => $ids]
+            )) {
+                $this->Recommendations->getConnection()->rollback();
+                if (!$this->request->getHeader('Turbo-Frame')) {
+                    $this->Flash->error(__('The recommendations could not be updated. Please, try again.'));
+                }
+                if ($this->request->getData("current_page")) {
+                    return $this->redirect($this->request->getData("current_page"));
+                }
+                return $this->redirect(['action' => 'table', $view, $status]);
+            }
+            if ($note) {
+                foreach ($ids as $id) {
+                    $newNote = $this->Recommendations->Notes->newEmptyEntity();
+                    $newNote->topic_id = $id;
+                    $newNote->subject = "Recommendation Bulk Updated";
+                    $newNote->topic_model = "Awards.Recommendations";
+                    $newNote->body = $note;
+                    $newNote->author_id = $this->request->getAttribute("identity")->id;
+                    if (!$this->Recommendations->Notes->save($newNote)) {
+                        $this->Recommendations->getConnection()->rollback();
+                        if (!$this->request->getHeader('Turbo-Frame')) {
+                            $this->Flash->error(__('The note could not be saved. Please, try again.'));
+                        }
+                        if ($this->request->getData("current_page")) {
+                            return $this->redirect($this->request->getData("current_page"));
+                        }
+                        return $this->redirect(['action' => 'view', $id]);
+                    }
+                }
+            }
+
+            $this->Recommendations->getConnection()->commit();
+        }
+
+        $this->redirect(['action' => 'table', $view, $status]);
+    }
     /**
      * View method
      *
@@ -620,15 +720,58 @@ class RecommendationsController extends AppController
         $rules = StaticHelpers::getAppSetting("Awards.RecommendationStateRules");
         $this->set(compact('rules', 'recommendation', 'branches', 'awards', 'eventList', 'awardsDomains', 'awardsLevels', 'statusList'));
     }
+
+    public function turboBulkEditForm()
+    {
+        $recommendation = $this->Recommendations->newEmptyEntity();
+
+        $this->Authorization->authorize($recommendation, 'view');
+        //$recommendation->domain_id = $recommendation->award->domain_id;
+        //$awardsDomains = $this->Recommendations->Awards->Domains->find('list', limit: 200)->all();
+        //$awardsLevels = $this->Recommendations->Awards->Levels->find('list', limit: 200)->all();
+        $branches = $this->Recommendations->Awards->Branches
+            ->find("list", keyPath: function ($entity) {
+                return $entity->id . '|' . ($entity->can_have_members == 1 ? "true" : "false");
+            })
+            ->where(["can_have_members" => true])
+            ->orderBy(["name" => "ASC"])->toArray();
+        //$awards = $this->Recommendations->Awards->find('all', limit: 200)->select(["id", "name", "specialties"])->where(['domain_id' => $recommendation->domain_id])->all();
+        $eventsData = $this->Recommendations->Events->find()
+            ->contain(['Branches' => function ($q) {
+                return $q->select(['id', 'name']);
+            }])
+            ->where(['OR' => ['closed' => false, 'closed IS' => null]])
+            ->select(['id', 'name', 'start_date', 'end_date', 'Branches.name'])
+            ->orderBy(['start_date' => 'ASC'])
+            ->all();
+        $statusList = Recommendation::getStatuses();
+        foreach ($statusList as $key => $value) {
+            $states = $value;
+            $statusList[$key] = [];
+            foreach ($states as $state) {
+                $statusList[$key][$state] = $state;
+            }
+        }
+        $eventList = [];
+        foreach ($eventsData as $event) {
+            $eventList[$event->id] = $event->name . " in " . $event->branch->name . " on " . $event->start_date->toDateString() . " - " . $event->end_date->toDateString();
+        }
+        $rules = StaticHelpers::getAppSetting("Awards.RecommendationStateRules");
+        $this->set(compact('rules', 'branches', 'awards', 'eventList', 'statusList'));
+    }
     #endregion
 
     protected function runTable($filterArray, $status, $view = "Default")
     {
         $recommendations = $this->getRecommendationQuery($filterArray);
+        $fullStatusList = Recommendation::getStatuses();
         if ($status == "All") {
             $statusList = Recommendation::getStatuses();
         } else {
             $statusList[$status] = Recommendation::getStatuses()[$status];
+        }
+        foreach ($fullStatusList as $key => $value) {
+            $fullStatusList[$key] = array_combine($value, $value);
         }
         foreach ($statusList as $key => $value) {
             $statusList[$key] = array_combine($value, $value);
@@ -689,7 +832,7 @@ class RecommendationsController extends AppController
         ];
         $action = $view;
         $recommendations = $this->paginate($recommendations);
-        $this->set(compact('recommendations', 'statusList', 'awards', 'domains', 'branches', 'view', 'status', 'action'));
+        $this->set(compact('recommendations', 'statusList', 'awards', 'domains', 'branches', 'view', 'status', 'action', 'fullStatusList'));
     }
 
     protected function runBoard($view, $pageConfig, $emptyRecommendation)
