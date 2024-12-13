@@ -18,25 +18,32 @@ class AwardsRecommendationBulkEditForm extends Controller {
         "stateRulesBlock",
     ];
     static values = {
-        publicProfileUrl: String,
-        awardListUrl: String,
         formUrl: String,
         turboFrameUrl: String,
         bulkIds: Array,
     };
-    static outlets = ['grid-btn'];
+    static outlets = ['outlet-btn'];
 
     setId(event) {
-        if (!event.detail.id) {
-            this.turboFrameTarget.setAttribute("src", this.turboFrameUrlValue);
-            this.element.setAttribute("action", this.formUrlValue);
-
+        let selected = event.detail.ids;
+        if (!selected) {
+            return;
         }
+        if (!selected.length) {
+            return;
+        }
+        this.bulkIdsValue = selected;
+        this.bulkIdsTarget.value = selected;
+        let actionUrl = this.element.getAttribute("action");
+        //repalce url
+        actionUrl = actionUrl.replace(/update-states/, "updateStates");
+        this.element.setAttribute("action", actionUrl);
+        return
     }
-    gridBtnOutletConnected(outlet, element) {
+    outletBtnOutletConnected(outlet, element) {
         outlet.addListener(this.setId.bind(this));
     }
-    gridBtnOutletDisconnected(outlet) {
+    outletBtnOutletDisconnected(outlet) {
         outlet.removeListener(this.setId.bind(this));
     }
 
@@ -45,40 +52,11 @@ class AwardsRecommendationBulkEditForm extends Controller {
         document.getElementById("recommendation_bulk_edit_close").click();
     }
 
-
-
-
-
-    loadScaMemberInfo(event) {
-    }
-
-    optionsForFetch() {
-        return {
-            headers: {
-                "X-Requested-With": "XMLHttpRequest",
-                "Accept": "application/json"
-            }
-        }
-    }
-
     stateTargetConnected() {
-        console.log("bulk status connected");
         this.setFieldRules();
-        const event = this.dispatch("stateTargetConnected", { detail: { content: 'hellow data' } })
-        if (event.selected.length) {
-            this.bulkIdsValue = event.selected;
-            this.bulkIdsTarget.value = event.selected;
-            let actionUrl = this.element.getAttribute("action");
-            //repalce url
-            actionUrl = actionUrl.replace(/update-states/, "updateStates");
-            this.element.setAttribute("action", actionUrl);
-        } else {
-            //TODO better handle feedback about empty form
-        }
     }
 
     setFieldRules() {
-        console.log("bulk setting field rules");
         var rulesstring = this.stateRulesBlockTarget.textContent;
         var rules = JSON.parse(rulesstring);
         this.planToGiveBlockTarget.style.display = "none";

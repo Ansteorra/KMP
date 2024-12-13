@@ -4,7 +4,6 @@ class SessionExtender extends Controller {
     static values = { url: String }
 
     urlValueChanged() {
-        console.log("urlValueChanged");
         if (this.timer) {
             clearTimeout(this.timer)
         }
@@ -16,8 +15,7 @@ class SessionExtender extends Controller {
                     return res.json()
                 })
                 .then(data => {
-                    console.log(data.response)
-                    extendSesh(url)
+                    me.urlValueChanged();
                 })
             //minutes * 60000 miliseconds per minute
         }, 25 * 60000)

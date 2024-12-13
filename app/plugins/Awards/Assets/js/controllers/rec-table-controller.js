@@ -4,56 +4,26 @@ import { Controller } from "@hotwired/stimulus"
 
 class AwardsRecommendationTable extends Controller {
     static targets = [
-        "input"
+        "rowCheckbox",
     ];
-    static values = {
-        publicProfileUrl: String,
-        awardListUrl: String,
-        formUrl: String,
-        turboFrameUrl: String,
-    };
-    static outlets = [];
 
+    static outlets = ["outlet-btn"];
 
-    optionsForFetch() {
-        return {
-            headers: {
-                "X-Requested-With": "XMLHttpRequest",
-                "Accept": "application/json"
+    checked(event) {
+
+        let idList = [];
+        this.outletBtnOutlet.btnDataValue = {};
+        this.rowCheckboxTargets.forEach(input => {
+            if (input.checked) {
+                idList.push(input.value);
             }
+        });
+        if (idList.length > 0) {
+            this.outletBtnOutlet.btnDataValue = { "ids": idList };
         }
     }
 
-    stateTargetConnected() {
-        console.log("rec table connected");
-        //this.setFieldRules();
-    }
-
-    getSelected(event) {
-
-        let selected = []
-        this.inputTargets.forEach(input => {
-            if (input.checked) {
-                selected.push(input.value)
-            }
-        });
-
-        event.selected = selected;
-        return selected
-    }
-
-    getClicked() {
-        this.dispatch("getClicked")
-        console.log('got clicked', this.inputTargets);
-        this.inputTargets.forEach(input => {
-            if (input.checked) {
-                console.log(input.value)
-            }
-        });
-    }
-
     connect() {
-        console.log(this.inputTargets)
     }
 
 }

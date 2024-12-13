@@ -832,7 +832,20 @@ class RecommendationsController extends AppController
         ];
         $action = $view;
         $recommendations = $this->paginate($recommendations);
-        $this->set(compact('recommendations', 'statusList', 'awards', 'domains', 'branches', 'view', 'status', 'action', 'fullStatusList'));
+        $rules = StaticHelpers::getAppSetting("Awards.RecommendationStateRules");
+        $eventsData = $this->Recommendations->Events->find()
+            ->contain(['Branches' => function ($q) {
+                return $q->select(['id', 'name']);
+            }])
+            ->where(['OR' => ['closed' => false, 'closed IS' => null]])
+            ->select(['id', 'name', 'start_date', 'end_date', 'Branches.name'])
+            ->orderBy(['start_date' => 'ASC'])
+            ->all();
+        $eventList = [];
+        foreach ($eventsData as $event) {
+            $eventList[$event->id] = $event->name . " in " . $event->branch->name . " on " . $event->start_date->toDateString() . " - " . $event->end_date->toDateString();
+        }
+        $this->set(compact('recommendations', 'statusList', 'awards', 'domains', 'branches', 'view', 'status', 'action', 'fullStatusList', 'rules', 'eventList'));
     }
 
     protected function runBoard($view, $pageConfig, $emptyRecommendation)

@@ -2,7 +2,7 @@
     echo $this->Form->create(null, [
         "url" => ["controller" => "Authorizations", "action" => "revoke"],
         'data-controller' => 'revoke-form',
-        'data-revoke-form-grid-btn-outlet' => '.revoke-btn',
+        'data-revoke-form-outlet-btn-outlet' => '.revoke-btn',
     ]);
     echo $this->Modal->create("Revoke Authorization", [
         "id" => "revokeModal",

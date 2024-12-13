@@ -3,7 +3,7 @@ echo $this->Form->create(null, [
     "url" => ["controller" => "Authorizations", "action" => "renew"],
     'data-controller' => 'activities-renew-auth',
     'data-activities-renew-auth-url-value' => $this->Url->build(['controller' => 'Activities', 'action' => 'ApproversList', "plugin" => "Activities"]),
-    'data-activities-renew-auth-grid-btn-outlet' => '.renew-btn',
+    'data-activities-renew-auth-outlet-btn-outlet' => '.renew-btn',
 ]);
 echo $this->Modal->create("Renew Authorization", [
     "id" => "renewalModal",
