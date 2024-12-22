@@ -24,10 +24,6 @@ $url = (empty($_SERVER['HTTPS']) ? 'http' : 'https') . "://$_SERVER[HTTP_HOST]" 
 
 <body <?= $this->fetch("tb_body_attrs") ?> data-controller="session-extender"
     data-session-extender-url-value="<?= $url ?>">
-
-    <script>
-    extendSesh(url)
-    </script>
     <header class="navbar navbar-dark sticky-top bg-dark flex-md-nowrap p-0 shadow">
         <div class="navbar-brand col-md-3 col-lg-2 me-0 px-3">
             <?= $this->Html->image($this->KMP->getAppSetting("KMP.BannerLogo"), [
@@ -52,9 +48,9 @@ $url = (empty($_SERVER['HTTPS']) ? 'http' : 'https') . "://$_SERVER[HTTP_HOST]" 
                     $css = $parts[1];
                 }
             ?>
-            <li class="nav-item text-nowrap mx-1">
-                <a class="btn btn-outline-secondary <?= $css ?>" href="<?= $url ?>"><?= $key ?></a>
-            </li>
+                <li class="nav-item text-nowrap mx-1">
+                    <a class="btn btn-outline-secondary <?= $css ?>" href="<?= $url ?>"><?= $key ?></a>
+                </li>
             <?php endforeach; ?>
             <li class="nav-item text-nowrap mx-1">
                 <?= $this->Html->link(

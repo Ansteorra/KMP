@@ -874,41 +874,6 @@ window.Controllers["filter-grid"] = FilterGrid;
 
 /***/ }),
 
-/***/ "./assets/js/controllers/grid-button-controller.js":
-/*!*********************************************************!*\
-  !*** ./assets/js/controllers/grid-button-controller.js ***!
-  \*********************************************************/
-/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
-__webpack_require__.r(__webpack_exports__);
-/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
-
-class GridButton extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
-  static values = {
-    rowData: Object
-  };
-  fireNotice(event) {
-    let rowData = this.rowDataValue;
-    this.dispatch("grid-button-clicked", {
-      detail: rowData
-    });
-  }
-  addListener(callback) {
-    this.element.addEventListener("grid-btn:grid-button-clicked", callback);
-  }
-  removeListener(callback) {
-    this.element.removeEventListener("grid-btn:grid-button-clicked", callback);
-  }
-}
-// add to window.Controllers with a name of the controller
-if (!window.Controllers) {
-  window.Controllers = {};
-}
-window.Controllers["grid-btn"] = GridButton;
-
-/***/ }),
-
 /***/ "./assets/js/controllers/guifier-controller.js":
 /*!*****************************************************!*\
   !*** ./assets/js/controllers/guifier-controller.js ***!
@@ -1702,6 +1667,56 @@ window.Controllers["nav-bar"] = NavBarController;
 
 /***/ }),
 
+/***/ "./assets/js/controllers/outlet-button-controller.js":
+/*!***********************************************************!*\
+  !*** ./assets/js/controllers/outlet-button-controller.js ***!
+  \***********************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+class OutletButton extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static values = {
+    btnData: Object,
+    requireData: Boolean
+  };
+  btnDataValueChanged() {
+    console.log(this.btnDataValue);
+    if (this.btnDataValue === null) {
+      this.btnDataValue = {};
+    }
+    if (this.requireDataValue && Object.keys(this.btnDataValue).length === 0) {
+      this.element.disabled = true;
+    } else {
+      this.element.disabled = false;
+    }
+  }
+  addBtnData(data) {
+    this.btnDataValue = data;
+  }
+  fireNotice(event) {
+    let btnData = this.btnDataValue;
+    this.dispatch("outlet-button-clicked", {
+      detail: btnData
+    });
+  }
+  addListener(callback) {
+    this.element.addEventListener("outlet-btn:outlet-button-clicked", callback);
+  }
+  removeListener(callback) {
+    this.element.removeEventListener("outlet-btn:outlet-button-clicked", callback);
+  }
+}
+// add to window.Controllers with a name of the controller
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["outlet-btn"] = OutletButton;
+
+/***/ }),
+
 /***/ "./assets/js/controllers/permission-add-role-controller.js":
 /*!*****************************************************************!*\
   !*** ./assets/js/controllers/permission-add-role-controller.js ***!
@@ -1747,7 +1762,7 @@ class RevokeForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Control
     url: String
   };
   static targets = ["submitBtn", "reason", "id"];
-  static outlets = ["grid-btn"];
+  static outlets = ["outlet-btn"];
   setId(event) {
     this.idTarget.value = event.detail.id;
   }
@@ -1851,7 +1866,6 @@ class SessionExtender extends Controller {
     url: String
   };
   urlValueChanged() {
-    console.log("urlValueChanged");
     if (this.timer) {
       clearTimeout(this.timer);
     }
@@ -1861,8 +1875,7 @@ class SessionExtender extends Controller {
       fetch(me.urlValue).then(res => {
         return res.json();
       }).then(data => {
-        console.log(data.response);
-        extendSesh(url);
+        me.urlValueChanged();
       });
       //minutes * 60000 miliseconds per minute
     }, 25 * 60000);
@@ -1890,7 +1903,7 @@ class ActivitiesApproveAndAssignAuthorization extends _hotwired_stimulus__WEBPAC
     url: String
   };
   static targets = ["approvers", "submitBtn", "id"];
-  static outlets = ["grid-btn"];
+  static outlets = ["outlet-btn"];
   setId(event) {
     this.idTarget.value = event.detail.id;
     this.getApprovers();
@@ -1964,7 +1977,7 @@ class ActivitiesRenewAuthorization extends _hotwired_stimulus__WEBPACK_IMPORTED_
     url: String
   };
   static targets = ["activity", "approvers", "submitBtn", "memberId", "id"];
-  static outlets = ["grid-btn"];
+  static outlets = ["outlet-btn"];
   setId(event) {
     this.idTarget.value = event.detail.id;
     this.activityTarget.value = event.detail.activity;
@@ -2392,6 +2405,100 @@ window.Controllers["awards-rec-add"] = AwardsRecommendationAddForm;
 
 /***/ }),
 
+/***/ "./plugins/Awards/Assets/js/controllers/rec-bulk-edit-controller.js":
+/*!**************************************************************************!*\
+  !*** ./plugins/Awards/Assets/js/controllers/rec-bulk-edit-controller.js ***!
+  \**************************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+class AwardsRecommendationBulkEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static targets = ["bulkIds", "events", "state", "planToGiveBlock", "planToGiveEvent", "givenBlock", "recId", "turboFrame", "givenDate", "closeReason", "closeReasonBlock", "stateRulesBlock"];
+  static values = {
+    formUrl: String,
+    turboFrameUrl: String,
+    bulkIds: Array
+  };
+  static outlets = ['outlet-btn'];
+  setId(event) {
+    let selected = event.detail.ids;
+    if (!selected) {
+      return;
+    }
+    if (!selected.length) {
+      return;
+    }
+    this.bulkIdsValue = selected;
+    this.bulkIdsTarget.value = selected;
+    let actionUrl = this.element.getAttribute("action");
+    //repalce url
+    actionUrl = actionUrl.replace(/update-states/, "updateStates");
+    this.element.setAttribute("action", actionUrl);
+    return;
+  }
+  outletBtnOutletConnected(outlet, element) {
+    outlet.addListener(this.setId.bind(this));
+  }
+  outletBtnOutletDisconnected(outlet) {
+    outlet.removeListener(this.setId.bind(this));
+  }
+  submit(event) {
+    document.getElementById("recommendation_bulk_edit_close").click();
+  }
+  stateTargetConnected() {
+    this.setFieldRules();
+  }
+  setFieldRules() {
+    var rulesstring = this.stateRulesBlockTarget.textContent;
+    var rules = JSON.parse(rulesstring);
+    this.planToGiveBlockTarget.style.display = "none";
+    this.givenBlockTarget.style.display = "none";
+    this.planToGiveEventTarget.required = false;
+    this.givenDateTarget.required = false;
+    this.closeReasonBlockTarget.style.display = "none";
+    this.closeReasonTarget.required = false;
+    var state = this.stateTarget.value;
+
+    //check status rules for the status
+    if (rules[state]) {
+      var statusRules = rules[state];
+      var controller = this;
+      if (statusRules["Visible"]) {
+        statusRules["Visible"].forEach(function (field) {
+          if (controller[field]) {
+            controller[field].style.display = "block";
+          }
+        });
+      }
+      if (statusRules["Disabled"]) {
+        statusRules["Disabled"].forEach(function (field) {
+          if (controller[field]) {
+            controller[field].disabled = true;
+          }
+        });
+      }
+      if (statusRules["Required"]) {
+        statusRules["Required"].forEach(function (field) {
+          if (controller[field]) {
+            controller[field].required = true;
+          }
+        });
+      }
+    }
+  }
+  connect() {}
+}
+// add to window.Controllers with a name of the controller
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["awards-rec-bulk-edit"] = AwardsRecommendationBulkEditForm;
+
+/***/ }),
+
 /***/ "./plugins/Awards/Assets/js/controllers/rec-edit-controller.js":
 /*!*********************************************************************!*\
   !*** ./plugins/Awards/Assets/js/controllers/rec-edit-controller.js ***!
@@ -2410,7 +2517,7 @@ class AwardsRecommendationEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_
     formUrl: String,
     turboFrameUrl: String
   };
-  static outlets = ['grid-btn'];
+  static outlets = ['outlet-btn'];
   setId(event) {
     this.turboFrameTarget.setAttribute("src", this.turboFrameUrlValue + "/" + event.detail.id);
     this.element.setAttribute("action", this.formUrlValue + "/" + event.detail.id);
@@ -2663,15 +2770,17 @@ class AwardsRecommendationQuickEditForm extends _hotwired_stimulus__WEBPACK_IMPO
     formUrl: String,
     turboFrameUrl: String
   };
-  static outlets = ['grid-btn'];
+  static outlets = ['outlet-btn'];
   setId(event) {
-    this.turboFrameTarget.setAttribute("src", this.turboFrameUrlValue + "/" + event.detail.id);
-    this.element.setAttribute("action", this.formUrlValue + "/" + event.detail.id);
+    if (event.detail.id) {
+      this.turboFrameTarget.setAttribute("src", this.turboFrameUrlValue + "/" + event.detail.id);
+      this.element.setAttribute("action", this.formUrlValue + "/" + event.detail.id);
+    }
   }
-  gridBtnOutletConnected(outlet, element) {
+  outletBtnOutletConnected(outlet, element) {
     outlet.addListener(this.setId.bind(this));
   }
-  gridBtnOutletDisconnected(outlet) {
+  outletBtnOutletDisconnected(outlet) {
     outlet.removeListener(this.setId.bind(this));
   }
   submit(event) {
@@ -2837,6 +2946,43 @@ window.Controllers["awards-rec-quick-edit"] = AwardsRecommendationQuickEditForm;
 
 /***/ }),
 
+/***/ "./plugins/Awards/Assets/js/controllers/rec-table-controller.js":
+/*!**********************************************************************!*\
+  !*** ./plugins/Awards/Assets/js/controllers/rec-table-controller.js ***!
+  \**********************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+class AwardsRecommendationTable extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static targets = ["rowCheckbox"];
+  static outlets = ["outlet-btn"];
+  checked(event) {
+    let idList = [];
+    this.outletBtnOutlet.btnDataValue = {};
+    this.rowCheckboxTargets.forEach(input => {
+      if (input.checked) {
+        idList.push(input.value);
+      }
+    });
+    if (idList.length > 0) {
+      this.outletBtnOutlet.btnDataValue = {
+        "ids": idList
+      };
+    }
+  }
+  connect() {}
+}
+// add to window.Controllers with a name of the controller
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["awards-rec-table"] = AwardsRecommendationTable;
+
+/***/ }),
+
 /***/ "./plugins/Awards/Assets/js/controllers/recommendation-kanban-controller.js":
 /*!**********************************************************************************!*\
   !*** ./plugins/Awards/Assets/js/controllers/recommendation-kanban-controller.js ***!
@@ -2961,7 +3107,7 @@ class OfficersAssignOfficer extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_
     url: String
   };
   static targets = ["assignee", "submitBtn", "deputyDescBlock", "deputyDesc", "office", "endDateBlock", "endDate"];
-  static outlets = ["grid-btn"];
+  static outlets = ["outlet-btn"];
   setOfficeQuestions() {
     this.deputyDescBlockTarget.classList.add('d-none');
     this.endDateBlockTarget.classList.add('d-none');
@@ -17498,7 +17644,7 @@ class bE {
 },
 /******/ function(__webpack_require__) { // webpackRuntimeModules
 /******/ var __webpack_exec__ = function(moduleId) { return __webpack_require__(__webpack_require__.s = moduleId); }
-/******/ __webpack_require__.O(0, ["js/core","css/app","css/cover","css/signin","css/dashboard"], function() { return __webpack_exec__("./assets/js/controllers/app-setting-form-controller.js"), __webpack_exec__("./assets/js/controllers/auto-complete-controller.js"), __webpack_exec__("./assets/js/controllers/branch-links-controller.js"), __webpack_exec__("./assets/js/controllers/delayed-forward-controller.js"), __webpack_exec__("./assets/js/controllers/detail-tabs-controller.js"), __webpack_exec__("./assets/js/controllers/filter-grid-controller.js"), __webpack_exec__("./assets/js/controllers/grid-button-controller.js"), __webpack_exec__("./assets/js/controllers/guifier-controller.js"), __webpack_exec__("./assets/js/controllers/image-preview-controller.js"), __webpack_exec__("./assets/js/controllers/kanban-controller.js"), __webpack_exec__("./assets/js/controllers/member-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-pwa-controller.js"), __webpack_exec__("./assets/js/controllers/member-unique-email-controller.js"), __webpack_exec__("./assets/js/controllers/member-verify-form-controller.js"), __webpack_exec__("./assets/js/controllers/modal-opener-controller.js"), __webpack_exec__("./assets/js/controllers/nav-bar-controller.js"), __webpack_exec__("./assets/js/controllers/permission-add-role-controller.js"), __webpack_exec__("./assets/js/controllers/revoke-form-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-member-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-permission-controller.js"), __webpack_exec__("./assets/js/controllers/session-extender-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/renew-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/request-auth-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/award-form-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-add-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-quick-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/recommendation-kanban-controller.js"), __webpack_exec__("./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/assign-officer-controller.js"), __webpack_exec__("./assets/css/app.css"), __webpack_exec__("./assets/css/signin.css"), __webpack_exec__("./assets/css/cover.css"), __webpack_exec__("./assets/css/dashboard.css"); });
+/******/ __webpack_require__.O(0, ["js/core","css/app","css/cover","css/signin","css/dashboard"], function() { return __webpack_exec__("./assets/js/controllers/app-setting-form-controller.js"), __webpack_exec__("./assets/js/controllers/auto-complete-controller.js"), __webpack_exec__("./assets/js/controllers/branch-links-controller.js"), __webpack_exec__("./assets/js/controllers/delayed-forward-controller.js"), __webpack_exec__("./assets/js/controllers/detail-tabs-controller.js"), __webpack_exec__("./assets/js/controllers/filter-grid-controller.js"), __webpack_exec__("./assets/js/controllers/guifier-controller.js"), __webpack_exec__("./assets/js/controllers/image-preview-controller.js"), __webpack_exec__("./assets/js/controllers/kanban-controller.js"), __webpack_exec__("./assets/js/controllers/member-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-pwa-controller.js"), __webpack_exec__("./assets/js/controllers/member-unique-email-controller.js"), __webpack_exec__("./assets/js/controllers/member-verify-form-controller.js"), __webpack_exec__("./assets/js/controllers/modal-opener-controller.js"), __webpack_exec__("./assets/js/controllers/nav-bar-controller.js"), __webpack_exec__("./assets/js/controllers/outlet-button-controller.js"), __webpack_exec__("./assets/js/controllers/permission-add-role-controller.js"), __webpack_exec__("./assets/js/controllers/revoke-form-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-member-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-permission-controller.js"), __webpack_exec__("./assets/js/controllers/session-extender-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/renew-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/request-auth-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/award-form-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-add-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-bulk-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-quick-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-table-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/recommendation-kanban-controller.js"), __webpack_exec__("./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/assign-officer-controller.js"), __webpack_exec__("./assets/css/app.css"), __webpack_exec__("./assets/css/signin.css"), __webpack_exec__("./assets/css/cover.css"), __webpack_exec__("./assets/css/dashboard.css"); });
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);

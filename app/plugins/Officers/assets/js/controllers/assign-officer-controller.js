@@ -5,7 +5,7 @@ class OfficersAssignOfficer extends Controller {
         url: String,
     }
     static targets = ["assignee", "submitBtn", "deputyDescBlock", "deputyDesc", "office", "endDateBlock", "endDate"]
-    static outlets = ["grid-btn"]
+    static outlets = ["outlet-btn"]
 
     setOfficeQuestions() {
         this.deputyDescBlockTarget.classList.add('d-none');

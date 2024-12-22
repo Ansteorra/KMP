@@ -15,9 +15,9 @@ $user = $this->request->getAttribute("identity");
             "class" => "btn btn-danger revoke-btn",
             "data-bs-toggle" => "modal",
             "data-bs-target" => "#releaseModal",
-            "data-controller" => "grid-btn",
-            "data-action" => "click->grid-btn#fireNotice",
-            "data-grid-btn-row-data-value" => '{ "id":{{id}} }',
+            "data-controller" => "outlet-btn",
+            "data-action" => "click->outlet-btn#fireNotice",
+            "data-outlet-btn-btn-data-value" => '{ "id":{{id}} }',
         ],
     ];
     $currentAndUpcomingTemplate = [

@@ -6,7 +6,7 @@ class RevokeForm extends Controller {
     }
     static targets = ["submitBtn", "reason", "id"]
 
-    static outlets = ["grid-btn"]
+    static outlets = ["outlet-btn"]
 
     setId(event) {
         this.idTarget.value = event.detail.id;

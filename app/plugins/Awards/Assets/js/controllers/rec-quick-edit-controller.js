@@ -26,16 +26,18 @@ class AwardsRecommendationQuickEditForm extends Controller {
         formUrl: String,
         turboFrameUrl: String,
     };
-    static outlets = ['grid-btn'];
+    static outlets = ['outlet-btn'];
 
     setId(event) {
-        this.turboFrameTarget.setAttribute("src", this.turboFrameUrlValue + "/" + event.detail.id);
-        this.element.setAttribute("action", this.formUrlValue + "/" + event.detail.id);
+        if (event.detail.id) {
+            this.turboFrameTarget.setAttribute("src", this.turboFrameUrlValue + "/" + event.detail.id);
+            this.element.setAttribute("action", this.formUrlValue + "/" + event.detail.id);
+        }
     }
-    gridBtnOutletConnected(outlet, element) {
+    outletBtnOutletConnected(outlet, element) {
         outlet.addListener(this.setId.bind(this));
     }
-    gridBtnOutletDisconnected(outlet) {
+    outletBtnOutletDisconnected(outlet) {
         outlet.removeListener(this.setId.bind(this));
     }
 

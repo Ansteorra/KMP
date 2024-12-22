@@ -23,9 +23,9 @@ if (!empty($currentOfficers) || !empty($upcomingOfficers) || !empty($previousOff
             "class" => "btn btn-danger",
             "data-bs-toggle" => "modal",
             "data-bs-target" => "#releaseModal",
-            "data-controller" => "grid-btn",
-            "data-action" => "click->grid-btn#fireNotice",
-            "data-grid-btn-row-data-value" => '{ "id":{{id}} }',
+            "data-controller" => "outlet-btn",
+            "data-action" => "click->outlet-btn#fireNotice",
+            "data-outlet-btn-btn-data-value" => '{ "id":{{id}} }',
         ],
     ];
     $currentTemplate = [
@@ -34,7 +34,8 @@ if (!empty($currentOfficers) || !empty($upcomingOfficers) || !empty($previousOff
         "Start Date" => "start_on",
         "End Date" => "expires_on",
         "Actions" => [
-            $linkTemplate, $releaseLinkTemplate
+            $linkTemplate,
+            $releaseLinkTemplate
         ],
     ];
     $previousTemplate = [
