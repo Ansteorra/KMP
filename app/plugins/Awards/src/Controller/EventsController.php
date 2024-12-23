@@ -34,7 +34,7 @@ class EventsController extends AppController
                 }
             ])
             ->select(['id', 'name', 'start_date', 'end_date', 'branch_id', 'Branches.name']);
-        $events = $this->paginate($query);
+        $events = $this->paginate($query, ['order' => ['start_date' => 'ASC']]);
 
         $this->set(compact('events'));
     }

@@ -19,27 +19,27 @@ $this->KMP->endBlock(); ?>
         <tr>
             <th scope="col"><?= h("Name") ?></th>
             <th scope="col"><?= h("Branch") ?></th>
-            <th scope="col"><?= h("Start Date") ?></th>
-            <th scope="col"><?= h("End Date") ?></th>
+            <th scope="col"><?= $this->Paginator->sort('start_date') ?></th>
+            <th scope="col"><?= $this->Paginator->sort('end_date') ?></th>
             <th scope="col" class="actions"><?= __("Actions") ?></th>
         </tr>
     </thead>
     <tbody>
         <?php foreach ($events as $event) : ?>
-            <tr>
-                <td><?= h($event->name) ?></td>
-                <td><?= $event->hasValue('branch') ? $this->Html->link($event->branch->name, ['plugin' => null, 'controller' => 'Branches', 'action' => 'view', $event->branch->id]) : '' ?>
-                </td>
-                <td><?= h(($event->start_date ? $event->start_date->toDateString() : "")) ?></td>
-                <td><?= h(($event->end_date ? $event->end_date->toDateString() : "")) ?></td>
-                <td class="actions">
-                    <?= $this->Html->link(
+        <tr>
+            <td><?= h($event->name) ?></td>
+            <td><?= $event->hasValue('branch') ? $this->Html->link($event->branch->name, ['plugin' => null, 'controller' => 'Branches', 'action' => 'view', $event->branch->id]) : '' ?>
+            </td>
+            <td><?= h(($event->start_date ? $event->start_date->toDateString() : "")) ?></td>
+            <td><?= h(($event->end_date ? $event->end_date->toDateString() : "")) ?></td>
+            <td class="actions">
+                <?= $this->Html->link(
                         __("View"),
                         ["action" => "view", $event->id],
                         ["title" => __("View"), "class" => "btn btn-secondary"],
                     ) ?>
-                </td>
-            </tr>
+            </td>
+        </tr>
         <?php endforeach; ?>
     </tbody>
 </table>
