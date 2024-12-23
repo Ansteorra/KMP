@@ -376,6 +376,7 @@ class RecommendationsController extends AppController
             }])
             ->where(["start_date >" => DateTime::now(), 'OR' => ['closed' => false, 'closed IS' => null]])
             ->select(['id', 'name', 'start_date', 'end_date', 'Branches.name'])
+            ->orderBy(['start_date' => 'ASC'])
             ->all();
         $events = [];
         foreach ($eventsData as $event) {
@@ -458,6 +459,7 @@ class RecommendationsController extends AppController
             }])
             ->where(["start_date >" => DateTime::now()])
             ->select(['id', 'name', 'start_date', 'end_date', 'Branches.name'])
+            ->orderBy(['start_date' => 'ASC'])
             ->all();
         $events = [];
         foreach ($eventsData as $event) {

@@ -18,6 +18,36 @@ class Warrants extends AbstractMigration
      */
     public function up()
     {
+        $this->table('warrant_periods')
+            ->addColumn("id", "integer", [
+                "autoIncrement" => true,
+                "default" => null,
+                "limit" => 11,
+                "null" => false,
+            ])
+            ->addColumn('start_date',  "datetime", [
+                "default" => null,
+                "limit" => null,
+                "null" => false,
+            ])
+            ->addColumn('end_date',  "datetime", [
+                "default" => null,
+                "limit" => null,
+                "null" => false,
+            ])
+            ->addColumn('created',  "datetime", [
+                "default" => null,
+                "limit" => null,
+                "null" => false,
+            ])
+            ->addColumn("created_by", "integer", [
+                "default" => null,
+                "limit" => null,
+                "null" => true,
+            ])
+            ->addPrimaryKey(["id"])
+            ->create();
+
         $this->table("warrants")
             ->addColumn("id", "integer", [
                 "autoIncrement" => true,
@@ -100,7 +130,6 @@ class Warrants extends AbstractMigration
                 "limit" => null,
                 "null" => true,
             ])
-
             ->addPrimaryKey(["id"])
             ->addIndex(["warrant_for_id"])
             ->addIndex(["warrant_for_model"])
@@ -275,6 +304,7 @@ class Warrants extends AbstractMigration
     }
     public function down()
     {
+        $this->table("warrant_periods")->drop()->save();
         $this->table("warrants")->drop()->save();
         $this->table("warrant_approvals")->drop()->save();
         $this->table("warrants_approval_sets")->drop()->save();
