@@ -58,5 +58,22 @@ class InitMembersSeed extends AbstractSeed
 
         $table = $this->table('members');
         $table->insert($data)->save();
+
+        //lets make a note for the admin account
+        $data = [
+            [
+                'id' => 1,
+                'author_id' => 1,
+                'created' => DateTime::now(),
+                'topic_model' => 'Members',
+                'topic_id' => 1,
+                'subject' => 'Admin Account',
+                'body' => 'This is the admin account',
+                'private' => 0,
+            ]
+        ];
+
+        $table = $this->table('notes');
+        $table->insert($data)->save();
     }
 }

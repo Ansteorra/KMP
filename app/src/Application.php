@@ -190,7 +190,7 @@ class Application extends BaseApplication implements
         $container->add(
             WarrantManagerInterface::class,
             DefaultWarrantManager::class,
-        );
+        )->addArgument(ActiveWindowManagerInterface::class);
     }
 
     /**

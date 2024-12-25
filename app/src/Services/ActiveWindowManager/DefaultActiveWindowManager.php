@@ -50,7 +50,7 @@ class DefaultActiveWindowManager implements ActiveWindowManagerInterface
                 }
             }
             if ($entityType == "MemberRoles") {
-                $peQuery->andWhere(['granting_model' => "Direct Grant"]);
+                $peQuery->andWhere(['entity_type' => "Direct Grant"]);
             }
             $previousEntities = $peQuery->all();
             foreach ($previousEntities as $pe) {
@@ -70,8 +70,8 @@ class DefaultActiveWindowManager implements ActiveWindowManagerInterface
             $memberRole->member_id = $entity->member_id;
             $memberRole->role_id = $grantRoleId;
             $memberRole->start($startOn, $expiresOn, $termYears); //TODO: this should be the start of the entity, not the start of the role
-            $memberRole->granting_model = $entityType;
-            $memberRole->granting_id = $entityId;
+            $memberRole->entity_type = $entityType;
+            $memberRole->entity_id = $entityId;
             $memberRole->approver_id = $memberId;
             if (!$memberRoleTable->save($memberRole)) {
                 return new ServiceResult(false, "Failed to Assign Role from Member");

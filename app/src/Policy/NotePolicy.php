@@ -21,7 +21,7 @@ class NotePolicy
      */
     public function canAdd(IdentityInterface $user, Note $note)
     {
-        return $user->checkCan("addNote", $note->topic_model);
+        return $user->checkCan("addNote", $note->entity_type);
     }
 
     /**

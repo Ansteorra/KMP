@@ -1268,7 +1268,7 @@ class MembersController extends AppController
                 "expires_on",
                 "role_id",
                 "approver_id",
-                "granting_model"
+                "entity_type"
             ])
             ->contain([
                 "Roles" => function (SelectQuery $q) {

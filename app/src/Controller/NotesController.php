@@ -29,8 +29,8 @@ class NotesController extends AppController
                 ->getIdentity()
                 ->getIdentifier();
             //get the table based on the name "Model"
-            $modelTbl = TableRegistry::getTableLocator()->get($note->topic_model);
-            $model = $modelTbl->get($note->topic_id);
+            $modelTbl = TableRegistry::getTableLocator()->get($note->entity_type);
+            $model = $modelTbl->get($note->entity_id);
             if (!$model) {
                 throw new \Cake\Http\Exception\NotFoundException();
             }

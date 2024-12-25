@@ -2,8 +2,10 @@
 
 namespace Officers\Services;
 
+use App\Model\Entity\Warrant;
 use Cake\I18n\DateTime;
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
+use App\Services\WarrantManager\WarrantManagerInterface;
 use Cake\ORM\TableRegistry;
 use Officers\Model\Entity\Officer;
 use App\Services\ServiceResult;
@@ -11,9 +13,10 @@ use App\Services\ServiceResult;
 
 class DefaultOfficerManager implements OfficerManagerInterface
 {
-    public function __construct(ActiveWindowManagerInterface $activeWindowManager)
+    public function __construct(ActiveWindowManagerInterface $activeWindowManager, WarrantManagerInterface $warrantManager)
     {
         $this->activeWindowManager = $activeWindowManager;
+        $this->warrantManager = $warrantManager;
     }
     /**
      * Assigns a member to an office - Make sure to create a transaction before calling this service
@@ -43,6 +46,12 @@ class DefaultOfficerManager implements OfficerManagerInterface
         $officeTable = TableRegistry::getTableLocator()->get('Officers.Offices');
         //get the office
         $office = $officeTable->get($officeId);
+        if ($office->requires_warrant) {
+            $member = TableRegistry::getTableLocator()->get('Members')->get($memberId);
+            if ($member->wrrantable == null) {
+                return new ServiceResult(false, "Member is not warrantable");
+            }
+        }
 
         if ($endOn === null) {
             $endOn = $startOn->addYears($office->term_length);
@@ -103,6 +112,15 @@ class DefaultOfficerManager implements OfficerManagerInterface
         $awResult = $this->activeWindowManager->start('Officers.Officers', $newOfficer->id, $approverId, $startOn, $endOn, $office->term_length, $office->grants_role_id, $office->only_one_per_branch);
         if (!$awResult->success) {
             return new ServiceResult(false, $awResult->reason);
+        }
+        if ($office->requires_warrant) {
+            $warrantRequest = [
+                'entityType' => 'Officers.Officers',
+                'entityId' =>  $newOfficer->id,
+                'member_id' => $memberId,
+                'start_on' => $startOn,
+                'end_on' => $endOn,
+            ];
         }
         return new ServiceResult(true);
     }

@@ -6,9 +6,15 @@ use App\Services\WarrantManager\WarrantManagerInterface;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
 use App\Services\ServiceResult;
+use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 
 class DefaultWarrantManager implements WarrantManagerInterface
 {
+    public function __construct(ActiveWindowManagerInterface $activeWindowManager)
+    {
+        $this->activeWindowManager = $activeWindowManager;
+    }
+
     public function requestWarrant($warrantRequest): ServiceResult
     {
         return new ServiceResult(true);
