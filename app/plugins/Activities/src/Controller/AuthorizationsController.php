@@ -11,7 +11,6 @@ namespace Activities\Controller;
  */
 
 use Activities\Services\AuthorizationManagerInterface;
-use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 use Cake\ORM\Query\SelectQuery;
 use Activities\Model\Entity\Authorization;
 

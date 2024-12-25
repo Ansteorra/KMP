@@ -14,7 +14,7 @@ interface AuthorizationManagerInterface
      * @param int $authorizationApprovalId
      * @param int $approverId
      * @param int|null $nextApproverId
-     * @return bool
+     * @return ServiceResult
      */
     public function approve(
         int $authorizationApprovalId,
@@ -28,7 +28,7 @@ interface AuthorizationManagerInterface
      * @param int $authorizationApprovalId
      * @param int $approverId
      * @param string $denyReason
-     * @return bool
+     * @return ServiceResult
      */
     public function deny(
         int $authorizationApprovalId,
@@ -43,7 +43,7 @@ interface AuthorizationManagerInterface
      * @param int $activityId
      * @param int $approverId
      * @param bool $isRenewal
-     * @return bool
+     * @return ServiceResult
      */
     public function request(
         int $requesterId,
@@ -59,7 +59,7 @@ interface AuthorizationManagerInterface
      * @param int $authorizationId
      * @param int $revokerId
      * @param string $revokedReason
-     * @return bool
+     * @return ServiceResult
      */
     public function revoke(
         int $authorizationId,

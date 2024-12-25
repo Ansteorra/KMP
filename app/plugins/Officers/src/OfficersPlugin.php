@@ -18,6 +18,7 @@ use Officers\Services\DefaultOfficerManager;
 use Officers\Services\OfficerManagerInterface;
 use App\KMP\StaticHelpers;
 use Cake\I18n\DateTime;
+use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 
 /**
  * Plugin for Officers
@@ -122,6 +123,6 @@ class OfficersPlugin extends BasePlugin implements KMPPluginInterface
         $container->add(
             OfficerManagerInterface::class,
             DefaultOfficerManager::class,
-        );
+        )->addArgument(ActiveWindowManagerInterface::class);
     }
 }

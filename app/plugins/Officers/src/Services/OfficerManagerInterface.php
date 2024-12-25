@@ -4,6 +4,7 @@ namespace Officers\Services;
 
 use Cake\I18n\DateTime;
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
+use App\Services\ServiceResult;
 
 interface OfficerManagerInterface
 {
@@ -17,10 +18,9 @@ interface OfficerManagerInterface
      * @param DateTime $startOn
      * @param string $deputyDescription
      * @param int $approverId
-     * @return bool
+     * @return ServiceResult
      */
     public function assign(
-        ActiveWindowManagerInterface $activeWindowManager,
         int $officeId,
         int $memberId,
         int $branchId,
@@ -28,7 +28,7 @@ interface OfficerManagerInterface
         ?DateTime $endOn,
         ?string $deputyDescription,
         int $approverId,
-    ): bool;
+    ): ServiceResult;
 
 
     /**
@@ -39,13 +39,12 @@ interface OfficerManagerInterface
      * @param int $revokerId
      * @param DateTime $revokedOn
      * @param string $revokedReason
-     * @return bool
+     * @return ServiceResult
      */
     public function release(
-        ActiveWindowManagerInterface $activeWindowManager,
         int $officerId,
         int $revokerId,
         DateTime $revokedOn,
         ?string $revokedReason
-    ): bool;
+    ): ServiceResult;
 }

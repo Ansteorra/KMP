@@ -6,9 +6,15 @@ use Cake\I18n\DateTime;
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 use Cake\ORM\TableRegistry;
 use Officers\Model\Entity\Officer;
+use App\Services\ServiceResult;
+
 
 class DefaultOfficerManager implements OfficerManagerInterface
 {
+    public function __construct(ActiveWindowManagerInterface $activeWindowManager)
+    {
+        $this->activeWindowManager = $activeWindowManager;
+    }
     /**
      * Assigns a member to an office - Make sure to create a transaction before calling this service
      *
@@ -19,10 +25,9 @@ class DefaultOfficerManager implements OfficerManagerInterface
      * @param DateTime $startOn
      * @param string $deputyDescription
      * @param int $approverId
-     * @return bool
+     * @return ServiceResult
      */
     public function assign(
-        ActiveWindowManagerInterface $activeWindowManager,
         int $officeId,
         int $memberId,
         int $branchId,
@@ -30,7 +35,7 @@ class DefaultOfficerManager implements OfficerManagerInterface
         ?DateTime $endOn,
         ?string $deputyDescription,
         int $approverId,
-    ): bool {
+    ): ServiceResult {
         //get officer table
         $officerTable = TableRegistry::getTableLocator()->get('Officers.Officers');
         $newOfficer = $officerTable->newEmptyEntity();
@@ -93,12 +98,13 @@ class DefaultOfficerManager implements OfficerManagerInterface
             }
         }
         if (!$officerTable->save($newOfficer)) {
-            return false;
+            return new ServiceResult(false, "Failed to save officer");
         }
-        if (!$activeWindowManager->start('Officers.Officers', $newOfficer->id, $approverId, $startOn, $endOn, $office->term_length, $office->grants_role_id, $office->only_one_per_branch)) {
-            return false;
+        $awResult = $this->activeWindowManager->start('Officers.Officers', $newOfficer->id, $approverId, $startOn, $endOn, $office->term_length, $office->grants_role_id, $office->only_one_per_branch);
+        if (!$awResult->success) {
+            return new ServiceResult(false, $awResult->reason);
         }
-        return true;
+        return new ServiceResult(true);
     }
 
     /**
@@ -109,18 +115,18 @@ class DefaultOfficerManager implements OfficerManagerInterface
      * @param int $revokerId
      * @param DateTime $revokedOn
      * @param string $revokedReason
-     * @return bool
+     * @return ServiceResult
      */
     public function release(
-        ActiveWindowManagerInterface $activeWindowManager,
         int $officerId,
         int $revokerId,
         DateTime $revokedOn,
         ?string $revokedReason
-    ): bool {
-        if (!$activeWindowManager->stop('Officers.Officers', $officerId, $revokerId, 'released', $revokedReason, $revokedOn)) {
-            return false;
+    ): ServiceResult {
+        $awResult = $this->activeWindowManager->stop('Officers.Officers', $officerId, $revokerId, 'released', $revokedReason, $revokedOn);
+        if (!$awResult->success) {
+            return new ServiceResult(false, $awResult->reason);
         }
-        return true;
+        return new ServiceResult(true);
     }
 }
