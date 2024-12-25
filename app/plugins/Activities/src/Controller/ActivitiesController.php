@@ -253,6 +253,7 @@ class ActivitiesController extends AppController
             ->distinct()
             ->all()
             ->toArray();
+
         $responseData = [];
         foreach ($result as $member) {
             $responseData[] = [

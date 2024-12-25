@@ -5,13 +5,12 @@ namespace App\Services\ActiveWindowManager;
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
+use App\Services\ServiceResult;
 
 class DefaultActiveWindowManager implements ActiveWindowManagerInterface
 {
 
-    public function __construct()
-    {
-    }
+    public function __construct() {}
 
     /**
      * Starts an active window for an entity - Make sure to create a transaction before calling this service
@@ -34,7 +33,7 @@ class DefaultActiveWindowManager implements ActiveWindowManagerInterface
         ?int $termYears = null,
         ?int $grantRoleId = null,
         bool $closeExisting = true,
-    ): bool {
+    ): ServiceResult {
         $entityTable = TableRegistry::getTableLocator()->get($entityType);
         $entity = $entityTable->get($entityId);
 
@@ -56,13 +55,13 @@ class DefaultActiveWindowManager implements ActiveWindowManagerInterface
             $previousEntities = $peQuery->all();
             foreach ($previousEntities as $pe) {
                 if (!$this->stop($entityType, $pe->id, $memberId, "replaced", "", $startOn)) {
-                    return false;
+                    return new ServiceResult(false, "Failed to expire current $entityType");
                 }
             }
         }
         $entity->start($startOn, $expiresOn, $termYears);
         if (!$entityTable->save($entity)) {
-            return false;
+            return new ServiceResult(false, "Failed to save $entityType");
         }
         // add the member_role if the activity has a grants_role_id
         if ($grantRoleId != null) {
@@ -75,14 +74,14 @@ class DefaultActiveWindowManager implements ActiveWindowManagerInterface
             $memberRole->granting_id = $entityId;
             $memberRole->approver_id = $memberId;
             if (!$memberRoleTable->save($memberRole)) {
-                return false;
+                return new ServiceResult(false, "Failed to Assign Role from Member");
             }
             $entity->granted_member_role_id = $memberRole->id;
             if (!$entityTable->save($entity)) {
-                return false;
+                return new ServiceResult(false, "Failed to save $entityType");
             }
         }
-        return true;
+        return new ServiceResult(true);
     }
 
     /**
@@ -103,7 +102,7 @@ class DefaultActiveWindowManager implements ActiveWindowManagerInterface
         string $status,
         string $reason,
         DateTime $expiresOn,
-    ): bool {
+    ): ServiceResult {
         $entityTable = TableRegistry::getTableLocator()->get($entityType);
         $entity = $entityTable->get($entityId);
         $entity->expire($expiresOn);
@@ -116,12 +115,12 @@ class DefaultActiveWindowManager implements ActiveWindowManagerInterface
             $memberRole->expire($expiresOn);
             $memberRole->revoker_id = $memberId;
             if (!$memberRoleTable->save($memberRole)) {
-                return false;
+                return new ServiceResult(false, "Failed to Remove Role from Member");
             }
         }
         if (!$entityTable->save($entity)) {
-            return false;
+            return new ServiceResult(false, "Failed to save $entityType");
         }
-        return true;
+        return new ServiceResult(true);
     }
 }

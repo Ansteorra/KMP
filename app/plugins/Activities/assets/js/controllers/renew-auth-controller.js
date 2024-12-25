@@ -14,10 +14,10 @@ class ActivitiesRenewAuthorization extends Controller {
         this.activityTarget.value = event.detail.activity;
         this.getApprovers();
     }
-    gridBtnOutletConnected(outlet, element) {
+    outletBtnOutletConnected(outlet, element) {
         outlet.addListener(this.setId.bind(this));
     }
-    gridBtnOutletDisconnected(outlet) {
+    outletBtnOutletDisconnected(outlet) {
         outlet.removeListener(this.setId.bind(this));
     }
 

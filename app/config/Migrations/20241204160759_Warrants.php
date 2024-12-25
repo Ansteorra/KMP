@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use Migrations\AbstractMigration;
 
-require_once __DIR__ . '/../Seeds/DevLoadWarrantsSeed.php';
+require_once __DIR__ . '/../Seeds/InitWarrantsSeed.php';
 
 class Warrants extends AbstractMigration
 {
@@ -25,12 +25,12 @@ class Warrants extends AbstractMigration
                 "limit" => 11,
                 "null" => false,
             ])
-            ->addColumn('start_date',  "datetime", [
+            ->addColumn('start_date',  "date", [
                 "default" => null,
                 "limit" => null,
                 "null" => false,
             ])
-            ->addColumn('end_date',  "datetime", [
+            ->addColumn('end_date',  "date", [
                 "default" => null,
                 "limit" => null,
                 "null" => false,
@@ -296,7 +296,7 @@ class Warrants extends AbstractMigration
             )
             ->update();
 
-        (new DevLoadWarrantsSeed())
+        (new InitWarrantsSeed())
             ->setAdapter($this->getAdapter())
             ->setInput($this->getInput())
             ->setOutput($this->getOutput())

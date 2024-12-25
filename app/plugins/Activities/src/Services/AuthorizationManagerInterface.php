@@ -3,6 +3,7 @@
 namespace Activities\Services;
 
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
+use App\Services\ServiceResult;
 
 interface AuthorizationManagerInterface
 {
@@ -16,11 +17,10 @@ interface AuthorizationManagerInterface
      * @return bool
      */
     public function approve(
-        ActiveWindowManagerInterface $activeWindowManager,
         int $authorizationApprovalId,
         int $approverId,
         int $nextApproverId = null
-    ): bool;
+    ): ServiceResult;
 
     /**
      * Denies an authorization approval - Make sure to create a transaction before calling this service
@@ -34,7 +34,7 @@ interface AuthorizationManagerInterface
         int $authorizationApprovalId,
         int $approverId,
         string $denyReason,
-    ): bool;
+    ): ServiceResult;
 
     /**
      * Requests an authorization - Make sure to create a transaction before calling this service
@@ -50,7 +50,7 @@ interface AuthorizationManagerInterface
         int $activityId,
         int $approverId,
         bool $isRenewal,
-    ): bool;
+    ): ServiceResult;
 
     /**
      * Revokes an authorization - Make sure to create a transaction before calling this service
@@ -62,9 +62,8 @@ interface AuthorizationManagerInterface
      * @return bool
      */
     public function revoke(
-        ActiveWindowManagerInterface $activeWindowManager,
         int $authorizationId,
         int $revokerId,
         string $revokedReason
-    ): bool;
+    ): ServiceResult;
 }

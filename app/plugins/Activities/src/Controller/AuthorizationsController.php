@@ -18,7 +18,7 @@ use Activities\Model\Entity\Authorization;
 class AuthorizationsController extends AppController
 {
 
-    public function revoke(ActiveWindowManagerInterface $awService, AuthorizationManagerInterface $maService, $id = null)
+    public function revoke(AuthorizationManagerInterface $maService, $id = null)
     {
         $this->request->allowMethod(["post"]);
         if ($id == null) {
@@ -33,9 +33,10 @@ class AuthorizationsController extends AppController
 
         $revokedReason = $this->request->getData("revoked_reason");
         $revokerId = $this->Authentication->getIdentity()->getIdentifier();
-        if (!$maService->revoke($awService, $id, $revokerId, $revokedReason)) {
+        $maResult = $maService->revoke($id, $revokerId, $revokedReason);
+        if (!$maResult->success) {
             $this->Flash->error(
-                __("The authorization revocation could not be processed"),
+                __($maResult->reason),
             );
 
             return $this->redirect($this->referer());
@@ -59,20 +60,19 @@ class AuthorizationsController extends AppController
         $activity_id = $this->request->getData("activity");
         $approverId = $this->request->getData("approver_id");
         $is_renewal = false;
-        if (
-            $maService->request(
-                (int) $memberId,
-                (int) $activity_id,
-                (int) $approverId,
-                (bool) $is_renewal,
-            )
-        ) {
+        $maResult = $maService->request(
+            (int) $memberId,
+            (int) $activity_id,
+            (int) $approverId,
+            (bool) $is_renewal,
+        );
+        if ($maResult->success) {
             $this->Flash->success(__("The Authorization has been requested."));
 
             return $this->redirect($this->referer());
         }
         $this->Flash->error(
-            __("The Authorization could not be requested. Please, try again."),
+            __($maResult->reason),
         );
 
         return $this->redirect($this->referer());
@@ -93,20 +93,21 @@ class AuthorizationsController extends AppController
         $activity_id = $this->request->getData("activity");
         $approverId = $this->request->getData("approver_id");
         $is_renewal = true;
+        $maResult = $maService->request(
+            (int) $memberId,
+            (int) $activity_id,
+            (int) $approverId,
+            (bool) $is_renewal,
+        );
         if (
-            $maService->request(
-                (int) $memberId,
-                (int) $activity_id,
-                (int) $approverId,
-                (bool) $is_renewal,
-            )
+            $maResult->success
         ) {
             $this->Flash->success(__("The Authorization has been requested."));
 
             return $this->redirect($this->referer());
         }
         $this->Flash->error(
-            __("The Authorization could not be requested. Please, try again."),
+            __($maResult->reason),
         );
 
         return $this->redirect($this->referer());
@@ -173,9 +174,12 @@ class AuthorizationsController extends AppController
 
         $rejectFragment = $q->func()->concat([
             "Authorizations.status" => 'identifier',
-            ' - ', "RevokedBy.sca_name" => 'identifier',
-            " on ", "expires_on" => 'identifier',
-            " note: ", "revoked_reason" => 'identifier'
+            ' - ',
+            "RevokedBy.sca_name" => 'identifier',
+            " on ",
+            "expires_on" => 'identifier',
+            " note: ",
+            "revoked_reason" => 'identifier'
         ]);
 
         $revokeReasonCase = $q->newExpr()
@@ -217,9 +221,12 @@ class AuthorizationsController extends AppController
 
         $rejectFragment = $q->func()->concat([
             "Authorizations.status" => 'identifier',
-            ' - ', "RevokedBy.sca_name" => 'identifier',
-            " on ", "expires_on" => 'identifier',
-            " note: ", "revoked_reason" => 'identifier'
+            ' - ',
+            "RevokedBy.sca_name" => 'identifier',
+            " on ",
+            "expires_on" => 'identifier',
+            " note: ",
+            "revoked_reason" => 'identifier'
         ]);
 
         $revokeReasonCase = $q->newExpr()

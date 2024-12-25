@@ -3,6 +3,7 @@
 namespace App\Services\ActiveWindowManager;
 
 use Cake\I18n\DateTime;
+use App\Services\ServiceResult;
 
 interface ActiveWindowManagerInterface
 {
@@ -27,7 +28,7 @@ interface ActiveWindowManagerInterface
         ?int $termYears = null,
         ?int $grantRoleId = null,
         bool $closeExisting = true,
-    ): bool;
+    ): ServiceResult;
 
     /**
      * Stops an active window for an entity - Make sure to create a transaction before calling this service
@@ -47,5 +48,5 @@ interface ActiveWindowManagerInterface
         string $status,
         string $reason,
         DateTime $expiresOn,
-    ): bool;
+    ): ServiceResult;
 }

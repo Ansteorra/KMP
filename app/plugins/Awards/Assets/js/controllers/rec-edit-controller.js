@@ -36,10 +36,10 @@ class AwardsRecommendationEditForm extends Controller {
         this.turboFrameTarget.setAttribute("src", this.turboFrameUrlValue + "/" + event.detail.id);
         this.element.setAttribute("action", this.formUrlValue + "/" + event.detail.id);
     }
-    gridBtnOutletConnected(outlet, element) {
+    outletBtnOutletConnected(outlet, element) {
         outlet.addListener(this.setId.bind(this));
     }
-    gridBtnOutletDisconnected(outlet) {
+    outletBtnOutletDisconnected(outlet) {
         outlet.removeListener(this.setId.bind(this));
     }
 

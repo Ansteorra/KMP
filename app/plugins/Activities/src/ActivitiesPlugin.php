@@ -16,6 +16,7 @@ use Activities\Event\CallForCellsHandler;
 use Activities\Services\AuthorizationManagerInterface;
 use Activities\Services\DefaultAuthorizationManager;
 use Activities\Event\CallForNavHandler;
+use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 use App\KMP\StaticHelpers;
 use Cake\I18n\DateTime;
 
@@ -125,6 +126,6 @@ class ActivitiesPlugin extends BasePlugin implements KMPPluginInterface
         $container->add(
             AuthorizationManagerInterface::class,
             DefaultAuthorizationManager::class,
-        );
+        )->addArgument(ActiveWindowManagerInterface::class);
     }
 }

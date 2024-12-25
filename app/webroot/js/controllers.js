@@ -1766,10 +1766,10 @@ class RevokeForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Control
   setId(event) {
     this.idTarget.value = event.detail.id;
   }
-  gridBtnOutletConnected(outlet, element) {
+  outletBtnOutletConnected(outlet, element) {
     outlet.addListener(this.setId.bind(this));
   }
-  gridBtnOutletDisconnected(outlet) {
+  outletBtnOutletDisconnected(outlet) {
     outlet.removeListener(this.setId.bind(this));
   }
   checkReadyToSubmit() {
@@ -1908,10 +1908,10 @@ class ActivitiesApproveAndAssignAuthorization extends _hotwired_stimulus__WEBPAC
     this.idTarget.value = event.detail.id;
     this.getApprovers();
   }
-  gridBtnOutletConnected(outlet, element) {
+  outletBtnOutletConnected(outlet, element) {
     outlet.addListener(this.setId.bind(this));
   }
-  gridBtnOutletDisconnected(outlet) {
+  outletBtnOutletDisconnected(outlet) {
     outlet.removeListener(this.setId.bind(this));
   }
   getApprovers() {
@@ -1983,10 +1983,10 @@ class ActivitiesRenewAuthorization extends _hotwired_stimulus__WEBPACK_IMPORTED_
     this.activityTarget.value = event.detail.activity;
     this.getApprovers();
   }
-  gridBtnOutletConnected(outlet, element) {
+  outletBtnOutletConnected(outlet, element) {
     outlet.addListener(this.setId.bind(this));
   }
-  gridBtnOutletDisconnected(outlet) {
+  outletBtnOutletDisconnected(outlet) {
     outlet.removeListener(this.setId.bind(this));
   }
   getApprovers() {
@@ -2522,10 +2522,10 @@ class AwardsRecommendationEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_
     this.turboFrameTarget.setAttribute("src", this.turboFrameUrlValue + "/" + event.detail.id);
     this.element.setAttribute("action", this.formUrlValue + "/" + event.detail.id);
   }
-  gridBtnOutletConnected(outlet, element) {
+  outletBtnOutletConnected(outlet, element) {
     outlet.addListener(this.setId.bind(this));
   }
-  gridBtnOutletDisconnected(outlet) {
+  outletBtnOutletDisconnected(outlet) {
     outlet.removeListener(this.setId.bind(this));
   }
   submit(event) {
@@ -17644,7 +17644,7 @@ class bE {
 },
 /******/ function(__webpack_require__) { // webpackRuntimeModules
 /******/ var __webpack_exec__ = function(moduleId) { return __webpack_require__(__webpack_require__.s = moduleId); }
-/******/ __webpack_require__.O(0, ["js/core","css/app","css/cover","css/signin","css/dashboard"], function() { return __webpack_exec__("./assets/js/controllers/app-setting-form-controller.js"), __webpack_exec__("./assets/js/controllers/auto-complete-controller.js"), __webpack_exec__("./assets/js/controllers/branch-links-controller.js"), __webpack_exec__("./assets/js/controllers/delayed-forward-controller.js"), __webpack_exec__("./assets/js/controllers/detail-tabs-controller.js"), __webpack_exec__("./assets/js/controllers/filter-grid-controller.js"), __webpack_exec__("./assets/js/controllers/guifier-controller.js"), __webpack_exec__("./assets/js/controllers/image-preview-controller.js"), __webpack_exec__("./assets/js/controllers/kanban-controller.js"), __webpack_exec__("./assets/js/controllers/member-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-pwa-controller.js"), __webpack_exec__("./assets/js/controllers/member-unique-email-controller.js"), __webpack_exec__("./assets/js/controllers/member-verify-form-controller.js"), __webpack_exec__("./assets/js/controllers/modal-opener-controller.js"), __webpack_exec__("./assets/js/controllers/nav-bar-controller.js"), __webpack_exec__("./assets/js/controllers/outlet-button-controller.js"), __webpack_exec__("./assets/js/controllers/permission-add-role-controller.js"), __webpack_exec__("./assets/js/controllers/revoke-form-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-member-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-permission-controller.js"), __webpack_exec__("./assets/js/controllers/session-extender-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/renew-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/request-auth-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/award-form-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-add-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-bulk-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-quick-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-table-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/recommendation-kanban-controller.js"), __webpack_exec__("./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/assign-officer-controller.js"), __webpack_exec__("./assets/css/app.css"), __webpack_exec__("./assets/css/signin.css"), __webpack_exec__("./assets/css/cover.css"), __webpack_exec__("./assets/css/dashboard.css"); });
+/******/ __webpack_require__.O(0, ["js/core","css/app","css/dashboard","css/cover","css/signin"], function() { return __webpack_exec__("./assets/js/controllers/app-setting-form-controller.js"), __webpack_exec__("./assets/js/controllers/auto-complete-controller.js"), __webpack_exec__("./assets/js/controllers/branch-links-controller.js"), __webpack_exec__("./assets/js/controllers/delayed-forward-controller.js"), __webpack_exec__("./assets/js/controllers/detail-tabs-controller.js"), __webpack_exec__("./assets/js/controllers/filter-grid-controller.js"), __webpack_exec__("./assets/js/controllers/guifier-controller.js"), __webpack_exec__("./assets/js/controllers/image-preview-controller.js"), __webpack_exec__("./assets/js/controllers/kanban-controller.js"), __webpack_exec__("./assets/js/controllers/member-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-pwa-controller.js"), __webpack_exec__("./assets/js/controllers/member-unique-email-controller.js"), __webpack_exec__("./assets/js/controllers/member-verify-form-controller.js"), __webpack_exec__("./assets/js/controllers/modal-opener-controller.js"), __webpack_exec__("./assets/js/controllers/nav-bar-controller.js"), __webpack_exec__("./assets/js/controllers/outlet-button-controller.js"), __webpack_exec__("./assets/js/controllers/permission-add-role-controller.js"), __webpack_exec__("./assets/js/controllers/revoke-form-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-member-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-permission-controller.js"), __webpack_exec__("./assets/js/controllers/session-extender-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/renew-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/request-auth-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/award-form-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-add-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-bulk-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-quick-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-table-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/recommendation-kanban-controller.js"), __webpack_exec__("./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/assign-officer-controller.js"), __webpack_exec__("./assets/css/app.css"), __webpack_exec__("./assets/css/signin.css"), __webpack_exec__("./assets/css/cover.css"), __webpack_exec__("./assets/css/dashboard.css"); });
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
