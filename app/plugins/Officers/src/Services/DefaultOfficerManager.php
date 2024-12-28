@@ -9,7 +9,7 @@ use App\Services\WarrantManager\WarrantManagerInterface;
 use Cake\ORM\TableRegistry;
 use Officers\Model\Entity\Officer;
 use App\Services\ServiceResult;
-
+use App\Services\WarrantManager\WarrantRequest;
 
 class DefaultOfficerManager implements OfficerManagerInterface
 {
@@ -48,7 +48,7 @@ class DefaultOfficerManager implements OfficerManagerInterface
         $office = $officeTable->get($officeId);
         if ($office->requires_warrant) {
             $member = TableRegistry::getTableLocator()->get('Members')->get($memberId);
-            if ($member->wrrantable == null) {
+            if (!$member->warrantable) {
                 return new ServiceResult(false, "Member is not warrantable");
             }
         }
@@ -106,6 +106,22 @@ class DefaultOfficerManager implements OfficerManagerInterface
                 $newOfficer->reports_to_branch_id = $branch->id;
             }
         }
+        //release current officers if they exist for this office
+        if ($office->only_one_per_branch) {
+            $currentOfficers = $officerTable->find()
+                ->where([
+                    'office_id' => $officeId,
+                    'branch_id' => $branchId,
+                    'status' => Officer::CURRENT_STATUS
+                ])
+                ->all();
+            foreach ($currentOfficers as $currentOfficer) {
+                $oResult = $this->release($currentOfficer->id, $approverId, $startOn, "Replaced by new officer", Officer::REPLACED_STATUS);
+                if (!$oResult->success) {
+                    return new ServiceResult(false, $oResult->reason);
+                }
+            }
+        }
         if (!$officerTable->save($newOfficer)) {
             return new ServiceResult(false, "Failed to save officer");
         }
@@ -114,13 +130,13 @@ class DefaultOfficerManager implements OfficerManagerInterface
             return new ServiceResult(false, $awResult->reason);
         }
         if ($office->requires_warrant) {
-            $warrantRequest = [
-                'entityType' => 'Officers.Officers',
-                'entityId' =>  $newOfficer->id,
-                'member_id' => $memberId,
-                'start_on' => $startOn,
-                'end_on' => $endOn,
-            ];
+            $newOfficer = $officerTable->get($newOfficer->id);
+            $warrantRequest = new WarrantRequest('Officers.Officers', $newOfficer->id, $approverId, $memberId, $startOn, $endOn, $newOfficer->granted_member_role_id);
+            $member = TableRegistry::getTableLocator()->get('Members')->get($memberId);
+            $wmResult = $this->warrantManager->request("$office->name : $member->sca_name", "", [$warrantRequest]);
+            if (!$wmResult->success) {
+                return new ServiceResult(false, $wmResult->reason);
+            }
         }
         return new ServiceResult(true);
     }
@@ -139,11 +155,20 @@ class DefaultOfficerManager implements OfficerManagerInterface
         int $officerId,
         int $revokerId,
         DateTime $revokedOn,
-        ?string $revokedReason
+        ?string $revokedReason,
+        ?string $releaseStatus = Officer::RELEASED_STATUS
     ): ServiceResult {
-        $awResult = $this->activeWindowManager->stop('Officers.Officers', $officerId, $revokerId, 'released', $revokedReason, $revokedOn);
+        $awResult = $this->activeWindowManager->stop('Officers.Officers', $officerId, $revokerId, $releaseStatus, $revokedReason, $revokedOn);
         if (!$awResult->success) {
             return new ServiceResult(false, $awResult->reason);
+        }
+        $officerTable = TableRegistry::getTableLocator()->get('Officers.Officers');
+        $officer = $officerTable->get($officerId, ['contain' => ['Offices']]);
+        if ($officer->office->requires_warrant) {
+            $wmResult = $this->warrantManager->cancelByEntity('Officers.Officers', $officerId, $revokedReason, $revokerId, $revokedOn);
+            if (!$wmResult->success) {
+                return new ServiceResult(false, $wmResult->reason);
+            }
         }
         return new ServiceResult(true);
     }

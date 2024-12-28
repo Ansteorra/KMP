@@ -2,10 +2,12 @@
 
 namespace App\Services\ActiveWindowManager;
 
+use App\Model\Entity\ActiveWindowBaseEntity;
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
 use App\Services\ServiceResult;
+use App\Services\WarrantManager\WarrantManagerInterface;
 
 class DefaultActiveWindowManager implements ActiveWindowManagerInterface
 {
@@ -33,6 +35,7 @@ class DefaultActiveWindowManager implements ActiveWindowManagerInterface
         ?int $termYears = null,
         ?int $grantRoleId = null,
         bool $closeExisting = true,
+
     ): ServiceResult {
         $entityTable = TableRegistry::getTableLocator()->get($entityType);
         $entity = $entityTable->get($entityId);
@@ -54,7 +57,7 @@ class DefaultActiveWindowManager implements ActiveWindowManagerInterface
             }
             $previousEntities = $peQuery->all();
             foreach ($previousEntities as $pe) {
-                if (!$this->stop($entityType, $pe->id, $memberId, "replaced", "", $startOn)) {
+                if (!$this->stop($entityType, $pe->id, $memberId, ActiveWindowBaseEntity::REPLACED_STATUS, "", $startOn)) {
                     return new ServiceResult(false, "Failed to expire current $entityType");
                 }
             }

@@ -214,10 +214,21 @@ class CallForNavHandler implements EventListenerInterface
             [
                 "type" => "link",
                 "mergePath" => ["Warrants"],
-                "label" => "Roster",
+                "label" => "Warrants",
                 "order" => 0,
                 "url" => [
                     "controller" => "Warrants",
+                    "action" => "index",
+                ],
+                "icon" => "bi-person-badge",
+            ],
+            [
+                "type" => "link",
+                "mergePath" => ["Warrants"],
+                "label" => "Rosters",
+                "order" => 0,
+                "url" => [
+                    "controller" => "WarrantRosters",
                     "action" => "index",
                 ],
                 "icon" => "bi-people",

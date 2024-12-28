@@ -18,7 +18,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
 <?= $this->KMP->startBlock("recordActions") ?>
 <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal">Edit</button>
 <?php if (!$permission->is_system) { ?>
-    <?= $this->Form->postLink(
+<?= $this->Form->postLink(
         __("Delete"),
         ["action" => "delete", $permission->id],
         [
@@ -92,25 +92,25 @@ echo $this->KMP->startBlock("pageTitle") ?>
         data-detail-tabs-target="tabContent" data-detail-tabs-target="tabContent">
 
         <?php if ($user->checkCan("addPermission", "Roles")) { ?>
-            <button type="button" class="btn btn-primary btn-sm mb-3" data-bs-toggle="modal"
-                data-bs-target="#addRoleModal">Add Role</button>
+        <button type="button" class="btn btn-primary btn-sm mb-3" data-bs-toggle="modal"
+            data-bs-target="#addRoleModal">Add Role</button>
         <?php } ?>
         <?php if (!empty($permission->roles)) : ?>
-            <div class="table-responsive">
-                <table class="table table-striped">
-                    <thead>
-                        <tr>
-                            <th scope="col"><?= __("Name") ?></th>
-                            <th scope="col" class="actions"><?= __("Actions") ?></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($permission->roles as $role) : ?>
-                            <tr>
-                                <td><?= h($role->name) ?></td>
-                                <td class="actions">
-                                    <?php if ($user->checkCan("deletePermission", "Roles")) { ?>
-                                        <?= $this->Form->postLink(
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th scope="col"><?= __("Name") ?></th>
+                        <th scope="col" class="actions"><?= __("Actions") ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($permission->roles as $role) : ?>
+                    <tr>
+                        <td><?= h($role->name) ?></td>
+                        <td class="actions">
+                            <?php if ($user->checkCan("deletePermission", "Roles")) { ?>
+                            <?= $this->Form->postLink(
                                             __("Remove"),
                                             [
                                                 "controller" => "Roles",
@@ -128,15 +128,15 @@ echo $this->KMP->startBlock("pageTitle") ?>
                                                 ],
                                             ],
                                         ) ?>
-                                    <?php } ?>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
+                            <?php } ?>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
         <?php else : ?>
-            <p><?= __("No Roles Assigned") ?></p>
+        <p><?= __("No Roles Assigned") ?></p>
         <?php endif; ?>
     </div>
     <?php $this->KMP->endBlock() ?>

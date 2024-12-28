@@ -60,17 +60,17 @@ class Warrants extends AbstractMigration
                 "limit" => 11,
                 "null" => false,
             ])
-            ->addColumn("warrant_approval_set_id", "integer", [
+            ->addColumn("warrant_roster_id", "integer", [
                 "default" => null,
                 "limit" => 11,
                 "null" => false,
             ])
-            ->addColumn("warrant_for_model", "string", [
+            ->addColumn("entity_type", "string", [
                 "default" => null,
                 "limit" => 255,
                 "null" => true,
             ])
-            ->addColumn("warrant_for_id", "integer", [
+            ->addColumn("entity_id", "integer", [
                 "default" => null,
                 "limit" => 11,
                 "null" => false,
@@ -96,7 +96,7 @@ class Warrants extends AbstractMigration
                 "null" => true,
             ])
             ->addColumn("status", "string", [
-                "default" => "pending",
+                "default" => "Pending",
                 "limit" => 20,
                 "null" => false,
             ])
@@ -131,13 +131,13 @@ class Warrants extends AbstractMigration
                 "null" => true,
             ])
             ->addPrimaryKey(["id"])
-            ->addIndex(["warrant_for_id"])
-            ->addIndex(["warrant_for_model"])
+            ->addIndex(["entity_id"])
+            ->addIndex(["entity_type"])
             ->addIndex(["start_on"])
             ->addIndex(["expires_on"])
             ->create();
 
-        $this->table("warrant_approval_sets")
+        $this->table("warrant_rosters")
             ->addColumn("id", "integer", [
                 "autoIncrement" => true,
                 "default" => null,
@@ -154,16 +154,6 @@ class Warrants extends AbstractMigration
                 "limit" => 255,
                 "null" => false,
             ])
-            ->addColumn("planned_expires_on", "datetime", [
-                "default" => null,
-                "limit" => null,
-                "null" => false,
-            ])
-            ->addColumn("planned_start_on", "datetime", [
-                "default" => null,
-                "limit" => null,
-                "null" => false,
-            ])
             ->addColumn("approvals_required", "integer", [
                 "default" => null,
                 "limit" => 11,
@@ -173,6 +163,11 @@ class Warrants extends AbstractMigration
                 "default" => null,
                 "limit" => 11,
                 "null" => true,
+            ])
+            ->addColumn("status", "string", [
+                "default" => "Pending",
+                "limit" => 20,
+                "null" => false,
             ])
             ->addColumn("modified", "datetime", [
                 "default" => null,
@@ -197,14 +192,14 @@ class Warrants extends AbstractMigration
             ->addPrimaryKey(["id"])
             ->create();
 
-        $this->table("warrant_approvals")
+        $this->table("warrant_roster_approvals")
             ->addColumn("id", "integer", [
                 "autoIncrement" => true,
                 "default" => null,
                 "limit" => 11,
                 "null" => false,
             ])
-            ->addColumn("warrant_approval_set_id", "integer", [
+            ->addColumn("warrant_roster_id", "integer", [
                 "default" => null,
                 "limit" => 11,
                 "null" => false,
@@ -214,29 +209,9 @@ class Warrants extends AbstractMigration
                 "limit" => 11,
                 "null" => false,
             ])
-            ->addColumn("authorization_token", "string", [
-                "default" => null,
-                "limit" => 255,
-                "null" => false,
-            ])
-            ->addColumn("requested_on", "datetime", [
+            ->addColumn("approved_on", "datetime", [
                 "default" => null,
                 "limit" => null,
-                "null" => false,
-            ])
-            ->addColumn("responded_on", "datetime", [
-                "default" => null,
-                "limit" => null,
-                "null" => true,
-            ])
-            ->addColumn("approved", "boolean", [
-                "default" => false,
-                "limit" => null,
-                "null" => false,
-            ])
-            ->addColumn("approver_notes", "string", [
-                "default" => null,
-                "limit" => 255,
                 "null" => true,
             ])
             ->addPrimaryKey(["id"])
@@ -265,8 +240,8 @@ class Warrants extends AbstractMigration
             )
 
             ->addForeignKey(
-                "warrant_approval_set_id",
-                "warrant_approval_sets",
+                "warrant_roster_id",
+                "warrant_rosters",
                 "id",
                 [
                     "update" => "NO_ACTION",
@@ -275,10 +250,10 @@ class Warrants extends AbstractMigration
             )
             ->update();
 
-        $this->table("warrant_approvals")
+        $this->table("warrant_roster_approvals")
             ->addForeignKey(
-                "warrant_approval_set_id",
-                "warrant_approval_sets",
+                "warrant_roster_id",
+                "warrant_rosters",
                 "id",
                 [
                     "update" => "NO_ACTION",
@@ -306,7 +281,7 @@ class Warrants extends AbstractMigration
     {
         $this->table("warrant_periods")->drop()->save();
         $this->table("warrants")->drop()->save();
-        $this->table("warrant_approvals")->drop()->save();
+        $this->table("warrant_roster_approvals")->drop()->save();
         $this->table("warrants_approval_sets")->drop()->save();
     }
 }

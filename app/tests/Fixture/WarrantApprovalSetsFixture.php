@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Test\Fixture;
@@ -6,9 +7,9 @@ namespace App\Test\Fixture;
 use Cake\TestSuite\Fixture\TestFixture;
 
 /**
- * WarrantApprovalSetsFixture
+ * WarrantRostersFixture
  */
-class WarrantApprovalSetsFixture extends TestFixture
+class WarrantRostersFixture extends TestFixture
 {
     /**
      * Init method

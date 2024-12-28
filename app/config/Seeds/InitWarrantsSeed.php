@@ -26,32 +26,31 @@ class InitWarrantsSeed extends AbstractSeed
         $data = [
             [
                 'id' => 1,
-                'name' => 'Test Set',
-                'description' => 'Test Warrant',
-                'planned_expires_on' => '2026-12-12 00:00:00',
-                'planned_start_on' => '2020-01-01 00:00:00',
+                'name' => 'System Admin Warrant Set',
+                'description' => 'Required for system admin account',
                 'approvals_required' => 1,
                 'approval_count' => 1,
                 'created_by' => 1,
+                'status' => 'Approved',
                 'created' => DateTime::now(),
             ],
         ];
 
-        $table = $this->table('warrant_approval_sets');
+        $table = $this->table('warrant_rosters');
         $table->insert($data)->save();
 
         $data = [
             [
                 'id' => 1,
                 'member_id' => 1,
-                'warrant_approval_set_id' => 1,
-                'warrant_for_model' => 'Direct Grant',
-                'warrant_for_id' => -1,
+                'warrant_roster_id' => 1,
+                'entity_type' => 'Direct Grant',
+                'entity_id' => -1,
                 'member_role_id' => 1,
                 'expires_on' => '2100-10-10 00:00:00',
                 'start_on' => '2020-01-01 00:00:00',
                 'approved_date' => '2020-01-01 00:00:00',
-                'status' => 'active',
+                'status' => 'Current',
                 'revoked_reason' => NULL,
                 'revoker_id' => NULL,
                 'created_by' => 1,
@@ -60,6 +59,18 @@ class InitWarrantsSeed extends AbstractSeed
         ];
 
         $table = $this->table('warrants');
+        $table->insert($data)->save();
+
+        $data = [
+            [
+                'id' => 1,
+                'warrant_roster_id' => 1,
+                'approver_id' => 1,
+                'approved_on' => DateTime::now(),
+            ],
+        ];
+
+        $table = $this->table('warrant_roster_approvals');
         $table->insert($data)->save();
     }
 }

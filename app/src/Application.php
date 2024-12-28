@@ -55,6 +55,7 @@ use Psr\Http\Message\ServerRequestInterface;
 use Authorization\Exception\ForbiddenException;
 use Cake\Event\EventManager;
 use App\KMP\StaticHelpers;
+use Cake\I18n\DateTime;
 
 /**
  * Application setup class.
@@ -112,6 +113,7 @@ class Application extends BaseApplication implements
         StaticHelpers::getAppSetting("Member.MobileCard.BgColor", "gold");
         StaticHelpers::getAppSetting("Activity.SecretaryEmail", "please_set");
         StaticHelpers::getAppSetting("Activity.SecretaryName", "please_set");
+        StaticHelpers::setAppSetting("KMP.LastWarrantCheck", "",);
     }
 
     /**

@@ -1,22 +1,23 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Model\Table;
 
-use App\Model\Table\WarrantApprovalSetsTable;
+use App\Model\Table\WarrantRostersTable;
 use Cake\TestSuite\TestCase;
 
 /**
- * App\Model\Table\WarrantApprovalSetsTable Test Case
+ * App\Model\Table\WarrantRostersTable Test Case
  */
-class WarrantApprovalSetsTableTest extends TestCase
+class WarrantRostersTableTest extends TestCase
 {
     /**
      * Test subject
      *
-     * @var \App\Model\Table\WarrantApprovalSetsTable
+     * @var \App\Model\Table\WarrantRostersTable
      */
-    protected $WarrantApprovalSets;
+    protected $WarrantRosters;
 
     /**
      * Fixtures
@@ -24,8 +25,8 @@ class WarrantApprovalSetsTableTest extends TestCase
      * @var list<string>
      */
     protected array $fixtures = [
-        'app.WarrantApprovalSets',
-        'app.WarrantApprovals',
+        'app.WarrantRosters',
+        'app.WarrantRosterApprovals',
         'app.Warrants',
     ];
 
@@ -37,8 +38,8 @@ class WarrantApprovalSetsTableTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $config = $this->getTableLocator()->exists('WarrantApprovalSets') ? [] : ['className' => WarrantApprovalSetsTable::class];
-        $this->WarrantApprovalSets = $this->getTableLocator()->get('WarrantApprovalSets', $config);
+        $config = $this->getTableLocator()->exists('WarrantRosters') ? [] : ['className' => WarrantRostersTable::class];
+        $this->WarrantRosters = $this->getTableLocator()->get('WarrantRosters', $config);
     }
 
     /**
@@ -48,7 +49,7 @@ class WarrantApprovalSetsTableTest extends TestCase
      */
     protected function tearDown(): void
     {
-        unset($this->WarrantApprovalSets);
+        unset($this->WarrantRosters);
 
         parent::tearDown();
     }
@@ -57,7 +58,7 @@ class WarrantApprovalSetsTableTest extends TestCase
      * Test validationDefault method
      *
      * @return void
-     * @uses \App\Model\Table\WarrantApprovalSetsTable::validationDefault()
+     * @uses \App\Model\Table\WarrantRostersTable::validationDefault()
      */
     public function testValidationDefault(): void
     {

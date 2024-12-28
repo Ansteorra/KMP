@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Controller;
@@ -24,7 +25,7 @@ class WarrantsControllerTest extends TestCase
     protected array $fixtures = [
         'app.Warrants',
         'app.Members',
-        'app.WarrantApprovalSets',
+        'app.WarrantRosters',
         'app.MemberRoles',
     ];
 

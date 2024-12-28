@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Model\Entity;
@@ -6,10 +7,10 @@ namespace App\Model\Entity;
 use Cake\ORM\Entity;
 
 /**
- * WarrantApproval Entity
+ * WarrantRosterApproval Entity
  *
  * @property int $id
- * @property int $warrant_approval_set_id
+ * @property int $warrant_roster_id
  * @property int $approver_id
  * @property string $authorization_token
  * @property \Cake\I18n\DateTime $requested_on
@@ -17,10 +18,10 @@ use Cake\ORM\Entity;
  * @property bool $approved
  * @property string|null $approver_notes
  *
- * @property \App\Model\Entity\WarrantApprovalSet $warrant_approval_set
+ * @property \App\Model\Entity\WarrantRoster $warrant_roster_approval_set
  * @property \App\Model\Entity\Member $member
  */
-class WarrantApproval extends Entity
+class WarrantRosterApproval extends Entity
 {
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().
@@ -32,14 +33,14 @@ class WarrantApproval extends Entity
      * @var array<string, bool>
      */
     protected array $_accessible = [
-        'warrant_approval_set_id' => true,
+        'warrant_roster_id' => true,
         'approver_id' => true,
         'authorization_token' => true,
         'requested_on' => true,
         'responded_on' => true,
         'approved' => true,
         'approver_notes' => true,
-        'warrant_approval_set' => true,
+        'warrant_roster_approval_set' => true,
         'member' => true,
     ];
 }

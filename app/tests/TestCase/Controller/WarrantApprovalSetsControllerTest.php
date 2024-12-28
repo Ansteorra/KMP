@@ -1,18 +1,19 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Controller;
 
-use App\Controller\WarrantApprovalSetsController;
+use App\Controller\WarrantRostersController;
 use Cake\TestSuite\IntegrationTestTrait;
 use Cake\TestSuite\TestCase;
 
 /**
- * App\Controller\WarrantApprovalSetsController Test Case
+ * App\Controller\WarrantRostersController Test Case
  *
- * @uses \App\Controller\WarrantApprovalSetsController
+ * @uses \App\Controller\WarrantRostersController
  */
-class WarrantApprovalSetsControllerTest extends TestCase
+class WarrantRostersControllerTest extends TestCase
 {
     use IntegrationTestTrait;
 
@@ -22,8 +23,8 @@ class WarrantApprovalSetsControllerTest extends TestCase
      * @var list<string>
      */
     protected array $fixtures = [
-        'app.WarrantApprovalSets',
-        'app.WarrantApprovals',
+        'app.WarrantRosters',
+        'app.WarrantRosterApprovals',
         'app.Warrants',
     ];
 
@@ -31,7 +32,7 @@ class WarrantApprovalSetsControllerTest extends TestCase
      * Test index method
      *
      * @return void
-     * @uses \App\Controller\WarrantApprovalSetsController::index()
+     * @uses \App\Controller\WarrantRostersController::index()
      */
     public function testIndex(): void
     {
@@ -42,7 +43,7 @@ class WarrantApprovalSetsControllerTest extends TestCase
      * Test view method
      *
      * @return void
-     * @uses \App\Controller\WarrantApprovalSetsController::view()
+     * @uses \App\Controller\WarrantRostersController::view()
      */
     public function testView(): void
     {
@@ -53,7 +54,7 @@ class WarrantApprovalSetsControllerTest extends TestCase
      * Test add method
      *
      * @return void
-     * @uses \App\Controller\WarrantApprovalSetsController::add()
+     * @uses \App\Controller\WarrantRostersController::add()
      */
     public function testAdd(): void
     {
@@ -64,7 +65,7 @@ class WarrantApprovalSetsControllerTest extends TestCase
      * Test edit method
      *
      * @return void
-     * @uses \App\Controller\WarrantApprovalSetsController::edit()
+     * @uses \App\Controller\WarrantRostersController::edit()
      */
     public function testEdit(): void
     {
@@ -75,7 +76,7 @@ class WarrantApprovalSetsControllerTest extends TestCase
      * Test delete method
      *
      * @return void
-     * @uses \App\Controller\WarrantApprovalSetsController::delete()
+     * @uses \App\Controller\WarrantRostersController::delete()
      */
     public function testDelete(): void
     {

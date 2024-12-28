@@ -38,7 +38,7 @@ class WarrantsController extends AppController
     public function index()
     {
         $query = $this->Warrants->find()
-            ->contain(['Members', 'WarrantApprovalSets', 'MemberRoles']);
+            ->contain(['Members', 'WarrantRosters', 'MemberRoles']);
         $query = $this->Authorization->applyScope($query);
         $warrants = $this->paginate($query);
 
@@ -55,14 +55,21 @@ class WarrantsController extends AppController
         $securityWarrant = $this->Warrants->newEmptyEntity();
         $this->Authorization->authorize($securityWarrant);
         $warrantsQuery = $this->Warrants->find()
-            ->contain(['Members', 'WarrantApprovalSets', 'MemberRoles']);
+            ->contain(['Members', 'WarrantRosters', 'MemberRoles']);
 
+        $today = new DateTime();
         switch ($state) {
             case 'current':
-                $warrantsQuery = $warrantsQuery->where(['Warrants.expires_on >=' => date('Y-m-d'), 'Warrants.start_on <=' => date('Y-m-d'), 'Warrants.status' => Warrant::STATUS_ACTIVE]);
+                $warrantsQuery = $warrantsQuery->where(['Warrants.expires_on >=' => $today, 'Warrants.start_on <=' => $today, 'Warrants.status' => Warrant::CURRENT_STATUS]);
+                break;
+            case 'upcoming':
+                $warrantsQuery = $warrantsQuery->where(['Warrants.start_on >' => $today, 'Warrants.status' => Warrant::CURRENT_STATUS]);
+                break;
+            case 'pending':
+                $warrantsQuery = $warrantsQuery->where(['Warrants.status' => Warrant::PENDING_STATUS]);
                 break;
             case 'previous':
-                $warrantsQuery = $warrantsQuery->where(["OR" => ['Warrants.expires_on <' => date('Y-m-d'), 'Warrants.status' => Warrant::STATUS_DEACTIVATED]]);
+                $warrantsQuery = $warrantsQuery->where(["OR" => ['Warrants.expires_on <' => $today, 'Warrants.status IN ' => [Warrant::DEACTIVATED_STATUS, Warrant::EXPIRED_STATUS]]]);
                 break;
         }
         $warrantsQuery = $this->addConditions($warrantsQuery);
@@ -72,7 +79,7 @@ class WarrantsController extends AppController
     protected function addConditions($query)
     {
         return $query
-            ->select(['id', 'member_id', 'warrant_for_model', 'start_on', 'expires_on', 'revoker_id', 'warrant_approval_set_id', 'status', 'revoked_reason'])
+            ->select(['id', 'member_id', 'entity_type', 'start_on', 'expires_on', 'revoker_id', 'warrant_roster_id', 'status', 'revoked_reason'])
             ->contain([
                 'Members' => function ($q) {
                     return $q->select(['id', 'sca_name']);

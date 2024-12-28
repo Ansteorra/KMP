@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Policy;
 
-use App\Model\Entity\WarrantApprovalSet;
+use App\Model\Entity\WarrantRoster;
 use Authorization\IdentityInterface;
 
 /**
- * WarrantApprovalSets policy
+ * WarrantRosters policy
  */
-class WarrantApprovalSetPolicy extends BasePolicy
+class WarrantRosterPolicy extends BasePolicy
 {
     protected string $REQUIRED_PERMISSION = "Can Manage Warrants";
 

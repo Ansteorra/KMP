@@ -13,7 +13,7 @@ use Cake\Validation\Validator;
  * Warrants Model
  *
  * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $Members
- * @property \App\Model\Table\WarrantApprovalSetsTable&\Cake\ORM\Association\BelongsTo $WarrantApprovalSets
+ * @property \App\Model\Table\WarrantRostersTable&\Cake\ORM\Association\BelongsTo $WarrantRosters
  * @property \App\Model\Table\MemberRolesTable&\Cake\ORM\Association\BelongsTo $MemberRoles
  *
  * @method \App\Model\Entity\Warrant newEmptyEntity()
@@ -60,12 +60,24 @@ class WarrantsTable extends Table
             "joinType" => "LEFT",
             "propertyName" => "revoked_by",
         ]);
-        $this->belongsTo('WarrantApprovalSets', [
-            'foreignKey' => 'warrant_approval_set_id',
+        $this->belongsTo('WarrantRosters', [
+            'foreignKey' => 'warrant_roster_id',
             'joinType' => 'INNER',
         ]);
         $this->belongsTo('MemberRoles', [
             'foreignKey' => 'member_role_id',
+        ]);
+
+        $this->belongsTo("CreatedByMember", [
+            "className" => "Members",
+            "foreignKey" => "created_by",
+            "joinType" => "LEFT",
+        ]);
+
+        $this->belongsTo("ModfiedByMember", [
+            "className" => "Members",
+            "foreignKey" => "modified_by",
+            "joinType" => "LEFT",
         ]);
 
         $this->addBehavior("ActiveWindow");
@@ -86,18 +98,18 @@ class WarrantsTable extends Table
             ->notEmptyString('member_id');
 
         $validator
-            ->integer('warrant_approval_set_id')
-            ->notEmptyString('warrant_approval_set_id');
+            ->integer('warrant_roster_id')
+            ->notEmptyString('warrant_roster_id');
 
         $validator
-            ->scalar('warrant_for_model')
-            ->maxLength('warrant_for_model', 255)
-            ->allowEmptyString('warrant_for_model');
+            ->scalar('entity_type')
+            ->maxLength('entity_type', 255)
+            ->allowEmptyString('entity_type');
 
         $validator
-            ->integer('warrant_for_id')
-            ->requirePresence('warrant_for_id', 'create')
-            ->notEmptyString('warrant_for_id');
+            ->integer('entity_id')
+            ->requirePresence('entity_id', 'create')
+            ->notEmptyString('entity_id');
 
         $validator
             ->integer('member_role_id')
@@ -146,7 +158,7 @@ class WarrantsTable extends Table
     public function buildRules(RulesChecker $rules): RulesChecker
     {
         $rules->add($rules->existsIn(['member_id'], 'Members'), ['errorField' => 'member_id']);
-        $rules->add($rules->existsIn(['warrant_approval_set_id'], 'WarrantApprovalSets'), ['errorField' => 'warrant_approval_set_id']);
+        $rules->add($rules->existsIn(['warrant_roster_id'], 'WarrantRosters'), ['errorField' => 'warrant_roster_id']);
         $rules->add($rules->existsIn(['member_role_id'], 'MemberRoles'), ['errorField' => 'member_role_id']);
 
         return $rules;

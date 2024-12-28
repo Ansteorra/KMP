@@ -6,7 +6,7 @@ namespace App\Services;
 
 class ServiceResult
 {
-    public bool $status;
+    public bool $success;
     public ?string $reason = null;
     public $data = null;
 

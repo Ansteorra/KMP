@@ -72,7 +72,7 @@ class PermissionsLoader
                 'Warrants.member_role_id = MemberRoles.id',
                 'Warrants.start_on <' => $now,
                 'Warrants.expires_on >' => $now,
-                'Warrants.status' => Warrant::STATUS_ACTIVE,
+                'Warrants.status' => Warrant::CURRENT_STATUS,
             ]);
 
         $q = $q->innerJoinWith("Roles.Members")

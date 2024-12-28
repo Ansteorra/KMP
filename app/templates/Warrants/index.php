@@ -24,6 +24,18 @@ echo $this->element('turboActiveTabs', [
             "selected" => true,
             "turboUrl" => $this->URL->build(["controller" => "Warrants", "action" => "AllWarrants", "current"])
         ],
+        "pending" => [
+            "label" => __("Pending"),
+            "id" => "pending-memberRoles",
+            "selected" => true,
+            "turboUrl" => $this->URL->build(["controller" => "Warrants", "action" => "AllWarrants", "pending"])
+        ],
+        "upcoming" => [
+            "label" => __("Upcoming"),
+            "id" => "pending-memberRoles",
+            "selected" => true,
+            "turboUrl" => $this->URL->build(["controller" => "Warrants", "action" => "AllWarrants", "upcoming"])
+        ],
         "previous" => [
             "label" => __("Previous"),
             "id" => "previous-memberRoles",

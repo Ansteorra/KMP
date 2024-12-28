@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Test\Fixture;
@@ -6,9 +7,9 @@ namespace App\Test\Fixture;
 use Cake\TestSuite\Fixture\TestFixture;
 
 /**
- * WarrantApprovalsFixture
+ * WarrantRosterApprovalsFixture
  */
-class WarrantApprovalsFixture extends TestFixture
+class WarrantRosterApprovalsFixture extends TestFixture
 {
     /**
      * Init method
@@ -20,7 +21,7 @@ class WarrantApprovalsFixture extends TestFixture
         $this->records = [
             [
                 'id' => 1,
-                'warrant_approval_set_id' => 1,
+                'warrant_roster_id' => 1,
                 'approver_id' => 1,
                 'authorization_token' => 'Lorem ipsum dolor sit amet',
                 'requested_on' => '2024-12-07 15:18:55',

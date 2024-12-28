@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Test\Fixture;
@@ -21,9 +22,9 @@ class WarrantsFixture extends TestFixture
             [
                 'id' => 1,
                 'member_id' => 1,
-                'warrant_approval_set_id' => 1,
-                'warrant_for_model' => 'Lorem ipsum dolor sit amet',
-                'warrant_for_id' => 1,
+                'warrant_roster_id' => 1,
+                'entity_type' => 'Lorem ipsum dolor sit amet',
+                'entity_id' => 1,
                 'member_role_id' => 1,
                 'expires_on' => '2024-12-07 15:18:05',
                 'start_on' => '2024-12-07 15:18:05',

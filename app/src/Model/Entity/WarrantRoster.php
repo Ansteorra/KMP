@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Model\Entity;
@@ -6,7 +7,7 @@ namespace App\Model\Entity;
 use Cake\ORM\Entity;
 
 /**
- * WarrantApprovalSet Entity
+ * WarrantRoster Entity
  *
  * @property int $id
  * @property string $name
@@ -18,11 +19,15 @@ use Cake\ORM\Entity;
  * @property int|null $created_by
  * @property \Cake\I18n\DateTime $created
  *
- * @property \App\Model\Entity\WarrantApproval[] $warrant_approvals
+ * @property \App\Model\Entity\WarrantRosterApproval[] $warrant_roster_approvals
  * @property \App\Model\Entity\Warrant[] $warrants
  */
-class WarrantApprovalSet extends Entity
+class WarrantRoster extends Entity
 {
+    const STATUS_APPROVED = "Approved"; //all signers approved
+    const STATUS_DECLINED = "Declined"; //at least 1 signer declined
+    const STATUS_PENDING = "Pending"; //awaiting approval
+
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().
      *
@@ -35,13 +40,16 @@ class WarrantApprovalSet extends Entity
     protected array $_accessible = [
         'name' => true,
         'description' => true,
-        'planned_expires_on' => true,
-        'planned_start_on' => true,
         'approvals_required' => true,
         'approval_count' => true,
         'created_by' => true,
         'created' => true,
-        'warrant_approvals' => true,
+        'warrant_roster_approvals' => true,
         'warrants' => true,
     ];
+
+    public function hasRequiredApprovals(): bool
+    {
+        return $this->approval_count >= $this->approvals_required;
+    }
 }

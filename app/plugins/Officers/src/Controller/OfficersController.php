@@ -50,8 +50,9 @@ class OfficersController extends AppController
             $omResult = $oManager->assign($officeId, $memberId, $branchId, $startOn, $endOn, $deputyDescription, $approverId);
             if (!$omResult->success) {
                 $this->Officers->getConnection()->rollback();
-                $this->Flash->error(__('The officer could not be saved. Please, try again.'));
+                $this->Flash->error(__($omResult->reason));
                 $this->redirect($this->referer());
+                return;
             }
             //commit transaction
             $this->Officers->getConnection()->commit();

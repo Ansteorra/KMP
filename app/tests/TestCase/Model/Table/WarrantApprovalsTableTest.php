@@ -1,22 +1,23 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Model\Table;
 
-use App\Model\Table\WarrantApprovalsTable;
+use App\Model\Table\WarrantRosterApprovalsTable;
 use Cake\TestSuite\TestCase;
 
 /**
- * App\Model\Table\WarrantApprovalsTable Test Case
+ * App\Model\Table\WarrantRosterApprovalsTable Test Case
  */
-class WarrantApprovalsTableTest extends TestCase
+class WarrantRosterApprovalsTableTest extends TestCase
 {
     /**
      * Test subject
      *
-     * @var \App\Model\Table\WarrantApprovalsTable
+     * @var \App\Model\Table\WarrantRosterApprovalsTable
      */
-    protected $WarrantApprovals;
+    protected $WarrantRosterApprovals;
 
     /**
      * Fixtures
@@ -24,8 +25,8 @@ class WarrantApprovalsTableTest extends TestCase
      * @var list<string>
      */
     protected array $fixtures = [
-        'app.WarrantApprovals',
-        'app.WarrantApprovalSets',
+        'app.WarrantRosterApprovals',
+        'app.WarrantRosters',
         'app.Members',
     ];
 
@@ -37,8 +38,8 @@ class WarrantApprovalsTableTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $config = $this->getTableLocator()->exists('WarrantApprovals') ? [] : ['className' => WarrantApprovalsTable::class];
-        $this->WarrantApprovals = $this->getTableLocator()->get('WarrantApprovals', $config);
+        $config = $this->getTableLocator()->exists('WarrantRosterApprovals') ? [] : ['className' => WarrantRosterApprovalsTable::class];
+        $this->WarrantRosterApprovals = $this->getTableLocator()->get('WarrantRosterApprovals', $config);
     }
 
     /**
@@ -48,7 +49,7 @@ class WarrantApprovalsTableTest extends TestCase
      */
     protected function tearDown(): void
     {
-        unset($this->WarrantApprovals);
+        unset($this->WarrantRosterApprovals);
 
         parent::tearDown();
     }
@@ -57,7 +58,7 @@ class WarrantApprovalsTableTest extends TestCase
      * Test validationDefault method
      *
      * @return void
-     * @uses \App\Model\Table\WarrantApprovalsTable::validationDefault()
+     * @uses \App\Model\Table\WarrantRosterApprovalsTable::validationDefault()
      */
     public function testValidationDefault(): void
     {
@@ -68,7 +69,7 @@ class WarrantApprovalsTableTest extends TestCase
      * Test buildRules method
      *
      * @return void
-     * @uses \App\Model\Table\WarrantApprovalsTable::buildRules()
+     * @uses \App\Model\Table\WarrantRosterApprovalsTable::buildRules()
      */
     public function testBuildRules(): void
     {

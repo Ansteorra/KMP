@@ -19,6 +19,7 @@ use Officers\Services\OfficerManagerInterface;
 use App\KMP\StaticHelpers;
 use Cake\I18n\DateTime;
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
+use App\Services\WarrantManager\WarrantManagerInterface;
 
 /**
  * Plugin for Officers
@@ -123,6 +124,8 @@ class OfficersPlugin extends BasePlugin implements KMPPluginInterface
         $container->add(
             OfficerManagerInterface::class,
             DefaultOfficerManager::class,
-        )->addArgument(ActiveWindowManagerInterface::class);
+        )
+            ->addArgument(ActiveWindowManagerInterface::class)
+            ->addArgument(WarrantManagerInterface::class);
     }
 }

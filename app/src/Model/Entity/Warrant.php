@@ -11,9 +11,9 @@ use Cake\ORM\Entity;
  *
  * @property int $id
  * @property int $member_id
- * @property int $warrant_approval_set_id
- * @property string|null $warrant_for_model
- * @property int $warrant_for_id
+ * @property int $warrant_roster_id
+ * @property string|null $entity_type
+ * @property int $entity_id
  * @property int|null $member_role_id
  * @property \Cake\I18n\DateTime|null $expires_on
  * @property \Cake\I18n\DateTime|null $start_on
@@ -25,18 +25,15 @@ use Cake\ORM\Entity;
  * @property \Cake\I18n\DateTime $created
  *
  * @property \App\Model\Entity\Member $member
- * @property \App\Model\Entity\WarrantApprovalSet $warrant_approval_set
+ * @property \App\Model\Entity\WarrantRoster $warrant_roster_approval_set
  * @property \App\Model\Entity\MemberRole $member_role
  */
 class Warrant extends ActiveWindowBaseEntity
 {
 
-    public array $typeIdField = ['member_role_id'];
+    const PENDING_STATUS = "Pending";
 
-    const STATUS_ACTIVE = "active"; //usable warrant
-    const STATUS_DEACTIVATED = "deactivated"; //deactivated warrant
-    const STATUS_PENDING = "pending"; //warrant awaiting approval
-    const STATUS_EXPIRED = "expired"; //warrant awaiting approval
+    public array $typeIdField = ['member_role_id'];
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().
      *
@@ -48,9 +45,9 @@ class Warrant extends ActiveWindowBaseEntity
      */
     protected array $_accessible = [
         'member_id' => true,
-        'warrant_approval_set_id' => true,
-        'warrant_for_model' => true,
-        'warrant_for_id' => true,
+        'warrant_roster_id' => true,
+        'entity_type' => true,
+        'entity_id' => true,
         'member_role_id' => true,
         'expires_on' => true,
         'start_on' => true,
@@ -61,7 +58,7 @@ class Warrant extends ActiveWindowBaseEntity
         'created_by' => true,
         'created' => true,
         'member' => true,
-        'warrant_approval_set' => true,
+        'warrant_roster_approval_set' => true,
         'member_role' => true,
     ];
 }

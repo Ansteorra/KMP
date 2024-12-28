@@ -7,7 +7,7 @@ $linkTemplate = [
     "controller" => "Warrants",
     "action" => "deactivate",
     "id" => "id",
-    "condition" => ["warrant_for_model" => "Direct Grant"],
+    "condition" => ["entity_type" => "Direct Grant"],
     "options" => [
         "confirm" => "Are you sure you want to deactivate for {{member->sca_name}}?",
         "class" => "btn btn-danger"
@@ -17,7 +17,7 @@ $columnTemplate = [
     "Member" => "member->sca_name",
     "Start Date" => "start_on",
     "End Date" => "expires_on",
-    "Warrant For" => "warrant_for_model",
+    "Warrant For" => "entity_type",
     "Status" => "status",
 ];
 
