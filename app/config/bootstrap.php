@@ -230,7 +230,7 @@ ServerRequest::addDetector("tablet", function ($request) {
 // There is no time-specific type in Cake
 TypeFactory::map("time", StringType::class);
 
-DateTime::setToStringFormat("YYYY-MM-dd HH:mm:ss");
+DateTime::setToStringFormat("yyyy-MM-dd HH:mm:ss");
 /*
  * Custom Inflector rules, can be set to correctly pluralize or singularize
  * table, model, controller names or whatever other string is passed to the
