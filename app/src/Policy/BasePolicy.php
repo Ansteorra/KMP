@@ -130,4 +130,9 @@ class BasePolicy implements BeforePolicyInterface
         }
         return false;
     }
+
+    public function canViewPrivateNotes(IdentityInterface $user, $entity)
+    {
+        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+    }
 }

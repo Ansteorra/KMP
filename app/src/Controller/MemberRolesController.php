@@ -6,6 +6,7 @@ namespace App\Controller;
 
 use Cake\I18n\DateTime;
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
+use App\Model\Entity\MemberRole;
 
 /**
  * MemberRoles Controller
@@ -66,7 +67,7 @@ class MemberRolesController extends AppController
         }
         $this->MemberRoles->getConnection()->begin();
 
-        if (!$awService->stop("MemberRoles", (int)$id, $this->Authentication->getIdentity()->get("id"), "deactivated", "", DateTime::now())) {
+        if (!$awService->stop("MemberRoles", (int)$id, $this->Authentication->getIdentity()->get("id"), MemberRole::DEACTIVATED_STATUS, "", DateTime::now())) {
             $this->Flash->error(
                 __(
                     "The Member role could not be deactivated. Please, try again.",

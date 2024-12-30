@@ -43,9 +43,7 @@ class BranchOfficersCell extends BasePluginCell
      *
      * @return void
      */
-    public function initialize(): void
-    {
-    }
+    public function initialize(): void {}
 
     /**
      * Default display method.
@@ -81,9 +79,12 @@ class BranchOfficersCell extends BasePluginCell
     {
 
         $rejectFragment = $q->func()->concat([
-            'Released by ', "RevokedBy.sca_name" => 'identifier',
-            " on ", "expires_on" => 'identifier',
-            " note: ", "revoked_reason" => 'identifier'
+            'Released by ',
+            "RevokedBy.sca_name" => 'identifier',
+            " on ",
+            "expires_on" => 'identifier',
+            " note: ",
+            "revoked_reason" => 'identifier'
         ]);
 
         $revokeReasonCase = $q->newExpr()
@@ -94,7 +95,7 @@ class BranchOfficersCell extends BasePluginCell
             ->then("New Officer Took Over.")
             ->when(['Officers.status' => Officer::EXPIRED_STATUS])
             ->then("Officer Term Expired.")
-            ->else("");
+            ->else($rejectFragment);
 
         return $q
             ->select([

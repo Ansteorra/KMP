@@ -113,7 +113,8 @@ class Application extends BaseApplication implements
         StaticHelpers::getAppSetting("Member.MobileCard.BgColor", "gold");
         StaticHelpers::getAppSetting("Activity.SecretaryEmail", "please_set");
         StaticHelpers::getAppSetting("Activity.SecretaryName", "please_set");
-        StaticHelpers::setAppSetting("KMP.LastWarrantCheck", "",);
+        StaticHelpers::setAppSetting("Warrant.LastCheck", "",);
+        StaticHelpers::getAppSetting("Warrant.RosterApprovalsRequired", 2);
     }
 
     /**

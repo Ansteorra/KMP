@@ -10,6 +10,13 @@ use App\Model\Entity\Warrant;
 ?>
 <?php $this->extend('/layout/TwitterBootstrap/view_record');
 
+$userApprovedAlready = false;
+foreach ($warrantRoster->warrant_roster_approvals as $approval) {
+    if ($approval->approver_id == $user->id) {
+        $userApprovedAlready = true;
+    }
+}
+
 echo $this->KMP->startBlock("title");
 echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': View Warrant Approval Set - ' . $warrantRoster->name;
 $this->KMP->endBlock();
@@ -18,18 +25,22 @@ echo $this->KMP->startBlock("pageTitle") ?>
 <?= h($warrantRoster->name) ?>
 <?php $this->KMP->endBlock() ?>
 <?= $this->KMP->startBlock("recordActions") ?>
-<?php if ($warrantRoster->status == Warrant::PENDING_STATUS): ?>
-    <?= $this->Form->postLink(__('Approve'), ['controller' => 'WarrantRosters', 'action' => 'approve', $warrantRoster->id], ['confirm' => __('Are you sure you want to approve # {0}?', $warrantRoster->name), 'class' => 'btn btn-primary']) ?>
+<?php if ($warrantRoster->status == Warrant::PENDING_STATUS):
+    if (!$userApprovedAlready): ?>
+<?= $this->Form->postLink(__('Approve'), ['controller' => 'WarrantRosters', 'action' => 'approve', $warrantRoster->id], ['confirm' => __('Are you sure you want to approve # {0}?', $warrantRoster->name), 'class' => 'btn btn-primary']) ?>
+<?php endif ?>
 <?php endif ?>
 
-<?php if ($warrantRoster->status == Warrant::PENDING_STATUS): ?>
-    <?= $this->Form->postLink(__('Decline'), ['controller' => 'WarrantRosters', 'action' => 'decline', $warrantRoster->id], ['confirm' => __('Are you sure you want to decline # {0}?', $warrantRoster->name), 'class' => 'btn btn-danger']) ?>
+<?php if ($warrantRoster->status == Warrant::PENDING_STATUS):
+    if (!$userApprovedAlready): ?>
+<?= $this->Form->postLink(__('Decline'), ['controller' => 'WarrantRosters', 'action' => 'decline', $warrantRoster->id], ['confirm' => __('Are you sure you want to decline # {0}?', $warrantRoster->name), 'class' => 'btn btn-danger']) ?>
+<?php endif ?>
 <?php endif ?>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("recordDetails") ?>
 <tr>
-    <th scope="row"><?= __('Description') ?></th>
-    <td><?= h($warrantRoster->description) ?></td>
+    <th scope="row"><?= __('Status') ?></th>
+    <td><?= h($warrantRoster->status) ?></td>
 </tr>
 <tr>
     <th scope="row"><?= __('Approvals Required') ?></th>
@@ -67,54 +78,56 @@ echo $this->KMP->startBlock("pageTitle") ?>
     <div class="related tab-pane fade m-3" id="nav-warrants" role="tabpanel" aria-labelledby="nav-warrants-tab"
         data-detail-tabs-target="tabContent" data-detail-tabs-target="tabContent">
         <?php if (!empty($warrantRoster->warrants)): ?>
-            <div class="table-responsive">
-                <table class="table table-striped">
-                    <tr>
-                        <th scope="col"><?= __('Id') ?></th>
-                        <th scope="col"><?= __('Member Id') ?></th>
-                        <th scope="col"><?= __('Granted By') ?></th>
-                        <th scope="col"><?= __('Start On') ?></th>
-                        <th scope="col"><?= __('Expires On') ?></th>
-                        <th scope="col"><?= __('Status') ?></th>
-                        <th scope="col" class="actions"><?= __('Actions') ?></th>
-                    </tr>
-                    <?php foreach ($warrantRoster->warrants as $warrant): ?>
-                        <tr>
-                            <td><?= h($warrant->id) ?></td>
-                            <td><?= h($warrant->member->sca_name) ?></td>
-                            <td><?= h($warrant->entity_type) ?></td>
-                            <td><?= h($warrant->start_on->toDateString()) ?></td>
-                            <td><?= h($warrant->expires_on->toDateString()) ?></td>
-                            <td><?= h($warrant->status) ?></td>
-                            <td class="actions">
-                                <?php if ($warrant->status == Warrant::PENDING_STATUS): ?>
-                                    <?= $this->Form->postLink(__('Decline'), ['controller' => 'Warrants', 'action' => 'delete', $warrant->id], ['confirm' => __('Are you sure you want to delete # {0}?', $warrant->id), 'class' => 'btn btn-danger']) ?>
-                                <?php endif ?>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </table>
-            </div>
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <tr>
+                    <th scope="col"><?= __('Id') ?></th>
+                    <th scope="col"><?= __('Member Id') ?></th>
+                    <th scope="col"><?= __('Granted By') ?></th>
+                    <th scope="col"><?= __('Start On') ?></th>
+                    <th scope="col"><?= __('Expires On') ?></th>
+                    <th scope="col"><?= __('Status') ?></th>
+                    <th scope="col" class="actions"><?= __('Actions') ?></th>
+                </tr>
+                <?php foreach ($warrantRoster->warrants as $warrant): ?>
+                <tr>
+                    <td><?= h($warrant->id) ?></td>
+                    <td><?= h($warrant->member->sca_name) ?></td>
+                    <td><?= h($warrant->entity_type) ?></td>
+                    <td><?= h($warrant->start_on->toDateString()) ?></td>
+                    <td><?= h($warrant->expires_on->toDateString()) ?></td>
+                    <td><?= h($warrant->status) ?></td>
+                    <td class="actions">
+                        <?php if ($warrant->status == Warrant::PENDING_STATUS):
+                                    if (!$userApprovedAlready): ?>
+                        <?= $this->Form->postLink(__('Decline'), ['controller' => 'WarrantRosters', 'action' => 'declineWarrantInRoster', $warrantRoster->id, $warrant->id], ['confirm' => __('Are you sure you want to decline this warrant'), 'class' => 'btn btn-danger']) ?>
+                        <?php endif ?>
+                        <?php endif ?>
+                    </td>
+                </tr>
+                <?php endforeach; ?>
+            </table>
+        </div>
         <?php endif; ?>
     </div>
     <div class="related tab-pane fade m-3" id="nav-approvals" role="tabpanel" aria-labelledby="nav-approvals-tab"
         data-detail-tabs-target="tabContent" data-detail-tabs-target="tabContent">
 
         <?php if (!empty($warrantRoster->warrant_roster_approvals)): ?>
-            <div class="table-responsive">
-                <table class="table table-striped">
-                    <tr>
-                        <th scope="col"><?= __('Approver') ?></th>
-                        <th scope="col"><?= __('Responded On') ?></th>
-                    </tr>
-                    <?php foreach ($warrantRoster->warrant_roster_approvals as $warrantRosterApprovals): ?>
-                        <tr>
-                            <td><?= h($warrantRosterApprovals->member->sca_name) ?></td>
-                            <td><?= h($warrantRosterApprovals->approved_on->toDateString()) ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                </table>
-            </div>
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <tr>
+                    <th scope="col"><?= __('Approver') ?></th>
+                    <th scope="col"><?= __('Responded On') ?></th>
+                </tr>
+                <?php foreach ($warrantRoster->warrant_roster_approvals as $warrantRosterApprovals): ?>
+                <tr>
+                    <td><?= h($warrantRosterApprovals->member->sca_name) ?></td>
+                    <td><?= h($warrantRosterApprovals->approved_on->toDateString()) ?></td>
+                </tr>
+                <?php endforeach; ?>
+            </table>
+        </div>
         <?php endif; ?>
     </div>
     <div class="related tab-pane fade m-3" id="nav-notes" role="tabpanel" aria-labelledby="nav-notes-tab"

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Model\Entity\Warrant;
-use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
+use App\Services\WarrantManager\WarrantManagerInterface;
 use Cake\I18n\DateTime;
 
 /**
@@ -35,15 +35,7 @@ class WarrantsController extends AppController
      *
      * @return \Cake\Http\Response|null|void Renders view
      */
-    public function index()
-    {
-        $query = $this->Warrants->find()
-            ->contain(['Members', 'WarrantRosters', 'MemberRoles']);
-        $query = $this->Authorization->applyScope($query);
-        $warrants = $this->paginate($query);
-
-        $this->set(compact('warrants'));
-    }
+    public function index() {}
 
     public function allWarrants($state)
     {
@@ -91,26 +83,22 @@ class WarrantsController extends AppController
     }
 
 
-    public function deactivate(ActiveWindowManagerInterface $awService, $id = null)
+    public function deactivate(WarrantManagerInterface $wService, $id = null)
     {
         $this->request->allowMethod(["post"]);
         if (!$id) {
             $id = $this->request->getData("id");
         }
-        $this->Warrants->getConnection()->begin();
+        $securityWarrant = $this->Warrants->newEmptyEntity();
+        $this->Authorization->authorize($securityWarrant);
 
-        if (!$awService->stop("Warrants", (int)$id, $this->Authentication->getIdentity()->get("id"), "deactivated", "", DateTime::now())) {
-            $this->Flash->error(
-                __(
-                    "The warrant could not be deactivated. Please, try again.",
-                ),
-            );
-            $this->Warrants->getConnection()->rollback();
+        $wResult = $wService->cancel((int)$id, "Deactivated from Warrant List", $this->Authentication->getIdentity()->get("id"), DateTime::now());
+        if (!$wResult->success) {
+            $this->Flash->error($wResult->reason);
             return $this->redirect($this->referer());
         }
 
         $this->Flash->success(__("The warrant has been deactivated."));
-        $this->Warrants->getConnection()->commit();
         return $this->redirect($this->referer());
     }
 }

@@ -32,6 +32,7 @@ class Warrant extends ActiveWindowBaseEntity
 {
 
     const PENDING_STATUS = "Pending";
+    const DECLINED_STATUS = "Declined";
 
     public array $typeIdField = ['member_role_id'];
     /**

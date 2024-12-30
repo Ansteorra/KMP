@@ -54,7 +54,7 @@ class WarrantRostersController extends AppController
     /**
      * View method
      *
-     * @param string|null $id Warrant Approval Set id.
+     * @param string|null $id Warrant Roster id.
      * @return \Cake\Http\Response|null|void Renders view
      * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
      */
@@ -106,7 +106,7 @@ class WarrantRostersController extends AppController
     /**
      * Edit method
      *
-     * @param string|null $id Warrant Approval Set id.
+     * @param string|null $id Warrant Roster id.
      * @return \Cake\Http\Response|null|void Redirects on successful edit, renders view otherwise.
      * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
      */
@@ -146,21 +146,51 @@ class WarrantRostersController extends AppController
     /**
      * Delete method
      *
-     * @param string|null $id Warrant Approval Set id.
+     * @param string|null $id Warrant Roster id.
      * @return \Cake\Http\Response|null Redirects to index.
      * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
      */
-    public function delete($id = null)
+    public function decline(WarrantManagerInterface $wManager, $id = null)
     {
-        $this->request->allowMethod(['post', 'delete']);
-        $warrantRoster = $this->WarrantRosters->get($id);
+        $this->request->allowMethod(['post']);
+        $warrantRoster = $this->WarrantRosters->get($id, ['contain' => ['Warrants']]);
+        if ($warrantRoster == null) {
+            throw new NotFoundException();
+        }
         $this->Authorization->authorize($warrantRoster);
-        if ($this->WarrantRosters->delete($warrantRoster)) {
-            $this->Flash->success(__('The warrant approval set has been deleted.'));
+        $wmResult = $wManager->decline($warrantRoster->id, $this->Authentication->getIdentity()->getIdentifier(), "Declined from Warrant Roster View");
+        if ($wmResult->success) {
+            $this->Flash->success(__('The declination has been been processed.'));
         } else {
-            $this->Flash->error(__('The warrant approval set could not be deleted. Please, try again.'));
+            $this->Flash->error(__($wmResult->reason));
+        }
+        return $this->redirect(['action' => 'view', $id]);
+    }
+
+    public function declineWarrantInRoster(WarrantManagerInterface $wService, $roster_id, $warrant_id = null)
+    {
+        $this->request->allowMethod(["post"]);
+        if (!$roster_id) {
+            $roster_id = $this->request->getData("roster_id");
+        }
+        if (!$warrant_id) {
+            $warrant_id = $this->request->getData("warrant_id");
+        }
+        //check if the warrant exists in that roster
+        $warrant = $this->WarrantRosters->Warrants->find()
+            ->where(['id' => $warrant_id, 'warrant_roster_id' => $roster_id])
+            ->first();
+        if ($warrant == null) {
+            throw new NotFoundException();
+        }
+        $this->Authorization->authorize($warrant);
+        $wResult = $wService->declineSingleWarrant((int)$warrant_id, "Declined from Roster Detail", $this->Authentication->getIdentity()->get("id"));
+        if (!$wResult->success) {
+            $this->Flash->error($wResult->reason);
+            return $this->redirect($this->referer());
         }
 
-        return $this->redirect(['action' => 'index']);
+        $this->Flash->success(__("The warrant has been deactivated."));
+        return $this->redirect($this->referer());
     }
 }
