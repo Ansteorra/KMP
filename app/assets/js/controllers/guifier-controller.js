@@ -15,7 +15,7 @@ class GuifierController extends Controller {
             fullScreen: true,
             onChange: () => {
                 this.hiddenTarget.value = this.guifier.getData(this.typeValue)
-                console.log(this.hiddenTarget.value);
+                // console.log(this.hiddenTarget.value);
                 this.hiddenTarget.dispatchEvent(new Event('change'))
             }
         }
