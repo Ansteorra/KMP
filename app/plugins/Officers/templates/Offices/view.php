@@ -44,6 +44,14 @@ echo $this->KMP->startBlock("pageTitle") ?>
                             : "" ?></td>
 </tr>
 <tr scope="row">
+    <th class='col'><?= __("Branch Types") ?></th>
+    <td class="col-10">
+        <?php
+        echo implode(", ", $office->branch_types);
+        ?>
+    </td>
+</tr>
+<tr scope="row">
     <th class='col'><?= __("Term (Years)") ?></th>
     <td><?= h($office->term_length) ?></td>
 </tr>
@@ -74,6 +82,17 @@ echo $this->KMP->startBlock("pageTitle") ?>
                             $office->only_one_per_branch,
                             $this->Html,
                         ) ?></td>
+</tr>
+<th class='col'><?= __("Reports To") ?></th>
+<td class="col-10"><?= $office->hasValue(
+                        "reports_to",
+                    )
+                        ? $this->Html->link($office->reports_to->name, [
+                            "controller" => "Offices",
+                            "action" => "view",
+                            $office->reports_to->id,
+                        ])
+                        : "" ?></td>
 </tr>
 <th class='col'><?= __("Deputy To") ?></th>
 <td class="col-10"><?= $office->hasValue(
@@ -120,20 +139,47 @@ echo $this->KMP->startBlock("modals"); ?>
             "action" => "edit",
             $office->id,
         ],
+        'data-controller' => 'office-form'
     ]);
     echo $this->Form->control("name");
     echo $this->Form->control("department_id", [
         "options" => $departments,
         "empty" => true,
     ]);
+    echo $this->Form->control("branch_types", [
+        "type" => "select",
+        "multiple" => "checkbox",
+        "options" => $branch_types,
+        "switch" => true,
+        "label" => [
+            "class" => "required",
+        ],
+
+    ]);
     echo $this->Form->control("term_length");
     echo $this->Form->control("required_office", ["switch" => true, 'label' => 'Required']);
     echo $this->Form->control("can_skip_report", ["switch" => true, 'label' => 'Skip Report']);
     echo $this->Form->control("requires_warrant", ["switch" => true, 'label' => 'Warrant']);
     echo $this->Form->control("only_one_per_branch", ["switch" => true, 'label' => 'One Per Branch']);
-    echo $this->Form->control("deputy_to_id", [
+    echo $this->Form->control("is_deputy", [
+        "type" => "checkbox",
+        "switch" => true,
+        'label' => 'Is Deputy Office',
+        'data-action' => 'office-form#toggleIsDeputy',
+        'data-office-form-target' => 'isDeputy'
+    ]);
+    echo $this->Form->control("reports_to_id", [
         "options" => $offices,
         "empty" => true,
+        'data-office-form-target' => 'reportsTo',
+        'container' => ['data-office-form-target' => 'reportsToBlock']
+    ]);
+    echo $this->Form->control("deputy_to_id", [
+        "required" => true,
+        "options" => $offices,
+        "empty" => true,
+        'data-office-form-target' => 'deputyTo',
+        'container' => ['data-office-form-target' => 'deputyToBlock']
     ]);
     echo $this->Form->control("grants_role_id", [
         "options" => $roles,

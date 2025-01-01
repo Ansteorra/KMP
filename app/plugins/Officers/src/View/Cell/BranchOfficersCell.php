@@ -58,7 +58,7 @@ class BranchOfficersCell extends BasePluginCell
         $previousOfficers = $this->addConditions($offiersTable->find('previous')->where(['Officers.branch_id' => $id]))->toArray();
         $newOfficer = $offiersTable->newEmptyEntity();
         $branch = $this->getTableLocator()->get("Branches")
-            ->find()->cache("branch_" . $id . "_id_and_parent")->select(['id', 'parent_id'])
+            ->find()->cache("branch_" . $id . "_id_and_parent")->select(['id', 'parent_id', 'type'])
             ->where(['id' => $id])->first();
         $officesTbl = TableRegistry::getTableLocator()->get("Officers.Offices");;
         $officeQuery = $officesTbl->find("all")
@@ -68,9 +68,7 @@ class BranchOfficersCell extends BasePluginCell
             }])
             ->select(["id", "name", "deputy_to_id"])
             ->orderBY(["name" => "ASC"]);
-        if ($branch->parent_id != null) {
-            $officeQuery = $officeQuery->where(['kingdom_only' => false]);
-        }
+        $officeQuery = $officeQuery->where(['applicable_branch_types like' => '%"' . $branch->type . '"%']);
         $offices = $officeQuery->toArray();
         $this->set(compact('currentOfficers', 'upcomingOfficers', 'previousOfficers', 'newOfficer', 'offices', 'id'));
     }

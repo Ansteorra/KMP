@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Officers\Controller;
 
+use App\KMP\StaticHelpers;
+
 /**
  * Offices Controller
  *
@@ -29,6 +31,8 @@ class OfficesController extends AppController
             }, 'GrantsRole' => function ($q) {
                 return $q->select(['id', 'name']);
             }, 'DeputyTo' => function ($q) {
+                return $q->select(['id', 'name']);
+            }, 'ReportsTo' => function ($q) {
                 return $q->select(['id', 'name']);
             }]);
 
@@ -58,6 +62,8 @@ class OfficesController extends AppController
                 return $q->select(['id', 'name']);
             }, 'DeputyTo' => function ($q) {
                 return $q->select(['id', 'name']);
+            }, 'ReportsTo' => function ($q) {
+                return $q->select(['id', 'name']);
             }]
         );
         if (!$office) {
@@ -67,7 +73,12 @@ class OfficesController extends AppController
         $departments = $this->Offices->Departments->find('list', limit: 200)->all();
         $offices = $this->Offices->find('list', limit: 200)->all();
         $roles = $this->Offices->GrantsRole->find('list', limit: 200)->all();
-        $this->set(compact('office', 'departments', 'offices', 'roles'));
+        $btArray = StaticHelpers::getAppSetting("Branches.Types");
+        $branch_types = [];
+        foreach ($btArray as $branchType) {
+            $branch_types[$branchType] = $branchType;
+        }
+        $this->set(compact('office', 'departments', 'offices', 'roles', 'branch_types'));
     }
 
     /**
@@ -81,17 +92,26 @@ class OfficesController extends AppController
         $this->Authorization->authorize($office);
         if ($this->request->is('post')) {
             $office = $this->Offices->patchEntity($office, $this->request->getData());
-            if ($this->Offices->save($office)) {
-                $this->Flash->success(__('The office has been saved.'));
+            if (empty($office->branch_types)) {
+                $this->Flash->error(__('At least 1 Branch Type must be selected.'));
+            } else {
+                if ($this->Offices->save($office)) {
+                    $this->Flash->success(__('The office has been saved.'));
 
-                return $this->redirect(['action' => 'view', $office['id']]);
+                    return $this->redirect(['action' => 'view', $office['id']]);
+                }
+                $this->Flash->error(__('The office could not be saved. Please, try again.'));
             }
-            $this->Flash->error(__('The office could not be saved. Please, try again.'));
         }
         $departments = $this->Offices->Departments->find('list', limit: 200)->all();
         $offices = $this->Offices->find('list')->where(["deputy_to_id IS" => null])->all();
         $roles = $this->Offices->GrantsRole->find('list', limit: 200)->all();
-        $this->set(compact('office', 'departments', 'offices', 'roles'));
+        $btArray = StaticHelpers::getAppSetting("Branches.Types");
+        $branch_types = [];
+        foreach ($btArray as $branchType) {
+            $branch_types[$branchType] = $branchType;
+        }
+        $this->set(compact('office', 'departments', 'offices', 'roles', 'branch_types'));
     }
 
     /**
@@ -111,9 +131,14 @@ class OfficesController extends AppController
         $this->Authorization->authorize($office);
         if ($this->request->is(['patch', 'post', 'put'])) {
             $office = $this->Offices->patchEntity($office, $this->request->getData());
-            if ($this->Offices->save($office)) {
-                $this->Flash->success(__('The office has been saved.'));
+            if (empty($office->branch_types)) {
+                $this->Flash->error(__('At least 1 Branch Type must be selected.'));
             } else {
+                if ($this->Offices->save($office)) {
+                    $this->Flash->success(__('The office has been saved.'));
+
+                    return $this->redirect(['action' => 'view', $office['id']]);
+                }
                 $this->Flash->error(__('The office could not be saved. Please, try again.'));
             }
         }
@@ -162,9 +187,7 @@ class OfficesController extends AppController
             }])
             ->select(["id", "name", "deputy_to_id"])
             ->orderBY(["name" => "ASC"]);
-        if ($branch->parent_id != null) {
-            $officeQuery = $officeQuery->where(['kingdom_only' => false]);
-        }
+        $officeQuery = $officeQuery->where(['applicable_branch_types like' => '%"' . $branch->type . '"%']);
         $offices = $officeQuery->toArray();
         $this->viewBuilder()->setClassName("Ajax");
         $this->response = $this->response

@@ -40,9 +40,7 @@ class BranchRequiredOfficersCell extends BasePluginCell
      *
      * @return void
      */
-    public function initialize(): void
-    {
-    }
+    public function initialize(): void {}
 
     /**
      * Default display method.
@@ -52,7 +50,7 @@ class BranchRequiredOfficersCell extends BasePluginCell
     public function display($id)
     {
         $branch = $this->getTableLocator()->get("Branches")
-            ->find()->cache("branch_" . $id . "_id_and_parent")->select(['id', 'parent_id'])
+            ->find()->cache("branch_" . $id . "_id_and_parent")->select(['id', 'parent_id', 'type'])
             ->where(['id' => $id])->first();
         $officesTbl = $this->getTableLocator()->get("Officers.Offices");
         $officesQuery = $officesTbl->find()
@@ -63,9 +61,7 @@ class BranchRequiredOfficersCell extends BasePluginCell
                     ->where(['CurrentOfficers.branch_id' => $id]);
             }])
             ->where(['required_office' => true]);
-        if (!$branch->parent_id == null) {
-            $officesQuery = $officesQuery->where(['kingdom_only' => false]);
-        }
+        $officesQuery = $officesQuery->where(['applicable_branch_types like' => '%"' . $branch->type . '"%']);
         $requiredOffices = $officesQuery->toArray();
         $this->set(compact('requiredOffices', 'id'));
     }

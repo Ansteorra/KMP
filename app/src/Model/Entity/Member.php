@@ -392,7 +392,7 @@ class Member extends Entity implements
         $this->non_warrantable_reasons = $this->getNonWarrantableReasons();
     }
 
-    protected function getNonWarrantableReasons(): array
+    public function getNonWarrantableReasons(): array
     {
         $reasons = [];
         if ($this->age < 18) {

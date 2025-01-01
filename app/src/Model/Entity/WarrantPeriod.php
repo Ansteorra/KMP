@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Model\Entity;
@@ -31,4 +32,9 @@ class WarrantPeriod extends Entity
         'created' => true,
         'created_by' => true,
     ];
+
+    protected function _getName(): string
+    {
+        return $this->start_date->toDateString() . ' ~ ' . $this->end_date->toDateString();
+    }
 }

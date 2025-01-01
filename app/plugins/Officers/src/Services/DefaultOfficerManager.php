@@ -69,17 +69,17 @@ class DefaultOfficerManager implements OfficerManagerInterface
         $newOfficer->approver_id = $approverId;
         $newOfficer->approval_date = DateTime::now();
         $newOfficer->status = $status;
-        $newOfficer->reports_to_office_id = $officeId;
+        $newOfficer->deputy_to_office_id = $officeId;
         if ($office->deputy_to_id != null) {
             $newOfficer->deputy_description = $deputyDescription;
-            $newOfficer->reports_to_branch_id = $newOfficer->branch_id;
-            $newOfficer->reports_to_office_id = $office->deputy_to_id;
+            $newOfficer->deputy_to_branch_id = $newOfficer->branch_id;
+            $newOfficer->deputy_to_office_id = $office->deputy_to_id;
         } else {
             $branchTable = TableRegistry::getTableLocator()->get('Branches');
             $branch = $branchTable->get($branchId);
             if ($branch->parent_id != null) {
                 if (!$office->can_skip_report) {
-                    $newOfficer->reports_to_branch_id = $branch->parent_id;
+                    $newOfficer->deputy_to_branch_id = $branch->parent_id;
                 } else {
                     //iterate through the parents till we find one that has this office or the root
                     $currentBranchId = $branch->parent_id;
@@ -90,7 +90,7 @@ class DefaultOfficerManager implements OfficerManagerInterface
                             ->where(['branch_id' => $currentBranchId, 'office_id' => $officeId])
                             ->count();
                         if ($officersCount > 0) {
-                            $newOfficer->reports_to_branch_id = $currentBranchId;
+                            $newOfficer->deputy_to_branch_id = $currentBranchId;
                             $setReportsToBranch = true;
                             break;
                         }
@@ -99,11 +99,11 @@ class DefaultOfficerManager implements OfficerManagerInterface
                         $currentBranchId = $currentBranch->parent_id;
                     }
                     if (!$setReportsToBranch) {
-                        $newOfficer->reports_to_branch_id = $previousBranchId;
+                        $newOfficer->deputy_to_branch_id = $previousBranchId;
                     }
                 }
             } else {
-                $newOfficer->reports_to_branch_id = $branch->id;
+                $newOfficer->deputy_to_branch_id = $branch->id;
             }
         }
         //release current officers if they exist for this office
@@ -130,8 +130,10 @@ class DefaultOfficerManager implements OfficerManagerInterface
             return new ServiceResult(false, $awResult->reason);
         }
         if ($office->requires_warrant) {
+            $branchTable = TableRegistry::getTableLocator()->get('Branches');
+            $branch = $branchTable->get($branchId);
             $newOfficer = $officerTable->get($newOfficer->id);
-            $warrantRequest = new WarrantRequest('Officers.Officers', $newOfficer->id, $approverId, $memberId, $startOn, $endOn, $newOfficer->granted_member_role_id);
+            $warrantRequest = new WarrantRequest("Hiring Warrant: $branch->name - $office->name", 'Officers.Officers', $newOfficer->id, $approverId, $memberId, $startOn, $endOn, $newOfficer->granted_member_role_id);
             $member = TableRegistry::getTableLocator()->get('Members')->get($memberId);
             $wmResult = $this->warrantManager->request("$office->name : $member->sca_name", "", [$warrantRequest]);
             if (!$wmResult->success) {

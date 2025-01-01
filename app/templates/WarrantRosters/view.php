@@ -81,8 +81,8 @@ echo $this->KMP->startBlock("pageTitle") ?>
         <div class="table-responsive">
             <table class="table table-striped">
                 <tr>
-                    <th scope="col"><?= __('Id') ?></th>
-                    <th scope="col"><?= __('Member Id') ?></th>
+                    <th scope="col"><?= __('Name') ?></th>
+                    <th scope="col"><?= __('Member') ?></th>
                     <th scope="col"><?= __('Granted By') ?></th>
                     <th scope="col"><?= __('Start On') ?></th>
                     <th scope="col"><?= __('Expires On') ?></th>
@@ -91,7 +91,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
                 </tr>
                 <?php foreach ($warrantRoster->warrants as $warrant): ?>
                 <tr>
-                    <td><?= h($warrant->id) ?></td>
+                    <td><?= h($warrant->name) ?></td>
                     <td><?= h($warrant->member->sca_name) ?></td>
                     <td><?= h($warrant->entity_type) ?></td>
                     <td><?= h($warrant->start_on->toDateString()) ?></td>

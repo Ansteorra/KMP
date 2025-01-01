@@ -5,7 +5,6 @@ class OutletButton extends Controller {
         requireData: Boolean,
     }
     btnDataValueChanged() {
-        console.log(this.btnDataValue);
         if (this.btnDataValue === null) {
             this.btnDataValue = {};
         }

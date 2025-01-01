@@ -27,7 +27,6 @@ class InitWarrantsSeed extends AbstractSeed
             [
                 'id' => 1,
                 'name' => 'System Admin Warrant Set',
-                'description' => 'Required for system admin account',
                 'approvals_required' => 1,
                 'approval_count' => 1,
                 'created_by' => 1,
@@ -42,6 +41,7 @@ class InitWarrantsSeed extends AbstractSeed
         $data = [
             [
                 'id' => 1,
+                'name' => 'System Admin Warrant',
                 'member_id' => 1,
                 'warrant_roster_id' => 1,
                 'entity_type' => 'Direct Grant',

@@ -26,6 +26,7 @@ class DevLoadWarrantsSeed extends AbstractSeed
         $data = [
             [
                 'id' => 2,
+                'name' => 'Developer Warrant',
                 'member_id' => 200,
                 'warrant_roster_id' => 1,
                 'entity_type' => 'Direct Grant',
@@ -42,6 +43,7 @@ class DevLoadWarrantsSeed extends AbstractSeed
             ],
             [
                 'id' => 3,
+                'name' => 'Developer Warrant',
                 'member_id' => 201,
                 'warrant_roster_id' => 1,
                 'entity_type' => 'Direct Grant',

@@ -59,9 +59,18 @@ class OfficesTable extends Table
             'foreignKey' => 'deputy_to_id',
             'joinType' => 'LEFT',
         ]);
+        $this->belongsTo('ReportsTo', [
+            'className' => 'Officers.Offices',
+            'foreignKey' => 'reports_to_id',
+            'joinType' => 'LEFT',
+        ]);
         $this->hasMany('Deputies', [
             'className' => 'Officers.Offices',
             'foreignKey' => 'deputy_to_id',
+        ]);
+        $this->hasMany('DirectReports', [
+            'className' => 'Officers.Offices',
+            'foreignKey' => 'reports_to_id',
         ]);
         $this->hasMany("Officers", [
             "className" => "Officers.Officers",
@@ -117,6 +126,10 @@ class OfficesTable extends Table
         $validator
             ->integer('deputy_to_id')
             ->allowEmptyString('deputy_to_id');
+
+        $validator
+            ->integer('reports_to_id')
+            ->allowEmptyString('reports_to_id');
 
         $validator
             ->integer('grants_role_id')

@@ -77,9 +77,16 @@ class BranchesController extends AppController
             ->find("treeList", spacer: "--")
             ->orderBy(["name" => "ASC"]);
 
+        $btArray = StaticHelpers::getAppSetting("Branches.Types");
+        $branch_types = [];
+        foreach ($btArray as $branchType) {
+            $branch_types[$branchType] = $branchType;
+        }
+
+
         // get a list of required offices and officers for the branch
 
-        $this->set(compact("branch", "treeList"));
+        $this->set(compact("branch", "treeList", "branch_types"));
     }
 
     /**
@@ -106,10 +113,15 @@ class BranchesController extends AppController
                 __("The branch could not be saved. Please, try again."),
             );
         }
+        $btArray = StaticHelpers::getAppSetting("Branches.Types");
+        $branch_types = [];
+        foreach ($btArray as $branchType) {
+            $branch_types[$branchType] = $branchType;
+        }
         $treeList = $this->Branches
             ->find("list")
             ->orderBy(["name" => "ASC"]);
-        $this->set(compact("branch", "treeList"));
+        $this->set(compact("branch", "treeList", 'branch_types'));
     }
 
     /**

@@ -151,11 +151,11 @@ class KmpHelper extends Helper
      * @param \Cake\View\Helper\HtmlHelper $Html
      * @return string
      */
-    public function bool($value, $Html): string
+    public function bool($value, $Html, array $options = []): string
     {
         return $value
-            ? $Html->icon("check-circle-fill")
-            : $Html->icon("x-circle");
+            ? $Html->icon("check-circle-fill", $options)
+            : $Html->icon("x-circle", $options);
     }
     /**
      * Builds the navigation for the app

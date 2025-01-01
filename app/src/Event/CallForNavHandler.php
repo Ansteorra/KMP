@@ -46,13 +46,6 @@ class CallForNavHandler implements EventListenerInterface
             ],
             [
                 "type" => "parent",
-                "label" => "Warrants",
-                "icon" => "bi-shield-lock",
-                "id" => "navheader_warrants",
-                "order" => 30,
-            ],
-            [
-                "type" => "parent",
                 "label" => "Security",
                 "icon" => "bi-house-lock",
                 "id" => "navheader_security",
@@ -178,7 +171,7 @@ class CallForNavHandler implements EventListenerInterface
                 "type" => "link",
                 "mergePath" => ["Config"],
                 "label" => "Branches",
-                "order" => 10,
+                "order" => 0,
                 "url" => [
                     "controller" => "Branches",
                     "action" => "index",
@@ -202,9 +195,9 @@ class CallForNavHandler implements EventListenerInterface
             ],
             [
                 "type" => "link",
-                "mergePath" => ["Warrants"],
+                "mergePath" => ["Config"],
                 "label" => "Warrant Periods",
-                "order" => 0,
+                "order" => 60,
                 "url" => [
                     "controller" => "WarrantPeriods",
                     "action" => "index",
@@ -213,7 +206,7 @@ class CallForNavHandler implements EventListenerInterface
             ],
             [
                 "type" => "link",
-                "mergePath" => ["Warrants"],
+                "mergePath" => ["Security"],
                 "label" => "Warrants",
                 "order" => 0,
                 "url" => [
@@ -224,7 +217,7 @@ class CallForNavHandler implements EventListenerInterface
             ],
             [
                 "type" => "link",
-                "mergePath" => ["Warrants"],
+                "mergePath" => ["Security"],
                 "label" => "Rosters",
                 "order" => 0,
                 "url" => [

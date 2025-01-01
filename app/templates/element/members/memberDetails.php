@@ -112,7 +112,7 @@ $today = new Date();
             <?= $member->warrantable ? "Yes" : "No" ?>
             <?php if (!$member->warrantable) : ?>
             <br><small class="text-secondary">
-                (<?= implode(' ,', $member->non_warrantable_reasons) ?>)
+                (<?= implode(' ,', $member->getNonWarrantableReasons()) ?>)
             </small>
             <?php endif; ?>
         </td>

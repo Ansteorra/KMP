@@ -9,6 +9,7 @@ use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
 use App\KMP\StaticHelpers;
+use App\Model\Entity\Warrant;
 use Cake\I18n\DateTime;
 use Officers\Model\Entity\Officer;
 
@@ -78,14 +79,34 @@ class OfficersTable extends Table
 
         $this->belongsTo('ReportsToOffices', [
             'className' => 'Officers.Offices',
-            'foreignKey' => 'reports_to_office_id',
+            'foreignKey' => 'deputy_to_office_id',
             'joinType' => 'LEFT',
         ]);
         $this->belongsTo('ReportsToBranches', [
             'className' => 'Branches',
-            'foreignKey' => 'reports_to_branch_id',
+            'foreignKey' => 'deputy_to_branch_id',
             'joinType' => 'LEFT',
         ]);
+        $now = DateTime::now();
+        $this->hasOne("CurrentWarrants", [
+            "className" => "Warrants",
+            "foreignKey" => "entity_id",
+            "conditions" => [
+                "CurrentWarrants.entity_type" => "Officers.Officers",
+                "CurrentWarrants.status" => Warrant::CURRENT_STATUS,
+                "CurrentWarrants.start_on <=" => $now,
+                "CurrentWarrants.expires_on >=" => $now
+            ],
+        ]);
+
+        $this->hasMany("Warrants", [
+            "className" => "Warrants",
+            "foreignKey" => "entity_id",
+            "conditions" => [
+                "UpcomingWarrant.entity_type" => "Officers.Officers",
+            ],
+        ]);
+
         $this->addBehavior("Timestamp");
         $this->addBehavior('Muffin/Footprint.Footprint');
         $this->addBehavior("ActiveWindow");

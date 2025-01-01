@@ -55,6 +55,11 @@ class Warrants extends AbstractMigration
                 "limit" => 11,
                 "null" => false,
             ])
+            ->addColumn("name", "string", [
+                "default" => null,
+                "limit" => 255,
+                "null" => false,
+            ])
             ->addColumn("member_id", "integer", [
                 "default" => null,
                 "limit" => 11,
@@ -145,11 +150,6 @@ class Warrants extends AbstractMigration
                 "null" => false,
             ])
             ->addColumn("name", "string", [
-                "default" => null,
-                "limit" => 255,
-                "null" => false,
-            ])
-            ->addColumn("description", "string", [
                 "default" => null,
                 "limit" => 255,
                 "null" => false,

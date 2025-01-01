@@ -47,12 +47,18 @@ class DefaultWarrantManager implements WarrantManagerInterface
         $warrantRoster->name = $request_name;
         $warrantRoster->description = $desc;
         $warrantRoster->approvals_required = StaticHelpers::getAppSetting("Warrant.RosterApprovalsRequired", 2);
+
+        //start a transaction
+        $warrantRosterTable->getConnection()->begin();
         if (!$warrantRosterTable->save($warrantRoster)) {
+            //rollback transaction
+            $warrantRosterTable->getConnection()->rollback();
             return new ServiceResult(false, "Failed to create warrant approval set");
         }
         $warrantRequestTable = TableRegistry::getTableLocator()->get('Warrants');
         foreach ($warrantRequests as $warrantRequest) {
             $warrantRequestEntity = $warrantRequestTable->newEmptyEntity();
+            $warrantRequestEntity->name = $warrantRequest->name;
             $warrantRequestEntity->entity_type = $warrantRequest->entity_type;
             $warrantRequestEntity->entity_id =  $warrantRequest->entity_id;
             $warrantRequestEntity->requester_id = $warrantRequest->requester_id;
@@ -60,13 +66,19 @@ class DefaultWarrantManager implements WarrantManagerInterface
             //get warrant period
             $warrantPeriod = $this->getWarrantPeriod($warrantRequest->start_on, $warrantRequest->expires_on);
             if ($warrantPeriod == null) {
+                //rollback transaction
+                $warrantRosterTable->getConnection()->rollback();
                 return new ServiceResult(false, "Invalid warrant period");
             }
             $member = TableRegistry::getTableLocator()->get('Members')->get($warrantRequest->member_id);
             if ($member->warrantable == null) {
+                //rollback transaction
+                $warrantRosterTable->getConnection()->rollback();
                 return new ServiceResult(false, "$member->sca_name is not warrantable");
             }
             if ($warrantPeriod->end_on > $member->membership_expires_on) {
+                //rollback transaction
+                $warrantRosterTable->getConnection()->rollback();
                 return new ServiceResult(false, "Warrant period exceeds membership period for $member->sca_name");
             }
             $warrantRequestEntity->start_on = $warrantPeriod->start_date;
@@ -74,11 +86,14 @@ class DefaultWarrantManager implements WarrantManagerInterface
             $warrantRequestEntity->status = Warrant::PENDING_STATUS;
             $warrantRequestEntity->warrant_roster_id = $warrantRoster->id;
             if (!$warrantRequestTable->save($warrantRequestEntity)) {
+                //rollback transaction
+                $warrantRosterTable->getConnection()->rollback();
                 return new ServiceResult(false, "Failed to create pending warrant for $member->sca_name");
             }
         }
-
-        return new ServiceResult(true);
+        //commit transaction
+        $warrantRosterTable->getConnection()->commit();
+        return new ServiceResult(true, "", $warrantRoster->id);
     }
 
     public function approve($warrant_roster_id, $approver_id): ServiceResult

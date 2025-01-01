@@ -115,6 +115,13 @@ class Application extends BaseApplication implements
         StaticHelpers::getAppSetting("Activity.SecretaryName", "please_set");
         StaticHelpers::setAppSetting("Warrant.LastCheck", "",);
         StaticHelpers::getAppSetting("Warrant.RosterApprovalsRequired", 2);
+        StaticHelpers::getAppSetting("Branches.Types", yaml_emit([
+            "Kingdom",
+            "Principality",
+            "Region",
+            "Local Group",
+            "N/A",
+        ]), 'yaml');
     }
 
     /**

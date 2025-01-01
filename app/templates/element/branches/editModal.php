@@ -16,6 +16,10 @@ echo $this->Modal->create("Edit Branch", [
 <fieldset>
     <?php
     echo $this->Form->control("name");
+    echo $this->Form->control("type", [
+        "options" => $branch_types,
+        "empty" => true,
+    ]);
     echo $this->Form->control("location");
     echo $this->Form->control("can_have_members", [
         "switch" => true,

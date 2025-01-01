@@ -44,7 +44,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
                     <th scope="col" class="text-center"><?= __(
                                                             "One Per Branch",
                                                         ) ?></th>
-                    <th scope="col" class="text-center"><?= __("Deputy To") ?></th>
+                    <th scope="col" class="text-center"><?= __("Reports To") ?></th>
                     <th scope="col" class="text-center"><?= __("Grants Role") ?></th>
                     <th scope="col" class="actions"><?= __("Actions") ?></th>
                 </tr>

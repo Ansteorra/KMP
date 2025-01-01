@@ -41,7 +41,7 @@ class WarrantPeriodsTable extends Table
         parent::initialize($config);
 
         $this->setTable('warrant_periods');
-        $this->setDisplayField('id');
+        $this->setDisplayField('name');
         $this->setPrimaryKey('id');
 
         $this->addBehavior('Timestamp');
