@@ -92,7 +92,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
                             "action" => "view",
                             $office->reports_to->id,
                         ])
-                        : "" ?></td>
+                        : "Society" ?></td>
 </tr>
 <th class='col'><?= __("Deputy To") ?></th>
 <td class="col-10"><?= $office->hasValue(

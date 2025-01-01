@@ -127,4 +127,25 @@ class KMPMailer extends Mailer
                 "siteAdminSignature" => StaticHelpers::getAppSetting("Email.SiteAdminSignature"),
             ]);
     }
+
+    public function notifyOfWarrant(
+        string $to,
+        string $memberScaName,
+        string $warrantName,
+        string $warrantStart,
+        string $warrantExpires,
+    ) {
+        $sendFrom = StaticHelpers::getAppSetting("Email.SystemEmailFromAddress");
+
+        $this->setTo($to)
+            ->setFrom($sendFrom)
+            ->setSubject("Warrant Issued: $warrantName")
+            ->setViewVars([
+                "memberScaName" => $memberScaName,
+                "warrantName" => $warrantName,
+                "warrantExpires" => $warrantExpires,
+                "warrantStart" => $warrantStart,
+                "siteAdminSignature" => StaticHelpers::getAppSetting("Email.SiteAdminSignature"),
+            ]);
+    }
 }

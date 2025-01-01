@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Model\Table;
 
+use App\Model\Entity\WarrantRoster;
 use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
+use Cake\ORM\TableRegistry;
 
 /**
  * WarrantRosters Model
@@ -116,5 +118,16 @@ class WarrantRostersTable extends Table
             ->allowEmptyString('created_by');
 
         return $validator;
+    }
+
+    public static function getPendingRosterCount(): int
+    {
+        $warrantRostersTable = TableRegistry::getTableLocator()->get("WarrantRosters");
+
+        return $warrantRostersTable->find()
+            ->where([
+                "status" => WarrantRoster::STATUS_PENDING
+            ])
+            ->count();
     }
 }

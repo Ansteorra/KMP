@@ -76,13 +76,22 @@ class OfficersTable extends Table
             "joinType" => "LEFT",
             "propertyName" => "revoked_by",
         ]);
-
         $this->belongsTo('ReportsToOffices', [
+            'className' => 'Officers.Offices',
+            'foreignKey' => 'reports_to_office_id',
+            'joinType' => 'LEFT',
+        ]);
+        $this->belongsTo('ReportsToBranches', [
+            'className' => 'Branches',
+            'foreignKey' => 'reports_to_branch_id',
+            'joinType' => 'LEFT',
+        ]);
+        $this->belongsTo('DeputyToOffices', [
             'className' => 'Officers.Offices',
             'foreignKey' => 'deputy_to_office_id',
             'joinType' => 'LEFT',
         ]);
-        $this->belongsTo('ReportsToBranches', [
+        $this->belongsTo('DeputyToBranches', [
             'className' => 'Branches',
             'foreignKey' => 'deputy_to_branch_id',
             'joinType' => 'LEFT',

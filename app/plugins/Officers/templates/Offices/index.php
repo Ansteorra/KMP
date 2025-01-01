@@ -55,7 +55,7 @@ $this->KMP->endBlock(); ?>
                                         ) ?></td>
             <td class="text-center"><?= h(
                                             $office->reports_to === null
-                                                ? ""
+                                                ? "Society"
                                                 : $office->reports_to->name,
                                         ) ?></td>
             <td class="text-center"><?= h(

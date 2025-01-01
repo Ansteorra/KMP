@@ -8,6 +8,7 @@ use Cake\View\Cell;
 use App\View\Cell\BasePluginCell;
 use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\TableRegistry;
+use Cake\I18n\DateTime;
 use Officers\Model\Entity\Officer;
 
 /**
@@ -53,9 +54,9 @@ class BranchOfficersCell extends BasePluginCell
     public function display($id)
     {
         $offiersTable = TableRegistry::getTableLocator()->get("Officers.Officers");
-        $currentOfficers = $this->addConditions($offiersTable->find('current')->where(['Officers.branch_id' => $id]))->toArray();
-        $upcomingOfficers = $this->addConditions($offiersTable->find('upcoming')->where(['Officers.branch_id' => $id]))->toArray();
-        $previousOfficers = $this->addConditions($offiersTable->find('previous')->where(['Officers.branch_id' => $id]))->toArray();
+        $currentOfficers = $this->addConditions($offiersTable->find('current')->where(['Officers.branch_id' => $id]), 'current')->toArray();
+        $upcomingOfficers = $this->addConditions($offiersTable->find('upcoming')->where(['Officers.branch_id' => $id]), 'upcoming')->toArray();
+        $previousOfficers = $this->addConditions($offiersTable->find('previous')->where(['Officers.branch_id' => $id]), 'previous')->toArray();
         $newOfficer = $offiersTable->newEmptyEntity();
         $branch = $this->getTableLocator()->get("Branches")
             ->find()->cache("branch_" . $id . "_id_and_parent")->select(['id', 'parent_id', 'type'])
@@ -73,16 +74,16 @@ class BranchOfficersCell extends BasePluginCell
         $this->set(compact('currentOfficers', 'upcomingOfficers', 'previousOfficers', 'newOfficer', 'offices', 'id'));
     }
 
-    protected function addConditions($q)
+    protected function addConditions($q, $type)
     {
 
         $rejectFragment = $q->func()->concat([
             'Released by ',
             "RevokedBy.sca_name" => 'identifier',
             " on ",
-            "expires_on" => 'identifier',
+            "Officers.expires_on" => 'identifier',
             " note: ",
-            "revoked_reason" => 'identifier'
+            "Officers.revoked_reason" => 'identifier'
         ]);
 
         $revokeReasonCase = $q->newExpr()
@@ -95,43 +96,115 @@ class BranchOfficersCell extends BasePluginCell
             ->then("Officer Term Expired.")
             ->else($rejectFragment);
 
-        return $q
-            ->select([
-                "id",
-                "member_id",
-                "office_id",
-                "branch_id",
-                "start_on",
-                "expires_on",
-                'revoked_reason' => $revokeReasonCase,
-                "ReportsToBranches.name",
-                "ReportsToOffices.name",
-                "deputy_description",
-                "status",
-            ])
-            ->contain([
-                "Members" => function ($q) {
-                    return $q
-                        ->select(["id", "sca_name"])
-                        ->order(["sca_name" => "ASC"]);
-                },
-                "Offices" => function ($q) {
-                    return $q
-                        ->select(["id", "name"]);
-                },
-                "ReportsToBranches" => function ($q) {
-                    return $q
-                        ->select(["id", "name"]);
-                },
-                "ReportsToOffices" => function ($q) {
-                    return $q
-                        ->select(["id", "name"]);
-                },
-                "RevokedBy" => function ($q) {
-                    return $q
-                        ->select(["id", "sca_name"]);
-                },
-            ])
-            ->order(["start_on" => "DESC", "Offices.name" => "ASC"]);
+
+        $reportsToCase = $q->newExpr()
+            ->case()
+            ->when(['DeputyToOffices.id IS NOT NULL'])
+            ->then($q->func()->concat([
+                "DeputyToOffices.name" => 'identifier',
+                " (",
+                "Officers.deputy_description" => 'identifier',
+                ")"
+            ]))
+            ->when(['ReportsToOffices.id IS NULL'])
+            ->then("Society")
+            ->when(['current_report_to.id IS NOT NULL'])
+            ->then($q->func()->concat([
+                "ReportsToOffices.name" => 'identifier',
+                " : ",
+                "current_report_to.sca_name" => 'identifier',
+            ]))
+            ->when(['ReportsToOffices.id IS NOT NULL'])
+            ->then($q->func()->concat([
+                "Not Filed - ",
+                "ReportsToBranches.name" => 'identifier',
+                " : ",
+                "ReportsToOffices.name" => 'identifier'
+            ]))
+            ->else("None");
+
+        $fields = [
+            "id",
+            "member_id",
+            "office_id",
+            "branch_id",
+            "Officers.start_on",
+            "Officers.expires_on",
+            "Officers.deputy_description",
+            "status",
+        ];
+
+        $contain = [
+            "Members" => function ($q) {
+                return $q
+                    ->select(["id", "sca_name"])
+                    ->order(["sca_name" => "ASC"]);
+            },
+            "Offices" => function ($q) {
+                return $q
+                    ->select(["id", "name"]);
+            },
+
+            "RevokedBy" => function ($q) {
+                return $q
+                    ->select(["id", "sca_name"]);
+            },
+        ];
+
+        if ($type === 'current' || $type === 'upcoming') {
+            $fields['reports_to'] = $reportsToCase;
+            $fields[] = "ReportsToBranches.name";
+            $fields[] = "ReportsToOffices.name";
+            $contain["ReportsToBranches"] = function ($q) {
+                return $q
+                    ->select(["id", "name"]);
+            };
+            $contain["ReportsToOffices"] = function ($q) {
+                return $q
+                    ->select(["id", "name"]);
+            };
+            $contain["DeputyToOffices"] = function ($q) {
+                return $q
+                    ->select(["id", "name"]);
+            };
+        }
+
+        if ($type === 'previous') {
+            $fields['revoked_reason'] = $revokeReasonCase;
+        }
+
+        $query = $q
+            ->select($fields);
+
+        $query->contain($contain);
+        if ($type === 'current' || $type === 'upcoming') {
+            $query->join(
+                [
+                    'table' => 'officers_officers',
+                    'alias' => 'current_report_to_officer',
+                    'type' => 'LEFT',
+                    'conditions' => [
+                        'Officers.reports_to_office_id = current_report_to_officer.office_id',
+                        'Officers.reports_to_branch_id = current_report_to_officer.branch_id',
+                        'current_report_to_officer.start_on <=' => DateTime::now(),
+                        'current_report_to_officer.expires_on >=' => DateTime::now(),
+                        'current_report_to_officer.status' => Officer::CURRENT_STATUS
+                    ]
+                ]
+            );
+            $query->join(
+                [
+                    'table' => 'members',
+                    'alias' => 'current_report_to',
+                    'type' => 'LEFT',
+                    'conditions' => [
+                        'current_report_to_officer.member_id = current_report_to.id',
+                    ]
+                ]
+            );
+        }
+        $query->order(["Officers.start_on" => "DESC", "Offices.name" => "ASC"]);
+
+        return $query;
     }
 }

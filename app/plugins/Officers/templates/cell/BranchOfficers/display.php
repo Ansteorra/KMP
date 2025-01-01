@@ -25,7 +25,7 @@ $user = $this->request->getAttribute("identity");
         "Office" => "{{office->name}}{{: (deputy_description) }}",
         "Start Date" => "start_on",
         "End Date" => "expires_on",
-        "Reports To" => "{{deputy_to_branch->name}} - {{deputy_to_office->name}}",
+        "Reports To" => "reports_to",
         "Actions" => [
             $linkTemplate
         ],

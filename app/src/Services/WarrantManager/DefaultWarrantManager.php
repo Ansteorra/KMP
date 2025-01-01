@@ -5,18 +5,23 @@ namespace App\Services\WarrantManager;
 use App\Model\Entity\Warrant;
 use App\Services\WarrantManager\WarrantManagerInterface;
 use Cake\I18n\DateTime;
+use Cake\I18n\Date;
 use Cake\ORM\TableRegistry;
 use App\Services\ServiceResult;
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 use App\Model\Entity\WarrantPeriod;
 use App\Model\Entity\WarrantRoster;
 use App\Model\Entity\MemberRole;
+use Cake\Mailer\MailerAwareTrait;
 
 use App\KMP\StaticHelpers;
 
 
 class DefaultWarrantManager implements WarrantManagerInterface
 {
+    #region
+    use MailerAwareTrait;
+
     public function __construct(ActiveWindowManagerInterface $activeWindowManager)
     {
         $this->activeWindowManager = $activeWindowManager;
@@ -133,22 +138,34 @@ class DefaultWarrantManager implements WarrantManagerInterface
             //get all warrants in the set that are pending and make them active
             $warrantTable = TableRegistry::getTableLocator()->get('Warrants');
             $warrants = $warrantTable->find()
+                ->contain(['Members' => function ($q) {
+                    return $q->select(['id', 'email_address', 'sca_name']);
+                }])
                 ->where([
                     'warrant_roster_id' => $warrant_roster_id,
-                    'status' => Warrant::PENDING_STATUS
+                    'Warrants.status' => Warrant::PENDING_STATUS
                 ])
                 ->all();
             foreach ($warrants as $warrant) {
                 $warrant->status = Warrant::CURRENT_STATUS;
                 $warrant->approved_date = new DateTime();
-                if ($warrant->start_on == null || $warrant->starts_on < new DateTime()) {
-                    $warrant->start_on = new DateTime();
+                $now = new DateTime();
+                $warrantStart = $warrant->start_on;
+                if ($warrant->start_on == null || $warrantStart < $now) {
+                    $warrant->start_on = $now;
                 }
                 if (!$warrantTable->save($warrant)) {
                     //rollback transaction
                     $warrantRosterTable->getConnection()->rollback();
                     return new ServiceResult(false, "Failed to acivate warrants in Roster");
                 }
+                $result = $this->getMailer("KMP")->send("notifyOfWarrant", [
+                    $warrant->member->email_address,
+                    $warrant->member->sca_name,
+                    $warrant->name,
+                    $warrant->start_on->toDateString(),
+                    $warrant->expires_on->toDateString(),
+                ]);
             }
         }
         if (!$warrantRosterTable->save($warrantRoster)) {
@@ -314,11 +331,11 @@ class DefaultWarrantManager implements WarrantManagerInterface
         if ($warrantPeriod == null) {
             return null;
         }
-        if ($warrantPeriod->end_date > $endOn) {
-            $warrantPeriod->end_date = $endOn;
+        if ($warrantPeriod->end_date->toNative() > $endOn->toNative()) {
+            $warrantPeriod->end_date = new Date($endOn->toDateString());
         }
-        if ($warrantPeriod->start_date < $startOn) {
-            $warrantPeriod->start_date = $startOn;
+        if ($warrantPeriod->start_date->toNative() < $startOn->toNative()) {
+            $warrantPeriod->start_date = new Date($startOn->toDateString());
         }
         return $warrantPeriod;
     }

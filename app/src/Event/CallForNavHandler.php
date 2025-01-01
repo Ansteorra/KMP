@@ -224,6 +224,12 @@ class CallForNavHandler implements EventListenerInterface
                     "controller" => "WarrantRosters",
                     "action" => "index",
                 ],
+                "badgeClass" => "bg-danger",
+                "badgeValue" => [
+                    "class" => "App\Model\Table\WarrantRostersTable",
+                    "method" => "getPendingRosterCount",
+                    "argument" => 0
+                ],
                 "icon" => "bi-people",
             ],
             [

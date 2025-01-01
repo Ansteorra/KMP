@@ -78,7 +78,7 @@ class Office extends Entity
         $returnVals = explode(",", $this->applicable_branch_types);
         //remove quotes around each branch type
         $returnVals = array_map(function ($branchType) {
-            return trim($branchType, "\"");
+            return ltrim(rtrim($branchType, "\""), "\"");
         }, $returnVals);
         return $returnVals;
     }

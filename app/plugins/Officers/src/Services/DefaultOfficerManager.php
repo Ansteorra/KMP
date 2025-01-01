@@ -9,10 +9,14 @@ use App\Services\WarrantManager\WarrantManagerInterface;
 use Cake\ORM\TableRegistry;
 use Officers\Model\Entity\Officer;
 use App\Services\ServiceResult;
+use Cake\Mailer\MailerAwareTrait;
 use App\Services\WarrantManager\WarrantRequest;
 
 class DefaultOfficerManager implements OfficerManagerInterface
 {
+    #region
+    use MailerAwareTrait;
+
     public function __construct(ActiveWindowManagerInterface $activeWindowManager, WarrantManagerInterface $warrantManager)
     {
         $this->activeWindowManager = $activeWindowManager;
@@ -69,17 +73,19 @@ class DefaultOfficerManager implements OfficerManagerInterface
         $newOfficer->approver_id = $approverId;
         $newOfficer->approval_date = DateTime::now();
         $newOfficer->status = $status;
-        $newOfficer->deputy_to_office_id = $officeId;
         if ($office->deputy_to_id != null) {
             $newOfficer->deputy_description = $deputyDescription;
             $newOfficer->deputy_to_branch_id = $newOfficer->branch_id;
             $newOfficer->deputy_to_office_id = $office->deputy_to_id;
+            $newOfficer->reports_to_branch_id = $newOfficer->branch_id;
+            $newOfficer->reports_to_office_id = $office->deputy_to_id;
         } else {
+            $newOfficer->reports_to_office_id = $office->reports_to_id;
             $branchTable = TableRegistry::getTableLocator()->get('Branches');
             $branch = $branchTable->get($branchId);
             if ($branch->parent_id != null) {
                 if (!$office->can_skip_report) {
-                    $newOfficer->deputy_to_branch_id = $branch->parent_id;
+                    $newOfficer->reports_to_branch_id = $branch->parent_id;
                 } else {
                     //iterate through the parents till we find one that has this office or the root
                     $currentBranchId = $branch->parent_id;
@@ -90,7 +96,7 @@ class DefaultOfficerManager implements OfficerManagerInterface
                             ->where(['branch_id' => $currentBranchId, 'office_id' => $officeId])
                             ->count();
                         if ($officersCount > 0) {
-                            $newOfficer->deputy_to_branch_id = $currentBranchId;
+                            $newOfficer->reports_to_branch_id = $currentBranchId;
                             $setReportsToBranch = true;
                             break;
                         }
@@ -99,11 +105,11 @@ class DefaultOfficerManager implements OfficerManagerInterface
                         $currentBranchId = $currentBranch->parent_id;
                     }
                     if (!$setReportsToBranch) {
-                        $newOfficer->deputy_to_branch_id = $previousBranchId;
+                        $newOfficer->reports_to_branch_id = $previousBranchId;
                     }
                 }
             } else {
-                $newOfficer->deputy_to_branch_id = $branch->id;
+                $newOfficer->reports_to_branch_id = null;
             }
         }
         //release current officers if they exist for this office
@@ -140,6 +146,15 @@ class DefaultOfficerManager implements OfficerManagerInterface
                 return new ServiceResult(false, $wmResult->reason);
             }
         }
+        $this->getMailer("Officers.Officers")->send("notifyOfHire", [
+            $member->email_address,
+            $member->sca_name,
+            $office->name,
+            $branch->name,
+            $newOfficer->start_on->toDateString(),
+            $newOfficer->expires_on->toDateString(),
+            $office->requires_warrant
+        ]);
         return new ServiceResult(true);
     }
 
@@ -172,6 +187,17 @@ class DefaultOfficerManager implements OfficerManagerInterface
                 return new ServiceResult(false, $wmResult->reason);
             }
         }
+        $member = TableRegistry::getTableLocator()->get('Members')->get($officer->member_id);
+        $office = $officer->office;
+        $branch = TableRegistry::getTableLocator()->get('Branches')->get($officer->branch_id);
+        $this->getMailer("Officers.Officers")->send("notifyOfRelease", [
+            $member->email_address,
+            $member->sca_name,
+            $office->name,
+            $branch->name,
+            $revokedReason,
+            $revokedOn->toDateString()
+        ]);
         return new ServiceResult(true);
     }
 }

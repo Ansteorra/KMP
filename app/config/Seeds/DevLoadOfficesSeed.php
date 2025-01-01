@@ -140,7 +140,7 @@ class DevLoadOfficesSeed extends AbstractSeed
                 'deputy_to_id' => NULL,
                 'grants_role_id' => NULL,
                 'reports_to_id' => 6,
-                'applicable_branch_types' => '"Principality", "Region"',
+                'applicable_branch_types' => '"Principality","Region"',
                 'term_length' => 2,
                 'modified' => '2024-06-10 15:32:53',
                 'created' => '2024-06-10 15:32:53',

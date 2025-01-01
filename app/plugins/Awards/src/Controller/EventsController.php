@@ -7,6 +7,7 @@ namespace Awards\Controller;
 use Awards\Controller\AppController;
 use Awards\Model\Entity\Recommendation;
 use App\Model\Entity\Member;
+use Cake\I18n\DateTime;
 
 /**
  * Awards Controller
@@ -20,13 +21,16 @@ class EventsController extends AppController
         parent::initialize();
         $this->Authorization->authorizeModel("index", "add");
     }
-    /**
-     * Index method
-     *
-     * @return \Cake\Http\Response|null|void Renders view
-     */
-    public function index()
+
+    public function index() {}
+
+    public function allEvents($state)
     {
+        if ($state != 'current' && $state == 'pending' && $state == 'previous') {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+        $securityEvent = $this->Events->newEmptyEntity();
+        $this->Authorization->authorize($securityEvent);
         $query = $this->Events->find()
             ->contain([
                 'Branches' => function ($q) {
@@ -34,9 +38,18 @@ class EventsController extends AppController
                 }
             ])
             ->select(['id', 'name', 'start_date', 'end_date', 'branch_id', 'Branches.name']);
-        $events = $this->paginate($query, ['order' => ['start_date' => 'ASC']]);
 
-        $this->set(compact('events'));
+        $today = new DateTime();
+        switch ($state) {
+            case 'active':
+                $query = $query->where(['Events.closed =' => false]);
+                break;
+            case 'closed':
+                $query = $query->where(['Events.closed =' => true]);
+                break;
+        }
+        $events = $this->paginate($query, ['order' => ['start_date' => 'DESC']]);
+        $this->set(compact('events', 'state'));
     }
 
     /**
