@@ -169,14 +169,14 @@ echo $this->KMP->startBlock("modals"); ?>
         'data-office-form-target' => 'isDeputy'
     ]);
     echo $this->Form->control("reports_to_id", [
-        "options" => $offices,
+        "options" => $report_to_offices,
         "empty" => true,
         'data-office-form-target' => 'reportsTo',
         'container' => ['data-office-form-target' => 'reportsToBlock']
     ]);
     echo $this->Form->control("deputy_to_id", [
         "required" => true,
-        "options" => $offices,
+        "options" => $deputy_to_offices,
         "empty" => true,
         'data-office-form-target' => 'deputyTo',
         'container' => ['data-office-form-target' => 'deputyToBlock']

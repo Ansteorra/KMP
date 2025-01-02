@@ -59,10 +59,8 @@ class Office extends Entity
     //update setter so that if the reports_to_id is set but the deputy_to_id is set then the reports_to_id is not updated
     protected function _setReportsToId($reports_to_id)
     {
-        if ($this->deputy_to_id === null || $this->deputy_to_id === $reports_to_id) {
-            return $reports_to_id;
-        }
-        return $this->deputy_to_id;
+        $this->deputy_to_id = null;
+        return $reports_to_id;
     }
 
     protected function _getIsDeputy(): bool

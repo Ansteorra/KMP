@@ -71,14 +71,15 @@ class OfficesController extends AppController
         }
         $this->Authorization->authorize($office);
         $departments = $this->Offices->Departments->find('list')->all();
-        $offices = $this->Offices->find('list')->all();
+        $report_to_offices = $this->Offices->find('list')->where(['only_one_per_branch' => true])->all();
+        $deputy_to_offices = $this->Offices->find('list')->where(['id <>' => $office->id])->all();
         $roles = $this->Offices->GrantsRole->find('list')->all();
         $btArray = StaticHelpers::getAppSetting("Branches.Types");
         $branch_types = [];
         foreach ($btArray as $branchType) {
             $branch_types[$branchType] = $branchType;
         }
-        $this->set(compact('office', 'departments', 'offices', 'roles', 'branch_types'));
+        $this->set(compact('office', 'departments', 'report_to_offices', 'roles', 'branch_types', 'deputy_to_offices'));
     }
 
     /**
@@ -104,14 +105,15 @@ class OfficesController extends AppController
             }
         }
         $departments = $this->Offices->Departments->find('list')->all();
-        $offices = $this->Offices->find('list')->all();
+        $report_to_offices = $this->Offices->find('list')->where(['only_one_per_branch' => true])->all();
+        $deputy_to_offices = $this->Offices->find('list')->all();
         $roles = $this->Offices->GrantsRole->find('list')->all();
         $btArray = StaticHelpers::getAppSetting("Branches.Types");
         $branch_types = [];
         foreach ($btArray as $branchType) {
             $branch_types[$branchType] = $branchType;
         }
-        $this->set(compact('office', 'departments', 'offices', 'roles', 'branch_types'));
+        $this->set(compact('office', 'departments', 'report_to_offices', 'roles', 'branch_types', 'deputy_to_offices'));
     }
 
     /**
@@ -130,7 +132,8 @@ class OfficesController extends AppController
         }
         $this->Authorization->authorize($office);
         if ($this->request->is(['patch', 'post', 'put'])) {
-            $office = $this->Offices->patchEntity($office, $this->request->getData());
+            $postData = $this->request->getData();
+            $office = $this->Offices->patchEntity($office, $postData);
             if (empty($office->branch_types)) {
                 $this->Flash->error(__('At least 1 Branch Type must be selected.'));
             } else {
