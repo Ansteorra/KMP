@@ -2,11 +2,12 @@
 $linkTemplate = [
     "type" => "link",
     "verify" => true,
+    "plugin" => "Awards",
     "label" => "View",
     "controller" => "Events",
     "action" => "view",
     "id" => "id",
-    "options" => ["class" => "btn btn-secondary"],
+    "options" => ["class" => "btn btn-secondary", "data-turbo-frame" => "_top"],
 ];
 $columnTemplate = [
     "name" => "name",
