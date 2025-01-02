@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use Migrations\AbstractMigration;
 
+require_once __DIR__ . '/../Seeds/initOfficersRefactorSeed.php';
+
 class RefactorOfficeHierarchy extends AbstractMigration
 {
     /**
@@ -53,27 +55,31 @@ class RefactorOfficeHierarchy extends AbstractMigration
             "limit" => 11,
             "null" => true,
         ]);
+
+        $table->addForeignKey(
+            "reports_to_branch_id",
+            "branches",
+            "id",
+            [
+                "update" => "NO_ACTION",
+                "delete" => "NO_ACTION",
+            ],
+        );
+        $table->addForeignKey(
+            "reports_to_office_id",
+            "officers_offices",
+            "id",
+            [
+                "update" => "NO_ACTION",
+                "delete" => "NO_ACTION",
+            ],
+        );
         $table->update();
 
-        $this->table("officers_offices")
-            ->addForeignKey(
-                "reports_to_branch_id",
-                "branches",
-                "id",
-                [
-                    "update" => "NO_ACTION",
-                    "delete" => "NO_ACTION",
-                ],
-            )
-            ->addForeignKey(
-                "reports_to_office_id",
-                "officers_offices",
-                "id",
-                [
-                    "update" => "NO_ACTION",
-                    "delete" => "NO_ACTION",
-                ],
-            )
-            ->update();
+        (new initOfficersRefactorSeed())
+            ->setAdapter($this->getAdapter())
+            ->setInput($this->getInput())
+            ->setOutput($this->getOutput())
+            ->run();
     }
 }

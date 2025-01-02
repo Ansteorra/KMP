@@ -18,7 +18,9 @@ echo $this->KMP->startBlock("pageTitle") ?>
 <?= h($branch->name) ?>
 <?php $this->KMP->endBlock() ?>
 <?= $this->KMP->startBlock("recordActions") ?>
+<?php if ($user->checkCan("edit", $branch)) : ?>
 <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal">Edit</button>
+<?php endif; ?>
 <?php if (empty($branch->children) && empty($branch->members)) {
     echo $this->Form->postLink(
         __("Delete"),
@@ -109,18 +111,20 @@ echo $this->KMP->startBlock("pageTitle") ?>
                 </td>
                 <td><?= h($member->status) ?></td>
                 <td class="actions">
+                    <?php if ($user->checkCan("view", $member)) : ?>
                     <?= $this->Html->link(
-                                    __("View"),
-                                    [
-                                        "controller" => "members",
-                                        "action" => "view",
-                                        $member->id,
-                                    ],
-                                    [
-                                        "title" => __("View"),
-                                        "class" => "btn btn-secondary",
-                                    ],
-                                ) ?>
+                                        __("View"),
+                                        [
+                                            "controller" => "members",
+                                            "action" => "view",
+                                            $member->id,
+                                        ],
+                                        [
+                                            "title" => __("View"),
+                                            "class" => "btn btn-secondary",
+                                        ],
+                                    ) ?>
+                    <?php endif; ?>
                 </td>
             </tr>
             <?php endforeach; ?>

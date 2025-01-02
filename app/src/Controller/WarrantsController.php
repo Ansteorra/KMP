@@ -39,8 +39,6 @@ class WarrantsController extends AppController
 
     public function allWarrants($state)
     {
-
-
         if ($state != 'current' && $state == 'pending' && $state == 'previous') {
             throw new \Cake\Http\Exception\NotFoundException();
         }

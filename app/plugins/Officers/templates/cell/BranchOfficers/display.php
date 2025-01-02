@@ -1,8 +1,10 @@
 <?php
 $user = $this->request->getAttribute("identity");
 ?>
+<?php if ($user->checkCan("add", "Officers.Officers")): ?>
 <button type="button" class="btn btn-primary btn-sm mb-3" data-bs-toggle="modal"
     data-bs-target="#assignOfficerModal">Assign Officer</button>
+<?php endif; ?>
 <?php if (!empty($previousOfficers) || !empty($currentOfficers) || !empty($upcomingOfficers)) {
     $linkTemplate = [
         "type" => "button",
