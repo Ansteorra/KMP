@@ -70,9 +70,9 @@ class OfficesController extends AppController
             throw new \Cake\Http\Exception\NotFoundException();
         }
         $this->Authorization->authorize($office);
-        $departments = $this->Offices->Departments->find('list', limit: 200)->all();
-        $offices = $this->Offices->find('list', limit: 200)->all();
-        $roles = $this->Offices->GrantsRole->find('list', limit: 200)->all();
+        $departments = $this->Offices->Departments->find('list')->all();
+        $offices = $this->Offices->find('list')->all();
+        $roles = $this->Offices->GrantsRole->find('list')->all();
         $btArray = StaticHelpers::getAppSetting("Branches.Types");
         $branch_types = [];
         foreach ($btArray as $branchType) {
@@ -103,9 +103,9 @@ class OfficesController extends AppController
                 $this->Flash->error(__('The office could not be saved. Please, try again.'));
             }
         }
-        $departments = $this->Offices->Departments->find('list', limit: 200)->all();
-        $offices = $this->Offices->find('list')->where(["deputy_to_id IS" => null])->all();
-        $roles = $this->Offices->GrantsRole->find('list', limit: 200)->all();
+        $departments = $this->Offices->Departments->find('list')->all();
+        $offices = $this->Offices->find('list')->all();
+        $roles = $this->Offices->GrantsRole->find('list')->all();
         $btArray = StaticHelpers::getAppSetting("Branches.Types");
         $branch_types = [];
         foreach ($btArray as $branchType) {
