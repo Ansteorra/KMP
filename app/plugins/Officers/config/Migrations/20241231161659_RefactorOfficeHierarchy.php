@@ -45,19 +45,19 @@ class RefactorOfficeHierarchy extends AbstractMigration
             ->update();
 
         $table = $this->table('officers_officers');
-        $table->addColumn("reports_to_branch_id", "integer", [
+        $table->addColumn("deputy_to_branch_id", "integer", [
             "default" => null,
             "limit" => 11,
             "null" => true,
         ]);
-        $table->addColumn("reports_to_office_id", "integer", [
+        $table->addColumn("deputy_to_office_id", "integer", [
             "default" => null,
             "limit" => 11,
             "null" => true,
         ]);
 
         $table->addForeignKey(
-            "reports_to_branch_id",
+            "deputy_to_branch_id",
             "branches",
             "id",
             [
@@ -66,7 +66,7 @@ class RefactorOfficeHierarchy extends AbstractMigration
             ],
         );
         $table->addForeignKey(
-            "reports_to_office_id",
+            "deputy_to_office_id",
             "officers_offices",
             "id",
             [
