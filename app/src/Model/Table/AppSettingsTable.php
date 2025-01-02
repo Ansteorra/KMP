@@ -144,9 +144,6 @@ class AppSettingsTable extends Table
         foreach ($settings as $setting) {
             $this->_appSettingsCache[$setting->name] = $setting->value;
         }
-        //write the app settings to a local file real quick as yaml
-        $yaml = yaml_emit($this->_appSettingsCache);
-        file_put_contents(CONFIG . "../tmp/app_settings.yaml", $yaml);
 
         return $this->_appSettingsCache;
     }
