@@ -135,12 +135,16 @@ class DefaultOfficerManager implements OfficerManagerInterface
         if (!$awResult->success) {
             return new ServiceResult(false, $awResult->reason);
         }
+
+        $newOfficer = $officerTable->get($newOfficer->id);
+        $branchTable = TableRegistry::getTableLocator()->get('Branches');
+        $branch = $branchTable->get($branchId);
+        $member = TableRegistry::getTableLocator()->get('Members')->get($memberId);
         if ($office->requires_warrant) {
-            $branchTable = TableRegistry::getTableLocator()->get('Branches');
-            $branch = $branchTable->get($branchId);
-            $newOfficer = $officerTable->get($newOfficer->id);
+
+
             $warrantRequest = new WarrantRequest("Hiring Warrant: $branch->name - $office->name", 'Officers.Officers', $newOfficer->id, $approverId, $memberId, $startOn, $endOn, $newOfficer->granted_member_role_id);
-            $member = TableRegistry::getTableLocator()->get('Members')->get($memberId);
+
             $wmResult = $this->warrantManager->request("$office->name : $member->sca_name", "", [$warrantRequest]);
             if (!$wmResult->success) {
                 return new ServiceResult(false, $wmResult->reason);
