@@ -21,6 +21,7 @@ class OfficeFormController extends Controller {
         } else {
             this.deputyToBlockTarget.hidden = true;
             this.deputyToTarget.disabled = true;
+            this.deputyToTarget.value = "";
             this.reportsToBlockTarget.hidden = false;
             this.reportsToTarget.disabled = false;
         }
