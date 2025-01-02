@@ -25,7 +25,6 @@ class InitOfficersSeed extends KMPMigrationSeedAbstract
     {
         $data = [
             [
-                'id' => 21,
                 "name" => "Can Manage Offices",
                 "require_active_membership" => true,
                 "require_active_background_check" => false,
@@ -37,7 +36,6 @@ class InitOfficersSeed extends KMPMigrationSeedAbstract
                 "created" => DateTime::now(),
             ],
             [
-                'id' => 22,
                 "name" => "Can Manage Officers",
                 "require_active_membership" => true,
                 "require_active_background_check" => false,
@@ -49,7 +47,6 @@ class InitOfficersSeed extends KMPMigrationSeedAbstract
                 "created" => DateTime::now(),
             ],
             [
-                'id' => 23,
                 "name" => "Can Manage Departments",
                 "require_active_membership" => true,
                 "require_active_background_check" => false,
@@ -61,7 +58,6 @@ class InitOfficersSeed extends KMPMigrationSeedAbstract
                 "created" => DateTime::now(),
             ],
             [
-                'id' => 24,
                 "name" => "Can View Officer Reports",
                 "require_active_membership" => true,
                 "require_active_background_check" => false,

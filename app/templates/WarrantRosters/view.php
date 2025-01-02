@@ -25,13 +25,12 @@ echo $this->KMP->startBlock("pageTitle") ?>
 <?= h($warrantRoster->name) ?>
 <?php $this->KMP->endBlock() ?>
 <?= $this->KMP->startBlock("recordActions") ?>
-<?php if ($warrantRoster->status == Warrant::PENDING_STATUS):
+<?php if ($warrantRoster->status == Warrant::PENDING_STATUS && $user->checkCan("approve", $warrantRoster)) :
     if (!$userApprovedAlready): ?>
 <?= $this->Form->postLink(__('Approve'), ['controller' => 'WarrantRosters', 'action' => 'approve', $warrantRoster->id], ['confirm' => __('Are you sure you want to approve # {0}?', $warrantRoster->name), 'class' => 'btn btn-primary']) ?>
 <?php endif ?>
 <?php endif ?>
-
-<?php if ($warrantRoster->status == Warrant::PENDING_STATUS):
+<?php if ($warrantRoster->status == Warrant::PENDING_STATUS && $user->checkCan("decline", $warrantRoster)) :
     if (!$userApprovedAlready): ?>
 <?= $this->Form->postLink(__('Decline'), ['controller' => 'WarrantRosters', 'action' => 'decline', $warrantRoster->id], ['confirm' => __('Are you sure you want to decline # {0}?', $warrantRoster->name), 'class' => 'btn btn-danger']) ?>
 <?php endif ?>
@@ -98,7 +97,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
                     <td><?= h($warrant->expires_on->toDateString()) ?></td>
                     <td><?= h($warrant->status) ?></td>
                     <td class="actions">
-                        <?php if ($warrant->status == Warrant::PENDING_STATUS):
+                        <?php if ($warrant->status == Warrant::PENDING_STATUS && $user->checkCan("decline", "WarrantRosters")) :
                                     if (!$userApprovedAlready): ?>
                         <?= $this->Form->postLink(__('Decline'), ['controller' => 'WarrantRosters', 'action' => 'declineWarrantInRoster', $warrantRoster->id, $warrant->id], ['confirm' => __('Are you sure you want to decline this warrant'), 'class' => 'btn btn-danger']) ?>
                         <?php endif ?>

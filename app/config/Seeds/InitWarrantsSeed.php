@@ -75,7 +75,29 @@ class InitWarrantsSeed extends AbstractSeed
 
         $data = [
             [
+                'name' => 'Can View Warrants',
+                'require_active_membership' => 1,
+                'require_active_background_check' => 0,
+                'require_min_age' => 0,
+                'is_system' => 1,
+                'is_super_user' => 0,
+                'requires_warrant' => 1,
+                'created' => DateTime::now(),
+                'created_by' => '1',
+            ],
+            [
                 'name' => 'Can Manage Warrants',
+                'require_active_membership' => 1,
+                'require_active_background_check' => 0,
+                'require_min_age' => 0,
+                'is_system' => 1,
+                'is_super_user' => 0,
+                'requires_warrant' => 1,
+                'created' => DateTime::now(),
+                'created_by' => '1',
+            ],
+            [
+                'name' => 'Can View Branches',
                 'require_active_membership' => 1,
                 'require_active_background_check' => 0,
                 'require_min_age' => 0,
