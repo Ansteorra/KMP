@@ -92,9 +92,9 @@ class RecommendationsTable extends Table
             "className" => "Awards.Events",
         ]);
         $this->hasMany("Notes", [
-            "foreignKey" => "topic_id",
+            "foreignKey" => "entity_id",
             "className" => "Notes",
-            "conditions" => ["Notes.topic_model" => "Awards.Recommendations"],
+            "conditions" => ["Notes.entity_type" => "Awards.Recommendations"],
         ]);
         $this->hasMany("RecommendationStateLogs", [
             "foreignKey" => "recommendation_id",

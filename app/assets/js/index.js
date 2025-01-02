@@ -13,3 +13,7 @@ window.Stimulus = Application.start();
 for (var controller in window.Controllers) {
     Stimulus.register(controller, window.Controllers[controller]);
 }
+
+//activate boostrap tooltips
+const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
+const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))

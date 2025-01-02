@@ -27,11 +27,6 @@ use App\Model\Entity\ActiveWindowBaseEntity;
  */
 class Officer extends ActiveWindowBaseEntity
 {
-    const UPCOMING_STATUS = "Upcoming";
-    const CURRENT_STATUS = "Current";
-    const RELEASED_STATUS = "Released";
-    const REPLACED_STATUS = "Replaced";
-    const EXPIRED_STATUS = "Expired";
 
     public array $typeIdField = ['office_id', 'branch_id'];
     /**

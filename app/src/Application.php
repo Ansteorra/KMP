@@ -21,7 +21,6 @@ namespace App;
 // Authentication usings
 
 use App\Event\CallForNavHandler;
-use App\Model\Entity\Activity;
 use Authentication\Identifier\AbstractIdentifier;
 use Authentication\Middleware\AuthenticationMiddleware;
 use Authentication\AuthenticationService;
@@ -31,15 +30,12 @@ use Authentication\AuthenticationServiceProviderInterface;
 use App\Policy\ControllerResolver;
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 use App\Services\ActiveWindowManager\DefaultActiveWindowManager;
-use Activities\Services\AuthorizationManager\AuthorizationManagerInterface;
-use Activities\Services\AuthorizationManager\DefaultAuthorizationManager;
-use App\Services\OfficerManager\OfficerManagerInterface;
-use App\Services\OfficerManager\DefaultOfficerManager;
+use App\Services\WarrantManager\WarrantManagerInterface;
+use App\Services\WarrantManager\DefaultWarrantManager;
 use App\Services\AuthorizationService as KmpAuthorizationService;
 use Authorization\Middleware\AuthorizationMiddleware;
 use Authorization\Policy\OrmResolver;
 use Authorization\Policy\ResolverCollection;
-use Authorization\AuthorizationService;
 use Authorization\AuthorizationServiceInterface;
 use Authorization\AuthorizationServiceProviderInterface;
 use Cake\Core\Configure;
@@ -59,6 +55,7 @@ use Psr\Http\Message\ServerRequestInterface;
 use Authorization\Exception\ForbiddenException;
 use Cake\Event\EventManager;
 use App\KMP\StaticHelpers;
+use Cake\I18n\DateTime;
 
 /**
  * Application setup class.
@@ -116,6 +113,15 @@ class Application extends BaseApplication implements
         StaticHelpers::getAppSetting("Member.MobileCard.BgColor", "gold");
         StaticHelpers::getAppSetting("Activity.SecretaryEmail", "please_set");
         StaticHelpers::getAppSetting("Activity.SecretaryName", "please_set");
+        StaticHelpers::setAppSetting("Warrant.LastCheck", "",);
+        StaticHelpers::getAppSetting("Warrant.RosterApprovalsRequired", 2);
+        StaticHelpers::getAppSetting("Branches.Types", yaml_emit([
+            "Kingdom",
+            "Principality",
+            "Region",
+            "Local Group",
+            "N/A",
+        ]), 'yaml');
     }
 
     /**
@@ -191,6 +197,10 @@ class Application extends BaseApplication implements
             ActiveWindowManagerInterface::class,
             DefaultActiveWindowManager::class,
         );
+        $container->add(
+            WarrantManagerInterface::class,
+            DefaultWarrantManager::class,
+        )->addArgument(ActiveWindowManagerInterface::class);
     }
 
     /**

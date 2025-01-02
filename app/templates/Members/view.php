@@ -117,7 +117,7 @@ $this->KMP->endBlock() ?>
             "controller" => "MemberRoles",
             "action" => "deactivate",
             "id" => "id",
-            "condition" => ["granting_model" => "Direct Grant"],
+            "condition" => ["entity_type" => "Direct Grant"],
             "options" => [
                 "confirm" => "Are you sure you want to deactivate for {{member->sca_name}}?",
                 "class" => "btn btn-danger"
@@ -128,7 +128,7 @@ $this->KMP->endBlock() ?>
             "Start Date" => "start_on",
             "End Date" => "expires_on",
             "Approved By" => "approved_by->sca_name",
-            "Granted By" => "granting_model",
+            "Granted By" => "entity_type",
             "Actions" => [
                 $linkTemplate,
                 $removeLinkTemplate
@@ -139,7 +139,7 @@ $this->KMP->endBlock() ?>
             "Start Date" => "start_on",
             "End Date" => "expires_on",
             "Approved By" => "approved_by->sca_name",
-            "Granted By" => "granting_model",
+            "Granted By" => "entity_type",
             "Actions" => [
                 $linkTemplate
             ],
@@ -179,8 +179,8 @@ $this->KMP->endBlock() ?>
 <div class="related tab-pane fade m-3" id="nav-notes" role="tabpanel" aria-labelledby="nav-notes-tab"
     data-detail-tabs-target="tabContent">
     <?= $this->cell('Notes', [
-        'topic_id' => $member->id,
-        'topic_model' => 'Members',
+        'entity_id' => $member->id,
+        'entity_type' => 'Members',
         'viewPrivate' => $user->checkCan("viewPrivateNotes", "Members"),
     ]) ?>
 </div>

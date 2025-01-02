@@ -2,13 +2,26 @@
 
 namespace Officers\Services;
 
+use App\Model\Entity\Warrant;
 use Cake\I18n\DateTime;
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
+use App\Services\WarrantManager\WarrantManagerInterface;
 use Cake\ORM\TableRegistry;
 use Officers\Model\Entity\Officer;
+use App\Services\ServiceResult;
+use Cake\Mailer\MailerAwareTrait;
+use App\Services\WarrantManager\WarrantRequest;
 
 class DefaultOfficerManager implements OfficerManagerInterface
 {
+    #region
+    use MailerAwareTrait;
+
+    public function __construct(ActiveWindowManagerInterface $activeWindowManager, WarrantManagerInterface $warrantManager)
+    {
+        $this->activeWindowManager = $activeWindowManager;
+        $this->warrantManager = $warrantManager;
+    }
     /**
      * Assigns a member to an office - Make sure to create a transaction before calling this service
      *
@@ -19,10 +32,9 @@ class DefaultOfficerManager implements OfficerManagerInterface
      * @param DateTime $startOn
      * @param string $deputyDescription
      * @param int $approverId
-     * @return bool
+     * @return ServiceResult
      */
     public function assign(
-        ActiveWindowManagerInterface $activeWindowManager,
         int $officeId,
         int $memberId,
         int $branchId,
@@ -30,7 +42,7 @@ class DefaultOfficerManager implements OfficerManagerInterface
         ?DateTime $endOn,
         ?string $deputyDescription,
         int $approverId,
-    ): bool {
+    ): ServiceResult {
         //get officer table
         $officerTable = TableRegistry::getTableLocator()->get('Officers.Officers');
         $newOfficer = $officerTable->newEmptyEntity();
@@ -38,6 +50,12 @@ class DefaultOfficerManager implements OfficerManagerInterface
         $officeTable = TableRegistry::getTableLocator()->get('Officers.Offices');
         //get the office
         $office = $officeTable->get($officeId);
+        if ($office->requires_warrant) {
+            $member = TableRegistry::getTableLocator()->get('Members')->get($memberId);
+            if (!$member->warrantable) {
+                return new ServiceResult(false, "Member is not warrantable");
+            }
+        }
 
         if ($endOn === null) {
             $endOn = $startOn->addYears($office->term_length);
@@ -55,12 +73,14 @@ class DefaultOfficerManager implements OfficerManagerInterface
         $newOfficer->approver_id = $approverId;
         $newOfficer->approval_date = DateTime::now();
         $newOfficer->status = $status;
-        $newOfficer->reports_to_office_id = $officeId;
         if ($office->deputy_to_id != null) {
             $newOfficer->deputy_description = $deputyDescription;
+            $newOfficer->deputy_to_branch_id = $newOfficer->branch_id;
+            $newOfficer->deputy_to_office_id = $office->deputy_to_id;
             $newOfficer->reports_to_branch_id = $newOfficer->branch_id;
             $newOfficer->reports_to_office_id = $office->deputy_to_id;
         } else {
+            $newOfficer->reports_to_office_id = $office->reports_to_id;
             $branchTable = TableRegistry::getTableLocator()->get('Branches');
             $branch = $branchTable->get($branchId);
             if ($branch->parent_id != null) {
@@ -89,16 +109,53 @@ class DefaultOfficerManager implements OfficerManagerInterface
                     }
                 }
             } else {
-                $newOfficer->reports_to_branch_id = $branch->id;
+                $newOfficer->reports_to_branch_id = null;
+            }
+        }
+        //release current officers if they exist for this office
+        if ($office->only_one_per_branch) {
+            $currentOfficers = $officerTable->find()
+                ->where([
+                    'office_id' => $officeId,
+                    'branch_id' => $branchId,
+                    'status' => Officer::CURRENT_STATUS
+                ])
+                ->all();
+            foreach ($currentOfficers as $currentOfficer) {
+                $oResult = $this->release($currentOfficer->id, $approverId, $startOn, "Replaced by new officer", Officer::REPLACED_STATUS);
+                if (!$oResult->success) {
+                    return new ServiceResult(false, $oResult->reason);
+                }
             }
         }
         if (!$officerTable->save($newOfficer)) {
-            return false;
+            return new ServiceResult(false, "Failed to save officer");
         }
-        if (!$activeWindowManager->start('Officers.Officers', $newOfficer->id, $approverId, $startOn, $endOn, $office->term_length, $office->grants_role_id, $office->only_one_per_branch)) {
-            return false;
+        $awResult = $this->activeWindowManager->start('Officers.Officers', $newOfficer->id, $approverId, $startOn, $endOn, $office->term_length, $office->grants_role_id, $office->only_one_per_branch);
+        if (!$awResult->success) {
+            return new ServiceResult(false, $awResult->reason);
         }
-        return true;
+        if ($office->requires_warrant) {
+            $branchTable = TableRegistry::getTableLocator()->get('Branches');
+            $branch = $branchTable->get($branchId);
+            $newOfficer = $officerTable->get($newOfficer->id);
+            $warrantRequest = new WarrantRequest("Hiring Warrant: $branch->name - $office->name", 'Officers.Officers', $newOfficer->id, $approverId, $memberId, $startOn, $endOn, $newOfficer->granted_member_role_id);
+            $member = TableRegistry::getTableLocator()->get('Members')->get($memberId);
+            $wmResult = $this->warrantManager->request("$office->name : $member->sca_name", "", [$warrantRequest]);
+            if (!$wmResult->success) {
+                return new ServiceResult(false, $wmResult->reason);
+            }
+        }
+        $this->getMailer("Officers.Officers")->send("notifyOfHire", [
+            $member->email_address,
+            $member->sca_name,
+            $office->name,
+            $branch->name,
+            $newOfficer->start_on->toDateString(),
+            $newOfficer->expires_on->toDateString(),
+            $office->requires_warrant
+        ]);
+        return new ServiceResult(true);
     }
 
     /**
@@ -109,18 +166,38 @@ class DefaultOfficerManager implements OfficerManagerInterface
      * @param int $revokerId
      * @param DateTime $revokedOn
      * @param string $revokedReason
-     * @return bool
+     * @return ServiceResult
      */
     public function release(
-        ActiveWindowManagerInterface $activeWindowManager,
         int $officerId,
         int $revokerId,
         DateTime $revokedOn,
-        ?string $revokedReason
-    ): bool {
-        if (!$activeWindowManager->stop('Officers.Officers', $officerId, $revokerId, 'released', $revokedReason, $revokedOn)) {
-            return false;
+        ?string $revokedReason,
+        ?string $releaseStatus = Officer::RELEASED_STATUS
+    ): ServiceResult {
+        $awResult = $this->activeWindowManager->stop('Officers.Officers', $officerId, $revokerId, $releaseStatus, $revokedReason, $revokedOn);
+        if (!$awResult->success) {
+            return new ServiceResult(false, $awResult->reason);
         }
-        return true;
+        $officerTable = TableRegistry::getTableLocator()->get('Officers.Officers');
+        $officer = $officerTable->get($officerId, ['contain' => ['Offices']]);
+        if ($officer->office->requires_warrant) {
+            $wmResult = $this->warrantManager->cancelByEntity('Officers.Officers', $officerId, $revokedReason, $revokerId, $revokedOn);
+            if (!$wmResult->success) {
+                return new ServiceResult(false, $wmResult->reason);
+            }
+        }
+        $member = TableRegistry::getTableLocator()->get('Members')->get($officer->member_id);
+        $office = $officer->office;
+        $branch = TableRegistry::getTableLocator()->get('Branches')->get($officer->branch_id);
+        $this->getMailer("Officers.Officers")->send("notifyOfRelease", [
+            $member->email_address,
+            $member->sca_name,
+            $office->name,
+            $branch->name,
+            $revokedReason,
+            $revokedOn->toDateString()
+        ]);
+        return new ServiceResult(true);
     }
 }

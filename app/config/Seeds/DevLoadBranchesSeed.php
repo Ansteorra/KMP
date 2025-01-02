@@ -30,6 +30,7 @@ class DevLoadBranchesSeed extends AbstractSeed
                 'parent_id' => 1,
                 'lft' => 2,
                 'rght' => 9,
+                'type' => 'Region',
                 'created' => DateTime::now(),
                 'created_by' => '1'
             ],
@@ -40,6 +41,7 @@ class DevLoadBranchesSeed extends AbstractSeed
                 'parent_id' => 2,
                 'lft' => 3,
                 'rght' => 4,
+                'type' => 'Local Group',
                 'created' => DateTime::now(),
                 'created_by' => '1'
             ],
@@ -50,6 +52,7 @@ class DevLoadBranchesSeed extends AbstractSeed
                 'parent_id' => 2,
                 'lft' => 5,
                 'rght' => 6,
+                'type' => 'Local Group',
                 'created' => DateTime::now(),
                 'created_by' => '1'
             ],
@@ -60,6 +63,7 @@ class DevLoadBranchesSeed extends AbstractSeed
                 'parent_id' => 1,
                 'lft' => 10,
                 'rght' => 17,
+                'type' => 'Region',
                 'created' => DateTime::now(),
                 'created_by' => '1'
             ],
@@ -70,6 +74,7 @@ class DevLoadBranchesSeed extends AbstractSeed
                 'parent_id' => 5,
                 'lft' => 11,
                 'rght' => 14,
+                'type' => 'Local Group',
                 'created' => DateTime::now(),
                 'created_by' => '1'
             ],
@@ -80,6 +85,7 @@ class DevLoadBranchesSeed extends AbstractSeed
                 'parent_id' => 6,
                 'lft' => 12,
                 'rght' => 13,
+                'type' => 'Sponsored Local Group',
                 'created' => DateTime::now(),
                 'created_by' => '1'
             ],
@@ -90,6 +96,7 @@ class DevLoadBranchesSeed extends AbstractSeed
                 'parent_id' => 2,
                 'lft' => 7,
                 'rght' => 8,
+                'type' => 'Local Group',
                 'created' => DateTime::now(),
                 'created_by' => '1'
             ],
@@ -100,6 +107,7 @@ class DevLoadBranchesSeed extends AbstractSeed
                 'parent_id' => 5,
                 'lft' => 15,
                 'rght' => 16,
+                'type' => 'Local Group',
                 'created' => DateTime::now(),
                 'created_by' => '1'
             ],
@@ -110,6 +118,7 @@ class DevLoadBranchesSeed extends AbstractSeed
                 'parent_id' => NULL,
                 'lft' => 19,
                 'rght' => 20,
+                'type' => 'N/A',
                 'created' => DateTime::now(),
                 'created_by' => '1'
             ],
@@ -117,5 +126,11 @@ class DevLoadBranchesSeed extends AbstractSeed
 
         $table = $this->table('branches');
         $table->insert($data)->save();
+
+        //update kingdom to add type
+        $branchTbl = \Cake\ORM\TableRegistry::getTableLocator()->get('branches');
+        $branch = $branchTbl->get(1);
+        $branch->type = 'Kingdom';
+        $branchTbl->save($branch);
     }
 }

@@ -25,6 +25,7 @@ $this->KMP->endBlock(); ?>
             <th scope="col" class="text-center"><?= __(
                                                     "One Per Branch",
                                                 ) ?></th>
+            <th scope="col" class="text-center"><?= __("Reports To") ?></th>
             <th scope="col" class="text-center"><?= __("Deputy To") ?></th>
             <th scope="col" class="text-center"><?= __("Grants Role") ?></th>
             <th scope="col" class="actions"><?= __("Actions") ?></th>
@@ -32,45 +33,50 @@ $this->KMP->endBlock(); ?>
     </thead>
     <tbody>
         <?php foreach ($offices as $office) : ?>
-            <tr>
-                <td><?= h($office->name) ?></td>
-                <td><?= h($office->department->name) ?></td>
-                <td class="text-center"><?= h($office->term_length) ?></td>
-                <td class="text-center"><?= $this->Kmp->bool(
+        <tr>
+            <td><?= h($office->name) ?></td>
+            <td><?= h($office->department->name) ?></td>
+            <td class="text-center"><?= h($office->term_length) ?></td>
+            <td class="text-center"><?= $this->Kmp->bool(
                                             $office->required_office,
                                             $this->Html,
                                         ) ?></td>
-                <td class="text-center"><?= $this->Kmp->bool(
+            <td class="text-center"><?= $this->Kmp->bool(
                                             $office->can_skip_report,
                                             $this->Html,
                                         ) ?></td>
-                <td class="text-center"><?= $this->Kmp->bool(
+            <td class="text-center"><?= $this->Kmp->bool(
                                             $office->requires_warrant,
                                             $this->Html,
                                         ) ?></td>
-                <td class="text-center"><?= $this->Kmp->bool(
+            <td class="text-center"><?= $this->Kmp->bool(
                                             $office->only_one_per_branch,
                                             $this->Html,
                                         ) ?></td>
-                <td class="text-center"><?= h(
+            <td class="text-center"><?= h(
+                                            $office->reports_to === null
+                                                ? "Society"
+                                                : $office->reports_to->name,
+                                        ) ?></td>
+            <td class="text-center"><?= h(
                                             $office->deputy_to === null
                                                 ? ""
                                                 : $office->deputy_to->name,
                                         ) ?></td>
 
-                <td class="text-center"><?= h(
+            <td class="text-center"><?= h(
                                             $office->grants_role === null
                                                 ? ""
                                                 : $office->grants_role->name,
                                         ) ?></td>
-                <td class="actions">
-                    <?= $this->Html->link(
+            <td class="actions">
+                <?= $this->Html->link(
                         __("View"),
                         ["action" => "view", $office->id],
                         ["title" => __("View"), "class" => "btn btn-secondary"],
                     ) ?>
-                </td>
-            </tr>
+            </td>
+        </tr>
         <?php endforeach; ?>
     </tbody>
 </table>

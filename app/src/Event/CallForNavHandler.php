@@ -171,7 +171,7 @@ class CallForNavHandler implements EventListenerInterface
                 "type" => "link",
                 "mergePath" => ["Config"],
                 "label" => "Branches",
-                "order" => 10,
+                "order" => 0,
                 "url" => [
                     "controller" => "Branches",
                     "action" => "index",
@@ -192,6 +192,45 @@ class CallForNavHandler implements EventListenerInterface
                     "action" => "add",
                 ],
                 "icon" => "bi-plus",
+            ],
+            [
+                "type" => "link",
+                "mergePath" => ["Config"],
+                "label" => "Warrant Periods",
+                "order" => 60,
+                "url" => [
+                    "controller" => "WarrantPeriods",
+                    "action" => "index",
+                ],
+                "icon" => "bi-calendar-range",
+            ],
+            [
+                "type" => "link",
+                "mergePath" => ["Security"],
+                "label" => "Warrants",
+                "order" => 0,
+                "url" => [
+                    "controller" => "Warrants",
+                    "action" => "index",
+                ],
+                "icon" => "bi-person-badge",
+            ],
+            [
+                "type" => "link",
+                "mergePath" => ["Security"],
+                "label" => "Rosters",
+                "order" => 0,
+                "url" => [
+                    "controller" => "WarrantRosters",
+                    "action" => "index",
+                ],
+                "badgeClass" => "bg-danger",
+                "badgeValue" => [
+                    "class" => "App\Model\Table\WarrantRostersTable",
+                    "method" => "getPendingRosterCount",
+                    "argument" => 0
+                ],
+                "icon" => "bi-people",
             ],
             [
                 "type" => "link",

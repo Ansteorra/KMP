@@ -37,5 +37,6 @@ class DevLoad extends AbstractSeed
         $this->call('DevLoadAwardsLevelsSeed');
         $this->call('DevLoadAwardsAwardsSeed');
         $this->call('DevLoadAwardsEventsSeed');
+        $this->call('DevLoadWarrantsSeed');
     }
 }

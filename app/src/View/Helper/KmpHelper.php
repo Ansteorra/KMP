@@ -151,11 +151,11 @@ class KmpHelper extends Helper
      * @param \Cake\View\Helper\HtmlHelper $Html
      * @return string
      */
-    public function bool($value, $Html): string
+    public function bool($value, $Html, array $options = []): string
     {
         return $value
-            ? $Html->icon("check-circle-fill")
-            : $Html->icon("x-circle");
+            ? $Html->icon("check-circle-fill", $options)
+            : $Html->icon("x-circle", $options);
     }
     /**
      * Builds the navigation for the app
@@ -248,11 +248,49 @@ class KmpHelper extends Helper
         }
         if ($user->canAccessUrl($url)) {
             $return = "";
+            $linkLabel = __(" " . $link["label"]);
+            if (isset($link["badgeValue"])) {
+                if (
+                    is_array($link["badgeValue"])
+                    && isset($link["badgeValue"]["class"])
+                    && isset($link["badgeValue"]["method"])
+                    && isset($link["badgeValue"]["argument"])
+                ) {
+                    $class = $link["badgeValue"]["class"];
+                    $method = $link["badgeValue"]["method"];
+                    $argument = $link["badgeValue"]["argument"];
+                    $badgeValue = call_user_func(array($class, $method), $argument);
+                } else {
+                    $badgeValue = $link["badgeValue"];
+                }
+                if ($badgeValue > 0) {
+                    $linkLabel .= " " . $Html->badge(strval($badgeValue), [
+                        "class" => $link["badgeClass"],
+                    ]);
+                }
+            }
             $activeclass = $link["active"] ? "active" : "";
-            $return .= $Html->link(__(" " . $label), $url, [
-                "class" =>
-                $linkTypeClass . " fs-6 bi " . $icon . " mb-2 " . $activeclass . " " . $otherClasses,
-            ]);
+
+            $linkBody = $Html->tag(
+                "span",
+                $linkLabel,
+                [
+                    "class" => "fs-6",
+                    "escape" => false
+                ],
+            );
+            $linkOptions["class"] = $linkTypeClass . " fs-6 bi " . $icon . " mb-2 " . $activeclass . " " . $otherClasses;
+            $linkOptions["escape"] = false;
+            $return .= $Html->link(
+                $linkBody,
+                $url,
+                $linkOptions,
+            );
+
+            //$return .= $Html->link($linkLabel, $url, [
+            //    "class" =>
+            //    $linkTypeClass . " fs-6 bi " . $icon . " mb-2 " . $activeclass . " " . $otherClasses,
+            //]);
             return $return;
         }
         return "";

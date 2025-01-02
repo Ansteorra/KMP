@@ -221,15 +221,6 @@ class Member extends Entity implements
             } else {
                 $entity = $table->newEmptyEntity();
             }
-            Log::write(
-                "debug",
-                "Checking if " .
-                    $this->sca_name .
-                    " can access " .
-                    $url["controller"] .
-                    " " .
-                    $url["action"],
-            );
             return $this->authorization->checkCan($this, $url["action"], $entity);
         } catch (MissingTableClassException $ex) {
             // if the above fails, then the url is not to a controller that maps to a table
@@ -394,6 +385,46 @@ class Member extends Entity implements
                     break;
             }
         }
+    }
+
+    public function warrantableReview(): void
+    {
+        $this->non_warrantable_reasons = $this->getNonWarrantableReasons();
+    }
+
+    public function getNonWarrantableReasons(): array
+    {
+        $reasons = [];
+        if ($this->age < 18) {
+            $reasons[] = "Member is under 18";
+            $this->warrantable = false;
+        }
+        if ($this->status != self::STATUS_VERIFIED_MEMBERSHIP) {
+            $reasons[] = "Membership is not verified";
+            $this->warrantable = false;
+        } else {
+            if ($this->membership_expires_on == null || $this->membership_expires_on->isPast()) {
+                $reasons[] = "Membership is expired";
+                $this->warrantable = false;
+            }
+        }
+        if ($this->first_name == null || $this->last_name == null) {
+            $reasons[] = "Legal name is not set";
+            $this->warrantable = false;
+        }
+        if ($this->street_address == null || $this->city == null || $this->state == null || $this->zip == null) {
+            $reasons[] = "Address is not set";
+            $this->warrantable = false;
+        }
+        if ($this->phone_number == null) {
+            $reasons[] = "Phone number is not set";
+            $this->warrantable = false;
+        }
+        //if the reasons is empty then the member is warrantable
+        if (empty($reasons)) {
+            $this->warrantable = true;
+        }
+        return $reasons;
     }
 
     protected function _setPassword($value)

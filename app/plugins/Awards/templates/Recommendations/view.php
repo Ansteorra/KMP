@@ -135,8 +135,8 @@ $this->KMP->endBlock() ?>
 <div class="related tab-pane fade m-3" id="nav-notes" role="tabpanel" aria-labelledby="nav-notes-tab"
     data-detail-tabs-target="tabContent">
     <?= $this->cell('Notes', [
-        'topic_id' => $recommendation->id,
-        'topic_model' => 'Awards.Recommendations',
+        'entity_id' => $recommendation->id,
+        'entity_type' => 'Awards.Recommendations',
         'viewPrivate' => $user->checkCan("viewPrivateNotes", "Awards.Recommendations"),
         'canCreate' => $user->checkCan('edit', $recommendation),
     ]) ?>

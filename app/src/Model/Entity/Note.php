@@ -12,8 +12,8 @@ use Cake\ORM\Entity;
  * @property int $id
  * @property int $author_id
  * @property \Cake\I18n\DateTime $created_on
- * @property string|null $topic_model
- * @property int $topic_id
+ * @property string|null $entity_type
+ * @property int $entity_id
  * @property string|null $subject
  * @property string|null $body
  * @property bool $private
@@ -32,8 +32,8 @@ class Note extends Entity
     protected array $_accessible = [
         "author_id" => true,
         "created_on" => true,
-        "topic_model" => true,
-        "topic_id" => true,
+        "entity_type" => true,
+        "entity_id" => true,
         "subject" => true,
         "body" => true,
         "private" => true,

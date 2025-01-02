@@ -31,6 +31,7 @@ class GitHubIssueSubmitterPlugin extends BasePlugin
         StaticHelpers::getAppSetting("KMP.GitHub.Owner", "Ansteorra");
         StaticHelpers::getAppSetting("KMP.GitHub.Project", "KMP");
         StaticHelpers::getAppSetting("Plugin.GitHubIssueSubmitter.Active", "yes");
+        StaticHelpers::getAppSetting("Plugin.GitHubIssueSubmitter.PopupMessage", "This Feedback form is anonymous and will be submitted to the KMP GitHub repository. Please do not include any pii or use this for support requests.");
     }
 
     /**

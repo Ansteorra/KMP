@@ -14,7 +14,7 @@ class AppSettingsController extends AppController
     public function initialize(): void
     {
         parent::initialize();
-        $this->Authorization->authorizeModel("index", "add");
+        $this->Authorization->authorizeModel("index", "add", "toYaml");
     }
 
     /**
@@ -46,6 +46,7 @@ class AppSettingsController extends AppController
                 $appSetting,
                 $this->request->getData(),
             );
+            $this->Authorization->authorize($appSetting);
             if ($this->AppSettings->save($appSetting)) {
                 $this->Flash->success(__("The app setting has been saved."));
 
@@ -74,6 +75,7 @@ class AppSettingsController extends AppController
         }
         $this->Authorization->authorize($appSetting);
         if ($this->request->is(["patch", "post", "put"])) {
+            $value = $this->request->getData("value");
             $appSetting = $this->AppSettings->patchEntity(
                 $appSetting,
                 $this->request->getData(),

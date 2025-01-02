@@ -50,6 +50,7 @@ class ReportsController extends AppController
                     'Offices.Officers' => function ($q) use ($validOn) {
                         return $this->setValidFilter($q, $validOn);
                     },
+                    'Offices.Officers.CurrentWarrants',
                     'Offices.Officers.Members' => function ($q) {
                         return $q->select([
                             'membership_number',
@@ -63,14 +64,17 @@ class ReportsController extends AppController
                             'street_address',
                             'city',
                             'state',
-                            'zip'
+                            'zip',
+                            'warrantable',
+                            'birth_month',
+                            'birth_year'
                         ]);
                     },
                     'Offices.Officers.Branches' => function ($q) {
                         return $q->select(['name']);
                     },
                     'Offices.Officers.Offices' => function ($q) {
-                        return $q->select(['name']);
+                        return $q->select(['name', 'requires_warrant']);
                     }
                 ]);
             $deptTempData = $deptTempQuery->all();
@@ -104,14 +108,14 @@ class ReportsController extends AppController
     {
         return $q->where([
             "or" => [
-                "expires_on >=" => $validOn,
-                "expires_on IS" => null
+                "Officers.expires_on >=" => $validOn,
+                "Officers.expires_on IS" => null
             ]
         ])
             ->where([
                 "or" => [
-                    "start_on <=" => $validOn,
-                    "start_on IS" => null
+                    "Officers.start_on <=" => $validOn,
+                    "Officers.start_on IS" => null
                 ],
             ]);
     }

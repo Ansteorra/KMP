@@ -13,6 +13,7 @@ use Cake\ORM\TableRegistry;
 use Cake\Utility\Hash;
 use Cake\ORM\Query\SelectQuery;
 use Permission;
+use App\Model\Entity\Warrant;
 use App\Model\Entity\Member;
 
 class PermissionsLoader
@@ -28,13 +29,55 @@ class PermissionsLoader
         $permissionsTable = TableRegistry::getTableLocator()->get(
             "Permissions",
         );
-        $now = DateTime::now();
+
 
         $query = $permissionsTable
-            ->find()->cache("permissions_" . $memberId)
-            ->innerJoinWith("Roles.Members")
+            ->find()->cache("permissions_" . $memberId);
+        $query = self::validPermissionClauses($query)
             ->where(["Members.id" => $memberId])
+            ->distinct()
+            ->all()
+            ->toList();
+        return $query;
+    }
+
+    public static function getMembersWithPermissionsQuery(int $permissionId): SelectQuery
+    {
+        $permissionsTable = TableRegistry::getTableLocator()->get(
+            "Permissions",
+        );
+        $memberTable = TableRegistry::getTableLocator()->get(
+            "Members",
+        );
+        $subquery = $permissionsTable
+            ->find()->cache("permissions_members" . $permissionId);
+        $subquery = self::validPermissionClauses($subquery)
+            ->where(["Permissions.id" => $permissionId])
+            ->select(["Members.id"])
+            ->distinct();
+        $query = $memberTable->find()
+            ->where(["Members.id IN" => $subquery]);
+        return $query;
+    }
+
+    protected static function validPermissionClauses(SelectQuery $q): SelectQuery
+    {
+        $now = DateTime::now();
+
+        $warrantsTable = TableRegistry::getTableLocator()->get('Warrants');
+
+        $warrantSubquery = $warrantsTable->find()
+            ->select(['Warrants.member_role_id'])
             ->where([
+                'Warrants.member_role_id = MemberRoles.id',
+                'Warrants.start_on <' => $now,
+                'Warrants.expires_on >' => $now,
+                'Warrants.status' => Warrant::CURRENT_STATUS,
+            ]);
+
+        $q = $q->innerJoinWith("Roles.Members")
+            ->where([
+                "MemberRoles.start_on < " => DateTime::now(),
                 "OR" => [
                     "MemberRoles.expires_on IS " => null,
                     "MemberRoles.expires_on >" => DateTime::now(),
@@ -43,7 +86,13 @@ class PermissionsLoader
             ->where([
                 "OR" => [
                     "Permissions.require_active_membership" => false,
-                    "Members.membership_expires_on >" => DateTime::now(),
+                    "AND" => [
+                        "Members.status IN " => [
+                            Member::STATUS_VERIFIED_MEMBERSHIP,
+                            Member::STATUS_VERIFIED_MINOR,
+                        ],
+                        "Members.membership_expires_on >" => DateTime::now(),
+                    ],
                 ],
             ])
             ->where([
@@ -66,64 +115,15 @@ class PermissionsLoader
                         " - Permissions.require_min_age",
                 ],
             ])
-            ->distinct()
-            ->all()
-            ->toList();
-        return $query;
-    }
-
-    public static function getMembersWithPermissionsQuery(array $permissionIds): SelectQuery
-    {
-        $validMemberStatuses = [
-            Member::STATUS_ACTIVE,
-            Member::STATUS_VERIFIED_MEMBERSHIP,
-            Member::STATUS_VERIFIED_MINOR,
-        ];
-        $memberTable = TableRegistry::getTableLocator()->get(
-            "Members",
-        );
-        $now = DateTime::now();
-
-        $query = $memberTable
-            ->find('all')->matching(
-                'CurrentMemberRoles.Roles.Permissions',
-                function ($q) use ($permissionIds, $now) {
-
-                    return $q->where(['OR' => [
-                        "Permissions.id in " => $permissionIds,
-                        "Permissions.is_super_user" => true
-                    ]])
-                        ->where([
-                            "OR" => [
-                                "Permissions.require_active_membership" => false,
-                                "membership_expires_on >" => DateTime::now(),
-                            ],
-                        ])
-                        ->where([
-                            "OR" => [
-                                "Permissions.require_active_background_check" => false,
-                                "background_check_expires_on >" => DateTime::now(),
-                            ],
-                        ])
-                        ->where([
-                            "OR" => [
-                                "Permissions.require_min_age" => 0,
-                                "AND" => [
-                                    "birth_year = " .
-                                        strval($now->year) .
-                                        " - Permissions.require_min_age",
-                                    "birth_month <=" => $now->month,
-                                ],
-                                "birth_year < " .
-                                    strval($now->year) .
-                                    " - Permissions.require_min_age",
-                            ],
-                        ]);
-                }
-            )
             ->where([
-                "status IN" => $validMemberStatuses
+                "OR" => [
+                    "Permissions.requires_warrant" => False,
+                    "AND" => [
+                        "Members.warrantable" => true,
+                        "MemberRoles.id IN" => $warrantSubquery,
+                    ],
+                ],
             ]);
-        return $query;
+        return $q;
     }
 }

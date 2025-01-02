@@ -19,6 +19,13 @@ use Cake\I18n\Datetime;
  */
 abstract class ActiveWindowBaseEntity extends Entity
 {
+    const UPCOMING_STATUS = "Upcoming";
+    const CURRENT_STATUS = "Current";
+    const RELEASED_STATUS = "Released";
+    const REPLACED_STATUS = "Replaced";
+    const EXPIRED_STATUS = "Expired";
+    const DEACTIVATED_STATUS = "Deactivated";
+
     public array $typeIdField = [];
 
     /**

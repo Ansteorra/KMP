@@ -28,7 +28,7 @@ class OfficersController extends AppController
      *
      * @return \Cake\Http\Response|null|void Redirects on successful add, renders view otherwise.
      */
-    public function add(OfficerManagerInterface $oManager, ActiveWindowManagerInterface $awManager)
+    public function add(OfficerManagerInterface $oManager)
     {
         $officer = $this->Officers->newEmptyEntity();
         $this->Authorization->authorize($officer);
@@ -47,11 +47,12 @@ class OfficersController extends AppController
             }
             $approverId = (int)$this->Authentication->getIdentity()->getIdentifier();
             $deputyDescription = $this->request->getData('deputy_description');
-
-            if (!$oManager->assign($awManager, $officeId, $memberId, $branchId, $startOn, $endOn, $deputyDescription, $approverId)) {
+            $omResult = $oManager->assign($officeId, $memberId, $branchId, $startOn, $endOn, $deputyDescription, $approverId);
+            if (!$omResult->success) {
                 $this->Officers->getConnection()->rollback();
-                $this->Flash->error(__('The officer could not be saved. Please, try again.'));
+                $this->Flash->error(__($omResult->reason));
                 $this->redirect($this->referer());
+                return;
             }
             //commit transaction
             $this->Officers->getConnection()->commit();
@@ -60,7 +61,7 @@ class OfficersController extends AppController
         }
     }
 
-    public function release(OfficerManagerInterface $oManager, ActiveWindowManagerInterface $awManager)
+    public function release(OfficerManagerInterface $oManager)
     {
         $officer = $this->Officers->get($this->request->getData('id'));
         if (!$officer) {
@@ -74,7 +75,8 @@ class OfficersController extends AppController
 
             //begin transaction
             $this->Officers->getConnection()->begin();
-            if (!$oManager->release($awManager, $officer->id, $revokerId, $revokeDate, $revokeReason)) {
+            $omResult = $oManager->release($officer->id, $revokerId, $revokeDate, $revokeReason);
+            if (!$omResult->success) {
                 $this->Officers->getConnection()->rollback();
                 $this->Flash->error(__('The officer could not be released. Please, try again.'));
                 $this->redirect($this->referer());

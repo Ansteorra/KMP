@@ -11,7 +11,6 @@ namespace Activities\Controller;
  */
 
 use Activities\Services\AuthorizationManagerInterface;
-use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 use Cake\Mailer\MailerAwareTrait;
 
 class AuthorizationApprovalsController extends AppController
@@ -176,7 +175,6 @@ class AuthorizationApprovalsController extends AppController
      * @return \Cake\Http\Response|null|void Redirects on successful approval, renders view otherwise.
      */
     public function approve(
-        ActiveWindowManagerInterface $awService,
         AuthorizationManagerInterface $maService,
         $id = null,
     ) {
@@ -193,7 +191,12 @@ class AuthorizationApprovalsController extends AppController
 
         $approverId = $this->Authentication->getIdentity()->getIdentifier();
         $nextApproverId = $this->request->getData("next_approver_id");
-        if (!$maService->approve($awService, (int)$id, (int)$approverId, (int)$nextApproverId)) {
+        $maResult = $maService->approve(
+            (int)$id,
+            (int)$approverId,
+            (int)$nextApproverId,
+        );
+        if (!$maResult->success) {
             $this->Flash->error(
                 __(
                     "The authorization approval could not be approved. Please, try again.",
@@ -277,12 +280,13 @@ class AuthorizationApprovalsController extends AppController
             throw new \Cake\Http\Exception\NotFoundException();
         }
         $this->Authorization->authorize($authorizationApproval);
+        $maResult = $maService->deny(
+            (int)$id,
+            $this->Authentication->getIdentity()->getIdentifier(),
+            $this->request->getData("approver_notes"),
+        );
         if (
-            !$maService->deny(
-                (int)$id,
-                $this->Authentication->getIdentity()->getIdentifier(),
-                $this->request->getData("approver_notes"),
-            )
+            !$maResult->success
         ) {
             $this->Flash->error(
                 __(

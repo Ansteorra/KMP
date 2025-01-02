@@ -92,6 +92,11 @@
     color: red;
 }
 
+.form-group label.required::after {
+    content: " *";
+    color: red;
+}
+
 .form-group:has([required]) label::after {
     content: " *";
     color: red;

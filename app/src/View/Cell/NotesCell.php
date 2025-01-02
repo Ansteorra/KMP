@@ -32,7 +32,7 @@ class NotesCell extends Cell
      *
      * @return void
      */
-    public function display($topic_id, $topic_model, $viewPrivate = false, $canCreate = true): void
+    public function display($entity_id, $entity_type, $viewPrivate = false, $canCreate = true): void
     {
         $notesTable = TableRegistry::getTableLocator()->get('Notes');
         $newNote = $notesTable->newEmptyEntity();
@@ -41,13 +41,13 @@ class NotesCell extends Cell
                 return $q->select(['id', 'sca_name']);
             }])
             ->where([
-                'topic_id' => $topic_id,
-                'topic_model' => $topic_model
+                'entity_id' => $entity_id,
+                'entity_type' => $entity_type
             ]);
         if (!$viewPrivate) {
             $notesQuery->where(['private' => false]);
         }
         $notes = $notesQuery->orderBy(['Notes.created' => 'ASC'])->all();
-        $this->set(compact('newNote', 'notes', 'topic_id', 'topic_model', 'viewPrivate', 'canCreate'));
+        $this->set(compact('newNote', 'notes', 'entity_id', 'entity_type', 'viewPrivate', 'canCreate'));
     }
 }

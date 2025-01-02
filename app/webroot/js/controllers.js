@@ -901,6 +901,7 @@ class GuifierController extends Controller {
       fullScreen: true,
       onChange: () => {
         this.hiddenTarget.value = this.guifier.getData(this.typeValue);
+        console.log(this.hiddenTarget.value);
         this.hiddenTarget.dispatchEvent(new Event('change'));
       }
     };
@@ -1683,7 +1684,6 @@ class OutletButton extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Contr
     requireData: Boolean
   };
   btnDataValueChanged() {
-    console.log(this.btnDataValue);
     if (this.btnDataValue === null) {
       this.btnDataValue = {};
     }
@@ -1766,10 +1766,10 @@ class RevokeForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Control
   setId(event) {
     this.idTarget.value = event.detail.id;
   }
-  gridBtnOutletConnected(outlet, element) {
+  outletBtnOutletConnected(outlet, element) {
     outlet.addListener(this.setId.bind(this));
   }
-  gridBtnOutletDisconnected(outlet) {
+  outletBtnOutletDisconnected(outlet) {
     outlet.removeListener(this.setId.bind(this));
   }
   checkReadyToSubmit() {
@@ -1908,10 +1908,10 @@ class ActivitiesApproveAndAssignAuthorization extends _hotwired_stimulus__WEBPAC
     this.idTarget.value = event.detail.id;
     this.getApprovers();
   }
-  gridBtnOutletConnected(outlet, element) {
+  outletBtnOutletConnected(outlet, element) {
     outlet.addListener(this.setId.bind(this));
   }
-  gridBtnOutletDisconnected(outlet) {
+  outletBtnOutletDisconnected(outlet) {
     outlet.removeListener(this.setId.bind(this));
   }
   getApprovers() {
@@ -1983,10 +1983,10 @@ class ActivitiesRenewAuthorization extends _hotwired_stimulus__WEBPACK_IMPORTED_
     this.activityTarget.value = event.detail.activity;
     this.getApprovers();
   }
-  gridBtnOutletConnected(outlet, element) {
+  outletBtnOutletConnected(outlet, element) {
     outlet.addListener(this.setId.bind(this));
   }
-  gridBtnOutletDisconnected(outlet) {
+  outletBtnOutletDisconnected(outlet) {
     outlet.removeListener(this.setId.bind(this));
   }
   getApprovers() {
@@ -2522,10 +2522,10 @@ class AwardsRecommendationEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_
     this.turboFrameTarget.setAttribute("src", this.turboFrameUrlValue + "/" + event.detail.id);
     this.element.setAttribute("action", this.formUrlValue + "/" + event.detail.id);
   }
-  gridBtnOutletConnected(outlet, element) {
+  outletBtnOutletConnected(outlet, element) {
     outlet.addListener(this.setId.bind(this));
   }
-  gridBtnOutletDisconnected(outlet) {
+  outletBtnOutletDisconnected(outlet) {
     outlet.removeListener(this.setId.bind(this));
   }
   submit(event) {
@@ -3156,6 +3156,124 @@ if (!window.Controllers) {
   window.Controllers = {};
 }
 window.Controllers["officers-assign-officer"] = OfficersAssignOfficer;
+
+/***/ }),
+
+/***/ "./plugins/Officers/assets/js/controllers/office-form-controller.js":
+/*!**************************************************************************!*\
+  !*** ./plugins/Officers/assets/js/controllers/office-form-controller.js ***!
+  \**************************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+class OfficeFormController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static targets = ["reportsTo", "reportsToBlock", "deputyTo", "deputyToBlock", "isDeputy"];
+  toggleIsDeputy() {
+    //if the iSDepuy is checked, show the deputyTo select box
+    if (this.isDeputyTarget.checked) {
+      this.deputyToBlockTarget.hidden = false;
+      this.deputyToTarget.disabled = false;
+      this.reportsToBlockTarget.hidden = true;
+      this.reportsToTarget.disabled = true;
+    } else {
+      this.deputyToBlockTarget.hidden = true;
+      this.deputyToTarget.disabled = true;
+      this.reportsToBlockTarget.hidden = false;
+      this.reportsToTarget.disabled = false;
+    }
+  }
+  connect() {
+    console.log("connected");
+    this.toggleIsDeputy();
+  }
+}
+// add to window.Controllers with a name of the controller
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["office-form"] = OfficeFormController;
+
+/***/ }),
+
+/***/ "./plugins/Officers/assets/js/controllers/officer-roster-search-controller.js":
+/*!************************************************************************************!*\
+  !*** ./plugins/Officers/assets/js/controllers/officer-roster-search-controller.js ***!
+  \************************************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+class OfficerRosterSearchForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static targets = ["warrantPeriods", "departments", "showBtn"];
+  checkEnable() {
+    if (this.warrantPeriodsTarget.value > 0 && this.departmentsTarget.value > 0) {
+      this.showBtnTarget.disabled = false;
+    } else {
+      this.showBtnTarget.disabled = true;
+    }
+  }
+  connect() {}
+}
+// add to window.Controllers with a name of the controller
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["officer-roster-search"] = OfficerRosterSearchForm;
+
+/***/ }),
+
+/***/ "./plugins/Officers/assets/js/controllers/officer-roster-table-controller.js":
+/*!***********************************************************************************!*\
+  !*** ./plugins/Officers/assets/js/controllers/officer-roster-table-controller.js ***!
+  \***********************************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+class OfficerRosterTableForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static targets = ["rowCheckbox"];
+  ids = [];
+  submitBtn = null;
+  static outlets = ['outlet-btn'];
+  outletBtnOutletConnected(outlet, element) {
+    this.submitBtn = outlet;
+    if (this.ids.length > 0) {
+      this.submitBtn.element.disabled = false;
+    }
+  }
+  outletBtnOutletDisconnected(outlet) {
+    this.submitBtn = null;
+  }
+  rowCheckboxTargetConnected(element) {
+    this.ids.push(element.value);
+    console.log(this.ids);
+  }
+  rowChecked(event) {
+    if (event.target.checked) {
+      this.ids.push(event.target.value);
+    } else {
+      this.ids = this.ids.filter(id => id != event.target.value);
+    }
+    this.submitBtn.element.disabled = true;
+    if (this.ids.length > 0) {
+      this.submitBtn.element.disabled = false;
+    }
+    console.log(this.ids);
+  }
+  connect() {}
+}
+// add to window.Controllers with a name of the controller
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["officer-roster-table"] = OfficerRosterTableForm;
 
 /***/ }),
 
@@ -17644,7 +17762,7 @@ class bE {
 },
 /******/ function(__webpack_require__) { // webpackRuntimeModules
 /******/ var __webpack_exec__ = function(moduleId) { return __webpack_require__(__webpack_require__.s = moduleId); }
-/******/ __webpack_require__.O(0, ["js/core","css/app","css/cover","css/signin","css/dashboard"], function() { return __webpack_exec__("./assets/js/controllers/app-setting-form-controller.js"), __webpack_exec__("./assets/js/controllers/auto-complete-controller.js"), __webpack_exec__("./assets/js/controllers/branch-links-controller.js"), __webpack_exec__("./assets/js/controllers/delayed-forward-controller.js"), __webpack_exec__("./assets/js/controllers/detail-tabs-controller.js"), __webpack_exec__("./assets/js/controllers/filter-grid-controller.js"), __webpack_exec__("./assets/js/controllers/guifier-controller.js"), __webpack_exec__("./assets/js/controllers/image-preview-controller.js"), __webpack_exec__("./assets/js/controllers/kanban-controller.js"), __webpack_exec__("./assets/js/controllers/member-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-pwa-controller.js"), __webpack_exec__("./assets/js/controllers/member-unique-email-controller.js"), __webpack_exec__("./assets/js/controllers/member-verify-form-controller.js"), __webpack_exec__("./assets/js/controllers/modal-opener-controller.js"), __webpack_exec__("./assets/js/controllers/nav-bar-controller.js"), __webpack_exec__("./assets/js/controllers/outlet-button-controller.js"), __webpack_exec__("./assets/js/controllers/permission-add-role-controller.js"), __webpack_exec__("./assets/js/controllers/revoke-form-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-member-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-permission-controller.js"), __webpack_exec__("./assets/js/controllers/session-extender-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/renew-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/request-auth-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/award-form-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-add-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-bulk-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-quick-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-table-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/recommendation-kanban-controller.js"), __webpack_exec__("./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/assign-officer-controller.js"), __webpack_exec__("./assets/css/app.css"), __webpack_exec__("./assets/css/signin.css"), __webpack_exec__("./assets/css/cover.css"), __webpack_exec__("./assets/css/dashboard.css"); });
+/******/ __webpack_require__.O(0, ["js/core","css/app","css/dashboard","css/cover","css/signin"], function() { return __webpack_exec__("./assets/js/controllers/app-setting-form-controller.js"), __webpack_exec__("./assets/js/controllers/auto-complete-controller.js"), __webpack_exec__("./assets/js/controllers/branch-links-controller.js"), __webpack_exec__("./assets/js/controllers/delayed-forward-controller.js"), __webpack_exec__("./assets/js/controllers/detail-tabs-controller.js"), __webpack_exec__("./assets/js/controllers/filter-grid-controller.js"), __webpack_exec__("./assets/js/controllers/guifier-controller.js"), __webpack_exec__("./assets/js/controllers/image-preview-controller.js"), __webpack_exec__("./assets/js/controllers/kanban-controller.js"), __webpack_exec__("./assets/js/controllers/member-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-pwa-controller.js"), __webpack_exec__("./assets/js/controllers/member-unique-email-controller.js"), __webpack_exec__("./assets/js/controllers/member-verify-form-controller.js"), __webpack_exec__("./assets/js/controllers/modal-opener-controller.js"), __webpack_exec__("./assets/js/controllers/nav-bar-controller.js"), __webpack_exec__("./assets/js/controllers/outlet-button-controller.js"), __webpack_exec__("./assets/js/controllers/permission-add-role-controller.js"), __webpack_exec__("./assets/js/controllers/revoke-form-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-member-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-permission-controller.js"), __webpack_exec__("./assets/js/controllers/session-extender-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/renew-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/request-auth-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/award-form-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-add-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-bulk-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-quick-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-table-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/recommendation-kanban-controller.js"), __webpack_exec__("./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/assign-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/office-form-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-search-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-table-controller.js"), __webpack_exec__("./assets/css/app.css"), __webpack_exec__("./assets/css/signin.css"), __webpack_exec__("./assets/css/cover.css"), __webpack_exec__("./assets/css/dashboard.css"); });
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);

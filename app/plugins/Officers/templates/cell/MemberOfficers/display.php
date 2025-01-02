@@ -29,17 +29,18 @@ if (!empty($currentOfficers) || !empty($upcomingOfficers) || !empty($previousOff
         ],
     ];
     $currentTemplate = [
-        "Office" => "office->name",
+        "Office" => "{{office->name}}{{: (deputy_description) }}",
         "Branch" => "branch->name",
         "Start Date" => "start_on",
         "End Date" => "expires_on",
+        "Reports To" => "reports_to",
         "Actions" => [
             $linkTemplate,
             $releaseLinkTemplate
         ],
     ];
     $previousTemplate = [
-        "Office" => "office->name",
+        "Office" => "{{office->name}}{{: (deputy_description) }}",
         "Branch" => "branch->name",
         "Start Date" => "start_on",
         "End Date" => "expires_on",

@@ -210,12 +210,12 @@ class InitOffices extends AbstractMigration
                 "limit" => null,
                 "null" => false,
             ])
-            ->addColumn("reports_to_branch_id", "integer", [
+            ->addColumn("deputy_to_branch_id", "integer", [
                 "default" => null,
                 "limit" => 11,
                 "null" => true,
             ])
-            ->addColumn("reports_to_office_id", "integer", [
+            ->addColumn("deputy_to_office_id", "integer", [
                 "default" => null,
                 "limit" => 11,
                 "null" => true,
@@ -280,7 +280,7 @@ class InitOffices extends AbstractMigration
             ->update();
         $this->table("officers_officers")
             ->addForeignKey(
-                "reports_to_branch_id",
+                "deputy_to_branch_id",
                 "branches",
                 "id",
                 [
@@ -316,7 +316,7 @@ class InitOffices extends AbstractMigration
                 ],
             )
             ->addForeignKey(
-                "reports_to_office_id",
+                "deputy_to_office_id",
                 "officers_offices",
                 "id",
                 [
@@ -359,10 +359,10 @@ class InitOffices extends AbstractMigration
                 "office_id"
             )
             ->dropForeignKey(
-                "reports_to_branch_id"
+                "deputy_to_branch_id"
             )
             ->dropForeignKey(
-                "reports_to_office_id"
+                "deputy_to_office_id"
             )
             ->save();
 

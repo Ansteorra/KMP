@@ -24,13 +24,13 @@ class DevLoadMemberRolesSeed extends AbstractSeed
     {
         $data = [
             [
-                'id' => 2,
+                'id' => 200,
                 'member_id' => 200,
                 'role_id' => 201,
                 'expires_on' => NULL,
                 'start_on' => '2024-05-30 01:22:55',
                 'approver_id' => 1,
-                'granting_model' => 'Direct Grant',
+                'entity_type' => 'Direct Grant',
                 'created' => DateTime::now(),
                 'created_by' => '1'
             ],
@@ -41,7 +41,7 @@ class DevLoadMemberRolesSeed extends AbstractSeed
                 'expires_on' => NULL,
                 'start_on' => '2024-05-30 12:54:12',
                 'approver_id' => 1,
-                'granting_model' => 'Direct Grant',
+                'entity_type' => 'Direct Grant',
                 'created' => DateTime::now(),
                 'created_by' => '1'
             ],

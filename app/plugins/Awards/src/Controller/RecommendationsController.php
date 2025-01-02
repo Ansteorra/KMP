@@ -259,9 +259,9 @@ class RecommendationsController extends AppController
             if ($note) {
                 foreach ($ids as $id) {
                     $newNote = $this->Recommendations->Notes->newEmptyEntity();
-                    $newNote->topic_id = $id;
+                    $newNote->entity_id = $id;
                     $newNote->subject = "Recommendation Bulk Updated";
-                    $newNote->topic_model = "Awards.Recommendations";
+                    $newNote->entity_type = "Awards.Recommendations";
                     $newNote->body = $note;
                     $newNote->author_id = $this->request->getAttribute("identity")->id;
                     if (!$this->Recommendations->Notes->save($newNote)) {
@@ -376,6 +376,7 @@ class RecommendationsController extends AppController
             }])
             ->where(["start_date >" => DateTime::now(), 'OR' => ['closed' => false, 'closed IS' => null]])
             ->select(['id', 'name', 'start_date', 'end_date', 'Branches.name'])
+            ->orderBy(['start_date' => 'ASC'])
             ->all();
         $events = [];
         foreach ($eventsData as $event) {
@@ -458,6 +459,7 @@ class RecommendationsController extends AppController
             }])
             ->where(["start_date >" => DateTime::now()])
             ->select(['id', 'name', 'start_date', 'end_date', 'Branches.name'])
+            ->orderBy(['start_date' => 'ASC'])
             ->all();
         $events = [];
         foreach ($eventsData as $event) {
@@ -537,9 +539,9 @@ class RecommendationsController extends AppController
             }
             if ($this->request->getData("note")) {
                 $newNote = $this->Recommendations->Notes->newEmptyEntity();
-                $newNote->topic_id = $recommendation->id;
+                $newNote->entity_id = $recommendation->id;
                 $newNote->subject = "Recommendation Updated";
-                $newNote->topic_model = "Awards.Recommendations";
+                $newNote->entity_type = "Awards.Recommendations";
                 $newNote->body = $this->request->getData("note");
                 $newNote->author_id = $this->request->getAttribute("identity")->id;
                 if (!$this->Recommendations->Notes->save($newNote)) {
@@ -1101,7 +1103,7 @@ class RecommendationsController extends AppController
                     return $q->select(['id', 'name', 'start_date', 'end_date']);
                 },
                 'Notes' => function ($q) {
-                    return $q->select(['id', 'topic_id', 'subject', 'body', 'created']);
+                    return $q->select(['id', 'entity_id', 'subject', 'body', 'created']);
                 },
                 'Notes.Authors' => function ($q) {
                     return $q->select(['id', 'sca_name']);

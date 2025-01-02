@@ -6,6 +6,7 @@ namespace App\Controller;
 
 use Cake\I18n\DateTime;
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
+use App\Model\Entity\MemberRole;
 
 /**
  * MemberRoles Controller
@@ -36,7 +37,7 @@ class MemberRolesController extends AppController
         $newMemberRole->role_id = $roleid;
         $newMemberRole->member_id = $memberid;
         $newMemberRole->approver_id = $this->Authentication->getIdentity()->get("id");
-        $newMemberRole->granting_model = "Direct Grant";
+        $newMemberRole->entity_type = "Direct Grant";
         $newMemberRole->start(DateTime::now());
         if (!$this->MemberRoles->save($newMemberRole)) {
             $this->Flash->error(
@@ -66,7 +67,7 @@ class MemberRolesController extends AppController
         }
         $this->MemberRoles->getConnection()->begin();
 
-        if (!$awService->stop("MemberRoles", (int)$id, $this->Authentication->getIdentity()->get("id"), "deactivated", "", DateTime::now())) {
+        if (!$awService->stop("MemberRoles", (int)$id, $this->Authentication->getIdentity()->get("id"), MemberRole::DEACTIVATED_STATUS, "", DateTime::now())) {
             $this->Flash->error(
                 __(
                     "The Member role could not be deactivated. Please, try again.",
@@ -112,7 +113,7 @@ class MemberRolesController extends AppController
     protected function addConditions($query)
     {
         return $query
-            ->select(['id', 'role_id', 'member_id', 'approver_id', 'granting_model', 'start_on', 'expires_on', 'revoker_id'])
+            ->select(['id', 'role_id', 'member_id', 'approver_id', 'entity_type', 'start_on', 'expires_on', 'revoker_id'])
             ->contain([
                 'Members' => function ($q) {
                     return $q->select(['id', 'sca_name']);

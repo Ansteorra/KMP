@@ -65,14 +65,14 @@ class NotesTable extends Table
         $validator->dateTime("created_on")->notEmptyDateTime("created_on");
 
         $validator
-            ->scalar("topic_model")
-            ->maxLength("topic_model", 255)
-            ->allowEmptyString("topic_model");
+            ->scalar("entity_type")
+            ->maxLength("entity_type", 255)
+            ->allowEmptyString("entity_type");
 
         $validator
-            ->integer("topic_id")
-            ->requirePresence("topic_id", "create")
-            ->notEmptyString("topic_id");
+            ->integer("entity_id")
+            ->requirePresence("entity_id", "create")
+            ->notEmptyString("entity_id");
 
         $validator
             ->scalar("subject")

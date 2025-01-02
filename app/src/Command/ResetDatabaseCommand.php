@@ -54,21 +54,5 @@ class ResetDatabaseCommand extends Command
         $db->execute("DROP DATABASE IF EXISTS " . $db->config()["database"] . ";");
         $db->execute("CREATE DATABASE " . $db->config()["database"] . " DEFAULT CHARACTER SET = 'utf8mb4';");
         $io->success("Database reset.");
-        ////create a date at 0000-00-00 00:00:00
-        //$date = '0000-01-01 00:00:00';
-        //$items = Plugin::getCollection();
-        //$pluginsToMigrate = [];
-        //foreach ($items as $name => $plugin) {
-        //    if ($plugin instanceof KMPPluginInterface) {
-        //        $pluginsToMigrate[$name] = $plugin->getMigrationOrder();
-        //    }
-        // }
-        //sort decending
-        //arsort($pluginsToMigrate);
-        //foreach ($pluginsToMigrate as $name => $order) {
-        //    $this->executeCommand(Migrate::class, ['rollback', '-t', $date, '-p', $name]);
-        //}
-
-        //$this->executeCommand(Migrate::class, ['rollback', '-t', $date]);
     }
 }

@@ -9,7 +9,7 @@ use Cake\I18n\DateTime;
 use Cake\Mailer\MailerAwareTrait;
 use Cake\ORM\TableRegistry;
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
-use PharIo\Manifest\Author;
+use App\Services\ServiceResult;
 
 class DefaultAuthorizationManager implements AuthorizationManagerInterface
 {
@@ -17,6 +17,11 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
     use MailerAwareTrait;
 
     #endregion
+
+    public function __construct(ActiveWindowManagerInterface $activeWindowManager)
+    {
+        $this->activeWindowManager = $activeWindowManager;
+    }
 
     #region public methods
     /**
@@ -26,14 +31,14 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
      * @param int $activityId
      * @param int $approverId
      * @param bool $isRenewal
-     * @return bool
+     * @return ServiceResult
      */
     public function request(
         int $requesterId,
         int $activityId,
         int $approverId,
         bool $isRenewal
-    ): bool {
+    ): ServiceResult {
         $table = TableRegistry::getTableLocator()->get("Activities.Authorizations");
         // If its a renewal we will only create the auth if there is an existing auth that has not expired
         if ($isRenewal) {
@@ -47,7 +52,7 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
                 ])
                 ->count();
             if ($existingAuths == 0) {
-                return false;
+                return new ServiceResult(false, "There is no existing authorization to renew");
             }
         }
         //Checking for existing pending requests
@@ -60,7 +65,7 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
             ])
             ->count();
         if ($existingRequests > 0) {
-            return false;
+            return new ServiceResult(false, "There is already a pending request for this activity");
         }
 
 
@@ -74,7 +79,7 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
         if (!$table->save($auth)) {
             $table->getConnection()->rollback();
 
-            return false;
+            return new ServiceResult(false, "Failed to save authorization");
         }
         $approval = $table->AuthorizationApprovals->newEmptyEntity();
         $approval->authorization_id = $auth->id;
@@ -84,7 +89,7 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
         if (!$table->AuthorizationApprovals->save($approval)) {
             $table->getConnection()->rollback();
 
-            return false;
+            return new ServiceResult(false, "Failed to save authorization approval");
         }
         if (
             !$this->sendApprovalRequestNotification(
@@ -96,27 +101,25 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
         ) {
             $table->getConnection()->rollback();
 
-            return false;
+            return new ServiceResult(false, "Failed to send approval request notification");
         }
         $table->getConnection()->commit();
 
-        return true;
+        return new ServiceResult(true);
     }
     /**
      * Approves an authorization approval - Make sure to create a transaction before calling this service
      *
-     * @param ActiveWindowManagerInterface $activeWindowManager
      * @param int $authorizationApprovalId
      * @param int $approverId
      * @param int|null $nextApproverId
-     * @return bool
+     * @return ServiceResult
      */
     public function approve(
-        ActiveWindowManagerInterface $activeWindowManager,
         int $authorizationApprovalId,
         int $approverId,
         int $nextApproverId = null
-    ): bool {
+    ): ServiceResult {
         $approvalTable = TableRegistry::getTableLocator()->get(
             "Activities.AuthorizationApprovals",
         );
@@ -130,19 +133,19 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
         if (!$approval) {
             $transConnection->rollback();
 
-            return false;
+            return new ServiceResult(false, "Approval not found");
         }
         $authorization = $approval->authorization;
         if (!$authorization) {
             $transConnection->rollback();
 
-            return false;
+            return new ServiceResult(false, "Authorization not found");
         }
         $activity = $authorization->activity;
         if (!$activity) {
             $transConnection->rollback();
 
-            return false;
+            return new ServiceResult(false, "Activity not found");
         }
         $this->saveAuthorizationApproval(
             $approverId,
@@ -174,11 +177,11 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
             ) {
                 $transConnection->rollback();
 
-                return false;
+                return new ServiceResult(false, "Failed to forward to next approver");
             } else {
                 $transConnection->commit();
 
-                return true;
+                return new ServiceResult(true);
             }
         } else {
             // Authorization is ready to approve
@@ -186,18 +189,17 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
                 !$this->processApprovedAuthorization(
                     $authorization,
                     $approverId,
-                    $authTable,
-                    $activeWindowManager,
+                    $authTable
                 )
             ) {
                 $transConnection->rollback();
 
-                return false;
+                return new ServiceResult(false, "Failed to process approved authorization");
             }
         }
         $transConnection->commit();
 
-        return true;
+        return new ServiceResult(true);
     }
     /**
      * Denies an authorization approval - Make sure to create a transaction before calling this service
@@ -205,13 +207,13 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
      * @param int $authorizationApprovalId
      * @param int $approverId
      * @param string $denyReason
-     * @return bool
+     * @return ServiceResult
      */
     public function deny(
         int $authorizationApprovalId,
         int $approverId,
         string $denyReason,
-    ): bool {
+    ): ServiceResult {
         $table = TableRegistry::getTableLocator()->get(
             "Activities.AuthorizationApprovals",
         );
@@ -234,7 +236,7 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
             !$table->Authorizations->save($approval->authorization)
         ) {
             $table->getConnection()->rollback();
-            return false;
+            return new ServiceResult(false, "Failed to deny authorization approval");
         }
         if (
             !$this->sendAuthorizationStatusToRequester(
@@ -247,43 +249,42 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
         ) {
             $table->getConnection()->rollback();
 
-            return false;
+            return new ServiceResult(false, "Failed to send authorization status to requester");
         }
         $table->getConnection()->commit();
 
-        return true;
+        return new ServiceResult(true);
     }
 
     /**
      * Revokes an authorization - Make sure to create a transaction before calling this service
      *
-     * @param ActiveWindowManagerInterface $activeWindowManager
      * @param int $authorizationId
      * @param int $revokerId
      * @param string $revokedReason
-     * @return bool
+     * @return ServiceResult
      */
     public function revoke(
-        ActiveWindowManagerInterface $activeWindowManager,
         int $authorizationId,
         int $revokerId,
         string $revokedReason,
-    ): bool {
+    ): ServiceResult {
         $table = TableRegistry::getTableLocator()->get("Activities.Authorizations");
         $table->getConnection()->begin();
 
 
         // revoke the member_role if it was granted
-        if (!$activeWindowManager->stop(
+        $awResult = $this->activeWindowManager->stop(
             "Activities.Authorizations",
             $authorizationId,
             $revokerId,
             Authorization::REVOKED_STATUS,
             $revokedReason,
             DateTime::now()
-        )) {
+        );
+        if (!$awResult->success) {
             $table->getConnection()->rollback();
-            return false;
+            return new ServiceResult(false, "Failed to revoke member role");
         }
         $authorization = $table->get($authorizationId);
         if (!$this->sendAuthorizationStatusToRequester(
@@ -295,11 +296,11 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
         )) {
             $table->getConnection()->rollback();
 
-            return false;
+            return new ServiceResult(false, "Failed to send authorization status to requester");
         }
         $table->getConnection()->commit();
 
-        return true;
+        return new ServiceResult(true);
     }
     #endregion
 
@@ -357,7 +358,7 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
         return true;
     }
 
-    protected function sendApprovalRequestNotification(
+    private function sendApprovalRequestNotification(
         int $activityId,
         int $requesterId,
         int $approverId,
@@ -401,15 +402,14 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
     private function processApprovedAuthorization(
         $authorization,
         $approverId,
-        $authTable,
-        ActiveWindowManagerInterface $activeWindowManager,
+        $authTable
     ): bool {
         $authorization->status = Authorization::APPROVED_STATUS;
         $authorization->approval_count = $authorization->approval_count + 1;
         if (!$authTable->save($authorization)) {
             return false;
         }
-        if (!$activeWindowManager->start(
+        $awResult = $this->activeWindowManager->start(
             "Activities.Authorizations",
             $authorization->id,
             $approverId,
@@ -417,7 +417,8 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
             null,
             $authorization->activity->term_length,
             $authorization->activity->grants_role_id,
-        )) {
+        );
+        if (!$awResult->success) {
             return false;
         }
         if (

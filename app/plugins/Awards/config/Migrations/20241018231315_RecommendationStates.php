@@ -62,7 +62,7 @@ class RecommendationStates extends AbstractMigration
             ->addPrimaryKey(["id"])
             ->create();
 
-        $table = $this->table('awards_recommendations')
+        $this->table('awards_recommendations')
             ->addColumn('close_reason',  "text", [
                 "default" => null,
                 "limit" => null,
@@ -75,6 +75,7 @@ class RecommendationStates extends AbstractMigration
             ])
             ->renameColumn('status_date', 'state_date')
             ->update();
+
         $this->table("awards_recommendations_states_logs")
             ->addForeignKey("recommendation_id", "awards_recommendations", "id", [
                 "update" => "NO_ACTION",

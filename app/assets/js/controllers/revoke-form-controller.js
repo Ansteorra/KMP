@@ -11,10 +11,10 @@ class RevokeForm extends Controller {
     setId(event) {
         this.idTarget.value = event.detail.id;
     }
-    gridBtnOutletConnected(outlet, element) {
+    outletBtnOutletConnected(outlet, element) {
         outlet.addListener(this.setId.bind(this));
     }
-    gridBtnOutletDisconnected(outlet) {
+    outletBtnOutletDisconnected(outlet) {
         outlet.removeListener(this.setId.bind(this));
     }
 

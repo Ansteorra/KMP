@@ -17,7 +17,7 @@ $this->KMP->endBlock();
 ?>
 
 <div class="officer form content">
-    <?= $this->Form->create($office) ?>
+    <?= $this->Form->create($office, ['data-controller' => 'office-form',]) ?>
     <fieldset>
         <legend><?= __("Add Office") ?></legend>
         <?php
@@ -26,14 +26,40 @@ $this->KMP->endBlock();
             "options" => $departments,
             "empty" => true,
         ]);
+        echo $this->Form->control("branch_types", [
+            "type" => "select",
+            "multiple" => "checkbox",
+            "options" => $branch_types,
+            "switch" => true,
+            "label" => [
+                "class" => "required",
+            ],
+
+        ]);
         echo $this->Form->control("term_length");
         echo $this->Form->control("required_office", ["switch" => true, 'label' => 'Required']);
         echo $this->Form->control("can_skip_report", ["switch" => true, 'label' => 'Skip Report']);
         echo $this->Form->control("requires_warrant", ["switch" => true, 'label' => 'Warrant']);
         echo $this->Form->control("only_one_per_branch", ["switch" => true, 'label' => 'One Per Branch']);
-        echo $this->Form->control("deputy_to_id", [
+        echo $this->Form->control("is_deputy", [
+            "type" => "checkbox",
+            "switch" => true,
+            'label' => 'Is Deputy Office',
+            'data-action' => 'office-form#toggleIsDeputy',
+            'data-office-form-target' => 'isDeputy'
+        ]);
+        echo $this->Form->control("reports_to_id", [
             "options" => $offices,
             "empty" => true,
+            'data-office-form-target' => 'reportsTo',
+            'container' => ['data-office-form-target' => 'reportsToBlock']
+        ]);
+        echo $this->Form->control("deputy_to_id", [
+            "required" => true,
+            "options" => $offices,
+            "empty" => true,
+            'data-office-form-target' => 'deputyTo',
+            'container' => ['data-office-form-target' => 'deputyToBlock']
         ]);
         echo $this->Form->control("grants_role_id", [
             "options" => $roles,

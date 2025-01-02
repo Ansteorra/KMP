@@ -13,10 +13,10 @@ class ActivitiesApproveAndAssignAuthorization extends Controller {
         this.idTarget.value = event.detail.id;
         this.getApprovers();
     }
-    gridBtnOutletConnected(outlet, element) {
+    outletBtnOutletConnected(outlet, element) {
         outlet.addListener(this.setId.bind(this));
     }
-    gridBtnOutletDisconnected(outlet) {
+    outletBtnOutletDisconnected(outlet) {
         outlet.removeListener(this.setId.bind(this));
     }
 
