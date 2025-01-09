@@ -81,7 +81,12 @@ class AppController extends Controller
             }
             if ($params['action'] == 'login') {
                 $isNoStack = true;
+                $config = $this->getRequest()->getFlash()->getConfig();
+                //get the flash from the session
+                $flash = $session->read('Flash.' . $config['key']);
                 $session->destroy();
+                //save the flash back to the session
+                $session->write('Flash.' . $config['key'], $flash);
             }
         }
         if ($params['controller'] == 'NavBar') {

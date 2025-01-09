@@ -1059,7 +1059,10 @@ class MembersController extends AppController
             $member->password = StaticHelpers::generateToken(12);
             if ($member->getErrors()) {
 
-                return $this->redirect(["action" => "view", $member->id]);
+                $this->Flash->error(
+                    __("The Member could not be saved. Please, try again."),
+                );
+                return $this->redirect(["action" => "login"]);
             }
             if ($member->age > 17) {
                 $member->status = Member::STATUS_ACTIVE;
@@ -1069,12 +1072,12 @@ class MembersController extends AppController
             $member->mobile_card_token = StaticHelpers::generateToken(16);
             if ($this->Members->save($member)) {
                 if ($member->age > 17) {
-                    $this->Flash->success(__("Your registration has been submitted. Please check your email for a link to set up your password."));
                     $this->getMailer("KMP")->send("newRegistration", [$member]);
                     $this->getMailer("KMP")->send("notifySecretaryOfNewMember", [$member]);
+                    $this->Flash->success(__("Your registration has been submitted. Please check your email for a link to set up your password."));
                 } else {
-                    $this->Flash->success(__("Your registration has been submitted. The Kingdom Secretary will need to verify your account with your parent or guardian"));
                     $this->getMailer("KMP")->send("notifySecretaryOfNewMinorMember", [$member]);
+                    $this->Flash->success(__("Your registration has been submitted. The Kingdom Secretary will need to verify your account with your parent or guardian"));
                 }
 
                 return $this->redirect(["action" => "login"]);

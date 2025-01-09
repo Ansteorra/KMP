@@ -80,10 +80,10 @@ class AuthorizationsTable extends Table
         ]);
         $this->addBehavior("ActiveWindow");
 
-        $lastExpCheck = new DateTime(StaticHelpers::getAppSetting("Activities.NextStatusCheck", DateTime::now()->subDays(1)->toDateString()));
+        $lastExpCheck = new DateTime(StaticHelpers::getAppSetting("Activities.NextStatusCheck", DateTime::now()->subDays(1)->toDateString()), null, true);
         if ($lastExpCheck->isPast()) {
             $this->checkStatus();
-            StaticHelpers::setAppSetting("Activities.NextStatusCheck", DateTime::now()->addDays(1)->toDateString());
+            StaticHelpers::setAppSetting("Activities.NextStatusCheck", DateTime::now()->addDays(1)->toDateString(), null, true);
         }
     }
 

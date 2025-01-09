@@ -1,5 +1,6 @@
 <?php
 
+use Cake\Cache\Engine\ApcuEngine;
 use Cake\Cache\Engine\ArrayEngine;
 use Cake\Database\Connection;
 use Cake\Database\Driver\Mysql;
@@ -100,7 +101,13 @@ return [
      */
     "Cache" => [
         "default" => [
-            "className" => ArrayEngine::class,
+            "className" => ApcuEngine::class,
+            'duration' => '+1 hours',
+        ],
+
+        "permissions" => [
+            "className" => ApcuEngine::class,
+            "duration" => "+5 seconds",
         ],
 
         /*
@@ -110,7 +117,7 @@ return [
          * If you set 'className' => 'Null' core cache will be disabled.
          */
         "_cake_translations_" => [
-            "className" => ArrayEngine::class,
+            "className" => ApcuEngine::class,
             "duration" => "+1 years",
             "url" => env("CACHE_CAKECORE_URL", null),
         ],
@@ -122,7 +129,7 @@ return [
          * Duration will be set to '+2 minutes' in bootstrap.php when debug = true
          */
         "_cake_model_" => [
-            "className" => ArrayEngine::class,
+            "className" => ApcuEngine::class,
             "duration" => "+1 years",
             "url" => env("CACHE_CAKEMODEL_URL", null),
         ],
@@ -401,7 +408,7 @@ return [
      * To use database sessions, load the SQL file located at config/schema/sessions.sql
      */
     "Session" => [
-        "defaults" => "php",
+        "defaults" => "cache",
         "timeout" => 30,
     ]
 ];

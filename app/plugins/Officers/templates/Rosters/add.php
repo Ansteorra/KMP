@@ -92,9 +92,9 @@ $this->KMP->endBlock();
                 </td>
                 <?php endif; ?>
                 <td><?= h($officer->branch->name) ?></td>
-                <td><?= h($officer->office->name) ?>
-                <td><?= $officer->expires_on ? h($officer->expires_on->toDateString()) : "No Exp Date" ?>
-                    <?= $officer->deputy_description != null ? ": " . $officer->deputy_description : "" ?></td>
+                <td><?= h($officer->office->name) ?><?= $officer->deputy_description != null ? ": " . $officer->deputy_description : "" ?>
+                </td>
+                <td><?= $officer->expires_on ? h($officer->expires_on->toDateString()) : "No Exp Date" ?></td>
                 <td><?= h($officer->member->sca_name) ?></td>
                 <td><?= h($officer->member->email_address) ?></td>
                 <td><?= h($officer->member->phone_number) ?></td>

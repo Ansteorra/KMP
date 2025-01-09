@@ -19,7 +19,7 @@ $this->KMP->endBlock(); ?>
     <thead>
         <tr>
             <th scope="col"><?= $this->Paginator->sort('name') ?></th>
-            <th scope="col"><?= $this->Paginator->sort('warrant_count') ?></th>
+            <th scope="col"><?= h('Warrant Count') ?></th>
             <th scope="col"><?= $this->Paginator->sort('approvals_required') ?></th>
             <th scope="col"><?= $this->Paginator->sort('approval_count') ?></th>
             <th scope="col"><?= $this->Paginator->sort('status') ?></th>

@@ -45,9 +45,6 @@ class KmpHelper extends Helper
 
     public function startBlock($block): string
     {
-        //if (self::$currentOpenBlock != "") {
-        //    Log::error("Block " . self::$currentOpenBlock . " was not closed before opening " . $block);
-        //}
         self::$mainView->start($block);
         self::$currentOpenBlock = $block;
         return self::$mainView->fetch($block);

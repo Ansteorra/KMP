@@ -37,14 +37,14 @@ class BasePolicy implements BeforePolicyInterface
 
     protected function _hasNamedPermission($user, string $permission_name): bool
     {
-        Log::debug("Checking for permission: " . $permission_name);
+        //Log::debug("Checking for permission: " . $permission_name);
         if ($this->_isSuperUser($user)) {
             return true;
         }
         $permissions = $this->_getPermissions($user);
         foreach ($permissions as $permission) {
             if ($permission->name == $permission_name) {
-                Log::debug("User has permission: " . $permission_name);
+                //Log::debug("User has permission: " . $permission_name);
                 return true;
             }
         }

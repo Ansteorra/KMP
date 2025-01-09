@@ -120,10 +120,10 @@ class OfficersTable extends Table
         $this->addBehavior('Muffin/Footprint.Footprint');
         $this->addBehavior("ActiveWindow");
 
-        $lastOfficerExpCheck = new DateTime(StaticHelpers::getAppSetting("Officer.NextStatusCheck", DateTime::now()->subDays(1)->toDateString()));
+        $lastOfficerExpCheck = new DateTime(StaticHelpers::getAppSetting("Officer.NextStatusCheck", DateTime::now()->subDays(1)->toDateString()), null, true);
         if ($lastOfficerExpCheck->isPast()) {
             $this->checkOfficerStatus();
-            StaticHelpers::setAppSetting("Officer.NextStatusCheck", DateTime::now()->addDays(1)->toDateString());
+            StaticHelpers::setAppSetting("Officer.NextStatusCheck", DateTime::now()->addDays(1)->toDateString(), null, true);
         }
     }
 
