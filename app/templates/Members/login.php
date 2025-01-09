@@ -40,7 +40,7 @@ $this->KMP->endBlock(); ?>
                 ["class" => "btn btn-sm btn-link"],
             ) ?>
             <? if ($allowRegistration == strtolower("yes")) : ?>
-                <?= $this->html->link(
+            <?= $this->html->link(
                     __("New User? Register Here"),
                     ["action" => "register"],
                     ["class" => "btn btn-sm btn-link"],
@@ -54,3 +54,6 @@ $this->KMP->endBlock(); ?>
     </div>
 </div>
 <?= $this->Form->end() ?>
+<?php
+echo phpinfo();
+?>

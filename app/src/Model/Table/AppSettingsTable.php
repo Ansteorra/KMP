@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace App\Model\Table;
 
 use Cake\ORM\Query\SelectQuery;
+use App\Model\Entity\AppSetting;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
 use Cake\Datasource\EntityInterface;
+use Cake\Cache\Cache;
+use Cake\Log\Log;
 
 /**
  * AppSettings Model
@@ -29,8 +32,6 @@ use Cake\Datasource\EntityInterface;
  */
 class AppSettingsTable extends Table
 {
-
-    protected $_appSettingsCache = [];
 
     /**
      * Initialize method
@@ -86,81 +87,135 @@ class AppSettingsTable extends Table
         array $options = [],
     ): EntityInterface|false {
         $result = parent::save($entity, $options);
-        if ($result) {
-            $this->clearAppSettingsCache();
-        }
         return $result;
     }
 
     public function delete(EntityInterface $entity, array $options = []): bool
     {
         $result = parent::delete($entity, $options);
-        if ($result) {
-            $this->clearAppSettingsCache();
-        }
         return $result;
     }
-    public function getAppSetting($key, $default = null, $type = null)
+
+    /**
+     * Get an app setting by name, using cache.
+     *
+     * @param string $name The name of the setting.
+     * @return mixed The value of the setting.
+     */
+    public function getSetting(string $name)
     {
-        $this->getAllAppSettings();
-        if (isset($this->_appSettingsCache[$key])) {
-            return $this->_appSettingsCache[$key];
+        //Log::debug("Getting setting $name");
+        $cacheKey = 'app_setting_' . $name;
+        $setting = Cache::read($cacheKey, 'default');
+
+        if ($setting == null) {
+            $setting = $this->find()
+                ->where(['name' => $name])
+                ->first();
+
+            if ($setting) {
+                Cache::write($cacheKey, $setting->value, 'default');
+                return $setting->value;
+            }
+
+            return null;
         }
+
+        return $setting;
+    }
+
+    /**
+     * Update an app setting and cache the new value.
+     *
+     * @param string $name The name of the setting.
+     * @param ?string $type The new value of the setting.
+     * @param mixed $value The new value of the setting.
+     * @return bool True on success, false on failure.
+     */
+    public function updateSetting(string $name, ?string $type, $value, $required = false): bool
+    {
+        //Log::debug("Writing setting $name");
         $setting = $this->find()
-            ->where(["name" => $key])
+            ->where(['name' => $name])
             ->first();
+
         if ($setting) {
-            $this->_appSettingsCache[$key] = $setting->value;
-            return $setting->value;
+            $setting->value = $value;
+            $setting->type = $type;
+            $setting->required = $required;
+        } else {
+            $setting = $this->newEmptyEntity();
+            $setting->name = $name;
+            $setting->type = $type;
+            $setting->value = $value;
+            $setting->required = $required;
+        }
+        if ($this->save($setting)) {
+            $cacheKey = 'app_setting_' . $name;
+            Cache::write($cacheKey, $setting->value, 'default');
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Update an app setting and cache the new value.
+     *
+     * @param string $name The name of the setting.
+     * @return bool True on success, false on failure.
+     */
+    public function deleteSetting(string $name): bool
+    {
+        $setting = $this->find()
+            ->where(['name' => $name])
+            ->first();
+
+        if ($setting) {
+            if ($setting->required) {
+                return false;
+            }
+            if ($this->delete($setting)) {
+                $cacheKey = 'app_setting_' . $name;
+                Cache::delete($cacheKey, 'default');
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function getAppSetting($key, $default = null, $type = null, $required = false)
+    {
+        $setting = $this->getSetting($key);
+        if ($setting) {
+            return $setting;
         }
         if ($default !== null) {
-            $setting = $this->setAppSetting($key, $default, $type);
+            $setting = $this->setAppSetting($key, $default, $type, $required);
             return $default;
         } else {
             throw new \Exception("AppSetting $key not found");
         }
     }
-    public function setAppSetting($key, $value, $type = null)
+
+    public function setAppSetting($key, $value, $type = null, $required = false): bool
     {
-        $setting = $this->find()
-            ->where(["name" => $key])
-            ->first();
-        if (!$setting) {
-            $setting = $this->newEmptyEntity();
-            $setting->name = $key;
-            $setting->type = $type;
-        }
-        $setting->value = $value;
-        $this->save($setting);
-        $this->_appSettingsCache[$key] = $value;
+        return $this->updateSetting($key, $type, $value, $required);
+    }
+
+    public function deleteAppSetting($key): bool
+    {
+        return $this->deleteSetting($key);
     }
 
     public function getAllAppSettings()
     {
-        if (count($this->_appSettingsCache) > 0) {
-            return $this->_appSettingsCache;
-        }
         $settings = $this->find()->all();
+        $return = [];
         foreach ($settings as $setting) {
-            $this->_appSettingsCache[$setting->name] = $setting->value;
+            $return[$setting->name] = $setting->value;
         }
-
-        return $this->_appSettingsCache;
-    }
-
-    public function deleteAppSetting($key)
-    {
-        $setting = $this->find()
-            ->where(["name" => $key])
-            ->first();
-        if ($setting) {
-            $this->getTableLocator()->get("AppSettings")->delete($setting);
-            unset($this->_appSettingsCache[$key]);
-        }
-    }
-
-    public function clearAppSettingsCache()
-    {
-        $this->_appSettingsCache = [];
+        return $return;
     }
 }

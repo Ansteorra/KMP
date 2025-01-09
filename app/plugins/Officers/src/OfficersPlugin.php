@@ -56,8 +56,15 @@ class OfficersPlugin extends BasePlugin implements KMPPluginInterface
 
         $handler = new CallForNavHandler();
         EventManager::instance()->on($handler);
-        StaticHelpers::getAppSetting("Officer.NextStatusCheck", DateTime::now()->subDays(1)->toDateString());
-        StaticHelpers::getAppSetting("Plugin.Officers.Active", "yes");
+
+        $currentConfigVersion = "25.01.11.a"; // update this each time you change the config
+
+        $configVersion = StaticHelpers::getAppSetting("Officer.configVersion", "0.0.0", null, true);
+        if ($configVersion != $currentConfigVersion) {
+            StaticHelpers::setAppSetting("Officer.configVersion", $currentConfigVersion, null, true);
+            StaticHelpers::getAppSetting("Officer.NextStatusCheck", DateTime::now()->subDays(1)->toDateString(), null, true);
+            StaticHelpers::getAppSetting("Plugin.Officers.Active", "yes", null, true);
+        }
     }
 
     /**

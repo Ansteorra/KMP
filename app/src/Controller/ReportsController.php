@@ -106,7 +106,7 @@ class ReportsController extends AppController
             ->where(['requires_warrant' => 1])
             ->orderBy('name')
             ->distinct();
-        Log::debug($permissionsQuery);
+        //Log::debug($permissionsQuery);
         $permissions = $permissionsQuery->all()->toArray();
         $permissionsRoster = [];
         foreach ($permissions as $permission) {

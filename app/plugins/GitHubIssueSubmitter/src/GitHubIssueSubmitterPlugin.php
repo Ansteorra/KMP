@@ -28,10 +28,16 @@ class GitHubIssueSubmitterPlugin extends BasePlugin
      */
     public function bootstrap(PluginApplicationInterface $app): void
     {
-        StaticHelpers::getAppSetting("KMP.GitHub.Owner", "Ansteorra");
-        StaticHelpers::getAppSetting("KMP.GitHub.Project", "KMP");
-        StaticHelpers::getAppSetting("Plugin.GitHubIssueSubmitter.Active", "yes");
-        StaticHelpers::getAppSetting("Plugin.GitHubIssueSubmitter.PopupMessage", "This Feedback form is anonymous and will be submitted to the KMP GitHub repository. Please do not include any pii or use this for support requests.");
+        $currentConfigVersion = "25.01.11.a"; // update this each time you change the config
+
+        $configVersion = StaticHelpers::getAppSetting("GitHubIssueSubmitter.configVersion", "0.0.0", null, true);
+        if ($configVersion != $currentConfigVersion) {
+            StaticHelpers::setAppSetting("GitHubIssueSubmitter.configVersion", $currentConfigVersion, null, true);
+            StaticHelpers::getAppSetting("KMP.GitHub.Owner", "Ansteorra", null, true);
+            StaticHelpers::getAppSetting("KMP.GitHub.Project", "KMP", null, true);
+            StaticHelpers::getAppSetting("Plugin.GitHubIssueSubmitter.Active", "yes", null, true);
+            StaticHelpers::getAppSetting("Plugin.GitHubIssueSubmitter.PopupMessage", "This Feedback form is anonymous and will be submitted to the KMP GitHub repository. Please do not include any pii or use this for support requests.", null, true);
+        }
     }
 
     /**

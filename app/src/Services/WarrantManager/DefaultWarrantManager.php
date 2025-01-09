@@ -68,6 +68,7 @@ class DefaultWarrantManager implements WarrantManagerInterface
             $warrantRequestEntity->entity_id =  $warrantRequest->entity_id;
             $warrantRequestEntity->requester_id = $warrantRequest->requester_id;
             $warrantRequestEntity->member_id = $warrantRequest->member_id;
+            $warrantRequestEntity->member_role_id = $warrantRequest->member_role_id;
             //get warrant period
             $warrantPeriod = $this->getWarrantPeriod($warrantRequest->start_on, $warrantRequest->expires_on);
             if ($warrantPeriod == null) {
@@ -89,6 +90,7 @@ class DefaultWarrantManager implements WarrantManagerInterface
             $warrantRequestEntity->start_on = $warrantPeriod->start_date;
             $warrantRequestEntity->expires_on = $warrantPeriod->end_date;
             $warrantRequestEntity->status = Warrant::PENDING_STATUS;
+            $warrantRequestEntity->member_role_id = $warrantRequest->member_role_id;
             $warrantRequestEntity->warrant_roster_id = $warrantRoster->id;
             if (!$warrantRequestTable->save($warrantRequestEntity)) {
                 //rollback transaction

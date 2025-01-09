@@ -199,7 +199,7 @@ class StaticHelpers
      * @param string $fallback
      * @return mixed
      */
-    static function getAppSetting(string $key, $fallback = null, $type = null)
+    static function getAppSetting(string $key, $fallback = null, $type = null, $required = false)
     {
         try {
             //check config first for the key
@@ -209,7 +209,7 @@ class StaticHelpers
             }
             //check the app settings table
             $AppSettings = TableRegistry::getTableLocator()->get("AppSettings");
-            $value = $AppSettings->getAppSetting($key, $fallback, $type);
+            $value = $AppSettings->getAppSetting($key, $fallback, $type, $required);
             return $value;
         } catch (Exception $e) {
             // check if e is a Cake\Database\Exception\DatabaseException
@@ -236,11 +236,11 @@ class StaticHelpers
         }
     }
 
-    static function setAppSetting(string $key, $value)
+    static function setAppSetting(string $key, $value, $type = null, $required = false): bool
     {
         try {
             $AppSettings = TableRegistry::getTableLocator()->get("AppSettings");
-            $AppSettings->setAppSetting($key, $value);
+            return $AppSettings->setAppSetting($key, $value, $type, $required);
         } catch (Exception $e) {
             return false;
         }

@@ -56,10 +56,14 @@ class ActivitiesPlugin extends BasePlugin implements KMPPluginInterface
         $handler = new CallForNavHandler();
         EventManager::instance()->on($handler);
 
-        StaticHelpers::getAppSetting("Email.SiteAdminSignature", "Webminister");
-        StaticHelpers::getAppSetting("Email.SystemEmailFromAddress", "donotreply@webminister.ansteorra.org");
-        StaticHelpers::getAppSetting("Activities.NextStatusCheck", DateTime::now()->subDays(1)->toDateString());
-        StaticHelpers::getAppSetting("Plugin.Activities.Active", "yes");
+        $currentConfigVersion = "25.01.11.a"; // update this each time you change the config
+
+        $configVersion = StaticHelpers::getAppSetting("Activities.configVersion", "0.0.0", null, true);
+        if ($configVersion != $currentConfigVersion) {
+            StaticHelpers::setAppSetting("Activities.configVersion", $currentConfigVersion, null, true);
+            StaticHelpers::getAppSetting("Activities.NextStatusCheck", DateTime::now()->subDays(1)->toDateString(), null, true);
+            StaticHelpers::getAppSetting("Plugin.Activities.Active", "yes", null, true);
+        }
     }
 
     /**

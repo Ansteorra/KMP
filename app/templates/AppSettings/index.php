@@ -78,18 +78,20 @@ $this->KMP->endBlock(); ?>
                         "data-action" => "click->app-setting-form#submit",
                         "data-app-setting-form-target" => "submitBtn",
                     ]) ?>
+                <?php if (!$appSetting->required) : ?>
                 <?= $this->Form->postLink(
-                        __("Delete"),
-                        ["action" => "delete", $appSetting->id],
-                        [
-                            "confirm" => __(
-                                "Are you sure you want to delete {0}?",
-                                $appSetting->name,
-                            ),
-                            "title" => __("Delete"),
-                            "class" => "btn btn-danger",
-                        ],
-                    ) ?>
+                            __("Delete"),
+                            ["action" => "delete", $appSetting->id],
+                            [
+                                "confirm" => __(
+                                    "Are you sure you want to delete {0}?",
+                                    $appSetting->name,
+                                ),
+                                "title" => __("Delete"),
+                                "class" => "btn btn-danger",
+                            ],
+                        ) ?>
+                <?php endif; ?>
             </td>
 
         </tr>

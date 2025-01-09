@@ -90,38 +90,47 @@ class Application extends BaseApplication implements
         }
         $handler = new CallForNavHandler();
         EventManager::instance()->on($handler);
-        StaticHelpers::getAppSetting("KMP.BranchInitRun", "");
-        StaticHelpers::getAppSetting("KMP.KingdomName", "please_set");
-        StaticHelpers::getAppSetting("Member.ViewCard.Graphic", "auth_card_back.gif");
-        StaticHelpers::getAppSetting("Member.ViewCard.HeaderColor", "gold");
-        StaticHelpers::getAppSetting("Member.ViewCard.Template", "view_card");
-        StaticHelpers::getAppSetting("Member.ViewMobileCard.Template", "view_mobile_card");
-        StaticHelpers::getAppSetting("KMP.Login.Graphic", "populace_badge.png");
-        StaticHelpers::getAppSetting("Members.AccountVerificationContactEmail", "please_set");
-        StaticHelpers::getAppSetting("Members.AccountDisabledContactEmail", "please_set");
-        StaticHelpers::getAppSetting("KMP.EnablePublicRegistration", "yes");
-        StaticHelpers::getAppSetting("Email.SystemEmailFromAddress", "site@test.com");
-        StaticHelpers::getAppSetting("Email.SiteAdminSignature", "site");
-        StaticHelpers::getAppSetting("KMP.LongSiteTitle", "Kingdom Management Portal");
-        StaticHelpers::getAppSetting("Members.NewMemberSecretaryEmail", "member@test.com");
-        StaticHelpers::getAppSetting("Members.NewMinorSecretaryEmail", "minorSet@test.com");
-        StaticHelpers::getAppSetting("KMP.AppSettings.HelpUrl", "https://github.com/Ansteorra/KMP/wiki/App-Settings");
-        StaticHelpers::getAppSetting("App.version", "0.0.0");
-        StaticHelpers::getAppSetting("KMP.BannerLogo", "badge.png");
-        StaticHelpers::getAppSetting("KMP.ShortSiteTitle", "KMP");
-        StaticHelpers::getAppSetting("Member.MobileCard.ThemeColor", "gold");
-        StaticHelpers::getAppSetting("Member.MobileCard.BgColor", "gold");
-        StaticHelpers::getAppSetting("Activity.SecretaryEmail", "please_set");
-        StaticHelpers::getAppSetting("Activity.SecretaryName", "please_set");
-        StaticHelpers::setAppSetting("Warrant.LastCheck", "",);
-        StaticHelpers::getAppSetting("Warrant.RosterApprovalsRequired", 2);
-        StaticHelpers::getAppSetting("Branches.Types", yaml_emit([
-            "Kingdom",
-            "Principality",
-            "Region",
-            "Local Group",
-            "N/A",
-        ]), 'yaml');
+
+
+        $currentConfigVersion = "25.01.11.a"; // update this each time you change the config
+
+        $configVersion = StaticHelpers::getAppSetting("KMP.configVersion", "0.0.0", null, true);
+        if ($configVersion != $currentConfigVersion) {
+            StaticHelpers::setAppSetting("KMP.configVersion", $currentConfigVersion, null, true);
+            StaticHelpers::getAppSetting("KMP.BranchInitRun", "", null, true);
+            StaticHelpers::getAppSetting("KMP.KingdomName", "please_set", null, true);
+            StaticHelpers::getAppSetting("Member.ViewCard.Graphic", "auth_card_back.gif", null, true);
+            StaticHelpers::getAppSetting("Member.ViewCard.HeaderColor", "gold", null, true);
+            StaticHelpers::getAppSetting("Member.ViewCard.Template", "view_card", null, true);
+            StaticHelpers::getAppSetting("Member.ViewMobileCard.Template", "view_mobile_card", null, true);
+            StaticHelpers::getAppSetting("KMP.Login.Graphic", "populace_badge.png", null, true);
+            StaticHelpers::getAppSetting("Members.AccountVerificationContactEmail", "please_set", null, true);
+            StaticHelpers::getAppSetting("Members.AccountDisabledContactEmail", "please_set", null, true);
+            StaticHelpers::getAppSetting("KMP.EnablePublicRegistration", "yes", null, true);
+            StaticHelpers::getAppSetting("Email.SystemEmailFromAddress", "site@test.com", null, true);
+            StaticHelpers::getAppSetting("Email.SiteAdminSignature", "site", null, true);
+            StaticHelpers::getAppSetting("KMP.LongSiteTitle", "Kingdom Management Portal", null, true);
+            StaticHelpers::getAppSetting("Members.NewMemberSecretaryEmail", "member@test.com", null, true);
+            StaticHelpers::getAppSetting("Members.NewMinorSecretaryEmail", "minorSet@test.com", null, true);
+            StaticHelpers::getAppSetting("KMP.AppSettings.HelpUrl", "https://github.com/Ansteorra/KMP/wiki/App-Settings", null, true);
+            StaticHelpers::getAppSetting("App.version", "0.0.0", null, true);
+            StaticHelpers::getAppSetting("KMP.BannerLogo", "badge.png", null, true);
+            StaticHelpers::getAppSetting("KMP.ShortSiteTitle", "KMP", null, true);
+            StaticHelpers::getAppSetting("Member.MobileCard.ThemeColor", "gold", null, true);
+            StaticHelpers::getAppSetting("Member.MobileCard.BgColor", "gold", null, true);
+            StaticHelpers::getAppSetting("Activity.SecretaryEmail", "please_set", null, true);
+            StaticHelpers::getAppSetting("Activity.SecretaryName", "please_set", null, true);
+            StaticHelpers::getAppSetting("Warrant.LastCheck", "", null, true);
+            StaticHelpers::getAppSetting("KMP.RequireActiveWarrantForSecurity", "yes", null, true);
+            StaticHelpers::getAppSetting("Warrant.RosterApprovalsRequired", 2, null, true);
+            StaticHelpers::getAppSetting("Branches.Types", yaml_emit([
+                "Kingdom",
+                "Principality",
+                "Region",
+                "Local Group",
+                "N/A",
+            ]), 'yaml', true);
+        }
     }
 
     /**

@@ -32,7 +32,7 @@ class PermissionsLoader
 
 
         $query = $permissionsTable
-            ->find()->cache("permissions_" . $memberId);
+            ->find()->cache("permissions_" . $memberId, 'default');
         $query = self::validPermissionClauses($query)
             ->where(["Members.id" => $memberId])
             ->distinct()
@@ -50,7 +50,7 @@ class PermissionsLoader
             "Members",
         );
         $subquery = $permissionsTable
-            ->find()->cache("permissions_members" . $permissionId);
+            ->find()->cache("permissions_members" . $permissionId, 'default');
         $subquery = self::validPermissionClauses($subquery)
             ->where(["Permissions.id" => $permissionId])
             ->select(["Members.id"])
@@ -114,8 +114,10 @@ class PermissionsLoader
                         strval($now->year) .
                         " - Permissions.require_min_age",
                 ],
-            ])
-            ->where([
+            ]);
+        $useWarrant = StaticHelpers::getAppSetting("KMP.RequireActiveWarrantForSecurity");
+        if (strtolower($useWarrant) == 'yes') {
+            $q = $q->where([
                 "OR" => [
                     "Permissions.requires_warrant" => False,
                     "AND" => [
@@ -124,6 +126,7 @@ class PermissionsLoader
                     ],
                 ],
             ]);
+        }
         return $q;
     }
 }

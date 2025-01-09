@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\KMP\StaticHelpers;
+
 /**
  * AppSettings Controller
  *
@@ -75,12 +77,9 @@ class AppSettingsController extends AppController
         }
         $this->Authorization->authorize($appSetting);
         if ($this->request->is(["patch", "post", "put"])) {
-            $value = $this->request->getData("value");
-            $appSetting = $this->AppSettings->patchEntity(
-                $appSetting,
-                $this->request->getData(),
-            );
-            if ($this->AppSettings->save($appSetting)) {
+            $value = $this->request->getData("raw_value");
+            $result = StaticHelpers::setAppSetting($appSetting->name, $value, $appSetting->type, $appSetting->required);
+            if ($result) {
                 $this->Flash->success(__("The app setting has been saved."));
 
                 return $this->redirect(["action" => "index"]);
@@ -108,7 +107,13 @@ class AppSettingsController extends AppController
             throw new \Cake\Http\Exception\NotFoundException();
         }
         $this->Authorization->authorize($appSetting);
-        if ($this->AppSettings->delete($appSetting)) {
+        if ($appSetting->required) {
+            $this->Flash->error(
+                __("The app setting is required and cannot be deleted."),
+            );
+            return $this->redirect(["action" => "index"]);
+        }
+        if ($this->AppSettings->deleteAppSetting($appSetting->name)) {
             $this->Flash->success(__("The app setting has been deleted."));
         } else {
             $this->Flash->error(
