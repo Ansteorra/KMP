@@ -10,8 +10,6 @@ $Member = []; ?>
 echo $this->KMP->startBlock("title");
 echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Login';
 $this->KMP->endBlock(); ?>
-
-<?= $this->Flash->render() ?>
 <?= $this->Form->create($Member, ["class" => "form-signin"]) ?>
 
 <div class="card" style="width: 15rem;">
@@ -54,6 +52,3 @@ $this->KMP->endBlock(); ?>
     </div>
 </div>
 <?= $this->Form->end() ?>
-<?php
-echo phpinfo();
-?>

@@ -209,9 +209,12 @@ class AppSettingsTable extends Table
         return $this->deleteSetting($key);
     }
 
-    public function getAllAppSettings()
+    //TODO: Create a caching strategy for this
+    public function getAllAppSettingsStartWith($key): array
     {
-        $settings = $this->find()->all();
+        $settings = $this->find()
+            ->where(['name LIKE' => $key . '%'])
+            ->all();
         $return = [];
         foreach ($settings as $setting) {
             $return[$setting->name] = $setting->value;

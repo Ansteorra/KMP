@@ -223,13 +223,7 @@ class StaticHelpers
     {
         try {
             $AppSettings = TableRegistry::getTableLocator()->get("AppSettings");
-            $allAppSettings = $AppSettings->getAllAppSettings();
-            $return = [];
-            foreach ($allAppSettings as $settingKey => $settingValue) {
-                if (strpos($settingKey, $key) === 0) {
-                    $return[$settingKey] = $settingValue;
-                }
-            }
+            $return = $AppSettings->getAllAppSettingsStartWith($key);
             return $return;
         } catch (Exception $e) {
             return [];

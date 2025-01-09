@@ -32,7 +32,7 @@ class PermissionsLoader
 
 
         $query = $permissionsTable
-            ->find()->cache("permissions_" . $memberId, 'default');
+            ->find()->cache("permissions_" . $memberId, 'permissions');
         $query = self::validPermissionClauses($query)
             ->where(["Members.id" => $memberId])
             ->distinct()
@@ -50,7 +50,7 @@ class PermissionsLoader
             "Members",
         );
         $subquery = $permissionsTable
-            ->find()->cache("permissions_members" . $permissionId, 'default');
+            ->find()->cache("permissions_members" . $permissionId, 'permissions');
         $subquery = self::validPermissionClauses($subquery)
             ->where(["Permissions.id" => $permissionId])
             ->select(["Members.id"])

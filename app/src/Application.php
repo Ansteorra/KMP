@@ -120,7 +120,7 @@ class Application extends BaseApplication implements
             StaticHelpers::getAppSetting("Member.MobileCard.BgColor", "gold", null, true);
             StaticHelpers::getAppSetting("Activity.SecretaryEmail", "please_set", null, true);
             StaticHelpers::getAppSetting("Activity.SecretaryName", "please_set", null, true);
-            StaticHelpers::getAppSetting("Warrant.LastCheck", "", null, true);
+            StaticHelpers::getAppSetting("Warrant.LastCheck", DateTime::now()->subDays(1)->toDateString(), null, true);
             StaticHelpers::getAppSetting("KMP.RequireActiveWarrantForSecurity", "yes", null, true);
             StaticHelpers::getAppSetting("Warrant.RosterApprovalsRequired", 2, null, true);
             StaticHelpers::getAppSetting("Branches.Types", yaml_emit([
