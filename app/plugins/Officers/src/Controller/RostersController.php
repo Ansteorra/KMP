@@ -115,10 +115,11 @@ class RostersController extends AppController
                             $officer->danger = true;
                             $officer->start_date_message[] = "Membership will be expired before Warrant Start";
                         }
-                        if ($officer->member->membership_expires_on < $officer->new_warrant_exp_date) {
-                            $officer->danger = true;
-                            $officer->end_date_message[] = "Membership will be expired before Warrant End";
-                        }
+                        //TODO: Reactiviate when we have reliable membership date
+                        //if ($officer->member->membership_expires_on < $officer->new_warrant_exp_date) {
+                        //    $officer->danger = true;
+                        //   $officer->end_date_message[] = "Membership will be expired before Warrant End";
+                        //}
                         if (!$officer->member->warrantable) {
                             $officer->danger = true;
                             $officer->warrant_message = $officer->member->getNonWarrantableReasons();
