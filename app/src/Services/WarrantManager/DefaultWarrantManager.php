@@ -82,11 +82,17 @@ class DefaultWarrantManager implements WarrantManagerInterface
                 $warrantRosterTable->getConnection()->rollback();
                 return new ServiceResult(false, "$member->sca_name is not warrantable");
             }
-            if ($warrantPeriod->end_on > $member->membership_expires_on) {
+            if ($warrantPeriod->start_date > $member->membership_expires_on) {
                 //rollback transaction
                 $warrantRosterTable->getConnection()->rollback();
-                return new ServiceResult(false, "Warrant period exceeds membership period for $member->sca_name");
+                return new ServiceResult(false, "Warrant period is after membership expires for $member->sca_name");
             }
+            //TODO: Reactivate once we get reliable membership data
+            //if ($warrantPeriod->end_on > $member->membership_expires_on) {
+            //    //rollback transaction
+            //    $warrantRosterTable->getConnection()->rollback();
+            //    return new ServiceResult(false, "Warrant period ends after membership expires for $member->sca_name");
+            //}
             $warrantRequestEntity->start_on = $warrantPeriod->start_date;
             $warrantRequestEntity->expires_on = $warrantPeriod->end_date;
             $warrantRequestEntity->status = Warrant::PENDING_STATUS;

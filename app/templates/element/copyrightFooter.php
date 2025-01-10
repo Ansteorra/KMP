@@ -23,9 +23,9 @@ echo $this->KMP->startBlock("tb_footer"); ?>
                     $css = $parts[1];
                 }
             ?>
-                <li class="nav-item text-nowrap mx-2">
-                    <a class="nav-link <?= $css ?>" href="<?= $url ?>"><?= $key ?></a>
-                </li>
+            <li class="nav-item text-nowrap mx-2">
+                <a class="<?= $css ?>" href="<?= $url ?>"><?= $key ?></a>
+            </li>
             <?php endforeach; ?>
             <li class="nav-item text-nowrap mx-2">
                 <?= $this->cell('GitHubIssueSubmitter.IssueSubmitter::display', []) ?>
