@@ -63,15 +63,34 @@ class BranchOfficersCell extends BasePluginCell
             ->where(['id' => $id])->first();
         $officesTbl = TableRegistry::getTableLocator()->get("Officers.Offices");;
         $officeQuery = $officesTbl->find("all")
-            ->contain(["Deputies" => function ($q) {
-                return $q
-                    ->select(["id", "name", "deputy_to_id"]);
-            }])
-            ->select(["id", "name", "deputy_to_id"])
+            ->select(["id", "name", "deputy_to_id", "applicable_branch_types"])
             ->orderBY(["name" => "ASC"]);
-        $officeQuery = $officeQuery->where(['applicable_branch_types like' => '%"' . $branch->type . '"%']);
-        $offices = $officeQuery->toArray();
+        $officeSet = $officeQuery->where(['applicable_branch_types like' => '%"' . $branch->type . '"%'])->toArray();
+        $offices = $this->buildOfficeTree($officeSet, $branch->type, null);
         $this->set(compact('currentOfficers', 'upcomingOfficers', 'previousOfficers', 'newOfficer', 'offices', 'id'));
+    }
+
+    private function buildOfficeTree($offices, $branchType, $branchId = null)
+    {
+        $tree = [];
+        foreach ($offices as $office) {
+            if ($office->deputy_to_id == $branchId) {
+                $newOffice = [
+                    'id' => $office->id,
+                    'name' => $office->name,
+                    'deputy_to_id' => $office->deputy_to_id,
+                    'deputies' => [],
+                    'enabled' => strpos($office->applicable_branch_types, "\"$branchType\"") !== false
+                ];
+                $newOffice['deputies'] = $this->buildOfficeTree($offices, $branchType, $office->id);
+                $tree[] = $newOffice;
+            }
+        }
+        //order the tree by name
+        usort($tree, function ($a, $b) {
+            return $a['name'] <=> $b['name'];
+        });
+        return $tree;
     }
 
     protected function addConditions($q, $type)

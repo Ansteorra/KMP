@@ -3,22 +3,22 @@ $officeOptions = [];
 
 function addOptions($office, $depth, &$officeOptions)
 {
-    if (!isset($officeOptions[$office->id])) {
+    if (!isset($officeOptions[$office['id']])) {
         $prefix = str_repeat("-", $depth);
-        $officeOptions[$office->id] = [
-            'text' => $prefix . " " . $office->name,
-            'value' => $office->id,
-            'is_deputy' => $office->deputy_to_id != null,
+        $officeOptions[$office['id']] = [
+            'text' => $prefix . " " . $office['name'],
+            'value' => $office['id'],
+            'is_deputy' => $office['deputy_to_id'] != null,
         ];
-        if (!empty($office->deputies)) {
-            foreach ($office->deputies as $deputy) {
+        if (!empty($office['deputies'])) {
+            foreach ($office['deputies'] as $deputy) {
                 addOptions($deputy, $depth + 1, $officeOptions);
             }
         }
     }
 }
 foreach ($offices as $office) {
-    if ($office->deputy_to_id == null) {
+    if ($office['deputy_to_id'] == null && $office['enabled']) {
         addOptions($office, 0, $officeOptions);
     }
 }
