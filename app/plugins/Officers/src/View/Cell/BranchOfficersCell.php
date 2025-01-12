@@ -62,10 +62,10 @@ class BranchOfficersCell extends BasePluginCell
             ->find()->cache("branch_" . $id . "_id_and_parent")->select(['id', 'parent_id', 'type'])
             ->where(['id' => $id])->first();
         $officesTbl = TableRegistry::getTableLocator()->get("Officers.Offices");;
-        $officeSet = $officesTbl->find("all")
+        $officeQuery = $officesTbl->find("all")
             ->select(["id", "name", "deputy_to_id", "applicable_branch_types"])
-            ->orderBY(["name" => "ASC"])->toArray();
-        //$officeQuery = $officeQuery->where(['applicable_branch_types like' => '%"' . $branch->type . '"%']);
+            ->orderBY(["name" => "ASC"]);
+        $officeSet = $officeQuery->where(['applicable_branch_types like' => '%"' . $branch->type . '"%'])->toArray();
         $offices = $this->buildOfficeTree($officeSet, $branch->type, null);
         $this->set(compact('currentOfficers', 'upcomingOfficers', 'previousOfficers', 'newOfficer', 'offices', 'id'));
     }
