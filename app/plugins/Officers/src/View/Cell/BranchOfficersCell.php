@@ -62,16 +62,35 @@ class BranchOfficersCell extends BasePluginCell
             ->find()->cache("branch_" . $id . "_id_and_parent")->select(['id', 'parent_id', 'type'])
             ->where(['id' => $id])->first();
         $officesTbl = TableRegistry::getTableLocator()->get("Officers.Offices");;
-        $officeQuery = $officesTbl->find("all")
-            ->contain(["Deputies" => function ($q) {
-                return $q
-                    ->select(["id", "name", "deputy_to_id"]);
-            }])
-            ->select(["id", "name", "deputy_to_id"])
-            ->orderBY(["name" => "ASC"]);
-        $officeQuery = $officeQuery->where(['applicable_branch_types like' => '%"' . $branch->type . '"%']);
-        $offices = $officeQuery->toArray();
+        $officeSet = $officesTbl->find("all")
+            ->select(["id", "name", "deputy_to_id", "applicable_branch_types"])
+            ->orderBY(["name" => "ASC"])->toArray();
+        //$officeQuery = $officeQuery->where(['applicable_branch_types like' => '%"' . $branch->type . '"%']);
+        $offices = $this->buildOfficeTree($officeSet, $branch->type, null);
         $this->set(compact('currentOfficers', 'upcomingOfficers', 'previousOfficers', 'newOfficer', 'offices', 'id'));
+    }
+
+    private function buildOfficeTree($offices, $branchType, $branchId = null)
+    {
+        $tree = [];
+        foreach ($offices as $office) {
+            if ($office->deputy_to_id == $branchId) {
+                $newOffice = [
+                    'id' => $office->id,
+                    'name' => $office->name,
+                    'deputy_to_id' => $office->deputy_to_id,
+                    'deputies' => [],
+                    'enabled' => strpos($office->applicable_branch_types, "\"$branchType\"") !== false
+                ];
+                $newOffice['deputies'] = $this->buildOfficeTree($offices, $branchType, $office->id);
+                $tree[] = $newOffice;
+            }
+        }
+        //order the tree by name
+        usort($tree, function ($a, $b) {
+            return $a['name'] <=> $b['name'];
+        });
+        return $tree;
     }
 
     protected function addConditions($q, $type)
