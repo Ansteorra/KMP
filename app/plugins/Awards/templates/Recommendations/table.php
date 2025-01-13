@@ -166,7 +166,7 @@ $columnCount = count(array_filter($columns, function ($value) {
                     <th scope="col">Close Reason</th>
                     <?php endif; ?>
                     <?php if ($columns["Event"]): ?>
-                    <th scope="col"><?= $this->Paginator->sort("Events.name", "Event") ?></th>
+                    <th scope="col"><?= $this->Paginator->sort("AssignedEvent.name", "Event") ?></th>
                     <?php endif; ?>
                     <?php if ($columns["State Date"]): ?>
                     <th scope="col"><?= $this->Paginator->sort("State Date") ?></th>
