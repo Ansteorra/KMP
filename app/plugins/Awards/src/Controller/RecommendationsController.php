@@ -830,6 +830,7 @@ class RecommendationsController extends AppController
                 'contact_email',
                 'contact_phone',
                 'state_date',
+                'AssignedEvent.name'
             ],
         ];
         $action = $view;
