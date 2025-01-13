@@ -48,7 +48,7 @@ class EventsController extends AppController
                 $query = $query->where(['Events.closed =' => true]);
                 break;
         }
-        $events = $this->paginate($query, ['order' => ['start_date' => 'DESC']]);
+        $events = $this->paginate($query, ['order' => ['start_date' => 'ASC']]);
         $this->set(compact('events', 'state'));
     }
 
