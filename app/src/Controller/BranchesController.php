@@ -37,12 +37,71 @@ class BranchesController extends AppController
      */
     public function index()
     {
-        $this->Authorization->authorizeAction();
-        $branches = $this->Branches
+
+        $search = $this->request->getQuery("search");
+        $search = $search ? trim($search) : null;
+        $query = $this->Branches
             ->find("threaded")
-            ->orderBy(["name" => "ASC"])
-            ->toArray();
-        $this->set(compact("branches"));
+            ->join([
+                'parent' => [
+                    'table' => 'branches',
+                    'type' => 'LEFT',
+                    'conditions' => 'parent.id = Branches.parent_id'
+                ]
+            ])
+            ->join([
+                'parent2' => [
+                    'table' => 'branches',
+                    'type' => 'LEFT',
+                    'conditions' => 'parent2.id = parent.parent_id'
+                ]
+            ])
+            ->join([
+                'parent3' => [
+                    'table' => 'branches',
+                    'type' => 'LEFT',
+                    'conditions' => 'parent3.id = parent2.parent_id'
+                ]
+            ])
+            ->orderBy(["Branches.name" => "ASC"]);
+
+
+        if ($search) {
+            //detect th and replace with Þ
+            $nsearch = $search;
+            if (preg_match("/th/", $search)) {
+                $nsearch = str_replace("th", "Þ", $search);
+            }
+            //detect Þ and replace with th
+            $usearch = $search;
+            if (preg_match("/Þ/", $search)) {
+                $usearch = str_replace("Þ", "th", $search);
+            }
+            $query = $query->where([
+                "OR" => [
+                    ["Branches.name LIKE" => "%" . $search . "%"],
+                    ["Branches.name LIKE" => "%" . $nsearch . "%"],
+                    ["Branches.name LIKE" => "%" . $usearch . "%"],
+                    ["Branches.location LIKE" => "%" . $search . "%"],
+                    ["Branches.location LIKE" => "%" . $nsearch . "%"],
+                    ["Branches.location LIKE" => "%" . $usearch . "%"],
+                    ["parent.name LIKE" => "%" . $search . "%"],
+                    ["parent.name LIKE" => "%" . $nsearch . "%"],
+                    ["parent.name LIKE" => "%" . $usearch . "%"],
+                    ["parent2.name LIKE" => "%" . $search . "%"],
+                    ["parent2.name LIKE" => "%" . $nsearch . "%"],
+                    ["parent2.name LIKE" => "%" . $usearch . "%"],
+                    ["parent3.name LIKE" => "%" . $search . "%"],
+                    ["parent3.name LIKE" => "%" . $nsearch . "%"],
+                    ["parent3.name LIKE" => "%" . $usearch . "%"],
+                ],
+            ]);
+        }
+        $branches = $query->toArray();
+
+
+        $this->Authorization->authorizeAction();
+        $this->set(compact("branches", "search"));
     }
 
     /**

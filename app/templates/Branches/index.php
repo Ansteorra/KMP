@@ -42,6 +42,19 @@ function branchHierachyTable($branches, $me, $parent_string = "")
 <table class="table table-striped">
     <thead>
         <tr>
+            <td colspan="2">
+            <td colspan="2" class="text-end">
+                <form class="form-inline">
+
+                    <div class="input-group">
+                        <div class="input-group-text" id="btnSearch"><span class='bi bi-search'></span></div>
+                        <input type="text" name="search" class="form-control" placeholder="Search..."
+                            value="<?= $search ?>" aria-describedby="btnSearch" aria-label="Search">
+                    </div>
+                </form>
+            </td>
+        </tr>
+        <tr>
             <th scope="col"><?= h("Branch") ?></th>
             <th scope="col"><?= h("Type") ?></th>
             <th scope="col"><?= h("Location") ?></th>
