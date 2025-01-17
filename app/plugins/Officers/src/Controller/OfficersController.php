@@ -21,6 +21,7 @@ class OfficersController extends AppController
     {
         parent::initialize();
         $this->Authorization->authorizeModel("add");
+        $this->Authentication->addUnauthenticatedActions(['api']);
     }
 
     /**
@@ -86,5 +87,42 @@ class OfficersController extends AppController
             $this->Flash->success(__('The officer has been released.'));
             $this->redirect($this->referer());
         }
+    }
+
+    public function api()
+    {
+        $this->Authorization->skipAuthorization();
+        $this->autoRender = false;
+
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename=officers-' . date("Y-m-d-h-i-s") . '.csv');
+        $output = fopen('php://output', 'w');
+
+        fputcsv($output, array('Office', 'Name', 'Branch', 'Department', 'Start', 'End'));
+        $officers = $this->Officers->find()
+            ->contain(['Offices' => ["Departments"], 'Members', 'Branches'])
+            //where not past start and before expired
+            ->toArray();
+
+        if (count($officers) > 0) {
+            foreach ($officers as $officer) {
+
+                //DateTime::createFromFormat('yyyy-mm-dd hh:mm:ss', $officer['start_on']);
+
+                $officer_row = [
+                    $officer['office']['name'],
+                    $officer['member']['sca_name'],
+                    $officer['branch']['name'],
+                    $officer['office']['department']['name'],
+                    $officer['start_on']->i18nFormat('MM-dd-yyyy'),
+                    $officer['expires_on']->i18nFormat('MM-dd-yyyy'),
+
+
+                ];
+
+                fputcsv($output, $officer_row);
+            }
+        }
+        //return ($officers);
     }
 }
