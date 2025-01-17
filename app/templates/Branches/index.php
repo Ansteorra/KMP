@@ -25,7 +25,6 @@ function branchHierachyTable($branches, $me, $parent_string = "")
                     __("View"),
                     ["action" => "view", $branch->id],
                     ["title" => __("View"), "class" => "btn btn-secondary", "data-turbo-frame" => "_top"],
-                    ["data-turbo-frame" => "_top"],
                 ) ?>
     </td>
 </tr>
