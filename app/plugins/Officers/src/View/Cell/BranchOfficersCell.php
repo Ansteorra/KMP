@@ -128,7 +128,7 @@ class BranchOfficersCell extends BasePluginCell
             ]))
             ->when(['ReportsToOffices.id IS NOT NULL'])
             ->then($q->func()->concat([
-                "Not Filed - ",
+                "Not Filled - ",
                 "ReportsToBranches.name" => 'identifier',
                 " : ",
                 "ReportsToOffices.name" => 'identifier'
