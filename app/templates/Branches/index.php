@@ -24,7 +24,7 @@ function branchHierachyTable($branches, $me, $parent_string = "")
         <?= $me->Html->link(
                     __("View"),
                     ["action" => "view", $branch->id],
-                    ["title" => __("View"), "class" => "btn btn-secondary"],
+                    ["title" => __("View"), "class" => "btn btn-secondary", "data-turbo-frame" => "_top"],
                 ) ?>
     </td>
 </tr>
