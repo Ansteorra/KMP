@@ -24,7 +24,7 @@ function branchHierachyTable($branches, $me, $parent_string = "")
         <?= $me->Html->link(
                     __("View"),
                     ["action" => "view", $branch->id],
-                    ["title" => __("View"), "class" => "btn btn-secondary"],
+                    ["title" => __("View"), "class" => "btn btn-secondary", "data-turbo-frame" => "_top"],
                 ) ?>
     </td>
 </tr>
@@ -38,20 +38,34 @@ function branchHierachyTable($branches, $me, $parent_string = "")
 <h3>
     Branches
 </h3>
+<turbo-frame id="branchesList" data-turbo='true'>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <td colspan="2">
+                <td colspan="2" class="text-end">
+                    <form class="form-inline">
 
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th scope="col"><?= h("Branch") ?></th>
-            <th scope="col"><?= h("Type") ?></th>
-            <th scope="col"><?= h("Location") ?></th>
-            <th scope="col" class="actions"><?= __("Actions") ?></th>
-        </tr>
-    </thead>
-    <tbody>
-        <?php branchHierachyTable($branches, $this, "", true); ?>
-    </tbody>
-</table>
+                        <div class="input-group">
+                            <div class="input-group-text" id="btnSearch"><span class='bi bi-search'></span></div>
+                            <input type="text" name="search" class="form-control" placeholder="Search..."
+                                value="<?= $search ?>" aria-describedby="btnSearch" aria-label="Search">
+                        </div>
+                    </form>
+                </td>
+            </tr>
+            <tr>
+                <th scope="col"><?= h("Branch") ?></th>
+                <th scope="col"><?= h("Type") ?></th>
+                <th scope="col"><?= h("Location") ?></th>
+                <th scope="col" class="actions"><?= __("Actions") ?></th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php branchHierachyTable($branches, $this, "", true); ?>
+        </tbody>
+    </table>
+</turbo-frame>
 
 
 <?php $this->append("script", $this->Html->script(["app/branches/index.js"])); ?>
