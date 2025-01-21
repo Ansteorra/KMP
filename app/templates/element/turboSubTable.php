@@ -112,12 +112,12 @@ use App\KMP\StaticHelpers;
                                                         //if the value is a DateTime then call ->toDateString() on it
                                                         if ($record instanceof Cake\I18n\DateTime) {
                                                             echo $record->toDateString();
-                                                        } elseif (is_string($record)) {
-                                                            if (strpos($record, "{{") > -1) {
-                                                                $record = StaticHelpers::processTemplate($record, $data);
+                                                        } elseif (is_string($value)) {
+                                                            if (strpos($value, "{{") !== false) {
+                                                                $record = StaticHelpers::processTemplate($value, $data);
                                                             }
                                                             //if the string has a carriage return the run the convert to paragraph
-                                                            if (strpos($record, "\n") > -1) {
+                                                            if (strpos($value, "\n") !== false) {
                                                                 echo $this->Text->autoParagraph(h($record));
                                                             } else {
                                                                 echo h($record);
