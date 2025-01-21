@@ -10,6 +10,7 @@ use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\TableRegistry;
 use Cake\I18n\DateTime;
 use Officers\Model\Entity\Officer;
+use Cake\Datasource\Paging\NumericPaginator;
 
 /**
  * BranchOfficers cell
@@ -53,21 +54,21 @@ class BranchOfficersCell extends BasePluginCell
      */
     public function display($id)
     {
-        $offiersTable = TableRegistry::getTableLocator()->get("Officers.Officers");
-        $currentOfficers = $this->addConditions($offiersTable->find('current')->where(['Officers.branch_id' => $id]), 'current')->toArray();
-        $upcomingOfficers = $this->addConditions($offiersTable->find('upcoming')->where(['Officers.branch_id' => $id]), 'upcoming')->toArray();
-        $previousOfficers = $this->addConditions($offiersTable->find('previous')->where(['Officers.branch_id' => $id]), 'previous')->toArray();
-        $newOfficer = $offiersTable->newEmptyEntity();
-        $branch = $this->getTableLocator()->get("Branches")
+
+        $officersTable = $this->fetchTable("Officers.Officers");
+
+        $newOfficer = $officersTable->newEmptyEntity();
+
+        $branch = $this->fetchTable("Branches")
             ->find()->cache("branch_" . $id . "_id_and_parent")->select(['id', 'parent_id', 'type'])
             ->where(['id' => $id])->first();
-        $officesTbl = TableRegistry::getTableLocator()->get("Officers.Offices");;
+        $officesTbl = $this->fetchTable("Officers.Offices");;
         $officeQuery = $officesTbl->find("all")
             ->select(["id", "name", "deputy_to_id", "applicable_branch_types"])
             ->orderBY(["name" => "ASC"]);
         $officeSet = $officeQuery->where(['applicable_branch_types like' => '%"' . $branch->type . '"%'])->toArray();
         $offices = $this->buildOfficeTree($officeSet, $branch->type, null);
-        $this->set(compact('currentOfficers', 'upcomingOfficers', 'previousOfficers', 'newOfficer', 'offices', 'id'));
+        $this->set(compact('id', 'offices', 'newOfficer'));
     }
 
     private function buildOfficeTree($offices, $branchType, $branchId = null)
