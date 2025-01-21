@@ -104,6 +104,36 @@ class OfficersController extends AppController
             ->contain(['Offices' => ["Departments"], 'Members', 'Branches'])->where(['Branches.id' => $id])
             ->orderBY(["Officers.id" => "ASC"]);
 
+        $search = $this->request->getQuery("search");
+        $search = $search ? trim($search) : null;
+
+        if ($search) {
+            //detect th and replace with Þ
+            $nsearch = $search;
+            if (preg_match("/th/", $search)) {
+                $nsearch = str_replace("th", "Þ", $search);
+            }
+            //detect Þ and replace with th
+            $usearch = $search;
+            if (preg_match("/Þ/", $search)) {
+                $usearch = str_replace("Þ", "th", $search);
+            }
+            $officersQuery = $officersQuery->where([
+                "OR" => [
+                    ["Members.sca_name LIKE" => "%" . $search . "%"],
+                    ["Members.sca_name LIKE" => "%" . $nsearch . "%"],
+                    ["Members.sca_name LIKE" => "%" . $usearch . "%"],
+                    ["Offices.name LIKE" => "%" . $search . "%"],
+                    ["Offices.name LIKE" => "%" . $nsearch . "%"],
+                    ["Offices.name LIKE" => "%" . $usearch . "%"],
+                    ["Departments.name LIKE" => "%" . $search . "%"],
+                    ["Departments.name LIKE" => "%" . $nsearch . "%"],
+                    ["Departments.name LIKE" => "%" . $usearch . "%"],
+
+                ],
+            ]);
+        }
+
         switch ($state) {
             case 'current':
                 $officersQuery = $this->addConditions($officersQuery->find('current')->where(['Officers.branch_id' => $id]), 'current');
@@ -116,9 +146,16 @@ class OfficersController extends AppController
                 break;
         }
 
-
-        $paginate = $this->request->getQueryParams();
-        $paginate["limit"] = 5;
+        $page = $this->request->getQuery("page");
+        $limit = $this->request->getQuery("limit");
+        $paginate = [];
+        if ($page) {
+            $paginate['page'] = $page;
+        }
+        if ($limit) {
+            $paginate['limit'] = $limit;
+        }
+        //$paginate["limit"] = 5;
         $officers = $this->paginate($officersQuery, $paginate);
         $turboFrameId = $state;
 
