@@ -44,6 +44,15 @@ class AppController extends Controller
     //use Cake\Event\EventInterface;
     public function beforeFilter(EventInterface $event)
     {
+        $this->request->addDetector(
+            'csv',
+            function ($request) {
+                //check the url for .csv
+                return strpos($request->getRequestTarget(), '.csv') !== false;
+            }
+        );
+
+
         $plugin = $this->request->getParam('plugin');
         if ($plugin != null) {
             if (StaticHelpers::pluginEnabled($plugin) == false) {
@@ -98,7 +107,7 @@ class AppController extends Controller
         }
 
         //check if the call is Ajax
-        $isAjax = $this->request->is('ajax') || $this->request->is('json') || $this->request->is('xml');
+        $isAjax = $this->request->is('ajax') || $this->request->is('json') || $this->request->is('xml') || $this->request->is('csv');
         $turboRequest = $this->request->getHeader('Turbo-Frame') != null;
         $isAjax = $isAjax || $turboRequest;
         if (!$isNoStack) {
