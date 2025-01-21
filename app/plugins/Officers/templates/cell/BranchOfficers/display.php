@@ -12,9 +12,10 @@ $search = $search ? trim($search) : null;
         <tr>
             <td colspan="4">
                 <?php if ($user->checkCan("add", "Officers.Officers")): ?>
-                <button type="button" class="btn btn-primary btn-sm mb-3" data-bs-toggle="modal"
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal"
                     data-bs-target="#assignOfficerModal">Assign Officer</button>
                 <?php endif; ?>
+            </td>
             <td colspan="2" class="text-end">
                 <form class="form-inline">
 
