@@ -20,7 +20,7 @@ if (!empty($currentOfficers) || !empty($upcomingOfficers) || !empty($previousOff
         "action" => "release",
         "id" => "officer_id",
         "options" => [
-            "class" => "btn btn-danger",
+            "class" => "btn btn-danger revoke-btn",
             "data-bs-toggle" => "modal",
             "data-bs-target" => "#releaseModal",
             "data-controller" => "outlet-btn",

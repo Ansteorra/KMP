@@ -335,6 +335,7 @@ class DefaultWarrantManager implements WarrantManagerInterface
                 'start_date <=' => $startOn,
                 'end_date >=' => $startOn
             ])
+            ->orderByDesc('start_date')
             ->first();
         if ($warrantPeriod == null) {
             return null;
