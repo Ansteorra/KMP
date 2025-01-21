@@ -29,6 +29,22 @@ class CallForNavHandler implements EventListenerInterface
         $appNav = [
             [
                 "type" => "link",
+                "mergePath" => ["Members"],
+                "label" => "Officers",
+                "order" => 40,
+                "url" => [
+                    "plugin" => "Officers",
+                    "controller" => "Officers",
+                    "action" => "index",
+                    "model" => "Officers.Officers",
+                ],
+                "icon" => "bi-building",
+                "activePaths" => [
+                    "officers/Officers/view/*",
+                ]
+            ],
+            [
+                "type" => "link",
                 "mergePath" => ["Config"],
                 "label" => "Departments",
                 "order" => 40,
