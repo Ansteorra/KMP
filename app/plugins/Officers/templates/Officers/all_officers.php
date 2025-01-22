@@ -15,10 +15,11 @@ $linkTemplate = [
 ];
 $columnTemplate = [
     "Member" => "sca_name",
-    "Office" => "{{office_name}} : {{deputy_info}}",
+    "Office" => "{{office_name}} : {{deputy_description}}",
     "Start Date" => "start_on",
     "End Date" => "expires_on",
-    "Status" => "status",
+    "Warrant Status" => "warrant_status",
+    "Office Status" => "status",
 ];
 
 if ($state == "current") {
@@ -27,7 +28,7 @@ if ($state == "current") {
     ];
 }
 if ($state == "previous") {
-    $columnTemplate["Deactivated By"] = "revoked_by->sca_name";
+    $columnTemplate["Deactivated By"] = "revoked_by";
 
     $columnTemplate["Deactivated Reason"] = "revoked_reason";
 }

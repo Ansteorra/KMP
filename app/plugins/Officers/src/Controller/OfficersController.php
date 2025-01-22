@@ -330,17 +330,38 @@ class OfficersController extends AppController
         $warrantsTable = $this->fetchTable('Warrants');
 
         $officersQuery = $this->Officers->find()
-            ->selectAlso(['sca_name' => 'Members.sca_name', 'office_name' => 'Offices.name'])
-            ->selectAlso($warrantsTable)
-            ->contain('Offices')
-            ->leftJoin(
+            ->select([
+                'revoker_id',
+                'revoked_by' => 'revoker.sca_name',
+                'revoked_reason',
+                'sca_name' => 'Members.sca_name',
+                'office_name' => 'Offices.name',
+                'start_on',
+                'expires_on',
+                'warrant_status' => 'Warrants.status',
+                'status' => 'Officers.status',
+                'deputy_description' => 'Officers.deputy_description'
+            ])
+            ->innerJoin(
+                ['Offices' => 'officers_offices'],
+                ['Offices.id = Officers.office_id']
+            )
+            ->innerJoin(
                 ['Members' => 'members'],
                 ['Members.id = Officers.member_id']
             )
+            ->join([
+                'table' => 'members',
+                'alias' => 'revoker',
+                'type' => 'LEFT',
+                'conditions' => 'revoker.id = Officers.revoker_id',
+            ])
             ->leftJoin(
                 ['Warrants' => 'warrants'],
-                ['Members.id = Warrants.member_id']
-            );
+                ['Members.id = Warrants.member_id AND Officers.id = Warrants.entity_id']
+            )
+            ->order(['sca_name' => 'ASC'])
+            ->order(['office_name' => 'ASC']);
 
         $today = new DateTime();
         switch ($state) {
