@@ -28,7 +28,7 @@ echo $this->Form->create($newOfficer, [
         "controller" => "Officers",
         "action" => "add",
     ],
-    "data-controller" => "officers-assign-officer"
+    "data-controller" => "officers-assign-officer",
 ]);
 echo $this->Modal->create("Assign Officer", [
     "id" => "assignOfficerModal",
@@ -68,9 +68,9 @@ echo $this->Modal->create("Assign Officer", [
     </div>
     <?php
     $url = $this->Url->build([
-        'controller' => 'Members',
+        'controller' => 'Officers',
         'action' => 'AutoComplete',
-        'plugin' => null
+        'plugin' => 'Officers'
     ]);
     $this->KMP->autoCompleteControl(
         $this->Form,
@@ -83,7 +83,7 @@ echo $this->Modal->create("Assign Officer", [
         3,
         [
             'data-officers-assign-officer-target' => 'assignee',
-            'data-action' => 'change->officers-assign-officer#checkReadyToSubmit'
+            'data-action' => 'change->officers-assign-officer#checkReadyToSubmit',
         ]
     );
     echo $this->Form->control("start_on", [
