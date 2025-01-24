@@ -8,6 +8,7 @@ use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 use Officers\Services\OfficerManagerInterface;
 use Cake\I18n\DateTime;
 use Officers\Model\Entity\Officer;
+use App\Model\Entity\Member;
 
 use Cake\I18n\Date;
 
@@ -162,27 +163,56 @@ class OfficersController extends AppController
         $this->set(compact('officers', 'newOfficer', 'id', 'state'));
     }
 
-    private function buildOfficeTree($offices, $branchType, $branchId = null)
+    #private function buildOfficeTree($offices, $branchType, $branchId = null)
+    #{
+    #    $tree = [];
+    #    foreach ($offices as $office) {
+    #        if ($office->deputy_to_id == $branchId) {
+    #            $newOffice = [
+    #                'id' => $office->id,
+    #                'name' => $office->name,
+    #                'deputy_to_id' => $office->deputy_to_id,
+    #                'deputies' => [],
+    #                'enabled' => strpos($office->applicable_branch_types, "\"$branchType\"") !== false
+    #            ];
+    #            $newOffice['deputies'] = $this->buildOfficeTree($offices, $branchType, $office->id);
+    #            $tree[] = $newOffice;
+    #        }
+    #    }
+    #    //order the tree by name
+    #    usort($tree, function ($a, $b) {
+    #        return $a['name'] <=> $b['name'];
+    #    });
+    #    return $tree;
+    #}
+
+    public function autoComplete($officeId)
     {
-        $tree = [];
-        foreach ($offices as $office) {
-            if ($office->deputy_to_id == $branchId) {
-                $newOffice = [
-                    'id' => $office->id,
-                    'name' => $office->name,
-                    'deputy_to_id' => $office->deputy_to_id,
-                    'deputies' => [],
-                    'enabled' => strpos($office->applicable_branch_types, "\"$branchType\"") !== false
-                ];
-                $newOffice['deputies'] = $this->buildOfficeTree($offices, $branchType, $office->id);
-                $tree[] = $newOffice;
-            }
+        $memberTbl = $this->getTableLocator()->get('Members');
+        $q = $this->request->getQuery("q");
+        //detect th and replace with Þ
+        $nq = $q;
+        if (preg_match("/th/", $q)) {
+            $nq = str_replace("th", "Þ", $q);
         }
-        //order the tree by name
-        usort($tree, function ($a, $b) {
-            return $a['name'] <=> $b['name'];
-        });
-        return $tree;
+        //detect Þ and replace with th
+        $uq = $q;
+        if (preg_match("/Þ/", $q)) {
+            $uq = str_replace("Þ", "th", $q);
+        }
+        $office = $this->Officers->Offices->get($officeId);
+        $this->Authorization->skipAuthorization();
+        $this->request->allowMethod(["get"]);
+        $this->viewBuilder()->setClassName("Ajax");
+        $query = $memberTbl
+            ->find("all")
+            ->where([
+                'status <>' => Member::STATUS_DEACTIVATED,
+                'OR' => [["sca_name LIKE" => "%$q%"], ["sca_name LIKE" => "%$nq%"], ["sca_name LIKE" => "%$uq%"]]
+            ])
+            ->select(["id", "sca_name", "warrantable", "status"])
+            ->limit(50);
+        $this->set(compact("query", "q", "nq", "uq", "office"));
     }
 
     protected function addConditions($q, $type)

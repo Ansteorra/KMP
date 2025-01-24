@@ -111,6 +111,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
                         "grants_role",
                     )
                         ? $this->Html->link($office->grants_role->name, [
+                            "plugin" => null,
                             "controller" => "Roles",
                             "action" => "view",
                             $office->grants_role->id,
