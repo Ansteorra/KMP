@@ -85,13 +85,6 @@ class MemberOfficersCell extends BasePluginCell
 
         $reportsToCase = $q->newExpr()
             ->case()
-            ->when(['DeputyToOffices.id IS NOT NULL'])
-            ->then($q->func()->concat([
-                "DeputyToOffices.name" => 'identifier',
-                " (",
-                "Officers.deputy_description" => 'identifier',
-                ")"
-            ]))
             ->when(['ReportsToOffices.id IS NULL'])
             ->then("Society")
             ->when(['current_report_to.id IS NOT NULL'])
@@ -102,7 +95,7 @@ class MemberOfficersCell extends BasePluginCell
             ]))
             ->when(['ReportsToOffices.id IS NOT NULL'])
             ->then($q->func()->concat([
-                "Not Filed - ",
+                "Not Filled - ",
                 "ReportsToBranches.name" => 'identifier',
                 " : ",
                 "ReportsToOffices.name" => 'identifier'

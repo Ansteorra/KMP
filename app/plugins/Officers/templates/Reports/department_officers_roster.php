@@ -115,11 +115,9 @@ $compareDate = new Date($validOn)
                                         $message = [];
                                         if (!$officer->member->warrantable) :
                                             $message[] = "Not Warrantable";
-                                        endif;
-                                        if ($officer->current_warrant == null) :
+                                        elseif ($officer->current_warrant == null) :
                                             $message[] = "Warrant Required";
-                                        endif;
-                                        if ($officer->current_warrant->expires_on->toNative() > $officer->member->membership_expires_on->toNative()) :
+                                        elseif ($officer->current_warrant->expires_on->toNative() > $officer->member->membership_expires_on->toNative()) :
                                             $message[] = "Membership Expires Before Warrant";
                                         endif;
                             ?>
