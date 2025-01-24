@@ -29,7 +29,7 @@ class CallForNavHandler implements EventListenerInterface
         $appNav = [
             [
                 "type" => "link",
-                "mergePath" => ["Members"],
+                "mergePath" => ["Reports"],
                 "label" => "Officers",
                 "order" => 29,
                 "url" => [
