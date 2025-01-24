@@ -22,7 +22,7 @@ class OfficersController extends AppController
     public function initialize(): void
     {
         parent::initialize();
-        $this->Authorization->authorizeModel("index", "add");
+        $this->Authorization->authorizeModel("index", "add",);
         $this->Authentication->addUnauthenticatedActions(['api']);
     }
 
@@ -314,16 +314,19 @@ class OfficersController extends AppController
         return $query;
     }
 
-    public function index() {}
+    public function index()
+    {
+        $this->Authorization->skipAuthorization();
+    }
 
-    public function allOfficers($state)
+    public function officersByWarrantStatus($state)
     {
 
         if ($state != 'current' && $state == 'pending' && $state == 'previous') {
             throw new \Cake\Http\Exception\NotFoundException();
         }
-        $securityOfficer = $this->Officers->newEmptyEntity();
-        $this->Authorization->authorize($securityOfficer);
+        //$securityOfficer = $this->Officers->newEmptyEntity();
+        $this->Authorization->skipAuthorization();
 
 
         $membersTable = $this->fetchTable('Members');
@@ -331,20 +334,25 @@ class OfficersController extends AppController
 
         $officersQuery = $this->Officers->find()
             ->select([
-                'revoker_id',
-                'revoked_by' => 'revoker.sca_name',
                 'revoked_reason',
                 'sca_name' => 'Members.sca_name',
+                'branch_name' => 'Branches.name',
                 'office_name' => 'Offices.name',
+                'deputy_description' => 'Officers.deputy_description',
                 'start_on',
                 'expires_on',
                 'warrant_status' => 'Warrants.status',
                 'status' => 'Officers.status',
-                'deputy_description' => 'Officers.deputy_description'
+                'revoker_id',
+                'revoked_by' => 'revoker.sca_name',
             ])
             ->innerJoin(
                 ['Offices' => 'officers_offices'],
                 ['Offices.id = Officers.office_id']
+            )
+            ->innerJoin(
+                ['Branches' => 'branches'],
+                ['Branches.id = Officers.branch_id']
             )
             ->innerJoin(
                 ['Members' => 'members'],
@@ -368,8 +376,9 @@ class OfficersController extends AppController
             case 'current':
                 $officersQuery = $officersQuery->where(['Warrants.expires_on >=' => $today, 'Warrants.start_on <=' => $today, 'Warrants.status' => Warrant::CURRENT_STATUS]);
                 break;
-            case 'upcoming':
-                $officersQuery = $officersQuery->where(['Warrants.start_on >' => $today, 'Warrants.status' => Warrant::CURRENT_STATUS]);
+            case 'unwarranted':
+                $officersQuery = $officersQuery->where("Warrants.id IS NULL");
+
                 break;
             case 'pending':
                 $officersQuery = $officersQuery->where(['Warrants.status' => Warrant::PENDING_STATUS]);

@@ -51,4 +51,28 @@ class OfficerPolicy extends BasePolicy
         }
         return false;
     }
+    public function canOfficersByWarrantStatus(IdentityInterface $user, $entity)
+    {
+        $canDo = $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+        if ($canDo) {
+            return true;
+        }
+        $canDo = $this->_hasNamedPermission($user, $this->REQUIRED_VIEW_PERMISSION);
+        if ($canDo) {
+            return true;
+        }
+        return false;
+    }
+    public function canOfficers(IdentityInterface $user, $entity)
+    {
+        $canDo = $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+        if ($canDo) {
+            return true;
+        }
+        $canDo = $this->_hasNamedPermission($user, $this->REQUIRED_VIEW_PERMISSION);
+        if ($canDo) {
+            return true;
+        }
+        return false;
+    }
 }

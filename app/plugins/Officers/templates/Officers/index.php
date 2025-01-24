@@ -11,7 +11,7 @@ echo $this->KMP->startBlock("title");
 echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Officers';
 $this->KMP->endBlock(); ?>
 <h3>
-    Officers
+    Officers by Warrant Status
 </h3>
 <?php
 echo $this->element('turboActiveTabs', [
@@ -22,19 +22,25 @@ echo $this->element('turboActiveTabs', [
             "label" => __("Active"),
             "id" => "current-officers",
             "selected" => true,
-            "turboUrl" => $this->URL->build(["controller" => "Officers", "action" => "AllOfficers", "current"])
+            "turboUrl" => $this->URL->build(["controller" => "Officers", "action" => "OfficersByWarrantStatus", "current"])
         ],
         "pending" => [
             "label" => __("Pending"),
             "id" => "pending-officers",
             "selected" => false,
-            "turboUrl" => $this->URL->build(["controller" => "Officers", "action" => "AllOfficers", "pending"])
+            "turboUrl" => $this->URL->build(["controller" => "Officers", "action" => "OfficersByWarrantStatus", "pending"])
         ],
         "previous" => [
             "label" => __("Previous"),
             "id" => "previous-officers",
             "selected" => false,
-            "turboUrl" => $this->URL->build(["controller" => "Officers", "action" => "AllOfficers", "previous"])
+            "turboUrl" => $this->URL->build(["controller" => "Officers", "action" => "OfficersByWarrantStatus", "previous"])
+        ],
+        "unwarranted" => [
+            "label" => __("Unwarranted"),
+            "id" => "unwarranted-officers",
+            "selected" => false,
+            "turboUrl" => $this->URL->build(["controller" => "Officers", "action" => "OfficersByWarrantStatus", "unwarranted"])
         ],
 
 

@@ -31,7 +31,7 @@ class CallForNavHandler implements EventListenerInterface
                 "type" => "link",
                 "mergePath" => ["Members"],
                 "label" => "Officers",
-                "order" => 40,
+                "order" => 29,
                 "url" => [
                     "plugin" => "Officers",
                     "controller" => "Officers",
