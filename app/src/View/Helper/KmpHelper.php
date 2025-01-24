@@ -112,7 +112,12 @@ class KmpHelper extends Helper
     public function autoCompleteControl($Form, $inputField, $resultField, $url, $label, $required, $allowOtherValues, $minLength, $additionalAttrs,)
     {
         echo "<div data-controller='ac' data-ac-url-value='" . $url . "'role='combobox'";
-        echo "class='position-relative mb-3 kmp_autoComplete' data-ac-allow-other-value='" . ($allowOtherValues ? "true" : "false") . "' ";
+        //if $additionalAttrs has class then add it to the div
+        $class = "";
+        if ($additionalAttrs && isset($additionalAttrs["class"])) {
+            $class = $additionalAttrs["class"];
+        }
+        echo "class='position-relative mb-3 kmp_autoComplete " . $class . " ' data-ac-allow-other-value='" . ($allowOtherValues ? "true" : "false") . "' ";
         echo "data-ac-min-length-value='" . $minLength . "' ";
         if ($additionalAttrs) {
             foreach ($additionalAttrs as $key => $value) {

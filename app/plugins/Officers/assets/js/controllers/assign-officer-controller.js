@@ -5,7 +5,7 @@ class OfficersAssignOfficer extends Controller {
         url: String,
     }
     static targets = ["assignee", "submitBtn", "deputyDescBlock", "deputyDesc", "office", "endDateBlock", "endDate"]
-    static outlets = ["outlet-btn"]
+    static outlets = ["outlet-btn", "member-serach"]
 
     setOfficeQuestions() {
         this.deputyDescBlockTarget.classList.add('d-none');
@@ -13,6 +13,16 @@ class OfficersAssignOfficer extends Controller {
         this.endDateTarget.disabled = true;
         this.deputyDescTarget.disabled = true;
         var officeVal = this.officeTarget.value;
+        // set the member search url by taking the current url and removing the last part (if it is a number) and replacing it with the officeVal
+        var url = this.assigneeTarget.getAttribute('data-ac-url-value');
+        var urlParts = url.split('/');
+        var lastPart = urlParts[urlParts.length - 1];
+        if (parseInt(lastPart)) {
+            urlParts.pop();
+        }
+        urlParts.push(officeVal);
+        var newUrl = urlParts.join('/');
+        this.assigneeTarget.setAttribute('data-ac-url-value', newUrl);
         var office = this.officeTarget.options.find(option => option.value == officeVal);
         if (office) {
             if (office.data.is_deputy) {

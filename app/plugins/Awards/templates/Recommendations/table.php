@@ -8,6 +8,14 @@ $columnCount = count(array_filter($columns, function ($value) {
 <turbo-frame id="tableView-frame" data-turbo='true'>
     <?php
     if ($enableExport != ""):
+        #add .csv to the current url by adding it before the ? if there is one
+        if (strpos($currentUrl, "?") !== false) {
+            $currentUrlStart = substr($currentUrl, 0, strpos($currentUrl, "?"));
+            $currentUrlEnd = substr($currentUrl, strpos($currentUrl, "?"));
+            $currentUrl = $currentUrlStart . ".csv" . $currentUrlEnd;
+        } else {
+            $currentUrl = $currentUrl . ".csv";
+        }
         $exportUrl = str_replace('/table', '/export', $currentUrl);
     ?>
 
