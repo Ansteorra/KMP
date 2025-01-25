@@ -6,6 +6,7 @@ namespace Officers\Controller;
 
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 use Officers\Services\OfficerManagerInterface;
+use App\Model\Entity\Warrant;
 use Cake\I18n\DateTime;
 use Officers\Model\Entity\Officer;
 use App\Model\Entity\Member;
@@ -22,7 +23,7 @@ class OfficersController extends AppController
     public function initialize(): void
     {
         parent::initialize();
-        $this->Authorization->authorizeModel("add");
+        $this->Authorization->authorizeModel("index", "add",);
         $this->Authentication->addUnauthenticatedActions(['api']);
     }
 
@@ -90,6 +91,7 @@ class OfficersController extends AppController
             $this->redirect($this->referer());
         }
     }
+
 
 
     public function branchOfficers($id, $state)
@@ -342,8 +344,83 @@ class OfficersController extends AppController
         return $query;
     }
 
+    public function index()
+    {
+        $this->Authorization->skipAuthorization();
+    }
+
+    public function officersByWarrantStatus($state)
+    {
+
+        if ($state != 'current' && $state == 'pending' && $state == 'previous') {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+        //$securityOfficer = $this->Officers->newEmptyEntity();
+        $this->Authorization->skipAuthorization();
 
 
+        $membersTable = $this->fetchTable('Members');
+        $warrantsTable = $this->fetchTable('Warrants');
+
+        $officersQuery = $this->Officers->find()
+            ->select([
+                'revoked_reason',
+                'sca_name' => 'Members.sca_name',
+                'branch_name' => 'Branches.name',
+                'office_name' => 'Offices.name',
+                'deputy_description' => 'Officers.deputy_description',
+                'start_on',
+                'expires_on',
+                'warrant_status' => 'Warrants.status',
+                'status' => 'Officers.status',
+                'revoker_id',
+                'revoked_by' => 'revoker.sca_name',
+            ])
+            ->innerJoin(
+                ['Offices' => 'officers_offices'],
+                ['Offices.id = Officers.office_id']
+            )
+            ->innerJoin(
+                ['Branches' => 'branches'],
+                ['Branches.id = Officers.branch_id']
+            )
+            ->innerJoin(
+                ['Members' => 'members'],
+                ['Members.id = Officers.member_id']
+            )
+            ->join([
+                'table' => 'members',
+                'alias' => 'revoker',
+                'type' => 'LEFT',
+                'conditions' => 'revoker.id = Officers.revoker_id',
+            ])
+            ->leftJoin(
+                ['Warrants' => 'warrants'],
+                ['Members.id = Warrants.member_id AND Officers.id = Warrants.entity_id']
+            )
+            ->order(['sca_name' => 'ASC'])
+            ->order(['office_name' => 'ASC']);
+
+        $today = new DateTime();
+        switch ($state) {
+            case 'current':
+                $officersQuery = $officersQuery->where(['Warrants.expires_on >=' => $today, 'Warrants.start_on <=' => $today, 'Warrants.status' => Warrant::CURRENT_STATUS]);
+                break;
+            case 'unwarranted':
+                $officersQuery = $officersQuery->where("Warrants.id IS NULL");
+
+                break;
+            case 'pending':
+                $officersQuery = $officersQuery->where(['Warrants.status' => Warrant::PENDING_STATUS]);
+                break;
+            case 'previous':
+                $officersQuery = $officersQuery->where(["OR" => ['Warrants.expires_on <' => $today, 'Warrants.status IN ' => [Warrant::DEACTIVATED_STATUS, Warrant::EXPIRED_STATUS]]]);
+                break;
+        }
+        //$officersQuery = $this->addConditions($officersQuery);
+        $officers = $this->paginate($officersQuery);
+        $this->set(compact('officers', 'state'));
+    }
 
     public function api()
     {
