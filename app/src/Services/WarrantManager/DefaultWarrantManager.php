@@ -210,10 +210,15 @@ class DefaultWarrantManager implements WarrantManagerInterface
         //begin transaction
         $warrantRosterTable->getConnection()->begin();
         foreach ($warrants as $warrant) {
-            $result = $this->declineWarrant($warrantTable, $warrant, $rejecter_id, $reason);
-            if (!$result->success) {
-                $warrantRosterTable->getConnection()->rollback();
-                return $result;
+            if ($warrant->status == Warrant::PENDING_STATUS) {
+                $warrant->status = Warrant::CANCELLED_STATUS;
+                $warrant->revoked_reason = "Warrant Roster Declined: " . $reason;
+                $warrant->revoker_id = $rejecter_id;
+                if (!$warrantTable->save($warrant)) {
+                    //rollback transaction
+                    $warrantRosterTable->getConnection()->rollback();
+                    return new ServiceResult(false, "Failed to decline warrant #" . $warrant->id);
+                }
             }
         }
         $warrantRoster->status = WarrantRoster::STATUS_DECLINED;

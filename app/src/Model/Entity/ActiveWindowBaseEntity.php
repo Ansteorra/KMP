@@ -25,6 +25,7 @@ abstract class ActiveWindowBaseEntity extends Entity
     const REPLACED_STATUS = "Replaced";
     const EXPIRED_STATUS = "Expired";
     const DEACTIVATED_STATUS = "Deactivated";
+    const CANCELLED_STATUS = "Cancelled";
 
     public array $typeIdField = [];
 

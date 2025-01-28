@@ -142,8 +142,11 @@ class DefaultOfficerManager implements OfficerManagerInterface
         $member = TableRegistry::getTableLocator()->get('Members')->get($memberId);
         if ($office->requires_warrant) {
 
-
-            $warrantRequest = new WarrantRequest("Hiring Warrant: $branch->name - $office->name", 'Officers.Officers', $newOfficer->id, $approverId, $memberId, $startOn, $endOn, $newOfficer->granted_member_role_id);
+            $officeName = $office->name;
+            if ($deputyDescription != null and $deputyDescription != "") {
+                $officeName = $officeName . " (" . $deputyDescription . ")";
+            }
+            $warrantRequest = new WarrantRequest("Hiring Warrant: $branch->name - $officeName", 'Officers.Officers', $newOfficer->id, $approverId, $memberId, $startOn, $endOn, $newOfficer->granted_member_role_id);
 
             $wmResult = $this->warrantManager->request("$office->name : $member->sca_name", "", [$warrantRequest]);
             if (!$wmResult->success) {

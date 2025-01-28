@@ -250,6 +250,7 @@ class MembersController extends AppController
             Member::STATUS_MINOR_PARENT_VERIFIED => Member::STATUS_MINOR_PARENT_VERIFIED,
             Member::STATUS_VERIFIED_MINOR => Member::STATUS_VERIFIED_MINOR,
         ];
+        $publicInfo = $member->publicData();
         $this->set(
             compact(
                 "member",
@@ -259,7 +260,8 @@ class MembersController extends AppController
                 "months",
                 "years",
                 "backUrl",
-                "statusList"
+                "statusList",
+                "publicInfo"
             ),
         );
     }
@@ -748,12 +750,7 @@ class MembersController extends AppController
             throw new \Cake\Http\Exception\NotFoundException();
         }
         $this->Authorization->skipAuthorization();
-        $publicProfile = [
-            "sca_name" => $member->sca_name,
-            "branch" => $member->branch->name,
-            "external_links" => $member->publicLinks(),
-            "additional_info" => $member->publicAdditionalInfo(),
-        ];
+        $publicProfile = $member->publicData();
         $this->response = $this->response
             ->withType("application/json")
             ->withStringBody(json_encode($publicProfile));
@@ -761,6 +758,8 @@ class MembersController extends AppController
     }
     public function autoComplete()
     {
+        //TODO: Audit for Privacy
+
         $q = $this->request->getQuery("q");
         //detect th and replace with Þ
         $nq = $q;
@@ -777,7 +776,7 @@ class MembersController extends AppController
         $this->request->allowMethod(["get"]);
         $this->viewBuilder()->setClassName("Ajax");
         $query = $this->Members
-            ->find("all")
+            ->find("minimumPublicData")
             ->where([
                 'status <>' => Member::STATUS_DEACTIVATED,
                 'OR' => [["sca_name LIKE" => "%$q%"], ["sca_name LIKE" => "%$nq%"], ["sca_name LIKE" => "%$uq%"]]
