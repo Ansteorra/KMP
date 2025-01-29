@@ -50,9 +50,15 @@ class UpdateDatabaseCommand extends Command
         $date = '0000-01-01 00:00:00';
         $items = Plugin::getCollection();
         $pluginsToMigrate = [];
+
         foreach ($items as $name => $plugin) {
             if ($plugin instanceof KMPPluginInterface) {
                 $pluginsToMigrate[$name] = $plugin->getMigrationOrder();
+            } else {
+                //check if the path of the plugin includes a config/migrations folder
+                if (is_dir($plugin->getPath() . 'config' . DS . 'Migrations')) {
+                    $pluginsToMigrate[$name] = 100;
+                }
             }
         }
         //sort 

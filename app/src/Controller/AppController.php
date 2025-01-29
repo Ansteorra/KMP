@@ -59,9 +59,9 @@ class AppController extends Controller
                 $this->Flash->error("The plugin $plugin is not enabled.");
                 $currentUser = $this->request->getAttribute('identity');
                 if ($currentUser != null) {
-                    $this->redirect(['controller' => 'Members', 'action' => 'view', $currentUser->id]);
+                    $this->redirect(['plugin' => null, 'controller' => 'Members', 'action' => 'view', $currentUser->id]);
                 } else {
-                    $this->redirect(['controller' => 'Members', 'action' => 'login']);
+                    $this->redirect(['plugin' => null, 'controller' => 'Members', 'action' => 'login']);
                 }
             }
         }

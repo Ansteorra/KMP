@@ -90,3 +90,27 @@ sudo bash reset_dev_database.sh
 cd app
 sudo php bin/cake.php bootstrap install --latest
 sudo npm install
+
+#check if cron exists for the user
+if ! crontab -u vscode -l &>/dev/null; then
+  echo "Creating crontab environment for user 'vscode'."
+  crontab -u vscode -l 2>/dev/null | crontab -u vscode -
+fi
+
+# Define the cron job schedule and command
+cron_schedule="0/2 * * * *"  # This example runs the task every day at 7 AM
+cron_command="cd $(echo $REPO_PATH)/app && sudo php bin/cake.php queue run"
+cron_job="$cron_schedule $cron_command"
+
+# Check if the cron job already exists
+(crontab -l | grep -F "$cron_job") && echo "Cron job already exists." || (crontab -l 2>/dev/null; echo "$cron_job") | crontab -
+
+# Add the cron job if it doesn't exist
+if ! (crontab -l | grep -F "$cron_job"); then
+  (crontab -l 2>/dev/null; echo "$cron_job") | crontab -
+  echo "Cron job added."
+else
+  echo "Cron job already exists."
+fi
+sudo systemctl enable cron
+sudo systemctl start cron

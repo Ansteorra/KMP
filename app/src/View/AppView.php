@@ -57,5 +57,14 @@ class AppView extends View
             // Signing key to use when generating secure URLs.
             'signKey' => null,
         ]);
+        $helpers = [
+            'Tools.Format',
+            'Tools.Time',
+            'Templating.Icon',
+            'Templating.IconSnippet',
+        ];
+        foreach ($helpers as $helper) {
+            $this->addHelper($helper);
+        }
     }
 }
