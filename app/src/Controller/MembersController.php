@@ -788,7 +788,7 @@ class MembersController extends AppController
         $this->request->allowMethod(["get"]);
         $this->viewBuilder()->setClassName("Ajax");
         $query = $this->Members
-            ->find("minimumPublicData")
+            ->find("all")
             ->where([
                 'status <>' => Member::STATUS_DEACTIVATED,
                 'OR' => [["sca_name LIKE" => "%$q%"], ["sca_name LIKE" => "%$nq%"], ["sca_name LIKE" => "%$uq%"]]

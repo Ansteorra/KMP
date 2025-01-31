@@ -162,7 +162,7 @@ class DefaultOfficerManager implements OfficerManagerInterface
             "endDate" => $newOfficer->expires_on->toDateString(),
             "requiresWarrant" => $office->requires_warrant
         ];
-        $this->queueMail("notifyOfHire", "Officers.Officers", $member->email_address, $vars);
+        $this->queueMail("Officers.Officers", "notifyOfHire", $member->email_address, $vars);
         return new ServiceResult(true);
     }
 
