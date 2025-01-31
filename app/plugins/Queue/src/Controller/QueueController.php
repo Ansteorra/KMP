@@ -43,7 +43,7 @@ class QueueController extends AppController
 	 */
 	public function index()
 	{
-		$this->Authorization->skipAuthorization();
+		$this->Authorization->authorize("Queue.QueuedJobs", "index");
 		$QueueProcesses = $this->fetchTable('Queue.QueueProcesses');
 		$status = $QueueProcesses->status();
 
@@ -76,7 +76,7 @@ class QueueController extends AppController
 	 */
 	public function addJob()
 	{
-		$this->Authorization->skipAuthorization();
+		$this->Authorization->authorize("Queue.QueuedJobs", "addJob");
 		$this->request->allowMethod('post');
 
 		$job = (string)$this->request->getQuery('task');
@@ -111,7 +111,7 @@ class QueueController extends AppController
 	 */
 	public function resetJob(?int $id = null)
 	{
-		$this->Authorization->skipAuthorization();
+		$this->Authorization->authorize("Queue.QueuedJobs", "resetJob");
 		$this->request->allowMethod('post');
 		if (!$id) {
 			throw new NotFoundException();
@@ -131,6 +131,7 @@ class QueueController extends AppController
 	 */
 	public function removeJob(?int $id = null)
 	{
+		$this->Authorization->authorize("Queue.QueuedJobs", "removeJob");
 		$this->request->allowMethod('post');
 		$queuedJob = $this->QueuedJobs->get($id);
 
@@ -146,7 +147,7 @@ class QueueController extends AppController
 	 */
 	public function processes()
 	{
-		$this->Authorization->skipAuthorization();
+		$this->Authorization->authorize("Queue.QueuedJobs", "processes");
 		$QueueProcesses = $this->fetchTable('Queue.QueueProcesses');
 
 		if ($this->request->is('post') && $this->request->getQuery('end')) {
@@ -176,7 +177,7 @@ class QueueController extends AppController
 	 */
 	public function reset()
 	{
-		$this->Authorization->skipAuthorization();
+		$this->Authorization->authorize("Queue.QueuedJobs", "reset");
 		$this->request->allowMethod('post');
 		$resetted = $this->QueuedJobs->reset(null, (bool)$this->request->getQuery('full'));
 
@@ -193,6 +194,7 @@ class QueueController extends AppController
 	 */
 	public function flush()
 	{
+		$this->Authorization->authorize("Queue.QueuedJobs", "flush");
 		$this->request->allowMethod('post');
 		$count = $this->QueuedJobs->flushFailedJobs();
 
@@ -209,7 +211,8 @@ class QueueController extends AppController
 	 */
 	public function hardReset()
 	{
-		$this->Authorization->skipAuthorization();
+
+		$this->Authorization->authorize("Queue.QueuedJobs", "hardReset");
 		$this->request->allowMethod('post');
 		$this->QueuedJobs->truncate();
 
@@ -226,7 +229,6 @@ class QueueController extends AppController
 	 */
 	protected function refererRedirect(array|string $default)
 	{
-		$this->Authorization->skipAuthorization();
 		$url = $this->request->getQuery('redirect');
 		if (is_array($url)) {
 			throw new NotFoundException('Invalid array in query string');

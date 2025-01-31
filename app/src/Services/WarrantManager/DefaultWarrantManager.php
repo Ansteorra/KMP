@@ -15,12 +15,12 @@ use App\Model\Entity\MemberRole;
 use Cake\Mailer\MailerAwareTrait;
 
 use App\KMP\StaticHelpers;
-
+use App\Mailer\QueuedMailerAwareTrait;
 
 class DefaultWarrantManager implements WarrantManagerInterface
 {
     #region
-    use MailerAwareTrait;
+    use QueuedMailerAwareTrait;
 
     public function __construct(ActiveWindowManagerInterface $activeWindowManager)
     {
@@ -167,13 +167,13 @@ class DefaultWarrantManager implements WarrantManagerInterface
                     $warrantRosterTable->getConnection()->rollback();
                     return new ServiceResult(false, "Failed to acivate warrants in Roster");
                 }
-                $result = $this->getMailer("KMP")->send("notifyOfWarrant", [
-                    $warrant->member->email_address,
-                    $warrant->member->sca_name,
-                    $warrant->name,
-                    $warrant->start_on->toDateString(),
-                    $warrant->expires_on->toDateString(),
-                ]);
+                $vars = [
+                    "memberScaName" => $warrant->member->sca_name,
+                    "warrantName" => $warrant->name,
+                    "warrantStart" => $warrant->start_on->toDateString(),
+                    "warrantExpires" => $warrant->expires_on->toDateString(),
+                ];
+                $this->queueMail("KMP", "notifyOfWarrant", $warrant->member->email_address, $vars);
             }
         }
         if (!$warrantRosterTable->save($warrantRoster)) {

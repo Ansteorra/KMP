@@ -66,7 +66,7 @@ class QueuedJobsController extends AppController
 	 */
 	public function index()
 	{
-		$this->Authorization->skipAuthorization();
+		$this->Authorization->authorize("Queue.QueuedJobs", "index");
 		if (Configure::read('Queue.isSearchEnabled') !== false && Plugin::isLoaded('Search')) {
 			$query = $this->QueuedJobs->find('search', search: $this->request->getQuery());
 		} else {
@@ -97,7 +97,7 @@ class QueuedJobsController extends AppController
 	 */
 	public function stats(?string $jobType = null): void
 	{
-		$this->Authorization->skipAuthorization();
+		$this->Authorization->authorize("Queue.QueuedJobs", "stats");
 		if (!Configure::read('Queue.isStatisticEnabled')) {
 			throw new NotFoundException('Not enabled');
 		}
@@ -121,7 +121,7 @@ class QueuedJobsController extends AppController
 	 */
 	public function view(?int $id = null)
 	{
-		$this->Authorization->skipAuthorization();
+		$this->Authorization->authorize("Queue.QueuedJobs", "view");
 		$queuedJob = $this->QueuedJobs->get(
 			(int)$id,
 			contain: ['WorkerProcesses'],
@@ -140,6 +140,7 @@ class QueuedJobsController extends AppController
 	 */
 	public function viewClasses(): array
 	{
+		$this->Authorization->authorize("Queue.QueuedJobs", "viewClasses");
 		return [JsonView::class];
 	}
 
@@ -150,7 +151,7 @@ class QueuedJobsController extends AppController
 	 */
 	public function import()
 	{
-		$this->Authorization->skipAuthorization();
+		$this->Authorization->authorize("Queue.QueuedJobs", "import");
 		if ($this->request->is(['post'])) {
 			/** @var \Laminas\Diactoros\UploadedFile|null $file */
 			$file = $this->request->getData('file');
@@ -216,7 +217,7 @@ class QueuedJobsController extends AppController
 	 */
 	public function edit(?int $id = null)
 	{
-		$this->Authorization->skipAuthorization();
+		$this->Authorization->authorize("Queue.QueuedJobs", "edit");
 		$queuedJob = $this->QueuedJobs->get($id);
 		if ($queuedJob->completed) {
 			$this->Flash->error(__d('queue', 'The queued job is already completed.'));
@@ -245,7 +246,7 @@ class QueuedJobsController extends AppController
 	 */
 	public function data(?int $id = null)
 	{
-		$this->Authorization->skipAuthorization();
+		$this->Authorization->authorize("Queue.QueuedJobs", "data");
 		$this->QueuedJobs->addBehavior('Queue.Jsonable', ['input' => 'json', 'fields' => ['data'], 'map' => ['data_string']]);
 
 		$queuedJob = $this->QueuedJobs->get($id);
@@ -278,7 +279,7 @@ class QueuedJobsController extends AppController
 	 */
 	public function delete(?int $id = null)
 	{
-		$this->Authorization->skipAuthorization();
+		$this->Authorization->authorize("Queue.QueuedJobs", "delete");
 		$this->request->allowMethod(['post', 'delete']);
 		$queuedJob = $this->QueuedJobs->get($id);
 		if ($this->QueuedJobs->delete($queuedJob)) {
@@ -297,7 +298,7 @@ class QueuedJobsController extends AppController
 	 */
 	public function execute()
 	{
-		$this->Authorization->skipAuthorization();
+		$this->Authorization->authorize("Queue.QueuedJobs", "execute");
 		if (!Configure::read('debug')) {
 			throw new NotFoundException('Only for local development. Security implications if open on deployment.');
 		}
@@ -336,7 +337,7 @@ class QueuedJobsController extends AppController
 	 */
 	public function test()
 	{
-		$this->Authorization->skipAuthorization();
+		$this->Authorization->authorize("Queue.QueuedJobs", "test");
 		$taskFinder = new TaskFinder();
 		$allTasks = $taskFinder->all();
 		$tasks = [];
@@ -381,7 +382,7 @@ class QueuedJobsController extends AppController
 	 */
 	public function migrate()
 	{
-		$this->Authorization->skipAuthorization();
+		$this->Authorization->authorize("Queue.QueuedJobs", "migrate");
 		$taskFinder = new TaskFinder();
 		$allTasks = $taskFinder->all();
 

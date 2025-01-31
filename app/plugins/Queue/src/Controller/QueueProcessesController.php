@@ -44,7 +44,7 @@ class QueueProcessesController extends AppController
 	 */
 	public function index()
 	{
-		$this->Authorization->skipAuthorization();
+		$this->Authorization->authorize("Queue.QueuedJobs", "migrate");
 		$queueProcesses = $this->paginate();
 
 		$this->set(compact('queueProcesses'));
@@ -59,7 +59,7 @@ class QueueProcessesController extends AppController
 	 */
 	public function view(?int $id = null)
 	{
-		$this->Authorization->skipAuthorization();
+		$this->Authorization->authorize("Queue.QueuedJobs", "view");
 		$queueProcess = $this->QueueProcesses->get($id);
 
 		$this->set(compact('queueProcess'));
@@ -74,7 +74,7 @@ class QueueProcessesController extends AppController
 	 */
 	public function edit(?int $id = null)
 	{
-		$this->Authorization->skipAuthorization();
+		$this->Authorization->authorize("Queue.QueuedJobs", "edit");
 		$queueProcess = $this->QueueProcesses->get($id);
 		if ($this->request->is(['patch', 'post', 'put'])) {
 			$queueProcess = $this->QueueProcesses->patchEntity($queueProcess, $this->request->getData());
@@ -97,7 +97,7 @@ class QueueProcessesController extends AppController
 	 */
 	public function terminate(?int $id = null)
 	{
-		$this->Authorization->skipAuthorization();
+		$this->Authorization->authorize("Queue.QueuedJobs", "terminate");
 		$this->request->allowMethod(['post', 'delete']);
 
 		try {
@@ -120,7 +120,7 @@ class QueueProcessesController extends AppController
 	 */
 	public function delete(?int $id = null, ?int $sig = null)
 	{
-		$this->Authorization->skipAuthorization();
+		$this->Authorization->authorize("Queue.QueuedJobs", "delete");
 		$this->request->allowMethod(['post', 'delete']);
 		$queueProcess = $this->QueueProcesses->get($id);
 
@@ -142,7 +142,7 @@ class QueueProcessesController extends AppController
 	 */
 	public function cleanup()
 	{
-		$this->Authorization->skipAuthorization();
+		$this->Authorization->authorize("Queue.QueuedJobs", "cleanup");
 		$this->request->allowMethod(['post', 'delete']);
 
 		$count = $this->QueueProcesses->cleanEndedProcesses();

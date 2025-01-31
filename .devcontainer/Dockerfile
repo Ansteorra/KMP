@@ -31,4 +31,4 @@ RUN mkdir -p /var/log/supervisor
 # Copy the supervisor configuration file
 COPY supervisord.conf /etc/supervisor/supervisord.conf
 
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]
+RUN touch /var/log/cron.log

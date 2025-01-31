@@ -25,14 +25,17 @@ $this->KMP->endBlock(); ?>
 </h3>
 
 
-<ul class=" nav nav-pills">
-    <li class="nav-item">
-        <?= $this->Html->link(__d('queue', 'Dashboard'), ['controller' => 'Queue', 'action' => 'index'], ['class' => 'btn margin btn-secondary']) ?>
-    </li>
-    <li class="nav-item">
-        <?php echo $this->Html->link(__d('queue', 'List {0}', __d('queue', 'Queue Processes')), ['controller' => 'QueueProcesses', 'action' => 'index'], ['class' => 'btn margin btn-primary']); ?>
-    </li>
-</ul>
+<nav class="actions" id="actions-sidebar">
+    <ul class="side-nav nav nav-pills">
+        <li class="nav-item heading px-1"><?= __d('queue', 'Actions') ?>:</li>
+        <li class="nav-item px-1">
+            <?= $this->Html->link(__d('queue', 'Dashboard'), ['controller' => 'Queue', 'action' => 'index'], ['class' => 'btn btn-sm btn-primary']) ?>
+        </li>
+        <li class="nav-item px-1">
+            <?php echo $this->Html->link(__d('queue', 'List {0}', __d('queue', 'Queue Processes')), ['controller' => 'QueueProcesses', 'action' => 'index'], ['class' => 'btn btn-sm btn-primary']); ?>
+        </li>
+    </ul>
+</nav>
 <p><?php echo __d('queue', 'Active processes'); ?>:</p>
 
 <ul>

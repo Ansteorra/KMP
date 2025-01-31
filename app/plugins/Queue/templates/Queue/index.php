@@ -26,16 +26,24 @@ $this->KMP->endBlock(); ?>
 </h3>
 
 <ul class="nav nav-pills">
-    <li><?php echo $this->Form->postLink(__d('queue', 'Reset {0}', __d('queue', 'Failed Jobs')), ['action' => 'reset'], ['confirm' => __d('queue', 'Sure? This will make all failed jobs ready for re-run.'), 'class' => 'btn margin btn-secondary']); ?>
+
+    <li class="nav-item heading px-1"><?= __d('queue', 'Actions') ?>:</li>
+    <li class="nav-item px-1">
+        <?php echo $this->Html->link(__d('queue', 'List {0}', __d('queue', 'Queued Jobs')), ['controller' => 'QueuedJobs', 'action' => 'index'], ['class' => 'btn btn-primary btn-sm']); ?>
     </li>
-    <li><?php echo $this->Form->postLink(__d('queue', 'Flush {0}', __d('queue', 'Failed Jobs')), ['action' => 'flush'], ['confirm' => __d('queue', 'Sure? This will remove all failed jobs.'), 'class' => 'btn margin btn-warning']); ?>
+    <li class="nav-item px-1">
+        <?php echo $this->Form->postLink(__d('queue', 'Reset {0}', __d('queue', 'All Jobs')), ['action' => 'reset', '?' => ['full' => true]], ['confirm' => __d('queue', 'Sure? This will make all failed as well as still running jobs ready for re-run.'), 'class' => 'btn btn-warning btn-sm']); ?>
     </li>
-    <li><?php echo $this->Form->postLink(__d('queue', 'Reset {0}', __d('queue', 'All Jobs')), ['action' => 'reset', '?' => ['full' => true]], ['confirm' => __d('queue', 'Sure? This will make all failed as well as still running jobs ready for re-run.'), 'class' => 'btn margin btn-secondary']); ?>
+    <li class="nav-item px-1">
+        <?php echo $this->Form->postLink(__d('queue', 'Reset {0}', __d('queue', 'Failed Jobs')), ['action' => 'reset'], ['confirm' => __d('queue', 'Sure? This will make all failed jobs ready for re-run.'), 'class' => 'btn btn-danger btn-sm']); ?>
     </li>
-    <li><?php echo $this->Form->postLink(__d('queue', 'Hard Reset {0}', __d('queue', 'Queue')), ['action' => 'hardReset'], ['confirm' => __d('queue', 'Sure? This will delete all jobs and completely reset the queue.'), 'class' => 'btn margin btn-warning']); ?>
+    <li class="nav-item px-1">
+        <?php echo $this->Form->postLink(__d('queue', 'Flush {0}', __d('queue', 'Failed Jobs')), ['action' => 'flush'], ['confirm' => __d('queue', 'Sure? This will remove all failed jobs.'), 'class' => 'btn btn-danger btn-sm']); ?>
     </li>
-    <li><?php echo $this->Html->link(__d('queue', 'List {0}', __d('queue', 'Queued Jobs')), ['controller' => 'QueuedJobs', 'action' => 'index'], ['class' => 'btn margin btn-primary']); ?>
+    <li class="nav-item px-1">
+        <?php echo $this->Form->postLink(__d('queue', 'Hard Reset {0}', __d('queue', 'Queue')), ['action' => 'hardReset'], ['confirm' => __d('queue', 'Sure? This will delete all jobs and completely reset the queue.'), 'class' => 'btn btn-danger btn-sm']); ?>
     </li>
+
 
 </ul>
 <div class="row">
@@ -264,12 +272,13 @@ $this->KMP->endBlock(); ?>
 			}
 			?>
         </ul>
-
+        <!--
         <p><?php echo $this->Html->link(__d('queue', 'Trigger Delayed Test/Demo Job'), ['controller' => 'QueuedJobs', 'action' => 'test']); ?>
         </p>
         <?php if (Configure::read('debug')) { ?>
         <p><?php echo $this->Html->link(__d('queue', 'Trigger Execute Job(s)'), ['controller' => 'QueuedJobs', 'action' => 'execute']); ?>
         </p>
         <?php } ?>
+-->
     </div>
 </div>
