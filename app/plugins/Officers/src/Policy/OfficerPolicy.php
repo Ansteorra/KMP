@@ -28,6 +28,18 @@ class OfficerPolicy extends BasePolicy
         return false;
     }
 
+    public function canBranchOfficers(IdentityInterface $user, $entity)
+    {
+        if ($this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION)) {
+            return true;
+        }
+        if ($this->_hasNamedPermission($user, $this->REQUIRED_ASSIGN_PERMISSION)) {
+            return true;
+        }
+        return false;
+    }
+
+
     public function canRelease(IdentityInterface $user, $entity)
     {
         if ($this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION)) {

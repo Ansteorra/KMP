@@ -134,6 +134,87 @@ class Member extends Entity implements
         "password_token_expires_on",
     ];
 
+    public function publicData()
+    {
+        if ($this->age < 18) {
+            $data = [];
+            $data["sca_name"] = $this->sca_name;
+            $data["branch"] = $this->branch;
+            $data["publicLinks"] = $this->publicLinks();
+            $data["publicAdditionalInfo"] = $this->publicAdditionalInfo();
+            return $data;
+        }
+        $data = $this->toArray();
+        //Always Private
+        unset($data["password"]);
+        unset($data["password_token"]);
+        unset($data["password_token_expires_on"]);
+        unset($data["deleted_date"]);
+        unset($data["failed_login_attempts"]);
+        unset($data["last_failed_login"]);
+        unset($data["last_login"]);
+        unset($data["background_check_expires_on"]);
+        unset($data["mobile_card_token"]);
+        unset($data["additional_info"]);
+        unset($data["id"]);
+        unset($data["status"]);
+        unset($data["created"]);
+        unset($data["modified"]);
+        unset($data["roles"]);
+        unset($data["notes"]);
+        unset($data["pending_authorizations"]);
+        unset($data["pending_authorizations_to_approve"]);
+        unset($data["current_member_roles"]);
+        unset($data["previous_member_roles"]);
+        unset($data["upcoming_member_roles"]);
+        unset($data["verified_date"]);
+        unset($data["verified_by"]);
+        unset($data["membership_card_path"]);
+        unset($data["created_by"]);
+        unset($data["modified_by"]);
+        unset($data["deleted"]);
+        unset($data["parent"]);
+        unset($data["parent_id"]);
+        unset($data["membership_expires_on"]);
+        unset($data["birth_month"]);
+        unset($data["birth_year"]);
+
+        //Privacy Configurable
+        //TODO Check Privacy Settings
+        unset($data["membership_number"]);
+        //TODO Check Privacy Settings
+        unset($data["first_name"]);
+        //TODO Check Privacy Settings
+        unset($data["middle_name"]);
+        //TODO Check Privacy Settings
+        unset($data["last_name"]);
+        //TODO Check Privacy Settings
+        unset($data["street_address"]);
+        //TODO Check Privacy Settings
+        unset($data["city"]);
+        //TODO Check Privacy Settings
+        unset($data["state"]);
+        //TODO Check Privacy Settings
+        unset($data["zip"]);
+        //TODO Check Privacy Settings
+        unset($data["phone_number"]);
+        //TODO Check Privacy Settings
+        unset($data["email_address"]);
+        //TODO Check Privacy Settings
+        unset($data["pronouns"]);
+        //TODO Check Privacy Settings
+        unset($data["branch"]);
+        //TODO Check Privacy Settings
+        unset($data["branch_id"]);
+        //TODO Check Privacy Settings
+        unset($data["warrantable"]);
+
+        //Always Public
+        $data["publicLinks"] = $this->publicLinks();
+        $data["publicAdditionalInfo"] = $this->publicAdditionalInfo();
+        return $data;
+    }
+
     /**
      * Check whether the current identity can perform an action.
      *

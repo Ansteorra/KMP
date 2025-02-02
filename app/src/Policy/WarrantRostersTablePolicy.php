@@ -34,7 +34,30 @@ class WarrantRostersTablePolicy extends BasePolicy
         return false;
     }
 
+    public function canAllRosters(IdentityInterface $user, $entity)
+    {
+        if ($this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION)) {
+            return true;
+        }
+        if ($this->_hasNamedPermission($user, $this->REQUIRED_VIEW_PERMISSION)) {
+            return true;
+        }
+        return false;
+    }
+
     public function scopeIndex(IdentityInterface $user, $query)
+    {
+        if ($this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION)) {
+            return $query;
+        }
+
+        if ($this->_hasNamedPermission($user, $this->REQUIRED_VIEW_PERMISSION)) {
+            return $query;
+        }
+        return $query->where(["id" => -1]);
+    }
+
+    public function scopeAllRosters(IdentityInterface $user, $query)
     {
         if ($this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION)) {
             return $query;

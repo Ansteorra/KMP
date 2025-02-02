@@ -15,9 +15,11 @@ use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\TableRegistry;
 use App\KMP\StaticHelpers;
 use App\Model\Entity\Member;
+use App\View\Helper\KmpHelper;
 use Composer\Util\Url;
 use Cake\Routing\Router;
 use Cake\Http\Exception\NotFoundException;
+use App\Mailer\QueuedMailerAwareTrait;
 
 /**
  * Members Controller
@@ -26,7 +28,7 @@ use Cake\Http\Exception\NotFoundException;
  */
 class MembersController extends AppController
 {
-    use MailerAwareTrait;
+    use QueuedMailerAwareTrait;
 
     /**
      * controller filters
@@ -250,6 +252,7 @@ class MembersController extends AppController
             Member::STATUS_MINOR_PARENT_VERIFIED => Member::STATUS_MINOR_PARENT_VERIFIED,
             Member::STATUS_VERIFIED_MINOR => Member::STATUS_VERIFIED_MINOR,
         ];
+        $publicInfo = $member->publicData();
         $this->set(
             compact(
                 "member",
@@ -259,7 +262,8 @@ class MembersController extends AppController
                 "months",
                 "years",
                 "backUrl",
-                "statusList"
+                "statusList",
+                "publicInfo"
             ),
         );
     }
@@ -515,7 +519,17 @@ class MembersController extends AppController
             $member->mobile_card_token = StaticHelpers::generateToken(16);
             $this->Members->save($member);
         }
-        $this->getMailer("KMP")->send("mobileCard", [$member]);
+        $url = Router::url([
+            "controller" => "Members",
+            "action" => "ViewMobileCard",
+            "plugin" => null,
+            "_full" => true,
+            $member->mobile_card_token,
+        ]);
+        $vars = [
+            "url" => $url,
+        ];
+        $this->queueMail("KMP", "mobileCard", $member->email_address, $vars);
         $this->Flash->success(__("The email has been sent."));
 
         return $this->redirect(["action" => "view", $member->id]);
@@ -748,12 +762,7 @@ class MembersController extends AppController
             throw new \Cake\Http\Exception\NotFoundException();
         }
         $this->Authorization->skipAuthorization();
-        $publicProfile = [
-            "sca_name" => $member->sca_name,
-            "branch" => $member->branch->name,
-            "external_links" => $member->publicLinks(),
-            "additional_info" => $member->publicAdditionalInfo(),
-        ];
+        $publicProfile = $member->publicData();
         $this->response = $this->response
             ->withType("application/json")
             ->withStringBody(json_encode($publicProfile));
@@ -761,6 +770,8 @@ class MembersController extends AppController
     }
     public function autoComplete()
     {
+        //TODO: Audit for Privacy
+
         $q = $this->request->getQuery("q");
         //detect th and replace with Þ
         $nq = $q;
@@ -858,7 +869,17 @@ class MembersController extends AppController
                     1,
                 );
                 $this->Members->save($member);
-                $this->getMailer("KMP")->send("resetPassword", [$member]);
+                $url = Router::url([
+                    "controller" => "Members",
+                    "action" => "resetPassword",
+                    "plugin" => null,
+                    "_full" => true,
+                    $member->password_token,
+                ]);
+                $vars = [
+                    "url" => $url,
+                ];
+                $this->queueMail("KMP", "resetPassword", $member->email_address, $vars);
                 $this->Flash->success(
                     __(
                         "Password reset request sent to " .
@@ -1072,11 +1093,54 @@ class MembersController extends AppController
             $member->mobile_card_token = StaticHelpers::generateToken(16);
             if ($this->Members->save($member)) {
                 if ($member->age > 17) {
-                    $this->getMailer("KMP")->send("newRegistration", [$member]);
-                    $this->getMailer("KMP")->send("notifySecretaryOfNewMember", [$member]);
+                    $url = Router::url([
+                        "controller" => "Members",
+                        "action" => "resetPassword",
+                        "plugin" => null,
+                        "_full" => true,
+                        $member->password_token,
+                    ]);
+                    $vars = [
+                        "url" => $url,
+                        "sca_name" => $member->sca_name,
+                    ];
+                    $this->queueMail("KMP", "newRegistration", $member->email_address, $vars);
+                    $url = Router::url([
+                        "controller" => "Members",
+                        "action" => "view",
+                        "plugin" => null,
+                        "_full" => true,
+                        $member->id,
+                    ]);
+                    $vars = [
+                        "url" => $url,
+                        "sca_name" => $member->sca_name,
+                    ];
+                    if ($member->membership_card_path != null && strlen($member->membership_card_path) > 0) {
+                        $vars["membershipCardPresent"] = true;
+                    } else {
+                        $vars["membershipCardPresent"] = false;
+                    }
+                    $this->queueMail("KMP", "notifySecretaryOfNewMember", $member->email_address, $vars);
                     $this->Flash->success(__("Your registration has been submitted. Please check your email for a link to set up your password."));
                 } else {
-                    $this->getMailer("KMP")->send("notifySecretaryOfNewMinorMember", [$member]);
+                    $url = Router::url([
+                        "controller" => "Members",
+                        "action" => "view",
+                        "plugin" => null,
+                        "_full" => true,
+                        $member->id,
+                    ]);
+                    $vars = [
+                        "url" => $url,
+                        "sca_name" => $member->sca_name,
+                    ];
+                    if ($member->membership_card_path != null && strlen($member->membership_card_path) > 0) {
+                        $vars["membershipCardPresent"] = true;
+                    } else {
+                        $vars["membershipCardPresent"] = false;
+                    }
+                    $this->queueMail("KMP", "notifySecretaryOfNewMinorMember", $member->email_address, $vars);
                     $this->Flash->success(__("Your registration has been submitted. The Kingdom Secretary will need to verify your account with your parent or guardian"));
                 }
 

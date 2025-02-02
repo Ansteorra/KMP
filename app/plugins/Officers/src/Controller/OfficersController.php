@@ -190,6 +190,7 @@ class OfficersController extends AppController
 
     public function autoComplete($officeId)
     {
+        //TODO: Audit for Privacy
         $memberTbl = $this->getTableLocator()->get('Members');
         $q = $this->request->getQuery("q");
         //detect th and replace with Þ
@@ -219,7 +220,6 @@ class OfficersController extends AppController
 
     protected function addConditions($q, $type)
     {
-
         $rejectFragment = $q->func()->concat([
             'Released by ',
             "RevokedBy.sca_name" => 'identifier',
@@ -441,10 +441,14 @@ class OfficersController extends AppController
             foreach ($officers as $officer) {
 
                 //DateTime::createFromFormat('yyyy-mm-dd hh:mm:ss', $officer['start_on']);
-
+                $memberData = $officer['member']->publicData();
+                $officeName = $officer['office']['name'];
+                if ($officer['deputy_description'] != null && $officer['deputy_description'] != "") {
+                    $officeName = $officeName . " (" . $officer['deputy_description'] . ")";
+                }
                 $officer_row = [
-                    $officer['office']['name'],
-                    $officer['member']['sca_name'],
+                    $officeName,
+                    $memberData['sca_name'],
                     $officer['branch']['name'],
                     $officer['office']['department']['name'],
                     $officer['start_on']->i18nFormat('MM-dd-yyyy'),

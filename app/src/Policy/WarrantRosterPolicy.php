@@ -37,6 +37,17 @@ class WarrantRosterPolicy extends BasePolicy
         return false;
     }
 
+    public function canAllRosters(IdentityInterface $user, $entity)
+    {
+        if ($this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION)) {
+            return true;
+        }
+        if ($this->_hasNamedPermission($user, $this->REQUIRED_VIEW_PERMISSION)) {
+            return true;
+        }
+        return false;
+    }
+
     public function canApprove(IdentityInterface $user, $entity)
     {
         return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);

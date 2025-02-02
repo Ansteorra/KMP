@@ -11,11 +11,12 @@ use Officers\Model\Entity\Officer;
 use App\Services\ServiceResult;
 use Cake\Mailer\MailerAwareTrait;
 use App\Services\WarrantManager\WarrantRequest;
+use App\Mailer\QueuedMailerAwareTrait;
 
 class DefaultOfficerManager implements OfficerManagerInterface
 {
     #region
-    use MailerAwareTrait;
+    use QueuedMailerAwareTrait;
 
     public function __construct(ActiveWindowManagerInterface $activeWindowManager, WarrantManagerInterface $warrantManager)
     {
@@ -142,23 +143,26 @@ class DefaultOfficerManager implements OfficerManagerInterface
         $member = TableRegistry::getTableLocator()->get('Members')->get($memberId);
         if ($office->requires_warrant) {
 
-
-            $warrantRequest = new WarrantRequest("Hiring Warrant: $branch->name - $office->name", 'Officers.Officers', $newOfficer->id, $approverId, $memberId, $startOn, $endOn, $newOfficer->granted_member_role_id);
+            $officeName = $office->name;
+            if ($deputyDescription != null and $deputyDescription != "") {
+                $officeName = $officeName . " (" . $deputyDescription . ")";
+            }
+            $warrantRequest = new WarrantRequest("Hiring Warrant: $branch->name - $officeName", 'Officers.Officers', $newOfficer->id, $approverId, $memberId, $startOn, $endOn, $newOfficer->granted_member_role_id);
 
             $wmResult = $this->warrantManager->request("$office->name : $member->sca_name", "", [$warrantRequest]);
             if (!$wmResult->success) {
                 return new ServiceResult(false, $wmResult->reason);
             }
         }
-        $this->getMailer("Officers.Officers")->send("notifyOfHire", [
-            $member->email_address,
-            $member->sca_name,
-            $office->name,
-            $branch->name,
-            $newOfficer->start_on->toDateString(),
-            $newOfficer->expires_on->toDateString(),
-            $office->requires_warrant
-        ]);
+        $vars = [
+            "memberScaName" => $member->sca_name,
+            "officeName" => $office->name,
+            "branchName" => $branch->name,
+            "hireDate" => $newOfficer->start_on->toDateString(),
+            "endDate" => $newOfficer->expires_on->toDateString(),
+            "requiresWarrant" => $office->requires_warrant
+        ];
+        $this->queueMail("Officers.Officers", "notifyOfHire", $member->email_address, $vars);
         return new ServiceResult(true);
     }
 
@@ -194,14 +198,14 @@ class DefaultOfficerManager implements OfficerManagerInterface
         $member = TableRegistry::getTableLocator()->get('Members')->get($officer->member_id);
         $office = $officer->office;
         $branch = TableRegistry::getTableLocator()->get('Branches')->get($officer->branch_id);
-        $this->getMailer("Officers.Officers")->send("notifyOfRelease", [
-            $member->email_address,
-            $member->sca_name,
-            $office->name,
-            $branch->name,
-            $revokedReason,
-            $revokedOn->toDateString()
-        ]);
+        $vars = [
+            "memberScaName" => $member->sca_name,
+            "officeName" => $office->name,
+            "branchName" => $branch->name,
+            "reason" => $revokedReason,
+            "releaseDate" => $revokedOn->toDateString(),
+        ];
+        $this->queueMail("notifyOfRelease", "Officers.Officers", $member->email_address, $vars);
         return new ServiceResult(true);
     }
 }

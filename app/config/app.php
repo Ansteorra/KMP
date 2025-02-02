@@ -6,6 +6,7 @@ use Cake\Database\Connection;
 use Cake\Database\Driver\Mysql;
 use Cake\Log\Engine\FileLog;
 use Cake\Mailer\Transport\MailTransport;
+use Templating\View\Icon\BootstrapIcon;
 
 return [
     /*
@@ -410,5 +411,14 @@ return [
     "Session" => [
         "defaults" => "php",
         "timeout" => 30,
+    ],
+
+    'Icon' => [
+        'sets' => [
+            'bs' => [
+                'class' => BootstrapIcon::class,
+                'path' => WWW_ROOT . 'assets/bootstrap-icons/font/bootstrap-icons.json',
+            ],
+        ]
     ]
 ];

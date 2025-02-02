@@ -24,10 +24,12 @@ $this->KMP->endBlock(); ?>
                 'type' => 'email',
                 "label" => ["floating" => true],
                 "autofocus",
+                "container" => ["class" => "form-group"],
             ]) ?>
             <?= $this->Form->control("password", [
                 "type" => "password",
                 "label" => ["floating" => true],
+                "container" => ["class" => "form-group"],
             ]) ?>
             <?= $this->Form->submit(__("Sign in"), [
                 "class" => "w-100 btn btn-lg btn-primary",

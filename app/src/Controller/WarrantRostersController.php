@@ -7,6 +7,7 @@ namespace App\Controller;
 use App\Services\WarrantManager\WarrantManagerInterface;
 use Cake\I18n\DateTime;
 use Cake\Http\Exception\NotFoundException;
+use App\Model\Entity\WarrantRoster;
 
 
 /**
@@ -27,6 +28,7 @@ class WarrantRostersController extends AppController
         parent::initialize();
 
         $this->loadComponent('Authorization.Authorization');
+        $this->Authorization->authorizeModel("index");
     }
 
     /**
@@ -34,7 +36,9 @@ class WarrantRostersController extends AppController
      *
      * @return \Cake\Http\Response|null|void Renders view
      */
-    public function index()
+    public function index() {}
+
+    public function allRosters($state)
     {
         $query = $this->WarrantRosters->find()
             ->contain(['CreatedByMember' => function ($q) {
@@ -44,12 +48,17 @@ class WarrantRostersController extends AppController
         $query = $query->matching('Warrants')
             ->select(['id', 'name', 'status', 'approvals_required', 'approval_count', 'created', 'warrant_count' => $query->func()->count('Warrants.id')])
             ->groupBy(['WarrantRosters.id']);
-
+        $query = $query->where(['WarrantRosters.status' => $state]);
         $query = $this->Authorization->applyScope($query);
         $warrantRosters = $this->paginate($query);
 
         $this->set(compact('warrantRosters'));
     }
+
+
+
+
+
 
     /**
      * View method

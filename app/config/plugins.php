@@ -30,4 +30,6 @@ return [
         'migrationOrder' => 3,
     ],
     'CsvView' => [],
+    'Queue' => [],
+    'Tools' => [],
 ];

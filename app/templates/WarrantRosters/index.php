@@ -1,5 +1,7 @@
 <?php
 
+use \App\Model\Entity\WarrantRoster;
+
 /**
  * @var \App\View\AppView $this
  * @var \App\Model\Entity\WarrantRoster[]|\Cake\Collection\CollectionInterface $warrantRosters
@@ -13,48 +15,33 @@ $this->KMP->endBlock(); ?>
 <h3>
     Warrant Rosters
 </h3>
+<?php
 
+$tabs["Pending"] = [
+    "label" => __("Pending"),
+    "id" => "pending",
+    "selected" => true,
+    "turboUrl" => $this->URL->build(["controller" => "warrant-rosters", "action" => "All_Rosters", "plugin" => null, WarrantRoster::STATUS_PENDING])
+];
 
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th scope="col"><?= $this->Paginator->sort('name') ?></th>
-            <th scope="col"><?= h('Warrant Count') ?></th>
-            <th scope="col"><?= $this->Paginator->sort('approvals_required') ?></th>
-            <th scope="col"><?= $this->Paginator->sort('approval_count') ?></th>
-            <th scope="col"><?= $this->Paginator->sort('status') ?></th>
-            <th scope="col"><?= $this->Paginator->sort('created') ?></th>
-            <th scope="col"><?= h('Created By') ?></th>
-            <th scope="col" class="actions"><?= __('Actions') ?></th>
-        </tr>
-    </thead>
-    <tbody>
-        <?php foreach ($warrantRosters as $warrantRoster) : ?>
-        <tr>
-            <td><?= h($warrantRoster->name) ?></td>
-            <td><?= $this->Number->format($warrantRoster->warrant_count) ?></td>
-            <td><?= $this->Number->format($warrantRoster->approvals_required) ?></td>
-            <td><?= $warrantRoster->approval_count === null ? '' : $this->Number->format($warrantRoster->approval_count) ?>
-            </td>
-            <td><?= h($warrantRoster->status) ?></td>
-            <td><?= h($warrantRoster->created->toDateString()) ?></td>
-            <td><?= $warrantRoster->created_by_member === null ? '' : $warrantRoster->created_by_member->sca_name ?>
-            </td>
-            <td class="actions">
-                <?= $this->Html->link(__('View'), ['action' => 'view', $warrantRoster->id], ['title' => __('View'), 'class' => 'btn btn-secondary']) ?>
-            </td>
-        </tr>
-        <?php endforeach; ?>
-    </tbody>
-</table>
-<div class="paginator">
-    <ul class="pagination">
-        <?= $this->Paginator->first('«', ['label' => __('First')]) ?>
-        <?= $this->Paginator->prev('‹', ['label' => __('Previous')]) ?>
-        <?= $this->Paginator->numbers() ?>
-        <?= $this->Paginator->next('›', ['label' => __('Next')]) ?>
-        <?= $this->Paginator->last('»', ['label' => __('Last')]) ?>
-    </ul>
-    <p><?= $this->Paginator->counter(__('Page {{page}} of {{pages}}, showing {{current}} record(s) out of {{count}} total')) ?>
-    </p>
-</div>
+$tabs["Approved"] = [
+    "label" => __("Approved"),
+    "id" => "approved",
+    "selected" => true,
+    "turboUrl" => $this->URL->build(["controller" => "warrant-rosters", "action" => "All_Rosters", "plugin" => null,  WarrantRoster::STATUS_APPROVED])
+];
+
+$tabs["Declined"] = [
+    "label" => __("Declined"),
+    "id" => "declined",
+    "selected" => true,
+    "turboUrl" => $this->URL->build(["controller" => "warrant-rosters", "action" => "All_Rosters", "plugin" => null,  WarrantRoster::STATUS_DECLINED])
+];
+
+echo $this->element('turboActiveTabs', [
+    'user' => $user,
+    'tabGroupName' => "authorizationTabs",
+    'tabs' => $tabs,
+    'updateUrl' => false,
+]);
+?>
