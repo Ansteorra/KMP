@@ -205,7 +205,7 @@ class DefaultOfficerManager implements OfficerManagerInterface
             "reason" => $revokedReason,
             "releaseDate" => $revokedOn->toDateString(),
         ];
-        $this->queueMail("notifyOfRelease", "Officers.Officers", $member->email_address, $vars);
+        $this->queueMail("Officers.Officers", "notifyOfRelease", $member->email_address, $vars);
         return new ServiceResult(true);
     }
 }
