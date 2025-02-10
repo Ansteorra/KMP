@@ -45,6 +45,11 @@ class WarrantPolicy extends BasePolicy
         return false;
     }
 
+    public function canDeclineWarrantInRoster(IdentityInterface $user, $entity)
+    {
+        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+    }
+
     public function canIndex(IdentityInterface $user, $entity)
     {
         if ($this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION)) {
