@@ -21,6 +21,7 @@ class DefaultWarrantManager implements WarrantManagerInterface
 {
     #region
     use QueuedMailerAwareTrait;
+    use MailerAwareTrait;
 
     public function __construct(ActiveWindowManagerInterface $activeWindowManager)
     {

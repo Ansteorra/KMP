@@ -17,6 +17,7 @@ class DefaultOfficerManager implements OfficerManagerInterface
 {
     #region
     use QueuedMailerAwareTrait;
+    use MailerAwareTrait;
 
     public function __construct(ActiveWindowManagerInterface $activeWindowManager, WarrantManagerInterface $warrantManager)
     {

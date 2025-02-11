@@ -29,6 +29,7 @@ use App\Mailer\QueuedMailerAwareTrait;
 class MembersController extends AppController
 {
     use QueuedMailerAwareTrait;
+    use MailerAwareTrait;
 
     /**
      * controller filters
