@@ -150,6 +150,8 @@ class RecommendationsController extends AppController
             $status = "All";
         }
 
+        $view = explode(".", $view)[0];
+
         $emptyRecommendation = $this->Recommendations->newEmptyEntity();
         if ($view && $view != "Default") {
             try {
