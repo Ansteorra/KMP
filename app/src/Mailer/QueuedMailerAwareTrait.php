@@ -21,6 +21,10 @@ namespace App\Mailer;
 use Cake\Core\App;
 use Cake\Mailer\Exception\MissingMailerException;
 use Cake\ORM\TableRegistry;
+use Cake\Mailer\MailerAwareTrait;
+use Cake\Mailer\Mailer;
+use Throwable;
+
 
 /**
  * Provides functionality for loading mailer classes
@@ -31,6 +35,9 @@ use Cake\ORM\TableRegistry;
  */
 trait QueuedMailerAwareTrait
 {
+    use MailerAwareTrait;
+
+    protected Mailer $mailer;
     /**
      * Returns a mailer instance.
      *
@@ -51,7 +58,15 @@ trait QueuedMailerAwareTrait
             'action' => $action,
             'vars' => $vars
         ];
-        $queuedJobsTable = TableRegistry::getTableLocator()->get('Queue.QueuedJobs');
-        $queuedJobsTable->createJob('Queue.Mailer', $data);
+        $this->mailer = $this->getMailer($data['class']);
+
+        try {
+            $this->mailer->setTransport($data['transport'] ?? 'default');
+            $result = $this->mailer->send($data['action'], $data['vars'] ?? []);
+        } catch (Throwable $e) {
+            throw $e;
+        }
+        //$queuedJobsTable = TableRegistry::getTableLocator()->get('Queue.QueuedJobs');
+        //$queuedJobsTable->createJob('Queue.Mailer', $data);
     }
 }
