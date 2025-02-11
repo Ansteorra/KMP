@@ -431,11 +431,25 @@ class OfficersController extends AppController
         header('Content-Disposition: attachment; filename=officers-' . date("Y-m-d-h-i-s") . '.csv');
         $output = fopen('php://output', 'w');
 
-        fputcsv($output, array('Office', 'Name', 'Branch', 'Department', 'Start', 'End'));
+        $status = $this->request->getQuery('status');
+        $endsIn = $this->request->getQuery('endsIn');
+
         $officers = $this->Officers->find()
-            ->contain(['Offices' => ["Departments"], 'Members', 'Branches'])
-            //where not past start and before expired
-            ->toArray();
+            ->contain(['Offices' => ["Departments"], 'Members', 'Branches']);
+        if ($status !== null) {
+            $officers = $officers->where(["Officers.status" => $status]);
+        }
+        if ($endsIn !== null) {
+            $endDate = new DateTime('+' . $endsIn . ' days');
+
+            $officers = $officers->where([
+                "Officers.expires_on >=" => DateTime::now(),
+                "Officers.expires_on <=" => $endDate
+            ]);
+        }
+        fputcsv($output, array('Office', 'Name', 'Branch', 'Department', 'Start', 'End'));
+
+        $officers = $officers->toArray();
 
         if (count($officers) > 0) {
             foreach ($officers as $officer) {
