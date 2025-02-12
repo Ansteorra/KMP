@@ -339,7 +339,7 @@ class DefaultWarrantManager implements WarrantManagerInterface
         $warrantPeriodTable = TableRegistry::getTableLocator()->get('WarrantPeriods');
         $warrantPeriod = $warrantPeriodTable->find()
             ->where([
-                'start_date <=' => $startOn,
+                'start_date <=' => $today,
                 'end_date >=' => $startOn,
                 'end_date >' => $today
             ])
