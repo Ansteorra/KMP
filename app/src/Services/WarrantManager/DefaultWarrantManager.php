@@ -335,11 +335,13 @@ class DefaultWarrantManager implements WarrantManagerInterface
 
     public function getWarrantPeriod(DateTime $startOn, DateTime $endOn): ?WarrantPeriod
     {
+        $today = new DateTime();
         $warrantPeriodTable = TableRegistry::getTableLocator()->get('WarrantPeriods');
         $warrantPeriod = $warrantPeriodTable->find()
             ->where([
                 'start_date <=' => $startOn,
-                'end_date >=' => $startOn
+                'end_date >=' => $startOn,
+                'end_date >' => $today
             ])
             ->orderByDesc('start_date')
             ->first();
