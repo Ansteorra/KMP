@@ -186,7 +186,7 @@ class AuthorizationsController extends AppController
         if (!$member) {
             throw new \Cake\Http\Exception\NotFoundException();
         }
-        $this->Authorization->authorize($member, 'update');
+        $this->Authorization->authorize($member, 'editAdditionalInfo');
         $newval = $this->request->getData("share_with_GW");
         $additionalInfo = $member->additional_info;
         if ($newval == "true") {
