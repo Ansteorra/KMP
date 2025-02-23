@@ -45,9 +45,7 @@ class MemberAuthorizationsCell extends BasePluginCell
      *
      * @return void
      */
-    public function initialize(): void
-    {
-    }
+    public function initialize(): void {}
 
     /**
      * Default display method.
@@ -68,7 +66,7 @@ class MemberAuthorizationsCell extends BasePluginCell
         $memberTbl = TableRegistry::getTableLocator()->get('Members');
         $member = $memberTbl->find('all')
             ->where(['id' => $id])
-            ->select(['id', 'birth_month', 'birth_year'])->first();
+            ->select(['id', 'birth_month', 'birth_year', 'additional_info'])->first();
         // Get the list of authorization types the member can request based on their age
         $activities = $authTypeTable->find("list")->where([
             "minimum_age <" => $member->age,
@@ -76,7 +74,7 @@ class MemberAuthorizationsCell extends BasePluginCell
         ]);
         $isEmpty = ($currentAuths + $pendingAuths + $previousAuths) == 0;
         $pendingAuthCount = $pendingAuths;
-        $this->set(compact('pendingAuthCount', 'isEmpty', 'id', 'activities'));
+        $this->set(compact('pendingAuthCount', 'isEmpty', 'id', 'activities', 'member'));
     }
 
     protected function addConditions(SelectQuery $q)
@@ -84,9 +82,12 @@ class MemberAuthorizationsCell extends BasePluginCell
 
         $rejectFragment = $q->func()->concat([
             "Authorizations.status" => 'identifier',
-            ' - ', "RevokedBy.sca_name" => 'identifier',
-            " on ", "expires_on" => 'identifier',
-            " note: ", "revoked_reason" => 'identifier'
+            ' - ',
+            "RevokedBy.sca_name" => 'identifier',
+            " on ",
+            "expires_on" => 'identifier',
+            " note: ",
+            "revoked_reason" => 'identifier'
         ]);
 
         $revokeReasonCase = $q->newExpr()
