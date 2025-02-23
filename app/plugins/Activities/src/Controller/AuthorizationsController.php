@@ -13,9 +13,20 @@ namespace Activities\Controller;
 use Activities\Services\AuthorizationManagerInterface;
 use Cake\ORM\Query\SelectQuery;
 use Activities\Model\Entity\Authorization;
+use App\KMP\StaticHelpers;
+use Cake\ORM\TableRegistry;
 
 class AuthorizationsController extends AppController
 {
+
+    public function beforeFilter(\Cake\Event\EventInterface $event)
+    {
+        parent::beforeFilter($event);
+
+        $this->Authentication->allowUnauthenticated([
+            "getMemberAuthorizations",
+        ]);
+    }
 
     public function revoke(AuthorizationManagerInterface $maService, $id = null)
     {
@@ -166,6 +177,94 @@ class AuthorizationsController extends AppController
         }
         $authorizations = $this->paginate($auths);
         $this->set(compact('authorizations', 'activity', 'state'));
+    }
+
+    public function setGWSharing($id)
+    {
+        $this->request->allowMethod(["post"]);
+        $member = $this->Authorizations->Members->get($id);
+        if (!$member) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+        $this->Authorization->authorize($member, 'update');
+        $newval = $this->request->getData("share_with_GW");
+        $additionalInfo = $member->additional_info;
+        if ($newval == "true") {
+            $additionalInfo["DisableAuthorizationSharing"] = "0";
+        } else {
+            $additionalInfo["DisableAuthorizationSharing"] = "1";
+        }
+        $member->additional_info = $additionalInfo;
+        if ($this->Authorizations->Members->save($member)) {
+            $this->Flash->success(__("The member has been updated."));
+
+            return $this->redirect($this->referer());
+        }
+        $this->Flash->error(
+            __("The member could not be updated. Please, try again."),
+        );
+
+        return $this->redirect($this->referer());
+    }
+
+    public function getMemberAuthorizations($memberEmail)
+    {
+        //skip authorization
+        $this->Authorization->skipAuthorization();
+        //get bearer token
+        $headers = $this->request->getHeaders();
+        $creds = $this->request->getHeaderLine("Authorization");
+        if (empty($creds)) {
+            throw new \Cake\Http\Exception\UnauthorizedException();
+        }
+        $creds = explode("|", $creds);
+        //check app settings for client id and secret
+        try {
+            $appSecret = StaticHelpers::getAppSetting("Activities.api_access." . $creds[0], null, null, false);
+
+            if ($appSecret == null || $appSecret != $creds[1]) {
+                throw new \Cake\Http\Exception\UnauthorizedException();
+            }
+        } catch (\Exception $e) {
+            throw new \Cake\Http\Exception\UnauthorizedException();
+        }
+
+        $member = $this->Authorizations->Members->find()
+            ->where(["email_address" => $memberEmail])
+            ->select(["id", "additional_info"])->first();
+        if (!$member) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+        //check if sharing was set at all
+        if (isset($member->additional_info["DisableAuthorizationSharing"])) {
+            if ($member->additional_info["DisableAuthorizationSharing"] == "1") {
+                throw new \Cake\Http\Exception\NotFoundException();
+            }
+        }
+        $authTable = TableRegistry::getTableLocator()->get("Activities.Authorizations");
+        $currentAuths = $authTable->find('current')
+            ->select(['id', 'activity_id', 'member_id', 'ActivityGroups.name', 'Activities.name', 'expires_on'])
+            ->contain(['Activities' => function (SelectQuery $q) {
+                return $q
+                    ->select(['Activities.id', 'Activities.name'])
+                    ->contain(['ActivityGroups' => function (SelectQuery $q) {
+                        return $q->select(['ActivityGroups.id', 'ActivityGroups.name']);
+                    }]);
+            }])
+            ->where(['member_id' => $member->id])->OrderBy(['ActivityGroups.name', 'Activities.name'])->toArray();
+        $organizedAuths = [];
+        foreach ($currentAuths as $auth) {
+            $activityGroup = $auth->activity->activity_group->name;
+            $activityName = $auth->activity->name;
+            $organizedAuths[$activityGroup][] = $activityName . " : " . $auth->expires_on->toDateString();
+        }
+        $responseData = ["Authorizations" => $organizedAuths,];
+        $this->viewBuilder()->setClassName("Ajax");
+        $this->response = $this->response
+            ->withType("application/json")
+            ->withStringBody(json_encode($responseData));
+
+        return $this->response;
     }
 
     protected function addConditionsForMembers(SelectQuery $q)

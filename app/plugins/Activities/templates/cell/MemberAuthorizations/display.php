@@ -8,7 +8,32 @@ $user = $this->request->getAttribute("identity");
     ["controller" => "Members", "action" => "SendMobileCardEmail", $id],
     ["class" => "btn btn-sm mb-3 btn-secondary"],
 ) ?>
+
 <?php
+$currentVal = ($member->additional_info["DisableAuthorizationSharing"]  == "1") ?? false;
+$reverseVal = $currentVal ? false : true;
+$formUrl = $this->URL->build([
+    "plugin" => "Activities",
+    "controller" => "Authorizations",
+    "action" => "setGWSharing",
+    $id
+]);
+echo $this->Form->create(null, [
+    "url" => $formUrl,
+    "id" => "gwSharingForm",
+    "data-controller" => "gw_sharing",
+    "data-gw_sharing-target" => "form",
+]);
+echo $this->Form->control("share_with_GW", [
+    "type" => "checkbox",
+    "label" => "Share with Gulf War Registry",
+    "switch" => true,
+    "checked" => $reverseVal,
+    "value" => "true",
+    "data-action" => "gw_sharing#submit",
+]);
+echo $this->Form->end();
+
 if (!$isEmpty) :
     echo $this->element('turboActiveTabs', [
         'user' => $user,
