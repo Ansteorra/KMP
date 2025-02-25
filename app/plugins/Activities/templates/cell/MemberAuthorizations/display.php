@@ -10,6 +10,9 @@ $user = $this->request->getAttribute("identity");
 ) ?>
 
 <?php
+if (!isset($member->additional_info["DisableAuthorizationSharing"])) {
+    $member->additional_info["DisableAuthorizationSharing"] = "0";
+}
 $currentVal = ($member->additional_info["DisableAuthorizationSharing"]  == "1") ?? false;
 $reverseVal = $currentVal ? false : true;
 $formUrl = $this->URL->build([
