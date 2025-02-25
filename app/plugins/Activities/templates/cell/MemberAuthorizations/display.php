@@ -26,7 +26,7 @@ echo $this->Form->create(null, [
 ]);
 echo $this->Form->control("share_with_GW", [
     "type" => "checkbox",
-    "label" => "Share with Gulf War Registry",
+    "label" => "Share with Gulf War Marshals",
     "switch" => true,
     "checked" => $reverseVal,
     "value" => "true",
