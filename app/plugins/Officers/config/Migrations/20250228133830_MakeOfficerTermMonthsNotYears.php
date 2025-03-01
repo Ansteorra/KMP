@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use Migrations\BaseMigration;
 
-class MakeTermMonthsNotYears extends BaseMigration
+class MakeOfficerTermMonthsNotYears extends BaseMigration
 {
     /**
      * Change Method.
