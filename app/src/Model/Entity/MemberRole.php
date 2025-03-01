@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Model\Entity;
 
 use Cake\ORM\Entity;
+use Cake\ORM\TableRegistry;
 
 /**
  * MemberRole Entity
@@ -41,5 +42,14 @@ class MemberRole extends ActiveWindowBaseEntity
         "Member" => true,
         "role" => true,
         "approved_by" => true,
+        "branch_id" => true,
     ];
+
+    protected function _getGrantedBy($value)
+    {
+        if ($this->entity_type == "Direct Grant") {
+            return "Direct Grant";
+        }
+        return $this->entity_type;
+    }
 }

@@ -5,22 +5,41 @@ if (!empty($currentOfficers) || !empty($upcomingOfficers) || !empty($previousOff
         "type" => "link",
         "verify" => true,
         "authData" => "branch",
-        "label" => "View",
+        "label" => "",
         "controller" => "Branches",
         "action" => "view",
         '?' => ['tab' => 'branch-officers'],
         "id" => "branch_id",
-        "options" => ["class" => "btn btn-secondary"],
+        "options" => ["class" => "btn-sm btn btn-secondary bi-binoculars-fill"],
+    ];
+    $editTemplate = [
+        "type" => "button",
+        "verify" => true,
+        "label" => "",
+        "plugin" => "Officers",
+        "controller" => "Officers",
+        "action" => "edit",
+        "id" => "officer_id",
+        "condition" => ["is_editable" => "1"],
+        "options" => [
+            "class" => "btn-sm btn btn-primary bi-pencil-fill edit-btn",
+            "data-bs-toggle" => "modal",
+            "data-bs-target" => "#editOfficerModal",
+            "data-controller" => "outlet-btn",
+            "data-action" => "click->outlet-btn#fireNotice",
+            "data-outlet-btn-btn-data-value" => '{ "id":{{id}}, "is_deputy":"{{office->is_deputy}}", "email_address":"{{email_address}}", "deputy_description":"{{deputy_description}}" }',
+        ],
     ];
     $releaseLinkTemplate = [
         "type" => "button",
         "verify" => true,
         "label" => "Release",
+        "plugin" => "Officers",
         "controller" => "Officers",
         "action" => "release",
         "id" => "officer_id",
         "options" => [
-            "class" => "btn btn-danger revoke-btn",
+            "class" => "btn-sm btn btn-danger revoke-btn",
             "data-bs-toggle" => "modal",
             "data-bs-target" => "#releaseModal",
             "data-controller" => "outlet-btn",
@@ -28,22 +47,40 @@ if (!empty($currentOfficers) || !empty($upcomingOfficers) || !empty($previousOff
             "data-outlet-btn-btn-data-value" => '{ "id":{{id}} }',
         ],
     ];
+    $newWarrantTemplate = [
+        "type" => "postLink",
+        "verify" => true,
+        "label" => "Request Warrant",
+        "plugin" => "Officers",
+        "controller" => "Officers",
+        "action" => "requestWarrant",
+        "id" => "id",
+        "condition" => ["warrant_state" => "Missing"],
+        "options" => [
+            "confirm" => "Are you sure you want to request a new warrant for {{member->sca_name}}?",
+            "class" => "btn btn-warning btn-sm",
+        ],
+    ];
     $currentTemplate = [
         "Office" => "{{office->name}}{{: (deputy_description) }}",
+        "Contact" => "<a href='mailto:{{email_address}}'>{{email_address}}</a>",
+        "Warrant Expires" => "warrant_state",
         "Branch" => "branch->name",
-        "Start Date" => "start_on",
-        "End Date" => "expires_on",
+        "Start Date" => "start_on_to_string",
+        "End Date" => "expires_on_to_string",
         "Reports To" => "reports_to",
         "Actions" => [
             $linkTemplate,
+            $editTemplate,
+            $newWarrantTemplate,
             $releaseLinkTemplate
         ],
     ];
     $previousTemplate = [
         "Office" => "{{office->name}}{{: (deputy_description) }}",
         "Branch" => "branch->name",
-        "Start Date" => "start_on",
-        "End Date" => "expires_on",
+        "Start Date" => "start_on_to_string",
+        "End Date" => "expires_on_to_string",
         "Actions" => [
             $linkTemplate,
         ],
@@ -81,6 +118,9 @@ if (!empty($currentOfficers) || !empty($upcomingOfficers) || !empty($previousOff
 
 echo $this->KMP->startBlock("modals");
 echo $this->element('releaseModal', [
+    'user' => $user,
+]);
+echo $this->element('editModal', [
     'user' => $user,
 ]);
 $this->KMP->endBlock();

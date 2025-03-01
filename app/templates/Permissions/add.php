@@ -34,6 +34,10 @@ $this->KMP->endBlock();
             "label" => "Minimum Age",
             "type" => "number",
         ]);
+        echo $this->Form->control("scoping_rule", [
+            "options" => \App\Model\Entity\Permission::SCOPING_RULES,
+            "empty" => true,
+        ]);
         if ($user->isSuperUser()) {
             echo $this->Form->control("is_super_user", ["switch" => true]);
         } else {

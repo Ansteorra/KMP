@@ -44,6 +44,7 @@ class DefaultOfficerManager implements OfficerManagerInterface
         ?DateTime $endOn,
         ?string $deputyDescription,
         int $approverId,
+        ?string $emailAddress
     ): ServiceResult {
         //get officer table
         $officerTable = TableRegistry::getTableLocator()->get('Officers.Officers');
@@ -60,13 +61,17 @@ class DefaultOfficerManager implements OfficerManagerInterface
         }
 
         if ($endOn === null) {
-            $endOn = $startOn->addYears($office->term_length);
+            if ($office->term_length == 0) {
+                $endOn = null;
+            } else {
+                $endOn = $startOn->addMonths($office->term_length);
+            }
         }
         $status = Officer::UPCOMING_STATUS;
         if ($startOn->isToday() || $startOn->isPast()) {
             $status = Officer::CURRENT_STATUS;
         }
-        if ($endOn->isPast()) {
+        if ($endOn != null && $endOn->isPast()) {
             $status = Officer::EXPIRED_STATUS;
         }
         $newOfficer->member_id = $memberId;
@@ -75,6 +80,7 @@ class DefaultOfficerManager implements OfficerManagerInterface
         $newOfficer->approver_id = $approverId;
         $newOfficer->approval_date = DateTime::now();
         $newOfficer->status = $status;
+        $newOfficer->email_address = $emailAddress ? $emailAddress : "";
         if ($office->deputy_to_id != null) {
             $newOfficer->deputy_description = $deputyDescription;
             $newOfficer->deputy_to_branch_id = $newOfficer->branch_id;
@@ -133,7 +139,7 @@ class DefaultOfficerManager implements OfficerManagerInterface
         if (!$officerTable->save($newOfficer)) {
             return new ServiceResult(false, "Failed to save officer");
         }
-        $awResult = $this->activeWindowManager->start('Officers.Officers', $newOfficer->id, $approverId, $startOn, $endOn, $office->term_length, $office->grants_role_id, $office->only_one_per_branch);
+        $awResult = $this->activeWindowManager->start('Officers.Officers', $newOfficer->id, $approverId, $startOn, $endOn, $office->term_length, $office->grants_role_id, $office->only_one_per_branch, $branchId);
         if (!$awResult->success) {
             return new ServiceResult(false, $awResult->reason);
         }
@@ -159,8 +165,8 @@ class DefaultOfficerManager implements OfficerManagerInterface
             "memberScaName" => $member->sca_name,
             "officeName" => $office->name,
             "branchName" => $branch->name,
-            "hireDate" => $newOfficer->start_on->toDateString(),
-            "endDate" => $newOfficer->expires_on->toDateString(),
+            "hireDate" => $newOfficer->start_on_to_string,
+            "endDate" => $newOfficer->expires_on_to_string,
             "requiresWarrant" => $office->requires_warrant
         ];
         $this->queueMail("Officers.Officers", "notifyOfHire", $member->email_address, $vars);

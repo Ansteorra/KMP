@@ -10,13 +10,13 @@ $linkTemplate = [
     "condition" => ["entity_type" => "Direct Grant"],
     "options" => [
         "confirm" => "Are you sure you want to deactivate for {{member->sca_name}}?",
-        "class" => "btn btn-danger"
+        "class" => "btn-sm btn btn-danger"
     ],
 ];
 $columnTemplate = [
     "Member" => "member->sca_name",
-    "Start Date" => "start_on",
-    "End Date" => "expires_on",
+    "Start Date" => "start_on_to_string",
+    "End Date" => "expires_on_to_string",
     "Warrant For" => "entity_type",
     "Status" => "status",
 ];

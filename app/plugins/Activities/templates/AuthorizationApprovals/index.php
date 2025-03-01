@@ -40,7 +40,7 @@ $this->KMP->endBlock(); ?>
             <th scope="col"><?= $this->Paginator->sort("pending_count", "Pending") ?></th>
             <th scope="col"><?= $this->Paginator->sort("approved_count", "Approved") ?></th>
             <th scope="col"><?= $this->Paginator->sort("denied_count", "Denied") ?></th>
-            <th scope="col" class="actions"><?= __("Actions") ?></th>
+            <th scope="col" class="actions"></th>
         </tr>
     </thead>
     <tbody>
@@ -51,11 +51,11 @@ $this->KMP->endBlock(); ?>
                 <td><?= h($authRollup->pending_count) ?></td>
                 <td><?= h($authRollup->approved_count) ?></td>
                 <td><?= h($authRollup->denied_count) ?></td>
-                <td class="actions">
+                <td class="actions text-end text-nowrap">
                     <?= $this->Html->link(
-                        __("View"),
+                        __(""),
                         ["action" => "view", $authRollup->approver->id],
-                        ["title" => __("View"), "class" => "btn btn-secondary"],
+                        ["title" => __("View"), "class" => "btn-sm btn btn-secondary bi bi-binoculars-fill"],
                     ) ?>
                 </td>
             </tr>

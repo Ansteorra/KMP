@@ -113,7 +113,7 @@ class MemberRolesController extends AppController
     protected function addConditions($query)
     {
         return $query
-            ->select(['id', 'role_id', 'member_id', 'approver_id', 'entity_type', 'start_on', 'expires_on', 'revoker_id'])
+            ->select(['id', 'role_id', 'member_id', 'approver_id', 'entity_type', 'entity_id', 'start_on', 'expires_on', 'revoker_id'])
             ->contain([
                 'Members' => function ($q) {
                     return $q->select(['id', 'sca_name']);
@@ -123,6 +123,9 @@ class MemberRolesController extends AppController
                 },
                 'RevokedBy' => function ($q) {
                     return $q->select(['id', 'sca_name']);
+                },
+                'Branches' => function ($q) {
+                    return $q->select(['id', 'name']);
                 },
             ]);
     }

@@ -74,9 +74,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
                     <th scope="col">Member Number</th>
                     <th scope="col">Member Exp</th>
                     <th scope="col">Background Check Exp</th>
-                    <th scope="col" class="actions"><?= __(
-                                                        "Actions",
-                                                    ) ?></th>
+                    <th scope="col" class="actions"></th>
                 </tr>
             </thead>
             <tbody>
@@ -103,7 +101,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
                         <td><?= h(
                                 $request->authorization->member->background_check_expires_on,
                             ) ?></td>
-                        <td class="actions">
+                        <td class="actions text-end text-nowrap">
                             <?php if ($hasMoreApprovalsToGo) : ?>
                                 <button type="button" class="btn btn-primary approve-btn" data-bs-toggle="modal"
                                     data-bs-target="#approveAndAssignModal" data-bs-target="#denyModal"
@@ -122,11 +120,11 @@ echo $this->KMP->startBlock("pageTitle") ?>
                                                 ->activity->name,
                                         ),
                                         "title" => __("Approve"),
-                                        "class" => "btn btn-primary",
+                                        "class" => "btn-sm btn btn-primary",
                                     ],
                                 ) ?>
                             <?php endif; ?>
-                            <button type="button" class="btn btn-secondary deny-btn" data-bs-toggle="modal"
+                            <button type="button" class="btn-sm btn btn-secondary deny-btn" data-bs-toggle="modal"
                                 data-bs-target="#denyModal" data-controller="outlet-btn"
                                 data-action="click->outlet-btn#fireNotice"
                                 data-outlet-btn-btn-data-value='{"id":<?= $request->id ?>}'>

@@ -22,7 +22,7 @@ $this->KMP->endBlock(); ?>
             <th scope="col" class="text-center"><?= $this->Paginator->sort(
                                                     "term_length",
                                                     [
-                                                        "label" => "Duration (years)",
+                                                        "label" => "Duration (Months)",
                                                     ],
                                                 ) ?></th>
             <th scope="col" class="text-center"><?= $this->Paginator->sort(
@@ -36,37 +36,37 @@ $this->KMP->endBlock(); ?>
                                                     ["label" => "# for Auth"],
                                                 ) ?></th>
 
-            <th scope="col" class="actions"><?= __("Actions") ?></th>
+            <th scope="col" class="actions"></th>
         </tr>
     </thead>
     <tbody>
         <?php foreach ($activities as $activity) : ?>
-            <tr>
-                <td><?= h($activity->name) ?></td>
-                <td><?= h($activity->activity_group->name) ?></td>
-                <td class="text-center"><?= $activity->role
+        <tr>
+            <td><?= h($activity->name) ?></td>
+            <td><?= h($activity->activity_group->name) ?></td>
+            <td class="text-center"><?= $activity->role
                                             ? h($activity->role->name)
                                             : "None" ?></td>
-                <td class="text-center"><?= $this->Number->format(
+            <td class="text-center"><?= $this->Number->format(
                                             $activity->term_length,
                                         ) ?></td>
-                <td class="text-center"><?= $activity->minimum_age === null
+            <td class="text-center"><?= $activity->minimum_age === null
                                             ? ""
                                             : $this->Number->format($activity->minimum_age) ?></td>
-                <td class="text-center"><?= $activity->maximum_age === null
+            <td class="text-center"><?= $activity->maximum_age === null
                                             ? ""
                                             : $this->Number->format($activity->maximum_age) ?></td>
-                <td class="text-center"><?= $this->Number->format(
+            <td class="text-center"><?= $this->Number->format(
                                             $activity->num_required_authorizors,
                                         ) ?></td>
-                <td class="actions">
-                    <?= $this->Html->link(
-                        __("View"),
+            <td class="actions text-end text-nowrap">
+                <?= $this->Html->link(
+                        __(""),
                         ["action" => "view", $activity->id],
-                        ["title" => __("View"), "class" => "btn btn-secondary"],
+                        ["title" => __("View"), "class" => "btn-sm btn btn-secondary bi bi-binoculars-fill"],
                     ) ?>
-                </td>
-            </tr>
+            </td>
+        </tr>
         <?php endforeach; ?>
     </tbody>
 </table>

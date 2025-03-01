@@ -171,8 +171,8 @@ class DefaultWarrantManager implements WarrantManagerInterface
                 $vars = [
                     "memberScaName" => $warrant->member->sca_name,
                     "warrantName" => $warrant->name,
-                    "warrantStart" => $warrant->start_on->toDateString(),
-                    "warrantExpires" => $warrant->expires_on->toDateString(),
+                    "warrantStart" => $warrant->start_on_to_string,
+                    "warrantExpires" => $warrant->expires_on_to_string,
                 ];
                 $this->queueMail("KMP", "notifyOfWarrant", $warrant->member->email_address, $vars);
             }
@@ -333,7 +333,7 @@ class DefaultWarrantManager implements WarrantManagerInterface
         return new ServiceResult(true);
     }
 
-    public function getWarrantPeriod(DateTime $startOn, DateTime $endOn): ?WarrantPeriod
+    public function getWarrantPeriod(DateTime $startOn, ?DateTime $endOn): ?WarrantPeriod
     {
         $today = new DateTime();
         $warrantPeriodTable = TableRegistry::getTableLocator()->get('WarrantPeriods');
@@ -348,7 +348,7 @@ class DefaultWarrantManager implements WarrantManagerInterface
         if ($warrantPeriod == null) {
             return null;
         }
-        if ($warrantPeriod->end_date->toNative() > $endOn->toNative()) {
+        if (($endOn != null) && ($warrantPeriod->end_date->toNative() > $endOn->toNative())) {
             $warrantPeriod->end_date = new Date($endOn->toDateString());
         }
         if ($warrantPeriod->start_date->toNative() < $startOn->toNative()) {

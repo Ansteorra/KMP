@@ -64,6 +64,11 @@ class MemberRolesTable extends Table
             "joinType" => "LEFT",
             "propertyName" => "revoked_by",
         ]);
+        $this->belongsTo("Branches", [
+            "className" => "Branches",
+            "foreignKey" => "branch_id",
+            "joinType" => "LEFT",
+        ]);
         $this->addBehavior("Timestamp");
         $this->addBehavior('Muffin/Footprint.Footprint');
         $this->addBehavior("ActiveWindow");

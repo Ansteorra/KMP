@@ -46,7 +46,7 @@ if (!$isTurboFrame) {
                 <th scope="col"><?= $this->Paginator->sort("email_address") ?></th>
                 <th scope="col"><?= $this->Paginator->sort("status") ?></th>
                 <th scope="col"><?= $this->Paginator->sort("last_login") ?></th>
-                <th scope="col" class="actions"><?= __("Actions") ?></th>
+                <th scope="col" class="actions"></th>
             </tr>
         </thead>
         <tbody>
@@ -59,11 +59,11 @@ if (!$isTurboFrame) {
                     <td><?= h($Member->email_address) ?></td>
                     <td><?= h($Member->status) ?></td>
                     <td><?= h($Member->last_login) ?></td>
-                    <td class="actions" data-turbo='false'>
+                    <td class="actions text-end text-nowrap" data-turbo='false'>
                         <?= $this->Html->link(
-                            __("View"),
+                            __(""),
                             ["action" => "view", $Member->id],
-                            ["title" => __("View"), "class" => "btn btn-secondary"],
+                            ["title" => __("View"), "class" => "btn-sm btn btn-secondary bi bi-binoculars-fill"],
                         ) ?>
                         <?php if ($user->isSuperUser()) { ?>
                             <?= $this->Form->postLink(

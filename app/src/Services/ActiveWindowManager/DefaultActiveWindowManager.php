@@ -35,6 +35,7 @@ class DefaultActiveWindowManager implements ActiveWindowManagerInterface
         ?int $termYears = null,
         ?int $grantRoleId = null,
         bool $closeExisting = true,
+        ?int $branchId = null,
 
     ): ServiceResult {
         $entityTable = TableRegistry::getTableLocator()->get($entityType);
@@ -76,6 +77,7 @@ class DefaultActiveWindowManager implements ActiveWindowManagerInterface
             $memberRole->entity_type = $entityType;
             $memberRole->entity_id = $entityId;
             $memberRole->approver_id = $memberId;
+            $memberRole->branch_id = $branchId;
             if (!$memberRoleTable->save($memberRole)) {
                 return new ServiceResult(false, "Failed to Assign Role from Member");
             }

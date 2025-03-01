@@ -31,7 +31,7 @@ $this->KMP->endBlock(); ?>
                         "options" => $treeList,
                         "empty" => true,
                 ]);
-
+                echo $this->Form->control("domain");
                 $links = '[]';
                 echo $this->Form->hidden('branch_links', ['value' => $links, 'id' => 'links', 'data-branch-links-target' => 'formValue']); ?>
         <div class="mb-3 form-group links">

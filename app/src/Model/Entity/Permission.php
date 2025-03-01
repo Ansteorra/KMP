@@ -23,6 +23,19 @@ use Cake\ORM\Entity;
  */
 class Permission extends Entity
 {
+
+    const SCOPE_GLOBAL = "Global"; //No Scope limitations
+    const SCOPE_BRANCH_ONLY = "Branch Only"; //
+    const SCOPE_BRANCH_AND_CHILDREN = "Branch and Children"; //Can Login
+
+    //scoping rules as an array for dropdowns
+    const SCOPING_RULES = [
+        self::SCOPE_GLOBAL => self::SCOPE_GLOBAL,
+        self::SCOPE_BRANCH_ONLY => self::SCOPE_BRANCH_ONLY,
+        self::SCOPE_BRANCH_AND_CHILDREN => self::SCOPE_BRANCH_AND_CHILDREN
+    ];
+
+
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().
      *
@@ -40,6 +53,20 @@ class Permission extends Entity
         "is_system" => true,
         "is_super_user" => true,
         "requires_warrant" => true,
+        "scoping_rule" => true,
         "roles" => true
     ];
+
+    protected function _setScopeing_rule($value)
+    {
+        //the status must be one of the constants defined in this class
+        switch ($value) {
+            case self::SCOPE_GLOBAL:
+            case self::SCOPE_BRANCH_ONLY:
+            case self::SCOPE_BRANCH_AND_CHILDREN:
+                return $value;
+            default:
+                throw new \InvalidArgumentException("Invalid Scoping Rule");
+        }
+    }
 }

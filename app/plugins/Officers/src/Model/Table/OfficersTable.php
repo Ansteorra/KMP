@@ -107,12 +107,21 @@ class OfficersTable extends Table
                 "CurrentWarrants.expires_on >=" => $now
             ],
         ]);
+        $this->hasMany("PendingWarrants", [
+            "className" => "Warrants",
+            "foreignKey" => "entity_id",
+            "conditions" => [
+                "PendingWarrants.entity_type" => "Officers.Officers",
+                "PendingWarrants.status" => Warrant::PENDING_STATUS
+            ],
+        ]);
+
 
         $this->hasMany("Warrants", [
             "className" => "Warrants",
             "foreignKey" => "entity_id",
             "conditions" => [
-                "UpcomingWarrant.entity_type" => "Officers.Officers",
+                "Warrants.entity_type" => "Officers.Officers",
             ],
         ]);
 

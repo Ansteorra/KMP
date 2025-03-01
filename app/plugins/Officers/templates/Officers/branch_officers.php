@@ -11,7 +11,7 @@ $linkTemplate = [
     "action" => "release",
     "id" => "officer_id",
     "options" => [
-        "class" => "btn btn-danger revoke-btn",
+        "class" => "btn-sm btn btn-danger revoke-btn",
         "data-bs-toggle" => "modal",
         "data-bs-target" => "#releaseModal",
         "data-controller" => "outlet-btn",
@@ -19,22 +19,58 @@ $linkTemplate = [
         "data-outlet-btn-btn-data-value" => '{ "id":{{id}} }',
     ]
 ];
+$editTemplate = [
+    "type" => "button",
+    "verify" => true,
+    "label" => "",
+    "plugin" => "Officers",
+    "controller" => "Officers",
+    "action" => "edit",
+    "id" => "officer_id",
+    "condition" => ["is_editable" => "1"],
+    "options" => [
+        "class" => "btn-sm btn btn-primary bi-pencil-fill edit-btn",
+        "data-bs-toggle" => "modal",
+        "data-bs-target" => "#editOfficerModal",
+        "data-controller" => "outlet-btn",
+        "data-action" => "click->outlet-btn#fireNotice",
+        "data-outlet-btn-btn-data-value" => '{ "id":{{id}}, "is_deputy":"{{office->is_deputy}}", "email_address":"{{email_address}}", "deputy_description":"{{deputy_description}}" }',
+    ],
+];
+$newWarrantTemplate = [
+    "type" => "postLink",
+    "verify" => true,
+    "label" => "Request Warrant",
+    "plugin" => "Officers",
+    "controller" => "Officers",
+    "action" => "requestWarrant",
+    "id" => "id",
+    "condition" => ["warrant_state" => "Missing"],
+    "options" => [
+        "confirm" => "Are you sure you want to request a new warrant for {{member->sca_name}}?",
+        "class" => "btn-sm btn btn-warning"
+    ],
+];
 
 $currentAndUpcomingTemplate = [
     "Name" => "member->sca_name",
-    "Office" => "{{office->name}} : {{deputy_description}}",
-    "Start Date" => "start_on",
-    "End Date" => "expires_on",
+    "Office" => "{{office->name}}{{: (deputy_description) }}",
+    "Contact" => "<a href='mailto:{{email_address}}'>{{email_address}}</a>",
+    "Warrant Expires" => "warrant_state",
+    "Start Date" => "start_on_to_string",
+    "End Date" => "expires_on_to_string",
     "Reports To" => "reports_to",
     "Actions" => [
-        $linkTemplate
+        $editTemplate,
+        $newWarrantTemplate,
+        $linkTemplate,
     ],
 ];
 $previousTemplate = [
     "Name" => "member->sca_name",
-    "Office" => "office->name",
-    "Start Date" => "start_on",
-    "End Date" => "expires_on",
+    "Office" => "{{office->name}}{{: (deputy_description) }}",
+    "Start Date" => "start_on_to_string",
+    "End Date" => "expires_on_to_string",
     "Reason" => "revoked_reason",
 ];
 

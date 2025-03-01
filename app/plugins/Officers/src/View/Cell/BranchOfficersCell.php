@@ -60,30 +60,42 @@ class BranchOfficersCell extends BasePluginCell
         $newOfficer = $officersTable->newEmptyEntity();
 
         $branch = $this->fetchTable("Branches")
-            ->find()->cache("branch_" . $id . "_id_and_parent")->select(['id', 'parent_id', 'type'])
+            ->find()->select(['id', 'parent_id', 'type', 'domain'])
             ->where(['id' => $id])->first();
         $officesTbl = $this->fetchTable("Officers.Offices");;
         $officeQuery = $officesTbl->find("all")
-            ->select(["id", "name", "deputy_to_id", "applicable_branch_types"])
-            ->orderBY(["name" => "ASC"]);
+            ->contain(["Departments"])
+            ->select(["id", "Offices.name", "deputy_to_id", "applicable_branch_types", "default_contact_address"])
+            ->orderBY(["Offices.name" => "ASC"]);
         $officeSet = $officeQuery->where(['applicable_branch_types like' => '%"' . $branch->type . '"%'])->toArray();
-        $offices = $this->buildOfficeTree($officeSet, $branch->type, null);
+        $offices = $this->buildOfficeTree($officeSet, $branch, null);
         $this->set(compact('id', 'offices', 'newOfficer'));
     }
 
-    private function buildOfficeTree($offices, $branchType, $branchId = null)
+    private function buildOfficeTree($offices, $branch, $office_id = null)
     {
         $tree = [];
         foreach ($offices as $office) {
-            if ($office->deputy_to_id == $branchId) {
+            if ($office->deputy_to_id == $office_id) {
+                $newofficeEmail = "";
+                if (isset($office->default_contact_address) && !empty($office->default_contact_address)) {
+                    if (isset($branch->domain) && !empty($branch->domain)) {
+                        $newofficeEmail = $office->default_contact_address . "@" . $branch->domain;
+                    } else if (isset($office->department->domain) && !empty($office->department->domain)) {
+                        $newofficeEmail = $office->default_contact_address . "@" . $office->department->domain;
+                    } else {
+                        $newofficeEmail = $office->default_contact_address . "@no_defaults_found.no_domain";
+                    }
+                }
                 $newOffice = [
                     'id' => $office->id,
                     'name' => $office->name,
                     'deputy_to_id' => $office->deputy_to_id,
                     'deputies' => [],
-                    'enabled' => strpos($office->applicable_branch_types, "\"$branchType\"") !== false
+                    'email_address' => $newofficeEmail,
+                    'enabled' => strpos($office->applicable_branch_types, "\"$branch->type\"") !== false
                 ];
-                $newOffice['deputies'] = $this->buildOfficeTree($offices, $branchType, $office->id);
+                $newOffice['deputies'] = $this->buildOfficeTree($offices, $branch, $office->id);
                 $tree[] = $newOffice;
             }
         }

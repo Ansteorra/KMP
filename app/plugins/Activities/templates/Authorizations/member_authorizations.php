@@ -5,7 +5,7 @@ $renewButton = [
     "verify" => false,
     "label" => "Renew",
     "options" => [
-        "class" => "btn btn-primary renew-btn",
+        "class" => "btn-sm btn btn-primary renew-btn",
         "data-bs-toggle" => "modal",
         "data-bs-target" => "#renewalModal",
         "data-controller" => "outlet-btn",
@@ -20,7 +20,7 @@ $revokeButton = [
     "controller" => "Authorizations",
     "action" => "revoke",
     "options" => [
-        "class" => "btn btn-danger revoke-btn",
+        "class" => "btn-sm btn btn-danger revoke-btn",
         "data-bs-toggle" => "modal",
         "data-bs-target" => "#revokeModal",
         "data-controller" => "outlet-btn",
@@ -32,8 +32,8 @@ $columnTemplate = [
     "Authorization" => "activity->name",
 ];
 if ($state == "current") {
-    $columnTemplate["Start Date"] = "start_on";
-    $columnTemplate["End Date"] = "expires_on";
+    $columnTemplate["Start Date"] = "start_on_to_string";
+    $columnTemplate["End Date"] = "expires_on_to_string";
     $columnTemplate["Actions"] = [
         $renewButton,
         $revokeButton
@@ -44,8 +44,8 @@ if ($state == "pending") {
     $columnTemplate["Assigned To"] = "current_pending_approval->approver->sca_name";
 }
 if ($state == "previous") {
-    $columnTemplate["Start Date"] = "start_on";
-    $columnTemplate["End Date"] = "expires_on";
+    $columnTemplate["Start Date"] = "start_on_to_string";
+    $columnTemplate["End Date"] = "expires_on_to_string";
     $columnTemplate["Reason"] = "revoked_reason";
 }
 

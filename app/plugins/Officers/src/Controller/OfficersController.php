@@ -6,6 +6,9 @@ namespace Officers\Controller;
 
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 use Officers\Services\OfficerManagerInterface;
+use App\Services\WarrantManager\WarrantManagerInterface;
+use App\Services\ServiceResult;
+use App\Services\WarrantManager\WarrantRequest;
 use App\Model\Entity\Warrant;
 use Cake\I18n\DateTime;
 use Officers\Model\Entity\Officer;
@@ -43,6 +46,7 @@ class OfficersController extends AppController
             $officeId = (int)$this->request->getData('office_id');
             $branchId = (int)$this->request->getData('branch_id');
             $startOn = new DateTime($this->request->getData('start_on'));
+            $emailAddress = $this->request->getData('email_address');
             $endOn = null;
             if ($this->request->getData('end_on') !== null && $this->request->getData('end_on') !== "") {
                 $endOn = new DateTime($this->request->getData('end_on'));
@@ -51,7 +55,7 @@ class OfficersController extends AppController
             }
             $approverId = (int)$this->Authentication->getIdentity()->getIdentifier();
             $deputyDescription = $this->request->getData('deputy_description');
-            $omResult = $oManager->assign($officeId, $memberId, $branchId, $startOn, $endOn, $deputyDescription, $approverId);
+            $omResult = $oManager->assign($officeId, $memberId, $branchId, $startOn, $endOn, $deputyDescription, $approverId, $emailAddress);
             if (!$omResult->success) {
                 $this->Officers->getConnection()->rollback();
                 $this->Flash->error(__($omResult->reason));
@@ -91,8 +95,51 @@ class OfficersController extends AppController
             $this->redirect($this->referer());
         }
     }
+    public function edit()
+    {
+        $this->request->allowMethod(["post"]);
+        $officer = $this->Officers->get($this->request->getData('id'));
+        if (!$officer) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+        $this->Authorization->authorize($officer);
+        $officer->deputy_description = $this->request->getData('deputy_description');
+        $officer->email_address = $this->request->getData('email_address');
+        if ($this->Officers->save($officer)) {
+            $this->Flash->success(__('The officer has been saved.'));
+        } else {
+            $this->Flash->error(__('The officer could not be saved. Please, try again.'));
+        }
+        $this->redirect($this->referer());
+    }
 
-
+    public function requestWarrant(WarrantManagerInterface $wManager, $id)
+    {
+        $officer = $this->Officers->find()->where(['Officers.id' => $id])->contain(["Offices", "Branches", "Members"])->first();
+        $userid = $this->Authentication->getIdentity()->getIdentifier();
+        if (!$officer) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+        $this->Authorization->authorize($officer);
+        if ($this->request->is('post')) {
+            $officeName = $officer->office->name;
+            if ($officer->deputy_description != null && $officer->deputy_description != "") {
+                $officeName = $officeName . " (" . $officer->deputy_description . ")";
+            }
+            $branchName = $officer->branch->name;
+            $warrantRequest = new WarrantRequest("Manual Request Warrant: $branchName - $officeName", 'Officers.Officers', $officer->id, $userid, $officer->member_id, $officer->start_on, $officer->expires_on, $officer->granted_member_role_id);
+            $memberName = $officer->member->sca_name;
+            $wmResult = $wManager->request("$officeName : $memberName", "", [$warrantRequest]);
+            if (!$wmResult->success) {
+                $this->Flash->error("Could not request Warrant: " . __($wmResult->reason));
+                $this->redirect($this->referer());
+                return;
+            }
+            $this->Flash->success(__('The warrant request has been sent.'));
+            $this->redirect($this->referer());
+            return;
+        }
+    }
 
     public function branchOfficers($id, $state)
     {
@@ -164,29 +211,6 @@ class OfficersController extends AppController
 
         $this->set(compact('officers', 'newOfficer', 'id', 'state'));
     }
-
-    #private function buildOfficeTree($offices, $branchType, $branchId = null)
-    #{
-    #    $tree = [];
-    #    foreach ($offices as $office) {
-    #        if ($office->deputy_to_id == $branchId) {
-    #            $newOffice = [
-    #                'id' => $office->id,
-    #                'name' => $office->name,
-    #                'deputy_to_id' => $office->deputy_to_id,
-    #                'deputies' => [],
-    #                'enabled' => strpos($office->applicable_branch_types, "\"$branchType\"") !== false
-    #            ];
-    #            $newOffice['deputies'] = $this->buildOfficeTree($offices, $branchType, $office->id);
-    #            $tree[] = $newOffice;
-    #        }
-    #    }
-    #    //order the tree by name
-    #    usort($tree, function ($a, $b) {
-    #        return $a['name'] <=> $b['name'];
-    #    });
-    #    return $tree;
-    #}
 
     public function autoComplete($officeId)
     {
@@ -267,6 +291,7 @@ class OfficersController extends AppController
             "Officers.start_on",
             "Officers.expires_on",
             "Officers.deputy_description",
+            "Officers.email_address",
             "status",
         ];
 
@@ -278,7 +303,7 @@ class OfficersController extends AppController
             },
             "Offices" => function ($q) {
                 return $q
-                    ->select(["id", "name"]);
+                    ->select(["id", "name", "requires_warrant", "deputy_to_id", "reports_to_id"]);
             },
 
             "RevokedBy" => function ($q) {
@@ -302,6 +327,14 @@ class OfficersController extends AppController
             $contain["DeputyToOffices"] = function ($q) {
                 return $q
                     ->select(["id", "name"]);
+            };
+            $contain["CurrentWarrants"] = function ($q) {
+                return $q
+                    ->select(["id", "start_on", "expires_on"]);
+            };
+            $contain["PendingWarrants"] = function ($q) {
+                return $q
+                    ->select(["id", "start_on", "expires_on", "entity_id"]);
             };
         }
 

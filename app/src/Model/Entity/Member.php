@@ -563,6 +563,14 @@ class Member extends Entity implements
         }
     }
 
+    protected function _getExpiresOnToString()
+    {
+        if ($this->membership_expires_on == null) {
+            return "";
+        }
+        return $this->membership_expires_on->toDateString();
+    }
+
     protected function _getAge()
     {
         $now = new DateTime();

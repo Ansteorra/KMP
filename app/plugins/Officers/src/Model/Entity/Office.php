@@ -48,6 +48,7 @@ class Office extends Entity
         'department' => true,
         'officers' => true,
         'branch_types' => true,
+        'default_contact_address' => true,
     ];
 
     //update setter so that if the deputy_to_id is set it replaces the reports_to_id as well

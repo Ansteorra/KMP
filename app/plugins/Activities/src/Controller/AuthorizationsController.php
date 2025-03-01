@@ -256,7 +256,7 @@ class AuthorizationsController extends AppController
         foreach ($currentAuths as $auth) {
             $activityGroup = $auth->activity->activity_group->name;
             $activityName = $auth->activity->name;
-            $organizedAuths[$activityGroup][] = $activityName . " : " . $auth->expires_on->toDateString();
+            $organizedAuths[$activityGroup][] = $activityName . " : " . $auth->expires_on_to_string;
         }
         $responseData = ["Authorizations" => $organizedAuths,];
         $this->viewBuilder()->setClassName("Ajax");

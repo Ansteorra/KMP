@@ -19,7 +19,7 @@ $this->KMP->endBlock(); ?>
         <tr>
             <th scope="col"><?= h("Name") ?></th>
             <th scope="col"><?= h("Progression Order") ?></th>
-            <th scope="col" class="actions"><?= __("Actions") ?></th>
+            <th scope="col" class="actions"></th>
         </tr>
     </thead>
     <tbody>
@@ -27,11 +27,11 @@ $this->KMP->endBlock(); ?>
             <tr>
                 <td><?= h($level->name) ?></td>
                 <td><?= h($level->progression_order) ?></td>
-                <td class="actions">
+                <td class="actions text-end text-nowrap">
                     <?= $this->Html->link(
-                        __("View"),
+                        __(""),
                         ["action" => "view", $level->id],
-                        ["title" => __("View"), "class" => "btn btn-secondary"],
+                        ["title" => __("View"), "class" => "btn-sm btn btn-secondary bi bi-binoculars-fill"],
                     ) ?>
                 </td>
             </tr>

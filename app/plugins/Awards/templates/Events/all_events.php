@@ -3,11 +3,11 @@ $linkTemplate = [
     "type" => "link",
     "verify" => true,
     "plugin" => "Awards",
-    "label" => "View",
+    "label" => "",
     "controller" => "Events",
     "action" => "view",
     "id" => "id",
-    "options" => ["class" => "btn btn-secondary", "data-turbo-frame" => "_top"],
+    "options" => ["class" => "btn-sm btn btn-secondary bi-binoculars-fill", "data-turbo-frame" => "_top"],
 ];
 $columnTemplate = [
     "name" => "name",

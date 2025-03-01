@@ -51,6 +51,18 @@ class OfficerPolicy extends BasePolicy
         return false;
     }
 
+    public function canRequestWarrant(IdentityInterface $user, $entity)
+    {
+        if ($this->_hasNamedPermission($user, $this->REQUIRED_ASSIGN_PERMISSION)) {
+            return true;
+        }
+        if ($user->id == $entity->member_id) {
+            return true;
+        }
+        return false;
+    }
+
+
     public function canIndex(IdentityInterface $user, $entity)
     {
         $canDo = $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);

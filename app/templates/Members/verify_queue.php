@@ -71,7 +71,7 @@ foreach ($Members as $Member) {
                             <th scope="col">Last Name</th>
                             <th scope="col">Email Address</th>
                             <th scope="col" class="text-center">Card</th>
-                            <th scope="col" class="actions"><?= __("Actions") ?></th>
+                            <th scope="col" class="actions"></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -89,11 +89,11 @@ foreach ($Members as $Member) {
                                         echo $this->Html->icon("card-heading");
                                     } ?>
                                 </td>
-                                <td class="actions">
+                                <td class="actions text-end text-nowrap">
                                     <?= $this->Html->link(
-                                        __("View"),
+                                        __(""),
                                         ["action" => "view", $Member->id],
-                                        ["title" => __("View"), "class" => "btn btn-secondary"],
+                                        ["title" => __("View"), "class" => "btn-sm btn btn-secondary bi bi-binoculars-fill"],
                                     ) ?>
                                 </td>
                             </tr>
@@ -115,7 +115,7 @@ foreach ($Members as $Member) {
                             <th scope="col">Last Name</th>
                             <th scope="col">Email Address</th>
                             <th scope="col" class="text-center">Card</th>
-                            <th scope="col" class="actions"><?= __("Actions") ?></th>
+                            <th scope="col" class="actions"></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -133,11 +133,11 @@ foreach ($Members as $Member) {
                                         echo $this->Html->icon("card-heading");
                                     } ?>
                                 </td>
-                                <td class="actions">
+                                <td class="actions text-end text-nowrap">
                                     <?= $this->Html->link(
-                                        __("View"),
+                                        __(""),
                                         ["action" => "view", $Member->id],
-                                        ["title" => __("View"), "class" => "btn btn-secondary"],
+                                        ["title" => __("View"), "class" => "btn-sm btn btn-secondary bi bi-binoculars-fill"],
                                     ) ?>
                                 </td>
                             </tr>
@@ -159,7 +159,7 @@ foreach ($Members as $Member) {
                             <th scope="col">Last Name</th>
                             <th scope="col">Email Address</th>
                             <th scope="col" class="text-center">Card</th>
-                            <th scope="col" class="actions"><?= __("Actions") ?></th>
+                            <th scope="col" class="actions"></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -177,11 +177,11 @@ foreach ($Members as $Member) {
                                         echo $this->Html->icon("card-heading");
                                     } ?>
                                 </td>
-                                <td class="actions">
+                                <td class="actions text-end text-nowrap">
                                     <?= $this->Html->link(
-                                        __("View"),
+                                        __(""),
                                         ["action" => "view", $Member->id],
-                                        ["title" => __("View"), "class" => "btn btn-secondary"],
+                                        ["title" => __("View"), "class" => "btn-sm btn btn-secondary bi bi-binoculars-fill"],
                                     ) ?>
                                 </td>
                             </tr>

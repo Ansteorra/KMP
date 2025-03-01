@@ -150,32 +150,30 @@ echo $this->KMP->startBlock("pageTitle") ?>
 <div class="tab-pane fade m-3" id="nav-roles" role="tabpanel" aria-labelledby="nav-roles-tab"
     data-detail-tabs-target="tabContent">
     <?php if (!empty($roles)) : ?>
-    <div class="table-responsive">
-        <table class="table table-striped">
-            <tr>
-                <th scope="col"><?= __("Name") ?></th>
-                <th scope="col" class="actions"><?= __(
-                                                        "Actions",
-                                                    ) ?></th>
-            </tr>
-            <?php foreach ($roles as $role) : ?>
-            <tr>
-                <td><?= h($role->name) ?></td>
-                <td class="actions">
-                    <?= $this->Html->link(
-                                __("View"),
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <tr>
+                    <th scope="col"><?= __("Name") ?></th>
+                    <th scope="col" class="actions"></th>
+                </tr>
+                <?php foreach ($roles as $role) : ?>
+                    <tr>
+                        <td><?= h($role->name) ?></td>
+                        <td class="actions text-end text-nowrap">
+                            <?= $this->Html->link(
+                                __(""),
                                 [
                                     "controller" => "Roles",
                                     "action" => "view",
                                     $role->id,
                                 ],
-                                ["class" => "btn btn-secondary"],
+                                ["class" => "btn-sm btn btn-secondary bi bi-binoculars-fill"],
                             ) ?>
-                </td>
-            </tr>
-            <?php endforeach; ?>
-        </table>
-    </div>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            </table>
+        </div>
     <?php endif; ?>
 </div>
 
@@ -210,7 +208,7 @@ echo $this->Modal->create("Edit Authoriztion Type", [
         "empty" => true,
     ]);
     echo $this->Form->control("term_length", [
-        "label" => "Duration (years)",
+        "label" => "Duration (Months)",
         "type" => "number",
     ]);
     echo $this->Form->control("minimum_age", ["type" => "number"]);

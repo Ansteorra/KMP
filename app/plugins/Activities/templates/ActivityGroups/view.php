@@ -51,7 +51,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
                     <tr>
                         <th scope="col"><?= h("name") ?></th>
                         <th scope="col" class="text-center"><?= h(
-                                                                "Duration (years)",
+                                                                "Duration (Months)",
                                                             ) ?></th>
                         <th scope="col" class="text-center"><?= h(
                                                                 "minimum_age",
