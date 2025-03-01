@@ -42,17 +42,17 @@ $this->KMP->endBlock(); ?>
     </thead>
     <tbody>
         <?php foreach ($appSettings as $appSetting) : ?>
-        <tr data-controller='app-setting-form'>
+            <tr data-controller='app-setting-form'>
 
-            <td class='align-middle'><?= h($appSetting->name) ?></td>
-            <td><?= $this->Form->create($appSetting, [
+                <td class='align-middle'><?= h($appSetting->name) ?></td>
+                <td><?= $this->Form->create($appSetting, [
                         "url" => ["action" => "edit", $appSetting->id],
                         "data-app-setting-form-target" => "form",
                     ]) ?>
-                <?php if ($appSetting->type == "json" || $appSetting->type == "yaml") : ?>
-                <div data-controller="guifier-control" data-guifier-control-value='<?= $appSetting->raw_value ?>'
-                    data-guifier-control-type-value='<?= $appSetting->type ?>'>
-                    <?= $this->Form->hidden("raw_value", [
+                    <?php if ($appSetting->type == "json" || $appSetting->type == "yaml") : ?>
+                        <div data-controller="guifier-control" data-guifier-control-value='<?= $appSetting->raw_value ?>'
+                            data-guifier-control-type-value='<?= $appSetting->type ?>'>
+                            <?= $this->Form->hidden("raw_value", [
                                 "value" => $appSetting->raw_value,
                                 "id" => "raw_value_" . $appSetting->id,
                                 "label" => false,
@@ -60,26 +60,26 @@ $this->KMP->endBlock(); ?>
                                 "data-action" => "change->app-setting-form#enableSubmit",
                                 "data-guifier-control-target" => "hidden",
                             ]) ?>
-                    <div id="guifier_<?= $appSetting->id ?>" data-guifier-control-target="container">
-                    </div>
-                    <?php else : ?>
-                    <?= $this->Form->textarea("raw_value", [
+                            <div id="guifier_<?= $appSetting->id ?>" data-guifier-control-target="container">
+                            </div>
+                        <?php else : ?>
+                            <?= $this->Form->textarea("raw_value", [
                                 "label" => false,
                                 "spacing" => "inline",
                                 "data-action" => "change->app-setting-form#enableSubmit",
                             ]) ?>
-                    <?php endif; ?>
-                    <?= $this->Form->end() ?>
-            </td>
-            <td class="actions">
-                <?= $this->Form->button("Save", [
+                        <?php endif; ?>
+                        <?= $this->Form->end() ?>
+                </td>
+                <td class="actions text-end text-nowrap">
+                    <?= $this->Form->button("Save", [
                         "class" => "btn btn-secondary",
                         "disabled" => true,
                         "data-action" => "click->app-setting-form#submit",
                         "data-app-setting-form-target" => "submitBtn",
                     ]) ?>
-                <?php if (!$appSetting->required) : ?>
-                <?= $this->Form->postLink(
+                    <?php if (!$appSetting->required) : ?>
+                        <?= $this->Form->postLink(
                             __("Delete"),
                             ["action" => "delete", $appSetting->id],
                             [
@@ -91,10 +91,10 @@ $this->KMP->endBlock(); ?>
                                 "class" => "btn btn-danger",
                             ],
                         ) ?>
-                <?php endif; ?>
-            </td>
+                    <?php endif; ?>
+                </td>
 
-        </tr>
+            </tr>
         <?php endforeach; ?>
     </tbody>
 </table>

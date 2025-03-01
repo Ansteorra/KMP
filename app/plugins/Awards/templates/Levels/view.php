@@ -60,7 +60,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
                         <th scope="col" class="text-center"><?= h(
                                                                 "Branch",
                                                             ) ?></th>
-                        <th scope="col" class="actions"><?= __("Actions") ?></th>
+                        <th scope="col" class="actions"></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -76,11 +76,11 @@ echo $this->KMP->startBlock("pageTitle") ?>
                             <td class="text-center">
                                 <?= $award->hasValue('branch') ? $this->Html->link($award->branch->name, ['plugin' => null, 'controller' => 'Branches', 'action' => 'view', $award->branch->id]) : '' ?>
                             </td>
-                            <td class="actions">
+                            <td class="actions text-end text-nowrap">
                                 <?= $this->Html->link(
-                                    __("View"),
+                                    __(""),
                                     ["controller" => "Awards", "action" => "view", $award->id],
-                                    ["title" => __("View"), "class" => "btn btn-secondary"],
+                                    ["title" => __("View"), "class" => "btn-sm btn btn-secondary bi bi-binoculars-fill"],
                                 ) ?>
                             </td>
                         </tr>

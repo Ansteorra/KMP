@@ -110,6 +110,7 @@ class MemberOfficersCell extends BasePluginCell
             "Officers.start_on",
             "Officers.expires_on",
             "Officers.deputy_description",
+            "Officers.email_address",
             "status",
         ];
 
@@ -121,7 +122,7 @@ class MemberOfficersCell extends BasePluginCell
             },
             "Offices" => function ($q) {
                 return $q
-                    ->select(["id", "name"]);
+                    ->select(["id", "name", "requires_warrant", "deputy_to_id", "reports_to_id"]);
             },
             "Branches" => function ($q) {
                 return $q
@@ -148,6 +149,14 @@ class MemberOfficersCell extends BasePluginCell
             $contain["DeputyToOffices"] = function ($q) {
                 return $q
                     ->select(["id", "name"]);
+            };
+            $contain["CurrentWarrants"] = function ($q) {
+                return $q
+                    ->select(["id", "start_on", "expires_on"]);
+            };
+            $contain["PendingWarrants"] = function ($q) {
+                return $q
+                    ->select(["id", "start_on", "expires_on", "entity_id"]);
             };
         }
 

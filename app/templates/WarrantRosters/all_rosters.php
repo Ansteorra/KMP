@@ -15,7 +15,7 @@
                 <th scope="col"><?= $this->Paginator->sort('status') ?></th>
                 <th scope="col"><?= $this->Paginator->sort('created') ?></th>
                 <th scope="col"><?= h('Created By') ?></th>
-                <th scope="col" class="actions"><?= __('Actions') ?></th>
+                <th scope="col" class="actions"></th>
             </tr>
         </thead>
         <tbody>
@@ -30,8 +30,8 @@
                 <td><?= h($warrantRoster->created->toDateString()) ?></td>
                 <td><?= $warrantRoster->created_by_member === null ? '' : $warrantRoster->created_by_member->sca_name ?>
                 </td>
-                <td class="actions">
-                    <?= $this->Html->link(__('View'), ['action' => 'view', $warrantRoster->id], ['title' => __('View'), 'class' => 'btn btn-secondary',  "data-turbo-frame" => "_top"]) ?>
+                <td class="actions text-end text-nowrap">
+                    <?= $this->Html->link(__(''), ['action' => 'view', $warrantRoster->id], ['title' => __('View'), 'class' => 'btn-sm btn btn-secondary bi bi-binoculars-fill',  "data-turbo-frame" => "_top"]) ?>
                 </td>
             </tr>
             <?php endforeach; ?>

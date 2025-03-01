@@ -54,7 +54,8 @@ if (!$selected) {
                             <thead>
                                 <tr>
                                     <?php foreach ($tab["columns"] as $column => $value) { ?>
-                                        <th scope="col <?= $column == "Actions" ? "actions" : "" ?>"><?= $column ?></th>
+                                        <th scope="col" class="<?= $column == "Actions" ? "actions" : "" ?>">
+                                            <?= $column == "Actions" ? "" : $column ?></th>
                                     <?php } ?>
                                 </tr>
                             </thead>
@@ -64,7 +65,7 @@ if (!$selected) {
                                     <tr>
                                         <?php foreach ($tab["columns"] as $column => $value) {
                                             if ($column == "Actions") { ?>
-                                                <td class="actions">
+                                                <td class="actions text-end text-nowrap">
                                                     <?php foreach ($value as $link) {
                                                         if (isset($link["condition"])) {
                                                             //loop through the conditions and if any of them are false, skip this link
@@ -127,6 +128,7 @@ if (!$selected) {
                                                                     echo $this->Form->postLink(
                                                                         __($link["label"]),
                                                                         [
+                                                                            "plugin" => $link["plugin"],
                                                                             "controller" => $link["controller"],
                                                                             "action" => $link["action"],
                                                                             StaticHelpers::getValue($link["id"], $data),
@@ -147,9 +149,9 @@ if (!$selected) {
                                                                             if ($record instanceof Cake\I18n\DateTime) {
                                                                                 echo $record->toDateString();
                                                                             } elseif (is_string($value) && strpos($value, "{{") !== false) {
-                                                                                echo h(StaticHelpers::processTemplate($value, $data));
+                                                                                echo StaticHelpers::processTemplate($value, $data);
                                                                             } else {
-                                                                                echo h($record);
+                                                                                echo $record;
                                                                             }
                                                                             ?></td>
                                         <?php }

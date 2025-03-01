@@ -56,7 +56,7 @@ class BranchRequiredOfficersCell extends BasePluginCell
         $officesQuery = $officesTbl->find()
             ->contain(["CurrentOfficers" => function ($q) use ($id) {
                 return $q
-                    ->select(["id", "member_id", "office_id", "start_on", "expires_on", "Members.sca_name"])
+                    ->select(["id", "member_id", "office_id", "start_on", "expires_on", "Members.sca_name", "CurrentOfficers.email_address"])
                     ->contain(["Members"])
                     ->where(['CurrentOfficers.branch_id' => $id]);
             }])

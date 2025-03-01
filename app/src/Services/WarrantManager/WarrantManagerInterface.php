@@ -14,5 +14,5 @@ interface WarrantManagerInterface
     public function cancel($warrant_id, $reason, $rejecter_id, $expiresOn): ServiceResult;
     public function cancelByEntity($entityType, $entityId, $reason, $rejecter_id, $expiresOn): ServiceResult;
     public function declineSingleWarrant($warrant_id, $reason, $rejecter_id): ServiceResult;
-    public function getWarrantPeriod(DateTime $startOn, DateTime $endOn): ?WarrantPeriod;
+    public function getWarrantPeriod(DateTime $startOn, ?DateTime $endOn): ?WarrantPeriod;
 }

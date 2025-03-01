@@ -77,4 +77,7 @@ echo $this->element('assignModal', [
     'user' => $user,
 ]);
 
+echo $this->element('editModal', [
+    'user' => $user,
+]);
 $this->KMP->endBlock(); ?>

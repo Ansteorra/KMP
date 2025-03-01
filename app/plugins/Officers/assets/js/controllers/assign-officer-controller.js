@@ -4,14 +4,16 @@ class OfficersAssignOfficer extends Controller {
     static values = {
         url: String,
     }
-    static targets = ["assignee", "submitBtn", "deputyDescBlock", "deputyDesc", "office", "endDateBlock", "endDate"]
+    static targets = ["assignee", "submitBtn", "deputyDescBlock", "deputyDesc", "office", "endDateBlock", "endDate", "emailAddress", "emailAddressBlock"]
     static outlets = ["outlet-btn", "member-serach"]
 
     setOfficeQuestions() {
         this.deputyDescBlockTarget.classList.add('d-none');
         this.endDateBlockTarget.classList.add('d-none');
+        this.emailAddressBlockTarget.classList.add('d-none');
         this.endDateTarget.disabled = true;
         this.deputyDescTarget.disabled = true;
+        this.emailAddressTarget.disabled = true;
         var officeVal = this.officeTarget.value;
         // set the member search url by taking the current url and removing the last part (if it is a number) and replacing it with the officeVal
         var url = this.assigneeTarget.getAttribute('data-ac-url-value');
@@ -30,6 +32,11 @@ class OfficersAssignOfficer extends Controller {
                 this.endDateBlockTarget.classList.remove('d-none');
                 this.endDateTarget.disabled = false;
                 this.deputyDescTarget.disabled = false;
+            }
+            if (office.data.email_address) {
+                this.emailAddressBlockTarget.classList.remove('d-none');
+                this.emailAddressTarget.disabled = false;
+                this.emailAddressTarget.value = office.data.email_address;
             }
             this.checkReadyToSubmit();
             return;
@@ -60,6 +67,7 @@ class OfficersAssignOfficer extends Controller {
     connect() {
         this.deputyDescBlockTarget.classList.add('d-none');
         this.endDateBlockTarget.classList.add('d-none');
+        this.emailAddressBlockTarget.classList.add('d-none');
     }
 
 

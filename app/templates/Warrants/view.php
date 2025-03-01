@@ -101,14 +101,14 @@ echo $this->KMP->startBlock("pageTitle") ?>
                     <thead>
                         <tr>
                             <th scope="col"><?= __("Name") ?></th>
-                            <th scope="col" class="actions"><?= __("Actions") ?></th>
+                            <th scope="col" class="actions"></th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php foreach ($permission->roles as $role) : ?>
                             <tr>
                                 <td><?= h($role->name) ?></td>
-                                <td class="actions">
+                                <td class="actions text-end text-nowrap">
                                     <?php if ($user->checkCan("deletePermission", "Roles")) { ?>
                                         <?= $this->Form->postLink(
                                             __("Remove"),

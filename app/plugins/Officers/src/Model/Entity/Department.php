@@ -30,5 +30,6 @@ class Department extends Entity
         'name' => true,
         'deleted' => true,
         'offices' => true,
+        'domain' => true,
     ];
 }

@@ -42,9 +42,7 @@ class MemberAuthorizationDetailsJSONCell extends BasePluginCell
      *
      * @return void
      */
-    public function initialize(): void
-    {
-    }
+    public function initialize(): void {}
 
     /**
      * Default display method.
@@ -68,7 +66,7 @@ class MemberAuthorizationDetailsJSONCell extends BasePluginCell
         foreach ($currentAuths as $auth) {
             $activityGroup = $auth->activity->activity_group->name;
             $activityName = $auth->activity->name;
-            $organizedAuths[$activityGroup][] = $activityName . " : " . $auth->expires_on->toDateString();
+            $organizedAuths[$activityGroup][] = $activityName . " : " . $auth->expires_on_to_string;
         }
         $memberPermissions = PermissionsLoader::getPermissions($id);
         $permissionIds = [];

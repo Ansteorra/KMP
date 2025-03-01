@@ -28,6 +28,7 @@ interface OfficerManagerInterface
         ?DateTime $endOn,
         ?string $deputyDescription,
         int $approverId,
+        ?string $emailAddress
     ): ServiceResult;
 
 

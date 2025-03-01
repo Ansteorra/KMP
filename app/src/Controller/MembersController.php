@@ -1344,7 +1344,10 @@ class MembersController extends AppController
                 },
                 "ApprovedBy" => function (SelectQuery $q) {
                     return $q->select(["ApprovedBy.sca_name"]);
-                }
+                },
+                "Branches" => function (SelectQuery $q) {
+                    return $q->select(["Branches.name"]);
+                },
             ]);
     }
     #endregion

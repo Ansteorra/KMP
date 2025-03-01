@@ -22,6 +22,7 @@ $this->KMP->endBlock(); ?>
         </tr>
         <tr>
             <th scope="col"><?= $this->Paginator->sort("name") ?></th>
+            <th scope="col"><?= $this->Paginator->sort("scoping_rule") ?></th>
             <th scope="col" class="text-center"><?= __("Membership") ?></th>
             <th scope="col" class="text-center"><?= __(
                                                     "Background Check",
@@ -30,13 +31,14 @@ $this->KMP->endBlock(); ?>
             <th scope="col" class="text-center"><?= __("Warrant") ?></th>
             <th scope="col" class="text-center"><?= __("Super User") ?></th>
             <th scope="col" class="text-center"><?= __("System") ?></th>
-            <th scope="col" class="actions"><?= __("Actions") ?></th>
+            <th scope="col" class="actions"></th>
         </tr>
     </thead>
     <tbody>
         <?php foreach ($permissions as $permission) : ?>
             <tr>
                 <td><?= h($permission->name) ?></td>
+                <td><?= h($permission->scoping_rule) ?></td>
                 <td class="text-center"><?= $this->Kmp->bool(
                                             $permission->require_active_membership,
                                             $this->Html,
@@ -59,11 +61,11 @@ $this->KMP->endBlock(); ?>
                                             $permission->is_system,
                                             $this->Html,
                                         ) ?></td>
-                <td class="actions">
+                <td class="actions text-end text-nowrap">
                     <?= $this->Html->link(
-                        __("View"),
+                        __(""),
                         ["action" => "view", $permission->id],
-                        ["title" => __("View"), "class" => "btn btn-secondary"],
+                        ["title" => __("View"), "class" => "btn-sm btn btn-secondary bi bi-binoculars-fill"],
                     ) ?>
                 </td>
             </tr>

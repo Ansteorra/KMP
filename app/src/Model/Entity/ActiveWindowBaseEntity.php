@@ -37,7 +37,7 @@ abstract class ActiveWindowBaseEntity extends Entity
      * @param ?int $termYears
      * @return bool
      */
-    public function start(Datetime $startOn = null, ?DateTime $expiresOn = null, ?int $termYears = null): void
+    public function start(?Datetime $startOn = null, ?DateTime $expiresOn = null, ?int $termYears = null): void
     {
         if ($startOn == null) {
             $startOn = Datetime::now();
@@ -45,7 +45,7 @@ abstract class ActiveWindowBaseEntity extends Entity
         $this->start_on = $startOn->toDateTimeString();
         if ($expiresOn == null) {
             if ($termYears != null && $termYears != -1) {
-                $this->expires_on = $startOn->addYears($termYears)->toDateTimeString();
+                $this->expires_on = $startOn->addMonths($termYears)->toDateTimeString();
             } else {
                 $this->expires_on = null;
             }
@@ -60,12 +60,25 @@ abstract class ActiveWindowBaseEntity extends Entity
      * @param DateTime $expiresOn
      * @return bool
      */
-    public function expire(Datetime $expiresOn = null): void
+    public function expire(?Datetime $expiresOn = null): void
     {
         if ($expiresOn == null) {
             $expiresOn = Datetime::now();
         }
         $expiresOn = $expiresOn->subSeconds(1);
         $this->set('expires_on', $expiresOn->toDateTimeString());
+    }
+
+    protected function _getExpiresOnToString()
+    {
+        if ($this->expires_on == null) {
+            return "No Exp Date";
+        }
+        return $this->expires_on->toDateString();
+    }
+
+    protected function _getStartOnToString()
+    {
+        return $this->start_on->toDateString();
     }
 }

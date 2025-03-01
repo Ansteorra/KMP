@@ -63,17 +63,17 @@ echo $this->KMP->startBlock("pageTitle") ?>
 <?php $this->KMP->endBlock() ?>
 <?= $this->KMP->startBlock("recordActions") ?>
 <?php if ($user->checkCan("verifyMembership", "Members") && $needVerification) { ?>
-    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
-        data-bs-target="#verifyMembershipModal">Verify Membership</button>
+<button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
+    data-bs-target="#verifyMembershipModal">Verify Membership</button>
 <?php } ?>
 <?php if (
     $user->checkCan("edit", $member) ||
     $user->checkCan("partialEdit", $member)
 ) { ?>
-    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal"
-        id='editModalBtn'>Edit</button>
-    <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#passwordModal"
-        id='passwordModalBtn'>Change Password</button>
+<button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal"
+    id='editModalBtn'>Edit</button>
+<button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#passwordModal"
+    id='passwordModalBtn'>Change Password</button>
 <?php } ?>
 <?php $this->KMP->endBlock() ?>
 
@@ -90,10 +90,10 @@ $this->KMP->endBlock() ?>
     aria-controls="nav-notes" aria-selected="false" data-detail-tabs-target='tabBtn'><?= __("Notes") ?>
 </button>
 <?php if (!empty($aiForm)) : ?>
-    <button class=" nav-link" id="nav-add-info-tab" data-bs-toggle="tab" data-bs-target="#nav-add-info" type="button"
-        role="tab" aria-controls="nav-add-info" aria-selected="false" data-detail-tabs-target='tabBtn'>
-        <?= __("Additional Info") ?>
-    </button>
+<button class=" nav-link" id="nav-add-info-tab" data-bs-toggle="tab" data-bs-target="#nav-add-info" type="button"
+    role="tab" aria-controls="nav-add-info" aria-selected="false" data-detail-tabs-target='tabBtn'>
+    <?= __("Additional Info") ?>
+</button>
 <?php endif; ?>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("tabContent") ?>
@@ -104,11 +104,11 @@ $this->KMP->endBlock() ?>
             "type" => "link",
             "verify" => true,
             "authData" => "role",
-            "label" => "View",
+            "label" => "",
             "controller" => "Roles",
             "action" => "view",
             "id" => "role_id",
-            "options" => ["class" => "btn btn-secondary"],
+            "options" => ["class" => "btn-sm btn btn-secondary bi-binoculars-fill"],
         ];
         $removeLinkTemplate = [
             "type" => "postLink",
@@ -120,15 +120,16 @@ $this->KMP->endBlock() ?>
             "condition" => ["entity_type" => "Direct Grant"],
             "options" => [
                 "confirm" => "Are you sure you want to deactivate for {{member->sca_name}}?",
-                "class" => "btn btn-danger"
+                "class" => "btn-sm btn btn-danger"
             ],
         ];
         $currentTemplate = [
             "Role" => "role->name",
-            "Start Date" => "start_on",
-            "End Date" => "expires_on",
+            "Start Date" => "start_on_to_string",
+            "End Date" => "expires_on_to_string",
             "Approved By" => "approved_by->sca_name",
             "Granted By" => "entity_type",
+            "Scope" => "branch->name",
             "Actions" => [
                 $linkTemplate,
                 $removeLinkTemplate
@@ -136,8 +137,8 @@ $this->KMP->endBlock() ?>
         ];
         $previousTemplate = [
             "Role" => "role->name",
-            "Start Date" => "start_on",
-            "End Date" => "expires_on",
+            "Start Date" => "start_on_to_string",
+            "End Date" => "expires_on_to_string",
             "Approved By" => "approved_by->sca_name",
             "Granted By" => "entity_type",
             "Actions" => [
@@ -185,9 +186,9 @@ $this->KMP->endBlock() ?>
     ]) ?>
 </div>
 <?php if (!empty($aiForm)) : ?>
-    <div class="related tab-pane fade m-3" id="nav-add-info" role="tabpanel" aria-labelledby="nav-add-info-tab"
-        data-detail-tabs-target="tabContent">
-        <?php
+<div class="related tab-pane fade m-3" id="nav-add-info" role="tabpanel" aria-labelledby="nav-add-info-tab"
+    data-detail-tabs-target="tabContent">
+    <?php
         $appInfo = $member->additional_info;
         $userEditableOnly = !$user->checkCan("edit", $member);
         if ($user->checkCan("editAdditionalInfo", $member)) {
@@ -289,12 +290,12 @@ $this->KMP->endBlock() ?>
             ]);
             echo $this->form->end();
         } else { ?>
-            <table class='table table-striped'>
-                <?php foreach ($aiForm as $fieldKey => $fieldType) { ?>
-                    <tr scope="row">
-                        <th class="col"><?= str_replace("_", " ", $fieldKey) ?></th>
-                        <td class="col-10">
-                            <?php
+    <table class='table table-striped'>
+        <?php foreach ($aiForm as $fieldKey => $fieldType) { ?>
+        <tr scope="row">
+            <th class="col"><?= str_replace("_", " ", $fieldKey) ?></th>
+            <td class="col-10">
+                <?php
                             $pipePos = strpos($fieldType, "|");
                             $managerOnly = false;
                             $userEditable = false;
@@ -323,12 +324,12 @@ $this->KMP->endBlock() ?>
                                     break;
                             }
                             ?>
-                        </td>
-                    </tr>
-                <?php } ?>
-            </table>
+            </td>
+        </tr>
         <?php } ?>
-    </div>
+    </table>
+    <?php } ?>
+</div>
 <?php endif; ?>
 <?php $this->KMP->endBlock() ?>
 <?php

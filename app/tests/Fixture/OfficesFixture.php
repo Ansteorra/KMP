@@ -27,7 +27,7 @@ class OfficesFixture extends TestFixture
                 'obly_one_per_branch' => 1,
                 'deputy_to_id' => 1,
                 'grants_role_id' => 1,
-                'term_length' => 1,
+                'term_length' => 12,
                 'deleted' => '2024-06-05',
             ],
         ];

@@ -18,7 +18,7 @@ $this->KMP->endBlock(); ?>
         <tr>
             <th scope="col"><?= $this->Paginator->sort("name") ?></th>
             <th scope="col"><?= __("Department") ?></th>
-            <th scope="col" class="text-center"><?= __("Term (years)") ?></th>
+            <th scope="col" class="text-center"><?= __("Term (Month)") ?></th>
             <th scope="col" class="text-center"><?= __("Required") ?></th>
             <th scope="col" class="text-center"><?= __("Skip Report") ?></th>
             <th scope="col" class="text-center"><?= __("Warrant") ?></th>
@@ -28,55 +28,55 @@ $this->KMP->endBlock(); ?>
             <th scope="col" class="text-center"><?= __("Reports To") ?></th>
             <th scope="col" class="text-center"><?= __("Deputy To") ?></th>
             <th scope="col" class="text-center"><?= __("Grants Role") ?></th>
-            <th scope="col" class="actions"><?= __("Actions") ?></th>
+            <th scope="col" class="actions"></th>
         </tr>
     </thead>
     <tbody>
         <?php foreach ($offices as $office) : ?>
-        <tr>
-            <td><?= h($office->name) ?></td>
-            <td><?= h($office->department->name) ?></td>
-            <td class="text-center"><?= h($office->term_length) ?></td>
-            <td class="text-center"><?= $this->Kmp->bool(
+            <tr>
+                <td><?= h($office->name) ?></td>
+                <td><?= h($office->department->name) ?></td>
+                <td class="text-center"><?= h($office->term_length) ?></td>
+                <td class="text-center"><?= $this->Kmp->bool(
                                             $office->required_office,
                                             $this->Html,
                                         ) ?></td>
-            <td class="text-center"><?= $this->Kmp->bool(
+                <td class="text-center"><?= $this->Kmp->bool(
                                             $office->can_skip_report,
                                             $this->Html,
                                         ) ?></td>
-            <td class="text-center"><?= $this->Kmp->bool(
+                <td class="text-center"><?= $this->Kmp->bool(
                                             $office->requires_warrant,
                                             $this->Html,
                                         ) ?></td>
-            <td class="text-center"><?= $this->Kmp->bool(
+                <td class="text-center"><?= $this->Kmp->bool(
                                             $office->only_one_per_branch,
                                             $this->Html,
                                         ) ?></td>
-            <td class="text-center"><?= h(
+                <td class="text-center"><?= h(
                                             $office->reports_to === null
                                                 ? "Society"
                                                 : $office->reports_to->name,
                                         ) ?></td>
-            <td class="text-center"><?= h(
+                <td class="text-center"><?= h(
                                             $office->deputy_to === null
                                                 ? ""
                                                 : $office->deputy_to->name,
                                         ) ?></td>
 
-            <td class="text-center"><?= h(
+                <td class="text-center"><?= h(
                                             $office->grants_role === null
                                                 ? ""
                                                 : $office->grants_role->name,
                                         ) ?></td>
-            <td class="actions">
-                <?= $this->Html->link(
-                        __("View"),
+                <td class="actions text-end text-nowrap">
+                    <?= $this->Html->link(
+                        __(""),
                         ["action" => "view", $office->id],
-                        ["title" => __("View"), "class" => "btn btn-secondary"],
+                        ["title" => __("View"), "class" => "btn-sm btn btn-secondary bi bi-binoculars-fill"],
                     ) ?>
-            </td>
-        </tr>
+                </td>
+            </tr>
         <?php endforeach; ?>
     </tbody>
 </table>

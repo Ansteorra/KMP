@@ -94,12 +94,12 @@ $this->KMP->endBlock();
                 <td><?= h($officer->branch->name) ?></td>
                 <td><?= h($officer->office->name) ?><?= $officer->deputy_description != null ? ": " . $officer->deputy_description : "" ?>
                 </td>
-                <td><?= $officer->expires_on ? h($officer->expires_on->toDateString()) : "No Exp Date" ?></td>
+                <td><?= h($officer->expires_on_to_string) ?></td>
                 <td><?= h($officer->member->sca_name) ?></td>
                 <td><?= h($officer->member->email_address) ?></td>
                 <td><?= h($officer->member->phone_number) ?></td>
                 <td>
-                    <?= $officer->member->membership_expires_on ? h($officer->member->membership_expires_on->toDateString()) : "N/A" ?>
+                    <?= $officer->member->membership_expires_on ? h($officer->member->membership_expires_on_to_string) : "N/A" ?>
                 </td>
                 <td>
                     <?php if (!$officer->member->warrantable) : ?>

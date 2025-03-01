@@ -34,7 +34,7 @@ $this->KMP->endBlock(); ?>
             "empty" => true
         ]);
         echo $this->Form->control("term_length", [
-            "label" => "Duration (years)",
+            "label" => "Duration (Months)",
             "type" => "number",
         ]);
         echo $this->Form->control("minimum_age", ["type" => "number"]);

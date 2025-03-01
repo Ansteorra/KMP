@@ -26,16 +26,16 @@ $this->KMP->endBlock(); ?>
         <tr>
             <th scope="col"><?= $this->Paginator->sort('start_date') ?></th>
             <th scope="col"><?= $this->Paginator->sort('end_date') ?></th>
-            <th scope="col" class="actions"><?= __('Actions') ?></th>
+            <th scope="col" class="actions"></th>
         </tr>
     </thead>
     <tbody>
         <?php foreach ($warrantPeriods as $warrantPeriod) : ?>
-        <tr>
-            <td><?= h($warrantPeriod->start_date) ?></td>
-            <td><?= h($warrantPeriod->end_date) ?></td>
-            <td class="actions">
-                <?= $this->Form->postLink(
+            <tr>
+                <td><?= h($warrantPeriod->start_date) ?></td>
+                <td><?= h($warrantPeriod->end_date) ?></td>
+                <td class="actions text-end text-nowrap">
+                    <?= $this->Form->postLink(
                         __("Delete"),
                         ["action" => "delete", $warrantPeriod->id],
                         [
@@ -46,8 +46,8 @@ $this->KMP->endBlock(); ?>
                             "class" => "btn btn-danger",
                         ],
                     ) ?>
-            </td>
-        </tr>
+                </td>
+            </tr>
         <?php endforeach; ?>
     </tbody>
 </table>

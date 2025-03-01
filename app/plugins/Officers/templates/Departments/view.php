@@ -20,6 +20,10 @@ echo $this->KMP->startBlock("pageTitle") ?>
 <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal">Edit</button>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("recordDetails") ?>
+<tr scope="row">
+    <th class="col"><?= __("Domain") ?></th>
+    <td class="col-10"><?= $department->domain ?></td>
+</tr>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("tabButtons") ?>
 <button class="nav-link" id="nav-Offices-tab" data-bs-toggle="tab" data-bs-target="#nav-Offices" type="button"
@@ -37,7 +41,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
             <thead>
                 <tr>
                     <th scope="col"><?= __("name") ?></th>
-                    <th scope="col" class="text-center"><?= __("Term (years)") ?></th>
+                    <th scope="col" class="text-center"><?= __("Term (Months)") ?></th>
                     <th scope="col" class="text-center"><?= __("Required") ?></th>
                     <th scope="col" class="text-center"><?= __("Skip Report") ?></th>
                     <th scope="col" class="text-center"><?= __("Warrant") ?></th>
@@ -46,7 +50,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
                                                         ) ?></th>
                     <th scope="col" class="text-center"><?= __("Reports To") ?></th>
                     <th scope="col" class="text-center"><?= __("Grants Role") ?></th>
-                    <th scope="col" class="actions"><?= __("Actions") ?></th>
+                    <th scope="col" class="actions"></th>
                 </tr>
             </thead>
             <tbody>
@@ -81,11 +85,11 @@ echo $this->KMP->startBlock("pageTitle") ?>
                                                         ? ""
                                                         : $office->grants_role->name,
                                                 ) ?></td>
-                        <td class="actions">
+                        <td class="actions text-end text-nowrap">
                             <?= $this->Html->link(
-                                __("View"),
+                                __(""),
                                 ["action" => "view", "controller" => "offices", $office->id],
-                                ["title" => __("View"), "class" => "btn btn-secondary"],
+                                ["title" => __("View"), "class" => "btn-sm btn btn-secondary bi bi-binoculars-fill"],
                             ) ?>
                         </td>
                     </tr>
@@ -117,6 +121,7 @@ echo $this->Modal->create("Edit Department", [
     <?php
 
     echo $this->Form->control("name");
+    echo $this->Form->control("domain");
 
     ?>
 </fieldset>

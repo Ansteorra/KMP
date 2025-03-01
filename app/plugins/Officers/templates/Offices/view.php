@@ -52,9 +52,14 @@ echo $this->KMP->startBlock("pageTitle") ?>
     </td>
 </tr>
 <tr scope="row">
-    <th class='col'><?= __("Term (Years)") ?></th>
+    <th class='col'><?= __("Term (Month)") ?></th>
     <td><?= h($office->term_length) ?></td>
 </tr>
+<tr scope="row">
+    <th class='col'><?= __("Office Email Template") ?></th>
+    <td><?= h($office->default_contact_address) ?></td>
+</tr>
+
 <tr scope="row">
     <th class='col'><?= __("Required") ?></th>
     <td class="col-10"><?= $this->Kmp->bool(
@@ -157,7 +162,12 @@ echo $this->KMP->startBlock("modals"); ?>
         ],
 
     ]);
-    echo $this->Form->control("term_length");
+    echo $this->Form->control("term_length", [
+        "label" => "Term (Months)",
+        "type" => "number",
+        "tooltip" => "value of 0 will be treated as no term limit",
+    ]);
+    echo $this->Form->control("default_contact_address");
     echo $this->Form->control("required_office", ["switch" => true, 'label' => 'Required']);
     echo $this->Form->control("can_skip_report", ["switch" => true, 'label' => 'Skip Report']);
     echo $this->Form->control("requires_warrant", ["switch" => true, 'label' => 'Warrant']);

@@ -9,6 +9,7 @@ function addOptions($office, $depth, &$officeOptions)
             'text' => $prefix . " " . $office['name'],
             'value' => $office['id'],
             'is_deputy' => $office['deputy_to_id'] != null,
+            'email_address' => $office['email_address'],
         ];
         if (!empty($office['deputies'])) {
             foreach ($office['deputies'] as $deputy) {
@@ -96,6 +97,13 @@ echo $this->Modal->create("Assign Officer", [
         </label>
         <input type="date" name="end_on" id="assign_officer__end_date" class="form-control" value=""
             data-officers-assign-officer-target="endDate">
+    </div>
+    <div class="mb-3 form-group date" data-officers-assign-officer-target="emailAddressBlock">
+        <label class="form-label" for="assign_officer__end_date">
+            Email Address
+        </label>
+        <input type="email" name="email_address" id="assign_officer__email_address" class="form-control" value=""
+            data-officers-assign-officer-target="emailAddress">
     </div>
 
 </fieldset>

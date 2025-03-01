@@ -28,6 +28,7 @@ interface ActiveWindowManagerInterface
         ?int $termYears = null,
         ?int $grantRoleId = null,
         bool $closeExisting = true,
+        ?int $branchId = null,
     ): ServiceResult;
 
     /**

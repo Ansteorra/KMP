@@ -36,7 +36,12 @@ $this->KMP->endBlock();
             ],
 
         ]);
-        echo $this->Form->control("term_length");
+        echo $this->Form->control("term_length", [
+            "label" => "Term (Months)",
+            "type" => "number",
+            "tooltip" => "value of 0 will be treated as no term limit",
+        ]);
+        echo $this->Form->control("default_contact_address");
         echo $this->Form->control("required_office", ["switch" => true, 'label' => 'Required']);
         echo $this->Form->control("can_skip_report", ["switch" => true, 'label' => 'Skip Report']);
         echo $this->Form->control("requires_warrant", ["switch" => true, 'label' => 'Warrant']);

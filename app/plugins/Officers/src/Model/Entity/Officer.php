@@ -52,5 +52,34 @@ class Officer extends ActiveWindowBaseEntity
         'branch' => true,
         'office' => true,
         'deputy_description' => true,
+        'email_address' => true,
     ];
+
+    protected function _getWarrantState($value)
+    {
+        if ($this->office == null) {
+            return "Can Not Calculate";
+        }
+        if ($this->current_warrant != null && $this->current_warrant->expires_on != null) {
+            return "Active";
+        }
+        if ($this->pending_warrants != null && count($this->pending_warrants) > 0) {
+            return "Pending";
+        }
+        if ($this->office->requires_warrant == true) {
+            return "Missing";
+        }
+        return "Not Required";
+    }
+
+    protected function _getIsEditable()
+    {
+        if ($this->office->is_deputy == true) {
+            return true;
+        }
+        if ($this->email_address !== null && $this->email_address !== "") {
+            return true;
+        }
+        return false;
+    }
 }

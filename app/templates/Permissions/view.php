@@ -63,6 +63,10 @@ echo $this->KMP->startBlock("pageTitle") ?>
                         ) ?></td>
 </tr>
 <tr scope="row">
+    <th class='col'><?= __("Scoping Rule") ?></th>
+    <td class="col-10"><?= h($permission->scoping_rule) ?></td>
+</tr>
+<tr scope="row">
     <th class='col'><?= __("Is Super User") ?></th>
     <td class="col-10"><?= $this->Kmp->bool(
                             $permission->is_super_user,
@@ -101,17 +105,17 @@ echo $this->KMP->startBlock("pageTitle") ?>
                 <thead>
                     <tr>
                         <th scope="col"><?= __("Name") ?></th>
-                        <th scope="col" class="actions"><?= __("Actions") ?></th>
+                        <th scope="col" class="actions"></th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php foreach ($permission->roles as $role) : ?>
                     <tr>
                         <td><?= h($role->name) ?></td>
-                        <td class="actions">
+                        <td class="actions text-end text-nowrap">
                             <?php if ($user->checkCan("deletePermission", "Roles")) { ?>
                             <?= $this->Form->postLink(
-                                            __("Remove"),
+                                            __(""),
                                             [
                                                 "controller" => "Roles",
                                                 "action" => "deletePermission",
@@ -121,7 +125,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
                                                     "Are you sure you want to remove {0}?",
                                                     $role->name,
                                                 ),
-                                                "class" => "btn btn-danger",
+                                                "class" => "btn-sm btn btn-danger bi bi-trash3-fill",
                                                 "data" => [
                                                     "permission_id" => $permission->id,
                                                     "role_id" => $role->id,
@@ -221,6 +225,10 @@ echo $this->KMP->startBlock("pageTitle") ?>
         echo $this->Form->control("require_min_age", [
             "label" => "Minimum Age",
             "type" => "number",
+        ]);
+        echo $this->Form->control("scoping_rule", [
+            "options" => \App\Model\Entity\Permission::SCOPING_RULES,
+            "empty" => true,
         ]);
         if ($user->isSuperUser()) {
             echo $this->Form->control("is_super_user", ["switch" => true]);
