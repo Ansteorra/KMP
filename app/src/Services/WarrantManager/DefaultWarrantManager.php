@@ -168,6 +168,24 @@ class DefaultWarrantManager implements WarrantManagerInterface
                     $warrantRosterTable->getConnection()->rollback();
                     return new ServiceResult(false, "Failed to acivate warrants in Roster");
                 }
+                //expire current warrants for the same entity_type entity_id member_id
+                $warrantTable->updateAll(
+                    [
+                        'status' => Warrant::DEACTIVATED_STATUS,
+                        'expires_on' => $warrant->start_on,
+                        'revoked_reason' => "New Warrant Approved",
+                        'revoker_id' => $approver_id
+                    ],
+                    [
+                        'entity_type' => $warrant->entity_type,
+                        'entity_id' => $warrant->entity_id,
+                        'member_id' => $warrant->member_id,
+                        'status' => Warrant::CURRENT_STATUS,
+                        'expires_on >=' => $warrant->start_on,
+                        'start_on <=' => $warrant->start_on,
+                        'id !=' => $warrant->id
+                    ]
+                );
                 $vars = [
                     "memberScaName" => $warrant->member->sca_name,
                     "warrantName" => $warrant->name,
