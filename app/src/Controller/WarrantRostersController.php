@@ -75,7 +75,9 @@ class WarrantRostersController extends AppController
                 'WarrantRosterApprovals' => function ($q) {
                     return $q->orderBy(['approved_on' => 'ASC']);
                 },
-                'Warrants',
+                'Warrants' => function ($q) {
+                    return $q->orderBy(['Warrants.created' => 'ASC']);
+                },
                 'Warrants.Members' => function ($q) {
                     return $q->select(["id", "sca_name"]);
                 },

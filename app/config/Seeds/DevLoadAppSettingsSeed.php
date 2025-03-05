@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractSeed;
+use Migrations\BaseSeed;
 
 /**
  * AppSettings seed.
  */
-class DevLoadAppSettingsSeed extends AbstractSeed
+class DevLoadAppSettingsSeed extends BaseSeed
 {
     /**
      * Run Method.

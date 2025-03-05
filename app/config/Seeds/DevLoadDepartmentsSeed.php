@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractSeed;
+use Migrations\BaseSeed;
 
 /**
  * Departments seed.
  */
-class DevLoadDepartmentsSeed extends AbstractSeed
+class DevLoadDepartmentsSeed extends BaseSeed
 {
     /**
      * Run Method.

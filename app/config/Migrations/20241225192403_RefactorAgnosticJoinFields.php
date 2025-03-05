@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
-class RefactorAgnosticJoinFields extends AbstractMigration
+class RefactorAgnosticJoinFields extends BaseMigration
 {
     /**
      * Change Method.

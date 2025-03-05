@@ -14,10 +14,10 @@ $linkTemplate = [
     ],
 ];
 $columnTemplate = [
+    "Name" => "name",
     "Member" => "member->sca_name",
     "Start Date" => "start_on_to_string",
     "End Date" => "expires_on_to_string",
-    "Warrant For" => "entity_type",
     "Status" => "status",
 ];
 

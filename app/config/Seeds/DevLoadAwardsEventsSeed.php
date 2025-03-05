@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractSeed;
+use Migrations\BaseSeed;
 use Cake\I18n\DateTime;
 
 /**
  * AwardsEvents seed.
  */
-class DevLoadAwardsEventsSeed extends AbstractSeed
+class DevLoadAwardsEventsSeed extends BaseSeed
 {
     /**
      * Run Method.

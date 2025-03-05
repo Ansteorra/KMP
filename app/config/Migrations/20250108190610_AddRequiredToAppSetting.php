@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
-class AddRequiredToAppSetting extends AbstractMigration
+class AddRequiredToAppSetting extends BaseMigration
 {
     /**
      * Change Method.

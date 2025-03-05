@@ -69,7 +69,7 @@ class WarrantsController extends AppController
     protected function addConditions($query)
     {
         return $query
-            ->select(['id', 'member_id', 'entity_type', 'start_on', 'expires_on', 'revoker_id', 'warrant_roster_id', 'status', 'revoked_reason'])
+            ->select(['id', 'name', 'member_id', 'entity_type', 'start_on', 'expires_on', 'revoker_id', 'warrant_roster_id', 'status', 'revoked_reason'])
             ->contain([
                 'Members' => function ($q) {
                     return $q->select(['id', 'sca_name']);

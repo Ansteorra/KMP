@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractSeed;
+use Migrations\BaseSeed;
 use Cake\I18n\DateTime;
 
 /**
  * Branches seed.
  */
-class DevLoadBranchesSeed extends AbstractSeed
+class DevLoadBranchesSeed extends BaseSeed
 {
     /**
      * Run Method.

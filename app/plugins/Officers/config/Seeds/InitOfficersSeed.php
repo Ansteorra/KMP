@@ -2,14 +2,13 @@
 
 declare(strict_types=1);
 
-use App\KMP\KMPMigrationSeedAbstract;
-use Migrations\AbstractSeed;
+use Migrations\BaseSeed;
 use Cake\I18n\DateTime;
 
 /**
  * Role seed.
  */
-class InitOfficersSeed extends KMPMigrationSeedAbstract
+class InitOfficersSeed extends BaseSeed
 {
     /**
      * Run Method.
