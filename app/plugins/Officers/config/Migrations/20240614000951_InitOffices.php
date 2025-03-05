@@ -2,12 +2,13 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 use Cake\ORM\TableRegistry;
+use Migrations\Migration\ManagerFactory;
 
 require_once __DIR__ . '/../Seeds/InitOfficersSeed.php';
 
-class InitOffices extends AbstractMigration
+class InitOffices extends BaseMigration
 {
     public bool $autoId = false;
 
@@ -326,11 +327,19 @@ class InitOffices extends AbstractMigration
             )
             ->update();
 
-        (new InitOfficersSeed())
-            ->setAdapter($this->getAdapter())
-            ->setInput($this->getInput())
-            ->setOutput($this->getOutput())
-            ->run();
+        [$pluginName, $seeder] = pluginSplit("Officers.InitOfficersSeed");
+        $adapter = $this->getAdapter();
+        $connection = $adapter->getConnection()->configName();
+
+        $factory = new ManagerFactory([
+            'plugin' => $options['plugin'] ?? $pluginName ?? null,
+            'source' => 'Seeds',
+            'connection' => $options['connection'] ?? $connection,
+        ]);
+        $io = $this->getIo();
+        assert($io !== null, 'Missing ConsoleIo instance');
+        $manager = $factory->createManager($io);
+        $manager->seed($seeder);
     }
 
 

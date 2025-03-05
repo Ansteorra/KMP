@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
-class AddNoActionReason extends AbstractMigration
+class AddNoActionReason extends BaseMigration
 {
     /**
      * Change Method.

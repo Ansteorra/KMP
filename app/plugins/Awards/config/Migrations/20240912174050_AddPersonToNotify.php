@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
-class AddPersonToNotify extends AbstractMigration
+class AddPersonToNotify extends BaseMigration
 {
     /**
      * Change Method.

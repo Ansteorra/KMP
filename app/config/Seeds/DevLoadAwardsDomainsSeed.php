@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractSeed;
+use Migrations\BaseSeed;
 
 /**
  * AwardsDomains seed.
  */
-class DevLoadAwardsDomainsSeed extends AbstractSeed
+class DevLoadAwardsDomainsSeed extends BaseSeed
 {
     /**
      * Run Method.

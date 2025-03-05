@@ -2,11 +2,12 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
+use Migrations\Migration\ManagerFactory;
 
 require_once __DIR__ . '/../Seeds/initOfficersRefactorSeed.php';
 
-class RefactorOfficeHierarchy extends AbstractMigration
+class RefactorOfficeHierarchy extends BaseMigration
 {
     /**
      * Change Method.
@@ -76,10 +77,18 @@ class RefactorOfficeHierarchy extends AbstractMigration
         );
         $table->update();
 
-        (new initOfficersRefactorSeed())
-            ->setAdapter($this->getAdapter())
-            ->setInput($this->getInput())
-            ->setOutput($this->getOutput())
-            ->run();
+        [$pluginName, $seeder] = pluginSplit("Officers.initOfficersRefactorSeed");
+        $adapter = $this->getAdapter();
+        $connection = $adapter->getConnection()->configName();
+
+        $factory = new ManagerFactory([
+            'plugin' => $options['plugin'] ?? $pluginName ?? null,
+            'source' => 'Seeds',
+            'connection' => $options['connection'] ?? $connection,
+        ]);
+        $io = $this->getIo();
+        assert($io !== null, 'Missing ConsoleIo instance');
+        $manager = $factory->createManager($io);
+        $manager->seed($seeder);
     }
 }

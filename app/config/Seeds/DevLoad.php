@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractSeed;
+use Migrations\BaseSeed;
 
 /**
  * Role seed.
  */
-class DevLoad extends AbstractSeed
+class DevLoad extends BaseSeed
 {
     /**
      * Run Method.
@@ -21,22 +21,22 @@ class DevLoad extends AbstractSeed
      */
     public function run(): void
     {
-        $this->call('DevLoadBranchesSeed');
-        $this->call('DevLoadRolesSeed');
-        $this->call('DevLoadPermissionsSeed');
-        $this->call('DevLoadMembersSeed');
-        $this->call('DevLoadAppSettingsSeed');
-        $this->call('DevLoadMemberRolesSeed');
-        $this->call('DevLoadRolesPermissionsSeed');
-        $this->call('DevLoadActivityGroupsSeed');
-        $this->call('DevLoadActivitiesSeed');
-        $this->call('DevLoadDepartmentsSeed');
-        $this->call('DevLoadOfficesSeed');
-        $this->call('DevLoadOfficersSeed');
-        $this->call('DevLoadAwardsDomainsSeed');
-        $this->call('DevLoadAwardsLevelsSeed');
-        $this->call('DevLoadAwardsAwardsSeed');
-        $this->call('DevLoadAwardsEventsSeed');
-        $this->call('DevLoadWarrantsSeed');
+        $this->call('DevLoadBranchesSeed', ['source' => 'Seeds']);
+        $this->call('DevLoadRolesSeed', ['source' => 'Seeds']);
+        $this->call('DevLoadPermissionsSeed', ['source' => 'Seeds']);
+        $this->call('DevLoadMembersSeed', ['source' => 'Seeds']);
+        $this->call('DevLoadAppSettingsSeed', ['source' => 'Seeds']);
+        $this->call('DevLoadMemberRolesSeed', ['source' => 'Seeds']);
+        $this->call('DevLoadRolesPermissionsSeed', ['source' => 'Seeds']);
+        $this->call('DevLoadActivityGroupsSeed', ['source' => 'Seeds']);
+        $this->call('DevLoadActivitiesSeed', ['source' => 'Seeds']);
+        $this->call('DevLoadDepartmentsSeed', ['source' => 'Seeds']);
+        $this->call('DevLoadOfficesSeed', ['source' => 'Seeds']);
+        $this->call('DevLoadOfficersSeed', ['source' => 'Seeds']);
+        $this->call('DevLoadAwardsDomainsSeed', ['source' => 'Seeds']);
+        $this->call('DevLoadAwardsLevelsSeed', ['source' => 'Seeds']);
+        $this->call('DevLoadAwardsAwardsSeed', ['source' => 'Seeds']);
+        $this->call('DevLoadAwardsEventsSeed', ['source' => 'Seeds']);
+        $this->call('DevLoadWarrantsSeed', ['source' => 'Seeds']);
     }
 }

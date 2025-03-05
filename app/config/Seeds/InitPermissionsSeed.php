@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 
-use Migrations\AbstractSeed;
+use Migrations\BaseSeed;
 use Cake\I18n\DateTime;
 
 
@@ -11,7 +11,7 @@ use Cake\I18n\DateTime;
 /**
  * Permissions seed.
  */
-class InitPermissionsSeed extends AbstractSeed
+class InitPermissionsSeed extends BaseSeed
 {
     /**
      * Run Method.

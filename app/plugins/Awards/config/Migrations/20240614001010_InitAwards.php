@@ -2,12 +2,13 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 use Cake\ORM\TableRegistry;
+use Migrations\Migration\ManagerFactory;
 
 require_once __DIR__ . '/../Seeds/InitAwardsSeed.php';
 
-class InitAwards extends AbstractMigration
+class InitAwards extends BaseMigration
 {
     public bool $autoId = false;
     /**
@@ -511,11 +512,19 @@ class InitAwards extends AbstractMigration
             )
             ->update();
 
-        (new InitAwardsSeed())
-            ->setAdapter($this->getAdapter())
-            ->setInput($this->getInput())
-            ->setOutput($this->getOutput())
-            ->run();
+        [$pluginName, $seeder] = pluginSplit("Awards.InitAwardsSeed");
+        $adapter = $this->getAdapter();
+        $connection = $adapter->getConnection()->configName();
+
+        $factory = new ManagerFactory([
+            'plugin' => $options['plugin'] ?? $pluginName ?? null,
+            'source' => 'Seeds',
+            'connection' => $options['connection'] ?? $connection,
+        ]);
+        $io = $this->getIo();
+        assert($io !== null, 'Missing ConsoleIo instance');
+        $manager = $factory->createManager($io);
+        $manager->seed($seeder);
     }
 
     public function down()

@@ -3,13 +3,13 @@
 declare(strict_types=1);
 
 
-use Migrations\AbstractSeed;
+use Migrations\BaseSeed;
 use Cake\I18n\DateTime;
 
 /**
  * Members seed.
  */
-class InitMembersSeed extends AbstractSeed
+class InitMembersSeed extends BaseSeed
 {
     /**
      * Run Method.
@@ -23,6 +23,13 @@ class InitMembersSeed extends AbstractSeed
      */
     public function run(): void
     {
+        //check if the connection is microsoft sql server
+        $connection = $this->getAdapter()->getConnection();
+        if ($connection->getDriver() instanceof \Cake\Database\Driver\Sqlserver) {
+            //turn on the identity insert
+            $this->execute('SET IDENTITY_INSERT members ON');
+            $this->execute('SET IDENTITY_INSERT notes ON');
+        }
         $data = [
             [
                 'id' => 1,
@@ -75,5 +82,11 @@ class InitMembersSeed extends AbstractSeed
 
         $table = $this->table('notes');
         $table->insert($data)->save();
+
+        //turn off the identity insert
+        if ($connection->getDriver() instanceof \Cake\Database\Driver\Sqlserver) {
+            $this->execute('SET IDENTITY_INSERT members OFF');
+            $this->execute('SET IDENTITY_INSERT notes OFF');
+        }
     }
 }

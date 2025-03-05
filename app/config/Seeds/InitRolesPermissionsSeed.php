@@ -3,12 +3,12 @@
 declare(strict_types=1);
 
 
-use Migrations\AbstractSeed;
+use Migrations\BaseSeed;
 
 /**
  * RolesPermissions seed.
  */
-class InitRolesPermissionsSeed extends AbstractSeed
+class InitRolesPermissionsSeed extends BaseSeed
 {
     /**
      * Run Method.

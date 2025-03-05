@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
-class ChangeAppSettingValueToText extends AbstractMigration
+class ChangeAppSettingValueToText extends BaseMigration
 {
     /**
      * Change Method.
