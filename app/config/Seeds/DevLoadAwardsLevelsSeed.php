@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractSeed;
+use Migrations\BaseSeed;
 
 /**
  * AwardsLevels seed.
  */
-class DevLoadAwardsLevelsSeed extends AbstractSeed
+class DevLoadAwardsLevelsSeed extends BaseSeed
 {
     /**
      * Run Method.

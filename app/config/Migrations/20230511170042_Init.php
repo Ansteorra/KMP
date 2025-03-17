@@ -1,10 +1,11 @@
 <?php
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
+use Migrations\Migration\ManagerFactory;
 
 require_once __DIR__ . '/../Seeds/InitMigrationSeed.php';
 
-class Init extends AbstractMigration
+class Init extends BaseMigration
 {
     public bool $autoId = false;
 
@@ -470,7 +471,7 @@ class Init extends AbstractMigration
                 "limit" => 11,
                 "null" => true,
             ])
-            ->addColumn("additional_info", "json", [
+            ->addColumn("additional_info", "string", [
                 "default" => "{}",
                 "null" => false,
             ])
@@ -613,34 +614,44 @@ class Init extends AbstractMigration
         $this->table("member_roles")
             ->addForeignKey("member_id", "members", "id", [
                 "update" => "NO_ACTION",
-                "delete" => "CASCADE",
+                "delete" => "NO ACTION",
             ])
             ->addForeignKey("role_id", "roles", "id", [
                 "update" => "NO_ACTION",
-                "delete" => "CASCADE",
+                "delete" => "NO ACTION",
             ])
             ->addForeignKey("approver_id", "members", "id", [
                 "update" => "NO_ACTION",
-                "delete" => "CASCADE",
+                "delete" => "NO ACTION",
             ])
             ->update();
 
         $this->table("roles_permissions")
             ->addForeignKey("role_id", "roles", "id", [
                 "update" => "NO_ACTION",
-                "delete" => "CASCADE",
+                "delete" => "NO ACTION",
             ])
             ->addForeignKey("permission_id", "permissions", "id", [
                 "update" => "NO_ACTION",
-                "delete" => "CASCADE",
+                "delete" => "NO ACTION",
             ])
             ->update();
         #endregion
-        (new InitMigrationSeed())
-            ->setAdapter($this->getAdapter())
-            ->setInput($this->getInput())
-            ->setOutput($this->getOutput())
-            ->run();
+        // get the adapter and cast it to Migrations\Db\Adapter\AdapterInterface
+
+        [$pluginName, $seeder] = pluginSplit("InitMigrationSeed");
+        $adapter = $this->getAdapter();
+        $connection = $adapter->getConnection()->configName();
+
+        $factory = new ManagerFactory([
+            'plugin' => $options['plugin'] ?? $pluginName ?? null,
+            'source' => 'Seeds',
+            'connection' => $options['connection'] ?? $connection,
+        ]);
+        $io = $this->getIo();
+        assert($io !== null, 'Missing ConsoleIo instance');
+        $manager = $factory->createManager($io);
+        $manager->seed($seeder);
     }
 
     public function down()

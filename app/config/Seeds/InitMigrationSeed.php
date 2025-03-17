@@ -2,13 +2,12 @@
 
 declare(strict_types=1);
 
-use App\KMP\KMPMigrationSeedAbstract;
-use Migrations\AbstractSeed;
+use Migrations\BaseSeed;
 
 /**
  * Role seed.
  */
-class InitMigrationSeed extends KMPMigrationSeedAbstract
+class InitMigrationSeed extends BaseSeed
 {
     /**
      * Run Method.
@@ -22,11 +21,11 @@ class InitMigrationSeed extends KMPMigrationSeedAbstract
      */
     public function run(): void
     {
-        $this->call('InitBranchesSeed');
-        $this->call('InitRolesSeed');
-        $this->call('InitPermissionsSeed');
-        $this->call('InitRolesPermissionsSeed');
-        $this->call('InitMembersSeed');
-        $this->call('InitMemberRolesSeed');
+        $this->call('InitBranchesSeed', ['source' => 'Seeds']);
+        $this->call('InitRolesSeed', ['source' => 'Seeds']);
+        $this->call('InitPermissionsSeed', ['source' => 'Seeds']);
+        $this->call('InitRolesPermissionsSeed', ['source' => 'Seeds']);
+        $this->call('InitMembersSeed', ['source' => 'Seeds']);
+        $this->call('InitMemberRolesSeed', ['source' => 'Seeds']);
     }
 }

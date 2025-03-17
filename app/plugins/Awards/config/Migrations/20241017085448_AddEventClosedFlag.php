@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
-class AddEventClosedFlag extends AbstractMigration
+class AddEventClosedFlag extends BaseMigration
 {
     /**
      * Change Method.

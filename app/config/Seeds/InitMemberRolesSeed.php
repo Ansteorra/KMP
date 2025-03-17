@@ -3,13 +3,13 @@
 declare(strict_types=1);
 
 
-use Migrations\AbstractSeed;
+use Migrations\BaseSeed;
 use Cake\I18n\DateTime;
 
 /**
  * MemberRoles seed.
  */
-class InitMemberRolesSeed extends AbstractSeed
+class InitMemberRolesSeed extends BaseSeed
 {
     /**
      * Run Method.

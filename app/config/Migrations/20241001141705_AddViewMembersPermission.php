@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 use Cake\ORM\TableRegistry;
 use App\Model\Entity\Permission;
 
-class AddViewMembersPermission extends AbstractMigration
+class AddViewMembersPermission extends BaseMigration
 {
     /**
      * Change Method.

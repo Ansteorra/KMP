@@ -1,9 +1,10 @@
 <?php
+
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
-class AddTitlePronounsPronunciationToMembers extends AbstractMigration
+class AddTitlePronounsPronunciationToMembers extends BaseMigration
 {
     /**
      * Change Method.

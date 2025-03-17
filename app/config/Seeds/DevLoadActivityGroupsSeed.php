@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractSeed;
+use Migrations\BaseSeed;
 use Cake\I18n\DateTime;
 
 /**
  * ActivityGroups seed.
  */
-class DevLoadActivityGroupsSeed extends AbstractSeed
+class DevLoadActivityGroupsSeed extends BaseSeed
 {
     /**
      * Run Method.

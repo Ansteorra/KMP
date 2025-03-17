@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
-class AddTypeToBranches extends AbstractMigration
+class AddTypeToBranches extends BaseMigration
 {
     /**
      * Change Method.

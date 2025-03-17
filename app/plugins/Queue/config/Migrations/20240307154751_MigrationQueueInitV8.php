@@ -1,10 +1,12 @@
 <?php
+
 declare(strict_types=1);
 
 use Cake\Datasource\ConnectionManager;
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
-class MigrationQueueInitV8 extends AbstractMigration {
+class MigrationQueueInitV8 extends BaseMigration
+{
 
 	/**
 	 * Up Method.
@@ -14,7 +16,8 @@ class MigrationQueueInitV8 extends AbstractMigration {
 	 *
 	 * @return void
 	 */
-	public function up(): void {
+	public function up(): void
+	{
 		// We expect all v7 migrations to be run before this migration (including 20231112807150_MigrationAddIndex)
 		$version = '20240307154751';
 		if (ConnectionManager::getConfig('default')['driver'] === 'Cake\Database\Driver\Sqlserver') {
@@ -168,9 +171,9 @@ class MigrationQueueInitV8 extends AbstractMigration {
 	 *
 	 * @return void
 	 */
-	public function down(): void {
+	public function down(): void
+	{
 		$this->table('queue_processes')->drop()->save();
 		$this->table('queued_jobs')->drop()->save();
 	}
-
 }

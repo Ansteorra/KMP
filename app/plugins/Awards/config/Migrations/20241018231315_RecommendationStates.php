@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
 
-class RecommendationStates extends AbstractMigration
+class RecommendationStates extends BaseMigration
 {
     public bool $autoId = false;
     /**
