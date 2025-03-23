@@ -16,9 +16,9 @@ if (!$isTurboFrame) {
 
 ?>
 <?php if (!$isTurboFrame) : ?>
-    <h3>
-        Members
-    </h3>
+<h3>
+    Members
+</h3>
 <?php endif; ?>
 <turbo-frame id="membersList" data-turbo='true'>
     <table class="table table-striped">
@@ -51,22 +51,22 @@ if (!$isTurboFrame) {
         </thead>
         <tbody>
             <?php foreach ($Members as $Member) : ?>
-                <tr>
-                    <td><?= h($Member->sca_name) ?></td>
-                    <td><?= h($Member->branch->name) ?></td>
-                    <td><?= h($Member->first_name) ?></td>
-                    <td><?= h($Member->last_name) ?></td>
-                    <td><?= h($Member->email_address) ?></td>
-                    <td><?= h($Member->status) ?></td>
-                    <td><?= h($Member->last_login) ?></td>
-                    <td class="actions text-end text-nowrap" data-turbo='false'>
-                        <?= $this->Html->link(
+            <tr>
+                <td><?= h($Member->sca_name) ?></td>
+                <td><?= h($Member->branch->name) ?></td>
+                <td><?= h($Member->first_name) ?></td>
+                <td><?= h($Member->last_name) ?></td>
+                <td><?= h($Member->email_address) ?></td>
+                <td><?= h($Member->status) ?></td>
+                <td><?= h($Member->last_login) ?></td>
+                <td class="actions text-end text-nowrap" data-turbo='false'>
+                    <?= $this->Html->link(
                             __(""),
                             ["action" => "view", $Member->id],
                             ["title" => __("View"), "class" => "btn-sm btn btn-secondary bi bi-binoculars-fill"],
                         ) ?>
-                        <?php if ($user->isSuperUser()) { ?>
-                            <?= $this->Form->postLink(
+                    <?php if ($user->isSuperUser()) { ?>
+                    <?= $this->Form->postLink(
                                 __("Delete"),
                                 ["action" => "delete", $Member->id],
                                 [
@@ -75,12 +75,12 @@ if (!$isTurboFrame) {
                                         $Member->sca_name,
                                     ),
                                     "title" => __("Delete"),
-                                    "class" => "btn btn-danger",
+                                    "class" => "btn btn-danger btn-sm",
                                 ],
                             ) ?>
-                        <?php } ?>
-                    </td>
-                </tr>
+                    <?php } ?>
+                </td>
+            </tr>
             <?php endforeach; ?>
         </tbody>
     </table>

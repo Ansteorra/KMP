@@ -24,12 +24,6 @@ class InitMembersSeed extends BaseSeed
     public function run(): void
     {
         //check if the connection is microsoft sql server
-        $connection = $this->getAdapter()->getConnection();
-        if ($connection->getDriver() instanceof \Cake\Database\Driver\Sqlserver) {
-            //turn on the identity insert
-            $this->execute('SET IDENTITY_INSERT members ON');
-            $this->execute('SET IDENTITY_INSERT notes ON');
-        }
         $data = [
             [
                 'id' => 1,
@@ -82,11 +76,5 @@ class InitMembersSeed extends BaseSeed
 
         $table = $this->table('notes');
         $table->insert($data)->save();
-
-        //turn off the identity insert
-        if ($connection->getDriver() instanceof \Cake\Database\Driver\Sqlserver) {
-            $this->execute('SET IDENTITY_INSERT members OFF');
-            $this->execute('SET IDENTITY_INSERT notes OFF');
-        }
     }
 }
