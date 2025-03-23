@@ -165,14 +165,14 @@ class AppSettingsTable extends Table
      * @param string $name The name of the setting.
      * @return bool True on success, false on failure.
      */
-    public function deleteSetting(string $name): bool
+    public function deleteSetting(string $name, bool $forceDelete = false): bool
     {
         $setting = $this->find()
             ->where(['name' => $name])
             ->first();
 
         if ($setting) {
-            if ($setting->required) {
+            if ($setting->required && !$forceDelete) {
                 return false;
             }
             if ($this->delete($setting)) {
@@ -204,9 +204,9 @@ class AppSettingsTable extends Table
         return $this->updateSetting($key, $type, $value, $required);
     }
 
-    public function deleteAppSetting($key): bool
+    public function deleteAppSetting($key, bool $forceDelete = false): bool
     {
-        return $this->deleteSetting($key);
+        return $this->deleteSetting($key, $forceDelete);
     }
 
     //TODO: Create a caching strategy for this

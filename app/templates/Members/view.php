@@ -315,12 +315,19 @@ $this->KMP->endBlock() ?>
                                 $fieldDetails = explode(":", $fieldType);
                                 $fieldType =  $fieldDetails[0];
                             }
+                            $value = null;
+                            if (isset($appInfo[$fieldKey])) {
+                                $value = $appInfo[$fieldKey];
+                            }
+                            if ($value == null) {
+                                $value = "";
+                            }
                             switch ($fieldType) {
                                 case "bool":
-                                    echo $this->KMP->bool($appInfo[$fieldKey], $this->Html);
+                                    echo $this->KMP->bool($value, $this->Html);
                                     break;
                                 default:
-                                    echo h($appInfo[$fieldKey]);
+                                    echo h($value);
                                     break;
                             }
                             ?>

@@ -179,6 +179,7 @@ class AuthorizationsController extends AppController
         $this->set(compact('authorizations', 'activity', 'state'));
     }
 
+    /*remove GW feature to implement propper Oauth2 integrations before GW 2026
     public function setGWSharing($id)
     {
         $this->request->allowMethod(["post"]);
@@ -266,7 +267,7 @@ class AuthorizationsController extends AppController
 
         return $this->response;
     }
-
+    */
     protected function addConditionsForMembers(SelectQuery $q)
     {
 

@@ -230,6 +230,13 @@ class StaticHelpers
         }
     }
 
+    static function deleteAppSetting(string $key, bool $forceDelete = false): bool
+    {
+        $AppSettings = TableRegistry::getTableLocator()->get("AppSettings");
+        return $AppSettings->deleteAppSetting($key, $forceDelete);
+    }
+
+
     static function setAppSetting(string $key, $value, $type = null, $required = false): bool
     {
         try {

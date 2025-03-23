@@ -274,15 +274,17 @@ class RecommendationsController extends AppController
                         if ($this->request->getData("current_page")) {
                             return $this->redirect($this->request->getData("current_page"));
                         }
-                        return $this->redirect(['action' => 'view', $id]);
+                        return $this->redirect(['action' => 'table', $view, $status]);
                     }
                 }
             }
 
             $this->Recommendations->getConnection()->commit();
         }
-
-        $this->redirect(['action' => 'table', $view, $status]);
+        if ($this->request->getData("current_page")) {
+            return $this->redirect($this->request->getData("current_page"));
+        }
+        return $this->redirect(['action' => 'table', $view, $status]);
     }
     /**
      * View method
