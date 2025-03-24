@@ -232,8 +232,16 @@ class StaticHelpers
 
     static function deleteAppSetting(string $key, bool $forceDelete = false): bool
     {
-        $AppSettings = TableRegistry::getTableLocator()->get("AppSettings");
-        return $AppSettings->deleteAppSetting($key, $forceDelete);
+        try {
+            $AppSettings = TableRegistry::getTableLocator()->get("AppSettings");
+            return $AppSettings->deleteAppSetting($key, $forceDelete);
+        } catch (Exception $e) {
+            // check if e is a Cake\Database\Exception\DatabaseException
+            if (get_class($e) == "Cake\Database\Exception\DatabaseException") {
+                return true;
+            }
+            throw $e;
+        }
     }
 
 
