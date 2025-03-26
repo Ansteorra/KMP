@@ -23,6 +23,8 @@ class DefaultWarrantManager implements WarrantManagerInterface
     use QueuedMailerAwareTrait;
     use MailerAwareTrait;
 
+    private ActiveWindowManagerInterface $activeWindowManager;
+
     public function __construct(ActiveWindowManagerInterface $activeWindowManager)
     {
         $this->activeWindowManager = $activeWindowManager;

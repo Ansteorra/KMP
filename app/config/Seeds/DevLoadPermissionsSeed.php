@@ -147,5 +147,8 @@ class DevLoadPermissionsSeed extends BaseSeed
 
         $table = $this->table('permissions');
         $table->insert($data)->save();
+        $sql = "UPDATE permissions SET scoping_rule = 'Branch and Children' WHERE id IN (6, 4)";
+        #update a few roles to have scopes
+        $this->execute($sql);
     }
 }

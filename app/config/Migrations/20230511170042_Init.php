@@ -5,9 +5,11 @@ use Migrations\Migration\ManagerFactory;
 
 require_once __DIR__ . '/../Seeds/InitMigrationSeed.php';
 
+
 class Init extends BaseMigration
 {
     public bool $autoId = false;
+
 
     public function up()
     {
@@ -637,7 +639,6 @@ class Init extends BaseMigration
             ])
             ->update();
         #endregion
-        // get the adapter and cast it to Migrations\Db\Adapter\AdapterInterface
 
         [$pluginName, $seeder] = pluginSplit("InitMigrationSeed");
         $adapter = $this->getAdapter();

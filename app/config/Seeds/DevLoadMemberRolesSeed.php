@@ -45,6 +45,18 @@ class DevLoadMemberRolesSeed extends BaseSeed
                 'created' => DateTime::now(),
                 'created_by' => '1'
             ],
+            [
+                'id' => 202,
+                'member_id' => 202,
+                'role_id' => 207,
+                'expires_on' => NULL,
+                'start_on' => '2024-05-30 12:54:12',
+                'approver_id' => 1,
+                'entity_type' => 'Direct Grant',
+                'created' => DateTime::now(),
+                'created_by' => '1',
+                'branch_id' => '5'
+            ],
         ];
 
         $table = $this->table('member_roles');
