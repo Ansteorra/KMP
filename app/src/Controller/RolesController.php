@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Model\Entity\Permission;
 use Cake\Log\Log;
+use Cake\ORM\TableRegistry;
 
 /**
  * Roles Controller
@@ -62,6 +64,21 @@ class RolesController extends AppController
             throw new \Cake\Http\Exception\NotFoundException();
         }
         $this->Authorization->authorize($role);
+        //check if any of the permissions have a scoping_rule other than global
+        $branch_required = false;
+        foreach ($role->permissions as $permission) {
+            if ($permission->scoping_rule != Permission::SCOPE_GLOBAL) {
+                $branch_required = true;
+                break;
+            }
+        }
+        $branches = [];
+        if ($branch_required) {
+            $branches = TableRegistry::getTableLocator()
+                ->get("Branches")
+                ->find("treeList", spacer: "--")
+                ->orderBy(["name" => "ASC"]);
+        }
         $currentMembersCount = $this->Roles->MemberRoles->find('current')
             ->where(["role_id" => $id])
             ->count();
@@ -86,7 +103,7 @@ class RolesController extends AppController
         } else {
             $permissions = $this->Roles->Permissions->find("list")->all();
         }
-        $this->set(compact("role", "permissions", 'id', 'isEmpty'));
+        $this->set(compact("role", "permissions", 'id', 'isEmpty', 'branches', 'branch_required'));
     }
 
     /**

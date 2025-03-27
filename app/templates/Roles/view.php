@@ -103,6 +103,9 @@ echo $this->KMP->startBlock("pageTitle") ?>
                 </tr>
                 <tr>
                     <th scope="col"><?= __("Name") ?></th>
+                    <th scope="col"><?= __(
+                                            "Scope",
+                                        ) ?></th>
                     <th scope="col" class="text-center"><?= __(
                                                                 "Membership",
                                                             ) ?></th>
@@ -129,6 +132,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
             <?php foreach ($role->permissions as $permission) : ?>
             <tr>
                 <td><?= h($permission->name) ?></td>
+                <td><?= h($permission->scoping_rule) ?></td>
 
                 <td class="text-center"><?= $this->Kmp->bool(
                                                     $permission->require_active_membership,

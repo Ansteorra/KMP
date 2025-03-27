@@ -35,6 +35,18 @@ echo $this->Modal->create("Add Member to Role", [
         "type" => "hidden",
         "value" => $role->id,
     ]);
+    // if the role has a permission that has a scopeing_rule other than global
+    // show the branch select
+    if ($branch_required) {
+        echo $this->Form->control("branch_id", [
+            "type" => "select",
+            "options" => $branches,
+            "label" => "Branch",
+            "empty" => true,
+            "data-role-add-member-target" => 'branch',
+            'data-action' => 'change->role-add-member#checkSubmitEnable',
+        ]);
+    }
     ?>
 </fieldset>
 <?php echo $this->Modal->end([
