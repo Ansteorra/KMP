@@ -103,7 +103,9 @@ class RolesController extends AppController
         } else {
             $permissions = $this->Roles->Permissions->find("list")->all();
         }
-        $this->set(compact("role", "permissions", 'id', 'isEmpty', 'branches', 'branch_required'));
+        $branchTree = TableRegistry::getTableLocator()
+            ->get("Branches")->getAllDecendentIds(1);
+        $this->set(compact("role", "permissions", 'id', 'isEmpty', 'branches', 'branch_required', 'branchTree'));
     }
 
     /**

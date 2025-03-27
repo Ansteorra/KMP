@@ -392,7 +392,12 @@ class DefaultWarrantManager implements WarrantManagerInterface
 
     protected function stopWarrantDependants($warrant, $rejecter_id): ServiceResult
     {
+
         if ($warrant->member_role_id != null) {
+            /**
+             * 
+             * @var ServiceRequest $awResult
+             */
             $awResult = $this->activeWindowManager->stop(
                 "MemberRoles",
                 $warrant->member_role_id,
@@ -406,6 +411,10 @@ class DefaultWarrantManager implements WarrantManagerInterface
             }
         }
         if ($warrant->entity_type != 'Direct Grant') {
+            /**
+             * 
+             * @var ServiceRequest $awResult
+             */
             $awResult = $this->activeWindowManager->stop(
                 $warrant->entity_type,
                 $warrant->entity_id,

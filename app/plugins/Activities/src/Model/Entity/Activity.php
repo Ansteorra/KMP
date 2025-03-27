@@ -61,12 +61,12 @@ class Activity extends Entity
      * @param int $activityId
      * @return SelectQuery
      */
-    public function getApproversQuery()
+    public function getApproversQuery(Int $branch_id)
     {
 
         if (!isset($this->permission_id)) {
             throw new \Exception("Permission ID not set");
         }
-        return PermissionsLoader::getMembersWithPermissionsQuery($this->permission_id);
+        return PermissionsLoader::getMembersWithPermissionsQuery($this->permission_id, $branch_id);
     }
 }

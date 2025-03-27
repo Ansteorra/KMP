@@ -12,7 +12,7 @@ use Cake\ORM\Entity;
 use Cake\ORM\TableRegistry;
 use Cake\Utility\Hash;
 use Cake\ORM\Query\SelectQuery;
-use Permission;
+use App\Model\Entity\Permission;
 use App\Model\Entity\Warrant;
 use App\Model\Entity\Member;
 
@@ -26,22 +26,77 @@ class PermissionsLoader
      */
     public static function getPermissions(int $memberId): array
     {
+        $branchTable = TableRegistry::getTableLocator()->get(
+            "Branches",
+        );
         $permissionsTable = TableRegistry::getTableLocator()->get(
             "Permissions",
         );
 
 
         $query = $permissionsTable
-            ->find()->cache("permissions_" . $memberId, 'permissions');
+            ->find();
         $query = self::validPermissionClauses($query)
+            ->select([
+                "Permissions.id",
+                "Permissions.name",
+                "Permissions.scoping_rule",
+                "Permissions.is_super_user",
+                "MemberRoles.branch_id",
+            ])
             ->where(["Members.id" => $memberId])
             ->distinct()
             ->all()
-            ->toList();
-        return $query;
+            ->toArray();
+        //merge permissions with the same permission id and different branch ids
+        $permissions = [];
+        foreach ($query as $permission) {
+            $branch_id = $permission->_matchingData["MemberRoles"]->branch_id;
+            if (isset($permissions[$permission->id])) {
+                switch ($permission->scoping_rule) {
+                    case Permission::SCOPE_GLOBAL:
+                        break;
+                    case Permission::SCOPE_BRANCH_ONLY:
+                        $permissions[$permission->id]->branch_ids[] = $branch_id;
+                        break;
+                    case Permission::SCOPE_BRANCH_AND_CHILDREN:
+                        $decendents = $branchTable->getAllDecendentIds($branch_id);
+                        $decendents[] = $branch_id;
+                        $idList = array_merge(
+                            $permissions[$permission->id]->branch_ids,
+                            $decendents,
+                        );
+                        $idList = array_unique($idList);
+                        $permissions[$permission->id]->branch_ids = $idList;
+                        break;
+                }
+            } else {
+                $permissions[$permission->id] = (object)[
+                    "id" => $permission->id,
+                    "name" => $permission->name,
+                    "scoping_rule" => $permission->scoping_rule,
+                    "is_super_user" => $permission->is_super_user,
+                    "branch_ids" => [],
+                ];
+                switch ($permission->scoping_rule) {
+                    case Permission::SCOPE_GLOBAL:
+                        $permissions[$permission->id]->branch_ids = null;
+                        break;
+                    case Permission::SCOPE_BRANCH_ONLY:
+                        $permissions[$permission->id]->branch_ids = [$branch_id];
+                        break;
+                    case Permission::SCOPE_BRANCH_AND_CHILDREN:
+                        $decendents = $branchTable->getAllDecendentIds($branch_id);
+                        $decendents[] = $branch_id;
+                        $permissions[$permission->id]->branch_ids = $decendents;
+                        break;
+                }
+            }
+        }
+        return $permissions;
     }
 
-    public static function getMembersWithPermissionsQuery(int $permissionId): SelectQuery
+    public static function getMembersWithPermissionsQuery(int $permissionId, int $branch_id): SelectQuery
     {
         $permissionsTable = TableRegistry::getTableLocator()->get(
             "Permissions",
@@ -49,12 +104,25 @@ class PermissionsLoader
         $memberTable = TableRegistry::getTableLocator()->get(
             "Members",
         );
+        $branchTable = TableRegistry::getTableLocator()->get(
+            "Branches",
+        );
+        $permission = $permissionsTable->get($permissionId);
         $subquery = $permissionsTable
             ->find()->cache("permissions_members" . $permissionId, 'permissions');
         $subquery = self::validPermissionClauses($subquery)
             ->where(["Permissions.id" => $permissionId])
             ->select(["Members.id"])
             ->distinct();
+
+        if ($permission->scoping_rule == Permission::SCOPE_BRANCH_ONLY) {
+            $subquery = $subquery->where(["MemberRoles.branch_id" => $branch_id]);
+        }
+        if ($permission->scoping_rule == Permission::SCOPE_BRANCH_AND_CHILDREN) {
+            $parents = $branchTable->getAllParents($branch_id);
+            $parents[] = $branch_id;
+            $subquery = $subquery->where(["MemberRoles.branch_id IN " => $parents]);
+        }
         $query = $memberTable->find()
             ->where(["Members.id IN" => $subquery]);
         return $query;

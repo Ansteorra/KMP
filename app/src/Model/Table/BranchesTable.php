@@ -7,6 +7,8 @@ use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
 use Cake\Database\Schema\TableSchemaInterface;
+use Cake\Cache\Cache;
+use Cake\Utility\Hash;
 
 /**
  * Branches Model
@@ -94,5 +96,94 @@ class BranchesTable extends Table
         $rules->add($rules->isUnique(["name"]));
 
         return $rules;
+    }
+
+    public function getAllDecendentIds($id): array
+    {
+        $descendants = Cache::read("descendants_" . $id);
+        if (!$descendants) {
+            $descendants = $this->getDescendantsLookup();
+            foreach ($descendants as $key => $value) {
+                Cache::write("descendants_" . $key, $value);
+            }
+            $descendants = $descendants[$id] ?? [];
+        }
+        return $descendants ?? [];
+    }
+
+    public function getAllParents($id): array
+    {
+        $parents = Cache::read("parents_" . $id);
+        if (!$parents) {
+            $parents = $this->getParentsLookup();
+            foreach ($parents as $key => $value) {
+                Cache::write("parents_" . $key, $value);
+            }
+            $parents = $parents[$id] ?? [];
+        }
+        return $parents ?? [];
+    }
+
+    public function getThreadedTree()
+    {
+        // rebuild the array into a tree structure
+        $branches = $this->find("threaded", [
+            "parentField" => "parent_id",
+            "keyForeign" => "id",
+            "nestingKey" => "children",
+        ])->select(['id', 'name', 'parent_id'])->toArray();
+        //create a quick index of all of the decendents for each branch
+
+        return $branches;
+    }
+
+    protected function getParentsLookup(): array
+    {
+        $tree = $this->getThreadedTree();
+        $lookup = [];
+
+        // we need to iterate through the tree creating the list of parents for each node
+        $populateParents = function (object $node, array $parentIds = []) use (&$lookup, &$populateParents) {
+            $lookup[$node['id']] = $parentIds;
+            if (!empty($node['children'])) {
+                foreach ($node['children'] as $child) {
+                    $populateParents($child, array_merge($parentIds, [$node['id']]));
+                }
+            }
+        };
+
+        foreach ($tree as $node) {
+            $populateParents($node);
+        }
+        return $lookup;
+    }
+
+    protected function getDescendantsLookup(): array
+    {
+        $tree = $this->getThreadedTree();
+        $lookup = [];
+
+        // Recursive function to populate lookup for each node.
+        $populateLookup = function (object $node) use (&$lookup, &$populateLookup) {
+            $childIDs = [];
+            if (!empty($node['children'])) {
+                foreach ($node['children'] as $child) {
+                    $childIDs[] = $child['id'];
+                    $populateLookup($child);
+                    // Merge in any descendants already computed for the child.
+                    if (isset($lookup[$child['id']])) {
+                        $childIDs = array_merge($childIDs, $lookup[$child['id']]);
+                    }
+                }
+            }
+            $lookup[$node['id']] = $childIDs;
+        };
+
+        // Process each top-level node.
+        foreach ($tree as $node) {
+            $populateLookup($node);
+        }
+
+        return $lookup;
     }
 }

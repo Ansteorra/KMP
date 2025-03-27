@@ -113,7 +113,7 @@ class MemberRolesController extends AppController
                     new WarrantRequest(
                         "Direct Grant:" . $role->name . " for " . $member->sca_name,
                         "Direct Grant",
-                        -1,
+                        toInt($roleid),
                         $this->Authentication->getIdentity()->get("id"),
                         toInt($memberid),
                         DateTime::now(),
