@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\KMP\PermissionsLoader;
+
 /**
  * Permissions Controller
  *
@@ -46,7 +48,7 @@ class PermissionsController extends AppController
     {
         $permission = $this->Permissions->get(
             $id,
-            contain: ["Roles"],
+            contain: ["Roles", "PermissionPolicies"],
         );
         if (!$permission) {
             throw new \Cake\Http\Exception\NotFoundException();
@@ -66,7 +68,8 @@ class PermissionsController extends AppController
         } else {
             $roles = $this->Permissions->Roles->find("list")->where(['is_system !=' => true])->all();
         }
-        $this->set(compact("permission", "roles"));
+        $appPolicies = PermissionsLoader::getApplicationPolicies();
+        $this->set(compact("permission", "roles", "appPolicies"));
     }
 
     /**
@@ -97,6 +100,90 @@ class PermissionsController extends AppController
             );
         }
         $this->set(compact("permission"));
+    }
+
+    public function updatePolicy($id)
+    {
+        //json call to add a policy to a permission
+        //check that the call is an ajax call
+        if (!$this->request->is("json")) {
+            throw new \Cake\Http\Exception\BadRequestException();
+        }
+        if (!$this->request->is("post")) {
+            throw new \Cake\Http\Exception\BadRequestException();
+        }
+        $permission = $this->Permissions->get($id);
+        if (!$permission) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+        $this->Authorization->authorize($permission);
+        $policyJson = $this->request->getData();
+        $policy = $this->Permissions->PermissionPolicies->newEmptyEntity();
+        $policy->permission_id = $id;
+        $policy->policy_class = $policyJson['className'];
+        $policy->policy_method = $policyJson['method'];
+        if ($policyJson['action'] == "add") {
+            //check if the policy already exists
+            $policyCheck = $this->Permissions->PermissionPolicies
+                ->find()
+                ->where([
+                    "permission_id" => $id,
+                    "policy_class" => $policyJson['className'],
+                    "policy_method" => $policyJson['method'],
+                ])
+                ->first();
+            if ($policyCheck) {
+                $this->response = $this->response
+                    ->withType("application/json")
+                    ->withStringBody(json_encode(true));
+                $this->response->withStatus(200);
+                return $this->response;
+            }
+            if ($this->Permissions->PermissionPolicies->save($policy)) {
+                $this->response = $this->response
+                    ->withType("application/json")
+                    ->withStringBody(json_encode(true));
+                $this->response->withStatus(200);
+                return $this->response;
+            } else {
+                $this->response = $this->response
+                    ->withType("application/json")
+                    ->withStringBody(json_encode(false));
+                $this->response->withStatus(500);
+                return $this->response;
+            }
+        } else {
+            //we look up the policy for the permission and delete it
+            $policy = $this->Permissions->PermissionPolicies
+                ->find()
+                ->where([
+                    "permission_id" => $id,
+                    "policy_class" => $policyJson['className'],
+                    "policy_method" => $policyJson['method'],
+                ])
+                ->first();
+            if ($policy) {
+                if ($this->Permissions->PermissionPolicies->delete($policy)) {
+                    $this->response = $this->response
+                        ->withType("application/json")
+                        ->withStringBody(json_encode(true));
+                    $this->response->withStatus(200);
+                    return $this->response;
+                } else {
+                    $this->response = $this->response
+                        ->withType("application/json")
+                        ->withStringBody(json_encode(false));
+                    $this->response->withStatus(500);
+                    return $this->response;
+                }
+            } else {
+                $this->response = $this->response
+                    ->withType("application/json")
+                    ->withStringBody(json_encode(false));
+                $this->response->withStatus(500);
+                return $this->response;
+            }
+        }
     }
 
     /**

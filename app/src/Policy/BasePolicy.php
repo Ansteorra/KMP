@@ -14,6 +14,7 @@ use Cake\Log\Log;
 
 class BasePolicy implements BeforePolicyInterface
 {
+    
     protected string $REQUIRED_PERMISSION = "OVERRIDE_ME";
     public function before(
         ?IdentityInterface $user,

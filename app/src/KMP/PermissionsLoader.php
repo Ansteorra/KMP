@@ -15,6 +15,7 @@ use Cake\ORM\Query\SelectQuery;
 use App\Model\Entity\Permission;
 use App\Model\Entity\Warrant;
 use App\Model\Entity\Member;
+use Cake\Cache\Cache;
 
 class PermissionsLoader
 {
@@ -196,5 +197,86 @@ class PermissionsLoader
             ]);
         }
         return $q;
+    }
+
+    public static function getApplicationPolicies(): array
+    {
+        // If not cached, load the policy classes.
+        $paths = [];
+
+        // App policy folder: assume app policies are in app/src/Policy
+        $appPolicyPath = realpath(__DIR__ . '/../Policy');
+        if ($appPolicyPath !== false) {
+            $paths[] = $appPolicyPath;
+        }
+
+        // Plugin policy folders: assume plugins are in app/Plugins/*/src/Policy
+        $pluginPolicyDirs = glob(__DIR__ . '/../../plugins/*/src/Policy', GLOB_ONLYDIR);
+        foreach ($pluginPolicyDirs as $dir) {
+            $realDir = realpath($dir);
+            if ($realDir !== false) {
+                $paths[] = $realDir;
+            }
+        }
+
+        // Require all PHP files in each policy folder.
+        foreach ($paths as $path) {
+            $iterator = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($path)
+            );
+            foreach ($iterator as $file) {
+                if ($file->isFile() && $file->getExtension() === 'php') {
+                    require_once $file->getPathname();
+                }
+            }
+        }
+
+        $policyClasses = [];
+        // Iterate all declared classes and pick those whose file is in one of the policy paths.
+        foreach (get_declared_classes() as $class) {
+            try {
+                $reflector = new \ReflectionClass($class);
+                $filename = $reflector->getFileName();
+                if ($filename === false) {
+                    continue;
+                }
+
+                foreach ($paths as $policyPath) {
+                    if (strpos(realpath($filename), $policyPath) === 0) {
+                        // Include all public methods (including inherited methods).
+                        $methods = [];
+                        foreach ($reflector->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
+                            // Skip methods that are not public.
+                            if ($method->isPublic()) {
+                                // Skip methods that are not callable.
+                                if ($method->isStatic() || $method->isConstructor()) {
+                                    continue;
+                                }
+                                //skip methods that do not start with "can"
+                                $canResult = preg_match('/^can/', $method->getName());
+                                if ($canResult === 0) {
+                                    continue;
+                                }
+                                $methods[] = $method->getName();
+                            }
+                        }
+                        //if methods is not empty, add to policyClasses
+                        if (empty($methods)) {
+                            continue;
+                        }
+                        //skip the class BasePolicy because everything inherits from it.
+                        if ($class == "App\Policy\BasePolicy") {
+                            continue;
+                        }
+                        $policyClasses[$class] = $methods;
+                        break;
+                    }
+                }
+            } catch (\ReflectionException $e) {
+                // Skip classes that cannot be reflected.
+                continue;
+            }
+        }
+        return $policyClasses;
     }
 }

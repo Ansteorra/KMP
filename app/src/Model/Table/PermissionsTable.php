@@ -50,6 +50,10 @@ class PermissionsTable extends Table
             "targetForeignKey" => "role_id",
             "joinTable" => "roles_permissions",
         ]);
+        $this->hasMany("PermissionPolicies", [
+            "foreignKey" => "permission_id",
+            "saveStrategy" => "replace",
+        ]);
         $this->addBehavior("Timestamp");
         $this->addBehavior('Muffin/Footprint.Footprint');
         $this->addBehavior("Muffin/Trash.Trash");
