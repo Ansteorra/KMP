@@ -16,6 +16,7 @@ use Cake\ORM\RulesChecker;
 
 use Cake\Database\Schema\TableSchemaInterface;
 use ArrayObject;
+use App\Model\Table\BaseTable;
 
 /**
  * Members Model
@@ -37,7 +38,7 @@ use ArrayObject;
  * @method iterable<\App\Model\Entity\Member>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\Member>|false deleteMany(iterable $entities, array $options = [])
  * @method iterable<\App\Model\Entity\Member>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\Member> deleteManyOrFail(iterable $entities, array $options = [])
  */
-class MembersTable extends Table
+class MembersTable extends BaseTable
 {
     /**
      * Initialize method

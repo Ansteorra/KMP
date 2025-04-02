@@ -27,6 +27,11 @@ class PermissionsLoader
      */
     public static function getPermissions(int $memberId): array
     {
+        $cacheKey = "member_permissions" . $memberId;
+        $cache = Cache::read($cacheKey, 'member_permissions');
+        if ($cache) {
+            return $cache;
+        }
         $branchTable = TableRegistry::getTableLocator()->get(
             "Branches",
         );
@@ -44,15 +49,21 @@ class PermissionsLoader
                 "Permissions.scoping_rule",
                 "Permissions.is_super_user",
                 "MemberRoles.branch_id",
+                "MemberRoles.entity_id",
+                "MemberRoles.entity_type",
             ])
+            ->contain(['PermissionPolicies'])
             ->where(["Members.id" => $memberId])
             ->distinct()
             ->all()
             ->toArray();
         //merge permissions with the same permission id and different branch ids
         $permissions = [];
+
         foreach ($query as $permission) {
             $branch_id = $permission->_matchingData["MemberRoles"]->branch_id;
+            $entity_id = $permission->_matchingData["MemberRoles"]->entity_id;
+            $entity_type = $permission->_matchingData["MemberRoles"]->entity_type;
             if (isset($permissions[$permission->id])) {
                 switch ($permission->scoping_rule) {
                     case Permission::SCOPE_GLOBAL:
@@ -78,7 +89,14 @@ class PermissionsLoader
                     "scoping_rule" => $permission->scoping_rule,
                     "is_super_user" => $permission->is_super_user,
                     "branch_ids" => [],
+                    "entity_id" => $entity_id,
+                    "entity_type" =>  $entity_type,
                 ];
+                if ($permission->permission_policies) {
+                    foreach ($permission->permission_policies as $policy) {
+                        $permissions[$permission->id]->policies[$policy->policy_class][$policy->policy_method] = $policy->id;
+                    }
+                }
                 switch ($permission->scoping_rule) {
                     case Permission::SCOPE_GLOBAL:
                         $permissions[$permission->id]->branch_ids = null;
@@ -94,7 +112,70 @@ class PermissionsLoader
                 }
             }
         }
+        Cache::write($cacheKey, $permissions, 'member_permissions');
         return $permissions;
+    }
+
+    public static function getPolicies($id)
+    {
+        $cacheKey = "permissions_policies" . $id;
+        $cache = Cache::read($cacheKey, 'member_permissions');
+        if ($cache) {
+            return $cache;
+        }
+        $permissions = self::getPermissions($id);
+        $policies = [];
+        foreach ($permissions as $permission) {
+            if (isset($permission->policies)) {
+                foreach ($permission->policies as $policyClass => $methods) {
+                    if (!isset($policies[$policyClass])) {
+                        $policies[$policyClass] = [];
+                    }
+                    foreach ($methods as $method => $policyId) {
+                        if (!isset($policies[$policyClass][$method])) {
+                            $policies[$policyClass][$method] = (object)[
+                                "scoping_rule" => $permission->scoping_rule,
+                                "branch_ids" => $permission->branch_ids,
+                                "entity_id" => $permission->entity_id,
+                                "entity_type" => $permission->entity_type,
+                            ];
+                        } else {
+                            if ($permission->scoping_rule == Permission::SCOPE_GLOBAL) {
+                                $policies[$policyClass][$method]->branch_ids = null;
+                                $policies[$policyClass][$method]->scoping_rule = Permission::SCOPE_GLOBAL;
+                            } else if ($policies[$policyClass][$method]->scoping_rule != Permission::SCOPE_GLOBAL) {
+                                $policies[$policyClass][$method]->branch_ids = array_merge($policies[$policyClass][$method]->branch_ids, $permission->branch_ids);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        //remove duplicates from branch_ids
+        foreach ($policies as $policyClass => $methods) {
+            foreach ($methods as $method => $policy) {
+                if ($policy->branch_ids) {
+                    $policy->branch_ids = array_unique($policy->branch_ids);
+                }
+            }
+        }
+        //remove policies with no branch_ids
+        foreach ($policies as $policyClass => $methods) {
+            foreach ($methods as $method => $policy) {
+                if (empty($policy->branch_ids) && $policy->scoping_rule != Permission::SCOPE_GLOBAL) {
+                    unset($policies[$policyClass][$method]);
+                }
+            }
+        }
+        //remove empty policies
+        foreach ($policies as $policyClass => $methods) {
+            if (empty($methods)) {
+                unset($policies[$policyClass]);
+            }
+        }
+        //save to cache 
+        Cache::write($cacheKey, $policies, 'member_permissions');
+        return $policies;
     }
 
     public static function getMembersWithPermissionsQuery(int $permissionId, int $branch_id): SelectQuery
@@ -138,7 +219,6 @@ class PermissionsLoader
         $warrantSubquery = $warrantsTable->find()
             ->select(['Warrants.member_role_id'])
             ->where([
-                'Warrants.member_role_id = MemberRoles.id',
                 'Warrants.start_on <' => $now,
                 'Warrants.expires_on >' => $now,
                 'Warrants.status' => Warrant::CURRENT_STATUS,
@@ -240,7 +320,12 @@ class PermissionsLoader
                 if ($filename === false) {
                     continue;
                 }
-
+                //check if the class has a constant called "POLICY_CLASS"
+                if (!defined($class . "::SKIP_BASE")) {
+                    $skipBase = false;
+                } else {
+                    $skipBase = constant($class . "::SKIP_BASE");
+                }
                 foreach ($paths as $policyPath) {
                     if (strpos(realpath($filename), $policyPath) === 0) {
                         // Include all public methods (including inherited methods).
@@ -248,6 +333,10 @@ class PermissionsLoader
                         foreach ($reflector->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
                             // Skip methods that are not public.
                             if ($method->isPublic()) {
+                                // skip methods that are inherited from the parent class.
+                                if ($method->getDeclaringClass()->getName() != $class && $skipBase) {
+                                    continue;
+                                }
                                 // Skip methods that are not callable.
                                 if ($method->isStatic() || $method->isConstructor()) {
                                     continue;

@@ -97,10 +97,12 @@ class BranchesController extends AppController
                 ],
             ]);
         }
+        $this->Authorization->authorizeAction();
+        $this->Authorization->applyScope($query);
         $branches = $query->toArray();
 
 
-        $this->Authorization->authorizeAction();
+
         $this->set(compact("branches", "search"));
     }
 

@@ -12,49 +12,22 @@ use Authorization\IdentityInterface;
  */
 class WarrantRosterPolicy extends BasePolicy
 {
-    protected string $REQUIRED_PERMISSION = "Can Manage Warrants";
-    protected string $REQUIRED_VIEW_PERMISSION = "Can View Warrants";
 
-    public function canView(IdentityInterface $user, $entity)
+    public function canAllRosters(IdentityInterface $user, $entity, ...$optionalArgs)
     {
-        if ($this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION)) {
-            return true;
-        }
-        if ($this->_hasNamedPermission($user, $this->REQUIRED_VIEW_PERMISSION)) {
-            return true;
-        }
-        return false;
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
 
-    public function canIndex(IdentityInterface $user, $entity)
+    public function canApprove(IdentityInterface $user, $entity, ...$optionalArgs)
     {
-        if ($this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION)) {
-            return true;
-        }
-        if ($this->_hasNamedPermission($user, $this->REQUIRED_VIEW_PERMISSION)) {
-            return true;
-        }
-        return false;
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
 
-    public function canAllRosters(IdentityInterface $user, $entity)
+    public function canDecline(IdentityInterface $user, $entity, ...$optionalArgs)
     {
-        if ($this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION)) {
-            return true;
-        }
-        if ($this->_hasNamedPermission($user, $this->REQUIRED_VIEW_PERMISSION)) {
-            return true;
-        }
-        return false;
-    }
-
-    public function canApprove(IdentityInterface $user, $entity)
-    {
-        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
-    }
-
-    public function canDecline(IdentityInterface $user, $entity)
-    {
-        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
 }

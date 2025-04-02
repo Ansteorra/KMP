@@ -7,6 +7,7 @@ namespace Awards\Model\Entity;
 use Cake\ORM\Entity;
 use App\KMP\StaticHelpers;
 use Cake\I18n\DateTime;
+use App\Model\Entity\BaseEntity;
 
 /**
  * Recommendation Entity
@@ -28,7 +29,7 @@ use Cake\I18n\DateTime;
  *
  * @property \Awards\Model\Entity\Member $member
  */
-class Recommendation extends Entity
+class Recommendation extends BaseEntity
 {
 
 
@@ -132,5 +133,14 @@ class Recommendation extends Entity
             }
         }
         return $states;
+    }
+
+    public function getBranchId(): ?int
+    {
+        if ($this->member_id) {
+            return $this->getTableLocator()->get('Members')->get($this->member_id)->branch_id;
+        } else {
+            return $this->branch_id ?? null;
+        }
     }
 }

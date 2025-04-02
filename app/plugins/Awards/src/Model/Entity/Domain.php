@@ -1,9 +1,11 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Awards\Model\Entity;
 
 use Cake\ORM\Entity;
+use App\Model\Entity\BaseEntity;
 
 /**
  * Domain Entity
@@ -16,7 +18,7 @@ use Cake\ORM\Entity;
  * @property int|null $modified_by
  * @property \Cake\I18n\DateTime|null $deleted
  */
-class Domain extends Entity
+class Domain extends BaseEntity
 {
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().

@@ -8,6 +8,7 @@ use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
+use App\Model\Table\BaseTable;
 
 /**
  * Levels Model
@@ -28,7 +29,7 @@ use Cake\Validation\Validator;
  *
  * @mixin \Cake\ORM\Behavior\TimestampBehavior
  */
-class LevelsTable extends Table
+class LevelsTable extends BaseTable
 {
     /**
      * Initialize method

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Activities\Model\Entity;
 
 use Cake\ORM\Entity;
+use App\Model\Entity\BaseEntity;
 
 /**
  * AuthorizationApproval Entity
@@ -21,7 +22,7 @@ use Cake\ORM\Entity;
  * @property \App\Model\Entity\Authorization $authorization
  * @property \App\Model\Entity\Member $member
  */
-class AuthorizationApproval extends Entity
+class AuthorizationApproval extends BaseEntity
 {
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().

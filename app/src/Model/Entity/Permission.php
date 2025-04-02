@@ -21,7 +21,7 @@ use Cake\ORM\Entity;
  * @property \App\Model\Entity\Activity $activity
  * @property \App\Model\Entity\Role[] $roles
  */
-class Permission extends Entity
+class Permission extends BaseEntity
 {
 
     const SCOPE_GLOBAL = "Global"; //No Scope limitations

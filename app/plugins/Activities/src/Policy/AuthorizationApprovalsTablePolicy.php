@@ -16,7 +16,7 @@ class AuthorizationApprovalsTablePolicy extends BasePolicy
 {
     protected string $REQUIRED_PERMISSION = "Can Manage Authorization Queues";
 
-    public function canMyQueue(IdentityInterface $user, $entity)
+    public function canMyQueue(IdentityInterface $user, $entity, ...$optionalArgs)
     {
         return ActivitiesTable::canAuhtorizeAnyActivity($user);
     }

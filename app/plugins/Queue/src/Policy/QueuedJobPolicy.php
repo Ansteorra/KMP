@@ -12,118 +12,84 @@ class QueuedJobPolicy extends BasePolicy
 {
     protected string $REQUIRED_PERMISSION = "Can Manage Queue Engine";
 
-    public function canAddJob(IdentityInterface $user, $entity)
+    public function canAddJob(IdentityInterface $user, $entity, ...$optionalArgs)
     {
-        if ($this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION)) {
-            return true;
-        }
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
-    public function canResetJob(IdentityInterface $user, $entity)
+    public function canResetJob(IdentityInterface $user, $entity, ...$optionalArgs)
     {
-        if ($this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION)) {
-            return true;
-        }
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
-    public function canRemoveJob(IdentityInterface $user, $entity)
+    public function canRemoveJob(IdentityInterface $user, $entity, ...$optionalArgs)
     {
-        if ($this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION)) {
-            return true;
-        }
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
-    public function canProcesses(IdentityInterface $user, $entity)
+    public function canProcesses(IdentityInterface $user, $entity, ...$optionalArgs)
     {
-        if ($this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION)) {
-            return true;
-        }
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
-    public function canReset(IdentityInterface $user, $entity)
+    public function canReset(IdentityInterface $user, $entity, ...$optionalArgs)
     {
-        if ($this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION)) {
-            return true;
-        }
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
-    public function canFlush(IdentityInterface $user, $entity)
+    public function canFlush(IdentityInterface $user, $entity, ...$optionalArgs)
     {
-        if ($this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION)) {
-            return true;
-        }
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
-    public function canHardReset(IdentityInterface $user, $entity)
+    public function canHardReset(IdentityInterface $user, $entity, ...$optionalArgs)
     {
-        if ($this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION)) {
-            return true;
-        }
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
-    public function canStats(IdentityInterface $user, $entity)
+    public function canStats(IdentityInterface $user, $entity, ...$optionalArgs)
     {
-        if ($this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION)) {
-            return true;
-        }
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
-    public function canView(IdentityInterface $user, $entity)
+    public function canViewClasses(IdentityInterface $user, $entity, ...$optionalArgs)
     {
-        if ($this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION)) {
-            return true;
-        }
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
-    public function canViewClasses(IdentityInterface $user, $entity)
+    public function canImport(IdentityInterface $user, $entity, ...$optionalArgs)
     {
-        if ($this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION)) {
-            return true;
-        }
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
-    public function canImport(IdentityInterface $user, $entity)
+    public function canData(IdentityInterface $user, $entity, ...$optionalArgs)
     {
-        if ($this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION)) {
-            return true;
-        }
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
-    public function canEdit(IdentityInterface $user, $entity)
+    public function canExecute(IdentityInterface $user, $entity, ...$optionalArgs)
     {
-        if ($this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION)) {
-            return true;
-        }
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
-    public function canData(IdentityInterface $user, $entity)
+    public function canTest(IdentityInterface $user, $entity, ...$optionalArgs)
     {
-        if ($this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION)) {
-            return true;
-        }
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
-    public function canDelete(IdentityInterface $user, $entity)
+    public function canMigrate(IdentityInterface $user, $entity, ...$optionalArgs)
     {
-        if ($this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION)) {
-            return true;
-        }
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
-    public function canExecute(IdentityInterface $user, $entity)
+    public function canTerminate(IdentityInterface $user, $entity, ...$optionalArgs)
     {
-        if ($this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION)) {
-            return true;
-        }
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
-    public function canTest(IdentityInterface $user, $entity)
+    public function canCleanup(IdentityInterface $user, $entity, ...$optionalArgs)
     {
-        if ($this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION)) {
-            return true;
-        }
-    }
-    public function canMigrate(IdentityInterface $user, $entity)
-    {
-        if ($this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION)) {
-            return true;
-        }
-    }
-    public function canTerminate(IdentityInterface $user, $entity)
-    {
-        if ($this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION)) {
-            return true;
-        }
-    }
-    public function canCleanup(IdentityInterface $user, $entity)
-    {
-        if ($this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION)) {
-            return true;
-        }
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
 }

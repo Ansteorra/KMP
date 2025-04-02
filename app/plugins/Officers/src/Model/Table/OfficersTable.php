@@ -12,6 +12,7 @@ use App\KMP\StaticHelpers;
 use App\Model\Entity\Warrant;
 use Cake\I18n\DateTime;
 use Officers\Model\Entity\Officer;
+use App\Model\Table\BaseTable;
 
 /**
  * Officers Model
@@ -34,7 +35,7 @@ use Officers\Model\Entity\Officer;
  * @method iterable<\App\Model\Entity\Officer>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\Officer>|false deleteMany(iterable $entities, array $options = [])
  * @method iterable<\App\Model\Entity\Officer>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\Officer> deleteManyOrFail(iterable $entities, array $options = [])
  */
-class OfficersTable extends Table
+class OfficersTable extends BaseTable
 {
     /**
      * Initialize method
@@ -211,5 +212,148 @@ class OfficersTable extends Table
         $rules->add($rules->existsIn(['office_id'], 'Offices'), ['errorField' => 'office_id']);
 
         return $rules;
+    }
+    /**
+     * Adds display conditions and fields to the query based on the officer type.
+     *
+     * @param \Cake\ORM\Query\SelectQuery $q The query object.
+     * @param string $type The type of officers to retrieve (current, upcoming, previous).
+     * @return \Cake\ORM\Query\SelectQuery The modified query object.
+     */
+    public function addDisplayConditionsAndFields($q, $type)
+    {
+
+
+        $rejectFragment = $q->func()->concat([
+            'Released by ',
+            "RevokedBy.sca_name" => 'identifier',
+            " on ",
+            "Officers.expires_on" => 'identifier',
+            " note: ",
+            "Officers.revoked_reason" => 'identifier'
+        ]);
+
+        $revokeReasonCase = $q->newExpr()
+            ->case()
+            ->when(['Officers.status' => Officer::RELEASED_STATUS])
+            ->then($rejectFragment)
+            ->when(['Officers.status' => Officer::REPLACED_STATUS])
+            ->then("New Officer Took Over.")
+            ->when(['Officers.status' => Officer::EXPIRED_STATUS])
+            ->then("Officer Term Expired.")
+            ->else($rejectFragment);
+
+
+        $reportsToCase = $q->newExpr()
+            ->case()
+            ->when(['ReportsToOffices.id IS NULL'])
+            ->then("Society")
+            ->when(['current_report_to.id IS NOT NULL'])
+            ->then($q->func()->concat([
+                "ReportsToOffices.name" => 'identifier',
+                " : ",
+                "current_report_to.sca_name" => 'identifier',
+            ]))
+            ->when(['ReportsToOffices.id IS NOT NULL'])
+            ->then($q->func()->concat([
+                "Not Filed - ",
+                "ReportsToBranches.name" => 'identifier',
+                " : ",
+                "ReportsToOffices.name" => 'identifier'
+            ]))
+            ->else("None");
+
+        $fields = [
+            "id",
+            "member_id",
+            "office_id",
+            "branch_id",
+            "Officers.start_on",
+            "Officers.expires_on",
+            "Officers.deputy_description",
+            "Officers.email_address",
+            "status",
+        ];
+
+        $contain = [
+            "Members" => function ($q) {
+                return $q
+                    ->select(["id", "sca_name"])
+                    ->order(["sca_name" => "ASC"]);
+            },
+            "Offices" => function ($q) {
+                return $q
+                    ->select(["id", "name", "requires_warrant", "deputy_to_id", "reports_to_id"]);
+            },
+
+            "RevokedBy" => function ($q) {
+                return $q
+                    ->select(["id", "sca_name"]);
+            },
+        ];
+
+        if ($type === 'current' || $type === 'upcoming') {
+            $fields['reports_to'] = $reportsToCase;
+            $fields[] = "ReportsToBranches.name";
+            $fields[] = "ReportsToOffices.name";
+            $contain["ReportsToBranches"] = function ($q) {
+                return $q
+                    ->select(["id", "name"]);
+            };
+            $contain["ReportsToOffices"] = function ($q) {
+                return $q
+                    ->select(["id", "name"]);
+            };
+            $contain["DeputyToOffices"] = function ($q) {
+                return $q
+                    ->select(["id", "name"]);
+            };
+            $contain["CurrentWarrants"] = function ($q) {
+                return $q
+                    ->select(["id", "start_on", "expires_on"]);
+            };
+            $contain["PendingWarrants"] = function ($q) {
+                return $q
+                    ->select(["id", "start_on", "expires_on", "entity_id"]);
+            };
+        }
+
+        if ($type === 'previous') {
+            $fields['revoked_reason'] = $revokeReasonCase;
+        }
+
+        $query = $q
+            ->select($fields);
+
+        $query->contain($contain);
+        if ($type === 'current' || $type === 'upcoming') {
+            $query->join(
+                [
+                    'table' => 'officers_officers',
+                    'alias' => 'current_report_to_officer',
+                    'type' => 'LEFT',
+                    'conditions' => [
+                        'Officers.reports_to_office_id = current_report_to_officer.office_id',
+                        'Officers.reports_to_branch_id = current_report_to_officer.branch_id',
+                        'current_report_to_officer.start_on <=' => DateTime::now(),
+                        'current_report_to_officer.expires_on >=' => DateTime::now(),
+                        'current_report_to_officer.status' => Officer::CURRENT_STATUS
+                    ]
+                ]
+            );
+            $query->join(
+                [
+                    'table' => 'members',
+                    'alias' => 'current_report_to',
+                    'type' => 'LEFT',
+                    'conditions' => [
+                        'current_report_to_officer.member_id = current_report_to.id',
+                    ]
+                ]
+            );
+        }
+        $query->orderBy(["Officers.start_on" => "DESC", "Offices.name" => "ASC"]);
+
+        return $query;
     }
 }

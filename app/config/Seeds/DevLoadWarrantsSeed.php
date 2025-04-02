@@ -48,7 +48,7 @@ class DevLoadWarrantsSeed extends BaseSeed
                 'warrant_roster_id' => 1,
                 'entity_type' => 'Direct Grant',
                 'entity_id' => -1,
-                'member_role_id' => 202,
+                'member_role_id' => 201,
                 'expires_on' => '2100-10-10 00:00:00',
                 'start_on' => '2020-01-01 00:00:00',
                 'approved_date' => '2020-01-01 00:00:00',

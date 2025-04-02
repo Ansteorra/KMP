@@ -9,6 +9,8 @@ use Cake\Validation\Validator;
 use Cake\Database\Schema\TableSchemaInterface;
 use Cake\Cache\Cache;
 use Cake\Utility\Hash;
+use App\Model\Table\BaseTable;
+use Cake\ORM\Query\SelectQuery;
 
 /**
  * Branches Model
@@ -21,7 +23,7 @@ use Cake\Utility\Hash;
  * @method \App\Model\Entity\Branch[] patchEntities($entities, array $data, array $options = [])
  * @method \App\Model\Entity\Branch findOrCreate($search, callable $callback = null, $options = [])
  */
-class BranchesTable extends Table
+class BranchesTable extends BaseTable
 {
     /**
      * Initialize method
@@ -59,6 +61,12 @@ class BranchesTable extends Table
 
         return $schema;
     }
+    protected const CACHES_TO_CLEAR = [];
+    protected const ID_CACHES_TO_CLEAR = [
+        ['descendants_', 'branch_structure'],
+        ['parents_', 'branch_structure']
+    ];
+    protected const CACHE_GROUPS_TO_CLEAR = ['security'];
 
 
     /**
@@ -100,11 +108,11 @@ class BranchesTable extends Table
 
     public function getAllDecendentIds($id): array
     {
-        $descendants = Cache::read("descendants_" . $id);
+        $descendants = Cache::read("descendants_" . $id, 'branch_structure');
         if (!$descendants) {
             $descendants = $this->getDescendantsLookup();
             foreach ($descendants as $key => $value) {
-                Cache::write("descendants_" . $key, $value);
+                Cache::write("descendants_" . $key, $value, 'branch_structure');
             }
             $descendants = $descendants[$id] ?? [];
         }
@@ -113,11 +121,11 @@ class BranchesTable extends Table
 
     public function getAllParents($id): array
     {
-        $parents = Cache::read("parents_" . $id);
+        $parents = Cache::read("parents_" . $id, 'branch_structure');
         if (!$parents) {
             $parents = $this->getParentsLookup();
             foreach ($parents as $key => $value) {
-                Cache::write("parents_" . $key, $value);
+                Cache::write("parents_" . $key, $value, 'branch_structure');
             }
             $parents = $parents[$id] ?? [];
         }

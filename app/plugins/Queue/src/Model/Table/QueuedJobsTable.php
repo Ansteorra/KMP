@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Queue\Model\Table;
@@ -20,6 +21,7 @@ use Queue\Queue\Config;
 use Queue\Queue\TaskFinder;
 use RuntimeException;
 use Search\Manager;
+use App\Model\Table\BaseTable;
 
 /**
  * @author MGriesbach@gmail.com
@@ -41,7 +43,8 @@ use Search\Manager;
  * @method \Cake\Datasource\ResultSetInterface<\Queue\Model\Entity\QueuedJob>|false deleteMany(iterable $entities, array $options = [])
  * @method \Cake\Datasource\ResultSetInterface<\Queue\Model\Entity\QueuedJob> deleteManyOrFail(iterable $entities, array $options = [])
  */
-class QueuedJobsTable extends Table {
+class QueuedJobsTable extends BaseTable
+{
 
 	/**
 	 * @var string
@@ -93,7 +96,8 @@ class QueuedJobsTable extends Table {
 	 *
 	 * @return string
 	 */
-	public static function defaultConnectionName(): string {
+	public static function defaultConnectionName(): string
+	{
 		$connection = Configure::read('Queue.connection');
 		if (!empty($connection)) {
 			return $connection;
@@ -109,7 +113,8 @@ class QueuedJobsTable extends Table {
 	 *
 	 * @return void
 	 */
-	public function initialize(array $config): void {
+	public function initialize(array $config): void
+	{
 		parent::initialize($config);
 
 		$this->addBehavior('Timestamp');
@@ -135,7 +140,8 @@ class QueuedJobsTable extends Table {
 	 *
 	 * @return void
 	 */
-	public function beforeMarshal(EventInterface $event, ArrayObject $data, ArrayObject $options): void {
+	public function beforeMarshal(EventInterface $event, ArrayObject $data, ArrayObject $options): void
+	{
 		if (isset($data['data']) && $data['data'] === '') {
 			$data['data'] = null;
 		}
@@ -144,7 +150,8 @@ class QueuedJobsTable extends Table {
 	/**
 	 * @return \Search\Manager
 	 */
-	public function searchManager(): Manager {
+	public function searchManager(): Manager
+	{
 		$searchManager = $this->behaviors()->Search->searchManager();
 		$searchManager
 			->value('job_task')
@@ -159,11 +166,12 @@ class QueuedJobsTable extends Table {
 					}
 					if ($status === 'in_progress') {
 						$query->where([
-						'completed IS' => null,
-						'OR' => [
-							'notbefore <=' => new DateTime(),
-							'notbefore IS' => null,
-						]]);
+							'completed IS' => null,
+							'OR' => [
+								'notbefore <=' => new DateTime(),
+								'notbefore IS' => null,
+							]
+						]);
 
 						return true;
 					}
@@ -187,7 +195,8 @@ class QueuedJobsTable extends Table {
 	 *
 	 * @return \Cake\Validation\Validator
 	 */
-	public function validationDefault(Validator $validator): Validator {
+	public function validationDefault(Validator $validator): Validator
+	{
 		$validator
 			->integer('id')
 			->allowEmptyString('id', null, 'create');
@@ -207,7 +216,8 @@ class QueuedJobsTable extends Table {
 	/**
 	 * @return \Queue\Config\JobConfig
 	 */
-	public function createConfig(): JobConfig {
+	public function createConfig(): JobConfig
+	{
 		return new JobConfig();
 	}
 
@@ -227,7 +237,8 @@ class QueuedJobsTable extends Table {
 	 *
 	 * @return \Queue\Model\Entity\QueuedJob Saved job entity
 	 */
-	public function createJob(string $jobTask, array|object|null $data = null, array|JobConfig $config = []): QueuedJob {
+	public function createJob(string $jobTask, array|object|null $data = null, array|JobConfig $config = []): QueuedJob
+	{
 		if (!$config instanceof JobConfig) {
 			$config = $this->createConfig()->fromArray($config);
 		}
@@ -261,7 +272,8 @@ class QueuedJobsTable extends Table {
 	 *
 	 * @return string
 	 */
-	protected function jobTask(string $jobType): string {
+	protected function jobTask(string $jobType): string
+	{
 		if ($this->taskFinder === null) {
 			$this->taskFinder = new TaskFinder();
 		}
@@ -277,7 +289,8 @@ class QueuedJobsTable extends Table {
 	 *
 	 * @return bool
 	 */
-	public function isQueued(string $reference, ?string $jobTask = null): bool {
+	public function isQueued(string $reference, ?string $jobTask = null): bool
+	{
 		if (!$reference) {
 			throw new InvalidArgumentException('A reference is needed');
 		}
@@ -301,7 +314,8 @@ class QueuedJobsTable extends Table {
 	 *
 	 * @return int
 	 */
-	public function getLength(?string $type = null): int {
+	public function getLength(?string $type = null): int
+	{
 		$findConf = [
 			'conditions' => [
 				'completed IS' => null,
@@ -323,7 +337,8 @@ class QueuedJobsTable extends Table {
 	 *
 	 * @return \Cake\ORM\Query\SelectQuery
 	 */
-	public function getTypes(): SelectQuery {
+	public function getTypes(): SelectQuery
+	{
 		$findCond = [
 			'fields' => [
 				'job_task',
@@ -346,7 +361,8 @@ class QueuedJobsTable extends Table {
 	 *
 	 * @return array<\Queue\Model\Entity\QueuedJob>|array<mixed>
 	 */
-	public function getStats(bool $disableHydration = false): array {
+	public function getStats(bool $disableHydration = false): array
+	{
 		$driverName = $this->getDriverName();
 		$options = [
 			'fields' => function (SelectQuery $query) use ($driverName) {
@@ -418,7 +434,8 @@ class QueuedJobsTable extends Table {
 	 *
 	 * @return array<string, array<string, mixed>>
 	 */
-	public function getFullStats(?string $jobTask = null): array {
+	public function getFullStats(?string $jobTask = null): array
+	{
 		$driverName = $this->getDriverName();
 		$fields = function (SelectQuery $query) use ($driverName) {
 			$runtime = $query->newExpr('UNIX_TIMESTAMP(completed) - UNIX_TIMESTAMP(fetched)');
@@ -514,7 +531,8 @@ class QueuedJobsTable extends Table {
 	 *
 	 * @return \Queue\Model\Entity\QueuedJob|null
 	 */
-	public function requestJob(array $tasks, array $groups = [], array $types = []): ?QueuedJob {
+	public function requestJob(array $tasks, array $groups = [], array $types = []): ?QueuedJob
+	{
 		$now = $this->getDateTime();
 		$nowStr = $now->toDateTimeString();
 		$driverName = $this->getDriverName();
@@ -713,7 +731,8 @@ class QueuedJobsTable extends Table {
 	 *
 	 * @return bool Success
 	 */
-	public function updateProgress(int $id, float $progress, ?string $status = null): bool {
+	public function updateProgress(int $id, float $progress, ?string $status = null): bool
+	{
 		if (!$id) {
 			return false;
 		}
@@ -735,7 +754,8 @@ class QueuedJobsTable extends Table {
 	 *
 	 * @return bool Success
 	 */
-	public function markJobDone(QueuedJob $job): bool {
+	public function markJobDone(QueuedJob $job): bool
+	{
 		$fields = [
 			'progress' => 1,
 			'completed' => $this->getDateTime(),
@@ -753,7 +773,8 @@ class QueuedJobsTable extends Table {
 	 *
 	 * @return bool Success
 	 */
-	public function markJobFailed(QueuedJob $job, ?string $failureMessage = null): bool {
+	public function markJobFailed(QueuedJob $job, ?string $failureMessage = null): bool
+	{
 		$fields = [
 			'failure_message' => $failureMessage,
 		];
@@ -767,7 +788,8 @@ class QueuedJobsTable extends Table {
 	 *
 	 * @return int Count of deleted rows
 	 */
-	public function flushFailedJobs(): int {
+	public function flushFailedJobs(): int
+	{
 		$timeout = Config::defaultworkertimeout();
 		$thresholdTime = (new DateTime())->subSeconds($timeout);
 
@@ -788,7 +810,8 @@ class QueuedJobsTable extends Table {
 	 *
 	 * @return int Success
 	 */
-	public function reset(?int $id = null, bool $full = false): int {
+	public function reset(?int $id = null, bool $full = false): int
+	{
 		$fields = [
 			'completed' => null,
 			'fetched' => null,
@@ -820,7 +843,8 @@ class QueuedJobsTable extends Table {
 	 *
 	 * @return int
 	 */
-	public function rerunByTask(string $task, ?string $reference = null): int {
+	public function rerunByTask(string $task, ?string $reference = null): int
+	{
 		$fields = [
 			'completed' => null,
 			'fetched' => null,
@@ -845,7 +869,8 @@ class QueuedJobsTable extends Table {
 	 *
 	 * @return int
 	 */
-	public function rerun(int $id): int {
+	public function rerun(int $id): int
+	{
 		$fields = [
 			'completed' => null,
 			'fetched' => null,
@@ -867,7 +892,8 @@ class QueuedJobsTable extends Table {
 	 *
 	 * @return \Cake\ORM\Query\SelectQuery
 	 */
-	public function getPendingStats(): SelectQuery {
+	public function getPendingStats(): SelectQuery
+	{
 		$findCond = [
 			'fields' => [
 				'id',
@@ -897,7 +923,8 @@ class QueuedJobsTable extends Table {
 	/**
 	 * @return \Cake\ORM\Query\SelectQuery
 	 */
-	public function getScheduledStats(): SelectQuery {
+	public function getScheduledStats(): SelectQuery
+	{
 		$findCond = [
 			'fields' => [
 				'id',
@@ -926,7 +953,8 @@ class QueuedJobsTable extends Table {
 	 *
 	 * @return int
 	 */
-	public function cleanOldJobs(): int {
+	public function cleanOldJobs(): int
+	{
 		if (!Configure::read('Queue.cleanuptimeout')) {
 			return 0;
 		}
@@ -942,7 +970,8 @@ class QueuedJobsTable extends Table {
 	 *
 	 * @return string
 	 */
-	public function getFailedStatus(QueuedJob $queuedTask, array $taskConfiguration): string {
+	public function getFailedStatus(QueuedJob $queuedTask, array $taskConfiguration): string
+	{
 		$failureMessageRequeued = 'requeued';
 
 		$queuedTaskName = 'Queue' . $queuedTask->job_task;
@@ -965,7 +994,8 @@ class QueuedJobsTable extends Table {
 	 *
 	 * @return \Cake\ORM\Query\SelectQuery The query builder
 	 */
-	public function findQueued(SelectQuery $query, array $options = []): SelectQuery {
+	public function findQueued(SelectQuery $query, array $options = []): SelectQuery
+	{
 		return $query->where(['completed IS' => null]);
 	}
 
@@ -974,7 +1004,8 @@ class QueuedJobsTable extends Table {
 	 *
 	 * @return void
 	 */
-	public function clearDoublettes(): void {
+	public function clearDoublettes(): void
+	{
 		/** @var array<int> $x */
 		$x = $this->getConnection()->selectQuery('SELECT max(id) as id FROM `' . $this->getTable() . '`
 	WHERE completed is NULL
@@ -999,7 +1030,8 @@ class QueuedJobsTable extends Table {
 	 *
 	 * @return string Identifier
 	 */
-	public function key(): string {
+	public function key(): string
+	{
 		if ($this->_key !== null) {
 			return $this->_key;
 		}
@@ -1016,7 +1048,8 @@ class QueuedJobsTable extends Table {
 	 *
 	 * @return void
 	 */
-	public function clearKey(): void {
+	public function clearKey(): void
+	{
 		$this->_key = null;
 	}
 
@@ -1025,7 +1058,8 @@ class QueuedJobsTable extends Table {
 	 *
 	 * @return void
 	 */
-	public function truncate(): void {
+	public function truncate(): void
+	{
 		/** @var \Cake\Database\Schema\TableSchema $schema */
 		$schema = $this->getSchema();
 		$sql = $schema->truncateSql($this->getConnection());
@@ -1039,7 +1073,8 @@ class QueuedJobsTable extends Table {
 	 *
 	 * @return string
 	 */
-	protected function getDriverName(): string {
+	protected function getDriverName(): string
+	{
 		$className = explode('\\', $this->getConnection()->config()['driver']);
 		$name = end($className) ?: '';
 
@@ -1053,7 +1088,8 @@ class QueuedJobsTable extends Table {
 	 *
 	 * @return array<mixed>
 	 */
-	protected function addFilter(array $conditions, string $key, array $values): array {
+	protected function addFilter(array $conditions, string $key, array $values): array
+	{
 		$include = [];
 		$exclude = [];
 		foreach ($values as $value) {
@@ -1083,12 +1119,12 @@ class QueuedJobsTable extends Table {
 	 *
 	 * @return \Cake\I18n\DateTime
 	 */
-	protected function getDateTime(DateTime|string|int|null $notBefore = null): DateTime {
+	protected function getDateTime(DateTime|string|int|null $notBefore = null): DateTime
+	{
 		if (is_object($notBefore)) {
 			return $notBefore;
 		}
 
 		return new DateTime($notBefore);
 	}
-
 }

@@ -4,12 +4,12 @@ if (!empty($currentOfficers) || !empty($upcomingOfficers) || !empty($previousOff
     $linkTemplate = [
         "type" => "link",
         "verify" => true,
-        "authData" => "branch",
+        "authData" => "member",
         "label" => "",
-        "controller" => "Branches",
+        "controller" => "Members",
         "action" => "view",
-        '?' => ['tab' => 'branch-officers'],
-        "id" => "branch_id",
+        '?' => ['tab' => 'member-officers'],
+        "id" => "id",
         "options" => ["class" => "btn-sm btn btn-secondary bi-binoculars-fill"],
     ];
     $editTemplate = [

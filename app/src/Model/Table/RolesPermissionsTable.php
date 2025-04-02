@@ -13,6 +13,8 @@ use Cake\Event\Event;
 use Cake\Datasource\EntityInterface;
 use ArrayObject;
 use Cake\Http\Session;
+use Cake\Cache\Cache;
+use App\Model\Table\BaseTable;
 
 /**
  * RolesPermissions Model
@@ -36,7 +38,7 @@ use Cake\Http\Session;
  *
  * @mixin \Cake\ORM\Behavior\TimestampBehavior
  */
-class RolesPermissionsTable extends Table
+class RolesPermissionsTable extends BaseTable
 {
     /**
      * Initialize method
@@ -63,6 +65,10 @@ class RolesPermissionsTable extends Table
             'joinType' => 'INNER',
         ]);
     }
+
+
+
+    protected const CACHE_GROUPS_TO_CLEAR = ['security'];
 
     /**
      * Default validation rules.

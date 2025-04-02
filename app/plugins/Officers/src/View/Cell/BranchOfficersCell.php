@@ -65,18 +65,79 @@ class BranchOfficersCell extends BasePluginCell
         $officesTbl = $this->fetchTable("Officers.Offices");;
         $officeQuery = $officesTbl->find("all")
             ->contain(["Departments"])
-            ->select(["id", "Offices.name", "deputy_to_id", "applicable_branch_types", "default_contact_address"])
+            ->select(["id", "Offices.name", "deputy_to_id", "reports_to_id", "applicable_branch_types", "default_contact_address"])
             ->orderBY(["Offices.name" => "ASC"]);
         $officeSet = $officeQuery->where(['applicable_branch_types like' => '%"' . $branch->type . '"%'])->toArray();
-        $offices = $this->buildOfficeTree($officeSet, $branch, null);
+        $user = $this->request->getAttribute("identity");
+        $hireAll = false;
+        $canHireOffices = [];
+        $myOffices = [];
+        if ($user->checkCan("assign", "Officers.Officers", $id)) {
+            $hireAll = true;
+        } else {
+            $officersTbl = $this->fetchTable("Officers.Officers");
+            $userOffices = $officersTbl->find("current")->where(['member_id' => $user->id])->select(['id', 'office_id', 'branch_id'])->toArray();
+            $canHireOffices = [];
+            foreach ($userOffices as $userOffice) {
+                $myOffices[] = $userOffice->office_id;
+                if ($user->checkCan("assignMyDeputies", $userOffice, $id, true)) {
+                    $deputies = $officesTbl->find('all')->where(['deputy_to_id' => $userOffice->office_id])->select(['id'])->toArray();
+                    // add deputies to the list of offices that can be hired
+                    foreach ($deputies as $deputy) {
+                        if (!in_array($deputy->id, $canHireOffices)) {
+                            $canHireOffices[] = $deputy->id;
+                        }
+                    }
+                }
+                if ($user->checkCan("assignMyDirectReports", $userOffice, $id, true)) {
+                    $deputies = $officesTbl->find('all')->where(['OR' => ['deputy_to_id' => $userOffice->office_id, 'reports_to_id' => $userOffice->office_id]])->select(['id'])->toArray();
+                    // add deputies to the list of offices that can be hired
+                    foreach ($deputies as $deputy) {
+                        if (!in_array($deputy->id, $canHireOffices)) {
+                            $canHireOffices[] = $deputy->id;
+                        }
+                    }
+                }
+                if ($user->checkCan("assignMyReportTree", $userOffice, $id, true)) {
+                    $addedOffices = 0;
+                    $hireThread = [];
+                    //Get all of the top level office deputies and reports
+                    $reports = $officesTbl->find('all')->where(['OR' => ['deputy_to_id' => $userOffice->office_id, 'reports_to_id' => $userOffice->office_id]])->select(['id', 'reports_to_id'])->toArray();
+                    foreach ($reports as $report) {
+                        if (!in_array($report->id, $canHireOffices)) {
+                            $addedOffices++;
+                            $hireThread[] = $report->id;
+                        }
+                    }
+                    // if we added any then we are going to loop back to sql and grab more until we don't add anymore.
+                    while ($addedOffices != 0) {
+                        $addedOffices = 0;
+                        $reports = $officesTbl->find('all')->where(['OR' => ['deputy_to_id in ' => $hireThread, 'reports_to_id in ' => $hireThread]])->select(['id', 'reports_to_id'])->toArray();
+                        foreach ($reports as $report) {
+                            if (!in_array($report->id, $hireThread)) {
+                                $addedOffices++;
+                                $hireThread[] = $report->id;
+                            }
+                        }
+                    }
+                    // now we can add them all to the collected list.
+                    foreach ($hireThread as $office) {
+                        if (!in_array($office, $canHireOffices)) {
+                            $canHireOffices[] = $office;
+                        }
+                    }
+                }
+            }
+        }
+        $offices = $this->buildOfficeTree($officeSet, $branch,  $hireAll, $myOffices, $canHireOffices, null);
         $this->set(compact('id', 'offices', 'newOfficer'));
     }
 
-    private function buildOfficeTree($offices, $branch, $office_id = null)
+    private function buildOfficeTree($offices, $branch, $hireAll, $myOffices, $canHireOffices, $office_id = null)
     {
         $tree = [];
         foreach ($offices as $office) {
-            if ($office->deputy_to_id == $office_id) {
+            if ($office->deputy_to_id == $office_id || ($office_id == null && in_array($office->id, $myOffices))) {
                 $newofficeEmail = "";
                 if (isset($office->default_contact_address) && !empty($office->default_contact_address)) {
                     if (isset($branch->domain) && !empty($branch->domain)) {
@@ -87,16 +148,28 @@ class BranchOfficersCell extends BasePluginCell
                         $newofficeEmail = $office->default_contact_address . "@no_defaults_found.no_domain";
                     }
                 }
-                $newOffice = [
-                    'id' => $office->id,
-                    'name' => $office->name,
-                    'deputy_to_id' => $office->deputy_to_id,
-                    'deputies' => [],
-                    'email_address' => $newofficeEmail,
-                    'enabled' => strpos($office->applicable_branch_types, "\"$branch->type\"") !== false
-                ];
-                $newOffice['deputies'] = $this->buildOfficeTree($offices, $branch, $office->id);
-                $tree[] = $newOffice;
+                if ($hireAll) {
+                    $canHire = true;
+                } else {
+                    $canHire = in_array($office->id, $canHireOffices);
+                }
+                if ($canHire) {
+                    $newOffice = [
+                        'id' => $office->id,
+                        'name' => $office->name,
+                        'deputy_to_id' => $office->deputy_to_id,
+                        'deputies' => [],
+                        'email_address' => $newofficeEmail,
+                        'enabled' => strpos($office->applicable_branch_types, "\"$branch->type\"") !== false
+                    ];
+                    $newOffice['deputies'] = $this->buildOfficeTree($offices, $branch, $hireAll, $myOffices, $canHireOffices,  $office->id,);
+                    $tree[] = $newOffice;
+                } elseif (in_array($office->id, $myOffices)) {
+                    $tempDeputies = $this->buildOfficeTree($offices, $branch, $hireAll, $myOffices, $canHireOffices,  $office->id);
+                    foreach ($tempDeputies as $tempDeputy) {
+                        $tree[] = $tempDeputy;
+                    }
+                }
             }
         }
         //order the tree by name
@@ -104,132 +177,5 @@ class BranchOfficersCell extends BasePluginCell
             return $a['name'] <=> $b['name'];
         });
         return $tree;
-    }
-
-    protected function addConditions($q, $type)
-    {
-
-        $rejectFragment = $q->func()->concat([
-            'Released by ',
-            "RevokedBy.sca_name" => 'identifier',
-            " on ",
-            "Officers.expires_on" => 'identifier',
-            " note: ",
-            "Officers.revoked_reason" => 'identifier'
-        ]);
-
-        $revokeReasonCase = $q->newExpr()
-            ->case()
-            ->when(['Officers.status' => Officer::RELEASED_STATUS])
-            ->then($rejectFragment)
-            ->when(['Officers.status' => Officer::REPLACED_STATUS])
-            ->then("New Officer Took Over.")
-            ->when(['Officers.status' => Officer::EXPIRED_STATUS])
-            ->then("Officer Term Expired.")
-            ->else($rejectFragment);
-
-
-        $reportsToCase = $q->newExpr()
-            ->case()
-            ->when(['ReportsToOffices.id IS NULL'])
-            ->then("Society")
-            ->when(['current_report_to.id IS NOT NULL'])
-            ->then($q->func()->concat([
-                "ReportsToOffices.name" => 'identifier',
-                " : ",
-                "current_report_to.sca_name" => 'identifier',
-            ]))
-            ->when(['ReportsToOffices.id IS NOT NULL'])
-            ->then($q->func()->concat([
-                "Not Filled - ",
-                "ReportsToBranches.name" => 'identifier',
-                " : ",
-                "ReportsToOffices.name" => 'identifier'
-            ]))
-            ->else("None");
-
-        $fields = [
-            "id",
-            "member_id",
-            "office_id",
-            "branch_id",
-            "Officers.start_on",
-            "Officers.expires_on",
-            "Officers.deputy_description",
-            "status",
-        ];
-
-        $contain = [
-            "Members" => function ($q) {
-                return $q
-                    ->select(["id", "sca_name"])
-                    ->order(["sca_name" => "ASC"]);
-            },
-            "Offices" => function ($q) {
-                return $q
-                    ->select(["id", "name"]);
-            },
-
-            "RevokedBy" => function ($q) {
-                return $q
-                    ->select(["id", "sca_name"]);
-            },
-        ];
-
-        if ($type === 'current' || $type === 'upcoming') {
-            $fields['reports_to'] = $reportsToCase;
-            $fields[] = "ReportsToBranches.name";
-            $fields[] = "ReportsToOffices.name";
-            $contain["ReportsToBranches"] = function ($q) {
-                return $q
-                    ->select(["id", "name"]);
-            };
-            $contain["ReportsToOffices"] = function ($q) {
-                return $q
-                    ->select(["id", "name"]);
-            };
-            $contain["DeputyToOffices"] = function ($q) {
-                return $q
-                    ->select(["id", "name"]);
-            };
-        }
-
-        if ($type === 'previous') {
-            $fields['revoked_reason'] = $revokeReasonCase;
-        }
-
-        $query = $q
-            ->select($fields);
-
-        $query->contain($contain);
-        if ($type === 'current' || $type === 'upcoming') {
-            $query->join(
-                [
-                    'table' => 'officers_officers',
-                    'alias' => 'current_report_to_officer',
-                    'type' => 'LEFT',
-                    'conditions' => [
-                        'Officers.reports_to_office_id = current_report_to_officer.office_id',
-                        'Officers.reports_to_branch_id = current_report_to_officer.branch_id',
-                        'current_report_to_officer.start_on <=' => DateTime::now(),
-                        'current_report_to_officer.expires_on >=' => DateTime::now(),
-                        'current_report_to_officer.status' => Officer::CURRENT_STATUS
-                    ]
-                ]
-            );
-            $query->join(
-                [
-                    'table' => 'members',
-                    'alias' => 'current_report_to',
-                    'type' => 'LEFT',
-                    'conditions' => [
-                        'current_report_to_officer.member_id = current_report_to.id',
-                    ]
-                ]
-            );
-        }
-        $query->order(["Officers.start_on" => "DESC", "Offices.name" => "ASC"]);
-
-        return $query;
     }
 }

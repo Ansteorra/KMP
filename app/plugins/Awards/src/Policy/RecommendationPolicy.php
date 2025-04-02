@@ -12,76 +12,65 @@ use Authorization\IdentityInterface;
  */
 class RecommendationPolicy extends BasePolicy
 {
-    protected string $REQUIRED_PERMISSION = "Can View Recommendations";
-    protected string $REQUIRED_PERMISSION_MANAGE = "Can Manage Recommendations";
-
-    public function canIndex(IdentityInterface $user, $entity, ...$args)
-    {
-        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
-    }
 
     public function canViewSubmittedByMember(IdentityInterface $user, $entity, ...$args)
     {
-        $member_id = $args[2]['member_id'];
-        $canDo = $member_id == $user->get('id');
-        return $canDo || $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+        if ($entity->requester_id == $user->getIdentifier()) {
+            return true;
+        }
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
 
     public function canViewSubmittedForMember(IdentityInterface $user, $entity, ...$args)
     {
-        //$member_id = $args[2]['member_id'];
-        //$canDo = $member_id == $user->get('id');
-        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
 
     public function canViewEventRecommendations(IdentityInterface $user, $entity, ...$args)
     {
-        //$member_id = $args[2]['member_id'];
-        //$canDo = $member_id == $user->get('id');
-        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
 
     public function canExport(IdentityInterface $user, $entity, ...$args)
     {
-        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
-    }
-
-    public function canEdit(IdentityInterface $user, $entity)
-    {
-        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION_MANAGE);
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
 
     public function canUseBoard(IdentityInterface $user, $entity, ...$args)
     {
-        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION_MANAGE);
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
 
-    public function canViewHidden(IdentityInterface $user, $entity)
+    public function canViewHidden(IdentityInterface $user, $entity, ...$optionalArgs)
     {
-        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION_MANAGE);
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
 
-    public function canDelete(IdentityInterface $user, $entity)
+    public function canViewPrivateNotes(IdentityInterface $user, $entity, ...$optionalArgs)
     {
-        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION_MANAGE);
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
 
-    public function canViewPrivateNotes(IdentityInterface $user, $entity)
+    public function canAddNote(IdentityInterface $user, $entity, ...$optionalArgs)
     {
-        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
 
-    public function canAddNote(IdentityInterface $user, $entity)
+    public function canUpdateStates(IdentityInterface $user, $entity, ...$optionalArgs)
     {
-        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION_MANAGE);
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
 
-    public function canUpdateStates(IdentityInterface $user, $entity)
-    {
-        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION_MANAGE);
-    }
-
-    public function canAdd(IdentityInterface $user, $entity)
+    public function canAdd(IdentityInterface $user, $entity, ...$optionalArgs)
     {
         return true;
     }

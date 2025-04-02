@@ -12,6 +12,7 @@ use Cake\Validation\Validator;
 use Cake\Datasource\EntityInterface;
 use Cake\Cache\Cache;
 use Cake\Log\Log;
+use App\Model\Table\BaseTable;
 
 /**
  * AppSettings Model
@@ -30,7 +31,7 @@ use Cake\Log\Log;
  * @method iterable<\App\Model\Entity\AppSetting>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\AppSetting>|false deleteMany(iterable $entities, array $options = [])
  * @method iterable<\App\Model\Entity\AppSetting>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\AppSetting> deleteManyOrFail(iterable $entities, array $options = [])
  */
-class AppSettingsTable extends Table
+class AppSettingsTable extends BaseTable
 {
 
     /**

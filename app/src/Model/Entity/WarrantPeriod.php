@@ -15,7 +15,7 @@ use Cake\ORM\Entity;
  * @property \Cake\I18n\DateTime $created
  * @property int|null $created_by
  */
-class WarrantPeriod extends Entity
+class WarrantPeriod extends BaseEntity
 {
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().

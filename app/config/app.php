@@ -106,10 +106,24 @@ return [
             'duration' => '+1 hours',
         ],
 
-        "permissions" => [
+        "member_permissions" => [
             "className" => ApcuEngine::class,
-            "duration" => "+5 seconds",
+            "duration" => "+30 minutes",
+            'groups' => ['security', 'member_security']
         ],
+
+        "permissions_structure" => [
+            "className" => ApcuEngine::class,
+            "duration" => "+999 days",
+            'groups' => ['security']
+        ],
+
+        "branch_structure" => [
+            "className" => ApcuEngine::class,
+            "duration" => "+999 days",
+            'groups' => ['security']
+        ],
+
 
         /*
          * Configure the cache used for general framework caching.

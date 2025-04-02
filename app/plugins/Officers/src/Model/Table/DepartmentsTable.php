@@ -8,6 +8,7 @@ use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
+use App\Model\Table\BaseTable;
 
 /**
  * Departments Model
@@ -28,7 +29,7 @@ use Cake\Validation\Validator;
  * @method iterable<\App\Model\Entity\Department>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\Department>|false deleteMany(iterable $entities, array $options = [])
  * @method iterable<\App\Model\Entity\Department>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\Department> deleteManyOrFail(iterable $entities, array $options = [])
  */
-class DepartmentsTable extends Table
+class DepartmentsTable extends BaseTable
 {
     /**
      * Initialize method

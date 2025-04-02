@@ -9,19 +9,19 @@ use Authorization\IdentityInterface;
 
 class ReportsControllerPolicy extends BasePolicy
 {
-    protected string $REQUIRED_PERMISSION = "Can View Core Reports";
-
     public function canRolesList(
         IdentityInterface $user,
-        mixed $resource,
+        $entity,
     ): ResultInterface|bool {
-        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
 
     public function canPermissionsWarrantsRoster(
         IdentityInterface $user,
-        mixed $resource,
+        $entity,
     ): ResultInterface|bool {
-        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
 }

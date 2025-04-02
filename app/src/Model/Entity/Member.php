@@ -65,7 +65,7 @@ use App\KMP\StaticHelpers;
  * @property \App\Model\Entity\Role[] $roles
  * @property \App\Model\Entity\Notes[] $notes
  */
-class Member extends Entity implements
+class Member extends BaseEntity implements
     AuthorizationIdentity,
     AuthenticationIdentity
 {
@@ -408,26 +408,20 @@ class Member extends Entity implements
      */
     public function getPermissions(): array
     {
-        if (
-            $this->_last_permissions_update == null ||
-            !$this->_last_permissions_update->isWithinNext("1 minute")
-        ) {
-            $this->_permissions = PermissionsLoader::getPermissions($this->id);
-            $this->_permissionIDs = Hash::extract($this->_permissions, "{n}.id");
-            $this->_last_permissions_update = DateTime::now();
-        }
-        return $this->_permissions;
+        $permissions = PermissionsLoader::getPermissions($this->id);
+        return $permissions;
     }
 
     public function getPermissionIDs(): array
     {
-        if (
-            $this->_last_permissions_update == null ||
-            !$this->_last_permissions_update->isWithinNext("1 minute")
-        ) {
-            $this->getPermissions();
-        }
-        return $this->_permissionIDs;
+        $permissionIDs = Hash::extract(PermissionsLoader::getPermissions($this->id), "{n}.id");
+        return $permissionIDs;
+    }
+
+    public function getPolicies(): array
+    {
+        $policies = PermissionsLoader::getPolicies($this->id);
+        return $policies;
     }
 
     /**

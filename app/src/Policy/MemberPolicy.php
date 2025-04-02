@@ -15,128 +15,93 @@ class MemberPolicy extends BasePolicy
     protected string $REQUIRED_PERMISSION = "Can Manage Members";
     protected string $REQUIRED_VIEW_PERMISSION = "Can View Members";
 
-    public function canIndex(IdentityInterface $user, $entity)
+
+
+    public function canView(IdentityInterface $user, $entity, ...$optionalArgs)
     {
-        $canDo = $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
-        if ($canDo) {
+        if ($entity->id == $user->getIdentifier()) {
             return true;
         }
-        $canDo = $this->_hasNamedPermission($user, $this->REQUIRED_VIEW_PERMISSION);
-        if ($canDo) {
-            return true;
-        }
-        return false;
+        return parent::canView($user, $entity);
     }
 
-    public function canView(IdentityInterface $user, $entity)
+    public function canPartialEdit(IdentityInterface $user, $entity, ...$optionalArgs)
     {
-        $canDo = $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
-        if ($canDo) {
+        if ($entity->id == $user->getIdentifier()) {
             return true;
-        }
-        $canDo = $this->_hasNamedPermission($user, $this->REQUIRED_VIEW_PERMISSION);
-        if ($canDo) {
-            return true;
-        }
-        return $entity->id == $user->getIdentifier();
-    }
-
-    public function canPartialEdit(IdentityInterface $user, $entity)
-    {
-        return $entity->id == $user->getIdentifier();
-    }
-
-    public function canViewCard(IdentityInterface $user, $entity)
-    {
-        $canDo = $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
-        if ($canDo) {
-            return true;
-        } else {
-            return $entity->id == $user->getIdentifier();
-        }
-    }
-    public function canSendMobileCardEmail(IdentityInterface $user, $entity)
-    {
-        $canDo = $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
-        if ($canDo) {
-            return true;
-        } else {
-            return $entity->id == $user->getIdentifier();
         }
     }
 
-    public function canAddNote(IdentityInterface $user, $entity)
+    public function canViewCard(IdentityInterface $user, $entity, ...$optionalArgs)
     {
-        $canDo = $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
-        if ($canDo) {
+        if ($entity->id == $user->getIdentifier()) {
             return true;
-        } else {
-            return $entity->id == $user->getIdentifier();
         }
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
-    public function canViewPrivateNotes(IdentityInterface $user, $entity)
+    public function canSendMobileCardEmail(IdentityInterface $user, $entity, ...$optionalArgs)
     {
-        $canDo = $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
-        if ($canDo) {
+        if ($entity->id == $user->getIdentifier()) {
             return true;
         }
-        return false;
-    }
-
-    function canRequestAuthorization(IdentityInterface $user, $entity)
-    {
-        $canDo = $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
-        if ($canDo) {
-            return true;
-        } else {
-            return $entity->id == $user->getIdentifier();
-        }
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
 
-    function canChangePassword(IdentityInterface $user, $entity)
+    public function canAddNote(IdentityInterface $user, $entity, ...$optionalArgs)
     {
-        $canDo = $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
-        if ($canDo) {
+        if ($entity->id == $user->getIdentifier()) {
             return true;
-        } else {
-            return $entity->id == $user->getIdentifier();
         }
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
 
-    function canViewCardJson(IdentityInterface $user, $entity)
+    function canChangePassword(IdentityInterface $user, $entity, ...$optionalArgs)
     {
-        $canDo = $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
-        if ($canDo) {
+        if ($entity->id == $user->getIdentifier()) {
             return true;
-        } else {
-            return $entity->id == $user->getIdentifier();
         }
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
 
-    function canDelete(IdentityInterface $user, $entity)
+    function canViewCardJson(IdentityInterface $user, $entity, ...$optionalArgs)
+    {
+        if ($entity->id == $user->getIdentifier()) {
+            return true;
+        }
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
+    }
+
+    function canDelete(IdentityInterface $user, $entity, ...$optionalArgs)
     {
         //only super users can delete and they should never get hear because of the before policy check.
         return false;
     }
-    function canImportExpirationDates(IdentityInterface $user, $entity)
+    function canImportExpirationDates(IdentityInterface $user, $entity, ...$optionalArgs)
     {
-        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
-    function canVerifyMembership(IdentityInterface $user, $entity)
+    function canVerifyMembership(IdentityInterface $user, $entity, ...$optionalArgs)
     {
-        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
-    function canVerifyQueue(IdentityInterface $user, $entity)
+    function canVerifyQueue(IdentityInterface $user, $entity, ...$optionalArgs)
     {
-        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
-    function canEditAdditionalInfo(IdentityInterface $user, $entity)
+    function canEditAdditionalInfo(IdentityInterface $user, $entity, ...$optionalArgs)
     {
-        $canDo = $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
-        if ($canDo) {
+        if ($entity->id == $user->getIdentifier()) {
             return true;
-        } else {
-            return $entity->id == $user->getIdentifier();
         }
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
 }

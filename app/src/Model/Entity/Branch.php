@@ -12,7 +12,7 @@ use Cake\ORM\Entity;
  * @property string $location
  * @property string $region
  */
-class Branch extends Entity
+class Branch extends BaseEntity
 {
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().

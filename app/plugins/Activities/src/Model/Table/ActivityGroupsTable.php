@@ -8,6 +8,7 @@ use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
+use App\Model\Table\BaseTable;
 
 /**
  * ActivityGroups Model
@@ -26,7 +27,7 @@ use Cake\Validation\Validator;
  * @method iterable<\App\Model\Entity\ActivityGroup>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\ActivityGroup>|false deleteMany(iterable $entities, array $options = [])
  * @method iterable<\App\Model\Entity\ActivityGroup>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\ActivityGroup> deleteManyOrFail(iterable $entities, array $options = [])
  */
-class ActivityGroupsTable extends Table
+class ActivityGroupsTable extends BaseTable
 {
     /**
      * Initialize method

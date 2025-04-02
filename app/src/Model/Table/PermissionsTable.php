@@ -8,6 +8,8 @@ use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
+use Cake\Cache\Cache;
+use App\Model\Table\BaseTable;
 
 /**
  * Permissions Model
@@ -29,7 +31,7 @@ use Cake\Validation\Validator;
  * @method iterable<\App\Model\Entity\Permission>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\Permission>|false deleteMany(iterable $entities, array $options = [])
  * @method iterable<\App\Model\Entity\Permission>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\Permission> deleteManyOrFail(iterable $entities, array $options = [])
  */
-class PermissionsTable extends Table
+class PermissionsTable extends BaseTable
 {
     /**
      * Initialize method
@@ -58,6 +60,11 @@ class PermissionsTable extends Table
         $this->addBehavior('Muffin/Footprint.Footprint');
         $this->addBehavior("Muffin/Trash.Trash");
     }
+
+    protected const CACHES_TO_CLEAR = [];
+    protected const ID_CACHES_TO_CLEAR = [];
+    protected const CACHE_GROUPS_TO_CLEAR = ['security'];
+
 
     /**
      * Default validation rules.

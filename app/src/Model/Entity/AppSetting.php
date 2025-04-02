@@ -13,7 +13,7 @@ use Cake\ORM\Entity;
  * @property string $name
  * @property string|null $value
  */
-class AppSetting extends Entity
+class AppSetting extends BaseEntity
 {
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().

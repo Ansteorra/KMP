@@ -21,8 +21,9 @@ class MemberRolePolicy extends BasePolicy
      * @param \App\Model\Entity\role $role
      * @return bool
      */
-    public function canDeactivate(IdentityInterface $user, $entity)
+    public function canDeactivate(IdentityInterface $user, $entity, ...$optionalArgs)
     {
-        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
 }

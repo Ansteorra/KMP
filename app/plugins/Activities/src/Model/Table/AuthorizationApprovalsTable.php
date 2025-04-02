@@ -9,6 +9,7 @@ use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
 use Cake\ORM\TableRegistry;
+use App\Model\Table\BaseTable;
 
 /**
  * AuthorizationApprovals Model
@@ -30,7 +31,7 @@ use Cake\ORM\TableRegistry;
  * @method iterable<\App\Model\Entity\AuthorizationApproval>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\AuthorizationApproval>|false deleteMany(iterable $entities, array $options = [])
  * @method iterable<\App\Model\Entity\AuthorizationApproval>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\AuthorizationApproval> deleteManyOrFail(iterable $entities, array $options = [])
  */
-class AuthorizationApprovalsTable extends Table
+class AuthorizationApprovalsTable extends BaseTable
 {
     /**
      * Initialize method

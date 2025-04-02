@@ -16,7 +16,7 @@ use Cake\ORM\Entity;
  *
  * @property \App\Model\Entity\Permission $permission
  */
-class PermissionPolicy extends Entity
+class PermissionPolicy extends BaseEntity
 {
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().

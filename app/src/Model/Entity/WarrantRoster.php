@@ -22,7 +22,7 @@ use Cake\ORM\Entity;
  * @property \App\Model\Entity\WarrantRosterApproval[] $warrant_roster_approvals
  * @property \App\Model\Entity\Warrant[] $warrants
  */
-class WarrantRoster extends Entity
+class WarrantRoster extends BaseEntity
 {
     const STATUS_APPROVED = "Approved"; //all signers approved
     const STATUS_DECLINED = "Declined"; //at least 1 signer declined

@@ -1,9 +1,11 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Awards\Model\Entity;
 
 use Cake\ORM\Entity;
+use App\Model\Entity\BaseEntity;
 
 /**
  * AwardsRecommendationsStatesLog Entity
@@ -17,7 +19,7 @@ use Cake\ORM\Entity;
  *
  * @property \Awards\Model\Entity\AwardsRecommendation $awards_recommendation
  */
-class RecommendationsStatesLog extends Entity
+class RecommendationsStatesLog extends BaseEntity
 {
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().

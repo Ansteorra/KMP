@@ -14,7 +14,7 @@ class MemberRolesTablePolicy extends BasePolicy
 {
     protected string $REQUIRED_PERMISSION = "Can Manage Roles";
 
-    public function canDeactivate(IdentityInterface $user, $entity)
+    public function canDeactivate(IdentityInterface $user, $entity, ...$optionalArgs)
     {
         return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
     }

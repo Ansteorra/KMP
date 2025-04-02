@@ -21,7 +21,7 @@ use Cake\ORM\Entity;
  * @property \App\Model\Entity\WarrantRoster $warrant_roster_approval_set
  * @property \App\Model\Entity\Member $member
  */
-class WarrantRosterApproval extends Entity
+class WarrantRosterApproval extends BaseEntity
 {
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().

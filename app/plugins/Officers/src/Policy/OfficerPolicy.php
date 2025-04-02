@@ -12,91 +12,94 @@ use App\Policy\BasePolicy;
  */
 class OfficerPolicy extends BasePolicy
 {
-    protected string $REQUIRED_PERMISSION = "Can Manage Officers";
-    protected string $REQUIRED_VIEW_PERMISSION = "Can View Officers";
-    protected string $REQUIRED_ASSIGN_PERMISSION = "Can Assign Officers";
-    protected string $REQUIRED_RELEASE_PERMISSION = "Can Release Officers";
+    public const SKIP_BASE = 'true';
 
-    public function canAdd(IdentityInterface $user, $entity)
+    public function canBranchOfficers(IdentityInterface $user, $entity, ...$optionalArgs)
     {
-        if ($this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION)) {
-            return true;
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
+    }
+
+
+    public function canRelease(IdentityInterface $user, $entity, ...$optionalArgs)
+    {
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
+    }
+
+    public function canRequestWarrant(IdentityInterface $user, $entity, ...$optionalArgs)
+    {
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
+    }
+
+    public function canOfficersByWarrantStatus(IdentityInterface $user, $entity, ...$optionalArgs)
+    {
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
+    }
+
+    public function canEdit(IdentityInterface $user, $entity, ...$optionalArgs)
+    {
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
+    }
+
+    public function canOfficers(IdentityInterface $user, $entity, ...$optionalArgs)
+    {
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
+    }
+
+    public function canAssignMyDeputies(IdentityInterface $user, $entity, ...$optionalArgs)
+    {
+        $method = __FUNCTION__;
+        $branchId = $optionalArgs[0] ?? null;
+        if ($branchId != null) {
+            $branchId = toInt($branchId);
         }
-        if ($this->_hasNamedPermission($user, $this->REQUIRED_ASSIGN_PERMISSION)) {
+        $doGrantCheck = $optionalArgs[1] ?? null;
+        if ($doGrantCheck) {
+            $grantSource = (object)[
+                "entity_id" => $entity->id,
+                "entity_type" => "Officers.Officers"
+            ];
+        } else {
+            $grantSource = null;
+        }
+        $hasPolicy = $this->_hasPolicy($user, $method, $entity, $branchId, $grantSource);
+        // check if the policy was granted by the office_id passed in as optional arg 2
+        if ($hasPolicy) {
             return true;
         }
         return false;
     }
-
-    public function canBranchOfficers(IdentityInterface $user, $entity)
+    public function canAssignMyDirectReports(IdentityInterface $user, $entity, ...$optionalArgs)
     {
-        if ($this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION)) {
-            return true;
+        $method = __FUNCTION__;
+        $branchId = $optionalArgs[0] ?? null;
+        if ($branchId != null) {
+            $branchId = toInt($branchId);
         }
-        if ($this->_hasNamedPermission($user, $this->REQUIRED_ASSIGN_PERMISSION)) {
-            return true;
+        return $this->_hasPolicy($user, $method, $entity, $branchId);
+    }
+    public function canAssignMyReportTree(IdentityInterface $user, $entity, ...$optionalArgs)
+    {
+        $method = __FUNCTION__;
+        $branchId = $optionalArgs[0] ?? null;
+        if ($branchId != null) {
+            $branchId = toInt($branchId);
         }
-        return false;
+        return $this->_hasPolicy($user, $method, $entity, $branchId);
     }
 
-
-    public function canRelease(IdentityInterface $user, $entity)
+    public function canAssign(IdentityInterface $user, $entity, ...$optionalArgs)
     {
-        if ($this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION)) {
-            return true;
+        $method = __FUNCTION__;
+        $branchId = $optionalArgs[0] ?? null;
+        if ($branchId != null) {
+            $branchId = toInt($branchId);
         }
-        if ($this->_hasNamedPermission($user, $this->REQUIRED_RELEASE_PERMISSION)) {
-            return true;
-        }
-        return false;
-    }
-
-    public function canRequestWarrant(IdentityInterface $user, $entity)
-    {
-        if ($this->_hasNamedPermission($user, $this->REQUIRED_ASSIGN_PERMISSION)) {
-            return true;
-        }
-        if ($user->id == $entity->member_id) {
-            return true;
-        }
-        return false;
-    }
-
-
-    public function canIndex(IdentityInterface $user, $entity)
-    {
-        $canDo = $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
-        if ($canDo) {
-            return true;
-        }
-        $canDo = $this->_hasNamedPermission($user, $this->REQUIRED_VIEW_PERMISSION);
-        if ($canDo) {
-            return true;
-        }
-        return false;
-    }
-    public function canOfficersByWarrantStatus(IdentityInterface $user, $entity)
-    {
-        $canDo = $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
-        if ($canDo) {
-            return true;
-        }
-        $canDo = $this->_hasNamedPermission($user, $this->REQUIRED_VIEW_PERMISSION);
-        if ($canDo) {
-            return true;
-        }
-        return false;
-    }
-    public function canOfficers(IdentityInterface $user, $entity)
-    {
-        $canDo = $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
-        if ($canDo) {
-            return true;
-        }
-        $canDo = $this->_hasNamedPermission($user, $this->REQUIRED_VIEW_PERMISSION);
-        if ($canDo) {
-            return true;
-        }
-        return false;
+        return $this->_hasPolicy($user, $method, $entity, $branchId);
     }
 }

@@ -8,6 +8,8 @@ use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
+use App\Model\Table\BaseTable;
+use Cake\Cache\Cache;
 
 /**
  * Warrants Model
@@ -32,7 +34,7 @@ use Cake\Validation\Validator;
  *
  * @mixin \Cake\ORM\Behavior\TimestampBehavior
  */
-class WarrantsTable extends Table
+class WarrantsTable extends BaseTable
 {
     /**
      * Initialize method
@@ -162,5 +164,13 @@ class WarrantsTable extends Table
         $rules->add($rules->existsIn(['member_role_id'], 'MemberRoles'), ['errorField' => 'member_role_id']);
 
         return $rules;
+    }
+
+    public function afterSave($event, $entity, $options)
+    {
+        $memberId = $entity->member_id;
+        // Clear cached descendants and parents for the saved branch.
+        Cache::delete('permissions_policies' . $memberId);
+        Cache::delete('member_permissions' . $memberId);
     }
 }

@@ -11,7 +11,12 @@ $search = $search ? trim($search) : null;
     <thead>
         <tr>
             <td colspan="4">
-                <?php if ($user->checkCan("add", "Officers.Officers")): ?>
+                <?php if (
+                    $user->checkCan("assign", "Officers.Officers", $id)
+                    || $user->checkCan("assignMyReportTree", "Officers.Officers", $id)
+                    || $user->checkCan("assignMyDirectReports", "Officers.Officers", $id)
+                    || $user->checkCan("assignMyDeputies", "Officers.Officers", $id)
+                ): ?>
                 <button type="button" class="btn btn-primary" data-bs-toggle="modal"
                     data-bs-target="#assignOfficerModal">Assign Officer</button>
                 <?php endif; ?>

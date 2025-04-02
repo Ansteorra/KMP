@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Model\Table;
@@ -7,6 +8,8 @@ use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
+use Cake\Cache\Cache;
+use App\Model\Table\BaseTable;
 
 /**
  * PermissionPolicies Model
@@ -27,7 +30,7 @@ use Cake\Validation\Validator;
  * @method iterable<\App\Model\Entity\PermissionPolicy>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\PermissionPolicy>|false deleteMany(iterable $entities, array $options = [])
  * @method iterable<\App\Model\Entity\PermissionPolicy>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\PermissionPolicy> deleteManyOrFail(iterable $entities, array $options = [])
  */
-class PermissionPoliciesTable extends Table
+class PermissionPoliciesTable extends BaseTable
 {
     /**
      * Initialize method
@@ -75,6 +78,9 @@ class PermissionPoliciesTable extends Table
 
         return $validator;
     }
+    protected const CACHES_TO_CLEAR = [];
+    protected const ID_CACHES_TO_CLEAR = [];
+    protected const CACHE_GROUPS_TO_CLEAR = ['security'];
 
     /**
      * Returns a rules checker object that will be used for validating

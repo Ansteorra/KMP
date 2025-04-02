@@ -9,6 +9,7 @@ use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
 use Cake\ORM\TableRegistry;
+use App\Model\Table\BaseTable;
 
 /**
  * Activities Model
@@ -30,7 +31,7 @@ use Cake\ORM\TableRegistry;
  * @method iterable<\App\Model\Entity\Activity>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\Activity>|false deleteMany(iterable $entities, array $options = [])
  * @method iterable<\App\Model\Entity\Activity>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\Activity> deleteManyOrFail(iterable $entities, array $options = [])
  */
-class ActivitiesTable extends Table
+class ActivitiesTable extends BaseTable
 {
     /**
      * Initialize method

@@ -11,7 +11,7 @@ use App\Policy\BasePolicy;
 /**
  * DepartmentsTable policy
  */
-class DepartmentsTablePolicy extends BasePolicy
-{
-    protected string $REQUIRED_PERMISSION = "Can Manage Departments";
+class DepartmentsTablePolicy extends BasePolicy {
+    public const SKIP_BASE = 'true';
+
 }

@@ -17,7 +17,7 @@ use JeremyHarris\LazyLoad\ORM\LazyLoadEntityTrait;
  * @property \App\Model\Entity\Member[] $Members
  * @property \App\Model\Entity\Permission[] $permissions
  */
-class Role extends Entity
+class Role extends BaseEntity
 {
     use LazyLoadEntityTrait;
     /**

@@ -14,7 +14,7 @@ class PermissionPolicy extends BasePolicy
 {
     protected string $REQUIRED_PERMISSION = "Can Manage Permissions";
 
-    public function canUpdatePolicy(IdentityInterface $user, $entity)
+    public function canUpdatePolicy(IdentityInterface $user, $entity, ...$optionalArgs)
     {
         return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
     }

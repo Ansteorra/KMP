@@ -10,12 +10,11 @@ use App\Policy\BasePolicy;
 
 class ReportsControllerPolicy extends BasePolicy
 {
-    protected string $REQUIRED_PERMISSION = "Can View Officer Reports";
-
     public function canDepartmentOfficersRoster(
         IdentityInterface $user,
-        mixed $resource,
+        $entity,
     ): ResultInterface|bool {
-        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
 }

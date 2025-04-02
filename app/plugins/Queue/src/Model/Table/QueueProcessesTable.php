@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Queue\Model\Table;
@@ -11,6 +12,7 @@ use Cake\ORM\Table;
 use Cake\Validation\Validator;
 use Queue\Model\ProcessEndingException;
 use Queue\Queue\Config;
+use App\Model\Table\BaseTable;
 
 /**
  * QueueProcesses Model
@@ -32,7 +34,8 @@ use Queue\Queue\Config;
  * @method \Cake\Datasource\ResultSetInterface<\Queue\Model\Entity\QueueProcess> deleteManyOrFail(iterable $entities, array $options = [])
  * @property \Queue\Model\Table\QueuedJobsTable&\Cake\ORM\Association\HasOne $CurrentQueuedJobs
  */
-class QueueProcessesTable extends Table {
+class QueueProcessesTable extends BaseTable
+{
 
 	use LocatorAwareTrait;
 
@@ -41,7 +44,8 @@ class QueueProcessesTable extends Table {
 	 *
 	 * @return string
 	 */
-	public static function defaultConnectionName(): string {
+	public static function defaultConnectionName(): string
+	{
 		/** @var string|null $connection */
 		$connection = Configure::read('Queue.connection');
 		if ($connection) {
@@ -58,7 +62,8 @@ class QueueProcessesTable extends Table {
 	 *
 	 * @return void
 	 */
-	public function initialize(array $config): void {
+	public function initialize(array $config): void
+	{
 		parent::initialize($config);
 
 		$this->setTable('queue_processes');
@@ -85,7 +90,8 @@ class QueueProcessesTable extends Table {
 	 *
 	 * @return \Cake\Validation\Validator
 	 */
-	public function validationDefault(Validator $validator): Validator {
+	public function validationDefault(Validator $validator): Validator
+	{
 		$validator
 			->integer('id')
 			->allowEmptyString('id', null, 'create');
@@ -114,7 +120,8 @@ class QueueProcessesTable extends Table {
 	 *
 	 * @return string|bool
 	 */
-	public function validateCount(string $value, array $context) {
+	public function validateCount(string $value, array $context)
+	{
 		$maxWorkers = Config::maxworkers();
 		if (!$value || !$maxWorkers) {
 			return true;
@@ -131,7 +138,8 @@ class QueueProcessesTable extends Table {
 	/**
 	 * @return \Cake\ORM\Query\SelectQuery
 	 */
-	public function findActive(): SelectQuery {
+	public function findActive(): SelectQuery
+	{
 		$timeout = Config::defaultworkertimeout();
 		$thresholdTime = (new DateTime())->subSeconds($timeout);
 
@@ -144,7 +152,8 @@ class QueueProcessesTable extends Table {
 	 *
 	 * @return int
 	 */
-	public function add(string $pid, string $key): int {
+	public function add(string $pid, string $key): int
+	{
 		$data = [
 			'pid' => $pid,
 			'server' => $this->buildServerString(),
@@ -164,7 +173,8 @@ class QueueProcessesTable extends Table {
 	 *
 	 * @return void
 	 */
-	public function update(string $pid): void {
+	public function update(string $pid): void
+	{
 		$conditions = [
 			'pid' => $pid,
 			'server IS' => $this->buildServerString(),
@@ -185,7 +195,8 @@ class QueueProcessesTable extends Table {
 	 *
 	 * @return void
 	 */
-	public function remove(string $pid): void {
+	public function remove(string $pid): void
+	{
 		$conditions = [
 			'pid' => $pid,
 			'server IS' => $this->buildServerString(),
@@ -197,7 +208,8 @@ class QueueProcessesTable extends Table {
 	/**
 	 * @return int
 	 */
-	public function cleanEndedProcesses(): int {
+	public function cleanEndedProcesses(): int
+	{
 		$timeout = Config::defaultworkertimeout();
 		$thresholdTime = (new DateTime())->subSeconds($timeout);
 
@@ -211,7 +223,8 @@ class QueueProcessesTable extends Table {
 	 *
 	 * @return array<string, mixed>
 	 */
-	public function status(): array {
+	public function status(): array
+	{
 		$timeout = Config::defaultworkertimeout();
 		$thresholdTime = (new DateTime())->subSeconds($timeout);
 
@@ -246,7 +259,8 @@ class QueueProcessesTable extends Table {
 	 *
 	 * @return array<\Queue\Model\Entity\QueueProcess>
 	 */
-	public function getProcesses(bool $forThisServer = false): array {
+	public function getProcesses(bool $forThisServer = false): array
+	{
 		/** @var \Queue\Model\Table\QueueProcessesTable $QueueProcesses */
 		$QueueProcesses = $this->getTableLocator()->get('Queue.QueueProcesses');
 		$query = $QueueProcesses->findActive()
@@ -270,7 +284,8 @@ class QueueProcessesTable extends Table {
 	 *
 	 * @return void
 	 */
-	public function endProcess(string $pid): void {
+	public function endProcess(string $pid): void
+	{
 		if (!$pid) {
 			return;
 		}
@@ -290,7 +305,8 @@ class QueueProcessesTable extends Table {
 	 *
 	 * @return void
 	 */
-	public function terminateProcess(string $pid, int $sig = SIGTERM): void {
+	public function terminateProcess(string $pid, int $sig = SIGTERM): void
+	{
 		if (!$pid) {
 			return;
 		}
@@ -313,7 +329,8 @@ class QueueProcessesTable extends Table {
 	 *
 	 * @return void
 	 */
-	public function wakeUpWorkers(): void {
+	public function wakeUpWorkers(): void
+	{
 		if (!function_exists('posix_kill')) {
 			return;
 		}
@@ -335,7 +352,8 @@ class QueueProcessesTable extends Table {
 	 *
 	 * @return string|null
 	 */
-	public function buildServerString(): ?string {
+	public function buildServerString(): ?string
+	{
 		$serverName = (string)env('SERVER_NAME') ?: gethostname();
 		if (!$serverName) {
 			$user = env('USER');
@@ -351,7 +369,8 @@ class QueueProcessesTable extends Table {
 	/**
 	 * @return array<string, string>
 	 */
-	public function serverList(): array {
+	public function serverList(): array
+	{
 		return $this->find()
 			->distinct(['server'])
 			->where(['server IS NOT' => null])
@@ -361,5 +380,4 @@ class QueueProcessesTable extends Table {
 				valueField: 'server',
 			)->toArray();
 	}
-
 }
