@@ -75,58 +75,11 @@ class BranchOfficersCell extends BasePluginCell
         if ($user->checkCan("assign", "Officers.Officers", $id)) {
             $hireAll = true;
         } else {
-            $officersTbl = $this->fetchTable("Officers.Officers");
-            $userOffices = $officersTbl->find("current")->where(['member_id' => $user->id])->select(['id', 'office_id', 'branch_id'])->toArray();
-            $canHireOffices = [];
+            $canHireOffices = $officesTbl->officesMemberCanHire($user, $id);
+            $officersTbl = TableRegistry::getTableLocator()->get("Officers.Officers");
+            $userOffices = $officersTbl->find("current")->where(['member_id' => $user->id])->select(['office_id'])->toArray();
             foreach ($userOffices as $userOffice) {
                 $myOffices[] = $userOffice->office_id;
-                if ($user->checkCan("assignMyDeputies", $userOffice, $id, true)) {
-                    $deputies = $officesTbl->find('all')->where(['deputy_to_id' => $userOffice->office_id])->select(['id'])->toArray();
-                    // add deputies to the list of offices that can be hired
-                    foreach ($deputies as $deputy) {
-                        if (!in_array($deputy->id, $canHireOffices)) {
-                            $canHireOffices[] = $deputy->id;
-                        }
-                    }
-                }
-                if ($user->checkCan("assignMyDirectReports", $userOffice, $id, true)) {
-                    $deputies = $officesTbl->find('all')->where(['OR' => ['deputy_to_id' => $userOffice->office_id, 'reports_to_id' => $userOffice->office_id]])->select(['id'])->toArray();
-                    // add deputies to the list of offices that can be hired
-                    foreach ($deputies as $deputy) {
-                        if (!in_array($deputy->id, $canHireOffices)) {
-                            $canHireOffices[] = $deputy->id;
-                        }
-                    }
-                }
-                if ($user->checkCan("assignMyReportTree", $userOffice, $id, true)) {
-                    $addedOffices = 0;
-                    $hireThread = [];
-                    //Get all of the top level office deputies and reports
-                    $reports = $officesTbl->find('all')->where(['OR' => ['deputy_to_id' => $userOffice->office_id, 'reports_to_id' => $userOffice->office_id]])->select(['id', 'reports_to_id'])->toArray();
-                    foreach ($reports as $report) {
-                        if (!in_array($report->id, $canHireOffices)) {
-                            $addedOffices++;
-                            $hireThread[] = $report->id;
-                        }
-                    }
-                    // if we added any then we are going to loop back to sql and grab more until we don't add anymore.
-                    while ($addedOffices != 0) {
-                        $addedOffices = 0;
-                        $reports = $officesTbl->find('all')->where(['OR' => ['deputy_to_id in ' => $hireThread, 'reports_to_id in ' => $hireThread]])->select(['id', 'reports_to_id'])->toArray();
-                        foreach ($reports as $report) {
-                            if (!in_array($report->id, $hireThread)) {
-                                $addedOffices++;
-                                $hireThread[] = $report->id;
-                            }
-                        }
-                    }
-                    // now we can add them all to the collected list.
-                    foreach ($hireThread as $office) {
-                        if (!in_array($office, $canHireOffices)) {
-                            $canHireOffices[] = $office;
-                        }
-                    }
-                }
             }
         }
         $offices = $this->buildOfficeTree($officeSet, $branch,  $hireAll, $myOffices, $canHireOffices, null);

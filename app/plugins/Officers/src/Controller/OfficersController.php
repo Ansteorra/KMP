@@ -36,14 +36,27 @@ class OfficersController extends AppController
      */
     public function assign(OfficerManagerInterface $oManager)
     {
-        $officer = $this->Officers->newEmptyEntity();
-        $this->Authorization->authorize($officer);
         if ($this->request->is('post')) {
+            $officer = $this->Officers->newEmptyEntity();
+            $user = $this->Authentication->getIdentity();
+            $branchId = (int)$this->request->getData('branch_id');
+            $authorized = ($user->checkCan("assign", "Officers.Officers", $branchId) ? "assign" : ($user->checkCan("assignMyReportTree", "Officers.Officers", $branchId) ? "assignMyReportTree" : ($user->checkCan("assignMyDirectReports", "Officers.Officers", $branchId) ? "assignMyDirectReports" : ($user->checkCan("assignMyDeputies", "Officers.Officers", $branchId) ? "assignMyDeputies" : false))));
+            if ($authorized) {
+                throw new \Cake\Http\Exception\ForbiddenException();
+            } else {
+                $this->Authorization->authorize($authorized, $officer);
+            }
             //begin transaction
-            $this->Officers->getConnection()->begin();
+
             $memberId = (int)$this->request->getData('member_id');
             $officeId = (int)$this->request->getData('office_id');
             $branchId = (int)$this->request->getData('branch_id');
+            $canHireOffices = $this->Officers->Offices->officesMemberCanHire($user, $branchId);
+            if (!in_array($officeId, $canHireOffices)) {
+                $this->Flash->error(__('You do not have permission to assign this officer.'));
+                $this->redirect($this->referer());
+                return;
+            }
             $startOn = new DateTime($this->request->getData('start_on'));
             $emailAddress = $this->request->getData('email_address');
             $endOn = null;
@@ -52,8 +65,9 @@ class OfficersController extends AppController
             } else {
                 $endOn = null;
             }
-            $approverId = (int)$this->Authentication->getIdentity()->getIdentifier();
+            $approverId = (int)$user->id;
             $deputyDescription = $this->request->getData('deputy_description');
+            $this->Officers->getConnection()->begin();
             $omResult = $oManager->assign($officeId, $memberId, $branchId, $startOn, $endOn, $deputyDescription, $approverId, $emailAddress);
             if (!$omResult->success) {
                 $this->Officers->getConnection()->rollback();
