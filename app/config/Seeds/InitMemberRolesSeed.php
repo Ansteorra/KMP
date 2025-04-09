@@ -38,6 +38,9 @@ class InitMemberRolesSeed extends BaseSeed
         ];
 
         $table = $this->table('member_roles');
+        $options = $table->getAdapter()->getOptions();
+        $options['identity_insert'] = true;
+        $table->getAdapter()->setOptions($options);
         $table->insert($data)->save();
     }
 }

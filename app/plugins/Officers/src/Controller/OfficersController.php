@@ -40,18 +40,14 @@ class OfficersController extends AppController
             $officer = $this->Officers->newEmptyEntity();
             $user = $this->Authentication->getIdentity();
             $branchId = (int)$this->request->getData('branch_id');
-            $authorized = ($user->checkCan("assign", "Officers.Officers", $branchId) ? "assign" : ($user->checkCan("assignMyReportTree", "Officers.Officers", $branchId) ? "assignMyReportTree" : ($user->checkCan("assignMyDirectReports", "Officers.Officers", $branchId) ? "assignMyDirectReports" : ($user->checkCan("assignMyDeputies", "Officers.Officers", $branchId) ? "assignMyDeputies" : false))));
-            if ($authorized) {
-                throw new \Cake\Http\Exception\ForbiddenException();
-            } else {
-                $this->Authorization->authorize($authorized, $officer);
-            }
+            $this->Authorization->authorize($officer);
+            $canWorkAllOffices = $user->canCheck('WorkWithAllOfficers', $officer);
             //begin transaction
 
             $memberId = (int)$this->request->getData('member_id');
             $officeId = (int)$this->request->getData('office_id');
             $branchId = (int)$this->request->getData('branch_id');
-            $canHireOffices = $this->Officers->Offices->officesMemberCanHire($user, $branchId);
+            $canHireOffices = $this->Officers->Offices->officeMemberCanWork($user, $branchId);
             if (!in_array($officeId, $canHireOffices)) {
                 $this->Flash->error(__('You do not have permission to assign this officer.'));
                 $this->redirect($this->referer());

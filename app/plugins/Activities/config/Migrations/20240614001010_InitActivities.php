@@ -267,20 +267,14 @@ class InitActivities extends BaseMigration
                 "activity_group_id",
                 "activities_activity_groups",
                 "id",
-                [
-                    "update" => "NO_ACTION",
-                    "delete" => "NO_ACTION",
-                ],
+                [],
             )
 
             ->addForeignKey(
                 "permission_id",
                 "permissions",
                 "id",
-                [
-                    "update" => "NO_ACTION",
-                    "delete" => "CASCADE",
-                ],
+                [],
             )
             ->update();
 
@@ -290,30 +284,15 @@ class InitActivities extends BaseMigration
                 "activity_id",
                 "activities_activities",
                 "id",
-                [
-                    "update" => "NO_ACTION",
-                    "delete" => "CASCADE",
-                ],
+                [],
             )
-            ->addForeignKey("member_id", "members", "id", [
-                "update" => "NO_ACTION",
-                "delete" => "CASCADE",
-            ])
-            ->addForeignKey("granted_member_role_id", "member_roles", "id", [
-                "update" => "NO_ACTION",
-                "delete" => "CASCADE",
-            ])
+            ->addForeignKey("member_id", "members", "id", [])
+            ->addForeignKey("granted_member_role_id", "member_roles", "id", [])
             ->update();
 
         $this->table("activities_authorization_approvals")
-            ->addForeignKey("authorization_id", "activities_authorizations", "id", [
-                "update" => "NO_ACTION",
-                "delete" => "CASCADE",
-            ])
-            ->addForeignKey("approver_id", "members", "id", [
-                "update" => "NO_ACTION",
-                "delete" => "CASCADE",
-            ])
+            ->addForeignKey("authorization_id", "activities_authorizations", "id", [])
+            ->addForeignKey("approver_id", "members", "id", [])
             ->update();
 
         [$pluginName, $seeder] = pluginSplit("Activities.InitActivitiesSeed");

@@ -77,10 +77,7 @@ class RecommendationStates extends BaseMigration
             ->update();
 
         $this->table("awards_recommendations_states_logs")
-            ->addForeignKey("recommendation_id", "awards_recommendations", "id", [
-                "update" => "NO_ACTION",
-                "delete" => "CASCADE",
-            ])
+            ->addForeignKey("recommendation_id", "awards_recommendations", "id", [])
             ->update();
     }
 }

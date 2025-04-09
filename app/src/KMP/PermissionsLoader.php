@@ -349,6 +349,13 @@ class PermissionsLoader
                                 $methods[] = $method->getName();
                             }
                         }
+                        
+                        // Add dynamically generated methods from the policy class
+                        if (method_exists($class, 'getDynamicMethods')) {
+                            $dynamicMethods = call_user_func([$class, 'getDynamicMethods']);
+                            $methods = array_merge($methods, $dynamicMethods);
+                        }
+                        
                         //if methods is not empty, add to policyClasses
                         if (empty($methods)) {
                             continue;

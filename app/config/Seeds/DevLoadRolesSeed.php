@@ -82,6 +82,9 @@ class DevLoadRolesSeed extends BaseSeed
         ];
 
         $table = $this->table('roles');
+        $options = $table->getAdapter()->getOptions();
+        $options['identity_insert'] = true;
+        $table->getAdapter()->setOptions($options);
         $table->insert($data)->save();
     }
 }

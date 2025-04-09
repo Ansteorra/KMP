@@ -36,6 +36,9 @@ class InitWarrantsSeed extends BaseSeed
         ];
 
         $table = $this->table('warrant_rosters');
+        $options = $table->getAdapter()->getOptions();
+        $options['identity_insert'] = true;
+        $table->getAdapter()->setOptions($options);
         $table->insert($data)->save();
 
         $data = [
@@ -59,6 +62,9 @@ class InitWarrantsSeed extends BaseSeed
         ];
 
         $table = $this->table('warrants');
+        $options = $table->getAdapter()->getOptions();
+        $options['identity_insert'] = true;
+        $table->getAdapter()->setOptions($options);
         $table->insert($data)->save();
 
         $data = [
@@ -71,6 +77,9 @@ class InitWarrantsSeed extends BaseSeed
         ];
 
         $table = $this->table('warrant_roster_approvals');
+        $options = $table->getAdapter()->getOptions();
+        $options['identity_insert'] = true;
+        $table->getAdapter()->setOptions($options);
         $table->insert($data)->save();
 
         $data = [
@@ -109,6 +118,9 @@ class InitWarrantsSeed extends BaseSeed
             ],
         ];
         $table = $this->table('permissions');
+        $options = $table->getAdapter()->getOptions();
+        $options['identity_insert'] = false;
+        $table->getAdapter()->setOptions($options);
         $table->insert($data)->save();
     }
 }

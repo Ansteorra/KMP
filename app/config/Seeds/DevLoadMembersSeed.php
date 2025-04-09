@@ -116,6 +116,9 @@ class DevLoadMembersSeed extends BaseSeed
         ];
 
         $table = $this->table('members');
+        $options = $table->getAdapter()->getOptions();
+        $options['identity_insert'] = true;
+        $table->getAdapter()->setOptions($options);
         $table->insert($data)->save();
     }
 }

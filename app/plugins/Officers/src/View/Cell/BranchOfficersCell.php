@@ -72,10 +72,10 @@ class BranchOfficersCell extends BasePluginCell
         $hireAll = false;
         $canHireOffices = [];
         $myOffices = [];
-        if ($user->checkCan("assign", "Officers.Officers", $id)) {
+        if ($user->checkCan("assign", "Officers.Officers", $id) && $user->checkCan("canWorkWithAllOfficers", "Officers.Offices", $id)) {
             $hireAll = true;
         } else {
-            $canHireOffices = $officesTbl->officesMemberCanHire($user, $id);
+            $canHireOffices = $officesTbl->officesMemberCanWork($user, $id);
             $officersTbl = TableRegistry::getTableLocator()->get("Officers.Officers");
             $userOffices = $officersTbl->find("current")->where(['member_id' => $user->id])->select(['office_id'])->toArray();
             foreach ($userOffices as $userOffice) {

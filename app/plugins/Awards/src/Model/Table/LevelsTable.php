@@ -102,4 +102,19 @@ class LevelsTable extends BaseTable
 
         return $rules;
     }
+
+    /**
+     * Get all level names in the system
+     *
+     * @return array Array of level names
+     */
+    public function getAllLevelNames(): array
+    {
+        $names = $this->find()
+            ->select(['name'])
+            ->where(['deleted IS' => null])
+            ->orderBy(['progression_order' => 'ASC'])
+            ->toArray();
+        return array_map(fn($level) => $level->name, $names);
+    }
 }

@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 use Migrations\BaseMigration;
 use Cake\ORM\TableRegistry;
-use App\Model\Entity\Permission;
+use Migrations\Migration\ManagerFactory;
+
+
+require_once __DIR__ . '/../Seeds/MigrAddViewMembersPermission.php';
 
 class AddViewMembersPermission extends BaseMigration
 {
@@ -17,18 +20,19 @@ class AddViewMembersPermission extends BaseMigration
      */
     public function up(): void
     {
-        $tbl = TableRegistry::getTableLocator()->get('Permissions');
-        $perm = $tbl->newEntity([]);
-        $perm->id = 8;
-        $perm->name = "Can View Members";
-        $perm->require_active_membership = true;
-        $perm->require_active_background_check = false;
-        $perm->require_min_age = 0;
-        $perm->is_system = true;
-        $perm->is_super_user = false;
-        $perm->requires_warrant = false;
+        [$pluginName, $seeder] = pluginSplit("MigrAddViewMembersPermission");
+        $adapter = $this->getAdapter();
+        $connection = $adapter->getConnection()->configName();
 
-        $tbl->save($perm);
+        $factory = new ManagerFactory([
+            'plugin' => $options['plugin'] ?? $pluginName ?? null,
+            'source' => 'Seeds',
+            'connection' => $options['connection'] ?? $connection,
+        ]);
+        $io = $this->getIo();
+        assert($io !== null, 'Missing ConsoleIo instance');
+        $manager = $factory->createManager($io);
+        $manager->seed($seeder);
     }
 
     public function down(): void

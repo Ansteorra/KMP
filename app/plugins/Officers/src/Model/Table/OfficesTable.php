@@ -164,14 +164,14 @@ class OfficesTable extends BaseTable
         return $rules;
     }
 
-    public function officesMemberCanHire($user, $branch_id)
+    public function officesMemberCanWork($user, $branch_id)
     {
         $officersTbl = TableRegistry::getTableLocator()->get("Officers.Officers");
         $userOffices = $officersTbl->find("current")->where(['member_id' => $user->id])->select(['id', 'office_id', 'branch_id'])->toArray();
         $canHireOffices = [];
         foreach ($userOffices as $userOffice) {
             $myOffices[] = $userOffice->office_id;
-            if ($user->checkCan("assignMyDeputies", $userOffice, $branch_id, true)) {
+            if ($user->checkCan("workWithOfficerDeputies", $userOffice, $branch_id, true)) {
                 $deputies = $this->find('all')->where(['deputy_to_id' => $userOffice->office_id])->select(['id'])->toArray();
                 // add deputies to the list of offices that can be hired
                 foreach ($deputies as $deputy) {
@@ -180,7 +180,7 @@ class OfficesTable extends BaseTable
                     }
                 }
             }
-            if ($user->checkCan("assignMyDirectReports", $userOffice, $branch_id, true)) {
+            if ($user->checkCan("workWithOfficerDirectReports", $userOffice, $branch_id, true)) {
                 $deputies = $this->find('all')->where(['OR' => ['deputy_to_id' => $userOffice->office_id, 'reports_to_id' => $userOffice->office_id]])->select(['id'])->toArray();
                 // add deputies to the list of offices that can be hired
                 foreach ($deputies as $deputy) {
@@ -189,7 +189,7 @@ class OfficesTable extends BaseTable
                     }
                 }
             }
-            if ($user->checkCan("assignMyReportTree", $userOffice, $branch_id, true)) {
+            if ($user->checkCan("workWithOfficerReportingTree", $userOffice, $branch_id, true)) {
                 $addedOffices = 0;
                 $hireThread = [];
                 //Get all of the top level office deputies and reports
