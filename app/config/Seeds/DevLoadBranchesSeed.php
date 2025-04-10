@@ -125,6 +125,9 @@ class DevLoadBranchesSeed extends BaseSeed
         ];
 
         $table = $this->table('branches');
+        $options = $table->getAdapter()->getOptions();
+        $options['identity_insert'] = true;
+        $table->getAdapter()->setOptions($options);
         $table->insert($data)->save();
 
         //update kingdom to add type

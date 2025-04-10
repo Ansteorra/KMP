@@ -107,6 +107,12 @@ class DevLoadRolesPermissionsSeed extends BaseSeed
                 'created' => DateTime::now(),
                 'created_by' => '1'
             ],
+            [
+                'permission_id' => 6,
+                'role_id' => 207,
+                'created' => DateTime::now(),
+                'created_by' => '1'
+            ],
         ];
 
         $table = $this->table('roles_permissions');

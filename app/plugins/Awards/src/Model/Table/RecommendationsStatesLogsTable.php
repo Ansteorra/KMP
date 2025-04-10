@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Awards\Model\Table;
@@ -7,6 +8,7 @@ use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
+use App\Model\Table\BaseTable;
 
 /**
  * AwardsRecommendationsStatesLogs Model
@@ -29,7 +31,7 @@ use Cake\Validation\Validator;
  *
  * @mixin \Cake\ORM\Behavior\TimestampBehavior
  */
-class RecommendationsStatesLogsTable extends Table
+class RecommendationsStatesLogsTable extends BaseTable
 {
     /**
      * Initialize method

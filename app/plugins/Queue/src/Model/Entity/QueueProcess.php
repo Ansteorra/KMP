@@ -1,9 +1,11 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Queue\Model\Entity;
 
 use Cake\ORM\Entity;
+use App\Model\Entity\BaseEntity;
 
 /**
  * QueueProcess Entity
@@ -17,7 +19,8 @@ use Cake\ORM\Entity;
  * @property string $workerkey
  * @property \Queue\Model\Entity\QueuedJob|null $active_job
  */
-class QueueProcess extends Entity {
+class QueueProcess extends BaseEntity
+{
 
 	/**
 	 * @var array<string, bool>
@@ -26,5 +29,4 @@ class QueueProcess extends Entity {
 		'*' => true,
 		'id' => false,
 	];
-
 }

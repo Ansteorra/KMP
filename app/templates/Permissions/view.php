@@ -86,170 +86,225 @@ echo $this->KMP->startBlock("pageTitle") ?>
 ]) ?>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("tabButtons") ?>
+<button class="nav-link" id="nav-policies-tab" data-bs-toggle="tab" data-bs-target="#nav-policies" type="button"
+    role="tab" aria-controls="nav-policies" aria-selected="false" data-detail-tabs-target='tabBtn'><?= __("Policies") ?>
+</button>
 <button class="nav-link" id="nav-roles-tab" data-bs-toggle="tab" data-bs-target="#nav-roles" type="button" role="tab"
     aria-controls="nav-roles" aria-selected="false" data-detail-tabs-target='tabBtn'><?= __("Roles") ?>
 </button>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("tabContent") ?>
-<div class="tab-content" id="nav-tabContent">
-    <div class="related tab-pane fade m-3" id="nav-roles" role="tabpanel" aria-labelledby="nav-roles-tab"
-        data-detail-tabs-target="tabContent" data-detail-tabs-target="tabContent">
+<div class="related tab-pane fade m-3" id="nav-roles" role="tabpanel" aria-labelledby="nav-roles-tab"
+    data-detail-tabs-target="tabContent" data-detail-tabs-target="tabContent">
 
-        <?php if ($user->checkCan("addPermission", "Roles")) { ?>
-        <button type="button" class="btn btn-primary btn-sm mb-3" data-bs-toggle="modal"
-            data-bs-target="#addRoleModal">Add Role</button>
-        <?php } ?>
-        <?php if (!empty($permission->roles)) : ?>
-        <div class="table-responsive">
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th scope="col"><?= __("Name") ?></th>
-                        <th scope="col" class="actions"></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($permission->roles as $role) : ?>
-                    <tr>
-                        <td><?= h($role->name) ?></td>
-                        <td class="actions text-end text-nowrap">
-                            <?php if ($user->checkCan("deletePermission", "Roles")) { ?>
-                            <?= $this->Form->postLink(
-                                            __(""),
-                                            [
-                                                "controller" => "Roles",
-                                                "action" => "deletePermission",
+    <?php if ($user->checkCan("addPermission", "Roles")) { ?>
+    <button type="button" class="btn btn-primary btn-sm mb-3" data-bs-toggle="modal" data-bs-target="#addRoleModal">Add
+        Role</button>
+    <?php } ?>
+    <?php if (!empty($permission->roles)) : ?>
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th scope="col"><?= __("Name") ?></th>
+                    <th scope="col" class="actions"></th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($permission->roles as $role) : ?>
+                <tr>
+                    <td><?= h($role->name) ?></td>
+                    <td class="actions text-end text-nowrap">
+                        <?php if ($user->checkCan("deletePermission", "Roles")) { ?>
+                        <?= $this->Form->postLink(
+                                        __(""),
+                                        [
+                                            "controller" => "Roles",
+                                            "action" => "deletePermission",
+                                        ],
+                                        [
+                                            "confirm" => __(
+                                                "Are you sure you want to remove {0}?",
+                                                $role->name,
+                                            ),
+                                            "class" => "btn-sm btn btn-danger bi bi-trash3-fill",
+                                            "data" => [
+                                                "permission_id" => $permission->id,
+                                                "role_id" => $role->id,
                                             ],
-                                            [
-                                                "confirm" => __(
-                                                    "Are you sure you want to remove {0}?",
-                                                    $role->name,
-                                                ),
-                                                "class" => "btn-sm btn btn-danger bi bi-trash3-fill",
-                                                "data" => [
-                                                    "permission_id" => $permission->id,
-                                                    "role_id" => $role->id,
-                                                ],
-                                            ],
-                                        ) ?>
-                            <?php } ?>
-                        </td>
-                    </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        </div>
-        <?php else : ?>
-        <p><?= __("No Roles Assigned") ?></p>
-        <?php endif; ?>
+                                        ],
+                                    ) ?>
+                        <?php } ?>
+                    </td>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
     </div>
-    <?php $this->KMP->endBlock() ?>
-
-
-    <?php //Start writing to modal block in layout
-
-    echo $this->KMP->startBlock("modals");
-
-    echo $this->Form->create(null, [
-        "url" => ["controller" => "Roles", "action" => "addPermission"],
-        "data-permission-add-role-target" => "form",
-        "data-controller" => "permission-add-role",
-    ]);
-    echo $this->Modal->create("Add Role to Permissions", [
-        "id" => "addRoleModal",
-        "close" => true,
-    ]); ?>
-    <fieldset>
-        <?php
-        echo $this->KMP->comboBoxControl(
-            $this->Form,
-            'role_name',
-            'role_id',
-            $roles,
-            "Role",
-            true,
-            false,
-            [
-                'data-permission-add-role-target' => 'role',
-                'data-action' => 'change->permission-add-role#checkSubmitEnable',
-            ]
-        );
-        echo $this->Form->control("permission_id", [
-            "type" => "hidden",
-            "value" => $permission->id,
-            "id" => "add_role__permission_id",
-        ]);
+    <?php else : ?>
+    <p><?= __("No Roles Assigned") ?></p>
+    <?php endif; ?>
+</div>
+<div class="related tab-pane fade m-3" id="nav-policies" role="tabpanel" aria-labelledby="nav-policies-tab"
+    data-detail-tabs-target="tabContent" data-detail-tabs-target="tabContent">
+    <ul class="list-group" data-controller="permission-manage-policies"
+        data-permission-manage-policies-url-value="<?= $this->Url->build([
+                                                                                                                        "controller" => "Permissions",
+                                                                                                                        "action" => "updatePolicy"
+                                                                                                                    ], ["fullBase" => true]) ?>">
+        <?php foreach ($appPolicies as $class => $methods) :
+            $className = str_replace('\\', '-', $class);
         ?>
-    </fieldset>
-    <?php echo $this->Modal->end([
-        $this->Form->button("Submit", [
-            "class" => "btn btn-primary",
+        <li class="list-group-item">
+
+            <?= $this->Form->control($class, [
+                    "type" => "checkbox",
+                    "switch" => true,
+                    'label' => $class,
+                    "data-permission-manage-policies-target" => "policyClass",
+                    "data-class-name" => $className,
+                    "data-permission-id" => $permission->id
+                ]) ?>
+            <ul class="list-group">
+                <?php foreach ($methods as $method) : ?>
+                <li class="list-group-item">
+                    <?php
+                            //Check if the method is already assigned to the permission
+                            $isAssigned = false;
+                            foreach ($permission->permission_policies as $policy) {
+                                if ($policy->policy_class == $class) {
+                                    if ($policy->policy_method == $method) {
+                                        $isAssigned = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            echo $this->Form->control($class . "-" . $method, [
+                                "type" => "checkbox",
+                                "checked" => $isAssigned,
+                                "switch" => true,
+                                'label' => $method,
+                                "data-permission-manage-policies-target" => "policyMethod",
+                                "data-class-name" => $className,
+                                "data-method-name" => $method,
+                                "data-permission-id" => $permission->id
+                            ])
+
+                            ?>
+                </li>
+                <?php endforeach; ?>
+            </ul>
+        </li>
+        <?php endforeach; ?>
+    </ul>
+</div>
+<?php $this->KMP->endBlock() ?>
+
+
+<?php //Start writing to modal block in layout
+
+echo $this->KMP->startBlock("modals");
+
+echo $this->Form->create(null, [
+    "url" => ["controller" => "Roles", "action" => "addPermission"],
+    "data-permission-add-role-target" => "form",
+    "data-controller" => "permission-add-role",
+]);
+echo $this->Modal->create("Add Role to Permissions", [
+    "id" => "addRoleModal",
+    "close" => true,
+]); ?>
+<fieldset>
+    <?php
+    echo $this->KMP->comboBoxControl(
+        $this->Form,
+        'role_name',
+        'role_id',
+        $roles,
+        "Role",
+        true,
+        false,
+        [
+            'data-permission-add-role-target' => 'role',
+            'data-action' => 'change->permission-add-role#checkSubmitEnable',
+        ]
+    );
+    echo $this->Form->control("permission_id", [
+        "type" => "hidden",
+        "value" => $permission->id,
+        "id" => "add_role__permission_id",
+    ]);
+    ?>
+</fieldset>
+<?php echo $this->Modal->end([
+    $this->Form->button("Submit", [
+        "class" => "btn btn-primary",
+        "disabled" => "disabled",
+        "data-permission-add-role-target" => "submitBtn",
+    ]),
+    $this->Form->button("Close", [
+        "data-bs-dismiss" => "modal",
+        "type" => "button",
+    ]),
+]);
+echo $this->Form->end();
+
+echo $this->Form->create($permission, [
+    "id" => "edit_entity",
+    "url" => [
+        "controller" => "Permissions",
+        "action" => "edit",
+        $permission->id,
+    ],
+]);
+
+echo $this->Modal->create("Edit Permissions", [
+    "id" => "editModal",
+    "close" => true,
+]); ?>
+<fieldset>
+    <?php
+    if ($permission->is_system) {
+        echo $this->Form->control("name", ["disabled" => "disabled"]);
+    } else {
+        echo $this->Form->control("name");
+    }
+    echo $this->Form->control("require_active_membership", [
+        "switch" => true,
+        "label" => "Require Membership",
+    ]);
+    echo $this->Form->control("require_active_background_check", [
+        "switch" => true,
+        "label" => "Require Background Check",
+    ]);
+    echo $this->Form->control("require_min_age", [
+        "label" => "Minimum Age",
+        "type" => "number",
+    ]);
+    echo $this->Form->control("scoping_rule", [
+        "options" => \App\Model\Entity\Permission::SCOPING_RULES,
+        "empty" => true,
+    ]);
+    if ($user->isSuperUser()) {
+        echo $this->Form->control("is_super_user", ["switch" => true]);
+    } else {
+        echo $this->Form->control("is_super_user", [
+            "switch" => true,
             "disabled" => "disabled",
-            "data-permission-add-role-target" => "submitBtn",
-        ]),
-        $this->Form->button("Close", [
-            "data-bs-dismiss" => "modal",
-            "type" => "button",
-        ]),
-    ]);
-    echo $this->Form->end();
-
-    echo $this->Form->create($permission, [
-        "id" => "edit_entity",
-        "url" => [
-            "controller" => "Permissions",
-            "action" => "edit",
-            $permission->id,
-        ],
-    ]);
-
-    echo $this->Modal->create("Edit Permissions", [
-        "id" => "editModal",
-        "close" => true,
-    ]); ?>
-    <fieldset>
-        <?php
-        if ($permission->is_system) {
-            echo $this->Form->control("name", ["disabled" => "disabled"]);
-        } else {
-            echo $this->Form->control("name");
-        }
-        echo $this->Form->control("require_active_membership", [
-            "switch" => true,
-            "label" => "Require Membership",
         ]);
-        echo $this->Form->control("require_active_background_check", [
-            "switch" => true,
-            "label" => "Require Background Check",
-        ]);
-        echo $this->Form->control("require_min_age", [
-            "label" => "Minimum Age",
-            "type" => "number",
-        ]);
-        echo $this->Form->control("scoping_rule", [
-            "options" => \App\Model\Entity\Permission::SCOPING_RULES,
-            "empty" => true,
-        ]);
-        if ($user->isSuperUser()) {
-            echo $this->Form->control("is_super_user", ["switch" => true]);
-        } else {
-            echo $this->Form->control("is_super_user", [
-                "switch" => true,
-                "disabled" => "disabled",
-            ]);
-        }
-        echo $this->Form->control("requires_warrant", ["switch" => true]);
-        ?>
-    </fieldset>
-    <?php echo $this->Modal->end([
-        $this->Form->button("Submit", [
-            "class" => "btn btn-primary",
-            "id" => "edit_entity__submit",
-        ]),
-        $this->Form->button("Close", [
-            "data-bs-dismiss" => "modal",
-            "type" => "button",
-        ]),
-    ]);
-    echo $this->Form->end();
-    $this->KMP->endBlock(); ?>
+    }
+    echo $this->Form->control("requires_warrant", ["switch" => true]);
+    ?>
+</fieldset>
+<?php echo $this->Modal->end([
+    $this->Form->button("Submit", [
+        "class" => "btn btn-primary",
+        "id" => "edit_entity__submit",
+    ]),
+    $this->Form->button("Close", [
+        "data-bs-dismiss" => "modal",
+        "type" => "button",
+    ]),
+]);
+echo $this->Form->end();
+$this->KMP->endBlock(); ?>

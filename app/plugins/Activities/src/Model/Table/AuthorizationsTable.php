@@ -11,6 +11,7 @@ use Cake\Validation\Validator;
 use Activities\Model\Entity\Authorization;
 use App\KMP\StaticHelpers;
 use Cake\I18n\DateTime;
+use App\Model\Table\BaseTable;
 
 /**
  * Authorizations Model
@@ -33,7 +34,7 @@ use Cake\I18n\DateTime;
  * @method iterable<\App\Model\Entity\Authorization>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\Authorization>|false deleteMany(iterable $entities, array $options = [])
  * @method iterable<\App\Model\Entity\Authorization>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\Authorization> deleteManyOrFail(iterable $entities, array $options = [])
  */
-class AuthorizationsTable extends Table
+class AuthorizationsTable extends BaseTable
 {
     /**
      * Initialize method

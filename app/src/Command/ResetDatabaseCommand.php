@@ -50,9 +50,82 @@ class ResetDatabaseCommand extends Command
             $io->error("Cannot reset database when not in debug.");
             return;
         }
+
         $db = ConnectionManager::get("default");
-        $db->execute("DROP DATABASE IF EXISTS " . $db->config()["database"] . ";");
-        $db->execute("CREATE DATABASE " . $db->config()["database"] . " DEFAULT CHARACTER SET = 'utf8mb4';");
-        $io->success("Database reset.");
+        $driver = $db->getDriver();
+        $driverClass = get_class($driver);
+        //Get the string after the last / and turn it all lowercase to get the driver name
+        $driverName = strtolower(substr(strrchr($driverClass, '\\'), 1));
+
+        $dbConfig = $db->config();
+
+        try {
+
+            $tables = [];
+            $remainingTables = true;
+            $maxAttempts = 30; // Prevent infinite loops
+            $attempts = 0;
+
+            // Keep trying to drop tables until all are gone
+            while ($remainingTables && $attempts < $maxAttempts) {
+                $attempts++;
+
+                // Get all tables based on database driver
+                if (stripos($driverName, 'mysql') !== false) {
+                    $query = $db->execute("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = ?", [$dbConfig['database']]);
+                    $tables = $query->fetchAll(\PDO::FETCH_COLUMN);
+                } elseif (stripos($driverName, 'postgres') !== false) {
+                    $query = $db->execute("SELECT tablename FROM pg_tables WHERE schemaname = 'public'");
+                    $tables = $query->fetchAll(\PDO::FETCH_COLUMN);
+                } elseif (stripos($driverName, 'sqlite') !== false) {
+                    $query = $db->execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'");
+                    $tables = $query->fetchAll(\PDO::FETCH_COLUMN);
+                } elseif (stripos($driverName, 'sqlserver') !== false) {
+                    $query = $db->execute("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_SCHEMA = 'dbo'");
+                    $tables = $query->fetchAll(\PDO::FETCH_COLUMN);
+                } else {
+                    // Fallback to original method for unsupported databases
+                    $io->warning("Unsupported database driver: $driverName. Falling back to dropping database.");
+                    $db->execute("DROP DATABASE IF EXISTS " . $dbConfig["database"] . ";");
+                    $db->execute("CREATE DATABASE " . $dbConfig["database"] . " DEFAULT CHARACTER SET = 'utf8mb4';");
+                    break;
+                }
+
+                // If no tables left, we're done
+                if (empty($tables)) {
+                    $remainingTables = false;
+                    continue;
+                }
+
+                $io->out("Attempt $attempts - Tables remaining: " . count($tables));
+
+                // Try to drop each table
+                foreach ($tables as $table) {
+                    try {
+                        if (stripos($driverName, 'mysql') !== false) {
+                            $db->execute("DROP TABLE IF EXISTS `$table`");
+                        } elseif (stripos($driverName, 'postgres') !== false) {
+                            $db->execute("DROP TABLE IF EXISTS \"$table\" CASCADE");
+                        } elseif (stripos($driverName, 'sqlite') !== false) {
+                            $db->execute("DROP TABLE IF EXISTS \"$table\"");
+                        } elseif (stripos($driverName, 'sqlserver') !== false) {
+                            $db->execute("IF OBJECT_ID('dbo.$table', 'U') IS NOT NULL DROP TABLE [dbo].[$table]");
+                        }
+                        $io->out("Dropped table: $table");
+                    } catch (\Exception $e) {
+                        $io->warning("Could not drop table $table: " . $e->getMessage());
+                    }
+                }
+            }
+
+            if ($remainingTables) {
+                $io->warning("Could not drop all tables after $maxAttempts attempts.");
+                return;
+            }
+
+            $io->success("Database reset.");
+        } catch (\Exception $e) {
+            $io->error("Error resetting database: " . $e->getMessage());
+        }
     }
 }

@@ -9,6 +9,7 @@ use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
 use Cake\Database\Schema\TableSchemaInterface;
+use App\Model\Table\BaseTable;
 
 /**
  * Awards Model
@@ -33,7 +34,7 @@ use Cake\Database\Schema\TableSchemaInterface;
  *
  * @mixin \Cake\ORM\Behavior\TimestampBehavior
  */
-class AwardsTable extends Table
+class AwardsTable extends BaseTable
 {
     /**
      * Initialize method

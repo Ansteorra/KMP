@@ -12,7 +12,7 @@ class WarrantsTablePolicy extends BasePolicy
     protected string $REQUIRED_PERMISSION = "Can Manage Warrants";
     protected string $REQUIRED_VIEW_PERMISSION = "Can View Warrants";
 
-    public function canView(IdentityInterface $user, $entity)
+    public function canView(IdentityInterface $user, $entity, ...$optionalArgs)
     {
         if ($this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION)) {
             return true;
@@ -23,7 +23,7 @@ class WarrantsTablePolicy extends BasePolicy
         return false;
     }
 
-    public function canIndex(IdentityInterface $user, $entity)
+    public function canIndex(IdentityInterface $user, $entity, ...$optionalArgs)
     {
         if ($this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION)) {
             return true;
@@ -34,12 +34,12 @@ class WarrantsTablePolicy extends BasePolicy
         return false;
     }
 
-    public function canDeclineWarrantInRoster(IdentityInterface $user, $entity)
+    public function canDeclineWarrantInRoster(IdentityInterface $user, $entity, ...$optionalArgs)
     {
         return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
     }
 
-    public function canDeactivate(IdentityInterface $user, $entity)
+    public function canDeactivate(IdentityInterface $user, $entity, ...$optionalArgs)
     {
         return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
     }

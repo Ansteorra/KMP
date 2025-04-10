@@ -10,6 +10,7 @@ use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
 use Cake\ORM\TableRegistry;
+use App\Model\Table\BaseTable;
 
 /**
  * WarrantRosters Model
@@ -33,7 +34,7 @@ use Cake\ORM\TableRegistry;
  *
  * @mixin \Cake\ORM\Behavior\TimestampBehavior
  */
-class WarrantRostersTable extends Table
+class WarrantRostersTable extends BaseTable
 {
     /**
      * Initialize method

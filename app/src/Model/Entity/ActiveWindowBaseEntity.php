@@ -17,7 +17,7 @@ use Cake\I18n\Datetime;
  * @property string|null $revoked_reason
  * @property int|null $revoker_id
  */
-abstract class ActiveWindowBaseEntity extends Entity
+abstract class ActiveWindowBaseEntity extends BaseEntity
 {
     const UPCOMING_STATUS = "Upcoming";
     const CURRENT_STATUS = "Current";

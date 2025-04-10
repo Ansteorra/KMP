@@ -9,6 +9,7 @@ use App\Model\Entity\Member;
 use Cake\ORM\Entity;
 use Cake\ORM\TableRegistry;
 use Cake\I18n\DateTime;
+use App\Model\Entity\BaseEntity;
 
 /**
  * Activity Entity
@@ -27,7 +28,7 @@ use Cake\I18n\DateTime;
  * @property \App\Model\Entity\PendingAuthorization[] $pending_authorizations
  * @property \App\Model\Entity\Permission[] $permissions
  */
-class Activity extends Entity
+class Activity extends BaseEntity
 {
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().
@@ -61,12 +62,12 @@ class Activity extends Entity
      * @param int $activityId
      * @return SelectQuery
      */
-    public function getApproversQuery()
+    public function getApproversQuery(Int $branch_id)
     {
 
         if (!isset($this->permission_id)) {
             throw new \Exception("Permission ID not set");
         }
-        return PermissionsLoader::getMembersWithPermissionsQuery($this->permission_id);
+        return PermissionsLoader::getMembersWithPermissionsQuery($this->permission_id, $branch_id);
     }
 }

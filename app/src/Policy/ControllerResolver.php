@@ -120,8 +120,8 @@ class ControllerResolver implements ResolverInterface
      */
     protected function getControllerPolicyByName(
         string $controller,
-        string $plugin = null,
-        string $prefix = null,
+        ?string $plugin = null,
+        ?string $prefix = null,
     ): mixed {
         $class = $this->getControllerClass($controller, $plugin, $prefix);
         $controllerNamespace = "\Controller\\";
@@ -214,8 +214,8 @@ class ControllerResolver implements ResolverInterface
      */
     public function getControllerClass(
         string $controller,
-        string $plugin = null,
-        string $prefix = null,
+        ?string $plugin = null,
+        ?string $prefix = null,
     ): ?string {
         $pluginPath = "";
         $namespace = "Controller";

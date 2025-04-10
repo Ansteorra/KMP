@@ -6,7 +6,10 @@ namespace App\Controller;
 
 use Cake\I18n\DateTime;
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
+use App\Services\WarrantManager\WarrantManagerInterface;
+use App\Services\WarrantManager\WarrantRequest;
 use App\Model\Entity\MemberRole;
+use App\Model\Entity\Permission;
 
 /**
  * MemberRoles Controller
@@ -26,10 +29,45 @@ class MemberRolesController extends AppController
      *
      * @return \Cake\Http\Response|null|void Redirects on successful add, renders view otherwise.
      */
-    public function add(ActiveWindowManagerInterface $awService)
+    public function add(ActiveWindowManagerInterface $awService, WarrantManagerInterface $warrantService)
+
     {
         $roleid = $this->request->getData("role_id");
         $memberid = $this->request->getData("member_id");
+        $role = $this->MemberRoles->Roles->find()
+            ->where(["id" => $roleid])
+            ->select("name")->first();
+        if (!$role) {
+            $this->Flash->error(__("The role could not be found."));
+            return $this->redirect($this->referer());
+        }
+        $member = $this->MemberRoles->Members->find()
+            ->where(["id" => $memberid])
+            ->select("sca_name")->first();
+        if (!$member) {
+            $this->Flash->error(__("The member could not be found."));
+            return $this->redirect($this->referer());
+        }
+        $permissions = $this->MemberRoles->Roles->Permissions->find()
+            ->join([
+                'table' => 'roles_permissions',
+                'alias' => 'rp',
+                'type' => 'INNER',
+                'conditions' => 'rp.permission_id = Permissions.id',
+            ])
+            ->where(["rp.role_id" => $roleid, 'scoping_rule <>' => Permission::SCOPE_GLOBAL])
+            ->count();
+        $branch_id = null;
+        if ($permissions > 0) {
+            $branch_id = $this->request->getData("branch_id");
+            $branch = $this->MemberRoles->Branches->find()
+                ->where(["id" => $branch_id])
+                ->select("name")->first();
+            if (!$branch) {
+                $this->Flash->error(__("The branch could not be found."));
+                return $this->redirect($this->referer());
+            }
+        }
         $this->request->allowMethod(["post"]);
         // begin transaction
         $this->MemberRoles->getConnection()->begin();
@@ -38,6 +76,7 @@ class MemberRolesController extends AppController
         $newMemberRole->member_id = $memberid;
         $newMemberRole->approver_id = $this->Authentication->getIdentity()->get("id");
         $newMemberRole->entity_type = "Direct Grant";
+        $newMemberRole->branch_id = $branch_id;
         $newMemberRole->start(DateTime::now());
         if (!$this->MemberRoles->save($newMemberRole)) {
             $this->Flash->error(
@@ -53,7 +92,44 @@ class MemberRolesController extends AppController
             $this->MemberRoles->getConnection()->rollback();
             return $this->redirect($this->referer());
         }
+        #if the member role includes a permission that requires a warrant, then 
+        #we need to start the warrant process
+        $permissions = $this->MemberRoles->Roles->Permissions->find()
+            ->join([
+                'table' => 'roles_permissions',
+                'alias' => 'rp',
+                'type' => 'INNER',
+                'conditions' => 'rp.permission_id = Permissions.id',
+            ])
+            ->where(["rp.role_id" => $roleid, 'requires_warrant' => true])
+            ->count();
+        $warrantRequired = $permissions > 0;
+        if ($warrantRequired) {
+            $warrant = $warrantService->request(
+                "Direct Grant:" . $role->name . " for " . $member->sca_name,
 
+                "Warrant for a direct grant of a Role",
+                [
+                    new WarrantRequest(
+                        "Direct Grant:" . $role->name . " for " . $member->sca_name,
+                        "Direct Grant",
+                        toInt($roleid),
+                        $this->Authentication->getIdentity()->get("id"),
+                        toInt($memberid),
+                        DateTime::now(),
+                        null,
+                        $newMemberRole->id,
+                    ),
+                ],
+            );
+            if (!$warrant->success) {
+                $this->Flash->error(
+                    __($warrant->reason),
+                );
+                $this->MemberRoles->getConnection()->rollback();
+                return $this->redirect($this->referer());
+            }
+        }
         $this->Flash->success(__("The Member role has been saved."));
         $this->MemberRoles->getConnection()->commit();
         return $this->redirect($this->referer());

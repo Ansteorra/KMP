@@ -72,9 +72,19 @@ class DevLoadRolesSeed extends BaseSeed
                 'created' => DateTime::now(),
                 'created_by' => '1'
             ],
+            [
+                'id' => 207,
+                'name' => 'User Manager',
+                'deleted' => NULL,
+                'created' => DateTime::now(),
+                'created_by' => '1'
+            ],
         ];
 
         $table = $this->table('roles');
+        $options = $table->getAdapter()->getOptions();
+        $options['identity_insert'] = true;
+        $table->getAdapter()->setOptions($options);
         $table->insert($data)->save();
     }
 }

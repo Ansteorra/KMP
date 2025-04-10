@@ -98,6 +98,9 @@ Master at Arms: (Fieldless) A white baldric',
         ];
 
         $table = $this->table('awards_awards');
+        $options = $table->getAdapter()->getOptions();
+        $options['identity_insert'] = true;
+        $table->getAdapter()->setOptions($options);
         $table->insert($data)->save();
     }
 }

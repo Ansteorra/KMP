@@ -1,4 +1,4 @@
-Someone has request a password reset for the Ansteorra Marshallet account with the email address of <?= $email ?>.
+Someone has requested a password reset for the Ansteorra Marshallet account with the email address of <?= $email ?>.
 Please use the link below to reset your account password.
 
 <?= $passwordResetUrl ?>

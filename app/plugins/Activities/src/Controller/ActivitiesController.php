@@ -244,7 +244,8 @@ class ActivitiesController extends AppController
         }
 
         $this->viewBuilder()->setClassName("Ajax");
-        $query = $activity->getApproversQuery();
+        $member = TableRegistry::getTableLocator()->get('Members')->get($memberId);
+        $query = $activity->getApproversQuery($member->branch_id);
         $result = $query
             ->contain(["Branches"])
             ->where(["Members.id !=" => $memberId])
@@ -253,7 +254,6 @@ class ActivitiesController extends AppController
             ->distinct()
             ->all()
             ->toArray();
-
         $responseData = [];
         foreach ($result as $member) {
             $responseData[] = [

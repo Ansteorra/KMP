@@ -24,6 +24,9 @@ class DevLoadOfficersSeed extends BaseSeed
         $data = [];
 
         $table = $this->table('officers_officers');
+        $options = $table->getAdapter()->getOptions();
+        $options['identity_insert'] = true;
+        $table->getAdapter()->setOptions($options);
         $table->insert($data)->save();
     }
 }

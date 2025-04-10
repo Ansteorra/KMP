@@ -13,54 +13,45 @@ use App\Policy\BasePolicy;
  */
 class AuthorizationPolicy extends BasePolicy
 {
-    public function canRevoke(
-        IdentityInterface $user,
-        Authorization $authorization,
-    ): bool {
-        return $this->_hasNamedPermission($user, "Can Revoke Authorizations");
+    public function canRevoke(IdentityInterface $user, $entity, ...$optionalArgs): bool
+    {
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
 
-    public function canAdd(
-        IdentityInterface $user,
-        $authorization,
-    ): bool {
-        $cando = $this->_hasNamedPermission($user, "Can Manage Members");
-        if ($cando) {
+    public function canAdd(IdentityInterface $user, $entity, ...$optionalArgs): bool
+    {
+        if ($entity->id == $user->getIdentifier()) {
             return true;
         }
-        return $authorization->member_id == $user->getIdentifier();
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
 
-    public function canRenew(
-        IdentityInterface $user,
-        $authorization,
-    ): bool {
-        $cando = $this->_hasNamedPermission($user, "Can Manage Members");
-        if ($cando) {
+    public function canRenew(IdentityInterface $user, $entity, ...$optionalArgs): bool
+    {
+        if ($entity->id == $user->getIdentifier()) {
             return true;
         }
-        return $authorization->member_id == $user->getIdentifier();
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
 
-    public function canMemberAuthorizations(
-        IdentityInterface $user,
-        Authorization $authorization,
-    ): bool {
-        $cando = $this->_hasNamedPermission($user, "Can Manage Members");
-        if ($cando) {
+    public function canMemberAuthorizations(IdentityInterface $user, $entity, ...$optionalArgs): bool
+    {
+        if ($entity->id == $user->getIdentifier()) {
             return true;
         }
-        return $authorization->member_id == $user->getIdentifier();
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
 
-    public function activityAuthorizations(
-        IdentityInterface $user,
-        Authorization $authorization,
-    ): bool {
-        $cando = $this->_hasNamedPermission($user, "Can Manage Activities");
-        if ($cando) {
+    public function activityAuthorizations(IdentityInterface $user, $entity, ...$optionalArgs): bool
+    {
+        if ($entity->id == $user->getIdentifier()) {
             return true;
         }
-        return $authorization->member_id == $user->getIdentifier();
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
 }

@@ -109,11 +109,12 @@ $this->KMP->endBlock();
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title><?= h($this->fetch("title")) ?></title>
     <script>
-        window.urlRoot = "<?= $this->Url->build("/") ?>";
+    window.urlRoot = "<?= $this->Url->build("/") ?>";
     </script>
     <meta name="turbo-prefetch" content="false">
     <?= $this->fetch("meta") ?>
     <?php $css = $this->fetch("css"); ?>
+    <?= $this->Html->meta('csrf-token', $this->request->getAttribute('csrfToken')) ?>
     <?= $this->fetch("css") ?>
     <?= $this->fetch("manifest") ?>
     <?= $this->fetch("topscript") ?>

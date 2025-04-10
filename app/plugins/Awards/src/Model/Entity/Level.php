@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Awards\Model\Entity;
 
 use Cake\ORM\Entity;
+use App\Model\Entity\BaseEntity;
 
 /**
  * Level Entity
@@ -18,7 +19,7 @@ use Cake\ORM\Entity;
  * @property int|null $modified_by
  * @property \Cake\I18n\DateTime|null $deleted
  */
-class Level extends Entity
+class Level extends BaseEntity
 {
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().

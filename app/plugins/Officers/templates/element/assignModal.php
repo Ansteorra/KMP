@@ -19,7 +19,7 @@ function addOptions($office, $depth, &$officeOptions)
     }
 }
 foreach ($offices as $office) {
-    if ($office['deputy_to_id'] == null && $office['enabled']) {
+    if ($office['enabled']) {
         addOptions($office, 0, $officeOptions);
     }
 }
@@ -27,7 +27,7 @@ echo $this->Form->create($newOfficer, [
     "id" => "assign_officer__form",
     "url" => [
         "controller" => "Officers",
-        "action" => "add",
+        "action" => "assign",
     ],
     "data-controller" => "officers-assign-officer",
 ]);

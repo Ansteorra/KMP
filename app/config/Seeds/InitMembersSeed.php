@@ -58,6 +58,9 @@ class InitMembersSeed extends BaseSeed
         ];
 
         $table = $this->table('members');
+        $options = $table->getAdapter()->getOptions();
+        $options['identity_insert'] = true;
+        $table->getAdapter()->setOptions($options);
         $table->insert($data)->save();
 
         //lets make a note for the admin account
@@ -75,6 +78,9 @@ class InitMembersSeed extends BaseSeed
         ];
 
         $table = $this->table('notes');
+        $options = $table->getAdapter()->getOptions();
+        $options['identity_insert'] = true;
+        $table->getAdapter()->setOptions($options);
         $table->insert($data)->save();
     }
 }

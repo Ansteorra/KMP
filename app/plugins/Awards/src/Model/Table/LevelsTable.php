@@ -8,6 +8,7 @@ use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
+use App\Model\Table\BaseTable;
 
 /**
  * Levels Model
@@ -28,7 +29,7 @@ use Cake\Validation\Validator;
  *
  * @mixin \Cake\ORM\Behavior\TimestampBehavior
  */
-class LevelsTable extends Table
+class LevelsTable extends BaseTable
 {
     /**
      * Initialize method
@@ -100,5 +101,20 @@ class LevelsTable extends Table
         $rules->add($rules->isUnique(['name']), ['errorField' => 'name']);
 
         return $rules;
+    }
+
+    /**
+     * Get all level names in the system
+     *
+     * @return array Array of level names
+     */
+    public function getAllLevelNames(): array
+    {
+        $names = $this->find()
+            ->select(['name'])
+            ->where(['deleted IS' => null])
+            ->orderBy(['progression_order' => 'ASC'])
+            ->toArray();
+        return array_map(fn($level) => $level->name, $names);
     }
 }

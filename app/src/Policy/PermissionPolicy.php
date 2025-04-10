@@ -13,4 +13,10 @@ use Authorization\IdentityInterface;
 class PermissionPolicy extends BasePolicy
 {
     protected string $REQUIRED_PERMISSION = "Can Manage Permissions";
+
+    public function canUpdatePolicy(IdentityInterface $user, $entity, ...$optionalArgs)
+    {
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
+    }
 }

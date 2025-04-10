@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Awards\Model\Entity;
 
 use Cake\ORM\Entity;
+use App\Model\Entity\BaseEntity;
 
 /**
  * Event Entity
@@ -23,7 +24,7 @@ use Cake\ORM\Entity;
  *
  * @property \Awards\Model\Entity\Branch $branch
  */
-class Event extends Entity
+class Event extends BaseEntity
 {
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().

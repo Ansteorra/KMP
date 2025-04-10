@@ -8,6 +8,8 @@ use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
+use App\Model\Table\BaseTable;
+use Cake\Cache\Cache;
 
 /**
  * MemberRoles Model
@@ -26,7 +28,7 @@ use Cake\Validation\Validator;
  * @method iterable<\App\Model\Entity\MemberRole>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\MemberRole>|false deleteMany(iterable $entities, array $options = [])
  * @method iterable<\App\Model\Entity\MemberRole>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\MemberRole> deleteManyOrFail(iterable $entities, array $options = [])
  */
-class MemberRolesTable extends Table
+class MemberRolesTable extends BaseTable
 {
     /**
      * Initialize method
@@ -72,6 +74,14 @@ class MemberRolesTable extends Table
         $this->addBehavior("Timestamp");
         $this->addBehavior('Muffin/Footprint.Footprint');
         $this->addBehavior("ActiveWindow");
+    }
+
+    public function afterSave($event, $entity, $options)
+    {
+        $memberId = $entity->member_id;
+        // Clear cached descendants and parents for the saved branch.
+        Cache::delete('permissions_policies' . $memberId);
+        Cache::delete('member_permissions' . $memberId);
     }
 
     /**

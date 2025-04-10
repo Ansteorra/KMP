@@ -30,7 +30,7 @@ class DevLoadWarrantsSeed extends BaseSeed
                 'member_id' => 200,
                 'warrant_roster_id' => 1,
                 'entity_type' => 'Direct Grant',
-                'entity_id' => -1,
+                'entity_id' => 201,
                 'member_role_id' => 200,
                 'expires_on' => '2100-10-10 00:00:00',
                 'start_on' => '2020-01-01 00:00:00',
@@ -61,6 +61,9 @@ class DevLoadWarrantsSeed extends BaseSeed
         ];
 
         $table = $this->table('warrants');
+        $options = $table->getAdapter()->getOptions();
+        $options['identity_insert'] = true;
+        $table->getAdapter()->setOptions($options);
         $table->insert($data)->save();
 
         // Load the MembersTable

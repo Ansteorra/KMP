@@ -16,6 +16,7 @@ class EventPolicy extends BasePolicy
 
     public function canAllEvents(IdentityInterface $user, $entity, ...$args)
     {
-        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
 }

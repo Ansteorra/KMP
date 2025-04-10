@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Officers\Model\Entity;
 
 use Cake\ORM\Entity;
+use App\Model\Entity\BaseEntity;
 
 /**
  * Office Entity
@@ -22,7 +23,7 @@ use Cake\ORM\Entity;
  * @property \App\Model\Entity\Department $department
  * @property \App\Model\Entity\Officer[] $officers
  */
-class Office extends Entity
+class Office extends BaseEntity
 {
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().

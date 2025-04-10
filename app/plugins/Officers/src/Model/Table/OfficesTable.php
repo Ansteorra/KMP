@@ -8,6 +8,8 @@ use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
+use App\Model\Table\BaseTable;
+use Cake\ORM\TableRegistry;
 
 /**
  * Offices Model
@@ -29,7 +31,7 @@ use Cake\Validation\Validator;
  * @method iterable<\App\Model\Entity\Office>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\Office>|false deleteMany(iterable $entities, array $options = [])
  * @method iterable<\App\Model\Entity\Office>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\Office> deleteManyOrFail(iterable $entities, array $options = [])
  */
-class OfficesTable extends Table
+class OfficesTable extends BaseTable
 {
     /**
      * Initialize method
@@ -160,5 +162,63 @@ class OfficesTable extends Table
         $rules->add($rules->existsIn(['department_id'], 'Departments'), ['errorField' => 'department_id']);
 
         return $rules;
+    }
+
+    public function officesMemberCanWork($user, $branch_id)
+    {
+        $officersTbl = TableRegistry::getTableLocator()->get("Officers.Officers");
+        $userOffices = $officersTbl->find("current")->where(['member_id' => $user->id])->select(['id', 'office_id', 'branch_id'])->toArray();
+        $canHireOffices = [];
+        foreach ($userOffices as $userOffice) {
+            $myOffices[] = $userOffice->office_id;
+            if ($user->checkCan("workWithOfficerDeputies", $userOffice, $branch_id, true)) {
+                $deputies = $this->find('all')->where(['deputy_to_id' => $userOffice->office_id])->select(['id'])->toArray();
+                // add deputies to the list of offices that can be hired
+                foreach ($deputies as $deputy) {
+                    if (!in_array($deputy->id, $canHireOffices)) {
+                        $canHireOffices[] = $deputy->id;
+                    }
+                }
+            }
+            if ($user->checkCan("workWithOfficerDirectReports", $userOffice, $branch_id, true)) {
+                $deputies = $this->find('all')->where(['OR' => ['deputy_to_id' => $userOffice->office_id, 'reports_to_id' => $userOffice->office_id]])->select(['id'])->toArray();
+                // add deputies to the list of offices that can be hired
+                foreach ($deputies as $deputy) {
+                    if (!in_array($deputy->id, $canHireOffices)) {
+                        $canHireOffices[] = $deputy->id;
+                    }
+                }
+            }
+            if ($user->checkCan("workWithOfficerReportingTree", $userOffice, $branch_id, true)) {
+                $addedOffices = 0;
+                $hireThread = [];
+                //Get all of the top level office deputies and reports
+                $reports = $this->find('all')->where(['OR' => ['deputy_to_id' => $userOffice->office_id, 'reports_to_id' => $userOffice->office_id]])->select(['id', 'reports_to_id'])->toArray();
+                foreach ($reports as $report) {
+                    if (!in_array($report->id, $canHireOffices)) {
+                        $addedOffices++;
+                        $hireThread[] = $report->id;
+                    }
+                }
+                // if we added any then we are going to loop back to sql and grab more until we don't add anymore.
+                while ($addedOffices != 0) {
+                    $addedOffices = 0;
+                    $reports = $this->find('all')->where(['OR' => ['deputy_to_id in ' => $hireThread, 'reports_to_id in ' => $hireThread]])->select(['id', 'reports_to_id'])->toArray();
+                    foreach ($reports as $report) {
+                        if (!in_array($report->id, $hireThread)) {
+                            $addedOffices++;
+                            $hireThread[] = $report->id;
+                        }
+                    }
+                }
+                // now we can add them all to the collected list.
+                foreach ($hireThread as $office) {
+                    if (!in_array($office, $canHireOffices)) {
+                        $canHireOffices[] = $office;
+                    }
+                }
+            }
+        }
+        return $canHireOffices;
     }
 }

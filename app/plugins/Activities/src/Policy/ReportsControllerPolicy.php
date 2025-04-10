@@ -10,19 +10,15 @@ use App\Policy\BasePolicy;
 
 class ReportsControllerPolicy extends BasePolicy
 {
-    protected string $REQUIRED_PERMISSION = "Can View Activity Reports";
-
-    public function canActivityWarrantsRoster(
-        IdentityInterface $user,
-        mixed $resource,
-    ): ResultInterface|bool {
-        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+    public function canActivityWarrantsRoster(IdentityInterface $user, $entity, ...$optionalArgs): ResultInterface|bool
+    {
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
 
-    public function canAuthorizations(
-        IdentityInterface $user,
-        mixed $resource,
-    ): ResultInterface|bool {
-        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+    public function canAuthorizations(IdentityInterface $user, $entity, ...$optionalArgs): ResultInterface|bool
+    {
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
 }

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\KMP\PermissionsLoader;
+
 /**
  * Permissions Controller
  *
@@ -14,7 +16,7 @@ class PermissionsController extends AppController
     public function initialize(): void
     {
         parent::initialize();
-        $this->Authorization->authorizeModel("index", "add");
+        $this->Authorization->authorizeModel("index", "add", "matrix");
     }
     /**
      * Index method
@@ -46,7 +48,7 @@ class PermissionsController extends AppController
     {
         $permission = $this->Permissions->get(
             $id,
-            contain: ["Roles"],
+            contain: ["Roles", "PermissionPolicies"],
         );
         if (!$permission) {
             throw new \Cake\Http\Exception\NotFoundException();
@@ -66,7 +68,8 @@ class PermissionsController extends AppController
         } else {
             $roles = $this->Permissions->Roles->find("list")->where(['is_system !=' => true])->all();
         }
-        $this->set(compact("permission", "roles"));
+        $appPolicies = PermissionsLoader::getApplicationPolicies();
+        $this->set(compact("permission", "roles", "appPolicies"));
     }
 
     /**
@@ -76,7 +79,6 @@ class PermissionsController extends AppController
      */
     public function add()
     {
-        $this->Authorization->authorizeAction();
         $permission = $this->Permissions->newEmptyEntity();
         if ($this->request->is("post")) {
             $permission = $this->Permissions->patchEntity(
@@ -97,6 +99,148 @@ class PermissionsController extends AppController
             );
         }
         $this->set(compact("permission"));
+    }
+
+    public function updatePolicy()
+    {
+        //json call to add a policy to a permission
+        //check that the call is an ajax call
+        if (!$this->request->is("json")) {
+            throw new \Cake\Http\Exception\BadRequestException();
+        }
+        if (!$this->request->is("post")) {
+            throw new \Cake\Http\Exception\BadRequestException();
+        }
+        $policyJson = $this->request->getData();
+        $id = $policyJson["permissionId"];
+        $permission = $this->Permissions->get($id);
+        if (!$permission) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+        $this->Authorization->authorize($permission);
+
+        $policy = $this->Permissions->PermissionPolicies->newEmptyEntity();
+        $policy->permission_id = $id;
+        $policy->policy_class = $policyJson['className'];
+        $policy->policy_method = $policyJson['method'];
+        if ($policyJson['action'] == "add") {
+            //check if the policy already exists
+            $policyCheck = $this->Permissions->PermissionPolicies
+                ->find()
+                ->where([
+                    "permission_id" => $id,
+                    "policy_class" => $policyJson['className'],
+                    "policy_method" => $policyJson['method'],
+                ])
+                ->first();
+            if ($policyCheck) {
+                $this->response = $this->response
+                    ->withType("application/json")
+                    ->withStringBody(json_encode(true));
+                $this->response->withStatus(200);
+                return $this->response;
+            }
+            if ($this->Permissions->PermissionPolicies->save($policy)) {
+                $this->response = $this->response
+                    ->withType("application/json")
+                    ->withStringBody(json_encode(true));
+                $this->response->withStatus(200);
+                return $this->response;
+            } else {
+                $this->response = $this->response
+                    ->withType("application/json")
+                    ->withStringBody(json_encode(false));
+                $this->response->withStatus(500);
+                return $this->response;
+            }
+        } else {
+            //we look up the policy for the permission and delete it
+            $policy = $this->Permissions->PermissionPolicies
+                ->find()
+                ->where([
+                    "permission_id" => $id,
+                    "policy_class" => $policyJson['className'],
+                    "policy_method" => $policyJson['method'],
+                ])
+                ->first();
+            if ($policy) {
+                if ($this->Permissions->PermissionPolicies->delete($policy)) {
+                    $this->response = $this->response
+                        ->withType("application/json")
+                        ->withStringBody(json_encode(true));
+                    $this->response->withStatus(200);
+                    return $this->response;
+                } else {
+                    $this->response = $this->response
+                        ->withType("application/json")
+                        ->withStringBody(json_encode(false));
+                    $this->response->withStatus(500);
+                    return $this->response;
+                }
+            } else {
+                $this->response = $this->response
+                    ->withType("application/json")
+                    ->withStringBody(json_encode(false));
+                $this->response->withStatus(500);
+                return $this->response;
+            }
+        }
+    }
+
+    /**
+     * Matrix view for permissions and policies
+     */
+    public function matrix()
+    {
+        // Get all permissions
+        $permissions = $this->Permissions->find('all')->where(['is_super_user' => false])->toArray();
+
+        // Get all application policies
+        $policiesArray = \App\KMP\PermissionsLoader::getApplicationPolicies();
+
+        // Prepare data structure for the view
+        $policiesFlat = [];
+        foreach ($policiesArray as $policyClass => $methods) {
+            // Extract the class name without namespace
+            $classNameParts = explode('\\', $policyClass);
+            $className = end($classNameParts);
+            $nameSpace = implode('\\', array_slice($classNameParts, 0, -1));
+            $policiesFlat[] = [
+                'namespace' => $nameSpace,
+                'class' => $policyClass,
+                'className' => $className,
+                'method' => "WholeClass",
+                'display' => ""
+            ];
+            foreach ($methods as $method) {
+                $policiesFlat[] = [
+                    'namespace' => $nameSpace,
+                    'class' => $policyClass,
+                    'className' => $className,
+                    'method' => $method,
+                    'display' => str_replace('can', '', $method)
+                ];
+            }
+        }
+
+        // Get existing permission policy associations
+        $permissionPoliciesTable = $this->fetchTable('PermissionPolicies');
+        $existingPolicies = $permissionPoliciesTable->find()
+            ->select(['permission_id', 'policy_class', 'policy_method'])
+            ->toArray();
+
+        // Create a lookup array for easy checking in the view
+        $policyMap = [];
+        foreach ($existingPolicies as $policy) {
+            $key = $policy->permission_id . '_' . $policy->policy_class . '_' . $policy->policy_method;
+            $policyMap[$key] = true;
+        }
+        //sort the policiesFlat by namespace, class and method
+        usort($policiesFlat, function ($a, $b) {
+            return strcmp($a['namespace'], $b['namespace']) ?: strcmp($a['className'], $b['className']) ?: strcmp($a['display'], $b['display']);
+        });
+
+        $this->set(compact('permissions', 'policiesFlat', 'policyMap'));
     }
 
     /**

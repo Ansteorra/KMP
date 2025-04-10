@@ -412,19 +412,13 @@ class InitAwards extends BaseMigration
                 "recommendation_id",
                 "awards_recommendations",
                 "id",
-                [
-                    "update" => "NO_ACTION",
-                    "delete" => "NO_ACTION",
-                ],
+                [],
             )
             ->addForeignKey(
                 "event_id",
                 "awards_events",
                 "id",
-                [
-                    "update" => "NO_ACTION",
-                    "delete" => "NO_ACTION",
-                ],
+                [],
             )
             ->update();
 
@@ -434,28 +428,19 @@ class InitAwards extends BaseMigration
                 "domain_id",
                 "awards_domains",
                 "id",
-                [
-                    "update" => "NO_ACTION",
-                    "delete" => "NO_ACTION",
-                ],
+                [],
             )
             ->addForeignKey(
                 "level_id",
                 "awards_levels",
                 "id",
-                [
-                    "update" => "NO_ACTION",
-                    "delete" => "CASCADE",
-                ],
+                [],
             )
             ->addForeignKey(
                 "branch_id",
                 "branches",
                 "id",
-                [
-                    "update" => "NO_ACTION",
-                    "delete" => "CASCADE",
-                ],
+                [],
             )
             ->update();
 
@@ -465,10 +450,7 @@ class InitAwards extends BaseMigration
                 "branch_id",
                 "branches",
                 "id",
-                [
-                    "update" => "NO_ACTION",
-                    "delete" => "CASCADE",
-                ],
+                [],
             )
             ->update();
 
@@ -478,37 +460,25 @@ class InitAwards extends BaseMigration
                 "branch_id",
                 "branches",
                 "id",
-                [
-                    "update" => "NO_ACTION",
-                    "delete" => "CASCADE",
-                ],
+                [],
             )
             ->addForeignKey(
                 "requester_id",
                 "members",
                 "id",
-                [
-                    "update" => "NO_ACTION",
-                    "delete" => "CASCADE",
-                ],
+                [],
             )
             ->addForeignKey(
                 "member_id",
                 "members",
                 "id",
-                [
-                    "update" => "NO_ACTION",
-                    "delete" => "CASCADE",
-                ],
+                [],
             )
             ->addForeignKey(
                 "award_id",
                 "awards_awards",
                 "id",
-                [
-                    "update" => "NO_ACTION",
-                    "delete" => "CASCADE",
-                ],
+                [],
             )
             ->update();
 

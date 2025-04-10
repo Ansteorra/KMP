@@ -18,7 +18,7 @@ use Cake\ORM\Entity;
  * @property string|null $body
  * @property bool $private
  */
-class Note extends Entity
+class Note extends BaseEntity
 {
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().
@@ -38,4 +38,11 @@ class Note extends Entity
         "body" => true,
         "private" => true,
     ];
+
+    public function getBranchId(): ?int
+    {
+        $entity_type = $this->entity_type;
+        $entity_id = $this->entity_id;
+        return $this->getTableLocator()->get($entity_type)->get($entity_id)->branch_id;
+    }
 }

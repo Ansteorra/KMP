@@ -8,6 +8,8 @@ use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
+use Cake\Cache\Cache;
+use App\Model\Table\BaseTable;
 
 /**
  * Roles Model
@@ -29,7 +31,7 @@ use Cake\Validation\Validator;
  * @method iterable<\App\Model\Entity\Role>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\Role>|false deleteMany(iterable $entities, array $options = [])
  * @method iterable<\App\Model\Entity\Role>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\Role> deleteManyOrFail(iterable $entities, array $options = [])
  */
-class RolesTable extends Table
+class RolesTable extends BaseTable
 {
     /**
      * Initialize method
@@ -79,6 +81,9 @@ class RolesTable extends Table
         $this->addBehavior('Muffin/Footprint.Footprint');
         $this->addBehavior("Muffin/Trash.Trash");
     }
+
+
+    protected const CACHE_GROUPS_TO_CLEAR = ['security'];
 
     /**
      * Default validation rules.

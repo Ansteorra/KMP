@@ -8,6 +8,7 @@ use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
+use App\Model\Table\BaseTable;
 
 /**
  * WarrantRosterApprovals Model
@@ -29,7 +30,7 @@ use Cake\Validation\Validator;
  * @method iterable<\App\Model\Entity\WarrantRosterApproval>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\WarrantRosterApproval>|false deleteMany(iterable $entities, array $options = [])
  * @method iterable<\App\Model\Entity\WarrantRosterApproval>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\WarrantRosterApproval> deleteManyOrFail(iterable $entities, array $options = [])
  */
-class WarrantRosterApprovalsTable extends Table
+class WarrantRosterApprovalsTable extends BaseTable
 {
     /**
      * Initialize method

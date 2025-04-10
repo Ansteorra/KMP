@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Activities\Model\Entity;
 
 use Cake\ORM\Entity;
+use App\Model\Entity\BaseEntity;
 
 /**
  * ActivityGroup Entity
@@ -12,7 +13,7 @@ use Cake\ORM\Entity;
  * @property int $id
  * @property string $name
  */
-class ActivityGroup extends Entity
+class ActivityGroup extends BaseEntity
 {
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().

@@ -1,9 +1,11 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Queue\Model\Entity;
 
 use Cake\ORM\Entity;
+use App\Model\Entity\BaseEntity;
 
 /**
  * @property int $id
@@ -23,7 +25,8 @@ use Cake\ORM\Entity;
  * @property int $priority
  * @property \Queue\Model\Entity\QueueProcess $worker_process
  */
-class QueuedJob extends Entity {
+class QueuedJob extends BaseEntity
+{
 
 	/**
 	 * @var array<string, bool>
@@ -36,12 +39,12 @@ class QueuedJob extends Entity {
 	/**
 	 * @return string[]
 	 */
-	public static function statusesForSearch(): array {
+	public static function statusesForSearch(): array
+	{
 		return [
 			'completed' => 'Completed',
 			'in_progress' => 'In Progress',
 			'scheduled' => 'Scheduled',
 		];
 	}
-
 }

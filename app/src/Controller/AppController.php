@@ -27,6 +27,7 @@ use Cake\Event\Event;
 use Cake\Log\Log;
 use Cake\Event\EventManager;
 use Cake\Core\Configure;
+use App\KMP\PermissionsLoader;
 
 /**
  * Application Controller

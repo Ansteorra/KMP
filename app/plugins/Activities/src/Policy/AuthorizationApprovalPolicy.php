@@ -15,10 +15,10 @@ class AuthorizationApprovalPolicy extends BasePolicy
 {
     protected string $REQUIRED_PERMISSION = "Can Manage Authorization Queues";
 
-    function canApprove(IdentityInterface $user, $approval): bool
+    function canApprove(IdentityInterface $user, $entity, ...$optionalArgs): bool
     {
-        $authorization_id = $approval->authorization_id;
-        $authorization = $approval->authorization;
+        $authorization_id = $entity->authorization_id;
+        $authorization = $entity->authorization;
         $activity_id = null;
         if ($authorization) {
             $activity_id = $authorization->activity_id;
@@ -31,10 +31,10 @@ class AuthorizationApprovalPolicy extends BasePolicy
         return ActivitiesTable::canAuthorizeActivity($user, $activity_id);
     }
 
-    function canDeny(IdentityInterface $user, $approval): bool
+    function canDeny(IdentityInterface $user, $entity, ...$optionalArgs): bool
     {
-        $authorization_id = $approval->authorization_id;
-        $authorization = $approval->authorization;
+        $authorization_id = $entity->authorization_id;
+        $authorization = $entity->authorization;
         $activity_id = null;
         if ($authorization) {
             $activity_id = $authorization->activity_id;
@@ -50,16 +50,17 @@ class AuthorizationApprovalPolicy extends BasePolicy
 
 
 
-    function canView(IdentityInterface $user, $approval): bool
+    function canView(IdentityInterface $user, $entity, ...$optionalArgs): bool
     {
         $member_id = $user->getIdentifier();
-        if ($member_id === $approval->approver_id) {
+        if ($member_id === $entity->approver_id) {
             return true;
         }
-        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
 
-    public function canMyQueue(IdentityInterface $user, $entity)
+    public function canMyQueue(IdentityInterface $user, $entity, ...$optionalArgs)
     {
         return ActivitiesTable::canAuhtorizeAnyActivity($user);
     }
@@ -70,6 +71,7 @@ class AuthorizationApprovalPolicy extends BasePolicy
         if ($member_id === $approval->approver_id) {
             return true;
         }
-        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $approval);
     }
 }
