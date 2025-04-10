@@ -147,14 +147,24 @@ echo $this->KMP->startBlock("pageTitle") ?>
 </div>
 <div class="related tab-pane fade m-3" id="nav-policies" role="tabpanel" aria-labelledby="nav-policies-tab"
     data-detail-tabs-target="tabContent" data-detail-tabs-target="tabContent">
-    <ul class="list-group" data-controller="permission-manage-policies" data-permission-manage-policies-url-value="<?= $this->Url->build([
-                                                        "controller" => "Permissions",
-                                                        "action" => "updatePolicy",
-                                                        $permission->id,
-                                                    ], ["fullBase" => true]) ?>">
-        <?php foreach ($appPolicies as $class => $methods) : ?>
+    <ul class="list-group" data-controller="permission-manage-policies"
+        data-permission-manage-policies-url-value="<?= $this->Url->build([
+                                                                                                                        "controller" => "Permissions",
+                                                                                                                        "action" => "updatePolicy"
+                                                                                                                    ], ["fullBase" => true]) ?>">
+        <?php foreach ($appPolicies as $class => $methods) :
+            $className = str_replace('\\', '-', $class);
+        ?>
         <li class="list-group-item">
-            <?= $this->Form->control($class, ["type" => "checkbox", "switch" => true, 'label' => $class, "data-permission-manage-policies-target" => "policyClass"]) ?>
+
+            <?= $this->Form->control($class, [
+                    "type" => "checkbox",
+                    "switch" => true,
+                    'label' => $class,
+                    "data-permission-manage-policies-target" => "policyClass",
+                    "data-class-name" => $className,
+                    "data-permission-id" => $permission->id
+                ]) ?>
             <ul class="list-group">
                 <?php foreach ($methods as $method) : ?>
                 <li class="list-group-item">
@@ -169,7 +179,16 @@ echo $this->KMP->startBlock("pageTitle") ?>
                                     }
                                 }
                             }
-                            echo $this->Form->control($class . "-" . $method, ["type" => "checkbox", "checked" => $isAssigned, "switch" => true, 'label' => $method, "data-permission-manage-policies-target" => "policyMethod"])
+                            echo $this->Form->control($class . "-" . $method, [
+                                "type" => "checkbox",
+                                "checked" => $isAssigned,
+                                "switch" => true,
+                                'label' => $method,
+                                "data-permission-manage-policies-target" => "policyMethod",
+                                "data-class-name" => $className,
+                                "data-method-name" => $method,
+                                "data-permission-id" => $permission->id
+                            ])
 
                             ?>
                 </li>

@@ -21,24 +21,47 @@ class PermissionManagePolicies extends Controller {
         element.addEventListener("click", (event) => {
             this.methodClicked(event)
         })
-        this.checkClass(element);
     }
 
-    checkClass(checkbox) {
-        const isChecked = checkbox.checked
-        const methodsList = checkbox.parentElement.parentElement.parentElement
-        console.log(methodsList)
-        const methods = methodsList.querySelectorAll("input[type='checkbox']")
-        const allChecked = Array.from(methods).every((method) => method.checked)
-        const classCheckbox = methodsList.parentElement.querySelector("input[type='checkbox']")
-        classCheckbox.checked = allChecked
+    connect() {
+        // add event listener to all elements
+        console.log("connected");
+        const classes = document.querySelectorAll(`input[type='checkbox'][data-class-name][data-permission-id]:not([data-method-name])`);
+        classes.forEach((element) => {
+            const className = element.dataset.className
+            const permissionId = element.dataset.permissionId
+            this.checkClass(className, permissionId);
+        });
+    }
+
+    checkClass(className, permissionId) {
+        const methods = document.querySelectorAll(`input[type='checkbox'][data-class-name='${className}'][data-permission-id='${permissionId}'][data-method-name]`)
+        let checkCount = 0
+        methods.forEach((method) => {
+            if (method.checked) {
+                checkCount++
+            }
+        })
+        const allChecked = checkCount === methods.length
+        const someChecked = checkCount > 0 && checkCount < methods.length
+        const classCheckbox = document.querySelectorAll(`input[type='checkbox'][data-class-name='${className}'][data-permission-id='${permissionId}']:not([data-method-name])`)[0]
+        classCheckbox.checked = allChecked || someChecked
+        if (someChecked) {
+            // add the secondary class to the checkbox
+            classCheckbox.classList.add("indeterminate-switch")
+        } else {
+            // remove the secondary class from the checkbox
+            classCheckbox.classList.remove("indeterminate-switch")
+        }
+
     }
 
     classClicked(event) {
         const checkbox = event.target
         const isChecked = checkbox.checked
-        const methodsList = checkbox.parentElement.parentElement.querySelector("ul")
-        const methods = methodsList.querySelectorAll("input[type='checkbox']")
+        const className = checkbox.dataset.className
+        const permissionId = checkbox.dataset.permissionId
+        const methods = document.querySelectorAll(`input[type='checkbox'][data-class-name='${className}'][data-permission-id='${permissionId}'][data-method-name]`)
         methods.forEach((method) => {
             method.checked = isChecked
             this.changeMethod(method, isChecked)
@@ -48,18 +71,19 @@ class PermissionManagePolicies extends Controller {
         // check if the element is checked or not
         const checkbox = event.target
         const isChecked = checkbox.checked
-        this.checkClass(checkbox);
+        const className = checkbox.dataset.className
+        const permissionId = checkbox.dataset.permissionId
+        this.checkClass(className, permissionId);
         this.changeMethod(checkbox, isChecked)
     }
     changeMethod(method, isChecked) {
-        // add to the change queue
-        // get class name from the method
-        //split the name of the input on -- with the first part being the class name and the second part being the method name
-        const className = method.name.split("-")[0]
-        // get the method name from the method
-        // split the name of the input on -- with the second part being the method name
-        const methodName = method.name.split("-")[1]
+        let className = method.dataset.className
+        className = className.replace(/-/g, "\\");
+        console.log(className);
+        const methodName = method.dataset.methodName
+        const permissionId = method.dataset.permissionId
         this.changeQueue.push({
+            permissionId: permissionId,
             method: methodName,
             className: className,
             action: isChecked ? "add" : "delete",

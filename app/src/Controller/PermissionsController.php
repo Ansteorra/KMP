@@ -102,7 +102,7 @@ class PermissionsController extends AppController
         $this->set(compact("permission"));
     }
 
-    public function updatePolicy($id)
+    public function updatePolicy()
     {
         //json call to add a policy to a permission
         //check that the call is an ajax call
@@ -112,12 +112,14 @@ class PermissionsController extends AppController
         if (!$this->request->is("post")) {
             throw new \Cake\Http\Exception\BadRequestException();
         }
+        $policyJson = $this->request->getData();
+        $id = $policyJson["permissionId"];
         $permission = $this->Permissions->get($id);
         if (!$permission) {
             throw new \Cake\Http\Exception\NotFoundException();
         }
         $this->Authorization->authorize($permission);
-        $policyJson = $this->request->getData();
+
         $policy = $this->Permissions->PermissionPolicies->newEmptyEntity();
         $policy->permission_id = $id;
         $policy->policy_class = $policyJson['className'];
@@ -184,6 +186,64 @@ class PermissionsController extends AppController
                 return $this->response;
             }
         }
+    }
+
+    /**
+     * Matrix view for permissions and policies
+     */
+    public function matrix()
+    {
+        $this->Authorization->skipAuthorization();
+
+        // Get all permissions
+        $permissions = $this->Permissions->find('all')->where(['is_super_user' => false])->toArray();
+
+        // Get all application policies
+        $policiesArray = \App\KMP\PermissionsLoader::getApplicationPolicies();
+
+        // Prepare data structure for the view
+        $policiesFlat = [];
+        foreach ($policiesArray as $policyClass => $methods) {
+            // Extract the class name without namespace
+            $classNameParts = explode('\\', $policyClass);
+            $className = end($classNameParts);
+            $nameSpace = implode('\\', array_slice($classNameParts, 0, -1));
+            $policiesFlat[] = [
+                'namespace' => $nameSpace,
+                'class' => $policyClass,
+                'className' => $className,
+                'method' => "WholeClass",
+                'display' => ""
+            ];
+            foreach ($methods as $method) {
+                $policiesFlat[] = [
+                    'namespace' => $nameSpace,
+                    'class' => $policyClass,
+                    'className' => $className,
+                    'method' => $method,
+                    'display' => str_replace('can', '', $method)
+                ];
+            }
+        }
+
+        // Get existing permission policy associations
+        $permissionPoliciesTable = $this->fetchTable('PermissionPolicies');
+        $existingPolicies = $permissionPoliciesTable->find()
+            ->select(['permission_id', 'policy_class', 'policy_method'])
+            ->toArray();
+
+        // Create a lookup array for easy checking in the view
+        $policyMap = [];
+        foreach ($existingPolicies as $policy) {
+            $key = $policy->permission_id . '_' . $policy->policy_class . '_' . $policy->policy_method;
+            $policyMap[$key] = true;
+        }
+        //sort the policiesFlat by namespace, class and method
+        usort($policiesFlat, function ($a, $b) {
+            return strcmp($a['namespace'], $b['namespace']) ?: strcmp($a['className'], $b['className']) ?: strcmp($a['display'], $b['display']);
+        });
+
+        $this->set(compact('permissions', 'policiesFlat', 'policyMap'));
     }
 
     /**

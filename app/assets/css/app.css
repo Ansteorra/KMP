@@ -101,3 +101,190 @@
     content: " *";
     color: red;
 }
+
+.permissions-matrix {
+    position: relative;
+    padding: 20px;
+}
+
+.table-container {
+    position: relative;
+    overflow: hidden;
+    margin-top: 20px;
+}
+
+.matrix-wrapper {
+    overflow: auto;
+    max-height: 80vh;
+    max-width: 100%;
+    position: relative;
+}
+
+.permissions-table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.permissions-table th,
+.permissions-table td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+
+.permissions-table thead {
+    position: sticky;
+    top: 0;
+    background-color: #f8f8f8;
+    z-index: 10;
+}
+
+.fixed-cell {
+    position: sticky;
+    left: 0;
+    background-color: #f8f8f8;
+    z-index: 5;
+}
+
+thead .fixed-cell {
+    z-index: 15;
+}
+
+.policy-header {
+    min-width: 200px;
+}
+
+.permission-header {
+    min-width: 150px;
+    white-space: nowrap;
+}
+
+.checkbox-cell {
+    text-align: center;
+}
+
+.new-group {
+    border-top: 2px solid #999;
+}
+
+/* Toggle switch styling */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 24px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: .4s;
+}
+
+input:checked+.slider {
+    background-color: #2196F3;
+}
+
+input:focus+.slider {
+    box-shadow: 0 0 1px #2196F3;
+}
+
+input:checked+.slider:before {
+    transform: translateX(26px);
+}
+
+.slider.round {
+    border-radius: 34px;
+}
+
+.slider.round:before {
+    border-radius: 50%;
+}
+
+.save-status {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 10px 20px;
+    border-radius: 5px;
+    display: none;
+    z-index: 100;
+}
+
+.success {
+    background-color: #dff0d8;
+    color: #3c763d;
+    display: block;
+}
+
+.error {
+    background-color: #f2dede;
+    color: #a94442;
+    display: block;
+}
+
+/* add an down arrow icon using bootstrap icons to policy-class when aria-expanded is true */
+.new-group[aria-expanded="true"] .policy-class::before {
+    display: inline-block;
+    font-family: bootstrap-icons !important;
+    font-style: normal;
+    font-weight: normal !important;
+    font-variant: normal;
+    text-transform: none;
+    line-height: 1;
+    vertical-align: -.125em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    content: "\F119";
+}
+
+.new-group:not([aria-expanded="true"]) .policy-class::before {
+    display: inline-block;
+    font-family: bootstrap-icons !important;
+    font-style: normal;
+    font-weight: normal !important;
+    font-variant: normal;
+    text-transform: none;
+    line-height: 1;
+    vertical-align: -.125em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    content: "\F13A";
+}
+
+.namespace-cell {
+    position: sticky;
+    left: 0;
+    background-color: #6d6d6d;
+    z-index: 5;
+    color: white;
+}
+
+/*bootstrap switch in an indeterminate state*/
+.indeterminate-switch {
+    background-color: #999 !important;
+    border-color: #6d6d6d !important;
+    --bs-form-switch-bg: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-1,-1,15,8' %3e%3crect x='0' y='0' height='6' rx='3' ry='3' width='11' fill='%23fff'/%3e%3c/svg%3e") !important;
+}
