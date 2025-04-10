@@ -16,6 +16,7 @@ class PermissionPolicy extends BasePolicy
 
     public function canUpdatePolicy(IdentityInterface $user, $entity, ...$optionalArgs)
     {
-        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
     }
 }

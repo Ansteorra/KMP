@@ -16,7 +16,7 @@ class PermissionsController extends AppController
     public function initialize(): void
     {
         parent::initialize();
-        $this->Authorization->authorizeModel("index", "add");
+        $this->Authorization->authorizeModel("index", "add", "matrix");
     }
     /**
      * Index method
@@ -79,7 +79,6 @@ class PermissionsController extends AppController
      */
     public function add()
     {
-        $this->Authorization->authorizeAction();
         $permission = $this->Permissions->newEmptyEntity();
         if ($this->request->is("post")) {
             $permission = $this->Permissions->patchEntity(
@@ -193,8 +192,6 @@ class PermissionsController extends AppController
      */
     public function matrix()
     {
-        $this->Authorization->skipAuthorization();
-
         // Get all permissions
         $permissions = $this->Permissions->find('all')->where(['is_super_user' => false])->toArray();
 

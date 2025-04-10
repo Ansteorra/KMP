@@ -10,17 +10,19 @@ class PermissionManagePolicies extends Controller {
 
     policyClassTargetConnected(element) {
         //add event listener to the element
-        element.addEventListener("click", (event) => {
+        element.clickEvent = (event) => {
             this.classClicked(event)
-        })
+        }
+        element.addEventListener("click", element.clickEvent)
 
     }
 
     policyMethodTargetConnected(element) {
         //add event listener to the element
-        element.addEventListener("click", (event) => {
+        element.clickEvent = (event) => {
             this.methodClicked(event)
-        })
+        }
+        element.addEventListener("click", element.clickEvent)
     }
 
     connect() {
@@ -119,15 +121,11 @@ class PermissionManagePolicies extends Controller {
     disconnect() {
         // remove event listeners from all elements
         this.policyClassTargets.forEach((element) => {
-            element.removeEventListener("click", (event) => {
-                this.classClicked(event)
-            })
-        })
+            element.removeEventListener("click", element.clickEvent);
+        });
         this.policyMethodTargets.forEach((element) => {
-            element.removeEventListener("click", (event) => {
-                this.methodClicked(event)
-            })
-        })
+            element.removeEventListener("click", element.clickEvent)
+        });
     }
 }
 if (!window.Controllers) {

@@ -1765,15 +1765,17 @@ class PermissionManagePolicies extends _hotwired_stimulus__WEBPACK_IMPORTED_MODU
   changeQueue = [];
   policyClassTargetConnected(element) {
     //add event listener to the element
-    element.addEventListener("click", event => {
+    element.clickEvent = event => {
       this.classClicked(event);
-    });
+    };
+    element.addEventListener("click", element.clickEvent);
   }
   policyMethodTargetConnected(element) {
     //add event listener to the element
-    element.addEventListener("click", event => {
+    element.clickEvent = event => {
       this.methodClicked(event);
-    });
+    };
+    element.addEventListener("click", element.clickEvent);
   }
   connect() {
     // add event listener to all elements
@@ -1866,14 +1868,10 @@ class PermissionManagePolicies extends _hotwired_stimulus__WEBPACK_IMPORTED_MODU
   disconnect() {
     // remove event listeners from all elements
     this.policyClassTargets.forEach(element => {
-      element.removeEventListener("click", event => {
-        this.classClicked(event);
-      });
+      element.removeEventListener("click", element.clickEvent);
     });
     this.policyMethodTargets.forEach(element => {
-      element.removeEventListener("click", event => {
-        this.methodClicked(event);
-      });
+      element.removeEventListener("click", element.clickEvent);
     });
   }
 }
