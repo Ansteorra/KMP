@@ -48,7 +48,39 @@ sudo echo "export EMAIL_SMTP_USERNAME='$EMAIL_DEV_SMTP_USERNAME'" >> $(echo $REP
 sudo echo "export EMAIL_SMTP_PASSWORD='$EMAIL_DEV_SMTP_PASSWORD'" >> $(echo $REPO_PATH)/app/config/.env
 sudo echo "export PATH_WKHTML='/usr/bin/wkhtmltopdf'" >> $(echo $REPO_PATH)/app/config/.env
 
-cd ~ 
+
+
+# Remove any existing Go installation
+sudo apt-get remove -y golang-go
+
+# Detect architecture and download appropriate Go version
+cd ~
+ARCH=$(uname -m)
+if [ "$ARCH" = "x86_64" ]; then
+    # AMD64 architecture
+    GO_PACKAGE="go1.22.0.linux-amd64.tar.gz"
+elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
+    # ARM64 architecture
+    GO_PACKAGE="go1.22.0.linux-arm64.tar.gz"
+else
+    echo "Unsupported architecture: $ARCH"
+    exit 1
+fi
+
+echo "Detected architecture: $ARCH, downloading $GO_PACKAGE"
+wget "https://go.dev/dl/$GO_PACKAGE"
+sudo rm -rf /usr/local/go
+sudo tar -C /usr/local -xzf "$GO_PACKAGE"
+rm "$GO_PACKAGE"
+
+# Update PATH to include Go
+export PATH=$PATH:/usr/local/go/bin
+echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
+
+# Verify Go installation
+go version
+
+# Now install mermerd with the updated Go version
 go install github.com/KarnerTh/mermerd@latest
 
 sudo bash < <(curl -sL https://raw.githubusercontent.com/axllent/mailpit/develop/install.sh)
