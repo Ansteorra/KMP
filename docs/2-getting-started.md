@@ -1,3 +1,6 @@
+---
+layout: default
+---
 # 2. Getting Started
 
 This section guides developers through the process of setting up the Kingdom Management Portal (KMP) for development using container-based workflows.

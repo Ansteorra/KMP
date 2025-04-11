@@ -1,8 +1,11 @@
 
-theme: minimal
+remote_theme: https://github.com/pages-themes/cayman
 plugins:
   - jekyll-remote-theme
   - jekyll-relative-links
-  - jekyll-mermaid
-mermaid:
-  src: 'https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.5.0/mermaid.min.js'
+  - jekyll-feed
+  - jekyll-seo-tag
+
+include:
+  - index.md
+  - LICENSE.md

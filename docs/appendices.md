@@ -1,3 +1,6 @@
+---
+layout: default
+---
 # Appendices
 
 This section contains additional reference information to help developers working with the Kingdom Management Portal.

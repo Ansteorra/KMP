@@ -1,9 +1,13 @@
 source 'https://rubygems.org'
 
 gem "jekyll"
-group :jekyll_plugins do
-    gem "jekyll-remote-theme"
-    gem "jekyll-relative-links"
-    gem 'jekyll-mermaid'
-  end
+
 gem 'webrick'  # Required for Ruby >= 3.0
+gem 'kramdown-parser-gfm'
+group :jekyll_plugins do
+    gem "jekyll-relative-links"
+    gem 'jekyll-remote-theme'
+    gem 'jekyll-feed'
+    gem 'jekyll-seo-tag'
+  end
+

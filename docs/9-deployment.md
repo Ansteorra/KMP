@@ -1,3 +1,6 @@
+---
+layout: default
+---
 # 9. Deployment
 
 This section covers the processes and considerations for deploying the Kingdom Management Portal to production environments.

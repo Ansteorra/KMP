@@ -1,3 +1,6 @@
+---
+layout: default
+---
 # 3. Architecture
 
 This section provides an overview of the KMP application architecture, explaining its structure, components, and design principles.

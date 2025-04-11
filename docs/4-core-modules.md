@@ -1,3 +1,6 @@
+---
+layout: default
+---
 # 4. Core Modules
 
 This section documents the primary modules that make up the foundation of the Kingdom Management Portal. These modules manage the essential data and functionality required across the entire application.

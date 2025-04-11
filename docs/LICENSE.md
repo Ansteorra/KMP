@@ -1,3 +1,6 @@
+---
+layout: default
+---
 To the extent possible under law, Josh Handel has waived all copyright 
 and related or neighboring rights to the Kingdom Mangement Portal. 
 

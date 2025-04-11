@@ -1,3 +1,6 @@
+---
+layout: default
+---
 # KMP (Kingdom Management Portal) Developer Documentation
 
 ## Table of Contents

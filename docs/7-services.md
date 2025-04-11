@@ -1,3 +1,6 @@
+---
+layout: default
+---
 # 7. Services
 
 The services layer in KMP provides a bridge between controllers and models, encapsulating business logic and ensuring that application behavior remains consistent. This section documents the key services that power the Kingdom Management Portal.
@@ -13,9 +16,11 @@ This service centralizes warrant-related business logic to ensure consistent han
 ### Core Functionality
 
 ```mermaid
+---
+title:Service
+---
 classDiagram
     class WarrantManagerInterface {
-        <<interface>>
         +createWarrant(WarrantRequest $request): ServiceResult
         +updateWarrantState(Warrant $warrant, string $newState): ServiceResult
         +validateWarrant(Warrant $warrant): ServiceResult
@@ -37,7 +42,8 @@ classDiagram
         +getExpiringWarrants(DateTime $beforeDate): array
     }
     
-    WarrantManagerInterface <|.. DefaultWarrantManager
+    WarrantManagerInterface <|-- DefaultWarrantManager
+
 ```
 
 ### Key Methods
@@ -101,7 +107,6 @@ Many entities in KMP (warrants, authorizations, etc.) have start and end dates t
 ```mermaid
 classDiagram
     class ActiveWindowManagerInterface {
-        <<interface>>
         +isActive(ActiveWindowBaseEntity $entity, ?DateTime $referenceDate): bool
         +getActive(Query $query, ?string $alias, ?DateTime $referenceDate): Query
         +sortByEndDate(Query $query, ?string $alias, string $direction): Query
@@ -230,7 +235,8 @@ StaticHelpers::setAppSetting(
 // Retrieve and use YAML data
 $types = StaticHelpers::getAppSetting('Branches.Types');
 foreach ($types as $type) {
-    echo "Branch type: $type\n";
+    echo "Branch type: $type
+";
 }
 ```
 

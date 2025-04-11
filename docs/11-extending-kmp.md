@@ -1,3 +1,6 @@
+---
+layout: default
+---
 # 11. Extending KMP
 
 The Kingdom Management Portal is designed to be extensible. This section explains how developers can extend and customize the application to meet specific needs.
@@ -188,10 +191,10 @@ The event system is a powerful way to extend KMP without modifying core code. It
 Create an event listener class:
 
 ```php
-namespace MyPlugin\Event;
+namespace MyPluginvent;
 
-use Cake\Event\EventInterface;
-use Cake\Event\EventListenerInterface;
+use CakeventventInterface;
+use CakeventventListenerInterface;
 
 class MyPluginListener implements EventListenerInterface
 {
@@ -211,8 +214,8 @@ class MyPluginListener implements EventListenerInterface
     /**
      * Handle member save event
      *
-     * @param \Cake\Event\EventInterface $event Event instance
-     * @param \App\Model\Entity\Member $member The saved member
+     * @param \CakeventventInterface $event Event instance
+     * @param \App\Modelntity\Member $member The saved member
      * @param \ArrayObject $options Save options
      * @return void
      */
@@ -224,7 +227,7 @@ class MyPluginListener implements EventListenerInterface
     /**
      * Add items to the navigation
      *
-     * @param \Cake\Event\EventInterface $event Event instance
+     * @param \CakeventventInterface $event Event instance
      * @param \ArrayObject $navigation Navigation items
      * @return void
      */
@@ -253,8 +256,8 @@ public function bootstrap(PluginApplicationInterface $app): void
     parent::bootstrap($app);
     
     // Register event listeners
-    $eventManager = \Cake\Event\EventManager::instance();
-    $eventManager->on(new \MyPlugin\Event\MyPluginListener());
+    $eventManager = \CakeventventManager::instance();
+    $eventManager->on(new \MyPluginvent\MyPluginListener());
 }
 ```
 

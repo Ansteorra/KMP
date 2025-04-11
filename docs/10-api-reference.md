@@ -1,3 +1,6 @@
+---
+layout: default
+---
 # 10. API Reference
 
 This section provides reference documentation for the key APIs, controllers, and models in the Kingdom Management Portal application.
@@ -147,7 +150,7 @@ The base controller that all other controllers extend:
 namespace App\Controller;
 
 use Cake\Controller\Controller;
-use Cake\Event\EventInterface;
+use CakeventventInterface;
 
 class AppController extends Controller
 {
@@ -318,9 +321,9 @@ Entity classes represent individual records and their relationships:
 #### Member Entity
 
 ```php
-namespace App\Model\Entity;
+namespace App\Modelntity;
 
-use Cake\ORM\Entity;
+use Cake\ORMntity;
 use Authentication\PasswordHasher\DefaultPasswordHasher;
 
 class Member extends Entity
@@ -355,9 +358,9 @@ class Member extends Entity
 #### Branch Entity
 
 ```php
-namespace App\Model\Entity;
+namespace App\Modelntity;
 
-use Cake\ORM\Entity;
+use Cake\ORMntity;
 
 class Branch extends Entity
 {
@@ -379,9 +382,9 @@ class Branch extends Entity
 #### Warrant Entity
 
 ```php
-namespace App\Model\Entity;
+namespace App\Modelntity;
 
-use Cake\ORM\Entity;
+use Cake\ORMntity;
 
 class Warrant extends ActiveWindowBaseEntity
 {
