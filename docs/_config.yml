@@ -1,0 +1,50 @@
+remote_theme: pages-themes/cayman@v0.2.0
+plugins:
+  - jekyll-remote-theme
+  - jekyll-relative-links
+
+relative_links:
+  enabled: true
+  collections: true
+
+markdown: kramdown
+kramdown:
+  syntax_highlighter_opts:
+    disable: true
+
+titles_from_headings:
+  enabled: true
+  strip_title: true
+  collections: true
+
+mermaid:
+  enabled: true
+  version: "9.4.0"
+
+# Additional configuration
+include:
+  - README.md
+  - LICENSE.md
+
+aux_links:
+  "KMP on GitHub":
+    - "https://github.com/Ansteorra/KMP"
+
+# Enable mermaid diagram rendering
+after_footer_scripts:
+  - https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js
+  - |
+    <script>
+      document.addEventListener("DOMContentLoaded", function() {
+        mermaid.initialize({
+          startOnLoad: true,
+          theme: 'default',
+          securityLevel: 'loose',
+          flowchart: { 
+            useMaxWidth: true,
+            htmlLabels: true,
+            curve: 'basis'
+          }
+        });
+      });
+    </script>
