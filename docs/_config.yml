@@ -17,10 +17,6 @@ titles_from_headings:
   strip_title: true
   collections: true
 
-mermaid:
-  enabled: true
-  version: "9.4.0"
-
 # Additional configuration
 include:
   - README.md
@@ -29,15 +25,3 @@ include:
 aux_links:
   "KMP on GitHub":
     - "https://github.com/Ansteorra/KMP"
-
-# Enable mermaid diagram rendering
-after_footer_scripts:
-  - https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js
-  - |
-    <script type="module">
-    Array.from(document.getElementsByClassName("language-mermaid")).forEach(element => {
-      element.classList.add("mermaid");
-    });
-    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
-    mermaid.initialize({ startOnLoad: true });
-    </script>

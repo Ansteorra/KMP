@@ -1,0 +1,36 @@
+---
+---
+{% if site.remote_theme contains 'pages-themes/cayman' %}
+{% include {{ site.theme }}/layouts/default.html %}
+{% else %}
+{{ content }}
+{% endif %}
+
+<!-- Mermaid JavaScript -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@9.4.0/dist/mermaid.min.js"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            securityLevel: 'loose',
+            flowchart: {
+                useMaxWidth: true,
+                htmlLabels: true,
+                curve: 'basis'
+            }
+        });
+
+        // Find all code blocks with language 'mermaid' and process them
+        document.querySelectorAll('pre code.language-mermaid').forEach(function (block) {
+            // Create a div for mermaid
+            var mermaidDiv = document.createElement('div');
+            mermaidDiv.className = 'mermaid';
+            mermaidDiv.innerHTML = block.textContent;
+
+            // Replace the code block with the mermaid div
+            var pre = block.parentNode;
+            pre.parentNode.replaceChild(mermaidDiv, pre);
+        });
+    });
+</script>
