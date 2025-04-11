@@ -1,0 +1,62 @@
+# KMP (Kingdom Management Portal) Developer Documentation
+
+## Table of Contents
+
+| Section | Description |
+|---------|-------------|
+| **1. [Introduction](1-introduction.md)** | |
+| 1.1 About KMP | Overview of the Kingdom Management Portal project |
+| 1.2 Project Purpose | Membership management system for SCA Kingdoms |
+| 1.3 System Requirements | PHP 8.0+, MySQL, etc. |
+| **2. [Getting Started](2-getting-started.md)** | |
+| 2.1 Installation | Setting up development environment |
+| 2.2 Configuration | Configuration files and database setup |
+| 2.3 CakePHP Basics | Brief overview of CakePHP framework |
+| **3. [Architecture](3-architecture.md)** | |
+| 3.1 Application Structure | Overview of MVC pattern and directory structure |
+| 3.2 Core Components | Main application components |
+| 3.3 Plugin System | Overview of the plugin-based architecture |
+| 3.4 Authentication & Authorization | Security implementation details |
+| **4. [Core Modules](4-core-modules.md)** | |
+| 4.1 Member Management | Members registration, profiles, and management |
+| 4.2 Branches | Branch hierarchies and management |
+| 4.3 Warrants | Warrant system for officer positions |
+| 4.4 Permissions & Roles | Security roles and permissions system |
+| 4.5 AppSettings | Application settings configuration system |
+| **5. [Plugins](5-plugins.md)** | |
+| 5.1 Activities | Activities management plugin |
+| 5.2 Officers | Officers management and roster system |
+| 5.3 Awards | Award recommendations and management system |
+| 5.4 Queue | Background job processing system |
+| 5.5 GitHubIssueSubmitter | User feedback submission to GitHub |
+| 5.6 Bootstrap | UI framework integration |
+| **6. [UI Components](6-ui-components.md)** | |
+| 6.1 Layouts | Dashboard, signin, register, etc. |
+| 6.2 View Helpers | KMP helper and other custom view helpers |
+| 6.3 Frontend Libraries | JavaScript controllers, utilities, etc. |
+| **7. [Services](7-services.md)** | |
+| 7.1 WarrantManager | Warrant processing service |
+| 7.2 ActiveWindowManager | Active window management service |
+| 7.3 StaticHelpers | Application configuration helpers |
+| 7.4 Email | Email notification system |
+| **8. Development Workflow** | |
+| 8.1 Coding Standards | PHP coding conventions used in the project |
+| 8.2 Testing | How to run and write tests |
+| 8.3 Debugging | Debug techniques and tools (DebugKit) |
+| 8.4 Git Workflow | Branch management and contribution process |
+| **9. Deployment** | |
+| 9.1 Production Setup | Production environment considerations |
+| 9.2 Migrations | Database migration management |
+| 9.3 Updates | How to update the application |
+| **10. API Reference** | |
+| 10.1 REST Endpoints | Available API endpoints |
+| 10.2 Controllers | Core controller methods |
+| 10.3 Models | Core model entities and their relationships |
+| **11. Extending KMP** | |
+| 11.1 Creating Plugins | How to develop new plugins |
+| 11.2 Event System | Using the event system for customizations |
+| 11.3 Custom Reports | Building custom reports and views |
+| **Appendices** | |
+| A. Troubleshooting | Common issues and solutions |
+| B. Glossary | Terms specific to KMP and SCA |
+| C. Resources | Additional resources and references |
