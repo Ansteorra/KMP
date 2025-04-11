@@ -1,27 +1,8 @@
-remote_theme: pages-themes/cayman@v0.2.0
+
+theme: minimal
 plugins:
   - jekyll-remote-theme
   - jekyll-relative-links
-
-relative_links:
-  enabled: true
-  collections: true
-
-markdown: kramdown
-kramdown:
-  syntax_highlighter_opts:
-    disable: true
-
-titles_from_headings:
-  enabled: true
-  strip_title: true
-  collections: true
-
-# Additional configuration
-include:
-  - README.md
-  - LICENSE.md
-
-aux_links:
-  "KMP on GitHub":
-    - "https://github.com/Ansteorra/KMP"
+  - jekyll-mermaid
+mermaid:
+  src: 'https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.5.0/mermaid.min.js'
