@@ -1,6 +1,8 @@
 ---
 layout: default
 ---
+[← Back to Table of Contents](index.md)
+
 # 6. UI Components
 
 This section documents the user interface components and patterns used throughout the Kingdom Management Portal application. Understanding these components is essential for maintaining a consistent look and feel across the application.

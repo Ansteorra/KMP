@@ -1,6 +1,8 @@
 ---
 layout: default
 ---
+[← Back to Table of Contents](index.md)
+
 # 3. Architecture
 
 This section provides an overview of the KMP application architecture, explaining its structure, components, and design principles.
@@ -27,6 +29,10 @@ app/
 │   ├── Policy/         # Authorization policies
 │   ├── Services/       # Business logic services
 │   └── View/           # View templates and helpers
+├── assets/             # Source asset files
+│   ├── css/            # CSS source files
+│   └── js/             # JavaScript source files
+│       └── controllers/ # Stimulus controllers
 ├── plugins/            # Application plugins
 │   ├── Activities/     # Activities management
 │   ├── Awards/         # Awards management
@@ -35,7 +41,6 @@ app/
 │   ├── Officers/       # Officers management
 │   └── Queue/          # Background processing
 ├── templates/          # View templates
-├── webroot/            # Public web files
 └── tests/              # Test cases
 ```
 
@@ -152,7 +157,10 @@ PluginName/
 │   ├── Event/      # Event listeners
 │   └── View/       # View-related code
 ├── templates/      # Template files
-├── webroot/        # Plugin public assets
+├── assets/         # Source asset files for the plugin
+│   ├── css/        # CSS source files
+│   └── js/         # JavaScript source files
+│       └── controllers/ # Stimulus controllers
 └── tests/          # Plugin tests
 ```
 

@@ -1,6 +1,8 @@
 ---
 layout: default
 ---
+[← Back to Table of Contents](index.md)
+
 # 7. Services
 
 The services layer in KMP provides a bridge between controllers and models, encapsulating business logic and ensuring that application behavior remains consistent. This section documents the key services that power the Kingdom Management Portal.

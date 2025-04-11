@@ -1,6 +1,8 @@
 ---
 layout: default
 ---
+[← Back to Table of Contents](index.md)
+
 # 5. Plugins
 
 KMP uses a plugin architecture to organize functionality into modular, maintainable components. This section documents the primary plugins that extend the core system.

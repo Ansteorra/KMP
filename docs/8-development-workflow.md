@@ -1,6 +1,8 @@
 ---
 layout: default
 ---
+[← Back to Table of Contents](index.md)
+
 # 8. Development Workflow
 
 This section documents the development practices, standards, and workflows used in the Kingdom Management Portal project.

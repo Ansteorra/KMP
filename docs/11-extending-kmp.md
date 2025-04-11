@@ -1,9 +1,11 @@
 ---
 layout: default
 ---
+[← Back to Table of Contents](index.md)
+
 # 11. Extending KMP
 
-The Kingdom Management Portal is designed to be extensible. This section explains how developers can extend and customize the application to meet specific needs.
+The Kingdom Management Portal is designed to be extensible through plugins. This document explains how developers can extend and customize the application using the plugin system, with practical examples from the Officers plugin.
 
 ## 11.1 Creating Plugins
 
@@ -11,10 +13,10 @@ Plugins are the primary mechanism for extending KMP. They allow you to add new f
 
 ### Plugin Structure
 
-Create a new plugin with this standard structure:
+KMP plugins follow a standard structure, as demonstrated by the Officers plugin:
 
 ```
-plugins/MyPlugin/
+plugins/Officers/
 ├── config/             # Plugin configuration
 │   ├── routes.php      # Plugin routes
 │   ├── bootstrap.php   # Plugin bootstrap code
@@ -26,16 +28,20 @@ plugins/MyPlugin/
 │   │   ├── Entity/     # Entities
 │   │   └── Table/      # Tables
 │   ├── View/           # View classes
+│   │   ├── Cell/       # Cell classes
 │   │   └── Helper/     # View helpers
 │   ├── Event/          # Event listeners
+│   │   ├── CallForCellsHandler.php # Cell registration
+│   │   └── CallForNavHandler.php   # Navigation registration
 │   └── Service/        # Business services
 ├── templates/          # Template files
 │   ├── layout/         # Layout templates
 │   ├── cell/           # Cell templates
-│   └── MyController/   # Controller templates
-├── webroot/            # Public assets
-│   ├── css/            # Stylesheets
-│   ├── js/             # JavaScript files
+│   └── element/        # UI elements
+├── assets/             # Source asset files
+│   ├── css/            # CSS source files
+│   ├── js/             # JavaScript source files
+│   │   └── controllers/ # Stimulus controllers
 │   └── img/            # Images
 └── tests/              # Test cases
 ```
@@ -45,7 +51,7 @@ plugins/MyPlugin/
 Every plugin needs a main Plugin class:
 
 ```php
-namespace MyPlugin;
+namespace Officers;
 
 use Cake\Core\BasePlugin;
 use Cake\Core\PluginApplicationInterface;
@@ -59,7 +65,7 @@ class Plugin extends BasePlugin
      *
      * @var string
      */
-    protected $name = 'MyPlugin';
+    protected $name = 'Officers';
 
     /**
      * Enable middleware
@@ -92,7 +98,10 @@ class Plugin extends BasePlugin
     {
         parent::bootstrap($app);
         
-        // Add custom bootstrap code here
+        // Register event listeners for cells and navigation
+        $eventManager = \Cake\Event\EventManager::instance();
+        $eventManager->on(new \Officers\Event\CallForCellsHandler());
+        $eventManager->on(new \Officers\Event\CallForNavHandler());
     }
 
     /**
@@ -105,22 +114,10 @@ class Plugin extends BasePlugin
     {
         parent::routes($routes);
         
-        $routes->plugin('MyPlugin', function (RouteBuilder $builder) {
-            $builder->connect('/', ['controller' => 'MyController', 'action' => 'index']);
-            // Add more routes here
+        $routes->plugin('Officers', function (RouteBuilder $builder) {
+            $builder->connect('/', ['controller' => 'Officers', 'action' => 'index']);
+            // Other routes...
         });
-    }
-
-    /**
-     * Middleware hook
-     *
-     * @param \Cake\Http\MiddlewareQueue $middlewareQueue Middleware queue
-     * @return \Cake\Http\MiddlewareQueue
-     */
-    public function middleware(MiddlewareQueue $middlewareQueue): MiddlewareQueue
-    {
-        // Add middleware here
-        return $middlewareQueue;
     }
 }
 ```
@@ -132,417 +129,495 @@ Register your plugin in `config/plugins.php`:
 ```php
 return [
     // ... other plugins
-    'MyPlugin' => [
+    'Officers' => [
         'routes' => true,
         'bootstrap' => true,
-        'migrationOrder' => 10, // After core plugins
+        'migrationOrder' => 4, // After core plugins
     ],
 ];
+```
+
+## 11.2 Event System
+
+The event system is a powerful way to extend KMP without modifying core code. The Officers plugin demonstrates two key event handlers: `CallForCellsHandler` and `CallForNavHandler`.
+
+### Cell Registration with CallForCellsHandler
+
+The `CallForCellsHandler` allows a plugin to register view cells that appear in various parts of the application. For example, the Officers plugin registers cells that display officer information on branch pages.
+
+Here's how the Officers plugin implements this handler:
+
+```php
+namespace Officers\Event;
+
+use Cake\Event\EventListenerInterface;
+use App\Event\CallForCellsHandlerBase;
+
+class CallForCellsHandler extends CallForCellsHandlerBase
+{
+    protected string $pluginName = 'Officers';
+    protected array $viewsToTest = [
+        "\Officers\View\Cell\BranchOfficersCell",
+        "\Officers\View\Cell\BranchRequiredOfficersCell",
+        "\Officers\View\Cell\MemberOfficersCell",
+    ];
+}
+```
+
+This handler extends the `CallForCellsHandlerBase` class and specifies:
+1. The plugin name (`Officers`)
+2. An array of cell classes that the plugin wants to register
+
+The `BranchOfficersCell` implements details about where and how the cell should appear:
+
+```php
+class BranchOfficersCell extends BasePluginCell
+{
+    static protected array $validRoutes = [
+        ['controller' => 'Branches', 'action' => 'view', 'plugin' => null],
+    ];
+    static protected array $pluginData = [
+        'type' => BasePluginCell::PLUGIN_TYPE_TAB,
+        'label' => 'Officers',
+        'id' => 'branch-officers',
+        'order' => 1,
+        'tabBtnBadge' => null,
+        'cell' => 'Officers.BranchOfficers'
+    ];
+    
+    public static function getViewConfigForRoute($route, $currentUser)
+    {
+        return parent::getRouteEventResponse($route, self::$pluginData, self::$validRoutes);
+    }
+    
+    // Cell implementation...
+}
+```
+
+Key attributes:
+- `$validRoutes`: Defines which routes this cell should appear on (in this case, the Branch view page)
+- `$pluginData`: Configures how the cell appears, including:
+  - `type`: Whether it's a tab, panel, or other UI element
+  - `label`: The display name
+  - `id`: HTML element ID
+  - `order`: Display order among other cells
+  - `cell`: Cell reference for rendering
+
+The cell then implements its `display()` method to fetch and display the relevant data.
+
+### Navigation Registration with CallForNavHandler
+
+The `CallForNavHandler` allows a plugin to add items to the application's navigation menu. The Officers plugin uses this to add links to its controllers and actions.
+
+Here's how the Officers plugin implements this handler:
+
+```php
+namespace Officers\Event;
+
+use App\KMP\StaticHelpers;
+use Cake\Event\EventListenerInterface;
+
+class CallForNavHandler implements EventListenerInterface
+{
+    public function implementedEvents(): array
+    {
+        return [
+            \App\View\Cell\NavigationCell::VIEW_CALL_EVENT => 'callForNav',
+        ];
+    }
+
+    public function callForNav($event)
+    {
+        if (StaticHelpers::pluginEnabled('Officers') == false) {
+            return null;
+        }
+        
+        $user = $event->getData('user');
+        $results = [];
+        if ($event->getResult() && is_array($event->getResult())) {
+            $results = $event->getResult();
+        }
+        
+        $appNav = [
+            [
+                "type" => "link",
+                "mergePath" => ["Reports"],
+                "label" => "Officers",
+                "order" => 29,
+                "url" => [
+                    "plugin" => "Officers",
+                    "controller" => "Officers",
+                    "action" => "index",
+                ],
+                "icon" => "bi-building",
+                "activePaths" => [
+                    "officers/Officers/view/*",
+                ]
+            ],
+            [
+                "type" => "link",
+                "mergePath" => ["Config"],
+                "label" => "Departments",
+                "order" => 40,
+                "url" => [
+                    "plugin" => "Officers",
+                    "controller" => "Departments",
+                    "action" => "index",
+                ],
+                "icon" => "bi-building",
+                "activePaths" => [
+                    "officers/departments/view/*",
+                ]
+            },
+            // Additional navigation items...
+        ];
+
+        $results = array_merge($results, $appNav);
+        return $results;
+    }
+}
+```
+
+Key aspects of the navigation handler:
+1. It implements `EventListenerInterface` and listens for the `NavigationCell::VIEW_CALL_EVENT`
+2. It checks if the plugin is enabled before proceeding
+3. It defines an array of navigation items with properties:
+   - `type`: Usually "link" for navigation links
+   - `mergePath`: Where in the navigation hierarchy this item belongs
+   - `label`: Display text
+   - `order`: Sort order within its section
+   - `url`: CakePHP URL array
+   - `icon`: Bootstrap icon class
+   - `activePaths`: URL patterns that should highlight this item when active
+
+The navigation items are merged with existing items and returned as the event result.
+
+## 11.3 Creating UI Components with Cells
+
+View cells are a key way to extend the KMP interface. The Officers plugin demonstrates how to create cells that can be integrated into existing pages.
+
+### Cell Implementation
+
+The `BranchOfficersCell` from the Officers plugin is a good example:
+
+```php
+class BranchOfficersCell extends BasePluginCell
+{
+    // Cell configuration...
+    
+    public function display($id)
+    {
+        // Fetch the branch
+        $branch = $this->fetchTable("Branches")
+            ->find()->select(['id', 'parent_id', 'type', 'domain'])
+            ->where(['id' => $id])->first();
+            
+        // Fetch relevant offices
+        $officesTbl = $this->fetchTable("Officers.Offices");
+        $officeQuery = $officesTbl->find("all")
+            ->contain(["Departments"])
+            ->select(["id", "Offices.name", "deputy_to_id", "reports_to_id", 
+                       "applicable_branch_types", "default_contact_address"])
+            ->orderBY(["Offices.name" => "ASC"]);
+            
+        // Filter offices by branch type
+        $officeSet = $officeQuery
+            ->where(['applicable_branch_types like' => '%"' . $branch->type . '"%'])
+            ->toArray();
+            
+        // Check user permissions
+        $user = $this->request->getAttribute("identity");
+        // Permission checks...
+        
+        // Build office tree structure
+        $offices = $this->buildOfficeTree($officeSet, $branch, $hireAll, 
+                                          $myOffices, $canHireOffices, null);
+                                          
+        // Pass data to the template
+        $this->set(compact('id', 'offices', 'newOfficer'));
+    }
+    
+    // Helper methods...
+}
+```
+
+Each cell typically:
+1. Fetches and processes necessary data
+2. Checks permissions
+3. Prepares data for the template
+4. Passes data to the template using `$this->set()`
+
+### Cell Templates
+
+The cell template renders the UI component. For example, the Officers plugin might have a template at `templates/cell/BranchOfficers/display.php` that renders the officers for a branch.
+
+## 11.4 Database Models
+
+Plugins often need their own database tables. The Officers plugin includes models for offices, departments, and officer assignments.
+
+### Table Classes
+
+Create table classes for your plugin's database tables:
+
+```php
+namespace Officers\Model\Table;
+
+use Cake\ORM\Table;
+use Cake\Validation\Validator;
+
+class OfficesTable extends Table
+{
+    public function initialize(array $config): void
+    {
+        parent::initialize($config);
+        
+        $this->setTable('offices');
+        $this->setDisplayField('name');
+        $this->setPrimaryKey('id');
+        
+        $this->belongsTo('Departments', [
+            'foreignKey' => 'department_id',
+            'className' => 'Officers.Departments',
+        ]);
+        
+        $this->hasMany('Officers', [
+            'foreignKey' => 'office_id',
+            'className' => 'Officers.Officers',
+        ]);
+    }
+    
+    // Validation, finder methods, etc.
+}
+```
+
+### Entity Classes
+
+Entity classes represent individual database records:
+
+```php
+namespace Officers\Model\Entity;
+
+use Cake\ORM\Entity;
+
+class Office extends Entity
+{
+    protected array $_accessible = [
+        'name' => true,
+        'description' => true,
+        'department_id' => true,
+        'deputy_to_id' => true,
+        'reports_to_id' => true,
+        'applicable_branch_types' => true,
+        'default_contact_address' => true,
+        'department' => true,
+        'officers' => true,
+    ];
+}
 ```
 
 ### Database Migrations
 
 Create migrations for your plugin's database tables:
 
-```bash
-bin/cake bake migration -p MyPlugin CreateMyPluginTable
-```
-
-Example migration file:
-
 ```php
 use Migrations\AbstractMigration;
 
-class CreateMyPluginTable extends AbstractMigration
+class CreateOfficersTable extends AbstractMigration
 {
     public function change()
     {
-        $table = $this->table('my_plugin_items');
-        $table->addColumn('name', 'string', [
-            'limit' => 255,
-            'null' => false,
-        ]);
-        $table->addColumn('description', 'text', [
-            'null' => true,
-        ]);
+        $table = $this->table('officers');
         $table->addColumn('member_id', 'integer', [
             'null' => false,
+        ]);
+        $table->addColumn('office_id', 'integer', [
+            'null' => false,
+        ]);
+        $table->addColumn('start_date', 'date', [
+            'null' => false,
+        ]);
+        $table->addColumn('end_date', 'date', [
+            'null' => true,
         ]);
         $table->addColumn('active', 'boolean', [
             'default' => true,
         ]);
         $table->addColumn('created', 'datetime');
         $table->addColumn('modified', 'datetime');
-        $table->addForeignKey('member_id', 'members', 'id', [
-            'delete' => 'CASCADE',
-            'update' => 'NO_ACTION',
-        ]);
+        $table->addForeignKey('member_id', 'members', 'id');
+        $table->addForeignKey('office_id', 'offices', 'id');
         $table->create();
     }
 }
 ```
 
-## 11.2 Event System
+## 11.5 Best Practices for Plugin Development
 
-The event system is a powerful way to extend KMP without modifying core code. It allows your code to respond to key moments in the application lifecycle.
+Based on the Officers plugin example, here are some best practices for developing KMP plugins:
 
-### Event Listeners
+1. **Use Event Handlers**: Implement `CallForCellsHandler` and `CallForNavHandler` to integrate with the core UI
+2. **Extend Base Classes**: Use base classes like `BasePluginCell` to ensure consistent behavior
+3. **Follow Naming Conventions**: Use consistent naming for controllers, models, and templates
+4. **Check Permissions**: Always check user permissions before displaying sensitive data or actions
+5. **Modular Design**: Keep plugin functionality self-contained but integrated through events
+6. **Test Thoroughly**: Include comprehensive tests for your plugin functionality
 
-Create an event listener class:
+### Plugin Integration Checklist
 
-```php
-namespace MyPluginvent;
+When developing a new plugin:
 
-use CakeventventInterface;
-use CakeventventListenerInterface;
+1. [ ] Create the basic plugin structure
+2. [ ] Implement the main Plugin class
+3. [ ] Add database migrations if needed
+4. [ ] Create model and entity classes
+5. [ ] Implement controllers and templates
+6. [ ] Create cell classes for UI integration
+7. [ ] Implement CallForCellsHandler to register cells
+8. [ ] Implement CallForNavHandler to add navigation
+9. [ ] Register the plugin in config/plugins.php
+10. [ ] Test plugin functionality thoroughly
 
-class MyPluginListener implements EventListenerInterface
-{
-    /**
-     * List of events this listener responds to
-     *
-     * @return array<string,mixed>
-     */
-    public function implementedEvents(): array
-    {
-        return [
-            'Model.Member.afterSave' => 'onMemberSave',
-            'Navigation.build' => 'onNavigationBuild',
-        ];
-    }
+## 11.6 Managing Plugin Configuration with AppSettings
 
-    /**
-     * Handle member save event
-     *
-     * @param \CakeventventInterface $event Event instance
-     * @param \App\Modelntity\Member $member The saved member
-     * @param \ArrayObject $options Save options
-     * @return void
-     */
-    public function onMemberSave(EventInterface $event, $member, $options)
-    {
-        // Custom logic when a member is saved
-    }
+Plugins often need their own configuration settings that administrators can modify. KMP's AppSettings system provides a centralized way to manage application settings, and plugins can leverage this system to store and retrieve their configuration.
 
-    /**
-     * Add items to the navigation
-     *
-     * @param \CakeventventInterface $event Event instance
-     * @param \ArrayObject $navigation Navigation items
-     * @return void
-     */
-    public function onNavigationBuild(EventInterface $event, $navigation)
-    {
-        $navigation->push([
-            'title' => 'My Plugin',
-            'url' => [
-                'plugin' => 'MyPlugin',
-                'controller' => 'MyController',
-                'action' => 'index',
-            ],
-            'icon' => 'plugin-icon',
-        ]);
-    }
-}
-```
+### Registering Default AppSettings
 
-### Registering Listeners
+The Officers plugin demonstrates a robust approach to registering and maintaining default AppSettings during the plugin's bootstrap process. This ensures that necessary configuration values exist when the plugin is first installed or updated, and handles versioning to track configuration changes.
 
-Register your listener in the plugin's bootstrap method:
+Here's how the Officers plugin implements this in its `Plugin.php` file:
 
 ```php
 public function bootstrap(PluginApplicationInterface $app): void
 {
-    parent::bootstrap($app);
-    
-    // Register event listeners
-    $eventManager = \CakeventventManager::instance();
-    $eventManager->on(new \MyPluginvent\MyPluginListener());
+    $handler = new CallForCellsHandler();
+    EventManager::instance()->on($handler);
+
+    $handler = new CallForNavHandler();
+    EventManager::instance()->on($handler);
+
+    $currentConfigVersion = "25.01.11.a"; // update this each time you change the config
+
+    $configVersion = StaticHelpers::getAppSetting("Officer.configVersion", "0.0.0", null, true);
+    if ($configVersion != $currentConfigVersion) {
+        StaticHelpers::setAppSetting("Officer.configVersion", $currentConfigVersion, null, true);
+        StaticHelpers::getAppSetting("Officer.NextStatusCheck", DateTime::now()->subDays(1)->toDateString(), null, true);
+        StaticHelpers::getAppSetting("Plugin.Officers.Active", "yes", null, true);
+    }
 }
 ```
 
-### Common Events
+This approach offers several advantages:
 
-KMP provides many events you can listen for:
+1. **Version Tracking**: Using a configuration version (`Officer.configVersion`) allows the plugin to detect when its settings structure has been updated
+2. **Update Management**: Settings are only initialized or updated when the configuration version changes, preventing unnecessary database operations
+3. **Default Values**: Each setting is created with a sensible default value
+4. **Systematic Updates**: When introducing new settings, you simply update the version number and add the new settings to the version check block
 
-#### Member Events
+The `StaticHelpers::getAppSetting()` method is used with these parameters:
+- First parameter: The setting key (e.g., "Officer.configVersion")
+- Second parameter: Default value if the setting doesn't exist
+- Third parameter: Description (null in this case but can be used for documentation)
+- Fourth parameter: Create if missing (true to ensure the setting exists)
 
-- `Model.Member.beforeSave`
-- `Model.Member.afterSave`
-- `Model.Member.beforeDelete`
-- `Model.Member.afterDelete`
+### Structure of AppSettings for Plugins
 
-#### Warrant Events
+When creating AppSettings for your plugin, follow these conventions:
 
-- `Warrant.beforeCreate`
-- `Warrant.afterCreate`
-- `Warrant.beforeStateChange`
-- `Warrant.afterStateChange`
+1. **Namespacing**: Prefix all settings with your plugin name (e.g., `Officers.Setting`)
+2. **Categorization**: Group related settings together with similar prefixes
+3. **Documentation**: Include a clear description as the third parameter of `setAppSettingDefault`
+4. **Types**: Use appropriate types for values ('yes'/'no' for booleans, numeric strings for numbers)
 
-#### Navigation Events
+### Accessing Plugin Settings
 
-- `Navigation.build`
-- `Navigation.beforeRender`
-
-#### View Events
-
-- `View.beforeRender`
-- `View.afterRender`
-- `View.beforeLayout`
-- `View.afterLayout`
-
-## 11.3 Custom Reports
-
-KMP provides a framework for creating custom reports that can be accessed through the application's reporting interface.
-
-### Report Class
-
-Create a report class:
+Once registered, your plugin can access these settings throughout its code:
 
 ```php
-namespace MyPlugin\Report;
+// Check if the plugin is enabled
+if (StaticHelpers::getAppSetting('Officers.Enabled') !== 'yes') {
+    return;
+}
 
-use App\Report\AbstractReport;
-use Cake\ORM\TableRegistry;
+// Get a numeric setting and convert to integer
+$termLength = (int)StaticHelpers::getAppSetting('Officers.DefaultTermLength', '12');
 
-class MyCustomReport extends AbstractReport
+// Get a boolean setting
+$sendNotifications = StaticHelpers::getAppSetting('Officers.SendNotifications') === 'yes';
+```
+
+The `getAppSetting` method accepts a default value as the second parameter, which is returned if the setting doesn't exist.
+
+### Providing a Settings UI
+
+For important plugin settings, you may want to provide a UI that allows administrators to modify these values. The Officers plugin includes a settings controller that displays and updates its AppSettings:
+
+```php
+namespace Officers\Controller;
+
+use App\Controller\AppController;
+use App\KMP\StaticHelpers;
+
+class SettingsController extends AppController
 {
-    /**
-     * Report identifier
-     *
-     * @var string
-     */
-    protected $reportId = 'my-custom-report';
-
-    /**
-     * Report name displayed to users
-     *
-     * @var string
-     */
-    protected $name = 'My Custom Report';
-
-    /**
-     * Report description
-     *
-     * @var string
-     */
-    protected $description = 'This report shows custom data from my plugin.';
-
-    /**
-     * Report category
-     *
-     * @var string
-     */
-    protected $category = 'My Plugin Reports';
-
-    /**
-     * Get report parameters configuration
-     *
-     * @return array
-     */
-    public function getParameters(): array
+    public function index()
     {
-        return [
-            'startDate' => [
-                'type' => 'date',
-                'label' => 'Start Date',
-                'required' => true,
-            ],
-            'endDate' => [
-                'type' => 'date',
-                'label' => 'End Date',
-                'required' => true,
-            ],
-            'branchId' => [
-                'type' => 'select',
-                'label' => 'Branch',
-                'options' => $this->getBranchOptions(),
-                'empty' => '-- All Branches --',
-                'required' => false,
-            ],
-        ];
-    }
-
-    /**
-     * Execute the report
-     *
-     * @param array $params User-provided parameters
-     * @return array Report data
-     */
-    public function execute(array $params): array
-    {
-        // Build your report query
-        $query = TableRegistry::getTableLocator()
-            ->get('MyPlugin.MyItems')
-            ->find();
+        $this->Authorization->authorize($this);
+        
+        if ($this->request->is('post')) {
+            $settings = $this->request->getData();
             
-        // Apply parameters
-        if (!empty($params['startDate'])) {
-            $query->where(['created >=' => $params['startDate']]);
+            // Update each setting
+            foreach ($settings as $key => $value) {
+                if (strpos($key, 'Officers.') === 0) {
+                    StaticHelpers::setAppSetting($key, $value);
+                }
+            }
+            
+            $this->Flash->success('Settings updated successfully.');
+            return $this->redirect(['action' => 'index']);
         }
         
-        if (!empty($params['endDate'])) {
-            $query->where(['created <=' => $params['endDate']]);
-        }
-        
-        if (!empty($params['branchId'])) {
-            $query->where(['branch_id' => $params['branchId']]);
-        }
-        
-        // Get the data
-        $results = $query->all();
-        
-        // Format for display
-        $reportData = [
-            'headers' => [
-                'Item ID',
-                'Name',
-                'Description',
-                'Created',
-            ],
-            'rows' => [],
+        // Load current settings
+        $settings = [
+            'Officers.Enabled' => StaticHelpers::getAppSetting('Officers.Enabled'),
+            'Officers.DefaultTermLength' => StaticHelpers::getAppSetting('Officers.DefaultTermLength'),
+            'Officers.RequireHeralds' => StaticHelpers::getAppSetting('Officers.RequireHeralds'),
+            'Officers.RequireSeneschals' => StaticHelpers::getAppSetting('Officers.RequireSeneschals'),
+            'Officers.SendNotifications' => StaticHelpers::getAppSetting('Officers.SendNotifications'),
+            'Officers.NotifyDaysBeforeExpiration' => StaticHelpers::getAppSetting('Officers.NotifyDaysBeforeExpiration'),
         ];
         
-        foreach ($results as $item) {
-            $reportData['rows'][] = [
-                $item->id,
-                $item->name,
-                $item->description,
-                $item->created->format('Y-m-d H:i:s'),
-            ];
-        }
-        
-        return $reportData;
-    }
-
-    /**
-     * Get branch options for the parameter dropdown
-     *
-     * @return array
-     */
-    protected function getBranchOptions(): array
-    {
-        return TableRegistry::getTableLocator()
-            ->get('Branches')
-            ->find('list')
-            ->where(['active' => true])
-            ->toArray();
+        $this->set(compact('settings'));
     }
 }
 ```
 
-### Registering Reports
+With a corresponding template that renders form fields for each setting.
 
-Register your report in your plugin's bootstrap:
+### Checking Plugin Enabled Status
+
+A common pattern used by the Officers plugin is to check if the plugin is enabled before performing operations:
 
 ```php
-public function bootstrap(PluginApplicationInterface $app): void
+public function callForNav($event)
 {
-    parent::bootstrap($app);
-    
-    // Register reports
-    \App\Report\ReportRegistry::register(
-        new \MyPlugin\Report\MyCustomReport()
-    );
-}
-```
-
-### Report Templates
-
-Create a custom template for your report if needed:
-
-```php
-// plugins/MyPlugin/templates/Reports/my_custom_report.php
-<div class="report my-custom-report">
-    <h2><?= h($report->getName()) ?></h2>
-    
-    <div class="report-info">
-        <p><?= h($report->getDescription()) ?></p>
-        
-        <div class="report-parameters">
-            <strong>Parameters:</strong>
-            <ul>
-                <li>Start Date: <?= h($params['startDate']->format('Y-m-d')) ?></li>
-                <li>End Date: <?= h($params['endDate']->format('Y-m-d')) ?></li>
-                <?php if (!empty($params['branchId'])): ?>
-                <li>Branch: <?= h($branches[$params['branchId']]) ?></li>
-                <?php else: ?>
-                <li>Branch: All Branches</li>
-                <?php endif; ?>
-            </ul>
-        </div>
-    </div>
-    
-    <div class="report-results">
-        <?php if (empty($data['rows'])): ?>
-            <p class="empty-results">No records found matching the criteria.</p>
-        <?php else: ?>
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <?php foreach ($data['headers'] as $header): ?>
-                            <th><?= h($header) ?></th>
-                        <?php endforeach; ?>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($data['rows'] as $row): ?>
-                        <tr>
-                            <?php foreach ($row as $cell): ?>
-                                <td><?= h($cell) ?></td>
-                            <?php endforeach; ?>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        <?php endif; ?>
-    </div>
-</div>
-```
-
-### Report Export
-
-Reports automatically support CSV export. To customize export formats:
-
-```php
-/**
- * Export the report to CSV
- *
- * @param array $data Report data
- * @param array $params Report parameters
- * @return string CSV data
- */
-public function exportCsv(array $data, array $params): string
-{
-    $output = fopen('php://temp', 'r+');
-    
-    // Add headers
-    fputcsv($output, $data['headers']);
-    
-    // Add rows
-    foreach ($data['rows'] as $row) {
-        fputcsv($output, $row);
+    // Early return if plugin is disabled
+    if (StaticHelpers::pluginEnabled('Officers') == false) {
+        return null;
     }
     
-    rewind($output);
-    $csv = stream_get_contents($output);
-    fclose($output);
-    
-    return $csv;
-}
-
-/**
- * Export the report to PDF
- *
- * @param array $data Report data
- * @param array $params Report parameters
- * @return string PDF data
- */
-public function exportPdf(array $data, array $params): string
-{
-    // PDF generation logic using TCPDF or other library
-    // ...
-    
-    return $pdfData;
+    // Continue with navigation building...
 }
 ```
+
+The `pluginEnabled` helper method is a shortcut that checks for a setting with the pattern `PluginName.Enabled` and returns true if it's set to 'yes'.
+
+### Best Practices for Plugin AppSettings
+
+1. **Register Early**: Set defaults during bootstrap to ensure settings exist
+2. **Use Defaults Wisely**: Provide sensible defaults that work for most installations
+3. **Clear Documentation**: Document each setting's purpose and valid values
+4. **Respect Settings**: Always check relevant settings before performing operations
+5. **Graceful Fallbacks**: Handle cases where settings might be missing or invalid
+6. **User-Friendly UI**: Provide an admin interface for important settings

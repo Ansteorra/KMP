@@ -42,24 +42,27 @@ layout: default
 | 7.2 ActiveWindowManager | Active window management service |
 | 7.3 StaticHelpers | Application configuration helpers |
 | 7.4 Email | Email notification system |
-| **8. Development Workflow** | |
+| **8. [Development Workflow](8-development-workflow.md)** | |
 | 8.1 Coding Standards | PHP coding conventions used in the project |
 | 8.2 Testing | How to run and write tests |
 | 8.3 Debugging | Debug techniques and tools (DebugKit) |
 | 8.4 Git Workflow | Branch management and contribution process |
-| **9. Deployment** | |
+| **9. [Deployment](9-deployment.md)** | |
 | 9.1 Production Setup | Production environment considerations |
 | 9.2 Migrations | Database migration management |
 | 9.3 Updates | How to update the application |
-| **10. API Reference** | |
-| 10.1 REST Endpoints | Available API endpoints |
-| 10.2 Controllers | Core controller methods |
-| 10.3 Models | Core model entities and their relationships |
-| **11. Extending KMP** | |
-| 11.1 Creating Plugins | How to develop new plugins |
-| 11.2 Event System | Using the event system for customizations |
-| 11.3 Custom Reports | Building custom reports and views |
-| **Appendices** | |
+| **10. [JavaScript Development with Stimulus](10-javascript-development.md)** | |
+| 10.1 Introduction to Stimulus | Overview of the Stimulus framework |
+| 10.2 Controller Organization | Where and how to create Stimulus controllers |
+| 10.3 Development Workflow | Using npm run watch for development |
+| 10.4 Asset Management | How JavaScript and CSS assets are built and served |
+| **11. [Extending KMP](11-extending-kmp.md)** | |
+| 11.1 Creating Plugins | How to create plugins for extending KMP |
+| 11.2 Event System | Leveraging CallForCellsHandler and CallForNavHandler events |
+| 11.3 Creating UI Components | Extending the UI with custom cells |
+| 11.4 Database Models | Adding custom database models to plugins |
+| 11.5 Best Practices | Guidelines for effective plugin development |
+| **[Appendices](appendices.md)** | |
 | A. Troubleshooting | Common issues and solutions |
 | B. Glossary | Terms specific to KMP and SCA |
 | C. Resources | Additional resources and references |

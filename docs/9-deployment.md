@@ -1,6 +1,8 @@
 ---
 layout: default
 ---
+[← Back to Table of Contents](index.md)
+
 # 9. Deployment
 
 This section covers the processes and considerations for deploying the Kingdom Management Portal to production environments.
@@ -29,6 +31,7 @@ The recommended production directory structure separates public and non-public f
 │   ├── logs/                  # Log files
 │   ├── src/                   # Application source code
 │   ├── templates/             # View templates
+│   ├── assets/                # Source asset files (CSS/JS)
 │   ├── ...                    # Other application directories
 │   └── webroot/               # Public web files (document root)
 ├── bin/                       # CLI commands

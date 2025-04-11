@@ -1,6 +1,8 @@
 ---
 layout: default
 ---
+[← Back to Table of Contents](index.md)
+
 # Appendices
 
 This section contains additional reference information to help developers working with the Kingdom Management Portal.
@@ -74,13 +76,9 @@ Terms specific to KMP and the SCA to help new developers understand the domain.
 | Term | Definition |
 |------|------------|
 | **Active Window** | A time period during which an entity (like a warrant) is considered active, defined by start and end dates |
-| **Authorization** | 1. A security check that verifies a user can perform an action<br>2. A certification that a member can participate in an activity |
 | **Branch** | A geographic unit of the SCA organization (Kingdom, Principality, Barony, etc.) |
-| **Domain** | A scope identifier used in authorization contexts |
 | **Member** | An individual user of the system |
 | **Office** | An official position within the SCA that can be held by members |
-| **Role** | A security construct that groups permissions for authorization |
-| **SCA** | Society for Creative Anachronism - the organization KMP supports |
 | **Warrant** | Official documentation that a member holds a specific office |
 | **Warrant Roster** | A collection of warrants for a specific branch and time period |
 
@@ -90,15 +88,13 @@ Additional resources and references for KMP developers.
 
 ### CakePHP Documentation
 
-- [CakePHP 4.x Book](https://book.cakephp.org/4/en/index.html) - Official CakePHP documentation
-- [CakePHP API](https://api.cakephp.org/4.x/) - API reference for CakePHP 4.x
-- [CakePHP Cookbook](https://book.cakephp.org/4/en/index.html) - Recipes for common tasks
+- [CakePHP 5.x Book](https://book.cakephp.org/5/en/index.html) - Official CakePHP documentation
+- [CakePHP API](https://api.cakephp.org/5.x/) - API reference for CakePHP 5.x
+- [CakePHP Cookbook](https://book.cakephp.org/5/en/index.html) - Recipes for common tasks
 
 ### KMP-Related Resources
 
 - [KMP GitHub Repository](https://github.com/Ansteorra/KMP) - Source code and issue tracking
-- [KMP Wiki](https://github.com/Ansteorra/KMP/wiki) - Additional documentation and examples
-- [Kingdom of Ansteorra](https://ansteorra.org/) - Website for the Kingdom of Ansteorra
 
 ### PHP Resources
 
