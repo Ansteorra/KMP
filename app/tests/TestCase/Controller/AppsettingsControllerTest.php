@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Controller;
@@ -31,7 +32,10 @@ class AppsettingsControllerTest extends TestCase
      */
     public function testIndex(): void
     {
-        $this->markTestIncomplete("Not implemented yet.");
+        $this->get('/appsettings');
+        $this->assertResponseOk();
+        $this->assertResponseContains('App Settings');
+        $this->assertResponseContains('KMP.configVersion');
     }
 
     /**
@@ -42,7 +46,9 @@ class AppsettingsControllerTest extends TestCase
      */
     public function testView(): void
     {
-        $this->markTestIncomplete("Not implemented yet.");
+        $this->get('/appsettings/view/1');
+        $this->assertResponseOk();
+        $this->assertResponseContains('KMP.configVersion');
     }
 
     /**
@@ -53,7 +59,20 @@ class AppsettingsControllerTest extends TestCase
      */
     public function testAdd(): void
     {
-        $this->markTestIncomplete("Not implemented yet.");
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+
+        $data = [
+            'name' => 'Test.Setting',
+            'value' => 'Test Value',
+        ];
+
+        $this->post('/appsettings/add', $data);
+        $this->assertRedirect(['controller' => 'Appsettings', 'action' => 'index']);
+
+        // Check the record was saved to the database
+        $query = $this->Appsettings->find()->where(['name' => 'Test.Setting']);
+        $this->assertEquals(1, $query->count());
     }
 
     /**

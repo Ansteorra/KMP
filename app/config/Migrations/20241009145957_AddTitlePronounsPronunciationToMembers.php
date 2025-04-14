@@ -6,6 +6,10 @@ use Migrations\BaseMigration;
 
 class AddTitlePronounsPronunciationToMembers extends BaseMigration
 {
+    public function useTransactions(): bool
+    {
+        return false;
+    }
     /**
      * Change Method.
      *

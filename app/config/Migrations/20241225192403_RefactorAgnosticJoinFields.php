@@ -6,6 +6,11 @@ use Migrations\BaseMigration;
 
 class RefactorAgnosticJoinFields extends BaseMigration
 {
+    public function useTransactions(): bool
+    {
+        return false;
+    }
+
     /**
      * Change Method.
      *

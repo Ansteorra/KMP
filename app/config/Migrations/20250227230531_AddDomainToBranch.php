@@ -6,6 +6,10 @@ use Migrations\BaseMigration;
 
 class AddDomainToBranch extends BaseMigration
 {
+    public function useTransactions(): bool
+    {
+        return false;
+    }
     /**
      * Change Method.
      *

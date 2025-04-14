@@ -6,6 +6,11 @@ use Migrations\BaseMigration;
 
 class AddScopeToMemberRoles extends BaseMigration
 {
+    public function useTransactions(): bool
+    {
+        return false;
+    }
+
     /**
      * Change Method.
      *

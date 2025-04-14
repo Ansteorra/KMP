@@ -21,14 +21,20 @@ class BaseTable extends Table
 
     public function afterSave($event, $entity, $options)
     {
-        foreach ($this::CACHES_TO_CLEAR as $cache) {
-            Cache::delete($cache[0], $cache[1]);
+        if (!empty($this::CACHES_TO_CLEAR)) {
+            foreach ($this::CACHES_TO_CLEAR as $cache) {
+                Cache::delete($cache[0], $cache[1]);
+            }
         }
-        foreach ($this::ID_CACHES_TO_CLEAR as $cache) {
-            Cache::delete($cache . $entity->id, $cache[1]);
+        if (!empty($this::ID_CACHES_TO_CLEAR)) {
+            foreach ($this::ID_CACHES_TO_CLEAR as $cache) {
+                Cache::delete($cache[0] . $entity->id, $cache[1]);
+            }
         }
-        foreach ($this::CACHE_GROUPS_TO_CLEAR as $cache) {
-            Cache::clearGroup($cache);
+        if (!empty($this::CACHE_GROUPS_TO_CLEAR)) {
+            foreach ($this::CACHE_GROUPS_TO_CLEAR as $cache) {
+                Cache::clearGroup($cache);
+            }
         }
     }
 
