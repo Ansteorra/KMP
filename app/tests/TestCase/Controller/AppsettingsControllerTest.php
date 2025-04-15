@@ -22,7 +22,7 @@ class AppsettingsControllerTest extends TestCase
      *
      * @var list<string>
      */
-    protected array $fixtures = ["app.Appsettings"];
+    protected array $fixtures = ["app.AppSettings", "app.Members", "app.Roles", "app.Permissions", "app.RolesPermissions", "app.MemberRoles", "app.Warrants"];
 
     /**
      * Test index method
@@ -32,6 +32,13 @@ class AppsettingsControllerTest extends TestCase
      */
     public function testIndex(): void
     {
+        //
+        $member = $this->getTableLocator()->get('Members')->get(1);
+        $this->session([
+            'Auth' => [
+                'User' => $member
+            ]
+        ]);
         $this->get('/appsettings');
         $this->assertResponseOk();
         $this->assertResponseContains('App Settings');
@@ -71,7 +78,7 @@ class AppsettingsControllerTest extends TestCase
         $this->assertRedirect(['controller' => 'Appsettings', 'action' => 'index']);
 
         // Check the record was saved to the database
-        $query = $this->Appsettings->find()->where(['name' => 'Test.Setting']);
+        $query = $this->AppSettings->find()->where(['name' => 'Test.Setting']);
         $this->assertEquals(1, $query->count());
     }
 

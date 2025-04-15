@@ -8,6 +8,7 @@
 /vendor/*
 /images/*
 
+
 # OS generated files #
 ######################
 .DS_Store
@@ -26,6 +27,9 @@ Thumbs.db
 #######################
 # PHPUnit
 .phpunit.result.cache
+.phpunit.cache
+.phpunit.cache/test-results
+
 tests.sqlite
 # vim
 *~

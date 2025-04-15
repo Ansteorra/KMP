@@ -33,7 +33,7 @@ use App\KMP\KMPPluginInterface;
  */
 require dirname(__DIR__) . "/vendor/autoload.php";
 
-require dirname(__DIR__) . "/config/bootstrap_tests.php";
+require dirname(__DIR__) . "/config/bootstrap.php";
 
 if (empty($_SERVER["HTTP_HOST"]) && !Configure::read("App.fullBaseUrl")) {
     Configure::write("App.fullBaseUrl", "http://localhost");

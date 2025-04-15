@@ -134,6 +134,10 @@ cron_schedule="*/2 * * * *"  # This example runs the task every day at 7 AM
 cron_command="cd $(echo $REPO_PATH)/app && bin/cake queue run -q"
 cron_job="$cron_schedule $cron_command"
 
+wget -O phpunit.phar https://phar.phpunit.de/phpunit-10.phar
+chmod +x phpunit.phar
+sudo mv phpunit.phar /usr/local/bin/phpunit
+
 # Check if the cron job already exists
 (crontab -l | grep -F "$cron_job") && echo "Cron job already exists." || (crontab -l 2>/dev/null; echo "$cron_job") | crontab -
 sudo chmod 644 /var/log/cron.log && sudo chown vscode:vscode /var/log/cron.log

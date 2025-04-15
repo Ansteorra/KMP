@@ -5,4 +5,4 @@ app/webroot/bootstrap_u_i
 scratch.txt
 docs/_site
 docs/.sass-cache
-app/.phpunit.cache
+app/.phpunit.cache/test-results
