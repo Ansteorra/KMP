@@ -6,9 +6,9 @@ use Migrations\BaseSeed;
 use Cake\I18n\DateTime;
 
 /**
- * Role seed.
+ * Roles seed.
  */
-class InitAwardsSeed extends BaseSeed
+class InitOfficersRefactorSeed extends BaseSeed
 {
     /**
      * Get data for seeding.
@@ -19,7 +19,7 @@ class InitAwardsSeed extends BaseSeed
     {
         return [
             [
-                'name' => 'Can Manage Awards',
+                'name' => 'Can Assign Officers',
                 'require_active_membership' => 1,
                 'require_active_background_check' => 0,
                 'require_min_age' => 0,
@@ -30,7 +30,7 @@ class InitAwardsSeed extends BaseSeed
                 'created_by' => '1',
             ],
             [
-                'name' => 'Can View Recommendations',
+                'name' => 'Can Release Officers',
                 'require_active_membership' => 1,
                 'require_active_background_check' => 0,
                 'require_min_age' => 0,
@@ -41,7 +41,7 @@ class InitAwardsSeed extends BaseSeed
                 'created_by' => '1',
             ],
             [
-                'name' => 'Can Manage Recommendations',
+                'name' => 'Can Create Officer Roster',
                 'require_active_membership' => 1,
                 'require_active_background_check' => 0,
                 'require_min_age' => 0,

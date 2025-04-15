@@ -11,19 +11,13 @@ use Cake\I18n\DateTime;
 class DevLoadWarrantsSeed extends BaseSeed
 {
     /**
-     * Run Method.
+     * Get data for seeding.
      *
-     * Write your database seeder using this method.
-     *
-     * More information on writing seeds is available here:
-     * https://book.cakephp.org/phinx/0/en/seeding.html
-     *
-     * @return void
+     * @return array
      */
-    public function run(): void
+    public function getData(): array
     {
-
-        $data = [
+        return [
             [
                 'id' => 2,
                 'name' => 'Developer Warrant',
@@ -59,7 +53,21 @@ class DevLoadWarrantsSeed extends BaseSeed
                 'created' => DateTime::now(),
             ],
         ];
+    }
 
+    /**
+     * Run Method.
+     *
+     * Write your database seeder using this method.
+     *
+     * More information on writing seeds is available here:
+     * https://book.cakephp.org/phinx/0/en/seeding.html
+     *
+     * @return void
+     */
+    public function run(): void
+    {
+        $data = $this->getData();
         $table = $this->table('warrants');
         $options = $table->getAdapter()->getOptions();
         $options['identity_insert'] = true;

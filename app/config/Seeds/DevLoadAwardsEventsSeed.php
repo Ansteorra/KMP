@@ -22,7 +22,22 @@ class DevLoadAwardsEventsSeed extends BaseSeed
      */
     public function run(): void
     {
-        $data = [
+        $data = $this->getData();
+        $table = $this->table('awards_events');
+        $options = $table->getAdapter()->getOptions();
+        $options['identity_insert'] = true;
+        $table->getAdapter()->setOptions($options);
+        $table->insert($data)->save();
+    }
+
+    /**
+     * Get data for seeding.
+     *
+     * @return array
+     */
+    public function getData(): array
+    {
+        return [
             [
                 'id' => 1,
                 'name' => 'Twilight Dreams Baronial',
@@ -50,11 +65,5 @@ class DevLoadAwardsEventsSeed extends BaseSeed
                 'deleted' => NULL,
             ],
         ];
-
-        $table = $this->table('awards_events');
-        $options = $table->getAdapter()->getOptions();
-        $options['identity_insert'] = true;
-        $table->getAdapter()->setOptions($options);
-        $table->insert($data)->save();
     }
 }

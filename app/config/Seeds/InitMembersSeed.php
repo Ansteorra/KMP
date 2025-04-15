@@ -12,19 +12,14 @@ use Cake\I18n\DateTime;
 class InitMembersSeed extends BaseSeed
 {
     /**
-     * Run Method.
+     * Get data for seeding.
      *
-     * Write your database seeder using this method.
-     *
-     * More information on writing seeds is available here:
-     * https://book.cakephp.org/phinx/0/en/seeding.html
-     *
-     * @return void
+     * @return array
      */
-    public function run(): void
+    public function getData(): array
     {
-        //check if the connection is microsoft sql server
-        $data = [
+
+        $members =  [
             [
                 'id' => 1,
                 'modified' => DateTime::now(),
@@ -57,14 +52,7 @@ class InitMembersSeed extends BaseSeed
             ]
         ];
 
-        $table = $this->table('members');
-        $options = $table->getAdapter()->getOptions();
-        $options['identity_insert'] = true;
-        $table->getAdapter()->setOptions($options);
-        $table->insert($data)->save();
-
-        //lets make a note for the admin account
-        $data = [
+        $notes = [
             [
                 'id' => 1,
                 'author_id' => 1,
@@ -76,6 +64,34 @@ class InitMembersSeed extends BaseSeed
                 'private' => 0,
             ]
         ];
+        return [
+            'members' => $members,
+            'notes' => $notes,
+        ];
+    }
+
+    /**
+     * Run Method.
+     *
+     * Write your database seeder using this method.
+     *
+     * More information on writing seeds is available here:
+     * https://book.cakephp.org/phinx/0/en/seeding.html
+     *
+     * @return void
+     */
+    public function run(): void
+    {
+        $data = $this->getData()['members'];
+
+        $table = $this->table('members');
+        $options = $table->getAdapter()->getOptions();
+        $options['identity_insert'] = true;
+        $table->getAdapter()->setOptions($options);
+        $table->insert($data)->save();
+
+        //lets make a note for the admin account
+        $data = $this->getData()['notes'];
 
         $table = $this->table('notes');
         $options = $table->getAdapter()->getOptions();

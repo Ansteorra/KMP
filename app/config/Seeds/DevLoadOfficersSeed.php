@@ -10,6 +10,16 @@ use Migrations\BaseSeed;
 class DevLoadOfficersSeed extends BaseSeed
 {
     /**
+     * Get data for seeding.
+     *
+     * @return array
+     */
+    public function getData(): array
+    {
+        return [];
+    }
+
+    /**
      * Run Method.
      *
      * Write your database seeder using this method.
@@ -21,8 +31,7 @@ class DevLoadOfficersSeed extends BaseSeed
      */
     public function run(): void
     {
-        $data = [];
-
+        $data = $this->getData();
         $table = $this->table('officers_officers');
         $options = $table->getAdapter()->getOptions();
         $options['identity_insert'] = true;

@@ -11,19 +11,13 @@ use Cake\I18n\DateTime;
 class InitWarrantsSeed extends BaseSeed
 {
     /**
-     * Run Method.
+     * Get data for seeding.
      *
-     * Write your database seeder using this method.
-     *
-     * More information on writing seeds is available here:
-     * https://book.cakephp.org/phinx/0/en/seeding.html
-     *
-     * @return void
+     * @return array
      */
-    public function run(): void
+    public function getData(): array
     {
-
-        $data = [
+        $rosters = [
             [
                 'id' => 1,
                 'name' => 'System Admin Warrant Set',
@@ -35,13 +29,7 @@ class InitWarrantsSeed extends BaseSeed
             ],
         ];
 
-        $table = $this->table('warrant_rosters');
-        $options = $table->getAdapter()->getOptions();
-        $options['identity_insert'] = true;
-        $table->getAdapter()->setOptions($options);
-        $table->insert($data)->save();
-
-        $data = [
+        $warrants = $data = [
             [
                 'id' => 1,
                 'name' => 'System Admin Warrant',
@@ -61,13 +49,7 @@ class InitWarrantsSeed extends BaseSeed
             ],
         ];
 
-        $table = $this->table('warrants');
-        $options = $table->getAdapter()->getOptions();
-        $options['identity_insert'] = true;
-        $table->getAdapter()->setOptions($options);
-        $table->insert($data)->save();
-
-        $data = [
+        $approvals = [
             [
                 'id' => 1,
                 'warrant_roster_id' => 1,
@@ -76,13 +58,7 @@ class InitWarrantsSeed extends BaseSeed
             ],
         ];
 
-        $table = $this->table('warrant_roster_approvals');
-        $options = $table->getAdapter()->getOptions();
-        $options['identity_insert'] = true;
-        $table->getAdapter()->setOptions($options);
-        $table->insert($data)->save();
-
-        $data = [
+        $permissions = [
             [
                 'name' => 'Can View Warrants',
                 'require_active_membership' => 1,
@@ -117,6 +93,56 @@ class InitWarrantsSeed extends BaseSeed
                 'created_by' => '1',
             ],
         ];
+
+        return [
+            'warrant_rosters' => $rosters,
+            'warrants' => $warrants,
+            'warrant_roster_approvals' => $approvals,
+            'permissions' => $permissions,
+        ];
+    }
+
+    /**
+     * Run Method.
+     *
+     * Write your database seeder using this method.
+     *
+     * More information on writing seeds is available here:
+     * https://book.cakephp.org/phinx/0/en/seeding.html
+     *
+     * @return void
+     */
+    public function run(): void
+    {
+        $data = $this->getData()["warrant_rosters"];
+
+        $table = $this->table('warrant_rosters');
+        $options = $table->getAdapter()->getOptions();
+        $options['identity_insert'] = true;
+        $table->getAdapter()->setOptions($options);
+        $table->insert($data)->save();
+
+
+        $data = $this->getData()["warrants"];
+
+        $table = $this->table('warrants');
+        $options = $table->getAdapter()->getOptions();
+        $options['identity_insert'] = true;
+        $table->getAdapter()->setOptions($options);
+        $table->insert($data)->save();
+
+
+        $data = $this->getData()["warrant_roster_approvals"];
+
+        $table = $this->table('warrant_roster_approvals');
+        $options = $table->getAdapter()->getOptions();
+        $options['identity_insert'] = true;
+        $table->getAdapter()->setOptions($options);
+        $table->insert($data)->save();
+
+
+        $data = $this->getData()["permissions"];
+
         $table = $this->table('permissions');
         $options = $table->getAdapter()->getOptions();
         $options['identity_insert'] = false;

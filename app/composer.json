@@ -32,6 +32,7 @@
         "dereuromark/cakephp-templating": "^0.2.1",
         "dereuromark/cakephp-tools": "^3.0.0",
         "josegonzalez/dotenv": "^4.0",
+        "phpstan/phpstan": "^2.1",
         "phpunit/phpunit": "^10.1.0",
         "squizlabs/php_codesniffer": "^3.10"
     },

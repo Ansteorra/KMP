@@ -22,7 +22,19 @@ class DevLoadRolesPermissionsSeed extends BaseSeed
      */
     public function run(): void
     {
-        $data = [
+        $data = $this->getData();
+        $table = $this->table('roles_permissions');
+        $table->insert($data)->save();
+    }
+
+    /**
+     * Get data for seeding.
+     *
+     * @return array
+     */
+    public function getData(): array
+    {
+        return [
             [
                 'permission_id' => 2,
                 'role_id' => 1,
@@ -114,8 +126,5 @@ class DevLoadRolesPermissionsSeed extends BaseSeed
                 'created_by' => '1'
             ],
         ];
-
-        $table = $this->table('roles_permissions');
-        $table->insert($data)->save();
     }
 }

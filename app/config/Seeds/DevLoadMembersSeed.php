@@ -11,18 +11,13 @@ use Cake\I18n\DateTime;
 class DevLoadMembersSeed extends BaseSeed
 {
     /**
-     * Run Method.
+     * Get data for seeding.
      *
-     * Write your database seeder using this method.
-     *
-     * More information on writing seeds is available here:
-     * https://book.cakephp.org/phinx/0/en/seeding.html
-     *
-     * @return void
+     * @return array
      */
-    public function run(): void
+    public function getData(): array
     {
-        $data = [
+        return [
             [
                 'id' => 200,
                 'modified' => DateTime::now(),
@@ -114,7 +109,11 @@ class DevLoadMembersSeed extends BaseSeed
                 'mobile_card_token' => '9ffd0d041d4ff102b2c31f3edbd1cf86',
             ],
         ];
+    }
 
+    public function run(): void
+    {
+        $data = $this->getData();
         $table = $this->table('members');
         $options = $table->getAdapter()->getOptions();
         $options['identity_insert'] = true;

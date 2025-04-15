@@ -146,7 +146,7 @@ class AppSettingsTableTest extends TestCase
     public function testDelete(): void
     {
         // Get a test setting
-        $appSetting = $this->AppSettings->get(1);
+        $appSetting = $this->AppSettings->get(1000);
         $result = $this->AppSettings->delete($appSetting);
 
         $this->assertTrue($result);
@@ -177,7 +177,7 @@ class AppSettingsTableTest extends TestCase
         $this->assertEquals('test-value-2', $value);
 
         // Modify directly in the database to check if cached value is returned
-        $appSetting = $this->AppSettings->get(2);
+        $appSetting = $this->AppSettings->get(2000);
         $appSetting->value = 'modified-value';
         $this->AppSettings->save($appSetting);
 

@@ -11,18 +11,13 @@ use Cake\I18n\DateTime;
 class DevLoadActivitiesSeed extends BaseSeed
 {
     /**
-     * Run Method.
+     * Get data for seeding.
      *
-     * Write your database seeder using this method.
-     *
-     * More information on writing seeds is available here:
-     * https://book.cakephp.org/phinx/0/en/seeding.html
-     *
-     * @return void
+     * @return array
      */
-    public function run(): void
+    public function getData(): array
     {
-        $data = [
+        return [
             [
                 'id' => 1,
                 'name' => 'Armored Combat',
@@ -174,7 +169,21 @@ class DevLoadActivitiesSeed extends BaseSeed
                 'created_by' => '1'
             ],
         ];
+    }
 
+    /**
+     * Run Method.
+     *
+     * Write your database seeder using this method.
+     *
+     * More information on writing seeds is available here:
+     * https://book.cakephp.org/phinx/0/en/seeding.html
+     *
+     * @return void
+     */
+    public function run(): void
+    {
+        $data = $this->getData();
         $table = $this->table('activities_activities');
         $options = $table->getAdapter()->getOptions();
         $options['identity_insert'] = true;

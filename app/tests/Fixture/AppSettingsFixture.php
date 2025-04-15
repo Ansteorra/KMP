@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace App\Test\Fixture;
 
 use Cake\TestSuite\Fixture\TestFixture;
+use App\Test\Fixture\BaseTestFixture;
 
 /**
  * AppSettingsFixture
  */
-class AppSettingsFixture extends TestFixture
+class AppSettingsFixture extends BaseTestFixture
 {
     /**
      * Init method
@@ -20,7 +21,7 @@ class AppSettingsFixture extends TestFixture
     {
         $this->records = [
             [
-                'id' => 1,
+                'id' => 1000,
                 'name' => 'test.setting.one',
                 'value' => 'test-value-1',
                 'type' => null,
@@ -31,7 +32,7 @@ class AppSettingsFixture extends TestFixture
                 'modified_by' => 1,
             ],
             [
-                'id' => 2,
+                'id' => 2000,
                 'name' => 'test.setting.two',
                 'value' => 'test-value-2',
                 'type' => 'string',
@@ -42,7 +43,7 @@ class AppSettingsFixture extends TestFixture
                 'modified_by' => 1,
             ],
             [
-                'id' => 3,
+                'id' => 3000,
                 'name' => 'test.setting.required',
                 'value' => 'required-value',
                 'type' => 'string',
@@ -53,7 +54,7 @@ class AppSettingsFixture extends TestFixture
                 'modified_by' => 1,
             ],
             [
-                'id' => 4,
+                'id' => 4000,
                 'name' => 'test.setting.json',
                 'value' => '{"key":"value","nested":{"nestedKey":"nestedValue"}}',
                 'type' => 'json',
@@ -64,7 +65,7 @@ class AppSettingsFixture extends TestFixture
                 'modified_by' => 1,
             ],
             [
-                'id' => 5,
+                'id' => 5000,
                 'name' => 'test.group.one',
                 'value' => 'group-value-1',
                 'type' => null,
@@ -75,7 +76,7 @@ class AppSettingsFixture extends TestFixture
                 'modified_by' => 1,
             ],
             [
-                'id' => 6,
+                'id' => 6000,
                 'name' => 'test.group.two',
                 'value' => 'group-value-2',
                 'type' => null,
@@ -86,6 +87,7 @@ class AppSettingsFixture extends TestFixture
                 'modified_by' => 1,
             ],
         ];
+        $this->records = array_merge($this->records, $this->getData('DevLoadAppSettingsSeed'));
         parent::init();
     }
 }
