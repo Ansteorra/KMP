@@ -17,20 +17,30 @@ echo $this->KMP->startBlock("pageTitle") ?>
 <?= h($event->name) ?>
 <?php $this->KMP->endBlock() ?>
 <?= $this->KMP->startBlock("recordActions") ?>
+<?php
+$user = $this->request->getAttribute('identity');
+if ($user->checkCan("edit", $event)) :
+    // Only show edit button if the user has permission to edit the event
+?>
 <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal">Edit</button>
 <?php
-echo $this->Form->postLink(
-    __("Delete"),
-    ["action" => "delete", $event->id],
-    [
-        "confirm" => __(
-            "Are you sure you want to delete {0}?",
-            $event->name,
-        ),
-        "title" => __("Delete"),
-        "class" => "btn btn-danger btn-sm",
-    ],
-); ?>
+endif;
+
+if ($user->checkCan("delete", $event) && empty($event->recommendations_to_give)) :
+    // Only show delete button if there are no recommendations associated with the event
+    echo $this->Form->postLink(
+        __("Delete"),
+        ["action" => "delete", $event->id],
+        [
+            "confirm" => __(
+                "Are you sure you want to delete {0}?",
+                $event->name,
+            ),
+            "title" => __("Delete"),
+            "class" => "btn btn-danger btn-sm",
+        ],
+    );
+endif; ?>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("recordDetails") ?>
 <tr>

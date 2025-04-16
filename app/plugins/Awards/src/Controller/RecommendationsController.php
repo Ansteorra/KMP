@@ -810,7 +810,8 @@ class RecommendationsController extends AppController
             limit: 200,
             keyField: 'id',
             valueField: 'abbreviation'
-        )->all();
+        );
+        $awards = $this->Authorization->applyScope($awards, 'index')->all();
         $domains = $this->Recommendations->Awards->Domains->find('list', limit: 200)->all();
         $branches = $this->Recommendations->Branches
             ->find("list", keyPath: function ($entity) {
@@ -902,7 +903,7 @@ class RecommendationsController extends AppController
                 'type' => 'LEFT',
                 'conditions' => 'Recommendations.modified_by = ModifiedByMembers.id'
             ]);
-
+        $recommendations = $this->Authorization->applyScope($recommendations, 'index');
         if (!$user->checkCan("ViewHidden", $emptyRecommendation)) {
             $hiddenStates = StaticHelpers::getAppSetting("Awards.RecommendationStatesRequireCanViewHidden");
             $recommendations = $recommendations->where(["Recommendations.state not IN  " => $hiddenStates]);
@@ -1144,6 +1145,8 @@ class RecommendationsController extends AppController
         if ($this->request->getQuery("state")) {
             $recommendations->where(["Recommendations.state" => $this->request->getQuery("state")]);
         }
+        //apply scope policy
+        $recommendations = $this->Authorization->applyScope($recommendations, 'index');
         return $recommendations;
     }
 

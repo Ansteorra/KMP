@@ -6,7 +6,7 @@
  */
 ?>
 <?php
-
+$user = $this->request->getAttribute('identity');
 $this->extend("/layout/TwitterBootstrap/view_record");
 
 echo $this->KMP->startBlock("title");
@@ -17,8 +17,10 @@ echo $this->KMP->startBlock("pageTitle") ?>
 <?= h($award->name) ?>
 <?php $this->KMP->endBlock() ?>
 <?= $this->KMP->startBlock("recordActions") ?>
+<?php if ($user->checkCan("edit", $award)) : ?>
 <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal">Edit</button>
-<?php if (empty($award->recommendations)) {
+<?php endif; ?>
+<?php if (empty($award->recommendations) && $user->checkCan("delete", $award)) {
     echo $this->Form->postLink(
         __("Delete"),
         ["action" => "delete", $award->id],
@@ -39,18 +41,18 @@ echo $this->KMP->startBlock("pageTitle") ?>
     <td> <?= h($award->abbreviation) ?></td>
 </tr>
 <?php if ($award->specialties) : ?>
-    <tr>
-        <th scope="row"><?= __('Specialties') ?></th>
-        <td>
-            <ul>
-                <?php
+<tr>
+    <th scope="row"><?= __('Specialties') ?></th>
+    <td>
+        <ul>
+            <?php
                 // parse the JSON to get the list of specialties
                 foreach ($award->specialties as $specialty) : ?>
-                    <li><?= h($specialty) ?></li>
-                <?php endforeach; ?>
-            </ul>
-        </td>
-    </tr>
+            <li><?= h($specialty) ?></li>
+            <?php endforeach; ?>
+        </ul>
+    </td>
+</tr>
 <?php endif; ?>
 <tr>
     <th scope="row"><?= __('Description') ?></th>

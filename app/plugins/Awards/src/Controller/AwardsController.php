@@ -42,6 +42,7 @@ class AwardsController extends AppController
                 }
             ])
             ->select(['id', 'name', 'description', 'domain_id', 'level_id', 'branch_id', "Domains.name", "Levels.name", "Branches.name"]);
+        $query = $this->Authorization->applyScope($query, "index");
         $awards = $this->paginate($query);
 
         $this->set(compact('awards'));
