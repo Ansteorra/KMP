@@ -422,10 +422,15 @@ class Member extends BaseEntity implements
         return $permissionIDs;
     }
 
-    public function getPolicies(): array
+    public function getPolicies(?array $branchIds = null): array
     {
-        $policies = PermissionsLoader::getPolicies($this->id);
-        return $policies;
+        if ($branchIds == null || empty($branchIds)) {
+            $policies = PermissionsLoader::getPolicies($this->id);
+            return $policies;
+        } else {
+            $policies = PermissionsLoader::getPolicies($this->id, $branchIds);
+            return $policies;
+        }
     }
 
     /**

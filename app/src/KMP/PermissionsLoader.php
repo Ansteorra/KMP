@@ -116,7 +116,7 @@ class PermissionsLoader
         return $permissions;
     }
 
-    public static function getPolicies($id)
+    public static function getPolicies($id, ?array $branchIds = null)
     {
         $cacheKey = "permissions_policies" . $id;
         $cache = Cache::read($cacheKey, 'member_permissions');
@@ -159,6 +159,15 @@ class PermissionsLoader
                 }
             }
         }
+        if ($branchIds) {
+            foreach ($policies as $policyClass => $methods) {
+                foreach ($methods as $method => $policy) {
+                    if ($policy->branch_ids) {
+                        $policy->branch_ids = array_intersect($policy->branch_ids, $branchIds);
+                    }
+                }
+            }
+        }
         //remove policies with no branch_ids
         foreach ($policies as $policyClass => $methods) {
             foreach ($methods as $method => $policy) {
@@ -173,6 +182,7 @@ class PermissionsLoader
                 unset($policies[$policyClass]);
             }
         }
+
         //save to cache 
         Cache::write($cacheKey, $policies, 'member_permissions');
         return $policies;
@@ -349,13 +359,13 @@ class PermissionsLoader
                                 $methods[] = $method->getName();
                             }
                         }
-                        
+
                         // Add dynamically generated methods from the policy class
                         if (method_exists($class, 'getDynamicMethods')) {
                             $dynamicMethods = call_user_func([$class, 'getDynamicMethods']);
                             $methods = array_merge($methods, $dynamicMethods);
                         }
-                        
+
                         //if methods is not empty, add to policyClasses
                         if (empty($methods)) {
                             continue;

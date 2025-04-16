@@ -664,7 +664,7 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
             StaticHelpers::getAppSetting("Awards.ViewConfig.SubmittedForMember", yaml_emit([
                 'table' => [
                     'filter' => ['Recommendations->member_id' => '-member_id-'],
-                    'optionalPermission' => 'CanViewSubmittedForMember',
+                    'optionalPermission' => 'ViewSubmittedForMember',
                     'use' => true,
                     'enableExport' => false,
                     'columns' => [

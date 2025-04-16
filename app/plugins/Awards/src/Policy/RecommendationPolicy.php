@@ -111,7 +111,7 @@ class RecommendationPolicy extends BasePolicy
 
         // Create method names for each level
         foreach ($levelNames as $levelName) {
-            $methodName = 'canApproveLevel' . str_replace([' ', '-'], '', ucwords($levelName));
+            $methodName = 'canApproveLevel' . $levelName;
             $dynamicMethods[] = $methodName;
         }
 

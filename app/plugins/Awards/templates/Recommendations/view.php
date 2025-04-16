@@ -18,10 +18,10 @@ echo $this->KMP->startBlock("pageTitle") ?>
 <?php $this->KMP->endBlock() ?>
 <?= $this->KMP->startBlock("recordActions") ?>
 <?php if ($user->checkCan('edit', $recommendation)) : ?>
-    <button type="button" class="btn btn-primary btn-sm edit-rec" data-bs-toggle="modal" data-bs-target="#editModal"
-        data-controller="outlet-btn" data-action="click->outlet-btn#fireNotice"
-        data-outlet-btn-btn-data-value='{ "id":<?= $recommendation->id ?>}'>Edit</button>
-    <?php
+<button type="button" class="btn btn-primary btn-sm edit-rec" data-bs-toggle="modal" data-bs-target="#editModal"
+    data-controller="outlet-btn" data-action="click->outlet-btn#fireNotice"
+    data-outlet-btn-btn-data-value='{ "id":<?= $recommendation->id ?>}'>Edit</button>
+<?php
     echo $this->Form->postLink(
         __("Delete"),
         ["action" => "delete", $recommendation->id],
@@ -103,11 +103,11 @@ echo $this->KMP->startBlock("pageTitle") ?>
     <td>
         <ul>
             <?php foreach ($recommendation->events as $events) : ?>
-                <li><?= $this->Html->link($events->name, ['controller' => 'Events', 'action' => 'view', $events->id]) ?>
-                    <?php if ($recommendation->event_id == $events->id) {
+            <li><?= $this->Html->link($events->name, ['controller' => 'Events', 'action' => 'view', $events->id]) ?>
+                <?php if ($recommendation->event_id == $events->id) {
                         echo " (Plan to Give)";
                     } ?>
-                </li>
+            </li>
             <?php endforeach; ?>
         </ul>
     </td>
@@ -137,7 +137,7 @@ $this->KMP->endBlock() ?>
     <?= $this->cell('Notes', [
         'entity_id' => $recommendation->id,
         'entity_type' => 'Awards.Recommendations',
-        'viewPrivate' => $user->checkCan("viewPrivateNotes", "Awards.Recommendations"),
+        'viewPrivate' => $user->checkCan("viewPrivateNotes", $recommendation),
         'canCreate' => $user->checkCan('edit', $recommendation),
     ]) ?>
 </div>
