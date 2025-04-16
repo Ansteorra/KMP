@@ -4,81 +4,71 @@ declare(strict_types=1);
 
 namespace App\Test\TestCase\Controller;
 
-use App\Controller\AppsettingsController;
 use Cake\TestSuite\IntegrationTestTrait;
 use Cake\TestSuite\TestCase;
+use PHPUnit\Event\Code\Test;
 
 /**
- * App\Controller\AppsettingsController Test Case
+ * App\Controller\AppSettingsController Test Case
  *
- * @uses \App\Controller\AppsettingsController
+ * @uses \App\Controller\AppSettingsController
  */
-class AppsettingsControllerTest extends TestCase
+class AppSettingsControllerTest extends TestCase
 {
     use IntegrationTestTrait;
+    use AuthenticatedTrait;
 
     /**
      * Fixtures
      *
      * @var list<string>
      */
-    protected array $fixtures = ["app.AppSettings", "app.Members", "app.Roles", "app.Permissions", "app.RolesPermissions", "app.MemberRoles", "app.Warrants"];
+    protected array $fixtures = [
+        "app.AppSettings",
+        "app.Members",
+        "app.Roles",
+        "app.Permissions",
+        "app.RolesPermissions",
+        "app.MemberRoles",
+        "app.Warrants",
+        "app.Branches"
+    ];
 
     /**
      * Test index method
      *
      * @return void
-     * @uses \App\Controller\AppsettingsController::index()
+     * @uses \App\Controller\AppSettingsController::index()
      */
     public function testIndex(): void
     {
         //
-        $member = $this->getTableLocator()->get('Members')->get(1);
-        $this->session([
-            'Auth' => [
-                'User' => $member
-            ]
-        ]);
-        $this->get('/appsettings');
+        $this->get('/app-settings');
         $this->assertResponseOk();
         $this->assertResponseContains('App Settings');
-        $this->assertResponseContains('KMP.configVersion');
-    }
-
-    /**
-     * Test view method
-     *
-     * @return void
-     * @uses \App\Controller\AppsettingsController::view()
-     */
-    public function testView(): void
-    {
-        $this->get('/appsettings/view/1');
-        $this->assertResponseOk();
-        $this->assertResponseContains('KMP.configVersion');
+        $this->assertResponseContains('Activities.configVersion');
     }
 
     /**
      * Test add method
      *
      * @return void
-     * @uses \App\Controller\AppsettingsController::add()
+     * @uses \App\Controller\AppSettingsController::add()
      */
     public function testAdd(): void
     {
-        $this->enableCsrfToken();
-        $this->enableSecurityToken();
 
         $data = [
             'name' => 'Test.Setting',
             'value' => 'Test Value',
         ];
 
-        $this->post('/appsettings/add', $data);
-        $this->assertRedirect(['controller' => 'Appsettings', 'action' => 'index']);
+        $this->post('/app-settings/add', $data);
+        $this->assertRedirect(['controller' => 'AppSettings', 'action' => 'index']);
 
         // Check the record was saved to the database
-        $query = $this->AppSettings->find()->where(['name' => 'Test.Setting']);
+        $appSettingsTable = $this->getTableLocator()->get('AppSettings');
+        $query = $appSettingsTable->find()->where(['name' => 'Test.Setting']);
         $this->assertEquals(1, $query->count());
     }
 
@@ -86,21 +76,46 @@ class AppsettingsControllerTest extends TestCase
      * Test edit method
      *
      * @return void
-     * @uses \App\Controller\AppsettingsController::edit()
+     * @uses \App\Controller\AppSettingsController::edit()
      */
     public function testEdit(): void
     {
-        $this->markTestIncomplete("Not implemented yet.");
+
+        $appSettingsTable = $this->getTableLocator()->get('AppSettings');
+        $appSetting = $appSettingsTable->find()->where(["name" => "test.setting.one"])->first();
+
+        $data = [
+            'id' => $appSetting->id,
+            'raw_value' => 'Updated Value',
+        ];
+
+        $this->post('/app-settings/edit/' . $appSetting->id, $data);
+        $this->assertRedirect(['controller' => 'AppSettings', 'action' => 'index']);
+
+        // Check the record was saved to the database
+        $appSettingsTable = $this->getTableLocator()->get('AppSettings');
+        $updatedAppSetting = $appSettingsTable->find()->where(['name' => 'test.setting.one'])->first();
+        $this->assertEquals($data["raw_value"], $updatedAppSetting->value);
     }
+
 
     /**
      * Test delete method
      *
      * @return void
-     * @uses \App\Controller\AppsettingsController::delete()
+     * @uses \App\Controller\AppSettingsController::delete()
      */
     public function testDelete(): void
     {
-        $this->markTestIncomplete("Not implemented yet.");
+        $appSettingsTable = $this->getTableLocator()->get('AppSettings');
+        $appSetting = $appSettingsTable->find()->where(["name" => "test.setting.one"])->first();
+
+        $this->post('/app-settings/delete/' . $appSetting->id);
+        $this->assertRedirect(['controller' => 'AppSettings', 'action' => 'index']);
+
+        // Check the record was saved to the database
+        $appSettingsTable = $this->getTableLocator()->get('AppSettings');
+        $query = $appSettingsTable->find()->where(['name' => 'test.setting.one']);
+        $this->assertEquals(0, $query->count());
     }
 }

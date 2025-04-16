@@ -87,7 +87,9 @@ class AppSettingsTable extends BaseTable
         EntityInterface $entity,
         array $options = [],
     ): EntityInterface|false {
+        $entity->saving = true;
         $result = parent::save($entity, $options);
+        $entity->saving = false;
         return $result;
     }
 
@@ -141,11 +143,13 @@ class AppSettingsTable extends BaseTable
             ->first();
 
         if ($setting) {
+            $setting->saving = true;
             $setting->value = $value;
             $setting->type = $type;
             $setting->required = $required;
         } else {
             $setting = $this->newEmptyEntity();
+            $setting->saving = true;
             $setting->name = $name;
             $setting->type = $type;
             $setting->value = $value;

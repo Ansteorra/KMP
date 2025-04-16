@@ -24,6 +24,8 @@ use Cake\Console\Arguments;
 use Cake\Console\ConsoleIo;
 use Cake\Core\Plugin;
 use App\KMP\KMPPluginInterface;
+use Cake\TestSuite\Fixture\SchemaLoader;
+
 
 /**
  * Test runner bootstrap.
@@ -58,8 +60,5 @@ ConnectionManager::alias("test_debug_kit", "debug_kit");
 // has been written to.
 session_id("cli");
 
-// Run migrations for each plugin in the correct order
-$migrator = new Migrator();
-
-// Simple setup for with no plugins
-$migrator->run();
+//load structure from a sql dump
+(new SchemaLoader())->loadSqlFiles('./tests/kmp_sql.sql', 'test');

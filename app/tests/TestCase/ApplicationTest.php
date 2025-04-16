@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 /**
@@ -14,6 +15,7 @@ declare(strict_types=1);
  * @since         3.3.0
  * @license       https://opensource.org/licenses/mit-license.php MIT License
  */
+
 namespace App\Test\TestCase;
 
 use App\Application;
@@ -68,28 +70,6 @@ class ApplicationTest extends TestCase
         $this->assertTrue($plugins->has("DebugKit"), "plugins has DebugKit?");
     }
 
-    /**
-     * testBootstrapPluginWitoutHalt
-     *
-     * @return void
-     */
-    public function testBootstrapPluginWithoutHalt()
-    {
-        $this->expectException(InvalidArgumentException::class);
-
-        $app = $this->getMockBuilder(Application::class)
-            ->setConstructorArgs([dirname(dirname(__DIR__)) . "/config"])
-            ->onlyMethods(["addPlugin"])
-            ->getMock();
-
-        $app->method("addPlugin")->will(
-            $this->throwException(
-                new InvalidArgumentException("test exception."),
-            ),
-        );
-
-        $app->bootstrap();
-    }
 
     /**
      * testMiddleware

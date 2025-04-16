@@ -56,6 +56,9 @@ class AppSetting extends BaseEntity
 
     protected function _setValue($value)
     {
+        if ($this->saving) {
+            return $value;
+        }
         switch ($this->type) {
             case 'json':
                 return json_encode($value);
@@ -68,13 +71,21 @@ class AppSetting extends BaseEntity
 
     protected function _getValue($value)
     {
+        if ($this->saving) {
+            return $value;
+        }
         switch ($this->type) {
             case 'json':
-                return json_decode($value);
+                if (is_string($value)) {
+                    return json_decode($value, true);
+                }
             case 'yaml':
-                return yaml_parse($value);
+                if (is_string($value)) {
+                    return yaml_parse($value);
+                }
             default:
                 return $value;
         }
+        return $value;
     }
 }

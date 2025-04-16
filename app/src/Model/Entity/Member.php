@@ -297,6 +297,11 @@ class Member extends BaseEntity implements
                 $className = $url["controller"];
             }
             $table = TableRegistry::getTableLocator()->get($className);
+            $tableClass = $table->getEntityClass();
+            if ($tableClass == "Cake\ORM\Entity") {
+                // if the above fails, then the url is not to a controller that maps to a table
+                return $this->authorization->checkCan($this, $url["action"], $url);
+            }
             if (isset($url[0])) {
                 $entity = $table->get($url[0]);
             } else {
@@ -306,9 +311,8 @@ class Member extends BaseEntity implements
         } catch (MissingTableClassException $ex) {
             // if the above fails, then the url is not to a controller that maps to a table
             // so we will just check if the user can access the controller via the request authorization.
-            return $this->authorization->checkCan($this, $url["action"], $url);
-            //return true;
         }
+        return $this->authorization->checkCan($this, $url["action"], $url);
     }
 
     /**

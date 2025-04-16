@@ -35,6 +35,7 @@ sudo mysql <<EOFMYSQL
     CREATE USER '$(echo $MYSQL_DEV_USERNAME)'@'localhost' IDENTIFIED BY '$(echo $MYSQL_DEV_PASSWORD)'; 
     GRANT ALL PRIVILEGES ON *.* TO '$(echo $MYSQL_DEV_USERNAME)'@'localhost' WITH GRANT OPTION;
     CREATE DATABASE IF NOT EXISTS $(echo $MYSQL_DEV_DB_NAME) collate utf8_unicode_ci ;
+    CREATE DATABASE IF NOT EXISTS $(echo $MYSQL_DEV_DB_NAME)_test collate utf8_unicode_ci ;
     flush privileges;
 EOFMYSQL
 sudo rm $(echo $REPO_PATH)/app/config/.env

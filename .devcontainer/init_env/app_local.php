@@ -69,12 +69,27 @@ return [
          */
         'test' => [
             'host' => 'localhost',
+            /*
+             * CakePHP will use the default DB port based on the driver selected
+             * MySQL on MAMP uses port 8889, MAMP users will want to uncomment
+             * the following line and set the port accordingly
+             */
             //'port' => 'non_standard_port_number',
-            'username' => 'my_app',
-            'password' => 'secret',
-            'database' => 'test_myapp',
+
+            'username' => env('MYSQL_USERNAME'),
+            'password' => env('MYSQL_PASSWORD'),
+
+            'database' => env('MYSQL_DB_NAME') . '_test',
+            /*
+             * If not using the default 'public' schema with the PostgreSQL driver
+             * set it here.
+             */
             //'schema' => 'myapp',
-            'url' => env('DATABASE_TEST_URL', 'sqlite://127.0.0.1/tests.sqlite'),
+
+            /*
+             * You can use a DSN string to set the entire configuration
+             */
+            'url' => env('DATABASE_URL', null),
         ],
     ],
 

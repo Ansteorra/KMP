@@ -24,6 +24,21 @@ class InitRolesPermissionsSeed extends BaseSeed
                 'created_by' => 1,
             ]
         ];
+    }
+
+    /**
+     * Run Method.
+     *
+     * Write your database seeder using this method.
+     *
+     * More information on writing seeds is available here:
+     * https://book.cakephp.org/phinx/0/en/seeding.html
+     *
+     * @return void
+     */
+    public function run(): void
+    {
+        $data = $this->getData();
 
         $table = $this->table('roles_permissions');
         $table->insert($data)->save();
