@@ -88,6 +88,13 @@ class AppSettingsFixture extends BaseTestFixture
             ],
         ];
         $this->records = array_merge($this->records, $this->getData('DevLoadAppSettingsSeed'));
+        //disable plugins via their feature flags
+        //if the name starts with "Plugin." and ends with "Active" then set the value to "no"
+        foreach ($this->records as $key => $record) {
+            if (preg_match('/^Plugin\..*Active$/', $record['name'])) {
+                $this->records[$key]['value'] = 'no';
+            }
+        }
         parent::init();
     }
 }
