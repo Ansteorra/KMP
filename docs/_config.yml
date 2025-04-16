@@ -1,0 +1,11 @@
+remote_theme: https://github.com/pages-themes/cayman
+plugins:
+  - jekyll-remote-theme
+  - jekyll-relative-links
+  - jekyll-feed
+  - jekyll-seo-tag
+
+include:
+  - index.md
+  - LICENSE.md
+  - for_kids/assets/images/

@@ -12,6 +12,25 @@ use Cake\I18n\DateTime;
 class InitRolesSeed extends BaseSeed
 {
     /**
+     * Get data for seeding.
+     *
+     * @return array
+     */
+    public function getData(): array
+    {
+        return [
+            [
+                'id' => 1,
+                'name' => 'Admin',
+                'is_system' => true,
+                'deleted' => NULL,
+                'created' => DateTime::now(),
+                'created_by' => '1',
+            ]
+        ];
+    }
+
+    /**
      * Run Method.
      *
      * Write your database seeder using this method.
@@ -23,16 +42,7 @@ class InitRolesSeed extends BaseSeed
      */
     public function run(): void
     {
-        $data = [
-            [
-                'id' => 1,
-                'name' => 'Admin',
-                'is_system' => true,
-                'deleted' => NULL,
-                'created' => DateTime::now(),
-                'created_by' => '1',
-            ]
-        ];
+        $data = $this->getData();
 
         $table = $this->table('roles');
         $options = $table->getAdapter()->getOptions();

@@ -21,7 +21,22 @@ class DevLoadAppSettingsSeed extends BaseSeed
      */
     public function run(): void
     {
-        $data = [
+        $data = $this->getData();
+        $table = $this->table('app_settings');
+        $options = $table->getAdapter()->getOptions();
+        $options['identity_insert'] = true;
+        $table->getAdapter()->setOptions($options);
+        $table->insert($data)->save();
+    }
+
+    /**
+     * Get data for seeding.
+     *
+     * @return array
+     */
+    public function getData(): array
+    {
+        return [
             [
                 'id' => 500,
                 'name' => 'Member.ExternalLink.Order of Precedence',
@@ -30,6 +45,8 @@ class DevLoadAppSettingsSeed extends BaseSeed
                 'created' => '2024-06-27 13:24:42',
                 'created_by' => 1,
                 'modified_by' => 1,
+                'required' => false,
+                'type' => 'string',
             ],
             [
                 'id' => 501,
@@ -39,13 +56,9 @@ class DevLoadAppSettingsSeed extends BaseSeed
                 'created' => '2024-06-27 13:25:01',
                 'created_by' => 1,
                 'modified_by' => 1,
+                'required' => false,
+                'type' => 'string',
             ]
         ];
-
-        $table = $this->table('app_settings');
-        $options = $table->getAdapter()->getOptions();
-        $options['identity_insert'] = true;
-        $table->getAdapter()->setOptions($options);
-        $table->insert($data)->save();
     }
 }

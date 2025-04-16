@@ -152,24 +152,34 @@ echo $this->KMP->startBlock("pageTitle") ?>
                                                                                                                         "controller" => "Permissions",
                                                                                                                         "action" => "updatePolicy"
                                                                                                                     ], ["fullBase" => true]) ?>">
-        <?php foreach ($appPolicies as $class => $methods) :
+        <?php
+        $currentClass = '';
+        foreach ($appPolicies as $class => $methods) :
             $className = str_replace('\\', '-', $class);
+            $isNewClass = $currentClass !== $className;
+            $currentClass = $className;
+            //the last part of the class name
+            $shortName = substr($class, strrpos($class, '\\') + 1);
         ?>
         <li class="list-group-item">
-
-            <?= $this->Form->control($class, [
-                    "type" => "checkbox",
-                    "switch" => true,
-                    'label' => $class,
-                    "data-permission-manage-policies-target" => "policyClass",
-                    "data-class-name" => $className,
-                    "data-permission-id" => $permission->id
-                ]) ?>
-            <ul class="list-group">
+            <div class="d-flex align-items-center">
+                <span class="policy-toggle policy-class pe-2" data-bs-toggle="collapse"
+                    data-bs-target=".row_<?= $className ?>" aria-expanded="false" aria-controls="row_<?= $className ?>">
+                    <?= $shortName ?>
+                </span>
+                <?= $this->Form->control($class, [
+                        "type" => "checkbox",
+                        "switch" => true,
+                        'label' => "",
+                        "data-permission-manage-policies-target" => "policyClass",
+                        "data-class-name" => $className,
+                        "data-permission-id" => $permission->id
+                    ]) ?>
+            </div>
+            <ul class="list-group collapse row_<?= $className ?> mt-2">
                 <?php foreach ($methods as $method) : ?>
                 <li class="list-group-item">
                     <?php
-                            //Check if the method is already assigned to the permission
                             $isAssigned = false;
                             foreach ($permission->permission_policies as $policy) {
                                 if ($policy->policy_class == $class) {
@@ -189,7 +199,6 @@ echo $this->KMP->startBlock("pageTitle") ?>
                                 "data-method-name" => $method,
                                 "data-permission-id" => $permission->id
                             ])
-
                             ?>
                 </li>
                 <?php endforeach; ?>
@@ -198,6 +207,38 @@ echo $this->KMP->startBlock("pageTitle") ?>
         <?php endforeach; ?>
     </ul>
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.policy-toggle').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var icon = btn.querySelector('.collapse-icon');
+            var className = icon.getAttribute('data-class');
+            var target = document.querySelector('.row_' + className);
+            if (target.classList.contains('show')) {
+                icon.classList.remove('bi-caret-down-fill');
+                icon.classList.add('bi-caret-right-fill');
+            } else {
+                icon.classList.remove('bi-caret-right-fill');
+                icon.classList.add('bi-caret-down-fill');
+            }
+        });
+    });
+    // Set initial state for open/closed icons
+    document.querySelectorAll('.collapse.row_').forEach(function(el) {
+        var className = el.className.match(/row_([\w-]+)/);
+        if (className) {
+            var icon = document.querySelector('.collapse-icon[data-class="' + className[1] + '"]');
+            if (el.classList.contains('show')) {
+                icon.classList.remove('bi-caret-right-fill');
+                icon.classList.add('bi-caret-down-fill');
+            } else {
+                icon.classList.remove('bi-caret-down-fill');
+                icon.classList.add('bi-caret-right-fill');
+            }
+        }
+    });
+});
+</script>
 <?php $this->KMP->endBlock() ?>
 
 

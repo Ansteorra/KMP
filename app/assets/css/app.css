@@ -245,22 +245,8 @@ input:checked+.slider:before {
     display: block;
 }
 
-/* add an down arrow icon using bootstrap icons to policy-class when aria-expanded is true */
-.new-group[aria-expanded="true"] .policy-class::before {
-    display: inline-block;
-    font-family: bootstrap-icons !important;
-    font-style: normal;
-    font-weight: normal !important;
-    font-variant: normal;
-    text-transform: none;
-    line-height: 1;
-    vertical-align: -.125em;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    content: "\F119";
-}
 
-.new-group:not([aria-expanded="true"]) .policy-class::before {
+.policy-class::before {
     display: inline-block;
     font-family: bootstrap-icons !important;
     font-style: normal;
@@ -272,6 +258,21 @@ input:checked+.slider:before {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     content: "\F13A";
+}
+
+/* add an down arrow icon using bootstrap icons to policy-class when aria-expanded is true */
+.policy-class[aria-expanded="true"]::before {
+    display: inline-block;
+    font-family: bootstrap-icons !important;
+    font-style: normal;
+    font-weight: normal !important;
+    font-variant: normal;
+    text-transform: none;
+    line-height: 1;
+    vertical-align: -.125em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    content: "\F119";
 }
 
 .namespace-cell {

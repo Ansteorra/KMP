@@ -5,7 +5,7 @@ declare(strict_types=1);
 use Migrations\BaseMigration;
 use Migrations\Migration\ManagerFactory;
 
-require_once __DIR__ . '/../Seeds/initOfficersRefactorSeed.php';
+require_once __DIR__ . '/../Seeds/InitOfficersRefactorSeed.php';
 
 class RefactorOfficeHierarchy extends BaseMigration
 {
@@ -77,7 +77,7 @@ class RefactorOfficeHierarchy extends BaseMigration
         );
         $table->update();
 
-        [$pluginName, $seeder] = pluginSplit("Officers.initOfficersRefactorSeed");
+        [$pluginName, $seeder] = pluginSplit("Officers.InitOfficersRefactorSeed");
         $adapter = $this->getAdapter();
         $connection = $adapter->getConnection()->configName();
 

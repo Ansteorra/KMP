@@ -11,6 +11,22 @@ use Migrations\BaseSeed;
 class InitRolesPermissionsSeed extends BaseSeed
 {
     /**
+     * Get data for seeding.
+     *
+     * @return array
+     */
+    public function getData(): array
+    {
+        return [
+            [
+                'permission_id' => 1,
+                'role_id' => 1,
+                'created_by' => 1,
+            ]
+        ];
+    }
+
+    /**
      * Run Method.
      *
      * Write your database seeder using this method.
@@ -22,13 +38,7 @@ class InitRolesPermissionsSeed extends BaseSeed
      */
     public function run(): void
     {
-        $data = [
-            [
-                'permission_id' => 1,
-                'role_id' => 1,
-                'created_by' => 1,
-            ]
-        ];
+        $data = $this->getData();
 
         $table = $this->table('roles_permissions');
         $table->insert($data)->save();

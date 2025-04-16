@@ -1,14 +1,16 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Test\Fixture;
 
 use Cake\TestSuite\Fixture\TestFixture;
+use App\Test\Fixture\BaseTestFixture;
 
 /**
- * RolesPermissionsFixture
+ * AppSettingsFixture
  */
-class RolesPermissionsFixture extends TestFixture
+class RolesPermissionsFixture extends BaseTestFixture
 {
     /**
      * Init method
@@ -17,15 +19,8 @@ class RolesPermissionsFixture extends TestFixture
      */
     public function init(): void
     {
-        $this->records = [
-            [
-                'id' => 1,
-                'permission_id' => 1,
-                'role_id' => 1,
-                'created' => 1717699519,
-                'created_by' => 1,
-            ],
-        ];
+        $this->records = [];
+        $this->records = array_merge($this->records, $this->getData('InitRolesPermissionsSeed'));
         parent::init();
     }
 }

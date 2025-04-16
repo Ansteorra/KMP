@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace App\Test\Fixture;
 
 use Cake\TestSuite\Fixture\TestFixture;
+use App\Test\Fixture\BaseTestFixture;
 
 /**
- * PermissionsFixture
+ * AppSettingsFixture
  */
-class PermissionsFixture extends TestFixture
+class PermissionsFixture extends BaseTestFixture
 {
     /**
      * Init method
@@ -18,18 +19,8 @@ class PermissionsFixture extends TestFixture
      */
     public function init(): void
     {
-        $this->records = [
-            [
-                "id" => 1,
-                "name" => "Lorem ipsum dolor sit amet",
-                "activity_id" => 1,
-                "require_active_membership" => 1,
-                "require_active_background_check" => 1,
-                "require_min_age" => 1,
-                "is_system" => 1,
-                "is_super_user" => 1,
-            ],
-        ];
+        $this->records = [];
+        $this->records = array_merge($this->records, $this->getData('InitPermissionsSeed'));
         parent::init();
     }
 }

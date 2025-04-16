@@ -1,11 +1,12 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Controller;
 
-use App\Controller\AppSettingsController;
 use Cake\TestSuite\IntegrationTestTrait;
 use Cake\TestSuite\TestCase;
+use PHPUnit\Event\Code\Test;
 
 /**
  * App\Controller\AppSettingsController Test Case
@@ -15,13 +16,23 @@ use Cake\TestSuite\TestCase;
 class AppSettingsControllerTest extends TestCase
 {
     use IntegrationTestTrait;
+    use AuthenticatedTrait;
 
     /**
      * Fixtures
      *
      * @var list<string>
      */
-    protected array $fixtures = ["app.AppSettings"];
+    protected array $fixtures = [
+        "app.AppSettings",
+        "app.Members",
+        "app.Roles",
+        "app.Permissions",
+        "app.RolesPermissions",
+        "app.MemberRoles",
+        "app.Warrants",
+        "app.Branches"
+    ];
 
     /**
      * Test index method
@@ -31,18 +42,11 @@ class AppSettingsControllerTest extends TestCase
      */
     public function testIndex(): void
     {
-        $this->markTestIncomplete("Not implemented yet.");
-    }
-
-    /**
-     * Test view method
-     *
-     * @return void
-     * @uses \App\Controller\AppSettingsController::view()
-     */
-    public function testView(): void
-    {
-        $this->markTestIncomplete("Not implemented yet.");
+        //
+        $this->get('/app-settings');
+        $this->assertResponseOk();
+        $this->assertResponseContains('App Settings');
+        $this->assertResponseContains('Activities.configVersion');
     }
 
     /**
@@ -53,7 +57,19 @@ class AppSettingsControllerTest extends TestCase
      */
     public function testAdd(): void
     {
-        $this->markTestIncomplete("Not implemented yet.");
+
+        $data = [
+            'name' => 'Test.Setting',
+            'value' => 'Test Value',
+        ];
+
+        $this->post('/app-settings/add', $data);
+        $this->assertRedirect(['controller' => 'AppSettings', 'action' => 'index']);
+
+        // Check the record was saved to the database
+        $appSettingsTable = $this->getTableLocator()->get('AppSettings');
+        $query = $appSettingsTable->find()->where(['name' => 'Test.Setting']);
+        $this->assertEquals(1, $query->count());
     }
 
     /**
@@ -64,8 +80,24 @@ class AppSettingsControllerTest extends TestCase
      */
     public function testEdit(): void
     {
-        $this->markTestIncomplete("Not implemented yet.");
+
+        $appSettingsTable = $this->getTableLocator()->get('AppSettings');
+        $appSetting = $appSettingsTable->find()->where(["name" => "test.setting.one"])->first();
+
+        $data = [
+            'id' => $appSetting->id,
+            'raw_value' => 'Updated Value',
+        ];
+
+        $this->post('/app-settings/edit/' . $appSetting->id, $data);
+        $this->assertRedirect(['controller' => 'AppSettings', 'action' => 'index']);
+
+        // Check the record was saved to the database
+        $appSettingsTable = $this->getTableLocator()->get('AppSettings');
+        $updatedAppSetting = $appSettingsTable->find()->where(['name' => 'test.setting.one'])->first();
+        $this->assertEquals($data["raw_value"], $updatedAppSetting->value);
     }
+
 
     /**
      * Test delete method
@@ -75,6 +107,15 @@ class AppSettingsControllerTest extends TestCase
      */
     public function testDelete(): void
     {
-        $this->markTestIncomplete("Not implemented yet.");
+        $appSettingsTable = $this->getTableLocator()->get('AppSettings');
+        $appSetting = $appSettingsTable->find()->where(["name" => "test.setting.one"])->first();
+
+        $this->post('/app-settings/delete/' . $appSetting->id);
+        $this->assertRedirect(['controller' => 'AppSettings', 'action' => 'index']);
+
+        // Check the record was saved to the database
+        $appSettingsTable = $this->getTableLocator()->get('AppSettings');
+        $query = $appSettingsTable->find()->where(['name' => 'test.setting.one']);
+        $this->assertEquals(0, $query->count());
     }
 }

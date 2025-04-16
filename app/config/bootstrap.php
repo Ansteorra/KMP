@@ -110,9 +110,9 @@ if (file_exists(CONFIG . "app_queue.php")) {
     Configure::load("app_queue", "default");
 }
 
-if (Configure::read('debug')) {
-    $this->addPlugin('Cake/Repl');
-}
+#if (Configure::read('debug')) {
+#    $this->addPlugin('Cake/Repl');
+#}
 
 /*
  * When debug = true the metadata cache should only last

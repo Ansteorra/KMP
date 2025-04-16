@@ -22,7 +22,22 @@ class DevLoadMemberRolesSeed extends BaseSeed
      */
     public function run(): void
     {
-        $data = [
+        $data = $this->getData();
+        $table = $this->table('member_roles');
+        $options = $table->getAdapter()->getOptions();
+        $options['identity_insert'] = true;
+        $table->getAdapter()->setOptions($options);
+        $table->insert($data)->save();
+    }
+
+    /**
+     * Get data for seeding.
+     *
+     * @return array
+     */
+    public function getData(): array
+    {
+        return [
             [
                 'id' => 200,
                 'member_id' => 200,
@@ -58,11 +73,5 @@ class DevLoadMemberRolesSeed extends BaseSeed
                 'branch_id' => '5'
             ],
         ];
-
-        $table = $this->table('member_roles');
-        $options = $table->getAdapter()->getOptions();
-        $options['identity_insert'] = true;
-        $table->getAdapter()->setOptions($options);
-        $table->insert($data)->save();
     }
 }

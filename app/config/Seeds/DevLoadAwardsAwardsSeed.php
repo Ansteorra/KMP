@@ -21,7 +21,22 @@ class DevLoadAwardsAwardsSeed extends BaseSeed
      */
     public function run(): void
     {
-        $data = [
+        $data = $this->getData();
+        $table = $this->table('awards_awards');
+        $options = $table->getAdapter()->getOptions();
+        $options['identity_insert'] = true;
+        $table->getAdapter()->setOptions($options);
+        $table->insert($data)->save();
+    }
+
+    /**
+     * Get data for seeding.
+     *
+     * @return array
+     */
+    public function getData(): array
+    {
+        return [
             [
                 'id' => 1,
                 'name' => 'Award of the Sable Falcon',
@@ -96,11 +111,5 @@ Master at Arms: (Fieldless) A white baldric',
                 'deleted' => NULL,
             ],
         ];
-
-        $table = $this->table('awards_awards');
-        $options = $table->getAdapter()->getOptions();
-        $options['identity_insert'] = true;
-        $table->getAdapter()->setOptions($options);
-        $table->insert($data)->save();
     }
 }

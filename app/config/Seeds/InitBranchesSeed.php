@@ -10,6 +10,28 @@ use Cake\I18n\DateTime;
  */
 class InitBranchesSeed extends BaseSeed
 {
+
+    /**
+     * Get data for seeding.
+     *
+     * @return array
+     */
+    public function getData(): array
+    {
+        return [
+            [
+                'id' => 1,
+                'name' => 'Kingdom',
+                'location' => 'Kingdom',
+                'parent_id' => NULL,
+                'lft' => 1,
+                'rght' => 18,
+                'created' => DateTime::now(),
+                'created_by' => '1',
+            ]
+        ];
+    }
+
     /**
      * Run Method.
      *
@@ -22,18 +44,7 @@ class InitBranchesSeed extends BaseSeed
      */
     public function run(): void
     {
-        $data = [
-            [
-                'id' => 1,
-                'name' => 'Kingdom',
-                'location' => 'Kingdom',
-                'parent_id' => NULL,
-                'lft' => 1,
-                'rght' => 18,
-                'created' => DateTime::now(),
-                'created_by' => '1',
-            ]
-        ];
+        $data = $this->getData();
 
         $table = $this->table('branches');
         $options = $table->getAdapter()->getOptions();
