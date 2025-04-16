@@ -242,3 +242,67 @@ Authorization components:
 - **Permission Policies**: Dynamic rules for role-based access
 
 The authorization flow evaluates whether a user has permission to perform specific actions on resources, checking both static permissions and dynamic policies.
+
+### Permission and Policy Scoping
+
+KMP supports fine-grained authorization using permissions and policies, with flexible scoping rules to ensure users only see and do what they are allowed to.
+
+#### Permission Scoping
+
+Each permission can be scoped in one of three ways:
+- **Global**: Applies everywhere in the system.
+- **Branch Only**: Applies only to a specific branch.
+- **Branch and Children**: Applies to a branch and all its descendant branches.
+
+#### Policies and Scoping
+
+Policies are mapped to permissions and define what actions a user can perform (e.g., `canView`, `canEdit`). The scoping of a permission determines both:
+- **Query Scoping**: What records a user can see (e.g., which branches, members, or warrants).
+- **Action Approval**: What actions a user can perform on a given resource.
+
+**How it works:**
+- When a user attempts to view or act on a resource, the system checks their permissions and the associated policy.
+- If the permission is **global**, the user can see/do the action everywhere.
+- If the permission is **branch-scoped**, the system checks if the resource belongs to a branch the user has access to.
+- For **branch+children**, the user can see/do the action for the branch and all its descendants.
+
+#### Example: Viewing Warrants
+- A user with `Can View Warrants` permission scoped to Branch A can only see warrants in Branch A.
+- If the permission is scoped to Branch A and children, the user can see warrants in Branch A and all its sub-branches.
+
+#### Entity Relationship Diagram (ERD)
+
+```mermaid
+erDiagram
+    Members ||--o{ MemberRoles : "has"
+    MemberRoles }o--|| Roles : "grants"
+    Roles }o--o{ RolesPermissions : "has"
+    RolesPermissions }o--|| Permissions : "grants"
+    Permissions ||--o{ PermissionPolicies : "defines"
+    PermissionPolicies }o--|| Policies : "maps to"
+    MemberRoles }o--|| Branches : "scoped to"
+```
+
+#### Sequence Diagram: Authorization with Scoping
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant App
+    participant Policy
+    participant DB
+
+    User->>App: Request to view/edit resource
+    App->>DB: Load user permissions and roles
+    App->>Policy: Check policy for action (e.g., canView)
+    Policy->>App: Return required permission and scope
+    App->>DB: Check if user has permission for resource's scope
+    DB-->>App: Return result (allowed/denied)
+    App-->>User: Allow or deny action
+```
+
+#### Implementation Notes
+- Policies are defined in `src/Policy/` and map to permissions via the `permission_policies` table.
+- The `BasePolicy` class handles scoping logic, using the user's permissions and the resource's branch.
+- Query scoping is applied in policy `scope*` methods (e.g., `scopeIndex`), filtering results to only those the user is allowed to see.
+- Action approval is checked in `can*` methods (e.g., `canView`, `canEdit`), ensuring the user has the right permission for the resource's scope.
