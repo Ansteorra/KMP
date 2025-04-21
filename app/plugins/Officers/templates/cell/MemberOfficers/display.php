@@ -68,7 +68,8 @@ if (!empty($currentOfficers) || !empty($upcomingOfficers) || !empty($previousOff
         "Branch" => "branch->name",
         "Start Date" => "start_on_to_string",
         "End Date" => "expires_on_to_string",
-        "Reports To" => "reports_to",
+
+        "Reports To" => "reports_to_list",
         "Actions" => [
             $linkTemplate,
             $editTemplate,

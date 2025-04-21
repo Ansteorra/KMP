@@ -71,7 +71,7 @@ class OfficesController extends AppController
         }
         $this->Authorization->authorize($office);
         $departments = $this->Offices->Departments->find('list')->all();
-        $report_to_offices = $this->Offices->find('list')->where(['only_one_per_branch' => true])->all();
+        $report_to_offices = $this->Offices->find('list')->where(['id <>' => $office->id])->all();
         $deputy_to_offices = $this->Offices->find('list')->where(['id <>' => $office->id])->all();
         $roles = $this->Offices->GrantsRole->find('list')->all();
         $btArray = StaticHelpers::getAppSetting("Branches.Types");
@@ -105,7 +105,7 @@ class OfficesController extends AppController
             }
         }
         $departments = $this->Offices->Departments->find('list')->all();
-        $report_to_offices = $this->Offices->find('list')->where(['only_one_per_branch' => true])->all();
+        $report_to_offices = $this->Offices->find('list')->all();
         $deputy_to_offices = $this->Offices->find('list')->all();
         $roles = $this->Offices->GrantsRole->find('list')->all();
         $btArray = StaticHelpers::getAppSetting("Branches.Types");

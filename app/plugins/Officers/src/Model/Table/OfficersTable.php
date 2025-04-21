@@ -126,6 +126,29 @@ class OfficersTable extends BaseTable
             ],
         ]);
 
+        $this->hasMany('ReportsToCurrently', [
+            'className' => 'Officers.Officers',
+            "foreignKey" => ["office_id", 'branch_id'],
+            "bindingKey" => ["reports_to_office_id", 'reports_to_branch_id'],
+            'joinType' => 'LEFT',
+            'conditions' => [
+                'ReportsToCurrently.start_on <=' => $now,
+                'ReportsToCurrently.expires_on >=' => $now,
+                'ReportsToCurrently.status' => Officer::CURRENT_STATUS
+            ]
+        ]);
+        $this->hasMany('DeputyToCurrently', [
+            'className' => 'Officers.Officers',
+            "foreignKey" => ["office_id", 'branch_id'],
+            "bindingKey" => ["deputy_to_office_id", 'deputy_to_branch_id'],
+            'joinType' => 'LEFT',
+            'conditions' => [
+                'DeputyToCurrently.start_on <=' => $now,
+                'DeputyToCurrently.expires_on >=' => $now,
+                'DeputyToCurrently.status' => Officer::CURRENT_STATUS
+            ]
+        ]);
+
         $this->addBehavior("Timestamp");
         $this->addBehavior('Muffin/Footprint.Footprint');
         $this->addBehavior("ActiveWindow");
@@ -273,6 +296,10 @@ class OfficersTable extends BaseTable
             "Officers.deputy_description",
             "Officers.email_address",
             "status",
+            'reports_to_office_id',
+            'reports_to_branch_id',
+            'deputy_to_office_id',
+            'deputy_to_branch_id',
         ];
 
         $contain = [
@@ -292,8 +319,9 @@ class OfficersTable extends BaseTable
             },
         ];
 
+
         if ($type === 'current' || $type === 'upcoming') {
-            $fields['reports_to'] = $reportsToCase;
+            //$fields['reports_to'] = $reportsToCase;
             $fields[] = "ReportsToBranches.name";
             $fields[] = "ReportsToOffices.name";
             $contain["ReportsToBranches"] = function ($q) {
@@ -316,6 +344,36 @@ class OfficersTable extends BaseTable
                 return $q
                     ->select(["id", "start_on", "expires_on", "entity_id"]);
             };
+            $contain["ReportsToCurrently"] = function ($q) {
+                return $q
+                    ->contain([
+                        "Members" => function ($q) {
+                            return $q
+                                ->select(["id", "sca_name"]);
+                        },
+                        "Offices" => function ($q) {
+                            return $q
+                                ->select(["id", "name"]);
+                        }
+                    ])
+                    ->select(["id", "office_id", "branch_id", "Members.sca_name", "Offices.name", "email_address"])
+                    ->order(["sca_name" => "ASC"]);
+            };
+            $contain["DeputyToCurrently"] = function ($q) {
+                return $q
+                    ->contain([
+                        "Members" => function ($q) {
+                            return $q
+                                ->select(["id", "sca_name"]);
+                        },
+                        "Offices" => function ($q) {
+                            return $q
+                                ->select(["id", "name"]);
+                        }
+                    ])
+                    ->select(["id", "office_id", "branch_id", "Members.sca_name", "Offices.name", "email_address"])
+                    ->order(["sca_name" => "ASC"]);
+            };
         }
 
         if ($type === 'previous') {
@@ -327,30 +385,35 @@ class OfficersTable extends BaseTable
 
         $query->contain($contain);
         if ($type === 'current' || $type === 'upcoming') {
-            $query->join(
+            /*$query = $query->join(
                 [
-                    'table' => 'officers_officers',
-                    'alias' => 'current_report_to_officer',
-                    'type' => 'LEFT',
-                    'conditions' => [
-                        'Officers.reports_to_office_id = current_report_to_officer.office_id',
-                        'Officers.reports_to_branch_id = current_report_to_officer.branch_id',
-                        'current_report_to_officer.start_on <=' => DateTime::now(),
-                        'current_report_to_officer.expires_on >=' => DateTime::now(),
-                        'current_report_to_officer.status' => Officer::CURRENT_STATUS
+                    'rto' => [
+                        'table' => 'officers_officers',
+                        'alias' => 'current_report_to_officer',
+                        'type' => 'LEFT',
+                        'conditions' => [
+                            'Officers.reports_to_office_id = current_report_to_officer.office_id',
+                            'Officers.reports_to_branch_id = current_report_to_officer.branch_id',
+                            'current_report_to_officer.start_on <=' => DateTime::now(),
+                            'current_report_to_officer.expires_on >=' => DateTime::now(),
+                            'current_report_to_officer.status' => Officer::CURRENT_STATUS
+                        ]
                     ]
                 ]
             );
-            $query->join(
+            $query = $query->join(
                 [
-                    'table' => 'members',
-                    'alias' => 'current_report_to',
-                    'type' => 'LEFT',
-                    'conditions' => [
-                        'current_report_to_officer.member_id = current_report_to.id',
+                    'rtom' => [
+                        'table' => 'members',
+                        'alias' => 'current_report_to',
+                        'type' => 'LEFT',
+                        'conditions' => [
+                            'current_report_to_officer.member_id = current_report_to.id',
+                        ]
                     ]
                 ]
-            );
+
+            );*/
         }
         $query->orderBy(["Officers.start_on" => "DESC", "Offices.name" => "ASC"]);
 

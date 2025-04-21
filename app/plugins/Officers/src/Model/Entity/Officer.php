@@ -82,4 +82,38 @@ class Officer extends ActiveWindowBaseEntity
         }
         return false;
     }
+
+    public function _getReportsToList()
+    {
+        if ($this->reports_to_office_id == null && $this->deputy_to_office_id == null) {
+            return "Society";
+        }
+        if ($this->reports_to_currently == null && $this->deputy_to_currently == null) {
+            return "Not Filled";
+        }
+        $reportsTo = [];
+        if (!empty($this->reports_to_currently)) {
+
+            foreach ($this->reports_to_currently as $report) {
+                if ($report->email_address !== null && $report->email_address !== "") {
+                    $reportsTo[] = "<a href='mailto:{$report->email_address}'>{$report->member->sca_name}</a>";
+                } else {
+                    $reportsTo[] = $report->member->sca_name;
+                }
+            }
+        }
+        if (!empty($this->deputy_to_currently)) {
+            foreach ($this->deputy_to_currently as $report) {
+                if ($report->email_address !== null && $report->email_address !== "") {
+                    $reportsTo[] = "<a href='mailto:{$report->email_address}'>{$report->member->sca_name}</a>";
+                } else {
+                    $reportsTo[] = $report->member->sca_name;
+                }
+            }
+        }
+        if (count($reportsTo) > 0) {
+            return implode(", ", $reportsTo);
+        }
+        return "Not Filled";
+    }
 }
