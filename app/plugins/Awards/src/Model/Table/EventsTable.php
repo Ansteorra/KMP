@@ -135,4 +135,15 @@ class EventsTable extends BaseTable
 
         return $rules;
     }
+
+    public function addBranchScopeQuery($query, $branchIDs): SelectQuery
+    {
+        if (empty($branchIDs)) {
+            return $query;
+        }
+        $query = $query->where([
+            "branch_id IN" => $branchIDs,
+        ]);
+        return $query;
+    }
 }

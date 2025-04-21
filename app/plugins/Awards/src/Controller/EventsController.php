@@ -48,6 +48,7 @@ class EventsController extends AppController
                 $query = $query->where(['Events.closed =' => true]);
                 break;
         }
+        $query = $this->Authorization->applyScope($query, "index");
         $events = $this->paginate($query, ['order' => ['start_date' => 'ASC']]);
         $this->set(compact('events', 'state'));
     }

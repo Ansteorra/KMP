@@ -152,7 +152,7 @@ class RecommendationsTable extends BaseTable
 
         $validator
             ->scalar('reason')
-            ->maxLength('contact_number', 10000)
+            ->maxLength('reason', 10000)
             ->requirePresence('reason', 'create')
             ->notEmptyString('reason');
 
@@ -211,5 +211,16 @@ class RecommendationsTable extends BaseTable
         $log->from_state = $entity->beforeState ? $entity->beforeState : "New";
         $log->created_by = $entity->modified_by;
         $logTbl->save($log);
+    }
+
+    public function addBranchScopeQuery($query, $branchIDs): SelectQuery
+    {
+        if (empty($branchIDs)) {
+            return $query;
+        }
+        $query = $query->where([
+            "Awards.branch_id IN" => $branchIDs,
+        ]);
+        return $query;
     }
 }

@@ -8,6 +8,7 @@ use Cake\ORM\Entity;
 use App\KMP\StaticHelpers;
 use Cake\I18n\DateTime;
 use App\Model\Entity\BaseEntity;
+use Cake\ORM\TableRegistry;
 
 /**
  * Recommendation Entity
@@ -137,10 +138,20 @@ class Recommendation extends BaseEntity
 
     public function getBranchId(): ?int
     {
-        if ($this->member_id) {
-            return $this->getTableLocator()->get('Members')->get($this->member_id)->branch_id;
-        } else {
-            return $this->branch_id ?? null;
+        if ($this->award)
+            return $this->award->branch_id;
+
+        if ($this->award_id == null) {
+            return null;
         }
+        $awardTbl = TableRegistry::getTableLocator()->get('Awards.Awards');
+        $award = $awardTbl->find()
+            ->where(['id' => $this->award_id])
+            ->select('branch_id')
+            ->first();
+        if ($award) {
+            return $award->branch_id;
+        }
+        return null;
     }
 }
