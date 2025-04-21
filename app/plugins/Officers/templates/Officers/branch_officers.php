@@ -59,7 +59,7 @@ $currentAndUpcomingTemplate = [
     "Warrant Expires" => "warrant_state",
     "Start Date" => "start_on_to_string",
     "End Date" => "expires_on_to_string",
-    "Reports To" => "reports_to",
+    "Reports To" => "reports_to_list",
     "Actions" => [
         $editTemplate,
         $newWarrantTemplate,

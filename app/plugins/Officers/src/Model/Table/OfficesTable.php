@@ -166,6 +166,16 @@ class OfficesTable extends BaseTable
 
     public function officesMemberCanWork($user, $branch_id)
     {
+        if ($user->isSuperUser()) {
+            $canHireOffices = [];
+            $returnval = $this->find('all')->select(['id'])->toArray();
+            foreach ($returnval as $office) {
+                if (!in_array($office->id, $canHireOffices)) {
+                    $canHireOffices[] = $office->id;
+                }
+            }
+            return $canHireOffices;
+        }
         $officersTbl = TableRegistry::getTableLocator()->get("Officers.Officers");
         $userOffices = $officersTbl->find("current")->where(['member_id' => $user->id])->select(['id', 'office_id', 'branch_id'])->toArray();
         $canHireOffices = [];

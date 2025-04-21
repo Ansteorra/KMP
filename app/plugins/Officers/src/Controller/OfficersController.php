@@ -41,13 +41,13 @@ class OfficersController extends AppController
             $user = $this->Authentication->getIdentity();
             $branchId = (int)$this->request->getData('branch_id');
             $this->Authorization->authorize($officer);
-            $canWorkAllOffices = $user->canCheck('WorkWithAllOfficers', $officer);
+            $user = $this->Authentication->getIdentity();
             //begin transaction
 
             $memberId = (int)$this->request->getData('member_id');
             $officeId = (int)$this->request->getData('office_id');
             $branchId = (int)$this->request->getData('branch_id');
-            $canHireOffices = $this->Officers->Offices->officeMemberCanWork($user, $branchId);
+            $canHireOffices = $this->Officers->Offices->officesMemberCanWork($user, $branchId);
             if (!in_array($officeId, $canHireOffices)) {
                 $this->Flash->error(__('You do not have permission to assign this officer.'));
                 $this->redirect($this->referer());
@@ -351,7 +351,7 @@ class OfficersController extends AppController
                 "Officers.expires_on <=" => $endDate
             ]);
         }
-        fputcsv($output, array('Office', 'Name', 'Branch', 'Department', 'Start', 'End'));
+        fputcsv($output, array('Office', 'Name', 'email', 'Branch', 'Department', 'Start', 'End'));
 
         $officers = $officers->toArray();
 
@@ -367,6 +367,7 @@ class OfficersController extends AppController
                 $officer_row = [
                     $officeName,
                     $memberData['sca_name'],
+                    $officer['email_address'],
                     $officer['branch']['name'],
                     $officer['office']['department']['name'],
                     $officer['start_on']->i18nFormat('MM-dd-yyyy'),
