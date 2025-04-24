@@ -93,6 +93,9 @@ class RecommendationsController extends AppController
         }
         $queryArgs = $this->request->getQuery();
         $user = $this->request->getAttribute("identity");
+        if ($view == "SubmittedByMember") {
+            $emptyRecommendation->requester_id = $user->id;
+        }
         $user->authorizeWithArgs($emptyRecommendation, $permission, $view, $status, $queryArgs);
 
 

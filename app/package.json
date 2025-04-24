@@ -24,8 +24,8 @@
         "@hotwired/stimulus": "^3.2.2",
         "@hotwired/turbo": "^8.0.4",
         "bootstrap": "^5.3.3",
-        "popper.js": "^1.16.1",
-        "guifier": "^1.0.32"
+        "guifier": "^1.0.32",
+        "popper.js": "^1.16.1"
     },
     "browserslist": [
         "defaults"

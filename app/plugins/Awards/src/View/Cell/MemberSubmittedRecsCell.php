@@ -35,7 +35,7 @@ class MemberSubmittedRecsCell extends BasePluginCell
         if (isset($route["0"]) && isset($route["0"][0])) {
             $memberId = $route["0"][0];
         }
-        if ($pluginData != null && $currentUser != null && ($currentUser->id == $memberId || $currentUser->checkCan('view', 'Awards.Recommendations'))) {
+        if ($pluginData != null && $currentUser != null && ($currentUser->id == $memberId || $currentUser->checkCan('viewSubmittedByMember', 'Awards.Recommendations'))) {
             return $pluginData;
         }
         return null;

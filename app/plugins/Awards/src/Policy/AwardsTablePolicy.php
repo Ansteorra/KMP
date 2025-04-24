@@ -31,7 +31,10 @@ class AwardsTablePolicy extends BasePolicy
                 $approvaLevels[] = $level;
             }
         }
-        $table = $table->addBranchScopeQuery($query, $branchIds);
-        return $table->contain(['Levels'])->where(['Levels.name in' => $approvaLevels]);
+        $query = $table->addBranchScopeQuery($query, $branchIds);
+        if (!empty($approvaLevels)) {
+            return $query->contain(['Levels'])->where(['Levels.name in' => $approvaLevels]);
+        }
+        return $query;
     }
 }

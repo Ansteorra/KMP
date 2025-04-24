@@ -111,6 +111,8 @@ class Officer extends ActiveWindowBaseEntity
                 }
             }
         }
+        // Remove duplicates
+        $reportsTo = array_unique($reportsTo);
         if (count($reportsTo) > 0) {
             return implode(", ", $reportsTo);
         }

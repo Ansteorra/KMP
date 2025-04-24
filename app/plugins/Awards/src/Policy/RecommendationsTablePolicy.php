@@ -32,8 +32,11 @@ class RecommendationsTablePolicy extends BasePolicy
                 $approvaLevels[] = $level;
             }
         }
-        $table = $table->addBranchScopeQuery($query, $branchIds);
-        return $table->contain(['Awards.Levels'])->where(['Levels.name in' => $approvaLevels]);
+        $query = $table->addBranchScopeQuery($query, $branchIds);
+        if (!empty($approvaLevels)) {
+            return $query->contain(['Awards.Levels'])->where(['Levels.name in' => $approvaLevels]);
+        }
+        return $query;
     }
 
     public function canAdd(IdentityInterface $user, $entity, ...$optionalArgs)
