@@ -6,3 +6,4 @@ scratch.txt
 docs/_site
 docs/.sass-cache
 app/.phpunit.cache/test-results
+nohup.out
