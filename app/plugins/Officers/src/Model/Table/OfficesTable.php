@@ -10,6 +10,7 @@ use Cake\ORM\Table;
 use Cake\Validation\Validator;
 use App\Model\Table\BaseTable;
 use Cake\ORM\TableRegistry;
+use App\Model\Entity\Member;
 
 /**
  * Offices Model
@@ -164,71 +165,83 @@ class OfficesTable extends BaseTable
         return $rules;
     }
 
-    public function officesMemberCanWork($user, $branch_id)
+    /**
+     * Get a list of office IDs the member can work with, based on permissions and branch.
+     *
+     * @param User $user The user entity.
+     * @param int $branchId The branch ID to check permissions for.
+     * @return int[] List of office IDs the user can work with.
+     */
+    public function officesMemberCanWork(Member $user, int $branchId): array
     {
+        // Superusers can work with all offices
         if ($user->isSuperUser()) {
-            $canHireOffices = [];
-            $returnval = $this->find('all')->select(['id'])->toArray();
-            foreach ($returnval as $office) {
-                if (!in_array($office->id, $canHireOffices)) {
-                    $canHireOffices[] = $office->id;
-                }
-            }
-            return $canHireOffices;
+            return $this->find('list', [
+                'keyField' => 'id',
+                'valueField' => 'id',
+            ])->toArray();
         }
-        $officersTbl = TableRegistry::getTableLocator()->get("Officers.Officers");
-        $userOffices = $officersTbl->find("current")->where(['member_id' => $user->id])->select(['id', 'office_id', 'branch_id'])->toArray();
+
+        $officersTbl = TableRegistry::getTableLocator()->get('Officers.Officers');
+        $userOffices = $officersTbl->find('current')
+            ->where(['member_id' => $user->id])
+            ->select(['id', 'office_id', 'branch_id'])
+            ->all();
+
         $canHireOffices = [];
+        $visited = [];
+
         foreach ($userOffices as $userOffice) {
-            $myOffices[] = $userOffice->office_id;
-            if ($user->checkCan("workWithOfficerDeputies", $userOffice, $branch_id, true)) {
-                $deputies = $this->find('all')->where(['deputy_to_id' => $userOffice->office_id])->select(['id'])->toArray();
-                // add deputies to the list of offices that can be hired
+            // workWithOfficerDeputies permission
+            if ($user->checkCan('workWithOfficerDeputies', $userOffice, $branchId, true)) {
+                $deputies = $this->find()
+                    ->where(['deputy_to_id' => $userOffice->office_id])
+                    ->select(['id'])
+                    ->all();
                 foreach ($deputies as $deputy) {
-                    if (!in_array($deputy->id, $canHireOffices)) {
-                        $canHireOffices[] = $deputy->id;
-                    }
+                    $canHireOffices[$deputy->id] = true;
                 }
             }
-            if ($user->checkCan("workWithOfficerDirectReports", $userOffice, $branch_id, true)) {
-                $deputies = $this->find('all')->where(['OR' => ['deputy_to_id' => $userOffice->office_id, 'reports_to_id' => $userOffice->office_id]])->select(['id'])->toArray();
-                // add deputies to the list of offices that can be hired
-                foreach ($deputies as $deputy) {
-                    if (!in_array($deputy->id, $canHireOffices)) {
-                        $canHireOffices[] = $deputy->id;
-                    }
+            // workWithOfficerDirectReports permission
+            if ($user->checkCan('workWithOfficerDirectReports', $userOffice, $branchId, true)) {
+                $directs = $this->find()
+                    ->where([
+                        'OR' => [
+                            'deputy_to_id' => $userOffice->office_id,
+                            'reports_to_id' => $userOffice->office_id,
+                        ],
+                    ])
+                    ->select(['id'])
+                    ->all();
+                foreach ($directs as $direct) {
+                    $canHireOffices[$direct->id] = true;
                 }
             }
-            if ($user->checkCan("workWithOfficerReportingTree", $userOffice, $branch_id, true)) {
-                $addedOffices = 0;
-                $hireThread = [];
-                //Get all of the top level office deputies and reports
-                $reports = $this->find('all')->where(['OR' => ['deputy_to_id' => $userOffice->office_id, 'reports_to_id' => $userOffice->office_id]])->select(['id', 'reports_to_id'])->toArray();
-                foreach ($reports as $report) {
-                    if (!in_array($report->id, $canHireOffices)) {
-                        $addedOffices++;
-                        $hireThread[] = $report->id;
-                    }
-                }
-                // if we added any then we are going to loop back to sql and grab more until we don't add anymore.
-                while ($addedOffices != 0) {
-                    $addedOffices = 0;
-                    $reports = $this->find('all')->where(['OR' => ['deputy_to_id in ' => $hireThread, 'reports_to_id in ' => $hireThread]])->select(['id', 'reports_to_id'])->toArray();
-                    foreach ($reports as $report) {
-                        if (!in_array($report->id, $hireThread)) {
-                            $addedOffices++;
-                            $hireThread[] = $report->id;
+            // workWithOfficerReportingTree permission
+            if ($user->checkCan('workWithOfficerReportingTree', $userOffice, $branchId, true)) {
+                $toVisit = [$userOffice->office_id];
+                while ($toVisit) {
+                    $nextLevel = $this->find()
+                        ->where([
+                            'OR' => [
+                                'deputy_to_id IN' => $toVisit,
+                                'reports_to_id IN' => $toVisit,
+                            ],
+                        ])
+                        ->select(['id'])
+                        ->all();
+                    $newIds = [];
+                    foreach ($nextLevel as $office) {
+                        if (!isset($visited[$office->id])) {
+                            $canHireOffices[$office->id] = true;
+                            $visited[$office->id] = true;
+                            $newIds[] = $office->id;
                         }
                     }
-                }
-                // now we can add them all to the collected list.
-                foreach ($hireThread as $office) {
-                    if (!in_array($office, $canHireOffices)) {
-                        $canHireOffices[] = $office;
-                    }
+                    $toVisit = $newIds;
                 }
             }
         }
-        return $canHireOffices;
+        return array_keys($canHireOffices);
     }
 }

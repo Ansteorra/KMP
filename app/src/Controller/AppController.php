@@ -42,6 +42,22 @@ class AppController extends Controller
     const VIEW_PLUGIN_EVENT = 'KMP.plugins.callForViewCells';
     const VIEW_DATA_EVENT = 'KMP.plugins.callForViewData';
     protected array $pluginViewCells = [];
+
+    /**
+     * Indicates if the current request is for CSV output (URL contains .csv)
+     * @var bool
+     */
+    protected bool $isCsvRequest = false;
+
+    /**
+     * Returns true if the current request is for CSV output
+     * @return bool
+     */
+    public function isCsvRequest(): bool
+    {
+        return $this->isCsvRequest;
+    }
+
     //use Cake\Event\EventInterface;
     public function beforeFilter(EventInterface $event)
     {
@@ -52,7 +68,9 @@ class AppController extends Controller
                 return strpos($request->getRequestTarget(), '.csv') !== false;
             }
         );
-
+        // Set the global attribute for CSV requests
+        $this->isCsvRequest = $this->request->is('csv');
+        $this->set('isCsvRequest', $this->isCsvRequest);
 
         $plugin = $this->request->getParam('plugin');
         if ($plugin != null) {

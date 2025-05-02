@@ -7,6 +7,7 @@ namespace App\Controller;
 use App\Model\Entity\Warrant;
 use App\Services\WarrantManager\WarrantManagerInterface;
 use Cake\I18n\DateTime;
+use App\Services\CsvExportService;
 
 /**
  * Warrants Controller
@@ -16,6 +17,12 @@ use Cake\I18n\DateTime;
  */
 class WarrantsController extends AppController
 {
+    /**
+     * @var CsvExportService
+     */
+    public static array $inject = [CsvExportService::class];
+    protected CsvExportService $csvExportService;
+
     /**
      * Initialize controller
      *
@@ -37,7 +44,7 @@ class WarrantsController extends AppController
      */
     public function index() {}
 
-    public function allWarrants($state)
+    public function allWarrants(CsvExportService $csvExportService, $state)
     {
         if ($state != 'current' && $state == 'pending' && $state == 'previous') {
             throw new \Cake\Http\Exception\NotFoundException();
@@ -63,6 +70,15 @@ class WarrantsController extends AppController
                 break;
         }
         $warrantsQuery = $this->addConditions($warrantsQuery);
+
+        // CSV export for all warrants in the filtered set
+        if ($this->isCsvRequest()) {
+            return $csvExportService->outputCsv(
+                $warrantsQuery->order(['Members.sca_name' => 'asc']),
+                'warrants.csv'
+            );
+        }
+
         $warrants = $this->paginate($warrantsQuery);
         $this->set(compact('warrants', 'state'));
     }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Model\Entity\Permission;
+use App\Services\CsvExportService;
 use Cake\Log\Log;
 use Cake\ORM\TableRegistry;
 
@@ -15,6 +16,8 @@ use Cake\ORM\TableRegistry;
  */
 class RolesController extends AppController
 {
+
+
     public function initialize(): void
     {
         parent::initialize();
@@ -31,17 +34,24 @@ class RolesController extends AppController
      *
      * @return \Cake\Http\Response|null|void Renders view
      */
-    public function index()
+    public function index(CsvExportService $csvExportService)
     {
         $this->Authorization->authorizeAction();
         $query = $this->Roles->find();
         $query = $this->Authorization->applyScope($query);
+
+        if ($this->isCsvRequest()) {
+            return $csvExportService->outputCsv(
+                $query->order(['name' => 'asc']),
+                'roles.csv'
+            );
+        }
+
         $roles = $this->paginate($query, [
             'order' => [
                 'name' => 'asc',
             ]
         ]);
-
         $this->set(compact("roles"));
     }
 

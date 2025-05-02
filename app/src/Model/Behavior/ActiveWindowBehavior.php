@@ -20,7 +20,7 @@ class ActiveWindowBehavior extends Behavior
         return $query->where([$alias . '.start_on >' => $effectiveDate, 'or' => [$alias . '.expires_on >' => $effectiveDate, $alias . '.expires_on IS' => null]]);
     }
 
-    public function findCurrent(SelectQuery $query, Datetime $effectiveDate = null): SelectQuery
+    public function findCurrent(SelectQuery $query, ?Datetime $effectiveDate = null): SelectQuery
     {
         //get the alias of the current table
         $alias = $this->_table->getAlias();
@@ -30,7 +30,7 @@ class ActiveWindowBehavior extends Behavior
         return $query->where([$alias . '.start_on <=' => $effectiveDate, 'or' => [$alias . '.expires_on >=' => $effectiveDate, $alias . '.expires_on IS' => null]]);
     }
 
-    public function findPrevious(SelectQuery $query, Datetime $effectiveDate = null): SelectQuery
+    public function findPrevious(SelectQuery $query, ?Datetime $effectiveDate = null): SelectQuery
     {
         //get the alias of the current table
 

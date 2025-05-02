@@ -7,11 +7,13 @@ namespace Officers\Policy;
 use App\Model\Entity\DepartmentsTable;
 use Authorization\IdentityInterface;
 use App\Policy\BasePolicy;
+use Authorization\Policy\ResultInterface;
 
 /**
  * DepartmentsTable policy
  */
-class DepartmentsTablePolicy extends BasePolicy {
+class DepartmentsTablePolicy extends BasePolicy
+{
     public const SKIP_BASE = 'true';
 
 }

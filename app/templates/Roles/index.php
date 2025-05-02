@@ -10,9 +10,18 @@
 echo $this->KMP->startBlock("title");
 echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Roles';
 $this->KMP->endBlock(); ?>
-<h3>
-    Roles
-</h3>
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <h3 class="mb-0">Roles</h3>
+    <a
+        href="<?= $this->Url->build(['action' => 'index', '_ext' => 'csv'] + $this->getRequest()->getQueryParams()) ?>"
+        class="btn btn-outline-primary btn-sm"
+        data-controller="csv-download"
+        data-csv-download-url-value="<?= $this->Url->build(['action' => 'index', '_ext' => 'csv'] + $this->getRequest()->getQueryParams()) ?>"
+        data-csv-download-filename-value="roles.csv"
+        title="Download CSV">
+        <i class="bi bi-download"></i> Download CSV
+    </a>
+</div>
 <table class="table table-striped">
     <thead>
         <tr>

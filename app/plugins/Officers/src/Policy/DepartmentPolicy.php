@@ -7,11 +7,19 @@ namespace Officers\Policy;
 use App\Model\Entity\Department;
 use Authorization\IdentityInterface;
 use App\Policy\BasePolicy;
+use Authorization\Policy\ResultInterface;
 
 /**
  * Department policy
  */
 class DepartmentPolicy extends BasePolicy
 {
-    protected string $REQUIRED_PERMISSION = "Can Manage Departments";
+
+    public function canSeeAllDepartments(
+        IdentityInterface $user,
+        $entity,
+    ): ResultInterface|bool {
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
+    }
 }

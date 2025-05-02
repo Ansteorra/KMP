@@ -210,6 +210,9 @@ class Application extends BaseApplication implements
             WarrantManagerInterface::class,
             DefaultWarrantManager::class,
         )->addArgument(ActiveWindowManagerInterface::class);
+        $container->add(
+            \App\Services\CsvExportService::class
+        );
     }
 
     /**

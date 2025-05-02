@@ -32,12 +32,25 @@ if ($state == "previous") {
     $columnTemplate["Deactivated Reason"] = "revoked_reason";
 }
 
+// Build export button config for turboSubTable
+$exportButton = [
+    'url' => $this->Url->build([
+        'controller' => 'Warrants',
+        'action' => 'allWarrants',
+        $state,
+        '_ext' => 'csv',
+    ] + $this->getRequest()->getQueryParams()),
+    'filename' => 'warrants.csv',
+    // 'fields' => [...] // Optionally add fields if you want to restrict columns
+];
+
 $tableData = [
     "label" => __("Active"),
     "id" => $turboFrameId,
     "columns" => $columnTemplate,
     "data" => $warrants,
     "usePagination" => true,
+    'exportButton' => $exportButton,
 ];
 
 echo $this->element('turboSubTable', ['user' => $user, 'tableConfig' => $tableData]);
