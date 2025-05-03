@@ -12,6 +12,7 @@ use Authorization\Exception\ForbiddenException;
 use Cake\Log\Log;
 use Exception;
 use PhpParser\Node\Stmt\TryCatch;
+use App\Services\CsvExportService;
 
 /**
  * Recommendations Controller
@@ -65,7 +66,7 @@ class RecommendationsController extends AppController
         $this->set(compact('view', 'status', 'pageConfig'));
     }
 
-    public function table($view = null, $status = null)
+    public function table(csvExportService $csvExportService, $view = null, $status = null)
     {
         if ($view == null) {
             $view = "Default";
@@ -103,6 +104,11 @@ class RecommendationsController extends AppController
         $filter = $this->processFilter($filter);
 
         $enableExport = $pageConfig['table']['enableExport'];
+        if ($enableExport && $this->isCsvRequest()) {
+            $columns = $pageConfig['table']['export'];
+            $response = $this->runExport($csvExportService, $filter, $columns);
+            return $response;
+        }
         $this->set(compact('pageConfig', 'enableExport'));
         $this->runTable($filter, $status, $view);
     }
@@ -141,57 +147,6 @@ class RecommendationsController extends AppController
 
         $this->runBoard($view, $pageConfig, $emptyRecommendation);
     }
-
-    public function export($view = null, $status = null)
-    {
-        if ($view == null) {
-            $view = "Default";
-        }
-
-
-        if ($status == null) {
-            $status = "All";
-        }
-
-        $view = explode(".", $view)[0];
-
-        $emptyRecommendation = $this->Recommendations->newEmptyEntity();
-        if ($view && $view != "Default") {
-            try {
-                $pageConfig = StaticHelpers::getAppSetting("Awards.ViewConfig." . $view);
-            } catch (\Exception $e) {
-                $pageConfig = StaticHelpers::getAppSetting("Awards.ViewConfig.Default");
-            }
-            $filter = $pageConfig['table']['filter'];
-        } else {
-            $pageConfig = StaticHelpers::getAppSetting("Awards.ViewConfig.Default");
-            $filter = $pageConfig['table']['filter'];
-        }
-
-        if (!$pageConfig['table']['enableExport']) {
-            throw new ForbiddenException();
-        }
-
-        $permission = "index";
-        if ($pageConfig['table']['optionalPermission']) {
-            $permission = $pageConfig['table']['optionalPermission'];
-        }
-        $queryArgs = $this->request->getQuery();
-        $user = $this->request->getAttribute("identity");
-
-
-
-        $user->authorizeWithArgs($emptyRecommendation, $permission, $view, $status, $queryArgs);
-
-
-
-        $filter = $this->processFilter($filter);
-
-        $columns = $pageConfig['table']['export'];
-
-        $this->runExport($filter, $columns);
-    }
-
 
     public function updateStates()
     {
@@ -807,7 +762,6 @@ class RecommendationsController extends AppController
             }
         }
 
-
         $awards = $this->Recommendations->Awards->find(
             'list',
             limit: 200,
@@ -823,6 +777,7 @@ class RecommendationsController extends AppController
 
             ->where(["can_have_members" => true])
             ->orderBy(["name" => "ASC"])->toArray();
+
         $this->paginate = [
             'sortableFields' => [
                 'Branches.name',
@@ -947,13 +902,13 @@ class RecommendationsController extends AppController
         $this->set(compact('recommendations', 'states', 'view', 'showHidden', 'range', 'hiddenStates', 'rules'));
     }
 
-    protected function runExport($filterArray, $columns)
+    protected function runExport($csvExportService, $filterArray, $columns)
     {
         $recommendations = $this->getRecommendationQuery($filterArray);
         $recommendations = $recommendations->all();
 
         $header = [];
-        $data[] = [];
+        $data = [];
         foreach ($columns as $key => $use) {
             if ($use) {
                 $header[] = $key;
@@ -965,37 +920,37 @@ class RecommendationsController extends AppController
             foreach ($header as $key) {
                 switch ($key) {
                     case "Submitted":
-                        $row[] = $recommendation->created;
+                        $row[$key] = $recommendation->created;
                         break;
                     case "For":
-                        $row[] = $recommendation->member_sca_name;
+                        $row[$key] = $recommendation->member_sca_name;
                         break;
                     case "For Herald":
                         if ($recommendation->member) {
-                            $row[] = $recommendation->member->name_for_herald;
+                            $row[$key] = $recommendation->member->name_for_herald;
                         } else {
-                            $row[] = $recommendation->member_sca_name;
+                            $row[$key] = $recommendation->member_sca_name;
                         }
                         break;
                     case "Title":
                         if ($recommendation->member) {
-                            $row[] = $recommendation->member->title;
+                            $row[$key] = $recommendation->member->title;
                         } else {
-                            $row[] = "";
+                            $row[$key] = "";
                         }
                         break;
                     case "Pronouns":
                         if ($recommendation->member) {
-                            $row[] = $recommendation->member->pronouns;
+                            $row[$key] = $recommendation->member->pronouns;
                         } else {
-                            $row[] = "";
+                            $row[$key] = "";
                         }
                         break;
                     case "Pronunciation":
                         if ($recommendation->member) {
-                            $row[] = $recommendation->member->pronunciation;
+                            $row[$key] = $recommendation->member->pronunciation;
                         } else {
-                            $row[] = "";
+                            $row[$key] = "";
                         }
                         break;
                     case "OP":
@@ -1010,37 +965,37 @@ class RecommendationsController extends AppController
                                 $links = "$links |";
                             }
                         }
-                        $row[] = $links;
+                        $row[$key] = $links;
                         break;
                     case "Branch":
-                        $row[] = $recommendation->branch->name;
+                        $row[$key] = $recommendation->branch->name;
                         break;
                     case "Call Into Court":
-                        $row[] = $recommendation->call_into_court;
+                        $row[$key] = $recommendation->call_into_court;
                         break;
                     case "Court Avail":
-                        $row[] = $recommendation->court_availability;
+                        $row[$key] = $recommendation->court_availability;
                         break;
                     case "Person to Notify":
-                        $row[] = $recommendation->person_to_notify;
+                        $row[$key] = $recommendation->person_to_notify;
                         break;
                     case "Submitted By":
-                        $row[] = $recommendation->requester_sca_name;
+                        $row[$key] = $recommendation->requester_sca_name;
                         break;
                     case "Contact Email":
-                        $row[] = $recommendation->contact_email;
+                        $row[$key] = $recommendation->contact_email;
                         break;
                     case "Contact Phone":
-                        $row[] = $recommendation->contact_phone;
+                        $row[$key] = $recommendation->contact_phone;
                         break;
                     case "Domain":
-                        $row[] = $recommendation->award->domain->name;
+                        $row[$key] = $recommendation->award->domain->name;
                         break;
                     case "Award":
-                        $row[] = $recommendation->award->abbreviation . ($recommendation->specialty ? " (" . $recommendation->specialty . ")" : "");
+                        $row[$key] = $recommendation->award->abbreviation . ($recommendation->specialty ? " (" . $recommendation->specialty . ")" : "");
                         break;
                     case "Reason":
-                        $row[] = $recommendation->reason;
+                        $row[$key] = $recommendation->reason;
                         break;
                     case "Events":
                         $events = "";
@@ -1049,7 +1004,7 @@ class RecommendationsController extends AppController
                             $endDate = $event->end_date->toDateString();
                             $events = "$events$event->name : $startDate  - $endDate\n\n";
                         }
-                        $row[] = $events;
+                        $row[$key] = $events;
                         break;
                     case "Notes":
                         $notes = "";
@@ -1057,36 +1012,36 @@ class RecommendationsController extends AppController
                             $createDate = $note->created->toDateTimeString();
                             $notes = "$notes$createDate : $note->body\n\n";
                         }
-                        $row[] = $notes;
+                        $row[$key] = $notes;
                         break;
                     case "Status":
-                        $row[] = $recommendation->status;
+                        $row[$key] = $recommendation->status;
                         break;
                     case "Event":
-                        $row[] = $recommendation->assigned_event ? $recommendation->assigned_event->name : "";
+                        $row[$key] = $recommendation->assigned_event ? $recommendation->assigned_event->name : "";
                         break;
                     case "State":
-                        $row[] = $recommendation->state;
+                        $row[$key] = $recommendation->state;
                         break;
                     case "Close Reason":
-                        $row[] = $recommendation->close_reason;
+                        $row[$key] = $recommendation->close_reason;
                         break;
                     case "State Date":
-                        $row[] = $recommendation->state_date->toDateString();
+                        $row[$key] = $recommendation->state_date->toDateString();
                         break;
                     case "Given Date":
-                        $row[] = $recommendation->given ? $recommendation->given->toDateString() : "";
+                        $row[$key] = $recommendation->given ? $recommendation->given->toDateString() : "";
                         break;
                 }
             }
             $data[] = $row;
         }
+        return $csvExportService->outputCsv($data, filename: "recommendations.csv", headers: $header);
 
-
-        $this->set(compact('data'));
-        $this->viewBuilder()
-            ->setClassName('CsvView.Csv')
-            ->setOptions(['serialize' => 'data', 'header' => $header, 'bom' => true]);
+        //$this->set(compact('data'));
+        //$this->viewBuilder()
+        //    ->setClassName('CsvView.Csv')
+        //    ->setOptions(['serialize' => 'data', 'header' => $header, 'bom' => true]);
     }
 
     protected function getRecommendationQuery($filterArray = null)
