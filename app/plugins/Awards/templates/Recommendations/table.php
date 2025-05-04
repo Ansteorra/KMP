@@ -205,7 +205,7 @@ $currentUrl = $this->request->getRequestTarget();
                     <?php endif; ?>
 
                     <?php if ($columns["Submitted"]): ?>
-                    <td><?= h($recommendation->created) ?></td>
+                    <td><?= h($recommendation->created->toDateString()) ?></td>
                     <?php endif; ?>
                     <?php if ($columns["For"]): ?>
                     <td><?php
