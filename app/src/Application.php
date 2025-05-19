@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 /**
@@ -21,41 +20,43 @@ namespace App;
 // Authentication usings
 
 use App\Event\CallForNavHandler;
-use Authentication\Identifier\AbstractIdentifier;
-use Authentication\Middleware\AuthenticationMiddleware;
-use Authentication\AuthenticationService;
-use Authentication\AuthenticationServiceInterface;
-use Authentication\AuthenticationServiceProviderInterface;
+use App\KMP\KmpIdentityInterface; // Add this line
+use App\KMP\StaticHelpers;
 // Authorization usings
 use App\Policy\ControllerResolver;
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 use App\Services\ActiveWindowManager\DefaultActiveWindowManager;
-use App\Services\WarrantManager\WarrantManagerInterface;
-use App\Services\WarrantManager\DefaultWarrantManager;
 use App\Services\AuthorizationService as KmpAuthorizationService;
+use App\Services\CsvExportService;
+use App\Services\WarrantManager\DefaultWarrantManager;
+use App\Services\WarrantManager\WarrantManagerInterface;
+use Authentication\AuthenticationService;
+use Authentication\AuthenticationServiceInterface;
+use Authentication\AuthenticationServiceProviderInterface;
+use Authentication\Identifier\AbstractIdentifier;
+use Authentication\Middleware\AuthenticationMiddleware;
+use Authorization\AuthorizationServiceInterface;
+use Authorization\AuthorizationServiceProviderInterface;
+use Authorization\Exception\ForbiddenException;
+use Authorization\Exception\MissingIdentityException;
 use Authorization\Middleware\AuthorizationMiddleware;
 use Authorization\Policy\OrmResolver;
 use Authorization\Policy\ResolverCollection;
-use Authorization\AuthorizationServiceInterface;
-use Authorization\AuthorizationServiceProviderInterface;
 use Cake\Core\Configure;
 use Cake\Core\ContainerInterface;
 use Cake\Datasource\FactoryLocator;
 use Cake\Error\Middleware\ErrorHandlerMiddleware;
+use Cake\Event\EventManager;
+use Cake\Http\BaseApplication;
 use Cake\Http\Middleware\BodyParserMiddleware;
 use Cake\Http\Middleware\CsrfProtectionMiddleware;
-use Cake\Http\BaseApplication;
 use Cake\Http\MiddlewareQueue;
+use Cake\I18n\DateTime;
 use Cake\ORM\Locator\TableLocator;
 use Cake\Routing\Middleware\AssetMiddleware;
 use Cake\Routing\Middleware\RoutingMiddleware;
 use Cake\Routing\Router;
-use Authorization\Exception\MissingIdentityException;
 use Psr\Http\Message\ServerRequestInterface;
-use Authorization\Exception\ForbiddenException;
-use Cake\Event\EventManager;
-use App\KMP\StaticHelpers;
-use Cake\I18n\DateTime;
 
 /**
  * Application setup class.
@@ -69,8 +70,6 @@ class Application extends BaseApplication implements
     AuthenticationServiceProviderInterface,
     AuthorizationServiceProviderInterface
 {
-    //
-
     /**
      * Load all the application configuration and bootstrap logic.
      *
@@ -82,53 +81,52 @@ class Application extends BaseApplication implements
         parent::bootstrap();
 
         // add plugins
-        if (PHP_SAPI !== "cli") {
+        if (PHP_SAPI !== 'cli') {
             FactoryLocator::add(
-                "Table",
+                'Table',
                 (new TableLocator())->allowFallbackClass(false),
             );
         }
         $handler = new CallForNavHandler();
         EventManager::instance()->on($handler);
 
+        $currentConfigVersion = '25.01.11.a'; // update this each time you change the config
 
-        $currentConfigVersion = "25.01.11.a"; // update this each time you change the config
-
-        $configVersion = StaticHelpers::getAppSetting("KMP.configVersion", "0.0.0", null, true);
+        $configVersion = StaticHelpers::getAppSetting('KMP.configVersion', '0.0.0', null, true);
         if ($configVersion != $currentConfigVersion) {
-            StaticHelpers::setAppSetting("KMP.configVersion", $currentConfigVersion, null, true);
-            StaticHelpers::getAppSetting("KMP.BranchInitRun", "", null, true);
-            StaticHelpers::getAppSetting("KMP.KingdomName", "please_set", null, true);
-            StaticHelpers::getAppSetting("Member.ViewCard.Graphic", "auth_card_back.gif", null, true);
-            StaticHelpers::getAppSetting("Member.ViewCard.HeaderColor", "gold", null, true);
-            StaticHelpers::getAppSetting("Member.ViewCard.Template", "view_card", null, true);
-            StaticHelpers::getAppSetting("Member.ViewMobileCard.Template", "view_mobile_card", null, true);
-            StaticHelpers::getAppSetting("KMP.Login.Graphic", "populace_badge.png", null, true);
-            StaticHelpers::getAppSetting("Members.AccountVerificationContactEmail", "please_set", null, true);
-            StaticHelpers::getAppSetting("Members.AccountDisabledContactEmail", "please_set", null, true);
-            StaticHelpers::getAppSetting("KMP.EnablePublicRegistration", "yes", null, true);
-            StaticHelpers::getAppSetting("Email.SystemEmailFromAddress", "site@test.com", null, true);
-            StaticHelpers::getAppSetting("Email.SiteAdminSignature", "site", null, true);
-            StaticHelpers::getAppSetting("KMP.LongSiteTitle", "Kingdom Management Portal", null, true);
-            StaticHelpers::getAppSetting("Members.NewMemberSecretaryEmail", "member@test.com", null, true);
-            StaticHelpers::getAppSetting("Members.NewMinorSecretaryEmail", "minorSet@test.com", null, true);
-            StaticHelpers::getAppSetting("KMP.AppSettings.HelpUrl", "https://github.com/Ansteorra/KMP/wiki/App-Settings", null, true);
-            StaticHelpers::getAppSetting("App.version", "0.0.0", null, true);
-            StaticHelpers::getAppSetting("KMP.BannerLogo", "badge.png", null, true);
-            StaticHelpers::getAppSetting("KMP.ShortSiteTitle", "KMP", null, true);
-            StaticHelpers::getAppSetting("Member.MobileCard.ThemeColor", "gold", null, true);
-            StaticHelpers::getAppSetting("Member.MobileCard.BgColor", "gold", null, true);
-            StaticHelpers::getAppSetting("Activity.SecretaryEmail", "please_set", null, true);
-            StaticHelpers::getAppSetting("Activity.SecretaryName", "please_set", null, true);
-            StaticHelpers::getAppSetting("Warrant.LastCheck", DateTime::now()->subDays(1)->toDateString(), null, true);
-            StaticHelpers::getAppSetting("KMP.RequireActiveWarrantForSecurity", "yes", null, true);
-            StaticHelpers::getAppSetting("Warrant.RosterApprovalsRequired", 2, null, true);
-            StaticHelpers::getAppSetting("Branches.Types", yaml_emit([
-                "Kingdom",
-                "Principality",
-                "Region",
-                "Local Group",
-                "N/A",
+            StaticHelpers::setAppSetting('KMP.configVersion', $currentConfigVersion, null, true);
+            StaticHelpers::getAppSetting('KMP.BranchInitRun', '', null, true);
+            StaticHelpers::getAppSetting('KMP.KingdomName', 'please_set', null, true);
+            StaticHelpers::getAppSetting('Member.ViewCard.Graphic', 'auth_card_back.gif', null, true);
+            StaticHelpers::getAppSetting('Member.ViewCard.HeaderColor', 'gold', null, true);
+            StaticHelpers::getAppSetting('Member.ViewCard.Template', 'view_card', null, true);
+            StaticHelpers::getAppSetting('Member.ViewMobileCard.Template', 'view_mobile_card', null, true);
+            StaticHelpers::getAppSetting('KMP.Login.Graphic', 'populace_badge.png', null, true);
+            StaticHelpers::getAppSetting('Members.AccountVerificationContactEmail', 'please_set', null, true);
+            StaticHelpers::getAppSetting('Members.AccountDisabledContactEmail', 'please_set', null, true);
+            StaticHelpers::getAppSetting('KMP.EnablePublicRegistration', 'yes', null, true);
+            StaticHelpers::getAppSetting('Email.SystemEmailFromAddress', 'site@test.com', null, true);
+            StaticHelpers::getAppSetting('Email.SiteAdminSignature', 'site', null, true);
+            StaticHelpers::getAppSetting('KMP.LongSiteTitle', 'Kingdom Management Portal', null, true);
+            StaticHelpers::getAppSetting('Members.NewMemberSecretaryEmail', 'member@test.com', null, true);
+            StaticHelpers::getAppSetting('Members.NewMinorSecretaryEmail', 'minorSet@test.com', null, true);
+            StaticHelpers::getAppSetting('KMP.AppSettings.HelpUrl', 'https://github.com/Ansteorra/KMP/wiki/App-Settings', null, true);
+            StaticHelpers::getAppSetting('App.version', '0.0.0', null, true);
+            StaticHelpers::getAppSetting('KMP.BannerLogo', 'badge.png', null, true);
+            StaticHelpers::getAppSetting('KMP.ShortSiteTitle', 'KMP', null, true);
+            StaticHelpers::getAppSetting('Member.MobileCard.ThemeColor', 'gold', null, true);
+            StaticHelpers::getAppSetting('Member.MobileCard.BgColor', 'gold', null, true);
+            StaticHelpers::getAppSetting('Activity.SecretaryEmail', 'please_set', null, true);
+            StaticHelpers::getAppSetting('Activity.SecretaryName', 'please_set', null, true);
+            StaticHelpers::getAppSetting('Warrant.LastCheck', DateTime::now()->subDays(1)->toDateString(), null, true);
+            StaticHelpers::getAppSetting('KMP.RequireActiveWarrantForSecurity', 'yes', null, true);
+            StaticHelpers::getAppSetting('Warrant.RosterApprovalsRequired', '2', null, true);
+            StaticHelpers::getAppSetting('Branches.Types', yaml_emit([
+                'Kingdom',
+                'Principality',
+                'Region',
+                'Local Group',
+                'N/A',
             ]), 'yaml', true);
         }
     }
@@ -145,11 +143,11 @@ class Application extends BaseApplication implements
         $middlewareQueue
             // Catch any exceptions in the lower layers,
             // and make an error page/response
-            ->add(new ErrorHandlerMiddleware(Configure::read("Error"), $this))
+            ->add(new ErrorHandlerMiddleware(Configure::read('Error'), $this))
             // Handle plugin/theme assets like CakePHP normally does.
             ->add(
                 new AssetMiddleware([
-                    "cacheTime" => Configure::read("Asset.cacheTime"),
+                    'cacheTime' => Configure::read('Asset.cacheTime'),
                 ]),
             )
             // Add routing middleware.
@@ -165,7 +163,7 @@ class Application extends BaseApplication implements
             // https://book.cakephp.org/4/en/security/csrf.html#cross-site-request-forgery-csrf-middleware
             ->add(
                 new CsrfProtectionMiddleware([
-                    "httponly" => true,
+                    'httponly' => true,
                 ]),
             )
             // Add the AuthenticationMiddleware. It should be
@@ -173,7 +171,8 @@ class Application extends BaseApplication implements
             ->add(new AuthenticationMiddleware($this))
             ->add(
                 new AuthorizationMiddleware($this, [
-                    "identityDecorator" => function ($auth, $user) {
+                    'identityDecorator' => function (AuthorizationServiceInterface $auth, KmpIdentityInterface $user) {
+                // Modify this line
                         return $user->setAuthorization($auth);
                     },
                     'requireAuthorizationCheck' => true,
@@ -211,7 +210,7 @@ class Application extends BaseApplication implements
             DefaultWarrantManager::class,
         )->addArgument(ActiveWindowManagerInterface::class);
         $container->add(
-            \App\Services\CsvExportService::class
+            CsvExportService::class,
         );
     }
 
@@ -228,47 +227,47 @@ class Application extends BaseApplication implements
 
         // Define where users should be redirected to when they are not authenticated
         $service->setConfig([
-            "unauthenticatedRedirect" => Router::url([
-                "prefix" => false,
-                "plugin" => null,
-                "controller" => "Members",
-                "action" => "login",
+            'unauthenticatedRedirect' => Router::url([
+                'prefix' => false,
+                'plugin' => null,
+                'controller' => 'Members',
+                'action' => 'login',
             ]),
-            "queryParam" => "redirect",
+            'queryParam' => 'redirect',
         ]);
 
         $fields = [
-            AbstractIdentifier::CREDENTIAL_USERNAME => "email_address",
-            AbstractIdentifier::CREDENTIAL_PASSWORD => "password",
+            AbstractIdentifier::CREDENTIAL_USERNAME => 'email_address',
+            AbstractIdentifier::CREDENTIAL_PASSWORD => 'password',
         ];
         // Load the authenticators. Session should be first.
-        $service->loadAuthenticator("Authentication.Session");
-        $service->loadAuthenticator("Authentication.Form", [
-            "fields" => $fields,
-            "loginUrl" => Router::url([
-                "prefix" => false,
-                "plugin" => null,
-                "controller" => "Members",
-                "action" => "login",
+        $service->loadAuthenticator('Authentication.Session');
+        $service->loadAuthenticator('Authentication.Form', [
+            'fields' => $fields,
+            'loginUrl' => Router::url([
+                'prefix' => false,
+                'plugin' => null,
+                'controller' => 'Members',
+                'action' => 'login',
             ]),
         ]);
 
         // Load identifiers
-        $service->loadIdentifier("KMPBruteForcePassword", [
-            "resolver" => [
-                "className" => "Authentication.Orm",
-                "userModel" => "Members",
+        $service->loadIdentifier('KMPBruteForcePassword', [
+            'resolver' => [
+                'className' => 'Authentication.Orm',
+                'userModel' => 'Members',
             ],
-            "fields" => $fields,
+            'fields' => $fields,
             // Other config options
-            "passwordHasher" => [
-                "className" => "Authentication.Fallback",
-                "hashers" => [
-                    "Authentication.Default",
+            'passwordHasher' => [
+                'className' => 'Authentication.Fallback',
+                'hashers' => [
+                    'Authentication.Default',
                     [
-                        "className" => "Authentication.Legacy",
-                        "hashType" => "md5",
-                        "salt" => false, // turn off default usage of salt
+                        'className' => 'Authentication.Legacy',
+                        'hashType' => 'md5',
+                        'salt' => false, // turn off default usage of salt
                     ],
                 ],
             ],

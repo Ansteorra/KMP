@@ -1,23 +1,17 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
 
 use App\Model\Entity\WarrantRoster;
-use Cake\ORM\Query\SelectQuery;
-use Cake\ORM\RulesChecker;
-use Cake\ORM\Table;
-use Cake\Validation\Validator;
 use Cake\ORM\TableRegistry;
-use App\Model\Table\BaseTable;
+use Cake\Validation\Validator;
 
 /**
  * WarrantRosters Model
  *
  * @property \App\Model\Table\WarrantRosterApprovalsTable&\Cake\ORM\Association\HasMany $WarrantRosterApprovals
  * @property \App\Model\Table\WarrantsTable&\Cake\ORM\Association\HasMany $Warrants
- *
  * @method \App\Model\Entity\WarrantRoster newEmptyEntity()
  * @method \App\Model\Entity\WarrantRoster newEntity(array $data, array $options = [])
  * @method array<\App\Model\Entity\WarrantRoster> newEntities(array $data, array $options = [])
@@ -31,7 +25,6 @@ use App\Model\Table\BaseTable;
  * @method iterable<\App\Model\Entity\WarrantRoster>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\WarrantRoster> saveManyOrFail(iterable $entities, array $options = [])
  * @method iterable<\App\Model\Entity\WarrantRoster>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\WarrantRoster>|false deleteMany(iterable $entities, array $options = [])
  * @method iterable<\App\Model\Entity\WarrantRoster>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\WarrantRoster> deleteManyOrFail(iterable $entities, array $options = [])
- *
  * @mixin \Cake\ORM\Behavior\TimestampBehavior
  */
 class WarrantRostersTable extends BaseTable
@@ -59,19 +52,19 @@ class WarrantRostersTable extends BaseTable
             'foreignKey' => 'warrant_roster_id',
         ]);
 
-        $this->belongsTo("CreatedByMember", [
-            "className" => "Members",
-            "foreignKey" => "created_by",
-            "joinType" => "LEFT",
+        $this->belongsTo('CreatedByMember', [
+            'className' => 'Members',
+            'foreignKey' => 'created_by',
+            'joinType' => 'LEFT',
         ]);
 
-        $this->belongsTo("ModfiedByMember", [
-            "className" => "Members",
-            "foreignKey" => "modified_by",
-            "joinType" => "LEFT",
+        $this->belongsTo('ModfiedByMember', [
+            'className' => 'Members',
+            'foreignKey' => 'modified_by',
+            'joinType' => 'LEFT',
         ]);
 
-        $this->addBehavior("Timestamp");
+        $this->addBehavior('Timestamp');
         $this->addBehavior('Muffin/Footprint.Footprint');
     }
 
@@ -123,11 +116,11 @@ class WarrantRostersTable extends BaseTable
 
     public static function getPendingRosterCount(): int
     {
-        $warrantRostersTable = TableRegistry::getTableLocator()->get("WarrantRosters");
+        $warrantRostersTable = TableRegistry::getTableLocator()->get('WarrantRosters');
 
         return $warrantRostersTable->find()
             ->where([
-                "status" => WarrantRoster::STATUS_PENDING
+                'status' => WarrantRoster::STATUS_PENDING,
             ])
             ->count();
     }

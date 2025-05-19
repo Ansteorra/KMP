@@ -6,16 +6,22 @@ namespace Activities\Policy;
 
 use Activities\Model\Entity\AuthorizationApproval;
 use Activities\Model\Table\ActivitiesTable;
-use Authorization\IdentityInterface;
+use App\KMP\KmpIdentityInterface;
 use Cake\ORM\TableRegistry;
 use App\Model\Entity\Member;
 use App\Policy\BasePolicy;
+use App\Model\Entity\BaseEntity;
 
 class AuthorizationApprovalPolicy extends BasePolicy
 {
-    protected string $REQUIRED_PERMISSION = "Can Manage Authorization Queues";
-
-    function canApprove(IdentityInterface $user, $entity, ...$optionalArgs): bool
+    /**
+     * Check if the user can approve authorizations
+     * @param KmpIdentityInterface $user
+     * @param AuthorizationApproval $entity
+     * @param array ...$optionalArgs
+     * @return bool
+     */
+    function canApprove(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         $authorization_id = $entity->authorization_id;
         $authorization = $entity->authorization;
@@ -31,7 +37,14 @@ class AuthorizationApprovalPolicy extends BasePolicy
         return ActivitiesTable::canAuthorizeActivity($user, $activity_id);
     }
 
-    function canDeny(IdentityInterface $user, $entity, ...$optionalArgs): bool
+    /**
+     * Check if the user can deny authorizations
+     * @param KmpIdentityInterface $user
+     * @param AuthorizationApproval $entity
+     * @param array ...$optionalArgs
+     * @return bool
+     */
+    function canDeny(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         $authorization_id = $entity->authorization_id;
         $authorization = $entity->authorization;
@@ -49,8 +62,14 @@ class AuthorizationApprovalPolicy extends BasePolicy
 
 
 
-
-    function canView(IdentityInterface $user, $entity, ...$optionalArgs): bool
+    /**
+     * Check if the user can view authorizations
+     * @param KmpIdentityInterface $user
+     * @param AuthorizationApproval $entity
+     * @param array ...$optionalArgs
+     * @return bool
+     */
+    function canView(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         $member_id = $user->getIdentifier();
         if ($member_id === $entity->approver_id) {
@@ -60,12 +79,26 @@ class AuthorizationApprovalPolicy extends BasePolicy
         return $this->_hasPolicy($user, $method, $entity);
     }
 
-    public function canMyQueue(IdentityInterface $user, $entity, ...$optionalArgs)
+    /**
+     * Check if the user can view their own authorization queue
+     * @param KmpIdentityInterface $user
+     * @param AuthorizationApproval $entity
+     * @param array ...$optionalArgs
+     * @return bool
+     */
+    public function canMyQueue(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs)
     {
         return ActivitiesTable::canAuhtorizeAnyActivity($user);
     }
 
-    function canAvailableApproversList(IdentityInterface $user, $approval): bool
+    /**
+     * Check if the user can view a list of others who can approve an authorization.
+     * @param KmpIdentityInterface $user
+     * @param AuthorizationApproval $entity
+     * @param array ...$optionalArgs
+     * @return bool
+     */
+    function canAvailableApproversList(KmpIdentityInterface $user, $approval): bool
     {
         $member_id = $user->getIdentifier();
         if ($member_id === $approval->approver_id) {

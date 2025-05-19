@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/Lib/SeedHelpers.php';
+
 use Migrations\BaseSeed;
 use Cake\I18n\DateTime;
 
@@ -24,9 +26,6 @@ class DevLoadMemberRolesSeed extends BaseSeed
     {
         $data = $this->getData();
         $table = $this->table('member_roles');
-        $options = $table->getAdapter()->getOptions();
-        $options['identity_insert'] = true;
-        $table->getAdapter()->setOptions($options);
         $table->insert($data)->save();
     }
 
@@ -37,40 +36,46 @@ class DevLoadMemberRolesSeed extends BaseSeed
      */
     public function getData(): array
     {
+        // Use email/sca_name and role names for lookups
+        $earlId = SeedHelpers::getMemberId('Earl@test.com');
+        $stanId = SeedHelpers::getMemberId('Stan@test.com');
+        $regId = SeedHelpers::getMemberId('Reg@test.com');
+        $adminId = SeedHelpers::getMemberId('admin@test.com');
+        $kingdomMarshalRole = SeedHelpers::getRoleId('Kingdom Earl Marshal');
+        $rapierMarshalRole = SeedHelpers::getRoleId('Kingdom Rapier Marshal');
+        $regionalRole = SeedHelpers::getRoleId('User Manager');
+        $adminRole = SeedHelpers::getRoleId('Admin');
         return [
             [
-                'id' => 200,
-                'member_id' => 200,
-                'role_id' => 201,
+                'member_id' => $earlId,
+                'role_id' => $kingdomMarshalRole,
                 'expires_on' => NULL,
                 'start_on' => '2024-05-30 01:22:55',
-                'approver_id' => 1,
+                'approver_id' => $adminId,
                 'entity_type' => 'Direct Grant',
                 'created' => DateTime::now(),
-                'created_by' => '1'
+                'created_by' => $adminId
             ],
             [
-                'id' => 201,
-                'member_id' => 201,
-                'role_id' => 202,
+                'member_id' => $stanId,
+                'role_id' => $rapierMarshalRole,
                 'expires_on' => NULL,
                 'start_on' => '2024-05-30 12:54:12',
-                'approver_id' => 1,
+                'approver_id' => $adminId,
                 'entity_type' => 'Direct Grant',
                 'created' => DateTime::now(),
-                'created_by' => '1'
+                'created_by' => $adminId
             ],
             [
-                'id' => 202,
-                'member_id' => 202,
-                'role_id' => 207,
+                'member_id' => $regId,
+                'role_id' => $regionalRole,
                 'expires_on' => NULL,
                 'start_on' => '2024-05-30 12:54:12',
-                'approver_id' => 1,
+                'approver_id' => $adminId,
                 'entity_type' => 'Direct Grant',
                 'created' => DateTime::now(),
-                'created_by' => '1',
-                'branch_id' => '5'
+                'created_by' => $adminId,
+                'branch_id' => SeedHelpers::getBranchIdByName('Barony 2')
             ],
         ];
     }

@@ -101,7 +101,7 @@ class DepartmentsTable extends BaseTable
             $notList = $this->find('all')->select(['id', 'name'])->orderBy(["name"])->toArray();
             $returnList = [];
             foreach ($notList as $key => $department) {
-                $returnList[$department->id] = $department->name;;
+                $returnList[$department->id] = $department->name;
             }
             return $returnList;
         }
@@ -118,7 +118,7 @@ class DepartmentsTable extends BaseTable
             ])->select(['Departments.name', 'Departments.id'])->distinct(['Departments.name', 'Departments.id'])->toArray();
         $returnList = [];
         foreach ($officers as $key => $officer) {
-            $returnList[$officer->office->department->id] = $officer->office->department->name;;
+            $returnList[$officer->office->department->id] = $officer->office->department->name;
         }
         return $returnList;
     }

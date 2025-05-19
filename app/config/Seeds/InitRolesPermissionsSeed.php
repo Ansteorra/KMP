@@ -5,6 +5,8 @@ declare(strict_types=1);
 
 use Migrations\BaseSeed;
 
+require_once __DIR__ . '/Lib/SeedHelpers.php';
+
 /**
  * RolesPermissions seed.
  */
@@ -19,8 +21,8 @@ class InitRolesPermissionsSeed extends BaseSeed
     {
         return [
             [
-                'permission_id' => 1,
-                'role_id' => 1,
+                'permission_id' => SeedHelpers::getPermissionId("Can Do All But Is Not A Super User"), //1,
+                'role_id' => SeedHelpers::getRoleId("Admin"), //1,
                 'created_by' => 1,
             ]
         ];

@@ -1,25 +1,27 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Policy;
 
-use App\Model\Entity\Member;
-use App\Model\Entity\Permission;
-use App\Model\Entity\Role;
-
-use Authorization\IdentityInterface;
-use Authorization\Policy\ResultInterface;
-use Authorization\Policy\BeforePolicyInterface;
-
-
+use App\KMP\KmpIdentityInterface;
 use App\Model\Entity\BaseEntity;
-
-
-use Cake\Log\Log;
+use App\Model\Entity\Permission;
+use Authorization\IdentityInterface;
+use Authorization\Policy\BeforePolicyInterface;
+use Authorization\Policy\ResultInterface;
+use Cake\ORM\Table;
 
 class BasePolicy implements BeforePolicyInterface
 {
-
-    protected string $REQUIRED_PERMISSION = "OVERRIDE_ME";
+    /**
+     * Check if $user is a super user and can skip auth with an auto True
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The user.
+     * @param mixed $resource The resource.
+     * @param string $action The action.
+     * @return bool|null
+     */
     public function before(
         ?IdentityInterface $user,
         mixed $resource,
@@ -28,115 +30,143 @@ class BasePolicy implements BeforePolicyInterface
         if ($this->_isSuperUser($user)) {
             return true;
         }
+
         return null;
     }
 
     /**
      * Check if $user can add RolesPermissions
      *
-     * @param \Authorization\IdentityInterface $user The user.
-     * @param \App\Model\Entity\BaseEntity $entity
+     * @param \App\KMP\KmpIdentityInterface $user The user.
+     * @param \App\Model\Entity\BaseEntity|\Cake\ORM\Table $entity
      * @return bool
      */
-    public function canAdd(IdentityInterface $user, $entity, ...$optionalArgs)
+    public function canAdd(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
+
         return $this->_hasPolicy($user, $method, $entity, ...$optionalArgs);
     }
 
     /**
      * Check if $user can edit RolesPermissions
      *
-     * @param \Authorization\IdentityInterface $user The user.
+     * @param \App\KMP\KmpIdentityInterface $user The user.
      * @param \App\Model\Entity\BaseEntity $entity
      * @return bool
      */
-    public function canEdit(IdentityInterface $user, $entity, ...$optionalArgs)
+    public function canEdit(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
+
         return $this->_hasPolicy($user, $method, $entity);
     }
 
     /**
      * Check if $user can delete RolesPermissions
      *
-     * @param \Authorization\IdentityInterface $user The user.
+     * @param \App\KMP\KmpIdentityInterface $user The user.
      * @param \App\Model\Entity\BaseEntity $entity
      * @return bool
      */
-    public function canDelete(IdentityInterface $user, $entity, ...$optionalArgs)
+    public function canDelete(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
+
         return $this->_hasPolicy($user, $method, $entity);
     }
 
     /**
      * Check if $user can view RolesPermissions
      *
-     * @param \Authorization\IdentityInterface $user The user.
+     * @param \App\KMP\KmpIdentityInterface $user The user.
      * @param \App\Model\Entity\BaseEntity $entity
      * @return bool
      */
-    public function canView(IdentityInterface $user, $entity, ...$optionalArgs)
+    public function canView(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
+
         return $this->_hasPolicy($user, $method, $entity);
     }
 
     /**
      * Check if $user can view role
      *
-     * @param \Authorization\IdentityInterface $user The user.
+     * @param \App\KMP\KmpIdentityInterface $user The user.
      * @param \App\Model\Entity\BaseEntity $entity
      * @return bool
      */
-    public function canIndex(IdentityInterface $user, $entity, ...$optionalArgs)
+    public function canIndex(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
+
         return $this->_hasPolicy($user, $method, $entity);
     }
 
-    public function scopeIndex(IdentityInterface $user, $query)
+    public function scopeIndex(KmpIdentityInterface $user, $query)
     {
         $table = $query->getRepository();
-        $branchIds = $this->_getBranchIdsForPolicy($user, "canIndex");
+        $branchIds = $this->_getBranchIdsForPolicy($user, 'canIndex');
         if (empty($branchIds)) {
             return $query;
         }
+
         return $table->addBranchScopeQuery($query, $branchIds);
     }
 
-
-    public function canViewPrivateNotes(IdentityInterface $user, $entity)
+    /**
+     * Check if $user can view hidden
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The user.
+     * @param \App\Model\Entity\BaseEntity $entity
+     * @return bool
+     */
+    public function canViewPrivateNotes(KmpIdentityInterface $user, BaseEntity $entity): bool
     {
         $method = __FUNCTION__;
+
         return $this->_hasPolicy($user, $method, $entity);
     }
 
-    protected function _hasPolicy($user, string $policyMethod, $entity, ?int $branchId = null, $grantSource = null): bool
+    /**
+     * Check if $user can view hidden
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The user.
+     * @param \App\Model\Entity\BaseEntity|\Cake\ORM\Table $entity
+     * @return bool
+     */
+    protected function _hasPolicy(KmpIdentityInterface $user, string $policyMethod, BaseEntity|Table $entity, ?int $branchId = null, $grantSource = null): bool
     {
         if ($this->_isSuperUser($user)) {
             return true;
         }
-        $policyClass = get_called_class();
+        $policyClass = static::class;
         $policies = $this->_getPolicies($user);
         if (empty($policies)) {
+            \Cake\Log\Log::write('debug', 'No policies found for user: ' . $user->getIdentifier());
             return false;
         }
         $policyClassData = $policies[$policyClass] ?? null;
         if (empty($policyClassData)) {
+            \Cake\Log\Log::write('debug', 'No policies found for class: ' . $policyClass);
             return false;
         }
         $policyMethodData = $policyClassData[$policyMethod] ?? null;
         if (empty($policyMethodData)) {
+            \Cake\Log\Log::write('debug', 'No policies found for method: ' . $policyClass . "-" . $policyMethod);
             return false;
         }
         //check if we have a grant source to check
-        if ($grantSource != null && $policyMethodData->entity_type != "Direct Grant") {
+        if ($grantSource != null && $policyMethodData->entity_type != 'Direct Grant') {
             if (
                 $grantSource->entity_type != $policyMethodData->entity_type
                 || $grantSource->entity_id != $policyMethodData->entity_id
             ) {
+                \Cake\Log\Log::write('debug', 'Grant source does not match policy method data');
+                \Cake\Log\Log::write('debug', 'User: ' . $user->getIdentifier());
+                \Cake\Log\Log::write('debug', 'Policy class: ' . $policyClass);
+                \Cake\Log\Log::write('debug', 'Policy method: ' . $policyMethod);
                 return false;
             }
         }
@@ -155,6 +185,7 @@ class BasePolicy implements BeforePolicyInterface
             if (in_array($branchId, $policyMethodData->branch_ids)) {
                 return true;
             }
+            \Cake\Log\Log::write('debug', 'Branch id does not match policy method data');
             return false;
         } else {
             //if the entity is not a base entity, we assume it is a table and we return true
@@ -162,7 +193,51 @@ class BasePolicy implements BeforePolicyInterface
         }
     }
 
-    protected function _getBranchIdsForPolicy($user, string $policyMethod): array|null
+    /**
+     * Check if $user can view hidden
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The user.
+     * @param Array|\Cake\ORM\Table $entity
+     * @return bool
+     */
+    protected function _hasPolicyForUrl(KmpIdentityInterface $user, string $policyMethod, array $urlProps, ?int $branchId = null, $grantSource = null): bool
+    {
+        if ($this->_isSuperUser($user)) {
+            return true;
+        }
+        $policyClass = static::class;
+        $policies = $this->_getPolicies($user);
+        if (empty($policies)) {
+            return false;
+        }
+        $policyClassData = $policies[$policyClass] ?? null;
+        if (empty($policyClassData)) {
+            return false;
+        }
+        $policyMethodData = $policyClassData[$policyMethod] ?? null;
+        if (empty($policyMethodData)) {
+            return false;
+        }
+        //check if we have a grant source to check
+        if ($grantSource != null && $policyMethodData->entity_type != 'Direct Grant') {
+            if (
+                $grantSource->entity_type != $policyMethodData->entity_type
+                || $grantSource->entity_id != $policyMethodData->entity_id
+            ) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Check if $user can view hidden
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The user.
+     * @param \App\Model\Entity\BaseEntity $entity
+     * @return ?array
+     */
+    protected function _getBranchIdsForPolicy(KmpIdentityInterface $user, string $policyMethod): ?array
     {
         if ($this->_isSuperUser($user)) {
             return null;
@@ -171,7 +246,7 @@ class BasePolicy implements BeforePolicyInterface
         if (empty($policies)) {
             return [-10000000];
         }
-        $policyClass = get_called_class();
+        $policyClass = static::class;
         $policyClassData = $policies[$policyClass] ?? null;
         if (empty($policyClassData)) {
             return [-10000000];
@@ -183,23 +258,46 @@ class BasePolicy implements BeforePolicyInterface
         if ($policyMethodData->scoping_rule == Permission::SCOPE_GLOBAL) {
             return null;
         }
+
         return $policyMethodData->branch_ids;
     }
 
-    protected function _getPolicies($user): array|null
+    /**
+     * Check if $user can view hidden
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The user.
+     * @param \App\Model\Entity\BaseEntity $entity
+     * @return bool
+     */
+    protected function _getPolicies(KmpIdentityInterface $user): ?array
     {
         $policies = $user->getPolicies();
         if (empty($policies)) {
             return null;
         }
+
         return $policies;
     }
 
-    protected function _getPermissions($user): array|null
+    /**
+     * Check if $user can view hidden
+     *
+     * @param \App\KMP\KmpIdentityInterface  $user The user.
+     * @param \App\Model\Entity\BaseEntity $entity
+     * @return bool
+     */
+    protected function _getPermissions(KmpIdentityInterface $user): ?array
     {
         return $user->getPermissions();
     }
-    protected function _isSuperUser($user): bool
+
+    /**
+     * Check if $user is a super user
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The user.
+     * @return bool
+     */
+    protected function _isSuperUser(KmpIdentityInterface $user): bool
     {
         return $user->isSuperUser();
     }

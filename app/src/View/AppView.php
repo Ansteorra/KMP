@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 /**
@@ -19,7 +18,6 @@ namespace App\View;
 
 use BootstrapUI\View\UIViewTrait;
 use Cake\View\View;
-use Cake\I18n\DateTime;
 
 /**
  * Application View
@@ -40,14 +38,14 @@ class AppView extends View
         parent::initialize();
 
         // Call the initializeUI method from UIViewTrait
-        $this->initializeUI(["layout" => false]);
+        $this->initializeUI(['layout' => false]);
         $this->loadHelper('AssetMix.AssetMix');
-        $this->loadHelper("Authentication.Identity");
-        $this->loadHelper("Bootstrap.Modal");
-        $this->loadHelper("Bootstrap.Navbar");
-        $this->loadHelper("Url");
+        $this->loadHelper('Authentication.Identity');
+        $this->loadHelper('Bootstrap.Modal');
+        $this->loadHelper('Bootstrap.Navbar');
+        $this->loadHelper('Url');
         //$this->loadHelper("AssetCompress.AssetCompress");
-        $this->loadHelper("Kmp");
+        $this->loadHelper('Kmp');
         // All option values should match the corresponding options for `GlideFilter`.
         $this->loadHelper('ADmad/Glide.Glide', [
             // Base URL.

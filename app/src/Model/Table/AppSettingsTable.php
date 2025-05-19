@@ -1,18 +1,13 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
 
-use Cake\ORM\Query\SelectQuery;
-use App\Model\Entity\AppSetting;
-use Cake\ORM\RulesChecker;
-use Cake\ORM\Table;
-use Cake\Validation\Validator;
-use Cake\Datasource\EntityInterface;
 use Cake\Cache\Cache;
-use Cake\Log\Log;
-use App\Model\Table\BaseTable;
+use Cake\Datasource\EntityInterface;
+use Cake\ORM\RulesChecker;
+use Cake\Validation\Validator;
+use Exception;
 
 /**
  * AppSettings Model
@@ -33,7 +28,6 @@ use App\Model\Table\BaseTable;
  */
 class AppSettingsTable extends BaseTable
 {
-
     /**
      * Initialize method
      *
@@ -44,10 +38,10 @@ class AppSettingsTable extends BaseTable
     {
         parent::initialize($config);
 
-        $this->setTable("app_settings");
-        $this->setDisplayField("name");
-        $this->setPrimaryKey("id");
-        $this->addBehavior("Timestamp");
+        $this->setTable('app_settings');
+        $this->setDisplayField('name');
+        $this->setPrimaryKey('id');
+        $this->addBehavior('Timestamp');
         $this->addBehavior('Muffin/Footprint.Footprint');
     }
 
@@ -60,25 +54,25 @@ class AppSettingsTable extends BaseTable
     public function validationDefault(Validator $validator): Validator
     {
         $validator
-            ->scalar("name")
-            ->maxLength("name", 255)
-            ->requirePresence("name", "create")
-            ->notEmptyString("name")
-            ->add("name", "unique", [
-                "rule" => "validateUnique",
-                "provider" => "table",
+            ->scalar('name')
+            ->maxLength('name', 255)
+            ->requirePresence('name', 'create')
+            ->notEmptyString('name')
+            ->add('name', 'unique', [
+                'rule' => 'validateUnique',
+                'provider' => 'table',
             ]);
 
         $validator
-            ->scalar("value")
-            ->allowEmptyString("value");
+            ->scalar('value')
+            ->allowEmptyString('value');
 
         return $validator;
     }
 
     public function buildRules(RulesChecker $rules): RulesChecker
     {
-        $rules->add($rules->isUnique(["name"]), ["errorField" => "name"]);
+        $rules->add($rules->isUnique(['name']), ['errorField' => 'name']);
 
         return $rules;
     }
@@ -90,12 +84,14 @@ class AppSettingsTable extends BaseTable
         $entity->saving = true;
         $result = parent::save($entity, $options);
         $entity->saving = false;
+
         return $result;
     }
 
     public function delete(EntityInterface $entity, array $options = []): bool
     {
         $result = parent::delete($entity, $options);
+
         return $result;
     }
 
@@ -105,7 +101,7 @@ class AppSettingsTable extends BaseTable
      * @param string $name The name of the setting.
      * @return mixed The value of the setting.
      */
-    public function getSetting(string $name)
+    public function getSetting(string $name): mixed
     {
         //Log::debug("Getting setting $name");
         $cacheKey = 'app_setting_' . $name;
@@ -118,6 +114,7 @@ class AppSettingsTable extends BaseTable
 
             if ($setting) {
                 Cache::write($cacheKey, $setting->value, 'default');
+
                 return $setting->value;
             }
 
@@ -135,7 +132,7 @@ class AppSettingsTable extends BaseTable
      * @param mixed $value The new value of the setting.
      * @return bool True on success, false on failure.
      */
-    public function updateSetting(string $name, ?string $type, $value, $required = false): bool
+    public function updateSetting(string $name, ?string $type, mixed $value, $required = false): bool
     {
         //Log::debug("Writing setting $name");
         $setting = $this->find()
@@ -158,6 +155,7 @@ class AppSettingsTable extends BaseTable
         if ($this->save($setting)) {
             $cacheKey = 'app_setting_' . $name;
             Cache::write($cacheKey, $setting->value, 'default');
+
             return true;
         }
 
@@ -183,6 +181,7 @@ class AppSettingsTable extends BaseTable
             if ($this->delete($setting)) {
                 $cacheKey = 'app_setting_' . $name;
                 Cache::delete($cacheKey, 'default');
+
                 return true;
             }
         }
@@ -198,9 +197,10 @@ class AppSettingsTable extends BaseTable
         }
         if ($default !== null) {
             $setting = $this->setAppSetting($key, $default, $type, $required);
+
             return $default;
         } else {
-            throw new \Exception("AppSetting $key not found");
+            throw new Exception("AppSetting $key not found");
         }
     }
 
@@ -224,6 +224,7 @@ class AppSettingsTable extends BaseTable
         foreach ($settings as $setting) {
             $return[$setting->name] = $setting->value;
         }
+
         return $return;
     }
 }

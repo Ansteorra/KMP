@@ -4,50 +4,24 @@ declare(strict_types=1);
 
 namespace App\Policy;
 
-use App\Model\Entity\Note;
-use Authorization\IdentityInterface;
+use App\KMP\KmpIdentityInterface;
+use App\Model\Entity\BaseEntity;
+use Cake\ORM\Table;
 
 /**
  * Note policy
  */
-class NotePolicy
+class NotePolicy extends BasePolicy
 {
     /**
      * Check if $user can add Note
      *
-     * @param \Authorization\IdentityInterface $user The user.
+     * @param \App\KMP\KmpIdentityInterface $user The user.
      * @param \App\Model\Entity\Note $note
      * @return bool
      */
-    public function canAdd(IdentityInterface $user, Note $note)
+    public function canAdd(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
     {
-        return $user->checkCan("addNote", $note->entity_type);
+        return $user->checkCan('addNote', $entity->entity_type);
     }
-
-    /**
-     * Check if $user can edit Note
-     *
-     * @param \Authorization\IdentityInterface $user The user.
-     * @param \App\Model\Entity\Note $note
-     * @return bool
-     */
-    public function canEdit(IdentityInterface $user, Note $note) {}
-
-    /**
-     * Check if $user can delete Note
-     *
-     * @param \Authorization\IdentityInterface $user The user.
-     * @param \App\Model\Entity\Note $note
-     * @return bool
-     */
-    public function canDelete(IdentityInterface $user, Note $note) {}
-
-    /**
-     * Check if $user can view Note
-     *
-     * @param \Authorization\IdentityInterface $user The user.
-     * @param \App\Model\Entity\Note $note
-     * @return bool
-     */
-    public function canView(IdentityInterface $user, Note $note) {}
 }

@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\View\Cell;
@@ -25,7 +24,9 @@ class NotesCell extends Cell
      *
      * @return void
      */
-    public function initialize(): void {}
+    public function initialize(): void
+    {
+    }
 
     /**
      * Default display method.
@@ -42,7 +43,7 @@ class NotesCell extends Cell
             }])
             ->where([
                 'entity_id' => $entity_id,
-                'entity_type' => $entity_type
+                'entity_type' => $entity_type,
             ]);
         if (!$viewPrivate) {
             $notesQuery->where(['private' => false]);

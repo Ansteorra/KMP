@@ -5,20 +5,37 @@ namespace Activities\Policy;
 use Authorization\Policy\RequestPolicyInterface;
 use Cake\Http\ServerRequest;
 use Authorization\Policy\ResultInterface;
-use Authorization\IdentityInterface;
+use App\KMP\KmpIdentityInterface;
 use App\Policy\BasePolicy;
+use App\Model\Entity\BaseEntity;
 
 class ReportsControllerPolicy extends BasePolicy
 {
-    public function canActivityWarrantsRoster(IdentityInterface $user, $entity, ...$optionalArgs): ResultInterface|bool
-    {
+    /**
+     * Check if the user can view the reports
+     * @param KmpIdentityInterface $user The user
+     * @param Array $entity The entity
+     * @return bool
+     */
+    public function canActivityWarrantsRoster(
+        KmpIdentityInterface $user,
+        array $urlProps,
+    ): bool {
         $method = __FUNCTION__;
-        return $this->_hasPolicy($user, $method, $entity);
+        return $this->_hasPolicyForUrl($user, $method, $urlProps);
     }
 
-    public function canAuthorizations(IdentityInterface $user, $entity, ...$optionalArgs): ResultInterface|bool
-    {
+    /**
+     * Check if the user can view the reports
+     * @param KmpIdentityInterface $user The user
+     * @param Array $entity The entity
+     * @return bool
+     */
+    public function canAuthorizations(
+        KmpIdentityInterface $user,
+        array $urlProps,
+    ): bool {
         $method = __FUNCTION__;
-        return $this->_hasPolicy($user, $method, $entity);
+        return $this->_hasPolicyForUrl($user, $method, $urlProps);
     }
 }

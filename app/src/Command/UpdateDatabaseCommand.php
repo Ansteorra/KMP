@@ -1,18 +1,15 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Command;
 
+use App\KMP\KMPPluginInterface;
 use Cake\Command\Command;
 use Cake\Command\SchemacacheClearCommand;
 use Cake\Console\Arguments;
 use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
-use Migrations\Migrations;
-use Cake\I18n\DateTime;
 use Cake\Core\Plugin;
-use App\KMP\KMPPluginInterface;
 use Migrations\Command\MigrateCommand as Migrate;
 
 /**
@@ -34,6 +31,7 @@ class UpdateDatabaseCommand extends Command
                 'short' => 'p',
                 'help' => 'The plugin to run migrations for',
             ]);
+
         return $parser;
     }
 
@@ -44,7 +42,7 @@ class UpdateDatabaseCommand extends Command
      * @param \Cake\Console\ConsoleIo $io The console io
      * @return int|null|void The exit code or null for success
      */
-    public function execute(Arguments $args, ConsoleIo $io)
+    public function execute(Arguments $args, ConsoleIo $io): ?int
     {
         //create a date at 0000-00-00 00:00:00
         $date = '0000-01-01 00:00:00';
@@ -61,15 +59,16 @@ class UpdateDatabaseCommand extends Command
                 }
             }
         }
-        //sort 
+        //sort
         asort($pluginsToMigrate);
-        $this->executeCommand(SchemacacheClearCommand::class, ["--connection", "default"], $io);
+        $this->executeCommand(SchemacacheClearCommand::class, ['--connection', 'default'], $io);
         $frameworkMigration = new Migrate();
         $this->executeCommand($frameworkMigration, ['migrate']);
         foreach ($pluginsToMigrate as $name => $order) {
             $pluginMigration = new Migrate();
             $this->executeCommand($pluginMigration, ['migrate', '-p', $name]);
         }
+
         return Command::CODE_SUCCESS;
     }
 }

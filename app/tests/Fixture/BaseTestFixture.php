@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Test\Fixture;
 
 use Cake\TestSuite\Fixture\TestFixture;
-use DevLoadAppSettingsSeed;
+use RuntimeException;
 
 /**
  * AppSettingsFixture
@@ -23,7 +23,7 @@ class BaseTestFixture extends TestFixture
         if (file_exists($path)) {
             include_once $path;
         } else {
-            throw new \RuntimeException('Seed file not found: ' . $path);
+            throw new RuntimeException('Seed file not found: ' . $path);
         }
         //get the class name from the seed file
         $className = $seed;
@@ -31,13 +31,13 @@ class BaseTestFixture extends TestFixture
         if (class_exists($className)) {
             $seedInstance = new $className();
         } else {
-            throw new \RuntimeException('Seed class not found: ' . $className);
+            throw new RuntimeException('Seed class not found: ' . $className);
         }
         // call the getData method and return the data
         if (method_exists($seedInstance, 'getData')) {
             return $seedInstance->getData();
         } else {
-            throw new \RuntimeException('getData method not found in seed class: ' . $className);
+            throw new RuntimeException('getData method not found in seed class: ' . $className);
         }
     }
 }

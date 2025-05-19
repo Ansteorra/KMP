@@ -5,6 +5,8 @@ declare(strict_types=1);
 use Migrations\BaseSeed;
 use Cake\I18n\DateTime;
 
+require_once __DIR__ . '/Lib/SeedHelpers.php';
+
 /**
  * AwardsEvents seed.
  */
@@ -24,9 +26,6 @@ class DevLoadAwardsEventsSeed extends BaseSeed
     {
         $data = $this->getData();
         $table = $this->table('awards_events');
-        $options = $table->getAdapter()->getOptions();
-        $options['identity_insert'] = true;
-        $table->getAdapter()->setOptions($options);
         $table->insert($data)->save();
     }
 
@@ -37,31 +36,30 @@ class DevLoadAwardsEventsSeed extends BaseSeed
      */
     public function getData(): array
     {
+        $adminId = SeedHelpers::getMemberId('admin@test.com');
         return [
             [
-                'id' => 1,
                 'name' => 'Twilight Dreams Baronial',
                 'description' => 'A cool Baronial Event',
-                'branch_id' => 3,
+                'branch_id' => SeedHelpers::getBranchIdByName('Barony 1'),
                 'start_date' => DateTime::now()->addMonths(1),
                 'end_date' => DateTime::now()->addMonths(1)->addDays(2),
                 'modified' => '2024-06-25 22:03:26',
                 'created' => '2024-06-25 22:03:26',
-                'created_by' => 1,
-                'modified_by' => 1,
+                'created_by' => $adminId,
+                'modified_by' => $adminId,
                 'deleted' => NULL,
             ],
             [
-                'id' => 2,
                 'name' => 'Midsomer Mysteries ',
                 'description' => 'a murder mystery event',
-                'branch_id' => 7,
+                'branch_id' => SeedHelpers::getBranchIdByName('Shire 1'),
                 'start_date' => DateTime::now()->addMonths(2),
                 'end_date' => DateTime::now()->addMonths(2)->addDays(2),
                 'modified' => '2024-06-25 22:18:32',
                 'created' => '2024-06-25 22:18:32',
-                'created_by' => 1,
-                'modified_by' => 1,
+                'created_by' => $adminId,
+                'modified_by' => $adminId,
                 'deleted' => NULL,
             ],
         ];

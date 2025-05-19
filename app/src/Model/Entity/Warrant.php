@@ -1,10 +1,7 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Entity;
-
-use Cake\ORM\Entity;
 
 /**
  * Warrant Entity
@@ -30,9 +27,8 @@ use Cake\ORM\Entity;
  */
 class Warrant extends ActiveWindowBaseEntity
 {
-
-    const PENDING_STATUS = "Pending";
-    const DECLINED_STATUS = "Declined";
+    public const PENDING_STATUS = 'Pending';
+    public const DECLINED_STATUS = 'Declined';
 
     public array $typeIdField = ['member_role_id'];
     /**

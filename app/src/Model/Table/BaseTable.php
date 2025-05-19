@@ -1,17 +1,11 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
 
-use Cake\ORM\Query\SelectQuery;
-use App\Model\Entity\AppSetting;
-use Cake\ORM\RulesChecker;
-use Cake\ORM\Table;
-use Cake\Validation\Validator;
-use Cake\Datasource\EntityInterface;
 use Cake\Cache\Cache;
-use Cake\Log\Log;
+use Cake\ORM\Query\SelectQuery;
+use Cake\ORM\Table;
 
 class BaseTable extends Table
 {
@@ -19,7 +13,7 @@ class BaseTable extends Table
     protected const ID_CACHES_TO_CLEAR = [];
     protected const CACHE_GROUPS_TO_CLEAR = [];
 
-    public function afterSave($event, $entity, $options)
+    public function afterSave($event, $entity, $options): void
     {
         if (!empty($this::CACHES_TO_CLEAR)) {
             foreach ($this::CACHES_TO_CLEAR as $cache) {
@@ -44,8 +38,9 @@ class BaseTable extends Table
             return $query;
         }
         $query = $query->where([
-            "Branches.id IN" => $branchIDs,
+            'Branches.id IN' => $branchIDs,
         ]);
+
         return $query;
     }
 }

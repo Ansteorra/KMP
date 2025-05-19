@@ -1,22 +1,16 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
 
-use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
-use Cake\ORM\Table;
 use Cake\Validation\Validator;
-use Cake\Cache\Cache;
-use App\Model\Table\BaseTable;
 
 /**
  * Permissions Model
  *
  * @property \App\Model\Table\ActivitiesTable&\Cake\ORM\Association\BelongsTo $Activities
  * @property \App\Model\Table\RolesTable&\Cake\ORM\Association\BelongsToMany $Roles
- *
  * @method \App\Model\Entity\Permission newEmptyEntity()
  * @method \App\Model\Entity\Permission newEntity(array $data, array $options = [])
  * @method array<\App\Model\Entity\Permission> newEntities(array $data, array $options = [])
@@ -43,28 +37,27 @@ class PermissionsTable extends BaseTable
     {
         parent::initialize($config);
 
-        $this->setTable("permissions");
-        $this->setDisplayField("name");
-        $this->setPrimaryKey("id");
+        $this->setTable('permissions');
+        $this->setDisplayField('name');
+        $this->setPrimaryKey('id');
 
-        $this->belongsToMany("Roles", [
-            "foreignKey" => "permission_id",
-            "targetForeignKey" => "role_id",
-            "joinTable" => "roles_permissions",
+        $this->belongsToMany('Roles', [
+            'foreignKey' => 'permission_id',
+            'targetForeignKey' => 'role_id',
+            'joinTable' => 'roles_permissions',
         ]);
-        $this->hasMany("PermissionPolicies", [
-            "foreignKey" => "permission_id",
-            "saveStrategy" => "replace",
+        $this->hasMany('PermissionPolicies', [
+            'foreignKey' => 'permission_id',
+            'saveStrategy' => 'replace',
         ]);
-        $this->addBehavior("Timestamp");
+        $this->addBehavior('Timestamp');
         $this->addBehavior('Muffin/Footprint.Footprint');
-        $this->addBehavior("Muffin/Trash.Trash");
+        $this->addBehavior('Muffin/Trash.Trash');
     }
 
     protected const CACHES_TO_CLEAR = [];
     protected const ID_CACHES_TO_CLEAR = [];
     protected const CACHE_GROUPS_TO_CLEAR = ['security'];
-
 
     /**
      * Default validation rules.
@@ -75,26 +68,26 @@ class PermissionsTable extends BaseTable
     public function validationDefault(Validator $validator): Validator
     {
         $validator
-            ->scalar("name")
-            ->maxLength("name", 255)
-            ->requirePresence("name", "create")
-            ->notEmptyString("name");
+            ->scalar('name')
+            ->maxLength('name', 255)
+            ->requirePresence('name', 'create')
+            ->notEmptyString('name');
 
         $validator
-            ->boolean("require_active_membership")
-            ->notEmptyString("require_active_membership");
+            ->boolean('require_active_membership')
+            ->notEmptyString('require_active_membership');
 
         $validator
-            ->boolean("require_active_background_check")
-            ->notEmptyString("require_active_background_check");
+            ->boolean('require_active_background_check')
+            ->notEmptyString('require_active_background_check');
 
         $validator
-            ->integer("require_min_age")
-            ->notEmptyString("require_min_age");
+            ->integer('require_min_age')
+            ->notEmptyString('require_min_age');
 
-        $validator->boolean("is_system")->notEmptyString("is_system");
+        $validator->boolean('is_system')->notEmptyString('is_system');
 
-        $validator->boolean("is_super_user")->notEmptyString("is_super_user");
+        $validator->boolean('is_super_user')->notEmptyString('is_super_user');
 
         return $validator;
     }

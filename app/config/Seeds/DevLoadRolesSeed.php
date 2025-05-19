@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 use Migrations\BaseSeed;
 use Cake\I18n\DateTime;
+use Cake\ORM\TableRegistry;
+
+require_once __DIR__ . '/Lib/SeedHelpers.php';
 
 /**
  * Roles seed.
  */
 class DevLoadRolesSeed extends BaseSeed
 {
+
     /**
      * Get data for seeding.
      *
@@ -17,62 +21,55 @@ class DevLoadRolesSeed extends BaseSeed
      */
     public function getData(): array
     {
+        $adminId = SeedHelpers::getMemberId('admin@test.com');
         return [
             [
-                'id' => 200,
                 'name' => 'Secretary',
                 'deleted' => NULL,
                 'created' => DateTime::now(),
-                'created_by' => '1'
+                'created_by' => $adminId
             ],
             [
-                'id' => 201,
                 'name' => 'Kingdom Earl Marshal',
                 'deleted' => NULL,
                 'created' => DateTime::now(),
-                'created_by' => '1'
+                'created_by' => $adminId
             ],
             [
-                'id' => 202,
                 'name' => 'Kingdom Rapier Marshal',
                 'deleted' => NULL,
                 'created' => DateTime::now(),
-                'created_by' => '1'
+                'created_by' => $adminId
             ],
             [
-                'id' => 203,
                 'name' => 'Kingdom Armored Marshal',
                 'deleted' => NULL,
                 'created' => DateTime::now(),
-                'created_by' => '1'
+                'created_by' => $adminId
             ],
             [
-                'id' => 204,
                 'name' => 'Authorizing Rapier Marshal',
                 'deleted' => NULL,
                 'created' => DateTime::now(),
-                'created_by' => '1'
+                'created_by' => $adminId
             ],
             [
-                'id' => 205,
                 'name' => 'Authorizing Armored Marshal',
                 'deleted' => NULL,
                 'created' => DateTime::now(),
-                'created_by' => '1'
+                'created_by' => $adminId
             ],
             [
-                'id' => 206,
                 'name' => 'Authorizing Youth Armored Marshal',
                 'deleted' => NULL,
                 'created' => DateTime::now(),
-                'created_by' => '1'
+                'created_by' => $adminId
             ],
             [
-                'id' => 207,
                 'name' => 'User Manager',
                 'deleted' => NULL,
                 'created' => DateTime::now(),
-                'created_by' => '1'
+                'created_by' => $adminId
             ],
         ];
     }
@@ -91,9 +88,6 @@ class DevLoadRolesSeed extends BaseSeed
     {
         $data = $this->getData();
         $table = $this->table('roles');
-        $options = $table->getAdapter()->getOptions();
-        $options['identity_insert'] = true;
-        $table->getAdapter()->setOptions($options);
         $table->insert($data)->save();
     }
 }

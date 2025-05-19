@@ -1,13 +1,13 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Controller;
 
 use App\Model\Entity\Warrant;
-use App\Services\WarrantManager\WarrantManagerInterface;
-use Cake\I18n\DateTime;
 use App\Services\CsvExportService;
+use App\Services\WarrantManager\WarrantManagerInterface;
+use Cake\Http\Exception\NotFoundException;
+use Cake\I18n\DateTime;
 
 /**
  * Warrants Controller
@@ -18,7 +18,7 @@ use App\Services\CsvExportService;
 class WarrantsController extends AppController
 {
     /**
-     * @var CsvExportService
+     * @var \App\Services\CsvExportService
      */
     public static array $inject = [CsvExportService::class];
     protected CsvExportService $csvExportService;
@@ -34,7 +34,7 @@ class WarrantsController extends AppController
 
         $this->loadComponent('Authorization.Authorization');
 
-        $this->Authorization->authorizeModel("index", "deactivate");
+        $this->Authorization->authorizeModel('index', 'deactivate');
     }
 
     /**
@@ -42,12 +42,14 @@ class WarrantsController extends AppController
      *
      * @return \Cake\Http\Response|null|void Renders view
      */
-    public function index() {}
+    public function index()
+    {
+    }
 
     public function allWarrants(CsvExportService $csvExportService, $state)
     {
         if ($state != 'current' && $state == 'pending' && $state == 'previous') {
-            throw new \Cake\Http\Exception\NotFoundException();
+            throw new NotFoundException();
         }
         $securityWarrant = $this->Warrants->newEmptyEntity();
         $this->Authorization->authorize($securityWarrant);
@@ -66,7 +68,7 @@ class WarrantsController extends AppController
                 $warrantsQuery = $warrantsQuery->where(['Warrants.status' => Warrant::PENDING_STATUS]);
                 break;
             case 'previous':
-                $warrantsQuery = $warrantsQuery->where(["OR" => ['Warrants.expires_on <' => $today, 'Warrants.status IN ' => [Warrant::DEACTIVATED_STATUS, Warrant::EXPIRED_STATUS]]]);
+                $warrantsQuery = $warrantsQuery->where(['OR' => ['Warrants.expires_on <' => $today, 'Warrants.status IN ' => [Warrant::DEACTIVATED_STATUS, Warrant::EXPIRED_STATUS]]]);
                 break;
         }
         $warrantsQuery = $this->addConditions($warrantsQuery);
@@ -75,13 +77,14 @@ class WarrantsController extends AppController
         if ($this->isCsvRequest()) {
             return $csvExportService->outputCsv(
                 $warrantsQuery->order(['Members.sca_name' => 'asc']),
-                'warrants.csv'
+                'warrants.csv',
             );
         }
 
         $warrants = $this->paginate($warrantsQuery);
         $this->set(compact('warrants', 'state'));
     }
+
     protected function addConditions($query)
     {
         return $query
@@ -96,23 +99,24 @@ class WarrantsController extends AppController
             ]);
     }
 
-
     public function deactivate(WarrantManagerInterface $wService, $id = null)
     {
-        $this->request->allowMethod(["post"]);
+        $this->request->allowMethod(['post']);
         if (!$id) {
-            $id = $this->request->getData("id");
+            $id = $this->request->getData('id');
         }
         $securityWarrant = $this->Warrants->newEmptyEntity();
         $this->Authorization->authorize($securityWarrant);
 
-        $wResult = $wService->cancel((int)$id, "Deactivated from Warrant List", $this->Authentication->getIdentity()->get("id"), DateTime::now());
+        $wResult = $wService->cancel((int)$id, 'Deactivated from Warrant List', $this->Authentication->getIdentity()->get('id'), DateTime::now());
         if (!$wResult->success) {
             $this->Flash->error($wResult->reason);
+
             return $this->redirect($this->referer());
         }
 
-        $this->Flash->success(__("The warrant has been deactivated."));
+        $this->Flash->success(__('The warrant has been deactivated.'));
+
         return $this->redirect($this->referer());
     }
 }

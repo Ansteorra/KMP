@@ -1,15 +1,15 @@
 <?php
+declare(strict_types=1);
 
 namespace App\Model\Behavior;
 
+use Cake\I18n\Datetime;
 use Cake\ORM\Behavior;
 use Cake\ORM\Query\SelectQuery;
-use Cake\I18n\Datetime;
-
 
 class ActiveWindowBehavior extends Behavior
 {
-    public function findUpcoming(SelectQuery $query, Datetime $effectiveDate = null): SelectQuery
+    public function findUpcoming(SelectQuery $query, ?Datetime $effectiveDate = null): SelectQuery
     {
         //get the alias of the current table
 
@@ -17,6 +17,7 @@ class ActiveWindowBehavior extends Behavior
         if ($effectiveDate == null || !$effectiveDate instanceof Datetime) {
             $effectiveDate = Datetime::now();
         }
+
         return $query->where([$alias . '.start_on >' => $effectiveDate, 'or' => [$alias . '.expires_on >' => $effectiveDate, $alias . '.expires_on IS' => null]]);
     }
 
@@ -27,6 +28,7 @@ class ActiveWindowBehavior extends Behavior
         if ($effectiveDate == null || !$effectiveDate instanceof Datetime) {
             $effectiveDate = Datetime::now();
         }
+
         return $query->where([$alias . '.start_on <=' => $effectiveDate, 'or' => [$alias . '.expires_on >=' => $effectiveDate, $alias . '.expires_on IS' => null]]);
     }
 
@@ -38,6 +40,7 @@ class ActiveWindowBehavior extends Behavior
         if ($effectiveDate == null || !$effectiveDate instanceof Datetime) {
             $effectiveDate = Datetime::now();
         }
+
         return $query->where([$alias . '.expires_on <' => $effectiveDate]);
     }
 }

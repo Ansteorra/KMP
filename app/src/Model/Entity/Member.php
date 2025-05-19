@@ -1,33 +1,25 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Entity;
 
+use Activities\Model\Entity\MemberAuthorizationsTrait;
+use App\KMP\KmpIdentityInterface;
+use App\KMP\PermissionsLoader;
+use App\KMP\StaticHelpers;
 use ArrayAccess;
-
+use Authentication\IdentityInterface as AuthenticationIdentity;
+use Authentication\PasswordHasher\DefaultPasswordHasher;
+use Authorization\AuthorizationServiceInterface;
+use Authorization\Exception\ForbiddenException;
+use Authorization\IdentityInterface as AuthorizationIdentity;
+use Authorization\Policy\ResultInterface;
 use Cake\I18n\DateTime;
-use Cake\Log\Log;
-use Cake\ORM\Entity;
+use Cake\ORM\Exception\MissingTableClassException;
 use Cake\ORM\TableRegistry;
 use Cake\Utility\Hash;
-use Cake\ORM\Exception\MissingTableClassException;
-
-use Authentication\PasswordHasher\DefaultPasswordHasher;
-use Authentication\IdentityInterface as AuthenticationIdentity;
-
-use Authorization\IdentityInterface as AuthorizationIdentity;
-use Authorization\AuthorizationServiceInterface;
-
-use Authorization\Exception\ForbiddenException;
-use Authorization\Policy\ResultInterface;
-
+use InvalidArgumentException;
 use JeremyHarris\LazyLoad\ORM\LazyLoadEntityTrait;
-
-use App\KMP\PermissionsLoader;
-
-use Activities\Model\Entity\MemberAuthorizationsTrait;
-use App\KMP\StaticHelpers;
 
 /**
  * Member Entity
@@ -66,6 +58,7 @@ use App\KMP\StaticHelpers;
  * @property \App\Model\Entity\Notes[] $notes
  */
 class Member extends BaseEntity implements
+    KmpIdentityInterface,
     AuthorizationIdentity,
     AuthenticationIdentity
 {
@@ -76,13 +69,13 @@ class Member extends BaseEntity implements
     protected ?array $_permissionIDs = null;
     protected ?DateTime $_last_permissions_update = null;
 
-    const STATUS_ACTIVE = "active"; //Can login
-    const STATUS_DEACTIVATED = "deactivated"; //Cannot Login
-    const STATUS_VERIFIED_MEMBERSHIP = "verified"; //Can Login
-    const STATUS_UNVERIFIED_MINOR = "unverified minor"; //Cannot Login
-    const STATUS_MINOR_MEMBERSHIP_VERIFIED = "< 18 member verified"; //Cannot Login
-    const STATUS_MINOR_PARENT_VERIFIED = "< 18 parent verified"; //Can Login
-    const STATUS_VERIFIED_MINOR = "verified < 18"; //Can Login
+    public const STATUS_ACTIVE = 'active'; //Can login
+    public const STATUS_DEACTIVATED = 'deactivated'; //Cannot Login
+    public const STATUS_VERIFIED_MEMBERSHIP = 'verified'; //Can Login
+    public const STATUS_UNVERIFIED_MINOR = 'unverified minor'; //Cannot Login
+    public const STATUS_MINOR_MEMBERSHIP_VERIFIED = '< 18 member verified'; //Cannot Login
+    public const STATUS_MINOR_PARENT_VERIFIED = '< 18 parent verified'; //Can Login
+    public const STATUS_VERIFIED_MINOR = 'verified < 18'; //Can Login
 
 
     /**
@@ -95,123 +88,125 @@ class Member extends BaseEntity implements
      * @var array<string, bool>
      */
     protected array $_accessible = [
-        "modified" => true,
-        "password" => true,
-        "sca_name" => true,
-        "first_name" => true,
-        "middle_name" => true,
-        "last_name" => true,
-        "street_address" => true,
-        "city" => true,
-        "state" => true,
-        "zip" => true,
-        "phone_number" => true,
-        "email_address" => true,
-        "membership_number" => true,
-        "membership_expires_on" => true,
-        "branch_id" => true,
-        "parent_name" => true,
-        "background_check_expires_on" => true,
-        "password_token" => true,
-        "password_token_expires_on" => true,
-        "last_login" => true,
-        "last_failed_login" => true,
-        "failed_login_attempts" => true,
-        "birth_month" => true,
-        "birth_year" => true,
-        "deleted_date" => true,
-        "status" => true,
-        "additional_info" => true,
-        "mobile_card_token" => true,
-        "title" => true,
-        "pronouns" => true,
-        "pronunciation" => true,
+        'modified' => true,
+        'password' => true,
+        'sca_name' => true,
+        'first_name' => true,
+        'middle_name' => true,
+        'last_name' => true,
+        'street_address' => true,
+        'city' => true,
+        'state' => true,
+        'zip' => true,
+        'phone_number' => true,
+        'email_address' => true,
+        'membership_number' => true,
+        'membership_expires_on' => true,
+        'branch_id' => true,
+        'parent_name' => true,
+        'background_check_expires_on' => true,
+        'password_token' => true,
+        'password_token_expires_on' => true,
+        'last_login' => true,
+        'last_failed_login' => true,
+        'failed_login_attempts' => true,
+        'birth_month' => true,
+        'birth_year' => true,
+        'deleted_date' => true,
+        'status' => true,
+        'additional_info' => true,
+        'mobile_card_token' => true,
+        'title' => true,
+        'pronouns' => true,
+        'pronunciation' => true,
     ];
 
     protected array $_hidden = [
-        "password",
-        "password_token",
-        "password_token_expires_on",
+        'password',
+        'password_token',
+        'password_token_expires_on',
     ];
 
     public function publicData()
     {
         if ($this->age < 18) {
             $data = [];
-            $data["sca_name"] = $this->sca_name;
-            $data["branch"] = $this->branch;
-            $data["publicLinks"] = $this->publicLinks();
-            $data["publicAdditionalInfo"] = $this->publicAdditionalInfo();
+            $data['sca_name'] = $this->sca_name;
+            $data['branch'] = $this->branch;
+            $data['publicLinks'] = $this->publicLinks();
+            $data['publicAdditionalInfo'] = $this->publicAdditionalInfo();
+
             return $data;
         }
         $data = $this->toArray();
         //Always Private
-        unset($data["password"]);
-        unset($data["password_token"]);
-        unset($data["password_token_expires_on"]);
-        unset($data["deleted_date"]);
-        unset($data["failed_login_attempts"]);
-        unset($data["last_failed_login"]);
-        unset($data["last_login"]);
-        unset($data["background_check_expires_on"]);
-        unset($data["mobile_card_token"]);
-        unset($data["additional_info"]);
-        unset($data["id"]);
-        unset($data["status"]);
-        unset($data["created"]);
-        unset($data["modified"]);
-        unset($data["roles"]);
-        unset($data["notes"]);
-        unset($data["pending_authorizations"]);
-        unset($data["pending_authorizations_to_approve"]);
-        unset($data["current_member_roles"]);
-        unset($data["previous_member_roles"]);
-        unset($data["upcoming_member_roles"]);
-        unset($data["verified_date"]);
-        unset($data["verified_by"]);
-        unset($data["membership_card_path"]);
-        unset($data["created_by"]);
-        unset($data["modified_by"]);
-        unset($data["deleted"]);
-        unset($data["parent"]);
-        unset($data["parent_id"]);
-        unset($data["membership_expires_on"]);
-        unset($data["birth_month"]);
-        unset($data["birth_year"]);
+        unset($data['password']);
+        unset($data['password_token']);
+        unset($data['password_token_expires_on']);
+        unset($data['deleted_date']);
+        unset($data['failed_login_attempts']);
+        unset($data['last_failed_login']);
+        unset($data['last_login']);
+        unset($data['background_check_expires_on']);
+        unset($data['mobile_card_token']);
+        unset($data['additional_info']);
+        unset($data['id']);
+        unset($data['status']);
+        unset($data['created']);
+        unset($data['modified']);
+        unset($data['roles']);
+        unset($data['notes']);
+        unset($data['pending_authorizations']);
+        unset($data['pending_authorizations_to_approve']);
+        unset($data['current_member_roles']);
+        unset($data['previous_member_roles']);
+        unset($data['upcoming_member_roles']);
+        unset($data['verified_date']);
+        unset($data['verified_by']);
+        unset($data['membership_card_path']);
+        unset($data['created_by']);
+        unset($data['modified_by']);
+        unset($data['deleted']);
+        unset($data['parent']);
+        unset($data['parent_id']);
+        unset($data['membership_expires_on']);
+        unset($data['birth_month']);
+        unset($data['birth_year']);
 
         //Privacy Configurable
         //TODO Check Privacy Settings
-        unset($data["membership_number"]);
+        unset($data['membership_number']);
         //TODO Check Privacy Settings
-        unset($data["first_name"]);
+        unset($data['first_name']);
         //TODO Check Privacy Settings
-        unset($data["middle_name"]);
+        unset($data['middle_name']);
         //TODO Check Privacy Settings
-        unset($data["last_name"]);
+        unset($data['last_name']);
         //TODO Check Privacy Settings
-        unset($data["street_address"]);
+        unset($data['street_address']);
         //TODO Check Privacy Settings
-        unset($data["city"]);
+        unset($data['city']);
         //TODO Check Privacy Settings
-        unset($data["state"]);
+        unset($data['state']);
         //TODO Check Privacy Settings
-        unset($data["zip"]);
+        unset($data['zip']);
         //TODO Check Privacy Settings
-        unset($data["phone_number"]);
+        unset($data['phone_number']);
         //TODO Check Privacy Settings
-        unset($data["email_address"]);
+        unset($data['email_address']);
         //TODO Check Privacy Settings
-        unset($data["pronouns"]);
+        unset($data['pronouns']);
         //TODO Check Privacy Settings
-        unset($data["branch"]);
+        unset($data['branch']);
         //TODO Check Privacy Settings
-        unset($data["branch_id"]);
+        unset($data['branch_id']);
         //TODO Check Privacy Settings
-        unset($data["warrantable"]);
+        unset($data['warrantable']);
 
         //Always Public
-        $data["publicLinks"] = $this->publicLinks();
-        $data["publicAdditionalInfo"] = $this->publicAdditionalInfo();
+        $data['publicLinks'] = $this->publicLinks();
+        $data['publicAdditionalInfo'] = $this->publicAdditionalInfo();
+
         return $data;
     }
 
@@ -229,6 +224,7 @@ class Member extends BaseEntity implements
                 ->get($resource)
                 ->newEmptyEntity();
         }
+
         return $this->authorization->can($this, $action, $resource, ...$optionalArgs);
     }
 
@@ -239,80 +235,86 @@ class Member extends BaseEntity implements
                 ->get($resource)
                 ->newEmptyEntity();
         }
+
         return $this->authorization->checkCan($this, $action, $resource, ...$optionalArgs);
     }
 
     public function publicLinks()
     {
-        $externalLinks = StaticHelpers::getAppSettingsStartWith("Member.ExternalLink.");
+        $externalLinks = StaticHelpers::getAppSettingsStartWith('Member.ExternalLink.');
         if (empty($externalLinks)) {
             return [];
         }
         $linkData = [];
         foreach ($externalLinks as $key => $link) {
-            $linkLabel = str_replace("Member.ExternalLink.", "", $key);
-            $linkUrl = StaticHelpers::processTemplate($link, $this, 1, "__missing__");
-            if (substr_count($linkUrl, "__missing__") == 0) {
+            $linkLabel = str_replace('Member.ExternalLink.', '', $key);
+            $linkUrl = StaticHelpers::processTemplate($link, $this->toArray(), 1, '__missing__');
+            if (substr_count($linkUrl, '__missing__') == 0) {
                 $linkData[$linkLabel] = $linkUrl;
             }
         }
+
         return $linkData;
     }
 
     public function publicAdditionalInfo()
     {
-        $additionalInfoList = StaticHelpers::getAppSettingsStartWith("Member.AdditionalInfo.");
+        $additionalInfoList = StaticHelpers::getAppSettingsStartWith('Member.AdditionalInfo.');
         if (empty($additionalInfoList)) {
             return [];
         }
         $publicKeys = [];
         foreach ($additionalInfoList as $key => $value) {
-            $pipePos = strpos($value, "|");
+            $pipePos = strpos($value, '|');
             if ($pipePos !== false) {
-                $fieldSecDetails = explode("|", $value);
-                if (count($fieldSecDetails) >= 3 && $fieldSecDetails[2] == "public") {
-                    $publicKeys[] = str_replace("Member.AdditionalInfo.", "", $key);
+                $fieldSecDetails = explode('|', $value);
+                if (count($fieldSecDetails) >= 3 && $fieldSecDetails[2] == 'public') {
+                    $publicKeys[] = str_replace('Member.AdditionalInfo.', '', $key);
                 }
             }
         }
         $publicData = [];
         foreach ($publicKeys as $key) {
-            $publicData[$key] = $this->additional_info[$key] ?? "";
+            $publicData[$key] = $this->additional_info[$key] ?? '';
         }
+
         return $publicData;
     }
 
     /**
      * Check if the user can access a url
+     *
      * @param array $url
      */
-    public function canAccessUrl($url): bool
+    public function canAccessUrl(array $url): bool
     {
         try {
             // try this path to see if the url is to a controller that maps to a table
-            $className = "";
-            if (isset($url["model"])) {
-                $className = $url["model"];
+            $className = '';
+            if (isset($url['model'])) {
+                $className = $url['model'];
             } else {
-                $className = $url["controller"];
+                $className = $url['controller'];
             }
             $table = TableRegistry::getTableLocator()->get($className);
             $tableClass = $table->getEntityClass();
             if ($tableClass == "Cake\ORM\Entity") {
                 // if the above fails, then the url is not to a controller that maps to a table
-                return $this->authorization->checkCan($this, $url["action"], $url);
+                return $this->authorization->checkCan($this, $url['action'], $url);
             }
             if (isset($url[0])) {
                 $entity = $table->get($url[0]);
             } else {
                 $entity = $table->newEmptyEntity();
             }
-            return $this->authorization->checkCan($this, $url["action"], $entity);
+
+            return $this->authorization->checkCan($this, $url['action'], $entity);
         } catch (MissingTableClassException $ex) {
             // if the above fails, then the url is not to a controller that maps to a table
             // so we will just check if the user can access the controller via the request authorization.
         }
-        return $this->authorization->checkCan($this, $url["action"], $url);
+
+        return $this->authorization->checkCan($this, $url['action'], $url);
     }
 
     /**
@@ -329,6 +331,7 @@ class Member extends BaseEntity implements
                 ->get($resource)
                 ->newEmptyEntity();
         }
+
         return $this->authorization->canResult($this, $action, $resource, ...$optionalArgs);
     }
 
@@ -389,7 +392,7 @@ class Member extends BaseEntity implements
     /**
      * Setter to be used by the middleware.
      */
-    public function setAuthorization(AuthorizationServiceInterface $service)
+    public function setAuthorization(AuthorizationServiceInterface $service): self
     {
         $this->authorization = $service;
 
@@ -408,17 +411,20 @@ class Member extends BaseEntity implements
 
     /**
      * get permissions for the Member based on their roles
-     * @return Permission[]
+     *
+     * @return array<\App\Model\Entity\Permission>
      */
     public function getPermissions(): array
     {
         $permissions = PermissionsLoader::getPermissions($this->id);
+
         return $permissions;
     }
 
     public function getPermissionIDs(): array
     {
-        $permissionIDs = Hash::extract(PermissionsLoader::getPermissions($this->id), "{n}.id");
+        $permissionIDs = Hash::extract(PermissionsLoader::getPermissions($this->id), '{n}.id');
+
         return $permissionIDs;
     }
 
@@ -426,15 +432,17 @@ class Member extends BaseEntity implements
     {
         if ($branchIds == null || empty($branchIds)) {
             $policies = PermissionsLoader::getPolicies($this->id);
+
             return $policies;
         } else {
             $policies = PermissionsLoader::getPolicies($this->id, $branchIds);
+
             return $policies;
         }
     }
 
     /**
-     * Check if one of the users roles grants them super user 
+     * Check if one of the users roles grants them super user
      */
     public function isSuperUser(): bool
     {
@@ -444,8 +452,10 @@ class Member extends BaseEntity implements
                 return true;
             }
         }
+
         return false;
     }
+
     /**
      * reviews the user and updates their status if they have aged up
      */
@@ -480,34 +490,35 @@ class Member extends BaseEntity implements
     {
         $reasons = [];
         if ($this->age < 18) {
-            $reasons[] = "Member is under 18";
+            $reasons[] = 'Member is under 18';
             $this->warrantable = false;
         }
         if ($this->status != self::STATUS_VERIFIED_MEMBERSHIP) {
-            $reasons[] = "Membership is not verified";
+            $reasons[] = 'Membership is not verified';
             $this->warrantable = false;
         } else {
             if ($this->membership_expires_on == null || $this->membership_expires_on->isPast()) {
-                $reasons[] = "Membership is expired";
+                $reasons[] = 'Membership is expired';
                 $this->warrantable = false;
             }
         }
         if ($this->first_name == null || $this->last_name == null) {
-            $reasons[] = "Legal name is not set";
+            $reasons[] = 'Legal name is not set';
             $this->warrantable = false;
         }
         if ($this->street_address == null || $this->city == null || $this->state == null || $this->zip == null) {
-            $reasons[] = "Address is not set";
+            $reasons[] = 'Address is not set';
             $this->warrantable = false;
         }
         if ($this->phone_number == null) {
-            $reasons[] = "Phone number is not set";
+            $reasons[] = 'Phone number is not set';
             $this->warrantable = false;
         }
         //if the reasons is empty then the member is warrantable
         if (empty($reasons)) {
             $this->warrantable = true;
         }
+
         return $reasons;
     }
 
@@ -515,6 +526,7 @@ class Member extends BaseEntity implements
     {
         if (strlen($value) > 0) {
             $hasher = new DefaultPasswordHasher();
+
             return $hasher->hash($value);
         } else {
             return $this->password;
@@ -531,21 +543,23 @@ class Member extends BaseEntity implements
             return null;
         }
         $date = $date->setDate($this->birth_year, $this->birth_month, 1);
+
         return $date;
     }
 
     protected function _getNameForHerald()
     {
         $returnVal = $this->sca_name;
-        if ($this->title != null && $this->title != "") {
-            $returnVal = $this->title . " " . $returnVal;
+        if ($this->title != null && $this->title != '') {
+            $returnVal = $this->title . ' ' . $returnVal;
         }
-        if ($this->pronunciation != null && $this->pronunciation != "") {
-            $returnVal = $returnVal . " (" . $this->pronunciation . ")";
+        if ($this->pronunciation != null && $this->pronunciation != '') {
+            $returnVal = $returnVal . ' (' . $this->pronunciation . ')';
         }
-        if ($this->pronouns != null && $this->pronouns != "") {
-            $returnVal = $returnVal . " - " . $this->pronouns;
+        if ($this->pronouns != null && $this->pronouns != '') {
+            $returnVal = $returnVal . ' - ' . $this->pronouns;
         }
+
         return $returnVal;
     }
 
@@ -562,15 +576,16 @@ class Member extends BaseEntity implements
             case self::STATUS_MINOR_PARENT_VERIFIED:
                 return $value;
             default:
-                throw new \InvalidArgumentException("Invalid status");
+                throw new InvalidArgumentException('Invalid status');
         }
     }
 
     protected function _getExpiresOnToString()
     {
         if ($this->membership_expires_on == null) {
-            return "";
+            return '';
         }
+
         return $this->membership_expires_on->toDateString();
     }
 
@@ -586,6 +601,17 @@ class Member extends BaseEntity implements
         }
         $date = $date->setDate($this->birth_year, $this->birth_month, 1);
         $interval = $now->diff($date);
+
         return $interval->y;
+    }
+
+    /**
+     * Get the identity as a Member entity.
+     *
+     * @return \App\Model\Entity\Member
+     */
+    public function getAsMember(): Member
+    {
+        return $this;
     }
 }

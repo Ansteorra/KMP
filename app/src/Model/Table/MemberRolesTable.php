@@ -1,15 +1,11 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
 
-use Cake\ORM\Query\SelectQuery;
-use Cake\ORM\RulesChecker;
-use Cake\ORM\Table;
-use Cake\Validation\Validator;
-use App\Model\Table\BaseTable;
 use Cake\Cache\Cache;
+use Cake\ORM\RulesChecker;
+use Cake\Validation\Validator;
 
 /**
  * MemberRoles Model
@@ -40,43 +36,43 @@ class MemberRolesTable extends BaseTable
     {
         parent::initialize($config);
 
-        $this->setTable("member_roles");
-        $this->setDisplayField(["member_id", "role_id"]);
-        $this->setPrimaryKey("id");
+        $this->setTable('member_roles');
+        $this->setDisplayField(['member_id', 'role_id']);
+        $this->setPrimaryKey('id');
 
-        $this->belongsTo("Members", [
-            "className" => "Members",
-            "foreignKey" => "member_id",
-            "joinType" => "INNER",
+        $this->belongsTo('Members', [
+            'className' => 'Members',
+            'foreignKey' => 'member_id',
+            'joinType' => 'INNER',
         ]);
-        $this->belongsTo("Roles", [
-            "className" => "Roles",
-            "foreignKey" => "role_id",
-            "joinType" => "INNER",
+        $this->belongsTo('Roles', [
+            'className' => 'Roles',
+            'foreignKey' => 'role_id',
+            'joinType' => 'INNER',
         ]);
-        $this->belongsTo("ApprovedBy", [
-            "className" => "Members",
-            "foreignKey" => "approver_id",
-            "joinType" => "INNER",
-            "propertyName" => "approved_by",
+        $this->belongsTo('ApprovedBy', [
+            'className' => 'Members',
+            'foreignKey' => 'approver_id',
+            'joinType' => 'INNER',
+            'propertyName' => 'approved_by',
         ]);
-        $this->belongsTo("RevokedBy", [
-            "className" => "Members",
-            "foreignKey" => "revoker_id",
-            "joinType" => "LEFT",
-            "propertyName" => "revoked_by",
+        $this->belongsTo('RevokedBy', [
+            'className' => 'Members',
+            'foreignKey' => 'revoker_id',
+            'joinType' => 'LEFT',
+            'propertyName' => 'revoked_by',
         ]);
-        $this->belongsTo("Branches", [
-            "className" => "Branches",
-            "foreignKey" => "branch_id",
-            "joinType" => "LEFT",
+        $this->belongsTo('Branches', [
+            'className' => 'Branches',
+            'foreignKey' => 'branch_id',
+            'joinType' => 'LEFT',
         ]);
-        $this->addBehavior("Timestamp");
+        $this->addBehavior('Timestamp');
         $this->addBehavior('Muffin/Footprint.Footprint');
-        $this->addBehavior("ActiveWindow");
+        $this->addBehavior('ActiveWindow');
     }
 
-    public function afterSave($event, $entity, $options)
+    public function afterSave($event, $entity, $options): void
     {
         $memberId = $entity->member_id;
         // Clear cached descendants and parents for the saved branch.
@@ -92,15 +88,15 @@ class MemberRolesTable extends BaseTable
      */
     public function validationDefault(Validator $validator): Validator
     {
-        $validator->integer("Member_id")->notEmptyString("Member_id");
+        $validator->integer('Member_id')->notEmptyString('Member_id');
 
-        $validator->integer("role_id")->notEmptyString("role_id");
+        $validator->integer('role_id')->notEmptyString('role_id');
 
-        $validator->date("expires_on")->allowEmptyDate("expires_on");
+        $validator->date('expires_on')->allowEmptyDate('expires_on');
 
-        $validator->date("start_on")->notEmptyDate("start_on");
+        $validator->date('start_on')->notEmptyDate('start_on');
 
-        $validator->integer("approver_id")->notEmptyString("approver_id");
+        $validator->integer('approver_id')->notEmptyString('approver_id');
 
         return $validator;
     }
@@ -114,14 +110,14 @@ class MemberRolesTable extends BaseTable
      */
     public function buildRules(RulesChecker $rules): RulesChecker
     {
-        $rules->add($rules->existsIn(["Member_id"], "Members"), [
-            "errorField" => "Member_id",
+        $rules->add($rules->existsIn(['Member_id'], 'Members'), [
+            'errorField' => 'Member_id',
         ]);
-        $rules->add($rules->existsIn(["role_id"], "Roles"), [
-            "errorField" => "role_id",
+        $rules->add($rules->existsIn(['role_id'], 'Roles'), [
+            'errorField' => 'role_id',
         ]);
-        $rules->add($rules->existsIn(["approver_id"], "Members"), [
-            "errorField" => "approver_id",
+        $rules->add($rules->existsIn(['approver_id'], 'Members'), [
+            'errorField' => 'approver_id',
         ]);
 
         return $rules;

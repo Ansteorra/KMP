@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Officers\Policy;
 
 use App\Model\Entity\DepartmentsTable;
-use Authorization\IdentityInterface;
+use App\KMP\KmpIdentityInterface;
 use App\Policy\BasePolicy;
 
 /**

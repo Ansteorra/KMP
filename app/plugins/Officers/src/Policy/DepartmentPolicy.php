@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace Officers\Policy;
 
 use App\Model\Entity\Department;
-use Authorization\IdentityInterface;
+use App\KMP\KmpIdentityInterface;
 use App\Policy\BasePolicy;
 use Authorization\Policy\ResultInterface;
+use App\Model\Entity\BaseEntity;
 
 /**
  * Department policy
@@ -15,10 +16,17 @@ use Authorization\Policy\ResultInterface;
 class DepartmentPolicy extends BasePolicy
 {
 
+
+    /**
+     * Check if the user can view all departments
+     * @param KmpIdentityInterface $user The user
+     * @param BaseEntity $entity The entity
+     * @return bool
+     */
     public function canSeeAllDepartments(
-        IdentityInterface $user,
-        $entity,
-    ): ResultInterface|bool {
+        KmpIdentityInterface $user,
+        BaseEntity $entity,
+    ): bool {
         $method = __FUNCTION__;
         return $this->_hasPolicy($user, $method, $entity);
     }

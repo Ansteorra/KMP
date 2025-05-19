@@ -172,7 +172,7 @@ class OfficesTable extends BaseTable
      * @param int $branchId The branch ID to check permissions for.
      * @return int[] List of office IDs the user can work with.
      */
-    public function officesMemberCanWork(Member $user, int $branchId): array
+    public function officesMemberCanWork(Member $user, int|null $branchId): array
     {
         // Superusers can work with all offices
         if ($user->isSuperUser()) {
@@ -190,6 +190,21 @@ class OfficesTable extends BaseTable
 
         $canHireOffices = [];
         $visited = [];
+
+        if (empty($userOffices) || $branchId == null) {
+            // No offices found or branch ID is null, return empty array
+            $newOfficer = $officersTbl->newEmptyEntity();
+            if ($user->checkCan('workWithAllOfficers', $newOfficer, null, true)) {
+                $this->find()
+                    ->select(['id'])
+                    ->all();
+                foreach ($userOffices as $userOffice) {
+                    $canHireOffices[$userOffice->office_id] = true;
+                }
+                return array_keys($canHireOffices);
+            }
+            return [];
+        }
 
         foreach ($userOffices as $userOffice) {
             // workWithOfficerDeputies permission

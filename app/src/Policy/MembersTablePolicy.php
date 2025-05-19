@@ -1,28 +1,40 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Policy;
 
-use App\Model\Table\MemberRoles;
-use Authorization\IdentityInterface;
+use App\KMP\KmpIdentityInterface;
+use App\Model\Entity\BaseEntity;
 
 /**
  * role policy
  */
 class MembersTablePolicy extends BasePolicy
 {
-    protected string $REQUIRED_PERMISSION = "Can Manage Members";
-    protected string $REQUIRED_VIEW_PERMISSION = "Can View Members";
-
-
-    public function scopeVerifyQueue(IdentityInterface $user, $query)
+    /**
+     * Check if user can access verifyQueue scope
+     *
+     * @param \App\KMP\KmpIdentityInterface $user User
+     * @param mixed $query Query
+     * @return mixed
+     */
+    public function scopeVerifyQueue(KmpIdentityInterface $user, mixed $query): mixed
     {
         return $query;
     }
-    function canVerifyQueue(IdentityInterface $user, $entity, ...$optionalArgs)
+
+    /**
+     * Check if user can verify queue
+     *
+     * @param \App\KMP\KmpIdentityInterface $user User
+     * @param \App\Model\Entity\BaseEntity $entity Entity
+     * @param mixed ...$optionalArgs Optional arguments
+     * @return bool
+     */
+    function canVerifyQueue(KmpIdentityInterface $user, BaseEntity $entity, mixed ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
+
         return $this->_hasPolicy($user, $method, $entity);
     }
 }

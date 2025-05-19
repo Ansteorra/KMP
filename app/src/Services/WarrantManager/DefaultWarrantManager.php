@@ -1,21 +1,20 @@
 <?php
+declare(strict_types=1);
 
 namespace App\Services\WarrantManager;
 
-use App\Model\Entity\Warrant;
-use App\Services\WarrantManager\WarrantManagerInterface;
-use Cake\I18n\DateTime;
-use Cake\I18n\Date;
-use Cake\ORM\TableRegistry;
-use App\Services\ServiceResult;
-use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
-use App\Model\Entity\WarrantPeriod;
-use App\Model\Entity\WarrantRoster;
-use App\Model\Entity\MemberRole;
-use Cake\Mailer\MailerAwareTrait;
-
 use App\KMP\StaticHelpers;
 use App\Mailer\QueuedMailerAwareTrait;
+use App\Model\Entity\MemberRole;
+use App\Model\Entity\Warrant;
+use App\Model\Entity\WarrantPeriod;
+use App\Model\Entity\WarrantRoster;
+use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
+use App\Services\ServiceResult;
+use Cake\I18n\Date;
+use Cake\I18n\DateTime;
+use Cake\Mailer\MailerAwareTrait;
+use Cake\ORM\TableRegistry;
 
 class DefaultWarrantManager implements WarrantManagerInterface
 {
@@ -30,9 +29,9 @@ class DefaultWarrantManager implements WarrantManagerInterface
         $this->activeWindowManager = $activeWindowManager;
         //Datetime tomorrow
         $yesterday = new DateTime();
-        $yesterday->modify("-1 day");
+        $yesterday->modify('-1 day');
         $warrantCheck = StaticHelpers::getAppSetting('Warrant.LastCheck');
-        if ($warrantCheck == "" || $warrantCheck < $yesterday) {
+        if ($warrantCheck == '' || $warrantCheck < $yesterday) {
             $warrantTable = TableRegistry::getTableLocator()->get('Warrants');
             $warrants = $warrantTable->find()
                 ->where(['status' => Warrant::CURRENT_STATUS, 'expires_on <' => DateTime::now()])
@@ -54,14 +53,15 @@ class DefaultWarrantManager implements WarrantManagerInterface
         $warrantRoster->status = WarrantRoster::STATUS_PENDING;
         $warrantRoster->name = $request_name;
         $warrantRoster->description = $desc;
-        $warrantRoster->approvals_required = StaticHelpers::getAppSetting("Warrant.RosterApprovalsRequired", 2);
+        $warrantRoster->approvals_required = StaticHelpers::getAppSetting('Warrant.RosterApprovalsRequired', 2);
 
         //start a transaction
         $warrantRosterTable->getConnection()->begin();
         if (!$warrantRosterTable->save($warrantRoster)) {
             //rollback transaction
             $warrantRosterTable->getConnection()->rollback();
-            return new ServiceResult(false, "Failed to create warrant approval set");
+
+            return new ServiceResult(false, 'Failed to create warrant approval set');
         }
         $warrantRequestTable = TableRegistry::getTableLocator()->get('Warrants');
         foreach ($warrantRequests as $warrantRequest) {
@@ -77,17 +77,20 @@ class DefaultWarrantManager implements WarrantManagerInterface
             if ($warrantPeriod == null) {
                 //rollback transaction
                 $warrantRosterTable->getConnection()->rollback();
-                return new ServiceResult(false, "Invalid warrant period");
+
+                return new ServiceResult(false, 'Invalid warrant period');
             }
             $member = TableRegistry::getTableLocator()->get('Members')->get($warrantRequest->member_id);
             if ($member->warrantable == null) {
                 //rollback transaction
                 $warrantRosterTable->getConnection()->rollback();
+
                 return new ServiceResult(false, "$member->sca_name is not warrantable");
             }
             if ($warrantPeriod->start_date > $member->membership_expires_on) {
                 //rollback transaction
                 $warrantRosterTable->getConnection()->rollback();
+
                 return new ServiceResult(false, "Warrant period is after membership expires for $member->sca_name");
             }
             //TODO: Reactivate once we get reliable membership data
@@ -104,12 +107,14 @@ class DefaultWarrantManager implements WarrantManagerInterface
             if (!$warrantRequestTable->save($warrantRequestEntity)) {
                 //rollback transaction
                 $warrantRosterTable->getConnection()->rollback();
+
                 return new ServiceResult(false, "Failed to create pending warrant for $member->sca_name");
             }
         }
         //commit transaction
         $warrantRosterTable->getConnection()->commit();
-        return new ServiceResult(true, "", $warrantRoster->id);
+
+        return new ServiceResult(true, '', $warrantRoster->id);
     }
 
     public function approve($warrant_roster_id, $approver_id): ServiceResult
@@ -117,15 +122,14 @@ class DefaultWarrantManager implements WarrantManagerInterface
         $warrantRosterTable = TableRegistry::getTableLocator()->get('WarrantRosters');
         $warrantRoster = $warrantRosterTable->get($warrant_roster_id);
         if ($warrantRoster == null) {
-            return new ServiceResult(false, "Warrant Roster set not found");
+            return new ServiceResult(false, 'Warrant Roster set not found');
         }
         if ($warrantRoster->status != WarrantRoster::STATUS_PENDING) {
-            return new ServiceResult(false, "Warrant Roster set is not pending");
+            return new ServiceResult(false, 'Warrant Roster set is not pending');
         }
         if ($warrantRoster->hasRequiredApprovals()) {
-            return new ServiceResult(false, "Warrant approval set is already approved");
+            return new ServiceResult(false, 'Warrant approval set is already approved');
         }
-
 
         //record approval
         $warrantRosterApprovalTable = TableRegistry::getTableLocator()->get('WarrantRosterApprovals');
@@ -137,11 +141,11 @@ class DefaultWarrantManager implements WarrantManagerInterface
         //start a transaction
         $warrantRosterTable->getConnection()->begin();
 
-
         if (!$warrantRosterApprovalTable->save($warrantRosterApproval)) {
             //rollback transaction
             $warrantRosterTable->getConnection()->rollback();
-            return new ServiceResult(false, "Failed to record warrant approval");
+
+            return new ServiceResult(false, 'Failed to record warrant approval');
         }
         $warrantRoster->approval_count++;
         if ($warrantRoster->hasRequiredApprovals()) {
@@ -154,7 +158,7 @@ class DefaultWarrantManager implements WarrantManagerInterface
                 }])
                 ->where([
                     'warrant_roster_id' => $warrant_roster_id,
-                    'Warrants.status' => Warrant::PENDING_STATUS
+                    'Warrants.status' => Warrant::PENDING_STATUS,
                 ])
                 ->all();
             foreach ($warrants as $warrant) {
@@ -168,15 +172,16 @@ class DefaultWarrantManager implements WarrantManagerInterface
                 if (!$warrantTable->save($warrant)) {
                     //rollback transaction
                     $warrantRosterTable->getConnection()->rollback();
-                    return new ServiceResult(false, "Failed to acivate warrants in Roster");
+
+                    return new ServiceResult(false, 'Failed to acivate warrants in Roster');
                 }
                 //expire current warrants for the same entity_type entity_id member_id
                 $warrantTable->updateAll(
                     [
                         'status' => Warrant::DEACTIVATED_STATUS,
                         'expires_on' => $warrant->start_on,
-                        'revoked_reason' => "New Warrant Approved",
-                        'revoker_id' => $approver_id
+                        'revoked_reason' => 'New Warrant Approved',
+                        'revoker_id' => $approver_id,
                     ],
                     [
                         'entity_type' => $warrant->entity_type,
@@ -185,25 +190,27 @@ class DefaultWarrantManager implements WarrantManagerInterface
                         'status' => Warrant::CURRENT_STATUS,
                         'expires_on >=' => $warrant->start_on,
                         'start_on <=' => $warrant->start_on,
-                        'id !=' => $warrant->id
-                    ]
+                        'id !=' => $warrant->id,
+                    ],
                 );
                 $vars = [
-                    "memberScaName" => $warrant->member->sca_name,
-                    "warrantName" => $warrant->name,
-                    "warrantStart" => $warrant->start_on_to_string,
-                    "warrantExpires" => $warrant->expires_on_to_string,
+                    'memberScaName' => $warrant->member->sca_name,
+                    'warrantName' => $warrant->name,
+                    'warrantStart' => $warrant->start_on_to_string,
+                    'warrantExpires' => $warrant->expires_on_to_string,
                 ];
-                $this->queueMail("KMP", "notifyOfWarrant", $warrant->member->email_address, $vars);
+                $this->queueMail('KMP', 'notifyOfWarrant', $warrant->member->email_address, $vars);
             }
         }
         if (!$warrantRosterTable->save($warrantRoster)) {
             //rollback transaction
             $warrantRosterTable->getConnection()->rollback();
-            return new ServiceResult(false, "Failed to approve Roster");
+
+            return new ServiceResult(false, 'Failed to approve Roster');
         }
         //commit transaction
         $warrantRosterTable->getConnection()->commit();
+
         return new ServiceResult(true);
     }
 
@@ -212,20 +219,20 @@ class DefaultWarrantManager implements WarrantManagerInterface
         $warrantRosterTable = TableRegistry::getTableLocator()->get('WarrantRosters');
         $warrantRoster = $warrantRosterTable->get($warrant_roster_id);
         if ($warrantRoster == null) {
-            return new ServiceResult(false, "Warrant Roster not found");
+            return new ServiceResult(false, 'Warrant Roster not found');
         }
         if ($warrantRoster->status != WarrantRoster::STATUS_PENDING) {
-            return new ServiceResult(false, "Warrant Roster is not pending");
+            return new ServiceResult(false, 'Warrant Roster is not pending');
         }
         if ($warrantRoster->hasRequiredApprovals()) {
-            return new ServiceResult(false, "Warrant approval set is already approved");
+            return new ServiceResult(false, 'Warrant approval set is already approved');
         }
         //get all of the warrants in the set
         $warrantTable = TableRegistry::getTableLocator()->get('Warrants');
         $warrants = $warrantTable->find()
             ->where([
                 'warrant_roster_id' => $warrant_roster_id,
-                'status not IN' => [Warrant::DECLINED_STATUS, Warrant::EXPIRED_STATUS, Warrant::DEACTIVATED_STATUS]
+                'status not IN' => [Warrant::DECLINED_STATUS, Warrant::EXPIRED_STATUS, Warrant::DEACTIVATED_STATUS],
             ])
             ->all();
         //begin transaction
@@ -233,12 +240,13 @@ class DefaultWarrantManager implements WarrantManagerInterface
         foreach ($warrants as $warrant) {
             if ($warrant->status == Warrant::PENDING_STATUS) {
                 $warrant->status = Warrant::CANCELLED_STATUS;
-                $warrant->revoked_reason = "Warrant Roster Declined: " . $reason;
+                $warrant->revoked_reason = 'Warrant Roster Declined: ' . $reason;
                 $warrant->revoker_id = $rejecter_id;
                 if (!$warrantTable->save($warrant)) {
                     //rollback transaction
                     $warrantRosterTable->getConnection()->rollback();
-                    return new ServiceResult(false, "Failed to decline warrant #" . $warrant->id);
+
+                    return new ServiceResult(false, 'Failed to decline warrant #' . $warrant->id);
                 }
             }
         }
@@ -246,23 +254,26 @@ class DefaultWarrantManager implements WarrantManagerInterface
         if (!$warrantRosterTable->save($warrantRoster)) {
             //rollback transaction
             $warrantRosterTable->getConnection()->rollback();
-            return new ServiceResult(false, "Failed to decline Warrant Roster");
+
+            return new ServiceResult(false, 'Failed to decline Warrant Roster');
         }
-        //add a note 
+        //add a note
         $noteTbl = TableRegistry::getTableLocator()->get('Notes');
         $note = $noteTbl->newEmptyEntity();
         $note->entity_type = 'WarrantRosters';
         $note->entity_id = $warrantRoster->id;
-        $note->subject = "Warrant Roster declined";
+        $note->subject = 'Warrant Roster declined';
         $note->body = $reason;
         $note->author_id = $rejecter_id;
         if (!$noteTbl->save($note)) {
             //rollback transaction
             $warrantTable->getConnection()->rollback();
-            return new ServiceResult(false, "Failed to decline warrant");
+
+            return new ServiceResult(false, 'Failed to decline warrant');
         }
         //commit transaction
         $warrantRosterTable->getConnection()->commit();
+
         return new ServiceResult(true);
     }
 
@@ -273,7 +284,9 @@ class DefaultWarrantManager implements WarrantManagerInterface
         if ($warrant == null) {
             return new ServiceResult(true);
         }
+
         return $this->cancelWarrant($warrantTable, $warrant, $expiresOn, $rejecter_id, $reason);
+
         return new ServiceResult(true);
     }
 
@@ -289,6 +302,7 @@ class DefaultWarrantManager implements WarrantManagerInterface
         if ($warrant == null) {
             return new ServiceResult(true);
         }
+
         return $this->cancelWarrant($warrantTable, $warrant, $expiresOn, $rejecter_id, $reason);
     }
 
@@ -306,6 +320,7 @@ class DefaultWarrantManager implements WarrantManagerInterface
         $result = $this->declineWarrant($warrantTable, $warrant, $rejecter_id, $reason);
         if (!$result->success) {
             $connection->rollback();
+
             return $result;
         }
 
@@ -317,13 +332,14 @@ class DefaultWarrantManager implements WarrantManagerInterface
         if ($warrantRoster == null) {
             //rollback transaction
             $connection->rollback();
-            return new ServiceResult(false, "Failed to decline warrant");
+
+            return new ServiceResult(false, 'Failed to decline warrant');
         }
         if ($warrantRoster->status == WarrantRoster::STATUS_PENDING) {
             $pendingWarrantCount = $warrantTable->find()
                 ->where([
                     'warrant_roster_id' => $warrantRoster->id,
-                    'status' => Warrant::PENDING_STATUS
+                    'status' => Warrant::PENDING_STATUS,
                 ])
                 ->count();
             if ($pendingWarrantCount == 0) {
@@ -331,25 +347,28 @@ class DefaultWarrantManager implements WarrantManagerInterface
                 if (!$warrantRosterTable->save($warrantRoster)) {
                     //rollback transaction
                     $connection->rollback();
-                    return new ServiceResult(false, "Failed to decline warrant");
+
+                    return new ServiceResult(false, 'Failed to decline warrant');
                 }
-                //add a note 
+                //add a note
                 $noteTbl = TableRegistry::getTableLocator()->get('Notes');
                 $note = $noteTbl->newEmptyEntity();
                 $note->entity_type = 'WarrantRosters';
                 $note->entity_id = $warrantRoster->id;
-                $note->subject = "Warrant Roster declined";
-                $note->body = "All Warrants in the roster were individually declined, and so the roster was declined.";
+                $note->subject = 'Warrant Roster declined';
+                $note->body = 'All Warrants in the roster were individually declined, and so the roster was declined.';
                 $note->author_id = $rejecter_id;
                 if (!$noteTbl->save($note)) {
                     //rollback transaction
                     $connection->rollback();
-                    return new ServiceResult(false, "Failed to decline warrant");
+
+                    return new ServiceResult(false, 'Failed to decline warrant');
                 }
             }
         }
         //commit transaction
         $connection->commit();
+
         return new ServiceResult(true);
     }
 
@@ -361,7 +380,7 @@ class DefaultWarrantManager implements WarrantManagerInterface
             ->where([
                 'start_date <=' => $today,
                 'end_date >=' => $startOn,
-                'end_date >' => $today
+                'end_date >' => $today,
             ])
             ->orderByDesc('start_date')
             ->first();
@@ -374,19 +393,22 @@ class DefaultWarrantManager implements WarrantManagerInterface
         if ($warrantPeriod->start_date->toNative() < $startOn->toNative()) {
             $warrantPeriod->start_date = new Date($startOn->toDateString());
         }
+
         return $warrantPeriod;
     }
 
     protected function cancelWarrant($warrantTable, $warrant, $expiresOn, $rejecter_id, $reason): ServiceResult
     {
-        if ($expiresOn < new DateTime())
+        if ($expiresOn < new DateTime()) {
             $warrant->status = Warrant::DEACTIVATED_STATUS;
+        }
         $warrant->expires_on = $expiresOn;
         $warrant->revoked_reason = $reason;
         $warrant->revoker_id = $rejecter_id;
         if (!$warrantTable->save($warrant)) {
-            return new ServiceResult(false, "Failed to cancel warrant");
+            return new ServiceResult(false, 'Failed to cancel warrant');
         }
+
         return new ServiceResult(true);
     }
 
@@ -395,16 +417,16 @@ class DefaultWarrantManager implements WarrantManagerInterface
 
         if ($warrant->member_role_id != null) {
             /**
-             * 
-             * @var ServiceRequest $awResult
+             *
+             * @var \App\Services\WarrantManager\ServiceRequest $awResult
              */
             $awResult = $this->activeWindowManager->stop(
-                "MemberRoles",
+                'MemberRoles',
                 $warrant->member_role_id,
                 $rejecter_id,
                 MemberRole::DEACTIVATED_STATUS,
-                "Warrant Declined",
-                new DateTime()
+                'Warrant Declined',
+                new DateTime(),
             );
             if (!$awResult->success) {
                 return new ServiceResult(false, $awResult->reason);
@@ -412,21 +434,22 @@ class DefaultWarrantManager implements WarrantManagerInterface
         }
         if ($warrant->entity_type != 'Direct Grant') {
             /**
-             * 
-             * @var ServiceRequest $awResult
+             *
+             * @var \App\Services\WarrantManager\ServiceRequest $awResult
              */
             $awResult = $this->activeWindowManager->stop(
                 $warrant->entity_type,
                 $warrant->entity_id,
                 $rejecter_id,
                 MemberRole::DEACTIVATED_STATUS,
-                "Warrant Declined",
-                new DateTime()
+                'Warrant Declined',
+                new DateTime(),
             );
             if (!$awResult->success) {
                 return new ServiceResult(false, $awResult->reason);
             }
         }
+
         return new ServiceResult(true);
     }
 
@@ -436,12 +459,13 @@ class DefaultWarrantManager implements WarrantManagerInterface
         $warrant->revoked_reason = $reason;
         $warrant->revoker_id = $rejecter_id;
         if (!$warrantTable->save($warrant)) {
-            return new ServiceResult(false, "Failed to decline warrant");
+            return new ServiceResult(false, 'Failed to decline warrant');
         }
         $result = $this->stopWarrantDependants($warrant, $rejecter_id, $reason);
         if (!$result->success) {
             return $result;
         }
+
         return new ServiceResult(true);
     }
 }

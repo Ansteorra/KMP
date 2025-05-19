@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 /**
@@ -32,7 +31,7 @@ class AjaxView extends AppView
      *
      * @var string
      */
-    protected string $layout = "ajax";
+    protected string $layout = 'ajax';
 
     /**
      * Initialization hook method.
@@ -43,6 +42,6 @@ class AjaxView extends AppView
     {
         parent::initialize();
 
-        $this->response = $this->response->withType("application/json");
+        $this->response = $this->response->withType('application/json');
     }
 }

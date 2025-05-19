@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Officers\Policy;
 
 use App\Model\Entity\DepartmentsTable;
-use Authorization\IdentityInterface;
+use App\KMP\KmpIdentityInterface;
 use App\Policy\BasePolicy;
 use Authorization\Policy\ResultInterface;
 
@@ -14,6 +14,5 @@ use Authorization\Policy\ResultInterface;
  */
 class DepartmentsTablePolicy extends BasePolicy
 {
-    public const SKIP_BASE = 'true';
-
+    //public const SKIP_BASE = 'true';
 }

@@ -254,9 +254,8 @@ class Init extends BaseMigration
                 "limit" => 255,
                 "null" => false,
             ])
-            ->addColumn("value", "string", [
+            ->addColumn("value", "text", [
                 "default" => null,
-                "limit" => 255,
                 "null" => true,
             ])
             ->addColumn("modified", "datetime", [

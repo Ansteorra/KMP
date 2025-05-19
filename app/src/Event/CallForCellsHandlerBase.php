@@ -1,9 +1,11 @@
 <?php
+declare(strict_types=1);
 
 namespace App\Event;
 
-use Cake\Event\EventListenerInterface;
+use App\Controller\AppController;
 use App\KMP\StaticHelpers;
+use Cake\Event\EventListenerInterface;
 
 class CallForCellsHandlerBase implements EventListenerInterface
 {
@@ -15,7 +17,7 @@ class CallForCellsHandlerBase implements EventListenerInterface
         return [
             // Custom event names let you design your application events
             // as required.
-            \App\Controller\AppController::VIEW_PLUGIN_EVENT => 'callForViewCells',
+            AppController::VIEW_PLUGIN_EVENT => 'callForViewCells',
         ];
     }
 
@@ -34,6 +36,7 @@ class CallForCellsHandlerBase implements EventListenerInterface
                 $results[] = $viewCells;
             }
         }
+
         return $results;
     }
 }

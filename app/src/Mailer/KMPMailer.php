@@ -1,90 +1,91 @@
 <?php
+declare(strict_types=1);
 
 namespace App\Mailer;
 
-use Cake\Mailer\Mailer;
-use Cake\Routing\Router;
-use App\Model\Table\AppSettingsTable;
 use App\KMP\StaticHelpers;
+use App\Model\Table\AppSettingsTable;
+use Cake\Mailer\Mailer;
 
 class KMPMailer extends Mailer
 {
     protected AppSettingsTable $appSettings;
+
     public function __construct()
     {
         parent::__construct();
-        $this->appSettings = $this->getTableLocator()->get("AppSettings");
+        $this->appSettings = $this->getTableLocator()->get('AppSettings');
     }
 
-    public function resetPassword($to, $url)
+    public function resetPassword($to, $url): void
     {
 
-        $sendFrom = StaticHelpers::getAppSetting("Email.SystemEmailFromAddress");
+        $sendFrom = StaticHelpers::getAppSetting('Email.SystemEmailFromAddress');
         $this->setTo($to)
             ->setFrom($sendFrom)
-            ->setSubject("Reset password")
+            ->setSubject('Reset password')
             ->setViewVars([
-                "email" => $to,
-                "passwordResetUrl" => $url,
-                "siteAdminSignature" => StaticHelpers::getAppSetting("Email.SiteAdminSignature"),
+                'email' => $to,
+                'passwordResetUrl' => $url,
+                'siteAdminSignature' => StaticHelpers::getAppSetting('Email.SiteAdminSignature'),
             ]);
     }
 
-    public function mobileCard($to, $url)
+    public function mobileCard($to, $url): void
     {
-        $sendFrom = StaticHelpers::getAppSetting("Email.SystemEmailFromAddress");
+        $sendFrom = StaticHelpers::getAppSetting('Email.SystemEmailFromAddress');
         $this->setTo($to)
             ->setFrom($sendFrom)
-            ->setSubject("Your Mobile Card URL")
+            ->setSubject('Your Mobile Card URL')
             ->setViewVars([
-                "email" => $to,
-                "mobileCardUrl" => $url,
-                "siteAdminSignature" => StaticHelpers::getAppSetting("Email.SiteAdminSignature"),
+                'email' => $to,
+                'mobileCardUrl' => $url,
+                'siteAdminSignature' => StaticHelpers::getAppSetting('Email.SiteAdminSignature'),
             ]);
     }
 
-    public function newRegistration($to, $url, $sca_name)
+    public function newRegistration($to, $url, $sca_name): void
     {
-        $sendFrom = StaticHelpers::getAppSetting("Email.SystemEmailFromAddress");
-        $portalName = StaticHelpers::getAppSetting("KMP.LongSiteTitle");
+        $sendFrom = StaticHelpers::getAppSetting('Email.SystemEmailFromAddress');
+        $portalName = StaticHelpers::getAppSetting('KMP.LongSiteTitle');
         $this->setTo($to)
             ->setFrom($sendFrom)
-            ->setSubject("Welcome " . $sca_name . " to " . $portalName)
+            ->setSubject('Welcome ' . $sca_name . ' to ' . $portalName)
             ->setViewVars([
-                "email" => $to,
-                "passwordResetUrl" => $url,
-                "memberScaName" => $sca_name,
-                "siteAdminSignature" => StaticHelpers::getAppSetting("Email.SiteAdminSignature"),
+                'email' => $to,
+                'passwordResetUrl' => $url,
+                'memberScaName' => $sca_name,
+                'siteAdminSignature' => StaticHelpers::getAppSetting('Email.SiteAdminSignature'),
             ]);
     }
 
-    public function notifySecretaryOfNewMember($to, $url, $sca_name, $membershipCardPresent)
+    public function notifySecretaryOfNewMember($to, $url, $sca_name, $membershipCardPresent): void
     {
-        $sendFrom = StaticHelpers::getAppSetting("Email.SystemEmailFromAddress");
-        $to = StaticHelpers::getAppSetting("Members.NewMemberSecretaryEmail");
+        $sendFrom = StaticHelpers::getAppSetting('Email.SystemEmailFromAddress');
+        $to = StaticHelpers::getAppSetting('Members.NewMemberSecretaryEmail');
         $this->setTo($to)
             ->setFrom($sendFrom)
-            ->setSubject("New Member Registration")
+            ->setSubject('New Member Registration')
             ->setViewVars([
-                "memberViewUrl" => $url,
-                "memberScaName" => $sca_name,
-                "memberCardPresent" => $membershipCardPresent,
-                "siteAdminSignature" => StaticHelpers::getAppSetting("Email.SiteAdminSignature"),
+                'memberViewUrl' => $url,
+                'memberScaName' => $sca_name,
+                'memberCardPresent' => $membershipCardPresent,
+                'siteAdminSignature' => StaticHelpers::getAppSetting('Email.SiteAdminSignature'),
             ]);
     }
 
-    public function notifySecretaryOfNewMinorMember($to, $url, $sca_name, $membershipCardPresent)
+    public function notifySecretaryOfNewMinorMember($to, $url, $sca_name, $membershipCardPresent): void
     {
-        $sendFrom = StaticHelpers::getAppSetting("Email.SystemEmailFromAddress");
-        $to = StaticHelpers::getAppSetting("Members.NewMinorSecretaryEmail");
+        $sendFrom = StaticHelpers::getAppSetting('Email.SystemEmailFromAddress');
+        $to = StaticHelpers::getAppSetting('Members.NewMinorSecretaryEmail');
         $this->setTo($to)
             ->setFrom($sendFrom)
-            ->setSubject("New Minor Member Registration")
+            ->setSubject('New Minor Member Registration')
             ->setViewVars([
-                "memberViewUrl" => $url,
-                "memberScaName" => $sca_name,
-                "memberCardPresent" => $membershipCardPresent,
-                "siteAdminSignature" => StaticHelpers::getAppSetting("Email.SiteAdminSignature"),
+                'memberViewUrl' => $url,
+                'memberScaName' => $sca_name,
+                'memberCardPresent' => $membershipCardPresent,
+                'siteAdminSignature' => StaticHelpers::getAppSetting('Email.SiteAdminSignature'),
             ]);
     }
 
@@ -94,18 +95,18 @@ class KMPMailer extends Mailer
         string $warrantName,
         string $warrantStart,
         string $warrantExpires,
-    ) {
-        $sendFrom = StaticHelpers::getAppSetting("Email.SystemEmailFromAddress");
+    ): void {
+        $sendFrom = StaticHelpers::getAppSetting('Email.SystemEmailFromAddress');
 
         $this->setTo($to)
             ->setFrom($sendFrom)
             ->setSubject("Warrant Issued: $warrantName")
             ->setViewVars([
-                "memberScaName" => $memberScaName,
-                "warrantName" => $warrantName,
-                "warrantExpires" => $warrantExpires,
-                "warrantStart" => $warrantStart,
-                "siteAdminSignature" => StaticHelpers::getAppSetting("Email.SiteAdminSignature"),
+                'memberScaName' => $memberScaName,
+                'warrantName' => $warrantName,
+                'warrantExpires' => $warrantExpires,
+                'warrantStart' => $warrantStart,
+                'siteAdminSignature' => StaticHelpers::getAppSetting('Email.SiteAdminSignature'),
             ]);
     }
 }

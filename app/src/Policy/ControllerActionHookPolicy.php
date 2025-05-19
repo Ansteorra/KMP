@@ -1,14 +1,18 @@
 <?php
+declare(strict_types=1);
 
 namespace App\Policy;
 
-use Authorization\Policy\RequestPolicyInterface;
-use Cake\Http\ServerRequest;
-use Authorization\Policy\ResultInterface;
-
 class ControllerActionHookPolicy
 {
-    public function __call(string $name, array $arguments)
+    /**
+     * Magic method to allow all actions
+     *
+     * @param string $name Method name
+     * @param array $arguments Arguments
+     * @return bool
+     */
+    public function __call(string $name, array $arguments): bool
     {
         /** @var ?\Authorization\Identity $user */
         return true;

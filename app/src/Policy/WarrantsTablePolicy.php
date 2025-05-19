@@ -4,43 +4,39 @@ declare(strict_types=1);
 
 namespace App\Policy;
 
-use App\Model\Tables\WarrantsTable;
-use Authorization\IdentityInterface;
+use App\KMP\KmpIdentityInterface;
+use App\Model\Entity\BaseEntity;
+use Cake\ORM\Table;
 
 class WarrantsTablePolicy extends BasePolicy
 {
-    protected string $REQUIRED_PERMISSION = "Can Manage Warrants";
-    protected string $REQUIRED_VIEW_PERMISSION = "Can View Warrants";
-
-    public function canView(IdentityInterface $user, $entity, ...$optionalArgs)
+    /**
+     * Check if user can decline warrant in roster
+     *
+     * @param \App\KMP\KmpIdentityInterface $user User
+     * @param \App\Model\Entity\BaseEntity $entity Entity
+     * @param mixed ...$optionalArgs Optional arguments
+     * @return bool
+     */
+    public function canDeclineWarrantInRoster(KmpIdentityInterface $user, BaseEntity $entity, mixed ...$optionalArgs): bool
     {
-        if ($this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION)) {
-            return true;
-        }
-        if ($this->_hasNamedPermission($user, $this->REQUIRED_VIEW_PERMISSION)) {
-            return true;
-        }
-        return false;
+        $method = __FUNCTION__;
+
+        return $this->_hasPolicy($user, $method, $entity, ...$optionalArgs);
     }
 
-    public function canIndex(IdentityInterface $user, $entity, ...$optionalArgs)
+    /**
+     * Check if user can deactivate
+     *
+     * @param \App\KMP\KmpIdentityInterface $user User
+     * @param \App\Model\Entity\BaseEntity $entity Entity
+     * @param mixed ...$optionalArgs Optional arguments
+     * @return bool
+     */
+    public function canDeactivate(KmpIdentityInterface $user, BaseEntity $entity, mixed ...$optionalArgs): bool
     {
-        if ($this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION)) {
-            return true;
-        }
-        if ($this->_hasNamedPermission($user, $this->REQUIRED_VIEW_PERMISSION)) {
-            return true;
-        }
-        return false;
-    }
+        $method = __FUNCTION__;
 
-    public function canDeclineWarrantInRoster(IdentityInterface $user, $entity, ...$optionalArgs)
-    {
-        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
-    }
-
-    public function canDeactivate(IdentityInterface $user, $entity, ...$optionalArgs)
-    {
-        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+        return $this->_hasPolicy($user, $method, $entity, ...$optionalArgs);
     }
 }

@@ -1,9 +1,8 @@
 <?php
+declare(strict_types=1);
 
 namespace App\Model\Entity;
 
-use Cake\ORM\Entity;
-use Cake\Datasource\EntityInterface;
 use Cake\I18n\Datetime;
 
 /**
@@ -19,21 +18,21 @@ use Cake\I18n\Datetime;
  */
 abstract class ActiveWindowBaseEntity extends BaseEntity
 {
-    const UPCOMING_STATUS = "Upcoming";
-    const CURRENT_STATUS = "Current";
-    const RELEASED_STATUS = "Released";
-    const REPLACED_STATUS = "Replaced";
-    const EXPIRED_STATUS = "Expired";
-    const DEACTIVATED_STATUS = "Deactivated";
-    const CANCELLED_STATUS = "Cancelled";
+    public const UPCOMING_STATUS = 'Upcoming';
+    public const CURRENT_STATUS = 'Current';
+    public const RELEASED_STATUS = 'Released';
+    public const REPLACED_STATUS = 'Replaced';
+    public const EXPIRED_STATUS = 'Expired';
+    public const DEACTIVATED_STATUS = 'Deactivated';
+    public const CANCELLED_STATUS = 'Cancelled';
 
     public array $typeIdField = [];
 
     /**
      * Starts an active window for an entity - save your entity after calling
      *
-     * @param DateTime $expiresOn
-     * @param ?DateTime $expiresOn
+     * @param \Cake\I18n\Datetime $expiresOn
+     * @param ?\Cake\I18n\Datetime $expiresOn
      * @param ?int $termYears
      * @return bool
      */
@@ -56,8 +55,8 @@ abstract class ActiveWindowBaseEntity extends BaseEntity
 
     /**
      * Stops an active window for an entity - save your entity after calling
-     * 
-     * @param DateTime $expiresOn
+     *
+     * @param \Cake\I18n\Datetime $expiresOn
      * @return bool
      */
     public function expire(?Datetime $expiresOn = null): void
@@ -72,8 +71,9 @@ abstract class ActiveWindowBaseEntity extends BaseEntity
     protected function _getExpiresOnToString()
     {
         if ($this->expires_on == null) {
-            return "No Exp Date";
+            return 'No Exp Date';
         }
+
         return $this->expires_on->toDateString();
     }
 

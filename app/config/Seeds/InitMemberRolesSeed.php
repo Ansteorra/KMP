@@ -20,7 +20,7 @@ class InitMemberRolesSeed extends BaseSeed
     {
         return [
             [
-                'id' => 1,
+                //'id' => 1,
                 'member_id' => 1,
                 'role_id' => 1,
                 'expires_on' => NULL,

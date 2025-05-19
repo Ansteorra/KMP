@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 use Migrations\BaseSeed;
 use Cake\I18n\DateTime;
+use Cake\ORM\TableRegistry;
+
+require_once __DIR__ . '/Lib/SeedHelpers.php';
 
 /**
  * Permissions seed.
@@ -17,9 +20,9 @@ class DevLoadPermissionsSeed extends BaseSeed
      */
     public function getData(): array
     {
+        $createdByMemberId =  SeedHelpers::getMemberId('admin@test.com');
         return [
             [
-                'id' => 200,
                 'name' => 'Can Authorize Armored Combat',
                 'require_active_membership' => 1,
                 'require_active_background_check' => 0,
@@ -28,10 +31,9 @@ class DevLoadPermissionsSeed extends BaseSeed
                 'is_super_user' => 0,
                 'requires_warrant' => 1,
                 'created' => DateTime::now(),
-                'created_by' => '1'
+                'created_by' => $createdByMemberId
             ],
             [
-                'id' => 201,
                 'name' => 'Can Authorize Armored Combat Field Marshal',
                 'require_active_membership' => 1,
                 'require_active_background_check' => 0,
@@ -40,10 +42,9 @@ class DevLoadPermissionsSeed extends BaseSeed
                 'is_super_user' => 0,
                 'requires_warrant' => 1,
                 'created' => DateTime::now(),
-                'created_by' => '1'
+                'created_by' => $createdByMemberId
             ],
             [
-                'id' => 202,
                 'name' => 'Can Authorize Rapier Combat',
                 'require_active_membership' => 1,
                 'require_active_background_check' => 0,
@@ -52,10 +53,9 @@ class DevLoadPermissionsSeed extends BaseSeed
                 'is_super_user' => 0,
                 'requires_warrant' => 1,
                 'created' => DateTime::now(),
-                'created_by' => '1'
+                'created_by' => $createdByMemberId
             ],
             [
-                'id' => 203,
                 'name' => 'Can Authorize Rapier Combat Field Marshal',
                 'require_active_membership' => 1,
                 'require_active_background_check' => 0,
@@ -64,10 +64,9 @@ class DevLoadPermissionsSeed extends BaseSeed
                 'is_super_user' => 0,
                 'requires_warrant' => 1,
                 'created' => DateTime::now(),
-                'created_by' => '1'
+                'created_by' => $createdByMemberId
             ],
             [
-                'id' => 204,
                 'name' => 'Can Authorize Youth Boffer 1',
                 'require_active_membership' => 1,
                 'require_active_background_check' => 1,
@@ -76,10 +75,9 @@ class DevLoadPermissionsSeed extends BaseSeed
                 'is_super_user' => 0,
                 'requires_warrant' => 1,
                 'created' => DateTime::now(),
-                'created_by' => '1'
+                'created_by' => $createdByMemberId
             ],
             [
-                'id' => 205,
                 'name' => 'Can Authorize Youth Boffer 2',
                 'require_active_membership' => 1,
                 'require_active_background_check' => 1,
@@ -88,10 +86,9 @@ class DevLoadPermissionsSeed extends BaseSeed
                 'is_super_user' => 0,
                 'requires_warrant' => 1,
                 'created' => DateTime::now(),
-                'created_by' => '1'
+                'created_by' => $createdByMemberId
             ],
             [
-                'id' => 206,
                 'name' => 'Can Authorize Youth Boffer 3',
                 'require_active_membership' => 1,
                 'require_active_background_check' => 1,
@@ -100,10 +97,9 @@ class DevLoadPermissionsSeed extends BaseSeed
                 'is_super_user' => 0,
                 'requires_warrant' => 1,
                 'created' => DateTime::now(),
-                'created_by' => '1'
+                'created_by' => $createdByMemberId
             ],
             [
-                'id' => 207,
                 'name' => 'Can Authorize Youth Boffer Junior Marshal',
                 'require_active_membership' => 1,
                 'require_active_background_check' => 0,
@@ -112,10 +108,9 @@ class DevLoadPermissionsSeed extends BaseSeed
                 'is_super_user' => 0,
                 'requires_warrant' => 1,
                 'created' => DateTime::now(),
-                'created_by' => '1'
+                'created_by' => $createdByMemberId
             ],
             [
-                'id' => 208,
                 'name' => 'Can Authorize Youth Boffer Marshal',
                 'require_active_membership' => 1,
                 'require_active_background_check' => 1,
@@ -124,10 +119,9 @@ class DevLoadPermissionsSeed extends BaseSeed
                 'is_super_user' => 0,
                 'requires_warrant' => 1,
                 'created' => DateTime::now(),
-                'created_by' => '1'
+                'created_by' => $createdByMemberId
             ],
             [
-                'id' => 209,
                 'name' => 'Can Authorize Authorizing Rapier Marshal',
                 'require_active_membership' => 1,
                 'require_active_background_check' => 0,
@@ -136,7 +130,7 @@ class DevLoadPermissionsSeed extends BaseSeed
                 'is_super_user' => 0,
                 'requires_warrant' => 1,
                 'created' => DateTime::now(),
-                'created_by' => '1'
+                'created_by' => $createdByMemberId
             ],
         ];
     }
@@ -155,12 +149,20 @@ class DevLoadPermissionsSeed extends BaseSeed
     {
         $data = $this->getData();
         $table = $this->table('permissions');
-        $options = $table->getAdapter()->getOptions();
-        $options['identity_insert'] = true;
-        $table->getAdapter()->setOptions($options);
         $table->insert($data)->save();
-        $sql = "UPDATE permissions SET scoping_rule = 'Branch and Children' WHERE id IN (6, 4)";
-        #update a few roles to have scopes
-        $this->execute($sql);
+
+        // Update scoping_rule for specific permissions by name
+        $permissionsToUpdate = [
+            'Can View Members',
+            'Can View Member Details'
+        ];
+        $permissionsTable = TableRegistry::getTableLocator()->get('Permissions');
+        foreach ($permissionsToUpdate as $permissionName) {
+            $permission = $permissionsTable->find()->where(['name' => $permissionName])->first();
+            if ($permission) {
+                $permission->scoping_rule = 'Branch and Children';
+                $permissionsTable->saveOrFail($permission);
+            }
+        }
     }
 }

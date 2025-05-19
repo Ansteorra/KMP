@@ -1,11 +1,7 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Entity;
-
-use Cake\ORM\Entity;
-use Cake\ORM\TableRegistry;
 
 /**
  * MemberRole Entity
@@ -34,22 +30,23 @@ class MemberRole extends ActiveWindowBaseEntity
      * @var array<string, bool>
      */
     protected array $_accessible = [
-        "Member_id" => true,
-        "role_id" => true,
-        "expires_on" => true,
-        "start_on" => true,
-        "approver_id" => true,
-        "Member" => true,
-        "role" => true,
-        "approved_by" => true,
-        "branch_id" => true,
+        'Member_id' => true,
+        'role_id' => true,
+        'expires_on' => true,
+        'start_on' => true,
+        'approver_id' => true,
+        'Member' => true,
+        'role' => true,
+        'approved_by' => true,
+        'branch_id' => true,
     ];
 
     protected function _getGrantedBy($value)
     {
-        if ($this->entity_type == "Direct Grant") {
-            return "Direct Grant";
+        if ($this->entity_type == 'Direct Grant') {
+            return 'Direct Grant';
         }
+
         return $this->entity_type;
     }
 }

@@ -1,12 +1,10 @@
 <?php
-
 declare(strict_types=1);
-
 
 namespace App\Controller;
 
+use Cake\Http\Exception\NotFoundException;
 use Cake\ORM\TableRegistry;
-use Cake\Datasource\Exception\NotFoundException;
 
 /**
  * Notes Controller
@@ -32,7 +30,7 @@ class NotesController extends AppController
             $modelTbl = TableRegistry::getTableLocator()->get($note->entity_type);
             $model = $modelTbl->get($note->entity_id);
             if (!$model) {
-                throw new \Cake\Http\Exception\NotFoundException();
+                throw new NotFoundException();
             }
             $this->Authorization->authorize($model, 'addNote');
             if ($this->Notes->save($note)) {
@@ -41,9 +39,9 @@ class NotesController extends AppController
                 $this->Flash->error(__('The note could not be saved. Please, try again.'));
             }
         }
+
         return $this->redirect($this->referer());
     }
-
 
     /**
      * Delete method
@@ -52,7 +50,7 @@ class NotesController extends AppController
      * @return \Cake\Http\Response|null Redirects to index.
      * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
      */
-    public function delete($id = null)
+    public function delete(?string $id = null)
     {
         $this->request->allowMethod(['post', 'delete']);
         $note = $this->Notes->get($id);
@@ -61,6 +59,7 @@ class NotesController extends AppController
         } else {
             $this->Flash->error(__('The note could not be deleted. Please, try again.'));
         }
+
         return $this->redirect($this->referer());
     }
 }

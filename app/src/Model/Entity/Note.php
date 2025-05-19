@@ -1,10 +1,7 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Entity;
-
-use Cake\ORM\Entity;
 
 /**
  * Note Entity
@@ -30,19 +27,20 @@ class Note extends BaseEntity
      * @var array<string, bool>
      */
     protected array $_accessible = [
-        "author_id" => true,
-        "created_on" => true,
-        "entity_type" => true,
-        "entity_id" => true,
-        "subject" => true,
-        "body" => true,
-        "private" => true,
+        'author_id' => true,
+        'created_on' => true,
+        'entity_type' => true,
+        'entity_id' => true,
+        'subject' => true,
+        'body' => true,
+        'private' => true,
     ];
 
     public function getBranchId(): ?int
     {
         $entity_type = $this->entity_type;
         $entity_id = $this->entity_id;
+
         return $this->getTableLocator()->get($entity_type)->get($entity_id)->branch_id;
     }
 }

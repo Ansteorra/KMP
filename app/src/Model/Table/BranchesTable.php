@@ -1,16 +1,12 @@
 <?php
+declare(strict_types=1);
 
 namespace App\Model\Table;
 
-use Cake\ORM\Query;
-use Cake\ORM\RulesChecker;
-use Cake\ORM\Table;
-use Cake\Validation\Validator;
-use Cake\Database\Schema\TableSchemaInterface;
 use Cake\Cache\Cache;
-use Cake\Utility\Hash;
-use App\Model\Table\BaseTable;
-use Cake\ORM\Query\SelectQuery;
+use Cake\Database\Schema\TableSchemaInterface;
+use Cake\ORM\RulesChecker;
+use Cake\Validation\Validator;
 
 /**
  * Branches Model
@@ -35,23 +31,23 @@ class BranchesTable extends BaseTable
     {
         parent::initialize($config);
 
-        $this->setTable("branches");
-        $this->setDisplayField("name");
-        $this->setPrimaryKey("id");
+        $this->setTable('branches');
+        $this->setDisplayField('name');
+        $this->setPrimaryKey('id');
 
-        $this->BelongsTo("Parent", [
-            "className" => "Branches",
-            "foreignKey" => "parent_id",
+        $this->BelongsTo('Parent', [
+            'className' => 'Branches',
+            'foreignKey' => 'parent_id',
         ]);
 
-        $this->HasMany("Members", [
-            "className" => "Members",
-            "foreignKey" => "branch_id",
+        $this->HasMany('Members', [
+            'className' => 'Members',
+            'foreignKey' => 'branch_id',
         ]);
-        $this->addBehavior("Tree");
-        $this->addBehavior("Timestamp");
+        $this->addBehavior('Tree');
+        $this->addBehavior('Timestamp');
         $this->addBehavior('Muffin/Footprint.Footprint');
-        $this->addBehavior("Muffin/Trash.Trash");
+        $this->addBehavior('Muffin/Trash.Trash');
     }
 
     public function getSchema(): TableSchemaInterface
@@ -61,13 +57,13 @@ class BranchesTable extends BaseTable
 
         return $schema;
     }
+
     protected const CACHES_TO_CLEAR = [];
     protected const ID_CACHES_TO_CLEAR = [
         ['descendants_', 'branch_structure'],
-        ['parents_', 'branch_structure']
+        ['parents_', 'branch_structure'],
     ];
     protected const CACHE_GROUPS_TO_CLEAR = ['security'];
-
 
     /**
      * Default validation rules.
@@ -78,16 +74,16 @@ class BranchesTable extends BaseTable
     public function validationDefault(Validator $validator): Validator
     {
         $validator
-            ->requirePresence("name", "create")
-            ->notEmptyString("name")
-            ->add("name", "unique", [
-                "rule" => "validateUnique",
-                "provider" => "table",
+            ->requirePresence('name', 'create')
+            ->notEmptyString('name')
+            ->add('name', 'unique', [
+                'rule' => 'validateUnique',
+                'provider' => 'table',
             ]);
 
         $validator
-            ->requirePresence("location", "create")
-            ->notEmptyString("location");
+            ->requirePresence('location', 'create')
+            ->notEmptyString('location');
 
         return $validator;
     }
@@ -101,44 +97,46 @@ class BranchesTable extends BaseTable
      */
     public function buildRules(RulesChecker $rules): RulesChecker
     {
-        $rules->add($rules->isUnique(["name"]));
+        $rules->add($rules->isUnique(['name']));
 
         return $rules;
     }
 
     public function getAllDecendentIds($id): array
     {
-        $descendants = Cache::read("descendants_" . $id, 'branch_structure');
+        $descendants = Cache::read('descendants_' . $id, 'branch_structure');
         if (!$descendants) {
             $descendants = $this->getDescendantsLookup();
             foreach ($descendants as $key => $value) {
-                Cache::write("descendants_" . $key, $value, 'branch_structure');
+                Cache::write('descendants_' . $key, $value, 'branch_structure');
             }
             $descendants = $descendants[$id] ?? [];
         }
+
         return $descendants ?? [];
     }
 
     public function getAllParents($id): array
     {
-        $parents = Cache::read("parents_" . $id, 'branch_structure');
+        $parents = Cache::read('parents_' . $id, 'branch_structure');
         if (!$parents) {
             $parents = $this->getParentsLookup();
             foreach ($parents as $key => $value) {
-                Cache::write("parents_" . $key, $value, 'branch_structure');
+                Cache::write('parents_' . $key, $value, 'branch_structure');
             }
             $parents = $parents[$id] ?? [];
         }
+
         return $parents ?? [];
     }
 
     public function getThreadedTree()
     {
         // rebuild the array into a tree structure
-        $branches = $this->find("threaded", [
-            "parentField" => "parent_id",
-            "keyForeign" => "id",
-            "nestingKey" => "children",
+        $branches = $this->find('threaded', [
+            'parentField' => 'parent_id',
+            'keyForeign' => 'id',
+            'nestingKey' => 'children',
         ])->select(['id', 'name', 'parent_id'])->toArray();
         //create a quick index of all of the decendents for each branch
 
@@ -151,7 +149,7 @@ class BranchesTable extends BaseTable
         $lookup = [];
 
         // we need to iterate through the tree creating the list of parents for each node
-        $populateParents = function (object $node, array $parentIds = []) use (&$lookup, &$populateParents) {
+        $populateParents = function (object $node, array $parentIds = []) use (&$lookup, &$populateParents): void {
             $lookup[$node['id']] = $parentIds;
             if (!empty($node['children'])) {
                 foreach ($node['children'] as $child) {
@@ -163,6 +161,7 @@ class BranchesTable extends BaseTable
         foreach ($tree as $node) {
             $populateParents($node);
         }
+
         return $lookup;
     }
 
@@ -172,7 +171,7 @@ class BranchesTable extends BaseTable
         $lookup = [];
 
         // Recursive function to populate lookup for each node.
-        $populateLookup = function (object $node) use (&$lookup, &$populateLookup) {
+        $populateLookup = function (object $node) use (&$lookup, &$populateLookup): void {
             $childIDs = [];
             if (!empty($node['children'])) {
                 foreach ($node['children'] as $child) {

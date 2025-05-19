@@ -1,14 +1,10 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Controller;
 
 use App\Services\WarrantManager\WarrantManagerInterface;
-use Cake\I18n\DateTime;
 use Cake\Http\Exception\NotFoundException;
-use App\Model\Entity\WarrantRoster;
-
 
 /**
  * WarrantRosters Controller
@@ -28,7 +24,7 @@ class WarrantRostersController extends AppController
         parent::initialize();
 
         $this->loadComponent('Authorization.Authorization');
-        $this->Authorization->authorizeModel("index");
+        $this->Authorization->authorizeModel('index');
     }
 
     /**
@@ -36,13 +32,15 @@ class WarrantRostersController extends AppController
      *
      * @return \Cake\Http\Response|null|void Renders view
      */
-    public function index() {}
+    public function index()
+    {
+    }
 
     public function allRosters($state)
     {
         $query = $this->WarrantRosters->find()
             ->contain(['CreatedByMember' => function ($q) {
-                return $q->select(["id", "sca_name"]);
+                return $q->select(['id', 'sca_name']);
             }]);
 
         $query = $query->matching('Warrants')
@@ -55,11 +53,6 @@ class WarrantRostersController extends AppController
         $this->set(compact('warrantRosters'));
     }
 
-
-
-
-
-
     /**
      * View method
      *
@@ -67,7 +60,7 @@ class WarrantRostersController extends AppController
      * @return \Cake\Http\Response|null|void Renders view
      * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
      */
-    public function view($id = null)
+    public function view(?string $id = null)
     {
         $warrantRoster = $this->WarrantRosters->find()
             ->where(['WarrantRosters.id' => $id])
@@ -79,14 +72,14 @@ class WarrantRostersController extends AppController
                     return $q->orderBy(['Warrants.created' => 'ASC']);
                 },
                 'Warrants.Members' => function ($q) {
-                    return $q->select(["id", "sca_name"]);
+                    return $q->select(['id', 'sca_name']);
                 },
                 'WarrantRosterApprovals.Members' => function ($q) {
-                    return $q->select(["id", "sca_name"]);
+                    return $q->select(['id', 'sca_name']);
                 },
                 'CreatedByMember' => function ($q) {
-                    return $q->select(["id", "sca_name"]);
-                }
+                    return $q->select(['id', 'sca_name']);
+                },
             ])
             ->first();
         $this->Authorization->authorize($warrantRoster);
@@ -121,7 +114,7 @@ class WarrantRostersController extends AppController
      * @return \Cake\Http\Response|null|void Redirects on successful edit, renders view otherwise.
      * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
      */
-    public function edit($id = null)
+    public function edit(?string $id = null)
     {
         $warrantRoster = $this->WarrantRosters->get($id, contain: []);
         $this->Authorization->authorize($warrantRoster);
@@ -151,6 +144,7 @@ class WarrantRostersController extends AppController
         } else {
             $this->Flash->error(__($wmResult->reason));
         }
+
         return $this->redirect(['action' => 'view', $id]);
     }
 
@@ -161,7 +155,7 @@ class WarrantRostersController extends AppController
      * @return \Cake\Http\Response|null Redirects to index.
      * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
      */
-    public function decline(WarrantManagerInterface $wManager, $id = null)
+    public function decline(WarrantManagerInterface $wManager, ?string $id = null)
     {
         $this->request->allowMethod(['post']);
         $warrantRoster = $this->WarrantRosters->get($id, ['contain' => ['Warrants']]);
@@ -169,23 +163,24 @@ class WarrantRostersController extends AppController
             throw new NotFoundException();
         }
         $this->Authorization->authorize($warrantRoster);
-        $wmResult = $wManager->decline($warrantRoster->id, $this->Authentication->getIdentity()->getIdentifier(), "Declined from Warrant Roster View");
+        $wmResult = $wManager->decline($warrantRoster->id, $this->Authentication->getIdentity()->getIdentifier(), 'Declined from Warrant Roster View');
         if ($wmResult->success) {
             $this->Flash->success(__('The declination has been been processed.'));
         } else {
             $this->Flash->error(__($wmResult->reason));
         }
+
         return $this->redirect(['action' => 'view', $id]);
     }
 
     public function declineWarrantInRoster(WarrantManagerInterface $wService, $roster_id, $warrant_id = null)
     {
-        $this->request->allowMethod(["post"]);
+        $this->request->allowMethod(['post']);
         if (!$roster_id) {
-            $roster_id = $this->request->getData("roster_id");
+            $roster_id = $this->request->getData('roster_id');
         }
         if (!$warrant_id) {
-            $warrant_id = $this->request->getData("warrant_id");
+            $warrant_id = $this->request->getData('warrant_id');
         }
         //check if the warrant exists in that roster
         $warrant = $this->WarrantRosters->Warrants->find()
@@ -195,13 +190,15 @@ class WarrantRostersController extends AppController
             throw new NotFoundException();
         }
         $this->Authorization->authorize($warrant);
-        $wResult = $wService->declineSingleWarrant((int)$warrant_id, "Declined Warrant", $this->Authentication->getIdentity()->get("id"));
+        $wResult = $wService->declineSingleWarrant((int)$warrant_id, 'Declined Warrant', $this->Authentication->getIdentity()->get('id'));
         if (!$wResult->success) {
             $this->Flash->error($wResult->reason);
+
             return $this->redirect($this->referer());
         }
 
-        $this->Flash->success(__("The warrant has been deactivated. If this warrant is associated with an office, the officer has been released however they have not been notified.  Please notify them at your earliest convienence."));
+        $this->Flash->success(__('The warrant has been deactivated. If this warrant is associated with an office, the officer has been released however they have not been notified.  Please notify them at your earliest convienence.'));
+
         return $this->redirect($this->referer());
     }
 }

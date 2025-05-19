@@ -1,12 +1,10 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Services;
 
-use Cake\Http\Response;
-use Cake\Datasource\ResultSetInterface;
 use Cake\Datasource\QueryInterface;
+use Cake\Http\Response;
 
 /**
  * CsvExportService
@@ -18,10 +16,10 @@ class CsvExportService
     /**
      * Outputs a CSV response from an array, iterator, or Query.
      *
-     * @param iterable|QueryInterface $data Array, iterator, or Query of rows (associative arrays or entities)
+     * @param \Cake\Datasource\QueryInterface|iterable $data Array, iterator, or Query of rows (associative arrays or entities)
      * @param string $filename Name of the CSV file for download
      * @param array|null $headers Optional: List of column headers (if not provided, uses query fields or first row)
-     * @return Response
+     * @return \Cake\Http\Response
      */
     public function outputCsv(iterable $data, string $filename = 'export.csv', ?array $headers = null): Response
     {
@@ -65,6 +63,7 @@ class CsvExportService
         ]);
         $response = $response->withType('csv')
             ->withHeader('Content-Disposition', 'attachment; filename="' . $filename . '"');
+
         return $response;
     }
 }

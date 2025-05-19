@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Controller;
@@ -34,7 +33,7 @@ class WarrantPeriodsController extends AppController
         $query = $this->WarrantPeriods->find();
         $query = $this->Authorization->applyScope($query);
         $warrantPeriods = $this->paginate($query, [
-            "order" => ["start_date" => "DESC"]
+            'order' => ['start_date' => 'DESC'],
         ]);
         $emptyWarrantPeriod = $this->WarrantPeriods->newEmptyEntity();
         $this->set(compact('warrantPeriods', 'emptyWarrantPeriod'));
@@ -68,7 +67,7 @@ class WarrantPeriodsController extends AppController
      * @return \Cake\Http\Response|null Redirects to index.
      * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
      */
-    public function delete($id = null)
+    public function delete(?string $id = null)
     {
         $this->request->allowMethod(['post', 'delete']);
         $warrantPeriod = $this->WarrantPeriods->get($id);

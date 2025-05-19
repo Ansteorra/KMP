@@ -9,7 +9,4 @@ use App\Policy\BasePolicy;
 /**
  * DomainPolicy policy
  */
-class LevelPolicy extends BasePolicy
-{
-    protected string $REQUIRED_PERMISSION = "Can Manage Awards";
-}
+class LevelPolicy extends BasePolicy {}

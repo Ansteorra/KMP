@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use Migrations\BaseSeed;
 
+require_once __DIR__ . '/Lib/SeedHelpers.php';
+
 /**
  * AwardsDomains seed.
  */
@@ -16,77 +18,70 @@ class DevLoadAwardsDomainsSeed extends BaseSeed
      */
     public function getData(): array
     {
+        $adminId = SeedHelpers::getMemberId('admin@test.com');
         return [
             [
-                'id' => 1,
                 'name' => 'Chivalric',
                 'modified' => '2024-06-25 15:10:11',
                 'created' => '2024-06-25 13:59:24',
-                'created_by' => 1,
-                'modified_by' => 1,
+                'created_by' => $adminId,
+                'modified_by' => $adminId,
                 'deleted' => NULL,
             ],
             [
-                'id' => 2,
                 'name' => 'Service',
                 'modified' => '2024-06-25 13:59:33',
                 'created' => '2024-06-25 13:59:33',
-                'created_by' => 1,
-                'modified_by' => 1,
+                'created_by' => $adminId,
+                'modified_by' => $adminId,
                 'deleted' => NULL,
             ],
             [
-                'id' => 3,
                 'name' => 'Arts & Sciences',
                 'modified' => '2024-06-25 13:59:49',
                 'created' => '2024-06-25 13:59:49',
-                'created_by' => 1,
-                'modified_by' => 1,
+                'created_by' => $adminId,
+                'modified_by' => $adminId,
                 'deleted' => NULL,
             ],
             [
-                'id' => 4,
                 'name' => 'Rapier & Steel Weapons',
                 'modified' => '2024-06-25 13:59:59',
                 'created' => '2024-06-25 13:59:59',
-                'created_by' => 1,
-                'modified_by' => 1,
+                'created_by' => $adminId,
+                'modified_by' => $adminId,
                 'deleted' => NULL,
             ],
             [
-                'id' => 5,
                 'name' => 'Missile Weapons',
                 'modified' => '2024-06-25 14:00:13',
                 'created' => '2024-06-25 14:00:13',
-                'created_by' => 1,
-                'modified_by' => 1,
+                'created_by' => $adminId,
+                'modified_by' => $adminId,
                 'deleted' => NULL,
             ],
             [
-                'id' => 6,
                 'name' => 'Equestrian',
                 'modified' => '2024-06-25 14:00:20',
                 'created' => '2024-06-25 14:00:20',
-                'created_by' => 1,
-                'modified_by' => 1,
+                'created_by' => $adminId,
+                'modified_by' => $adminId,
                 'deleted' => NULL,
             ],
             [
-                'id' => 7,
                 'name' => 'Baronial',
                 'modified' => '2024-06-25 14:00:36',
                 'created' => '2024-06-25 14:00:36',
-                'created_by' => 1,
-                'modified_by' => 1,
+                'created_by' => $adminId,
+                'modified_by' => $adminId,
                 'deleted' => NULL,
             ],
             [
-                'id' => 8,
                 'name' => 'Kingdom',
                 'modified' => '2024-06-25 14:00:44',
                 'created' => '2024-06-25 14:00:44',
-                'created_by' => 1,
-                'modified_by' => 1,
+                'created_by' => $adminId,
+                'modified_by' => $adminId,
                 'deleted' => NULL,
             ],
         ];
@@ -106,9 +101,6 @@ class DevLoadAwardsDomainsSeed extends BaseSeed
     {
         $data = $this->getData();
         $table = $this->table('awards_domains');
-        $options = $table->getAdapter()->getOptions();
-        $options['identity_insert'] = true;
-        $table->getAdapter()->setOptions($options);
         $table->insert($data)->save();
     }
 }

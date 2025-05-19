@@ -62,7 +62,7 @@ class BranchOfficersCell extends BasePluginCell
         $branch = $this->fetchTable("Branches")
             ->find()->select(['id', 'parent_id', 'type', 'domain'])
             ->where(['id' => $id])->first();
-        $officesTbl = $this->fetchTable("Officers.Offices");;
+        $officesTbl = $this->fetchTable("Officers.Offices");
         $officeQuery = $officesTbl->find("all")
             ->contain(["Departments"])
             ->select(["id", "Offices.name", "deputy_to_id", "reports_to_id", "applicable_branch_types", "default_contact_address"])
