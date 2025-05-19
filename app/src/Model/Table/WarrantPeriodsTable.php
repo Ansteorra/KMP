@@ -1,14 +1,9 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
 
-use Cake\ORM\Query\SelectQuery;
-use Cake\ORM\RulesChecker;
-use Cake\ORM\Table;
 use Cake\Validation\Validator;
-use App\Model\Table\BaseTable;
 
 /**
  * WarrantPeriods Model
@@ -26,7 +21,6 @@ use App\Model\Table\BaseTable;
  * @method iterable<\App\Model\Entity\WarrantPeriod>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\WarrantPeriod> saveManyOrFail(iterable $entities, array $options = [])
  * @method iterable<\App\Model\Entity\WarrantPeriod>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\WarrantPeriod>|false deleteMany(iterable $entities, array $options = [])
  * @method iterable<\App\Model\Entity\WarrantPeriod>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\WarrantPeriod> deleteManyOrFail(iterable $entities, array $options = [])
- *
  * @mixin \Cake\ORM\Behavior\TimestampBehavior
  */
 class WarrantPeriodsTable extends BaseTable

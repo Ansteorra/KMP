@@ -1,10 +1,7 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Entity;
-
-use Cake\ORM\Entity;
 
 use JeremyHarris\LazyLoad\ORM\LazyLoadEntityTrait;
 
@@ -20,6 +17,7 @@ use JeremyHarris\LazyLoad\ORM\LazyLoadEntityTrait;
 class Role extends BaseEntity
 {
     use LazyLoadEntityTrait;
+
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().
      *
@@ -30,8 +28,8 @@ class Role extends BaseEntity
      * @var array<string, bool>
      */
     protected array $_accessible = [
-        "name" => true,
-        "Members" => true,
-        "permissions" => true,
+        'name' => true,
+        'Members' => true,
+        'permissions' => true,
     ];
 }

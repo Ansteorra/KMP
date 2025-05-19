@@ -1,9 +1,10 @@
 <?php
+declare(strict_types=1);
 
 namespace App\Services\ActiveWindowManager;
 
-use Cake\I18n\DateTime;
 use App\Services\ServiceResult;
+use Cake\I18n\DateTime;
 
 interface ActiveWindowManagerInterface
 {
@@ -13,8 +14,8 @@ interface ActiveWindowManagerInterface
      * @param string $entityType
      * @param int $entityId
      * @param int $memberId
-     * @param DateTime $startOn
-     * @param DateTime|null $expiresOn
+     * @param \Cake\I18n\DateTime $startOn
+     * @param \Cake\I18n\DateTime|null $expiresOn
      * @param int|null $termYears
      * @param int|null $grantRoleId
      * @return bool
@@ -39,7 +40,7 @@ interface ActiveWindowManagerInterface
      * @param int $memberId
      * @param string $status
      * @param string $reason
-     * @param DateTime $expiresOn
+     * @param \Cake\I18n\DateTime $expiresOn
      * @return bool
      */
     public function stop(

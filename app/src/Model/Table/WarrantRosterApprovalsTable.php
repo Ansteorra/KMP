@@ -1,21 +1,16 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
 
-use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
-use Cake\ORM\Table;
 use Cake\Validation\Validator;
-use App\Model\Table\BaseTable;
 
 /**
  * WarrantRosterApprovals Model
  *
  * @property \App\Model\Table\WarrantRostersTable&\Cake\ORM\Association\BelongsTo $WarrantRosters
  * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $Members
- *
  * @method \App\Model\Entity\WarrantRosterApproval newEmptyEntity()
  * @method \App\Model\Entity\WarrantRosterApproval newEntity(array $data, array $options = [])
  * @method array<\App\Model\Entity\WarrantRosterApproval> newEntities(array $data, array $options = [])

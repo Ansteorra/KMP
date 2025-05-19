@@ -2,7 +2,11 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/../Seeds/Lib/SeedHelpers.php';
+
 use Migrations\BaseSeed;
+
+
 
 /**
  * Role seed.
@@ -24,6 +28,7 @@ class DevLoad extends BaseSeed
         $this->call('DevLoadBranchesSeed', ['source' => 'Seeds']);
         $this->call('DevLoadRolesSeed', ['source' => 'Seeds']);
         $this->call('DevLoadPermissionsSeed', ['source' => 'Seeds']);
+        $this->call('DevLoadPoliciesSeed', ['source' => 'Seeds']);
         $this->call('DevLoadMembersSeed', ['source' => 'Seeds']);
         $this->call('DevLoadAppSettingsSeed', ['source' => 'Seeds']);
         $this->call('DevLoadMemberRolesSeed', ['source' => 'Seeds']);

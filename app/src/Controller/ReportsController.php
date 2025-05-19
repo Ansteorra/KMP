@@ -1,19 +1,10 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Controller;
 
-use Cake\Log\Log;
-
-/**
- * Reports Controller
- *
- *
- */
-
-use Cake\ORM\TableRegistry;
 use Cake\I18n\DateTime;
+use Cake\ORM\TableRegistry;
 
 class ReportsController extends AppController
 {
@@ -33,21 +24,21 @@ class ReportsController extends AppController
         if ($this->request->getQuery('validOn')) {
             $validOn = (new DateTime($this->request->getQuery('validOn')))->addDays(1);
         }
-        $roles = $rolestbl->find("all")
+        $roles = $rolestbl->find('all')
             ->select(['id', 'name'])
             ->contain([
-                "MemberRoles" => function ($q) use ($validOn) {
+                'MemberRoles' => function ($q) use ($validOn) {
                     return $this->setValidFilter($q, $validOn);
                 },
-                "MemberRoles.Members" => function ($q) {
+                'MemberRoles.Members' => function ($q) {
                     return $q->select(['membership_number', 'sca_name', 'id', 'membership_expires_on']);
                 },
-                "MemberRoles.ApprovedBy" => function ($q) {
+                'MemberRoles.ApprovedBy' => function ($q) {
                     return $q->select(['sca_name', 'id']);
                 },
-                "MemberRoles.Members.Branches" => function ($q) {
+                'MemberRoles.Members.Branches' => function ($q) {
                     return $q->select(['name']);
-                }
+                },
             ])
             ->all();
         $validOn = $validOn->subDays(1);
@@ -68,16 +59,16 @@ class ReportsController extends AppController
         $permissionsQuery = $permissionsTbl->find()
             ->contain(
                 [
-                    "Roles.MemberRoles" => function ($q) use ($validOn) {
+                    'Roles.MemberRoles' => function ($q) use ($validOn) {
                         return $q->select([
                             'role_id',
                             'member_id',
                             'start_on',
                             'expires_on',
-                            'id'
+                            'id',
                         ])
                             ->contain([
-                                "Members" => function ($q) use ($validOn) {
+                                'Members' => function ($q) use ($validOn) {
                                     return $this->setValidFilter(
                                         $q->select([
                                             'membership_number',
@@ -91,17 +82,17 @@ class ReportsController extends AppController
                                             'street_address',
                                             'city',
                                             'state',
-                                            'zip'
+                                            'zip',
                                         ]),
-                                        $validOn
+                                        $validOn,
                                     );
                                 },
-                                "Members.Branches" => function ($q) {
+                                'Members.Branches' => function ($q) {
                                     return $q->select(['name']);
                                 },
                             ]);
-                    }
-                ]
+                    },
+                ],
             )
             ->where(['requires_warrant' => 1])
             ->orderBy('name')
@@ -125,21 +116,21 @@ class ReportsController extends AppController
             $permissionsRoster[$permissionName] = $permissionUser;
         }
         $validOn = $validOn->subDays(1);
-        $this->set(compact('permissionsRoster', 'validOn', "hide"));
+        $this->set(compact('permissionsRoster', 'validOn', 'hide'));
     }
 
     protected function setValidFilter($q, $validOn)
     {
         return $q->where([
-            "OR" => [
-                "start_on <=" => $validOn,
-                "start_on IS" => null
-            ]
+            'OR' => [
+                'start_on <=' => $validOn,
+                'start_on IS' => null,
+            ],
         ])->where([
-            "OR" => [
-                "expires_on >=" => $validOn,
-                "expires_on IS" => null
-            ]
+            'OR' => [
+                'expires_on >=' => $validOn,
+                'expires_on IS' => null,
+            ],
         ]);
     }
 }

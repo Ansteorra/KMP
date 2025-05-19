@@ -1,29 +1,22 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
 
-use Cake\ORM\Query\SelectQuery;
-use Cake\ORM\Table;
-use Cake\Validation\Validator;
-use App\KMP\PermissionsLoader;
-use Cake\ORM\TableRegistry;
 use App\Model\Entity\Member;
-use Cake\Event\Event;
-use Cake\Datasource\EntityInterface;
-use Cake\ORM\RulesChecker;
-
-use Cake\Database\Schema\TableSchemaInterface;
 use ArrayObject;
-use App\Model\Table\BaseTable;
+use Cake\Database\Schema\TableSchemaInterface;
+use Cake\Datasource\EntityInterface;
+use Cake\Event\Event;
+use Cake\ORM\RulesChecker;
+use Cake\ORM\TableRegistry;
+use Cake\Validation\Validator;
 
 /**
  * Members Model
  *
  * @property \App\Model\Table\PendingAuthorizationsTable&\Cake\ORM\Association\HasMany $PendingAuthorizations
  * @property \App\Model\Table\RolesTable&\Cake\ORM\Association\BelongsToMany $Roles
- *
  * @method \App\Model\Entity\Member newEmptyEntity()
  * @method \App\Model\Entity\Member newEntity(array $data, array $options = [])
  * @method array<\App\Model\Entity\Member> newEntities(array $data, array $options = [])
@@ -50,54 +43,54 @@ class MembersTable extends BaseTable
     {
         parent::initialize($config);
 
-        $this->setTable("members");
-        $this->setDisplayField("sca_name");
-        $this->setPrimaryKey("id");
+        $this->setTable('members');
+        $this->setDisplayField('sca_name');
+        $this->setPrimaryKey('id');
 
-        $this->belongsToMany("Roles", [
-            "through" => "MemberRoles",
-        ]);
-
-        $this->hasMany("MemberRoles", [
-            "foreignKey" => "member_id",
-        ]);
-        $this->hasMany("CurrentMemberRoles", [
-            "className" => "MemberRoles",
-            "finder" => "current",
-            "foreignKey" => "member_id",
-        ]);
-        $this->hasMany("UpcomingMemberRoles", [
-            "className" => "MemberRoles",
-            "finder" => "upcoming",
-            "foreignKey" => "member_id",
-        ]);
-        $this->hasMany("PreviousMemberRoles", [
-            "className" => "MemberRoles",
-            "finder" => "previous",
-            "foreignKey" => "member_id",
+        $this->belongsToMany('Roles', [
+            'through' => 'MemberRoles',
         ]);
 
-        $this->belongsTo("Branches", [
-            "className" => "Branches",
-            "foreignKey" => "branch_id",
+        $this->hasMany('MemberRoles', [
+            'foreignKey' => 'member_id',
         ]);
-        $this->belongsTo("Parents", [
-            "className" => "Members",
-            "foreignKey" => "parent_id",
+        $this->hasMany('CurrentMemberRoles', [
+            'className' => 'MemberRoles',
+            'finder' => 'current',
+            'foreignKey' => 'member_id',
         ]);
-        $this->addBehavior("Timestamp");
+        $this->hasMany('UpcomingMemberRoles', [
+            'className' => 'MemberRoles',
+            'finder' => 'upcoming',
+            'foreignKey' => 'member_id',
+        ]);
+        $this->hasMany('PreviousMemberRoles', [
+            'className' => 'MemberRoles',
+            'finder' => 'previous',
+            'foreignKey' => 'member_id',
+        ]);
+
+        $this->belongsTo('Branches', [
+            'className' => 'Branches',
+            'foreignKey' => 'branch_id',
+        ]);
+        $this->belongsTo('Parents', [
+            'className' => 'Members',
+            'foreignKey' => 'parent_id',
+        ]);
+        $this->addBehavior('Timestamp');
         $this->addBehavior('Muffin/Footprint.Footprint');
-        $this->addBehavior("Muffin/Trash.Trash");
-        $this->addBehavior("JsonField");
+        $this->addBehavior('Muffin/Trash.Trash');
+        $this->addBehavior('JsonField');
     }
 
     public function getSchema(): TableSchemaInterface
     {
         $schema = parent::getSchema();
         $schema->setColumnType('additional_info', 'json');
+
         return $schema;
     }
-
 
     /**
      * Default validation rules.
@@ -107,11 +100,11 @@ class MembersTable extends BaseTable
      */
     public function validationDefault(Validator $validator): Validator
     {
-        $validator->dateTime("modified")->notEmptyDateTime("modified");
+        $validator->dateTime('modified')->notEmptyDateTime('modified');
 
         $validator
-            ->scalar("password")
-            ->maxLength("new_password", 125)
+            ->scalar('password')
+            ->maxLength('new_password', 125)
             ->minLength('new_password', 12, 'Password must be at least 12 characters long.')
             //->add("new_password", "requireCaps", [
             //    "rule" => ['custom', '/[A-Z]/'],
@@ -129,125 +122,125 @@ class MembersTable extends BaseTable
             //    "rule" => ['custom', '/[\W]/'],
             //    "message" => "Password must contain at least one special character."
             //])
-            ->requirePresence("password", "create")
-            ->notEmptyString("password");
+            ->requirePresence('password', 'create')
+            ->notEmptyString('password');
 
         $validator
-            ->scalar("sca_name")
-            ->minLength("sca_name", 3)
-            ->maxLength("sca_name", 50)
-            ->notEmptyString("sca_name");
+            ->scalar('sca_name')
+            ->minLength('sca_name', 3)
+            ->maxLength('sca_name', 50)
+            ->notEmptyString('sca_name');
 
         $validator
-            ->scalar("first_name")
-            ->maxLength("first_name", 30)
-            ->requirePresence("first_name", "create")
-            ->notEmptyString("first_name");
+            ->scalar('first_name')
+            ->maxLength('first_name', 30)
+            ->requirePresence('first_name', 'create')
+            ->notEmptyString('first_name');
 
         $validator
-            ->scalar("middle_name")
-            ->maxLength("middle_name", 30)
-            ->allowEmptyString("middle_name");
+            ->scalar('middle_name')
+            ->maxLength('middle_name', 30)
+            ->allowEmptyString('middle_name');
 
         $validator
-            ->scalar("last_name")
-            ->maxLength("last_name", 30)
-            ->requirePresence("last_name", "create")
-            ->notEmptyString("last_name");
+            ->scalar('last_name')
+            ->maxLength('last_name', 30)
+            ->requirePresence('last_name', 'create')
+            ->notEmptyString('last_name');
 
         $validator
-            ->scalar("street_address")
-            ->maxLength("street_address", 75)
-            ->requirePresence("street_address", "create")
-            ->allowEmptyString("street_address");
+            ->scalar('street_address')
+            ->maxLength('street_address', 75)
+            ->requirePresence('street_address', 'create')
+            ->allowEmptyString('street_address');
 
         $validator
-            ->scalar("city")
-            ->maxLength("city", 30)
-            ->requirePresence("city", "create")
-            ->allowEmptyString("city");
+            ->scalar('city')
+            ->maxLength('city', 30)
+            ->requirePresence('city', 'create')
+            ->allowEmptyString('city');
 
         $validator
-            ->scalar("state")
-            ->maxLength("state", 2)
-            ->requirePresence("state", "create")
-            ->allowEmptyString("state");
+            ->scalar('state')
+            ->maxLength('state', 2)
+            ->requirePresence('state', 'create')
+            ->allowEmptyString('state');
 
         $validator
-            ->scalar("zip")
-            ->maxLength("zip", 5)
-            ->requirePresence("zip", "create")
-            ->allowEmptyString("zip");
+            ->scalar('zip')
+            ->maxLength('zip', 5)
+            ->requirePresence('zip', 'create')
+            ->allowEmptyString('zip');
 
         $validator
-            ->scalar("phone_number")
-            ->maxLength("phone_number", 15)
-            ->requirePresence("phone_number", "create")
-            ->allowEmptyString("phone_number");
+            ->scalar('phone_number')
+            ->maxLength('phone_number', 15)
+            ->requirePresence('phone_number', 'create')
+            ->allowEmptyString('phone_number');
 
         $validator
-            ->scalar("email_address")
-            ->maxLength("email_address", 50)
-            ->requirePresence("email_address", "create")
-            ->notEmptyString("email_address")
-            ->add("email_address", "unique", [
-                "rule" => "validateUnique",
-                "provider" => "table",
+            ->scalar('email_address')
+            ->maxLength('email_address', 50)
+            ->requirePresence('email_address', 'create')
+            ->notEmptyString('email_address')
+            ->add('email_address', 'unique', [
+                'rule' => 'validateUnique',
+                'provider' => 'table',
             ]);
 
-        $validator->allowEmptyString("membership_number");
+        $validator->allowEmptyString('membership_number');
 
         $validator
-            ->date("membership_expires_on")
-            ->allowEmptyDate("membership_expires_on");
+            ->date('membership_expires_on')
+            ->allowEmptyDate('membership_expires_on');
 
         $validator
-            ->scalar("parent_name")
-            ->maxLength("parent_name", 50)
-            ->allowEmptyString("parent_name");
+            ->scalar('parent_name')
+            ->maxLength('parent_name', 50)
+            ->allowEmptyString('parent_name');
 
         $validator
-            ->date("background_check_expires_on")
-            ->allowEmptyDate("background_check_expires_on");
+            ->date('background_check_expires_on')
+            ->allowEmptyDate('background_check_expires_on');
 
         $validator
-            ->scalar("password_token")
-            ->maxLength("password_token", 255)
-            ->allowEmptyString("password_token");
+            ->scalar('password_token')
+            ->maxLength('password_token', 255)
+            ->allowEmptyString('password_token');
 
         $validator
-            ->dateTime("password_token_expires_on")
-            ->allowEmptyDateTime("password_token_expires_on");
+            ->dateTime('password_token_expires_on')
+            ->allowEmptyDateTime('password_token_expires_on');
 
-        $validator->dateTime("last_login")->allowEmptyDateTime("last_login");
-
-        $validator
-            ->dateTime("last_failed_login")
-            ->allowEmptyDateTime("last_failed_login");
+        $validator->dateTime('last_login')->allowEmptyDateTime('last_login');
 
         $validator
-            ->integer("failed_login_attempts")
-            ->allowEmptyString("failed_login_attempts");
-
-        $validator->integer("birth_month")->notEmptyString("birth_month");
-
-        $validator->integer("birth_year")->notEmptyString("birth_year");
+            ->dateTime('last_failed_login')
+            ->allowEmptyDateTime('last_failed_login');
 
         $validator
-            ->dateTime("deleted_date")
-            ->allowEmptyDateTime("deleted_date");
+            ->integer('failed_login_attempts')
+            ->allowEmptyString('failed_login_attempts');
+
+        $validator->integer('birth_month')->notEmptyString('birth_month');
+
+        $validator->integer('birth_year')->notEmptyString('birth_year');
+
+        $validator
+            ->dateTime('deleted_date')
+            ->allowEmptyDateTime('deleted_date');
 
         return $validator;
     }
 
     public function buildRules(RulesChecker $rules): RulesChecker
     {
-        $rules->add($rules->isUnique(["email_address"]), ["errorField" => "email_address"]);
+        $rules->add($rules->isUnique(['email_address']), ['errorField' => 'email_address']);
 
         return $rules;
     }
 
-    public function beforeSave(Event $event, EntityInterface $entity, ArrayObject $options)
+    public function beforeSave(Event $event, EntityInterface $entity, ArrayObject $options): void
     {
         $entity->ageUpReview();
         $entity->warrantableReview();
@@ -256,21 +249,22 @@ class MembersTable extends BaseTable
     static function getValidationQueueCount(): int
     {
         // Get the count of pending validations  based on the members status
-        $membersTable = TableRegistry::getTableLocator()->get("Members");
+        $membersTable = TableRegistry::getTableLocator()->get('Members');
+
         return $membersTable->find()
             ->where([
-                "Members.deleted IS" => null,
+                'Members.deleted IS' => null,
                 'OR' => [
                     [
                         'Members.status' => Member::STATUS_ACTIVE,
-                        'Members.membership_card_path IS NOT' => null
+                        'Members.membership_card_path IS NOT' => null,
                     ],
                     ['Members.status IN' => [
                         Member::STATUS_UNVERIFIED_MINOR,
                         Member::STATUS_MINOR_MEMBERSHIP_VERIFIED,
                         Member::STATUS_MINOR_PARENT_VERIFIED,
-                    ]]
-                ]
+                    ]],
+                ],
             ])->count();
     }
 }

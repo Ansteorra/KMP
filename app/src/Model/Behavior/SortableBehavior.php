@@ -1,13 +1,13 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Behavior;
 
-use Cake\ORM\Behavior;
 use Cake\Database\Expression\QueryExpression;
 use Cake\Datasource\EntityInterface;
 use Cake\Event\EventInterface;
+use Cake\ORM\Behavior;
+use Throwable;
 
 class SortableBehavior extends Behavior
 {
@@ -20,7 +20,7 @@ class SortableBehavior extends Behavior
         'field' => 'position',
         'group' => [],
         'start' => 1,
-        'step' => 1
+        'step' => 1,
     ];
 
     protected $fields; // Fields for searches
@@ -43,12 +43,12 @@ class SortableBehavior extends Behavior
     /**
      * Moves an element to the top
      *
-     * @param \App\Model\Entity $id
+     * @param int $id
+     * @return bool
      */
-    public function toTop($id): bool
+    public function toTop(int $id): bool
     {
         try {
-
             $field = $this->_config['field'];
             $this->row = $this->_table->get($id, ['fields' => $this->fields]);
             $currentVal = $this->row->{$field};
@@ -64,7 +64,7 @@ class SortableBehavior extends Behavior
             // Set it as the first one
             $this->row->{$field} = $newVal;
             $this->_table->save($this->row);
-        } catch (\Throwable $th) {
+        } catch (Throwable $th) {
             // TODO: Log error
             return false;
         }
@@ -75,12 +75,12 @@ class SortableBehavior extends Behavior
     /**
      * Moves an element to the bottom
      *
-     * @param \App\Model\Entity $id
+     * @param int $id
+     * @return bool
      */
-    public function toBottom($id): bool
+    public function toBottom(int $id): bool
     {
         try {
-
             $field = $this->_config['field'];
             $this->row = $this->_table->get($id, ['fields' => $this->fields]);
             $currentVal = $this->row->{$field};
@@ -100,7 +100,7 @@ class SortableBehavior extends Behavior
             // Set it as the last one
             $this->row->{$field} = $newVal;
             $this->_table->save($this->row);
-        } catch (\Throwable $th) {
+        } catch (Throwable $th) {
             // TODO: Log error
             return false;
         }
@@ -116,14 +116,13 @@ class SortableBehavior extends Behavior
     /**
      * Moves an element to another position
      *
-     * @param \App\Model\Entity $id
+     * @param int $id
      * @param int $newVal
      * @param bool $moveOwn
      */
-    public function move($id, $newVal, $moveOwn = true): bool
+    public function move(int $id, int $newVal, bool $moveOwn = true): bool
     {
         try {
-
             $step = $this->getStep();
             $field = $this->_config['field'];
             $this->row = $this->_table->get($id, ['fields' => $this->fields]);
@@ -131,7 +130,7 @@ class SortableBehavior extends Behavior
 
             if ($newVal == $currentVal) {
                 return true; // We do nothing
-            } else if ($newVal < $currentVal) {
+            } elseif ($newVal < $currentVal) {
                 // Create a gap for the movement; do not modify the original
                 $this->_change([$newVal, $currentVal - $step], false);
             } else {
@@ -146,7 +145,7 @@ class SortableBehavior extends Behavior
                 $this->_table->save($this->row);
                 $this->preventCallOfMoveInEventListener = false;
             }
-        } catch (\Throwable $th) {
+        } catch (Throwable $th) {
             // TODO: Log error
             return false;
         }
@@ -154,24 +153,40 @@ class SortableBehavior extends Behavior
         return true;
     }
 
-    public function moveBefore($id, $beforeId): bool
+    /**
+     * Moves an element before another
+     *
+     * @param int $id
+     * @param int $beforeId
+     * @return bool
+     */
+    public function moveBefore(int $id, int $beforeId): bool
     {
         $before = $this->_table->get($beforeId, ['fields' => $this->fields]);
+
         return $this->move($id, $before->{$this->_config['field']}, true);
     }
 
-    public function moveAfter($id, $afterId): bool
+    /**
+     * Moves an element after another
+     *
+     * @param int $id
+     * @param int $afterId
+     * @return bool
+     */
+    public function moveAfter(int $id, int $afterId): bool
     {
         $after = $this->_table->get($afterId, ['fields' => $this->fields]);
+
         return $this->move($id, $after->{$this->_config['field']} + $this->getStep(), true);
     }
 
     /**
      * Returns the minimum set value
      *
-     * @return int|float
+     * @return float|int
      */
-    public function getStart()
+    public function getStart(): int|float
     {
         return $this->_config['start'];
     }
@@ -180,9 +195,9 @@ class SortableBehavior extends Behavior
      * Returns the next value after the highest one
      * Useful when creating new entries
      *
-     * @return int|float
+     * @return float|int
      */
-    public function getNew($conditions = [])
+    public function getNew($conditions = []): int|float
     {
         return $this->getLast($conditions) + $this->getStep();
     }
@@ -190,9 +205,9 @@ class SortableBehavior extends Behavior
     /**
      * Returns the value to be added or subtracted
      *
-     * @return int|float
+     * @return float|int
      */
-    public function getStep()
+    public function getStep(): int|float
     {
         return $this->_config['step'];
     }
@@ -201,15 +216,15 @@ class SortableBehavior extends Behavior
      * Returns the highest value
      *
      * @param array $conditions
-     * @return int|float
+     * @return float|int
      */
-    public function getLast($conditions = [])
+    public function getLast(array $conditions = []): int|float
     {
         $field = $this->_config['field'];
         $query = $this->_table->find(
             'all',
             fields: $this->fields,
-            order: ["{$field}" => 'DESC']
+            order: ["{$field}" => 'DESC'],
         );
 
         if (!empty($conditions)) {
@@ -222,11 +237,11 @@ class SortableBehavior extends Behavior
     /**
      * Subtract or add a step to the value of a field.
      *
-     * @param int|array $value the new value or an array with two values
+     * @param array|int $value the new value or an array with two values
      * @param bool $substract by default subtracts
      * @return void
      */
-    private function _change($value, $substract = true)
+    private function _change(int|array $value, bool $substract = true): void
     {
         $step = $this->getStep();
         $field = $this->_config['field'];
@@ -250,10 +265,10 @@ class SortableBehavior extends Behavior
     /**
      * Moves all values to insert a new one in the middle of the list
      *
-     * @param int|array $value the position where it will be inserted
+     * @param array|int $value the position where it will be inserted
      * @return void
      */
-    private function _insert($value)
+    private function _insert(int|array $value): void
     {
         if ($this->isFirst($this->_getConditions())) {
             return; // If there are no values to modify, do nothing
@@ -265,9 +280,8 @@ class SortableBehavior extends Behavior
         try {
             $conditions = array_merge($this->_getConditions(), ["{$field} >=" => $value]);
             $this->_table->updateAll([$expression], $conditions);
-        } catch (\Throwable $th) {
+        } catch (Throwable $th) {
             // TODO: When saving multiple entities at once, even though isFirst() is used, starting from the second one it starts returning FALSE, but they actually don't exist yet so updateAll returns false
-            return false;
         }
     }
 
@@ -296,15 +310,15 @@ class SortableBehavior extends Behavior
      * Checks if it is the first row of its group
      *
      * @param array $conditions
-     * @return int|float
+     * @return bool
      */
-    public function isFirst($conditions = [])
+    public function isFirst(array $conditions = []): bool
     {
         $field = $this->_config['field'];
         $query = $this->_table->find(
             'all',
             fields: $this->fields,
-            order: ["{$field}" => 'DESC']
+            order: ["{$field}" => 'DESC'],
         );
 
         if (!empty($conditions)) {
@@ -321,7 +335,7 @@ class SortableBehavior extends Behavior
      * @param \Cake\Datasource\EntityInterface $entity the entity that is going to be saved
      * @return void
      */
-    public function beforeSave(EventInterface $event, EntityInterface $entity)
+    public function beforeSave(EventInterface $event, EntityInterface $entity): void
     {
         $this->row = $entity;
         $default = $this->getNew($this->_getConditions());
@@ -331,8 +345,8 @@ class SortableBehavior extends Behavior
                 $entity->{$field} = $default;
                 $this->_insert($entity->{$field});
             }
-        } else if (
-            false === $this->preventCallOfMoveInEventListener
+        } elseif (
+            $this->preventCallOfMoveInEventListener === false
             &&
             $entity->isDirty($field)
         ) { // Si se ha modificado el orden

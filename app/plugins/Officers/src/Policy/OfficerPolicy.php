@@ -4,28 +4,54 @@ declare(strict_types=1);
 
 namespace Officers\Policy;
 
-use Authorization\IdentityInterface;
+use App\KMP\KmpIdentityInterface;
 use App\Policy\BasePolicy;
 use Cake\ORM\TableRegistry;
+use App\Model\Entity\BaseEntity;
 
 /**
  * Department policy
  */
 class OfficerPolicy extends BasePolicy
 {
-    public const SKIP_BASE = 'true';
+    //public const SKIP_BASE = 'false';
 
-    public function canBranchOfficers(IdentityInterface $user, $entity, ...$optionalArgs)
+    /**
+     * Check if $user can see all officers in a branch
+     *
+     * @param KmpIdentityInterface $user The user.
+     * @param BaseEntity $entity The entity.
+     * @param mixed ...$optionalArgs Optional arguments.
+     * @return bool
+     */
+    public function canBranchOfficers(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs)
     {
         $method = __FUNCTION__;
         return $this->_hasPolicy($user, $method, $entity);
     }
-    public function canWorkWithAllOfficers(IdentityInterface $user, $entity, ...$optionalArgs)
+
+    /**
+     * Check if $user can see all officers
+     *
+     * @param KmpIdentityInterface $user The user.
+     * @param BaseEntity $entity The entity.
+     * @param mixed ...$optionalArgs Optional arguments.
+     * @return bool
+     */
+    public function canWorkWithAllOfficers(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
         return $this->_hasPolicy($user, $method, $entity);
     }
-    public function canWorkWithOfficerReportingTree(IdentityInterface $user, $entity, ...$optionalArgs)
+    /**
+     * Check if $user can see all officers in their reporting tree
+     *
+     * @param KmpIdentityInterface $user The user.
+     * @param BaseEntity $entity The entity.
+     * @param mixed ...$optionalArgs Optional arguments.
+     * @return bool
+     */
+    public function canWorkWithOfficerReportingTree(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
         $branchId = $optionalArgs[0] ?? null;
@@ -48,7 +74,15 @@ class OfficerPolicy extends BasePolicy
         }
         return false;
     }
-    public function canWorkWithOfficerDeputies(IdentityInterface $user, $entity, ...$optionalArgs)
+    /**
+     * Check if $user can work with officers and deputies in their reporting chain
+     *
+     * @param KmpIdentityInterface $user The user.
+     * @param BaseEntity $entity The entity.
+     * @param mixed ...$optionalArgs Optional arguments.
+     * @return bool
+     */
+    public function canWorkWithOfficerDeputies(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
         $branchId = $optionalArgs[0] ?? null;
@@ -71,7 +105,15 @@ class OfficerPolicy extends BasePolicy
         }
         return false;
     }
-    public function canWorkWithOfficerDirectReports(IdentityInterface $user, $entity, ...$optionalArgs)
+    /**
+     * Check if $user can only work with the directly reporting officers and deputies.
+     *
+     * @param KmpIdentityInterface $user The user.
+     * @param BaseEntity $entity The entity.
+     * @param mixed ...$optionalArgs Optional arguments.
+     * @return bool
+     */
+    public function canWorkWithOfficerDirectReports(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
         $branchId = $optionalArgs[0] ?? null;
@@ -94,7 +136,15 @@ class OfficerPolicy extends BasePolicy
         }
         return false;
     }
-    public function canRelease(IdentityInterface $user, $entity, ...$optionalArgs)
+    /**
+     * Check if $user can release officers or deputies from their office.
+     *
+     * @param KmpIdentityInterface $user The user.
+     * @param BaseEntity $entity The entity.
+     * @param mixed ...$optionalArgs Optional arguments.
+     * @return bool
+     */
+    public function canRelease(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
         $branchId = $optionalArgs[0] ?? null;
@@ -115,7 +165,15 @@ class OfficerPolicy extends BasePolicy
         return false;
     }
 
-    public function canRequestWarrant(IdentityInterface $user, $entity, ...$optionalArgs)
+    /**
+     * Check if $user can request a warrant for the officer.
+     *
+     * @param KmpIdentityInterface $user The user.
+     * @param BaseEntity $entity The entity.
+     * @param mixed ...$optionalArgs Optional arguments.
+     * @return bool
+     */
+    public function canRequestWarrant(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         if ($user->id == $entity->member_id) {
             return true;
@@ -139,13 +197,28 @@ class OfficerPolicy extends BasePolicy
         return false;
     }
 
-    public function canOfficersByWarrantStatus(IdentityInterface $user, $entity, ...$optionalArgs)
+    /**
+     * Check if $user can see officers by warrant status
+     *
+     * @param KmpIdentityInterface $user The user.
+     * @param BaseEntity $entity The entity.
+     * @param mixed ...$optionalArgs Optional arguments.
+     * @return bool
+     */
+    public function canOfficersByWarrantStatus(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
         return $this->_hasPolicy($user, $method, $entity);
     }
-
-    public function canEdit(IdentityInterface $user, $entity, ...$optionalArgs)
+    /**
+     * Check if $user can edit officers
+     *
+     * @param KmpIdentityInterface $user The user.
+     * @param BaseEntity $entity The entity.
+     * @param mixed ...$optionalArgs Optional arguments.
+     * @return bool
+     */
+    public function canEdit(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
         $branchId = $optionalArgs[0] ?? null;
@@ -166,13 +239,28 @@ class OfficerPolicy extends BasePolicy
         return false;
     }
 
-    public function canOfficers(IdentityInterface $user, $entity, ...$optionalArgs)
+    /**
+     * Check if $user can see officers
+     *
+     * @param KmpIdentityInterface $user The user.
+     * @param BaseEntity $entity The entity.
+     * @param mixed ...$optionalArgs Optional arguments.
+     * @return bool
+     */
+    public function canOfficers(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
         return $this->_hasPolicy($user, $method, $entity);
     }
-
-    public function canAssign(IdentityInterface $user, $entity, ...$optionalArgs)
+    /**
+     * Check if $user can assign officers
+     *
+     * @param KmpIdentityInterface $user The user.
+     * @param BaseEntity $entity The entity.
+     * @param mixed ...$optionalArgs Optional arguments.
+     * @return bool
+     */
+    public function canAssign(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
         $branchId = $optionalArgs[0] ?? null;

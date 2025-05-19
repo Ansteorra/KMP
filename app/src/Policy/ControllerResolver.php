@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 /**
@@ -20,10 +19,9 @@ namespace App\Policy;
 
 use Authorization\Policy\Exception\MissingPolicyException;
 use Authorization\Policy\ResolverInterface;
-use Cake\Core\App;
 use Cake\Controller\Controller;
+use Cake\Core\App;
 use Cake\Http\ServerRequest;
-use RuntimeException;
 
 /**
  * Policy resolver that applies conventions based policy classes
@@ -36,7 +34,7 @@ class ControllerResolver implements ResolverInterface
      *
      * @var string
      */
-    protected string $appNamespace = "App";
+    protected string $appNamespace = 'App';
 
     /**
      * Plugin name overrides.
@@ -52,7 +50,7 @@ class ControllerResolver implements ResolverInterface
      * @param array<string, string> $overrides A list of plugin name overrides.
      */
     public function __construct(
-        string $appNamespace = "App",
+        string $appNamespace = 'App',
         array $overrides = [],
     ) {
         $this->appNamespace = $appNamespace;
@@ -76,13 +74,14 @@ class ControllerResolver implements ResolverInterface
             return $this->getControllerPolicyByRequest($resource);
         }
         if (Is_Array($resource)) {
-            $controller = $resource["controller"];
-            if ($resource["plugin"]) {
-                $plugin = $resource["plugin"];
+            $controller = $resource['controller'];
+            if ($resource['plugin']) {
+                $plugin = $resource['plugin'];
             } else {
                 $plugin = null;
             }
-            $prefix = $resource["prefix"] ?? null;
+            $prefix = $resource['prefix'] ?? null;
+
             return $this->getControllerPolicyByName($controller, $plugin, $prefix);
         }
         throw new MissingPolicyException([get_debug_type($resource)]);
@@ -99,9 +98,9 @@ class ControllerResolver implements ResolverInterface
         $class = get_class($controller);
         $controllerNamespace = "\Controller\\";
         $namespace = str_replace(
-            "\\",
-            "/",
-            substr($class, 0, (int) strpos($class, $controllerNamespace)),
+            '\\',
+            '/',
+            substr($class, 0, (int)strpos($class, $controllerNamespace)),
         );
         /** @psalm-suppress PossiblyFalseOperand */
         $name = substr(
@@ -126,9 +125,9 @@ class ControllerResolver implements ResolverInterface
         $class = $this->getControllerClass($controller, $plugin, $prefix);
         $controllerNamespace = "\Controller\\";
         $namespace = str_replace(
-            "\\",
-            "/",
-            substr($class, 0, (int) strpos($class, $controllerNamespace)),
+            '\\',
+            '/',
+            substr($class, 0, (int)strpos($class, $controllerNamespace)),
         );
         /** @psalm-suppress PossiblyFalseOperand */
         $name = substr(
@@ -139,12 +138,19 @@ class ControllerResolver implements ResolverInterface
         return $this->findPolicy($class, $name, $namespace);
     }
 
+    /**
+     * Get a the policy based on the controller
+     *
+     * @param \Cake\Datasource\RepositoryInterface $table The table/repository to get a policy for.
+     * @return mixed
+     */
     protected function getControllerPolicyByRequest(
         ServerRequest $request,
     ): mixed {
-        $controller = $request->getParam("controller");
-        $plugin = $request->getParam("plugin");
-        $prefix = $request->getParam("prefix");
+        $controller = $request->getParam('controller');
+        $plugin = $request->getParam('plugin');
+        $prefix = $request->getParam('prefix');
+
         return $this->getControllerPolicyByName($controller, $plugin, $prefix);
     }
 
@@ -170,17 +176,17 @@ class ControllerResolver implements ResolverInterface
         if ($namespace !== $this->appNamespace) {
             $policyClass = App::className(
                 $name,
-                $namespace . "\\Policy",
-                "Policy",
+                $namespace . '\\Policy',
+                'Policy',
             );
         }
 
         // Check the application/plugin.
         if ($policyClass === null) {
             $policyClass = App::className(
-                $namespace . "." . $name,
-                "Policy",
-                "Policy",
+                $namespace . '.' . $name,
+                'Policy',
+                'Policy',
             );
         }
 
@@ -217,10 +223,10 @@ class ControllerResolver implements ResolverInterface
         ?string $plugin = null,
         ?string $prefix = null,
     ): ?string {
-        $pluginPath = "";
-        $namespace = "Controller";
+        $pluginPath = '';
+        $namespace = 'Controller';
         if ($plugin) {
-            $pluginPath = $plugin . ".";
+            $pluginPath = $plugin . '.';
         }
         if ($prefix) {
             $namespace .= '/' . $prefix;
@@ -231,19 +237,19 @@ class ControllerResolver implements ResolverInterface
         // controller names as they allow direct references to
         // be created.
         if (
-            str_contains($controller, "\\") ||
-            str_contains($controller, "/") ||
-            str_contains($controller, ".") ||
+            str_contains($controller, '\\') ||
+            str_contains($controller, '/') ||
+            str_contains($controller, '.') ||
             $firstChar === strtolower($firstChar)
         ) {
-            throw $this->missingController($controller);
+            throw new MissingPolicyException([$controller]);
         }
 
         /** @var class-string<\Cake\Controller\Controller>|null */
         return App::className(
             $pluginPath . $controller,
             $namespace,
-            "Controller",
+            'Controller',
         );
     }
 }

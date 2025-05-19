@@ -9,6 +9,7 @@ use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
 use App\Model\Table\BaseTable;
+use Cake\ORM\TableRegistry;
 
 /**
  * Departments Model
@@ -87,5 +88,38 @@ class DepartmentsTable extends BaseTable
         $rules->add($rules->isUnique(['name']), ['errorField' => 'name']);
 
         return $rules;
+    }
+
+    public function departmentsMemberCanWork($user)
+    {
+        if (empty($user->id)) {
+            return [];
+        }
+        $emptyDepartment = $this->newEmptyEntity();
+        $canSeeAllDepartments = $user->checkCan('seeAllDepartments', $emptyDepartment);
+        if ($user->isSuperUser() || $user->checkCan('seeAllDepartments', $emptyDepartment)) {
+            $notList = $this->find('all')->select(['id', 'name'])->orderBy(["name"])->toArray();
+            $returnList = [];
+            foreach ($notList as $key => $department) {
+                $returnList[$department->id] = $department->name;
+            }
+            return $returnList;
+        }
+        $officesTable = TableRegistry::getTableLocator()->get('Officers.Offices');
+        $officers = $officesTable->CurrentOfficers->find('all')
+            ->where(['member_id' => $user->id])
+            ->contain([
+                'Offices' => function (SelectQuery $q) {
+                    return $q->select(['Offices.id']);
+                },
+                'Offices.Departments' => function (SelectQuery $q) {
+                    return $q->select(['Departments.id', 'Departments.name']);
+                }
+            ])->select(['Departments.name', 'Departments.id'])->distinct(['Departments.name', 'Departments.id'])->toArray();
+        $returnList = [];
+        foreach ($officers as $key => $officer) {
+            $returnList[$officer->office->department->id] = $officer->office->department->name;
+        }
+        return $returnList;
     }
 }

@@ -1,14 +1,14 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Model\Table;
 
 use App\Model\Table\AppSettingsTable;
-use Cake\TestSuite\TestCase;
 use Cake\Cache\Cache;
-use Cake\Datasource\Exception\RecordNotFoundException;
 use Cake\Datasource\EntityInterface;
+use Cake\Datasource\Exception\RecordNotFoundException;
+use Cake\TestSuite\TestCase;
+use Exception;
 
 /**
  * App\Model\Table\AppSettingsTable Test Case
@@ -27,7 +27,7 @@ class AppSettingsTableTest extends TestCase
      *
      * @var list<string>
      */
-    protected array $fixtures = ["app.AppSettings"];
+    protected array $fixtures = ['app.AppSettings'];
 
     /**
      * setUp method
@@ -37,11 +37,11 @@ class AppSettingsTableTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $config = $this->getTableLocator()->exists("AppSettings")
+        $config = $this->getTableLocator()->exists('AppSettings')
             ? []
-            : ["className" => AppSettingsTable::class];
+            : ['className' => AppSettingsTable::class];
         $this->AppSettings = $this->getTableLocator()->get(
-            "AppSettings",
+            'AppSettings',
             $config,
         );
 
@@ -74,14 +74,14 @@ class AppSettingsTableTest extends TestCase
         // Test valid entity
         $data = [
             'name' => 'test.validation.valid',
-            'value' => 'test-value'
+            'value' => 'test-value',
         ];
         $appSetting = $this->AppSettings->newEntity($data);
         $this->assertEmpty($appSetting->getErrors());
 
         // Test missing required field (name)
         $data = [
-            'value' => 'test-value'
+            'value' => 'test-value',
         ];
         $appSetting = $this->AppSettings->newEntity($data);
         $this->assertNotEmpty($appSetting->getErrors());
@@ -90,7 +90,7 @@ class AppSettingsTableTest extends TestCase
         // Test max length validation for name
         $data = [
             'name' => str_repeat('a', 300),
-            'value' => 'test-value'
+            'value' => 'test-value',
         ];
         $appSetting = $this->AppSettings->newEntity($data);
         $this->assertNotEmpty($appSetting->getErrors());
@@ -108,7 +108,7 @@ class AppSettingsTableTest extends TestCase
         // Test unique name constraint
         $data = [
             'name' => 'test.setting.one', // This name already exists in fixtures
-            'value' => 'duplicate-test-value'
+            'value' => 'duplicate-test-value',
         ];
         $appSetting = $this->AppSettings->newEntity($data);
         $this->assertFalse($this->AppSettings->save($appSetting));
@@ -126,7 +126,7 @@ class AppSettingsTableTest extends TestCase
     {
         $data = [
             'name' => 'test.save.method',
-            'value' => 'save-test-value'
+            'value' => 'save-test-value',
         ];
         $appSetting = $this->AppSettings->newEntity($data);
         $result = $this->AppSettings->save($appSetting);
@@ -288,7 +288,7 @@ class AppSettingsTableTest extends TestCase
         $this->assertEquals('default-value', $setting->value);
 
         // Test getting a non-existent setting without default - should throw exception
-        $this->expectException(\Exception::class);
+        $this->expectException(Exception::class);
         $this->AppSettings->getAppSetting('another.nonexistent.setting');
     }
 

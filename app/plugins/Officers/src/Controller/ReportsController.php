@@ -100,7 +100,8 @@ class ReportsController extends AppController
             }
         }
         $validOn = $validOn->subDays(1);
-        $departmentList = $departmentTbl->find('list')->orderBy(['name' => 'ASC']);
+        $user = $this->request->getAttribute('identity');
+        $departmentList = $departmentTbl->departmentsMemberCanWork($user);
         $this->set(compact('validOn', 'departments', 'departmentList', 'departmentsData', 'hide', 'warrantOnly'));
     }
 

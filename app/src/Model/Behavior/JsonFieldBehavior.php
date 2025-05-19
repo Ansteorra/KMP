@@ -1,9 +1,10 @@
 <?php
+declare(strict_types=1);
 
 namespace App\Model\Behavior;
 
-use Cake\ORM\Behavior;
 use Cake\Database\Expression\QueryExpression;
+use Cake\ORM\Behavior;
 use Cake\ORM\Query\SelectQuery;
 
 class JsonFieldBehavior extends Behavior
@@ -17,6 +18,7 @@ class JsonFieldBehavior extends Behavior
     {
         return $query->where(function (QueryExpression $exp, SelectQuery $q) use ($field, $path, $value) {
             $json = $q->func()->json_extract([$field => 'identifier', $path]);
+
             return $exp->eq($json, $value);
         });
     }

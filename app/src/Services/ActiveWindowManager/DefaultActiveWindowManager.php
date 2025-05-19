@@ -1,18 +1,18 @@
 <?php
+declare(strict_types=1);
 
 namespace App\Services\ActiveWindowManager;
 
 use App\Model\Entity\ActiveWindowBaseEntity;
-use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
+use App\Services\ServiceResult;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
-use App\Services\ServiceResult;
-use App\Services\WarrantManager\WarrantManagerInterface;
 
 class DefaultActiveWindowManager implements ActiveWindowManagerInterface
 {
-
-    public function __construct() {}
+    public function __construct()
+    {
+    }
 
     /**
      * Starts an active window for an entity - Make sure to create a transaction before calling this service
@@ -20,8 +20,8 @@ class DefaultActiveWindowManager implements ActiveWindowManagerInterface
      * @param string $entityType
      * @param int $entityId
      * @param int $memberId
-     * @param DateTime $startOn
-     * @param DateTime|null $expiresOn
+     * @param \Cake\I18n\DateTime $startOn
+     * @param \Cake\I18n\DateTime|null $expiresOn
      * @param int|null $termYears
      * @param int|null $grantRoleId
      * @return bool
@@ -36,7 +36,6 @@ class DefaultActiveWindowManager implements ActiveWindowManagerInterface
         ?int $grantRoleId = null,
         bool $closeExisting = true,
         ?int $branchId = null,
-
     ): ServiceResult {
         $entityTable = TableRegistry::getTableLocator()->get($entityType);
         $entity = $entityTable->get($entityId);
@@ -46,19 +45,19 @@ class DefaultActiveWindowManager implements ActiveWindowManagerInterface
             $peQuery = $entityTable->find('all')
                 ->where([
                     'id !=' => $entity->id,
-                    'OR' => ['expires_on >=' => DateTime::now(), 'expires_on IS' => null]
+                    'OR' => ['expires_on >=' => DateTime::now(), 'expires_on IS' => null],
                 ]);
             if (!empty($entity->typeIdField)) {
                 foreach ($entity->typeIdField as $field) {
                     $peQuery->andWhere([$field => $entity[$field]]);
                 }
             }
-            if ($entityType == "MemberRoles") {
-                $peQuery->andWhere(['entity_type' => "Direct Grant"]);
+            if ($entityType == 'MemberRoles') {
+                $peQuery->andWhere(['entity_type' => 'Direct Grant']);
             }
             $previousEntities = $peQuery->all();
             foreach ($previousEntities as $pe) {
-                if (!$this->stop($entityType, $pe->id, $memberId, ActiveWindowBaseEntity::REPLACED_STATUS, "", $startOn)) {
+                if (!$this->stop($entityType, $pe->id, $memberId, ActiveWindowBaseEntity::REPLACED_STATUS, '', $startOn)) {
                     return new ServiceResult(false, "Failed to expire current $entityType");
                 }
             }
@@ -79,13 +78,14 @@ class DefaultActiveWindowManager implements ActiveWindowManagerInterface
             $memberRole->approver_id = $memberId;
             $memberRole->branch_id = $branchId;
             if (!$memberRoleTable->save($memberRole)) {
-                return new ServiceResult(false, "Failed to Assign Role from Member");
+                return new ServiceResult(false, 'Failed to Assign Role from Member');
             }
             $entity->granted_member_role_id = $memberRole->id;
             if (!$entityTable->save($entity)) {
                 return new ServiceResult(false, "Failed to save $entityType");
             }
         }
+
         return new ServiceResult(true);
     }
 
@@ -97,7 +97,7 @@ class DefaultActiveWindowManager implements ActiveWindowManagerInterface
      * @param int $memberId
      * @param string $status
      * @param string $reason
-     * @param DateTime $expiresOn
+     * @param \Cake\I18n\DateTime $expiresOn
      * @return bool
      */
     public function stop(
@@ -120,12 +120,13 @@ class DefaultActiveWindowManager implements ActiveWindowManagerInterface
             $memberRole->expire($expiresOn);
             $memberRole->revoker_id = $memberId;
             if (!$memberRoleTable->save($memberRole)) {
-                return new ServiceResult(false, "Failed to Remove Role from Member");
+                return new ServiceResult(false, 'Failed to Remove Role from Member');
             }
         }
         if (!$entityTable->save($entity)) {
             return new ServiceResult(false, "Failed to save $entityType");
         }
+
         return new ServiceResult(true);
     }
 }

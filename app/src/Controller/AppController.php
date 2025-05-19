@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 /**
@@ -19,15 +18,11 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\KMP\StaticHelpers;
-use App\Model\Table\AppSettingsTable;
-use App\View\Cell\BasePluginCell;
 use Cake\Controller\Controller;
-use Cake\Event\EventInterface;
-use Cake\Event\Event;
-use Cake\Log\Log;
-use Cake\Event\EventManager;
 use Cake\Core\Configure;
-use App\KMP\PermissionsLoader;
+use Cake\Event\Event;
+use Cake\Event\EventInterface;
+use Cake\Event\EventManager;
 
 /**
  * Application Controller
@@ -39,10 +34,29 @@ use App\KMP\PermissionsLoader;
  */
 class AppController extends Controller
 {
-    const VIEW_PLUGIN_EVENT = 'KMP.plugins.callForViewCells';
-    const VIEW_DATA_EVENT = 'KMP.plugins.callForViewData';
+    public const VIEW_PLUGIN_EVENT = 'KMP.plugins.callForViewCells';
+    public const VIEW_DATA_EVENT = 'KMP.plugins.callForViewData';
     protected array $pluginViewCells = [];
+
+    /**
+     * Indicates if the current request is for CSV output (URL contains .csv)
+     *
+     * @var bool
+     */
+    protected bool $isCsvRequest = false;
+
+    /**
+     * Returns true if the current request is for CSV output
+     *
+     * @return bool
+     */
+    public function isCsvRequest(): bool
+    {
+        return $this->isCsvRequest;
+    }
+
     //use Cake\Event\EventInterface;
+
     public function beforeFilter(EventInterface $event)
     {
         $this->request->addDetector(
@@ -50,9 +64,11 @@ class AppController extends Controller
             function ($request) {
                 //check the url for .csv
                 return strpos($request->getRequestTarget(), '.csv') !== false;
-            }
+            },
         );
-
+        // Set the global attribute for CSV requests
+        $this->isCsvRequest = $this->request->is('csv');
+        $this->set('isCsvRequest', $this->isCsvRequest);
 
         $plugin = $this->request->getParam('plugin');
         if ($plugin != null) {
@@ -73,7 +89,7 @@ class AppController extends Controller
             'controller' => $this->request->getParam('controller'),
             'action' => $this->request->getParam('action'),
             'plugin' => $this->request->getParam('plugin'),
-            $this->request->getParam('pass')
+            $this->request->getParam('pass'),
         ];
 
         $baseSub = Configure::read('App.base');
@@ -133,7 +149,7 @@ class AppController extends Controller
         $session->write('pageStack', $pageStack);
         $this->set('pageStack', $pageStack);
 
-        $event = new Event(static::VIEW_PLUGIN_EVENT, $this, ['url' => $params, "currentUser" => $this->request->getAttribute("identity")]);
+        $event = new Event(static::VIEW_PLUGIN_EVENT, $this, ['url' => $params, 'currentUser' => $this->request->getAttribute('identity')]);
         EventManager::instance()->dispatch($event);
         if ($event->getResult()) {
             $this->pluginViewCells = $this->organizeViewCells($event->getResult());
@@ -145,12 +161,12 @@ class AppController extends Controller
         //check the header for a turbo-frame request
         if ($this->request->getHeader('Turbo-Frame')) {
             $this->viewBuilder()->setLayout('turbo_frame');
-            $this->set("isTurboFrame", true);
-            $this->set("turboFrameId", $this->request->getHeader('Turbo-Frame')[0]);
+            $this->set('isTurboFrame', true);
+            $this->set('turboFrameId', $this->request->getHeader('Turbo-Frame')[0]);
         } else {
-            $this->set("isTurboFrame", false);
+            $this->set('isTurboFrame', false);
         }
-        $this->set("user", $this->request->getAttribute("identity"));
+        $this->set('user', $this->request->getAttribute('identity'));
         $recordId = $this->request->getParam('pass');
         if (is_array($recordId) && count($recordId) > 0) {
             $recordId = $recordId[0];
@@ -158,15 +174,15 @@ class AppController extends Controller
             $recordId = -1;
         } elseif (is_array($recordId)) {
             foreach ($recordId as $key => $value) {
-                $recordId .= $value . ", ";
+                $recordId .= $value . ', ';
             }
         }
-        $this->set("recordId", $recordId);
-        $recordModel = $params["controller"];
-        if ($params["plugin"] != null) {
-            $recordModel = $params["plugin"] . "." . $recordModel;
+        $this->set('recordId', $recordId);
+        $recordModel = $params['controller'];
+        if ($params['plugin'] != null) {
+            $recordModel = $params['plugin'] . '.' . $recordModel;
         }
-        $this->set("recordModel", $recordModel);
+        $this->set('recordModel', $recordModel);
         $event = new Event(static::VIEW_DATA_EVENT, $this, ['url' => $params]);
         EventManager::instance()->dispatch($event);
     }
@@ -207,6 +223,7 @@ class AppController extends Controller
         foreach ($cells as $key => $value) {
             ksort($cells[$key]);
         }
+
         return $cells;
     }
 }

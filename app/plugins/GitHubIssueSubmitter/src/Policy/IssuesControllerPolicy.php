@@ -5,13 +5,13 @@ namespace GitHubIssueSubmitter\Policy;
 use Authorization\Policy\RequestPolicyInterface;
 use Cake\Http\ServerRequest;
 use Authorization\Policy\ResultInterface;
-use Authorization\IdentityInterface;
+use App\KMP\KmpIdentityInterface;
 
 class IssuesControllerPolicy extends \App\Policy\BasePolicy
 {
 
     public function canSubmit(
-        IdentityInterface $user,
+        KmpIdentityInterface $user,
         mixed $resource,
     ): ResultInterface|bool {
         return true;

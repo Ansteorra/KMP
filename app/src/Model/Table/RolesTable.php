@@ -1,22 +1,16 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
 
-use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
-use Cake\ORM\Table;
 use Cake\Validation\Validator;
-use Cake\Cache\Cache;
-use App\Model\Table\BaseTable;
 
 /**
  * Roles Model
  *
  * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsToMany $Members
  * @property \App\Model\Table\PermissionsTable&\Cake\ORM\Association\BelongsToMany $Permissions
- *
  * @method \App\Model\Entity\Role newEmptyEntity()
  * @method \App\Model\Entity\Role newEntity(array $data, array $options = [])
  * @method array<\App\Model\Entity\Role> newEntities(array $data, array $options = [])
@@ -43,45 +37,44 @@ class RolesTable extends BaseTable
     {
         parent::initialize($config);
 
-        $this->setTable("roles");
-        $this->setDisplayField("name");
-        $this->setPrimaryKey("id");
+        $this->setTable('roles');
+        $this->setDisplayField('name');
+        $this->setPrimaryKey('id');
 
-        $this->belongsToMany("Members", [
-            "through" => "MemberRoles",
-        ]);
-
-        $this->hasMany("MemberRoles", [
-            "foreignKey" => "role_id",
-            "bindingKey" => "id",
-            "joinType" => "LEFT",
-        ]);
-        $this->hasMany("CurrentMemberRoles", [
-            "className" => "MemberRoles",
-            "finder" => "current",
-            "foreignKey" => "role_id",
-        ]);
-        $this->hasMany("UpcomingMemberRoles", [
-            "className" => "MemberRoles",
-            "finder" => "upcoming",
-            "foreignKey" => "role_id",
-        ]);
-        $this->hasMany("PreviousMemberRoles", [
-            "className" => "MemberRoles",
-            "finder" => "previous",
-            "foreignKey" => "role_id",
+        $this->belongsToMany('Members', [
+            'through' => 'MemberRoles',
         ]);
 
-        $this->belongsToMany("Permissions", [
-            "foreignKey" => "role_id",
-            "targetForeignKey" => "permission_id",
-            "joinTable" => "roles_permissions",
+        $this->hasMany('MemberRoles', [
+            'foreignKey' => 'role_id',
+            'bindingKey' => 'id',
+            'joinType' => 'LEFT',
         ]);
-        $this->addBehavior("Timestamp");
+        $this->hasMany('CurrentMemberRoles', [
+            'className' => 'MemberRoles',
+            'finder' => 'current',
+            'foreignKey' => 'role_id',
+        ]);
+        $this->hasMany('UpcomingMemberRoles', [
+            'className' => 'MemberRoles',
+            'finder' => 'upcoming',
+            'foreignKey' => 'role_id',
+        ]);
+        $this->hasMany('PreviousMemberRoles', [
+            'className' => 'MemberRoles',
+            'finder' => 'previous',
+            'foreignKey' => 'role_id',
+        ]);
+
+        $this->belongsToMany('Permissions', [
+            'foreignKey' => 'role_id',
+            'targetForeignKey' => 'permission_id',
+            'joinTable' => 'roles_permissions',
+        ]);
+        $this->addBehavior('Timestamp');
         $this->addBehavior('Muffin/Footprint.Footprint');
-        $this->addBehavior("Muffin/Trash.Trash");
+        $this->addBehavior('Muffin/Trash.Trash');
     }
-
 
     protected const CACHE_GROUPS_TO_CLEAR = ['security'];
 
@@ -94,13 +87,13 @@ class RolesTable extends BaseTable
     public function validationDefault(Validator $validator): Validator
     {
         $validator
-            ->scalar("name")
-            ->maxLength("name", 255)
-            ->requirePresence("name", "create")
-            ->notEmptyString("name")
-            ->add("name", "unique", [
-                "rule" => "validateUnique",
-                "provider" => "table",
+            ->scalar('name')
+            ->maxLength('name', 255)
+            ->requirePresence('name', 'create')
+            ->notEmptyString('name')
+            ->add('name', 'unique', [
+                'rule' => 'validateUnique',
+                'provider' => 'table',
             ]);
 
         return $validator;
@@ -115,7 +108,7 @@ class RolesTable extends BaseTable
      */
     public function buildRules(RulesChecker $rules): RulesChecker
     {
-        $rules->add($rules->isUnique(["name"]), ["errorField" => "name"]);
+        $rules->add($rules->isUnique(['name']), ['errorField' => 'name']);
 
         return $rules;
     }

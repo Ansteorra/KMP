@@ -18,7 +18,7 @@ class DevLoadAwardsLevelsSeed extends BaseSeed
     {
         return [
             [
-                'id' => 1,
+                // 'id' => 1,
                 'name' => 'Non-Armigerous',
                 'progression_order' => 0,
                 'modified' => '2024-06-25 13:53:55',
@@ -28,7 +28,7 @@ class DevLoadAwardsLevelsSeed extends BaseSeed
                 'deleted' => NULL,
             ],
             [
-                'id' => 2,
+                // 'id' => 2,
                 'name' => 'Armigerous',
                 'progression_order' => 1,
                 'modified' => '2024-06-25 13:54:15',
@@ -38,7 +38,7 @@ class DevLoadAwardsLevelsSeed extends BaseSeed
                 'deleted' => NULL,
             ],
             [
-                'id' => 3,
+                // 'id' => 3,
                 'name' => 'Grant',
                 'progression_order' => 2,
                 'modified' => '2024-06-25 13:55:21',
@@ -48,7 +48,7 @@ class DevLoadAwardsLevelsSeed extends BaseSeed
                 'deleted' => NULL,
             ],
             [
-                'id' => 4,
+                // 'id' => 4,
                 'name' => 'Peerage',
                 'progression_order' => 4,
                 'modified' => '2024-06-25 13:56:44',
@@ -58,7 +58,7 @@ class DevLoadAwardsLevelsSeed extends BaseSeed
                 'deleted' => NULL,
             ],
             [
-                'id' => 5,
+                // 'id' => 5,
                 'name' => 'Nobility',
                 'progression_order' => 3,
                 'modified' => '2024-06-25 13:56:55',

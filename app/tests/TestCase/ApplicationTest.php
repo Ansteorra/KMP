@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 /**
@@ -26,7 +25,6 @@ use Cake\Routing\Middleware\AssetMiddleware;
 use Cake\Routing\Middleware\RoutingMiddleware;
 use Cake\TestSuite\IntegrationTestTrait;
 use Cake\TestSuite\TestCase;
-use InvalidArgumentException;
 
 /**
  * ApplicationTest class
@@ -42,16 +40,16 @@ class ApplicationTest extends TestCase
      */
     public function testBootstrap()
     {
-        Configure::write("debug", false);
-        $app = new Application(dirname(dirname(__DIR__)) . "/config");
+        Configure::write('debug', false);
+        $app = new Application(dirname(dirname(__DIR__)) . '/config');
         $app->bootstrap();
         $plugins = $app->getPlugins();
 
-        $this->assertTrue($plugins->has("Bake"), "plugins has Bake?");
-        $this->assertFalse($plugins->has("DebugKit"), "plugins has DebugKit?");
+        $this->assertTrue($plugins->has('Bake'), 'plugins has Bake?');
+        $this->assertFalse($plugins->has('DebugKit'), 'plugins has DebugKit?');
         $this->assertTrue(
-            $plugins->has("Migrations"),
-            "plugins has Migrations?",
+            $plugins->has('Migrations'),
+            'plugins has Migrations?',
         );
     }
 
@@ -62,14 +60,13 @@ class ApplicationTest extends TestCase
      */
     public function testBootstrapInDebug()
     {
-        Configure::write("debug", true);
-        $app = new Application(dirname(dirname(__DIR__)) . "/config");
+        Configure::write('debug', true);
+        $app = new Application(dirname(dirname(__DIR__)) . '/config');
         $app->bootstrap();
         $plugins = $app->getPlugins();
 
-        $this->assertTrue($plugins->has("DebugKit"), "plugins has DebugKit?");
+        $this->assertTrue($plugins->has('DebugKit'), 'plugins has DebugKit?');
     }
-
 
     /**
      * testMiddleware
@@ -78,7 +75,7 @@ class ApplicationTest extends TestCase
      */
     public function testMiddleware()
     {
-        $app = new Application(dirname(dirname(__DIR__)) . "/config");
+        $app = new Application(dirname(dirname(__DIR__)) . '/config');
         $middleware = new MiddlewareQueue();
 
         $middleware = $app->middleware($middleware);

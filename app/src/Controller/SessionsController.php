@@ -1,9 +1,7 @@
 <?php
+declare(strict_types=1);
 
 namespace App\Controller;
-
-use Cake\Http\ServerRequest;
-use Cake\Http\Response;
 
 class SessionsController extends AppController
 {
@@ -14,6 +12,7 @@ class SessionsController extends AppController
         $response = $response->withStringBody('My Body');
         $response = $response->withType('application/json')
             ->withStringBody(json_encode(['response' => 'Session extended']));
+
         return $response;
     }
 }

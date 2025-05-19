@@ -1,21 +1,15 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
 
-use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
-use Cake\ORM\Table;
 use Cake\Validation\Validator;
-use Cake\Cache\Cache;
-use App\Model\Table\BaseTable;
 
 /**
  * PermissionPolicies Model
  *
  * @property \App\Model\Table\PermissionsTable&\Cake\ORM\Association\BelongsTo $Permissions
- *
  * @method \App\Model\Entity\PermissionPolicy newEmptyEntity()
  * @method \App\Model\Entity\PermissionPolicy newEntity(array $data, array $options = [])
  * @method array<\App\Model\Entity\PermissionPolicy> newEntities(array $data, array $options = [])
@@ -78,6 +72,7 @@ class PermissionPoliciesTable extends BaseTable
 
         return $validator;
     }
+
     protected const CACHES_TO_CLEAR = [];
     protected const ID_CACHES_TO_CLEAR = [];
     protected const CACHE_GROUPS_TO_CLEAR = ['security'];

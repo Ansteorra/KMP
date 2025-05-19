@@ -1,27 +1,20 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
 
-use Cake\ORM\Query\SelectQuery;
-use Cake\ORM\RulesChecker;
-use Cake\ORM\Table;
-use Cake\Validation\Validator;
-use App\Model\Entity\RolesPermission;
-use Cake\Event\Event;
-use Cake\Datasource\EntityInterface;
 use ArrayObject;
+use Cake\Datasource\EntityInterface;
+use Cake\Event\Event;
 use Cake\Http\Session;
-use Cake\Cache\Cache;
-use App\Model\Table\BaseTable;
+use Cake\ORM\RulesChecker;
+use Cake\Validation\Validator;
 
 /**
  * RolesPermissions Model
  *
  * @property \App\Model\Table\PermissionsTable&\Cake\ORM\Association\BelongsTo $Permissions
  * @property \App\Model\Table\RolesTable&\Cake\ORM\Association\BelongsTo $Roles
- *
  * @method \App\Model\Entity\RolesPermission newEmptyEntity()
  * @method \App\Model\Entity\RolesPermission newEntity(array $data, array $options = [])
  * @method array<\App\Model\Entity\RolesPermission> newEntities(array $data, array $options = [])
@@ -35,7 +28,6 @@ use App\Model\Table\BaseTable;
  * @method iterable<\App\Model\Entity\RolesPermission>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\RolesPermission> saveManyOrFail(iterable $entities, array $options = [])
  * @method iterable<\App\Model\Entity\RolesPermission>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\RolesPermission>|false deleteMany(iterable $entities, array $options = [])
  * @method iterable<\App\Model\Entity\RolesPermission>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\RolesPermission> deleteManyOrFail(iterable $entities, array $options = [])
- *
  * @mixin \Cake\ORM\Behavior\TimestampBehavior
  */
 class RolesPermissionsTable extends BaseTable
@@ -65,8 +57,6 @@ class RolesPermissionsTable extends BaseTable
             'joinType' => 'INNER',
         ]);
     }
-
-
 
     protected const CACHE_GROUPS_TO_CLEAR = ['security'];
 
@@ -109,10 +99,10 @@ class RolesPermissionsTable extends BaseTable
         return $rules;
     }
 
-    public function beforeSave(Event $event, EntityInterface $entity, ArrayObject $options)
+    public function beforeSave(Event $event, EntityInterface $entity, ArrayObject $options): void
     {
         if ($entity->isNew() && empty($entity->created_by)) {
-            $user = (new Session)->read('Auth');
+            $user = (new Session())->read('Auth');
             $entity->created_by = $user['id'];
         }
     }

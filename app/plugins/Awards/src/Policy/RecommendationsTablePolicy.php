@@ -5,16 +5,17 @@ declare(strict_types=1);
 namespace Awards\Policy;
 
 use App\Policy\BasePolicy;
-use Authorization\IdentityInterface;
+use App\KMP\KmpIdentityInterface;
+use App\Model\Entity\BaseEntity;
+use Cake\ORM\Table;
 
 /**
  * DomainsTablePolicy policy
  */
 class RecommendationsTablePolicy extends BasePolicy
 {
-    protected string $REQUIRED_PERMISSION = "Can Manage Recommendations";
 
-    public function scopeIndex(IdentityInterface $user, $query)
+    public function scopeIndex(KmpIdentityInterface $user, $query)
     {
         $table = $query->getRepository();
         $branchIds = $this->_getBranchIdsForPolicy($user, "canIndex");
@@ -32,11 +33,14 @@ class RecommendationsTablePolicy extends BasePolicy
                 $approvaLevels[] = $level;
             }
         }
-        $table = $table->addBranchScopeQuery($query, $branchIds);
-        return $table->contain(['Awards.Levels'])->where(['Levels.name in' => $approvaLevels]);
+        $query = $table->addBranchScopeQuery($query, $branchIds);
+        if (!empty($approvaLevels)) {
+            return $query->contain(['Awards.Levels'])->where(['Levels.name in' => $approvaLevels]);
+        }
+        return $query;
     }
 
-    public function canAdd(IdentityInterface $user, $entity, ...$optionalArgs)
+    public function canAdd(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
     {
         return true;
     }

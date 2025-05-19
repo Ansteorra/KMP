@@ -1,10 +1,11 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Controller;
 
 use App\KMP\PermissionsLoader;
+use Cake\Http\Exception\BadRequestException;
+use Cake\Http\Exception\NotFoundException;
 
 /**
  * Permissions Controller
@@ -16,8 +17,9 @@ class PermissionsController extends AppController
     public function initialize(): void
     {
         parent::initialize();
-        $this->Authorization->authorizeModel("index", "add", "matrix");
+        $this->Authorization->authorizeModel('index', 'add', 'matrix');
     }
+
     /**
      * Index method
      *
@@ -31,10 +33,10 @@ class PermissionsController extends AppController
         $permissions = $this->paginate($query, [
             'order' => [
                 'name' => 'asc',
-            ]
+            ],
         ]);
 
-        $this->set(compact("permissions"));
+        $this->set(compact('permissions'));
     }
 
     /**
@@ -44,14 +46,14 @@ class PermissionsController extends AppController
      * @return \Cake\Http\Response|null|void Renders view
      * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
      */
-    public function view($id = null)
+    public function view(?string $id = null)
     {
         $permission = $this->Permissions->get(
             $id,
-            contain: ["Roles", "PermissionPolicies"],
+            contain: ['Roles', 'PermissionPolicies'],
         );
         if (!$permission) {
-            throw new \Cake\Http\Exception\NotFoundException();
+            throw new NotFoundException();
         }
         $this->Authorization->authorize($permission);
         //Get all the roles not already assigned to the permission
@@ -62,14 +64,14 @@ class PermissionsController extends AppController
         $roles = [];
         if (count($currentRoleIds) > 0) {
             $roles = $this->Permissions->Roles
-                ->find("list")
-                ->where(["NOT" => ["id IN" => $currentRoleIds], "is_system !=" => true])
+                ->find('list')
+                ->where(['NOT' => ['id IN' => $currentRoleIds], 'is_system !=' => true])
                 ->all();
         } else {
-            $roles = $this->Permissions->Roles->find("list")->where(['is_system !=' => true])->all();
+            $roles = $this->Permissions->Roles->find('list')->where(['is_system !=' => true])->all();
         }
         $appPolicies = PermissionsLoader::getApplicationPolicies();
-        $this->set(compact("permission", "roles", "appPolicies"));
+        $this->set(compact('permission', 'roles', 'appPolicies'));
     }
 
     /**
@@ -80,7 +82,7 @@ class PermissionsController extends AppController
     public function add()
     {
         $permission = $this->Permissions->newEmptyEntity();
-        if ($this->request->is("post")) {
+        if ($this->request->is('post')) {
             $permission = $this->Permissions->patchEntity(
                 $permission,
                 $this->request->getData(),
@@ -90,32 +92,32 @@ class PermissionsController extends AppController
                 $permission->is_super_user = false;
             }
             if ($this->Permissions->save($permission)) {
-                $this->Flash->success(__("The permission has been saved."));
+                $this->Flash->success(__('The permission has been saved.'));
 
-                return $this->redirect(["action" => "view", $permission->id]);
+                return $this->redirect(['action' => 'view', $permission->id]);
             }
             $this->Flash->error(
-                __("The permission could not be saved. Please, try again."),
+                __('The permission could not be saved. Please, try again.'),
             );
         }
-        $this->set(compact("permission"));
+        $this->set(compact('permission'));
     }
 
     public function updatePolicy()
     {
         //json call to add a policy to a permission
         //check that the call is an ajax call
-        if (!$this->request->is("json")) {
-            throw new \Cake\Http\Exception\BadRequestException();
+        if (!$this->request->is('json')) {
+            throw new BadRequestException();
         }
-        if (!$this->request->is("post")) {
-            throw new \Cake\Http\Exception\BadRequestException();
+        if (!$this->request->is('post')) {
+            throw new BadRequestException();
         }
         $policyJson = $this->request->getData();
-        $id = $policyJson["permissionId"];
+        $id = $policyJson['permissionId'];
         $permission = $this->Permissions->get($id);
         if (!$permission) {
-            throw new \Cake\Http\Exception\NotFoundException();
+            throw new NotFoundException();
         }
         $this->Authorization->authorize($permission);
 
@@ -123,34 +125,37 @@ class PermissionsController extends AppController
         $policy->permission_id = $id;
         $policy->policy_class = $policyJson['className'];
         $policy->policy_method = $policyJson['method'];
-        if ($policyJson['action'] == "add") {
+        if ($policyJson['action'] == 'add') {
             //check if the policy already exists
             $policyCheck = $this->Permissions->PermissionPolicies
                 ->find()
                 ->where([
-                    "permission_id" => $id,
-                    "policy_class" => $policyJson['className'],
-                    "policy_method" => $policyJson['method'],
+                    'permission_id' => $id,
+                    'policy_class' => $policyJson['className'],
+                    'policy_method' => $policyJson['method'],
                 ])
                 ->first();
             if ($policyCheck) {
                 $this->response = $this->response
-                    ->withType("application/json")
+                    ->withType('application/json')
                     ->withStringBody(json_encode(true));
                 $this->response->withStatus(200);
+
                 return $this->response;
             }
             if ($this->Permissions->PermissionPolicies->save($policy)) {
                 $this->response = $this->response
-                    ->withType("application/json")
+                    ->withType('application/json')
                     ->withStringBody(json_encode(true));
                 $this->response->withStatus(200);
+
                 return $this->response;
             } else {
                 $this->response = $this->response
-                    ->withType("application/json")
+                    ->withType('application/json')
                     ->withStringBody(json_encode(false));
                 $this->response->withStatus(500);
+
                 return $this->response;
             }
         } else {
@@ -158,30 +163,33 @@ class PermissionsController extends AppController
             $policy = $this->Permissions->PermissionPolicies
                 ->find()
                 ->where([
-                    "permission_id" => $id,
-                    "policy_class" => $policyJson['className'],
-                    "policy_method" => $policyJson['method'],
+                    'permission_id' => $id,
+                    'policy_class' => $policyJson['className'],
+                    'policy_method' => $policyJson['method'],
                 ])
                 ->first();
             if ($policy) {
                 if ($this->Permissions->PermissionPolicies->delete($policy)) {
                     $this->response = $this->response
-                        ->withType("application/json")
+                        ->withType('application/json')
                         ->withStringBody(json_encode(true));
                     $this->response->withStatus(200);
+
                     return $this->response;
                 } else {
                     $this->response = $this->response
-                        ->withType("application/json")
+                        ->withType('application/json')
                         ->withStringBody(json_encode(false));
                     $this->response->withStatus(500);
+
                     return $this->response;
                 }
             } else {
                 $this->response = $this->response
-                    ->withType("application/json")
+                    ->withType('application/json')
                     ->withStringBody(json_encode(false));
                 $this->response->withStatus(500);
+
                 return $this->response;
             }
         }
@@ -196,7 +204,7 @@ class PermissionsController extends AppController
         $permissions = $this->Permissions->find('all')->where(['is_super_user' => false])->toArray();
 
         // Get all application policies
-        $policiesArray = \App\KMP\PermissionsLoader::getApplicationPolicies();
+        $policiesArray = PermissionsLoader::getApplicationPolicies();
 
         // Prepare data structure for the view
         $policiesFlat = [];
@@ -209,8 +217,8 @@ class PermissionsController extends AppController
                 'namespace' => $nameSpace,
                 'class' => $policyClass,
                 'className' => $className,
-                'method' => "WholeClass",
-                'display' => ""
+                'method' => 'WholeClass',
+                'display' => '',
             ];
             foreach ($methods as $method) {
                 $policiesFlat[] = [
@@ -218,7 +226,7 @@ class PermissionsController extends AppController
                     'class' => $policyClass,
                     'className' => $className,
                     'method' => $method,
-                    'display' => str_replace('can', '', $method)
+                    'display' => str_replace('can', '', $method),
                 ];
             }
         }
@@ -250,37 +258,37 @@ class PermissionsController extends AppController
      * @return \Cake\Http\Response|null|void Redirects on successful edit, renders view otherwise.
      * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
      */
-    public function edit($id = null)
+    public function edit(?string $id = null)
     {
-        $permission = $this->Permissions->get($id, contain: ["Roles"]);
+        $permission = $this->Permissions->get($id, contain: ['Roles']);
         if (!$permission) {
-            throw new \Cake\Http\Exception\NotFoundException();
+            throw new NotFoundException();
         }
         $this->Authorization->authorize($permission);
         $patch = $this->request->getData();
-        if ($this->request->is(["patch", "post", "put"])) {
+        if ($this->request->is(['patch', 'post', 'put'])) {
             if ($permission->is_system) {
                 //unset the name of the permission if it is a system permission
-                unset($patch["name"]);
+                unset($patch['name']);
             }
             if (!$this->Authentication->getIdentity()->isSuperUser()) {
-                unset($patch["is_super_user"]);
+                unset($patch['is_super_user']);
             }
             $permission = $this->Permissions->patchEntity($permission, $patch);
             if ($this->Permissions->save($permission)) {
-                $this->Flash->success(__("The permission has been saved."));
+                $this->Flash->success(__('The permission has been saved.'));
 
                 return $this->redirect($this->referer());
             }
             $this->Flash->error(
-                __("The permission could not be saved. Please, try again."),
+                __('The permission could not be saved. Please, try again.'),
             );
         }
         $activities = $this->Permissions->Activities
-            ->find("list", limit: 200)
+            ->find('list', limit: 200)
             ->all();
-        $roles = $this->Permissions->Roles->find("list", limit: 200)->all();
-        $this->set(compact("permission", "activities", "roles"));
+        $roles = $this->Permissions->Roles->find('list', limit: 200)->all();
+        $this->set(compact('permission', 'activities', 'roles'));
     }
 
     /**
@@ -290,31 +298,32 @@ class PermissionsController extends AppController
      * @return \Cake\Http\Response|null Redirects to index.
      * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
      */
-    public function delete($id = null)
+    public function delete(?string $id = null)
     {
-        $this->request->allowMethod(["post", "delete"]);
+        $this->request->allowMethod(['post', 'delete']);
         $permission = $this->Permissions->get($id);
         if (!$permission) {
-            throw new \Cake\Http\Exception\NotFoundException();
+            throw new NotFoundException();
         }
         $this->Authorization->authorize($permission);
         if ($permission->is_system) {
             $this->Flash->error(
                 __(
-                    "The permission could not be deleted. System permissions cannot be deleted.",
+                    'The permission could not be deleted. System permissions cannot be deleted.',
                 ),
             );
+
             return $this->redirect($this->referer());
         }
-        $permission->name = "Deleted: " . $permission->name;
+        $permission->name = 'Deleted: ' . $permission->name;
         if ($this->Permissions->delete($permission)) {
-            $this->Flash->success(__("The permission has been deleted."));
+            $this->Flash->success(__('The permission has been deleted.'));
         } else {
             $this->Flash->error(
-                __("The permission could not be deleted. Please, try again."),
+                __('The permission could not be deleted. Please, try again.'),
             );
         }
 
-        return $this->redirect(["action" => "index"]);
+        return $this->redirect(['action' => 'index']);
     }
 }

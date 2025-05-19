@@ -6,6 +6,8 @@ declare(strict_types=1);
 use Migrations\BaseSeed;
 use Cake\I18n\DateTime;
 
+require_once __DIR__ . '/Lib/SeedHelpers.php'; // Added
+
 /**
  * Members seed.
  */
@@ -21,7 +23,7 @@ class InitMembersSeed extends BaseSeed
 
         $members =  [
             [
-                'id' => 1,
+                // 'id' => 1, // Removed
                 'modified' => DateTime::now(),
                 'password' => md5('Password123'),
                 'sca_name' => 'Admin von Admin',
@@ -36,7 +38,7 @@ class InitMembersSeed extends BaseSeed
                 'email_address' => 'admin@test.com',
                 'membership_number' => 'AdminAccount',
                 'membership_expires_on' => '2100-01-01',
-                'branch_id' => 1,
+                'branch_id' => SeedHelpers::getBranchIdByName('Kingdom'), // Was 1
                 'background_check_expires_on' => NULL,
                 'status' => 'verified',
                 'password_token' => NULL,
@@ -52,21 +54,10 @@ class InitMembersSeed extends BaseSeed
             ]
         ];
 
-        $notes = [
-            [
-                'id' => 1,
-                'author_id' => 1,
-                'created' => DateTime::now(),
-                'topic_model' => 'Members',
-                'topic_id' => 1,
-                'subject' => 'Admin Account',
-                'body' => 'This is the admin account',
-                'private' => 0,
-            ]
-        ];
+        // Note: Notes will be created after members are inserted, so we can look up the member ID.
+        // This part will be handled in the run() method.
         return [
             'members' => $members,
-            'notes' => $notes,
         ];
     }
 
@@ -82,21 +73,34 @@ class InitMembersSeed extends BaseSeed
      */
     public function run(): void
     {
-        $data = $this->getData()['members'];
+        $memberData = $this->getData()['members'];
 
         $table = $this->table('members');
-        $options = $table->getAdapter()->getOptions();
-        $options['identity_insert'] = true;
-        $table->getAdapter()->setOptions($options);
-        $table->insert($data)->save();
+        // $options = $table->getAdapter()->getOptions(); // Removed
+        // $options['identity_insert'] = true; // Removed
+        // $table->getAdapter()->setOptions($options); // Removed
+        $table->insert($memberData)->save();
 
-        //lets make a note for the admin account
-        $data = $this->getData()['notes'];
+        // Get the ID of the admin member that was just inserted
+        $adminMemberId = SeedHelpers::getMemberId('admin@test.com');
 
-        $table = $this->table('notes');
-        $options = $table->getAdapter()->getOptions();
-        $options['identity_insert'] = true;
-        $table->getAdapter()->setOptions($options);
-        $table->insert($data)->save();
+        $notesData = [
+            [
+                // 'id' => 1, // Removed
+                'author_id' => $adminMemberId, // Was 1
+                'created' => DateTime::now(),
+                'topic_model' => 'Members',
+                'topic_id' => $adminMemberId, // Was 1
+                'subject' => 'Admin Account',
+                'body' => 'This is the admin account',
+                'private' => 0,
+            ]
+        ];
+
+        $notesTable = $this->table('notes');
+        // $optionsNotes = $notesTable->getAdapter()->getOptions(); // Removed
+        // $optionsNotes['identity_insert'] = true; // Removed
+        // $notesTable->getAdapter()->setOptions($optionsNotes); // Removed
+        $notesTable->insert($notesData)->save();
     }
 }

@@ -6,14 +6,14 @@ namespace Awards\Policy;
 
 use App\Policy\BasePolicy;
 use Cake\ORM\TableRegistry;
-use Authorization\IdentityInterface;
+use App\KMP\KmpIdentityInterface;
 
 /**
  * DomainsTablePolicy policy
  */
 class AwardsTablePolicy extends BasePolicy
 {
-    public function scopeIndex(IdentityInterface $user, $query)
+    public function scopeIndex(KmpIdentityInterface $user, $query)
     {
         $table = $query->getRepository();
         $branchIds = $this->_getBranchIdsForPolicy($user, "canIndex");
@@ -31,7 +31,10 @@ class AwardsTablePolicy extends BasePolicy
                 $approvaLevels[] = $level;
             }
         }
-        $table = $table->addBranchScopeQuery($query, $branchIds);
-        return $table->contain(['Levels'])->where(['Levels.name in' => $approvaLevels]);
+        $query = $table->addBranchScopeQuery($query, $branchIds);
+        if (!empty($approvaLevels)) {
+            return $query->contain(['Levels'])->where(['Levels.name in' => $approvaLevels]);
+        }
+        return $query;
     }
 }

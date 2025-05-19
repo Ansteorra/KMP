@@ -100,7 +100,7 @@ class DefaultOfficerManager implements OfficerManagerInterface
                     $previousBranchId = $branchId;
                     $setReportsToBranch = false;
                     while ($currentBranchId != null) {
-                        $officersCount = $branchTable->CurrentOfficers->find()
+                        $officersCount = $officerTable->find('Current')
                             ->where(['branch_id' => $currentBranchId, 'office_id' => $officeId])
                             ->count();
                         if ($officersCount > 0) {

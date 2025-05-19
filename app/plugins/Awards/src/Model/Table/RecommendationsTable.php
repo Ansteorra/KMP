@@ -193,7 +193,7 @@ class RecommendationsTable extends BaseTable
         return $rules;
     }
 
-    public function afterSave($created, $entity, $options)
+    public function afterSave($created, $entity, $options): void
     {
         //check if the state is marked dirty in the entity->dirty array
         if ($entity->isDirty('state')) {

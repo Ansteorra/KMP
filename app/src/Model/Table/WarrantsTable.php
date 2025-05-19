@@ -1,15 +1,11 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
 
-use Cake\ORM\Query\SelectQuery;
-use Cake\ORM\RulesChecker;
-use Cake\ORM\Table;
-use Cake\Validation\Validator;
-use App\Model\Table\BaseTable;
 use Cake\Cache\Cache;
+use Cake\ORM\RulesChecker;
+use Cake\Validation\Validator;
 
 /**
  * Warrants Model
@@ -17,7 +13,6 @@ use Cake\Cache\Cache;
  * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $Members
  * @property \App\Model\Table\WarrantRostersTable&\Cake\ORM\Association\BelongsTo $WarrantRosters
  * @property \App\Model\Table\MemberRolesTable&\Cake\ORM\Association\BelongsTo $MemberRoles
- *
  * @method \App\Model\Entity\Warrant newEmptyEntity()
  * @method \App\Model\Entity\Warrant newEntity(array $data, array $options = [])
  * @method array<\App\Model\Entity\Warrant> newEntities(array $data, array $options = [])
@@ -31,7 +26,6 @@ use Cake\Cache\Cache;
  * @method iterable<\App\Model\Entity\Warrant>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\Warrant> saveManyOrFail(iterable $entities, array $options = [])
  * @method iterable<\App\Model\Entity\Warrant>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\Warrant>|false deleteMany(iterable $entities, array $options = [])
  * @method iterable<\App\Model\Entity\Warrant>|\Cake\Datasource\ResultSetInterface<\App\Model\Entity\Warrant> deleteManyOrFail(iterable $entities, array $options = [])
- *
  * @mixin \Cake\ORM\Behavior\TimestampBehavior
  */
 class WarrantsTable extends BaseTable
@@ -56,11 +50,11 @@ class WarrantsTable extends BaseTable
             'foreignKey' => 'member_id',
             'joinType' => 'INNER',
         ]);
-        $this->belongsTo("RevokedBy", [
-            "className" => "Members",
-            "foreignKey" => "revoker_id",
-            "joinType" => "LEFT",
-            "propertyName" => "revoked_by",
+        $this->belongsTo('RevokedBy', [
+            'className' => 'Members',
+            'foreignKey' => 'revoker_id',
+            'joinType' => 'LEFT',
+            'propertyName' => 'revoked_by',
         ]);
         $this->belongsTo('WarrantRosters', [
             'foreignKey' => 'warrant_roster_id',
@@ -70,20 +64,20 @@ class WarrantsTable extends BaseTable
             'foreignKey' => 'member_role_id',
         ]);
 
-        $this->belongsTo("CreatedByMember", [
-            "className" => "Members",
-            "foreignKey" => "created_by",
-            "joinType" => "LEFT",
+        $this->belongsTo('CreatedByMember', [
+            'className' => 'Members',
+            'foreignKey' => 'created_by',
+            'joinType' => 'LEFT',
         ]);
 
-        $this->belongsTo("ModfiedByMember", [
-            "className" => "Members",
-            "foreignKey" => "modified_by",
-            "joinType" => "LEFT",
+        $this->belongsTo('ModfiedByMember', [
+            'className' => 'Members',
+            'foreignKey' => 'modified_by',
+            'joinType' => 'LEFT',
         ]);
 
-        $this->addBehavior("ActiveWindow");
-        $this->addBehavior("Timestamp");
+        $this->addBehavior('ActiveWindow');
+        $this->addBehavior('Timestamp');
         $this->addBehavior('Muffin/Footprint.Footprint');
     }
 
@@ -166,7 +160,7 @@ class WarrantsTable extends BaseTable
         return $rules;
     }
 
-    public function afterSave($event, $entity, $options)
+    public function afterSave($event, $entity, $options): void
     {
         $memberId = $entity->member_id;
         // Clear cached descendants and parents for the saved branch.

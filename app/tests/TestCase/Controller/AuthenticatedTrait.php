@@ -1,15 +1,9 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Controller;
 
-use App\Controller\AppSettingsController;
 use Cake\TestSuite\IntegrationTestTrait;
-use Cake\TestSuite\TestCase;
-use Cake\Cache\Cache;
-use App\Models\Entity\Member;
-use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 
 /**
  * App\Controller\AppSettingsController Test Case
@@ -35,7 +29,7 @@ trait AuthenticatedTrait
         // Save without triggering beforeSave to avoid recursion
         $membersTable->save($member, ['checkRules' => false, 'callbacks' => false]);
         $this->session([
-            'Auth' => $member
+            'Auth' => $member,
         ]);
     }
 }

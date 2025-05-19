@@ -1,14 +1,9 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Table;
 
-use Cake\ORM\Query\SelectQuery;
-use Cake\ORM\RulesChecker;
-use Cake\ORM\Table;
 use Cake\Validation\Validator;
-use App\Model\Table\BaseTable;
 
 /**
  * Notes Model
@@ -39,14 +34,14 @@ class NotesTable extends BaseTable
     {
         parent::initialize($config);
 
-        $this->setTable("notes");
-        $this->setDisplayField("id");
-        $this->setPrimaryKey("id");
+        $this->setTable('notes');
+        $this->setDisplayField('id');
+        $this->setPrimaryKey('id');
 
-        $this->belongsTo("Authors", [
-            "className" => "Members",
-            "foreignKey" => "author_id",
-            "joinType" => "INNER",
+        $this->belongsTo('Authors', [
+            'className' => 'Members',
+            'foreignKey' => 'author_id',
+            'joinType' => 'INNER',
         ]);
     }
 
@@ -59,30 +54,30 @@ class NotesTable extends BaseTable
     public function validationDefault(Validator $validator): Validator
     {
         $validator
-            ->integer("author_id")
-            ->requirePresence("author_id", "create")
-            ->notEmptyString("author_id");
+            ->integer('author_id')
+            ->requirePresence('author_id', 'create')
+            ->notEmptyString('author_id');
 
-        $validator->dateTime("created_on")->notEmptyDateTime("created_on");
-
-        $validator
-            ->scalar("entity_type")
-            ->maxLength("entity_type", 255)
-            ->allowEmptyString("entity_type");
+        $validator->dateTime('created_on')->notEmptyDateTime('created_on');
 
         $validator
-            ->integer("entity_id")
-            ->requirePresence("entity_id", "create")
-            ->notEmptyString("entity_id");
+            ->scalar('entity_type')
+            ->maxLength('entity_type', 255)
+            ->allowEmptyString('entity_type');
 
         $validator
-            ->scalar("subject")
-            ->maxLength("subject", 255)
-            ->allowEmptyString("subject");
+            ->integer('entity_id')
+            ->requirePresence('entity_id', 'create')
+            ->notEmptyString('entity_id');
 
-        $validator->scalar("body")->allowEmptyString("body");
+        $validator
+            ->scalar('subject')
+            ->maxLength('subject', 255)
+            ->allowEmptyString('subject');
 
-        $validator->boolean("private")->notEmptyString("private");
+        $validator->scalar('body')->allowEmptyString('body');
+
+        $validator->boolean('private')->notEmptyString('private');
 
         return $validator;
     }

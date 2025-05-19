@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 
+
 use Migrations\BaseSeed;
 use Cake\I18n\DateTime;
 
@@ -18,14 +19,14 @@ class InitRolesSeed extends BaseSeed
      */
     public function getData(): array
     {
+        $adminId = SeedHelpers::getMemberId('admin@test.com');
         return [
             [
-                'id' => 1,
                 'name' => 'Admin',
                 'is_system' => true,
                 'deleted' => NULL,
                 'created' => DateTime::now(),
-                'created_by' => '1',
+                'created_by' => $adminId,
             ]
         ];
     }
@@ -45,9 +46,6 @@ class InitRolesSeed extends BaseSeed
         $data = $this->getData();
 
         $table = $this->table('roles');
-        $options = $table->getAdapter()->getOptions();
-        $options['identity_insert'] = true;
-        $table->getAdapter()->setOptions($options);
         $table->insert($data)->save();
     }
 }

@@ -1,26 +1,44 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Policy;
 
-use App\Model\Entity\Role;
-use Authorization\IdentityInterface;
+use App\KMP\KmpIdentityInterface;
+use App\Model\Entity\BaseEntity;
 
 /**
  * role policy
  */
 class RolePolicy extends BasePolicy
 {
-    protected string $REQUIRED_PERMISSION = "Can Manage Roles";
+    /**
+     * Check if $user can add permissions to a role
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The user.
+     * @param \App\Model\Entity\BaseEntity $entity The entity.
+     * @param mixed ...$optionalArgs Optional arguments.
+     * @return bool
+     */
 
-    public function canDeletePermission(IdentityInterface $user, $entity, ...$optionalArgs)
+    public function canDeletePermission(KmpIdentityInterface $user, BaseEntity $entity, mixed ...$optionalArgs): bool
     {
-        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+        $method = __FUNCTION__;
+
+        return $this->_hasPolicy($user, $method, $entity, ...$optionalArgs);
     }
 
-    public function canAddPermission(IdentityInterface $user, $entity, ...$optionalArgs)
+    /**
+     * Check if $user can remove permissions from a role
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The user.
+     * @param \App\Model\Entity\BaseEntity $entity The entity.
+     * @param mixed ...$optionalArgs Optional arguments.
+     * @return bool
+     */
+    public function canAddPermission(KmpIdentityInterface $user, BaseEntity $entity, mixed ...$optionalArgs): bool
     {
-        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+        $method = __FUNCTION__;
+
+        return $this->_hasPolicy($user, $method, $entity, ...$optionalArgs);
     }
 }

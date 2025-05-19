@@ -4,37 +4,41 @@ $columns = $pageConfig['table']['columns'];
 $columnCount = count(array_filter($columns, function ($value) {
     return $value;
 }));
+//get the current url
+$currentUrl = $this->request->getRequestTarget();
 ?>
 <turbo-frame id="tableView-frame" data-turbo='true'>
-    <?php
-    if ($enableExport != ""):
-        #add .csv to the current url by adding it before the ? if there is one
-        if (strpos($currentUrl, "?") !== false) {
-            $currentUrlStart = substr($currentUrl, 0, strpos($currentUrl, "?"));
-            $currentUrlEnd = substr($currentUrl, strpos($currentUrl, "?"));
-            $currentUrl = $currentUrlStart . ".csv" . $currentUrlEnd;
-        } else {
-            $currentUrl = $currentUrl . ".csv";
-        }
-        $exportUrl = str_replace('/table', '/export', $currentUrl);
-    ?>
+
 
     <div class="row">
-        <div class="col-12 text-end">
+        <div class="col-12 text-end mt-2">
             <?php if ($user->checkCan("edit", "Awards.Recommendations")): ?>
             <button type="button" class="btn btn-primary btn-sm bulk-edit-btn" data-bs-toggle="modal"
                 data-bs-target="#tableBulkEditModal" data-controller="outlet-btn"
                 data-outlet-btn-require-data-value="true" data-action="click->outlet-btn#fireNotice" disabled>Bulk
                 Edit</button>
             <?php endif; ?>
-            <?= $this->Html->link(
-                    "Export",
-                    $exportUrl,
-                    ['class' => 'btn btn-primary btn-sm end m-3', 'data-turbo-frame' => "_top"]
-                ) ?>
+            <?php
+            if ($enableExport != ""):
+                #add .csv to the current url by adding it before the ? if there is one
+                if (strpos($currentUrl, "?") !== false) {
+                    $currentUrlStart = substr($currentUrl, 0, strpos($currentUrl, "?"));
+                    $currentUrlEnd = substr($currentUrl, strpos($currentUrl, "?"));
+                    $currentUrl = $currentUrlStart . ".csv" . $currentUrlEnd;
+                } else {
+                    $currentUrl = $currentUrl . ".csv";
+                }
+                $exportUrl = $currentUrl;
+            ?>
+            <a href="<?= $exportUrl ?>" class="btn btn-outline-primary btn-sm" data-controller="csv-download"
+                data-csv-download-url-value="<?= $exportUrl ?>" data-csv-download-filename-value="recommendations.csv"
+                title="Download CSV">
+                <i class="bi bi-download"></i> Download CSV
+            </a>
+            <?php endif; ?>
         </div>
     </div>
-    <?php endif;
+    <?php
     $url = $this->URL->build(["controller" => "Recommendations", "action" => "table", "plugin" => "Awards", $view, $status]);
     ?>
     <?= $this->Form->create(null, ["url" => $url, "type" => "get", "data-controller" => "filter-grid"]) ?>
@@ -201,7 +205,7 @@ $columnCount = count(array_filter($columns, function ($value) {
                     <?php endif; ?>
 
                     <?php if ($columns["Submitted"]): ?>
-                    <td><?= h($recommendation->created) ?></td>
+                    <td><?= h($recommendation->created->toDateString()) ?></td>
                     <?php endif; ?>
                     <?php if ($columns["For"]): ?>
                     <td><?php

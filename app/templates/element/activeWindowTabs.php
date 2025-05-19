@@ -141,15 +141,21 @@ if (!$selected) {
                                                         }
                                                     }
                                                     echo "</td>";
-                                                } else { ?>
+                                                } else {
+                                                    if ($data instanceof Cake\ORM\Entity) {
+                                                        $processData = $data->toArray();
+                                                    } else {
+                                                        $processData = $data;
+                                                    }
+                                                    ?>
                                                 <td class="align-middle"><?php
 
-                                                                            $record = StaticHelpers::getValue($value, $data);
+                                                                            $record = StaticHelpers::getValue($value, $processData);
                                                                             //if the value is a DateTime then call ->toDateString() on it
                                                                             if ($record instanceof Cake\I18n\DateTime) {
                                                                                 echo $record->toDateString();
                                                                             } elseif (is_string($value) && strpos($value, "{{") !== false) {
-                                                                                echo StaticHelpers::processTemplate($value, $data);
+                                                                                echo StaticHelpers::processTemplate($value, $processData);
                                                                             } else {
                                                                                 echo $record;
                                                                             }

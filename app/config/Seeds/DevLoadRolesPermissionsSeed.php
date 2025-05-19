@@ -5,6 +5,8 @@ declare(strict_types=1);
 use Migrations\BaseSeed;
 use Cake\I18n\DateTime;
 
+require_once __DIR__ . '/Lib/SeedHelpers.php';
+
 /**
  * RolesPermissions seed.
  */
@@ -34,96 +36,98 @@ class DevLoadRolesPermissionsSeed extends BaseSeed
      */
     public function getData(): array
     {
+
+        $adminId =  SeedHelpers::getMemberId('admin@test.com');
         return [
             [
-                'permission_id' => 2,
-                'role_id' => 1,
+                'permission_id' => SeedHelpers::getPermissionId('Can Manage Roles'),
+                'role_id' =>  SeedHelpers::getRoleId('Admin'), //1
                 'created' => DateTime::now(),
-                'created_by' => '1'
+                'created_by' => $adminId,
             ],
             [
-                'permission_id' => 3,
-                'role_id' => 1,
+                'permission_id' => SeedHelpers::getPermissionId('Can Manage Permissions'), //3
+                'role_id' => SeedHelpers::getRoleId('Admin'), //1,
                 'created' => DateTime::now(),
-                'created_by' => '1'
+                'created_by' => $adminId,
             ],
             [
-                'permission_id' => 200,
-                'role_id' => 201,
+                'permission_id' => SeedHelpers::getPermissionId('Can Authorize Armored Combat'), //200,
+                'role_id' => SeedHelpers::getRoleId('Kingdom Earl Marshal'), //201,
                 'created' => DateTime::now(),
-                'created_by' => '1'
+                'created_by' => $adminId,
             ],
             [
-                'permission_id' => 201,
-                'role_id' => 201,
+                'permission_id' => SeedHelpers::getPermissionId('Can Authorize Armored Combat Field Marshal'), //201,
+                'role_id' => SeedHelpers::getRoleId('Kingdom Earl Marshal'), //201,
                 'created' => DateTime::now(),
-                'created_by' => '1'
+                'created_by' => $adminId,
             ],
             [
-                'permission_id' => 202,
-                'role_id' => 201,
+                'permission_id' => SeedHelpers::getPermissionId('Can Authorize Rapier Combat'), //202,
+                'role_id' => SeedHelpers::getRoleId('Kingdom Earl Marshal'), //201,
                 'created' => DateTime::now(),
-                'created_by' => '1'
+                'created_by' => $adminId,
             ],
             [
-                'permission_id' => 203,
-                'role_id' => 201,
+                'permission_id' => SeedHelpers::getPermissionId('Can Authorize Rapier Combat Field Marshal'), //203,
+                'role_id' => SeedHelpers::getRoleId('Kingdom Earl Marshal'), //201,
                 'created' => DateTime::now(),
-                'created_by' => '1'
+                'created_by' => $adminId,
             ],
             [
-                'permission_id' => 202,
-                'role_id' => 202,
+                'permission_id' => SeedHelpers::getPermissionId('Can Authorize Rapier Combat'), //202,
+                'role_id' => SeedHelpers::getRoleId('Kingdom Rapier Marshal'), //202,
                 'created' => DateTime::now(),
-                'created_by' => '1'
+                'created_by' => $adminId,
             ],
             [
-                'permission_id' => 203,
-                'role_id' => 202,
+                'permission_id' => SeedHelpers::getPermissionId('Can Authorize Rapier Combat Field Marshal'), //203,
+                'role_id' => SeedHelpers::getRoleId('Kingdom Rapier Marshal'), //202,
                 'created' => DateTime::now(),
-                'created_by' => '1'
+                'created_by' => $adminId,
             ],
             [
-                'permission_id' => 202,
-                'role_id' => 204,
+                'permission_id' => SeedHelpers::getPermissionId('Can Authorize Rapier Combat'), //202,
+                'role_id' => SeedHelpers::getRoleId('Authorizing Rapier Marshal'), //204,
                 'created' => DateTime::now(),
-                'created_by' => '1'
+                'created_by' => $adminId,
             ],
             [
-                'permission_id' => 203,
-                'role_id' => 204,
+                'permission_id' => SeedHelpers::getPermissionId('Can Authorize Rapier Combat Field Marshal'), //203,
+                'role_id' => SeedHelpers::getRoleId('Authorizing Rapier Marshal'), //204,
                 'created' => DateTime::now(),
-                'created_by' => '1'
+                'created_by' => $adminId,
             ],
             [
-                'permission_id' => 200,
-                'role_id' => 205,
+                'permission_id' => SeedHelpers::getPermissionId('Can Authorize Armored Combat'), //200,
+                'role_id' => SeedHelpers::getRoleId('Authorizing Armored Marshal'), //205,
                 'created' => DateTime::now(),
-                'created_by' => '1'
+                'created_by' => $adminId,
             ],
             [
-                'permission_id' => 201,
-                'role_id' => 205,
+                'permission_id' => SeedHelpers::getPermissionId('Can Authorize Armored Combat Field Marshal'), //201,
+                'role_id' => SeedHelpers::getRoleId('Authorizing Armored Marshal'), //205,
                 'created' => DateTime::now(),
-                'created_by' => '1'
+                'created_by' => $adminId,
             ],
             [
-                'permission_id' => 209,
-                'role_id' => 201,
+                'permission_id' => SeedHelpers::getPermissionId('Can Authorize Authorizing Rapier Marshal'), //209,
+                'role_id' => SeedHelpers::getRoleId('Kingdom Earl Marshal'), //201,
                 'created' => DateTime::now(),
-                'created_by' => '1'
+                'created_by' => $adminId,
             ],
             [
-                'permission_id' => 209,
-                'role_id' => 202,
+                'permission_id' => SeedHelpers::getPermissionId('Can Authorize Authorizing Rapier Marshal'), //209,
+                'role_id' => SeedHelpers::getRoleId('Kingdom Rapier Marshal'), //202,
                 'created' => DateTime::now(),
-                'created_by' => '1'
+                'created_by' => $adminId,
             ],
             [
-                'permission_id' => 6,
-                'role_id' => 207,
+                'permission_id' => SeedHelpers::getPermissionId('Can Manage Members'), //6,
+                'role_id' => SeedHelpers::getRoleId('User Manager'), //207,
                 'created' => DateTime::now(),
-                'created_by' => '1'
+                'created_by' => $adminId,
             ],
         ];
     }

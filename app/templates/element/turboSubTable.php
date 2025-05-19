@@ -5,6 +5,19 @@ use App\KMP\StaticHelpers;
 ?>
 
 <turbo-frame id="<?= $tableConfig["id"] ?>" data-turbo='true'>
+    <?php if (!empty($tableConfig['exportButton'])): ?>
+        <div class="d-flex justify-content-end align-items-center mb-2 mt-2">
+            <a href="<?= h($tableConfig['exportButton']['url']) ?>" class="btn btn-outline-primary btn-sm"
+                data-controller="csv-download" data-csv-download-url-value="<?= h($tableConfig['exportButton']['url']) ?>"
+                <?php if (!empty($tableConfig['exportButton']['filename'])): ?>
+                data-csv-download-filename-value="<?= h($tableConfig['exportButton']['filename']) ?>" <?php endif; ?>
+                <?php if (!empty($tableConfig['exportButton']['fields'])): ?>
+                data-csv-download-fields-value='<?= json_encode($tableConfig['exportButton']['fields']) ?>' <?php endif; ?>
+                title="Download CSV">
+                <i class="bi bi-download"></i> Download CSV
+            </a>
+        </div>
+    <?php endif; ?>
     <div class="table-responsive">
         <table class="table table-striped">
             <thead>

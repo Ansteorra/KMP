@@ -9,7 +9,4 @@ use App\Policy\BasePolicy;
 /**
  * DomainsTablePolicy policy
  */
-class RecommendationsStatesLogTablePolicy extends BasePolicy
-{
-    protected string $REQUIRED_PERMISSION = "Can View Recommendations";
-}
+class RecommendationsStatesLogTablePolicy extends BasePolicy {}

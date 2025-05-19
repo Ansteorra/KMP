@@ -1,20 +1,16 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Command;
 
+use App\KMP\StaticHelpers;
 use Cake\Command\Command;
 use Cake\Console\Arguments;
 use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
-use Migrations\Migrations;
-use Cake\I18n\DateTime;
-use Cake\Core\Plugin;
-use App\KMP\KMPPluginInterface;
-use Migrations\Command\MigrateCommand as Migrate;
 use Cake\Datasource\ConnectionManager;
-use App\KMP\StaticHelpers;
+use Exception;
+use PDO;
 
 /**
  * RevertDatabase command.
@@ -42,16 +38,17 @@ class ResetDatabaseCommand extends Command
      * @param \Cake\Console\ConsoleIo $io The console io
      * @return int|null|void The exit code or null for success
      */
-    public function execute(Arguments $args, ConsoleIo $io)
+    public function execute(Arguments $args, ConsoleIo $io): ?int
     {
         //Database reset is only valid in Dev.. SUPER dangerous in production!!!
-        $isDebug = StaticHelpers::getAppSetting("debug", false);
-        if (!$isDebug) {
-            $io->error("Cannot reset database when not in debug.");
-            return;
+        $isDebug = StaticHelpers::getAppSetting('debug', 'false');
+        if (!$isDebug && $isDebug !== 'false') {
+            $io->error('Cannot reset database when not in debug.');
+
+            return null;
         }
 
-        $db = ConnectionManager::get("default");
+        $db = ConnectionManager::get('default');
         $driver = $db->getDriver();
         $driverClass = get_class($driver);
         //Get the string after the last / and turn it all lowercase to get the driver name
@@ -60,7 +57,6 @@ class ResetDatabaseCommand extends Command
         $dbConfig = $db->config();
 
         try {
-
             $tables = [];
             $remainingTables = true;
             $maxAttempts = 30; // Prevent infinite loops
@@ -72,22 +68,22 @@ class ResetDatabaseCommand extends Command
 
                 // Get all tables based on database driver
                 if (stripos($driverName, 'mysql') !== false) {
-                    $query = $db->execute("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = ?", [$dbConfig['database']]);
-                    $tables = $query->fetchAll(\PDO::FETCH_COLUMN);
+                    $query = $db->execute('SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = ?', [$dbConfig['database']]);
+                    $tables = $query->fetchAll(PDO::FETCH_COLUMN);
                 } elseif (stripos($driverName, 'postgres') !== false) {
                     $query = $db->execute("SELECT tablename FROM pg_tables WHERE schemaname = 'public'");
-                    $tables = $query->fetchAll(\PDO::FETCH_COLUMN);
+                    $tables = $query->fetchAll(PDO::FETCH_COLUMN);
                 } elseif (stripos($driverName, 'sqlite') !== false) {
                     $query = $db->execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'");
-                    $tables = $query->fetchAll(\PDO::FETCH_COLUMN);
+                    $tables = $query->fetchAll(PDO::FETCH_COLUMN);
                 } elseif (stripos($driverName, 'sqlserver') !== false) {
                     $query = $db->execute("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_SCHEMA = 'dbo'");
-                    $tables = $query->fetchAll(\PDO::FETCH_COLUMN);
+                    $tables = $query->fetchAll(PDO::FETCH_COLUMN);
                 } else {
                     // Fallback to original method for unsupported databases
                     $io->warning("Unsupported database driver: $driverName. Falling back to dropping database.");
-                    $db->execute("DROP DATABASE IF EXISTS " . $dbConfig["database"] . ";");
-                    $db->execute("CREATE DATABASE " . $dbConfig["database"] . " DEFAULT CHARACTER SET = 'utf8mb4';");
+                    $db->execute('DROP DATABASE IF EXISTS ' . $dbConfig['database'] . ';');
+                    $db->execute('CREATE DATABASE ' . $dbConfig['database'] . " DEFAULT CHARACTER SET = 'utf8mb4';");
                     break;
                 }
 
@@ -112,7 +108,7 @@ class ResetDatabaseCommand extends Command
                             $db->execute("IF OBJECT_ID('dbo.$table', 'U') IS NOT NULL DROP TABLE [dbo].[$table]");
                         }
                         $io->out("Dropped table: $table");
-                    } catch (\Exception $e) {
+                    } catch (Exception $e) {
                         $io->warning("Could not drop table $table: " . $e->getMessage());
                     }
                 }
@@ -120,12 +116,15 @@ class ResetDatabaseCommand extends Command
 
             if ($remainingTables) {
                 $io->warning("Could not drop all tables after $maxAttempts attempts.");
-                return;
+
+                return null;
             }
 
-            $io->success("Database reset.");
-        } catch (\Exception $e) {
-            $io->error("Error resetting database: " . $e->getMessage());
+            $io->success('Database reset.');
+        } catch (Exception $e) {
+            $io->error('Error resetting database: ' . $e->getMessage());
         }
+
+        return Command::CODE_SUCCESS;
     }
 }

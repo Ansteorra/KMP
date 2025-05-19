@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 /**
@@ -20,11 +19,9 @@ namespace App\Mailer;
 
 use Cake\Core\App;
 use Cake\Mailer\Exception\MissingMailerException;
-use Cake\ORM\TableRegistry;
-use Cake\Mailer\MailerAwareTrait;
 use Cake\Mailer\Mailer;
+use Cake\Mailer\MailerAwareTrait;
 use Throwable;
-
 
 /**
  * Provides functionality for loading mailer classes
@@ -46,7 +43,7 @@ trait QueuedMailerAwareTrait
      * @return \Cake\Mailer\Mailer
      * @throws \Cake\Mailer\Exception\MissingMailerException if undefined mailer class.
      */
-    protected function queueMail(string $name, $action, $to, $vars)
+    protected function queueMail(string $name, $action, $to, $vars): Mailer
     {
         $className = App::className($name, 'Mailer', 'Mailer');
         if ($className === null) {
@@ -56,7 +53,7 @@ trait QueuedMailerAwareTrait
         $data = [
             'class' => $className,
             'action' => $action,
-            'vars' => $vars
+            'vars' => $vars,
         ];
         $this->mailer = $this->getMailer($data['class']);
 

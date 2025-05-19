@@ -1,10 +1,7 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Entity;
-
-use Cake\ORM\Entity;
 
 /**
  * AppSetting Entity
@@ -25,10 +22,10 @@ class AppSetting extends BaseEntity
      * @var array<string, bool>
      */
     protected array $_accessible = [
-        "name" => true,
-        "value" => true,
-        "type" => true,
-        "raw_value" => true,
+        'name' => true,
+        'value' => true,
+        'type' => true,
+        'raw_value' => true,
     ];
 
     protected function _getRawValue()
@@ -42,7 +39,8 @@ class AppSetting extends BaseEntity
                 return $this->value;
         }
     }
-    protected function _setRawValue($value)
+
+    protected function _setRawValue($value): void
     {
         switch ($this->type) {
             case 'json':
@@ -86,6 +84,7 @@ class AppSetting extends BaseEntity
             default:
                 return $value;
         }
+
         return $value;
     }
 }

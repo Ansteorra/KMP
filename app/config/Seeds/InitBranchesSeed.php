@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Migrations\BaseSeed;
 use Cake\I18n\DateTime;
 
+
 /**
  * Branches seed.
  */
@@ -20,7 +21,7 @@ class InitBranchesSeed extends BaseSeed
     {
         return [
             [
-                'id' => 1,
+                //'id' => 1,
                 'name' => 'Kingdom',
                 'location' => 'Kingdom',
                 'parent_id' => NULL,

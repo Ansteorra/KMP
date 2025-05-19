@@ -1,21 +1,28 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Policy;
 
-use App\Model\Table\MemberRoles;
-use Authorization\IdentityInterface;
+use App\KMP\KmpIdentityInterface;
+use App\Model\Entity\BaseEntity;
 
 /**
  * role policy
  */
 class MemberRolesTablePolicy extends BasePolicy
 {
-    protected string $REQUIRED_PERMISSION = "Can Manage Roles";
-
-    public function canDeactivate(IdentityInterface $user, $entity, ...$optionalArgs)
+    /**
+     * Check if user can deactivate a member role
+     *
+     * @param \App\KMP\KmpIdentityInterface $user User
+     * @param \App\Model\Entity\BaseEntity $entity Entity
+     * @param mixed ...$optionalArgs Optional arguments
+     * @return bool
+     */
+    public function canDeactivate(KmpIdentityInterface $user, BaseEntity $entity, mixed ...$optionalArgs): bool
     {
-        return $this->_hasNamedPermission($user, $this->REQUIRED_PERMISSION);
+        $method = __FUNCTION__;
+
+        return $this->_hasPolicy($user, $method, $entity, ...$optionalArgs);
     }
 }

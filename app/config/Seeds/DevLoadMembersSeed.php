@@ -4,12 +4,24 @@ declare(strict_types=1);
 
 use Migrations\BaseSeed;
 use Cake\I18n\DateTime;
+use Cake\ORM\TableRegistry; // Added
 
 /**
  * Members seed.
  */
 class DevLoadMembersSeed extends BaseSeed
 {
+    private function getBranchIdByName(?string $name): ?int
+    {
+        if ($name === null) {
+            return null;
+        }
+        $branchesTable = TableRegistry::getTableLocator()->get('Branches');
+        // Assuming 'name' is a unique identifier for branches relevant to this seed.
+        $branch = $branchesTable->find()->where(['name' => $name])->select(['id'])->firstOrFail();
+        return $branch->id;
+    }
+
     /**
      * Get data for seeding.
      *
@@ -19,7 +31,7 @@ class DevLoadMembersSeed extends BaseSeed
     {
         return [
             [
-                'id' => 200,
+                // 'id' => 200, // Removed
                 'modified' => DateTime::now(),
                 'password' => '42f749ade7f9e195bf475f37a44cafcb',
                 'sca_name' => 'Earl Realm',
@@ -34,7 +46,7 @@ class DevLoadMembersSeed extends BaseSeed
                 'email_address' => 'Earl@test.com',
                 'membership_number' => '2345',
                 'membership_expires_on' => '2030-03-31',
-                'branch_id' => 4,
+                'branch_id' => $this->getBranchIdByName('Barony 2'), // Was ID 4
                 'background_check_expires_on' => NULL,
                 'status' => 'verified',
                 'password_token' => NULL,
@@ -49,7 +61,7 @@ class DevLoadMembersSeed extends BaseSeed
                 'mobile_card_token' => '6519b703451d2d22534d058c456d6133',
             ],
             [
-                'id' => 201,
+                // 'id' => 201, // Removed
                 'modified' => DateTime::now(),
                 'password' => '42f749ade7f9e195bf475f37a44cafcb',
                 'sca_name' => 'Stabby McStab',
@@ -64,7 +76,7 @@ class DevLoadMembersSeed extends BaseSeed
                 'email_address' => 'Stan@test.com',
                 'membership_number' => '3456',
                 'membership_expires_on' => '2028-12-30',
-                'branch_id' => 7,
+                'branch_id' => $this->getBranchIdByName('Shire 1'), // Was ID 7
                 'background_check_expires_on' => NULL,
                 'status' => 'verified',
                 'password_token' => NULL,
@@ -79,7 +91,7 @@ class DevLoadMembersSeed extends BaseSeed
                 'mobile_card_token' => '9ffd0d041d4ff102b2c31f3edbd1cf86',
             ],
             [
-                'id' => 202,
+                // 'id' => 202, // Removed
                 'modified' => DateTime::now(),
                 'password' => '42f749ade7f9e195bf475f37a44cafcb',
                 'sca_name' => 'Reggy Regional',
@@ -94,7 +106,7 @@ class DevLoadMembersSeed extends BaseSeed
                 'email_address' => 'Reg@test.com',
                 'membership_number' => '3456',
                 'membership_expires_on' => '2028-12-30',
-                'branch_id' => 7,
+                'branch_id' => $this->getBranchIdByName('Shire 1'), // Was ID 7
                 'background_check_expires_on' => NULL,
                 'status' => 'verified',
                 'password_token' => NULL,
@@ -106,7 +118,7 @@ class DevLoadMembersSeed extends BaseSeed
                 'birth_year' => 1977,
                 'deleted' => NULL,
                 'created' => DateTime::now(),
-                'mobile_card_token' => '9ffd0d041d4ff102b2c31f3edbd1cf86',
+                'mobile_card_token' => '9ffd0d041d4ff102b2c31f3edbd1cf86', // Note: This token was identical to Stabby's in original, might be intentional or a copy-paste.
             ],
         ];
     }
@@ -115,9 +127,9 @@ class DevLoadMembersSeed extends BaseSeed
     {
         $data = $this->getData();
         $table = $this->table('members');
-        $options = $table->getAdapter()->getOptions();
-        $options['identity_insert'] = true;
-        $table->getAdapter()->setOptions($options);
+        // $options = $table->getAdapter()->getOptions(); // Removed
+        // $options['identity_insert'] = true; // Removed
+        // $table->getAdapter()->setOptions($options); // Removed
         $table->insert($data)->save();
     }
 }

@@ -1,12 +1,10 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Controller;
 
 use Cake\TestSuite\IntegrationTestTrait;
 use Cake\TestSuite\TestCase;
-use PHPUnit\Event\Code\Test;
 
 /**
  * App\Controller\AppSettingsController Test Case
@@ -24,14 +22,14 @@ class AppSettingsControllerTest extends TestCase
      * @var list<string>
      */
     protected array $fixtures = [
-        "app.AppSettings",
-        "app.Members",
-        "app.Roles",
-        "app.Permissions",
-        "app.RolesPermissions",
-        "app.MemberRoles",
-        "app.Warrants",
-        "app.Branches"
+        'app.AppSettings',
+        'app.Members',
+        'app.Roles',
+        'app.Permissions',
+        'app.RolesPermissions',
+        'app.MemberRoles',
+        'app.Warrants',
+        'app.Branches',
     ];
 
     /**
@@ -42,7 +40,6 @@ class AppSettingsControllerTest extends TestCase
      */
     public function testIndex(): void
     {
-        //
         $this->get('/app-settings');
         $this->assertResponseOk();
         $this->assertResponseContains('App Settings');
@@ -82,7 +79,7 @@ class AppSettingsControllerTest extends TestCase
     {
 
         $appSettingsTable = $this->getTableLocator()->get('AppSettings');
-        $appSetting = $appSettingsTable->find()->where(["name" => "test.setting.one"])->first();
+        $appSetting = $appSettingsTable->find()->where(['name' => 'test.setting.one'])->first();
 
         $data = [
             'id' => $appSetting->id,
@@ -95,9 +92,8 @@ class AppSettingsControllerTest extends TestCase
         // Check the record was saved to the database
         $appSettingsTable = $this->getTableLocator()->get('AppSettings');
         $updatedAppSetting = $appSettingsTable->find()->where(['name' => 'test.setting.one'])->first();
-        $this->assertEquals($data["raw_value"], $updatedAppSetting->value);
+        $this->assertEquals($data['raw_value'], $updatedAppSetting->value);
     }
-
 
     /**
      * Test delete method
@@ -108,7 +104,7 @@ class AppSettingsControllerTest extends TestCase
     public function testDelete(): void
     {
         $appSettingsTable = $this->getTableLocator()->get('AppSettings');
-        $appSetting = $appSettingsTable->find()->where(["name" => "test.setting.one"])->first();
+        $appSetting = $appSettingsTable->find()->where(['name' => 'test.setting.one'])->first();
 
         $this->post('/app-settings/delete/' . $appSetting->id);
         $this->assertRedirect(['controller' => 'AppSettings', 'action' => 'index']);

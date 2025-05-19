@@ -384,37 +384,6 @@ class OfficersTable extends BaseTable
             ->select($fields);
 
         $query->contain($contain);
-        if ($type === 'current' || $type === 'upcoming') {
-            /*$query = $query->join(
-                [
-                    'rto' => [
-                        'table' => 'officers_officers',
-                        'alias' => 'current_report_to_officer',
-                        'type' => 'LEFT',
-                        'conditions' => [
-                            'Officers.reports_to_office_id = current_report_to_officer.office_id',
-                            'Officers.reports_to_branch_id = current_report_to_officer.branch_id',
-                            'current_report_to_officer.start_on <=' => DateTime::now(),
-                            'current_report_to_officer.expires_on >=' => DateTime::now(),
-                            'current_report_to_officer.status' => Officer::CURRENT_STATUS
-                        ]
-                    ]
-                ]
-            );
-            $query = $query->join(
-                [
-                    'rtom' => [
-                        'table' => 'members',
-                        'alias' => 'current_report_to',
-                        'type' => 'LEFT',
-                        'conditions' => [
-                            'current_report_to_officer.member_id = current_report_to.id',
-                        ]
-                    ]
-                ]
-
-            );*/
-        }
         $query->orderBy(["Officers.start_on" => "DESC", "Offices.name" => "ASC"]);
 
         return $query;

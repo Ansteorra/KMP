@@ -742,6 +742,75 @@ window.Controllers["branch-links"] = BrancheLinks;
 
 /***/ }),
 
+/***/ "./assets/js/controllers/csv-download-controller.js":
+/*!**********************************************************!*\
+  !*** ./assets/js/controllers/csv-download-controller.js ***!
+  \**********************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+class CsvDownloadController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static values = {
+    url: String,
+    filename: String
+  };
+  static targets = ["button"];
+  async download(event) {
+    event.preventDefault();
+    const url = this.urlValue || this.element.getAttribute('href') || this.element.dataset.url;
+    if (!url) {
+      alert("No CSV URL provided.");
+      return;
+    }
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to download CSV: ${response.status}`);
+      }
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = this.filenameValue || 'export.csv';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        window.URL.revokeObjectURL(downloadUrl);
+        a.remove();
+      }, 100);
+    } catch (error) {
+      alert("Error downloading CSV: " + error.message);
+    }
+  }
+  connect() {
+    if (this.hasButtonTarget) {
+      this.buttonTarget.addEventListener('click', this.download.bind(this));
+    } else {
+      this.element.addEventListener('click', this.download.bind(this));
+    }
+  }
+  disconnect() {
+    if (this.hasButtonTarget) {
+      this.buttonTarget.removeEventListener('click', this.download.bind(this));
+    } else {
+      this.element.removeEventListener('click', this.download.bind(this));
+    }
+  }
+}
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["csv-download"] = CsvDownloadController;
+
+/***/ }),
+
 /***/ "./assets/js/controllers/delayed-forward-controller.js":
 /*!*************************************************************!*\
   !*** ./assets/js/controllers/delayed-forward-controller.js ***!
@@ -2032,6 +2101,54 @@ if (!window.Controllers) {
   window.Controllers = {};
 }
 window.Controllers["role-add-permission"] = RoleAddPermission;
+
+/***/ }),
+
+/***/ "./assets/js/controllers/select-all-switch-list-controller.js":
+/*!********************************************************************!*\
+  !*** ./assets/js/controllers/select-all-switch-list-controller.js ***!
+  \********************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+class SelectAllListController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  allCheckboxes;
+  connect() {
+    //copy the first form-check form-switch checkbox and make it a select all checkbox
+    const selectAllCheckbox = this.element.querySelector('.form-check.form-switch').cloneNode(true);
+    selectAllCheckbox.querySelector('input[type="checkbox"]').setAttribute('data-select-all', 'true');
+    selectAllCheckbox.querySelector('input[type="checkbox"]').setAttribute('aria-label', 'Select All');
+    selectAllCheckbox.querySelector('label').innerText = 'Select All';
+    // get the first form-check form-switch checkbox and set the id to select-all
+    const firstCheckbox = this.element.querySelector('.form-check.form-switch');
+    firstCheckbox.parentNode.insertBefore(selectAllCheckbox, firstCheckbox);
+    this.allCheckboxes = this.element.querySelectorAll('input[type="checkbox"]');
+    this.allCheckboxes.forEach(checkbox => {
+      checkbox.addEventListener('change', this.updateSelectAll.bind(this));
+    });
+  }
+  updateSelectAll(event) {
+    const selectAllCheckbox = this.element.querySelector('input[type="checkbox"][data-select-all]');
+    if (event.target === selectAllCheckbox) {
+      this.allCheckboxes.forEach(checkbox => {
+        if (checkbox !== selectAllCheckbox) {
+          checkbox.checked = selectAllCheckbox.checked;
+        }
+      });
+    } else {
+      const allChecked = Array.from(this.allCheckboxes).every(checkbox => checkbox.checked && checkbox !== selectAllCheckbox);
+      selectAllCheckbox.checked = allChecked;
+    }
+  }
+}
+// add to window.Controllers with a name of the controller
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["select-all-switch"] = SelectAllListController;
 
 /***/ }),
 
@@ -18035,7 +18152,7 @@ class bE {
 },
 /******/ function(__webpack_require__) { // webpackRuntimeModules
 /******/ var __webpack_exec__ = function(moduleId) { return __webpack_require__(__webpack_require__.s = moduleId); }
-/******/ __webpack_require__.O(0, ["js/core","css/app","css/cover","css/signin","css/dashboard"], function() { return __webpack_exec__("./assets/js/controllers/app-setting-form-controller.js"), __webpack_exec__("./assets/js/controllers/auto-complete-controller.js"), __webpack_exec__("./assets/js/controllers/branch-links-controller.js"), __webpack_exec__("./assets/js/controllers/delayed-forward-controller.js"), __webpack_exec__("./assets/js/controllers/detail-tabs-controller.js"), __webpack_exec__("./assets/js/controllers/filter-grid-controller.js"), __webpack_exec__("./assets/js/controllers/guifier-controller.js"), __webpack_exec__("./assets/js/controllers/image-preview-controller.js"), __webpack_exec__("./assets/js/controllers/kanban-controller.js"), __webpack_exec__("./assets/js/controllers/member-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-pwa-controller.js"), __webpack_exec__("./assets/js/controllers/member-unique-email-controller.js"), __webpack_exec__("./assets/js/controllers/member-verify-form-controller.js"), __webpack_exec__("./assets/js/controllers/modal-opener-controller.js"), __webpack_exec__("./assets/js/controllers/nav-bar-controller.js"), __webpack_exec__("./assets/js/controllers/outlet-button-controller.js"), __webpack_exec__("./assets/js/controllers/permission-add-role-controller.js"), __webpack_exec__("./assets/js/controllers/permission-manage-policies-controller.js"), __webpack_exec__("./assets/js/controllers/revoke-form-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-member-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-permission-controller.js"), __webpack_exec__("./assets/js/controllers/session-extender-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/gw-sharing-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/renew-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/request-auth-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/award-form-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-add-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-bulk-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-quick-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-table-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/recommendation-kanban-controller.js"), __webpack_exec__("./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/assign-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/edit-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/office-form-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-search-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-table-controller.js"), __webpack_exec__("./assets/css/app.css"), __webpack_exec__("./assets/css/signin.css"), __webpack_exec__("./assets/css/cover.css"), __webpack_exec__("./assets/css/dashboard.css"); });
+/******/ __webpack_require__.O(0, ["js/core","css/app","css/dashboard","css/cover","css/signin"], function() { return __webpack_exec__("./assets/js/controllers/app-setting-form-controller.js"), __webpack_exec__("./assets/js/controllers/auto-complete-controller.js"), __webpack_exec__("./assets/js/controllers/branch-links-controller.js"), __webpack_exec__("./assets/js/controllers/csv-download-controller.js"), __webpack_exec__("./assets/js/controllers/delayed-forward-controller.js"), __webpack_exec__("./assets/js/controllers/detail-tabs-controller.js"), __webpack_exec__("./assets/js/controllers/filter-grid-controller.js"), __webpack_exec__("./assets/js/controllers/guifier-controller.js"), __webpack_exec__("./assets/js/controllers/image-preview-controller.js"), __webpack_exec__("./assets/js/controllers/kanban-controller.js"), __webpack_exec__("./assets/js/controllers/member-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-pwa-controller.js"), __webpack_exec__("./assets/js/controllers/member-unique-email-controller.js"), __webpack_exec__("./assets/js/controllers/member-verify-form-controller.js"), __webpack_exec__("./assets/js/controllers/modal-opener-controller.js"), __webpack_exec__("./assets/js/controllers/nav-bar-controller.js"), __webpack_exec__("./assets/js/controllers/outlet-button-controller.js"), __webpack_exec__("./assets/js/controllers/permission-add-role-controller.js"), __webpack_exec__("./assets/js/controllers/permission-manage-policies-controller.js"), __webpack_exec__("./assets/js/controllers/revoke-form-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-member-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-permission-controller.js"), __webpack_exec__("./assets/js/controllers/select-all-switch-list-controller.js"), __webpack_exec__("./assets/js/controllers/session-extender-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/gw-sharing-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/renew-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/request-auth-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/award-form-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-add-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-bulk-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-quick-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-table-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/recommendation-kanban-controller.js"), __webpack_exec__("./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/assign-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/edit-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/office-form-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-search-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-table-controller.js"), __webpack_exec__("./assets/css/app.css"), __webpack_exec__("./assets/css/signin.css"), __webpack_exec__("./assets/css/cover.css"), __webpack_exec__("./assets/css/dashboard.css"); });
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);

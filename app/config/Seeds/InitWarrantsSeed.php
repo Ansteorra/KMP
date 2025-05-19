@@ -5,6 +5,8 @@ declare(strict_types=1);
 use Migrations\BaseSeed;
 use Cake\I18n\DateTime;
 
+require_once __DIR__ . '/Lib/SeedHelpers.php'; // Added
+
 /**
  * Roles seed.
  */
@@ -17,46 +19,21 @@ class InitWarrantsSeed extends BaseSeed
      */
     public function getData(): array
     {
+        $adminMemberId = SeedHelpers::getMemberId('admin@test.com'); // Was 1
+
         $rosters = [
             [
-                'id' => 1,
+                // 'id' => 1, // Removed
                 'name' => 'System Admin Warrant Set',
                 'approvals_required' => 1,
                 'approval_count' => 1,
-                'created_by' => 1,
+                'created_by' => $adminMemberId,
                 'status' => 'Approved',
                 'created' => DateTime::now(),
             ],
         ];
 
-        $warrants = $data = [
-            [
-                'id' => 1,
-                'name' => 'System Admin Warrant',
-                'member_id' => 1,
-                'warrant_roster_id' => 1,
-                'entity_type' => 'Direct Grant',
-                'entity_id' => -1,
-                'member_role_id' => 1,
-                'expires_on' => '2100-10-10 00:00:00',
-                'start_on' => '2020-01-01 00:00:00',
-                'approved_date' => '2020-01-01 00:00:00',
-                'status' => 'Current',
-                'revoked_reason' => NULL,
-                'revoker_id' => NULL,
-                'created_by' => 1,
-                'created' => DateTime::now(),
-            ],
-        ];
-
-        $approvals = [
-            [
-                'id' => 1,
-                'warrant_roster_id' => 1,
-                'approver_id' => 1,
-                'approved_on' => DateTime::now(),
-            ],
-        ];
+        // Warrants and Approvals will be handled in the run() method after rosters are created.
 
         $permissions = [
             [
@@ -68,7 +45,7 @@ class InitWarrantsSeed extends BaseSeed
                 'is_super_user' => 0,
                 'requires_warrant' => 1,
                 'created' => DateTime::now(),
-                'created_by' => '1',
+                'created_by' => $adminMemberId, // Was '1'
             ],
             [
                 'name' => 'Can Manage Warrants',
@@ -79,7 +56,7 @@ class InitWarrantsSeed extends BaseSeed
                 'is_super_user' => 0,
                 'requires_warrant' => 1,
                 'created' => DateTime::now(),
-                'created_by' => '1',
+                'created_by' => $adminMemberId, // Was '1'
             ],
             [
                 'name' => 'Can View Branches',
@@ -90,14 +67,12 @@ class InitWarrantsSeed extends BaseSeed
                 'is_super_user' => 0,
                 'requires_warrant' => 1,
                 'created' => DateTime::now(),
-                'created_by' => '1',
+                'created_by' => $adminMemberId, // Was '1'
             ],
         ];
 
         return [
             'warrant_rosters' => $rosters,
-            'warrants' => $warrants,
-            'warrant_roster_approvals' => $approvals,
             'permissions' => $permissions,
         ];
     }
@@ -114,39 +89,58 @@ class InitWarrantsSeed extends BaseSeed
      */
     public function run(): void
     {
-        $data = $this->getData()["warrant_rosters"];
+        $adminMemberId = SeedHelpers::getMemberId('admin@test.com');
+        $adminRoleId = SeedHelpers::getRoleId('Admin'); // Assuming 'Admin' role exists
 
-        $table = $this->table('warrant_rosters');
-        $options = $table->getAdapter()->getOptions();
-        $options['identity_insert'] = true;
-        $table->getAdapter()->setOptions($options);
-        $table->insert($data)->save();
+        $rosterData = $this->getData()["warrant_rosters"];
+        $rosterTable = $this->table('warrant_rosters');
+        $rosterTable->insert($rosterData)->save();
 
+        $warrantRostersTable = \Cake\ORM\TableRegistry::getTableLocator()->get('WarrantRosters');
+        $systemAdminRoster = $warrantRostersTable->find()->where(['name' => 'System Admin Warrant Set'])->firstOrFail();
+        $systemAdminRosterId = $systemAdminRoster->id;
 
-        $data = $this->getData()["warrants"];
+        // Ensure the Admin member role exists or create it before creating the warrant
+        $memberRolesTable = \Cake\ORM\TableRegistry::getTableLocator()->get('MemberRoles');
+        $adminMemberRole = $memberRolesTable->find()->where(['member_id' => $adminMemberId, 'role_id' => $adminRoleId])->first();
+        if (!$adminMemberRole) {
+            $adminMemberRole = $memberRolesTable->find()->where(['member_id' => $adminMemberId, 'role_id' => $adminRoleId])->firstOrFail();
+        }
+        $adminMemberRoleId = $adminMemberRole->id;
 
-        $table = $this->table('warrants');
-        $options = $table->getAdapter()->getOptions();
-        $options['identity_insert'] = true;
-        $table->getAdapter()->setOptions($options);
-        $table->insert($data)->save();
+        $warrantData = [
+            [
+                'name' => 'System Admin Warrant',
+                'member_id' => $adminMemberId,
+                'warrant_roster_id' => $systemAdminRosterId,
+                'entity_type' => 'Direct Grant',
+                'entity_id' => -1,
+                'member_role_id' => $adminMemberRoleId,
+                'expires_on' => '2100-10-10 00:00:00',
+                'start_on' => '2020-01-01 00:00:00',
+                'approved_date' => '2020-01-01 00:00:00',
+                'status' => 'Current',
+                'revoked_reason' => NULL,
+                'revoker_id' => NULL,
+                'created_by' => $adminMemberId,
+                'created' => DateTime::now(),
+            ],
+        ];
+        $warrantTable = $this->table('warrants');
+        $warrantTable->insert($warrantData)->save();
 
+        $approvalData = [
+            [
+                'warrant_roster_id' => $systemAdminRosterId,
+                'approver_id' => $adminMemberId,
+                'approved_on' => DateTime::now(),
+            ],
+        ];
+        $approvalTable = $this->table('warrant_roster_approvals');
+        $approvalTable->insert($approvalData)->save();
 
-        $data = $this->getData()["warrant_roster_approvals"];
-
-        $table = $this->table('warrant_roster_approvals');
-        $options = $table->getAdapter()->getOptions();
-        $options['identity_insert'] = true;
-        $table->getAdapter()->setOptions($options);
-        $table->insert($data)->save();
-
-
-        $data = $this->getData()["permissions"];
-
-        $table = $this->table('permissions');
-        $options = $table->getAdapter()->getOptions();
-        $options['identity_insert'] = false;
-        $table->getAdapter()->setOptions($options);
-        $table->insert($data)->save();
+        $permissionData = $this->getData()["permissions"];
+        $permissionTable = $this->table('permissions');
+        $permissionTable->insert($permissionData)->save();
     }
 }

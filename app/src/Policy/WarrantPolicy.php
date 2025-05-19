@@ -1,32 +1,58 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Policy;
 
-use App\Model\Entity\Warrant;
-use Authorization\IdentityInterface;
+use App\KMP\KmpIdentityInterface;
+use App\Model\Entity\BaseEntity;
 
 /**
  * Warrant policy
  */
 class WarrantPolicy extends BasePolicy
 {
-    public function canAllWarrants(IdentityInterface $user, $entity, ...$optionalArgs)
+    /**
+     * Check if user can access allWarrants
+     *
+     * @param \App\KMP\KmpIdentityInterface $user User
+     * @param \App\Model\Entity\BaseEntity $entity Entity
+     * @param mixed ...$optionalArgs Optional arguments
+     * @return bool
+     */
+    public function canAllWarrants(KmpIdentityInterface $user, BaseEntity $entity, mixed ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
+
         return $this->_hasPolicy($user, $method, $entity);
     }
 
-    public function canDeactivate(IdentityInterface $user, $entity, ...$optionalArgs)
+    /**
+     * Check if user can deactivate
+     *
+     * @param \App\KMP\KmpIdentityInterface $user User
+     * @param \App\Model\Entity\BaseEntity $entity Entity
+     * @param mixed ...$optionalArgs Optional arguments
+     * @return bool
+     */
+    public function canDeactivate(KmpIdentityInterface $user, BaseEntity $entity, mixed ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
+
         return $this->_hasPolicy($user, $method, $entity);
     }
 
-    public function canDeclineWarrantInRoster(IdentityInterface $user, $entity, ...$optionalArgs)
+    /**
+     * Check if user can decline warrant in roster
+     *
+     * @param \App\KMP\KmpIdentityInterface $user User
+     * @param \App\Model\Entity\BaseEntity $entity Entity
+     * @param mixed ...$optionalArgs Optional arguments
+     * @return bool
+     */
+    public function canDeclineWarrantInRoster(KmpIdentityInterface $user, BaseEntity $entity, mixed ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
+
         return $this->_hasPolicy($user, $method, $entity);
     }
 }

@@ -6,7 +6,4 @@ namespace Activities\Policy;
 
 use App\Policy\BasePolicy;
 
-class ActivitiesTablePolicy extends BasePolicy
-{
-    protected string $REQUIRED_PERMISSION = "Can Manage Activities";
-}
+class ActivitiesTablePolicy extends BasePolicy {}

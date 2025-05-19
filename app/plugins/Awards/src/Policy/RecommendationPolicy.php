@@ -4,17 +4,25 @@ declare(strict_types=1);
 
 namespace Awards\Policy;
 
+use App\Model\Entity\BaseEntity;
 use App\Policy\BasePolicy;
-use Authorization\IdentityInterface;
+use App\KMP\KmpIdentityInterface;
 use Cake\ORM\TableRegistry;
+use Cake\ORM\Table;
 
 /**
  * DomainPolicy policy
  */
 class RecommendationPolicy extends BasePolicy
 {
-
-    public function canViewSubmittedByMember(IdentityInterface $user, $entity, ...$args)
+    /**
+     * Check if $user can view RolesPermissions
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The user.
+     * @param \App\Model\Entity\BaseEntity $entity
+     * @return bool
+     */
+    public function canViewSubmittedByMember(KmpIdentityInterface $user, BaseEntity $entity, ...$args): bool
     {
         if ($entity->requester_id == $user->getIdentifier()) {
             return true;
@@ -23,55 +31,55 @@ class RecommendationPolicy extends BasePolicy
         return $this->_hasPolicy($user, $method, $entity);
     }
 
-    public function canViewSubmittedForMember(IdentityInterface $user, $entity, ...$args)
+    public function canViewSubmittedForMember(KmpIdentityInterface $user, BaseEntity $entity, ...$args): bool
     {
         $method = __FUNCTION__;
         return $this->_hasPolicy($user, $method, $entity);
     }
 
-    public function canViewEventRecommendations(IdentityInterface $user, $entity, ...$args)
+    public function canViewEventRecommendations(KmpIdentityInterface $user, BaseEntity $entity, ...$args): bool
     {
         $method = __FUNCTION__;
         return $this->_hasPolicy($user, $method, $entity);
     }
 
-    public function canExport(IdentityInterface $user, $entity, ...$args)
+    public function canExport(KmpIdentityInterface $user, BaseEntity $entity, ...$args): bool
     {
         $method = __FUNCTION__;
         return $this->_hasPolicy($user, $method, $entity);
     }
 
-    public function canUseBoard(IdentityInterface $user, $entity, ...$args)
+    public function canUseBoard(KmpIdentityInterface $user, BaseEntity $entity, ...$args): bool
     {
         $method = __FUNCTION__;
         return $this->_hasPolicy($user, $method, $entity);
     }
 
-    public function canViewHidden(IdentityInterface $user, $entity, ...$optionalArgs)
+    public function canViewHidden(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
         return $this->_hasPolicy($user, $method, $entity);
     }
 
-    public function canViewPrivateNotes(IdentityInterface $user, $entity, ...$optionalArgs)
+    public function canViewPrivateNotes(KmpIdentityInterface $user, BaseEntity  $entity, ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
         return $this->_hasPolicy($user, $method, $entity);
     }
 
-    public function canAddNote(IdentityInterface $user, $entity, ...$optionalArgs)
+    public function canAddNote(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
         return $this->_hasPolicy($user, $method, $entity);
     }
 
-    public function canUpdateStates(IdentityInterface $user, $entity, ...$optionalArgs)
+    public function canUpdateStates(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
         return $this->_hasPolicy($user, $method, $entity);
     }
 
-    public function canAdd(IdentityInterface $user, $entity, ...$optionalArgs)
+    public function canAdd(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
     {
         return true;
     }

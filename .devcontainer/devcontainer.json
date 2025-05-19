@@ -29,16 +29,20 @@
 				"cweijan.vscode-mysql-client2",
 				"xdebug.php-debug",
 				"bmewburn.vscode-intelephense-client",
-				"rifi2k.format-html-in-php"
+				"rifi2k.format-html-in-php",
+				"GitHub.copilot"
 			],
 			"settings": {}
 		}
 	},
 	"remoteUser": "vscode",
-	"postStartCommand": "bash .devcontainer/init_env/config_space.sh",
 	"forwardPorts": [
 		8080,
 		3306,
 		8025
-	]
+	],
+	"runArgs": [
+		"--add-host=host.docker.internal:host-gateway"
+	],
+	"postStartCommand": "bash .devcontainer/init_env/config_space.sh"
 }

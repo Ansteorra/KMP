@@ -3,12 +3,16 @@
 declare(strict_types=1);
 
 use Migrations\BaseSeed;
+use Cake\I18n\DateTime; // Added for created/modified timestamps
+use Cake\ORM\TableRegistry; // Added
+require_once __DIR__ . '/Lib/SeedHelpers.php'; // Assuming this is a custom helper for getting member IDs
 
 /**
  * AppSettings seed.
  */
 class DevLoadAppSettingsSeed extends BaseSeed
 {
+
     /**
      * Run Method.
      *
@@ -23,9 +27,9 @@ class DevLoadAppSettingsSeed extends BaseSeed
     {
         $data = $this->getData();
         $table = $this->table('app_settings');
-        $options = $table->getAdapter()->getOptions();
-        $options['identity_insert'] = true;
-        $table->getAdapter()->setOptions($options);
+        // $options = $table->getAdapter()->getOptions(); // Removed
+        // $options['identity_insert'] = true; // Removed
+        // $table->getAdapter()->setOptions($options); // Removed
         $table->insert($data)->save();
     }
 
@@ -36,26 +40,31 @@ class DevLoadAppSettingsSeed extends BaseSeed
      */
     public function getData(): array
     {
+        // It's assumed that the member referenced by original created_by/modified_by ID 1
+        // is the 'Earl@test.com' member from DevLoadMembersSeed.
+        // This member must be seeded before this seed runs.
+        $memberId = SeedHelpers::getMemberId('admin@test.com');
+
         return [
             [
-                'id' => 500,
+                // 'id' => 500, // Removed
                 'name' => 'Member.ExternalLink.Order of Precedence',
                 'value' => 'https://op.ansteorra.org/people/id/{{additional_info->OrderOfPrecedence_Id}}',
-                'modified' => '2024-06-27 13:24:42',
-                'created' => '2024-06-27 13:24:42',
-                'created_by' => 1,
-                'modified_by' => 1,
+                'modified' => DateTime::now(), // Using current time
+                'created' => DateTime::now(), // Using current time
+                'created_by' => $memberId,
+                'modified_by' => $memberId,
                 'required' => false,
                 'type' => 'string',
             ],
             [
-                'id' => 501,
+                // 'id' => 501, // Removed
                 'name' => 'Member.AdditionalInfo.OrderOfPrecedence_Id',
                 'value' => 'number',
-                'modified' => '2024-06-27 13:25:01',
-                'created' => '2024-06-27 13:25:01',
-                'created_by' => 1,
-                'modified_by' => 1,
+                'modified' => DateTime::now(), // Using current time
+                'created' => DateTime::now(), // Using current time
+                'created_by' => $memberId,
+                'modified_by' => $memberId,
                 'required' => false,
                 'type' => 'string',
             ]

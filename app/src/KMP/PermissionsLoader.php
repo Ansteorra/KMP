@@ -1,21 +1,20 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\KMP;
 
-use ArrayAccess;
-
-use Cake\I18n\DateTime;
-use Cake\Log\Log;
-use Cake\ORM\Entity;
-use Cake\ORM\TableRegistry;
-use Cake\Utility\Hash;
-use Cake\ORM\Query\SelectQuery;
+use App\Model\Entity\Member;
 use App\Model\Entity\Permission;
 use App\Model\Entity\Warrant;
-use App\Model\Entity\Member;
 use Cake\Cache\Cache;
+use Cake\I18n\DateTime;
+use Cake\ORM\Query\SelectQuery;
+use Cake\ORM\TableRegistry;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
+use ReflectionClass;
+use ReflectionException;
+use ReflectionMethod;
 
 class PermissionsLoader
 {
@@ -27,33 +26,32 @@ class PermissionsLoader
      */
     public static function getPermissions(int $memberId): array
     {
-        $cacheKey = "member_permissions" . $memberId;
+        $cacheKey = 'member_permissions' . $memberId;
         $cache = Cache::read($cacheKey, 'member_permissions');
         if ($cache) {
             return $cache;
         }
         $branchTable = TableRegistry::getTableLocator()->get(
-            "Branches",
+            'Branches',
         );
         $permissionsTable = TableRegistry::getTableLocator()->get(
-            "Permissions",
+            'Permissions',
         );
-
 
         $query = $permissionsTable
             ->find();
         $query = self::validPermissionClauses($query)
             ->select([
-                "Permissions.id",
-                "Permissions.name",
-                "Permissions.scoping_rule",
-                "Permissions.is_super_user",
-                "MemberRoles.branch_id",
-                "MemberRoles.entity_id",
-                "MemberRoles.entity_type",
+                'Permissions.id',
+                'Permissions.name',
+                'Permissions.scoping_rule',
+                'Permissions.is_super_user',
+                'MemberRoles.branch_id',
+                'MemberRoles.entity_id',
+                'MemberRoles.entity_type',
             ])
             ->contain(['PermissionPolicies'])
-            ->where(["Members.id" => $memberId])
+            ->where(['Members.id' => $memberId])
             ->distinct()
             ->all()
             ->toArray();
@@ -61,9 +59,9 @@ class PermissionsLoader
         $permissions = [];
 
         foreach ($query as $permission) {
-            $branch_id = $permission->_matchingData["MemberRoles"]->branch_id;
-            $entity_id = $permission->_matchingData["MemberRoles"]->entity_id;
-            $entity_type = $permission->_matchingData["MemberRoles"]->entity_type;
+            $branch_id = $permission->_matchingData['MemberRoles']->branch_id;
+            $entity_id = $permission->_matchingData['MemberRoles']->entity_id;
+            $entity_type = $permission->_matchingData['MemberRoles']->entity_type;
             if (isset($permissions[$permission->id])) {
                 switch ($permission->scoping_rule) {
                     case Permission::SCOPE_GLOBAL:
@@ -84,13 +82,13 @@ class PermissionsLoader
                 }
             } else {
                 $permissions[$permission->id] = (object)[
-                    "id" => $permission->id,
-                    "name" => $permission->name,
-                    "scoping_rule" => $permission->scoping_rule,
-                    "is_super_user" => $permission->is_super_user,
-                    "branch_ids" => [],
-                    "entity_id" => $entity_id,
-                    "entity_type" =>  $entity_type,
+                    'id' => $permission->id,
+                    'name' => $permission->name,
+                    'scoping_rule' => $permission->scoping_rule,
+                    'is_super_user' => $permission->is_super_user,
+                    'branch_ids' => [],
+                    'entity_id' => $entity_id,
+                    'entity_type' =>  $entity_type,
                 ];
                 if ($permission->permission_policies) {
                     foreach ($permission->permission_policies as $policy) {
@@ -113,12 +111,13 @@ class PermissionsLoader
             }
         }
         Cache::write($cacheKey, $permissions, 'member_permissions');
+
         return $permissions;
     }
 
     public static function getPolicies($id, ?array $branchIds = null)
     {
-        $cacheKey = "permissions_policies" . $id;
+        $cacheKey = 'permissions_policies' . $id;
         $cache = Cache::read($cacheKey, 'member_permissions');
         if ($cache) {
             return $cache;
@@ -134,16 +133,16 @@ class PermissionsLoader
                     foreach ($methods as $method => $policyId) {
                         if (!isset($policies[$policyClass][$method])) {
                             $policies[$policyClass][$method] = (object)[
-                                "scoping_rule" => $permission->scoping_rule,
-                                "branch_ids" => $permission->branch_ids,
-                                "entity_id" => $permission->entity_id,
-                                "entity_type" => $permission->entity_type,
+                                'scoping_rule' => $permission->scoping_rule,
+                                'branch_ids' => $permission->branch_ids,
+                                'entity_id' => $permission->entity_id,
+                                'entity_type' => $permission->entity_type,
                             ];
                         } else {
                             if ($permission->scoping_rule == Permission::SCOPE_GLOBAL) {
                                 $policies[$policyClass][$method]->branch_ids = null;
                                 $policies[$policyClass][$method]->scoping_rule = Permission::SCOPE_GLOBAL;
-                            } else if ($policies[$policyClass][$method]->scoping_rule != Permission::SCOPE_GLOBAL) {
+                            } elseif ($policies[$policyClass][$method]->scoping_rule != Permission::SCOPE_GLOBAL) {
                                 $policies[$policyClass][$method]->branch_ids = array_merge($policies[$policyClass][$method]->branch_ids, $permission->branch_ids);
                             }
                         }
@@ -183,40 +182,42 @@ class PermissionsLoader
             }
         }
 
-        //save to cache 
+        //save to cache
         Cache::write($cacheKey, $policies, 'member_permissions');
+
         return $policies;
     }
 
     public static function getMembersWithPermissionsQuery(int $permissionId, int $branch_id): SelectQuery
     {
         $permissionsTable = TableRegistry::getTableLocator()->get(
-            "Permissions",
+            'Permissions',
         );
         $memberTable = TableRegistry::getTableLocator()->get(
-            "Members",
+            'Members',
         );
         $branchTable = TableRegistry::getTableLocator()->get(
-            "Branches",
+            'Branches',
         );
         $permission = $permissionsTable->get($permissionId);
         $subquery = $permissionsTable
-            ->find()->cache("permissions_members" . $permissionId, 'permissions');
+            ->find()->cache('permissions_members' . $permissionId, 'permissions');
         $subquery = self::validPermissionClauses($subquery)
-            ->where(["Permissions.id" => $permissionId])
-            ->select(["Members.id"])
+            ->where(['Permissions.id' => $permissionId])
+            ->select(['Members.id'])
             ->distinct();
 
         if ($permission->scoping_rule == Permission::SCOPE_BRANCH_ONLY) {
-            $subquery = $subquery->where(["MemberRoles.branch_id" => $branch_id]);
+            $subquery = $subquery->where(['MemberRoles.branch_id' => $branch_id]);
         }
         if ($permission->scoping_rule == Permission::SCOPE_BRANCH_AND_CHILDREN) {
             $parents = $branchTable->getAllParents($branch_id);
             $parents[] = $branch_id;
-            $subquery = $subquery->where(["MemberRoles.branch_id IN " => $parents]);
+            $subquery = $subquery->where(['MemberRoles.branch_id IN ' => $parents]);
         }
         $query = $memberTable->find()
-            ->where(["Members.id IN" => $subquery]);
+            ->where(['Members.id IN' => $subquery]);
+
         return $query;
     }
 
@@ -234,58 +235,59 @@ class PermissionsLoader
                 'Warrants.status' => Warrant::CURRENT_STATUS,
             ]);
 
-        $q = $q->innerJoinWith("Roles.Members")
+        $q = $q->innerJoinWith('Roles.Members')
             ->where([
-                "MemberRoles.start_on < " => DateTime::now(),
-                "OR" => [
-                    "MemberRoles.expires_on IS " => null,
-                    "MemberRoles.expires_on >" => DateTime::now(),
+                'MemberRoles.start_on < ' => DateTime::now(),
+                'OR' => [
+                    'MemberRoles.expires_on IS ' => null,
+                    'MemberRoles.expires_on >' => DateTime::now(),
                 ],
             ])
             ->where([
-                "OR" => [
-                    "Permissions.require_active_membership" => false,
-                    "AND" => [
-                        "Members.status IN " => [
+                'OR' => [
+                    'Permissions.require_active_membership' => false,
+                    'AND' => [
+                        'Members.status IN ' => [
                             Member::STATUS_VERIFIED_MEMBERSHIP,
                             Member::STATUS_VERIFIED_MINOR,
                         ],
-                        "Members.membership_expires_on >" => DateTime::now(),
+                        'Members.membership_expires_on >' => DateTime::now(),
                     ],
                 ],
             ])
             ->where([
-                "OR" => [
-                    "Permissions.require_active_background_check" => false,
-                    "Members.background_check_expires_on >" => DateTime::now(),
+                'OR' => [
+                    'Permissions.require_active_background_check' => false,
+                    'Members.background_check_expires_on >' => DateTime::now(),
                 ],
             ])
             ->where([
-                "OR" => [
-                    "Permissions.require_min_age" => 0,
-                    "AND" => [
-                        "Members.birth_year = " .
+                'OR' => [
+                    'Permissions.require_min_age' => 0,
+                    'AND' => [
+                        'Members.birth_year = ' .
                             strval($now->year) .
-                            " - Permissions.require_min_age",
-                        "Members.birth_month <=" => $now->month,
+                            ' - Permissions.require_min_age',
+                        'Members.birth_month <=' => $now->month,
                     ],
-                    "Members.birth_year < " .
+                    'Members.birth_year < ' .
                         strval($now->year) .
-                        " - Permissions.require_min_age",
+                        ' - Permissions.require_min_age',
                 ],
             ]);
-        $useWarrant = StaticHelpers::getAppSetting("KMP.RequireActiveWarrantForSecurity");
+        $useWarrant = StaticHelpers::getAppSetting('KMP.RequireActiveWarrantForSecurity');
         if (strtolower($useWarrant) == 'yes') {
             $q = $q->where([
-                "OR" => [
-                    "Permissions.requires_warrant" => False,
-                    "AND" => [
-                        "Members.warrantable" => true,
-                        "MemberRoles.id IN" => $warrantSubquery,
+                'OR' => [
+                    'Permissions.requires_warrant' => false,
+                    'AND' => [
+                        'Members.warrantable' => true,
+                        'MemberRoles.id IN' => $warrantSubquery,
                     ],
                 ],
             ]);
         }
+
         return $q;
     }
 
@@ -311,8 +313,8 @@ class PermissionsLoader
 
         // Require all PHP files in each policy folder.
         foreach ($paths as $path) {
-            $iterator = new \RecursiveIteratorIterator(
-                new \RecursiveDirectoryIterator($path)
+            $iterator = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator($path),
             );
             foreach ($iterator as $file) {
                 if ($file->isFile() && $file->getExtension() === 'php') {
@@ -325,22 +327,22 @@ class PermissionsLoader
         // Iterate all declared classes and pick those whose file is in one of the policy paths.
         foreach (get_declared_classes() as $class) {
             try {
-                $reflector = new \ReflectionClass($class);
+                $reflector = new ReflectionClass($class);
                 $filename = $reflector->getFileName();
                 if ($filename === false) {
                     continue;
                 }
                 //check if the class has a constant called "POLICY_CLASS"
-                if (!defined($class . "::SKIP_BASE")) {
+                if (!defined($class . '::SKIP_BASE')) {
                     $skipBase = false;
                 } else {
-                    $skipBase = constant($class . "::SKIP_BASE");
+                    $skipBase = constant($class . '::SKIP_BASE');
                 }
                 foreach ($paths as $policyPath) {
                     if (strpos(realpath($filename), $policyPath) === 0) {
                         // Include all public methods (including inherited methods).
                         $methods = [];
-                        foreach ($reflector->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
+                        foreach ($reflector->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {
                             // Skip methods that are not public.
                             if ($method->isPublic()) {
                                 // skip methods that are inherited from the parent class.
@@ -378,11 +380,12 @@ class PermissionsLoader
                         break;
                     }
                 }
-            } catch (\ReflectionException $e) {
+            } catch (ReflectionException $e) {
                 // Skip classes that cannot be reflected.
                 continue;
             }
         }
+
         return $policyClasses;
     }
 }

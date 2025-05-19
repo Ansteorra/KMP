@@ -1,10 +1,9 @@
 <?php
+declare(strict_types=1);
 
 namespace App\Model\Entity;
 
 use Cake\ORM\Entity;
-use Cake\Datasource\EntityInterface;
-use Cake\I18n\Datetime;
 
 /**
  * ActiveWindowBaseEntity Entity
@@ -19,7 +18,6 @@ use Cake\I18n\Datetime;
  */
 abstract class BaseEntity extends Entity
 {
-
     public function getBranchId(): ?int
     {
         return $this->branch_id ?? null;

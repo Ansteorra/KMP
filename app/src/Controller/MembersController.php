@@ -1,25 +1,18 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Controller;
 
-use Activities\Model\Entity\Authorization;
 use App\Form\ResetPasswordForm;
-use App\KMP\PermissionsLoader;
-use App\Services\MartialAuthorizations\AuthorizationManagerInterface;
+use App\KMP\StaticHelpers;
+use App\Mailer\QueuedMailerAwareTrait;
+use App\Model\Entity\Member;
+use Cake\Event\EventInterface;
+use Cake\Http\Exception\NotFoundException;
 use Cake\I18n\DateTime;
-use Cake\Log\Log;
 use Cake\Mailer\MailerAwareTrait;
 use Cake\ORM\Query\SelectQuery;
-use Cake\ORM\TableRegistry;
-use App\KMP\StaticHelpers;
-use App\Model\Entity\Member;
-use App\View\Helper\KmpHelper;
-use Composer\Util\Url;
 use Cake\Routing\Router;
-use Cake\Http\Exception\NotFoundException;
-use App\Mailer\QueuedMailerAwareTrait;
 
 /**
  * Members Controller
@@ -34,22 +27,22 @@ class MembersController extends AppController
     /**
      * controller filters
      */
-    public function beforeFilter(\Cake\Event\EventInterface $event)
+    public function beforeFilter(EventInterface $event)
     {
         parent::beforeFilter($event);
 
         $this->Authentication->allowUnauthenticated([
-            "login",
-            "approversList",
-            "forgotPassword",
-            "resetPassword",
-            "register",
-            "viewMobileCard",
-            "viewMobileCardJson",
-            "searchMembers",
-            "publicProfile",
-            "emailTaken",
-            "autoComplete",
+            'login',
+            'approversList',
+            'forgotPassword',
+            'resetPassword',
+            'register',
+            'viewMobileCard',
+            'viewMobileCardJson',
+            'searchMembers',
+            'publicProfile',
+            'emailTaken',
+            'autoComplete',
         ]);
     }
 
@@ -62,55 +55,55 @@ class MembersController extends AppController
      */
     public function index()
     {
-        $search = $this->request->getQuery("search");
+        $search = $this->request->getQuery('search');
         $search = $search ? trim($search) : null;
         // get sort and direction from query string
-        $sort = $this->request->getQuery("sort");
-        $direction = $this->request->getQuery("direction");
+        $sort = $this->request->getQuery('sort');
+        $direction = $this->request->getQuery('direction');
 
         $query = $this->Members
             ->find()
-            ->contain(["Branches"])
+            ->contain(['Branches'])
             ->select([
-                "Members.id",
-                "Members.sca_name",
-                "Members.first_name",
-                "Members.last_name",
-                "Branches.name",
-                "Members.status",
-                "Members.email_address",
-                "Members.last_login"
+                'Members.id',
+                'Members.sca_name',
+                'Members.first_name',
+                'Members.last_name',
+                'Branches.name',
+                'Members.status',
+                'Members.email_address',
+                'Members.last_login',
             ]);
         // if there is a search term, filter the query
         if ($search) {
             //detect th and replace with Þ
             $nsearch = $search;
-            if (preg_match("/th/", $search)) {
-                $nsearch = str_replace("th", "Þ", $search);
+            if (preg_match('/th/', $search)) {
+                $nsearch = str_replace('th', 'Þ', $search);
             }
             //detect Þ and replace with th
             $usearch = $search;
-            if (preg_match("/Þ/", $search)) {
-                $usearch = str_replace("Þ", "th", $search);
+            if (preg_match('/Þ/', $search)) {
+                $usearch = str_replace('Þ', 'th', $search);
             }
             $query = $query->where([
-                "OR" => [
-                    ["Members.membership_number LIKE" => "%" . $search . "%"],
-                    ["Members.sca_name LIKE" => "%" . $search . "%"],
-                    ["Members.sca_name LIKE" => "%" . $nsearch . "%"],
-                    ["Members.sca_name LIKE" => "%" . $usearch . "%"],
-                    ["Members.first_name LIKE" => "%" . $search . "%"],
-                    ["Members.last_name LIKE" => "%" . $search . "%"],
-                    ["Members.email_address LIKE" => "%" . $search . "%"],
-                    ["Branches.name LIKE" => "%" . $search . "%"],
-                    ["Members.first_name LIKE" => "%" . $nsearch . "%"],
-                    ["Members.last_name LIKE" => "%" . $nsearch . "%"],
-                    ["Members.email_address LIKE" => "%" . $nsearch . "%"],
-                    ["Branches.name LIKE" => "%" . $nsearch . "%"],
-                    ["Members.first_name LIKE" => "%" . $usearch . "%"],
-                    ["Members.last_name LIKE" => "%" . $usearch . "%"],
-                    ["Members.email_address LIKE" => "%" . $usearch . "%"],
-                    ["Branches.name LIKE" => "%" . $usearch . "%"],
+                'OR' => [
+                    ['Members.membership_number LIKE' => '%' . $search . '%'],
+                    ['Members.sca_name LIKE' => '%' . $search . '%'],
+                    ['Members.sca_name LIKE' => '%' . $nsearch . '%'],
+                    ['Members.sca_name LIKE' => '%' . $usearch . '%'],
+                    ['Members.first_name LIKE' => '%' . $search . '%'],
+                    ['Members.last_name LIKE' => '%' . $search . '%'],
+                    ['Members.email_address LIKE' => '%' . $search . '%'],
+                    ['Branches.name LIKE' => '%' . $search . '%'],
+                    ['Members.first_name LIKE' => '%' . $nsearch . '%'],
+                    ['Members.last_name LIKE' => '%' . $nsearch . '%'],
+                    ['Members.email_address LIKE' => '%' . $nsearch . '%'],
+                    ['Branches.name LIKE' => '%' . $nsearch . '%'],
+                    ['Members.first_name LIKE' => '%' . $usearch . '%'],
+                    ['Members.last_name LIKE' => '%' . $usearch . '%'],
+                    ['Members.email_address LIKE' => '%' . $usearch . '%'],
+                    ['Branches.name LIKE' => '%' . $usearch . '%'],
                 ],
             ]);
         }
@@ -133,50 +126,49 @@ class MembersController extends AppController
         $Members = $this->paginate($query, [
             'order' => [
                 'sca_name' => 'asc',
-            ]
+            ],
         ]);
 
-        $this->set(compact("Members", "sort", "direction", "search"));
+        $this->set(compact('Members', 'sort', 'direction', 'search'));
     }
-
 
     public function verifyQueue()
     {
-        $activeTab = $this->request->getQuery("activeTab");
+        $activeTab = $this->request->getQuery('activeTab');
         $activeTab = $activeTab ? trim($activeTab) : null;
         // get sort and direction from query string
-        $sort = $this->request->getQuery("sort");
-        $direction = $this->request->getQuery("direction");
+        $sort = $this->request->getQuery('sort');
+        $direction = $this->request->getQuery('direction');
 
         $query = $this->Members
             ->find()
-            ->contain(["Branches"])
+            ->contain(['Branches'])
             ->select([
-                "Members.id",
-                "Members.sca_name",
-                "Members.first_name",
-                "Members.last_name",
-                "Branches.name",
-                "Members.status",
-                "Members.email_address",
-                "Members.membership_card_path",
-                "Members.birth_year",
-                "Members.birth_month",
+                'Members.id',
+                'Members.sca_name',
+                'Members.first_name',
+                'Members.last_name',
+                'Branches.name',
+                'Members.status',
+                'Members.email_address',
+                'Members.membership_card_path',
+                'Members.birth_year',
+                'Members.birth_month',
             ]);
         $query = $query->where([
             'Members.status IN' => [
                 Member::STATUS_ACTIVE,
                 Member::STATUS_UNVERIFIED_MINOR,
                 Member::STATUS_MINOR_MEMBERSHIP_VERIFIED,
-                Member::STATUS_MINOR_PARENT_VERIFIED
-            ]
+                Member::STATUS_MINOR_PARENT_VERIFIED,
+            ],
         ]);
         #is
         $this->Authorization->authorize($query);
         $query = $this->Authorization->applyScope($query);
         $Members = $query->all();
 
-        $this->set(compact("Members"));
+        $this->set(compact('Members'));
     }
 
     /**
@@ -186,28 +178,28 @@ class MembersController extends AppController
      * @return \Cake\Http\Response|null|void Renders view
      * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
      */
-    public function view($id = null)
+    public function view(?string $id = null)
     {
         // Get Member Details
         $memberQuery = $this->Members
             ->find()
             ->contain([
-                "Roles",
-                "Branches",
-                "Parents" => function (SelectQuery $q) {
-                    return $q->select(["Parents.sca_name", "Parents.id"]);
+                'Roles',
+                'Branches',
+                'Parents' => function (SelectQuery $q) {
+                    return $q->select(['Parents.sca_name', 'Parents.id']);
                 },
-                "UpcomingMemberRoles" => function (SelectQuery $q) {
+                'UpcomingMemberRoles' => function (SelectQuery $q) {
                     return $this->_addRolesSelectAndContain($q);
                 },
-                "CurrentMemberRoles" => function (SelectQuery $q) {
+                'CurrentMemberRoles' => function (SelectQuery $q) {
                     return $this->_addRolesSelectAndContain($q);
                 },
-                "PreviousMemberRoles" => function (SelectQuery $q) {
+                'PreviousMemberRoles' => function (SelectQuery $q) {
                     return $this->_addRolesSelectAndContain($q);
                 },
             ])
-            ->where(["Members.id" => $id]);
+            ->where(['Members.id' => $id]);
         //$memberQuery = $this->Members->addJsonWhere($memberQuery, "Members.additional_info", "$.sports", "football");
         $member = $memberQuery->first();
         if (!$member) {
@@ -219,12 +211,12 @@ class MembersController extends AppController
         // Get the member form data for the edit modal
         $memberForm = $this->Members->get($id);
         // If there is form data in the session, patch the entity so we can show the errors
-        $memberFormData = $session->consume("memberFormData");
+        $memberFormData = $session->consume('memberFormData');
         if ($memberFormData != null) {
             $this->Members->patchEntity($memberForm, $memberFormData);
         }
         // Get the password reset form data for the change password modal so we can show errors
-        $passwordResetData = $session->consume("passwordResetData");
+        $passwordResetData = $session->consume('passwordResetData');
         $passwordReset = new ResetPasswordForm();
         if (!$passwordResetData == null) {
             $passwordReset->setData($passwordResetData);
@@ -232,15 +224,16 @@ class MembersController extends AppController
         }
         $months = array_reduce(range(1, 12), function ($rslt, $m) {
             $rslt[$m] = date('F', mktime(0, 0, 0, $m, 10));
+
             return $rslt;
         });
         $years = array_combine(range(date('Y'), date('Y') - 130), range(date('Y'), date('Y') - 130));
         $treeList = $this->Members->Branches
-            ->find("list", keyPath: function ($entity) {
-                return $entity->id . '|' . ($entity->can_have_members == 1 ? "true" : "false");
+            ->find('list', keyPath: function ($entity) {
+                return $entity->id . '|' . ($entity->can_have_members == 1 ? 'true' : 'false');
             })
-            ->where(["can_have_members" => true])
-            ->orderBy(["name" => "ASC"])->toArray();
+            ->where(['can_have_members' => true])
+            ->orderBy(['name' => 'ASC'])->toArray();
         $referer = $this->request->referer(true);
         $backUrl = [];
         $user =  $this->Authentication->getIdentity();
@@ -256,50 +249,51 @@ class MembersController extends AppController
         $publicInfo = $member->publicData();
         $this->set(
             compact(
-                "member",
-                "treeList",
-                "passwordReset",
-                "memberForm",
-                "months",
-                "years",
-                "backUrl",
-                "statusList",
-                "publicInfo"
+                'member',
+                'treeList',
+                'passwordReset',
+                'memberForm',
+                'months',
+                'years',
+                'backUrl',
+                'statusList',
+                'publicInfo',
             ),
         );
     }
+
     public function viewCard($id = null)
     {
         $member = $this->Members
             ->find()
             ->select('id')
-            ->where(["Members.id" => $id])
+            ->where(['Members.id' => $id])
             ->first();
         if (!$member) {
-            throw new \Cake\Http\Exception\NotFoundException();
+            throw new NotFoundException();
         }
         $this->Authorization->authorize($member);
         // sort by name
         $message_variables = [
-            "secretary_email" => StaticHelpers::getAppSetting(
-                "Activity.SecretaryEmail"
+            'secretary_email' => StaticHelpers::getAppSetting(
+                'Activity.SecretaryEmail',
             ),
-            "kingdom" => StaticHelpers::getAppSetting(
-                "KMP.KingdomName"
+            'kingdom' => StaticHelpers::getAppSetting(
+                'KMP.KingdomName',
             ),
-            "secratary" => StaticHelpers::getAppSetting(
-                "Activity.SecretaryName"
+            'secratary' => StaticHelpers::getAppSetting(
+                'Activity.SecretaryName',
             ),
-            "marshal_auth_graphic" => StaticHelpers::getAppSetting(
-                "Member.ViewCard.Graphic"
+            'marshal_auth_graphic' => StaticHelpers::getAppSetting(
+                'Member.ViewCard.Graphic',
             ),
-            "marshal_auth_header_color" => StaticHelpers::getAppSetting(
-                "Member.ViewCard.HeaderColor"
+            'marshal_auth_header_color' => StaticHelpers::getAppSetting(
+                'Member.ViewCard.HeaderColor',
             ),
         ];
-        $this->set(compact("member", "message_variables"));
+        $this->set(compact('member', 'message_variables'));
         $customTemplate = StaticHelpers::getAppSetting(
-            "Member.ViewCard.Template"
+            'Member.ViewCard.Template',
         );
         $this->viewBuilder()->setTemplate($customTemplate);
     }
@@ -314,33 +308,33 @@ class MembersController extends AppController
         $member = $this->Members
             ->find()
             ->select('mobile_card_token')
-            ->where(["Members.mobile_card_token" => $id, "Members.status NOT IN" => $inactiveStatuses])
+            ->where(['Members.mobile_card_token' => $id, 'Members.status NOT IN' => $inactiveStatuses])
             ->first();
         if (!$member) {
-            throw new \Cake\Http\Exception\NotFoundException();
+            throw new NotFoundException();
         }
         $this->Authorization->skipAuthorization();
         // sort filter out expired member roles
         $message_variables = [
-            "secretary_email" => StaticHelpers::getAppSetting(
-                "Activity.SecretaryEmail",
+            'secretary_email' => StaticHelpers::getAppSetting(
+                'Activity.SecretaryEmail',
             ),
-            "kingdom" => StaticHelpers::getAppSetting(
-                "KMP.KingdomName",
+            'kingdom' => StaticHelpers::getAppSetting(
+                'KMP.KingdomName',
             ),
-            "secratary" => StaticHelpers::getAppSetting(
-                "Activity.SecretaryName",
+            'secratary' => StaticHelpers::getAppSetting(
+                'Activity.SecretaryName',
             ),
-            "marshal_auth_graphic" => StaticHelpers::getAppSetting(
-                "Member.ViewCard.Graphic",
+            'marshal_auth_graphic' => StaticHelpers::getAppSetting(
+                'Member.ViewCard.Graphic',
             ),
-            "marshal_auth_header_color" => StaticHelpers::getAppSetting(
-                "Member.MobileCard.BgColor",
+            'marshal_auth_header_color' => StaticHelpers::getAppSetting(
+                'Member.MobileCard.BgColor',
             ),
         ];
-        $this->set(compact("member", "message_variables"));
+        $this->set(compact('member', 'message_variables'));
         $customTemplate = StaticHelpers::getAppSetting(
-            "Member.ViewMobileCard.Template",
+            'Member.ViewMobileCard.Template',
         );
         $this->viewBuilder()->setTemplate($customTemplate);
     }
@@ -354,7 +348,7 @@ class MembersController extends AppController
     {
         $member = $this->Members->newEmptyEntity();
         $this->Authorization->authorize($member);
-        if ($this->request->is("post")) {
+        if ($this->request->is('post')) {
             $member = $this->Members->patchEntity(
                 $member,
                 $this->request->getData(),
@@ -362,24 +356,25 @@ class MembersController extends AppController
             $member->password = StaticHelpers::generateToken(32);
             if ($member->getErrors()) {
                 $this->Flash->error(
-                    __("The Member could not be saved. Please, try again."),
+                    __('The Member could not be saved. Please, try again.'),
                 );
                 $months = array_reduce(range(1, 12), function ($rslt, $m) {
                     $rslt[$m] = date('F', mktime(0, 0, 0, $m, 10));
+
                     return $rslt;
                 });
                 $years = array_combine(range(date('Y'), date('Y') - 130), range(date('Y'), date('Y') - 130));
                 $treeList = $this->Members->Branches
-                    ->find("list", keyPath: function ($entity) {
-                        return $entity->id . '|' . ($entity->can_have_members == 1 ? "true" : "false");
+                    ->find('list', keyPath: function ($entity) {
+                        return $entity->id . '|' . ($entity->can_have_members == 1 ? 'true' : 'false');
                     })
-                    ->where(["can_have_members" => true])
-                    ->orderBy(["name" => "ASC"])->toArray();
+                    ->where(['can_have_members' => true])
+                    ->orderBy(['name' => 'ASC'])->toArray();
                 $this->set(compact(
-                    "member",
-                    "treeList",
-                    "months",
-                    "years",
+                    'member',
+                    'treeList',
+                    'months',
+                    'years',
                 ));
 
                 return;
@@ -393,33 +388,35 @@ class MembersController extends AppController
             }
             if ($this->Members->save($member)) {
                 if ($member->age < 18) {
-                    $this->Flash->success(__("The Member has been saved and the minor registration email has been sent for verification."));
-                    $this->getMailer("KMP")->send("notifySecretaryOfNewMinorMember", [$member]);
+                    $this->Flash->success(__('The Member has been saved and the minor registration email has been sent for verification.'));
+                    $this->getMailer('KMP')->send('notifySecretaryOfNewMinorMember', [$member]);
                 } else {
                     $this->Flash->success(__("The Member has been saved. Please ask the member to use 'forgot password' to set their password."));
                 }
-                return $this->redirect(["action" => "view", $member->id]);
+
+                return $this->redirect(['action' => 'view', $member->id]);
             }
             $this->Flash->error(
-                __("The Member could not be saved. Please, try again."),
+                __('The Member could not be saved. Please, try again.'),
             );
         }
         $months = array_reduce(range(1, 12), function ($rslt, $m) {
             $rslt[$m] = date('F', mktime(0, 0, 0, $m, 10));
+
             return $rslt;
         });
         $years = array_combine(range(date('Y'), date('Y') - 130), range(date('Y'), date('Y') - 130));
         $treeList = $this->Members->Branches
-            ->find("list", keyPath: function ($entity) {
-                return $entity->id . '|' . ($entity->can_have_members == 1 ? "true" : "false");
+            ->find('list', keyPath: function ($entity) {
+                return $entity->id . '|' . ($entity->can_have_members == 1 ? 'true' : 'false');
             })
-            ->where(["can_have_members" => true])
-            ->orderBy(["name" => "ASC"])->toArray();
+            ->where(['can_have_members' => true])
+            ->orderBy(['name' => 'ASC'])->toArray();
         $this->set(compact(
-            "member",
-            "treeList",
-            "months",
-            "years",
+            'member',
+            'treeList',
+            'months',
+            'years',
         ));
     }
 
@@ -430,25 +427,25 @@ class MembersController extends AppController
      * @return \Cake\Http\Response|null|void Redirects on successful edit, renders view otherwise.
      * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
      */
-    public function edit($id = null)
+    public function edit(?string $id = null)
     {
         $member = $this->Members->get($id);
         if (!$member) {
-            throw new \Cake\Http\Exception\NotFoundException();
+            throw new NotFoundException();
         }
         $this->Authorization->authorize($member);
-        if ($this->request->is(["patch", "post", "put"])) {
+        if ($this->request->is(['patch', 'post', 'put'])) {
             $member = $this->Members->patchEntity(
                 $member,
                 $this->request->getData(),
             );
             if ($member->getErrors()) {
                 $session = $this->request->getSession();
-                $session->write("memberFormData", $this->request->getData());
+                $session->write('memberFormData', $this->request->getData());
 
-                return $this->redirect(["action" => "view", $member->id]);
+                return $this->redirect(['action' => 'view', $member->id]);
             }
-            if ($member->membership_number == null || $member->membership_number == "") {
+            if ($member->membership_number == null || $member->membership_number == '') {
                 $member->membership_expires_on = null;
                 switch ($member->status) {
                     case Member::STATUS_VERIFIED_MEMBERSHIP:
@@ -462,17 +459,17 @@ class MembersController extends AppController
                         break;
                 }
             }
-            if ($member->membership_expires_on != null && $member->membership_expires_on != "" && is_string($member->membership_expires_on)) {
+            if ($member->membership_expires_on != null && $member->membership_expires_on != '' && is_string($member->membership_expires_on)) {
                 //convert to a date
                 $member->membership_expires_on = DateTime::createFromFormat('Y-m-d', $member->membership_expires_on);
             }
             if ($this->Members->save($member)) {
-                $this->Flash->success(__("The Member has been saved."));
+                $this->Flash->success(__('The Member has been saved.'));
 
-                return $this->redirect(["action" => "view", $member->id]);
+                return $this->redirect(['action' => 'view', $member->id]);
             }
             $this->Flash->error(
-                __("The Member could not be saved. Please, try again."),
+                __('The Member could not be saved. Please, try again.'),
             );
         }
         // $this->redirect(['action' => 'view', $member->id]);
@@ -485,26 +482,27 @@ class MembersController extends AppController
      * @return \Cake\Http\Response|null Redirects to index.
      * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
      */
-    public function delete($id = null)
+    public function delete(?string $id = null)
     {
-        $this->request->allowMethod(["post", "delete"]);
+        $this->request->allowMethod(['post', 'delete']);
         $member = $this->Members->get($id);
         if (!$member) {
-            throw new \Cake\Http\Exception\NotFoundException();
+            throw new NotFoundException();
         }
         $this->Authorization->authorize($member);
 
-        $member->email_address = "Deleted: " . $member->email_address;
+        $member->email_address = 'Deleted: ' . $member->email_address;
         if ($this->Members->delete($member)) {
-            $this->Flash->success(__("The Member has been deleted."));
+            $this->Flash->success(__('The Member has been deleted.'));
         } else {
             $this->Flash->error(
-                __("The Member could not be deleted. Please, try again."),
+                __('The Member could not be deleted. Please, try again.'),
             );
         }
 
-        return $this->redirect(["action" => "index"]);
+        return $this->redirect(['action' => 'index']);
     }
+
     #endregion
 
     #region Member Specific calls
@@ -513,169 +511,175 @@ class MembersController extends AppController
     {
         $member = $this->Members->get($id);
         if (!$member) {
-            throw new \Cake\Http\Exception\NotFoundException();
+            throw new NotFoundException();
         }
         $this->Authorization->authorize($member);
-        if ($member->mobile_card_token == null || $member->mobile_card_token == "") {
+        if ($member->mobile_card_token == null || $member->mobile_card_token == '') {
             $member->mobile_card_token = StaticHelpers::generateToken(16);
             $this->Members->save($member);
         }
         $url = Router::url([
-            "controller" => "Members",
-            "action" => "ViewMobileCard",
-            "plugin" => null,
-            "_full" => true,
+            'controller' => 'Members',
+            'action' => 'ViewMobileCard',
+            'plugin' => null,
+            '_full' => true,
             $member->mobile_card_token,
         ]);
         $vars = [
-            "url" => $url,
+            'url' => $url,
         ];
-        $this->queueMail("KMP", "mobileCard", $member->email_address, $vars);
-        $this->Flash->success(__("The email has been sent."));
+        $this->queueMail('KMP', 'mobileCard', $member->email_address, $vars);
+        $this->Flash->success(__('The email has been sent.'));
 
-        return $this->redirect(["action" => "view", $member->id]);
+        return $this->redirect(['action' => 'view', $member->id]);
     }
 
     public function partialEdit($id = null)
     {
         $member = $this->Members->get($id);
         if (!$member) {
-            throw new \Cake\Http\Exception\NotFoundException();
+            throw new NotFoundException();
         }
         $this->Authorization->authorize($member);
-        if ($this->request->is(["patch", "post", "put"])) {
-            $member->title = $this->request->getData("title");
-            $member->sca_name = $this->request->getData("sca_name");
-            $member->pronunciation = $this->request->getData("pronunciation");
-            $member->pronouns = $this->request->getData("pronouns");
-            $member->branch_id = $this->request->getData("branch_id");
-            $member->first_name = $this->request->getData("first_name");
-            $member->middle_name = $this->request->getData("middle_name");
-            $member->last_name = $this->request->getData("last_name");
-            $member->street_address = $this->request->getData("street_address");
-            $member->city = $this->request->getData("city");
-            $member->state = $this->request->getData("state");
-            $member->zip = $this->request->getData("zip");
-            $member->phone_number = $this->request->getData("phone_number");
-            $member->email_address = $this->request->getData("email_address");
+        if ($this->request->is(['patch', 'post', 'put'])) {
+            $member->title = $this->request->getData('title');
+            $member->sca_name = $this->request->getData('sca_name');
+            $member->pronunciation = $this->request->getData('pronunciation');
+            $member->pronouns = $this->request->getData('pronouns');
+            $member->branch_id = $this->request->getData('branch_id');
+            $member->first_name = $this->request->getData('first_name');
+            $member->middle_name = $this->request->getData('middle_name');
+            $member->last_name = $this->request->getData('last_name');
+            $member->street_address = $this->request->getData('street_address');
+            $member->city = $this->request->getData('city');
+            $member->state = $this->request->getData('state');
+            $member->zip = $this->request->getData('zip');
+            $member->phone_number = $this->request->getData('phone_number');
+            $member->email_address = $this->request->getData('email_address');
             //$member->parent_name = $this->request->getData("parent_name");
             if ($member->getErrors()) {
                 $session = $this->request->getSession();
-                $session->write("memberFormData", $this->request->getData());
+                $session->write('memberFormData', $this->request->getData());
 
-                return $this->redirect(["action" => "view", $member->id]);
+                return $this->redirect(['action' => 'view', $member->id]);
             }
             if ($this->Members->save($member)) {
-                $this->Flash->success(__("The Member has been saved."));
+                $this->Flash->success(__('The Member has been saved.'));
 
-                return $this->redirect(["action" => "view", $member->id]);
+                return $this->redirect(['action' => 'view', $member->id]);
             }
             $this->Flash->error(
-                __("The Member could not be saved. Please, try again."),
+                __('The Member could not be saved. Please, try again.'),
             );
         }
-        $this->redirect(["action" => "view", $member->id]);
+        $this->redirect(['action' => 'view', $member->id]);
     }
 
     public function editAdditionalInfo($id = null)
     {
         $member = $this->Members->get($id);
         if (!$member) {
-            throw new \Cake\Http\Exception\NotFoundException();
+            throw new NotFoundException();
         }
         $this->Authorization->authorize($member);
         $user = $this->Authentication->getIdentity();
-        $userEditableOnly = !$user->checkCan("edit", $member);
-        if ($this->request->is(["patch", "post", "put"])) {
+        $userEditableOnly = !$user->checkCan('edit', $member);
+        if ($this->request->is(['patch', 'post', 'put'])) {
             $member->additional_info = [];
-            $aiFormConfig = StaticHelpers::getAppSettingsStartWith("Member.AdditionalInfo.");
+            $aiFormConfig = StaticHelpers::getAppSettingsStartWith('Member.AdditionalInfo.');
             $aiForm = [];
             if (empty($aiFormConfig)) {
                 $this->Flash->error(
-                    __("The Additional Information could not be saved. Please, try again."),
+                    __('The Additional Information could not be saved. Please, try again.'),
                 );
-                return $this->redirect(["action" => "view", $member->id]);
+
+                return $this->redirect(['action' => 'view', $member->id]);
             }
             foreach ($aiFormConfig as $key => $value) {
-                $shortKey = str_replace("Member.AdditionalInfo.", "", $key);
+                $shortKey = str_replace('Member.AdditionalInfo.', '', $key);
                 $aiForm[$shortKey] = $value;
             }
             foreach ($aiForm as $fieldKey => $fieldType) {
                 $userEditable = false;
                 //check fieldType for |
-                $pipePos = strpos($fieldType, "|");
+                $pipePos = strpos($fieldType, '|');
                 if ($pipePos !== false) {
-                    $fieldSecDetails = explode("|", $fieldType);
+                    $fieldSecDetails = explode('|', $fieldType);
                     $fieldType = $fieldSecDetails[0];
-                    $userEditable = $fieldSecDetails[1] == "user";
+                    $userEditable = $fieldSecDetails[1] == 'user';
                 }
                 if ($userEditableOnly && !$userEditable) {
                     continue;
                 }
-                $colonPos = strpos($fieldType, ":");
+                $colonPos = strpos($fieldType, ':');
                 $aiOptions = [];
                 if ($colonPos !== false) {
-                    $fieldDetails = explode(":", $fieldType);
+                    $fieldDetails = explode(':', $fieldType);
                     $fieldType =  $fieldDetails[0];
-                    $aiOptions = explode(",", $fieldDetails[1]);
+                    $aiOptions = explode(',', $fieldDetails[1]);
                 }
                 //if aiOptions are not emoty then check the value is one of the options
                 $fieldValue = $this->request->getData($fieldKey);
                 if (!empty($aiOptions)) {
-                    if ($fieldValue != "" && !in_array($fieldValue, $aiOptions)) {
+                    if ($fieldValue != '' && !in_array($fieldValue, $aiOptions)) {
                         $this->Flash->error(
-                            __("The Additional Information could not be saved. Please, try again."),
+                            __('The Additional Information could not be saved. Please, try again.'),
                         );
-                        return $this->redirect(["action" => "view", $member->id]);
+
+                        return $this->redirect(['action' => 'view', $member->id]);
                     }
                 }
-                if ($fieldValue != "") {
+                if ($fieldValue != '') {
                     $newData[$fieldKey] = $this->request->getData($fieldKey);
                 }
             }
             $member->additional_info = $newData;
             if ($this->Members->save($member)) {
-                $this->Flash->success(__("The Additional Information saved."));
+                $this->Flash->success(__('The Additional Information saved.'));
 
-                return $this->redirect(["action" => "view", $member->id]);
+                return $this->redirect(['action' => 'view', $member->id]);
             }
             $this->Flash->error(
-                __("The Additional Information could not be saved. Please, try again."),
+                __('The Additional Information could not be saved. Please, try again.'),
             );
         }
-        return $this->redirect(["action" => "view", $member->id]);
+
+        return $this->redirect(['action' => 'view', $member->id]);
     }
+
     #endregion
 
     #region ASYNC calls
+
     public function searchMembers()
     {
-        $q = $this->request->getQuery("q");
+        $q = $this->request->getQuery('q');
         //detect th and replace with Þ
         $nq = $q;
-        if (preg_match("/th/", $q)) {
-            $nq = str_replace("th", "Þ", $q);
+        if (preg_match('/th/', $q)) {
+            $nq = str_replace('th', 'Þ', $q);
         }
         //detect Þ and replace with th
         $uq = $q;
-        if (preg_match("/Þ/", $q)) {
-            $uq = str_replace("Þ", "th", $q);
+        if (preg_match('/Þ/', $q)) {
+            $uq = str_replace('Þ', 'th', $q);
         }
         $this->Authorization->skipAuthorization();
-        $this->request->allowMethod(["get"]);
-        $this->viewBuilder()->setClassName("Ajax");
+        $this->request->allowMethod(['get']);
+        $this->viewBuilder()->setClassName('Ajax');
         $query = $this->Members
-            ->find("all")
+            ->find('all')
             ->where([
                 'status <>' => Member::STATUS_DEACTIVATED,
-                'OR' => [["sca_name LIKE" => "%$q%"], ["sca_name LIKE" => "%$nq%"], ["sca_name LIKE" => "%$uq%"]]
+                'OR' => [['sca_name LIKE' => "%$q%"], ['sca_name LIKE' => "%$nq%"], ['sca_name LIKE' => "%$uq%"]],
             ])
-            ->select(["id", "sca_name"])
+            ->select(['id', 'sca_name'])
             ->limit(10);
         //$query = $this->Authorization->applyScope($query);
         $this->response = $this->response
-            ->withType("application/json")
+            ->withType('application/json')
             ->withStringBody(json_encode($query));
+
         return $this->response;
     }
 
@@ -684,35 +688,36 @@ class MembersController extends AppController
         $member = $this->Members
             ->find()
             ->select([
-                "Members.id",
-                "Members.sca_name",
-                "Members.title",
-                "Members.first_name",
-                "Members.last_name",
-                "Members.membership_number",
-                "Members.membership_expires_on",
-                "Members.background_check_expires_on",
-                "Members.additional_info",
+                'Members.id',
+                'Members.sca_name',
+                'Members.title',
+                'Members.first_name',
+                'Members.last_name',
+                'Members.membership_number',
+                'Members.membership_expires_on',
+                'Members.background_check_expires_on',
+                'Members.additional_info',
             ])
             ->contain([
-                "Branches" => function (SelectQuery $q) {
-                    return $q->select(["Branches.name"]);
-                }
+                'Branches' => function (SelectQuery $q) {
+                    return $q->select(['Branches.name']);
+                },
             ])
-            ->where(["Members.id" => $id])
+            ->where(['Members.id' => $id])
             ->first();
         if (!$member) {
-            throw new \Cake\Http\Exception\NotFoundException();
+            throw new NotFoundException();
         }
         if ($member->title) {
-            $member->sca_name = $member->title . " " . $member->sca_name;
+            $member->sca_name = $member->title . ' ' . $member->sca_name;
         }
         $this->Authorization->authorize($member);
         $this->viewBuilder()
-            ->setClassName("Ajax")
+            ->setClassName('Ajax')
             ->setOption('serialize', 'responseData');
-        $this->set(compact("member"));
+        $this->set(compact('member'));
     }
+
     public function viewMobileCardJson($id = null)
     {
         $inactiveStatuses = [
@@ -723,133 +728,138 @@ class MembersController extends AppController
         $member = $this->Members
             ->find()
             ->select([
-                "Members.id",
-                "Members.title",
-                "Members.sca_name",
-                "Members.first_name",
-                "Members.last_name",
-                "Members.membership_number",
-                "Members.membership_expires_on",
-                "Members.background_check_expires_on",
-                "Members.additional_info",
+                'Members.id',
+                'Members.title',
+                'Members.sca_name',
+                'Members.first_name',
+                'Members.last_name',
+                'Members.membership_number',
+                'Members.membership_expires_on',
+                'Members.background_check_expires_on',
+                'Members.additional_info',
             ])
             ->contain([
-                "Branches" => function (SelectQuery $q) {
-                    return $q->select(["Branches.name"]);
-                }
+                'Branches' => function (SelectQuery $q) {
+                    return $q->select(['Branches.name']);
+                },
             ])
-            ->where(["Members.mobile_card_token" => $id, "Members.status NOT IN" => $inactiveStatuses])
+            ->where(['Members.mobile_card_token' => $id, 'Members.status NOT IN' => $inactiveStatuses])
             ->first();
         if (!$member) {
-            throw new \Cake\Http\Exception\NotFoundException();
+            throw new NotFoundException();
         }
         if ($member->title) {
-            $member->sca_name = $member->title . " " . $member->sca_name;
+            $member->sca_name = $member->title . ' ' . $member->sca_name;
         }
         $this->Authorization->skipAuthorization();
         $this->viewBuilder()
-            ->setClassName("Ajax")
+            ->setClassName('Ajax')
             ->setOption('serialize', 'responseData');
-        $this->set(compact("member"));
+        $this->set(compact('member'));
         $this->viewBuilder()->setTemplate('view_card_json');
     }
+
     public function publicProfile($id = null)
     {
         $member = $this->Members
             ->find()
-            ->where(["Members.id" => $id])
+            ->where(['Members.id' => $id])
             ->first();
         if (!$member) {
-            throw new \Cake\Http\Exception\NotFoundException();
+            throw new NotFoundException();
         }
         $this->Authorization->skipAuthorization();
         $publicProfile = $member->publicData();
         $this->response = $this->response
-            ->withType("application/json")
+            ->withType('application/json')
             ->withStringBody(json_encode($publicProfile));
+
         return $this->response;
     }
+
     public function autoComplete()
     {
         //TODO: Audit for Privacy
 
-        $q = $this->request->getQuery("q");
+        $q = $this->request->getQuery('q');
         //detect th and replace with Þ
         $nq = $q;
-        if (preg_match("/th/", $q)) {
-            $nq = str_replace("th", "Þ", $q);
+        if (preg_match('/th/', $q)) {
+            $nq = str_replace('th', 'Þ', $q);
         }
         //detect Þ and replace with th
         $uq = $q;
-        if (preg_match("/Þ/", $q)) {
-            $uq = str_replace("Þ", "th", $q);
+        if (preg_match('/Þ/', $q)) {
+            $uq = str_replace('Þ', 'th', $q);
         }
 
         $this->Authorization->skipAuthorization();
-        $this->request->allowMethod(["get"]);
-        $this->viewBuilder()->setClassName("Ajax");
+        $this->request->allowMethod(['get']);
+        $this->viewBuilder()->setClassName('Ajax');
         $query = $this->Members
-            ->find("all")
+            ->find('all')
             ->where([
                 'status <>' => Member::STATUS_DEACTIVATED,
-                'OR' => [["sca_name LIKE" => "%$q%"], ["sca_name LIKE" => "%$nq%"], ["sca_name LIKE" => "%$uq%"]]
+                'OR' => [['sca_name LIKE' => "%$q%"], ['sca_name LIKE' => "%$nq%"], ['sca_name LIKE' => "%$uq%"]],
             ])
-            ->select(["id", "sca_name"])
+            ->select(['id', 'sca_name'])
             ->limit(50);
-        $this->set(compact("query", "q", "nq", "uq"));
+        $this->set(compact('query', 'q', 'nq', 'uq'));
     }
 
     public function emailTaken()
     {
-        $email = $this->request->getQuery("email");
+        $email = $this->request->getQuery('email');
         $this->Authorization->skipAuthorization();
-        $this->request->allowMethod(["get"]);
-        $this->viewBuilder()->setClassName("Ajax");
+        $this->request->allowMethod(['get']);
+        $this->viewBuilder()->setClassName('Ajax');
         $emailUsed = $this->Members
-            ->find("all")
-            ->where(["email_address" => $email])
+            ->find('all')
+            ->where(['email_address' => $email])
             ->count();
-        $result = "";
+        $result = '';
         if ($emailUsed > 0) {
             $result = true;
         } else {
             $result = false;
         }
         $this->response = $this->response
-            ->withType("application/json")
+            ->withType('application/json')
             ->withStringBody(json_encode($result));
+
         return $this->response;
     }
 
     #endregion
 
     #region Password specific calls
+
     public function changePassword($id = null)
     {
         $member = $this->Members->get($id);
         if (!$member) {
-            throw new \Cake\Http\Exception\NotFoundException();
+            throw new NotFoundException();
         }
         $this->Authorization->authorize($member);
         $passwordReset = new ResetPasswordForm();
-        if ($this->request->is(["patch", "post", "put"])) {
+        if ($this->request->is(['patch', 'post', 'put'])) {
             $passwordReset->validate($this->request->getData());
             if ($passwordReset->getErrors()) {
                 $session = $this->request->getSession();
-                $session->write("passwordResetData", $this->request->getData());
+                $session->write('passwordResetData', $this->request->getData());
 
-                return $this->redirect(["action" => "view", $member->id]);
+                return $this->redirect(['action' => 'view', $member->id]);
             }
-            $member->password = $this->request->getData()["new_password"];
+            $member->password = $this->request->getData()['new_password'];
             $member->password_token = null;
             $member->password_token_expires_on = null;
             if ($this->Members->save($member)) {
-                $this->Flash->success(__("The password has been changed."));
+                $this->Flash->success(__('The password has been changed.'));
 
-                return $this->redirect(["action" => "view", $member->id]);
+                return $this->redirect(['action' => 'view', $member->id]);
             }
             $this->Flash->error(
-                __("The password could not be changed. Please, try again."),
+                __('The password could not be changed. Please, try again.'),
             );
         }
     }
@@ -857,11 +867,11 @@ class MembersController extends AppController
     public function forgotPassword()
     {
         $this->Authorization->skipAuthorization();
-        if ($this->request->is("post")) {
+        if ($this->request->is('post')) {
             $member = $this->Members
                 ->find()
                 ->where([
-                    "email_address" => $this->request->getData("email_address"),
+                    'email_address' => $this->request->getData('email_address'),
                 ])
                 ->first();
             if ($member) {
@@ -871,39 +881,39 @@ class MembersController extends AppController
                 );
                 $this->Members->save($member);
                 $url = Router::url([
-                    "controller" => "Members",
-                    "action" => "resetPassword",
-                    "plugin" => null,
-                    "_full" => true,
+                    'controller' => 'Members',
+                    'action' => 'resetPassword',
+                    'plugin' => null,
+                    '_full' => true,
                     $member->password_token,
                 ]);
                 $vars = [
-                    "url" => $url,
+                    'url' => $url,
                 ];
-                $this->queueMail("KMP", "resetPassword", $member->email_address, $vars);
+                $this->queueMail('KMP', 'resetPassword', $member->email_address, $vars);
                 $this->Flash->success(
                     __(
-                        "Password reset request sent to " .
+                        'Password reset request sent to ' .
                             $member->email_address,
                     ),
                 );
 
-                return $this->redirect(["action" => "login"]);
+                return $this->redirect(['action' => 'login']);
             } else {
                 $this->Flash->error(
                     __(
-                        "Your email was not found, please contact the Marshalate Secretary at " .
+                        'Your email was not found, please contact the Marshalate Secretary at ' .
                             StaticHelpers::getAppSetting(
-                                "Activity.SecretaryEmail"
+                                'Activity.SecretaryEmail',
                             ),
                     ),
                 );
             }
         }
         $headerImage = StaticHelpers::getAppSetting(
-            "KMP.Login.Graphic",
+            'KMP.Login.Graphic',
         );
-        $this->set(compact("headerImage"));
+        $this->set(compact('headerImage'));
     }
 
     public function resetPassword($token = null)
@@ -911,37 +921,38 @@ class MembersController extends AppController
         $this->Authorization->skipAuthorization();
         $member = $this->Members
             ->find()
-            ->where(["password_token" => $token])
+            ->where(['password_token' => $token])
             ->first();
         if ($member) {
             if ($member->password_token_expires_on < DateTime::now()) {
-                $this->Flash->error("Invalid Token, please request a new one.");
+                $this->Flash->error('Invalid Token, please request a new one.');
 
-                return $this->redirect(["action" => "forgotPassword"]);
+                return $this->redirect(['action' => 'forgotPassword']);
             }
             $passwordReset = new ResetPasswordForm();
             if (
-                $this->request->is("post") &&
+                $this->request->is('post') &&
                 $passwordReset->validate($this->request->getData())
             ) {
-                $member->password = $this->request->getData("new_password");
+                $member->password = $this->request->getData('new_password');
                 $member->password_token = null;
                 $member->password_token_expires_on = null;
                 $this->Members->save($member);
-                $this->Flash->success(__("Password successfully reset"));
+                $this->Flash->success(__('Password successfully reset'));
 
-                return $this->redirect(["action" => "login"]);
+                return $this->redirect(['action' => 'login']);
             }
             $headerImage = StaticHelpers::getAppSetting(
-                "KMP.Login.Graphic",
+                'KMP.Login.Graphic',
             );
-            $this->set(compact("headerImage", "passwordReset"));
+            $this->set(compact('headerImage', 'passwordReset'));
         } else {
-            $this->Flash->error("Invalid Token, please request a new one.");
+            $this->Flash->error('Invalid Token, please request a new one.');
 
-            return $this->redirect(["action" => "forgotPassword"]);
+            return $this->redirect(['action' => 'forgotPassword']);
         }
     }
+
     #endregion
 
     #region Authorization specific calls
@@ -952,72 +963,72 @@ class MembersController extends AppController
     public function login()
     {
         $this->Authorization->skipAuthorization();
-        if ($this->request->is("post")) {
-            $authentication = $this->request->getAttribute("authentication");
+        if ($this->request->is('post')) {
+            $authentication = $this->request->getAttribute('authentication');
             $result = $authentication->getResult();
             // regardless of POST or GET, redirect if user is logged in
             if ($result->isValid()) {
                 $user = $this->Members->get(
                     $authentication->getIdentity()->getIdentifier(),
                 );
-                $this->Flash->success("Welcome " . $user->sca_name . "!");
-                $page = $this->request->getQuery("redirect");
+                $this->Flash->success('Welcome ' . $user->sca_name . '!');
+                $page = $this->request->getQuery('redirect');
                 if (
-                    $page == "/" ||
-                    $page == "/Members/login" ||
-                    $page == "/Members/logout" ||
+                    $page == '/' ||
+                    $page == '/Members/login' ||
+                    $page == '/Members/logout' ||
                     $page == null
                 ) {
-                    return $this->redirect(["action" => "view", $user->id]);
+                    return $this->redirect(['action' => 'view', $user->id]);
                 } else {
                     return $this->redirect($page);
                 }
             }
             $errors = $result->getErrors();
             if (
-                isset($errors["KMPBruteForcePassword"]) &&
-                count($errors["KMPBruteForcePassword"]) > 0
+                isset($errors['KMPBruteForcePassword']) &&
+                count($errors['KMPBruteForcePassword']) > 0
             ) {
-                $message = $errors["KMPBruteForcePassword"][0];
+                $message = $errors['KMPBruteForcePassword'][0];
                 switch ($message) {
-                    case "Account Locked":
+                    case 'Account Locked':
                         $this->Flash->error(
-                            "Your account has been locked. Please try again later.",
+                            'Your account has been locked. Please try again later.',
                         );
                         break;
-                    case "Account Not Verified":
+                    case 'Account Not Verified':
                         $contactAddress = StaticHelpers::getAppSetting(
-                            "Members.AccountVerificationContactEmail",
+                            'Members.AccountVerificationContactEmail',
                         );
                         $this->Flash->error(
-                            "Your account is being verified. This process may take several days after you have verified your email address. Please contact " . $contactAddress . " if you have not been verified within a week."
+                            'Your account is being verified. This process may take several days after you have verified your email address. Please contact ' . $contactAddress . ' if you have not been verified within a week.',
                         );
                         break;
-                    case "Account Disabled":
+                    case 'Account Disabled':
                         $contactAddress = StaticHelpers::getAppSetting(
-                            "Members.AccountDisabledContactEmail",
+                            'Members.AccountDisabledContactEmail',
                         );
                         $this->Flash->error(
-                            "Your account deactivated. Please contact " . $contactAddress . " if you feel this is in error.",
+                            'Your account deactivated. Please contact ' . $contactAddress . ' if you feel this is in error.',
                         );
                         break;
                     default:
                         $this->Flash->error(
-                            "Your email or password is incorrect.",
+                            'Your email or password is incorrect.',
                         );
                         break;
                 }
             } else {
-                $this->Flash->error("Your email or password is incorrect.");
+                $this->Flash->error('Your email or password is incorrect.');
             }
         }
         $headerImage = StaticHelpers::getAppSetting(
-            "KMP.Login.Graphic",
+            'KMP.Login.Graphic',
         );
         $allowRegistration = StaticHelpers::getAppSetting(
-            "KMP.EnablePublicRegistration",
+            'KMP.EnablePublicRegistration',
         );
-        $this->set(compact("headerImage", "allowRegistration"));
+        $this->set(compact('headerImage', 'allowRegistration'));
     }
 
     public function logout()
@@ -1026,28 +1037,28 @@ class MembersController extends AppController
         $this->Authentication->logout();
 
         return $this->redirect([
-            "controller" => "Members",
-            "action" => "login",
+            'controller' => 'Members',
+            'action' => 'login',
         ]);
     }
 
     public function register()
     {
         $allowRegistration = StaticHelpers::getAppSetting(
-            "KMP.EnablePublicRegistration"
+            'KMP.EnablePublicRegistration',
         );
-        if (strtolower($allowRegistration) != "yes") {
+        if (strtolower($allowRegistration) != 'yes') {
             $this->Flash->error(
-                "Public registration is not allowed at this time.",
+                'Public registration is not allowed at this time.',
             );
-            return $this->redirect(["action" => "login"]);
+
+            return $this->redirect(['action' => 'login']);
         }
         $member = $this->Members->newEmptyEntity();
         $this->Authorization->skipAuthorization();
         $this->Authentication->logout();
-        if ($this->request->is("post")) {
-
-            $file = $this->request->getData("member_card");
+        if ($this->request->is('post')) {
+            $file = $this->request->getData('member_card');
             if ($file->getSize() > 0) {
                 $storageLoc = WWW_ROOT . '../images/uploaded/';
                 $fileName = StaticHelpers::generateToken(10);
@@ -1055,36 +1066,36 @@ class MembersController extends AppController
                 $file->moveTo(WWW_ROOT . '../images/uploaded/' . $fileName);
                 $fileResult = StaticHelpers::saveScaledImage($fileName, 500, 700, $storageLoc, $storageLoc);
                 if (!$fileResult) {
-                    $this->Flash->error("Error saving image, please try again.");
+                    $this->Flash->error('Error saving image, please try again.');
                 }
                 //trim the path off of the filename
                 $fileName = substr($fileResult, strrpos($fileResult, '/') + 1);
                 $member->membership_card_path = $fileName;
             }
-            $member->sca_name = $this->request->getData("sca_name");
-            $member->branch_id = $this->request->getData("branch_id");
-            $member->first_name = $this->request->getData("first_name");
-            $member->middle_name = $this->request->getData("middle_name");
-            $member->last_name = $this->request->getData("last_name");
-            $member->street_address = $this->request->getData("street_address");
-            $member->city = $this->request->getData("city");
-            $member->state = $this->request->getData("state");
-            $member->zip = $this->request->getData("zip");
-            $member->phone_number = $this->request->getData("phone_number");
-            $member->email_address = $this->request->getData("email_address");
-            $member->birth_month = (int) $this->request->getData("birth_month");
-            $member->birth_year = (int) $this->request->getData("birth_year");
+            $member->sca_name = $this->request->getData('sca_name');
+            $member->branch_id = $this->request->getData('branch_id');
+            $member->first_name = $this->request->getData('first_name');
+            $member->middle_name = $this->request->getData('middle_name');
+            $member->last_name = $this->request->getData('last_name');
+            $member->street_address = $this->request->getData('street_address');
+            $member->city = $this->request->getData('city');
+            $member->state = $this->request->getData('state');
+            $member->zip = $this->request->getData('zip');
+            $member->phone_number = $this->request->getData('phone_number');
+            $member->email_address = $this->request->getData('email_address');
+            $member->birth_month = (int)$this->request->getData('birth_month');
+            $member->birth_year = (int)$this->request->getData('birth_year');
             if ($member->age > 17) {
                 $member->password_token = StaticHelpers::generateToken(32);
                 $member->password_token_expires_on = DateTime::now()->addDays(1);
             }
             $member->password = StaticHelpers::generateToken(12);
             if ($member->getErrors()) {
-
                 $this->Flash->error(
-                    __("The Member could not be saved. Please, try again."),
+                    __('The Member could not be saved. Please, try again.'),
                 );
-                return $this->redirect(["action" => "login"]);
+
+                return $this->redirect(['action' => 'login']);
             }
             if ($member->age > 17) {
                 $member->status = Member::STATUS_ACTIVE;
@@ -1095,78 +1106,79 @@ class MembersController extends AppController
             if ($this->Members->save($member)) {
                 if ($member->age > 17) {
                     $url = Router::url([
-                        "controller" => "Members",
-                        "action" => "resetPassword",
-                        "plugin" => null,
-                        "_full" => true,
+                        'controller' => 'Members',
+                        'action' => 'resetPassword',
+                        'plugin' => null,
+                        '_full' => true,
                         $member->password_token,
                     ]);
                     $vars = [
-                        "url" => $url,
-                        "sca_name" => $member->sca_name,
+                        'url' => $url,
+                        'sca_name' => $member->sca_name,
                     ];
-                    $this->queueMail("KMP", "newRegistration", $member->email_address, $vars);
+                    $this->queueMail('KMP', 'newRegistration', $member->email_address, $vars);
                     $url = Router::url([
-                        "controller" => "Members",
-                        "action" => "view",
-                        "plugin" => null,
-                        "_full" => true,
+                        'controller' => 'Members',
+                        'action' => 'view',
+                        'plugin' => null,
+                        '_full' => true,
                         $member->id,
                     ]);
                     $vars = [
-                        "url" => $url,
-                        "sca_name" => $member->sca_name,
+                        'url' => $url,
+                        'sca_name' => $member->sca_name,
                     ];
                     if ($member->membership_card_path != null && strlen($member->membership_card_path) > 0) {
-                        $vars["membershipCardPresent"] = true;
+                        $vars['membershipCardPresent'] = true;
                     } else {
-                        $vars["membershipCardPresent"] = false;
+                        $vars['membershipCardPresent'] = false;
                     }
-                    $this->queueMail("KMP", "notifySecretaryOfNewMember", $member->email_address, $vars);
-                    $this->Flash->success(__("Your registration has been submitted. Please check your email for a link to set up your password."));
+                    $this->queueMail('KMP', 'notifySecretaryOfNewMember', $member->email_address, $vars);
+                    $this->Flash->success(__('Your registration has been submitted. Please check your email for a link to set up your password.'));
                 } else {
                     $url = Router::url([
-                        "controller" => "Members",
-                        "action" => "view",
-                        "plugin" => null,
-                        "_full" => true,
+                        'controller' => 'Members',
+                        'action' => 'view',
+                        'plugin' => null,
+                        '_full' => true,
                         $member->id,
                     ]);
                     $vars = [
-                        "url" => $url,
-                        "sca_name" => $member->sca_name,
+                        'url' => $url,
+                        'sca_name' => $member->sca_name,
                     ];
                     if ($member->membership_card_path != null && strlen($member->membership_card_path) > 0) {
-                        $vars["membershipCardPresent"] = true;
+                        $vars['membershipCardPresent'] = true;
                     } else {
-                        $vars["membershipCardPresent"] = false;
+                        $vars['membershipCardPresent'] = false;
                     }
-                    $this->queueMail("KMP", "notifySecretaryOfNewMinorMember", $member->email_address, $vars);
-                    $this->Flash->success(__("Your registration has been submitted. The Kingdom Secretary will need to verify your account with your parent or guardian"));
+                    $this->queueMail('KMP', 'notifySecretaryOfNewMinorMember', $member->email_address, $vars);
+                    $this->Flash->success(__('Your registration has been submitted. The Kingdom Secretary will need to verify your account with your parent or guardian'));
                 }
 
-                return $this->redirect(["action" => "login"]);
+                return $this->redirect(['action' => 'login']);
             }
             $this->Flash->error(
-                __("The Member could not be saved. Please, try again."),
+                __('The Member could not be saved. Please, try again.'),
             );
         }
         $headerImage = StaticHelpers::getAppSetting(
-            "KMP.Login.Graphic"
+            'KMP.Login.Graphic',
         );
         $months = array_reduce(range(1, 12), function ($rslt, $m) {
             $rslt[$m] = date('F', mktime(0, 0, 0, $m, 10));
+
             return $rslt;
         });
         $years = array_combine(range(date('Y'), date('Y') - 130), range(date('Y'), date('Y') - 130));
         $treeList = $this->Members->Branches
-            ->find("list", keyPath: function ($entity) {
-                return $entity->id . '|' . ($entity->can_have_members == 1 ? "true" : "false");
+            ->find('list', keyPath: function ($entity) {
+                return $entity->id . '|' . ($entity->can_have_members == 1 ? 'true' : 'false');
             })
-            ->where(["can_have_members" => true])
-            ->orderBy(["name" => "ASC"])->toArray();
+            ->where(['can_have_members' => true])
+            ->orderBy(['name' => 'ASC'])->toArray();
 
-        $this->set(compact("member", "treeList", "months", "years", "headerImage"));
+        $this->set(compact('member', 'treeList', 'months', 'years', 'headerImage'));
     }
 
     #endregion
@@ -1179,35 +1191,35 @@ class MembersController extends AppController
     public function importExpirationDates()
     {
         $this->Authorization->authorize($this->Members->newEmptyEntity());
-        if ($this->request->is("post")) {
-            $file = $this->request->getData("importData");
-            $file = $file->getStream()->getMetadata("uri");
-            $csv = array_map("str_getcsv", file($file));
+        if ($this->request->is('post')) {
+            $file = $this->request->getData('importData');
+            $file = $file->getStream()->getMetadata('uri');
+            $csv = array_map('str_getcsv', file($file));
             $this->Members->getConnection()->begin();
             foreach ($csv as $row) {
                 if (
-                    "Member Number" == $row[0] ||
-                    "Expiration Date" == $row[1]
+                    $row[0] == 'Member Number' ||
+                    $row[1] == 'Expiration Date'
                 ) {
                     continue;
                 }
 
                 $member = $this->Members
                     ->find()
-                    ->where(["membership_number" => $row[0]])
+                    ->where(['membership_number' => $row[0]])
                     ->first();
                 if ($member) {
                     $member->membership_expires_on = new DateTime($row[1]);
-                    $member->setDirty("membership_expires_on", true);
+                    $member->setDirty('membership_expires_on', true);
                     if (!$this->Members->save($member)) {
                         $this->Members->getConnection()->rollback();
                         $this->Flash->error(
                             __(
-                                "Error saving member expiration date at " .
+                                'Error saving member expiration date at ' .
                                     $row[0] .
-                                    " with date " .
+                                    ' with date ' .
                                     $row[1] .
-                                    ". All modified have been rolled back.",
+                                    '. All modified have been rolled back.',
                             ),
                         );
 
@@ -1216,68 +1228,74 @@ class MembersController extends AppController
                 }
             }
             $this->Members->getConnection()->commit();
-            $this->Flash->success(__("Expiration dates imported successfully"));
+            $this->Flash->success(__('Expiration dates imported successfully'));
         }
     }
 
     #endregion
 
     #region Verification calls
+
     public function verifyMembership($id = null)
     {
         $member = $this->Members->get($id);
         $this->Authorization->authorize($member);
-        if ($this->request->is(["patch", "post", "put"])) {
-            $verifyMembership = $this->request->getData("verify_membership");
-            $verifyParent = $this->request->getData("verify_parent");
-            if ($verifyMembership == "1") {
-                $membership_number = $this->request->getData("membership_number");
+        if ($this->request->is(['patch', 'post', 'put'])) {
+            $verifyMembership = $this->request->getData('verify_membership');
+            $verifyParent = $this->request->getData('verify_parent');
+            if ($verifyMembership == '1') {
+                $membership_number = $this->request->getData('membership_number');
                 if (strlen($membership_number) == 0) {
-                    $this->Flash->error("Membership number is required.");
-                    return $this->redirect(["action" => "view", $member->id]);
+                    $this->Flash->error('Membership number is required.');
+
+                    return $this->redirect(['action' => 'view', $member->id]);
                 }
-                $member->membership_expires_on = $this->request->getData("membership_expires_on");
+                $member->membership_expires_on = $this->request->getData('membership_expires_on');
                 if ($member->membership_expires_on == null) {
-                    $this->Flash->error("Membership expiration date is required.");
-                    return $this->redirect(["action" => "view", $member->id]);
+                    $this->Flash->error('Membership expiration date is required.');
+
+                    return $this->redirect(['action' => 'view', $member->id]);
                 }
                 $member->membership_number = $membership_number;
-                $member->membership_expires_on = $this->request->getData("membership_expires_on");
-                if ($member->membership_expires_on != null && $member->membership_expires_on != "" && is_string($member->membership_expires_on)) {
+                $member->membership_expires_on = $this->request->getData('membership_expires_on');
+                if ($member->membership_expires_on != null && $member->membership_expires_on != '' && is_string($member->membership_expires_on)) {
                     //convert to a date
                     $member->membership_expires_on = DateTime::createFromFormat('Y-m-d', $member->membership_expires_on);
                 }
             }
-            if ($member->age < 18 && $verifyParent == "1") {
-                $parentId = $this->request->getData("parent_id");
+            if ($member->age < 18 && $verifyParent == '1') {
+                $parentId = $this->request->getData('parent_id');
                 if ($parentId) {
-                    if ($parentId && strlen($parentId) > 0)
-
+                    if ($parentId && strlen($parentId) > 0) {
                         $parent = $this->Members->get($parentId);
+                    }
                     if ($parentId == $member->id) {
-                        $this->Flash->error("Parent cannot be the same as the member.");
-                        return $this->redirect(["action" => "view", $member->id]);
+                        $this->Flash->error('Parent cannot be the same as the member.');
+
+                        return $this->redirect(['action' => 'view', $member->id]);
                     }
                     if ($parent->age < 18) {
-                        $this->Flash->error("Parent must be an adult.");
-                        return $this->redirect(["action" => "view", $member->id]);
+                        $this->Flash->error('Parent must be an adult.');
+
+                        return $this->redirect(['action' => 'view', $member->id]);
                     }
                     $member->parent_id = $parent->id;
                 } else {
-                    $this->Flash->error("Parent is required for minors.");
-                    return $this->redirect(["action" => "view", $member->id]);
+                    $this->Flash->error('Parent is required for minors.');
+
+                    return $this->redirect(['action' => 'view', $member->id]);
                 }
             }
             //if the member is an adult and the membership was validated then set the status to active
-            if ($member->age > 17 && $verifyMembership == "1") {
+            if ($member->age > 17 && $verifyMembership == '1') {
                 $member->status = Member::STATUS_VERIFIED_MEMBERSHIP;
             }
             //if the member is a minor and the parent was validated then set the status to verified minor
-            if ($member->age < 18 && $verifyParent == "1" && $verifyMembership == "1") {
+            if ($member->age < 18 && $verifyParent == '1' && $verifyMembership == '1') {
                 $member->status = Member::STATUS_VERIFIED_MINOR;
             }
             //if the member is a minor and the parent was validated then set the status to parent validataed
-            if ($member->age < 18 && $verifyParent == "1" && $verifyMembership != "1") {
+            if ($member->age < 18 && $verifyParent == '1' && $verifyMembership != '1') {
                 //if the member is already membership verified then set to minor verified
                 if ($member->status == Member::STATUS_MINOR_MEMBERSHIP_VERIFIED) {
                     $member->status = Member::STATUS_VERIFIED_MINOR;
@@ -1286,8 +1304,7 @@ class MembersController extends AppController
                 }
             }
             //if the the member is a minor and the parent was not validated by the membership was then set the status to minor membership verified
-            if ($member->age < 18 && $verifyParent != "1" && $verifyMembership == "1") {
-
+            if ($member->age < 18 && $verifyParent != '1' && $verifyMembership == '1') {
                 if ($member->status == Member::STATUS_MINOR_PARENT_VERIFIED) {
                     $member->status = Member::STATUS_VERIFIED_MINOR;
                 } else {
@@ -1306,49 +1323,54 @@ class MembersController extends AppController
             }
             if (!$this->Members->save($member)) {
                 $this->Flash->error(
-                    __("The Member could not be verified. Please, try again."),
+                    __('The Member could not be verified. Please, try again.'),
                 );
-                $this->redirect(["action" => "view", $member->id]);
+                $this->redirect(['action' => 'view', $member->id]);
             }
             if ($image != null && $deleteImage) {
                 $image = WWW_ROOT . '../images/uploaded/' . $image;
                 $member->membership_card_path = null;
                 if (!StaticHelpers::deleteFile($image)) {
-                    $this->Flash->error("Error deleting image, please try again.");
-                    return $this->redirect(["action" => "view", $member->id]);
+                    $this->Flash->error('Error deleting image, please try again.');
+
+                    return $this->redirect(['action' => 'view', $member->id]);
                 }
             }
         }
-        $this->Flash->success(__("The Membership has been verified."));
-        return $this->redirect(["action" => "view", $member->id]);
+        $this->Flash->success(__('The Membership has been verified.'));
+
+        return $this->redirect(['action' => 'view', $member->id]);
     }
+
     #endregion
 
     #region protected
+
     protected function _addRolesSelectAndContain(SelectQuery $q)
     {
         return $q
             ->select([
-                "id",
-                "member_id",
-                "role_id",
-                "start_on",
-                "expires_on",
-                "role_id",
-                "approver_id",
-                "entity_type"
+                'id',
+                'member_id',
+                'role_id',
+                'start_on',
+                'expires_on',
+                'role_id',
+                'approver_id',
+                'entity_type',
             ])
             ->contain([
-                "Roles" => function (SelectQuery $q) {
-                    return $q->select(["Roles.name"]);
+                'Roles' => function (SelectQuery $q) {
+                    return $q->select(['Roles.name']);
                 },
-                "ApprovedBy" => function (SelectQuery $q) {
-                    return $q->select(["ApprovedBy.sca_name"]);
+                'ApprovedBy' => function (SelectQuery $q) {
+                    return $q->select(['ApprovedBy.sca_name']);
                 },
-                "Branches" => function (SelectQuery $q) {
-                    return $q->select(["Branches.name"]);
+                'Branches' => function (SelectQuery $q) {
+                    return $q->select(['Branches.name']);
                 },
             ]);
     }
+
     #endregion
 }

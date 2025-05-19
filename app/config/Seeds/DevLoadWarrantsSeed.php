@@ -5,6 +5,8 @@ declare(strict_types=1);
 use Migrations\BaseSeed;
 use Cake\I18n\DateTime;
 
+require_once __DIR__ . '/Lib/SeedHelpers.php';
+
 /**
  * Roles seed.
  */
@@ -17,39 +19,42 @@ class DevLoadWarrantsSeed extends BaseSeed
      */
     public function getData(): array
     {
+
+
+        $adminId = SeedHelpers::getMemberId('admin@test.com');
         return [
             [
-                'id' => 2,
+                //'id' => 2,
                 'name' => 'Developer Warrant',
-                'member_id' => 200,
-                'warrant_roster_id' => 1,
-                'entity_type' => 'Direct Grant',
-                'entity_id' => 201,
-                'member_role_id' => 200,
-                'expires_on' => '2100-10-10 00:00:00',
-                'start_on' => '2020-01-01 00:00:00',
-                'approved_date' => '2020-01-01 00:00:00',
-                'status' => 'Current',
-                'revoked_reason' => NULL,
-                'revoker_id' => NULL,
-                'created_by' => 1,
-                'created' => DateTime::now(),
-            ],
-            [
-                'id' => 3,
-                'name' => 'Developer Warrant',
-                'member_id' => 201,
+                'member_id' => SeedHelpers::getMemberId('Earl@test.com'), //200,
                 'warrant_roster_id' => 1,
                 'entity_type' => 'Direct Grant',
                 'entity_id' => -1,
-                'member_role_id' => 201,
+                'member_role_id' => SeedHelpers::getMemberRoleByMemberAndRoleName(SeedHelpers::getMemberId('Earl@test.com'), 'Kingdom Earl Marshal'), //200
                 'expires_on' => '2100-10-10 00:00:00',
                 'start_on' => '2020-01-01 00:00:00',
                 'approved_date' => '2020-01-01 00:00:00',
                 'status' => 'Current',
                 'revoked_reason' => NULL,
                 'revoker_id' => NULL,
-                'created_by' => 1,
+                'created_by' => $adminId,
+                'created' => DateTime::now(),
+            ],
+            [
+                //'id' => 3,
+                'name' => 'Developer Warrant',
+                'member_id' => SeedHelpers::getMemberId('Stan@test.com'), //201,
+                'warrant_roster_id' => 1,
+                'entity_type' => 'Direct Grant',
+                'entity_id' => -1,
+                'member_role_id' => SeedHelpers::getMemberRoleByMemberAndRoleName(SeedHelpers::getMemberId('Earl@test.com'), 'Kingdom Rapier Marshal'), //201,
+                'expires_on' => '2100-10-10 00:00:00',
+                'start_on' => '2020-01-01 00:00:00',
+                'approved_date' => '2020-01-01 00:00:00',
+                'status' => 'Current',
+                'revoked_reason' => NULL,
+                'revoker_id' => NULL,
+                'created_by' => $adminId,
                 'created' => DateTime::now(),
             ],
         ];

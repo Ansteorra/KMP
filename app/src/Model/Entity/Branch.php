@@ -1,8 +1,7 @@
 <?php
+declare(strict_types=1);
 
 namespace App\Model\Entity;
-
-use Cake\ORM\Entity;
 
 /**
  * Branch Entity
@@ -24,7 +23,7 @@ class Branch extends BaseEntity
      * @var array
      */
     protected array $_accessible = [
-        "*" => true,
-        "id" => false,
+        '*' => true,
+        'id' => false,
     ];
 }

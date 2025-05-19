@@ -5,21 +5,19 @@ namespace Officers\Policy;
 use Authorization\Policy\RequestPolicyInterface;
 use Cake\Http\ServerRequest;
 use Authorization\Policy\ResultInterface;
-use Authorization\IdentityInterface;
+use App\KMP\KmpIdentityInterface;
 use App\Policy\BasePolicy;
+use App\Model\Entity\BaseEntity;
 
 class RostersControllerPolicy extends BasePolicy
 {
-    protected string $REQUIRED_PERMISSION = "Can Manage Officers";
-    protected string $REQUIRED_ROSTER_PERMISSION = "Can Create Officer Roster";
-
-    public function canAdd(IdentityInterface $user, $entity, ...$optionalArgs)
-    {
-        $method = __FUNCTION__;
-        return $this->_hasPolicy($user, $method, $entity);
-    }
-
-    public function canCreateRoster(IdentityInterface $user, $entity, ...$optionalArgs)
+    /**
+     * Check if the user can view the reports
+     * @param KmpIdentityInterface $user The user
+     * @param BaseEntity $entity The entity
+     * @return bool
+     */
+    public function canCreateRoster(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
         return $this->_hasPolicy($user, $method, $entity);

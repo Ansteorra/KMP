@@ -1,10 +1,7 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Entity;
-
-use Cake\ORM\Entity;
 
 /**
  * WarrantRoster Entity
@@ -24,9 +21,9 @@ use Cake\ORM\Entity;
  */
 class WarrantRoster extends BaseEntity
 {
-    const STATUS_APPROVED = "Approved"; //all signers approved
-    const STATUS_DECLINED = "Declined"; //at least 1 signer declined
-    const STATUS_PENDING = "Pending"; //awaiting approval
+    public const STATUS_APPROVED = 'Approved'; //all signers approved
+    public const STATUS_DECLINED = 'Declined'; //at least 1 signer declined
+    public const STATUS_PENDING = 'Pending'; //awaiting approval
 
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().

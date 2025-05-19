@@ -1,27 +1,44 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Policy;
 
-use Authorization\Policy\RequestPolicyInterface;
-use Cake\Http\ServerRequest;
+use App\KMP\KmpIdentityInterface;
+use App\Model\Entity\BaseEntity;
 use Authorization\Policy\ResultInterface;
-use Authorization\IdentityInterface;
 
 class ReportsControllerPolicy extends BasePolicy
 {
+    /**
+     * Check if user can access rolesList
+     *
+     * @param \App\KMP\KmpIdentityInterface $user User
+     * @param Array $entity urlProps
+     * @return \Authorization\Policy\ResultInterface|bool
+     */
     public function canRolesList(
-        IdentityInterface $user,
-        $entity,
+        KmpIdentityInterface $user,
+        array $urlProps,
     ): ResultInterface|bool {
         $method = __FUNCTION__;
-        return $this->_hasPolicy($user, $method, $entity);
+
+        return $this->_hasPolicyForUrl($user, $method, $urlProps);
     }
 
+    /**
+     * Check if user can access permissionsWarrantsRoster
+     *
+     * @param \App\KMP\KmpIdentityInterface $user User
+     * @param Array $entity urlProps
+     * @return \Authorization\Policy\ResultInterface|bool
+     */
     public function canPermissionsWarrantsRoster(
-        IdentityInterface $user,
-        $entity,
+        KmpIdentityInterface $user,
+        array $urlProps,
     ): ResultInterface|bool {
         $method = __FUNCTION__;
-        return $this->_hasPolicy($user, $method, $entity);
+
+        return $this->_hasPolicyForUrl($user, $method, $urlProps);
     }
 }

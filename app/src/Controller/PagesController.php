@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 /**
@@ -18,14 +17,11 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
-use Cake\Core\Configure;
 use Cake\Event\EventInterface;
 use Cake\Http\Exception\ForbiddenException;
 use Cake\Http\Exception\NotFoundException;
 use Cake\Http\Response;
 use Cake\View\Exception\MissingTemplateException;
-use App\KMP\StaticHelpers;
-use Cake\Log\Log;
 
 /**
  * Static content controller
@@ -36,15 +32,15 @@ use Cake\Log\Log;
  */
 class PagesController extends AppController
 {
-
     public function beforeFilter(EventInterface $event)
     {
         parent::beforeFilter($event);
         $this->Authentication->allowUnauthenticated([
-            "display",
-            "webmanifest"
+            'display',
+            'webmanifest',
         ]);
     }
+
     /**
      * Displays a view
      *
@@ -61,9 +57,9 @@ class PagesController extends AppController
     {
         $this->Authorization->skipAuthorization();
         if (!$path) {
-            return $this->redirect("/");
+            return $this->redirect('/');
         }
-        if (in_array("..", $path, true) || in_array(".", $path, true)) {
+        if (in_array('..', $path, true) || in_array('.', $path, true)) {
             throw new ForbiddenException();
         }
         $page = $subpage = null;
@@ -74,20 +70,20 @@ class PagesController extends AppController
         if (!empty($path[1])) {
             $subpage = $path[1];
         }
-        $this->set(compact("page", "subpage"));
+        $this->set(compact('page', 'subpage'));
 
         try {
-            return $this->render(implode("/", $path));
+            return $this->render(implode('/', $path));
         } catch (MissingTemplateException $exception) {
             //get current user
             $user = $this->Authentication->getIdentity();
             if ($user) {
-                return $this->redirect(["controller" => "members", "action" => "view", $user["id"]]);
+                return $this->redirect(['controller' => 'members', 'action' => 'view', $user['id']]);
             }
             //if (Configure::read("debug")) {
             //    throw $exception;
             //}
-            return $this->redirect(["controller" => "members", "action" => "login"]);
+            return $this->redirect(['controller' => 'members', 'action' => 'login']);
         }
     }
 
@@ -98,7 +94,7 @@ class PagesController extends AppController
         if ($id) {
             $mobile_token = $id;
         } else {
-            $mobile_token = $this->request->getParam("mobile_token");
+            $mobile_token = $this->request->getParam('mobile_token');
         }
         if (!$mobile_token) {
             $current_user = $this->Authentication->getIdentity();
@@ -107,8 +103,8 @@ class PagesController extends AppController
         if (!$mobile_token) {
             throw new NotFoundException();
         }
-        $this->viewBuilder()->setLayout("ajax");
-        $this->response = $this->response->withType("application/manifest+json");
-        $this->set(compact("mobile_token"));
+        $this->viewBuilder()->setLayout('ajax');
+        $this->response = $this->response->withType('application/manifest+json');
+        $this->set(compact('mobile_token'));
     }
 }

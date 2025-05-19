@@ -747,7 +747,7 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
             ['path' => '/awards'],
             function (RouteBuilder $builder) {
                 // Add custom routes here
-
+                $builder->setExtensions(["json", "pdf", "csv"]);
                 $builder->fallbacks();
             }
         );

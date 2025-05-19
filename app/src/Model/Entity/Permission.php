@@ -1,10 +1,9 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Model\Entity;
 
-use Cake\ORM\Entity;
+use InvalidArgumentException;
 
 /**
  * Permission Entity
@@ -23,18 +22,16 @@ use Cake\ORM\Entity;
  */
 class Permission extends BaseEntity
 {
-
-    const SCOPE_GLOBAL = "Global"; //No Scope limitations
-    const SCOPE_BRANCH_ONLY = "Branch Only"; //
-    const SCOPE_BRANCH_AND_CHILDREN = "Branch and Children"; //Can Login
+    public const SCOPE_GLOBAL = 'Global'; //No Scope limitations
+    public const SCOPE_BRANCH_ONLY = 'Branch Only';
+    public const SCOPE_BRANCH_AND_CHILDREN = 'Branch and Children'; //Can Login
 
     //scoping rules as an array for dropdowns
-    const SCOPING_RULES = [
+    public const SCOPING_RULES = [
         self::SCOPE_GLOBAL => self::SCOPE_GLOBAL,
         self::SCOPE_BRANCH_ONLY => self::SCOPE_BRANCH_ONLY,
-        self::SCOPE_BRANCH_AND_CHILDREN => self::SCOPE_BRANCH_AND_CHILDREN
+        self::SCOPE_BRANCH_AND_CHILDREN => self::SCOPE_BRANCH_AND_CHILDREN,
     ];
-
 
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().
@@ -46,15 +43,15 @@ class Permission extends BaseEntity
      * @var array<string, bool>
      */
     protected array $_accessible = [
-        "name" => true,
-        "require_active_membership" => true,
-        "require_active_background_check" => true,
-        "require_min_age" => true,
-        "is_system" => true,
-        "is_super_user" => true,
-        "requires_warrant" => true,
-        "scoping_rule" => true,
-        "roles" => true
+        'name' => true,
+        'require_active_membership' => true,
+        'require_active_background_check' => true,
+        'require_min_age' => true,
+        'is_system' => true,
+        'is_super_user' => true,
+        'requires_warrant' => true,
+        'scoping_rule' => true,
+        'roles' => true,
     ];
 
     protected function _setScopeing_rule($value)
@@ -66,7 +63,7 @@ class Permission extends BaseEntity
             case self::SCOPE_BRANCH_AND_CHILDREN:
                 return $value;
             default:
-                throw new \InvalidArgumentException("Invalid Scoping Rule");
+                throw new InvalidArgumentException('Invalid Scoping Rule');
         }
     }
 }
