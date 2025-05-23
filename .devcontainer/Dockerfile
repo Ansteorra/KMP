@@ -38,3 +38,28 @@ RUN mkdir -p /var/log/supervisor
 COPY supervisord.conf /etc/supervisor/supervisord.conf
 
 RUN touch /var/log/cron.log
+
+RUN mkdir -p /opt/zaproxy && \
+    curl -sSL https://github.com/zaproxy/zaproxy/releases/download/v2.13.0/ZAP_2.13.0_Linux.tar.gz | \
+    tar -xzf - -C /opt/zaproxy --strip-components=1 && \
+    ln -s /opt/zaproxy/zap.sh /usr/local/bin/zap
+
+RUN mkdir -p /opt/dependency-check && \
+    curl -sSL https://github.com/jeremylong/DependencyCheck/releases/download/v8.2.1/dependency-check-8.2.1-release.zip -o /tmp/dependency-check.zip && \
+    unzip /tmp/dependency-check.zip -d /opt && \
+    rm /tmp/dependency-check.zip && \
+    ln -s /opt/dependency-check/bin/dependency-check.sh /usr/local/bin/dependency-check
+
+RUN apt-get update && apt-get install -y nikto
+
+RUN apt-get update && apt-get install -y python3-pip && \
+    pip3 install sqlmap
+
+RUN curl -sSL https://github.com/fabpot/local-php-security-checker/releases/download/v2.0.6/local-php-security-checker_2.0.6_linux_amd64 -o /usr/local/bin/local-php-security-checker && \
+    chmod +x /usr/local/bin/local-php-security-checker
+
+RUN curl -sSL https://github.com/projectdiscovery/nuclei/releases/download/v3.4.4/nuclei_3.4.4_linux_arm64.zip -o /tmp/nuclei.zip && \
+    unzip /tmp/nuclei.zip -d /tmp && \
+    mv /tmp/nuclei /usr/local/bin/ && \
+    chmod +x /usr/local/bin/nuclei && \
+    rm /tmp/nuclei.zip
