@@ -39,10 +39,15 @@ COPY supervisord.conf /etc/supervisor/supervisord.conf
 
 RUN touch /var/log/cron.log
 
-RUN mkdir -p /opt/zaproxy && \
-    curl -sSL https://github.com/zaproxy/zaproxy/releases/download/v2.13.0/ZAP_2.13.0_Linux.tar.gz | \
-    tar -xzf - -C /opt/zaproxy --strip-components=1 && \
-    ln -s /opt/zaproxy/zap.sh /usr/local/bin/zap
+RUN curl -sSL https://github.com/zaproxy/zaproxy/releases/download/w2025-05-20/ZAP_WEEKLY_D-2025-05-20.zip -o /tmp/zaproxy.zip && \
+    unzip /tmp/zaproxy.zip -d /opt && \
+    rm /tmp/zaproxy.zip && \
+    ln -s /opt/ZAP_D-2025-05-20/zap.sh /usr/local/bin/zap
+
+#RUN  apt-get install -y default-jdk
+#RUN  export JAVA_HOME=$(readlink -f /usr/bin/java | sed "s:/bin/java::")
+#RUN  echo "JAVA_HOME=$JAVA_HOME" >> /etc/environment
+#RUN  echo "export JAVA_HOME=$JAVA_HOME" >> ~/.bashrc
 
 RUN mkdir -p /opt/dependency-check && \
     curl -sSL https://github.com/jeremylong/DependencyCheck/releases/download/v8.2.1/dependency-check-8.2.1-release.zip -o /tmp/dependency-check.zip && \
@@ -50,10 +55,18 @@ RUN mkdir -p /opt/dependency-check && \
     rm /tmp/dependency-check.zip && \
     ln -s /opt/dependency-check/bin/dependency-check.sh /usr/local/bin/dependency-check
 
-RUN apt-get update && apt-get install -y nikto
+RUN apt-get update && \
+    git clone https://github.com/sullo/nikto.git /opt/nikto && \
+    ln -s /opt/nikto/program/nikto.pl /usr/local/bin/nikto && \
+    chmod +x /usr/local/bin/nikto && \
+    apt-get install -y libnet-ssleay-perl perl-modules && \
+    apt-get install -y libwhisker2-perl
 
-RUN apt-get update && apt-get install -y python3-pip && \
-    pip3 install sqlmap
+RUN apt-get update && \
+    apt-get install -y git python3-pip && \
+    git clone --depth 1 https://github.com/sqlmapproject/sqlmap.git /opt/sqlmap && \
+    ln -s /opt/sqlmap/sqlmap.py /usr/local/bin/sqlmap && \
+    chmod +x /usr/local/bin/sqlmap
 
 RUN curl -sSL https://github.com/fabpot/local-php-security-checker/releases/download/v2.0.6/local-php-security-checker_2.0.6_linux_amd64 -o /usr/local/bin/local-php-security-checker && \
     chmod +x /usr/local/bin/local-php-security-checker
@@ -63,3 +76,7 @@ RUN curl -sSL https://github.com/projectdiscovery/nuclei/releases/download/v3.4.
     mv /tmp/nuclei /usr/local/bin/ && \
     chmod +x /usr/local/bin/nuclei && \
     rm /tmp/nuclei.zip
+
+# Add python3 to python alias for compatibility
+RUN ln -s /usr/bin/python3 /usr/local/bin/python && \
+    python --version

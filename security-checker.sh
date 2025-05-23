@@ -4,10 +4,13 @@
 echo "🔒 Running security checks on KMP application..."
 
 echo "1️⃣ Checking PHP dependencies for vulnerabilities..."
+cd /workspaces/KMP/app
 local-php-security-checker
+cd ..
 
 echo "2️⃣ Running OWASP dependency check..."
-dependency-check --project "KMP" --scan "/workspaces/KMP" --out "/workspaces/KMP/security-reports/dependency-check"
+dependency-check --project "KMP"  --scan "/workspaces/KMP/app"  --out "/workspaces/KMP/security-reports/dependency-check"  --data "/workspaces/KMP/security-reports/dependency-check-data" --updateonly
+dependency-check --project "KMP"  --scan "/workspaces/KMP/app"  --out "/workspaces/KMP/security-reports/dependency-check"  --data "/workspaces/KMP/security-reports/dependency-check-data"
 
 echo "3️⃣ Running Nikto scan..."
 nikto -h localhost:8080 -o /workspaces/KMP/security-reports/nikto-report.html -Format html

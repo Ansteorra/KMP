@@ -7,3 +7,6 @@ docs/_site
 docs/.sass-cache
 app/.phpunit.cache/test-results
 nohup.out
+security-reports/
+security-reports/**/.*
+.DS_Store

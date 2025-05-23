@@ -154,7 +154,22 @@ class Application extends BaseApplication implements
                     ->withHeader('X-Frame-Options', 'SAMEORIGIN')
                     ->withHeader('X-XSS-Protection', '1; mode=block')
                     ->withHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
-                    ->withHeader('Strict-Transport-Security', 'max-age=86400; includeSubDomains');
+                    ->withHeader('Strict-Transport-Security', 'max-age=86400; includeSubDomains')
+                    ->withHeader(
+                        'Content-Security-Policy',
+                        "default-src 'self'; " .
+                            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; " .
+                            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; " .
+                            "font-src 'self' https://fonts.gstatic.com; " .
+                            "img-src 'self' data: https:; " .
+                            "connect-src 'self'; " .
+                            "frame-src 'self'; " .
+                            "object-src 'none'; " .
+                            "base-uri 'self'; " .
+                            "form-action 'self'; " .
+                            "frame-ancestors 'self'; " .
+                            "upgrade-insecure-requests"
+                    );
             })
 
             // Handle plugin/theme assets like CakePHP normally does.

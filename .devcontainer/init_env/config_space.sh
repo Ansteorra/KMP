@@ -143,3 +143,8 @@ sudo mv phpunit.phar /usr/local/bin/phpunit
 (crontab -l | grep -F "$cron_job") && echo "Cron job already exists." || (crontab -l 2>/dev/null; echo "$cron_job") | crontab -
 sudo chmod 644 /var/log/cron.log && sudo chown vscode:vscode /var/log/cron.log
 sudo service cron start
+
+sudo apt-get install -y default-jdk
+export JAVA_HOME=$(readlink -f /usr/bin/java | sed "s:/bin/java::")
+sudo echo "JAVA_HOME=$JAVA_HOME" >> /etc/environment
+echo "export JAVA_HOME=$JAVA_HOME" >> ~/.bashrc
