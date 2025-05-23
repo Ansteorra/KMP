@@ -425,6 +425,13 @@ return [
     "Session" => [
         "defaults" => "php",
         "timeout" => 30,
+        "cookie" => "PHPSESSID", // You can customize this name if desired
+        "ini" => [
+            "session.cookie_secure" => true,
+            "session.cookie_httponly" => true,
+            "session.cookie_samesite" => "Strict",
+            "session.use_strict_mode" => true,
+        ],
     ],
 
     'Icon' => [

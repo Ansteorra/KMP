@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 /**
@@ -144,6 +145,33 @@ class Application extends BaseApplication implements
             // Catch any exceptions in the lower layers,
             // and make an error page/response
             ->add(new ErrorHandlerMiddleware(Configure::read('Error'), $this))
+
+            // Add security headers middleware
+            ->add(function ($request, $handler) {
+                $response = $handler->handle($request);
+                return $response
+                    ->withHeader('X-Content-Type-Options', 'nosniff')
+                    ->withHeader('X-Frame-Options', 'SAMEORIGIN')
+                    ->withHeader('X-XSS-Protection', '1; mode=block')
+                    ->withHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
+                    ->withHeader('Strict-Transport-Security', 'max-age=86400; includeSubDomains')
+                    ->withHeader(
+                        'Content-Security-Policy',
+                        "default-src 'self'; " .
+                            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; " .
+                            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; " .
+                            "font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net;" .
+                            "img-src 'self' data: https:; " .
+                            "connect-src 'self'; " .
+                            "frame-src 'self'; " .
+                            "object-src 'none'; " .
+                            "base-uri 'self'; " .
+                            "form-action 'self'; " .
+                            "frame-ancestors 'self'; " .
+                            "upgrade-insecure-requests"
+                    );
+            })
+
             // Handle plugin/theme assets like CakePHP normally does.
             ->add(
                 new AssetMiddleware([
@@ -164,6 +192,8 @@ class Application extends BaseApplication implements
             ->add(
                 new CsrfProtectionMiddleware([
                     'httponly' => true,
+                    'secure' => true,
+                    'sameSite' => 'Strict',
                 ]),
             )
             // Add the AuthenticationMiddleware. It should be
@@ -172,7 +202,7 @@ class Application extends BaseApplication implements
             ->add(
                 new AuthorizationMiddleware($this, [
                     'identityDecorator' => function (AuthorizationServiceInterface $auth, KmpIdentityInterface $user) {
-                // Modify this line
+                        // Modify this line
                         return $user->setAuthorization($auth);
                     },
                     'requireAuthorizationCheck' => true,
