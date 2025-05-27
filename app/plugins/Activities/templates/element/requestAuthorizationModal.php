@@ -20,7 +20,7 @@ echo $this->Modal->create("Request Authorization", [
         $this->Form,
         'activity_name',
         'activity',
-        $activities,
+        $activities->toArray(),
         "Activity",
         true,
         false,

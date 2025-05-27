@@ -17,7 +17,7 @@ echo $this->Modal->create("Add Member to Role", [
         'action' => 'AutoComplete',
         'plugin' => null
     ]);
-    $this->KMP->autoCompleteControl(
+    echo $this->KMP->autoCompleteControl(
         $this->Form,
         'sca_name',
         'member_id',

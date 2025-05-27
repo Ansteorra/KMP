@@ -25,7 +25,7 @@ class ReportsController extends AppController
 
     public function authorizations()
     {
-        $this->Authorization->authorize($this);
+        $this->authorizeCurrentUrl();
         $distincMemberCount = 0;
         $ActivitiesTbl
             = TableRegistry::getTableLocator()->get('Activities.Activities');

@@ -1,6 +1,6 @@
 <turbo-frame id="editRecommendation">
     <script type="application/json" data-awards-rec-edit-target="stateRulesBlock" class="d-none">
-    <?= json_encode($rules) ?>
+        <?= json_encode($rules) ?>
     </script>
     <fieldset>
         <?php
@@ -10,7 +10,7 @@
             'action' => 'AutoComplete',
             'plugin' => null
         ]);
-        $this->KMP->autoCompleteControl(
+        echo $this->KMP->autoCompleteControl(
             $this->Form,
             'member_sca_name',
             'member_id',
@@ -53,7 +53,7 @@
             $this->Form,
             'domain_name',
             'domain_id',
-            $awardsDomains,
+            $awardsDomains->toArray(),
             "Award Type",
             true,
             false,

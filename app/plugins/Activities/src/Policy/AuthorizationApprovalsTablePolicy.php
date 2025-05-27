@@ -9,6 +9,7 @@ use App\KMP\KmpIdentityInterface;
 use App\Policy\BasePolicy;
 use Activities\Model\Table\ActivitiesTable;
 use App\Model\Entity\BaseEntity;
+use Cake\ORM\TableRegistry;
 
 /**
  * AuthorizationApprovalsTable policy
@@ -51,7 +52,7 @@ class AuthorizationApprovalsTablePolicy extends BasePolicy
     public function scopeIndex(KmpIdentityInterface $user, $query)
     {
         //get the AuthorizationApprovalsTable   
-        $authorizationApprovalsTable = $query->getTableLocator()->get("Activities.AuthorizationApprovals");
+        $authorizationApprovalsTable = TableRegistry::getTableLocator()->get("Activities.AuthorizationApprovals");
         // get an empty instance of the table
         $authorizationApproval = $authorizationApprovalsTable->newEmptyEntity();
         if ($this->canAllQueues($user, $authorizationApproval)) {
@@ -83,7 +84,7 @@ class AuthorizationApprovalsTablePolicy extends BasePolicy
     public function scopeView(KmpIdentityInterface $user, $query)
     {
         //get the AuthorizationApprovalsTable   
-        $authorizationApprovalsTable = $query->getTableLocator()->get("Activities.AuthorizationApprovals");
+        $authorizationApprovalsTable = TableRegistry::getTableLocator()->get("Activities.AuthorizationApprovals");
         // get an empty instance of the table
         $authorizationApproval = $authorizationApprovalsTable->newEmptyEntity();
         if ($this->canAllQueues($user, $authorizationApproval)) {

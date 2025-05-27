@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Controller;
@@ -16,8 +17,7 @@ class ReportsController extends AppController
 
     public function rolesList()
     {
-
-        $this->Authorization->authorize($this);
+        $this->authorizeCurrentUrl();
         $rolestbl
             = TableRegistry::getTableLocator()->get('Roles');
         $validOn = DateTime::now()->addDays(1);
@@ -48,7 +48,7 @@ class ReportsController extends AppController
     public function permissionsWarrantsRoster()
     {
         $hide = false;
-        $this->Authorization->authorize($this);
+        $this->authorizeCurrentUrl();
         $validOn = DateTime::now()->addDays(1);
         if ($this->request->getQuery('validOn')) {
             $hide = $this->request->getQuery('hide');

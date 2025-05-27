@@ -73,7 +73,7 @@ echo $this->Modal->create("Assign Officer", [
         'action' => 'AutoComplete',
         'plugin' => 'Officers'
     ]);
-    $this->KMP->autoCompleteControl(
+    echo $this->KMP->autoCompleteControl(
         $this->Form,
         'sca_name',
         'member_id',

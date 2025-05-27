@@ -15,7 +15,7 @@ echo $this->Modal->create("Add Permission to Role", [
         $this->Form,
         'permission_name',
         'permission_id',
-        $permissions,
+        $permissions->toArray(),
         "Permission",
         true,
         false,

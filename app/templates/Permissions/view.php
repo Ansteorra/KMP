@@ -18,7 +18,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
 <?= $this->KMP->startBlock("recordActions") ?>
 <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal">Edit</button>
 <?php if (!$permission->is_system) { ?>
-<?= $this->Form->postLink(
+    <?= $this->Form->postLink(
         __("Delete"),
         ["action" => "delete", $permission->id],
         [
@@ -98,25 +98,25 @@ echo $this->KMP->startBlock("pageTitle") ?>
     data-detail-tabs-target="tabContent" data-detail-tabs-target="tabContent">
 
     <?php if ($user->checkCan("addPermission", "Roles")) { ?>
-    <button type="button" class="btn btn-primary btn-sm mb-3" data-bs-toggle="modal" data-bs-target="#addRoleModal">Add
-        Role</button>
+        <button type="button" class="btn btn-primary btn-sm mb-3" data-bs-toggle="modal" data-bs-target="#addRoleModal">Add
+            Role</button>
     <?php } ?>
     <?php if (!empty($permission->roles)) : ?>
-    <div class="table-responsive">
-        <table class="table table-striped">
-            <thead>
-                <tr>
-                    <th scope="col"><?= __("Name") ?></th>
-                    <th scope="col" class="actions"></th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($permission->roles as $role) : ?>
-                <tr>
-                    <td><?= h($role->name) ?></td>
-                    <td class="actions text-end text-nowrap">
-                        <?php if ($user->checkCan("deletePermission", "Roles")) { ?>
-                        <?= $this->Form->postLink(
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th scope="col"><?= __("Name") ?></th>
+                        <th scope="col" class="actions"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($permission->roles as $role) : ?>
+                        <tr>
+                            <td><?= h($role->name) ?></td>
+                            <td class="actions text-end text-nowrap">
+                                <?php if ($user->checkCan("deletePermission", "Roles")) { ?>
+                                    <?= $this->Form->postLink(
                                         __(""),
                                         [
                                             "controller" => "Roles",
@@ -134,24 +134,24 @@ echo $this->KMP->startBlock("pageTitle") ?>
                                             ],
                                         ],
                                     ) ?>
-                        <?php } ?>
-                    </td>
-                </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
-    </div>
+                                <?php } ?>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
     <?php else : ?>
-    <p><?= __("No Roles Assigned") ?></p>
+        <p><?= __("No Roles Assigned") ?></p>
     <?php endif; ?>
 </div>
 <div class="related tab-pane fade m-3" id="nav-policies" role="tabpanel" aria-labelledby="nav-policies-tab"
     data-detail-tabs-target="tabContent" data-detail-tabs-target="tabContent">
     <ul class="list-group" data-controller="permission-manage-policies"
         data-permission-manage-policies-url-value="<?= $this->Url->build([
-                                                                                                                        "controller" => "Permissions",
-                                                                                                                        "action" => "updatePolicy"
-                                                                                                                    ], ["fullBase" => true]) ?>">
+                                                        "controller" => "Permissions",
+                                                        "action" => "updatePolicy"
+                                                    ], ["fullBase" => true]) ?>">
         <?php
         $currentClass = '';
         foreach ($appPolicies as $class => $methods) :
@@ -161,13 +161,13 @@ echo $this->KMP->startBlock("pageTitle") ?>
             //the last part of the class name
             $shortName = substr($class, strrpos($class, '\\') + 1);
         ?>
-        <li class="list-group-item">
-            <div class="d-flex align-items-center">
-                <span class="policy-toggle policy-class pe-2" data-bs-toggle="collapse"
-                    data-bs-target=".row_<?= $className ?>" aria-expanded="false" aria-controls="row_<?= $className ?>">
-                    <?= $shortName ?>
-                </span>
-                <?= $this->Form->control($class, [
+            <li class="list-group-item">
+                <div class="d-flex align-items-center">
+                    <span class="policy-toggle policy-class pe-2" data-bs-toggle="collapse"
+                        data-bs-target=".row_<?= $className ?>" aria-expanded="false" aria-controls="row_<?= $className ?>">
+                        <?= $shortName ?>
+                    </span>
+                    <?= $this->Form->control($class, [
                         "type" => "checkbox",
                         "switch" => true,
                         'label' => "",
@@ -175,11 +175,11 @@ echo $this->KMP->startBlock("pageTitle") ?>
                         "data-class-name" => $className,
                         "data-permission-id" => $permission->id
                     ]) ?>
-            </div>
-            <ul class="list-group collapse row_<?= $className ?> mt-2">
-                <?php foreach ($methods as $method) : ?>
-                <li class="list-group-item">
-                    <?php
+                </div>
+                <ul class="list-group collapse row_<?= $className ?> mt-2">
+                    <?php foreach ($methods as $method) : ?>
+                        <li class="list-group-item">
+                            <?php
                             $isAssigned = false;
                             foreach ($permission->permission_policies as $policy) {
                                 if ($policy->policy_class == $class) {
@@ -200,44 +200,44 @@ echo $this->KMP->startBlock("pageTitle") ?>
                                 "data-permission-id" => $permission->id
                             ])
                             ?>
-                </li>
-                <?php endforeach; ?>
-            </ul>
-        </li>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+            </li>
         <?php endforeach; ?>
     </ul>
 </div>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('.policy-toggle').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            var icon = btn.querySelector('.collapse-icon');
-            var className = icon.getAttribute('data-class');
-            var target = document.querySelector('.row_' + className);
-            if (target.classList.contains('show')) {
-                icon.classList.remove('bi-caret-down-fill');
-                icon.classList.add('bi-caret-right-fill');
-            } else {
-                icon.classList.remove('bi-caret-right-fill');
-                icon.classList.add('bi-caret-down-fill');
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.policy-toggle').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var icon = btn.querySelector('.collapse-icon');
+                var className = icon.getAttribute('data-class');
+                var target = document.querySelector('.row_' + className);
+                if (target.classList.contains('show')) {
+                    icon.classList.remove('bi-caret-down-fill');
+                    icon.classList.add('bi-caret-right-fill');
+                } else {
+                    icon.classList.remove('bi-caret-right-fill');
+                    icon.classList.add('bi-caret-down-fill');
+                }
+            });
+        });
+        // Set initial state for open/closed icons
+        document.querySelectorAll('.collapse.row_').forEach(function(el) {
+            var className = el.className.match(/row_([\w-]+)/);
+            if (className) {
+                var icon = document.querySelector('.collapse-icon[data-class="' + className[1] + '"]');
+                if (el.classList.contains('show')) {
+                    icon.classList.remove('bi-caret-right-fill');
+                    icon.classList.add('bi-caret-down-fill');
+                } else {
+                    icon.classList.remove('bi-caret-down-fill');
+                    icon.classList.add('bi-caret-right-fill');
+                }
             }
         });
     });
-    // Set initial state for open/closed icons
-    document.querySelectorAll('.collapse.row_').forEach(function(el) {
-        var className = el.className.match(/row_([\w-]+)/);
-        if (className) {
-            var icon = document.querySelector('.collapse-icon[data-class="' + className[1] + '"]');
-            if (el.classList.contains('show')) {
-                icon.classList.remove('bi-caret-right-fill');
-                icon.classList.add('bi-caret-down-fill');
-            } else {
-                icon.classList.remove('bi-caret-down-fill');
-                icon.classList.add('bi-caret-right-fill');
-            }
-        }
-    });
-});
 </script>
 <?php $this->KMP->endBlock() ?>
 
@@ -261,7 +261,7 @@ echo $this->Modal->create("Add Role to Permissions", [
         $this->Form,
         'role_name',
         'role_id',
-        $roles,
+        $roles->toArray(),
         "Role",
         true,
         false,

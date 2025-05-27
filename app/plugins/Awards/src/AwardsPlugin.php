@@ -13,7 +13,8 @@ use Cake\Routing\RouteBuilder;
 use App\KMP\KMPPluginInterface;
 use Cake\Event\EventManager;
 use Awards\Event\CallForCellsHandler;
-use Awards\Event\CallForNavHandler;
+use App\Services\NavigationRegistry;
+use Awards\Services\AwardsNavigationProvider;
 use App\KMP\StaticHelpers;
 
 /**
@@ -50,8 +51,15 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
         $handler = new CallForCellsHandler();
         EventManager::instance()->on($handler);
 
-        $handler = new CallForNavHandler();
-        EventManager::instance()->on($handler);
+        // Register navigation items instead of using event handlers
+        NavigationRegistry::register(
+            'Awards',
+            [], // Static items (none for Awards)
+            function ($user, $params) {
+                return AwardsNavigationProvider::getNavigationItems($user, $params);
+            }
+        );
+
         $currentConfigVersion = "25.01.11.a"; // update this each time you change the config
 
         $configVersion = StaticHelpers::getAppSetting("Awards.configVersion", "0.0.0", null, true);

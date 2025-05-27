@@ -1,32 +1,34 @@
 <?php
 
-namespace Officers\Event;
+declare(strict_types=1);
 
+namespace Officers\Services;
+
+use App\Model\Entity\Member;
 use App\KMP\StaticHelpers;
-use Cake\Event\EventListenerInterface;
 
-class CallForNavHandler implements EventListenerInterface
+/**
+ * Officers Navigation Provider
+ * 
+ * Provides Officers plugin navigation items.
+ * Replaces the functionality from Officers\Event\CallForNavHandler
+ */
+class OfficersNavigationProvider
 {
-    public function implementedEvents(): array
-    {
-        return [
-            // Custom event names let you design your application events
-            // as required.
-            \App\View\Cell\NavigationCell::VIEW_CALL_EVENT => 'callForNav',
-        ];
-    }
-
-    public function callForNav($event)
+    /**
+     * Get Officers plugin navigation items
+     *
+     * @param Member $user Current user
+     * @param array $params Request parameters
+     * @return array Navigation items
+     */
+    public static function getNavigationItems(Member $user, array $params = []): array
     {
         if (StaticHelpers::pluginEnabled('Officers') == false) {
-            return null;
+            return [];
         }
-        $user = $event->getData('user');
-        $results = [];
-        if ($event->getResult() && is_array($event->getResult())) {
-            $results = $event->getResult();
-        }
-        $appNav = [
+
+        return [
             [
                 "type" => "link",
                 "mergePath" => ["Reports"],
@@ -126,11 +128,5 @@ class CallForNavHandler implements EventListenerInterface
                 "icon" => "bi-plus",
             ],
         ];
-
-
-
-
-        $results = array_merge($results, $appNav);
-        return $results;
     }
 }

@@ -31,9 +31,10 @@ plugins/Officers/
 │   │   ├── Cell/       # Cell classes
 │   │   └── Helper/     # View helpers
 │   ├── Event/          # Event listeners
-│   │   ├── CallForCellsHandler.php # Cell registration
-│   │   └── CallForNavHandler.php   # Navigation registration
-│   └── Service/        # Business services
+│   │   └── CallForCellsHandler.php # Cell registration
+│   ├── Services/       # Business services
+│   │   └── PluginNameNavigationProvider.php # Navigation provider
+│   └── Service/        # Other business services
 ├── templates/          # Template files
 │   ├── layout/         # Layout templates
 │   ├── cell/           # Cell templates
@@ -98,10 +99,16 @@ class Plugin extends BasePlugin
     {
         parent::bootstrap($app);
         
-        // Register event listeners for cells and navigation
+        // Register event listeners for cells
         $eventManager = \Cake\Event\EventManager::instance();
         $eventManager->on(new \Officers\Event\CallForCellsHandler());
-        $eventManager->on(new \Officers\Event\CallForNavHandler());
+        
+        // Register navigation provider
+        \App\Services\NavigationRegistry::register(
+            'Officers',
+            [],
+            [\Officers\Services\OfficersNavigationProvider::class, 'getNavigationItems']
+        );
     }
 
     /**
@@ -137,11 +144,109 @@ return [
 ];
 ```
 
-## 11.2 Event System
+## 11.2 Navigation and Event System
 
-The event system is a powerful way to extend KMP without modifying core code. The Officers plugin demonstrates two key event handlers: `CallForCellsHandler` and `CallForNavHandler`.
+### Navigation Registration with NavigationProvider
 
-### Cell Registration with CallForCellsHandler
+KMP uses a service-based navigation registry system for performance and maintainability. Plugins register their navigation items through NavigationProvider classes rather than event handlers.
+
+Here's how the Officers plugin implements navigation registration:
+
+```php
+namespace Officers\Services;
+
+use App\KMP\StaticHelpers;
+
+class OfficersNavigationProvider
+{
+    /**
+     * Get navigation items for the Officers plugin
+     *
+     * @param mixed $user Current user
+     * @param array $params Additional parameters
+     * @return array Navigation items
+     */
+    public static function getNavigationItems($user, array $params = []): array
+    {
+        // Check if plugin is enabled
+        if (StaticHelpers::pluginEnabled('Officers') == false) {
+            return [];
+        }
+        
+        return [
+            [
+                "type" => "link",
+                "mergePath" => ["Reports"],
+                "label" => "Officers",
+                "order" => 29,
+                "url" => [
+                    "plugin" => "Officers",
+                    "controller" => "Officers",
+                    "action" => "index",
+                ],
+                "icon" => "bi-building",
+                "activePaths" => [
+                    "officers/Officers/view/*",
+                ]
+            ],
+            [
+                "type" => "link",
+                "mergePath" => ["Config"],
+                "label" => "Departments",
+                "order" => 40,
+                "url" => [
+                    "plugin" => "Officers",
+                    "controller" => "Departments",
+                    "action" => "index",
+                ],
+                "icon" => "bi-building",
+                "activePaths" => [
+                    "officers/departments/view/*",
+                ]
+            ],
+            // Additional navigation items...
+        ];
+    }
+}
+```
+
+Key aspects of the navigation provider:
+1. It's a static class with a static `getNavigationItems()` method
+2. It accepts the current user and parameters for context-sensitive navigation
+3. It checks if the plugin is enabled before returning items
+4. It returns an array of navigation items with properties:
+   - `type`: Usually "link" for navigation links
+   - `mergePath`: Where in the navigation hierarchy this item belongs
+   - `label`: Display text
+   - `order`: Sort order within its section
+   - `url`: CakePHP URL array
+   - `icon`: Bootstrap icon class
+   - `activePaths`: URL patterns that should highlight this item when active
+
+### Registration in Plugin Bootstrap
+
+Register the navigation provider in your plugin's `bootstrap()` method:
+
+```php
+public function bootstrap(PluginApplicationInterface $app): void
+{
+    parent::bootstrap($app);
+    
+    // Register navigation provider
+    \App\Services\NavigationRegistry::register(
+        'Officers',                                                      // Source identifier
+        [],                                                             // Static navigation items (optional)
+        [\Officers\Services\OfficersNavigationProvider::class, 'getNavigationItems'] // Dynamic callback
+    );
+}
+```
+
+The `NavigationRegistry::register()` method accepts:
+- **Source**: A unique identifier for the navigation source (typically the plugin name)
+- **Static Items**: An array of navigation items that don't require dynamic generation
+- **Callback**: A callable that generates dynamic navigation items
+
+### Event System for UI Components
 
 The `CallForCellsHandler` allows a plugin to register view cells that appear in various parts of the application. For example, the Officers plugin registers cells that display officer information on branch pages.
 
@@ -205,11 +310,11 @@ Key attributes:
 
 The cell then implements its `display()` method to fetch and display the relevant data.
 
-### Navigation Registration with CallForNavHandler
+### Navigation Registration with CallForNavHandler (Deprecated)
 
-The `CallForNavHandler` allows a plugin to add items to the application's navigation menu. The Officers plugin uses this to add links to its controllers and actions.
+> **⚠️ DEPRECATED**: The `CallForNavHandler` event-based navigation system has been replaced with the NavigationProvider service-based system for better performance and maintainability. See the "Navigation Registration with NavigationProvider" section above for the current implementation approach.
 
-Here's how the Officers plugin implements this handler:
+For legacy reference, the old event-based navigation system worked as follows:
 
 ```php
 namespace Officers\Event;
@@ -291,6 +396,62 @@ Key aspects of the navigation handler:
    - `activePaths`: URL patterns that should highlight this item when active
 
 The navigation items are merged with existing items and returned as the event result.
+
+## 11.2.1 Migration Guide: From CallForNavHandler to NavigationProvider
+
+If you have an existing plugin using the deprecated `CallForNavHandler` system, follow these steps to migrate to the new NavigationProvider system:
+
+### Step 1: Create NavigationProvider Class
+
+Create a new service class in your plugin's `Services` directory:
+
+```php
+namespace YourPlugin\Services;
+
+use App\KMP\StaticHelpers;
+
+class YourPluginNavigationProvider
+{
+    public static function getNavigationItems($user, array $params = []): array
+    {
+        if (StaticHelpers::pluginEnabled('YourPlugin') == false) {
+            return [];
+        }
+        
+        // Move your navigation items array from the old callForNav method here
+        return [
+            // Your navigation items...
+        ];
+    }
+}
+```
+
+### Step 2: Update Plugin Bootstrap
+
+Replace the event handler registration with NavigationRegistry registration:
+
+```php
+// OLD - Remove this:
+$eventManager->on(new \YourPlugin\Event\CallForNavHandler());
+
+// NEW - Add this:
+\App\Services\NavigationRegistry::register(
+    'YourPlugin',
+    [],
+    [\YourPlugin\Services\YourPluginNavigationProvider::class, 'getNavigationItems']
+);
+```
+
+### Step 3: Remove Old Event Handler (Optional)
+
+You can now safely delete the old `CallForNavHandler.php` file from your plugin's `Event` directory, though you may want to keep it temporarily for backward compatibility.
+
+### Benefits of Migration
+
+- **Performance**: Eliminates event overhead on every navigation render
+- **Maintainability**: Cleaner, more explicit registration pattern
+- **Debugging**: Better visibility into navigation sources through the registry
+- **Flexibility**: Support for both static and dynamic navigation items
 
 ## 11.3 Creating UI Components with Cells
 
@@ -455,8 +616,9 @@ class CreateOfficersTable extends AbstractMigration
 
 Based on the Officers plugin example, here are some best practices for developing KMP plugins:
 
-1. **Use Event Handlers**: Implement `CallForCellsHandler` and `CallForNavHandler` to integrate with the core UI
-2. **Extend Base Classes**: Use base classes like `BasePluginCell` to ensure consistent behavior
+1. **Use Event Handlers**: Implement `CallForCellsHandler` to integrate with the core UI for cells
+2. **Use NavigationProvider**: Create a NavigationProvider service for adding navigation items
+3. **Extend Base Classes**: Use base classes like `BasePluginCell` to ensure consistent behavior
 3. **Follow Naming Conventions**: Use consistent naming for controllers, models, and templates
 4. **Check Permissions**: Always check user permissions before displaying sensitive data or actions
 5. **Modular Design**: Keep plugin functionality self-contained but integrated through events
@@ -473,7 +635,7 @@ When developing a new plugin:
 5. [ ] Implement controllers and templates
 6. [ ] Create cell classes for UI integration
 7. [ ] Implement CallForCellsHandler to register cells
-8. [ ] Implement CallForNavHandler to add navigation
+8. [ ] Create NavigationProvider service to add navigation items
 9. [ ] Register the plugin in config/plugins.php
 10. [ ] Test plugin functionality thoroughly
 
@@ -490,11 +652,16 @@ Here's how the Officers plugin implements this in its `Plugin.php` file:
 ```php
 public function bootstrap(PluginApplicationInterface $app): void
 {
+    // Register event listeners for cells
     $handler = new CallForCellsHandler();
     EventManager::instance()->on($handler);
 
-    $handler = new CallForNavHandler();
-    EventManager::instance()->on($handler);
+    // Register navigation provider
+    \App\Services\NavigationRegistry::register(
+        'Officers',
+        [],
+        [\Officers\Services\OfficersNavigationProvider::class, 'getNavigationItems']
+    );
 
     $currentConfigVersion = "25.01.11.a"; // update this each time you change the config
 
@@ -600,11 +767,11 @@ With a corresponding template that renders form fields for each setting.
 A common pattern used by the Officers plugin is to check if the plugin is enabled before performing operations:
 
 ```php
-public function callForNav($event)
+public static function getNavigationItems($user, array $params = []): array
 {
     // Early return if plugin is disabled
     if (StaticHelpers::pluginEnabled('Officers') == false) {
-        return null;
+        return [];
     }
     
     // Continue with navigation building...

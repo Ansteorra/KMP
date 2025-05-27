@@ -29,7 +29,7 @@ class RostersController extends AppController
     {
         $hide = false;
         $warrantOnly = false;
-        $this->Authorization->authorize($this);
+        $this->authorizeCurrentUrl();
         $departmentTbl = TableRegistry::getTableLocator()->get('Officers.Departments');
         $warrantPeriodsQuery = TableRegistry::getTableLocator()->get('WarrantPeriods')
             ->find()
@@ -149,7 +149,7 @@ class RostersController extends AppController
     }
     public function createRoster(WarrantManagerInterface $warrantManager)
     {
-        $this->Authorization->authorize($this);
+        $this->authorizeCurrentUrl();
         $this->request->allowMethod(['post']);
         $data = $this->request->getData();
         $officerTbl = TableRegistry::getTableLocator()->get('Officers.Officers');

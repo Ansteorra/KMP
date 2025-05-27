@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Controller;
@@ -30,7 +31,7 @@ class MembersController extends AppController
     public function beforeFilter(EventInterface $event)
     {
         parent::beforeFilter($event);
-
+        $this->Authorization->authorizeModel('index', 'verifyQueue');
         $this->Authentication->allowUnauthenticated([
             'login',
             'approversList',
@@ -108,7 +109,6 @@ class MembersController extends AppController
             ]);
         }
         #is
-        $this->Authorization->authorize($query);
         $query = $this->Authorization->applyScope($query);
 
         $this->paginate = [
@@ -164,7 +164,6 @@ class MembersController extends AppController
             ],
         ]);
         #is
-        $this->Authorization->authorize($query);
         $query = $this->Authorization->applyScope($query);
         $Members = $query->all();
 

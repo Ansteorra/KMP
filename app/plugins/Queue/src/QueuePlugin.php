@@ -17,7 +17,8 @@ use Queue\Command\RunCommand;
 use Queue\Command\WorkerCommand;
 use App\KMP\StaticHelpers;
 use Cake\I18n\DateTime;
-use Queue\Event\CallForNavHandler;
+use App\Services\NavigationRegistry;
+use Queue\Services\QueueNavigationProvider;
 use App\KMP\KMPPluginInterface;
 use Cake\Event\EventManager;
 
@@ -57,8 +58,14 @@ class QueuePlugin extends BasePlugin implements KMPPluginInterface
 	 */
 	public function bootstrap(PluginApplicationInterface $app): void
 	{
-		$handler = new CallForNavHandler();
-		EventManager::instance()->on($handler);
+		// Register navigation items instead of using event handlers
+		NavigationRegistry::register(
+			'Queue',
+			[], // Static items (none for Queue)
+			function ($user, $params) {
+				return QueueNavigationProvider::getNavigationItems($user, $params);
+			}
+		);
 
 		$currentConfigVersion = "25.01.29.a"; // update this each time you change the config
 

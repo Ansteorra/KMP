@@ -27,7 +27,7 @@ class ReportsController extends AppController
     {
         $hide = false;
         $warrantOnly = false;
-        $this->Authorization->authorize($this);
+        $this->authorizeCurrentUrl();
         $departmentTbl = TableRegistry::getTableLocator()->get('Officers.Departments');
         $validOn = DateTime::now()->addDays(1);
         $departments = [];

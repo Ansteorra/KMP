@@ -36,7 +36,7 @@ if ($user->checkCan("verifyMembership", "Members") && $needVerification) :
                 'action' => 'AutoComplete',
                 'plugin' => null
             ]);
-            $this->KMP->autoCompleteControl(
+            echo $this->KMP->autoCompleteControl(
                 $this->Form,
                 'sca_name',
                 'parent_id',

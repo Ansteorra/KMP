@@ -12,11 +12,21 @@ namespace Activities\Controller;
 
 use Activities\Services\AuthorizationManagerInterface;
 use Cake\Mailer\MailerAwareTrait;
+use Cake\Event\EventInterface;
 
 class AuthorizationApprovalsController extends AppController
 {
     use MailerAwareTrait;
 
+
+    /**
+     * controller filters
+     */
+    public function beforeFilter(EventInterface $event)
+    {
+        parent::beforeFilter($event);
+        $this->Authorization->authorizeModel('index', 'myQueue', 'view');
+    }
     /**
      * Index method
      *
@@ -81,7 +91,7 @@ class AuthorizationApprovalsController extends AppController
                 ],
             ]);
         }
-        $this->Authorization->authorize($query);
+
         $this->Authorization->applyScope($query);
         $this->paginate = [
             'sortableFields' => [
