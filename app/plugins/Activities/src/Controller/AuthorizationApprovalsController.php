@@ -117,7 +117,6 @@ class AuthorizationApprovalsController extends AppController
         if ($token) {
             $query = $query->where(["authorization_token" => $token]);
         }
-        $this->Authorization->authorize($query);
         $this->Authorization->applyScope($query);
         $authorizationApprovals = $query->all();
         $queueFor = $this->Authentication->getIdentity()->sca_name;
