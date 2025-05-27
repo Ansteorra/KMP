@@ -25,23 +25,7 @@ class ReportsController extends AppController
 
     public function authorizations()
     {
-        $currentUrl = [
-            'controller' => $this->request->getParam('controller'),
-            'action' => $this->request->getParam('action'),
-            'plugin' => $this->request->getParam('plugin'),
-            'prefix' => $this->request->getParam('prefix'),
-        ];
-
-        $id = $this->request->getParam('pass.0');
-        if ($id !== null) {
-            $currentUrl[] = $id;
-        }
-
-        $queryParams = $this->request->getQueryParams();
-        if (!empty($queryParams)) {
-            $currentUrl['?'] = $queryParams;
-        }
-        $this->Authorization->authorize($currentUrl);
+        $this->authorizeCurrentUrl();
         $distincMemberCount = 0;
         $ActivitiesTbl
             = TableRegistry::getTableLocator()->get('Activities.Activities');

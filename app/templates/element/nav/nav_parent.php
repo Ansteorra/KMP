@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Navigation Parent Element
  * 
@@ -14,29 +15,29 @@ $show = $parent['active'] ? 'show' : '';
 $expanded = $parent['active'] ? 'true' : 'false';
 
 $expandUrl = $this->Url->build([
-    'controller' => 'NavBar', 
-    'action' => 'RecordExpand', 
-    $parent['id'], 
+    'controller' => 'NavBar',
+    'action' => 'RecordExpand',
+    $parent['id'],
     'plugin' => null
 ]);
 
 $collapseUrl = $this->Url->build([
-    'controller' => 'NavBar', 
-    'action' => 'RecordCollapse', 
-    $parent['id'], 
+    'controller' => 'NavBar',
+    'action' => 'RecordCollapse',
+    $parent['id'],
     'plugin' => null
 ]);
 ?>
 
-<div data-bs-target="#<?= $randomId ?>" 
-     data-bs-toggle="collapse" 
-     aria-expanded="<?= $expanded ?>"
-     id="<?= $parent['id'] ?>" 
-     data-collapse-url="<?= $collapseUrl ?>" 
-     data-expand-url="<?= $expandUrl ?>"
-     aria-controls="<?= $randomId ?>" 
-     class="navheader <?= $collapsed ?> text-start badge fs-5 mb-2 mx-1 text-bg-secondary bi <?= $parent['icon'] ?>" 
-     data-nav-bar-target="navHeader">
+<div data-bs-target="#<?= $randomId ?>"
+    data-bs-toggle="collapse"
+    aria-expanded="<?= $expanded ?>"
+    id="<?= $parent['id'] ?>"
+    data-collapse-url="<?= $collapseUrl ?>"
+    data-expand-url="<?= $expandUrl ?>"
+    aria-controls="<?= $randomId ?>"
+    class="navheader <?= $collapsed ?> text-start badge fs-5 mb-2 mx-1 text-bg-secondary bi <?= $parent['icon'] ?>"
+    data-nav-bar-target="navHeader">
     <?= $parent['label'] ?>
 </div>
 

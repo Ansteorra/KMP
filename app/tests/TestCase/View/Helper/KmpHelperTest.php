@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Test\TestCase\View\Helper;
@@ -57,7 +58,7 @@ class KmpHelperTest extends TestCase
     public function testComboBoxControlExists(): void
     {
         $this->assertTrue(method_exists($this->Kmp, 'comboBoxControl'));
-        
+
         $reflection = new \ReflectionMethod($this->Kmp, 'comboBoxControl');
         $this->assertEquals('string', $reflection->getReturnType()->getName());
     }
@@ -68,7 +69,7 @@ class KmpHelperTest extends TestCase
     public function testAutoCompleteControlExists(): void
     {
         $this->assertTrue(method_exists($this->Kmp, 'autoCompleteControl'));
-        
+
         $reflection = new \ReflectionMethod($this->Kmp, 'autoCompleteControl');
         $this->assertEquals('string', $reflection->getReturnType()->getName());
     }
@@ -79,7 +80,7 @@ class KmpHelperTest extends TestCase
     public function testAppNavExists(): void
     {
         $this->assertTrue(method_exists($this->Kmp, 'appNav'));
-        
+
         $reflection = new \ReflectionMethod($this->Kmp, 'appNav');
         $this->assertEquals('string', $reflection->getReturnType()->getName());
     }
@@ -90,7 +91,7 @@ class KmpHelperTest extends TestCase
     public function testBoolExists(): void
     {
         $this->assertTrue(method_exists($this->Kmp, 'bool'));
-        
+
         $reflection = new \ReflectionMethod($this->Kmp, 'bool');
         $this->assertEquals('string', $reflection->getReturnType()->getName());
     }

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 /**
@@ -89,6 +90,7 @@ class AppController extends Controller
             'controller' => $this->request->getParam('controller'),
             'action' => $this->request->getParam('action'),
             'plugin' => $this->request->getParam('plugin'),
+            'prefix' => $this->request->getParam('prefix'),
             $this->request->getParam('pass'),
         ];
 
@@ -225,5 +227,17 @@ class AppController extends Controller
         }
 
         return $cells;
+    }
+
+    protected function authorizeCurrentUrl()
+    {
+        $params = [
+            'controller' => $this->request->getParam('controller'),
+            'action' => $this->request->getParam('action'),
+            'plugin' => $this->request->getParam('plugin'),
+            'prefix' => $this->request->getParam('prefix'),
+            $this->request->getParam('pass'),
+        ];
+        $this->Authorization->authorize($params);
     }
 }

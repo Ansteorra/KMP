@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Auto Complete Control Element
  * 
@@ -41,27 +42,27 @@ $textEntry = str_replace(
 );
 ?>
 
-<div data-controller='ac' 
-     data-ac-url-value='<?= h($url) ?>'
-     role='combobox'
-     class='position-relative mb-3 kmp_autoComplete <?= h($class) ?>' 
-     data-ac-allow-other-value='<?= $allowOtherValues ? 'true' : 'false' ?>' 
-     data-ac-min-length-value='<?= (int)$minLength ?>'
-     <?= $attrs ?>>
-     
+<div data-controller='ac'
+    data-ac-url-value='<?= h($url) ?>'
+    role='combobox'
+    class='position-relative mb-3 kmp_autoComplete <?= h($class) ?>'
+    data-ac-allow-other-value='<?= $allowOtherValues ? 'true' : 'false' ?>'
+    data-ac-min-length-value='<?= (int)$minLength ?>'
+    <?= $attrs ?>>
+
     <?= $Form->control($resultField, [
         'type' => 'hidden',
         'data-ac-target' => 'hidden',
     ]) ?>
-    
+
     <?= $Form->control($inputField, [
         'type' => 'hidden',
         'data-ac-target' => 'hiddenText',
     ]) ?>
-    
+
     <?= $textEntry ?>
-    
-    <ul data-ac-target='results' 
-        class='list-group z-3 col-12 position-absolute auto-complete-list' 
+
+    <ul data-ac-target='results'
+        class='list-group z-3 col-12 position-absolute auto-complete-list'
         hidden='hidden'></ul>
 </div>

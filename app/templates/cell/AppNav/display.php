@@ -1,4 +1,5 @@
 <?php
+
 /**
  * App Navigation Cell Template
  * 
@@ -11,14 +12,14 @@
 
 <div class='nav flex-column' data-controller='nav-bar'>
     <?php foreach ($appNav as $parent): ?>
-        <?php 
+        <?php
         $childHtml = '';
         foreach ($parent['children'] as $child) {
             $childHtml .= $this->element('nav/nav_child', [
                 'child' => $child,
                 'user' => $user
             ]);
-            
+
             if ($child['active'] && isset($child['sublinks'])) {
                 $parent['active'] = true;
                 foreach ($child['sublinks'] as $sublink) {
@@ -30,7 +31,7 @@
             }
         }
         ?>
-        
+
         <?php if ($childHtml !== ''): ?>
             <?= $this->element('nav/nav_parent', [
                 'parent' => $parent,

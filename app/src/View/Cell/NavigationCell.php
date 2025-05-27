@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\View\Cell;
@@ -27,9 +28,7 @@ class NavigationCell extends Cell
      *
      * @return void
      */
-    public function initialize(): void
-    {
-    }
+    public function initialize(): void {}
 
     /**
      * Default display method.
@@ -43,6 +42,7 @@ class NavigationCell extends Cell
             'controller' => $this->request->getParam('controller'),
             'action' => $this->request->getParam('action'),
             'plugin' => $this->request->getParam('plugin'),
+            'prefix' => $this->request->getParam('prefix'),
             $this->request->getParam('pass'),
         ];
 

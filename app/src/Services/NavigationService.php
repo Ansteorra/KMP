@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Services;
@@ -16,15 +17,16 @@ class NavigationService
      */
     public function processBadgeValue($badgeConfig): int
     {
-        if (is_array($badgeConfig) 
+        if (
+            is_array($badgeConfig)
             && isset($badgeConfig['class'], $badgeConfig['method'], $badgeConfig['argument'])
         ) {
             return call_user_func(
-                [$badgeConfig['class'], $badgeConfig['method']], 
+                [$badgeConfig['class'], $badgeConfig['method']],
                 $badgeConfig['argument']
             );
         }
-        
+
         return (int)$badgeConfig;
     }
 
@@ -35,7 +37,7 @@ class NavigationService
     {
         $url = $navItem['url'];
         $url['plugin'] = $url['plugin'] ?? false;
-        
+
         return $user->canAccessUrl($url);
     }
 
@@ -55,7 +57,7 @@ class NavigationService
         $linkTypeClass = $item['linkTypeClass'] ?? 'nav-link';
         $otherClasses = $item['otherClasses'] ?? '';
         $activeClass = $isActive ? 'active' : '';
-        
+
         return trim("{$linkTypeClass} {$otherClasses} {$activeClass}");
     }
 }

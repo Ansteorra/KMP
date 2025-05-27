@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Combo Box Control Element
  * 
@@ -28,7 +29,7 @@ foreach ($data as $key => $value) {
         $key = $keyParts[0];
         $enabled = $keyParts[1] == 'true';
     }
-    
+
     if (is_string($value)) {
         $listData[] = ['value' => $key, 'text' => $value, 'enabled' => $enabled];
     } else {
@@ -52,30 +53,30 @@ $textEntry = str_replace(
 );
 ?>
 
-<div data-controller='ac' 
-     role='combobox'
-     class='position-relative mb-3 kmp_autoComplete' 
-     data-ac-allow-other-value='<?= $allowOtherValues ? 'true' : 'false' ?>' 
-     data-ac-min-length-value='0' 
-     <?= $attrs ?>>
-     
+<div data-controller='ac'
+    role='combobox'
+    class='position-relative mb-3 kmp_autoComplete'
+    data-ac-allow-other-value='<?= $allowOtherValues ? 'true' : 'false' ?>'
+    data-ac-min-length-value='0'
+    <?= $attrs ?>>
+
     <script type='application/json' data-ac-target='dataList' class='d-none'>
         <?= json_encode($listData) ?>
     </script>
-    
+
     <?= $Form->control($resultField, [
         'type' => 'hidden',
         'data-ac-target' => 'hidden',
     ]) ?>
-    
+
     <?= $Form->control($inputField, [
         'type' => 'hidden',
         'data-ac-target' => 'hiddenText',
     ]) ?>
-    
+
     <?= $textEntry ?>
-    
-    <ul data-ac-target='results' 
-        class='list-group z-3 col-12 position-absolute auto-complete-list' 
+
+    <ul data-ac-target='results'
+        class='list-group z-3 col-12 position-absolute auto-complete-list'
         hidden='hidden'></ul>
 </div>
