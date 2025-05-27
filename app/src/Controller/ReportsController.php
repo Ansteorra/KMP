@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Controller;
@@ -17,7 +18,23 @@ class ReportsController extends AppController
     public function rolesList()
     {
 
-        $this->Authorization->authorize($this);
+        $currentUrl = [
+            'controller' => $this->request->getParam('controller'),
+            'action' => $this->request->getParam('action'),
+            'plugin' => $this->request->getParam('plugin'),
+            'prefix' => $this->request->getParam('prefix'),
+        ];
+
+        $id = $this->request->getParam('pass.0');
+        if ($id !== null) {
+            $currentUrl[] = $id;
+        }
+
+        $queryParams = $this->request->getQueryParams();
+        if (!empty($queryParams)) {
+            $currentUrl['?'] = $queryParams;
+        }
+        $this->Authorization->authorize($currentUrl);
         $rolestbl
             = TableRegistry::getTableLocator()->get('Roles');
         $validOn = DateTime::now()->addDays(1);
@@ -48,7 +65,23 @@ class ReportsController extends AppController
     public function permissionsWarrantsRoster()
     {
         $hide = false;
-        $this->Authorization->authorize($this);
+        $currentUrl = [
+            'controller' => $this->request->getParam('controller'),
+            'action' => $this->request->getParam('action'),
+            'plugin' => $this->request->getParam('plugin'),
+            'prefix' => $this->request->getParam('prefix'),
+        ];
+
+        $id = $this->request->getParam('pass.0');
+        if ($id !== null) {
+            $currentUrl[] = $id;
+        }
+
+        $queryParams = $this->request->getQueryParams();
+        if (!empty($queryParams)) {
+            $currentUrl['?'] = $queryParams;
+        }
+        $this->Authorization->authorize($currentUrl);
         $validOn = DateTime::now()->addDays(1);
         if ($this->request->getQuery('validOn')) {
             $hide = $this->request->getQuery('hide');

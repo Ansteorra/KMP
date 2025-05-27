@@ -8,6 +8,8 @@ use Authorization\Policy\ResultInterface;
 use App\KMP\KmpIdentityInterface;
 use App\Policy\BasePolicy;
 use App\Model\Entity\BaseEntity;
+use Cake\ORM\Table;
+use Cake\ORM\TableRegistry;
 
 class RostersControllerPolicy extends BasePolicy
 {
@@ -20,6 +22,19 @@ class RostersControllerPolicy extends BasePolicy
     public function canCreateRoster(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
+    }
+
+    public function canAdd(KmpIdentityInterface $user, BaseEntity|Table|array $entity, ...$optionalArgs): bool
+    {
+        $method = __FUNCTION__;
+        if ($entity instanceof Table) {
+            $entity = $entity->newEntity([]);
+        } elseif (is_array($entity)) {
+            $warrantRosterTable = TableRegistry::getTableLocator()->get('WarrantRosters');
+            $entity = $warrantRosterTable->newEntity($entity);
+        }
+
         return $this->_hasPolicy($user, $method, $entity);
     }
 }

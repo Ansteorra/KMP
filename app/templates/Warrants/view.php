@@ -161,7 +161,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
             $this->Form,
             'role_name',
             'role_id',
-            $roles,
+            $roles->toArray(),
             "Role",
             true,
             false,

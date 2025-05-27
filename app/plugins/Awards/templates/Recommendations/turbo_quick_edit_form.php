@@ -1,6 +1,6 @@
 <turbo-frame id="editRecommendation">
     <script type="application/json" data-awards-rec-quick-edit-target="stateRulesBlock" class="d-none">
-    <?= json_encode($rules) ?>
+        <?= json_encode($rules) ?>
     </script>
     <fieldset>
 
@@ -16,7 +16,7 @@
             $this->Form,
             'domain_name',
             'domain_id',
-            $awardsDomains,
+            $awardsDomains->toArray(),
             "Award Type",
             true,
             false,

@@ -29,7 +29,23 @@ class RostersController extends AppController
     {
         $hide = false;
         $warrantOnly = false;
-        $this->Authorization->authorize($this);
+        $currentUrl = [
+            'controller' => $this->request->getParam('controller'),
+            'action' => $this->request->getParam('action'),
+            'plugin' => $this->request->getParam('plugin'),
+            'prefix' => $this->request->getParam('prefix'),
+        ];
+
+        $id = $this->request->getParam('pass.0');
+        if ($id !== null) {
+            $currentUrl[] = $id;
+        }
+
+        $queryParams = $this->request->getQueryParams();
+        if (!empty($queryParams)) {
+            $currentUrl['?'] = $queryParams;
+        }
+        $this->Authorization->authorize($currentUrl);
         $departmentTbl = TableRegistry::getTableLocator()->get('Officers.Departments');
         $warrantPeriodsQuery = TableRegistry::getTableLocator()->get('WarrantPeriods')
             ->find()
@@ -149,7 +165,23 @@ class RostersController extends AppController
     }
     public function createRoster(WarrantManagerInterface $warrantManager)
     {
-        $this->Authorization->authorize($this);
+        $currentUrl = [
+            'controller' => $this->request->getParam('controller'),
+            'action' => $this->request->getParam('action'),
+            'plugin' => $this->request->getParam('plugin'),
+            'prefix' => $this->request->getParam('prefix'),
+        ];
+
+        $id = $this->request->getParam('pass.0');
+        if ($id !== null) {
+            $currentUrl[] = $id;
+        }
+
+        $queryParams = $this->request->getQueryParams();
+        if (!empty($queryParams)) {
+            $currentUrl['?'] = $queryParams;
+        }
+        $this->Authorization->authorize($currentUrl);
         $this->request->allowMethod(['post']);
         $data = $this->request->getData();
         $officerTbl = TableRegistry::getTableLocator()->get('Officers.Officers');
