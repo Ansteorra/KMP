@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\KMP;
@@ -194,7 +195,7 @@ class StaticHelpers
         $matches = [];
         preg_match_all('/{{(.*?)}}/', $string, $matches);
         foreach ($matches[1] as $match) {
-            $string = str_replace('{{' . $match . '}}', self::getValue($match, $data, $minLength, $missingValue), $string);
+            $string = str_replace('{{' . $match . '}}', toString((self::getValue($match, $data, $minLength, $missingValue))), $string);
         }
 
         return $string;
