@@ -1,30 +1,30 @@
 <?php
+
 declare(strict_types=1);
 
-namespace App\Event;
+namespace App\Services;
 
-use App\View\Cell\NavigationCell;
-use Cake\Event\EventListenerInterface;
+use App\Model\Entity\Member;
+use App\KMP\StaticHelpers;
 
-class CallForNavHandler implements EventListenerInterface
+/**
+ * Core Navigation Provider
+ * 
+ * Provides core application navigation items.
+ * Replaces the functionality from App\Event\CallForNavHandler
+ */
+class CoreNavigationProvider
 {
-    public function implementedEvents(): array
+    /**
+     * Get core navigation items
+     *
+     * @param Member $user Current user
+     * @param array $params Request parameters
+     * @return array Navigation items
+     */
+    public static function getNavigationItems(Member $user, array $params = []): array
     {
         return [
-            // Custom event names let you design your application events
-            // as required.
-            NavigationCell::VIEW_CALL_EVENT => 'callForNav',
-        ];
-    }
-
-    public function callForNav($event)
-    {
-        $user = $event->getData('user');
-        $results = [];
-        if ($event->getResult() && is_array($event->getResult())) {
-            $results = $event->getResult();
-        }
-        $appNav = [
             [
                 'type' => 'parent',
                 'label' => 'Members',
@@ -119,7 +119,7 @@ class CallForNavHandler implements EventListenerInterface
                 ],
                 'icon' => 'bi-fingerprint',
                 'badgeClass' => 'bg-danger',
-                'badgeValue' =>   [
+                'badgeValue' => [
                     'class' => "App\Model\Table\MembersTable",
                     'method' => 'getValidationQueueCount',
                     'argument' => 0,
@@ -183,7 +183,6 @@ class CallForNavHandler implements EventListenerInterface
                     'Branches/view/*',
                 ],
             ],
-
             [
                 'type' => 'link',
                 'mergePath' => ['Config', 'Branches'],
@@ -296,9 +295,5 @@ class CallForNavHandler implements EventListenerInterface
                 'icon' => 'bi-table',
             ],
         ];
-
-        $results = array_merge($results, $appNav);
-
-        return $results;
     }
 }

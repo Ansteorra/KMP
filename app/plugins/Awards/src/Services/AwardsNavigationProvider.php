@@ -1,29 +1,38 @@
 <?php
 
-namespace Awards\Event;
+declare(strict_types=1);
 
-use Cake\Event\EventListenerInterface;
+namespace Awards\Services;
+
+use App\Model\Entity\Member;
 use App\KMP\StaticHelpers;
 use Awards\Model\Entity\Recommendation;
 
-class CallForNavHandler implements EventListenerInterface
+/**
+ * Awards Navigation Provider
+ * 
+ * Provides Awards plugin navigation items.
+ * Replaces the functionality from Awards\Event\CallForNavHandler
+ */
+class AwardsNavigationProvider
 {
-    public function implementedEvents(): array
-    {
-        return [
-            \App\View\Cell\NavigationCell::VIEW_CALL_EVENT => 'callForNav',
-        ];
-    }
-
-    public function callForNav($event)
+    /**
+     * Get Awards plugin navigation items
+     *
+     * @param Member $user Current user
+     * @param array $params Request parameters
+     * @return array Navigation items
+     */
+    public static function getNavigationItems(Member $user, array $params = []): array
     {
         if (StaticHelpers::pluginEnabled('Awards') == false) {
-            return null;
+            return [];
         }
+
         $statuses = Recommendation::getStatuses();
         $listLinks = [];
-        $boardLinks = [];
         $order = 0;
+
         foreach ($statuses as $statusKey => $statusKey) {
             $listLinks[] = [
                 "type" => "link",
@@ -46,11 +55,7 @@ class CallForNavHandler implements EventListenerInterface
                 ]
             ];
         }
-        $user = $event->getData('user');
-        $results = [];
-        if ($event->getResult() && is_array($event->getResult())) {
-            $results = $event->getResult();
-        }
+
         $appNav = [
             [
                 "type" => "parent",
@@ -221,9 +226,6 @@ class CallForNavHandler implements EventListenerInterface
             ]
         ];
 
-        $appNav = array_merge($appNav, $listLinks);
-
-        $results = array_merge($results, $appNav);
-        return $results;
+        return array_merge($appNav, $listLinks);
     }
 }

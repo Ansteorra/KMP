@@ -13,7 +13,8 @@ use Cake\Routing\RouteBuilder;
 use App\KMP\KMPPluginInterface;
 use Cake\Event\EventManager;
 use Officers\Event\CallForCellsHandler;
-use Officers\Event\CallForNavHandler;
+use App\Services\NavigationRegistry;
+use Officers\Services\OfficersNavigationProvider;
 use Officers\Services\DefaultOfficerManager;
 use Officers\Services\OfficerManagerInterface;
 use App\KMP\StaticHelpers;
@@ -54,8 +55,14 @@ class OfficersPlugin extends BasePlugin implements KMPPluginInterface
         $handler = new CallForCellsHandler();
         EventManager::instance()->on($handler);
 
-        $handler = new CallForNavHandler();
-        EventManager::instance()->on($handler);
+        // Register navigation items instead of using event handlers
+        NavigationRegistry::register(
+            'Officers',
+            [], // Static items (none for Officers)
+            function ($user, $params) {
+                return OfficersNavigationProvider::getNavigationItems($user, $params);
+            }
+        );
 
         $currentConfigVersion = "25.01.11.a"; // update this each time you change the config
 

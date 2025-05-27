@@ -15,7 +15,8 @@ use Cake\Event\EventManager;
 use Activities\Event\CallForCellsHandler;
 use Activities\Services\AuthorizationManagerInterface;
 use Activities\Services\DefaultAuthorizationManager;
-use Activities\Event\CallForNavHandler;
+use App\Services\NavigationRegistry;
+use Activities\Services\ActivitiesNavigationProvider;
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 use App\KMP\StaticHelpers;
 use Cake\I18n\DateTime;
@@ -53,8 +54,14 @@ class ActivitiesPlugin extends BasePlugin implements KMPPluginInterface
         $handler = new CallForCellsHandler();
         EventManager::instance()->on($handler);
 
-        $handler = new CallForNavHandler();
-        EventManager::instance()->on($handler);
+        // Register navigation items instead of using event handlers
+        NavigationRegistry::register(
+            'Activities',
+            [], // Static items (none for Activities)
+            function ($user, $params) {
+                return ActivitiesNavigationProvider::getNavigationItems($user, $params);
+            }
+        );
 
         $currentConfigVersion = "25.01.11.c"; // update this each time you change the config
 

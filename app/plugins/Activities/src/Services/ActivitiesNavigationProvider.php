@@ -1,32 +1,34 @@
 <?php
 
-namespace Activities\Event;
+declare(strict_types=1);
 
-use Cake\Event\EventListenerInterface;
+namespace Activities\Services;
+
+use App\Model\Entity\Member;
 use App\KMP\StaticHelpers;
 
-class CallForNavHandler implements EventListenerInterface
+/**
+ * Activities Navigation Provider
+ * 
+ * Provides Activities plugin navigation items.
+ * Replaces the functionality from Activities\Event\CallForNavHandler
+ */
+class ActivitiesNavigationProvider
 {
-    public function implementedEvents(): array
-    {
-        return [
-            // Custom event names let you design your application events
-            // as required.
-            \App\View\Cell\NavigationCell::VIEW_CALL_EVENT => 'callForNav',
-        ];
-    }
-
-    public function callForNav($event)
+    /**
+     * Get Activities plugin navigation items
+     *
+     * @param Member $user Current user
+     * @param array $params Request parameters
+     * @return array Navigation items
+     */
+    public static function getNavigationItems(Member $user, array $params = []): array
     {
         if (StaticHelpers::pluginEnabled('Activities') == false) {
-            return null;
+            return [];
         }
-        $user = $event->getData('user');
-        $results = [];
-        if ($event->getResult() && is_array($event->getResult())) {
-            $results = $event->getResult();
-        }
-        $appNav = [
+
+        return [
             [
                 "type" => "link",
                 "mergePath" => ["Members", $user->sca_name],
@@ -61,7 +63,6 @@ class CallForNavHandler implements EventListenerInterface
                 "activePaths" => [
                     "activities/AuthorizationApprovals/view/*",
                 ]
-
             ],
             [
                 "type" => "link",
@@ -134,8 +135,5 @@ class CallForNavHandler implements EventListenerInterface
                 "icon" => "bi-person-lines-fill",
             ]
         ];
-
-        $results = array_merge($results, $appNav);
-        return $results;
     }
 }

@@ -10,9 +10,19 @@
  */
 
 $randomId = \App\KMP\StaticHelpers::generateToken(10);
-$collapsed = $parent['active'] ? '' : 'collapsed';
-$show = $parent['active'] ? 'show' : '';
-$expanded = $parent['active'] ? 'true' : 'false';
+
+// Check navbar state first (user's manual expand/collapse preference)
+$isExpanded = false;
+if (isset($navBarState[$parent['id']])) {
+    $isExpanded = $navBarState[$parent['id']];
+} else {
+    // Fall back to active state if no user preference is stored
+    $isExpanded = $parent['active'];
+}
+
+$collapsed = $isExpanded ? '' : 'collapsed';
+$show = $isExpanded ? 'show' : '';
+$expanded = $isExpanded ? 'true' : 'false';
 
 $expandUrl = $this->Url->build([
     'controller' => 'NavBar',

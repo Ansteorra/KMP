@@ -20,7 +20,8 @@ namespace App;
 
 // Authentication usings
 
-use App\Event\CallForNavHandler;
+use App\Services\NavigationRegistry;
+use App\Services\CoreNavigationProvider;
 use App\KMP\KmpIdentityInterface; // Add this line
 use App\KMP\StaticHelpers;
 // Authorization usings
@@ -88,8 +89,15 @@ class Application extends BaseApplication implements
                 (new TableLocator())->allowFallbackClass(false),
             );
         }
-        $handler = new CallForNavHandler();
-        EventManager::instance()->on($handler);
+
+        // Register core navigation items instead of using event handlers
+        NavigationRegistry::register(
+            'core',
+            [], // Static items (none for core)
+            function ($user, $params) {
+                return CoreNavigationProvider::getNavigationItems($user, $params);
+            }
+        );
 
         $currentConfigVersion = '25.01.11.a'; // update this each time you change the config
 

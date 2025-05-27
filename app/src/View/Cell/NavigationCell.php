@@ -5,8 +5,7 @@ declare(strict_types=1);
 namespace App\View\Cell;
 
 use App\KMP\StaticHelpers;
-use Cake\Event\Event;
-use Cake\Event\EventManager;
+use App\Services\NavigationRegistry;
 use Cake\View\Cell;
 
 /**
@@ -14,7 +13,6 @@ use Cake\View\Cell;
  */
 class NavigationCell extends Cell
 {
-    public const VIEW_CALL_EVENT = 'KMP.Nav.callForNav';
     /**
      * List of valid options that can be passed into this
      * cell's constructor.
@@ -46,11 +44,10 @@ class NavigationCell extends Cell
             $this->request->getParam('pass'),
         ];
 
-        $event = new Event(static::VIEW_CALL_EVENT, $this, ['user' => $user, 'params' => $params]);
-        EventManager::instance()->dispatch($event);
-        if ($event->getResult()) {
-            $menu = $this->organizeMenu($event->getResult());
-        }
+        // Get navigation items from the registry instead of dispatching events
+        $menuItems = NavigationRegistry::getNavigationItems($user, $params);
+        $menu = $this->organizeMenu($menuItems);
+
         $this->set(compact('menu'));
     }
 
