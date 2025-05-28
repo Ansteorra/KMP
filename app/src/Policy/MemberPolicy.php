@@ -21,7 +21,7 @@ class MemberPolicy extends BasePolicy
      * @param mixed ...$optionalArgs Optional arguments
      * @return bool
      */
-    public function canView(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
+    public function canView(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
     {
         if ($entity->id == $user->getIdentifier()) {
             return true;

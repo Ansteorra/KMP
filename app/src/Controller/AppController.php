@@ -19,6 +19,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\KMP\StaticHelpers;
+use App\Services\ViewCellRegistry;
 use Cake\Controller\Controller;
 use Cake\Core\Configure;
 use Cake\Event\Event;
@@ -151,13 +152,17 @@ class AppController extends Controller
         $session->write('pageStack', $pageStack);
         $this->set('pageStack', $pageStack);
 
-        $event = new Event(static::VIEW_PLUGIN_EVENT, $this, ['url' => $params, 'currentUser' => $this->request->getAttribute('identity')]);
-        EventManager::instance()->dispatch($event);
-        if ($event->getResult()) {
-            $this->pluginViewCells = $this->organizeViewCells($event->getResult());
-        } else {
-            $this->pluginViewCells = [];
-        }
+        // Get view cells from registry instead of event system
+        $urlParams = [
+            'controller' => $this->request->getParam('controller'),
+            'action' => $this->request->getParam('action'),
+            'plugin' => $this->request->getParam('plugin'),
+            'prefix' => $this->request->getParam('prefix'),
+            'pass' => $this->request->getParam('pass') ?? [],
+            'query' => $this->request->getQueryParams(),
+        ];
+        $currentUser = $this->request->getAttribute('identity');
+        $this->pluginViewCells = ViewCellRegistry::getViewCells($urlParams, $currentUser);
         $this->set('pluginViewCells', $this->pluginViewCells);
 
         //check the header for a turbo-frame request

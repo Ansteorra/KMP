@@ -57,3 +57,6 @@ nbproject/*
 # yarn
 yarn-debug.log
 yarn-error.log
+#test results
+tests/ui-reports
+tests/ui-results

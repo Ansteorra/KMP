@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\View\Cell;
@@ -6,7 +7,13 @@ namespace App\View\Cell;
 use Cake\View\Cell;
 
 /**
- * Navigation cell
+ * BasePluginCell - Base class for plugin view cells
+ * 
+ * @deprecated This class is part of the event-based view cell system being replaced by ViewCellRegistry.
+ * New view cells should still extend this class for compatibility, but the static configuration
+ * pattern ($validRoutes, $pluginData) is being replaced by ViewCellProvider classes.
+ * 
+ * The getViewConfigForRoute() method should continue to work as before.
  */
 class BasePluginCell extends Cell
 {

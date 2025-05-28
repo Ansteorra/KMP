@@ -11,6 +11,7 @@ use Cake\ORM\TableRegistry;
 use App\Model\Entity\Member;
 use App\Policy\BasePolicy;
 use App\Model\Entity\BaseEntity;
+use Cake\ORM\Table;
 
 class AuthorizationApprovalPolicy extends BasePolicy
 {
@@ -65,11 +66,11 @@ class AuthorizationApprovalPolicy extends BasePolicy
     /**
      * Check if the user can view authorizations
      * @param KmpIdentityInterface $user
-     * @param AuthorizationApproval $entity
+     * @param AuthorizationApproval|Cake\ORM\Table $entity
      * @param array ...$optionalArgs
      * @return bool
      */
-    function canView(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
+    function canView(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
     {
         $member_id = $user->getIdentifier();
         if ($member_id === $entity->approver_id) {

@@ -135,7 +135,6 @@ class AuthorizationApprovalsController extends AppController
     public function view($id = null)
     {
         $query = $this->getAuthorizationApprovalsQuery($id);
-        $this->Authorization->authorize($query);
         $this->Authorization->applyScope($query);
         $authorizationApprovals = $query->all();
         $queueFor = $this->AuthorizationApprovals->Approvers->find()

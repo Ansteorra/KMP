@@ -14,6 +14,200 @@
                 "panel": "new"
             },
             "problemMatcher": []
+        },
+        {
+            "label": "Run All Tests",
+            "type": "shell",
+            "command": "npm run test",
+            "group": "test",
+            "options": {
+                "cwd": "${workspaceFolder}/app"
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Run JavaScript Tests",
+            "type": "shell",
+            "command": "npm run test:js",
+            "group": "test",
+            "options": {
+                "cwd": "${workspaceFolder}/app"
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Run JavaScript Tests (Watch)",
+            "type": "shell",
+            "command": "npm run test:js:watch",
+            "group": "test",
+            "options": {
+                "cwd": "${workspaceFolder}/app"
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": [],
+            "isBackground": true
+        },
+        {
+            "label": "Run UI Tests",
+            "type": "shell",
+            "command": "npm run test:ui",
+            "group": "test",
+            "options": {
+                "cwd": "${workspaceFolder}/app"
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Run UI Tests (Headed)",
+            "type": "shell",
+            "command": "npm run test:ui:headed",
+            "group": "test",
+            "options": {
+                "cwd": "${workspaceFolder}/app"
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Debug UI Tests",
+            "type": "shell",
+            "command": "npm run test:ui:debug",
+            "group": "test",
+            "options": {
+                "cwd": "${workspaceFolder}/app"
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Generate UI Test Code",
+            "type": "shell",
+            "command": "npm run test:ui:codegen",
+            "group": "test",
+            "options": {
+                "cwd": "${workspaceFolder}/app"
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Show UI Test Report",
+            "type": "shell",
+            "command": "npx playwright show-report tests/ui-reports/html --port 9324",
+            "group": "test",
+            "options": {
+                "cwd": "${workspaceFolder}/app"
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": [],
+            "isBackground": true
+        },
+        {
+            "label": "Open UI Test Report in Browser",
+            "type": "shell",
+            "command": "code --open-url http://localhost:9324",
+            "group": "test",
+            "dependsOrder": "sequence",
+            "dependsOn": "Show UI Test Report",
+            "presentation": {
+                "reveal": "silent"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Run PHPUnit Tests",
+            "type": "shell",
+            "command": "vendor/bin/phpunit",
+            "group": "test",
+            "options": {
+                "cwd": "${workspaceFolder}/app"
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Install Playwright Browsers",
+            "type": "shell",
+            "command": "npm run test:ui:install",
+            "group": "build",
+            "options": {
+                "cwd": "${workspaceFolder}/app"
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "View UI Test Report",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "Start UI Test Report Server",
+                "Open Report in Simple Browser"
+            ],
+            "group": "test",
+            "presentation": {
+                "reveal": "silent"
+            }
+        },
+        {
+            "label": "Start UI Test Report Server",
+            "type": "shell",
+            "command": "npx playwright show-report tests/ui-reports/html --port 9324",
+            "group": "test",
+            "options": {
+                "cwd": "${workspaceFolder}/app"
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": [],
+            "isBackground": true,
+            "runOptions": {
+                "instanceLimit": 1
+            }
+        },
+        {
+            "label": "Open Report in Simple Browser",
+            "type": "shell",
+            "command": "sleep 2 && echo 'Opening report in Simple Browser...'",
+            "group": "test",
+            "presentation": {
+                "reveal": "silent"
+            },
+            "problemMatcher": []
         }
     ]
 }

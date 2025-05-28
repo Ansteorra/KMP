@@ -16,7 +16,9 @@ use Activities\Event\CallForCellsHandler;
 use Activities\Services\AuthorizationManagerInterface;
 use Activities\Services\DefaultAuthorizationManager;
 use App\Services\NavigationRegistry;
+use App\Services\ViewCellRegistry;
 use Activities\Services\ActivitiesNavigationProvider;
+use Activities\Services\ActivitiesViewCellProvider;
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 use App\KMP\StaticHelpers;
 use Cake\I18n\DateTime;
@@ -60,6 +62,15 @@ class ActivitiesPlugin extends BasePlugin implements KMPPluginInterface
             [], // Static items (none for Activities)
             function ($user, $params) {
                 return ActivitiesNavigationProvider::getNavigationItems($user, $params);
+            }
+        );
+
+        // Register view cells with the ViewCellRegistry
+        ViewCellRegistry::register(
+            'Activities',
+            [], // Static cells (none for Activities)
+            function ($urlParams, $user) {
+                return ActivitiesViewCellProvider::getViewCells($urlParams, $user);
             }
         );
 

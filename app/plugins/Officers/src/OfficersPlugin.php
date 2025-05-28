@@ -14,7 +14,9 @@ use App\KMP\KMPPluginInterface;
 use Cake\Event\EventManager;
 use Officers\Event\CallForCellsHandler;
 use App\Services\NavigationRegistry;
+use App\Services\ViewCellRegistry;
 use Officers\Services\OfficersNavigationProvider;
+use Officers\Services\OfficersViewCellProvider;
 use Officers\Services\DefaultOfficerManager;
 use Officers\Services\OfficerManagerInterface;
 use App\KMP\StaticHelpers;
@@ -61,6 +63,15 @@ class OfficersPlugin extends BasePlugin implements KMPPluginInterface
             [], // Static items (none for Officers)
             function ($user, $params) {
                 return OfficersNavigationProvider::getNavigationItems($user, $params);
+            }
+        );
+
+        // Register view cells with the ViewCellRegistry
+        ViewCellRegistry::register(
+            'Officers',
+            [], // Static cells (none for Officers)
+            function ($urlParams, $user) {
+                return OfficersViewCellProvider::getViewCells($urlParams, $user);
             }
         );
 

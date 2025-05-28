@@ -123,6 +123,7 @@ sudo bash reset_dev_database.sh
 cd app
 sudo php bin/cake.php bootstrap install --latest
 sudo npm install
+sudo npx playwright install-deps
 
 #check if cron exists for the user
 if ! crontab -u vscode -l &>/dev/null; then
@@ -148,3 +149,4 @@ sudo apt-get install -y default-jdk
 export JAVA_HOME=$(readlink -f /usr/bin/java | sed "s:/bin/java::")
 sudo echo "JAVA_HOME=$JAVA_HOME" >> /etc/environment
 echo "export JAVA_HOME=$JAVA_HOME" >> ~/.bashrc
+

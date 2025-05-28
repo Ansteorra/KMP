@@ -14,7 +14,9 @@ use App\KMP\KMPPluginInterface;
 use Cake\Event\EventManager;
 use Awards\Event\CallForCellsHandler;
 use App\Services\NavigationRegistry;
+use App\Services\ViewCellRegistry;
 use Awards\Services\AwardsNavigationProvider;
+use Awards\Services\AwardsViewCellProvider;
 use App\KMP\StaticHelpers;
 
 /**
@@ -57,6 +59,15 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
             [], // Static items (none for Awards)
             function ($user, $params) {
                 return AwardsNavigationProvider::getNavigationItems($user, $params);
+            }
+        );
+
+        // Register view cells with ViewCellRegistry
+        ViewCellRegistry::register(
+            'Awards',
+            [], // Static cells (none for Awards)
+            function ($urlParams, $user) {
+                return AwardsViewCellProvider::getViewCells($urlParams, $user);
             }
         );
 
