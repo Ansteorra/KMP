@@ -21,7 +21,10 @@ module.exports = defineConfig({
 
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [
-    ['html', { outputFolder: 'tests/ui-reports/html' }],
+    ['html', {
+      outputFolder: 'tests/ui-reports/html', host: '0.0.0.0',
+      port: 9324
+    }],
     ['json', { outputFile: 'tests/ui-reports/results.json' }],
     ['junit', { outputFile: 'tests/ui-reports/results.xml' }]
   ],
@@ -29,7 +32,7 @@ module.exports = defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: 'http://localhost:8080',
+    baseURL: 'https://127.0.0.1:8080',
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
@@ -45,6 +48,9 @@ module.exports = defineConfig({
 
     /* Set navigation timeout */
     navigationTimeout: 30000,
+
+    /* Ignore SSL errors for self-signed certificates */
+    ignoreHTTPSErrors: true,
   },
 
   /* Configure projects for major browsers */
@@ -61,7 +67,12 @@ module.exports = defineConfig({
 
     {
       name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
+      use: {
+        ...devices['Desktop Safari'],
+        trace: 'on',
+        screenshot: 'on',
+        video: 'on',
+      },
     },
 
     /* Test against mobile viewports. */
@@ -87,11 +98,10 @@ module.exports = defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: 'php -S localhost:8080 -t webroot webroot/index.php',
-    url: 'http://localhost:8080',
-    reuseExistingServer: !process.env.CI,
-    stdout: 'ignore',
-    stderr: 'pipe',
+    command: '',
+    url: 'https://127.0.0.1:8080',
+    reuseExistingServer: true,
+    ignoreHTTPSErrors: true,
   },
 
   /* Global setup and teardown */

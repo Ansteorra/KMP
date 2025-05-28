@@ -2,14 +2,19 @@ const { test, expect } = require('@playwright/test');
 
 test.describe('Authentication Flow', () => {
 
+  test.beforeEach(async ({ page }) => {
+    // Ensure all resources load before testing
+    await page.goto('members/login', { waitUntil: 'networkidle' });
+  });
+
   test('should display login form when not authenticated', async ({ page }) => {
     // Navigate to a protected route (adjust URL based on your app)
-    await page.goto('/admin');
+    await page.goto('/roles');
 
     // Should redirect to login or show login form
     // Adjust selectors based on your actual login form
     const loginForm = page.locator('form').filter({ hasText: /login|sign in/i });
-    const emailField = page.locator('input[type="email"], input[name="email"]');
+    const emailField = page.locator('input[type="email"], input[name="email_address"]');
     const passwordField = page.locator('input[type="password"], input[name="password"]');
 
     // Check if we're on a login page or have a login form
@@ -21,12 +26,12 @@ test.describe('Authentication Flow', () => {
   });
 
   test('should handle login form validation', async ({ page }) => {
-    await page.goto('/login'); // Adjust to your login URL
+    await page.goto('members/login'); // Adjust to your login URL
 
     const loginForm = page.locator('form').filter({ hasText: /login|sign in/i });
 
     if (await loginForm.count() > 0) {
-      const submitButton = loginForm.locator('button[type="submit"], input[type="submit"]');
+      const submitButton = loginForm.locator('input[type="submit"]');
 
       // Try to submit empty form
       await submitButton.click();
@@ -43,11 +48,11 @@ test.describe('Authentication Flow', () => {
   });
 
   test('should handle invalid login credentials', async ({ page }) => {
-    await page.goto('/login'); // Adjust to your login URL
+    await page.goto('members/login'); // Adjust to your login URL
 
-    const emailField = page.locator('input[type="email"], input[name="email"]');
+    const emailField = page.locator('input[type="email"], input[name="email_address"]');
     const passwordField = page.locator('input[type="password"], input[name="password"]');
-    const submitButton = page.locator('button[type="submit"], input[type="submit"]');
+    const submitButton = page.locator('input[type="submit"]');
 
     if (await emailField.count() > 0) {
       // Fill with invalid credentials
@@ -67,18 +72,14 @@ test.describe('Authentication Flow', () => {
   });
 
   // Note: For successful login, you'd need actual test credentials
-  // test('should successfully log in with valid credentials', async ({ page }) => {
-  //   await page.goto('/login');
-  //   
-  //   await page.fill('input[name="email"]', 'test@example.com');
-  //   await page.fill('input[name="password"]', 'testpassword123');
-  //   await page.click('button[type="submit"]');
-  //   
-  //   // Wait for redirect to dashboard or home page
-  //   await page.waitForURL('/dashboard'); // Adjust expected URL
-  //   
-  //   // Verify successful login
-  //   await expect(page.locator('.user-menu, .logout-button')).toBeVisible();
-  // });
+  test('should successfully log in with valid credentials', async ({ page }) => {
+
+    await page.goto('members/login'); // Adjust to your login URL
+    await page.getByRole('textbox', { name: 'Email Address' }).fill('admin@test.com');
+    await page.getByRole('textbox', { name: 'Password' }).fill('Password123');
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await expect(page.getByText('Welcome Admin von Admin!')).toBeVisible();
+  });
+
 
 });

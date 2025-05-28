@@ -184,7 +184,7 @@
         {
             "label": "Start UI Test Report Server",
             "type": "shell",
-            "command": "npx playwright show-report tests/ui-reports/html --port 9324",
+            "command": "npx playwright show-report tests/ui-reports/html --port 9324 --host 0.0.0.0",
             "group": "test",
             "options": {
                 "cwd": "${workspaceFolder}/app"

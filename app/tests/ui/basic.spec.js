@@ -15,26 +15,21 @@ test.describe('KMP Application - Basic Functionality', () => {
     await page.screenshot({ path: 'tests/ui-results/homepage.png', fullPage: true });
   });
 
-  test('should have working navigation', async ({ page }) => {
+  test('should have login screen', async ({ page }) => {
     await page.goto('/');
 
-    // Test main navigation elements
-    const navigation = page.locator('nav');
-    await expect(navigation).toBeVisible();
+    // Wait for the login form to be visible
+    const loginForm = page.locator('form.form-signin');
+    await expect(loginForm).toBeVisible();
 
-    // Check for common navigation items (adjust selectors based on your actual nav)
-    const navItems = [
-      'a[href*="members"]',
-      'a[href*="activities"]',
-      'a[href*="awards"]'
-    ];
+    // Check for email and password fields
+    const emailField = loginForm.locator('input[name="email_address"]');
+    const passwordField = loginForm.locator('input[name="password"]');
+    await expect(emailField).toBeVisible();
+    await expect(passwordField).toBeVisible();
 
-    for (const selector of navItems) {
-      const link = page.locator(selector).first();
-      if (await link.count() > 0) {
-        await expect(link).toBeVisible();
-      }
-    }
+    // Take a screenshot for visual verification
+    await page.screenshot({ path: 'tests/ui-results/login.png', fullPage: true });
   });
 
   test('should handle mobile viewport correctly', async ({ page }) => {

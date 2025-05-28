@@ -109,6 +109,12 @@ cron_job="$cron_schedule $cron_command"
 sudo chmod 644 /var/log/cron.log && sudo chown vscode:vscode /var/log/cron.log
 sudo service cron start
 
+# Enable SSL module and generate self-signed cert if needed
+sudo a2enmod ssl
+if [ ! -f /etc/apache2/ssl/dev.crt ] || [ ! -f /etc/apache2/ssl/dev.key ]; then
+  bash $REPO_PATH/.devcontainer/init_env/generate_dev_ssl.sh
+fi
+
 # Start Apache
 echo "Starting Apache..."
 sudo apachectl restart
