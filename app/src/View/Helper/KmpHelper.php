@@ -73,7 +73,7 @@ class KmpHelper extends Helper
         bool $allowOtherValues = false,
         array $additionalAttrs = []
     ): string {
-        return $this->_View->element('combo_box_control', compact(
+        return $this->_View->element('comboBoxControl', compact(
             'Form',
             'inputField',
             'resultField',
@@ -99,7 +99,7 @@ class KmpHelper extends Helper
         int $minLength = 1,
         array $additionalAttrs = []
     ): string {
-        return $this->_View->element('auto_complete_control', compact(
+        return $this->_View->element('autoCompleteControl', compact(
             'Form',
             'inputField',
             'resultField',
