@@ -41,7 +41,7 @@ describe('ExampleController', () => {
     element = document.querySelector('[data-controller="example"]');
     controller = new ExampleController();
     controller.element = element;
-    
+
     // Set up targets and values as Stimulus would
     controller.outputTarget = element.querySelector('[data-example-target="output"]');
     controller.messageValue = element.getAttribute('data-example-message-value');
@@ -64,12 +64,12 @@ describe('ExampleController', () => {
   test('should handle click events', () => {
     const button = element.querySelector('button');
     const clickEvent = new Event('click', { bubbles: true });
-    
+
     // Spy on preventDefault
     const preventDefaultSpy = jest.spyOn(clickEvent, 'preventDefault');
-    
+
     controller.handleClick(clickEvent);
-    
+
     expect(preventDefaultSpy).toHaveBeenCalled();
     expect(controller.outputTarget.textContent).toBe('Test Message');
   });

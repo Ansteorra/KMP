@@ -7,9 +7,9 @@ export class Controller {
     this.targets = new Map();
   }
 
-  initialize() {}
-  connect() {}
-  disconnect() {}
+  initialize() { }
+  connect() { }
+  disconnect() { }
 
   get application() {
     return {
@@ -24,11 +24,11 @@ export class Controller {
       cancelable: true,
       ...options
     });
-    
+
     if (this.element) {
       this.element.dispatchEvent(event);
     }
-    
+
     return event;
   }
 }
@@ -40,7 +40,7 @@ export class Application {
     };
   }
 
-  register() {}
+  register() { }
 }
 
 // Make Controller available as default export as well

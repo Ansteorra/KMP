@@ -9,7 +9,7 @@ const mockKMPUtils = {
   sanitizeString(str) {
     return str.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
   },
-  
+
   urlParam(name) {
     const urlParams = new URLSearchParams(window.location.search);
     return urlParams.get(name);

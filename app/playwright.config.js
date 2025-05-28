@@ -6,43 +6,43 @@ const { defineConfig, devices } = require('@playwright/test');
  */
 module.exports = defineConfig({
   testDir: './tests/ui',
-  
+
   /* Run tests in files in parallel */
   fullyParallel: true,
-  
+
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
-  
+
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
-  
+
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 1 : undefined,
-  
+
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [
     ['html', { outputFolder: 'tests/ui-reports/html' }],
     ['json', { outputFile: 'tests/ui-reports/results.json' }],
     ['junit', { outputFile: 'tests/ui-reports/results.xml' }]
   ],
-  
+
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
     baseURL: 'http://localhost:8080',
-    
+
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
-    
+
     /* Capture screenshot after each test failure */
     screenshot: 'only-on-failure',
-    
+
     /* Capture video on failure */
     video: 'retain-on-failure',
-    
+
     /* Set global timeout for actions */
     actionTimeout: 30000,
-    
+
     /* Set navigation timeout */
     navigationTimeout: 30000,
   },
