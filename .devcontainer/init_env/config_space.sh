@@ -113,7 +113,3 @@ sudo service cron start
 echo "Starting Apache..."
 sudo apachectl restart
 
-echo "Runtime configuration completed successfully!"
-echo "Application should be available at http://localhost:8080"
-echo "Mailpit web interface available at http://localhost:8025"
-

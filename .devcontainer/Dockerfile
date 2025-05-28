@@ -16,13 +16,13 @@ RUN apt-get update && \
 # Install PHP, server apps, and Java
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive && \
     apt-get -y install --no-install-recommends \
-        cron supervisor \
-        php8.3 php8.3-bcmath php8.3-bz2 php8.3-intl php8.3-gd php8.3-mbstring \
-        php8.3-mysql php8.3-zip php8.3-dom php8.3-yaml php8.3-curl php8.3-sqlite \
-        php8.3-apcu php8.3-xdebug \
-        mariadb-server apache2 nodejs npm \
-        patch python3-pip ruby-full build-essential zlib1g-dev \
-        default-jdk libnet-ssleay-perl perl-modules libwhisker2-perl git && \
+    cron supervisor \
+    php8.3 php8.3-bcmath php8.3-bz2 php8.3-intl php8.3-gd php8.3-mbstring \
+    php8.3-mysql php8.3-zip php8.3-dom php8.3-yaml php8.3-curl php8.3-sqlite \
+    php8.3-apcu php8.3-xdebug \
+    mariadb-server apache2 nodejs npm \
+    patch python3-pip ruby-full build-essential zlib1g-dev \
+    default-jdk libnet-ssleay-perl perl-modules libwhisker2-perl git && \
     rm -rf /var/lib/apt/lists/*
 
 # Configure Java
@@ -62,11 +62,11 @@ COPY supervisord.conf /etc/supervisor/supervisord.conf
 RUN cd /tmp && \
     ARCH=$(uname -m) && \
     if [ "$ARCH" = "x86_64" ]; then \
-        GO_PACKAGE="go1.22.0.linux-amd64.tar.gz"; \
+    GO_PACKAGE="go1.22.0.linux-amd64.tar.gz"; \
     elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then \
-        GO_PACKAGE="go1.22.0.linux-arm64.tar.gz"; \
+    GO_PACKAGE="go1.22.0.linux-arm64.tar.gz"; \
     else \
-        echo "Unsupported architecture: $ARCH"; exit 1; \
+    echo "Unsupported architecture: $ARCH"; exit 1; \
     fi && \
     wget "https://go.dev/dl/$GO_PACKAGE" && \
     tar -C /usr/local -xzf "$GO_PACKAGE" && \
@@ -77,8 +77,12 @@ ENV PATH="/usr/local/go/bin:${PATH}"
 RUN /usr/local/go/bin/go install github.com/KarnerTh/mermerd@latest
 
 # Install Mailpit
-RUN bash < <(curl -sL https://raw.githubusercontent.com/axllent/mailpit/develop/install.sh)
+# ...existing code...
 
+# Install Mailpit - Fix the shell syntax issue
+RUN curl -sL https://raw.githubusercontent.com/axllent/mailpit/develop/install.sh | bash
+
+# ...existing code...
 # Copy Mailpit init script and set up service
 COPY init_env/mailpit.init.d /etc/init.d/mailpit
 RUN chmod +x /etc/init.d/mailpit && \
@@ -121,11 +125,11 @@ RUN git clone --depth 1 https://github.com/sqlmapproject/sqlmap.git /opt/sqlmap 
 # Install PHP Security Checker (architecture-aware)
 RUN ARCH=$(uname -m) && \
     if [ "$ARCH" = "x86_64" ]; then \
-        CHECKER_ARCH="amd64"; \
+    CHECKER_ARCH="amd64"; \
     elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then \
-        CHECKER_ARCH="arm64"; \
+    CHECKER_ARCH="arm64"; \
     else \
-        echo "Unsupported architecture for PHP Security Checker: $ARCH"; exit 1; \
+    echo "Unsupported architecture for PHP Security Checker: $ARCH"; exit 1; \
     fi && \
     curl -sSL "https://github.com/fabpot/local-php-security-checker/releases/download/v2.0.6/local-php-security-checker_2.0.6_linux_${CHECKER_ARCH}" -o /usr/local/bin/local-php-security-checker && \
     chmod +x /usr/local/bin/local-php-security-checker
@@ -133,11 +137,11 @@ RUN ARCH=$(uname -m) && \
 # Install Nuclei (architecture-aware)
 RUN ARCH=$(uname -m) && \
     if [ "$ARCH" = "x86_64" ]; then \
-        NUCLEI_ARCH="amd64"; \
+    NUCLEI_ARCH="amd64"; \
     elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then \
-        NUCLEI_ARCH="arm64"; \
+    NUCLEI_ARCH="arm64"; \
     else \
-        echo "Unsupported architecture for Nuclei: $ARCH"; exit 1; \
+    echo "Unsupported architecture for Nuclei: $ARCH"; exit 1; \
     fi && \
     curl -sSL "https://github.com/projectdiscovery/nuclei/releases/download/v3.4.4/nuclei_3.4.4_linux_${NUCLEI_ARCH}.zip" -o /tmp/nuclei.zip && \
     unzip /tmp/nuclei.zip -d /tmp && \
