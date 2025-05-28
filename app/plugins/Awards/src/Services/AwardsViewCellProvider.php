@@ -7,6 +7,7 @@ namespace Awards\Services;
 use App\KMP\StaticHelpers;
 use Awards\View\Cell\MemberSubmittedRecsCell;
 use Awards\View\Cell\RecsForMemberCell;
+use App\Services\ViewCellRegistry;
 
 /**
  * Awards View Cell Provider
@@ -32,25 +33,32 @@ class AwardsViewCellProvider
         $cells = [];
 
         // Member Submitted Recs Cell - shows award recommendations submitted by a member
-        $memberSubmittedRecsConfig = MemberSubmittedRecsCell::getViewConfigForRoute($urlParams, $user);
-        if ($memberSubmittedRecsConfig) {
-            $cells[] = array_merge($memberSubmittedRecsConfig, [
-                'validRoutes' => [
-                    ['controller' => 'Members', 'action' => 'view', 'plugin' => null],
-                ]
-            ]);
-        }
+        $cells[] = [
+            'type' => ViewCellRegistry::PLUGIN_TYPE_TAB,
+            'label' => 'Submitted Award Recs.',
+            'id' => 'member-submitted-recs',
+            'order' => 3,
+            'tabBtnBadge' => null,
+            'cell' => 'Awards.MemberSubmittedRecs',
+            'validRoutes' => [
+                ['controller' => 'Members', 'action' => 'view', 'plugin' => null],
+                ['controller' => 'Members', 'action' => 'profile', 'plugin' => null]
+            ]
+        ];
 
         // Recs For Member Cell - shows award recommendations received by a member
-        $recsForMemberConfig = RecsForMemberCell::getViewConfigForRoute($urlParams, $user);
-        if ($recsForMemberConfig) {
-            $cells[] = array_merge($recsForMemberConfig, [
-                'validRoutes' => [
-                    ['controller' => 'Members', 'action' => 'view', 'plugin' => null],
-                ]
-            ]);
-        }
-
+        $cells[] = [
+            'type' => ViewCellRegistry::PLUGIN_TYPE_TAB,
+            'label' => 'Received Award Recs.',
+            'id' => 'recs-for-member',
+            'order' => 4,
+            'tabBtnBadge' => null,
+            'cell' => 'Awards.RecsForMember',
+            'validRoutes' => [
+                ['controller' => 'Members', 'action' => 'view', 'plugin' => null],
+                ['controller' => 'Members', 'action' => 'profile', 'plugin' => null]
+            ]
+        ];
         return $cells;
     }
 }

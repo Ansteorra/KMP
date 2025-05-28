@@ -8,6 +8,8 @@ use App\KMP\StaticHelpers;
 use Activities\View\Cell\PermissionActivitiesCell;
 use Activities\View\Cell\MemberAuthorizationsCell;
 use Activities\View\Cell\MemberAuthorizationDetailsJSONCell;
+use App\Services\ViewCellRegistry;
+use App\View\Cell\BasePluginCell;
 
 /**
  * Activities View Cell Provider
@@ -32,36 +34,44 @@ class ActivitiesViewCellProvider
 
         $cells = [];
 
-        // Permission Activities Cell - shows activities related to a permission
-        $permissionActivitiesConfig = PermissionActivitiesCell::getViewConfigForRoute($urlParams, $user);
-        if ($permissionActivitiesConfig) {
-            $cells[] = array_merge($permissionActivitiesConfig, [
-                'validRoutes' => [
-                    ['controller' => 'Permissions', 'action' => 'view', 'plugin' => null],
-                ]
-            ]);
-        }
+        // cell for activities that have permissions
+        $cells[] = [
+            'type' => ViewCellRegistry::PLUGIN_TYPE_TAB,
+            'label' => 'Activities',
+            'id' => 'permission-activities',
+            'order' => 2,
+            'tabBtnBadge' => null,
+            'cell' => 'Activities.PermissionActivities',
+            'validRoutes' => [
+                ['controller' => 'Permissions', 'action' => 'view', 'plugin' => null],
+            ]
+        ];
 
-        // Member Authorizations Cell - shows authorizations for a member
-        $memberAuthorizationsConfig = MemberAuthorizationsCell::getViewConfigForRoute($urlParams, $user);
-        if ($memberAuthorizationsConfig) {
-            $cells[] = array_merge($memberAuthorizationsConfig, [
-                'validRoutes' => [
-                    ['controller' => 'Members', 'action' => 'view', 'plugin' => null],
-                ]
-            ]);
-        }
+        // Cell of activities for member profiles
+        $cells[] = [
+            'type' => ViewCellRegistry::PLUGIN_TYPE_TAB,
+            'label' => 'Authorizations',
+            'id' => 'member-authorizations',
+            'order' => 1,
+            'tabBtnBadge' => null,
+            'cell' => 'Activities.MemberAuthorizations',
+            'validRoutes' => [
+                ['controller' => 'Members', 'action' => 'view', 'plugin' => null],
+                ['controller' => 'Members', 'action' => 'profile', 'plugin' => null]
+            ]
+        ];
 
-        // Member Authorization Details JSON Cell - provides JSON data for mobile/card views
-        $memberAuthDetailsJSONConfig = MemberAuthorizationDetailsJSONCell::getViewConfigForRoute($urlParams, $user);
-        if ($memberAuthDetailsJSONConfig) {
-            $cells[] = array_merge($memberAuthDetailsJSONConfig, [
-                'validRoutes' => [
-                    ['controller' => 'Members', 'action' => 'viewCardJson', 'plugin' => null],
-                    ['controller' => 'Members', 'action' => 'viewMobileCardJson', 'plugin' => null],
-                ]
-            ]);
-        }
+        // JSON cell for member authorizations
+        $cells[] = [
+            'type' => ViewCellRegistry::PLUGIN_TYPE_JSON, // 'tab' or 'detail' or 'modal'
+            'id' => 'memberAuthorizations',
+            'order' => 1,
+            'cell' => 'Activities.MemberAuthorizationDetailsJSON',
+            'validRoutes' => [
+                ['controller' => 'Members', 'action' => 'viewCardJson', 'plugin' => null],
+                ['controller' => 'Members', 'action' => 'viewMobileCardJson', 'plugin' => null],
+            ]
+        ];
 
         return $cells;
     }

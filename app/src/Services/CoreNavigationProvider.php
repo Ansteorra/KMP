@@ -61,8 +61,7 @@ class CoreNavigationProvider
                 'order' => 0,
                 'url' => [
                     'controller' => 'Members',
-                    'action' => 'view',
-                    $user->id,
+                    'action' => 'profile'
                 ],
             ],
             [

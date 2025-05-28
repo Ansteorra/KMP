@@ -12,34 +12,8 @@ use Cake\Log\Log;
 /**
  * MemberSubmittedRecs cell
  */
-class MemberSubmittedRecsCell extends BasePluginCell
+class MemberSubmittedRecsCell extends Cell
 {
-    static protected array $validRoutes = [
-        ['controller' => 'Members', 'action' => 'view', 'plugin' => null],
-    ];
-    static protected array $pluginData = [
-        'type' => BasePluginCell::PLUGIN_TYPE_TAB,
-        'label' => 'Submitted Award Recs.',
-        'id' => 'member-submitted-recs',
-        'order' => 3,
-        'tabBtnBadge' => null,
-        'cell' => 'Awards.MemberSubmittedRecs'
-    ];
-    public static function getViewConfigForRoute($route, $currentUser)
-    {
-        if ($currentUser == null) {
-            return null;
-        }
-        $pluginData = parent::getRouteEventResponse($route, self::$pluginData, self::$validRoutes);
-        $memberId = null;
-        if (isset($route["0"]) && isset($route["0"][0])) {
-            $memberId = $route["0"][0];
-        }
-        if ($pluginData != null && $currentUser != null && ($currentUser->id == $memberId || $currentUser->checkCan('viewSubmittedByMember', 'Awards.Recommendations'))) {
-            return $pluginData;
-        }
-        return null;
-    }
 
     /**
      * List of valid options that can be passed into this
@@ -63,6 +37,9 @@ class MemberSubmittedRecsCell extends BasePluginCell
      */
     public function display($id)
     {
+        if ($id == -1) {
+            $id = $this->request->getAttribute('identity')->getIdentifier();
+        }
         $currentUser = $this->request->getAttribute('identity');
         if ($currentUser->id != $id && !$currentUser->checkCan('view', 'Awards.Recommendations')) {
             return;

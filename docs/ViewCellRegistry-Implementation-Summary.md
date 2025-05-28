@@ -105,6 +105,7 @@ Cells can specify valid routes for automatic filtering:
 $cells[] = array_merge($cellConfig, [
     'validRoutes' => [
         ['controller' => 'Members', 'action' => 'view', 'plugin' => null],
+        ['controller' => 'Members', 'action' => 'profile', 'plugin' => null]
     ]
 ]);
 ```

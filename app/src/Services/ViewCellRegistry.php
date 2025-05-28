@@ -18,6 +18,11 @@ class ViewCellRegistry
 {
     use StaticConfigTrait;
 
+    public const PLUGIN_TYPE_TAB = 'tab';
+    public const PLUGIN_TYPE_DETAIL = 'detail';
+    public const PLUGIN_TYPE_MODAL = 'modal';
+    public const PLUGIN_TYPE_JSON = 'json';
+
     /**
      * @var array View cells registry
      */

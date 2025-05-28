@@ -14,23 +14,8 @@ use Officers\Model\Entity\Officer;
 /**
  * MemberOfficers cell
  */
-class MemberOfficersCell extends BasePluginCell
+class MemberOfficersCell extends Cell
 {
-    static protected array $validRoutes = [
-        ['controller' => 'Members', 'action' => 'view', 'plugin' => null],
-    ];
-    static protected array $pluginData = [
-        'type' => BasePluginCell::PLUGIN_TYPE_TAB,
-        'label' => 'Offices',
-        'id' => 'member-officers',
-        'order' => 2,
-        'tabBtnBadge' => null,
-        'cell' => 'Officers.MemberOfficers'
-    ];
-    public static function getViewConfigForRoute($route, $currentUser)
-    {
-        return parent::getRouteEventResponse($route, self::$pluginData, self::$validRoutes);
-    }
     /**
      * List of valid options that can be passed into this
      * cell's constructor.

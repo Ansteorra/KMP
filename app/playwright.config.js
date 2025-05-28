@@ -1,11 +1,18 @@
 // @ts-check
 const { defineConfig, devices } = require('@playwright/test');
+// Playwright-BDD configuration  
+const { defineBddConfig } = require('playwright-bdd');
+
+const testDir = defineBddConfig({
+  featuresRoot: './tests/ui/bdd',
+  outputDir: 'tests/ui/gen',
+});
 
 /**
  * @see https://playwright.dev/docs/test-configuration
  */
 module.exports = defineConfig({
-  testDir: './tests/ui',
+  testDir: testDir,
 
   /* Run tests in files in parallel */
   fullyParallel: true,
@@ -69,9 +76,6 @@ module.exports = defineConfig({
       name: 'webkit',
       use: {
         ...devices['Desktop Safari'],
-        trace: 'on',
-        screenshot: 'on',
-        video: 'on',
       },
     },
 

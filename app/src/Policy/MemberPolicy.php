@@ -31,6 +31,19 @@ class MemberPolicy extends BasePolicy
     }
 
     /**
+     * Check if $user can view their own profile
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The user.
+     * @param \App\Model\Entity\BaseEntity|Table $entity
+     * @param mixed ...$optionalArgs Optional arguments
+     * @return bool
+     */
+    public function canProfile(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
+    {
+        return true;
+    }
+
+    /**
      * Check if $user can partial edit Member
      *
      * @param \App\KMP\KmpIdentityInterface $user The user.
