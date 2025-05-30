@@ -40,7 +40,7 @@
 	"remoteUser": "vscode",
 	"forwardPorts": [
 		8080, // Port for the application server
-		3306, // Port for MySQL serverq
+		3306, // Port for MySQL server
 		8025, // Port for Mailpit SMTP server
 		9324 // Port for Playwright test report
 	],
