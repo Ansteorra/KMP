@@ -10,6 +10,7 @@ use App\Policy\BasePolicy;
 use Activities\Model\Table\ActivitiesTable;
 use App\Model\Entity\BaseEntity;
 use Cake\ORM\TableRegistry;
+use Cake\ORM\Table;
 
 /**
  * AuthorizationApprovalsTable policy
@@ -20,11 +21,11 @@ class AuthorizationApprovalsTablePolicy extends BasePolicy
     /**
      * Check if the user can view the index of their queue
      * @param KmpIdentityInterface $user
-     * @param BaseEntity $entity
+     * @param BaseEntity|Cake\ORM\Table $entity
      * @param mixed ...$optionalArgs
      * @return bool
      */
-    public function canMyQueue(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs)
+    public function canMyQueue(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs)
     {
         return ActivitiesTable::canAuhtorizeAnyActivity($user);
     }
@@ -32,11 +33,11 @@ class AuthorizationApprovalsTablePolicy extends BasePolicy
     /**
      * Check if the user can view all queues
      * @param KmpIdentityInterface $user
-     * @param BaseEntity $entity
+     * @param BaseEntity|Cake\ORM\Table $entity
      * @param mixed ...$optionalArgs
      * @return bool
      */
-    public function canAllQueues(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs)
+    public function canAllQueues(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs)
     {
         $method = __FUNCTION__;
         return $this->_hasPolicy($user, $method, $entity);

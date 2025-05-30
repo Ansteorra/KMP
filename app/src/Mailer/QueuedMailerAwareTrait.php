@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 /**
@@ -43,7 +44,7 @@ trait QueuedMailerAwareTrait
      * @return \Cake\Mailer\Mailer
      * @throws \Cake\Mailer\Exception\MissingMailerException if undefined mailer class.
      */
-    protected function queueMail(string $name, $action, $to, $vars): Mailer
+    protected function queueMail(string $name, $action, $to, $vars): void
     {
         $className = App::className($name, 'Mailer', 'Mailer');
         if ($className === null) {

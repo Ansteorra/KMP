@@ -14,24 +14,8 @@ use Activities\Model\Entity\Authorization;
 /**
  * MemberAuthorizations cell
  */
-class MemberAuthorizationsCell extends BasePluginCell
+class MemberAuthorizationsCell extends Cell
 {
-    static protected array $validRoutes = [
-        ['controller' => 'Members', 'action' => 'view', 'plugin' => null],
-    ];
-    static protected array $pluginData = [
-        'type' => BasePluginCell::PLUGIN_TYPE_TAB,
-        'label' => 'Authorizations',
-        'id' => 'member-authorizations',
-        'order' => 1,
-        'tabBtnBadge' => null,
-        'cell' => 'Activities.MemberAuthorizations'
-    ];
-    public static function getViewConfigForRoute($route, $currentUser)
-    {
-        return parent::getRouteEventResponse($route, self::$pluginData, self::$validRoutes);
-    }
-
     /**
      * 
      * List of valid options that can be passed into this
@@ -54,6 +38,10 @@ class MemberAuthorizationsCell extends BasePluginCell
      */
     public function display($id)
     {
+        //if the id is -1 then we are viewing the current user
+        if ($id == -1) {
+            $id = $this->request->getAttribute('identity')->getIdentifier();
+        }
         $authTable = TableRegistry::getTableLocator()->get("Activities.Authorizations");
         $currentAuths = $authTable->find('current')->where(['member_id' => $id])->count();
         $pendingAuths = $authTable->find('pending')->where(['member_id' => $id])->count();

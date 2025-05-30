@@ -117,7 +117,6 @@ class AuthorizationApprovalsController extends AppController
         if ($token) {
             $query = $query->where(["authorization_token" => $token]);
         }
-        $this->Authorization->authorize($query);
         $this->Authorization->applyScope($query);
         $authorizationApprovals = $query->all();
         $queueFor = $this->Authentication->getIdentity()->sca_name;
@@ -136,7 +135,6 @@ class AuthorizationApprovalsController extends AppController
     public function view($id = null)
     {
         $query = $this->getAuthorizationApprovalsQuery($id);
-        $this->Authorization->authorize($query);
         $this->Authorization->applyScope($query);
         $authorizationApprovals = $query->all();
         $queueFor = $this->AuthorizationApprovals->Approvers->find()
@@ -216,7 +214,7 @@ class AuthorizationApprovalsController extends AppController
             return $this->redirect($this->referer());
         }
         $this->Flash->success(
-            __("The authorization approval has been processed"),
+            __("The authorization approval has been processed."),
         );
 
         return $this->redirect($this->referer());

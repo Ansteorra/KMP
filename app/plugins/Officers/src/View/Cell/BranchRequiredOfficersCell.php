@@ -10,23 +10,8 @@ use App\View\Cell\BasePluginCell;
 /**
  * BranchRequiredOfficers cell
  */
-class BranchRequiredOfficersCell extends BasePluginCell
+class BranchRequiredOfficersCell extends Cell
 {
-    static protected array $validRoutes = [
-        ['controller' => 'Branches', 'action' => 'view', 'plugin' => null],
-    ];
-    static protected array $pluginData = [
-        'type' => BasePluginCell::PLUGIN_TYPE_DETAIL,
-        'label' => 'Officers',
-        'id' => 'branch-required-officers',
-        'order' => 1,
-        'tabBtnBadge' => null,
-        'cell' => 'Officers.BranchRequiredOfficers'
-    ];
-    public static function getViewConfigForRoute($route, $currentUser)
-    {
-        return parent::getRouteEventResponse($route, self::$pluginData, self::$validRoutes);
-    }
     /**
      * List of valid options that can be passed into this
      * cell's constructor.

@@ -13,30 +13,8 @@ use Cake\ORM\Table;
 /**
  * RecsForMember cell
  */
-class RecsForMemberCell extends BasePluginCell
+class RecsForMemberCell extends Cell
 {
-    static protected array $validRoutes = [
-        ['controller' => 'Members', 'action' => 'view', 'plugin' => null],
-    ];
-    static protected array $pluginData = [
-        'type' => BasePluginCell::PLUGIN_TYPE_TAB,
-        'label' => 'Received Award Recs.',
-        'id' => 'recs-for-member',
-        'order' => 4,
-        'tabBtnBadge' => null,
-        'cell' => 'Awards.RecsForMember'
-    ];
-    public static function getViewConfigForRoute($route, $currentUser)
-    {
-        if ($currentUser == null) {
-            return null;
-        }
-        $pluginData = parent::getRouteEventResponse($route, self::$pluginData, self::$validRoutes);
-        if ($pluginData != null && $currentUser != null && ($currentUser->checkCan('viewSubmittedForMember', 'Awards.Recommendations'))) {
-            return $pluginData;
-        }
-        return null;
-    }
 
     /**
      * List of valid options that can be passed into this
@@ -60,6 +38,9 @@ class RecsForMemberCell extends BasePluginCell
      */
     public function display($id)
     {
+        if ($id == -1) {
+            $id = $this->request->getAttribute('identity')->getIdentifier();
+        }
         $recommendationsTbl = TableRegistry::getTableLocator()->get("Awards.Recommendations");
         $isEmpty = $recommendationsTbl->find('all')->where(['member_id' => $id])->count() === 0;
         $this->set(compact('isEmpty', 'id'));

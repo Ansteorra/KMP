@@ -11,17 +11,18 @@ use Cake\ORM\TableRegistry;
 use Cake\I18n\DateTime;
 use Officers\Model\Entity\Officer;
 use Cake\Datasource\Paging\NumericPaginator;
+use App\Services\ViewCellRegistry;
 
 /**
  * BranchOfficers cell
  */
-class BranchOfficersCell extends BasePluginCell
+class BranchOfficersCell extends Cell
 {
     static protected array $validRoutes = [
         ['controller' => 'Branches', 'action' => 'view', 'plugin' => null],
     ];
     static protected array $pluginData = [
-        'type' => BasePluginCell::PLUGIN_TYPE_TAB,
+        'type' => ViewCellRegistry::PLUGIN_TYPE_TAB,
         'label' => 'Officers',
         'id' => 'branch-officers',
         'order' => 1,

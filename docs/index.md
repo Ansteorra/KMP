@@ -58,7 +58,7 @@ layout: default
 | 10.4 Asset Management | How JavaScript and CSS assets are built and served |
 | **11. [Extending KMP](11-extending-kmp.md)** | |
 | 11.1 Creating Plugins | How to create plugins for extending KMP |
-| 11.2 Event System | Leveraging CallForCellsHandler and CallForNavHandler events |
+| 11.2  Navigation and Event System | How to add Navigation from a plugin and inject Plugin UI into Core Pages |
 | 11.3 Creating UI Components | Extending the UI with custom cells |
 | 11.4 Database Models | Adding custom database models to plugins |
 | 11.5 Best Practices | Guidelines for effective plugin development |

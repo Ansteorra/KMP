@@ -10,23 +10,8 @@ use App\View\Cell\BasePluginCell;
 /**
  * PermissionActivities cell
  */
-class PermissionActivitiesCell extends BasePluginCell
+class PermissionActivitiesCell extends Cell
 {
-    static protected array $validRoutes = [
-        ['controller' => 'Permissions', 'action' => 'view', 'plugin' => null],
-    ];
-    static protected array $pluginData = [
-        'type' => BasePluginCell::PLUGIN_TYPE_TAB,
-        'label' => 'Activities',
-        'id' => 'permission-activities',
-        'order' => 2,
-        'tabBtnBadge' => null,
-        'cell' => 'Activities.PermissionActivities'
-    ];
-    public static function getViewConfigForRoute($route, $currentUser)
-    {
-        return parent::getRouteEventResponse($route, self::$pluginData, self::$validRoutes);
-    }
     /**
      * List of valid options that can be passed into this
      * cell's constructor.
@@ -39,9 +24,7 @@ class PermissionActivitiesCell extends BasePluginCell
      *
      * @return void
      */
-    public function initialize(): void
-    {
-    }
+    public function initialize(): void {}
 
     /**
      * Default display method.

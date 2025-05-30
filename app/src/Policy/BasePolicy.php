@@ -80,10 +80,10 @@ class BasePolicy implements BeforePolicyInterface
      * Check if $user can view RolesPermissions
      *
      * @param \App\KMP\KmpIdentityInterface $user The user.
-     * @param \App\Model\Entity\BaseEntity $entity
+     * @param \App\Model\Entity\BaseEntity|Cake\ORM\Table $entity
      * @return bool
      */
-    public function canView(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
+    public function canView(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
 

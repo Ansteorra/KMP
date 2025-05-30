@@ -1,0 +1,18 @@
+<VirtualHost *:8080>
+  DocumentRoot {{REPO_PATH}}/app
+  <Directory "{{REPO_PATH}}/app" >
+    Options FollowSymLinks
+    AllowOverride All
+    DirectoryIndex index.php
+    Require all granted
+  </Directory>
+  ErrorLog ${APACHE_LOG_DIR}/error.log
+  CustomLog ${APACHE_LOG_DIR}/access.log combined
+
+  SSLEngine on
+  SSLCertificateFile /etc/apache2/ssl/dev.crt
+  SSLCertificateKeyFile /etc/apache2/ssl/dev.key
+
+  # Allow insecure self-signed for dev
+  SSLProxyEngine on
+</VirtualHost>

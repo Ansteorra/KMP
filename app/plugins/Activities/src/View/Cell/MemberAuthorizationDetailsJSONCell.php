@@ -13,22 +13,8 @@ use Cake\ORM\TableRegistry;
 /**
  * MemberAuthorizationDetailsJSON cell
  */
-class MemberAuthorizationDetailsJSONCell extends BasePluginCell
+class MemberAuthorizationDetailsJSONCell extends Cell
 {
-    static protected array $validRoutes = [
-        ['controller' => 'Members', 'action' => 'viewCardJson', 'plugin' => null],
-        ['controller' => 'Members', 'action' => 'viewMobileCardJson', 'plugin' => null],
-    ];
-    static protected array $pluginData = [
-        'type' => BasePluginCell::PLUGIN_TYPE_JSON, // 'tab' or 'detail' or 'modal'
-        'id' => 'memberAuthorizations',
-        'order' => 1,
-        'cell' => 'Activities.MemberAuthorizationDetailsJSON'
-    ];
-    public static function getViewConfigForRoute($route, $currentUser)
-    {
-        return parent::getRouteEventResponse($route, self::$pluginData, self::$validRoutes);
-    }
     /**
      * List of valid options that can be passed into this
      * cell's constructor.

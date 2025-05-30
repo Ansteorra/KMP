@@ -21,13 +21,26 @@ class MemberPolicy extends BasePolicy
      * @param mixed ...$optionalArgs Optional arguments
      * @return bool
      */
-    public function canView(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
+    public function canView(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
     {
         if ($entity->id == $user->getIdentifier()) {
             return true;
         }
 
         return parent::canView($user, $entity);
+    }
+
+    /**
+     * Check if $user can view their own profile
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The user.
+     * @param \App\Model\Entity\BaseEntity|Table $entity
+     * @param mixed ...$optionalArgs Optional arguments
+     * @return bool
+     */
+    public function canProfile(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
+    {
+        return true;
     }
 
     /**

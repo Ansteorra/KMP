@@ -1,5 +1,57 @@
 (self["webpackChunk"] = self["webpackChunk"] || []).push([["/js/controllers"],{
 
+/***/ "./assets/css/app.css":
+/*!****************************!*\
+  !*** ./assets/css/app.css ***!
+  \****************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+// extracted by mini-css-extract-plugin
+
+
+/***/ }),
+
+/***/ "./assets/css/cover.css":
+/*!******************************!*\
+  !*** ./assets/css/cover.css ***!
+  \******************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+// extracted by mini-css-extract-plugin
+
+
+/***/ }),
+
+/***/ "./assets/css/dashboard.css":
+/*!**********************************!*\
+  !*** ./assets/css/dashboard.css ***!
+  \**********************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+// extracted by mini-css-extract-plugin
+
+
+/***/ }),
+
+/***/ "./assets/css/signin.css":
+/*!*******************************!*\
+  !*** ./assets/css/signin.css ***!
+  \*******************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+// extracted by mini-css-extract-plugin
+
+
+/***/ }),
+
 /***/ "./assets/js/controllers/app-setting-form-controller.js":
 /*!**************************************************************!*\
   !*** ./assets/js/controllers/app-setting-form-controller.js ***!
@@ -629,10 +681,9 @@ class AutoComplete extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Contr
     };
   }
 }
-const debounce = function (fn) {
-  let delay = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 10;
+const debounce = (fn, delay = 10) => {
   let timeoutId = null;
-  return function () {
+  return (...args) => {
     clearTimeout(timeoutId);
     timeoutId = setTimeout(fn, delay);
   };
@@ -2185,1485 +2236,6 @@ if (!window.Controllers) {
   window.Controllers = {};
 }
 window.Controllers["session-extender"] = SessionExtender;
-
-/***/ }),
-
-/***/ "./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js":
-/*!****************************************************************************************!*\
-  !*** ./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js ***!
-  \****************************************************************************************/
-/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
-__webpack_require__.r(__webpack_exports__);
-/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
-
-class ActivitiesApproveAndAssignAuthorization extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
-  static values = {
-    url: String
-  };
-  static targets = ["approvers", "submitBtn", "id"];
-  static outlets = ["outlet-btn"];
-  setId(event) {
-    this.idTarget.value = event.detail.id;
-    this.getApprovers();
-  }
-  outletBtnOutletConnected(outlet, element) {
-    outlet.addListener(this.setId.bind(this));
-  }
-  outletBtnOutletDisconnected(outlet) {
-    outlet.removeListener(this.setId.bind(this));
-  }
-  getApprovers() {
-    if (this.hasApproversTarget) {
-      this.approversTarget.value = "";
-      let activityId = this.idTarget.value;
-      let url = this.urlValue + "/" + activityId;
-      fetch(url, this.optionsForFetch()).then(response => response.json()).then(data => {
-        let list = [];
-        data.forEach(item => {
-          list.push({
-            value: item.id,
-            text: item.sca_name
-          });
-        });
-        this.approversTarget.options = list;
-        this.submitBtnTarget.disabled = true;
-        this.approversTarget.disabled = false;
-      });
-    }
-  }
-  optionsForFetch() {
-    return {
-      headers: {
-        "X-Requested-With": "XMLHttpRequest",
-        "Accept": "application/json"
-      }
-    };
-  }
-  checkReadyToSubmit() {
-    let approverValue = this.approversTarget.value;
-    let approverNum = parseInt(approverValue);
-    if (approverNum > 0) {
-      this.submitBtnTarget.disabled = false;
-    } else {
-      this.submitBtnTarget.disabled = true;
-    }
-  }
-  submitBtnTargetConnected() {
-    this.submitBtnTarget.disabled = true;
-  }
-}
-// add to window.Controllers with a name of the controller
-if (!window.Controllers) {
-  window.Controllers = {};
-}
-window.Controllers["activities-approve-and-assign-auth"] = ActivitiesApproveAndAssignAuthorization;
-
-/***/ }),
-
-/***/ "./plugins/Activities/assets/js/controllers/gw-sharing-controller.js":
-/*!***************************************************************************!*\
-  !*** ./plugins/Activities/assets/js/controllers/gw-sharing-controller.js ***!
-  \***************************************************************************/
-/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
-__webpack_require__.r(__webpack_exports__);
-/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
-
-class GWSharingController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
-  static targets = ["form"];
-
-  //when the switch is changed then submit the form
-  submit() {
-    this.formTarget.submit();
-  }
-}
-// add to window.Controllers with a name of the controller
-if (!window.Controllers) {
-  window.Controllers = {};
-}
-window.Controllers["gw_sharing"] = GWSharingController;
-
-/***/ }),
-
-/***/ "./plugins/Activities/assets/js/controllers/renew-auth-controller.js":
-/*!***************************************************************************!*\
-  !*** ./plugins/Activities/assets/js/controllers/renew-auth-controller.js ***!
-  \***************************************************************************/
-/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
-__webpack_require__.r(__webpack_exports__);
-/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
-
-class ActivitiesRenewAuthorization extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
-  static values = {
-    url: String
-  };
-  static targets = ["activity", "approvers", "submitBtn", "memberId", "id"];
-  static outlets = ["outlet-btn"];
-  setId(event) {
-    this.idTarget.value = event.detail.id;
-    this.activityTarget.value = event.detail.activity;
-    this.getApprovers();
-  }
-  outletBtnOutletConnected(outlet, element) {
-    outlet.addListener(this.setId.bind(this));
-  }
-  outletBtnOutletDisconnected(outlet) {
-    outlet.removeListener(this.setId.bind(this));
-  }
-  getApprovers() {
-    if (this.hasApproversTarget) {
-      this.approversTarget.value = "";
-      let activityId = this.activityTarget.value;
-      let url = this.urlValue + "/" + activityId + "/" + this.memberIdTarget.value;
-      fetch(url, this.optionsForFetch()).then(response => response.json()).then(data => {
-        let list = [];
-        data.forEach(item => {
-          list.push({
-            value: item.id,
-            text: item.sca_name
-          });
-        });
-        this.approversTarget.options = list;
-        this.submitBtnTarget.disabled = true;
-        this.approversTarget.disabled = false;
-      });
-    }
-  }
-  optionsForFetch() {
-    return {
-      headers: {
-        "X-Requested-With": "XMLHttpRequest",
-        "Accept": "application/json"
-      }
-    };
-  }
-  checkReadyToSubmit() {
-    let approverValue = this.approversTarget.value;
-    let approverNum = parseInt(approverValue);
-    if (approverNum > 0) {
-      this.submitBtnTarget.disabled = false;
-    } else {
-      this.submitBtnTarget.disabled = true;
-    }
-  }
-  submitBtnTargetConnected() {
-    this.submitBtnTarget.disabled = true;
-  }
-}
-// add to window.Controllers with a name of the controller
-if (!window.Controllers) {
-  window.Controllers = {};
-}
-window.Controllers["activities-renew-auth"] = ActivitiesRenewAuthorization;
-
-/***/ }),
-
-/***/ "./plugins/Activities/assets/js/controllers/request-auth-controller.js":
-/*!*****************************************************************************!*\
-  !*** ./plugins/Activities/assets/js/controllers/request-auth-controller.js ***!
-  \*****************************************************************************/
-/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
-__webpack_require__.r(__webpack_exports__);
-/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
-
-class ActivitiesRequestAuthorization extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
-  static values = {
-    url: String
-  };
-  static targets = ["activity", "approvers", "submitBtn", "memberId"];
-  getApprovers(event) {
-    this.approversTarget.value = "";
-    let activityId = this.activityTarget.value;
-    let url = this.urlValue + "/" + activityId + "/" + this.memberIdTarget.value;
-    fetch(url, this.optionsForFetch()).then(response => response.json()).then(data => {
-      let list = [];
-      data.forEach(item => {
-        list.push({
-          value: item.id,
-          text: item.sca_name
-        });
-      });
-      this.approversTarget.options = list;
-      this.submitBtnTarget.disabled = true;
-      this.approversTarget.disabled = false;
-    });
-  }
-  acConnected() {
-    if (this.hasApproversTarget) {
-      this.approversTarget.disabled = true;
-    }
-  }
-  optionsForFetch() {
-    return {
-      headers: {
-        "X-Requested-With": "XMLHttpRequest",
-        "Accept": "application/json"
-      }
-    };
-  }
-  checkReadyToSubmit() {
-    let approverValue = this.approversTarget.value;
-    let approverNum = parseInt(approverValue);
-    if (approverNum > 0) {
-      this.submitBtnTarget.disabled = false;
-    } else {
-      this.submitBtnTarget.disabled = true;
-    }
-  }
-  submitBtnTargetConnected() {
-    this.submitBtnTarget.disabled = true;
-  }
-  approversTargetConnected() {
-    this.approversTarget.disabled = true;
-  }
-}
-// add to window.Controllers with a name of the controller
-if (!window.Controllers) {
-  window.Controllers = {};
-}
-window.Controllers["activities-request-auth"] = ActivitiesRequestAuthorization;
-
-/***/ }),
-
-/***/ "./plugins/Awards/Assets/js/controllers/award-form-controller.js":
-/*!***********************************************************************!*\
-  !*** ./plugins/Awards/Assets/js/controllers/award-form-controller.js ***!
-  \***********************************************************************/
-/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
-__webpack_require__.r(__webpack_exports__);
-/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
-
-class AwardsAwardForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
-  static targets = ["new", "formValue", "displayList"];
-  initialize() {
-    this.items = [];
-  }
-  add(event) {
-    event.preventDefault();
-    if (!this.newTarget.value) {
-      return;
-    }
-    if (this.items.includes(this.newTarget.value)) {
-      return;
-    }
-    let item = this.newTarget.value;
-    this.items.push(item);
-    this.createListItem(KMP_utils.sanitizeString(item));
-    this.formValueTarget.value = JSON.stringify(this.items);
-    this.newTarget.value = '';
-  }
-  remove(event) {
-    event.preventDefault();
-    let id = event.target.getAttribute('data-id');
-    this.items = this.items.filter(item => {
-      return item !== id;
-    });
-    this.formValueTarget.value = JSON.stringify(this.items);
-    event.target.parentElement.remove();
-  }
-  connect() {
-    if (this.formValueTarget.value && this.formValueTarget.value.length > 0) {
-      this.items = JSON.parse(this.formValueTarget.value);
-      this.items.forEach(item => {
-        //create a remove button
-        this.createListItem(item);
-      });
-    }
-  }
-  createListItem(item) {
-    let removeButton = document.createElement('button');
-    removeButton.innerHTML = 'Remove';
-    removeButton.setAttribute('data-action', 'awards-award-form#remove');
-    removeButton.setAttribute('data-id', item);
-    removeButton.setAttribute('class', 'btn btn-danger btn-sm');
-    removeButton.setAttribute('type', 'button');
-    //create a list item
-    let inputGroup = document.createElement('div');
-    inputGroup.setAttribute('class', 'input-group mb-1');
-    let span = document.createElement('span');
-    span.innerHTML = item;
-    span.setAttribute('class', 'form-control');
-    inputGroup.appendChild(span);
-    inputGroup.appendChild(removeButton);
-    this.displayListTarget.appendChild(inputGroup);
-  }
-}
-// add to window.Controllers with a name of the controller
-if (!window.Controllers) {
-  window.Controllers = {};
-}
-window.Controllers["awards-award-form"] = AwardsAwardForm;
-
-/***/ }),
-
-/***/ "./plugins/Awards/Assets/js/controllers/rec-add-controller.js":
-/*!********************************************************************!*\
-  !*** ./plugins/Awards/Assets/js/controllers/rec-add-controller.js ***!
-  \********************************************************************/
-/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
-__webpack_require__.r(__webpack_exports__);
-/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
-
-class AwardsRecommendationAddForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
-  static targets = ["scaMember", "notFound", "branch", "externalLinks", "awardDescriptions", "award", "reason", "events", "specialty"];
-  static values = {
-    publicProfileUrl: String,
-    awardListUrl: String
-  };
-  submit(event) {
-    this.notFoundTarget.disabled = false;
-    this.scaMemberTarget.disabled = false;
-    this.specialtyTarget.disabled = false;
-  }
-  setAward(event) {
-    let awardId = event.target.dataset.awardId;
-    this.awardTarget.value = awardId;
-    this.populateSpecialties(event);
-  }
-  optionsForFetch() {
-    return {
-      headers: {
-        "X-Requested-With": "XMLHttpRequest",
-        "Accept": "application/json"
-      }
-    };
-  }
-  populateAwardDescriptions(event) {
-    let url = this.awardListUrlValue + "/" + event.target.value;
-    fetch(url, this.optionsForFetch()).then(response => response.json()).then(data => {
-      this.awardDescriptionsTarget.innerHTML = "";
-      let tabButtons = document.createElement("ul");
-      tabButtons.classList.add("nav", "nav-pills");
-      tabButtons.setAttribute("role", "tablist");
-      let tabContentArea = document.createElement("div");
-      tabContentArea.classList.add("tab-content");
-      tabContentArea.classList.add("border");
-      tabContentArea.classList.add("border-light-subtle");
-      tabContentArea.classList.add("p-2");
-      tabContentArea.innerHTML = "";
-      this.awardTarget.value = "";
-      let active = "active";
-      let show = "show";
-      let selected = "true";
-      let awardList = [];
-      if (data.length > 0) {
-        data.forEach(function (award) {
-          //create list item
-          awardList.push({
-            value: award.id,
-            text: award.name,
-            data: award
-          });
-          //create tab info
-          var tabButton = document.createElement("li");
-          tabButton.classList.add("nav-item");
-          tabButton.setAttribute("role", "presentation");
-          var button = document.createElement("button");
-          button.classList.add("nav-link");
-          if (active == "active") {
-            button.classList.add("active");
-          }
-          button.setAttribute("data-action", "click->awards-rec-add#setAward");
-          button.setAttribute("id", "award_" + award.id + "_btn");
-          button.setAttribute("data-bs-toggle", "tab");
-          button.setAttribute("data-bs-target", "#award_" + award.id);
-          button.setAttribute('data-award-id', award.id);
-          button.setAttribute("type", "button");
-          button.setAttribute("role", "tab");
-          button.setAttribute("aria-controls", "award_" + award.id);
-          button.setAttribute("aria-selected", selected);
-          button.innerHTML = award.name;
-          tabButton.appendChild(button);
-          var tabContent = document.createElement("div");
-          tabContent.classList.add("tab-pane");
-          tabContent.classList.add("fade");
-          if (show == "show") {
-            tabContent.classList.add("show");
-          }
-          if (active == "active") {
-            tabContent.classList.add("active");
-          }
-          tabContent.setAttribute("id", "award_" + award.id);
-          tabContent.setAttribute("role", "tabpanel");
-          tabContent.setAttribute("aria-labelledby", "award_" + award.id + "_btn");
-          tabContent.innerHTML = award.name + ": " + award.description;
-          active = "";
-          show = "";
-          selected = "false";
-          tabButtons.append(tabButton);
-          tabContentArea.append(tabContent);
-        });
-        this.awardDescriptionsTarget.appendChild(tabButtons);
-        this.awardDescriptionsTarget.appendChild(tabContentArea);
-        this.awardTarget.options = awardList;
-        this.awardTarget.disabled = false;
-      } else {
-        this.awardTarget.options = [{
-          value: "No awards available",
-          text: "No awards available"
-        }];
-        this.awardTarget.value = "No awards available";
-        this.awardTarget.disabled = true;
-      }
-    });
-  }
-  populateSpecialties(event) {
-    let awardId = this.awardTarget.value;
-    let options = this.awardTarget.options;
-    let award = this.awardTarget.options.find(award => award.value == awardId);
-    let specialtyArray = [];
-    if (award.data.specialties != null && award.data.specialties.length > 0) {
-      award.data.specialties.forEach(function (specialty) {
-        specialtyArray.push({
-          value: specialty,
-          text: specialty
-        });
-      });
-      this.specialtyTarget.options = specialtyArray;
-      this.specialtyTarget.value = "";
-      this.specialtyTarget.disabled = false;
-      this.specialtyTarget.hidden = false;
-    } else {
-      this.specialtyTarget.options = [{
-        value: "No specialties available",
-        text: "No specialties available"
-      }];
-      this.specialtyTarget.value = "No specialties available";
-      this.specialtyTarget.disabled = true;
-      this.specialtyTarget.hidden = true;
-    }
-  }
-  loadScaMemberInfo(event) {
-    //reset member metadata area
-    this.externalLinksTarget.innerHTML = "";
-    let memberId = Number(event.target.value.replace(/_/g, ""));
-    if (memberId > 0) {
-      this.notFoundTarget.checked = false;
-      this.branchTarget.hidden = true;
-      this.branchTarget.disabled = true;
-      this.loadMember(memberId);
-    } else {
-      this.notFoundTarget.checked = true;
-      this.branchTarget.hidden = false;
-      this.branchTarget.disabled = false;
-      this.branchTarget.focus();
-    }
-  }
-  loadMember(memberId) {
-    let url = this.publicProfileUrlValue + "/" + memberId;
-    fetch(url, this.optionsForFetch()).then(response => response.json()).then(data => {
-      this.externalLinksTarget.innerHTML = "";
-      let keys = Object.keys(data.external_links);
-      if (keys.length > 0) {
-        var LinksTitle = document.createElement("div");
-        LinksTitle.innerHTML = "<h5>Public Links</h5>";
-        LinksTitle.classList.add("col-12");
-        this.externalLinksTarget.appendChild(LinksTitle);
-        for (let key in data.external_links) {
-          let div = document.createElement("div");
-          div.classList.add("col-12");
-          let a = document.createElement("a");
-          a.href = data.external_links[key];
-          a.text = key;
-          a.target = "_blank";
-          div.appendChild(a);
-          this.externalLinksTarget.appendChild(div);
-        }
-      } else {
-        var noLink = document.createElement("div");
-        noLink.innerHTML = "<h5>No links available</h5>";
-        noLink.classList.add("col-12");
-        this.externalLinksTarget.appendChild(noLink);
-      }
-    });
-  }
-  acConnected(event) {
-    var target = event.detail["awardsRecAddTarget"];
-    switch (target) {
-      case "branch":
-        this.branchTarget.disabled = true;
-        this.branchTarget.hidden = true;
-        this.branchTarget.value = "";
-        break;
-      case "award":
-        this.awardTarget.disabled = true;
-        this.awardTarget.value = "Select Award Type First";
-        break;
-      case "scaMember":
-        this.scaMemberTarget.value = "";
-        break;
-      case "specialty":
-        this.specialtyTarget.value = "Select Award First";
-        this.specialtyTarget.disabled = true;
-        this.specialtyTarget.hidden = true;
-        break;
-      default:
-        event.target.value = "";
-        break;
-    }
-  }
-  connect() {
-    this.notFoundTarget.checked = false;
-    this.notFoundTarget.disabled = true;
-    this.reasonTarget.value = "";
-    this.personToNotifyTarget.value = "";
-    this.eventsTargets.forEach(element => {
-      element.checked = false;
-    });
-  }
-}
-// add to window.Controllers with a name of the controller
-if (!window.Controllers) {
-  window.Controllers = {};
-}
-window.Controllers["awards-rec-add"] = AwardsRecommendationAddForm;
-
-/***/ }),
-
-/***/ "./plugins/Awards/Assets/js/controllers/rec-bulk-edit-controller.js":
-/*!**************************************************************************!*\
-  !*** ./plugins/Awards/Assets/js/controllers/rec-bulk-edit-controller.js ***!
-  \**************************************************************************/
-/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
-__webpack_require__.r(__webpack_exports__);
-/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
-
-class AwardsRecommendationBulkEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
-  static targets = ["bulkIds", "events", "state", "planToGiveBlock", "planToGiveEvent", "givenBlock", "recId", "turboFrame", "givenDate", "closeReason", "closeReasonBlock", "stateRulesBlock"];
-  static values = {
-    formUrl: String,
-    turboFrameUrl: String,
-    bulkIds: Array
-  };
-  static outlets = ['outlet-btn'];
-  setId(event) {
-    let selected = event.detail.ids;
-    if (!selected) {
-      return;
-    }
-    if (!selected.length) {
-      return;
-    }
-    this.bulkIdsValue = selected;
-    this.bulkIdsTarget.value = selected;
-    let actionUrl = this.element.getAttribute("action");
-    //repalce url
-    actionUrl = actionUrl.replace(/update-states/, "updateStates");
-    this.element.setAttribute("action", actionUrl);
-    return;
-  }
-  outletBtnOutletConnected(outlet, element) {
-    outlet.addListener(this.setId.bind(this));
-  }
-  outletBtnOutletDisconnected(outlet) {
-    outlet.removeListener(this.setId.bind(this));
-  }
-  submit(event) {
-    document.getElementById("recommendation_bulk_edit_close").click();
-  }
-  stateTargetConnected() {
-    this.setFieldRules();
-  }
-  setFieldRules() {
-    var rulesstring = this.stateRulesBlockTarget.textContent;
-    var rules = JSON.parse(rulesstring);
-    this.planToGiveBlockTarget.style.display = "none";
-    this.givenBlockTarget.style.display = "none";
-    this.planToGiveEventTarget.required = false;
-    this.givenDateTarget.required = false;
-    this.closeReasonBlockTarget.style.display = "none";
-    this.closeReasonTarget.required = false;
-    var state = this.stateTarget.value;
-
-    //check status rules for the status
-    if (rules[state]) {
-      var statusRules = rules[state];
-      var controller = this;
-      if (statusRules["Visible"]) {
-        statusRules["Visible"].forEach(function (field) {
-          if (controller[field]) {
-            controller[field].style.display = "block";
-          }
-        });
-      }
-      if (statusRules["Disabled"]) {
-        statusRules["Disabled"].forEach(function (field) {
-          if (controller[field]) {
-            controller[field].disabled = true;
-          }
-        });
-      }
-      if (statusRules["Required"]) {
-        statusRules["Required"].forEach(function (field) {
-          if (controller[field]) {
-            controller[field].required = true;
-          }
-        });
-      }
-    }
-  }
-  connect() {}
-}
-// add to window.Controllers with a name of the controller
-if (!window.Controllers) {
-  window.Controllers = {};
-}
-window.Controllers["awards-rec-bulk-edit"] = AwardsRecommendationBulkEditForm;
-
-/***/ }),
-
-/***/ "./plugins/Awards/Assets/js/controllers/rec-edit-controller.js":
-/*!*********************************************************************!*\
-  !*** ./plugins/Awards/Assets/js/controllers/rec-edit-controller.js ***!
-  \*********************************************************************/
-/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
-__webpack_require__.r(__webpack_exports__);
-/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
-
-class AwardsRecommendationEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
-  static targets = ["scaMember", "notFound", "branch", "externalLinks", "domain", "award", "reason", "events", "specialty", "state", "planToGiveBlock", "planToGiveEvent", "givenBlock", "recId", "turboFrame", "givenDate", "closeReason", "closeReasonBlock", "stateRulesBlock"];
-  static values = {
-    publicProfileUrl: String,
-    awardListUrl: String,
-    formUrl: String,
-    turboFrameUrl: String
-  };
-  static outlets = ['outlet-btn'];
-  setId(event) {
-    this.turboFrameTarget.setAttribute("src", this.turboFrameUrlValue + "/" + event.detail.id);
-    this.element.setAttribute("action", this.formUrlValue + "/" + event.detail.id);
-  }
-  outletBtnOutletConnected(outlet, element) {
-    outlet.addListener(this.setId.bind(this));
-  }
-  outletBtnOutletDisconnected(outlet) {
-    outlet.removeListener(this.setId.bind(this));
-  }
-  submit(event) {
-    this.notFoundTarget.disabled = false;
-    this.scaMemberTarget.disabled = false;
-    this.specialtyTarget.disabled = false;
-  }
-  setAward(event) {
-    let awardId = event.target.dataset.awardId;
-    this.awardTarget.value = awardId;
-    if (this.awardTarget.value != "") {
-      this.populateSpecialties(event);
-    }
-  }
-  populateAwardDescriptions(event) {
-    let url = this.awardListUrlValue + "/" + event.target.value;
-    fetch(url, this.optionsForFetch()).then(response => response.json()).then(data => {
-      this.awardTarget.value = "";
-      let active = "active";
-      let show = "show";
-      let selected = "true";
-      let awardList = [];
-      if (data.length > 0) {
-        data.forEach(function (award) {
-          awardList.push({
-            value: award.id,
-            text: award.name,
-            data: award
-          });
-        });
-        this.awardTarget.options = awardList;
-        this.awardTarget.disabled = false;
-        if (this.awardTarget.dataset.acInitSelectionValue) {
-          let val = JSON.parse(this.awardTarget.dataset.acInitSelectionValue);
-          this.awardTarget.value = val.value;
-          if (this.awardTarget.value != "") {
-            this.populateSpecialties({
-              target: {
-                value: val.value
-              }
-            });
-          }
-        }
-      } else {
-        this.awardTarget.options = [{
-          value: "No awards available",
-          text: "No awards available"
-        }];
-        this.awardTarget.value = "No awards available";
-        this.awardTarget.disabled = true;
-        this.specialtyTarget.options = [{
-          value: "No specialties available",
-          text: "No specialties available"
-        }];
-        this.specialtyTarget.value = "No specialties available";
-        this.specialtyTarget.disabled = true;
-        this.specialtyTarget.hidden = true;
-      }
-    });
-  }
-  populateSpecialties(event) {
-    let awardId = this.awardTarget.value;
-    let options = this.awardTarget.options;
-    let award = this.awardTarget.options.find(award => award.value == awardId);
-    let specialtyArray = [];
-    if (award.data.specialties != null && award.data.specialties.length > 0) {
-      award.data.specialties.forEach(function (specialty) {
-        specialtyArray.push({
-          value: specialty,
-          text: specialty
-        });
-      });
-      this.specialtyTarget.options = specialtyArray;
-      this.specialtyTarget.value = "";
-      this.specialtyTarget.disabled = false;
-      this.specialtyTarget.hidden = false;
-      if (this.specialtyTarget.dataset.acInitSelectionValue) {
-        let val = JSON.parse(this.specialtyTarget.dataset.acInitSelectionValue);
-        this.specialtyTarget.value = val.value;
-      }
-    } else {
-      this.specialtyTarget.options = [{
-        value: "No specialties available",
-        text: "No specialties available"
-      }];
-      this.specialtyTarget.value = "No specialties available";
-      this.specialtyTarget.disabled = true;
-      this.specialtyTarget.hidden = true;
-    }
-  }
-  loadScaMemberInfo(event) {
-    this.externalLinksTarget.innerHTML = "";
-    let memberId = Number(event.target.value.replace(/_/g, ""));
-    if (memberId > 0) {
-      this.notFoundTarget.checked = false;
-      this.branchTarget.hidden = true;
-      this.branchTarget.disabled = true;
-      this.loadMember(memberId);
-    } else {
-      this.notFoundTarget.checked = true;
-      this.branchTarget.hidden = false;
-      this.branchTarget.disabled = false;
-      this.branchTarget.focus();
-    }
-  }
-  optionsForFetch() {
-    return {
-      headers: {
-        "X-Requested-With": "XMLHttpRequest",
-        "Accept": "application/json"
-      }
-    };
-  }
-  loadMember(memberId) {
-    let url = this.publicProfileUrlValue + "/" + memberId;
-    fetch(url, this.optionsForFetch()).then(response => response.json()).then(data => {
-      this.externalLinksTarget.innerHTML = "";
-      let keys = Object.keys(data.external_links);
-      if (keys.length > 0) {
-        var LinksTitle = document.createElement("div");
-        LinksTitle.innerHTML = "<h5>Public Links</h5>";
-        LinksTitle.classList.add("col-12");
-        this.externalLinksTarget.appendChild(LinksTitle);
-        for (let key in data.external_links) {
-          let div = document.createElement("div");
-          div.classList.add("col-12");
-          let a = document.createElement("a");
-          a.href = data.external_links[key];
-          a.text = key;
-          a.target = "_blank";
-          div.appendChild(a);
-          this.externalLinksTarget.appendChild(div);
-        }
-      } else {
-        var noLink = document.createElement("div");
-        noLink.innerHTML = "<h5>No links available</h5>";
-        noLink.classList.add("col-12");
-        this.externalLinksTarget.appendChild(noLink);
-      }
-    });
-  }
-  scaMemberTargetConnected() {
-    if (this.scaMemberTarget.value != "") {
-      this.loadScaMemberInfo({
-        target: {
-          value: this.scaMemberTarget.value
-        }
-      });
-    }
-  }
-  stateTargetConnected() {
-    console.log("status connected");
-    this.setFieldRules();
-  }
-  setFieldRules() {
-    console.log("setting field rules");
-    var rulesstring = this.stateRulesBlockTarget.textContent;
-    var rules = JSON.parse(rulesstring);
-    if (this.specialtyTarget.options.length == 0) {
-      this.specialtyTarget.hidden = true;
-      this.specialtyTarget.disabled = true;
-    }
-    this.planToGiveBlockTarget.style.display = "none";
-    this.givenBlockTarget.style.display = "none";
-    this.domainTarget.disabled = false;
-    this.awardTarget.disabled = false;
-    this.specialtyTarget.disabled = this.specialtyTarget.hidden;
-    this.scaMemberTarget.disabled = false;
-    this.planToGiveEventTarget.required = false;
-    this.givenDateTarget.required = false;
-    this.closeReasonBlockTarget.style.display = "none";
-    this.closeReasonTarget.required = false;
-    if (this.notFoundTarget.checked) {
-      this.branchTarget.disabled = false;
-      this.branchTarget.hidden = false;
-    } else {
-      this.branchTarget.disabled = true;
-      this.branchTarget.hidden = true;
-    }
-    var state = this.stateTarget.value;
-
-    //check status rules for the status
-    if (rules[state]) {
-      var statusRules = rules[state];
-      var controller = this;
-      if (statusRules["Visible"]) {
-        statusRules["Visible"].forEach(function (field) {
-          if (controller[field]) {
-            controller[field].style.display = "block";
-          }
-        });
-      }
-      if (statusRules["Disabled"]) {
-        statusRules["Disabled"].forEach(function (field) {
-          if (controller[field]) {
-            controller[field].disabled = true;
-          }
-        });
-      }
-      if (statusRules["Required"]) {
-        statusRules["Required"].forEach(function (field) {
-          if (controller[field]) {
-            controller[field].required = true;
-          }
-        });
-      }
-    }
-  }
-  connect() {}
-  recIdTargetConnected() {
-    let recId = this.recIdTarget.value;
-    let actionUrl = this.element.getAttribute("action");
-    //trim the last / off of the end of the action url
-    actionUrl = actionUrl.replace(/\/\d+$/, "");
-    actionUrl = actionUrl + "/" + recId;
-    this.element.setAttribute("action", actionUrl);
-  }
-}
-// add to window.Controllers with a name of the controller
-if (!window.Controllers) {
-  window.Controllers = {};
-}
-window.Controllers["awards-rec-edit"] = AwardsRecommendationEditForm;
-
-/***/ }),
-
-/***/ "./plugins/Awards/Assets/js/controllers/rec-quick-edit-controller.js":
-/*!***************************************************************************!*\
-  !*** ./plugins/Awards/Assets/js/controllers/rec-quick-edit-controller.js ***!
-  \***************************************************************************/
-/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
-__webpack_require__.r(__webpack_exports__);
-/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
-
-class AwardsRecommendationQuickEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
-  static targets = ["domain", "award", "reason", "events", "specialty", "state", "planToGiveBlock", "planToGiveEvent", "givenBlock", "recId", "turboFrame", "givenDate", "closeReason", "closeReasonBlock", "stateRulesBlock"];
-  static values = {
-    publicProfileUrl: String,
-    awardListUrl: String,
-    formUrl: String,
-    turboFrameUrl: String
-  };
-  static outlets = ['outlet-btn'];
-  setId(event) {
-    if (event.detail.id) {
-      this.turboFrameTarget.setAttribute("src", this.turboFrameUrlValue + "/" + event.detail.id);
-      this.element.setAttribute("action", this.formUrlValue + "/" + event.detail.id);
-    }
-  }
-  outletBtnOutletConnected(outlet, element) {
-    outlet.addListener(this.setId.bind(this));
-  }
-  outletBtnOutletDisconnected(outlet) {
-    outlet.removeListener(this.setId.bind(this));
-  }
-  submit(event) {
-    document.getElementById("recommendation_edit_close").click();
-  }
-  setAward(event) {
-    let awardId = event.target.dataset.awardId;
-    this.awardTarget.value = awardId;
-    if (this.awardTarget.value != "") {
-      this.populateSpecialties(event);
-    }
-  }
-  populateAwardDescriptions(event) {
-    let url = this.awardListUrlValue + "/" + event.target.value;
-    fetch(url, this.optionsForFetch()).then(response => response.json()).then(data => {
-      this.awardTarget.value = "";
-      let active = "active";
-      let show = "show";
-      let selected = "true";
-      let awardList = [];
-      if (data.length > 0) {
-        data.forEach(function (award) {
-          awardList.push({
-            value: award.id,
-            text: award.name,
-            data: award
-          });
-        });
-        this.awardTarget.options = awardList;
-        this.awardTarget.disabled = false;
-        if (this.awardTarget.dataset.acInitSelectionValue) {
-          let val = JSON.parse(this.awardTarget.dataset.acInitSelectionValue);
-          this.awardTarget.value = val.value;
-          if (this.awardTarget.value != "") {
-            this.populateSpecialties({
-              target: {
-                value: val.value
-              }
-            });
-          }
-        }
-      } else {
-        this.awardTarget.options = [{
-          value: "No awards available",
-          text: "No awards available"
-        }];
-        this.awardTarget.value = "No awards available";
-        this.awardTarget.disabled = true;
-        this.specialtyTarget.options = [{
-          value: "No specialties available",
-          text: "No specialties available"
-        }];
-        this.specialtyTarget.value = "No specialties available";
-        this.specialtyTarget.disabled = true;
-        this.specialtyTarget.hidden = true;
-      }
-    });
-  }
-  populateSpecialties(event) {
-    let awardId = this.awardTarget.value;
-    let options = this.awardTarget.options;
-    let award = this.awardTarget.options.find(award => award.value == awardId);
-    let specialtyArray = [];
-    if (award.data.specialties != null && award.data.specialties.length > 0) {
-      award.data.specialties.forEach(function (specialty) {
-        specialtyArray.push({
-          value: specialty,
-          text: specialty
-        });
-      });
-      this.specialtyTarget.options = specialtyArray;
-      this.specialtyTarget.value = "";
-      this.specialtyTarget.disabled = false;
-      this.specialtyTarget.hidden = false;
-      if (this.specialtyTarget.dataset.acInitSelectionValue) {
-        let val = JSON.parse(this.specialtyTarget.dataset.acInitSelectionValue);
-        this.specialtyTarget.value = val.value;
-      }
-    } else {
-      this.specialtyTarget.options = [{
-        value: "No specialties available",
-        text: "No specialties available"
-      }];
-      this.specialtyTarget.value = "No specialties available";
-      this.specialtyTarget.disabled = true;
-      this.specialtyTarget.hidden = true;
-    }
-  }
-  loadScaMemberInfo(event) {}
-  optionsForFetch() {
-    return {
-      headers: {
-        "X-Requested-With": "XMLHttpRequest",
-        "Accept": "application/json"
-      }
-    };
-  }
-  stateTargetConnected() {
-    console.log("status connected");
-    this.setFieldRules();
-  }
-  setFieldRules() {
-    console.log("setting field rules");
-    var rulesstring = this.stateRulesBlockTarget.textContent;
-    var rules = JSON.parse(rulesstring);
-    if (this.specialtyTarget.options.length == 0) {
-      this.specialtyTarget.hidden = true;
-      this.specialtyTarget.disabled = true;
-    }
-    this.planToGiveBlockTarget.style.display = "none";
-    this.givenBlockTarget.style.display = "none";
-    this.domainTarget.disabled = false;
-    this.awardTarget.disabled = false;
-    this.specialtyTarget.disabled = this.specialtyTarget.hidden;
-    this.planToGiveEventTarget.required = false;
-    this.givenDateTarget.required = false;
-    this.closeReasonBlockTarget.style.display = "none";
-    this.closeReasonTarget.required = false;
-    var state = this.stateTarget.value;
-
-    //check status rules for the status
-    if (rules[state]) {
-      var statusRules = rules[state];
-      var controller = this;
-      if (statusRules["Visible"]) {
-        statusRules["Visible"].forEach(function (field) {
-          if (controller[field]) {
-            controller[field].style.display = "block";
-          }
-        });
-      }
-      if (statusRules["Disabled"]) {
-        statusRules["Disabled"].forEach(function (field) {
-          if (controller[field]) {
-            controller[field].disabled = true;
-          }
-        });
-      }
-      if (statusRules["Required"]) {
-        statusRules["Required"].forEach(function (field) {
-          if (controller[field]) {
-            controller[field].required = true;
-          }
-        });
-      }
-    }
-  }
-  connect() {}
-  recIdTargetConnected() {
-    let recId = this.recIdTarget.value;
-    let actionUrl = this.element.getAttribute("action");
-    //trim the last / off of the end of the action url
-    actionUrl = actionUrl.replace(/\/\d+$/, "");
-    actionUrl = actionUrl + "/" + recId;
-    this.element.setAttribute("action", actionUrl);
-  }
-}
-// add to window.Controllers with a name of the controller
-if (!window.Controllers) {
-  window.Controllers = {};
-}
-window.Controllers["awards-rec-quick-edit"] = AwardsRecommendationQuickEditForm;
-
-/***/ }),
-
-/***/ "./plugins/Awards/Assets/js/controllers/rec-table-controller.js":
-/*!**********************************************************************!*\
-  !*** ./plugins/Awards/Assets/js/controllers/rec-table-controller.js ***!
-  \**********************************************************************/
-/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
-__webpack_require__.r(__webpack_exports__);
-/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
-
-class AwardsRecommendationTable extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
-  static targets = ["rowCheckbox"];
-  static outlets = ["outlet-btn"];
-  checked(event) {
-    let idList = [];
-    this.outletBtnOutlet.btnDataValue = {};
-    this.rowCheckboxTargets.forEach(input => {
-      if (input.checked) {
-        idList.push(input.value);
-      }
-    });
-    if (idList.length > 0) {
-      this.outletBtnOutlet.btnDataValue = {
-        "ids": idList
-      };
-    }
-  }
-  connect() {}
-}
-// add to window.Controllers with a name of the controller
-if (!window.Controllers) {
-  window.Controllers = {};
-}
-window.Controllers["awards-rec-table"] = AwardsRecommendationTable;
-
-/***/ }),
-
-/***/ "./plugins/Awards/Assets/js/controllers/recommendation-kanban-controller.js":
-/*!**********************************************************************************!*\
-  !*** ./plugins/Awards/Assets/js/controllers/recommendation-kanban-controller.js ***!
-  \**********************************************************************************/
-/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
-__webpack_require__.r(__webpack_exports__);
-/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
-
-class RecommendationKanbanController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
-  static targets = ["stateRulesBlock"];
-  static outlets = ["kanban"];
-  board = null;
-  kanbanOutletConnected(outlet, element) {
-    this.board = outlet;
-    var controller = this;
-    this.board.registerBeforeDrop((recId, toCol) => {
-      return controller.checkRules(recId, toCol);
-    });
-  }
-  checkRules(recId, toCol) {
-    console.log({
-      recId: recId,
-      toCol: toCol
-    });
-    return true;
-  }
-}
-// add to window.Controllers with a name of the controller
-if (!window.Controllers) {
-  window.Controllers = {};
-}
-window.Controllers["recommendation-kanban"] = RecommendationKanbanController;
-
-/***/ }),
-
-/***/ "./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js":
-/*!*******************************************************************************************!*\
-  !*** ./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js ***!
-  \*******************************************************************************************/
-/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
-__webpack_require__.r(__webpack_exports__);
-/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
-
-class GitHubSubmitter extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
-  static targets = ["success", "formBlock", "submitBtn", "issueLink", "form", "modal"];
-  static values = {
-    url: String
-  };
-  submit(event) {
-    event.preventDefault();
-    let url = this.urlValue;
-    let form = this.formTarget;
-    let formData = new FormData(form);
-    fetch(url, {
-      method: 'POST',
-      body: formData
-    }).then(response => {
-      if (response.ok) {
-        return response.json();
-      } else {
-        throw new Error('An error occurred while creating the issue.');
-      }
-    }).then(data => {
-      if (data.message) {
-        alert("Error: " + data.message);
-        return;
-      }
-      form.reset();
-      this.formBlockTarget.style.display = 'none';
-      this.submitBtnTarget.style.display = 'none';
-      this.issueLinkTarget.href = data.url;
-      this.successTarget.style.display = 'block';
-    }).catch(error => {
-      console.error(error);
-      alert('An error occurred while creating the issue.');
-    });
-  }
-  modalTargetConnected() {
-    this.modalTarget.addEventListener('hidden.bs.modal', () => {
-      this.formBlockTarget.style.display = 'block';
-      this.successTarget.style.display = 'none';
-      this.submitBtnTarget.style.display = 'block';
-    });
-  }
-  modalTargetDisconnected() {
-    this.modalTarget.removeEventListener('hidden.bs.modal', () => {
-      this.formBlockTarget.style.display = 'block';
-      this.successTarget.style.display = 'none';
-      this.submitBtnTarget.style.display = 'block';
-    });
-  }
-  connect() {
-    this.formBlockTarget.style.display = 'block';
-    this.successTarget.style.display = 'none';
-    this.submitBtnTarget.style.display = 'block';
-  }
-}
-// add to window.Controllers with a name of the controller
-if (!window.Controllers) {
-  window.Controllers = {};
-}
-window.Controllers["github-submitter"] = GitHubSubmitter;
-
-/***/ }),
-
-/***/ "./plugins/Officers/assets/js/controllers/assign-officer-controller.js":
-/*!*****************************************************************************!*\
-  !*** ./plugins/Officers/assets/js/controllers/assign-officer-controller.js ***!
-  \*****************************************************************************/
-/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
-__webpack_require__.r(__webpack_exports__);
-/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
-
-class OfficersAssignOfficer extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
-  static values = {
-    url: String
-  };
-  static targets = ["assignee", "submitBtn", "deputyDescBlock", "deputyDesc", "office", "endDateBlock", "endDate", "emailAddress", "emailAddressBlock"];
-  static outlets = ["outlet-btn", "member-serach"];
-  setOfficeQuestions() {
-    this.deputyDescBlockTarget.classList.add('d-none');
-    this.endDateBlockTarget.classList.add('d-none');
-    this.emailAddressBlockTarget.classList.add('d-none');
-    this.endDateTarget.disabled = true;
-    this.deputyDescTarget.disabled = true;
-    this.emailAddressTarget.disabled = true;
-    var officeVal = this.officeTarget.value;
-    // set the member search url by taking the current url and removing the last part (if it is a number) and replacing it with the officeVal
-    var url = this.assigneeTarget.getAttribute('data-ac-url-value');
-    var urlParts = url.split('/');
-    var lastPart = urlParts[urlParts.length - 1];
-    if (parseInt(lastPart)) {
-      urlParts.pop();
-    }
-    urlParts.push(officeVal);
-    var newUrl = urlParts.join('/');
-    this.assigneeTarget.setAttribute('data-ac-url-value', newUrl);
-    var office = this.officeTarget.options.find(option => option.value == officeVal);
-    if (office) {
-      if (office.data.is_deputy) {
-        this.deputyDescBlockTarget.classList.remove('d-none');
-        this.endDateBlockTarget.classList.remove('d-none');
-        this.endDateTarget.disabled = false;
-        this.deputyDescTarget.disabled = false;
-      }
-      if (office.data.email_address) {
-        this.emailAddressBlockTarget.classList.remove('d-none');
-        this.emailAddressTarget.disabled = false;
-        this.emailAddressTarget.value = office.data.email_address;
-      }
-      this.checkReadyToSubmit();
-      return;
-    }
-  }
-  checkReadyToSubmit() {
-    var assigneeVal = this.assigneeTarget.value;
-    var officeVal = this.officeTarget.value;
-    var assignId = parseInt(assigneeVal);
-    var officeId = parseInt(officeVal);
-    if (assignId > 0 && officeId > 0) {
-      this.submitBtnTarget.disabled = false;
-    } else {
-      this.submitBtnTarget.disabled = true;
-    }
-  }
-  submitBtnTargetConnected() {
-    this.submitBtnTarget.disabled = true;
-  }
-  endDateTargetConnected() {
-    this.endDateTarget.disabled = true;
-  }
-  deputyDescTargetConnected() {
-    this.deputyDescTarget.disabled = true;
-  }
-  connect() {
-    this.deputyDescBlockTarget.classList.add('d-none');
-    this.endDateBlockTarget.classList.add('d-none');
-    this.emailAddressBlockTarget.classList.add('d-none');
-  }
-}
-// add to window.Controllers with a name of the controller
-if (!window.Controllers) {
-  window.Controllers = {};
-}
-window.Controllers["officers-assign-officer"] = OfficersAssignOfficer;
-
-/***/ }),
-
-/***/ "./plugins/Officers/assets/js/controllers/edit-officer-controller.js":
-/*!***************************************************************************!*\
-  !*** ./plugins/Officers/assets/js/controllers/edit-officer-controller.js ***!
-  \***************************************************************************/
-/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
-__webpack_require__.r(__webpack_exports__);
-/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
-
-class EditOfficer extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
-  static targets = ["deputyDescBlock", "deputyDesc", "id", "emailAddress", "emailAddressBlock"];
-  static outlets = ["outlet-btn"];
-  setId(event) {
-    this.idTarget.value = event.detail.id;
-    this.deputyDescTarget.value = event.detail.deputy_description;
-    this.emailAddressTarget.value = event.detail.email_address;
-    if (event.detail.is_deputy == '1') {
-      this.deputyDescBlockTarget.classList.remove('d-none');
-      //remove : from the deputy_description and trim
-      this.deputyDescTarget.value = event.detail.deputy_description.replace(/:/g, '').trim();
-    } else {
-      this.deputyDescBlockTarget.classList.add('d-none');
-    }
-    if (event.detail.email_address != '') {
-      this.emailAddressBlockTarget.classList.remove('d-none');
-    } else {
-      this.emailAddressBlockTarget.classList.add('d-none');
-    }
-  }
-  outletBtnOutletConnected(outlet, element) {
-    outlet.addListener(this.setId.bind(this));
-  }
-  outletBtnOutletDisconnected(outlet) {
-    outlet.removeListener(this.setId.bind(this));
-  }
-}
-// add to window.Controllers with a name of the controller
-if (!window.Controllers) {
-  window.Controllers = {};
-}
-window.Controllers["officers-edit-officer"] = EditOfficer;
-
-/***/ }),
-
-/***/ "./plugins/Officers/assets/js/controllers/office-form-controller.js":
-/*!**************************************************************************!*\
-  !*** ./plugins/Officers/assets/js/controllers/office-form-controller.js ***!
-  \**************************************************************************/
-/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
-__webpack_require__.r(__webpack_exports__);
-/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
-
-class OfficeFormController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
-  static targets = ["reportsTo", "reportsToBlock", "deputyTo", "deputyToBlock", "isDeputy"];
-  toggleIsDeputy() {
-    //if the iSDepuy is checked, show the deputyTo select box
-    if (this.isDeputyTarget.checked) {
-      this.deputyToBlockTarget.hidden = false;
-      this.deputyToTarget.disabled = false;
-      this.reportsToBlockTarget.hidden = true;
-      this.reportsToTarget.disabled = true;
-    } else {
-      this.deputyToBlockTarget.hidden = true;
-      this.deputyToTarget.disabled = true;
-      this.deputyToTarget.value = "";
-      this.reportsToBlockTarget.hidden = false;
-      this.reportsToTarget.disabled = false;
-    }
-  }
-  connect() {
-    console.log("connected");
-    this.toggleIsDeputy();
-  }
-}
-// add to window.Controllers with a name of the controller
-if (!window.Controllers) {
-  window.Controllers = {};
-}
-window.Controllers["office-form"] = OfficeFormController;
-
-/***/ }),
-
-/***/ "./plugins/Officers/assets/js/controllers/officer-roster-search-controller.js":
-/*!************************************************************************************!*\
-  !*** ./plugins/Officers/assets/js/controllers/officer-roster-search-controller.js ***!
-  \************************************************************************************/
-/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
-__webpack_require__.r(__webpack_exports__);
-/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
-
-class OfficerRosterSearchForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
-  static targets = ["warrantPeriods", "departments", "showBtn"];
-  checkEnable() {
-    if (this.warrantPeriodsTarget.value > 0 && this.departmentsTarget.value > 0) {
-      this.showBtnTarget.disabled = false;
-    } else {
-      this.showBtnTarget.disabled = true;
-    }
-  }
-  connect() {}
-}
-// add to window.Controllers with a name of the controller
-if (!window.Controllers) {
-  window.Controllers = {};
-}
-window.Controllers["officer-roster-search"] = OfficerRosterSearchForm;
-
-/***/ }),
-
-/***/ "./plugins/Officers/assets/js/controllers/officer-roster-table-controller.js":
-/*!***********************************************************************************!*\
-  !*** ./plugins/Officers/assets/js/controllers/officer-roster-table-controller.js ***!
-  \***********************************************************************************/
-/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
-__webpack_require__.r(__webpack_exports__);
-/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
-
-class OfficerRosterTableForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
-  static targets = ["rowCheckbox"];
-  ids = [];
-  submitBtn = null;
-  static outlets = ['outlet-btn'];
-  outletBtnOutletConnected(outlet, element) {
-    this.submitBtn = outlet;
-    if (this.ids.length > 0) {
-      this.submitBtn.element.disabled = false;
-    }
-  }
-  outletBtnOutletDisconnected(outlet) {
-    this.submitBtn = null;
-  }
-  rowCheckboxTargetConnected(element) {
-    this.ids.push(element.value);
-    console.log(this.ids);
-  }
-  rowChecked(event) {
-    if (event.target.checked) {
-      this.ids.push(event.target.value);
-    } else {
-      this.ids = this.ids.filter(id => id != event.target.value);
-    }
-    this.submitBtn.element.disabled = true;
-    if (this.ids.length > 0) {
-      this.submitBtn.element.disabled = false;
-    }
-    console.log(this.ids);
-  }
-  connect() {}
-}
-// add to window.Controllers with a name of the controller
-if (!window.Controllers) {
-  window.Controllers = {};
-}
-window.Controllers["officer-roster-table"] = OfficerRosterTableForm;
 
 /***/ }),
 
@@ -5624,168 +4196,6 @@ function blitBuffer (src, dst, offset, length) {
 function isnan (val) {
   return val !== val // eslint-disable-line no-self-compare
 }
-
-
-/***/ }),
-
-/***/ "./node_modules/ieee754/index.js":
-/*!***************************************!*\
-  !*** ./node_modules/ieee754/index.js ***!
-  \***************************************/
-/***/ (function(__unused_webpack_module, exports) {
-
-/*! ieee754. BSD-3-Clause License. Feross Aboukhadijeh <https://feross.org/opensource> */
-exports.read = function (buffer, offset, isLE, mLen, nBytes) {
-  var e, m
-  var eLen = (nBytes * 8) - mLen - 1
-  var eMax = (1 << eLen) - 1
-  var eBias = eMax >> 1
-  var nBits = -7
-  var i = isLE ? (nBytes - 1) : 0
-  var d = isLE ? -1 : 1
-  var s = buffer[offset + i]
-
-  i += d
-
-  e = s & ((1 << (-nBits)) - 1)
-  s >>= (-nBits)
-  nBits += eLen
-  for (; nBits > 0; e = (e * 256) + buffer[offset + i], i += d, nBits -= 8) {}
-
-  m = e & ((1 << (-nBits)) - 1)
-  e >>= (-nBits)
-  nBits += mLen
-  for (; nBits > 0; m = (m * 256) + buffer[offset + i], i += d, nBits -= 8) {}
-
-  if (e === 0) {
-    e = 1 - eBias
-  } else if (e === eMax) {
-    return m ? NaN : ((s ? -1 : 1) * Infinity)
-  } else {
-    m = m + Math.pow(2, mLen)
-    e = e - eBias
-  }
-  return (s ? -1 : 1) * m * Math.pow(2, e - mLen)
-}
-
-exports.write = function (buffer, value, offset, isLE, mLen, nBytes) {
-  var e, m, c
-  var eLen = (nBytes * 8) - mLen - 1
-  var eMax = (1 << eLen) - 1
-  var eBias = eMax >> 1
-  var rt = (mLen === 23 ? Math.pow(2, -24) - Math.pow(2, -77) : 0)
-  var i = isLE ? 0 : (nBytes - 1)
-  var d = isLE ? 1 : -1
-  var s = value < 0 || (value === 0 && 1 / value < 0) ? 1 : 0
-
-  value = Math.abs(value)
-
-  if (isNaN(value) || value === Infinity) {
-    m = isNaN(value) ? 1 : 0
-    e = eMax
-  } else {
-    e = Math.floor(Math.log(value) / Math.LN2)
-    if (value * (c = Math.pow(2, -e)) < 1) {
-      e--
-      c *= 2
-    }
-    if (e + eBias >= 1) {
-      value += rt / c
-    } else {
-      value += rt * Math.pow(2, 1 - eBias)
-    }
-    if (value * c >= 2) {
-      e++
-      c /= 2
-    }
-
-    if (e + eBias >= eMax) {
-      m = 0
-      e = eMax
-    } else if (e + eBias >= 1) {
-      m = ((value * c) - 1) * Math.pow(2, mLen)
-      e = e + eBias
-    } else {
-      m = value * Math.pow(2, eBias - 1) * Math.pow(2, mLen)
-      e = 0
-    }
-  }
-
-  for (; mLen >= 8; buffer[offset + i] = m & 0xff, i += d, m /= 256, mLen -= 8) {}
-
-  e = (e << mLen) | m
-  eLen += mLen
-  for (; eLen > 0; buffer[offset + i] = e & 0xff, i += d, e /= 256, eLen -= 8) {}
-
-  buffer[offset + i - d] |= s * 128
-}
-
-
-/***/ }),
-
-/***/ "./node_modules/isarray/index.js":
-/*!***************************************!*\
-  !*** ./node_modules/isarray/index.js ***!
-  \***************************************/
-/***/ (function(module) {
-
-var toString = {}.toString;
-
-module.exports = Array.isArray || function (arr) {
-  return toString.call(arr) == '[object Array]';
-};
-
-
-/***/ }),
-
-/***/ "./assets/css/app.css":
-/*!****************************!*\
-  !*** ./assets/css/app.css ***!
-  \****************************/
-/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
-__webpack_require__.r(__webpack_exports__);
-// extracted by mini-css-extract-plugin
-
-
-/***/ }),
-
-/***/ "./assets/css/signin.css":
-/*!*******************************!*\
-  !*** ./assets/css/signin.css ***!
-  \*******************************/
-/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
-__webpack_require__.r(__webpack_exports__);
-// extracted by mini-css-extract-plugin
-
-
-/***/ }),
-
-/***/ "./assets/css/cover.css":
-/*!******************************!*\
-  !*** ./assets/css/cover.css ***!
-  \******************************/
-/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
-__webpack_require__.r(__webpack_exports__);
-// extracted by mini-css-extract-plugin
-
-
-/***/ }),
-
-/***/ "./assets/css/dashboard.css":
-/*!**********************************!*\
-  !*** ./assets/css/dashboard.css ***!
-  \**********************************/
-/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
-__webpack_require__.r(__webpack_exports__);
-// extracted by mini-css-extract-plugin
 
 
 /***/ }),
@@ -15789,17 +14199,17 @@ const ol = class extends kt {
    * This function handles the input event on the text field
    */
   inputEventHandler(r) {
-    this.setValue(parseInt(r.value));
+    this.setValue(parseFloat(r.value));
   }
   /**
    * This function handles the click event on the minus and plus buttons
    */
   keyDownInputButtonsEventHandler(r, s) {
-    clearInterval(this.intervalId), r.value === "" && (r.value = "0"), s ? (r.value = (parseInt(r.value) + 1).toString(), this.intervalId = setInterval(() => {
-      r.value = (parseInt(r.value) + 1).toString();
-    }, 100)) : (r.value = (parseInt(r.value) - 1).toString(), this.intervalId = setInterval(() => {
-      r.value = (parseInt(r.value) - 1).toString();
-    }, 100)), this.setValue(parseInt(r.value));
+    clearInterval(this.intervalId), r.value === "" && (r.value = "0"), s ? (r.value = (parseFloat(r.value) + 1).toString(), this.intervalId = setInterval(() => {
+      r.value = (parseFloat(r.value) + 1).toString();
+    }, 100)) : (r.value = (parseFloat(r.value) - 1).toString(), this.intervalId = setInterval(() => {
+      r.value = (parseFloat(r.value) - 1).toString();
+    }, 100)), this.setValue(parseFloat(r.value));
   }
   /**
    * This function handles the key up even that will stop the interval from running
@@ -18146,6 +16556,1595 @@ class bE {
 }
 
 
+
+/***/ }),
+
+/***/ "./node_modules/ieee754/index.js":
+/*!***************************************!*\
+  !*** ./node_modules/ieee754/index.js ***!
+  \***************************************/
+/***/ (function(__unused_webpack_module, exports) {
+
+/*! ieee754. BSD-3-Clause License. Feross Aboukhadijeh <https://feross.org/opensource> */
+exports.read = function (buffer, offset, isLE, mLen, nBytes) {
+  var e, m
+  var eLen = (nBytes * 8) - mLen - 1
+  var eMax = (1 << eLen) - 1
+  var eBias = eMax >> 1
+  var nBits = -7
+  var i = isLE ? (nBytes - 1) : 0
+  var d = isLE ? -1 : 1
+  var s = buffer[offset + i]
+
+  i += d
+
+  e = s & ((1 << (-nBits)) - 1)
+  s >>= (-nBits)
+  nBits += eLen
+  for (; nBits > 0; e = (e * 256) + buffer[offset + i], i += d, nBits -= 8) {}
+
+  m = e & ((1 << (-nBits)) - 1)
+  e >>= (-nBits)
+  nBits += mLen
+  for (; nBits > 0; m = (m * 256) + buffer[offset + i], i += d, nBits -= 8) {}
+
+  if (e === 0) {
+    e = 1 - eBias
+  } else if (e === eMax) {
+    return m ? NaN : ((s ? -1 : 1) * Infinity)
+  } else {
+    m = m + Math.pow(2, mLen)
+    e = e - eBias
+  }
+  return (s ? -1 : 1) * m * Math.pow(2, e - mLen)
+}
+
+exports.write = function (buffer, value, offset, isLE, mLen, nBytes) {
+  var e, m, c
+  var eLen = (nBytes * 8) - mLen - 1
+  var eMax = (1 << eLen) - 1
+  var eBias = eMax >> 1
+  var rt = (mLen === 23 ? Math.pow(2, -24) - Math.pow(2, -77) : 0)
+  var i = isLE ? 0 : (nBytes - 1)
+  var d = isLE ? 1 : -1
+  var s = value < 0 || (value === 0 && 1 / value < 0) ? 1 : 0
+
+  value = Math.abs(value)
+
+  if (isNaN(value) || value === Infinity) {
+    m = isNaN(value) ? 1 : 0
+    e = eMax
+  } else {
+    e = Math.floor(Math.log(value) / Math.LN2)
+    if (value * (c = Math.pow(2, -e)) < 1) {
+      e--
+      c *= 2
+    }
+    if (e + eBias >= 1) {
+      value += rt / c
+    } else {
+      value += rt * Math.pow(2, 1 - eBias)
+    }
+    if (value * c >= 2) {
+      e++
+      c /= 2
+    }
+
+    if (e + eBias >= eMax) {
+      m = 0
+      e = eMax
+    } else if (e + eBias >= 1) {
+      m = ((value * c) - 1) * Math.pow(2, mLen)
+      e = e + eBias
+    } else {
+      m = value * Math.pow(2, eBias - 1) * Math.pow(2, mLen)
+      e = 0
+    }
+  }
+
+  for (; mLen >= 8; buffer[offset + i] = m & 0xff, i += d, m /= 256, mLen -= 8) {}
+
+  e = (e << mLen) | m
+  eLen += mLen
+  for (; eLen > 0; buffer[offset + i] = e & 0xff, i += d, e /= 256, eLen -= 8) {}
+
+  buffer[offset + i - d] |= s * 128
+}
+
+
+/***/ }),
+
+/***/ "./node_modules/isarray/index.js":
+/*!***************************************!*\
+  !*** ./node_modules/isarray/index.js ***!
+  \***************************************/
+/***/ (function(module) {
+
+var toString = {}.toString;
+
+module.exports = Array.isArray || function (arr) {
+  return toString.call(arr) == '[object Array]';
+};
+
+
+/***/ }),
+
+/***/ "./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js":
+/*!****************************************************************************************!*\
+  !*** ./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js ***!
+  \****************************************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+class ActivitiesApproveAndAssignAuthorization extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static values = {
+    url: String
+  };
+  static targets = ["approvers", "submitBtn", "id"];
+  static outlets = ["outlet-btn"];
+  setId(event) {
+    this.idTarget.value = event.detail.id;
+    this.getApprovers();
+  }
+  outletBtnOutletConnected(outlet, element) {
+    outlet.addListener(this.setId.bind(this));
+  }
+  outletBtnOutletDisconnected(outlet) {
+    outlet.removeListener(this.setId.bind(this));
+  }
+  getApprovers() {
+    if (this.hasApproversTarget) {
+      this.approversTarget.value = "";
+      let activityId = this.idTarget.value;
+      let url = this.urlValue + "/" + activityId;
+      fetch(url, this.optionsForFetch()).then(response => response.json()).then(data => {
+        let list = [];
+        data.forEach(item => {
+          list.push({
+            value: item.id,
+            text: item.sca_name
+          });
+        });
+        this.approversTarget.options = list;
+        this.submitBtnTarget.disabled = true;
+        this.approversTarget.disabled = false;
+      });
+    }
+  }
+  optionsForFetch() {
+    return {
+      headers: {
+        "X-Requested-With": "XMLHttpRequest",
+        "Accept": "application/json"
+      }
+    };
+  }
+  checkReadyToSubmit() {
+    let approverValue = this.approversTarget.value;
+    let approverNum = parseInt(approverValue);
+    if (approverNum > 0) {
+      this.submitBtnTarget.disabled = false;
+    } else {
+      this.submitBtnTarget.disabled = true;
+    }
+  }
+  submitBtnTargetConnected() {
+    this.submitBtnTarget.disabled = true;
+  }
+}
+// add to window.Controllers with a name of the controller
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["activities-approve-and-assign-auth"] = ActivitiesApproveAndAssignAuthorization;
+
+/***/ }),
+
+/***/ "./plugins/Activities/assets/js/controllers/gw-sharing-controller.js":
+/*!***************************************************************************!*\
+  !*** ./plugins/Activities/assets/js/controllers/gw-sharing-controller.js ***!
+  \***************************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+class GWSharingController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static targets = ["form"];
+
+  //when the switch is changed then submit the form
+  submit() {
+    this.formTarget.submit();
+  }
+}
+// add to window.Controllers with a name of the controller
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["gw_sharing"] = GWSharingController;
+
+/***/ }),
+
+/***/ "./plugins/Activities/assets/js/controllers/renew-auth-controller.js":
+/*!***************************************************************************!*\
+  !*** ./plugins/Activities/assets/js/controllers/renew-auth-controller.js ***!
+  \***************************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+class ActivitiesRenewAuthorization extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static values = {
+    url: String
+  };
+  static targets = ["activity", "approvers", "submitBtn", "memberId", "id"];
+  static outlets = ["outlet-btn"];
+  setId(event) {
+    this.idTarget.value = event.detail.id;
+    this.activityTarget.value = event.detail.activity;
+    this.getApprovers();
+  }
+  outletBtnOutletConnected(outlet, element) {
+    outlet.addListener(this.setId.bind(this));
+  }
+  outletBtnOutletDisconnected(outlet) {
+    outlet.removeListener(this.setId.bind(this));
+  }
+  getApprovers() {
+    if (this.hasApproversTarget) {
+      this.approversTarget.value = "";
+      let activityId = this.activityTarget.value;
+      let url = this.urlValue + "/" + activityId + "/" + this.memberIdTarget.value;
+      fetch(url, this.optionsForFetch()).then(response => response.json()).then(data => {
+        let list = [];
+        data.forEach(item => {
+          list.push({
+            value: item.id,
+            text: item.sca_name
+          });
+        });
+        this.approversTarget.options = list;
+        this.submitBtnTarget.disabled = true;
+        this.approversTarget.disabled = false;
+      });
+    }
+  }
+  optionsForFetch() {
+    return {
+      headers: {
+        "X-Requested-With": "XMLHttpRequest",
+        "Accept": "application/json"
+      }
+    };
+  }
+  checkReadyToSubmit() {
+    let approverValue = this.approversTarget.value;
+    let approverNum = parseInt(approverValue);
+    if (approverNum > 0) {
+      this.submitBtnTarget.disabled = false;
+    } else {
+      this.submitBtnTarget.disabled = true;
+    }
+  }
+  submitBtnTargetConnected() {
+    this.submitBtnTarget.disabled = true;
+  }
+}
+// add to window.Controllers with a name of the controller
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["activities-renew-auth"] = ActivitiesRenewAuthorization;
+
+/***/ }),
+
+/***/ "./plugins/Activities/assets/js/controllers/request-auth-controller.js":
+/*!*****************************************************************************!*\
+  !*** ./plugins/Activities/assets/js/controllers/request-auth-controller.js ***!
+  \*****************************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+class ActivitiesRequestAuthorization extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static values = {
+    url: String
+  };
+  static targets = ["activity", "approvers", "submitBtn", "memberId"];
+  getApprovers(event) {
+    this.approversTarget.value = "";
+    let activityId = this.activityTarget.value;
+    let url = this.urlValue + "/" + activityId + "/" + this.memberIdTarget.value;
+    fetch(url, this.optionsForFetch()).then(response => response.json()).then(data => {
+      let list = [];
+      data.forEach(item => {
+        list.push({
+          value: item.id,
+          text: item.sca_name
+        });
+      });
+      this.approversTarget.options = list;
+      this.submitBtnTarget.disabled = true;
+      this.approversTarget.disabled = false;
+    });
+  }
+  acConnected() {
+    if (this.hasApproversTarget) {
+      this.approversTarget.disabled = true;
+    }
+  }
+  optionsForFetch() {
+    return {
+      headers: {
+        "X-Requested-With": "XMLHttpRequest",
+        "Accept": "application/json"
+      }
+    };
+  }
+  checkReadyToSubmit() {
+    let approverValue = this.approversTarget.value;
+    let approverNum = parseInt(approverValue);
+    if (approverNum > 0) {
+      this.submitBtnTarget.disabled = false;
+    } else {
+      this.submitBtnTarget.disabled = true;
+    }
+  }
+  submitBtnTargetConnected() {
+    this.submitBtnTarget.disabled = true;
+  }
+  approversTargetConnected() {
+    this.approversTarget.disabled = true;
+  }
+}
+// add to window.Controllers with a name of the controller
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["activities-request-auth"] = ActivitiesRequestAuthorization;
+
+/***/ }),
+
+/***/ "./plugins/Awards/Assets/js/controllers/award-form-controller.js":
+/*!***********************************************************************!*\
+  !*** ./plugins/Awards/Assets/js/controllers/award-form-controller.js ***!
+  \***********************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+class AwardsAwardForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static targets = ["new", "formValue", "displayList"];
+  initialize() {
+    this.items = [];
+  }
+  add(event) {
+    event.preventDefault();
+    if (!this.newTarget.value) {
+      return;
+    }
+    if (this.items.includes(this.newTarget.value)) {
+      return;
+    }
+    let item = this.newTarget.value;
+    this.items.push(item);
+    this.createListItem(KMP_utils.sanitizeString(item));
+    this.formValueTarget.value = JSON.stringify(this.items);
+    this.newTarget.value = '';
+  }
+  remove(event) {
+    event.preventDefault();
+    let id = event.target.getAttribute('data-id');
+    this.items = this.items.filter(item => {
+      return item !== id;
+    });
+    this.formValueTarget.value = JSON.stringify(this.items);
+    event.target.parentElement.remove();
+  }
+  connect() {
+    if (this.formValueTarget.value && this.formValueTarget.value.length > 0) {
+      this.items = JSON.parse(this.formValueTarget.value);
+      this.items.forEach(item => {
+        //create a remove button
+        this.createListItem(item);
+      });
+    }
+  }
+  createListItem(item) {
+    let removeButton = document.createElement('button');
+    removeButton.innerHTML = 'Remove';
+    removeButton.setAttribute('data-action', 'awards-award-form#remove');
+    removeButton.setAttribute('data-id', item);
+    removeButton.setAttribute('class', 'btn btn-danger btn-sm');
+    removeButton.setAttribute('type', 'button');
+    //create a list item
+    let inputGroup = document.createElement('div');
+    inputGroup.setAttribute('class', 'input-group mb-1');
+    let span = document.createElement('span');
+    span.innerHTML = item;
+    span.setAttribute('class', 'form-control');
+    inputGroup.appendChild(span);
+    inputGroup.appendChild(removeButton);
+    this.displayListTarget.appendChild(inputGroup);
+  }
+}
+// add to window.Controllers with a name of the controller
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["awards-award-form"] = AwardsAwardForm;
+
+/***/ }),
+
+/***/ "./plugins/Awards/Assets/js/controllers/rec-add-controller.js":
+/*!********************************************************************!*\
+  !*** ./plugins/Awards/Assets/js/controllers/rec-add-controller.js ***!
+  \********************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+class AwardsRecommendationAddForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static targets = ["scaMember", "notFound", "branch", "externalLinks", "awardDescriptions", "award", "reason", "events", "specialty"];
+  static values = {
+    publicProfileUrl: String,
+    awardListUrl: String
+  };
+  submit(event) {
+    this.notFoundTarget.disabled = false;
+    this.scaMemberTarget.disabled = false;
+    this.specialtyTarget.disabled = false;
+  }
+  setAward(event) {
+    let awardId = event.target.dataset.awardId;
+    this.awardTarget.value = awardId;
+    this.populateSpecialties(event);
+  }
+  optionsForFetch() {
+    return {
+      headers: {
+        "X-Requested-With": "XMLHttpRequest",
+        "Accept": "application/json"
+      }
+    };
+  }
+  populateAwardDescriptions(event) {
+    let url = this.awardListUrlValue + "/" + event.target.value;
+    fetch(url, this.optionsForFetch()).then(response => response.json()).then(data => {
+      this.awardDescriptionsTarget.innerHTML = "";
+      let tabButtons = document.createElement("ul");
+      tabButtons.classList.add("nav", "nav-pills");
+      tabButtons.setAttribute("role", "tablist");
+      let tabContentArea = document.createElement("div");
+      tabContentArea.classList.add("tab-content");
+      tabContentArea.classList.add("border");
+      tabContentArea.classList.add("border-light-subtle");
+      tabContentArea.classList.add("p-2");
+      tabContentArea.innerHTML = "";
+      this.awardTarget.value = "";
+      let active = "active";
+      let show = "show";
+      let selected = "true";
+      let awardList = [];
+      if (data.length > 0) {
+        data.forEach(function (award) {
+          //create list item
+          awardList.push({
+            value: award.id,
+            text: award.name,
+            data: award
+          });
+          //create tab info
+          var tabButton = document.createElement("li");
+          tabButton.classList.add("nav-item");
+          tabButton.setAttribute("role", "presentation");
+          var button = document.createElement("button");
+          button.classList.add("nav-link");
+          if (active == "active") {
+            button.classList.add("active");
+          }
+          button.setAttribute("data-action", "click->awards-rec-add#setAward");
+          button.setAttribute("id", "award_" + award.id + "_btn");
+          button.setAttribute("data-bs-toggle", "tab");
+          button.setAttribute("data-bs-target", "#award_" + award.id);
+          button.setAttribute('data-award-id', award.id);
+          button.setAttribute("type", "button");
+          button.setAttribute("role", "tab");
+          button.setAttribute("aria-controls", "award_" + award.id);
+          button.setAttribute("aria-selected", selected);
+          button.innerHTML = award.name;
+          tabButton.appendChild(button);
+          var tabContent = document.createElement("div");
+          tabContent.classList.add("tab-pane");
+          tabContent.classList.add("fade");
+          if (show == "show") {
+            tabContent.classList.add("show");
+          }
+          if (active == "active") {
+            tabContent.classList.add("active");
+          }
+          tabContent.setAttribute("id", "award_" + award.id);
+          tabContent.setAttribute("role", "tabpanel");
+          tabContent.setAttribute("aria-labelledby", "award_" + award.id + "_btn");
+          tabContent.innerHTML = award.name + ": " + award.description;
+          active = "";
+          show = "";
+          selected = "false";
+          tabButtons.append(tabButton);
+          tabContentArea.append(tabContent);
+        });
+        this.awardDescriptionsTarget.appendChild(tabButtons);
+        this.awardDescriptionsTarget.appendChild(tabContentArea);
+        this.awardTarget.options = awardList;
+        this.awardTarget.disabled = false;
+      } else {
+        this.awardTarget.options = [{
+          value: "No awards available",
+          text: "No awards available"
+        }];
+        this.awardTarget.value = "No awards available";
+        this.awardTarget.disabled = true;
+      }
+    });
+  }
+  populateSpecialties(event) {
+    let awardId = this.awardTarget.value;
+    let options = this.awardTarget.options;
+    let award = this.awardTarget.options.find(award => award.value == awardId);
+    let specialtyArray = [];
+    if (award.data.specialties != null && award.data.specialties.length > 0) {
+      award.data.specialties.forEach(function (specialty) {
+        specialtyArray.push({
+          value: specialty,
+          text: specialty
+        });
+      });
+      this.specialtyTarget.options = specialtyArray;
+      this.specialtyTarget.value = "";
+      this.specialtyTarget.disabled = false;
+      this.specialtyTarget.hidden = false;
+    } else {
+      this.specialtyTarget.options = [{
+        value: "No specialties available",
+        text: "No specialties available"
+      }];
+      this.specialtyTarget.value = "No specialties available";
+      this.specialtyTarget.disabled = true;
+      this.specialtyTarget.hidden = true;
+    }
+  }
+  loadScaMemberInfo(event) {
+    //reset member metadata area
+    this.externalLinksTarget.innerHTML = "";
+    let memberId = Number(event.target.value.replace(/_/g, ""));
+    if (memberId > 0) {
+      this.notFoundTarget.checked = false;
+      this.branchTarget.hidden = true;
+      this.branchTarget.disabled = true;
+      this.loadMember(memberId);
+    } else {
+      this.notFoundTarget.checked = true;
+      this.branchTarget.hidden = false;
+      this.branchTarget.disabled = false;
+      this.branchTarget.focus();
+    }
+  }
+  loadMember(memberId) {
+    let url = this.publicProfileUrlValue + "/" + memberId;
+    fetch(url, this.optionsForFetch()).then(response => response.json()).then(data => {
+      this.externalLinksTarget.innerHTML = "";
+      let keys = Object.keys(data.external_links);
+      if (keys.length > 0) {
+        var LinksTitle = document.createElement("div");
+        LinksTitle.innerHTML = "<h5>Public Links</h5>";
+        LinksTitle.classList.add("col-12");
+        this.externalLinksTarget.appendChild(LinksTitle);
+        for (let key in data.external_links) {
+          let div = document.createElement("div");
+          div.classList.add("col-12");
+          let a = document.createElement("a");
+          a.href = data.external_links[key];
+          a.text = key;
+          a.target = "_blank";
+          div.appendChild(a);
+          this.externalLinksTarget.appendChild(div);
+        }
+      } else {
+        var noLink = document.createElement("div");
+        noLink.innerHTML = "<h5>No links available</h5>";
+        noLink.classList.add("col-12");
+        this.externalLinksTarget.appendChild(noLink);
+      }
+    });
+  }
+  acConnected(event) {
+    var target = event.detail["awardsRecAddTarget"];
+    switch (target) {
+      case "branch":
+        this.branchTarget.disabled = true;
+        this.branchTarget.hidden = true;
+        this.branchTarget.value = "";
+        break;
+      case "award":
+        this.awardTarget.disabled = true;
+        this.awardTarget.value = "Select Award Type First";
+        break;
+      case "scaMember":
+        this.scaMemberTarget.value = "";
+        break;
+      case "specialty":
+        this.specialtyTarget.value = "Select Award First";
+        this.specialtyTarget.disabled = true;
+        this.specialtyTarget.hidden = true;
+        break;
+      default:
+        event.target.value = "";
+        break;
+    }
+  }
+  connect() {
+    this.notFoundTarget.checked = false;
+    this.notFoundTarget.disabled = true;
+    this.reasonTarget.value = "";
+    this.personToNotifyTarget.value = "";
+    this.eventsTargets.forEach(element => {
+      element.checked = false;
+    });
+  }
+}
+// add to window.Controllers with a name of the controller
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["awards-rec-add"] = AwardsRecommendationAddForm;
+
+/***/ }),
+
+/***/ "./plugins/Awards/Assets/js/controllers/rec-bulk-edit-controller.js":
+/*!**************************************************************************!*\
+  !*** ./plugins/Awards/Assets/js/controllers/rec-bulk-edit-controller.js ***!
+  \**************************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+class AwardsRecommendationBulkEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static targets = ["bulkIds", "events", "state", "planToGiveBlock", "planToGiveEvent", "givenBlock", "recId", "turboFrame", "givenDate", "closeReason", "closeReasonBlock", "stateRulesBlock"];
+  static values = {
+    formUrl: String,
+    turboFrameUrl: String,
+    bulkIds: Array
+  };
+  static outlets = ['outlet-btn'];
+  setId(event) {
+    let selected = event.detail.ids;
+    if (!selected) {
+      return;
+    }
+    if (!selected.length) {
+      return;
+    }
+    this.bulkIdsValue = selected;
+    this.bulkIdsTarget.value = selected;
+    let actionUrl = this.element.getAttribute("action");
+    //repalce url
+    actionUrl = actionUrl.replace(/update-states/, "updateStates");
+    this.element.setAttribute("action", actionUrl);
+    return;
+  }
+  outletBtnOutletConnected(outlet, element) {
+    outlet.addListener(this.setId.bind(this));
+  }
+  outletBtnOutletDisconnected(outlet) {
+    outlet.removeListener(this.setId.bind(this));
+  }
+  submit(event) {
+    document.getElementById("recommendation_bulk_edit_close").click();
+  }
+  stateTargetConnected() {
+    this.setFieldRules();
+  }
+  setFieldRules() {
+    var rulesstring = this.stateRulesBlockTarget.textContent;
+    var rules = JSON.parse(rulesstring);
+    this.planToGiveBlockTarget.style.display = "none";
+    this.givenBlockTarget.style.display = "none";
+    this.planToGiveEventTarget.required = false;
+    this.givenDateTarget.required = false;
+    this.closeReasonBlockTarget.style.display = "none";
+    this.closeReasonTarget.required = false;
+    var state = this.stateTarget.value;
+
+    //check status rules for the status
+    if (rules[state]) {
+      var statusRules = rules[state];
+      var controller = this;
+      if (statusRules["Visible"]) {
+        statusRules["Visible"].forEach(function (field) {
+          if (controller[field]) {
+            controller[field].style.display = "block";
+          }
+        });
+      }
+      if (statusRules["Disabled"]) {
+        statusRules["Disabled"].forEach(function (field) {
+          if (controller[field]) {
+            controller[field].disabled = true;
+          }
+        });
+      }
+      if (statusRules["Required"]) {
+        statusRules["Required"].forEach(function (field) {
+          if (controller[field]) {
+            controller[field].required = true;
+          }
+        });
+      }
+    }
+  }
+  connect() {}
+}
+// add to window.Controllers with a name of the controller
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["awards-rec-bulk-edit"] = AwardsRecommendationBulkEditForm;
+
+/***/ }),
+
+/***/ "./plugins/Awards/Assets/js/controllers/rec-edit-controller.js":
+/*!*********************************************************************!*\
+  !*** ./plugins/Awards/Assets/js/controllers/rec-edit-controller.js ***!
+  \*********************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+class AwardsRecommendationEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static targets = ["scaMember", "notFound", "branch", "externalLinks", "domain", "award", "reason", "events", "specialty", "state", "planToGiveBlock", "planToGiveEvent", "givenBlock", "recId", "turboFrame", "givenDate", "closeReason", "closeReasonBlock", "stateRulesBlock"];
+  static values = {
+    publicProfileUrl: String,
+    awardListUrl: String,
+    formUrl: String,
+    turboFrameUrl: String
+  };
+  static outlets = ['outlet-btn'];
+  setId(event) {
+    this.turboFrameTarget.setAttribute("src", this.turboFrameUrlValue + "/" + event.detail.id);
+    this.element.setAttribute("action", this.formUrlValue + "/" + event.detail.id);
+  }
+  outletBtnOutletConnected(outlet, element) {
+    outlet.addListener(this.setId.bind(this));
+  }
+  outletBtnOutletDisconnected(outlet) {
+    outlet.removeListener(this.setId.bind(this));
+  }
+  submit(event) {
+    this.notFoundTarget.disabled = false;
+    this.scaMemberTarget.disabled = false;
+    this.specialtyTarget.disabled = false;
+  }
+  setAward(event) {
+    let awardId = event.target.dataset.awardId;
+    this.awardTarget.value = awardId;
+    if (this.awardTarget.value != "") {
+      this.populateSpecialties(event);
+    }
+  }
+  populateAwardDescriptions(event) {
+    let url = this.awardListUrlValue + "/" + event.target.value;
+    fetch(url, this.optionsForFetch()).then(response => response.json()).then(data => {
+      this.awardTarget.value = "";
+      let active = "active";
+      let show = "show";
+      let selected = "true";
+      let awardList = [];
+      if (data.length > 0) {
+        data.forEach(function (award) {
+          awardList.push({
+            value: award.id,
+            text: award.name,
+            data: award
+          });
+        });
+        this.awardTarget.options = awardList;
+        this.awardTarget.disabled = false;
+        if (this.awardTarget.dataset.acInitSelectionValue) {
+          let val = JSON.parse(this.awardTarget.dataset.acInitSelectionValue);
+          this.awardTarget.value = val.value;
+          if (this.awardTarget.value != "") {
+            this.populateSpecialties({
+              target: {
+                value: val.value
+              }
+            });
+          }
+        }
+      } else {
+        this.awardTarget.options = [{
+          value: "No awards available",
+          text: "No awards available"
+        }];
+        this.awardTarget.value = "No awards available";
+        this.awardTarget.disabled = true;
+        this.specialtyTarget.options = [{
+          value: "No specialties available",
+          text: "No specialties available"
+        }];
+        this.specialtyTarget.value = "No specialties available";
+        this.specialtyTarget.disabled = true;
+        this.specialtyTarget.hidden = true;
+      }
+    });
+  }
+  populateSpecialties(event) {
+    let awardId = this.awardTarget.value;
+    let options = this.awardTarget.options;
+    let award = this.awardTarget.options.find(award => award.value == awardId);
+    let specialtyArray = [];
+    if (award.data.specialties != null && award.data.specialties.length > 0) {
+      award.data.specialties.forEach(function (specialty) {
+        specialtyArray.push({
+          value: specialty,
+          text: specialty
+        });
+      });
+      this.specialtyTarget.options = specialtyArray;
+      this.specialtyTarget.value = "";
+      this.specialtyTarget.disabled = false;
+      this.specialtyTarget.hidden = false;
+      if (this.specialtyTarget.dataset.acInitSelectionValue) {
+        let val = JSON.parse(this.specialtyTarget.dataset.acInitSelectionValue);
+        this.specialtyTarget.value = val.value;
+      }
+    } else {
+      this.specialtyTarget.options = [{
+        value: "No specialties available",
+        text: "No specialties available"
+      }];
+      this.specialtyTarget.value = "No specialties available";
+      this.specialtyTarget.disabled = true;
+      this.specialtyTarget.hidden = true;
+    }
+  }
+  loadScaMemberInfo(event) {
+    this.externalLinksTarget.innerHTML = "";
+    let memberId = Number(event.target.value.replace(/_/g, ""));
+    if (memberId > 0) {
+      this.notFoundTarget.checked = false;
+      this.branchTarget.hidden = true;
+      this.branchTarget.disabled = true;
+      this.loadMember(memberId);
+    } else {
+      this.notFoundTarget.checked = true;
+      this.branchTarget.hidden = false;
+      this.branchTarget.disabled = false;
+      this.branchTarget.focus();
+    }
+  }
+  optionsForFetch() {
+    return {
+      headers: {
+        "X-Requested-With": "XMLHttpRequest",
+        "Accept": "application/json"
+      }
+    };
+  }
+  loadMember(memberId) {
+    let url = this.publicProfileUrlValue + "/" + memberId;
+    fetch(url, this.optionsForFetch()).then(response => response.json()).then(data => {
+      this.externalLinksTarget.innerHTML = "";
+      let keys = Object.keys(data.external_links);
+      if (keys.length > 0) {
+        var LinksTitle = document.createElement("div");
+        LinksTitle.innerHTML = "<h5>Public Links</h5>";
+        LinksTitle.classList.add("col-12");
+        this.externalLinksTarget.appendChild(LinksTitle);
+        for (let key in data.external_links) {
+          let div = document.createElement("div");
+          div.classList.add("col-12");
+          let a = document.createElement("a");
+          a.href = data.external_links[key];
+          a.text = key;
+          a.target = "_blank";
+          div.appendChild(a);
+          this.externalLinksTarget.appendChild(div);
+        }
+      } else {
+        var noLink = document.createElement("div");
+        noLink.innerHTML = "<h5>No links available</h5>";
+        noLink.classList.add("col-12");
+        this.externalLinksTarget.appendChild(noLink);
+      }
+    });
+  }
+  scaMemberTargetConnected() {
+    if (this.scaMemberTarget.value != "") {
+      this.loadScaMemberInfo({
+        target: {
+          value: this.scaMemberTarget.value
+        }
+      });
+    }
+  }
+  stateTargetConnected() {
+    console.log("status connected");
+    this.setFieldRules();
+  }
+  setFieldRules() {
+    console.log("setting field rules");
+    var rulesstring = this.stateRulesBlockTarget.textContent;
+    var rules = JSON.parse(rulesstring);
+    if (this.specialtyTarget.options.length == 0) {
+      this.specialtyTarget.hidden = true;
+      this.specialtyTarget.disabled = true;
+    }
+    this.planToGiveBlockTarget.style.display = "none";
+    this.givenBlockTarget.style.display = "none";
+    this.domainTarget.disabled = false;
+    this.awardTarget.disabled = false;
+    this.specialtyTarget.disabled = this.specialtyTarget.hidden;
+    this.scaMemberTarget.disabled = false;
+    this.planToGiveEventTarget.required = false;
+    this.givenDateTarget.required = false;
+    this.closeReasonBlockTarget.style.display = "none";
+    this.closeReasonTarget.required = false;
+    if (this.notFoundTarget.checked) {
+      this.branchTarget.disabled = false;
+      this.branchTarget.hidden = false;
+    } else {
+      this.branchTarget.disabled = true;
+      this.branchTarget.hidden = true;
+    }
+    var state = this.stateTarget.value;
+
+    //check status rules for the status
+    if (rules[state]) {
+      var statusRules = rules[state];
+      var controller = this;
+      if (statusRules["Visible"]) {
+        statusRules["Visible"].forEach(function (field) {
+          if (controller[field]) {
+            controller[field].style.display = "block";
+          }
+        });
+      }
+      if (statusRules["Disabled"]) {
+        statusRules["Disabled"].forEach(function (field) {
+          if (controller[field]) {
+            controller[field].disabled = true;
+          }
+        });
+      }
+      if (statusRules["Required"]) {
+        statusRules["Required"].forEach(function (field) {
+          if (controller[field]) {
+            controller[field].required = true;
+          }
+        });
+      }
+    }
+  }
+  connect() {}
+  recIdTargetConnected() {
+    let recId = this.recIdTarget.value;
+    let actionUrl = this.element.getAttribute("action");
+    //trim the last / off of the end of the action url
+    actionUrl = actionUrl.replace(/\/\d+$/, "");
+    actionUrl = actionUrl + "/" + recId;
+    this.element.setAttribute("action", actionUrl);
+  }
+}
+// add to window.Controllers with a name of the controller
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["awards-rec-edit"] = AwardsRecommendationEditForm;
+
+/***/ }),
+
+/***/ "./plugins/Awards/Assets/js/controllers/rec-quick-edit-controller.js":
+/*!***************************************************************************!*\
+  !*** ./plugins/Awards/Assets/js/controllers/rec-quick-edit-controller.js ***!
+  \***************************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+class AwardsRecommendationQuickEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static targets = ["domain", "award", "reason", "events", "specialty", "state", "planToGiveBlock", "planToGiveEvent", "givenBlock", "recId", "turboFrame", "givenDate", "closeReason", "closeReasonBlock", "stateRulesBlock"];
+  static values = {
+    publicProfileUrl: String,
+    awardListUrl: String,
+    formUrl: String,
+    turboFrameUrl: String
+  };
+  static outlets = ['outlet-btn'];
+  setId(event) {
+    if (event.detail.id) {
+      this.turboFrameTarget.setAttribute("src", this.turboFrameUrlValue + "/" + event.detail.id);
+      this.element.setAttribute("action", this.formUrlValue + "/" + event.detail.id);
+    }
+  }
+  outletBtnOutletConnected(outlet, element) {
+    outlet.addListener(this.setId.bind(this));
+  }
+  outletBtnOutletDisconnected(outlet) {
+    outlet.removeListener(this.setId.bind(this));
+  }
+  submit(event) {
+    document.getElementById("recommendation_edit_close").click();
+  }
+  setAward(event) {
+    let awardId = event.target.dataset.awardId;
+    this.awardTarget.value = awardId;
+    if (this.awardTarget.value != "") {
+      this.populateSpecialties(event);
+    }
+  }
+  populateAwardDescriptions(event) {
+    let url = this.awardListUrlValue + "/" + event.target.value;
+    fetch(url, this.optionsForFetch()).then(response => response.json()).then(data => {
+      this.awardTarget.value = "";
+      let active = "active";
+      let show = "show";
+      let selected = "true";
+      let awardList = [];
+      if (data.length > 0) {
+        data.forEach(function (award) {
+          awardList.push({
+            value: award.id,
+            text: award.name,
+            data: award
+          });
+        });
+        this.awardTarget.options = awardList;
+        this.awardTarget.disabled = false;
+        if (this.awardTarget.dataset.acInitSelectionValue) {
+          let val = JSON.parse(this.awardTarget.dataset.acInitSelectionValue);
+          this.awardTarget.value = val.value;
+          if (this.awardTarget.value != "") {
+            this.populateSpecialties({
+              target: {
+                value: val.value
+              }
+            });
+          }
+        }
+      } else {
+        this.awardTarget.options = [{
+          value: "No awards available",
+          text: "No awards available"
+        }];
+        this.awardTarget.value = "No awards available";
+        this.awardTarget.disabled = true;
+        this.specialtyTarget.options = [{
+          value: "No specialties available",
+          text: "No specialties available"
+        }];
+        this.specialtyTarget.value = "No specialties available";
+        this.specialtyTarget.disabled = true;
+        this.specialtyTarget.hidden = true;
+      }
+    });
+  }
+  populateSpecialties(event) {
+    let awardId = this.awardTarget.value;
+    let options = this.awardTarget.options;
+    let award = this.awardTarget.options.find(award => award.value == awardId);
+    let specialtyArray = [];
+    if (award.data.specialties != null && award.data.specialties.length > 0) {
+      award.data.specialties.forEach(function (specialty) {
+        specialtyArray.push({
+          value: specialty,
+          text: specialty
+        });
+      });
+      this.specialtyTarget.options = specialtyArray;
+      this.specialtyTarget.value = "";
+      this.specialtyTarget.disabled = false;
+      this.specialtyTarget.hidden = false;
+      if (this.specialtyTarget.dataset.acInitSelectionValue) {
+        let val = JSON.parse(this.specialtyTarget.dataset.acInitSelectionValue);
+        this.specialtyTarget.value = val.value;
+      }
+    } else {
+      this.specialtyTarget.options = [{
+        value: "No specialties available",
+        text: "No specialties available"
+      }];
+      this.specialtyTarget.value = "No specialties available";
+      this.specialtyTarget.disabled = true;
+      this.specialtyTarget.hidden = true;
+    }
+  }
+  loadScaMemberInfo(event) {}
+  optionsForFetch() {
+    return {
+      headers: {
+        "X-Requested-With": "XMLHttpRequest",
+        "Accept": "application/json"
+      }
+    };
+  }
+  stateTargetConnected() {
+    console.log("status connected");
+    this.setFieldRules();
+  }
+  setFieldRules() {
+    console.log("setting field rules");
+    var rulesstring = this.stateRulesBlockTarget.textContent;
+    var rules = JSON.parse(rulesstring);
+    if (this.specialtyTarget.options.length == 0) {
+      this.specialtyTarget.hidden = true;
+      this.specialtyTarget.disabled = true;
+    }
+    this.planToGiveBlockTarget.style.display = "none";
+    this.givenBlockTarget.style.display = "none";
+    this.domainTarget.disabled = false;
+    this.awardTarget.disabled = false;
+    this.specialtyTarget.disabled = this.specialtyTarget.hidden;
+    this.planToGiveEventTarget.required = false;
+    this.givenDateTarget.required = false;
+    this.closeReasonBlockTarget.style.display = "none";
+    this.closeReasonTarget.required = false;
+    var state = this.stateTarget.value;
+
+    //check status rules for the status
+    if (rules[state]) {
+      var statusRules = rules[state];
+      var controller = this;
+      if (statusRules["Visible"]) {
+        statusRules["Visible"].forEach(function (field) {
+          if (controller[field]) {
+            controller[field].style.display = "block";
+          }
+        });
+      }
+      if (statusRules["Disabled"]) {
+        statusRules["Disabled"].forEach(function (field) {
+          if (controller[field]) {
+            controller[field].disabled = true;
+          }
+        });
+      }
+      if (statusRules["Required"]) {
+        statusRules["Required"].forEach(function (field) {
+          if (controller[field]) {
+            controller[field].required = true;
+          }
+        });
+      }
+    }
+  }
+  connect() {}
+  recIdTargetConnected() {
+    let recId = this.recIdTarget.value;
+    let actionUrl = this.element.getAttribute("action");
+    //trim the last / off of the end of the action url
+    actionUrl = actionUrl.replace(/\/\d+$/, "");
+    actionUrl = actionUrl + "/" + recId;
+    this.element.setAttribute("action", actionUrl);
+  }
+}
+// add to window.Controllers with a name of the controller
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["awards-rec-quick-edit"] = AwardsRecommendationQuickEditForm;
+
+/***/ }),
+
+/***/ "./plugins/Awards/Assets/js/controllers/rec-table-controller.js":
+/*!**********************************************************************!*\
+  !*** ./plugins/Awards/Assets/js/controllers/rec-table-controller.js ***!
+  \**********************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+class AwardsRecommendationTable extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static targets = ["rowCheckbox"];
+  static outlets = ["outlet-btn"];
+  checked(event) {
+    let idList = [];
+    this.outletBtnOutlet.btnDataValue = {};
+    this.rowCheckboxTargets.forEach(input => {
+      if (input.checked) {
+        idList.push(input.value);
+      }
+    });
+    if (idList.length > 0) {
+      this.outletBtnOutlet.btnDataValue = {
+        "ids": idList
+      };
+    }
+  }
+  connect() {}
+}
+// add to window.Controllers with a name of the controller
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["awards-rec-table"] = AwardsRecommendationTable;
+
+/***/ }),
+
+/***/ "./plugins/Awards/Assets/js/controllers/recommendation-kanban-controller.js":
+/*!**********************************************************************************!*\
+  !*** ./plugins/Awards/Assets/js/controllers/recommendation-kanban-controller.js ***!
+  \**********************************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+class RecommendationKanbanController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static targets = ["stateRulesBlock"];
+  static outlets = ["kanban"];
+  board = null;
+  kanbanOutletConnected(outlet, element) {
+    this.board = outlet;
+    var controller = this;
+    this.board.registerBeforeDrop((recId, toCol) => {
+      return controller.checkRules(recId, toCol);
+    });
+  }
+  checkRules(recId, toCol) {
+    console.log({
+      recId: recId,
+      toCol: toCol
+    });
+    return true;
+  }
+}
+// add to window.Controllers with a name of the controller
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["recommendation-kanban"] = RecommendationKanbanController;
+
+/***/ }),
+
+/***/ "./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js":
+/*!*******************************************************************************************!*\
+  !*** ./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js ***!
+  \*******************************************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+class GitHubSubmitter extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static targets = ["success", "formBlock", "submitBtn", "issueLink", "form", "modal"];
+  static values = {
+    url: String
+  };
+  submit(event) {
+    event.preventDefault();
+    let url = this.urlValue;
+    let form = this.formTarget;
+    let formData = new FormData(form);
+    fetch(url, {
+      method: 'POST',
+      body: formData
+    }).then(response => {
+      if (response.ok) {
+        return response.json();
+      } else {
+        throw new Error('An error occurred while creating the issue.');
+      }
+    }).then(data => {
+      if (data.message) {
+        alert("Error: " + data.message);
+        return;
+      }
+      form.reset();
+      this.formBlockTarget.style.display = 'none';
+      this.submitBtnTarget.style.display = 'none';
+      this.issueLinkTarget.href = data.url;
+      this.successTarget.style.display = 'block';
+    }).catch(error => {
+      console.error(error);
+      alert('An error occurred while creating the issue.');
+    });
+  }
+  modalTargetConnected() {
+    this.modalTarget.addEventListener('hidden.bs.modal', () => {
+      this.formBlockTarget.style.display = 'block';
+      this.successTarget.style.display = 'none';
+      this.submitBtnTarget.style.display = 'block';
+    });
+  }
+  modalTargetDisconnected() {
+    this.modalTarget.removeEventListener('hidden.bs.modal', () => {
+      this.formBlockTarget.style.display = 'block';
+      this.successTarget.style.display = 'none';
+      this.submitBtnTarget.style.display = 'block';
+    });
+  }
+  connect() {
+    this.formBlockTarget.style.display = 'block';
+    this.successTarget.style.display = 'none';
+    this.submitBtnTarget.style.display = 'block';
+  }
+}
+// add to window.Controllers with a name of the controller
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["github-submitter"] = GitHubSubmitter;
+
+/***/ }),
+
+/***/ "./plugins/Officers/assets/js/controllers/assign-officer-controller.js":
+/*!*****************************************************************************!*\
+  !*** ./plugins/Officers/assets/js/controllers/assign-officer-controller.js ***!
+  \*****************************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+class OfficersAssignOfficer extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static values = {
+    url: String
+  };
+  static targets = ["assignee", "submitBtn", "deputyDescBlock", "deputyDesc", "office", "endDateBlock", "endDate", "emailAddress", "emailAddressBlock"];
+  static outlets = ["outlet-btn", "member-serach"];
+  setOfficeQuestions() {
+    this.deputyDescBlockTarget.classList.add('d-none');
+    this.endDateBlockTarget.classList.add('d-none');
+    this.emailAddressBlockTarget.classList.add('d-none');
+    this.endDateTarget.disabled = true;
+    this.deputyDescTarget.disabled = true;
+    this.emailAddressTarget.disabled = true;
+    var officeVal = this.officeTarget.value;
+    // set the member search url by taking the current url and removing the last part (if it is a number) and replacing it with the officeVal
+    var url = this.assigneeTarget.getAttribute('data-ac-url-value');
+    var urlParts = url.split('/');
+    var lastPart = urlParts[urlParts.length - 1];
+    if (parseInt(lastPart)) {
+      urlParts.pop();
+    }
+    urlParts.push(officeVal);
+    var newUrl = urlParts.join('/');
+    this.assigneeTarget.setAttribute('data-ac-url-value', newUrl);
+    var office = this.officeTarget.options.find(option => option.value == officeVal);
+    if (office) {
+      if (office.data.is_deputy) {
+        this.deputyDescBlockTarget.classList.remove('d-none');
+        this.endDateBlockTarget.classList.remove('d-none');
+        this.endDateTarget.disabled = false;
+        this.deputyDescTarget.disabled = false;
+      }
+      if (office.data.email_address) {
+        this.emailAddressBlockTarget.classList.remove('d-none');
+        this.emailAddressTarget.disabled = false;
+        this.emailAddressTarget.value = office.data.email_address;
+      }
+      this.checkReadyToSubmit();
+      return;
+    }
+  }
+  checkReadyToSubmit() {
+    var assigneeVal = this.assigneeTarget.value;
+    var officeVal = this.officeTarget.value;
+    var assignId = parseInt(assigneeVal);
+    var officeId = parseInt(officeVal);
+    if (assignId > 0 && officeId > 0) {
+      this.submitBtnTarget.disabled = false;
+    } else {
+      this.submitBtnTarget.disabled = true;
+    }
+  }
+  submitBtnTargetConnected() {
+    this.submitBtnTarget.disabled = true;
+  }
+  endDateTargetConnected() {
+    this.endDateTarget.disabled = true;
+  }
+  deputyDescTargetConnected() {
+    this.deputyDescTarget.disabled = true;
+  }
+  connect() {
+    this.deputyDescBlockTarget.classList.add('d-none');
+    this.endDateBlockTarget.classList.add('d-none');
+    this.emailAddressBlockTarget.classList.add('d-none');
+  }
+}
+// add to window.Controllers with a name of the controller
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["officers-assign-officer"] = OfficersAssignOfficer;
+
+/***/ }),
+
+/***/ "./plugins/Officers/assets/js/controllers/edit-officer-controller.js":
+/*!***************************************************************************!*\
+  !*** ./plugins/Officers/assets/js/controllers/edit-officer-controller.js ***!
+  \***************************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+class EditOfficer extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static targets = ["deputyDescBlock", "deputyDesc", "id", "emailAddress", "emailAddressBlock"];
+  static outlets = ["outlet-btn"];
+  setId(event) {
+    this.idTarget.value = event.detail.id;
+    this.deputyDescTarget.value = event.detail.deputy_description;
+    this.emailAddressTarget.value = event.detail.email_address;
+    if (event.detail.is_deputy == '1') {
+      this.deputyDescBlockTarget.classList.remove('d-none');
+      //remove : from the deputy_description and trim
+      this.deputyDescTarget.value = event.detail.deputy_description.replace(/:/g, '').trim();
+    } else {
+      this.deputyDescBlockTarget.classList.add('d-none');
+    }
+    if (event.detail.email_address != '') {
+      this.emailAddressBlockTarget.classList.remove('d-none');
+    } else {
+      this.emailAddressBlockTarget.classList.add('d-none');
+    }
+  }
+  outletBtnOutletConnected(outlet, element) {
+    outlet.addListener(this.setId.bind(this));
+  }
+  outletBtnOutletDisconnected(outlet) {
+    outlet.removeListener(this.setId.bind(this));
+  }
+}
+// add to window.Controllers with a name of the controller
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["officers-edit-officer"] = EditOfficer;
+
+/***/ }),
+
+/***/ "./plugins/Officers/assets/js/controllers/office-form-controller.js":
+/*!**************************************************************************!*\
+  !*** ./plugins/Officers/assets/js/controllers/office-form-controller.js ***!
+  \**************************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+class OfficeFormController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static targets = ["reportsTo", "reportsToBlock", "deputyTo", "deputyToBlock", "isDeputy"];
+  toggleIsDeputy() {
+    //if the iSDepuy is checked, show the deputyTo select box
+    if (this.isDeputyTarget.checked) {
+      this.deputyToBlockTarget.hidden = false;
+      this.deputyToTarget.disabled = false;
+      this.reportsToBlockTarget.hidden = true;
+      this.reportsToTarget.disabled = true;
+    } else {
+      this.deputyToBlockTarget.hidden = true;
+      this.deputyToTarget.disabled = true;
+      this.deputyToTarget.value = "";
+      this.reportsToBlockTarget.hidden = false;
+      this.reportsToTarget.disabled = false;
+    }
+  }
+  connect() {
+    console.log("connected");
+    this.toggleIsDeputy();
+  }
+}
+// add to window.Controllers with a name of the controller
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["office-form"] = OfficeFormController;
+
+/***/ }),
+
+/***/ "./plugins/Officers/assets/js/controllers/officer-roster-search-controller.js":
+/*!************************************************************************************!*\
+  !*** ./plugins/Officers/assets/js/controllers/officer-roster-search-controller.js ***!
+  \************************************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+class OfficerRosterSearchForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static targets = ["warrantPeriods", "departments", "showBtn"];
+  checkEnable() {
+    if (this.warrantPeriodsTarget.value > 0 && this.departmentsTarget.value > 0) {
+      this.showBtnTarget.disabled = false;
+    } else {
+      this.showBtnTarget.disabled = true;
+    }
+  }
+  connect() {}
+}
+// add to window.Controllers with a name of the controller
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["officer-roster-search"] = OfficerRosterSearchForm;
+
+/***/ }),
+
+/***/ "./plugins/Officers/assets/js/controllers/officer-roster-table-controller.js":
+/*!***********************************************************************************!*\
+  !*** ./plugins/Officers/assets/js/controllers/officer-roster-table-controller.js ***!
+  \***********************************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+class OfficerRosterTableForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static targets = ["rowCheckbox"];
+  ids = [];
+  submitBtn = null;
+  static outlets = ['outlet-btn'];
+  outletBtnOutletConnected(outlet, element) {
+    this.submitBtn = outlet;
+    if (this.ids.length > 0) {
+      this.submitBtn.element.disabled = false;
+    }
+  }
+  outletBtnOutletDisconnected(outlet) {
+    this.submitBtn = null;
+  }
+  rowCheckboxTargetConnected(element) {
+    this.ids.push(element.value);
+    console.log(this.ids);
+  }
+  rowChecked(event) {
+    if (event.target.checked) {
+      this.ids.push(event.target.value);
+    } else {
+      this.ids = this.ids.filter(id => id != event.target.value);
+    }
+    this.submitBtn.element.disabled = true;
+    if (this.ids.length > 0) {
+      this.submitBtn.element.disabled = false;
+    }
+    console.log(this.ids);
+  }
+  connect() {}
+}
+// add to window.Controllers with a name of the controller
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["officer-roster-table"] = OfficerRosterTableForm;
 
 /***/ })
 

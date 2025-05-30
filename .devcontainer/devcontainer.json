@@ -20,7 +20,8 @@
 		"MP_SMTP_AUTH": "testuser:testpass",
 		"MP_SMTP_AUTH_ALLOW_INSECURE": "true",
 		"REPO_PATH": "${containerWorkspaceFolder}",
-		"REPO_ROOT_PATH": "${containerWorkspaceFolderBasename}"
+		"REPO_ROOT_PATH": "${containerWorkspaceFolderBasename}",
+		"DISPLAY": "host.docker.internal:0"
 	},
 	// Add the IDs of extensions you want installed when the container is created.
 	"customizations": {
@@ -30,19 +31,22 @@
 				"xdebug.php-debug",
 				"bmewburn.vscode-intelephense-client",
 				"rifi2k.format-html-in-php",
-				"GitHub.copilot"
+				"GitHub.copilot",
+				"alexkrechik.cucumberautocomplete"
 			],
 			"settings": {}
 		}
 	},
 	"remoteUser": "vscode",
 	"forwardPorts": [
-		8080,
-		3306,
-		8025
+		8080, // Port for the application server
+		3306, // Port for MySQL server
+		8025, // Port for Mailpit SMTP server
+		9324 // Port for Playwright test report
 	],
 	"runArgs": [
-		"--add-host=host.docker.internal:host-gateway"
+		"--add-host=host.docker.internal:host-gateway",
+		"--env=DISPLAY=host.docker.internal:0"
 	],
 	"postStartCommand": "bash .devcontainer/init_env/config_space.sh"
 }

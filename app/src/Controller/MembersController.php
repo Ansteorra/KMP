@@ -184,7 +184,9 @@ class MembersController extends AppController
             ->find()
             ->contain([
                 'Roles',
-                'Branches',
+                'Branches' => function (SelectQuery $q) {
+                    return $q->select(['Branches.name', 'Branches.id']);
+                },
                 'Parents' => function (SelectQuery $q) {
                     return $q->select(['Parents.sca_name', 'Parents.id']);
                 },
@@ -204,7 +206,7 @@ class MembersController extends AppController
         if (!$member) {
             throw new NotFoundException();
         }
-        $this->Authorization->authorize($member);
+        $this->Authorization->authorize($member, 'view');
         // Create the new Note form
         $session = $this->request->getSession();
         // Get the member form data for the edit modal
@@ -259,6 +261,7 @@ class MembersController extends AppController
                 'publicInfo',
             ),
         );
+        $this->viewBuilder()->setTemplate('view');
     }
 
     public function viewCard($id = null)
@@ -572,6 +575,23 @@ class MembersController extends AppController
             );
         }
         $this->redirect(['action' => 'view', $member->id]);
+    }
+
+    /**
+     * Profile method
+     * 
+     * Shows the current user's profile without changing the URL
+     *
+     * @return \Cake\Http\Response|null|void Renders view
+     */
+    public function profile()
+    {
+        $user = $this->Authentication->getIdentity();
+        if (!$user) {
+            throw new NotFoundException(__('User not authenticated.'));
+        }
+
+        return $this->view(toString($user->id));
     }
 
     public function editAdditionalInfo($id = null)
