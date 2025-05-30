@@ -1,5 +1,6 @@
 // Global setup for Playwright tests
 const { chromium, expect } = require('@playwright/test');
+const { execSync } = require('child_process');
 
 async function globalSetup() {
   console.log('🚀 Starting global setup for UI tests...');
@@ -8,6 +9,24 @@ async function globalSetup() {
   const browser = await chromium.launch();
   const context = await browser.newContext({ ignoreHTTPSErrors: true });
   const page = await context.newPage();
+
+  // empty the test mail server inbox
+  console.log('🧹 Emptying test mail server inbox...')
+  try {
+    await page.goto('http://localhost:8025/');
+    var btn = await page.getByRole('button', { name: ' Delete all' });
+    //if the button is enabled, click it
+    if (await btn.isDisabled()) {
+      console.log('❗️ Delete all button is disabled, skipping emptying inbox');
+    } else {
+      await btn.click();
+      await page.getByRole('button', { name: 'Delete', exact: true }).click();
+
+    }
+    console.log('✅ Test mail server inbox emptied');
+  } catch (error) {
+    console.error('❌ Failed to empty test mail server inbox:', error);
+  }
 
   try {
     // Wait for the server to be ready

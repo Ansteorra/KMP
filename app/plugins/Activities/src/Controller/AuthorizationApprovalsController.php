@@ -214,7 +214,7 @@ class AuthorizationApprovalsController extends AppController
             return $this->redirect($this->referer());
         }
         $this->Flash->success(
-            __("The authorization approval has been processed"),
+            __("The authorization approval has been processed."),
         );
 
         return $this->redirect($this->referer());

@@ -184,7 +184,9 @@ class MembersController extends AppController
             ->find()
             ->contain([
                 'Roles',
-                'Branches',
+                'Branches' => function (SelectQuery $q) {
+                    return $q->select(['Branches.name', 'Branches.id']);
+                },
                 'Parents' => function (SelectQuery $q) {
                     return $q->select(['Parents.sca_name', 'Parents.id']);
                 },

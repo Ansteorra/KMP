@@ -8,17 +8,6 @@ Given('I am on the login page', async ({ page }) => {
     await page.goto('/members/login', { waitUntil: 'networkidle' });
 });
 
-// check if user is logged in
-Given('I am logged in as {string}', async ({ page }, emailAddress) => {
-    // Navigate to the login page
-    await page.goto('/members/login', { waitUntil: 'networkidle' });
-
-    // Fill in the login form with admin credentials
-    await page.getByRole('textbox', { name: 'Email Address' }).fill(emailAddress);
-    await page.getByRole('textbox', { name: 'Password' }).fill('password');
-    await page.getByRole('button', { name: 'Sign in' }).click();
-});
-
 // Given I am already logged in
 Given('I am already logged in', async ({ page }) => {
     // Navigate to the login page
@@ -30,11 +19,6 @@ Given('I am already logged in', async ({ page }) => {
         console.log('User is already logged in.');
         return;
     }
-});
-
-// Given I am on my profile page
-Given('I am on my profile page', async ({ page }) => {
-    await page.goto('/members/profile', { waitUntil: 'networkidle' });
 });
 
 // When I Logout
@@ -122,8 +106,4 @@ Then('I should see an authentication error message', async ({ page }) => {
 Then('I should be successfully logged in', async ({ page }) => {
     // Wait for redirect or page change after successful login
     await page.waitForTimeout(1000);
-});
-
-Then('I should see the welcome message {string}', async ({ page }, message) => {
-    await expect(page.getByText(message)).toBeVisible();
 });

@@ -29,7 +29,7 @@ Feature: User Authentication
             | password | Password123    |
         And I submit the login form
         Then I should be successfully logged in
-        And I should see the welcome message "Welcome Admin von Admin!"
+        And I should see the flash message "Welcome Admin von Admin!"
 
     Scenario: When I am logged in I can log out
         Given I am logged in as "admin@test.com"

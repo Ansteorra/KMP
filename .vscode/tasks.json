@@ -30,35 +30,6 @@
             "problemMatcher": []
         },
         {
-            "label": "Run JavaScript Tests",
-            "type": "shell",
-            "command": "npm run test:js",
-            "group": "test",
-            "options": {
-                "cwd": "${workspaceFolder}/app"
-            },
-            "presentation": {
-                "reveal": "always",
-                "panel": "new"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "Run JavaScript Tests (Watch)",
-            "type": "shell",
-            "command": "npm run test:js:watch",
-            "group": "test",
-            "options": {
-                "cwd": "${workspaceFolder}/app"
-            },
-            "presentation": {
-                "reveal": "always",
-                "panel": "new"
-            },
-            "problemMatcher": [],
-            "isBackground": true
-        },
-        {
             "label": "Run UI Tests",
             "type": "shell",
             "command": "npm run test:ui",

@@ -21,7 +21,6 @@ use App\Services\CsvExportService;
  */
 class RecommendationsController extends AppController
 {
-
     /**
      * Before filter callback.
      *

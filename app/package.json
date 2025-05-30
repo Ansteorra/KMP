@@ -12,9 +12,10 @@
         "test:js": "jest",
         "test:js:watch": "jest --watch",
         "test:js:coverage": "jest --coverage",
-        "test:ui": "bddgen && playwright test",
-        "test:ui:headed": "bddgen && playwright test --headed",
-        "test:ui:debug": "bddgen && playwright test --debug",
+        "test:ui": "bddgen && bash ../reset_dev_database.sh && playwright test",
+        "test:ui:headed": "bddgen && bash ../reset_dev_database.sh && playwright test --headed",
+        "test:ui:debug": "bddgen && bash ../reset_dev_database.sh && playwright test --debug",
+        "test:ui:codegen": "playwright codegen",
         "test:ui:report": "playwright show-report tests/ui-reports/html --port 9324 --host 0.0.0.0",
         "test:ui:install": "playwright install",
         "test:security": "bash ../security-checker.sh"

@@ -152,6 +152,16 @@ RUN ARCH=$(uname -m) && \
 # Add Python alias for compatibility
 RUN ln -s /usr/bin/python3 /usr/local/bin/python
 
+# Install X11 utilities for GUI debugging (e.g., Playwright)
+RUN apt-get update && \
+    apt-get install -y xauth x11-apps && \
+    rm -rf /var/lib/apt/lists/*
+
+# Usage:
+# 1. On your macOS, run an X server (e.g., XQuartz) and enable network connections.
+# 2. Set DISPLAY in the container to your host IP (e.g., export DISPLAY=host.docker.internal:0)
+# 3. Run GUI apps (e.g., xeyes, playwright debug, etc.)
+
 # Set up environment for vscode user
 USER vscode
 
