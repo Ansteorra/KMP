@@ -33,6 +33,18 @@ class InitWarrantsSeed extends BaseSeed
             ],
         ];
 
+        // Create a starter period startng today and ending in 6 months.
+        $today = new DateTime();
+        $sixMonthsFromNow = $today->modify('+6 months')->format('Y-m-d H:i:s');
+        $periods = [
+            [
+                'start_date' => $today->format('Y-m-d H:i:s'),
+                'end_date' => $sixMonthsFromNow,
+                'created_by' => $adminMemberId,
+                'created' => DateTime::now(),
+            ],
+        ];
+
         // Warrants and Approvals will be handled in the run() method after rosters are created.
 
         $permissions = [
@@ -74,6 +86,7 @@ class InitWarrantsSeed extends BaseSeed
         return [
             'warrant_rosters' => $rosters,
             'permissions' => $permissions,
+            'warrant_periods' => $periods,
         ];
     }
 
@@ -95,6 +108,11 @@ class InitWarrantsSeed extends BaseSeed
         $rosterData = $this->getData()["warrant_rosters"];
         $rosterTable = $this->table('warrant_rosters');
         $rosterTable->insert($rosterData)->save();
+
+        $periodData = $this->getData()["warrant_periods"];
+        $periodTable = $this->table('warrant_periods');
+        $periodTable->insert($periodData)->save();
+        // Ensure the System Admin Warrant Set exists
 
         $warrantRostersTable = \Cake\ORM\TableRegistry::getTableLocator()->get('WarrantRosters');
         $systemAdminRoster = $warrantRostersTable->find()->where(['name' => 'System Admin Warrant Set'])->firstOrFail();
