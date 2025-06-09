@@ -19,7 +19,7 @@ $pendingWithoutCard = [];
 
 // put all members under 18 in the $pendingYouth array
 foreach ($Members as $Member) {
-    if ($Member->age < 18) {
+    if ($Member->age < 18 && ($Member->status == "unverified minor" || $Member->status == "< 18 member verified")) {
         $pendingYouth[] = $Member;
     } elseif ($Member->membership_card_path != null && strlen($Member->membership_card_path) > 0) {
         $pendingWithCard[] = $Member;

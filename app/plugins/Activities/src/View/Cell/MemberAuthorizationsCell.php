@@ -57,8 +57,8 @@ class MemberAuthorizationsCell extends Cell
             ->select(['id', 'birth_month', 'birth_year', 'additional_info'])->first();
         // Get the list of authorization types the member can request based on their age
         $activities = $authTypeTable->find("list")->where([
-            "minimum_age <" => $member->age,
-            "maximum_age >" => $member->age,
+            "minimum_age <=" => $member->age,
+            "maximum_age >=" => $member->age,
         ]);
         $isEmpty = ($currentAuths + $pendingAuths + $previousAuths) == 0;
         $pendingAuthCount = $pendingAuths;

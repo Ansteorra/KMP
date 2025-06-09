@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Model\Table;
@@ -261,8 +262,7 @@ class MembersTable extends BaseTable
                     ],
                     ['Members.status IN' => [
                         Member::STATUS_UNVERIFIED_MINOR,
-                        Member::STATUS_MINOR_MEMBERSHIP_VERIFIED,
-                        Member::STATUS_MINOR_PARENT_VERIFIED,
+                        Member::STATUS_MINOR_MEMBERSHIP_VERIFIED
                     ]],
                 ],
             ])->count();

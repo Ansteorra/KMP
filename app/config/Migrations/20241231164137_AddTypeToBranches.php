@@ -26,5 +26,7 @@ class AddTypeToBranches extends BaseMigration
                 'null' => true,
             ]);
         $table->update();
+        //update the existing branch records
+        $this->execute("UPDATE branches SET type = 'Kingdom' WHERE name = 'Kingdom'");
     }
 }

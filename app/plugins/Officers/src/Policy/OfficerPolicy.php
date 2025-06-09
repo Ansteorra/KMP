@@ -225,6 +225,12 @@ class OfficerPolicy extends BasePolicy
         if ($branchId != null) {
             $branchId = toInt($branchId);
         }
+        //check if the entity has a branch_id
+        if (isset($entity->branch_id)) {
+            $branchId = $entity->branch_id;
+        }
+        // if branchId is null, we cannot edit the officer
+
         $hasPolicy = $this->_hasPolicy($user, $method, $entity, $branchId);
         // check if the editor can edit this specific office
         if ($hasPolicy) {

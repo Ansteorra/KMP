@@ -21,7 +21,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("recordDetails") ?>
 <tr scope="row">
-    <th class="col"><?= __("Domain") ?></th>
+    <th class="col"><?= __("Email Domain") ?></th>
     <td class="col-10"><?= $department->domain ?></td>
 </tr>
 <?php $this->KMP->endBlock() ?>
@@ -37,67 +37,67 @@ echo $this->KMP->startBlock("pageTitle") ?>
     <?php
     $offices = $department->offices;
     if (!empty($offices)) : ?>
-        <table class="table table-striped">
-            <thead>
-                <tr>
-                    <th scope="col"><?= __("name") ?></th>
-                    <th scope="col" class="text-center"><?= __("Term (Months)") ?></th>
-                    <th scope="col" class="text-center"><?= __("Required") ?></th>
-                    <th scope="col" class="text-center"><?= __("Skip Report") ?></th>
-                    <th scope="col" class="text-center"><?= __("Warrant") ?></th>
-                    <th scope="col" class="text-center"><?= __(
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th scope="col"><?= __("name") ?></th>
+                <th scope="col" class="text-center"><?= __("Term (Months)") ?></th>
+                <th scope="col" class="text-center"><?= __("Required") ?></th>
+                <th scope="col" class="text-center"><?= __("Skip Report") ?></th>
+                <th scope="col" class="text-center"><?= __("Warrant") ?></th>
+                <th scope="col" class="text-center"><?= __(
                                                             "One Per Branch",
                                                         ) ?></th>
-                    <th scope="col" class="text-center"><?= __("Reports To") ?></th>
-                    <th scope="col" class="text-center"><?= __("Grants Role") ?></th>
-                    <th scope="col" class="actions"></th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($offices as $office) : ?>
-                    <tr>
-                        <td><?= h($office->name) ?></td>
-                        <td class="text-center"><?= h($office->term_length) ?></td>
-                        <td class="text-center"><?= $this->Kmp->bool(
+                <th scope="col" class="text-center"><?= __("Reports To") ?></th>
+                <th scope="col" class="text-center"><?= __("Grants Role") ?></th>
+                <th scope="col" class="actions"></th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php foreach ($offices as $office) : ?>
+            <tr>
+                <td><?= h($office->name) ?></td>
+                <td class="text-center"><?= h($office->term_length) ?></td>
+                <td class="text-center"><?= $this->Kmp->bool(
                                                     $office->required_office,
                                                     $this->Html,
                                                 ) ?></td>
-                        <td class="text-center"><?= $this->Kmp->bool(
+                <td class="text-center"><?= $this->Kmp->bool(
                                                     $office->can_skip_report,
                                                     $this->Html,
                                                 ) ?></td>
-                        <td class="text-center"><?= $this->Kmp->bool(
+                <td class="text-center"><?= $this->Kmp->bool(
                                                     $office->requires_warrant,
                                                     $this->Html,
                                                 ) ?></td>
-                        <td class="text-center"><?= $this->Kmp->bool(
+                <td class="text-center"><?= $this->Kmp->bool(
                                                     $office->only_one_per_branch,
                                                     $this->Html,
                                                 ) ?></td>
-                        <td class="text-center"><?= h(
+                <td class="text-center"><?= h(
                                                     $office->deputy_to === null
                                                         ? ""
                                                         : $office->deputy_to->name,
                                                 ) ?></td>
 
-                        <td class="text-center"><?= h(
+                <td class="text-center"><?= h(
                                                     $office->grants_role === null
                                                         ? ""
                                                         : $office->grants_role->name,
                                                 ) ?></td>
-                        <td class="actions text-end text-nowrap">
-                            <?= $this->Html->link(
+                <td class="actions text-end text-nowrap">
+                    <?= $this->Html->link(
                                 __(""),
                                 ["action" => "view", "controller" => "offices", $office->id],
                                 ["title" => __("View"), "class" => "btn-sm btn btn-secondary bi bi-binoculars-fill"],
                             ) ?>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
+                </td>
+            </tr>
+            <?php endforeach; ?>
+        </tbody>
+    </table>
     <?php else : ?>
-        <p>No Offices Assigned</p>
+    <p>No Offices Assigned</p>
     <?php endif; ?>
 </div>
 
@@ -121,7 +121,7 @@ echo $this->Modal->create("Edit Department", [
     <?php
 
     echo $this->Form->control("name");
-    echo $this->Form->control("domain");
+    echo $this->Form->control("domain", ['label' => 'Email Domain', 'placeholder' => 'e.g. branch.example.com']);
 
     ?>
 </fieldset>
