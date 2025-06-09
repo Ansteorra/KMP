@@ -35,7 +35,7 @@ class InitWarrantsSeed extends BaseSeed
 
         // Create a starter period startng today and ending in 6 months.
         $today = new DateTime();
-        $sixMonthsFromNow = $today->modify('+6 months')->format('Y-m-d H:i:s');
+        $sixMonthsFromNow = (clone $today)->modify('+6 months')->format('Y-m-d H:i:s');
         $periods = [
             [
                 'start_date' => $today->format('Y-m-d H:i:s'),
