@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Services\WarrantManager;
@@ -53,7 +54,7 @@ class DefaultWarrantManager implements WarrantManagerInterface
         $warrantRoster->status = WarrantRoster::STATUS_PENDING;
         $warrantRoster->name = $request_name;
         $warrantRoster->description = $desc;
-        $warrantRoster->approvals_required = StaticHelpers::getAppSetting('Warrant.RosterApprovalsRequired', 2);
+        $warrantRoster->approvals_required = StaticHelpers::getAppSetting('Warrant.RosterApprovalsRequired', '2');
 
         //start a transaction
         $warrantRosterTable->getConnection()->begin();

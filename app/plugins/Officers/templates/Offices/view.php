@@ -167,7 +167,7 @@ echo $this->KMP->startBlock("modals"); ?>
         "type" => "number",
         "tooltip" => "value of 0 will be treated as no term limit",
     ]);
-    echo $this->Form->control("default_contact_address");
+    echo $this->Form->control("default_contact_address", ["label" => 'Office Email Template', 'help' => 'just the first part of the email address, e.g. "office" for office@example.com']);
     echo $this->Form->control("required_office", ["switch" => true, 'label' => 'Required']);
     echo $this->Form->control("can_skip_report", ["switch" => true, 'label' => 'Skip Report']);
     echo $this->Form->control("requires_warrant", ["switch" => true, 'label' => 'Warrant']);

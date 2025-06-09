@@ -19,7 +19,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
 <?php $this->KMP->endBlock() ?>
 <?= $this->KMP->startBlock("recordActions") ?>
 <?php if ($user->checkCan("edit", $branch)) : ?>
-    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal">Edit</button>
+<button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal">Edit</button>
 <?php endif; ?>
 <?php if (empty($branch->children) && empty($branch->members)) {
     echo $this->Form->postLink(
@@ -59,33 +59,33 @@ echo $this->KMP->startBlock("pageTitle") ?>
     <td class="col-10"><?= $this->KMP->bool($branch->can_have_members, $this->Html) ?></td>
 </tr>
 <tr scope="row">
-    <th class="col"><?= __("Domain") ?></th>
+    <th class="col"><?= __("Email Domain") ?></th>
     <td class="col-10"><?= $branch->domain ?></td>
 </tr>
 <tr scope="row">
     <th class="col"><?= __("links") ?></th>
     <td class="col-10">
         <?php if (!empty($branch->links)) : ?>
-            <ul class='list-group'>
-                <?php foreach ($branch->links as $linkItem) : ?>
-                    <li class='list-group-item'>
-                        <span class="bi bi-<?= $linkItem['type'] ?>"></span>
-                        <a href="<?= h($linkItem['url']) ?>" title="<?= h($linkItem['url']) ?>" target="_blank">
-                            <?= $linkItem['url'] ?></a>
-                    </li>
-                <?php endforeach; ?>
-            </ul>
+        <ul class='list-group'>
+            <?php foreach ($branch->links as $linkItem) : ?>
+            <li class='list-group-item'>
+                <span class="bi bi-<?= $linkItem['type'] ?>"></span>
+                <a href="<?= h($linkItem['url']) ?>" title="<?= h($linkItem['url']) ?>" target="_blank">
+                    <?= $linkItem['url'] ?></a>
+            </li>
+            <?php endforeach; ?>
+        </ul>
         <?php else : ?>
-            <p><?= __("No links found") ?></p>
+        <p><?= __("No links found") ?></p>
         <?php endif; ?>
     </td>
 </tr>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("tabButtons") ?>
 <?php if ($branch->can_have_members) : ?>
-    <button class="nav-link active" id="nav-members-tab" data-bs-toggle="tab" data-bs-target="#nav-members" type="button"
-        role="tab" aria-controls="nav-members" aria-selected="false" data-detail-tabs-target=' tabBtn'><?= __("Members") ?>
-    </button>
+<button class="nav-link active" id="nav-members-tab" data-bs-toggle="tab" data-bs-target="#nav-members" type="button"
+    role="tab" aria-controls="nav-members" aria-selected="false" data-detail-tabs-target=' tabBtn'><?= __("Members") ?>
+</button>
 <?php endif; ?>
 <button class="nav-link" id="nav-branches-tab" data-bs-toggle="tab" data-bs-target="#nav-branches" type="button"
     role="tab" aria-controls="nav-branches" aria-selected="false" data-detail-tabs-target='tabBtn'><?= __("Branches") ?>
@@ -93,30 +93,30 @@ echo $this->KMP->startBlock("pageTitle") ?>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("tabContent") ?>
 <?php if ($branch->can_have_members) : ?>
-    <div class="related tab-pane fade active m-3" id="nav-members" role="tabpanel" aria-labelledby="nav-members-tab"
-        data-detail-tabs-target="tabContent">
-        <?php if (!empty($branch->members)) : ?>
-            <div class="table-responsive">
-                <table class="table table-striped">
-                    <tr>
-                        <th scope="col"><?= __("Name") ?></th>
-                        <th scope="col"><?= __("Minor") ?></th>
-                        <th scope="col"><?= __("Membership Number") ?></th>
-                        <th scope="col"><?= __("Membership Exp. Date") ?></th>
-                        <th scope="col"><?= __("Status") ?></th>
-                        <th scope="col" class="actions"></th>
-                    </tr>
-                    <?php foreach ($branch->members as $member) : ?>
-                        <tr>
-                            <td><?= h($member->sca_name) ?></td>
-                            <td><?= $this->KMP->bool($member->age < 18, $this->Html) ?></td>
-                            <td><?= h($member->membership_number) ?></td>
-                            <td><?= h($member->membership_expires_on_to_string) ?>
-                            </td>
-                            <td><?= h($member->status) ?></td>
-                            <td class="actions text-end text-nowrap">
-                                <?php if ($user->checkCan("view", $member)) : ?>
-                                    <?= $this->Html->link(
+<div class="related tab-pane fade active m-3" id="nav-members" role="tabpanel" aria-labelledby="nav-members-tab"
+    data-detail-tabs-target="tabContent">
+    <?php if (!empty($branch->members)) : ?>
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <tr>
+                <th scope="col"><?= __("Name") ?></th>
+                <th scope="col"><?= __("Minor") ?></th>
+                <th scope="col"><?= __("Membership Number") ?></th>
+                <th scope="col"><?= __("Membership Exp. Date") ?></th>
+                <th scope="col"><?= __("Status") ?></th>
+                <th scope="col" class="actions"></th>
+            </tr>
+            <?php foreach ($branch->members as $member) : ?>
+            <tr>
+                <td><?= h($member->sca_name) ?></td>
+                <td><?= $this->KMP->bool($member->age < 18, $this->Html) ?></td>
+                <td><?= h($member->membership_number) ?></td>
+                <td><?= h($member->membership_expires_on_to_string) ?>
+                </td>
+                <td><?= h($member->status) ?></td>
+                <td class="actions text-end text-nowrap">
+                    <?php if ($user->checkCan("view", $member)) : ?>
+                    <?= $this->Html->link(
                                         __(""),
                                         [
                                             "controller" => "members",
@@ -128,33 +128,33 @@ echo $this->KMP->startBlock("pageTitle") ?>
                                             "class" => "btn-sm btn btn-secondary bi bi-binoculars-fill",
                                         ],
                                     ) ?>
-                                <?php endif; ?>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </table>
-            </div>
-        <?php else : ?>
-            <p><?= __("No members found") ?></p>
-        <?php endif; ?>
+                    <?php endif; ?>
+                </td>
+            </tr>
+            <?php endforeach; ?>
+        </table>
     </div>
+    <?php else : ?>
+    <p><?= __("No members found") ?></p>
+    <?php endif; ?>
+</div>
 <?php endif; ?>
 <div class="related tab-pane fade m-3" id="nav-branches" role="tabpanel" aria-labelledby="nav-branches-tab"
     data-detail-tabs-target="tabContent">
     <?php if (!empty($branch->children)) : ?>
-        <div class="table-responsive">
-            <table class="table table-striped">
-                <tr>
-                    <th scope="col"><?= __("Name") ?></th>
-                    <th scope="col"><?= __("Location") ?></th>
-                    <th scope="col" class="actions"></th>
-                </tr>
-                <?php foreach ($branch->children as $child) : ?>
-                    <tr>
-                        <td><?= h($child->name) ?></td>
-                        <td><?= h($child->location) ?></td>
-                        <td class="actions text-end text-nowrap">
-                            <?= $this->Html->link(
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <tr>
+                <th scope="col"><?= __("Name") ?></th>
+                <th scope="col"><?= __("Location") ?></th>
+                <th scope="col" class="actions"></th>
+            </tr>
+            <?php foreach ($branch->children as $child) : ?>
+            <tr>
+                <td><?= h($child->name) ?></td>
+                <td><?= h($child->location) ?></td>
+                <td class="actions text-end text-nowrap">
+                    <?= $this->Html->link(
                                 __(""),
                                 ["action" => "view", $child->id],
                                 [
@@ -162,13 +162,13 @@ echo $this->KMP->startBlock("pageTitle") ?>
                                     "class" => "btn-sm btn btn-secondary bi bi-binoculars-fill",
                                 ],
                             ) ?>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
-            </table>
-        </div>
+                </td>
+            </tr>
+            <?php endforeach; ?>
+        </table>
+    </div>
     <?php else : ?>
-        <p><?= __("No branches found") ?></p>
+    <p><?= __("No branches found") ?></p>
     <?php endif; ?>
 </div>
 <?php $this->KMP->endBlock() ?>

@@ -33,7 +33,7 @@ echo $this->Modal->create("Edit Branch", [
     if ($links === 'null') {
         $links = '[]';
     }
-    echo $this->Form->control("domain");
+    echo $this->Form->control("domain", ['label' => 'Email Domain', 'placeholder' => 'e.g. branch.example.com']);
     echo $this->Form->hidden('branch_links', ['value' => $links, 'id' => 'links', 'data-branch-links-target' => 'formValue']); ?>
     <div class="mb-3 form-group links">
         <label class="form-label" for="links">Links</label>

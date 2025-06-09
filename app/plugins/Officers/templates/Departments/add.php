@@ -16,7 +16,7 @@ $this->KMP->endBlock(); ?>
     <fieldset>
         <legend><?= __("Add Department") ?></legend>
         <?php echo $this->Form->control("name"); ?>
-        <?php echo $this->Form->control("domain"); ?>
+        <?php echo $this->Form->control("domain", ['label' => 'Email Domain', 'placeholder' => 'e.g. branch.example.com']); ?>
     </fieldset>
     <div class='text-end'><?= $this->Form->button(__("Submit"), [
                                 "class" => "btn-primary",
