@@ -148,6 +148,9 @@ class OfficerPolicy extends BasePolicy
     {
         $method = __FUNCTION__;
         $branchId = $optionalArgs[0] ?? null;
+        if (isset($entity->branch_id)) {
+            $branchId = $entity->branch_id;
+        }
         if ($branchId != null) {
             $branchId = toInt($branchId);
         }
@@ -180,6 +183,9 @@ class OfficerPolicy extends BasePolicy
         }
         $method = __FUNCTION__;
         $branchId = $optionalArgs[0] ?? null;
+        if (isset($entity->branch_id)) {
+            $branchId = $entity->branch_id;
+        }
         if ($branchId != null) {
             $branchId = toInt($branchId);
         }
@@ -222,6 +228,9 @@ class OfficerPolicy extends BasePolicy
     {
         $method = __FUNCTION__;
         $branchId = $optionalArgs[0] ?? null;
+        if (isset($entity->branch_id)) {
+            $branchId = $entity->branch_id;
+        }
         if ($branchId != null) {
             $branchId = toInt($branchId);
         }
@@ -270,6 +279,9 @@ class OfficerPolicy extends BasePolicy
     {
         $method = __FUNCTION__;
         $branchId = $optionalArgs[0] ?? null;
+        if (isset($entity->branch_id)) {
+            $branchId = $entity->branch_id;
+        }
         if ($branchId != null) {
             $branchId = toInt($branchId);
         }

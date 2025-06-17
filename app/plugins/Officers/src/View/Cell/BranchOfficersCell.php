@@ -56,6 +56,7 @@ class BranchOfficersCell extends Cell
     public function display($id)
     {
 
+        $id = (int)$id;
         $officersTable = $this->fetchTable("Officers.Officers");
 
         $newOfficer = $officersTable->newEmptyEntity();
