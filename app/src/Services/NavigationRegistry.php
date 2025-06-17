@@ -55,6 +55,11 @@ class NavigationRegistry
         self::ensureInitialized();
 
         $allItems = [];
+        // lets check if we already have items in the session
+        if (isset($_SESSION['navigation_items']) && is_array($_SESSION['navigation_items'])) {
+            $allItems = $_SESSION['navigation_items'];
+            return $allItems;
+        }
 
         foreach (self::$navigationItems as $source => $registration) {
             $items = $registration['items'];
@@ -69,7 +74,8 @@ class NavigationRegistry
 
             $allItems = array_merge($allItems, $items);
         }
-
+        // Store the items in the session for future requests
+        $_SESSION['navigation_items'] = $allItems;
         return $allItems;
     }
 

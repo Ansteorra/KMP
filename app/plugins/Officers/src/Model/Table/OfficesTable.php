@@ -11,6 +11,7 @@ use Cake\Validation\Validator;
 use App\Model\Table\BaseTable;
 use Cake\ORM\TableRegistry;
 use App\Model\Entity\Member;
+use Officers\Model\Entity\Officer;
 
 /**
  * Offices Model
@@ -243,7 +244,6 @@ class OfficesTable extends BaseTable
         return $officersTbl->find('current')
             ->where(['member_id' => $user->id])
             ->select(['id', 'office_id', 'branch_id'])
-            ->enableHydration(false)
             ->toArray();
     }
 
@@ -274,15 +274,15 @@ class OfficesTable extends BaseTable
      * Get accessible offices for a specific user position.
      *
      * @param \App\Model\Entity\Member $user The user entity.
-     * @param array $position The user's officer position.
+     * @param \Officers\Model\Entity\Officer $position The user's officer position.
      * @param int $branchId The branch ID.
      * @param array &$permissionCache Permission cache for optimization.
      * @return int[]
      */
-    private function getOfficesForPosition(Member $user, array $position, int $branchId, array &$permissionCache): array
+    private function getOfficesForPosition(Member $user, Officer $position, int $branchId, array &$permissionCache): array
     {
         $officeIds = [];
-        $officeId = $position['office_id'];
+        $officeId = $position->office_id;
 
         // Cache key for permissions
         $cacheKey = $position['id'] . '_' . $branchId;
@@ -313,11 +313,11 @@ class OfficesTable extends BaseTable
      * Get permissions for a user's position.
      *
      * @param \App\Model\Entity\Member $user The user entity.
-     * @param array $position The user's officer position.
+     * @param \Officers\Model\Entity\Officer $position The user's officer position.
      * @param int $branchId The branch ID.
      * @return array
      */
-    private function getPositionPermissions(Member $user, array $position, int $branchId): array
+    private function getPositionPermissions(Member $user, Officer $position, int $branchId): array
     {
         return [
             'deputies' => $user->checkCan('workWithOfficerDeputies', $position, $branchId, true),
