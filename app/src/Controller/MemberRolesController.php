@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Controller;
@@ -21,7 +22,7 @@ class MemberRolesController extends AppController
     public function initialize(): void
     {
         parent::initialize();
-        $this->Authorization->authorizeModel('index', 'deactivate', 'add');
+        $this->Authorization->authorizeModel('index', 'add');
     }
 
     /**
@@ -147,6 +148,16 @@ class MemberRolesController extends AppController
             $id = $this->request->getData('id');
         }
         $this->MemberRoles->getConnection()->begin();
+
+        $memberRole = $this->MemberRoles->find()
+            ->where(['id' => $id])
+            ->first();
+        if (!$memberRole) {
+            $this->MemberRoles->getConnection()->rollback();
+            //return a 404 error
+            throw new NotFoundException(__('The Member role could not be found.'));
+        }
+        $this->Authorization->authorize($memberRole, 'Deactivate');
 
         if (!$awService->stop('MemberRoles', (int)$id, $this->Authentication->getIdentity()->get('id'), MemberRole::DEACTIVATED_STATUS, '', DateTime::now())) {
             $this->Flash->error(
