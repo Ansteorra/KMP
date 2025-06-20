@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Controller;
@@ -34,7 +35,7 @@ class WarrantsController extends AppController
 
         $this->loadComponent('Authorization.Authorization');
 
-        $this->Authorization->authorizeModel('index', 'deactivate');
+        $this->Authorization->authorizeModel('index');
     }
 
     /**
@@ -42,9 +43,7 @@ class WarrantsController extends AppController
      *
      * @return \Cake\Http\Response|null|void Renders view
      */
-    public function index()
-    {
-    }
+    public function index() {}
 
     public function allWarrants(CsvExportService $csvExportService, $state)
     {
@@ -105,8 +104,14 @@ class WarrantsController extends AppController
         if (!$id) {
             $id = $this->request->getData('id');
         }
-        $securityWarrant = $this->Warrants->newEmptyEntity();
-        $this->Authorization->authorize($securityWarrant);
+        $warrant = $this->Warrants->find()
+            ->where(['Warrants.id' => $id])
+            ->contain(['Members'])
+            ->first();
+        if (!$warrant) {
+            throw new NotFoundException(__('The warrant does not exist.'));
+        }
+        $this->Authorization->authorize($warrant);
 
         $wResult = $wService->cancel((int)$id, 'Deactivated from Warrant List', $this->Authentication->getIdentity()->get('id'), DateTime::now());
         if (!$wResult->success) {

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Controller;
@@ -22,8 +23,6 @@ class RolesController extends AppController
             'index',
             'add',
             'searchMembers',
-            'addPermission',
-            'deletePermission',
         );
     }
 
@@ -186,7 +185,7 @@ class RolesController extends AppController
         if (!$role || $role->is_system) {
             throw new NotFoundException();
         }
-        $this->Authorization->authorizeAction();
+        $this->Authorization->authorize($role);
         $permission = $this->Roles->Permissions->get($permission_id);
         for ($i = 0; $i < count($role->permissions); $i++) {
             if ($role->permissions[$i]->id == $permission_id) {
@@ -224,7 +223,7 @@ class RolesController extends AppController
         if (!$role || $role->is_system) {
             throw new NotFoundException();
         }
-        $this->Authorization->authorizeAction();
+        $this->Authorization->authorize($role);
         $permission = $this->Roles->Permissions->get($permission_id);
         for ($i = 0; $i < count($role->permissions); $i++) {
             if ($role->permissions[$i]->id == $permission_id) {
@@ -277,11 +276,11 @@ class RolesController extends AppController
         return $this->redirect(['action' => 'index']);
     }
 
-/**
- * search for adding members to a role
- *
- * @param string|null $q to search sca_name.
- * @return \Cake\Http\Response|null|void ajax only
- * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
- */
+    /**
+     * search for adding members to a role
+     *
+     * @param string|null $q to search sca_name.
+     * @return \Cake\Http\Response|null|void ajax only
+     * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
+     */
 }
