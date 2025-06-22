@@ -150,6 +150,46 @@ class OfficersController extends AppController
         }
     }
 
+    public function memberOfficers($id, $state)
+    {
+        $newOfficer = $this->Officers->newEmptyEntity();
+        $newOfficer->member_id = $id;
+        $this->Authorization->authorize($newOfficer);
+
+        $officersQuery = $this->Officers->find()
+
+            ->contain(['Offices' => ["Departments"], 'Members', 'Branches'])
+            ->orderBY(["Officers.id" => "ASC"]);
+
+
+        switch ($state) {
+            case 'current':
+                $officersQuery = $this->Officers->addDisplayConditionsAndFields($officersQuery->find('current')->where(['Officers.member_id' => $id]), 'current');
+                break;
+            case 'upcoming':
+                $officersQuery = $this->Officers->addDisplayConditionsAndFields($officersQuery->find('upcoming')->where(['Officers.member_id' => $id]), 'upcoming');
+                break;
+            case 'previous':
+                $officersQuery = $this->Officers->addDisplayConditionsAndFields($officersQuery->find('previous')->where(['Officers.member_id' => $id]), 'previous');
+                break;
+        }
+
+        $page = $this->request->getQuery("page");
+        $limit = $this->request->getQuery("limit");
+        $paginate = [];
+        if ($page) {
+            $paginate['page'] = $page;
+        }
+        if ($limit) {
+            $paginate['limit'] = $limit;
+        }
+        //$paginate["limit"] = 5;
+        $officers = $this->paginate($officersQuery, $paginate);
+        $turboFrameId = $state;
+
+        $this->set(compact('officers', 'id', 'state'));
+    }
+
     public function branchOfficers($id, $state)
     {
         $newOfficer = $this->Officers->newEmptyEntity();

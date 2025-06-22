@@ -31,6 +31,23 @@ class OfficerPolicy extends BasePolicy
     }
 
     /**
+     * Check if $user can see all officers in a branch
+     *
+     * @param KmpIdentityInterface $user The user.
+     * @param BaseEntity $entity The entity.
+     * @param mixed ...$optionalArgs Optional arguments.
+     * @return bool
+     */
+    public function canMemberOfficers(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs)
+    {
+        if ($entity->member_id == $user->getIdentifier()) {
+            return true;
+        }
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
+    }
+
+    /**
      * Check if $user can see all officers
      *
      * @param KmpIdentityInterface $user The user.
