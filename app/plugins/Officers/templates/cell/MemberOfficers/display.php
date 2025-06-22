@@ -71,7 +71,6 @@ if (!empty($currentOfficers) || !empty($upcomingOfficers) || !empty($previousOff
 
         "Reports To" => "reports_to_list",
         "Actions" => [
-            $linkTemplate,
             $editTemplate,
             $newWarrantTemplate,
             $releaseLinkTemplate
@@ -82,9 +81,6 @@ if (!empty($currentOfficers) || !empty($upcomingOfficers) || !empty($previousOff
         "Branch" => "branch->name",
         "Start Date" => "start_on_to_string",
         "End Date" => "expires_on_to_string",
-        "Actions" => [
-            $linkTemplate,
-        ],
     ];
     echo $this->element('activeWindowTabs', [
         'user' => $user,
