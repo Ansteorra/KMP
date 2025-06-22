@@ -37,7 +37,7 @@ class AuthorizationPolicy extends BasePolicy
      */
     public function canAdd(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
     {
-        if ($entity->id == $user->getIdentifier()) {
+        if ($entity->member_id == $user->getIdentifier()) {
             return true;
         }
         $method = __FUNCTION__;
