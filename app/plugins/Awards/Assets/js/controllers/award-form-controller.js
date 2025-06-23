@@ -33,6 +33,9 @@ class AwardsAwardForm extends Controller {
     connect() {
         if (this.formValueTarget.value && this.formValueTarget.value.length > 0) {
             this.items = JSON.parse(this.formValueTarget.value);
+            if (!Array.isArray(this.items)) {
+                this.items = [];
+            }
             this.items.forEach(item => {
                 //create a remove button
                 this.createListItem(item);

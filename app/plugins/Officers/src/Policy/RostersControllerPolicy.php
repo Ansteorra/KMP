@@ -16,13 +16,13 @@ class RostersControllerPolicy extends BasePolicy
     /**
      * Check if the user can view the reports
      * @param KmpIdentityInterface $user The user
-     * @param BaseEntity $entity The entity
+     * @param Array $entity The entity
      * @return bool
      */
-    public function canCreateRoster(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
+    public function canCreateRoster(KmpIdentityInterface $user, array $urlProps, ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
-        return $this->_hasPolicy($user, $method, $entity);
+        return $this->_hasPolicyForUrl($user, $method, $urlProps);
     }
 
     public function canAdd(KmpIdentityInterface $user, BaseEntity|Table|array $entity, ...$optionalArgs): bool

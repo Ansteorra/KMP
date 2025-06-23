@@ -38,10 +38,6 @@ class MemberOfficersCell extends Cell
      */
     public function display($id)
     {
-        $offiersTable = TableRegistry::getTableLocator()->get("Officers.Officers");
-        $currentOfficers = $offiersTable->addDisplayConditionsAndFields($offiersTable->find('current')->where(['Officers.member_id' => $id]), "current")->toArray();
-        $upcomingOfficers = $offiersTable->addDisplayConditionsAndFields($offiersTable->find('upcoming')->where(['Officers.member_id' => $id]), "upcoming")->toArray();
-        $previousOfficers = $offiersTable->addDisplayConditionsAndFields($offiersTable->find('previous')->where(['Officers.member_id' => $id]), "previous")->toArray();
-        $this->set(compact('currentOfficers', 'upcomingOfficers', 'previousOfficers', 'id'));
+        $this->set(compact('id'));
     }
 }

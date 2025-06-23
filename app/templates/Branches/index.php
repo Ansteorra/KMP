@@ -14,23 +14,23 @@ $this->KMP->endBlock();
 function branchHierachyTable($branches, $me, $parent_string = "")
 {
 ?>
-    <?php foreach ($branches as $branch) {
+<?php foreach ($branches as $branch) {
         $name = $parent_string . "/" . $branch->name; ?>
-        <tr>
-            <td><?= h($name) ?></td>
-            <td><?= h($branch->type) ?></td>
-            <td><?= h($branch->location) ?></td>
-            <td class="actions text-end text-nowrap">
-                <?= $me->Html->link(
+<tr>
+    <td><?= h($name) ?></td>
+    <td><?= h($branch->type) ?></td>
+    <td><?= h($branch->location) ?></td>
+    <td class="actions text-end text-nowrap">
+        <?= $me->Html->link(
                     __(""),
                     ["action" => "view", $branch->id],
                     ["title" => __("View"), "class" => "btn-sm btn btn-secondary bi bi-binoculars-fill", "data-turbo-frame" => "_top"],
                 ) ?>
-            </td>
-        </tr>
-        <?php if (!empty($branch->children)) { ?>
-            <?php branchHierachyTable($branch->children, $me, $name); ?>
-    <?php }
+    </td>
+</tr>
+<?php if (!empty($branch->children)) { ?>
+<?php branchHierachyTable($branch->children, $me, $name); ?>
+<?php }
     } ?>
 <?php
 }
@@ -66,6 +66,3 @@ function branchHierachyTable($branches, $me, $parent_string = "")
         </tbody>
     </table>
 </turbo-frame>
-
-
-<?php $this->append("script", $this->Html->script(["app/branches/index.js"])); ?>

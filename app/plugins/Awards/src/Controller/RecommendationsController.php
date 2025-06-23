@@ -1480,8 +1480,72 @@ class RecommendationsController extends AppController
      */
     protected function getRecommendationQuery(?array $filterArray = null): \Cake\Datasource\QueryInterface
     {
+
         // Build base query with containments
         $recommendations = $this->Recommendations->find()
+            ->select([
+                'Recommendations.id',
+                'Recommendations.stack_rank',
+                'Recommendations.requester_id',
+                'Recommendations.member_id',
+                'Recommendations.branch_id',
+                'Recommendations.award_id',
+                'Recommendations.specialty',
+                'Recommendations.requester_sca_name',
+                'Recommendations.member_sca_name',
+                'Recommendations.contact_number',
+                'Recommendations.contact_email',
+                'Recommendations.reason',
+                'Recommendations.call_into_court',
+                'Recommendations.court_availability',
+                'Recommendations.status',
+                'Recommendations.state_date',
+                'Recommendations.event_id',
+                'Recommendations.given',
+                'Recommendations.modified',
+                'Recommendations.created',
+                'Recommendations.created_by',
+                'Recommendations.modified_by',
+                'Recommendations.deleted',
+                'Recommendations.person_to_notify',
+                'Recommendations.no_action_reason',
+                'Recommendations.close_reason',
+                'Recommendations.state',
+                'Branches.id',
+                'Branches.name',
+                'Requesters.id',
+                'Requesters.sca_name',
+                'Members.id',
+                'Members.sca_name',
+                'Members.title',
+                'Members.pronouns',
+                'Members.pronunciation',
+                'AssignedEvent.id',
+                'AssignedEvent.name',
+                'Awards.id',
+                'Awards.abbreviation',
+                'Awards.branch_id',
+                'AwardsBranches.type',
+            ])
+            // First, establish the Awards join using leftJoinWith
+            ->leftJoinWith('Awards', function ($q) {
+                return $q->select(['id', 'abbreviation', 'branch_id']);
+            })
+            ->join([
+                'AwardsForBranches' => [
+                    'table' => 'awards_awards',
+                    'type' => 'LEFT',
+                    'conditions' => 'AwardsForBranches.id = Recommendations.award_id AND AwardsForBranches.deleted IS NULL'
+                ]
+            ])
+            // Then add the manual join for AwardsBranches
+            ->join([
+                'AwardsBranches' => [
+                    'table' => 'branches',
+                    'type' => 'LEFT',
+                    'conditions' => 'AwardsBranches.id = AwardsForBranches.branch_id AND AwardsBranches.deleted IS NULL'
+                ]
+            ])
             ->contain([
                 'Requesters' => function ($q) {
                     return $q->select(['id', 'sca_name']);
@@ -1491,9 +1555,6 @@ class RecommendationsController extends AppController
                 },
                 'Branches' => function ($q) {
                     return $q->select(['id', 'name']);
-                },
-                'Awards' => function ($q) {
-                    return $q->select(['id', 'abbreviation']);
                 },
                 'Awards.Domains' => function ($q) {
                     return $q->select(['id', 'name']);
@@ -1548,6 +1609,10 @@ class RecommendationsController extends AppController
 
         if ($this->request->getQuery('state')) {
             $recommendations->where(['Recommendations.state' => $this->request->getQuery('state')]);
+        }
+
+        if ($this->request->getQuery('branch_type')) {
+            $recommendations->where(['AwardsBranches.type like ' => '%' . $this->request->getQuery('branch_type') . '%']);
         }
 
         // Apply authorization scope policy

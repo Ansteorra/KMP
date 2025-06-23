@@ -300,6 +300,7 @@ class OfficersTable extends BaseTable
             'reports_to_branch_id',
             'deputy_to_office_id',
             'deputy_to_branch_id',
+            'Branches.name',
         ];
 
         $contain = [
