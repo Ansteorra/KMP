@@ -17767,9 +17767,11 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
 
 class AwardsRecommendationTable extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
-  static targets = ["rowCheckbox"];
+  static targets = ["rowCheckbox", "CheckAllBox"];
   static outlets = ["outlet-btn"];
   checked(event) {
+    console.log("Check button checked ", this.element);
+    // debugger;
     let idList = [];
     this.outletBtnOutlet.btnDataValue = {};
     this.rowCheckboxTargets.forEach(input => {
@@ -17784,7 +17786,29 @@ class AwardsRecommendationTable extends _hotwired_stimulus__WEBPACK_IMPORTED_MOD
     }
   }
   connect() {}
+  checkAll(ele) {
+    console.log("Hello, Check All!", this.element);
+    // debugger;
+
+    if (this.CheckAllBoxTarget.checked) {
+      let idList = [];
+      for (var i = 0; i < this.rowCheckboxTargets.length; i++) {
+        this.rowCheckboxTargets[i].checked = true; // Check all checkboxes
+        idList.push(this.rowCheckboxTargets[i].value);
+      }
+      this.outletBtnOutlet.btnDataValue = {
+        "ids": idList
+      };
+    } else {
+      this.outletBtnOutlet.btnDataValue = {};
+      for (var i = 0; i < this.rowCheckboxTargets.length; i++) {
+        this.rowCheckboxTargets[i].checked = false; // Check all checkboxes
+      }
+      this.outletBtnOutlet.btnDataValue = {};
+    }
+  }
 }
+
 // add to window.Controllers with a name of the controller
 if (!window.Controllers) {
   window.Controllers = {};
