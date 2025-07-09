@@ -18,10 +18,13 @@ declare(strict_types=1);
 
 namespace App\Mailer;
 
+use App\View\Helper\KmpHelper;
 use Cake\Core\App;
 use Cake\Mailer\Exception\MissingMailerException;
 use Cake\Mailer\Mailer;
 use Cake\Mailer\MailerAwareTrait;
+use Cake\ORM\TableRegistry;
+use App\KMP\StaticHelpers;
 use Throwable;
 
 /**
@@ -56,6 +59,22 @@ trait QueuedMailerAwareTrait
             'action' => $action,
             'vars' => $vars,
         ];
+        $useEmailQueue = (StaticHelpers::getAppSetting("Email.UseQueue", "no", null, true) === "yes");
+        if (!$useEmailQueue) {
+            $this->sendMailNow($data);
+        } else {
+            $this->queueMailJob($data);
+        }
+    }
+    /**
+     * Returns a mailer instance.
+     *
+     * @param string $name Mailer's name.
+     * @return \Cake\Mailer\Mailer
+     * @throws \Cake\Mailer\Exception\MissingMailerException if undefined mailer class.
+     */
+    protected function sendMailNow(array $data): void
+    {
         $this->mailer = $this->getMailer($data['class']);
 
         try {
@@ -64,7 +83,16 @@ trait QueuedMailerAwareTrait
         } catch (Throwable $e) {
             throw $e;
         }
-        //$queuedJobsTable = TableRegistry::getTableLocator()->get('Queue.QueuedJobs');
-        //$queuedJobsTable->createJob('Queue.Mailer', $data);
+    }
+    /**
+     * Queues a mail job to be processed later.
+     *
+     * @param array $data Data to be passed to the mailer.
+     * @return void
+     */
+    protected function queueMailJob(array $data): void
+    {
+        $queuedJobsTable = TableRegistry::getTableLocator()->get('Queue.QueuedJobs');
+        $queuedJobsTable->createJob('Queue.Mailer', $data);
     }
 }
