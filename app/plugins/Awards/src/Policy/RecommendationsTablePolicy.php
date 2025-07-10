@@ -19,9 +19,9 @@ class RecommendationsTablePolicy extends BasePolicy
     {
         $table = $query->getRepository();
         $branchIds = $this->_getBranchIdsForPolicy($user, "canIndex");
-        if (empty($branchIds)) {
-            return $query;
-        }
+        //if (empty($branchIds)) {
+        //    return $query;
+        //}
         $branchPolicies = $user->getPolicies($branchIds);
         $approvaLevels = [];
         $recommendationPolicies = $branchPolicies["Awards\Policy\RecommendationPolicy"]
@@ -33,7 +33,9 @@ class RecommendationsTablePolicy extends BasePolicy
                 $approvaLevels[] = $level;
             }
         }
-        $query = $table->addBranchScopeQuery($query, $branchIds);
+        if (!empty($branchIds)) {
+            $query = $table->addBranchScopeQuery($query, $branchIds);
+        };
         if (!empty($approvaLevels)) {
             return $query->contain(['Awards.Levels'])->where(['Levels.name in' => $approvaLevels]);
         }
