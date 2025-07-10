@@ -629,8 +629,10 @@ class RecommendationsController extends AppController
                 $recommendation->court_availability = $recommendation->court_availability ?? 'Not Set';
                 $recommendation->person_to_notify = $recommendation->person_to_notify ?? '';
 
-                if ($this->request->getData('given') !== null) {
+                if ($this->request->getData('given') !== null && $this->request->getData('given') !== '') {
                     $recommendation->given = new DateTime($this->request->getData('given'));
+                } else {
+                    $recommendation->given = null;
                 }
 
                 // Begin transaction
@@ -1528,8 +1530,8 @@ class RecommendationsController extends AppController
                 'AwardsBranches.type',
             ])
             // First, establish the Awards join using leftJoinWith
-            ->leftJoinWith('Awards', function ($q) {
-                return $q->select(['id', 'abbreviation', 'branch_id']);
+            ->contain('Awards', function ($q) {
+                return $q->select(['id', 'abbreviation', 'branch_id', 'Levels.id', 'Levels.name']);
             })
             ->join([
                 'AwardsForBranches' => [

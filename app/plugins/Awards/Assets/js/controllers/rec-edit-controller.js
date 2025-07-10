@@ -193,6 +193,7 @@ class AwardsRecommendationEditForm extends Controller {
 
         this.planToGiveBlockTarget.style.display = "none";
         this.givenBlockTarget.style.display = "none";
+        this.givenDateTarget.value = "";
         this.domainTarget.disabled = false;
         this.awardTarget.disabled = false;
         this.specialtyTarget.disabled = this.specialtyTarget.hidden;
