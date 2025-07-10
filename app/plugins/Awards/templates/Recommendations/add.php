@@ -8,7 +8,7 @@
 <?php $this->extend("/layout/TwitterBootstrap/dashboard");
 
 echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Submit Award Recoomendation';
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Submit Award Recommendation';
 $this->KMP->endBlock(); ?>
 
 <div class="recommendations form content">
