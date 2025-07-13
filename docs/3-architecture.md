@@ -145,24 +145,27 @@ graph TD
     PluginInterface --> Bootstrap[Bootstrap UI]
 ```
 
+
 Each plugin follows a standard structure:
 ```
 PluginName/
 ├── config/         # Plugin configuration and migrations
 ├── src/            # Plugin PHP code
-│   ├── Plugin.php  # Plugin bootstrap class
+│   ├── Plugin.php  # Main plugin class (recommended name)
 │   ├── Controller/ # Plugin controllers
 │   ├── Model/      # Plugin models
-│   ├── Service/    # Plugin services
-│   ├── Event/      # Event listeners
+│   ├── Services/   # Plugin services (including NavigationProvider)
+│   ├── Event/      # Event listeners (including CallForCellsHandler)
 │   └── View/       # View-related code
 ├── templates/      # Template files
 ├── assets/         # Source asset files for the plugin
 │   ├── css/        # CSS source files
 │   └── js/         # JavaScript source files
-│       └── controllers/ # Stimulus controllers
+│       └── controllers/ # Stimulus controllers (plugin-specific)
 └── tests/          # Plugin tests
 ```
+
+> **Note:** For consistency, always use `Plugin.php` as the main plugin class. For plugin JavaScript, use `plugins/PluginName/assets/js/controllers/` for Stimulus controllers.
 
 ### Plugin Registration
 
@@ -180,12 +183,13 @@ Plugins are registered in `config/plugins.php` and loaded in the `Application.ph
 ],
 ```
 
+
 ### Plugin Integration Points
 
 Plugins integrate with the core application through:
-1. **Events**: Listening for and dispatching events
-2. **View Cells**: Providing UI components
-3. **Navigation Hooks**: Adding navigation items
+1. **NavigationProvider**: Registering navigation items for menus
+2. **CallForCellsHandler**: Registering view cells/tabs for UI integration
+3. **Events**: Listening for and dispatching events
 4. **Services**: Exposing APIs for other plugins
 
 ## 3.4 Authentication & Authorization

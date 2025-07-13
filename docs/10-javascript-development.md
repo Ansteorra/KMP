@@ -11,15 +11,19 @@ KMP uses the Stimulus JavaScript framework to enhance the user interface with dy
 
 Stimulus works by automatically connecting DOM elements to JavaScript objects. When you add `data-controller` attributes to your HTML, Stimulus automatically instantiates the corresponding controller class and keeps it connected to the element.
 
+
 ## 10.2 Controller Organization
 
-In KMP, all Stimulus controllers should be stored in the `app/assets/js/controllers` directory with filenames that follow the pattern `{name}-controller.js`. For example:
+In KMP, all Stimulus controllers for the main application should be stored in the `app/assets/js/controllers` directory with filenames that follow the pattern `{name}-controller.js`. For example:
 
 - `app/assets/js/controllers/nav-bar-controller.js`
 - `app/assets/js/controllers/member-card-profile-controller.js`
 - `app/assets/js/controllers/auto-complete-controller.js`
 
-Each controller follows the Stimulus naming convention, where the filename corresponds to the controller identifier used in the HTML.
+For plugin-specific controllers, use:
+- `plugins/PluginName/assets/js/controllers/{name}-controller.js`
+
+Each controller follows the Stimulus naming convention, where the filename corresponds to the controller identifier used in the HTML. This ensures consistency and automatic registration in the build process.
 
 Here's an example of a typical Stimulus controller:
 
@@ -85,15 +89,17 @@ These files are then compiled and output to the public directory for deployment:
 
 Webpack automatically bundles your JavaScript modules and their dependencies into optimized packages. The build process is configured in `app/webpack.mix.js`.
 
+
 ### Adding a New Stimulus Controller
 
 To add a new Stimulus controller:
 
-1. Create a new file in `app/assets/js/controllers/` named `your-feature-controller.js`
-2. Implement your controller using the Stimulus pattern
-3. The controller will be automatically included in the build process
+1. For the main app, create a new file in `app/assets/js/controllers/` named `your-feature-controller.js`.
+2. For a plugin, create it in `plugins/PluginName/assets/js/controllers/`.
+3. Implement your controller using the Stimulus pattern.
+4. The controller will be automatically included in the build process.
 
-The webpack configuration automatically detects all files ending with `-controller.js` in the `assets/js/controllers` directory and includes them in the build.
+The webpack configuration automatically detects all files ending with `-controller.js` in the appropriate controllers directory and includes them in the build.
 
 ### Main JavaScript Entry Points
 
@@ -113,4 +119,7 @@ KMP includes several Stimulus controllers that serve as good examples:
 - `member-card-profile-controller.js`: Manages member profile cards
 - `modal-opener-controller.js`: Handles modal dialogs
 
+
 Examining these controllers can provide insight into how to implement common patterns in Stimulus.
+
+For more best practices and coding standards, see the [KMP CakePHP & Stimulus.JS Best Practices](../.github/copilot-instructions.md).

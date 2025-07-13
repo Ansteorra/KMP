@@ -11,9 +11,10 @@ The Kingdom Management Portal is designed to be extensible through plugins. This
 
 Plugins are the primary mechanism for extending KMP. They allow you to add new functionality while keeping your code separate from the core application.
 
+
 ### Plugin Structure
 
-KMP plugins follow a standard structure, as demonstrated by the Officers plugin:
+KMP plugins follow a standard structure. For consistency, the main plugin class should be named `Plugin.php` and placed in the `src/` directory. Example structure:
 
 ```
 plugins/Officers/
@@ -22,7 +23,7 @@ plugins/Officers/
 │   ├── bootstrap.php   # Plugin bootstrap code
 │   └── Migrations/     # Database migrations
 ├── src/                # Plugin source code
-│   ├── Plugin.php      # Plugin class
+│   ├── Plugin.php      # Main plugin class (recommended name)
 │   ├── Controller/     # Controllers
 │   ├── Model/          # Models
 │   │   ├── Entity/     # Entities
@@ -34,7 +35,6 @@ plugins/Officers/
 │   │   └── CallForCellsHandler.php # Cell registration
 │   ├── Services/       # Business services
 │   │   └── PluginNameNavigationProvider.php # Navigation provider
-│   └── Service/        # Other business services
 ├── templates/          # Template files
 │   ├── layout/         # Layout templates
 │   ├── cell/           # Cell templates
@@ -46,6 +46,8 @@ plugins/Officers/
 │   └── img/            # Images
 └── tests/              # Test cases
 ```
+
+> **Note:** Some legacy plugins may use a different main class name (e.g., `OfficersPlugin.php`). For new plugins, always use `Plugin.php` for clarity and consistency.
 
 ### Plugin Class
 
@@ -150,7 +152,8 @@ return [
 
 KMP uses a service-based navigation registry system for performance and maintainability. Plugins register their navigation items through NavigationProvider classes rather than event handlers.
 
-Here's how the Officers plugin implements navigation registration:
+
+Here's how the Officers plugin implements navigation registration (example includes all keys as used in production):
 
 ```php
 namespace Officers\Services;
@@ -159,20 +162,11 @@ use App\KMP\StaticHelpers;
 
 class OfficersNavigationProvider
 {
-    /**
-     * Get navigation items for the Officers plugin
-     *
-     * @param mixed $user Current user
-     * @param array $params Additional parameters
-     * @return array Navigation items
-     */
     public static function getNavigationItems($user, array $params = []): array
     {
-        // Check if plugin is enabled
         if (StaticHelpers::pluginEnabled('Officers') == false) {
             return [];
         }
-        
         return [
             [
                 "type" => "link",
@@ -183,6 +177,7 @@ class OfficersNavigationProvider
                     "plugin" => "Officers",
                     "controller" => "Officers",
                     "action" => "index",
+                    "model" => "Officers.Officers",
                 ],
                 "icon" => "bi-building",
                 "activePaths" => [
@@ -198,6 +193,7 @@ class OfficersNavigationProvider
                     "plugin" => "Officers",
                     "controller" => "Departments",
                     "action" => "index",
+                    "model" => "Officers.Departments",
                 ],
                 "icon" => "bi-building",
                 "activePaths" => [
@@ -312,7 +308,8 @@ The cell then implements its `display()` method to fetch and display the relevan
 
 ### Navigation Registration with CallForNavHandler (Deprecated)
 
-> **⚠️ DEPRECATED**: The `CallForNavHandler` event-based navigation system has been replaced with the NavigationProvider service-based system for better performance and maintainability. See the "Navigation Registration with NavigationProvider" section above for the current implementation approach.
+
+> **⚠️ DEPRECATED**: The `CallForNavHandler` event-based navigation system has been replaced with the NavigationProvider service-based system for better performance and maintainability. All new plugins must use the NavigationProvider pattern. See the "Navigation Registration with NavigationProvider" section above for the current implementation approach.
 
 For legacy reference, the old event-based navigation system worked as follows:
 
@@ -665,10 +662,11 @@ public function bootstrap(PluginApplicationInterface $app): void
 
     $currentConfigVersion = "25.01.11.a"; // update this each time you change the config
 
-    $configVersion = StaticHelpers::getAppSetting("Officer.configVersion", "0.0.0", null, true);
+    // Use a consistent key: Plugin.{PluginName}.configVersion
+    $configVersion = StaticHelpers::getAppSetting("Plugin.Officers.configVersion", "0.0.0", null, true);
     if ($configVersion != $currentConfigVersion) {
-        StaticHelpers::setAppSetting("Officer.configVersion", $currentConfigVersion, null, true);
-        StaticHelpers::getAppSetting("Officer.NextStatusCheck", DateTime::now()->subDays(1)->toDateString(), null, true);
+        StaticHelpers::setAppSetting("Plugin.Officers.configVersion", $currentConfigVersion, null, true);
+        StaticHelpers::getAppSetting("Plugin.Officers.NextStatusCheck", DateTime::now()->subDays(1)->toDateString(), null, true);
         StaticHelpers::getAppSetting("Plugin.Officers.Active", "yes", null, true);
     }
 }
@@ -689,9 +687,10 @@ The `StaticHelpers::getAppSetting()` method is used with these parameters:
 
 ### Structure of AppSettings for Plugins
 
+
 When creating AppSettings for your plugin, follow these conventions:
 
-1. **Namespacing**: Prefix all settings with your plugin name (e.g., `Officers.Setting`)
+1. **Namespacing**: Prefix all settings with `Plugin.{PluginName}.` (e.g., `Plugin.Officers.Setting`)
 2. **Categorization**: Group related settings together with similar prefixes
 3. **Documentation**: Include a clear description as the third parameter of `setAppSettingDefault`
 4. **Types**: Use appropriate types for values ('yes'/'no' for booleans, numeric strings for numbers)
@@ -762,9 +761,10 @@ class SettingsController extends AppController
 
 With a corresponding template that renders form fields for each setting.
 
+
 ### Checking Plugin Enabled Status
 
-A common pattern used by the Officers plugin is to check if the plugin is enabled before performing operations:
+A common pattern is to check if the plugin is enabled before performing operations:
 
 ```php
 public static function getNavigationItems($user, array $params = []): array
@@ -773,12 +773,12 @@ public static function getNavigationItems($user, array $params = []): array
     if (StaticHelpers::pluginEnabled('Officers') == false) {
         return [];
     }
-    
     // Continue with navigation building...
 }
 ```
 
-The `pluginEnabled` helper method is a shortcut that checks for a setting with the pattern `PluginName.Enabled` and returns true if it's set to 'yes'.
+The `pluginEnabled` helper method checks for a setting with the pattern `Plugin.{PluginName}.Active` and returns true if it's set to 'yes'.
+
 
 ### Best Practices for Plugin AppSettings
 
@@ -788,3 +788,10 @@ The `pluginEnabled` helper method is a shortcut that checks for a setting with t
 4. **Respect Settings**: Always check relevant settings before performing operations
 5. **Graceful Fallbacks**: Handle cases where settings might be missing or invalid
 6. **User-Friendly UI**: Provide an admin interface for important settings
+
+### Directory Path Conventions
+
+- For main app JavaScript: use `app/assets/js/`
+- For plugin JavaScript: use `plugins/PluginName/assets/js/`
+- For main app controllers: use `app/assets/js/controllers/`
+- For plugin controllers: use `plugins/PluginName/assets/js/controllers/`
