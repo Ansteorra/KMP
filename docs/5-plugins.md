@@ -3,9 +3,17 @@ layout: default
 ---
 [← Back to Table of Contents](index.md)
 
+
 # 5. Plugins
 
-KMP uses a plugin architecture to organize functionality into modular, maintainable components. This section documents the primary plugins that extend the core system.
+KMP uses a plugin architecture to organize functionality into modular, maintainable components. Plugins should follow the conventions described in [Extending KMP](11-extending-kmp.md), including:
+- Use `Plugin.php` as the main plugin class in `src/`
+- Register the plugin in `config/plugins.php`
+- Use a NavigationProvider service for navigation integration
+- Use a CallForCellsHandler for UI cell integration (if needed)
+- Use the `Plugin.{PluginName}.` prefix for AppSettings
+
+This section documents the primary plugins that extend the core system.
 
 ## 5.1 Activities
 
@@ -77,6 +85,7 @@ The Activities plugin integrates with the core system via:
 - Member records for authorization tracking
 - Roles and permissions for access control
 - Events for notifications and updates
+- NavigationProvider for menu integration (if applicable)
 
 ## 5.2 Officers
 
@@ -135,7 +144,8 @@ The Officers plugin integrates with:
 - The Warrants module for officer appointments
 - Branches for geographic organization of officers
 - Roles and permissions for access control
-- The core navigation system to provide officer-specific menus
+- The core navigation system via a NavigationProvider service
+- The UI via a CallForCellsHandler for cell/tab integration
 
 ## 5.3 Awards
 
@@ -337,10 +347,10 @@ This plugin provides an in-application interface for capturing user feedback and
 
 ### Configuration
 
-The plugin requires GitHub API credentials configured in the `app_settings` table:
-- `GitHubIssueSubmitter.ApiToken`: GitHub API token for authentication
-- `GitHubIssueSubmitter.Repository`: Target repository (e.g., "Ansteorra/KMP")
-- `GitHubIssueSubmitter.Labels`: Default labels for submitted issues
+The plugin requires GitHub API credentials configured in the `app_settings` table. Use the `Plugin.GitHubIssueSubmitter.` prefix for all settings:
+- `Plugin.GitHubIssueSubmitter.ApiToken`: GitHub API token for authentication
+- `Plugin.GitHubIssueSubmitter.Repository`: Target repository (e.g., "Ansteorra/KMP")
+- `Plugin.GitHubIssueSubmitter.Labels`: Default labels for submitted issues
 
 ## 5.6 Bootstrap
 
