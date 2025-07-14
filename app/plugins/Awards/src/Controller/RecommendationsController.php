@@ -1533,6 +1533,9 @@ class RecommendationsController extends AppController
             ->contain('Awards', function ($q) {
                 return $q->select(['id', 'abbreviation', 'branch_id', 'Levels.id', 'Levels.name']);
             })
+            ->contain('Awards.Levels', function ($q) {
+                return $q->select(['id', 'name']);
+            })
             ->join([
                 'AwardsForBranches' => [
                     'table' => 'awards_awards',

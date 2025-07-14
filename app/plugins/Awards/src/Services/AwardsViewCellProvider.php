@@ -47,18 +47,20 @@ class AwardsViewCellProvider
         ];
 
         // Recs For Member Cell - shows award recommendations received by a member
-        $cells[] = [
-            'type' => ViewCellRegistry::PLUGIN_TYPE_TAB,
-            'label' => 'Received Award Recs.',
-            'id' => 'recs-for-member',
-            'order' => 4,
-            'tabBtnBadge' => null,
-            'cell' => 'Awards.RecsForMember',
-            'validRoutes' => [
-                ['controller' => 'Members', 'action' => 'view', 'plugin' => null],
-                ['controller' => 'Members', 'action' => 'profile', 'plugin' => null]
-            ]
-        ];
+        // you can't see this if you are looking at your own profile
+        if ($urlParams['action'] != 'profile' && $user->id != $urlParams['pass'][0]) {
+            $cells[] = [
+                'type' => ViewCellRegistry::PLUGIN_TYPE_TAB,
+                'label' => 'Received Award Recs.',
+                'id' => 'recs-for-member',
+                'order' => 4,
+                'tabBtnBadge' => null,
+                'cell' => 'Awards.RecsForMember',
+                'validRoutes' => [
+                    ['controller' => 'Members', 'action' => 'view', 'plugin' => null],
+                ]
+            ];
+        }
         return $cells;
     }
 }

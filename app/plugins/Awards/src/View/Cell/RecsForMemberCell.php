@@ -41,6 +41,12 @@ class RecsForMemberCell extends Cell
         if ($id == -1) {
             $id = $this->request->getAttribute('identity')->getIdentifier();
         }
+        $currentUser = $this->request->getAttribute('identity');
+        if ($currentUser->id == $id && !$currentUser->checkCan('view', 'Awards.Recommendations')) {
+            $isEmpty = true;
+            $this->set(compact('isEmpty', 'id'));
+            return;
+        }
         $recommendationsTbl = TableRegistry::getTableLocator()->get("Awards.Recommendations");
         $isEmpty = $recommendationsTbl->find('all')->where(['member_id' => $id])->count() === 0;
         $this->set(compact('isEmpty', 'id'));
