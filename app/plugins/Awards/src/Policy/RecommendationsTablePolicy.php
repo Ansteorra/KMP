@@ -34,8 +34,10 @@ class RecommendationsTablePolicy extends BasePolicy
             }
         }
         if (!empty($branchIds)) {
-            $query = $table->addBranchScopeQuery($query, $branchIds);
-        };
+            if ($branchIds[0] != -10000000) {
+                $query = $table->addBranchScopeQuery($query, $branchIds);
+            }
+        }
         if (!empty($approvaLevels)) {
             return $query->contain(['Awards.Levels'])->where(['Levels.name in' => $approvaLevels]);
         }
