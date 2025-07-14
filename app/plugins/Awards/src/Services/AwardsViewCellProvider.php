@@ -48,7 +48,7 @@ class AwardsViewCellProvider
 
         // Recs For Member Cell - shows award recommendations received by a member
         // you can't see this if you are looking at your own profile
-        if ($urlParams['action'] != 'profile' && $user->id != $urlParams['pass'][0]) {
+        if ($urlParams['action'] != 'profile' && ($urlParams["action"] == 'view' && $urlParams["controller"] == 'Members' && $user->id != $urlParams['pass'][0])) {
             $cells[] = [
                 'type' => ViewCellRegistry::PLUGIN_TYPE_TAB,
                 'label' => 'Received Award Recs.',
