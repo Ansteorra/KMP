@@ -179,7 +179,6 @@ class DefaultWarrantManager implements WarrantManagerInterface
                 //expire current warrants for the same entity_type entity_id member_id
                 $warrantTable->updateAll(
                     [
-                        'status' => Warrant::DEACTIVATED_STATUS,
                         'expires_on' => $warrant->start_on,
                         'revoked_reason' => 'New Warrant Approved',
                         'revoker_id' => $approver_id,
