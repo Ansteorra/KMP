@@ -1,5 +1,29 @@
 <?php
 
+declare(strict_types=1);
+
+/**
+ * KMP Application Configuration
+ *
+ * This file contains the core configuration settings for the Kingdom Management Portal (KMP).
+ * It defines application-wide settings for:
+ * - Application metadata and paths
+ * - Security and encryption
+ * - Caching strategies
+ * - Database connections
+ * - Email transport and delivery
+ * - Error handling and debugging
+ * - Logging configuration
+ * - Session management
+ * - UI components (Bootstrap Icons)
+ *
+ * Environment-specific overrides should be placed in app_local.php or use environment variables.
+ * This configuration follows CakePHP 5.x conventions and KMP-specific requirements.
+ *
+ * @see config/app_local.php For environment-specific overrides
+ * @see config/app_queue.php For queue-specific configuration
+ */
+
 use Cake\Cache\Engine\ApcuEngine;
 use Cake\Cache\Engine\ArrayEngine;
 use Cake\Database\Connection;
@@ -9,127 +33,242 @@ use Cake\Mailer\Transport\MailTransport;
 use Templating\View\Icon\BootstrapIcon;
 
 return [
-    /*
-     * Debug Level:
+    /**
+     * Debug Level Configuration
      *
-     * Production Mode:
-     * false: No error messages, errors, or warnings shown.
+     * Controls error reporting and debugging features throughout the application.
+     * 
+     * Production Mode (false):
+     * - No error messages, errors, or warnings shown to users
+     * - Optimized performance with disabled debugging features
+     * - Security-focused with minimal information disclosure
      *
-     * Development Mode:
-     * true: Errors and warnings shown.
+     * Development Mode (true):
+     * - Detailed error messages and warnings displayed
+     * - Debug toolbar and profiling enabled
+     * - Enhanced logging and stack traces
+     * 
+     * Environment Variable: DEBUG (boolean)
+     * Default: false (production-safe)
+     * 
+     * @example Set DEBUG=true in .env for development
+     * @example Set DEBUG=false in production environments
      */
     "debug" => filter_var(env("DEBUG", false), FILTER_VALIDATE_BOOLEAN),
 
-    /*
-     * Configure basic information about the application.
+    /**
+     * Application Configuration
      *
-     * - namespace - The namespace to find app classes under.
-     * - defaultLocale - The default locale for translation, formatting currencies and numbers, date and time.
-     * - encoding - The encoding used for HTML + database connections.
-     * - base - The base directory the app resides in. If false this
-     *   will be auto detected.
-     * - dir - Name of app directory.
-     * - webroot - The webroot directory.
-     * - wwwRoot - The file path to webroot.
-     * - baseUrl - To configure CakePHP to *not* use mod_rewrite and to
-     *   use CakePHP pretty URLs, remove these .htaccess
-     *   files:
-     *      /.htaccess
-     *      /webroot/.htaccess
-     *   And uncomment the baseUrl key below.
-     * - fullBaseUrl - A base URL to use for absolute links. When set to false (default)
-     *   CakePHP generates required value based on `HTTP_HOST` environment variable.
-     *   However, you can define it manually to optimize performance or if you
-     *   are concerned about people manipulating the `Host` header.
-     * - imageBaseUrl - Web path to the public images directory under webroot.
-     * - cssBaseUrl - Web path to the public css directory under webroot.
-     * - jsBaseUrl - Web path to the public js directory under webroot.
-     * - paths - Configure paths for non class based resources. Supports the
-     *   `plugins`, `templates`, `locales` subkeys, which allow the definition of
-     *   paths for plugins, view templates and locale files respectively.
+     * Core application settings that define the KMP's identity, structure, and behavior.
+     * These settings control:
+     * - Application namespace and identity
+     * - Internationalization and localization
+     * - Directory structure and file paths
+     * - Asset organization and URLs
+     * - Version management
+     *
+     * Key KMP-specific settings:
+     * - title: Display name for the application (AMS - Activity Management System)
+     * - appGraphic: Logo/badge file for branding
+     * - version: Automatically loaded from version.txt file
+     *
+     * Environment Variables:
+     * - APP_ENCODING: Character encoding (default: UTF-8)
+     * - APP_DEFAULT_LOCALE: Locale for i18n (default: en_US)
+     * - APP_DEFAULT_TIMEZONE: Timezone for date operations (default: UTC)
+     * - BASE_SUB: Base subdirectory if app is not in document root
+     * - SCRIPT_NAME: For non-mod_rewrite configurations
+     *
+     * @example For subdirectory installation: BASE_SUB=/kmp
+     * @example For different locale: APP_DEFAULT_LOCALE=en_GB
      */
     "App" => [
+        /** @var string Application namespace for autoloading */
         "namespace" => "App",
+
+        /** @var string Display title for the application */
         "title" => "AMS",
+
+        /** @var string Application logo/badge filename in webroot/img/ */
         "appGraphic" => "badge.png",
+
+        /** @var string Character encoding for HTML and database */
         "encoding" => env("APP_ENCODING", "UTF-8"),
+
+        /** @var string Default locale for internationalization */
         "defaultLocale" => env("APP_DEFAULT_LOCALE", "en_US"),
+
+        /** @var string Default timezone for date/time operations */
         "defaultTimezone" => env("APP_DEFAULT_TIMEZONE", "UTC"),
+
+        /** @var string|false Base subdirectory if app is not in document root */
         "base" => env("BASE_SUB", false),
+
+        /** @var string Source code directory name */
         "dir" => "src",
+
+        /** @var string Public web files directory */
         "webroot" => "webroot",
+
+        /** @var string Absolute path to webroot directory */
         "wwwRoot" => WWW_ROOT,
+
+        /** @var string|null Base URL for non-mod_rewrite configurations */
         //'baseUrl' => env('SCRIPT_NAME'),
+
+        /** @var string|false Full base URL for absolute links (auto-detected if false) */
         "fullBaseUrl" => false,
+
+        /** @var string Web path to images directory */
         "imageBaseUrl" => "img/",
+
+        /** @var string Web path to CSS directory */
         "cssBaseUrl" => "css/",
+
+        /** @var string Web path to JavaScript directory */
         "jsBaseUrl" => "js/",
+
+        /** @var array<string, array<string>> File system paths configuration */
         "paths" => [
+            /** @var array<string> Plugin directories */
             "plugins" => [ROOT . DS . "plugins" . DS],
+
+            /** @var array<string> Template directories */
             "templates" => [ROOT . DS . "templates" . DS],
+
+            /** @var array<string> Locale files for translations */
             "locales" => [RESOURCES . "locales" . DS],
         ],
-        //get the version from the version.txt file
+
+        /** @var string Application version loaded from version.txt */
         "version" => file_get_contents(CONFIG . "version.txt"),
     ],
 
-    /*
-     * Security and encryption configuration
+    /**
+     * Security and Encryption Configuration
      *
-     * - salt - A random string used in security hashing methods.
-     *   The salt value is also used as the encryption key.
-     *   You should treat it as extremely sensitive data.
+     * Critical security settings that protect the application and user data.
+     * The security salt is used for:
+     * - Password hashing and verification
+     * - Session security and CSRF protection
+     * - Encryption of sensitive data
+     * - Security token generation
+     *
+     * SECURITY REQUIREMENTS:
+     * - Salt must be at least 32 characters long
+     * - Salt should be cryptographically random
+     * - Salt must be kept secret and never committed to version control
+     * - Salt should be different for each environment
+     *
+     * Environment Variable: SECURITY_SALT (required)
+     * 
+     * @example Generate with: bin/cake security generate_salt
+     * @example Store in .env: SECURITY_SALT=your-very-long-random-string-here
+     * @security Critical - Treat as extremely sensitive data
      */
     "Security" => [
+        /** @var string Cryptographic salt for security operations */
         "salt" => env("SECURITY_SALT"),
     ],
 
-    /*
-     * Apply timestamps with the last modified time to static assets (js, css, images).
-     * Will append a querystring parameter containing the time the file was modified.
-     * This is useful for busting browser caches.
+    /**
+     * Asset Management Configuration
      *
-     * Set to true to apply timestamps when debug is true. Set to 'force' to always
-     * enable timestamping regardless of debug value.
+     * Controls how static assets (CSS, JavaScript, images) are served and cached.
+     * Asset timestamping helps with browser cache busting when files change.
+     *
+     * Options:
+     * - timestamp: true = apply timestamps when debug is true
+     * - timestamp: 'force' = always apply timestamps regardless of debug
+     * - cacheTime: how long browsers should cache assets
+     *
+     * KMP uses Laravel Mix for asset compilation, which handles versioning
+     * in production builds through webpack.mix.js configuration.
+     *
+     * @example timestamp: true for development cache busting
+     * @example cacheTime: '+1 year' for production optimization
      */
     "Asset" => [
+        /** @var bool|string Asset timestamping for cache busting */
         //'timestamp' => true,
+
+        /** @var string Browser cache duration for assets */
         // 'cacheTime' => '+1 year'
     ],
 
-    /*
-     * Configure the cache adapters.
+    /**
+     * Cache Configuration
+     *
+     * KMP uses a multi-tier caching strategy with ApcuEngine for high performance.
+     * Cache configurations are optimized for both development and production environments.
+     *
+     * Cache Tiers:
+     * 1. Application cache (default) - General application data
+     * 2. Security caches - Permission and authorization data
+     * 3. Framework caches - CakePHP internal optimizations
+     *
+     * KMP-Specific Cache Stores:
+     * - member_permissions: User permission data (30 min TTL, security group)
+     * - permissions_structure: Role/permission hierarchy (long TTL, rarely changes)
+     * - branch_structure: Organizational hierarchy (long TTL, rarely changes)
+     *
+     * Cache Groups:
+     * - 'security': All security-related caches (can be cleared together)
+     * - 'member_security': Member-specific security data
+     *
+     * Performance Notes:
+     * - ApcuEngine provides memory-based caching for optimal performance
+     * - Cache duration is automatically reduced to 2 minutes when debug=true
+     * - Use cache groups for efficient bulk invalidation
+     *
+     * @example Clear security caches: Cache::clearGroup('security')
+     * @example Clear member perms: Cache::clearGroup('member_security')
      */
     "Cache" => [
+        /** @var array Default cache configuration for general application data */
         "default" => [
             "className" => ApcuEngine::class,
             'duration' => '+1 hours',
         ],
 
+        /** 
+         * Member Permissions Cache
+         * Stores individual member permission data for fast authorization checks.
+         * Short TTL ensures permission changes are reflected quickly.
+         */
         "member_permissions" => [
             "className" => ApcuEngine::class,
             "duration" => "+30 minutes",
             'groups' => ['security', 'member_security']
         ],
 
+        /**
+         * Permissions Structure Cache
+         * Stores the role/permission hierarchy and relationships.
+         * Long TTL as this structure changes infrequently.
+         */
         "permissions_structure" => [
             "className" => ApcuEngine::class,
             "duration" => "+999 days",
             'groups' => ['security']
         ],
 
+        /**
+         * Branch Structure Cache
+         * Stores organizational hierarchy and branch relationships.
+         * Long TTL as organizational structure is relatively stable.
+         */
         "branch_structure" => [
             "className" => ApcuEngine::class,
             "duration" => "+999 days",
             'groups' => ['security']
         ],
 
-
-        /*
-         * Configure the cache used for general framework caching.
-         * Translation cache files are stored with this configuration.
-         * Duration will be set to '+2 minutes' in bootstrap.php when debug = true
-         * If you set 'className' => 'Null' core cache will be disabled.
+        /**
+         * CakePHP Translation Cache
+         * Stores compiled translation files for internationalization.
+         * Framework-managed cache for i18n performance optimization.
+         * Duration reduced to +2 minutes when debug = true.
          */
         "_cake_translations_" => [
             "className" => ApcuEngine::class,
@@ -137,11 +276,11 @@ return [
             "url" => env("CACHE_CAKECORE_URL", null),
         ],
 
-        /*
-         * Configure the cache for model and datasource caches. This cache
-         * configuration is used to store schema descriptions, and table listings
-         * in connections.
-         * Duration will be set to '+2 minutes' in bootstrap.php when debug = true
+        /**
+         * CakePHP Model Metadata Cache
+         * Stores database schema descriptions and table listings.
+         * Framework-managed cache for ORM performance optimization.
+         * Duration reduced to +2 minutes when debug = true.
          */
         "_cake_model_" => [
             "className" => ApcuEngine::class,
@@ -150,235 +289,406 @@ return [
         ],
     ],
 
-    /*
-     * Configure the Error and Exception handlers used by your application.
+    /**
+     * Error and Exception Handling Configuration
      *
-     * By default errors are displayed using Debugger, when debug is true and logged
-     * by Cake\Log\Log when debug is false.
+     * Controls how errors and exceptions are handled, logged, and displayed.
+     * Configuration adapts based on debug mode for security and development needs.
      *
-     * In CLI environments exceptions will be printed to stderr with a backtrace.
-     * In web environments an HTML page will be displayed for the exception.
-     * With debug true, framework errors like Missing Controller will be displayed.
-     * When debug is false, framework errors will be coerced into generic HTTP errors.
+     * Production Behavior (debug = false):
+     * - Errors logged but not displayed to users
+     * - Generic HTTP error pages shown
+     * - Framework errors converted to standard HTTP responses
      *
-     * Options:
+     * Development Behavior (debug = true):
+     * - Detailed error pages with stack traces
+     * - Framework errors like "Missing Controller" displayed
+     * - Enhanced debugging information available
      *
-     * - `errorLevel` - int - The level of errors you are interested in capturing.
-     * - `trace` - boolean - Whether backtraces should be included in
-     *   logged errors/exceptions.
-     * - `log` - boolean - Whether you want exceptions logged.
-     * - `exceptionRenderer` - string - The class responsible for rendering uncaught exceptions.
-     *   The chosen class will be used for both CLI and web environments. If you want different
-     *   classes used in CLI and web environments you'll need to write that conditional logic as well.
-     *   The conventional location for custom renderers is in `src/Error`. Your exception renderer needs to
-     *   implement the `render()` method and return either a string or Http\Response.
-     *   `errorRenderer` - string - The class responsible for rendering PHP errors. The selected
-     *   class will be used for both web and CLI contexts. If you want different classes for each environment
-     *   you'll need to write that conditional logic as well. Error renderers need to
-     *   to implement the `Cake\Error\ErrorRendererInterface`.
-     * - `skipLog` - array - List of exceptions to skip for logging. Exceptions that
-     *   extend one of the listed exceptions will also be skipped for logging.
-     *   E.g.:
-     *   `'skipLog' => ['Cake\Http\Exception\NotFoundException', 'Cake\Http\Exception\UnauthorizedException']`
-     * - `extraFatalErrorMemory` - int - The number of megabytes to increase the memory limit by
-     *   when a fatal error is encountered. This allows
-     *   breathing room to complete logging or error handling.
-     * - `ignoredDeprecationPaths` - array - A list of glob compatible file paths that deprecations
-     *   should be ignored in. Use this to ignore deprecations for plugins or parts of
-     *   your application that still emit deprecations.
+     * Error Levels:
+     * - E_ALL: All errors and warnings
+     * - ~E_USER_DEPRECATED: Excludes user deprecation notices
+     *
+     * KMP-Specific Configuration:
+     * - ignoredDeprecationPaths: Suppresses known framework deprecations
+     * - Custom error renderer can be implemented in src/Error/
+     *
+     * Environment Variables:
+     * - ERROR_LEVEL: Custom error reporting level
+     * - SKIP_LOG: Comma-separated exception classes to skip logging
+     *
+     * @example Custom renderer: src/Error/KmpErrorRenderer.php
+     * @example Skip logging: SKIP_LOG=NotFoundException,UnauthorizedException
      */
     "Error" => [
+        /** @var int PHP error reporting level */
         "errorLevel" => E_ALL & ~E_USER_DEPRECATED,
+
+        /** @var array<string> Exception classes to skip for logging */
         "skipLog" => [],
+
+        /** @var bool Whether to log exceptions */
         "log" => true,
+
+        /** @var bool Whether to include backtraces in logs */
         "trace" => true,
+
+        /** @var array<string> File paths where deprecations should be ignored */
         "ignoredDeprecationPaths" => ['vendor/cakephp/cakephp/src/Event/EventManager.php'],
     ],
 
-    /*
-     * Debugger configuration
+    /**
+     * Debugger Configuration
      *
-     * Define development error values for Cake\Error\Debugger
+     * Development-specific debugging tools and IDE integration.
+     * Controls the CakePHP debugger behavior and editor integration.
      *
-     * - `editor` Set the editor URL format you want to use.
-     *   By default atom, emacs, macvim, phpstorm, sublime, textmate, and vscode are
-     *   available. You can add additional editor link formats using
-     *   `Debugger::addEditor()` during your application bootstrap.
-     * - `outputMask` A mapping of `key` to `replacement` values that
-     *   `Debugger` should replace in dumped data and logs generated by `Debugger`.
+     * Editor Integration:
+     * Supports deep-linking from error pages and debug output directly to IDE.
+     * Pre-configured editors: atom, emacs, macvim, phpstorm, sublime, textmate, vscode
+     * 
+     * Custom editors can be added using Debugger::addEditor() in bootstrap.
+     *
+     * Output Masking:
+     * Can mask sensitive data in debug output and logs.
+     * Useful for hiding passwords, API keys, or other sensitive information.
+     *
+     * @example Custom editor: Debugger::addEditor('myide', 'myide://open?file={file}&line={line}')
+     * @example Output masking: 'outputMask' => ['password' => '***']
      */
     "Debugger" => [
+        /** @var string IDE for deep-linking from debug output */
         "editor" => "phpstorm",
     ],
 
-    /*
-     * Email configuration.
+    /**
+     * Email Transport Configuration
      *
-     * By defining transports separately from delivery profiles you can easily
-     * re-use transport configuration across multiple profiles.
+     * Defines how emails are sent from the KMP application.
+     * Supports multiple transport methods for different environments.
      *
-     * You can specify multiple configurations for production, development and
-     * testing.
+     * Transport Types:
+     * - Mail: PHP's built-in mail() function (simple but limited)
+     * - Smtp: SMTP server connection (recommended for production)
+     * - Debug: Development mode - captures emails without sending
      *
-     * Each transport needs a `className`. Valid options are as follows:
+     * Security Considerations:
+     * - Use TLS encryption for production SMTP
+     * - Store credentials in environment variables
+     * - Consider using authenticated SMTP services
      *
-     *  Mail   - Send using PHP mail function
-     *  Smtp   - Send using SMTP
-     *  Debug  - Do not send the email, just return the result
+     * Environment Variables:
+     * - EMAIL_TRANSPORT_DEFAULT_URL: Complete transport configuration URL
+     * - SMTP_HOST, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD: Individual settings
      *
-     * You can add custom transports (or override existing transports) by adding the
-     * appropriate file to src/Mailer/Transport. Transports should be named
-     * 'YourTransport.php', where 'Your' is the name of the transport.
+     * KMP Usage:
+     * - Member notifications and communications
+     * - System alerts and reports
+     * - Password reset and verification emails
+     *
+     * @example Production SMTP: EMAIL_TRANSPORT_DEFAULT_URL=smtp://user:pass@smtp.gmail.com:587?tls=true
+     * @example Development: Use Debug transport to capture emails without sending
      */
     "EmailTransport" => [
+        /** @var array Default email transport configuration */
         "default" => [
             "className" => "Smtp",
-            /*
-             * The keys host, port, timeout, username, password, client and tls
-             * are used in SMTP transports
-             */
+
+            /** @var string SMTP server hostname */
             "host" => "localhost",
+
+            /** @var int SMTP server port */
             "port" => 25,
+
+            /** @var int Connection timeout in seconds */
             "timeout" => 30,
-            /*
-             * It is recommended to set these options through your environment or app_local.php
-             */
+
+            /** @var string|null SMTP username (set via environment) */
             //'username' => null,
+
+            /** @var string|null SMTP password (set via environment) */
             //'password' => null,
+
+            /** @var string|null SMTP client identifier */
             "client" => null,
+
+            /** @var bool Enable TLS encryption */
             "tls" => false,
+
+            /** @var string|null Complete transport URL from environment */
             "url" => env("EMAIL_TRANSPORT_DEFAULT_URL", null),
         ],
     ],
 
-    /*
-     * Email delivery profiles
+    /**
+     * Email Delivery Profiles
      *
-     * Delivery profiles allow you to predefine various properties about email
-     * messages from your application and give the settings a name. This saves
-     * duplication across your application and makes maintenance and development
-     * easier. Each profile accepts a number of keys. See `Cake\Mailer\Email`
-     * for more information.
+     * Delivery profiles combine transport configuration with message defaults.
+     * This separation allows reusing transports across different message types.
+     *
+     * Profile Configuration:
+     * - transport: Which transport configuration to use
+     * - from: Default sender address and name
+     * - charset: Character encoding for email content
+     * - headerCharset: Character encoding for email headers
+     *
+     * KMP Email Usage:
+     * - System notifications (activity approvals, awards, etc.)
+     * - Member communications
+     * - Administrative alerts
+     * - Automated reports
+     *
+     * Environment Variables:
+     * - EMAIL_FROM_ADDRESS: Default sender email address
+     * - EMAIL_FROM_NAME: Default sender display name
+     *
+     * @example Set sender: EMAIL_FROM_ADDRESS=noreply@kingdom.example.com
+     * @example Multiple profiles for different message types
      */
     "Email" => [
+        /** @var array Default email delivery profile */
         "default" => [
+            /** @var string Transport configuration to use */
             "transport" => "default",
+
+            /** @var string Default sender address */
             "from" => "you@localhost",
-            /*
-             * Will by default be set to config value of App.encoding, if that exists otherwise to UTF-8.
-             */
+
+            /** @var string Character encoding (inherits from App.encoding if not set) */
             //'charset' => 'utf-8',
+
+            /** @var string Header character encoding */
             //'headerCharset' => 'utf-8',
         ],
     ],
 
-    /*
-     * Connection information used by the ORM to connect
-     * to your application's datastores.
+    /**
+     * Database Connection Configuration
      *
-     * ### Notes
-     * - Drivers include Mysql Postgres Sqlite Sqlserver
-     *   See vendor\cakephp\cakephp\src\Database\Driver for complete list
-     * - Do not use periods in database name - it may lead to error.
-     *   See https://github.com/cakephp/cakephp/issues/6471 for details.
-     * - 'encoding' is recommended to be set to full UTF-8 4-Byte support.
-     *   E.g set it to 'utf8mb4' in MariaDB and MySQL and 'utf8' for any
-     *   other RDBMS.
+     * Defines how the application connects to database systems.
+     * KMP uses MySQL/MariaDB for primary data storage with optimized settings.
+     *
+     * Connection Strategy:
+     * - Non-persistent connections for better resource management
+     * - UTC timezone for consistent date/time handling
+     * - Full UTF-8 support with utf8mb4 encoding
+     * - Metadata caching for improved ORM performance
+     *
+     * Environment-Specific Configuration:
+     * - Production settings in app_local.php override these defaults
+     * - Environment variables provide flexible deployment options
+     * - Test connection uses separate database for isolation
+     *
+     * Performance Optimizations:
+     * - Metadata caching reduces schema lookups
+     * - Query logging disabled by default (enable for debugging)
+     * - Connection pooling through non-persistent connections
+     *
+     * Security Features:
+     * - Identifier quoting available for reserved words
+     * - PDO flags for secure connection options
+     * - Timezone set to UTC prevents time zone attacks
+     *
+     * Environment Variables:
+     * - DATABASE_URL: Complete connection string
+     * - DB_HOST, DB_NAME, DB_USERNAME, DB_PASSWORD: Individual components
+     * - DB_ENCODING: Character set (default: utf8mb4)
+     * - DB_TIMEZONE: Database timezone (default: UTC)
+     *
+     * @example Production URL: DATABASE_URL=mysql://user:pass@localhost/kmp_production?encoding=utf8mb4
+     * @example Enable query logging: 'log' => true (development only)
      */
     "Datasources" => [
-        /*
-         * These configurations should contain permanent settings used
-         * by all environments.
-         *
-         * The values in app_local.php will override any values set here
-         * and should be used for local and per-environment configurations.
-         *
-         * Environment variable based configurations can be loaded here or
-         * in app_local.php depending on the applications needs.
+        /**
+         * Default Database Connection
+         * 
+         * Primary database connection for KMP application data.
+         * Settings here provide safe defaults that work in most environments.
+         * Production deployments should override in app_local.php.
          */
         "default" => [
+            /** @var string Connection class for database abstraction */
             "className" => Connection::class,
+
+            /** @var string Database driver (MySQL/MariaDB) */
             "driver" => Mysql::class,
+
+            /** @var bool Use persistent connections (false for better resource management) */
             "persistent" => false,
+
+            /** @var string Database timezone (UTC for consistency) */
             "timezone" => "UTC",
 
-            /*
-             * For MariaDB/MySQL the internal default changed from utf8 to utf8mb4, aka full utf-8 support, in CakePHP 3.6
-             */
+            /** @var string Character encoding - utf8mb4 for full UTF-8 support */
             //'encoding' => 'utf8mb4',
 
-            /*
-             * If your MySQL server is configured with `skip-character-set-client-handshake`
-             * then you MUST use the `flags` config to set your charset encoding.
-             * For e.g. `'flags' => [\PDO::MYSQL_ATTR_INIT_COMMAND => 'SET NAMES utf8mb4']`
-             */
+            /** @var array PDO connection flags for MySQL-specific options */
             "flags" => [],
+
+            /** @var bool Cache database metadata for performance */
             "cacheMetadata" => true,
+
+            /** @var bool Log database queries (disabled for performance) */
             "log" => false,
 
-            /*
-             * Set identifier quoting to true if you are using reserved words or
-             * special characters in your table or column names. Enabling this
-             * setting will result in queries built using the Query Builder having
-             * identifiers quoted when creating SQL. It should be noted that this
-             * decreases performance because each query needs to be traversed and
-             * manipulated before being executed.
-             */
+            /** @var bool Quote identifiers for reserved words/special characters */
             "quoteIdentifiers" => false,
 
-            /*
-             * During development, if using MySQL < 5.6, uncommenting the
-             * following line could boost the speed at which schema metadata is
-             * fetched from the database. It can also be set directly with the
-             * mysql configuration directive 'innodb_stats_on_metadata = 0'
-             * which is the recommended value in production environments
-             */
+            /** @var array Database initialization commands */
             //'init' => ['SET GLOBAL innodb_stats_on_metadata = 0'],
         ],
 
-        /*
-         * The test connection is used during the test suite.
+        /**
+         * Test Database Connection
+         * 
+         * Separate database connection for automated testing.
+         * Provides isolation between test and development data.
+         * Configuration mirrors default connection for consistency.
          */
         "test" => [
+            /** @var string Connection class for database abstraction */
             "className" => Connection::class,
+
+            /** @var string Database driver (MySQL/MariaDB) */
             "driver" => Mysql::class,
+
+            /** @var bool Use persistent connections */
             "persistent" => false,
+
+            /** @var string Database timezone */
             "timezone" => "UTC",
+
+            /** @var string Character encoding */
             //'encoding' => 'utf8mb4',
+
+            /** @var array PDO connection flags */
             "flags" => [],
+
+            /** @var bool Cache database metadata */
             "cacheMetadata" => true,
+
+            /** @var bool Quote identifiers */
             "quoteIdentifiers" => false,
+
+            /** @var bool Log queries (disabled for test performance) */
             "log" => false,
+
+            /** @var array Database initialization commands */
             //'init' => ['SET GLOBAL innodb_stats_on_metadata = 0'],
         ],
     ],
 
-    /*
-     * Configures logging options
+    /**
+     * Logging Configuration
+     *
+     * Multi-channel logging system for comprehensive application monitoring.
+     * Separates different types of logs for easier analysis and debugging.
+     *
+     * Log Channels:
+     * 1. debug: Development information, notices, and debug messages
+     * 2. error: Production errors, warnings, and critical issues
+     * 3. queries: Database query logging (when enabled)
+     *
+     * Log Levels (in order of severity):
+     * - emergency: System unusable
+     * - alert: Immediate action required
+     * - critical: Critical conditions
+     * - error: Error conditions
+     * - warning: Warning conditions
+     * - notice: Normal but significant
+     * - info: Informational messages
+     * - debug: Debug-level messages
+     *
+     * KMP Logging Strategy:
+     * - Separate files prevent log mixing and simplify analysis
+     * - File rotation handled by system or deployment tools
+     * - Query logging available for performance debugging
+     * - Environment-specific URLs allow external log aggregation
+     *
+     * Environment Variables:
+     * - LOG_DEBUG_URL: External service for debug logs
+     * - LOG_ERROR_URL: External service for error logs
+     * - LOG_QUERIES_URL: External service for query logs
+     *
+     * @example Enable query logging in datasource: 'log' => true
+     * @example External logging: LOG_ERROR_URL=syslog://localhost:514
      */
     "Log" => [
+        /**
+         * Debug Log Channel
+         * 
+         * Captures development and informational messages.
+         * Includes notices, info, and debug level messages.
+         * Primary channel for development troubleshooting.
+         */
         "debug" => [
+            /** @var string Log engine class */
             "className" => FileLog::class,
+
+            /** @var string Log file directory path */
             "path" => LOGS,
+
+            /** @var string Log filename */
             "file" => "debug",
+
+            /** @var string|null External log service URL */
             "url" => env("LOG_DEBUG_URL", null),
+
+            /** @var array|null Log scopes for filtering */
             "scopes" => null,
+
+            /** @var array Log levels to capture */
             "levels" => ["notice", "info", "debug"],
         ],
+
+        /**
+         * Error Log Channel
+         * 
+         * Captures production errors and critical issues.
+         * Includes warnings, errors, critical, alert, and emergency levels.
+         * Primary channel for production monitoring.
+         */
         "error" => [
+            /** @var string Log engine class */
             "className" => FileLog::class,
+
+            /** @var string Log file directory path */
             "path" => LOGS,
+
+            /** @var string Log filename */
             "file" => "error",
+
+            /** @var string|null External log service URL */
             "url" => env("LOG_ERROR_URL", null),
+
+            /** @var array|null Log scopes for filtering */
             "scopes" => null,
+
+            /** @var array Log levels to capture */
             "levels" => ["warning", "error", "critical", "alert", "emergency"],
         ],
-        // To enable this dedicated query log, you need set your datasource's log flag to true
+
+        /**
+         * Database Query Log Channel
+         * 
+         * Captures SQL queries when database logging is enabled.
+         * Useful for performance analysis and debugging.
+         * Enable by setting 'log' => true in datasource configuration.
+         */
         "queries" => [
+            /** @var string Log engine class */
             "className" => FileLog::class,
+
+            /** @var string Log file directory path */
             "path" => LOGS,
+
+            /** @var string Log filename */
             "file" => "queries",
+
+            /** @var string|null External log service URL */
             "url" => env("LOG_QUERIES_URL", null),
+
+            /** @var array Log scopes for database queries */
             "scopes" => ["cake.database.queries"],
         ],
     ],
@@ -420,24 +730,110 @@ return [
      * Make sure the class implements PHP's `SessionHandlerInterface` and set
      * Session.handler to <name>
      *
-     * To use database sessions, load the SQL file located at config/schema/sessions.sql
+    /**
+     * Session Configuration
+     *
+     * Secure session management configuration for user authentication and state.
+     * Implements security best practices to protect against session attacks.
+     *
+     * Security Features:
+     * - HTTP-only cookies prevent JavaScript access
+     * - Secure cookies require HTTPS connections
+     * - SameSite=Strict prevents CSRF attacks
+     * - Strict mode validates session IDs
+     *
+     * Session Handlers:
+     * - php: Uses PHP's default session handling (files)
+     * - cake: CakePHP file-based sessions in tmp/sessions/
+     * - database: Database-backed sessions (requires sessions table)
+     * - cache: Cache-backed sessions using configured cache
+     *
+     * KMP Session Strategy:
+     * - 30-minute timeout balances security and usability
+     * - Secure settings protect sensitive member data
+     * - PHP default handler for simplicity and performance
+     *
+     * Database Sessions:
+     * To use database sessions:
+     * 1. Load SQL schema: config/schema/sessions.sql
+     * 2. Set defaults to 'database'
+     * 3. Configure database connection
+     *
+     * Custom Session Handlers:
+     * Implement SessionHandlerInterface in src/Http/Session/
+     * 
+     * Environment Variables:
+     * - SESSION_TIMEOUT: Session duration in minutes
+     * - SESSION_SECURE: Force secure cookies (boolean)
+     * - SESSION_NAME: Custom session cookie name
+     *
+     * @example Database sessions: 'defaults' => 'database'
+     * @example Cache sessions: 'defaults' => 'cache'
+     * @example Custom timeout: SESSION_TIMEOUT=60
      */
     "Session" => [
+        /** @var string Session handler type */
         "defaults" => "php",
+
+        /** @var int Session timeout in minutes */
         "timeout" => 30,
-        "cookie" => "PHPSESSID", // You can customize this name if desired
+
+        /** @var string Session cookie name */
+        "cookie" => "PHPSESSID",
+
+        /** @var array PHP session ini settings for security */
         "ini" => [
+            /** @var bool Require HTTPS for session cookies */
             "session.cookie_secure" => true,
+
+            /** @var bool Prevent JavaScript access to session cookies */
             "session.cookie_httponly" => true,
+
+            /** @var string CSRF protection via SameSite policy */
             "session.cookie_samesite" => "Strict",
+
+            /** @var bool Validate session IDs for security */
             "session.use_strict_mode" => true,
         ],
     ],
 
+    /**
+     * Icon Configuration
+     *
+     * Bootstrap Icons integration for the KMP user interface.
+     * Provides scalable vector icons for consistent visual design.
+     *
+     * Icon Set Configuration:
+     * - 'bs': Bootstrap Icons set identifier
+     * - class: Icon rendering class from Templating plugin
+     * - path: JSON file containing icon definitions and metadata
+     *
+     * KMP Icon Usage:
+     * - Navigation elements and menus
+     * - Action buttons and form controls
+     * - Status indicators and badges
+     * - Data visualization elements
+     *
+     * Icon Integration:
+     * Icons are rendered through the Templating plugin's BootstrapIcon class.
+     * The JSON file contains icon names, SVG paths, and metadata for rendering.
+     * 
+     * Asset Management:
+     * Bootstrap Icons are included in the webroot/assets/ directory and
+     * managed through the application's asset pipeline.
+     *
+     * @example Usage in templates: <?= $this->Icon->render('person-fill', ['set' => 'bs']) ?>
+     * @example Custom icons: Add to bootstrap-icons.json or create new icon set
+     */
     'Icon' => [
+        /** @var array Icon set configurations */
         'sets' => [
+            /** @var array Bootstrap Icons configuration */
             'bs' => [
+                /** @var string Icon rendering class */
                 'class' => BootstrapIcon::class,
+
+                /** @var string Path to icon definitions JSON file */
                 'path' => WWW_ROOT . 'assets/bootstrap-icons/font/bootstrap-icons.json',
             ],
         ]

@@ -16,16 +16,21 @@ layout: default
 | 2.2 Configuration | Configuration files and database setup |
 | 2.3 CakePHP Basics | Brief overview of CakePHP framework |
 | **3. [Architecture](3-architecture.md)** | |
-| 3.1 Application Structure | Overview of MVC pattern and directory structure |
-| 3.2 Core Components | Main application components |
-| 3.3 Plugin System | Overview of the plugin-based architecture |
-| 3.4 Authentication & Authorization | Security implementation details |
+| 3.1 [Core Foundation Architecture](3.1-core-foundation-architecture.md) | Detailed architectural insights from comprehensive code documentation |
+| 3.2 Application Structure | Overview of MVC pattern and directory structure |
+| 3.3 Core Components | Main application components |
+| 3.4 Plugin System | Overview of the plugin-based architecture |
+| 3.5 Authentication & Authorization | Security implementation details |
 | **4. [Core Modules](4-core-modules.md)** | |
-| 4.1 Member Management | Members registration, profiles, and management |
-| 4.2 Branches | Branch hierarchies and management |
-| 4.3 Warrants | Warrant system for officer positions |
-| 4.4 Permissions & Roles | Security roles and permissions system |
-| 4.5 AppSettings | Application settings configuration system |
+| 4.1 [Member Management](4-core-modules.md#41-member-management) | Members registration, profiles, and management |
+| └── [Member Lifecycle](4.1-member-lifecycle.md) | Complete member lifecycle and data flow documentation |
+| 4.2 [Branches](4-core-modules.md#42-branches) | Branch hierarchies and management |
+| └── [Branch Hierarchy](4.2-branch-hierarchy.md) | Complete organizational structure and tree management documentation |
+| 4.3 [Warrants](4-core-modules.md#43-warrants) | Warrant system for officer positions |
+| └── [Warrant Lifecycle](4.3-warrant-lifecycle.md) | Complete warrant state machine and approval process documentation |
+| 4.4 [Permissions & Roles](4-core-modules.md#44-permissions--roles) | Security roles and permissions system |
+| └── [RBAC Security Architecture](4.4-rbac-security-architecture.md) | Complete RBAC system with warrant temporal validation layer |
+| 4.5 [AppSettings](4-core-modules.md#45-appsettings) | Application settings configuration system |
 | **5. [Plugins](5-plugins.md)** | |
 | 5.1 Activities | Activities management plugin |
 | 5.2 Officers | Officers management and roster system |
