@@ -1,5 +1,50 @@
 import { Controller } from "@hotwired/stimulus"
 
+/**
+ * MemberCardProfile Stimulus Controller
+ * 
+ * Manages multi-card member profile displays with dynamic layout and content organization.
+ * Automatically loads member data via AJAX and creates additional cards when content
+ * overflow occurs, ensuring optimal readability and presentation.
+ * 
+ * Features:
+ * - Dynamic card creation with overflow management
+ * - AJAX-based member data loading
+ * - Plugin content organization and display
+ * - Membership status tracking and expiration handling
+ * - Background check status display
+ * - Responsive card layout with space calculation
+ * - Multi-section content organization
+ * 
+ * Values:
+ * - url: String - API endpoint for member data
+ * 
+ * Targets:
+ * - cardSet: Container for all profile cards
+ * - firstCard: Initial card element
+ * - name: Member name display element
+ * - scaName: SCA name display element
+ * - branchName: Branch name display element
+ * - membershipInfo: Membership information display
+ * - backgroundCheck: Background check status display
+ * - lastUpdate: Last update timestamp display
+ * - loading: Loading indicator element
+ * - memberDetails: Member details container
+ * 
+ * Usage:
+ * <div data-controller="member-card-profile" data-member-card-profile-url-value="/api/member/123">
+ *   <div data-member-card-profile-target="cardSet">
+ *     <div data-member-card-profile-target="firstCard" class="auth_card">
+ *       <div data-member-card-profile-target="loading">Loading...</div>
+ *       <div data-member-card-profile-target="memberDetails" hidden>
+ *         <div data-member-card-profile-target="name"></div>
+ *         <div data-member-card-profile-target="scaName"></div>
+ *         <!-- Additional profile elements -->
+ *       </div>
+ *     </div>
+ *   </div>
+ * </div>
+ */
 class MemberCardProfile extends Controller {
     static targets = ["cardSet",
         "firstCard",
@@ -14,12 +59,23 @@ class MemberCardProfile extends Controller {
     static values = {
         url: String,
     }
+
+    /**
+     * Initialize controller state
+     * Sets up card management variables
+     */
     initialize() {
         this.currentCard = null;
         this.cardCount = 1;
         this.maxCardLength = 0;
     }
 
+    /**
+     * Calculate used space in current card
+     * Measures total height of all child elements
+     * 
+     * @returns {Number} Total height of card content in pixels
+     */
     usedSpaceInCard() {
         var cardChildren = this.currentCard.children;
         var runningTotal = 0;
@@ -29,6 +85,13 @@ class MemberCardProfile extends Controller {
         return runningTotal;
     }
 
+    /**
+     * Append element to card with overflow handling
+     * Creates new card if content would exceed available space
+     * 
+     * @param {HTMLElement} element - Element to append to card
+     * @param {Number|null} minSpace - Minimum space percentage to maintain
+     */
     appendToCard(element, minSpace) {
         this.currentCard.appendChild(element);
         if (minSpace === null) {
@@ -42,6 +105,10 @@ class MemberCardProfile extends Controller {
         }
     }
 
+    /**
+     * Create and initialize new card
+     * Sets up new card structure and updates current card reference
+     */
     startCard() {
         this.cardCount++;
         var card = document.createElement("div");
@@ -55,6 +122,12 @@ class MemberCardProfile extends Controller {
         this.currentCard = cardDetails;
     }
 
+    /**
+     * Configure fetch options for AJAX requests
+     * Sets up headers for JSON API communication
+     * 
+     * @returns {Object} Fetch options object
+     */
     optionsForFetch() {
         return {
             headers: {
@@ -64,6 +137,10 @@ class MemberCardProfile extends Controller {
         }
     }
 
+    /**
+     * Load member card data from API
+     * Fetches member information and organizes plugin content into cards
+     */
     loadCard() {
         this.currentCard = this.firstCardTarget;
         this.maxCardLength = this.firstCardTarget.offsetHeight;
@@ -141,6 +218,11 @@ class MemberCardProfile extends Controller {
                 }
             });
     }
+
+    /**
+     * Connect controller to DOM
+     * Initiates card loading process
+     */
     connect() {
         this.loadCard();
     }

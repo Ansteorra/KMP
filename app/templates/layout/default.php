@@ -1,7 +1,73 @@
 <?php
 
 /**
- * @var \Cake\View\View $this
+ * KMP Default Layout Template
+ * 
+ * This is the main layout template for the KMP application, providing the base HTML structure
+ * for standard pages. It implements a block-based architecture using KMP's helper system
+ * and integrates with Laravel Mix for asset management and Bootstrap UI framework.
+ * 
+ * Features:
+ * - Block-based content organization with configurable sections
+ * - Laravel Mix asset integration with automatic versioning
+ * - Bootstrap UI framework support with responsive design
+ * - CSRF protection and security headers
+ * - Turbo framework integration for enhanced navigation
+ * - Configurable meta tags and application settings
+ * - Flash message system integration
+ * - Modular script and stylesheet loading
+ * 
+ * Block Structure:
+ * - html: Main HTML element with language configuration
+ * - title: Page title with application branding
+ * - tb_footer: Footer content area
+ * - tb_body_attrs: Body element attributes with controller/action classes
+ * - tb_body_start/tb_body_end: Body element wrapper blocks
+ * - tb_flash: Flash message display area
+ * - meta: Meta tags and favicon configuration
+ * - css: Stylesheet loading block
+ * - topscript: JavaScript loading block for core assets
+ * - content: Main page content area
+ * - modals: Modal dialog container
+ * - script: Additional JavaScript loading block
+ * 
+ * Asset Loading Strategy:
+ * - Core assets loaded in head for immediate availability
+ * - Bundle splitting with manifest, core, controllers, and index chunks
+ * - AssetMix helper provides cache-busting and optimization
+ * - CSRF token embedded for AJAX request protection
+ * 
+ * Integration Points:
+ * - KMP helper for block management and application settings
+ * - Flash component for user notifications
+ * - AssetMix helper for Laravel Mix asset compilation
+ * - CakePHP URL helper for base URL generation
+ * - Bootstrap UI framework for consistent styling
+ * 
+ * Usage Examples:
+ * ```php
+ * // In a view template, extend this layout:
+ * $this->extend('/layout/default');
+ * 
+ * // Customize the title block:
+ * echo $this->KMP->startBlock('title');
+ * echo 'Custom Page Title';
+ * $this->KMP->endBlock();
+ * 
+ * // Add additional CSS or JavaScript:
+ * $this->append('css', $this->Html->css('custom'));
+ * $this->append('script', $this->Html->script('custom'));
+ * ```
+ * 
+ * @var \App\View\AppView $this The view instance with KMP helpers and components
+ * @var string|null $title Optional page title override
+ * @var array $meta Optional meta tag overrides
+ * @var string|null $content Main page content from child templates
+ * @var string|null $modals Modal dialog content
+ * 
+ * @see \App\View\Helper\KmpHelper For block management and application settings
+ * @see \AssetMix\View\Helper\AssetMixHelper For asset compilation integration
+ * @see /templates/layout/TwitterBootstrap/ For specialized layout variants
  */
 
 use Cake\Core\Configure;
@@ -109,7 +175,7 @@ $this->KMP->endBlock();
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title><?= h($this->fetch("title")) ?></title>
     <script>
-    window.urlRoot = "<?= $this->Url->build("/") ?>";
+        window.urlRoot = "<?= $this->Url->build("/") ?>";
     </script>
     <meta name="turbo-prefetch" content="false">
     <?= $this->fetch("meta") ?>

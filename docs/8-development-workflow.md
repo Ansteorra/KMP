@@ -16,11 +16,18 @@ KMP follows the CakePHP coding standards with some additional project-specific r
 The project uses PHP_CodeSniffer with the CakePHP ruleset to enforce coding standards:
 
 ```bash
-# Check coding standards
+# Check coding standards (using composer shortcut)
 cd /workspaces/KMP/app
-vendor/bin/phpcs --standard=phpcs.xml src/
+composer cs-check
 
 # Automatically fix some coding standards issues
+composer cs-fix
+
+# Run all checks (tests + coding standards)
+composer check
+
+# Or run phpcs directly
+vendor/bin/phpcs --standard=phpcs.xml src/
 vendor/bin/phpcbf --standard=phpcs.xml src/
 ```
 
@@ -93,8 +100,11 @@ app/tests/
 ### Running Tests
 
 ```bash
-# Run all tests
+# Run all tests (using composer shortcut)
 cd /workspaces/KMP/app
+composer test
+
+# Or run phpunit directly
 vendor/bin/phpunit
 
 # Run a specific test suite
@@ -222,8 +232,11 @@ StaticHelpers::logVar($variable, 'Label');
 For detecting potential bugs and issues without running the code, KMP uses:
 
 ```bash
-# PHPStan static analysis
+# PHPStan static analysis (using composer shortcut)
 cd /workspaces/KMP/app
+composer stan
+
+# Or run phpstan directly
 vendor/bin/phpstan analyse src
 
 # Psalm static analysis

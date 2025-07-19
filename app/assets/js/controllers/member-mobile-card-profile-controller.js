@@ -1,16 +1,71 @@
 import { Controller } from "@hotwired/stimulus"
 
+/**
+ * MemberMobileCardProfile Stimulus Controller
+ * 
+ * Manages mobile-optimized member profile card display with PWA integration and
+ * responsive design. Provides Bootstrap table layout optimized for mobile viewing
+ * with automatic content organization and plugin data display.
+ * 
+ * Features:
+ * - Mobile-optimized profile card layout
+ * - PWA readiness integration and state management
+ * - Bootstrap table-based responsive design
+ * - Automatic plugin content organization
+ * - Member status tracking with expiration handling
+ * - Dynamic card generation for multiple sections
+ * - Column-based data formatting for mobile display
+ * - Real-time loading states and user feedback
+ * 
+ * Values:
+ * - url: String - API endpoint for member profile data
+ * - pwaReady: Boolean - PWA availability state for conditional loading
+ * 
+ * Targets:
+ * - cardSet: Container for generated profile cards
+ * - name: Member's full name display
+ * - scaName: Member's SCA name display
+ * - branchName: Member's branch name display
+ * - membershipInfo: Membership number and expiration info
+ * - backgroundCheck: Background check status and expiration
+ * - lastUpdate: Last update timestamp display
+ * - loading: Loading state indicator
+ * - memberDetails: Container for member information
+ * 
+ * Usage:
+ * <div data-controller="member-mobile-card-profile" 
+ *      data-member-mobile-card-profile-url-value="/api/member/123/mobile"
+ *      data-member-mobile-card-profile-pwa-ready-value="false">
+ *   <div data-member-mobile-card-profile-target="loading">Loading...</div>
+ *   <div data-member-mobile-card-profile-target="memberDetails" hidden>
+ *     <h2 data-member-mobile-card-profile-target="name"></h2>
+ *     <p data-member-mobile-card-profile-target="scaName"></p>
+ *     <div data-member-mobile-card-profile-target="cardSet"></div>
+ *   </div>
+ * </div>
+ */
 class MemberMobileCardProfile extends Controller {
     static targets = ["cardSet", "name", "scaName", "branchName", "membershipInfo", "backgroundCheck", "lastUpdate", "loading", "memberDetails"];
     static values = {
         url: String,
         pwaReady: Boolean
     }
+
+    /**
+     * Initialize controller state
+     * Sets up card generation tracking variables
+     */
     initialize() {
         this.currentCard = null;
         this.cardCount = 0;
     }
 
+    /**
+     * Create and initialize new mobile card with Bootstrap styling
+     * Generates responsive card structure optimized for mobile viewing
+     * 
+     * @param {String} title - Title for the card section
+     */
     startCard(title) {
         this.cardCount++;
         var card = document.createElement("div");
@@ -31,6 +86,11 @@ class MemberMobileCardProfile extends Controller {
 
         this.currentCard = cardDetails;
     }
+
+    /**
+     * Handle PWA ready state changes
+     * Triggers card loading when PWA becomes available
+     */
     pwaReadyValueChanged() {
         console.log("pwaReadyValueChanged");
         if (this.pwaReadyValue) {
@@ -38,6 +98,12 @@ class MemberMobileCardProfile extends Controller {
         }
     }
 
+    /**
+     * Configure fetch options for AJAX requests
+     * Sets up headers for mobile-optimized JSON API communication
+     * 
+     * @returns {Object} Fetch options object
+     */
     optionsForFetch() {
         return {
             headers: {
@@ -47,6 +113,10 @@ class MemberMobileCardProfile extends Controller {
         }
     }
 
+    /**
+     * Load member profile data and generate mobile-optimized display
+     * Creates responsive Bootstrap table layout with automatic content organization
+     */
     loadCard() {
         this.cardSetTarget.innerHTML = "";
         this.loadingTarget.hidden = false;
@@ -164,6 +234,11 @@ class MemberMobileCardProfile extends Controller {
                 }
             });
     }
+
+    /**
+     * Connect controller to DOM
+     * Initializes mobile profile card interface
+     */
     connect() {
         console.log("MemberMobileCardProfile connected");
         //this.loadCard();

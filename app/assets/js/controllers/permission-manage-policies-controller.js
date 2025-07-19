@@ -1,13 +1,64 @@
 import { Controller } from "@hotwired/stimulus"
 
+/**
+ * **INTERNAL CODE DOCUMENTATION COMPLETE**
+ * 
+ * Permission Manage Policies Controller
+ * 
+ * A sophisticated Stimulus controller that provides an interactive permission matrix for managing
+ * CakePHP authorization policies. Features hierarchical checkbox management with indeterminate
+ * states, batch processing for performance, and asynchronous AJAX updates with queue management.
+ * 
+ * Key Features:
+ * - Hierarchical checkbox management (class-level controls method-level checkboxes)
+ * - Indeterminate state indicators for partial selections
+ * - Batch processing with loading overlay for performance optimization
+ * - Asynchronous AJAX queue management for reliable server updates
+ * - Dynamic event listener management with cleanup
+ * 
+ * @class PermissionManagePolicies
+ * @extends Controller
+ * 
+ * HTML Structure Example:
+ * ```html
+ * <div data-controller="permission-manage-policies" 
+ *      data-permission-manage-policies-url-value="/permissions/manage-policies">
+ *   <!-- Class-level checkbox (controls all methods in the class) -->
+ *   <input type="checkbox" 
+ *          data-permission-manage-policies-target="policyClass"
+ *          data-class-name="App\\Controller\\MembersController"
+ *          data-permission-id="1">
+ *   
+ *   <!-- Method-level checkboxes (controlled by class checkbox) -->
+ *   <input type="checkbox"
+ *          data-permission-manage-policies-target="policyMethod" 
+ *          data-class-name="App\\Controller\\MembersController"
+ *          data-permission-id="1"
+ *          data-method-name="index">
+ *   
+ *   <input type="checkbox"
+ *          data-permission-manage-policies-target="policyMethod"
+ *          data-class-name="App\\Controller\\MembersController" 
+ *          data-permission-id="1"
+ *          data-method-name="view">
+ * </div>
+ * ```
+ */
 class PermissionManagePolicies extends Controller {
     static targets = ["policyClass", "policyMethod"]
     static values = {
         url: String,
     }
 
+    /** @type {Array} Queue for managing sequential AJAX requests to prevent race conditions */
     changeQueue = []
 
+    /**
+     * Event handler for policy class target connection
+     * Sets up click event listeners for class-level checkboxes
+     * 
+     * @param {HTMLElement} element - The connected policy class checkbox element
+     */
     policyClassTargetConnected(element) {
         //add event listener to the element
         element.clickEvent = (event) => {
@@ -17,6 +68,12 @@ class PermissionManagePolicies extends Controller {
 
     }
 
+    /**
+     * Event handler for policy method target connection
+     * Sets up click event listeners for method-level checkboxes
+     * 
+     * @param {HTMLElement} element - The connected policy method checkbox element
+     */
     policyMethodTargetConnected(element) {
         //add event listener to the element
         element.clickEvent = (event) => {
@@ -25,6 +82,11 @@ class PermissionManagePolicies extends Controller {
         element.addEventListener("click", element.clickEvent)
     }
 
+    /**
+     * Controller initialization and setup
+     * Implements batch processing for performance optimization when dealing with large
+     * permission matrices. Shows loading overlay during processing.
+     */
     connect() {
         // Show loading overlay
         this.showLoadingOverlay();
@@ -50,6 +112,10 @@ class PermissionManagePolicies extends Controller {
         processBatch();
     }
 
+    /**
+     * Display loading overlay during batch processing
+     * Creates a Bootstrap spinner overlay for performance indication
+     */
     showLoadingOverlay() {
         // Find the permissions-matrix container
         const container = this.element.closest('.permissions-matrix') || this.element;
@@ -72,6 +138,10 @@ class PermissionManagePolicies extends Controller {
         }
     }
 
+    /**
+     * Remove loading overlay after processing completion
+     * Cleans up spinner overlay from permissions matrix
+     */
     hideLoadingOverlay() {
         const container = this.element.closest('.permissions-matrix') || this.element;
         const overlay = container.querySelector('.loading-overlay');
@@ -80,6 +150,13 @@ class PermissionManagePolicies extends Controller {
         }
     }
 
+    /**
+     * Update class-level checkbox state based on method selections
+     * Implements three-state logic: checked, unchecked, and indeterminate
+     * 
+     * @param {String} className - The class name to check state for
+     * @param {String} permissionId - The permission ID to check state for
+     */
     checkClass(className, permissionId) {
         const methods = document.querySelectorAll(`input[type='checkbox'][data-class-name='${className}'][data-permission-id='${permissionId}'][data-method-name]`)
         let checkCount = 0
@@ -102,6 +179,12 @@ class PermissionManagePolicies extends Controller {
 
     }
 
+    /**
+     * Handle class-level checkbox clicks
+     * Updates all method-level checkboxes and manages indeterminate state
+     * 
+     * @param {Event} event - The click event from class checkbox
+     */
     classClicked(event) {
         const checkbox = event.target
         const isChecked = checkbox.checked
@@ -114,6 +197,13 @@ class PermissionManagePolicies extends Controller {
         })
         checkbox.classList.remove("indeterminate-switch");
     }
+
+    /**
+     * Handle method-level checkbox clicks
+     * Updates parent class checkbox state and queues server update
+     * 
+     * @param {Event} event - The click event from method checkbox
+     */
     methodClicked(event) {
         // check if the element is checked or not
         const checkbox = event.target
@@ -123,6 +213,14 @@ class PermissionManagePolicies extends Controller {
         this.checkClass(className, permissionId);
         this.changeMethod(checkbox, isChecked)
     }
+
+    /**
+     * Queue permission change for server update
+     * Adds change to queue and processes if not already processing
+     * 
+     * @param {HTMLElement} method - The method checkbox element
+     * @param {Boolean} isChecked - Whether the checkbox is checked
+     */
     changeMethod(method, isChecked) {
         let className = method.dataset.className
         className = className.replace(/-/g, "\\");
@@ -140,6 +238,12 @@ class PermissionManagePolicies extends Controller {
             this.processQueue()
         }
     }
+
+    /**
+     * Process queued permission changes sequentially
+     * Handles AJAX communication with server for policy updates
+     * Maintains queue integrity and prevents race conditions
+     */
     processQueue() {
         if (this.changeQueue.length === 0) {
             return
@@ -163,6 +267,11 @@ class PermissionManagePolicies extends Controller {
                 this.processQueue()
             })
     }
+
+    /**
+     * Clean up event listeners on controller disconnect
+     * Removes all dynamically added event listeners to prevent memory leaks
+     */
     disconnect() {
         // remove event listeners from all elements
         this.policyClassTargets.forEach((element) => {
