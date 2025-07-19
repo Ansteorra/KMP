@@ -496,22 +496,21 @@ classDiagram
         +id: int
         +name: string
         +value: text
-        +value_type: string
-        +description: string
+        +type: string
         +required: bool
         +created: datetime
         +modified: datetime
+        +created_by: int
+        +modified_by: int
     }
 ```
 
 ### Value Types
 
-AppSettings supports several value types:
-- **string**: Simple text values
-- **int**: Integer values
-- **bool**: Boolean values (yes/no)
-- **yaml**: Structured data stored as YAML
+AppSettings supports several value types through the `type` field:
+- **string** (default): Simple text values
 - **json**: Structured data stored as JSON
+- **yaml**: Structured data stored as YAML
 
 ### Setting Categories
 
@@ -547,3 +546,54 @@ AppSettings provides an admin interface for managing settings, including:
 - Editing values
 - Adding new settings
 - Exporting settings as YAML
+
+## 4.6 View Patterns
+
+The View layer in KMP provides a comprehensive presentation system built on CakePHP's MVC architecture with Bootstrap UI integration and custom helpers for KMP-specific functionality.
+
+**Detailed Documentation:** [4.5 View Patterns](4.5-view-patterns.md)
+
+### Key Components
+
+- **AppView**: Base view class with integrated helper loading and Bootstrap UI framework
+- **KmpHelper**: Custom helper providing KMP-specific form controls, data conversion, and UI utilities
+- **View Cells**: Reusable UI components including AppNavCell, NavigationCell, and NotesCell
+- **Template System**: Hierarchical templates with responsive layouts and security integration
+
+### Architecture Overview
+
+```mermaid
+classDiagram
+    class AppView {
+        +initialize()
+        +loadHelper(string)
+        +loadPlugin(string)
+    }
+    
+    class KmpHelper {
+        +autoCompleteControl()
+        +comboBoxControl()
+        +bool()
+        +appNav()
+        +getAppSetting()
+    }
+    
+    class AppNavCell {
+        +display(array, Member, array)
+    }
+    
+    class NavigationCell {
+        +display(array, array)
+    }
+    
+    class NotesCell {
+        +display(string, int, array)
+    }
+    
+    AppView --> KmpHelper : uses
+    AppView --> AppNavCell : renders
+    AppView --> NavigationCell : renders
+    AppView --> NotesCell : renders
+```
+
+The view system provides advanced form controls, permission-based rendering, asset optimization, and comprehensive security patterns for safe user interface generation.

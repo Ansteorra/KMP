@@ -1,11 +1,51 @@
 import { Controller } from "@hotwired/stimulus"
 
+/**
+ * BranchLinks Stimulus Controller
+ * 
+ * Manages dynamic branch link collection with URL validation, link type categorization,
+ * and form integration. Provides a user-friendly interface for adding, removing, and
+ * organizing branch-related links with Bootstrap UI components.
+ * 
+ * Features:
+ * - Dynamic link addition with URL sanitization
+ * - Link type selection with Bootstrap Icons
+ * - Duplicate prevention and validation
+ * - Real-time form value synchronization
+ * - Bootstrap-styled UI components
+ * 
+ * Targets:
+ * - new: Input field for new link URLs
+ * - formValue: Hidden field containing JSON array of all links
+ * - displayList: Container for displaying added links
+ * - linkType: Element for link type selection with icon display
+ * 
+ * Usage:
+ * <div data-controller="branch-links">
+ *   <input data-branch-links-target="new" type="url" placeholder="Enter URL">
+ *   <div data-branch-links-target="linkType" data-value="link" class="bi bi-link"></div>
+ *   <button data-action="click->branch-links#add">Add Link</button>
+ *   <div data-branch-links-target="displayList"></div>
+ *   <input data-branch-links-target="formValue" type="hidden" name="links">
+ * </div>
+ */
 class BrancheLinks extends Controller {
     static targets = ["new", "formValue", "displayList", "linkType"];
+
+    /**
+     * Initialize controller state
+     * Sets up empty items array for link management
+     */
     initialize() {
         this.items = [];
     }
 
+    /**
+     * Set the link type for new link additions
+     * Updates the link type icon and stores the selected type
+     * 
+     * @param {Event} event - Click event from link type selector
+     */
     setLinkType(event) {
         event.preventDefault();
         let linkType = event.target.getAttribute('data-value');
@@ -15,6 +55,12 @@ class BrancheLinks extends Controller {
         this.linkTypeTarget.dataset.value = linkType;
     }
 
+    /**
+     * Add a new link to the collection
+     * Validates input, sanitizes URL, prevents duplicates, and updates display
+     * 
+     * @param {Event} event - Click event from add button
+     */
     add(event) {
         event.preventDefault();
         if (!this.newTarget.checkValidity()) {
@@ -39,6 +85,13 @@ class BrancheLinks extends Controller {
         this.linkTypeTarget.classList.remove('bi-' + type);
         this.linkTypeTarget.classList.add('bi-link');
     }
+
+    /**
+     * Remove a link from the collection
+     * Filters out the specified item and updates the display
+     * 
+     * @param {Event} event - Click event from remove button
+     */
     remove(event) {
         event.preventDefault();
         let id = event.target.getAttribute('data-id');
@@ -50,6 +103,10 @@ class BrancheLinks extends Controller {
         event.target.parentElement.remove();
     }
 
+    /**
+     * Connect controller to DOM
+     * Loads existing links from form value and recreates the display
+     */
     connect() {
         if (this.formValueTarget.value && this.formValueTarget.value.length > 0) {
             this.items = JSON.parse(this.formValueTarget.value);
@@ -60,6 +117,12 @@ class BrancheLinks extends Controller {
         }
     }
 
+    /**
+     * Create a visual list item for a link
+     * Generates Bootstrap input group with icon, URL display, and remove button
+     * 
+     * @param {Object} item - Link object with url and type properties
+     */
     createListItem(item) {
         let removeButton = document.createElement('button');
         removeButton.innerHTML = 'Remove';

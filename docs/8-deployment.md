@@ -3,18 +3,18 @@ layout: default
 ---
 [← Back to Table of Contents](index.md)
 
-# 9. Deployment
+# 8. Deployment
 
 This section covers the processes and considerations for deploying the Kingdom Management Portal to production environments.
 
-## 9.1 Production Setup
+## 8.1 Production Setup
 
 ### Server Requirements
 
 For a production deployment, the following server configuration is recommended:
 
 - **Web Server**: Apache 2.4+ or Nginx 1.18+
-- **PHP**: PHP 8.0+ with required extensions (see [System Requirements](1-introduction.md#13-system-requirements))
+- **PHP**: PHP 8.1+ with required extensions (see [System Requirements](1-introduction.md#13-system-requirements))
 - **Database**: MySQL 5.7+ or MariaDB 10.2+
 - **Memory**: Minimum 2GB RAM (4GB+ recommended)
 - **Storage**: 10GB+ disk space (more if storing many attachments)
@@ -198,7 +198,7 @@ return [
 ];
 ```
 
-## 9.2 Migrations
+## 8.2 Migrations
 
 Database changes in KMP are managed through CakePHP's migrations system, which provides version control for your database schema.
 
@@ -285,7 +285,7 @@ Plugins in KMP have a defined migration order, as specified in their plugin regi
 ],
 ```
 
-## 9.3 Updates
+## 8.3 Updates
 
 Keeping your KMP installation up-to-date involves updating both the application code and the database schema.
 

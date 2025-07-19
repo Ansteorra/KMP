@@ -1,7 +1,85 @@
 <?php
 
 /**
- * @var \Cake\View\View $this
+ * KMP Dashboard Layout Template
+ * 
+ * Advanced layout template providing a complete dashboard interface with navigation,
+ * header management, and responsive sidebar. This layout is optimized for administrative
+ * interfaces and member management workflows within the KMP application.
+ * 
+ * Features:
+ * - Responsive dashboard interface with collapsible sidebar
+ * - Dynamic header with configurable links and branding
+ * - Integrated navigation system with permission-based menu items
+ * - Session extension management with automatic keepalive
+ * - Bootstrap 5 responsive grid system integration
+ * - Sticky navigation header with dark theme
+ * - Mobile-responsive sidebar with toggle functionality
+ * 
+ * Layout Structure:
+ * - Header: Fixed navigation bar with logo, header links, and user controls
+ * - Sidebar: Collapsible navigation menu (3-column width on desktop)
+ * - Main Content: Primary content area (9-column width on desktop)
+ * - Session Management: Automatic session extension with configurable timeout
+ * 
+ * Header Configuration:
+ * - Dynamic header links from app settings (KMP.HeaderLink.*)
+ * - Configurable logo and site title branding
+ * - Sign out functionality with proper logout routing
+ * - Mobile-responsive navigation toggle button
+ * 
+ * Sidebar Navigation:
+ * - Dynamic menu structure via Navigation view cell
+ * - Permission-based menu item visibility
+ * - Hierarchical menu organization with sub-items
+ * - Responsive collapse behavior for mobile devices
+ * 
+ * Session Management:
+ * - Automatic session extension via session-extender Stimulus controller
+ * - Configurable keepalive URL endpoint
+ * - User activity tracking and timeout prevention
+ * - Seamless user experience without interruption
+ * 
+ * Responsive Design:
+ * - Mobile-first approach with Bootstrap responsive utilities
+ * - Collapsible sidebar for mobile and tablet devices
+ * - Sticky header that remains visible during scrolling
+ * - Optimized content layout for various screen sizes
+ * 
+ * Integration Points:
+ * - KMP helper for application settings and block management
+ * - Navigation view cell for dynamic menu generation
+ * - Flash component for system notifications
+ * - Session extender controller for automatic keepalive
+ * - Bootstrap 5 component system for UI consistency
+ * 
+ * Usage Examples:
+ * ```php
+ * // In a controller action, use this layout:
+ * $this->extend('/layout/TwitterBootstrap/dashboard');
+ * 
+ * // Custom title for dashboard pages:
+ * echo $this->KMP->startBlock('title');
+ * echo 'Members Dashboard - ' . $this->KMP->getAppSetting('KMP.ShortSiteTitle');
+ * $this->KMP->endBlock();
+ * ```
+ * 
+ * Header Link Configuration:
+ * ```php
+ * // In app settings, configure header links:
+ * 'KMP.HeaderLink.Reports.url' => '/reports',
+ * 'KMP.HeaderLink.Reports.css' => 'btn-primary',
+ * 'KMP.HeaderLink.Help.no-label' => '/help'
+ * ```
+ * 
+ * @var \App\View\AppView $this The view instance with KMP helpers
+ * @var array $headerLinks Dynamic header links from application settings
+ * @var string $fullBaseUrl Application base URL for session management
+ * @var string $content Main dashboard content from child templates
+ * 
+ * @see \App\View\Cell\NavigationCell For sidebar menu generation
+ * @see /assets/js/controllers/session-extender-controller.js For session management
+ * @see \App\View\Helper\KmpHelper For application settings access
  */
 
 use Cake\Core\Configure;
@@ -50,9 +128,9 @@ $url = $fullBaseUrl . "/keepalive";
                     $css = $parts[1];
                 }
             ?>
-            <li class="nav-item text-nowrap mx-1">
-                <a class="btn btn-outline-secondary <?= $css ?>" href="<?= $url ?>"><?= $key ?></a>
-            </li>
+                <li class="nav-item text-nowrap mx-1">
+                    <a class="btn btn-outline-secondary <?= $css ?>" href="<?= $url ?>"><?= $key ?></a>
+                </li>
             <?php endforeach; ?>
             <li class="nav-item text-nowrap mx-1">
                 <?= $this->Html->link(

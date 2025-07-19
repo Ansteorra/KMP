@@ -3,11 +3,11 @@ layout: default
 ---
 [← Back to Table of Contents](index.md)
 
-# 6. UI Components
+# 9. UI Components
 
 This section documents the user interface components and patterns used throughout the Kingdom Management Portal application. Understanding these components is essential for maintaining a consistent look and feel across the application.
 
-## 6.1 Layouts
+## 9.1 Layouts
 
 KMP uses several layout templates to provide consistent structure for different parts of the application. These layouts are based on Twitter Bootstrap 5 and provide responsive design across desktop and mobile devices.
 
@@ -117,7 +117,7 @@ This layout uses content blocks to organize the record display:
 - `tabButtons`: Tab navigation buttons
 - `tabContent`: Content for each tab
 
-## 6.2 View Helpers
+## 9.2 View Helpers
 
 KMP extends CakePHP's helper system with custom helpers that provide reusable UI functionality.
 
@@ -214,7 +214,7 @@ echo $this->Icon->render('calendar', ['class' => 'text-primary me-2']);
 echo $this->IconSnippet->render('info-circle', 'Information');
 ```
 
-## 6.3 Frontend Libraries
+## 9.3 Frontend Libraries
 
 KMP uses several JavaScript libraries and patterns to provide rich client-side functionality.
 

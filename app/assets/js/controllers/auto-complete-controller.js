@@ -1,5 +1,86 @@
 import { Controller } from "@hotwired/stimulus"
 
+/**
+ * **INTERNAL CODE DOCUMENTATION COMPLETE**
+ * 
+ * Auto Complete Controller
+ * 
+ * A comprehensive Stimulus controller providing advanced autocomplete functionality with
+ * AJAX search capabilities, keyboard navigation, and flexible value management. Supports
+ * remote data loading, local filtering, custom value support, and accessibility features.
+ * 
+ * Key Features:
+ * - Remote AJAX data loading with configurable endpoints
+ * - Local data filtering from pre-loaded datalists
+ * - Keyboard navigation (arrow keys, enter, escape)
+ * - Custom value support for "allow other" scenarios
+ * - Hidden field integration for form submission
+ * - Debounced search with configurable delay
+ * - Accessibility support with ARIA attributes
+ * - Clear button functionality with state management
+ * - Real-time validation and selection feedback
+ * - Bootstrap styling integration
+ * 
+ * @class AutoComplete
+ * @extends Controller
+ * 
+ * Targets:
+ * - input: The visible text input field
+ * - hidden: Hidden field for storing selected value ID
+ * - hiddenText: Hidden field for storing selected display text
+ * - results: Container for autocomplete results dropdown
+ * - dataList: Pre-loaded data options container
+ * - clearBtn: Button to clear current selection
+ * 
+ * Values:
+ * - ready: Boolean - Controller readiness state
+ * - submitOnEnter: Boolean - Auto-submit form on Enter key
+ * - url: String - AJAX endpoint for remote data
+ * - minLength: Number - Minimum characters before search
+ * - allowOther: Boolean - Allow custom values not in list
+ * - required: Boolean - Field is required for form validation
+ * - initSelection: Object - Initial selection value and text
+ * - delay: Number - Debounce delay in milliseconds (default: 300)
+ * - queryParam: String - Query parameter name (default: "q")
+ * 
+ * Classes:
+ * - selected: Applied to selected option elements
+ * 
+ * HTML Structure Example:
+ * ```html
+ * <!-- Remote AJAX autocomplete for member search -->
+ * <div data-controller="auto-complete"
+ *      data-auto-complete-url-value="/members/search"
+ *      data-auto-complete-min-length-value="2"
+ *      data-auto-complete-allow-other-value="false"
+ *      data-auto-complete-delay-value="300">
+ *   <input type="text" 
+ *          data-auto-complete-target="input"
+ *          class="form-control"
+ *          placeholder="Start typing member name...">
+ *   <input type="hidden" data-auto-complete-target="hidden" name="member_id">
+ *   <input type="hidden" data-auto-complete-target="hiddenText" name="member_name">
+ *   <button type="button" 
+ *           data-auto-complete-target="clearBtn"
+ *           class="btn btn-outline-secondary"
+ *           disabled>Clear</button>
+ *   <div data-auto-complete-target="results" class="autocomplete-results"></div>
+ * </div>
+ * 
+ * <!-- Local datalist autocomplete with pre-loaded options -->
+ * <div data-controller="auto-complete"
+ *      data-auto-complete-allow-other-value="true">
+ *   <input type="text" 
+ *          data-auto-complete-target="input"
+ *          class="form-control">
+ *   <div data-auto-complete-target="dataList" style="display: none;">
+ *     <div data-value="1" data-text="Option 1">Option 1</div>
+ *     <div data-value="2" data-text="Option 2">Option 2</div>
+ *   </div>
+ * </div>
+ * ```
+ */
+
 const optionSelector = "[role='option']:not([aria-disabled='true'])"
 const activeSelector = "[aria-selected='true']"
 
