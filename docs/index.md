@@ -17,10 +17,14 @@ layout: default
 | 2.3 CakePHP Basics | Brief overview of CakePHP framework |
 | **3. [Architecture](3-architecture.md)** | |
 | 3.1 [Core Foundation Architecture](3.1-core-foundation-architecture.md) | Detailed architectural insights from comprehensive code documentation |
-| 3.2 Application Structure | Overview of MVC pattern and directory structure |
-| 3.3 Core Components | Main application components |
-| 3.4 Plugin System | Overview of the plugin-based architecture |
-| 3.5 Authentication & Authorization | Security implementation details |
+| 3.2 [Model Behaviors](3.2-model-behaviors.md) | ActiveWindow, JsonField, and Sortable behaviors with usage examples |
+| 3.3 [Database Migration Documentation](3.3-migration-documentation.md) | Complete migration history and database schema evolution |
+| 3.4 [Database ER Diagrams](3.4-er-diagrams.md) | Entity relationship diagrams and database schema visualization |
+| 3.5 [Database Seed Documentation](3.5-seed-documentation.md) | Comprehensive database seeding and initial data setup |
+| 3.6 Application Structure | Overview of MVC pattern and directory structure |
+| 3.7 Core Components | Main application components |
+| 3.8 Plugin System | Overview of the plugin-based architecture |
+| 3.9 Authentication & Authorization | Security implementation details |
 | **4. [Core Modules](4-core-modules.md)** | |
 | 4.1 [Member Management](4-core-modules.md#41-member-management) | Members registration, profiles, and management |
 | └── [Member Lifecycle](4.1-member-lifecycle.md) | Complete member lifecycle and data flow documentation |
@@ -32,12 +36,12 @@ layout: default
 | └── [RBAC Security Architecture](4.4-rbac-security-architecture.md) | Complete RBAC system with warrant temporal validation layer |
 | 4.5 [AppSettings](4-core-modules.md#45-appsettings) | Application settings configuration system |
 | **5. [Plugins](5-plugins.md)** | |
-| 5.1 Activities | Activities management plugin |
-| 5.2 Officers | Officers management and roster system |
-| 5.3 Awards | Award recommendations and management system |
-| 5.4 Queue | Background job processing system |
-| 5.5 GitHubIssueSubmitter | User feedback submission to GitHub |
-| 5.6 Bootstrap | UI framework integration |
+| 5.1 [Officers Plugin](5.1-officers-plugin.md) | Officers management and roster system |
+| 5.2 [Awards Plugin](5.2-awards-plugin.md) | Award recommendations and management system |
+| 5.3 [Queue Plugin](5.3-queue-plugin.md) | Background job processing system |
+| 5.4 [GitHubIssueSubmitter Plugin](5.4-github-issue-submitter-plugin.md) | User feedback submission to GitHub |
+| 5.5 [Bootstrap Plugin](5.5-bootstrap-plugin.md) | UI framework integration |
+| 5.6 [Activities Plugin](5.6-activities-plugin.md) | Comprehensive authorization management system |
 | **6. [UI Components](6-ui-components.md)** | |
 | 6.1 Layouts | Dashboard, signin, register, etc. |
 | 6.2 View Helpers | KMP helper and other custom view helpers |
