@@ -42,7 +42,7 @@ class RecsForMemberCell extends Cell
             $id = $this->request->getAttribute('identity')->getIdentifier();
         }
         $currentUser = $this->request->getAttribute('identity');
-        if ($currentUser->id == $id && !$currentUser->checkCan('view', 'Awards.Recommendations')) {
+        if ($currentUser->id == $id && !$currentUser->checkCan('ViewSubmittedForMember', 'Awards.Recommendations')) {
             $isEmpty = true;
             $this->set(compact('isEmpty', 'id'));
             return;
