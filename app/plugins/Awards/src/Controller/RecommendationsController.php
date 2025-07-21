@@ -114,7 +114,13 @@ class RecommendationsController extends AppController
             $user = $this->request->getAttribute('identity');
 
             if ($view === 'SubmittedByMember') {
-                $emptyRecommendation->requester_id = $user->id;
+                //get the memberid from the query args if available
+                if (isset($queryArgs['member_id']) && is_numeric($queryArgs['member_id'])) {
+                    $emptyRecommendation->requester_id = $queryArgs['member_id'];
+                } else {
+                    $this->Authorization->skipAuthorization();
+                    throw new ForbiddenException();
+                }
             }
 
             $user->authorizeWithArgs($emptyRecommendation, $permission, $view, $status, $queryArgs);
@@ -131,8 +137,9 @@ class RecommendationsController extends AppController
             $this->runTable($filter, $status, $view);
             return null;
         } catch (\Exception $e) {
-            Log::error('Error in recommendations table: ' . $e->getMessage());
-            $this->Flash->error(__('An error occurred while loading recommendations.'));
+            if (!$e instanceof ForbiddenException) {
+                $this->Flash->error(__('An error occurred while loading recommendations.'));
+            }
             return $this->redirect(['action' => 'index']);
         }
     }
