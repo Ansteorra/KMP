@@ -179,7 +179,7 @@ class MemberSubmittedRecsCell extends Cell
             $id = $this->request->getAttribute('identity')->getIdentifier();
         }
         $currentUser = $this->request->getAttribute('identity');
-        if ($currentUser->id != $id && !$currentUser->checkCan('view', 'Awards.Recommendations')) {
+        if ($currentUser->id != $id && !$currentUser->checkCan('ViewSubmittedByMember', 'Awards.Recommendations')) {
             return;
         }
         $recommendationsTbl = TableRegistry::getTableLocator()->get("Awards.Recommendations");
