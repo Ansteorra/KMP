@@ -77,9 +77,212 @@ graph TD
     AuthCheck -->|No| LoginForm
 ```
 
+### Member Lifecycle Management
+
+The KMP system implements a comprehensive member lifecycle management system that tracks members through various states and automatically manages transitions based on age, activity, and administrative actions.
+
+#### Member Status System
+
+KMP uses a seven-level status system to track member states:
+
+```mermaid
+stateDiagram-v2
+    [*] --> Unverified
+    Unverified --> Active: Email Verification
+    Active --> Inactive: Administrative Action
+    Inactive --> Active: Reactivation
+    Active --> Suspended: Disciplinary Action
+    Suspended --> Active: Suspension Lifted
+    Active --> AgedUp: Age-up Review
+    AgedUp --> Active: Manual Verification
+    Active --> Expired: Account Expiration
+    Expired --> Active: Account Renewal
+    note right of AgedUp
+        Automatic transition when
+        member reaches majority age
+    end note
+```
+
+**Status Definitions:**
+- **Unverified**: New account awaiting email verification
+- **Active**: Fully active member with all privileges
+- **Inactive**: Temporarily deactivated by administrator
+- **Suspended**: Disciplinary suspension with restricted access
+- **AgedUp**: Minor member who has reached majority age pending review
+- **Expired**: Account expired due to inactivity or non-payment
+- **Deleted**: Soft-deleted account (retained for historical records)
+
+#### Age-Up Workflow
+
+The system automatically manages the transition of minor members to adult status:
+
+```mermaid
+sequenceDiagram
+    participant System
+    participant Member
+    participant Admin
+    participant Email
+    
+    System->>System: Daily cron check member ages
+    System->>System: Identify members reaching 18
+    System->>Member: Update status to 'AgedUp'
+    System->>Admin: Queue for verification
+    System->>Email: Send age-up notification
+    Admin->>System: Review member information
+    Admin->>System: Verify adult status
+    System->>Member: Update status to 'Active'
+    System->>Email: Send confirmation to member
+```
+
+#### Warrant Eligibility System
+
+Members' warrant eligibility is automatically calculated based on multiple factors:
+
+```mermaid
+flowchart TD
+    A[Member Evaluation] --> B{Age Check}
+    B -->|Under 18| C[Not Warrantable]
+    B -->|18 or Over| D{Status Check}
+    D -->|Not Active| C
+    D -->|Active| E{Role Check}
+    E -->|Has Disqualifying Role| C
+    E -->|No Conflicts| F{Historical Check}
+    F -->|Past Issues| C
+    F -->|Clean Record| G[Warrantable]
+    
+    C --> H[Generate Reason List]
+    G --> I[Eligible for Warrants]
+    H --> J[Store in warrantable_review]
+    I --> K[Available for Appointments]
+```
+
+#### Privacy and Data Protection
+
+The system implements comprehensive privacy controls:
+
+```mermaid
+classDiagram
+    class PrivacyLevel {
+        <<enumeration>>
+        PUBLIC
+        MEMBERS_ONLY
+        OFFICERS_ONLY
+        PRIVATE
+    }
+    
+    class DataFilter {
+        +publicData() object
+        +memberData() object
+        +officerData() object
+        +fullData() object
+    }
+    
+    class MinorProtection {
+        +isMinor() boolean
+        +parentalConsent() boolean
+        +restrictedFields() array
+    }
+    
+    Member --> PrivacyLevel
+    Member --> DataFilter
+    Member --> MinorProtection
+```
+
+#### Registration and Verification Process
+
+The complete member registration flow with verification:
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Web
+    participant Controller
+    participant Database
+    participant Email
+    participant Admin
+    
+    User->>Web: Submit Registration Form
+    Web->>Controller: POST /members/add
+    Controller->>Controller: Validate Input
+    Controller->>Database: Check Email Uniqueness
+    Database-->>Controller: Email Available
+    Controller->>Database: Create Member Record
+    Database-->>Controller: Member Created (Unverified)
+    Controller->>Email: Send Verification Email
+    Email-->>User: Verification Link
+    Controller-->>Web: Registration Success Message
+    
+    User->>Web: Click Verification Link
+    Web->>Controller: GET /members/verify/{token}
+    Controller->>Database: Validate Token
+    Database-->>Controller: Token Valid
+    Controller->>Database: Update Status to Active
+    Controller->>Admin: Add to Verification Queue
+    Controller-->>Web: Account Activated
+    
+    Admin->>Web: Review New Members
+    Web->>Controller: GET /members/verify_queue
+    Controller->>Database: Fetch Unverified Members
+    Database-->>Controller: Member List
+    Controller-->>Web: Display Queue
+    Admin->>Web: Approve/Reject Members
+    Web->>Controller: POST verification decisions
+    Controller->>Database: Update Member Status
+    Controller->>Email: Send approval/rejection emails
+```
+
 ### Member Permissions
 
 Members have permissions through their assigned roles. The system supports multiple roles per member, with different scopes (global, branch-specific, etc.).
+
+#### Role-Based Access Control
+
+```mermaid
+erDiagram
+    Member {
+        int id PK
+        string email_address UK
+        string sca_name
+        enum status
+        boolean is_minor
+        datetime birth_date
+        json warrantable_review
+    }
+    
+    MemberRole {
+        int id PK
+        int member_id FK
+        int role_id FK
+        int branch_id FK
+        datetime start_date
+        datetime end_date
+        boolean active
+    }
+    
+    Role {
+        int id PK
+        string name UK
+        boolean admin
+        json permissions
+    }
+    
+    Permission {
+        int id PK
+        string name UK
+        string resource
+        string action
+    }
+    
+    RolePermission {
+        int role_id FK
+        int permission_id FK
+    }
+    
+    Member ||--o{ MemberRole : has
+    Role ||--o{ MemberRole : assigned
+    Role ||--o{ RolePermission : contains
+    Permission ||--o{ RolePermission : granted
+```
 
 ## 4.2 Branches
 
@@ -131,7 +334,9 @@ Key operations on branches include:
 
 ## 4.3 Warrants
 
-The Warrants module manages the official appointments of officers and other warranted positions within the Kingdom.
+The Warrants module manages the official appointments of officers and other warranted positions within the Kingdom. It provides temporal validation for role-based access control through a sophisticated state machine and multi-level approval process.
+
+**Detailed Documentation:** [4.3 Warrant Lifecycle](4.3-warrant-lifecycle.md)
 
 ### Data Model
 
@@ -291,22 +496,21 @@ classDiagram
         +id: int
         +name: string
         +value: text
-        +value_type: string
-        +description: string
+        +type: string
         +required: bool
         +created: datetime
         +modified: datetime
+        +created_by: int
+        +modified_by: int
     }
 ```
 
 ### Value Types
 
-AppSettings supports several value types:
-- **string**: Simple text values
-- **int**: Integer values
-- **bool**: Boolean values (yes/no)
-- **yaml**: Structured data stored as YAML
+AppSettings supports several value types through the `type` field:
+- **string** (default): Simple text values
 - **json**: Structured data stored as JSON
+- **yaml**: Structured data stored as YAML
 
 ### Setting Categories
 
@@ -342,3 +546,54 @@ AppSettings provides an admin interface for managing settings, including:
 - Editing values
 - Adding new settings
 - Exporting settings as YAML
+
+## 4.6 View Patterns
+
+The View layer in KMP provides a comprehensive presentation system built on CakePHP's MVC architecture with Bootstrap UI integration and custom helpers for KMP-specific functionality.
+
+**Detailed Documentation:** [4.5 View Patterns](4.5-view-patterns.md)
+
+### Key Components
+
+- **AppView**: Base view class with integrated helper loading and Bootstrap UI framework
+- **KmpHelper**: Custom helper providing KMP-specific form controls, data conversion, and UI utilities
+- **View Cells**: Reusable UI components including AppNavCell, NavigationCell, and NotesCell
+- **Template System**: Hierarchical templates with responsive layouts and security integration
+
+### Architecture Overview
+
+```mermaid
+classDiagram
+    class AppView {
+        +initialize()
+        +loadHelper(string)
+        +loadPlugin(string)
+    }
+    
+    class KmpHelper {
+        +autoCompleteControl()
+        +comboBoxControl()
+        +bool()
+        +appNav()
+        +getAppSetting()
+    }
+    
+    class AppNavCell {
+        +display(array, Member, array)
+    }
+    
+    class NavigationCell {
+        +display(array, array)
+    }
+    
+    class NotesCell {
+        +display(string, int, array)
+    }
+    
+    AppView --> KmpHelper : uses
+    AppView --> AppNavCell : renders
+    AppView --> NavigationCell : renders
+    AppView --> NotesCell : renders
+```
+
+The view system provides advanced form controls, permission-based rendering, asset optimization, and comprehensive security patterns for safe user interface generation.

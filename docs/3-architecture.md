@@ -93,7 +93,10 @@ graph TD
 Key services include:
 - **WarrantManager**: Handles warrant processing and lifecycle
 - **ActiveWindowManager**: Manages date-bounded entities
-- **AuthorizationService**: Custom authorization logic
+- **AuthorizationService**: Custom authorization logic  
+- **CsvExportService**: Data export functionality
+- **NavigationRegistry**: Dynamic navigation menu management
+- **ViewCellRegistry**: UI component registration and rendering
 
 ### Event System
 
@@ -121,12 +124,19 @@ Common events include:
 
 ### StaticHelpers
 
-The `StaticHelpers` class provides global utility functions, particularly for managing application settings:
+The `StaticHelpers` class provides global utility functions throughout the KMP application, particularly for managing application settings:
 
 ```php
 // Example of StaticHelpers usage
 StaticHelpers::getAppSetting("KMP.ShortSiteTitle", "KMP", null, true);
 ```
+
+Key features include:
+- Application settings management with version-based updates
+- File system operations and image processing
+- Template processing with placeholder replacement
+- Security utilities for token generation
+- Configuration access with fallback support
 
 ## 3.3 Plugin System
 
@@ -151,7 +161,7 @@ Each plugin follows a standard structure:
 PluginName/
 ├── config/         # Plugin configuration and migrations
 ├── src/            # Plugin PHP code
-│   ├── Plugin.php  # Main plugin class (recommended name)
+│   ├── PluginNamePlugin.php  # Main plugin class (NamePlugin.php pattern)
 │   ├── Controller/ # Plugin controllers
 │   ├── Model/      # Plugin models
 │   ├── Services/   # Plugin services (including NavigationProvider)
@@ -165,7 +175,7 @@ PluginName/
 └── tests/          # Plugin tests
 ```
 
-> **Note:** For consistency, always use `Plugin.php` as the main plugin class. For plugin JavaScript, use `plugins/PluginName/assets/js/controllers/` for Stimulus controllers.
+> **Note:** The main plugin class follows the pattern `PluginNamePlugin.php` (e.g., `ActivitiesPlugin.php`, `OfficersPlugin.php`). For plugin JavaScript, use `plugins/PluginName/assets/js/controllers/` for Stimulus controllers.
 
 ### Plugin Registration
 
@@ -285,6 +295,218 @@ erDiagram
     Permissions ||--o{ PermissionPolicies : "defines"
     PermissionPolicies }o--|| Policies : "maps to"
     MemberRoles }o--|| Branches : "scoped to"
+```
+
+## 3.5 Model Behaviors
+
+KMP implements custom CakePHP behaviors to provide reusable model functionality across the application. These behaviors encapsulate common data management patterns and ensure consistency in how temporal data, JSON fields, and sortable lists are handled.
+
+### Behavior Architecture Overview
+
+```mermaid
+graph TD
+    Table[Table Class] --> Behavior[Model Behavior]
+    Behavior --> Database[(Database)]
+    Behavior --> Events[ORM Events]
+    Events --> BeforeSave[beforeSave]
+    Events --> AfterSave[afterSave]
+    Behavior --> Finder[Custom Finders]
+    Finder --> Query[Query Builder]
+```
+
+### ActiveWindow Behavior
+
+The `ActiveWindowBehavior` provides temporal filtering capabilities for entities with date-bounded lifecycles. This behavior is essential for managing time-sensitive data throughout KMP.
+
+#### Key Features
+- **Temporal Queries**: Find current, upcoming, or expired records
+- **Flexible Date Handling**: Support custom effective dates or defaults to current time  
+- **Null-Safe Expiration**: Handle records with no expiration date (permanent records)
+- **Group-Aware Filtering**: Respect entity relationships and hierarchies
+
+#### Database Schema Requirements
+```sql
+-- Tables using ActiveWindow behavior must have:
+start_on    DATETIME NOT NULL,  -- When record becomes active
+expires_on  DATETIME NULL       -- When record expires (NULL = never expires)
+```
+
+#### Usage Examples
+```php
+// In Table initialize() method
+$this->addBehavior('ActiveWindow');
+
+// Find currently active records
+$activeOfficers = $this->Officers->find('current');
+
+// Find upcoming assignments
+$upcomingWarrants = $this->Warrants->find('upcoming');
+
+// Historical queries with specific date
+$historicalDate = new DateTime('2024-01-01');
+$activeAtDate = $this->Officers->find('current', effectiveDate: $historicalDate);
+```
+
+#### KMP Use Cases
+- **Officer Assignments**: Track active, upcoming, and expired officer appointments
+- **Warrant Periods**: Manage temporal validity of member warrants  
+- **Activity Authorizations**: Handle time-bounded activity permissions
+- **Membership Status**: Track membership validity periods
+
+### JsonField Behavior
+
+The `JsonFieldBehavior` provides enhanced JSON field handling capabilities for tables with JSON columns, enabling deep querying into JSON structures using database-native functions.
+
+#### Key Features
+- **JSON Path Querying**: Query specific paths within JSON fields using $.notation
+- **Database-Native Functions**: Uses JSON_EXTRACT for optimal performance
+- **Flexible Value Matching**: Support various data types within JSON structures
+- **Query Builder Integration**: Seamless integration with CakePHP's query system
+
+#### Database Requirements
+- Database with JSON function support (MySQL 5.7+, PostgreSQL 9.3+, SQLite 3.38+)
+- JSON or TEXT columns storing valid JSON data
+
+#### Usage Examples
+```php
+// In Table initialize() method  
+$this->addBehavior('JsonField');
+
+// Query nested JSON data
+$membersWithNotifications = $this->Members->find()
+    ->addJsonWhere('additional_info', '$.preferences.notifications', true);
+
+// Search complex JSON structures
+$emergencyContacts = $this->Members->find()
+    ->addJsonWhere('additional_info', '$.emergency.relationship', 'spouse');
+```
+
+#### JSON Path Syntax
+- `$.field` - Root level field
+- `$.nested.field` - Nested object field  
+- `$.array[0]` - Array element by index
+- `$.array[*].field` - All array elements' field
+
+#### KMP Use Cases
+- **Member Additional Info**: Search preferences, contact details, emergency information
+- **Application Settings**: Query complex configuration structures
+- **Activity Metadata**: Search event details, requirements, custom fields
+- **Officer Qualifications**: Query certification details and specializations
+
+### Sortable Behavior
+
+The `SortableBehavior` provides comprehensive sortable list management for entities requiring position-based ordering. This behavior automatically manages position values and handles conflicts during reordering operations.
+
+#### Key Features
+- **Automatic Position Management**: Handle position assignment and conflict resolution
+- **Group-Based Sorting**: Support multiple sorted lists within the same table
+- **Flexible Movement Methods**: Move to top, bottom, before/after items, or specific positions
+- **Gap Management**: Automatically manage gaps and overlaps in position sequences
+- **Transaction Safety**: Atomic position updates with proper error handling
+- **Event Integration**: Seamless integration with CakePHP's ORM events
+
+#### Configuration Options
+```php
+$this->addBehavior('Sortable', [
+    'field' => 'position',           // Position field name (default: 'position')
+    'group' => ['category_id'],      // Grouping fields for separate lists
+    'start' => 1,                    // Starting position value (default: 1)  
+    'step' => 1,                     // Position increment (default: 1)
+]);
+```
+
+#### Database Schema Requirements
+```sql
+-- Tables using Sortable behavior need:
+position     INT NOT NULL,           -- Position field (configurable name)
+category_id  INT NULL,               -- Optional: grouping fields
+status       VARCHAR(50) NULL        -- Optional: additional grouping
+```
+
+#### Usage Examples
+```php
+// Basic reordering operations
+$this->Recommendations->toTop($itemId);
+$this->Recommendations->toBottom($itemId);
+$this->Recommendations->moveBefore($sourceId, $targetId);
+$this->Recommendations->moveAfter($sourceId, $targetId);
+$this->Recommendations->move($itemId, 5); // Move to position 5
+
+// Group-based sorting with multiple criteria
+$this->addBehavior('Sortable', [
+    'field' => 'stack_rank',
+    'group' => ['category_id', 'status'], // Each category+status combination is separate
+]);
+```
+
+#### KMP Use Cases
+- **Award Recommendations**: Stack ranking for recommendation prioritization
+- **Navigation Menus**: Menu item ordering and organization
+- **Activity Lists**: Event and activity display ordering
+- **Officer Assignments**: Priority ordering for multi-office holders
+- **Document Lists**: Ordered document presentation
+
+#### Group-Based Sorting
+When group fields are configured, sorting operates independently within each group:
+```php
+// Each combination of grouping fields maintains its own sorted list
+// Example: category_id=1,status='active' vs category_id=1,status='pending'
+$this->addBehavior('Sortable', [
+    'field' => 'priority',
+    'group' => ['category_id', 'status']
+]);
+```
+
+### Behavior Integration Patterns
+
+#### ORM Event Handling
+Behaviors integrate with CakePHP's ORM events to provide transparent functionality:
+
+```php
+// Automatic position assignment on save
+public function beforeSave(EventInterface $event, EntityInterface $entity): void
+{
+    if ($entity->isNew()) {
+        $entity->position = $this->getNew($this->_getConditions());
+    }
+}
+
+// Custom finders for specialized queries  
+public function findCurrent(SelectQuery $query, ?DateTime $effectiveDate = null): SelectQuery
+{
+    return $query->where([
+        $this->_table->getAlias() . '.start_on <=' => $effectiveDate,
+        'OR' => [
+            $this->_table->getAlias() . '.expires_on >=' => $effectiveDate,
+            $this->_table->getAlias() . '.expires_on IS' => null
+        ]
+    ]);
+}
+```
+
+#### Performance Considerations
+- **ActiveWindow**: Uses database indexes on date fields for optimal query performance
+- **JsonField**: JSON queries can be slower than normalized data; consider indexes on common paths
+- **Sortable**: Position updates may require multiple record modifications; use transactions for batch operations
+
+#### Testing Behaviors
+```php
+// Test behavior integration in unit tests
+public function testActiveWindowCurrentFinder()
+{
+    $currentDate = new DateTime('2024-01-15');
+    $result = $this->Officers->find('current', effectiveDate: $currentDate);
+    $this->assertNotEmpty($result);
+}
+
+public function testSortableMoveToTop()  
+{
+    $success = $this->Recommendations->toTop($this->recommendation->id);
+    $this->assertTrue($success);
+    
+    $updated = $this->Recommendations->get($this->recommendation->id);
+    $this->assertEquals(1, $updated->stack_rank);
+}
 ```
 
 #### Sequence Diagram: Authorization with Scoping

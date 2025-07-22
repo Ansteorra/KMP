@@ -1,1 +1,1 @@
-~/go/bin/mermerd -o ./scratch.mmd
+mermerd -o ./scratch.mmd

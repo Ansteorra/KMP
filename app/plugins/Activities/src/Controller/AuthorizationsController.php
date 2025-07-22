@@ -5,9 +5,151 @@ declare(strict_types=1);
 namespace Activities\Controller;
 
 /**
- * AuthorizationApprovals Controller
+ * AuthorizationsController - Member Activity Authorization Management
  *
- * @property \App\Model\Table\AuthorizationApprovalsTable $AuthorizationApprovals
+ * This controller manages the complete lifecycle of member activity authorizations within
+ * the Kingdom Management Portal. It provides interfaces for authorization requests, approvals,
+ * revocations, and administrative management of member authorizations.
+ *
+ * ## Core Functionality
+ *
+ * ### Authorization Lifecycle Management
+ * - **Request Processing**: Handles new authorization requests from members
+ * - **Approval Workflows**: Manages multi-level approval processes
+ * - **Revocation Handling**: Administrative revocation of active authorizations
+ * - **Status Tracking**: Complete authorization status monitoring and reporting
+ *
+ * ### Administrative Features
+ * - **Bulk Operations**: Administrative tools for managing multiple authorizations
+ * - **Reporting Interface**: Authorization status and participation reporting
+ * - **Member History**: Complete authorization history for members
+ * - **Activity Analytics**: Authorization analytics for activity management
+ *
+ * ## Security Architecture
+ *
+ * ### Authorization Integration
+ * All controller actions are protected by KMP's RBAC system:
+ * - **Policy-Based Access**: Each action requires appropriate permissions
+ * - **Entity-Level Authorization**: Individual authorization access control
+ * - **Branch Scoping**: Operations respect organizational boundaries
+ * - **Audit Trail**: All actions logged with user accountability
+ *
+ * ### Public API Endpoints
+ * Limited public access for specific member services:
+ * - **getMemberAuthorizations**: Public endpoint for member authorization lookup
+ * - **Authentication Bypass**: Specific endpoints excluded from authentication requirements
+ * - **Security Validation**: Public endpoints include additional security measures
+ *
+ * ## Service Integration
+ *
+ * ### AuthorizationManagerInterface
+ * Primary business logic handled through service layer:
+ * - **Transactional Operations**: All authorization changes handled transactionally
+ * - **Business Rule Enforcement**: Service layer enforces organizational policies
+ * - **Validation Logic**: Comprehensive validation of authorization operations
+ * - **Error Handling**: Structured error handling with user feedback
+ *
+ * ### ActiveWindow Integration
+ * Authorization temporal management through ActiveWindow system:
+ * - **Expiration Handling**: Automatic authorization expiration processing
+ * - **Renewal Workflows**: Authorization renewal and extension management
+ * - **Historical Tracking**: Complete authorization history preservation
+ *
+ * ## Controller Architecture
+ *
+ * ### Request Processing
+ * - **POST-Only Operations**: Sensitive operations require POST methods
+ * - **CSRF Protection**: Built-in CSRF protection for form submissions
+ * - **Input Validation**: Comprehensive input validation and sanitization
+ * - **Error Handling**: Graceful error handling with user feedback
+ *
+ * ### Response Management
+ * - **Flash Messaging**: User feedback through flash message system
+ * - **JSON APIs**: RESTful JSON responses for AJAX operations
+ * - **Redirect Handling**: Appropriate redirects after operations
+ * - **Error Responses**: Structured error responses for failed operations
+ *
+ * ## Usage Examples
+ *
+ * ### Authorization Request
+ * ```php
+ * // Member requests authorization for activity
+ * POST /activities/authorizations/request
+ * Data: {
+ *     'activity_id': 123,
+ *     'approver_id': 456,
+ *     'notes': 'Request for heavy weapons authorization'
+ * }
+ * ```
+ *
+ * ### Authorization Approval
+ * ```php
+ * // Approver processes authorization request
+ * POST /activities/authorizations/approve/789
+ * Data: {
+ *     'approval_notes': 'Member demonstrates required competency',
+ *     'next_approver_id': 101 // Optional for multi-level approval
+ * }
+ * ```
+ *
+ * ### Authorization Revocation
+ * ```php
+ * // Administrator revokes active authorization
+ * POST /activities/authorizations/revoke/789
+ * Data: {
+ *     'revoked_reason': 'Safety violation during event'
+ * }
+ * ```
+ *
+ * ### Member Authorization Lookup
+ * ```php
+ * // Public API for member authorization status
+ * GET /activities/authorizations/member/123
+ * Response: {
+ *     'authorizations': [
+ *         {
+ *             'activity': 'Heavy Weapons',
+ *             'status': 'approved',
+ *             'expires_on': '2025-12-31'
+ *         }
+ *     ]
+ * }
+ * ```
+ *
+ * ## Administrative Interfaces
+ *
+ * ### Authorization Dashboard
+ * - **Pending Approvals**: Queue of authorization requests requiring approval
+ * - **Status Overview**: Summary of authorization statuses across organization
+ * - **Expiration Alerts**: Notifications for upcoming authorization expirations
+ * - **Activity Metrics**: Participation statistics and trends
+ *
+ * ### Member Management
+ * - **Authorization History**: Complete authorization timeline for members
+ * - **Status Changes**: Detailed log of authorization status changes
+ * - **Compliance Tracking**: Member compliance with authorization requirements
+ * - **Renewal Management**: Tools for managing authorization renewals
+ *
+ * ## Error Handling and Validation
+ *
+ * ### Common Error Scenarios
+ * - **Invalid Parameters**: Graceful handling of invalid authorization IDs
+ * - **Permission Errors**: Clear messaging for insufficient permissions
+ * - **Business Rule Violations**: Detailed feedback for policy violations
+ * - **Database Errors**: Proper exception handling and user feedback
+ *
+ * ### Validation Patterns
+ * - **Input Sanitization**: All user input properly validated and sanitized
+ * - **Business Logic Validation**: Service layer validates business rules
+ * - **Authorization Checks**: Entity-level authorization before operations
+ * - **Data Integrity**: Referential integrity maintained across operations
+ *
+ * @property \Activities\Model\Table\AuthorizationsTable $Authorizations Authorization data access
+ * @see \Activities\Services\AuthorizationManagerInterface Primary business logic service
+ * @see \Activities\Model\Entity\Authorization Authorization entity
+ * @see \App\Controller\AppController Parent controller with common functionality
+ * @package Activities\Controller
+ * @since KMP 1.0
  */
 
 use Activities\Services\AuthorizationManagerInterface;

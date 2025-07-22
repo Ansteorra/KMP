@@ -7,7 +7,7 @@ layout: default
 
 ## 1.1 About KMP
 
-The Kingdom Management Portal (KMP) is a comprehensive web-based membership management system specifically designed for SCA (Society for Creative Anachronism) Kingdoms. Built on the CakePHP framework, KMP provides a robust and extensible platform that allows SCA Kingdoms to manage their membership data, activities, officers, awards, and various administrative functions.
+The Kingdom Management Portal (KMP) is a comprehensive web-based membership management system specifically designed for SCA (Society for Creative Anachronism) Kingdoms. Built on the CakePHP 5.x framework, KMP provides a robust and extensible platform that allows SCA Kingdoms to manage their membership data, activities, officers, awards, and various administrative functions.
 
 ### Key Features
 
@@ -41,7 +41,7 @@ KMP addresses these needs through a modern web application that is accessible bo
 
 To run the Kingdom Management Portal, your server should meet the following requirements:
 
-- **PHP**: Version 8.0 or higher
+- **PHP**: Version 8.1 or higher
   - Required Extensions:
     - **Core & Basics**:
       - intl (Internationalization functions)
