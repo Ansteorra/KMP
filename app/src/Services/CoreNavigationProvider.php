@@ -27,24 +27,31 @@ class CoreNavigationProvider
         return [
             [
                 'type' => 'parent',
+                'label' => 'Action Items',
+                'icon' => 'bi-people',
+                'id' => 'navheader_actionitems',
+                'order' => 0,
+            ],
+            [
+                'type' => 'parent',
                 'label' => 'Members',
                 'icon' => 'bi-people',
                 'id' => 'navheader_members',
-                'order' => 0,
+                'order' => 10,
             ],
             [
                 'type' => 'parent',
                 'label' => 'Reports',
                 'icon' => 'bi-backpack4',
                 'id' => 'navheader_reports',
-                'order' => 10,
+                'order' => 20,
             ],
             [
                 'type' => 'parent',
                 'label' => 'Config',
                 'icon' => 'bi-database-gear',
                 'id' => 'navheader_config',
-                'order' => 20,
+                'order' => 30,
             ],
             [
                 'type' => 'parent',
@@ -52,6 +59,17 @@ class CoreNavigationProvider
                 'icon' => 'bi-house-lock',
                 'id' => 'navheader_security',
                 'order' => 99999,
+            ],
+            [
+                'type' => 'link',
+                'mergePath' => ['Action Items'],
+                'label' => "test",
+                'icon' => 'bi-person-fill',
+                'order' => 0,
+                'url' => [
+                    'controller' => 'Members',
+                    'action' => 'profile'
+                ],
             ],
             [
                 'type' => 'link',
