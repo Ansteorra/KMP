@@ -1,7 +1,92 @@
 <?php
 
 /**
- * @var \Cake\View\View $this
+ * KMP View Record Layout Template
+ * 
+ * Specialized layout template designed for detailed record viewing interfaces.
+ * This layout provides a comprehensive view structure optimized for displaying
+ * individual entity records with full navigation and contextual tools.
+ * 
+ * Features:
+ * - Full-width record display with responsive design
+ * - Integrated navigation sidebar for contextual menu access
+ * - Header management with configurable links and branding
+ * - Session extension management with automatic keepalive
+ * - Detailed record view optimization with proper spacing
+ * - Bootstrap 5 responsive grid system for content organization
+ * 
+ * Layout Structure:
+ * - Header: Fixed navigation bar with logo, header links, and user controls
+ * - Sidebar: Full navigation menu with record context awareness
+ * - Main Content: Optimized for detailed record display and related data
+ * - Record Context: Enhanced spacing and typography for data presentation
+ * 
+ * Use Cases:
+ * - Member profile pages with comprehensive details
+ * - Warrant record viewing with related information
+ * - Branch detail pages with organizational structure
+ * - Officer assignment records with context
+ * - Administrative record review interfaces
+ * 
+ * Design Philosophy:
+ * - Maximum content visibility with minimal UI distraction
+ * - Consistent navigation access across all record views
+ * - Responsive design ensuring readability on all devices
+ * - Integration with KMP's permission system for context-aware menus
+ * 
+ * Navigation Integration:
+ * - Full navigation sidebar remains available for quick access
+ * - Context-aware menu items based on current record type
+ * - Permission-based menu filtering for authorized actions
+ * - Breadcrumb support through navigation context
+ * 
+ * Session Management:
+ * - Automatic session extension during record review
+ * - User activity tracking for detailed viewing sessions
+ * - Timeout prevention for lengthy record analysis
+ * 
+ * Content Optimization:
+ * - Enhanced spacing for detailed data presentation
+ * - Typography optimized for extended reading
+ * - Responsive layout adaptations for various screen sizes
+ * - Print-friendly styling considerations
+ * 
+ * Integration Points:
+ * - KMP helper system for settings and block management
+ * - Navigation view cell for contextual menu generation
+ * - Flash messaging system for user feedback
+ * - Session extension controller for activity management
+ * - Bootstrap component system for consistent UI
+ * 
+ * Usage Examples:
+ * ```php
+ * // In a view action controller:
+ * $this->extend('/layout/TwitterBootstrap/view_record');
+ * 
+ * // Set page title for record view:
+ * echo $this->KMP->startBlock('title');
+ * echo $member->sca_name . ' - Member Profile';
+ * $this->KMP->endBlock();
+ * ```
+ * 
+ * Template Integration:
+ * ```html
+ * <!-- Record view templates can utilize enhanced spacing -->
+ * <div class="record-details">
+ *     <h2>Member Information</h2>
+ *     <!-- Detailed record content here -->
+ * </div>
+ * ```
+ * 
+ * @var \App\View\AppView $this The view instance with KMP helpers
+ * @var array $headerLinks Dynamic header links from application settings
+ * @var string $fullBaseUrl Application base URL for session management
+ * @var string $content Record view content from child templates
+ * @var mixed $entity Optional entity being viewed for context
+ * 
+ * @see \App\View\Cell\NavigationCell For navigation menu generation
+ * @see /assets/js/controllers/session-extender-controller.js For session management
+ * @see /templates/layout/TwitterBootstrap/dashboard.php For dashboard layout variant
  */
 
 use Cake\Core\Configure;
@@ -50,9 +135,9 @@ $url = $fullBaseUrl . "/keepalive";
                     $css = $parts[1];
                 }
             ?>
-            <li class="nav-item text-nowrap mx-1">
-                <a class="btn btn-outline-secondary <?= $css ?>" href="<?= $url ?>"><?= $key ?></a>
-            </li>
+                <li class="nav-item text-nowrap mx-1">
+                    <a class="btn btn-outline-secondary <?= $css ?>" href="<?= $url ?>"><?= $key ?></a>
+                </li>
             <?php endforeach; ?>
             <li class="nav-item text-nowrap mx-1">
                 <?= $this->Html->link(

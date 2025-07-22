@@ -1,7 +1,211 @@
 
-
 import { Controller } from "@hotwired/stimulus"
 
+/**
+ * Awards Recommendation Edit Controller
+ * 
+ * Comprehensive Stimulus controller for recommendation editing with state management and workflow 
+ * control. Provides interactive form functionality for modifying existing award recommendations 
+ * with dynamic state validation, award selection workflow, and comprehensive administrative management.
+ * 
+ * ## Edit Workflow Features
+ * 
+ * **State Management:**
+ * - Dynamic state transition validation with business rule enforcement
+ * - Field visibility control based on recommendation state and workflow rules
+ * - Required field management with state-aware validation
+ * - Form state persistence with Turbo Frame integration
+ * 
+ * **Award Configuration:**
+ * - Domain/award hierarchy management with existing data restoration
+ * - Specialty population based on award configuration and current selection
+ * - Award eligibility validation with existing recommendation context
+ * - Dynamic form field management based on award selection
+ * 
+ * **Member Integration:**
+ * - Member profile loading with external links display for context
+ * - Branch management for SCA and non-SCA members
+ * - Member validation with existing recommendation data preservation
+ * - Profile context display for administrative review
+ * 
+ * ## Administrative Interface Features
+ * 
+ * **Turbo Frame Integration:**
+ * - Dynamic form loading with recommendation ID context
+ * - Form URL management with recommendation-specific routing
+ * - Real-time form updates without page refresh
+ * - Outlet communication for coordinated interface updates
+ * 
+ * **Workflow Control:**
+ * - State-based field rules with dynamic application
+ * - Business rule enforcement through state validation
+ * - Administrative override capabilities with proper authorization
+ * - Form validation with comprehensive error handling
+ * 
+ * **Data Restoration:**
+ * - Existing recommendation data loading and form population
+ * - Autocomplete initialization with current selection values
+ * - State-aware form configuration on load
+ * - Field dependency management with existing data
+ * 
+ * ## State Transition Management
+ * 
+ * **Dynamic Rules Application:**
+ * - JSON-based state rules parsing and application
+ * - Field visibility control based on recommendation state
+ * - Required field enforcement with state-specific requirements
+ * - Disabled field management for workflow control
+ * 
+ * **Business Logic Integration:**
+ * - Event planning integration with date validation
+ * - Award ceremony coordination with event selection
+ * - Close reason management for workflow completion
+ * - Administrative note integration with state tracking
+ * 
+ * ## Usage Examples
+ * 
+ * ### Basic Recommendation Edit Form
+ * ```html
+ * <!-- Recommendation edit with state management -->
+ * <form data-controller="awards-rec-edit" 
+ *       data-awards-rec-edit-public-profile-url-value="/members/public-profile"
+ *       data-awards-rec-edit-award-list-url-value="/awards/by-domain"
+ *       data-awards-rec-edit-form-url-value="/awards/recommendations/edit"
+ *       data-awards-rec-edit-turbo-frame-url-value="/awards/recommendations/turbo-edit-form">
+ * 
+ *   <!-- Hidden state rules for dynamic field management -->
+ *   <script type="application/json" data-awards-rec-edit-target="stateRulesBlock">
+ *     {
+ *       "Approved": {
+ *         "Visible": ["planToGiveBlock"],
+ *         "Required": ["planToGiveEvent"]
+ *       },
+ *       "Given": {
+ *         "Visible": ["givenBlock"],
+ *         "Required": ["givenDate"],
+ *         "Disabled": ["domain", "award", "specialty"]
+ *       },
+ *       "Closed": {
+ *         "Visible": ["closeReasonBlock"],
+ *         "Required": ["closeReason"],
+ *         "Disabled": ["domain", "award", "specialty", "scaMember"]
+ *       }
+ *     }
+ *   </script>
+ * 
+ *   <!-- Member Information -->
+ *   <div class="mb-3">
+ *     <label>SCA Member</label>
+ *     <input type="text" data-awards-rec-edit-target="scaMember" 
+ *            data-action="change->awards-rec-edit#loadScaMemberInfo" 
+ *            class="form-control">
+ *     <div data-awards-rec-edit-target="externalLinks" class="member-links"></div>
+ *     <div class="form-check">
+ *       <input type="checkbox" data-awards-rec-edit-target="notFound">
+ *       <label>Member not found in SCA database</label>
+ *     </div>
+ *     <input type="text" data-awards-rec-edit-target="branch" 
+ *            placeholder="Branch Name" class="form-control" hidden>
+ *   </div>
+ * 
+ *   <!-- Award Selection -->
+ *   <div class="mb-3">
+ *     <label>Award Domain</label>
+ *     <select data-awards-rec-edit-target="domain" 
+ *             data-action="change->awards-rec-edit#populateAwardDescriptions" 
+ *             class="form-select">
+ *       <option value="">Select Domain</option>
+ *     </select>
+ *   </div>
+ * 
+ *   <input type="hidden" data-awards-rec-edit-target="award" name="award_id">
+ *   <select data-awards-rec-edit-target="specialty" name="specialty" 
+ *           class="form-select">
+ *     <option value="">Select Award First</option>
+ *   </select>
+ * 
+ *   <!-- State Management -->
+ *   <div class="mb-3">
+ *     <label>Recommendation State</label>
+ *     <select data-awards-rec-edit-target="state" 
+ *             data-action="change->awards-rec-edit#setFieldRules" 
+ *             class="form-select">
+ *       <option value="Submitted">Submitted</option>
+ *       <option value="Under Review">Under Review</option>
+ *       <option value="Approved">Approved</option>
+ *       <option value="Given">Given</option>
+ *       <option value="Closed">Closed</option>
+ *     </select>
+ *   </div>
+ * 
+ *   <!-- State-dependent fields -->
+ *   <div data-awards-rec-edit-target="planToGiveBlock" style="display: none;">
+ *     <label>Plan to Give at Event</label>
+ *     <select data-awards-rec-edit-target="planToGiveEvent" name="event_id" 
+ *             class="form-select">
+ *       <option value="">Select Event</option>
+ *     </select>
+ *   </div>
+ * 
+ *   <div data-awards-rec-edit-target="givenBlock" style="display: none;">
+ *     <label>Date Given</label>
+ *     <input type="date" data-awards-rec-edit-target="givenDate" 
+ *            name="given_date" class="form-control">
+ *   </div>
+ * 
+ *   <div data-awards-rec-edit-target="closeReasonBlock" style="display: none;">
+ *     <label>Close Reason</label>
+ *     <textarea data-awards-rec-edit-target="closeReason" name="close_reason" 
+ *               class="form-control"></textarea>
+ *   </div>
+ * 
+ *   <button type="submit" data-action="awards-rec-edit#submit" 
+ *           class="btn btn-primary">Update Recommendation</button>
+ * </form>
+ * ```
+ * 
+ * ### Turbo Frame Integration
+ * ```html
+ * <!-- Edit form with outlet communication -->
+ * <div data-controller="awards-rec-edit outlet-btn" 
+ *      data-awards-rec-edit-outlet-btn-outlet=".edit-button-controller"
+ *      data-awards-rec-edit-form-url-value="/awards/recommendations/edit"
+ *      data-awards-rec-edit-turbo-frame-url-value="/awards/recommendations/turbo-edit-form">
+ * 
+ *   <turbo-frame id="recommendation-edit-frame" 
+ *                data-awards-rec-edit-target="turboFrame">
+ *     <!-- Dynamic form content loaded here -->
+ *   </turbo-frame>
+ * 
+ *   <input type="hidden" data-awards-rec-edit-target="recId" value="">
+ * </div>
+ * ```
+ * 
+ * ### State Rules Configuration
+ * ```javascript
+ * // Example state rules for dynamic field management
+ * const stateRules = {
+ *   "Submitted": {
+ *     "Disabled": [],
+ *     "Required": ["award", "reason"],
+ *     "Visible": []
+ *   },
+ *   "Approved": {
+ *     "Disabled": ["scaMember"],
+ *     "Required": ["award", "reason", "planToGiveEvent"],
+ *     "Visible": ["planToGiveBlock"]
+ *   },
+ *   "Given": {
+ *     "Disabled": ["domain", "award", "specialty", "scaMember"],
+ *     "Required": ["award", "reason", "givenDate"],
+ *     "Visible": ["givenBlock"]
+ *   }
+ * };
+ * ```
+ * 
+ * @class AwardsRecommendationEditForm
+ * @extends {Controller}
+ */
 class AwardsRecommendationEditForm extends Controller {
     static targets = [
         "scaMember",
@@ -32,23 +236,71 @@ class AwardsRecommendationEditForm extends Controller {
     };
     static outlets = ['outlet-btn'];
 
+    /**
+     * Set recommendation ID for form context
+     * 
+     * Updates Turbo Frame source and form action URL based on recommendation ID
+     * from outlet communication for coordinated interface updates.
+     * 
+     * @param {Event} event - Custom event with recommendation ID
+     * @returns {void}
+     */
     setId(event) {
         this.turboFrameTarget.setAttribute("src", this.turboFrameUrlValue + "/" + event.detail.id);
         this.element.setAttribute("action", this.formUrlValue + "/" + event.detail.id);
     }
+
+    /**
+     * Handle outlet button connection
+     * 
+     * Establishes communication with outlet button controller for
+     * coordinated form updates and recommendation ID management.
+     * 
+     * @param {Object} outlet - Connected outlet controller
+     * @param {Element} element - Outlet DOM element
+     * @returns {void}
+     */
     outletBtnOutletConnected(outlet, element) {
         outlet.addListener(this.setId.bind(this));
     }
+
+    /**
+     * Handle outlet button disconnection
+     * 
+     * Removes event listener when outlet button disconnects
+     * for proper cleanup and memory management.
+     * 
+     * @param {Object} outlet - Disconnected outlet controller
+     * @returns {void}
+     */
     outletBtnOutletDisconnected(outlet) {
         outlet.removeListener(this.setId.bind(this));
     }
 
-
+    /**
+     * Submit form with field validation
+     * 
+     * Enables all form fields before submission to ensure data integrity
+     * and proper form processing by the backend controller.
+     * 
+     * @param {Event} event - Form submit event
+     * @returns {void}
+     */
     submit(event) {
         this.notFoundTarget.disabled = false;
         this.scaMemberTarget.disabled = false;
         this.specialtyTarget.disabled = false;
     }
+
+    /**
+     * Set selected award and populate specialties
+     * 
+     * Handles award selection and triggers specialty population based on
+     * award configuration with existing data preservation.
+     * 
+     * @param {Event} event - Click event from award selection
+     * @returns {void}
+     */
     setAward(event) {
         let awardId = event.target.dataset.awardId;
         this.awardTarget.value = awardId;
@@ -56,6 +308,16 @@ class AwardsRecommendationEditForm extends Controller {
             this.populateSpecialties(event);
         }
     }
+
+    /**
+     * Populate award descriptions based on domain selection
+     * 
+     * Fetches awards for selected domain and populates award selection interface
+     * with existing data restoration and autocomplete initialization.
+     * 
+     * @param {Event} event - Change event from domain selection
+     * @returns {void}
+     */
     populateAwardDescriptions(event) {
         let url = this.awardListUrlValue + "/" + event.target.value;
         fetch(url, this.optionsForFetch())
@@ -90,6 +352,16 @@ class AwardsRecommendationEditForm extends Controller {
                 }
             });
     }
+
+    /**
+     * Populate specialties based on award selection
+     * 
+     * Updates specialty dropdown based on selected award configuration with
+     * existing data restoration and autocomplete initialization.
+     * 
+     * @param {Event} event - Award selection event
+     * @returns {void}
+     */
     populateSpecialties(event) {
         let awardId = this.awardTarget.value;
         let options = this.awardTarget.options;
@@ -115,6 +387,15 @@ class AwardsRecommendationEditForm extends Controller {
         }
     }
 
+    /**
+     * Load SCA member information and context
+     * 
+     * Handles member ID validation, profile loading, and branch field management
+     * based on member discovery with existing recommendation context.
+     * 
+     * @param {Event} event - Input change event from member field
+     * @returns {void}
+     */
     loadScaMemberInfo(event) {
         this.externalLinksTarget.innerHTML = "";
 
@@ -133,6 +414,14 @@ class AwardsRecommendationEditForm extends Controller {
 
     }
 
+    /**
+     * Get fetch options for AJAX requests
+     * 
+     * Provides standardized headers for JSON API communication with proper
+     * AJAX identification and content type specification.
+     * 
+     * @returns {Object} Fetch options object with headers
+     */
     optionsForFetch() {
         return {
             headers: {
@@ -142,6 +431,15 @@ class AwardsRecommendationEditForm extends Controller {
         }
     }
 
+    /**
+     * Load member profile data from API
+     * 
+     * Fetches member profile information and displays external links
+     * for member context and administrative review.
+     * 
+     * @param {number} memberId - The member ID to load
+     * @returns {void}
+     */
     loadMember(memberId) {
         let url = this.publicProfileUrlValue + "/" + memberId;
         fetch(url, this.optionsForFetch())
@@ -172,16 +470,42 @@ class AwardsRecommendationEditForm extends Controller {
                 }
             });
     }
+
+    /**
+     * Handle SCA member target connection
+     * 
+     * Initializes member information loading when member field connects
+     * if existing value is present for data restoration.
+     * 
+     * @returns {void}
+     */
     scaMemberTargetConnected() {
         if (this.scaMemberTarget.value != "") {
             this.loadScaMemberInfo({ target: { value: this.scaMemberTarget.value } });
         }
     }
+
+    /**
+     * Handle state target connection
+     * 
+     * Initializes field rules when state selector connects to ensure
+     * proper form configuration for existing recommendations.
+     * 
+     * @returns {void}
+     */
     stateTargetConnected() {
         console.log("status connected");
         this.setFieldRules();
     }
 
+    /**
+     * Apply dynamic field rules based on recommendation state
+     * 
+     * Manages form field visibility, requirements, and disabled state based on
+     * the recommendation state with comprehensive rule application and data preservation.
+     * 
+     * @returns {void}
+     */
     setFieldRules() {
         console.log("setting field rules");
         var rulesstring = this.stateRulesBlockTarget.textContent;
@@ -239,9 +563,27 @@ class AwardsRecommendationEditForm extends Controller {
             }
         }
     }
+
+    /**
+     * Initialize edit controller
+     * 
+     * Sets up the edit controller for recommendation modification
+     * with proper form state and outlet communication.
+     * 
+     * @returns {void}
+     */
     connect() {
 
     }
+
+    /**
+     * Handle recommendation ID target connection
+     * 
+     * Updates form action URL when recommendation ID connects to ensure
+     * proper form submission routing for specific recommendations.
+     * 
+     * @returns {void}
+     */
     recIdTargetConnected() {
         let recId = this.recIdTarget.value;
         let actionUrl = this.element.getAttribute("action");

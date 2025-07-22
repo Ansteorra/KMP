@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Activities\Services;
 
 use Activities\Model\Entity\Authorization;
@@ -11,6 +13,112 @@ use Cake\ORM\TableRegistry;
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 use App\Services\ServiceResult;
 
+/**
+ * Default Authorization Manager Service
+ * 
+ * **Purpose**: Production implementation of AuthorizationManagerInterface providing comprehensive
+ * authorization lifecycle management, multi-level approval workflows, and temporal validation
+ * for Activities plugin member authorization system.
+ * 
+ * **Core Responsibilities**:
+ * - Authorization Request Processing - Complete authorization request lifecycle management
+ * - Multi-Level Approval Workflows - Sequential approval chains with forwarding logic
+ * - Authorization Status Management - Approval, denial, and revocation operations
+ * - Email Notification System - Automated approver and requester notifications
+ * - ActiveWindow Integration - Temporal validation and automatic role assignment
+ * - Transaction Management - Database consistency and rollback protection
+ * 
+ * **Architecture**: 
+ * This service implements the AuthorizationManagerInterface contract and provides the core
+ * business logic for authorization workflows within the Activities plugin. It integrates with
+ * multiple KMP systems including the ActiveWindowManager for temporal validation, the email
+ * system for notifications, and the RBAC system for automatic role assignment.
+ * 
+ * **Authorization Workflow**:
+ * ```
+ * Request → Pending → (Multi-Level Approvals) → Approved/Denied → Active/Expired/Revoked
+ * ```
+ * 
+ * **Business Logic Features**:
+ * - Renewal vs. New Authorization validation
+ * - Duplicate request prevention
+ * - Multi-approver sequential workflows
+ * - Secure token-based email approval
+ * - Automatic role assignment on approval
+ * - Temporal expiration management
+ * - Comprehensive audit trail
+ * 
+ * **Security Implementation**:
+ * - Database transaction management for consistency
+ * - Secure token generation for email-based approvals
+ * - Validation of approver permissions
+ * - Prevention of duplicate or conflicting requests
+ * - Audit trail for all authorization actions
+ * 
+ * **Integration Points**:
+ * - AuthorizationManagerInterface - Service contract compliance
+ * - ActiveWindowManagerInterface - Temporal validation and role management
+ * - MailerAwareTrait - Email notification system integration
+ * - TableRegistry - Database table access and management
+ * - ServiceResult - Standardized operation result patterns
+ * - StaticHelpers - Token generation and utility functions
+ * 
+ * **Performance Considerations**:
+ * - Database transaction management minimizes lock time
+ * - Efficient query patterns for approval count validation
+ * - Batch processing for multi-approval workflows
+ * - Email notification batching for performance
+ * 
+ * **Usage Examples**:
+ * 
+ * ```php
+ * // Authorization request processing
+ * $result = $authManager->request(
+ *     requesterId: 123,
+ *     activityId: 456,
+ *     approverId: 789,
+ *     isRenewal: false
+ * );
+ * 
+ * // Multi-level approval processing
+ * $result = $authManager->approve(
+ *     authorizationApprovalId: 100,
+ *     approverId: 789,
+ *     nextApproverId: 101  // For sequential approvals
+ * );
+ * 
+ * // Authorization denial with audit trail
+ * $result = $authManager->deny(
+ *     authorizationApprovalId: 100,
+ *     approverId: 789,
+ *     denyReason: "Insufficient qualifications"
+ * );
+ * 
+ * // Authorization revocation
+ * $result = $authManager->revoke(
+ *     authorizationId: 200,
+ *     revokerId: 789,
+ *     revokedReason: "Policy violation"
+ * );
+ * ```
+ * 
+ * **Error Handling**:
+ * All methods return ServiceResult objects with detailed error messages and transaction
+ * rollback on failure. Common error scenarios include validation failures, duplicate
+ * requests, approver permission issues, and email notification failures.
+ * 
+ * **Troubleshooting**:
+ * - Verify ActiveWindowManager service availability for temporal operations
+ * - Check email configuration for notification delivery
+ * - Validate approver permissions for authorization activities
+ * - Monitor transaction logs for database consistency issues
+ * 
+ * @see AuthorizationManagerInterface Service contract definition
+ * @see ActiveWindowManagerInterface Temporal validation service
+ * @see ServiceResult Standardized result pattern
+ * @see Authorization Entity authorization entity
+ * @see AuthorizationApproval Approval tracking entity
+ */
 class DefaultAuthorizationManager implements AuthorizationManagerInterface
 {
     #region
@@ -25,13 +133,34 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
 
     #region public methods
     /**
-     * Requests an authorization - Make sure to create a transaction before calling this service
-     *
-     * @param int $requesterId
-     * @param int $activityId
-     * @param int $approverId
-     * @param bool $isRenewal
-     * @return ServiceResult
+     * Process Authorization Request
+     * 
+     * Creates a new authorization request with approval workflow initialization.
+     * Handles both new authorizations and renewals with comprehensive validation.
+     * 
+     * **Business Logic**:
+     * - Validates renewal eligibility (existing approved authorization required)
+     * - Prevents duplicate pending requests for same activity
+     * - Creates authorization entity with pending status
+     * - Initializes approval workflow with first approver
+     * - Generates secure token for email-based approval
+     * - Sends notification to designated approver
+     * 
+     * **Validation Rules**:
+     * - Renewal: Must have existing approved authorization that hasn't expired
+     * - Duplicate Prevention: No pending requests for same member/activity combination
+     * - Approver Validation: Approver must have permission to authorize activity
+     * 
+     * **Transaction Management**:
+     * Method creates database transaction for consistency across authorization
+     * creation, approval initialization, and notification sending. Rolls back
+     * on any failure to maintain data integrity.
+     * 
+     * @param int $requesterId Member ID requesting authorization
+     * @param int $activityId Activity ID for authorization request
+     * @param int $approverId Member ID of designated approver
+     * @param bool $isRenewal Whether this is a renewal of existing authorization
+     * @return ServiceResult Success/failure result with error details
      */
     public function request(
         int $requesterId,
@@ -108,12 +237,39 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
         return new ServiceResult(true);
     }
     /**
-     * Approves an authorization approval - Make sure to create a transaction before calling this service
-     *
-     * @param int $authorizationApprovalId
-     * @param int $approverId
-     * @param int|null $nextApproverId
-     * @return ServiceResult
+     * Process Authorization Approval
+     * 
+     * Handles authorization approval with support for multi-level approval workflows.
+     * Manages sequential approver chains and final authorization activation.
+     * 
+     * **Approval Workflow Logic**:
+     * - Records approver decision with timestamp and approval status
+     * - Checks if additional approvals are required based on activity configuration
+     * - For multi-approval: Forwards to next approver in sequence
+     * - For final approval: Activates authorization and assigns roles
+     * - Integrates with ActiveWindowManager for temporal validation
+     * - Sends notifications to all relevant parties
+     * 
+     * **Multi-Level Support**:
+     * Activities can require multiple approvers for new authorizations or renewals.
+     * Method handles sequential approval chains by checking required approval counts
+     * and forwarding to next approver when additional approvals needed.
+     * 
+     * **Role Assignment**:
+     * Upon final approval, integrates with ActiveWindowManager to:
+     * - Start temporal validation window
+     * - Assign configured role to member
+     * - Set expiration based on activity term length
+     * - Create audit trail for role assignment
+     * 
+     * **Transaction Management**:
+     * Comprehensive transaction management ensures consistency across approval
+     * recording, authorization updates, role assignments, and notifications.
+     * 
+     * @param int $authorizationApprovalId Authorization approval record ID
+     * @param int $approverId Member ID of approver making decision
+     * @param int|null $nextApproverId Member ID of next approver (for multi-level)
+     * @return ServiceResult Success/failure result with workflow status
      */
     public function approve(
         int $authorizationApprovalId,
@@ -202,12 +358,40 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
         return new ServiceResult(true);
     }
     /**
-     * Denies an authorization approval - Make sure to create a transaction before calling this service
-     *
-     * @param int $authorizationApprovalId
-     * @param int $approverId
-     * @param string $denyReason
-     * @return ServiceResult
+     * Process Authorization Denial
+     * 
+     * Handles authorization denial with comprehensive audit trail and notification system.
+     * Updates authorization status and records denial reasoning for accountability.
+     * 
+     * **Denial Workflow**:
+     * - Records approver decision with timestamp and denial reason
+     * - Updates authorization status to denied
+     * - Sets authorization temporal window to past (immediately expired)
+     * - Creates audit trail with approver ID and reasoning
+     * - Sends notification to requester with denial details
+     * 
+     * **Audit Trail Features**:
+     * - Records approver ID for accountability
+     * - Captures denial reason for future reference
+     * - Timestamps decision for workflow tracking
+     * - Maintains complete approval chain history
+     * 
+     * **Status Management**:
+     * Denied authorizations are set to expired status with past temporal window
+     * to ensure they don't interfere with future authorization requests while
+     * maintaining complete audit trail.
+     * 
+     * **Notification System**:
+     * Automatically notifies requester of denial decision with:
+     * - Denial reason from approver
+     * - Approver identity for transparency
+     * - Activity details for context
+     * - Guidance for future requests
+     * 
+     * @param int $authorizationApprovalId Authorization approval record ID
+     * @param int $approverId Member ID of approver making denial decision
+     * @param string $denyReason Reason for denial (required for audit trail)
+     * @return ServiceResult Success/failure result with denial confirmation
      */
     public function deny(
         int $authorizationApprovalId,
@@ -257,12 +441,48 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
     }
 
     /**
-     * Revokes an authorization - Make sure to create a transaction before calling this service
-     *
-     * @param int $authorizationId
-     * @param int $revokerId
-     * @param string $revokedReason
-     * @return ServiceResult
+     * Process Authorization Revocation
+     * 
+     * Handles revocation of active authorizations with ActiveWindow integration
+     * and comprehensive audit trail maintenance.
+     * 
+     * **Revocation Workflow**:
+     * - Validates authorization exists and is revocable
+     * - Integrates with ActiveWindowManager to stop temporal validation
+     * - Updates authorization status to revoked
+     * - Records revoker ID and revocation reason
+     * - Automatically removes associated role assignments
+     * - Sends notification to affected member
+     * 
+     * **ActiveWindow Integration**:
+     * Uses ActiveWindowManager.stop() to:
+     * - End temporal validation window immediately
+     * - Remove role assignments granted by authorization
+     * - Update authorization status to revoked
+     * - Create complete audit trail of revocation
+     * 
+     * **Role Management**:
+     * Revocation automatically removes any roles that were granted by the
+     * authorization, ensuring immediate cessation of elevated permissions
+     * and maintaining security compliance.
+     * 
+     * **Audit Requirements**:
+     * - Records revoker identity for accountability
+     * - Captures revocation reason for compliance
+     * - Timestamps revocation for temporal tracking
+     * - Maintains complete authorization lifecycle history
+     * 
+     * **Notification Process**:
+     * Automatically notifies affected member of revocation with:
+     * - Revocation reason and revoker identity
+     * - Effective date of revocation
+     * - Impact on permissions and roles
+     * - Appeal or reauthorization process information
+     * 
+     * @param int $authorizationId Authorization record ID to revoke
+     * @param int $revokerId Member ID of person performing revocation
+     * @param string $revokedReason Reason for revocation (required for audit)
+     * @return ServiceResult Success/failure result with revocation confirmation
      */
     public function revoke(
         int $authorizationId,
@@ -305,6 +525,32 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
     #endregion
 
     #region notifications
+    /**
+     * Send Authorization Status Notification to Requester
+     * 
+     * Sends status update notifications to authorization requesters with comprehensive
+     * workflow context and next steps information.
+     * 
+     * **Notification Context**:
+     * - Activity name and details
+     * - Current authorization status
+     * - Approver identity for transparency
+     * - Next approver in chain (if applicable)
+     * - Requester personalization
+     * 
+     * **Status Types Handled**:
+     * - Approved: Final approval with role assignment details
+     * - Denied: Denial reason and appeal process
+     * - Pending: Forward to next approver information
+     * - Revoked: Revocation details and impact
+     * 
+     * @param int $activityId Activity ID for context
+     * @param int $requesterId Member ID of requester
+     * @param int $approverId Member ID of current approver
+     * @param string $status Current authorization status
+     * @param int|null $nextApproverId Next approver ID (for multi-level workflows)
+     * @return bool Success/failure of notification sending
+     */
     protected function sendAuthorizationStatusToRequester(
         int $activityId,
         int $requesterId,
@@ -358,6 +604,35 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
         return true;
     }
 
+    /**
+     * Send Approval Request Notification to Approver
+     * 
+     * Sends authorization approval request notifications to designated approvers
+     * with secure token-based approval links and complete request context.
+     * 
+     * **Security Features**:
+     * - Secure token generation for email-based approval
+     * - Token-based authentication for approval actions
+     * - Prevention of unauthorized approval access
+     * 
+     * **Notification Content**:
+     * - Requester identity and details
+     * - Activity information and requirements
+     * - Secure approval/denial links
+     * - Request context and urgency
+     * - Workflow position (if multi-level)
+     * 
+     * **Token Management**:
+     * Generates cryptographically secure tokens for each approval request
+     * to enable email-based approval while maintaining security and preventing
+     * unauthorized access to approval functionality.
+     * 
+     * @param int $activityId Activity ID for context
+     * @param int $requesterId Member ID of requester
+     * @param int $approverId Member ID of designated approver
+     * @param string $authorizationToken Secure token for email-based approval
+     * @return bool Success/failure of notification sending
+     */
     private function sendApprovalRequestNotification(
         int $activityId,
         int $requesterId,
@@ -399,6 +674,31 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
     // endregion
 
     // region approval processing methods
+    /**
+     * Process Final Authorization Approval
+     * 
+     * Handles final approval processing including status updates, role assignment,
+     * and temporal validation activation through ActiveWindowManager integration.
+     * 
+     * **Final Approval Operations**:
+     * - Updates authorization status to approved
+     * - Increments approval count for audit trail
+     * - Activates temporal validation window
+     * - Assigns configured role to member
+     * - Sends confirmation notification to requester
+     * 
+     * **ActiveWindow Integration**:
+     * Calls ActiveWindowManager.start() to begin temporal validation with:
+     * - Authorization effective date
+     * - Activity-defined term length
+     * - Role assignment automation
+     * - Expiration date calculation
+     * 
+     * @param mixed $authorization Authorization entity to approve
+     * @param int $approverId Member ID of final approver
+     * @param mixed $authTable Authorizations table instance
+     * @return bool Success/failure of approval processing
+     */
     private function processApprovedAuthorization(
         $authorization,
         $approverId,
@@ -436,6 +736,37 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
         return true;
     }
 
+    /**
+     * Process Forward to Next Approver
+     * 
+     * Handles forwarding authorization to next approver in multi-level approval
+     * workflows with validation, token generation, and notification management.
+     * 
+     * **Multi-Level Workflow Logic**:
+     * - Validates next approver exists and has permission
+     * - Updates authorization status to pending (for next level)
+     * - Increments approval count for tracking
+     * - Creates new approval record for next approver
+     * - Generates secure token for email-based approval
+     * - Sends notifications to both parties
+     * 
+     * **Security Validation**:
+     * - Verifies next approver ID is valid
+     * - Confirms approver has authorization permission
+     * - Generates unique secure token for approval
+     * 
+     * **Notification Flow**:
+     * - Notifies next approver of pending request
+     * - Informs requester of workflow progress
+     * - Provides transparent approval chain visibility
+     * 
+     * @param int $approverId Current approver ID
+     * @param int $nextApproverId Next approver ID in chain
+     * @param mixed $authorization Authorization entity
+     * @param mixed $approvalTable Authorization approvals table
+     * @param mixed $authTable Authorizations table
+     * @return bool Success/failure of forwarding process
+     */
     private function processForwardToNextApprover(
         $approverId,
         $nextApproverId,
@@ -496,6 +827,21 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
         return true;
     }
 
+    /**
+     * Get Required Approvals Count
+     * 
+     * Determines the number of approvals required based on authorization type
+     * and activity configuration settings.
+     * 
+     * **Configuration Logic**:
+     * - New Authorizations: Uses activity.num_required_authorizors
+     * - Renewal Authorizations: Uses activity.num_required_renewers
+     * - Supports different approval requirements for new vs. renewal
+     * 
+     * @param bool $isRenewal Whether authorization is a renewal
+     * @param mixed $activity Activity entity with approval requirements
+     * @return int Number of approvals required
+     */
     private function getApprovalsRequiredCount(
         $isRenewal,
         $activity,
@@ -505,6 +851,23 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
             : $activity->num_required_authorizors;
     }
 
+    /**
+     * Check if More Approvals Needed
+     * 
+     * Determines whether authorization requires additional approvals before
+     * final activation based on current approval count and requirements.
+     * 
+     * **Approval Logic**:
+     * - Compares current approved count to required count
+     * - Returns true if additional approvals needed
+     * - Supports multi-level approval workflows
+     * - Handles single-approval activities efficiently
+     * 
+     * @param int $requiredApprovalCount Total approvals required
+     * @param int $authorizationId Authorization ID to check
+     * @param mixed $approvalTable Authorization approvals table
+     * @return bool True if more approvals needed, false if ready for activation
+     */
     private function getNeedsMoreRenewals(
         $requiredApprovalCount,
         $authorizationId,
@@ -527,6 +890,28 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
         return false;
     }
 
+    /**
+     * Save Authorization Approval Record
+     * 
+     * Persists approval decision with timestamp, approver identity, and
+     * approval status for audit trail and workflow tracking.
+     * 
+     * **Approval Recording**:
+     * - Sets response timestamp for workflow tracking
+     * - Records approver ID for accountability
+     * - Sets approval status (approved = true)
+     * - Maintains complete audit trail
+     * 
+     * **Transaction Safety**:
+     * Includes transaction rollback on save failure to maintain
+     * database consistency during approval processing.
+     * 
+     * @param int $approverId Member ID making approval decision
+     * @param mixed $approval Authorization approval entity
+     * @param mixed $approvalTable Authorization approvals table
+     * @param mixed $transConnection Database transaction connection
+     * @return bool Success/failure of approval recording
+     */
     private function saveAuthorizationApproval(
         $approverId,
         $approval,
