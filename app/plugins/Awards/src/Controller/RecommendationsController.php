@@ -595,6 +595,16 @@ class RecommendationsController extends AppController
         try {
             $emptyRecommendation = $this->Recommendations->newEmptyEntity();
             $queryArgs = $this->request->getQuery();
+
+            if ($view === 'SubmittedByMember') {
+                //get the memberid from the query args if available
+                if (isset($queryArgs['member_id']) && is_numeric($queryArgs['member_id'])) {
+                    $emptyRecommendation->requester_id = $queryArgs['member_id'];
+                } else {
+                    $this->Authorization->skipAuthorization();
+                    throw new ForbiddenException();
+                }
+            }
             $user = $this->request->getAttribute('identity');
             $user->authorizeWithArgs($emptyRecommendation, 'index', $view, $status, $queryArgs);
 
@@ -3277,11 +3287,11 @@ class RecommendationsController extends AppController
     {
         try {
             // Build and execute the recommendation query with filters
-            $recommendations = $this->getRecommendationQuery($filterArray);
+            $recommendations = $this->getRecommendationQuery($filterArray, $view);
 
             // Process status lists for display
             $fullStatusList = Recommendation::getStatuses();
-            if ($status == "All") {
+            if ($status == "All" || $view == 'SubmittedByMember') {
                 $statusList = Recommendation::getStatuses();
             } else {
                 $statusList[$status] = Recommendation::getStatuses()[$status];
@@ -4353,7 +4363,7 @@ class RecommendationsController extends AppController
      * @see runExport() For export functionality that uses this query
      * @see processFilter() For filter processing logic
      */
-    protected function getRecommendationQuery(?array $filterArray = null): \Cake\Datasource\QueryInterface
+    protected function getRecommendationQuery(?array $filterArray = null, ?string $view = null): \Cake\Datasource\QueryInterface
     {
 
         // Build base query with containments
@@ -4455,45 +4465,51 @@ class RecommendationsController extends AppController
         if ($filterArray) {
             $recommendations->where($filterArray);
         }
-
+        $queryArgs = $this->request->getQuery();
+        $user = $this->request->getAttribute('identity');
         // Apply additional filters from query parameters
-        if ($this->request->getQuery('award_id')) {
-            $recommendations->where(['award_id' => $this->request->getQuery('award_id')]);
+        if (isset($queryArgs['award_id']) && $queryArgs['award_id'] !== '') {
+            $recommendations->where(['award_id' => $queryArgs['award_id']]);
         }
 
-        if ($this->request->getQuery('branch_id')) {
-            $recommendations->where(['Recommendations.branch_id' => $this->request->getQuery('branch_id')]);
+        if (isset($queryArgs['branch_id']) && $queryArgs['branch_id'] !== '') {
+            $recommendations->where(['Recommendations.branch_id' => $queryArgs['branch_id']]);
         }
 
-        if ($this->request->getQuery('for')) {
-            $recommendations->where(['member_sca_name LIKE' => '%' . $this->request->getQuery('for') . '%']);
+        if (isset($queryArgs['for']) && $queryArgs['for'] !== '') {
+            $recommendations->where(['member_sca_name LIKE' => '%' . $queryArgs['for'] . '%']);
         }
 
-        if ($this->request->getQuery('call_into_court')) {
-            $recommendations->where(['call_into_court' => $this->request->getQuery('call_into_court')]);
+        if (isset($queryArgs['call_into_court']) && $queryArgs['call_into_court'] !== '') {
+            $recommendations->where(['call_into_court' => $queryArgs['call_into_court']]);
         }
 
-        if ($this->request->getQuery('court_avail')) {
-            $recommendations->where(['court_availability' => $this->request->getQuery('court_avail')]);
+        if (isset($queryArgs['court_avail']) && $queryArgs['court_avail'] !== '') {
+            $recommendations->where(['court_availability' => $queryArgs['court_avail']]);
         }
 
-        if ($this->request->getQuery('requester_sca_name')) {
-            $recommendations->where(['requester_sca_name' => $this->request->getQuery('requester_sca_name')]);
+        if (isset($queryArgs['requester_sca_name']) && $queryArgs['requester_sca_name'] !== '') {
+            $recommendations->where(['requester_sca_name' => $queryArgs['requester_sca_name']]);
         }
 
-        if ($this->request->getQuery('domain_id')) {
-            $recommendations->where(['Awards.domain_id' => $this->request->getQuery('domain_id')]);
+        if (isset($queryArgs['domain_id']) && $queryArgs['domain_id'] !== '') {
+            $recommendations->where(['Awards.domain_id' => $queryArgs['domain_id']]);
         }
 
-        if ($this->request->getQuery('state')) {
-            $recommendations->where(['Recommendations.state' => $this->request->getQuery('state')]);
+        if (isset($queryArgs['state']) && $queryArgs['state'] !== '') {
+            $recommendations->where(['Recommendations.state' => $queryArgs['state']]);
         }
 
-        if ($this->request->getQuery('branch_type')) {
-            $recommendations->where(['AwardsBranches.type like ' => '%' . $this->request->getQuery('branch_type') . '%']);
+        if (isset($queryArgs['branch_type']) && $queryArgs['branch_type'] !== '') {
+            $recommendations->where(['AwardsBranches.type like ' => '%' . $queryArgs['branch_type'] . '%']);
         }
 
         // Apply authorization scope policy
+        //if the view is SubmittedByMember and the member_id = the current user then skip scoping
+
+        if (isset($queryArgs['member_id']) && $view == 'SubmittedByMember' && $user->id == $queryArgs['member_id']) {
+            return $recommendations;
+        }
         return $this->Authorization->applyScope($recommendations, 'index');
     }
 
