@@ -1315,6 +1315,7 @@ class MembersController extends AppController
             $member->password = $this->request->getData()['new_password'];
             $member->password_token = null;
             $member->password_token_expires_on = null;
+            $member->failed_login_attempts = 0;
             if ($this->Members->save($member)) {
                 $this->Flash->success(__('The password has been changed.'));
 
@@ -1399,6 +1400,7 @@ class MembersController extends AppController
                 $member->password = $this->request->getData('new_password');
                 $member->password_token = null;
                 $member->password_token_expires_on = null;
+                $member->failed_login_attempts = 0;
                 $this->Members->save($member);
                 $this->Flash->success(__('Password successfully reset'));
 
