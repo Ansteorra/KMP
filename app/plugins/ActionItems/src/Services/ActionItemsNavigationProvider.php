@@ -30,8 +30,15 @@ class ActionItemsNavigationProvider
 
         return [
             [
+                "type" => "parent",
+                "label" => "Action Items",
+                "icon" => "bi-patch-exclamation-fill",
+                "id" => "navheader_award_recs",
+                "order" => -1,
+            ],
+            [
                 "type" => "link",
-                "mergePath" => ["Action Items", $user->sca_name],
+                "mergePath" => ["Action Items"],
                 "label" => "My Auth Queue",
                 "order" => 20,
                 "url" => [

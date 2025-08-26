@@ -62,17 +62,6 @@ class CoreNavigationProvider
             ],
             [
                 'type' => 'link',
-                'mergePath' => ['Action Items'],
-                'label' => "test",
-                'icon' => 'bi-person-fill',
-                'order' => 0,
-                'url' => [
-                    'controller' => 'Members',
-                    'action' => 'profile'
-                ],
-            ],
-            [
-                'type' => 'link',
                 'mergePath' => ['Members'],
                 'label' => "$user->sca_name",
                 'icon' => 'bi-person-fill',

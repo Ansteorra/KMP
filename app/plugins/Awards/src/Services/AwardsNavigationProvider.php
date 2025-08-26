@@ -103,7 +103,6 @@ use Awards\Model\Entity\Recommendation;
  * @see \Awards\Model\Entity\Recommendation Recommendation status definitions and workflow states
  * @see \App\Services\NavigationManager Main navigation system integration
  * 
- * @deprecated This class replaces the functionality from Awards\Event\CallForNavHandler
  */
 class AwardsNavigationProvider
 {

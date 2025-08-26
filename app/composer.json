@@ -44,9 +44,7 @@
     },
     "autoload": {
         "psr-4": {
-            "App\\": "src/",
-            "Activities\\": "plugins/Activities/src/",
-            "Bootstrap\\": "plugins/Bootstrap/src/"
+            "App\\": "src/"
         }
     },
     "autoload-dev": {

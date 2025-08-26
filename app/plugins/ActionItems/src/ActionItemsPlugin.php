@@ -52,10 +52,6 @@ class ActionItemsPlugin extends BasePlugin implements KMPPluginInterface
      */
     public function bootstrap(PluginApplicationInterface $app): void
     {
-        // From your controller, attach the UserStatistic object to the Order's event manager
-        $handler = new CallForCellsHandler();
-        EventManager::instance()->on($handler);
-
         // Register navigation items instead of using event handlers
         NavigationRegistry::register(
             'ActionItems',

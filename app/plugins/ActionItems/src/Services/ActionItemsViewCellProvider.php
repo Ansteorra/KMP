@@ -27,6 +27,8 @@ class ActionItemsViewCellProvider
      */
     public static function getViewCells(array $urlParams, $user = null): array
     {
+        //disabling this call for now.
+        return [];
         // Check if plugin is enabled
         if (!StaticHelpers::pluginEnabled('ActionItems')) {
             return [];
