@@ -17,7 +17,7 @@ if (isset($navBarState[$parent['id']])) {
     $isExpanded = $navBarState[$parent['id']];
 } else {
     // Fall back to active state if no user preference is stored
-    $isExpanded = $parent['active'];
+    $isExpanded = $parent['active'] || $parent['expanded'];
 }
 
 $collapsed = $isExpanded ? '' : 'collapsed';
