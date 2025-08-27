@@ -14,6 +14,11 @@
     <?php foreach ($appNav as $parent): ?>
         <?php
         $childHtml = '';
+        if(!isset($parent['children']))
+        {
+            continue;
+        }
+
         foreach ($parent['children'] as $child) {
             $childHtml .= $this->element('nav/nav_child', [
                 'child' => $child,

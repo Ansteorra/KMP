@@ -27,24 +27,48 @@ class CoreNavigationProvider
         return [
             [
                 'type' => 'parent',
+                'label' => 'Action Items',
+                'icon' => 'bi-people',
+                'id' => 'navheader_actionitems',
+                'order' => 0,
+            ],
+            [   
+                'type' => 'link',
+                'mergePath' => ['Action Items'],
+                'label' => 'Rosters',
+                'order' => 1,
+                'url' => [
+                    'controller' => 'WarrantRosters',
+                    'action' => 'index',
+                ],
+                'badgeClass' => 'bg-danger',
+                'badgeValue' => [
+                    'class' => "App\Model\Table\WarrantRostersTable",
+                    'method' => 'getPendingRosterCount',
+                    'argument' => 0,
+                ],
+                'icon' => 'bi-people',
+            ],            
+            [
+                'type' => 'parent',
                 'label' => 'Members',
                 'icon' => 'bi-people',
                 'id' => 'navheader_members',
-                'order' => 0,
+                'order' => 10,
             ],
             [
                 'type' => 'parent',
                 'label' => 'Reports',
                 'icon' => 'bi-backpack4',
                 'id' => 'navheader_reports',
-                'order' => 10,
+                'order' => 20,
             ],
             [
                 'type' => 'parent',
                 'label' => 'Config',
                 'icon' => 'bi-database-gear',
                 'id' => 'navheader_config',
-                'order' => 20,
+                'order' => 30,
             ],
             [
                 'type' => 'parent',

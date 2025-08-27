@@ -259,10 +259,10 @@ class AwardsRecommendationTable extends Controller {
      * @returns {void}
      */
     checkAll(ele) {
-        console.log("Hello, Check All!", this.element);
-        // debugger;
 
         if (this.CheckAllBoxTarget.checked) {
+            console.log("Checking All Checkboxes!", this.element);
+            // debugger;
             let idList = [];
 
             for (var i = 0; i < this.rowCheckboxTargets.length; i++) {
@@ -274,9 +274,11 @@ class AwardsRecommendationTable extends Controller {
 
         }
         else {
+            console.log("Unchecking All Checkboxes!", this.element);
+            //debugger;
             this.outletBtnOutlet.btnDataValue = {};
             for (var i = 0; i < this.rowCheckboxTargets.length; i++) {
-                this.rowCheckboxTargets[i].checked = false; // Check all checkboxes
+                this.rowCheckboxTargets[i].checked = false; // Uncheck all checkboxes
             }
             this.outletBtnOutlet.btnDataValue = {};
 

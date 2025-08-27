@@ -90,7 +90,7 @@ class NavigationCell extends Cell
 
         // Get navigation items from the registry instead of dispatching events
         $menuItems = NavigationRegistry::getNavigationItems($user, $params);
-        $menu = $this->organizeMenu($menuItems);
+        $menu = $this->organizeMenu($menuItems, $user);
 
         $this->set(compact('menu'));
     }
@@ -136,7 +136,7 @@ class NavigationCell extends Cell
      * ]
      * ```
      */
-    protected function organizeMenu($menuItems)
+    protected function organizeMenu($menuItems, $user)
     {
         $currentRequestString = $this->request->getParam('controller') . '/' . $this->request->getParam('action');
         if ($this->request->getParam('plugin')) {
@@ -153,7 +153,27 @@ class NavigationCell extends Cell
             if (!$item) {
                 continue;
             }
+
+            if (isset($item['url']))
+            {
+                $url = $item['url'];
+                $url['plugin'] = $url['plugin'] ?? false;
+                if (!($user->canAccessUrl($url))) 
+                {
+                    continue;
+                }
+            }
+
+            if (isset($item['badgeValue']))
+            {
+                // $badgeValue = $this->element('nav/badge_value', ['badgeConfig' => $sublink['badgeValue']]);
+                $badgeValue = $this->getBadgeStatus ($item['badgeValue']);
+                if ($badgeValue > 0) {
+                    $item['badgeResult'] = $badgeValue;
+                }
+            }
             $item['active'] = false;
+            $item['expanded'] = false;
             if ($item['type'] === 'parent') {
                 $parents[$item['label']] = $item;
             } elseif ($item['type'] === 'link' && count($item['mergePath']) == 1) {
@@ -170,16 +190,43 @@ class NavigationCell extends Cell
                 $mainlink['active'] = true;
                 $activeFound = true;
             }
+
+            if ($this->hasBadge($mainlink, $currentRequestString)) {
+                $parents[$mainlink['mergePath'][0]]['expanded'] = true;
+                $mainlink['expanded'] = true;
+            }
+
             $parents[$mainlink['mergePath'][0]]['children'][$mainlink['label']] = $mainlink;
         }
         //foreach sublink to mainlink
         foreach ($sublinks as &$sublink) {
+            //check if the path to the sublink is valid
+            if(!isset($parents[$sublink['mergePath'][0]])){
+                continue;
+            }
+            if(!isset($parents[$sublink['mergePath'][0]]['children'])){
+                continue;
+            }
+            $children = $parents[$sublink['mergePath'][0]]['children'];
+            if(!isset($children[$sublink['mergePath'][1]])){
+                continue;
+            }
+
             if (!$activeFound && $this->isActive($sublink, $currentRequestString)) {
                 $parents[$mainlink['mergePath'][0]]['active'] = true;
+                // $parents[$sublink['mergePath'][0]]['children'][$sublink['mergePath'][1]]['active'] = true;
                 $parents[$sublink['mergePath'][0]]['children'][$sublink['mergePath'][1]]['active'] = true;
                 $sublink['active'] = true;
                 $activeFound = true;
             }
+
+            if ($this->hasBadge($sublink, $currentRequestString)) {
+                $parents[$mainlink['mergePath'][0]]['expanded'] = true;
+                // $parents[$sublink['mergePath'][0]]['children'][$sublink['mergePath'][1]]['active'] = true;
+                $parents[$sublink['mergePath'][0]]['children'][$sublink['mergePath'][1]]['expanded'] = true;
+                $sublink['expanded'] = true;
+            }
+
             $parents[$sublink['mergePath'][0]]['children'][$sublink['mergePath'][1]]['sublinks'][$sublink['label']] = $sublink;
         }
         //sort parents by order
@@ -269,5 +316,28 @@ class NavigationCell extends Cell
         }
 
         return false;
+    }
+
+    protected function hasBadge($link, $currentRequestString): bool
+    {
+        if(isset($link['badgeResult']) && ($link['badgeResult'] > 0))
+        {
+            return true;
+        }
+        return false;
+    }
+    protected function getBadgeStatus ($badgeConfig)
+    {
+        if (
+            is_array($badgeConfig)
+            && isset($badgeConfig['class'], $badgeConfig['method'], $badgeConfig['argument'])
+        ) {
+            return call_user_func(
+                [$badgeConfig['class'], $badgeConfig['method']],
+                $badgeConfig['argument']
+            );
+        } else {
+            return (int)$badgeConfig;
+        }        
     }
 }

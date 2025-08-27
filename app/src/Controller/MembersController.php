@@ -1443,7 +1443,8 @@ class MembersController extends AppController
                     $page == '/Members/logout' ||
                     $page == null
                 ) {
-                    return $this->redirect(['action' => 'view', $user->id]);
+                    // return $this->redirect(['action' => 'view', $user->id]);
+                    return $this->redirect(['action' => 'profile']);
                 } else {
                     return $this->redirect($page);
                 }

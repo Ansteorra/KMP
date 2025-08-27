@@ -103,7 +103,7 @@ RUN mkdir -p /opt/templates
 COPY init_env/apache-vhost.template /opt/templates/apache-vhost.template
 
 # Install security tools
-RUN curl -sSL https://github.com/zaproxy/zaproxy/releases/download/w2025-05-20/ZAP_WEEKLY_D-2025-05-20.zip -o /tmp/zaproxy.zip && \
+RUN curl -sSL https://github.com/zaproxy/zaproxy/releases/download/w2025-08-26/ZAP_WEEKLY_D-2025-08-26.zip -o /tmp/zaproxy.zip && \
     unzip /tmp/zaproxy.zip -d /opt && \
     rm /tmp/zaproxy.zip && \
     ln -s /opt/ZAP_D-2025-05-20/zap.sh /usr/local/bin/zap

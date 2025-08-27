@@ -249,6 +249,10 @@ class AwardsRecommendationBulkEditForm extends Controller {
      * @returns {void}
      */
     setId(event) {
+
+        console.log("setId called", event.detail);
+        //debugger;
+
         let selected = event.detail.ids;
         if (!selected) {
             return;
@@ -259,9 +263,10 @@ class AwardsRecommendationBulkEditForm extends Controller {
         this.bulkIdsValue = selected;
         this.bulkIdsTarget.value = selected;
         let actionUrl = this.element.getAttribute("action");
-        //repalce url
+        //replace url
         actionUrl = actionUrl.replace(/update-states/, "updateStates");
         this.element.setAttribute("action", actionUrl);
+        console.log("setId", this.element["action"]);
         return
     }
 

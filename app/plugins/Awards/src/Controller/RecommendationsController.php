@@ -13,6 +13,8 @@ use Cake\Log\Log;
 use Exception;
 use PhpParser\Node\Stmt\TryCatch;
 use App\Services\CsvExportService;
+use Cake\Error\Debugger;
+
 
 /**
  * Recommendations Controller
@@ -874,7 +876,6 @@ class RecommendationsController extends AppController
                 }
             }
         }
-
         $currentPage = $this->request->getData('current_page');
         if ($currentPage) {
             return $this->redirect($currentPage);

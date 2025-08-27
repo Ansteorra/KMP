@@ -11,16 +11,17 @@
 $suburl = $sublink['url'];
 $suburl['plugin'] = $suburl['plugin'] ?? false;
 
-if (!$user->canAccessUrl($suburl)) {
-    return;
-}
+// if (!$user->canAccessUrl($suburl)) {
+//     return;
+// }
 
 $linkOptions = $sublink['linkOptions'] ?? [];
 $linkLabel = __(' ' . $sublink['label']);
 
 // Handle badge if present
-if (isset($sublink['badgeValue'])) {
-    $badgeValue = $this->element('nav/badge_value', ['badgeConfig' => $sublink['badgeValue']]);
+if (isset($sublink['badgeResult'])) {
+    // $badgeValue = $this->element('nav/badge_value', ['badgeConfig' => $sublink['badgeValue']]);
+    $badgeValue = $sublink['badgeResult'];
     if ($badgeValue > 0) {
         $linkLabel .= ' ' . $this->Html->badge(strval($badgeValue), [
             'class' => $sublink['badgeClass'],

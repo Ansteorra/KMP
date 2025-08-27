@@ -11,9 +11,9 @@
 $url = $child['url'];
 $url['plugin'] = $url['plugin'] ?? false;
 
-if (!$user->canAccessUrl($url)) {
-    return;
-}
+// if (!$user->canAccessUrl($url)) {
+//     return;
+// }
 
 $linkTypeClass = $child['linkTypeClass'] ?? 'nav-link';
 $otherClasses = $child['otherClasses'] ?? '';
@@ -22,8 +22,10 @@ $activeClass = $child['active'] ? 'active' : '';
 $linkLabel = __(' ' . $child['label']);
 
 // Handle badge if present
-if (isset($child['badgeValue'])) {
-    $badgeValue = $this->element('nav/badge_value', ['badgeConfig' => $child['badgeValue']]);
+if (isset($child['badgeResult'])) {
+    // $badgeValue = $this->element('nav/badge_value', ['badgeConfig' => $child['badgeValue']]);
+    $badgeValue = $child['badgeResult'];
+
     if ($badgeValue > 0) {
         $linkLabel .= ' ' . $this->Html->badge(strval($badgeValue), [
             'class' => $child['badgeClass'],
