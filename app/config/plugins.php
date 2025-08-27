@@ -32,5 +32,4 @@ return [
     'Awards' => [
         'migrationOrder' => 3,
     ],
-    'ActionItems' => [],
 ];
