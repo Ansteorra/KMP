@@ -51,6 +51,24 @@ class CoreNavigationProvider
                 'icon' => 'bi-people',
             ],
             [
+                'type' => 'link',
+                'mergePath' => ['Action Items'],
+                'label' => 'Pending Verifications',
+                'order' => 20,
+                'url' => [
+                    'controller' => 'Members',
+                    'action' => 'verifyQueue',
+                    "?" => ['src' => 'action_items']
+                ],
+                'icon' => 'bi-fingerprint',
+                'badgeClass' => 'bg-danger',
+                'badgeValue' => [
+                    'class' => "App\Model\Table\MembersTable",
+                    'method' => 'getValidationQueueCount',
+                    'argument' => 0,
+                ],
+            ],
+            [
                 'type' => 'parent',
                 'label' => 'Members',
                 'icon' => 'bi-people',
@@ -142,12 +160,6 @@ class CoreNavigationProvider
                     'action' => 'verifyQueue',
                 ],
                 'icon' => 'bi-fingerprint',
-                'badgeClass' => 'bg-danger',
-                'badgeValue' => [
-                    'class' => "App\Model\Table\MembersTable",
-                    'method' => 'getValidationQueueCount',
-                    'argument' => 0,
-                ],
             ],
             [
                 'type' => 'link',

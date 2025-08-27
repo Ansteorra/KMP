@@ -455,11 +455,21 @@ class MembersController extends AppController
                 'Members.birth_month',
             ]);
         $query = $query->where([
-            'Members.status IN' => [
-                Member::STATUS_ACTIVE,
-                Member::STATUS_UNVERIFIED_MINOR,
-                Member::STATUS_MINOR_MEMBERSHIP_VERIFIED,
-                Member::STATUS_MINOR_PARENT_VERIFIED,
+            'OR' => [
+                'Members.status IN' => [
+                    Member::STATUS_ACTIVE,
+                    Member::STATUS_UNVERIFIED_MINOR,
+                    Member::STATUS_MINOR_MEMBERSHIP_VERIFIED,
+                    Member::STATUS_MINOR_PARENT_VERIFIED,
+                ],
+                'OR' => [
+                    [
+                        'Members.membership_card_path IS NOT' => null,
+                        'Members.status IN' => [
+                            Member::STATUS_VERIFIED_MEMBERSHIP,
+                        ]
+                    ]
+                ]
             ],
         ]);
         #is

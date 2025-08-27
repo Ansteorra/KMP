@@ -30,14 +30,17 @@ $today = new Date();
     <th class="col"><?= __("Membership") ?></th>
     <td lass="col-10">
         <?php if ($member->membership_number != null && strlen($member->membership_number) > 0) { ?>
-        <?= h($member->membership_number) ?> Exp:
-        <?= h($member->membership_expires_on) ?>
-        <?php if ($member->membership_expires_on < $today) : ?>
-        <span class="badge text-bg-warning">Expired</span> - <a href="https://sca.app.neoncrm.com/login"> log into SCA
-            portal to renew your membership</a>
-        <?php endif; ?>
+            <?= h($member->membership_number) ?> Exp:
+            <?= h($member->membership_expires_on) ?>
+            <?php if ($member->membership_expires_on < $today) : ?>
+                <span class="badge text-bg-warning">Expired</span> - <a href="https://sca.app.neoncrm.com/login"> log into SCA
+                    portal to renew your membership</a>
+            <?php endif; ?>
         <?php } else { ?>
-        <?= __('Information Not Available') ?>
+            <?= __('Information Not Available') ?>
+        <?php } ?>
+        <?php if ($member->membership_card_path != null && strlen($member->membership_card_path) > 0) { ?>
+            <small class="mx-1 text-muted">Your Membership Information has been received and is being processed.</small>
         <?php } ?>
     </td>
 </tr>
@@ -99,10 +102,10 @@ $today = new Date();
         <td lass="col-10">
             <?= $member->status ?>
             <?php if ($member->status == Member::STATUS_ACTIVE || $member->status == Member::STATUS_MINOR_PARENT_VERIFIED): ?>
-            <br><small class="text-secondary">To verify your account please reach out to the site Secretary at <a
-                    href="mailto:<?= $this->KMP->getAppSetting("Members.AccountVerificationContactEmail") ?>"><?= $this->KMP->getAppSetting("Members.AccountVerificationContactEmail") ?></a>
-                with
-                your account email address and a picture of your membership card</small>
+                <br><small class="text-secondary">To verify your account please reach out to the site Secretary at <a
+                        href="mailto:<?= $this->KMP->getAppSetting("Members.AccountVerificationContactEmail") ?>"><?= $this->KMP->getAppSetting("Members.AccountVerificationContactEmail") ?></a>
+                    with
+                    your account email address and a picture of your membership card</small>
             <?php endif; ?>
         </td>
     </tr>
@@ -111,9 +114,9 @@ $today = new Date();
         <td lass="col-10">
             <?= $member->warrantable ? "Yes" : "No" ?>
             <?php if (!$member->warrantable) : ?>
-            <br><small class="text-secondary">
-                (<?= implode(' ,', $member->getNonWarrantableReasons()) ?>)
-            </small>
+                <br><small class="text-secondary">
+                    (<?= implode(' ,', $member->getNonWarrantableReasons()) ?>)
+                </small>
             <?php endif; ?>
         </td>
     </tr>
