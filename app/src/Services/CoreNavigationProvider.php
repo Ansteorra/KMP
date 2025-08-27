@@ -32,14 +32,15 @@ class CoreNavigationProvider
                 'id' => 'navheader_actionitems',
                 'order' => 0,
             ],
-            [   
+            [
                 'type' => 'link',
                 'mergePath' => ['Action Items'],
-                'label' => 'Rosters',
+                'label' => 'Pending Rosters',
                 'order' => 1,
                 'url' => [
                     'controller' => 'WarrantRosters',
                     'action' => 'index',
+                    "?" => ['src' => 'action_items']
                 ],
                 'badgeClass' => 'bg-danger',
                 'badgeValue' => [
@@ -48,7 +49,7 @@ class CoreNavigationProvider
                     'argument' => 0,
                 ],
                 'icon' => 'bi-people',
-            ],            
+            ],
             [
                 'type' => 'parent',
                 'label' => 'Members',
@@ -247,12 +248,6 @@ class CoreNavigationProvider
                 'url' => [
                     'controller' => 'WarrantRosters',
                     'action' => 'index',
-                ],
-                'badgeClass' => 'bg-danger',
-                'badgeValue' => [
-                    'class' => "App\Model\Table\WarrantRostersTable",
-                    'method' => 'getPendingRosterCount',
-                    'argument' => 0,
                 ],
                 'icon' => 'bi-people',
             ],

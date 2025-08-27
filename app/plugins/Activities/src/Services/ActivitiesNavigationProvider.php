@@ -145,23 +145,18 @@ class ActivitiesNavigationProvider
                     "action" => "myQueue",
                 ],
                 "icon" => "bi-person-fill-check",
-                "badgeClass" => "bg-danger",
-                "badgeValue" => [
-                    "class" => "Activities\Model\Table\AuthorizationApprovalsTable",
-                    "method" => "memberAuthQueueCount",
-                    "argument" => $user->id
-                ],
             ],
             [
                 "type" => "link",
                 "mergePath" => ["Action Items"],
-                "label" => "My Super Duper Auth Queue",
+                "label" => "Pending Auths",
                 "order" => 20,
                 "url" => [
                     "controller" => "AuthorizationApprovals",
                     "plugin" => "Activities",
                     "model" => "Activities.AuthorizationApprovals",
                     "action" => "myQueue",
+                    "?" => ['src' => 'action_items']
                 ],
                 "icon" => "bi-person-fill-check",
                 "badgeClass" => "bg-danger",
