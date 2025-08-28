@@ -684,7 +684,6 @@ class MembersTable extends BaseTable
                 'Members.deleted IS' => null,
                 'OR' => [
                     [
-                        'Members.status' => Member::STATUS_ACTIVE,
                         'Members.membership_card_path IS NOT' => null,
                     ],
                     ['Members.status IN' => [

@@ -60,6 +60,17 @@ class MemberPolicy extends BasePolicy
         return false;
     }
 
+    public function canSubmitScaMemberInfo(KmpIdentityInterface $user, BaseEntity $entity, mixed ...$optionalArgs): bool
+    {
+        if ($entity->id == $user->getIdentifier()) {
+            return true;
+        }
+
+        return false;
+    }
+
+
+
     /**
      * Check if $user can view card
      *

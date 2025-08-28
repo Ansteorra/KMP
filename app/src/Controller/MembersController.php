@@ -455,11 +455,21 @@ class MembersController extends AppController
                 'Members.birth_month',
             ]);
         $query = $query->where([
-            'Members.status IN' => [
-                Member::STATUS_ACTIVE,
-                Member::STATUS_UNVERIFIED_MINOR,
-                Member::STATUS_MINOR_MEMBERSHIP_VERIFIED,
-                Member::STATUS_MINOR_PARENT_VERIFIED,
+            'OR' => [
+                'Members.status IN' => [
+                    Member::STATUS_ACTIVE,
+                    Member::STATUS_UNVERIFIED_MINOR,
+                    Member::STATUS_MINOR_MEMBERSHIP_VERIFIED,
+                    Member::STATUS_MINOR_PARENT_VERIFIED,
+                ],
+                'OR' => [
+                    [
+                        'Members.membership_card_path IS NOT' => null,
+                        'Members.status IN' => [
+                            Member::STATUS_VERIFIED_MEMBERSHIP,
+                        ]
+                    ]
+                ]
             ],
         ]);
         #is
@@ -1505,6 +1515,37 @@ class MembersController extends AppController
             'controller' => 'Members',
             'action' => 'login',
         ]);
+    }
+    public function submitScaMemberInfo()
+    {
+        $user = $this->Authentication->getIdentity();
+        $member = $this->Members->get(toString($user->id));
+        if (!$member) {
+            throw new NotFoundException();
+        }
+        $this->Authorization->authorize($member);
+        if ($this->request->is('put')) {
+            $file = $this->request->getData('member_card');
+            if ($file->getSize() > 0) {
+                $storageLoc = WWW_ROOT . '../images/uploaded/';
+                $fileName = StaticHelpers::generateToken(10);
+                StaticHelpers::ensureDirectoryExists($storageLoc, 0755);
+                $file->moveTo(WWW_ROOT . '../images/uploaded/' . $fileName);
+                $fileResult = StaticHelpers::saveScaledImage($fileName, 500, 700, $storageLoc, $storageLoc);
+                if (!$fileResult) {
+                    $this->Flash->error('Error saving image, please try again.');
+                }
+                //trim the path off of the filename
+                $fileName = substr($fileResult, strrpos($fileResult, '/') + 1);
+                $member->membership_card_path = $fileName;
+                if ($this->Members->save($member)) {
+                    $this->Flash->success(__('Membership information has been submitted, please allow several days for our team to review and update the profile.'));
+                } else {
+                    $this->Flash->error("There was an error please try again.");
+                }
+            }
+        }
+        $this->redirect($this->referer());
     }
 
     public function register()

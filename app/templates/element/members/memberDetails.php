@@ -39,6 +39,9 @@ $today = new Date();
         <?php } else { ?>
             <?= __('Information Not Available') ?>
         <?php } ?>
+        <?php if ($member->membership_card_path != null && strlen($member->membership_card_path) > 0) { ?>
+            <small class="mx-1 text-muted">Your Membership Information has been received and is being processed.</small>
+        <?php } ?>
     </td>
 </tr>
 <tr scope="row">

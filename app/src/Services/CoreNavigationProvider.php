@@ -32,14 +32,15 @@ class CoreNavigationProvider
                 'id' => 'navheader_actionitems',
                 'order' => 0,
             ],
-            [   
+            [
                 'type' => 'link',
                 'mergePath' => ['Action Items'],
-                'label' => 'Rosters',
+                'label' => 'Pending Rosters',
                 'order' => 1,
                 'url' => [
                     'controller' => 'WarrantRosters',
                     'action' => 'index',
+                    "?" => ['src' => 'action_items']
                 ],
                 'badgeClass' => 'bg-danger',
                 'badgeValue' => [
@@ -48,7 +49,25 @@ class CoreNavigationProvider
                     'argument' => 0,
                 ],
                 'icon' => 'bi-people',
-            ],            
+            ],
+            [
+                'type' => 'link',
+                'mergePath' => ['Action Items'],
+                'label' => 'Pending Verifications',
+                'order' => 20,
+                'url' => [
+                    'controller' => 'Members',
+                    'action' => 'verifyQueue',
+                    "?" => ['src' => 'action_items']
+                ],
+                'icon' => 'bi-fingerprint',
+                'badgeClass' => 'bg-danger',
+                'badgeValue' => [
+                    'class' => "App\Model\Table\MembersTable",
+                    'method' => 'getValidationQueueCount',
+                    'argument' => 0,
+                ],
+            ],
             [
                 'type' => 'parent',
                 'label' => 'Members',
@@ -141,12 +160,6 @@ class CoreNavigationProvider
                     'action' => 'verifyQueue',
                 ],
                 'icon' => 'bi-fingerprint',
-                'badgeClass' => 'bg-danger',
-                'badgeValue' => [
-                    'class' => "App\Model\Table\MembersTable",
-                    'method' => 'getValidationQueueCount',
-                    'argument' => 0,
-                ],
             ],
             [
                 'type' => 'link',
@@ -247,12 +260,6 @@ class CoreNavigationProvider
                 'url' => [
                     'controller' => 'WarrantRosters',
                     'action' => 'index',
-                ],
-                'badgeClass' => 'bg-danger',
-                'badgeValue' => [
-                    'class' => "App\Model\Table\WarrantRostersTable",
-                    'method' => 'getPendingRosterCount',
-                    'argument' => 0,
                 ],
                 'icon' => 'bi-people',
             ],
