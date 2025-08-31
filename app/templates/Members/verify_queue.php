@@ -44,8 +44,8 @@ foreach ($Members as $Member) {
             </button>
             <button class="nav-link" id="nav-pendingCard-tab-btn" data-bs-toggle="tab"
                 data-bs-target="#nav-pendingCard-tab" type="button" role="tab" aria-controls="#nav-pendingCard-tab"
-                aria-selected="false" data-detail-tabs-target='tabBtn' data-detail-tabs-target='tabBtn'>Unverified With
-                Card
+                aria-selected="false" data-detail-tabs-target='tabBtn' data-detail-tabs-target='tabBtn'>Member Card
+                Uploaded
                 <?php if (count($pendingWithCard) > 0) { ?>
                     <span class="badge bg-danger"><?= count($pendingWithCard) ?></span>
                 <?php } ?>

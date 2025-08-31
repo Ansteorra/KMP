@@ -7,6 +7,7 @@ namespace App\View\Cell;
 use App\KMP\StaticHelpers;
 use App\Services\NavigationRegistry;
 use Cake\View\Cell;
+use Cake\Routing\Router;
 
 /**
  * Navigation cell
@@ -138,14 +139,17 @@ class NavigationCell extends Cell
      */
     protected function organizeMenu($menuItems, $user)
     {
-        $currentRequestString = $this->request->getParam('controller') . '/' . $this->request->getParam('action');
-        if ($this->request->getParam('plugin')) {
-            $currentRequestString = $this->request->getParam('plugin') . '/' . $currentRequestString;
+        $currentRequestString = $this->request->getUri()->getPath(); //$this->request->getParam('controller') . '/' . $this->request->getParam('action');
+        $currentQueryString = $this->request->getUri()->getQuery();
+        if ($currentQueryString != '') {
+            $currentRequestString = $currentRequestString . '?' . $currentQueryString;
         }
-        if ($this->request->getParam('pass')) {
-            $currentRequestString .= '/' . $this->request->getParam('pass')[0];
-        }
-        $currentRequestString = strtolower($currentRequestString);
+        //if ($this->request->getParam('plugin')) {
+        //    $currentRequestString = $this->request->getParam('plugin') . '/' . $currentRequestString;
+        //}
+        //if ($this->request->getParam('pass')) {
+        //    $currentRequestString .= '/' . $this->request->getParam('pass')[0];
+        //}
         $parents = [];
         $mainLinks = [];
         $sublinks = [];
@@ -154,20 +158,17 @@ class NavigationCell extends Cell
                 continue;
             }
 
-            if (isset($item['url']))
-            {
+            if (isset($item['url'])) {
                 $url = $item['url'];
                 $url['plugin'] = $url['plugin'] ?? false;
-                if (!($user->canAccessUrl($url))) 
-                {
+                if (!($user->canAccessUrl($url))) {
                     continue;
                 }
             }
 
-            if (isset($item['badgeValue']))
-            {
+            if (isset($item['badgeValue'])) {
                 // $badgeValue = $this->element('nav/badge_value', ['badgeConfig' => $sublink['badgeValue']]);
-                $badgeValue = $this->getBadgeStatus ($item['badgeValue']);
+                $badgeValue = $this->getBadgeStatus($item['badgeValue']);
                 if ($badgeValue > 0) {
                     $item['badgeResult'] = $badgeValue;
                 }
@@ -201,14 +202,14 @@ class NavigationCell extends Cell
         //foreach sublink to mainlink
         foreach ($sublinks as &$sublink) {
             //check if the path to the sublink is valid
-            if(!isset($parents[$sublink['mergePath'][0]])){
+            if (!isset($parents[$sublink['mergePath'][0]])) {
                 continue;
             }
-            if(!isset($parents[$sublink['mergePath'][0]]['children'])){
+            if (!isset($parents[$sublink['mergePath'][0]]['children'])) {
                 continue;
             }
             $children = $parents[$sublink['mergePath'][0]]['children'];
-            if(!isset($children[$sublink['mergePath'][1]])){
+            if (!isset($children[$sublink['mergePath'][1]])) {
                 continue;
             }
 
@@ -295,7 +296,11 @@ class NavigationCell extends Cell
      */
     protected function isActive($link, $currentRequestString): bool
     {
-        $itemPath = StaticHelpers::makePathString($link['url']);
+        if (!isset($link['url']['plugin'])) {
+            $link['url']['plugin'] = null;
+        }
+        $url = Router::url($link['url']);
+        $itemPath = $url; //StaticHelpers::makePathString($link['url']);
         if ($itemPath === $currentRequestString) {
             return true;
         }
@@ -320,13 +325,12 @@ class NavigationCell extends Cell
 
     protected function hasBadge($link, $currentRequestString): bool
     {
-        if(isset($link['badgeResult']) && ($link['badgeResult'] > 0))
-        {
+        if (isset($link['badgeResult']) && ($link['badgeResult'] > 0)) {
             return true;
         }
         return false;
     }
-    protected function getBadgeStatus ($badgeConfig)
+    protected function getBadgeStatus($badgeConfig)
     {
         if (
             is_array($badgeConfig)
@@ -338,6 +342,6 @@ class NavigationCell extends Cell
             );
         } else {
             return (int)$badgeConfig;
-        }        
+        }
     }
 }

@@ -1545,10 +1545,18 @@ class ImagePreview extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Contr
    */
   preview(event) {
     if (event.target.files.length > 0) {
-      let src = URL.createObjectURL(event.target.files[0]);
-      this.previewTarget.src = src;
-      this.loadingTarget.classList.add("d-none");
-      this.previewTarget.hidden = false;
+      //check that the file is less than 2M
+      if (event.target.files[0].size > 2 * 1024 * 1024) {
+        alert("File size must be less than 2MB");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        this.previewTarget.src = reader.result; // This will be a data: URL
+        this.loadingTarget.classList.add("d-none");
+        this.previewTarget.hidden = false;
+      };
+      reader.readAsDataURL(event.target.files[0]);
     }
   }
 }
