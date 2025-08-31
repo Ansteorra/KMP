@@ -178,6 +178,19 @@ if [ "${DRY_RUN:-0}" = "1" ]; then
 else
 	echo "[INFO] Executing cleanup deletions..." >&2
 	mysql -u "${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" -e "${CLEAN_SQL}" || { echo '[ERROR] Cleanup failed.' >&2; exit 1; }
+	echo "[INFO] Normalizing actor reference columns (created_by/updated_by/approved_by/approver_id) to 1..." >&2
+	actor_updates=$(mysql -u "${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" -N <<'EOSQL'
+SELECT CONCAT('UPDATE `',TABLE_NAME,'` SET `',COLUMN_NAME,'`=1 WHERE `',COLUMN_NAME,'` IS NOT NULL AND `',COLUMN_NAME,'`<>1;')
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_SCHEMA = DATABASE()
+  AND COLUMN_NAME IN ('created_by','updated_by','approved_by','approver_id');
+EOSQL
+)
+	if [ -n "${actor_updates}" ]; then
+		mysql -u "${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" -e "${actor_updates}" || { echo '[ERROR] Failed normalizing actor columns.' >&2; exit 1; }
+	else
+		echo "[INFO] No actor reference columns found to normalize." >&2
+	fi
 	echo "[INFO] Cleanup complete." >&2
 	echo "[INFO] Dumping cleaned database to ${DUMP_FILE}${DUMP_COMPRESS:+ (compressed)}" >&2
 	if [ "${DUMP_COMPRESS}" = "1" ]; then
