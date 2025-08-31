@@ -156,6 +156,26 @@ SET @left_warrants := (
 );
 DO CASE WHEN @left_warrants > 0 THEN (SELECT 1/0) ELSE 0 END;
 
+DELETE w
+FROM warrant_roster_approvals w
+WHERE
+    w.warrant_roster_id in (
+        select id
+        from warrant_rosters
+        where
+            id not in(
+                select warrant_roster_id
+                from warrants
+            )
+    );
+
+DELETE from warrant_rosters
+where
+    id not in(
+        select warrant_roster_id
+        from warrants
+    );
+
 -- Finally delete members themselves
 DELETE FROM members WHERE last_name <> 'Demoer' AND sca_name <> 'Admin von Admin';
 
