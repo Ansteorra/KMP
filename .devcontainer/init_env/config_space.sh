@@ -115,6 +115,13 @@ if [ ! -f /etc/apache2/ssl/dev.crt ] || [ ! -f /etc/apache2/ssl/dev.key ]; then
   bash $REPO_PATH/.devcontainer/init_env/generate_dev_ssl.sh
 fi
 
+#sudo chown -R vscode:vscode /workspaces/KMP
+
+sudo mkdir -p /workspaces/KMP/app/images/uploaded
+sudo mkdir -p /workspaces/KMP/app/images/cache
+sudo chmod -R 766 /workspaces/KMP/app/images
+sudo chown -R www-data:www-data /workspaces/KMP/app/images
+
 # Start Apache
 echo "Starting Apache..."
 sudo apachectl restart
