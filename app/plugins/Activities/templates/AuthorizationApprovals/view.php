@@ -6,8 +6,20 @@
  */
 ?>
 <?php
-$this->extend("/layout/TwitterBootstrap/dashboard");
 
+function makePossessive($name) {
+    // Trim whitespace and ensure proper formatting
+    $name = trim($name);
+
+    // Check if the name ends with 's'
+    if (strtolower(substr($name, -1)) === 's') {
+        return $name . "'";
+    } else {
+        return $name . "'s";
+    }
+}
+
+$this->extend("/layout/TwitterBootstrap/dashboard");
 
 echo $this->KMP->startBlock("title");
 echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': View Authorization Queue for ' . $queueFor;
@@ -44,7 +56,8 @@ usort($denied, function ($a, $b) {
 $this->extend("/layout/TwitterBootstrap/view_record");
 
 echo $this->KMP->startBlock("pageTitle") ?>
-<?= h($queueFor) ?>'s' Auth Request Queue
+
+<?= makePossessive($queueFor) ?> Auth Request Queue
 <?php $this->KMP->endBlock() ?>
 <?= $this->KMP->startBlock("recordActions") ?>
 <?php $this->KMP->endBlock() ?>
