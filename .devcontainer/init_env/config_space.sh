@@ -90,6 +90,8 @@ if [ ! -d "node_modules/playwright" ] || [ ! -d "$HOME/.cache/ms-playwright" ]; 
     sudo npx playwright install-deps
 fi
 
+sudo chmod -R 766 logs
+
 # Setup cron job for queue processing
 echo "Setting up cron job..."
 if ! crontab -u vscode -l &>/dev/null; then
