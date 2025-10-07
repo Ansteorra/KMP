@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 /**
@@ -75,9 +76,10 @@ class ControllerResolver implements ResolverInterface
         }
         if (Is_Array($resource)) {
             $controller = $resource['controller'];
-            if ($resource['plugin']) {
-                $plugin = $resource['plugin'];
-            } else {
+            // Handle plugin parameter - convert false to null
+            // CakePHP routing uses false to indicate no plugin
+            $plugin = $resource['plugin'] ?? null;
+            if ($plugin === false) {
                 $plugin = null;
             }
             $prefix = $resource['prefix'] ?? null;
@@ -123,6 +125,12 @@ class ControllerResolver implements ResolverInterface
         ?string $prefix = null,
     ): mixed {
         $class = $this->getControllerClass($controller, $plugin, $prefix);
+
+        // Handle case when controller class cannot be resolved
+        if ($class === null) {
+            throw new MissingPolicyException([$controller]);
+        }
+
         $controllerNamespace = "\Controller\\";
         $namespace = str_replace(
             '\\',
