@@ -3,7 +3,17 @@
 **Feature Branch**: `001-build-out-waiver`  
 **Created**: 2025-10-07  
 **Status**: Draft  
-**Input**: User description: "build out Waiver tracking for events. * Waiver Type is a database configurable PDF template which should also include a simple Document retention policy. * Event Activity is a database configurable table of activities that might happen at an event, an Event Activity can have 0 or more Waivers that are a part of that Event Activity and of those 0 or more Waivers, the Waivers can be marked as required for that Activity * Event Type, a simple configurable list of Event types * Event, an Event consists of a Name, Event Type, list of Activities, Branch that ran the event, Date(s) the event ran, notes about the event, Boolean of if Waivers were collected. * If Waivers are collected for an event, the list of required waivers will be defined by the Event Activities selected for the event. Users can then upload 1 or more PDFs per Waiver identified for the Event Activity. When a Waiver for an event is uploaded, the Retention policy for that waiver based on the Waiver type should be stored with the Waiver in case the policy changes the document will retain the policy it had at time of upload."
+**Input**: User description: "build out Waiver tracking for events. * Waiver Type is a database configurable PDF templ15. **File Size Limits**: Individual waiver image uploads will be limited to 25MB per file before conversion, which accommodates high-resolution scanned documents. After conversion to compressed black and white PDF, storage size will typically be 1-3MB per document.
+
+16. **Activity Overlap**: If an event has multiple activities requiring the same waiver type, the system will consolidate the requirement (waiver appears once, not multiple times).
+
+16. **Activity Overlap**: If an event has multiple activities requiring the same waiver type, the system will consolidate the requirement (waiver appears once, not multiple times).
+
+17. **Automatic PDF Conversion**: Image-to-PDF conversion happens synchronously during upload. Users receive immediate confirmation that their image was converted and stored as a PDF. No background processing delay.
+
+18. **Mobile Camera Support**: Event stewards can use mobile devices (phones/tablets) to capture waiver images directly using device cameras. HTML5 file input with `capture` attribute enables native camera access on mobile browsers (iOS Safari, Android Chrome). Users can choose between capturing new photos or selecting existing images from device gallery.
+
+19. **Mobile-First Usage Pattern**: Many event stewards will use mobile devices at events to photograph signed paper waivers immediately after collection. Mobile camera capture provides faster workflow than scanning later. Desktop/laptop access remains available for users who prefer to scan waivers. which should also include a simple Document retention policy. * Event Activity is a database configurable table of activities that might happen at an event, an Event Activity can have 0 or more Waivers that are a part of that Event Activity and of those 0 or more Waivers, the Waivers can be marked as required for that Activity * Event Type, a simple configurable list of Event types * Event, an Event consists of a Name, Event Type, list of Activities, Branch that ran the event, Date(s) the event ran, notes about the event, Boolean of if Waivers were collected. * If Waivers are collected for an event, the list of required waivers will be defined by the Event Activities selected for the event. Users can then upload 1 or more PDFs per Waiver identified for the Event Activity. When a Waiver for an event is uploaded, the Retention policy for that waiver based on the Waiver type should be stored with the Waiver in case the policy changes the document will retain the policy it had at time of upload."
 
 ## Clarifications
 
@@ -21,6 +31,8 @@
 - Q: What is the correct data flow for waiver configuration? → A: **Configuration Flow**: Event Type (core) → Event Activities (core) → Event Activity Waivers (plugin). Event Types define categories, Event Activities define what happens at events, Event Activity Waivers define which waiver types are required for each activity.
 - Q: What is the correct data flow for waiver uploads? → A: **Upload Flow**: Events (core) → Event Waivers (plugin). Events are specific instances, Event Waivers are the actual uploaded files for those events.
 - Q: How should existing Awards plugin data be handled? → A: Migrate award_events data to new core Event entity; refactor Awards plugin to use core Event and optionally Event Activity (to track which activity an award was given at).
+- Q: What file format should be used for waiver uploads? → A: **Image files (JPEG, PNG, TIFF)** uploaded by users. System automatically converts images to **compressed black and white PDF** to optimize storage space. Conversion happens synchronously during upload with immediate feedback to user. Storage savings: 60-80% compared to original high-resolution scans.
+- Q: How should mobile device users capture waiver images? → A: **HTML5 camera capture** using `<input type="file" accept="image/*" capture="environment">`. Mobile users can choose to either **take a new photo directly with device camera** or **select existing image from gallery**. Supports iOS Safari and Android Chrome. Enables on-site waiver collection at events using phones/tablets.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -90,13 +102,18 @@ As an event steward, I need to upload signed waiver PDFs for events where waiver
 
 **Acceptance Scenarios**:
 
-1. **Given** an event has "waivers collected" marked as true, **When** I navigate to the event's waiver upload section, **Then** I see a list of all required waivers for this event with upload interfaces
-2. **Given** I am uploading a waiver for an event, **When** I select a PDF file and specify which waiver type it represents, **Then** the system uploads the file and stores the current retention policy from the waiver type with the upload record
-3. **Given** a required waiver for an event, **When** I upload multiple PDFs for that waiver (e.g., batch of signed forms), **Then** the system accepts all uploads and associates them with the event and waiver type
-4. **Given** waivers have been uploaded for an event, **When** I view the event details, **Then** I see a count of how many PDFs have been uploaded for each required waiver
-5. **Given** I am viewing uploaded waivers, **When** I check a waiver's retention policy, **Then** I see the policy that was active at the time of upload, not the current policy
-6. **Given** a waiver's retention period has expired, **When** I view the waiver list, **Then** the system clearly indicates which waivers are eligible for deletion based on their captured retention policy
-7. **Given** I have appropriate permissions, **When** I download an uploaded waiver PDF, **Then** the file downloads successfully with appropriate security checks
+1. **Given** an event has "waivers collected" marked as true, **When** I navigate to the event's waiver upload section, **Then** I see a list of all required waivers for this event with image upload interfaces
+2. **Given** I am uploading a waiver for an event, **When** I select an image file (JPEG, PNG, or TIFF) and specify which waiver type it represents, **Then** the system converts the image to compressed black and white PDF, uploads it, and stores the current retention policy from the waiver type with the upload record
+3. **Given** I am uploading a waiver image, **When** the conversion completes, **Then** I receive immediate confirmation that my image was converted to PDF and stored successfully
+4. **Given** a required waiver for an event, **When** I upload multiple image files for that waiver (e.g., batch of signed forms), **Then** the system accepts all uploads, converts each to PDF, and associates them with the event and waiver type
+5. **Given** waivers have been uploaded for an event, **When** I view the event details, **Then** I see a count of how many converted PDFs exist for each required waiver
+6. **Given** I am viewing uploaded waivers, **When** I check a waiver's retention policy, **Then** I see the policy that was active at the time of upload, not the current policy
+7. **Given** a waiver's retention period has expired, **When** I view the waiver list, **Then** the system clearly indicates which waivers are eligible for deletion based on their captured retention policy
+8. **Given** I have appropriate permissions, **When** I download an uploaded waiver PDF, **Then** the converted PDF file downloads successfully with appropriate security checks
+9. **Given** I am uploading a waiver image, **When** I select a non-image file (e.g., Word document), **Then** the system rejects the upload with a clear error message indicating only image files are accepted
+10. **Given** I am using a mobile device, **When** I click the upload button, **Then** the system prompts me to either take a new photo with my camera or choose an existing photo from my gallery
+11. **Given** I am using a mobile device, **When** I choose to take a photo and capture an image, **Then** the system immediately converts the photo to PDF and uploads it with confirmation
+12. **Given** I am at an event with signed waivers, **When** I use my mobile phone to photograph multiple waivers in sequence, **Then** I can upload them one by one or in batch, each converting to PDF automatically
 
 ---
 
@@ -112,9 +129,9 @@ As a Kingdom officer or legal compliance officer, I need to search for events an
 
 1. **Given** multiple events exist, **When** I search for events by date range, branch, or event type, **Then** I see filtered results with waiver collection status
 2. **Given** I am viewing search results, **When** I filter to show only events where waivers were collected, **Then** I see only those events
-3. **Given** I need to respond to a legal inquiry, **When** I search for events involving a specific member and activity within a date range, **Then** I can identify which waiver PDFs may contain that member's signature
-4. **Given** I am managing retention compliance, **When** I generate a report of waivers eligible for deletion, **Then** I see all waivers whose retention period has expired with their event and date information
-5. **Given** I am viewing event statistics, **When** I generate a compliance report, **Then** I see what percentage of events have waiver collection marked and what percentage have waivers uploaded
+3. **Given** I need to respond to a legal inquiry, **When** I search for events involving a specific member and activity within a date range, **Then** I can identify which converted waiver PDFs may contain that member's signature
+4. **Given** I am managing retention compliance, **When** I generate a report of waivers eligible for deletion, **Then** I see all converted PDFs whose retention period has expired with their event and date information
+5. **Given** I am viewing event statistics, **When** I generate a compliance report, **Then** I see what percentage of events have waiver collection marked and what percentage have waivers uploaded and converted
 
 ---
 
@@ -122,14 +139,21 @@ As a Kingdom officer or legal compliance officer, I need to search for events an
 
 - What happens when an event activity's waiver requirements change after events using that activity already exist? (Answer: Existing events retain their original waiver requirements; only new events use the updated requirements)
 - What happens when a waiver type's retention policy changes after waivers have been uploaded? (Answer: Uploaded waivers retain the retention policy that was active at upload time)
-- What happens when an event steward tries to upload a non-PDF file as a waiver? (Answer: System validates file type and rejects non-PDF files with clear error message)
-- What happens when an event has multiple activities that require the same waiver type? (Answer: The waiver appears once in the required list, with multiple PDFs uploadable)
+- What happens when an event steward tries to upload a non-image file as a waiver? (Answer: System validates file type and rejects non-image files with clear error message indicating only JPEG, PNG, and TIFF are accepted)
+- What happens when an event has multiple activities that require the same waiver type? (Answer: The waiver appears once in the required list, with multiple images/converted PDFs uploadable)
 - What happens when someone tries to upload waivers for an event marked as "waivers not collected"? (Answer: System prevents waiver uploads and displays message explaining why)
 - What happens when trying to delete an event that has uploaded waivers? (Answer: System prevents deletion or requires explicit confirmation with warning about losing waiver records)
 - What happens when someone tries to edit an event's activities after waivers have been uploaded? (Answer: System blocks the change and displays a message explaining that activities cannot be modified once waivers are uploaded)
-- What happens when multiple users upload waivers to the same event simultaneously? (Answer: System accepts all uploads concurrently without restrictions; all PDFs are added to the event)
-- What happens when a waiver PDF upload fails during transmission? (Answer: System reports error clearly and allows retry without losing other uploaded waivers)
+- What happens when multiple users upload waivers to the same event simultaneously? (Answer: System accepts all uploads concurrently without restrictions; all images are converted and stored as PDFs)
+- What happens when an image upload fails during transmission or conversion? (Answer: System reports error clearly and allows retry without losing other uploaded waivers)
 - What happens when viewing retention period for waivers from a multi-day event? (Answer: Retention period is calculated from the event end date, not start date)
+- What happens when an uploaded image is corrupted or unreadable? (Answer: System detects invalid image during validation and rejects upload with clear error message before attempting conversion)
+- What happens to very large high-resolution scanned images? (Answer: System converts them to compressed black and white PDF, significantly reducing file size while maintaining legibility)
+- What happens when a mobile user's camera permissions are denied? (Answer: System falls back to file gallery selection mode; displays message explaining camera permission is optional but convenient)
+- What happens when a mobile user takes a blurry or poorly lit photo? (Answer: System still converts and uploads the image; responsibility for photo quality is on the user)
+- What happens when using mobile camera in landscape vs portrait orientation? (Answer: System accepts images in any orientation; converted PDF maintains original orientation)
+- What happens when a mobile device runs out of storage during camera capture? (Answer: Device's native camera app handles the error; system never receives the image so no conversion attempted)
+- What happens on older mobile browsers that don't support the capture attribute? (Answer: Falls back to standard file input; user can still select images from gallery but won't get direct camera prompt)
 
 ## Requirements *(mandatory)*
 
@@ -166,13 +190,18 @@ As a Kingdom officer or legal compliance officer, I need to search for events an
 - **FR-021**: System MUST prevent waiver uploads when "waivers collected" is marked false
 
 **Waiver Upload and Storage**:
-- **FR-022**: System MUST allow uploading PDF files as waivers for events marked with "waivers collected" as true
-- **FR-023**: System MUST validate that uploaded files are PDF format and reject other file types
-- **FR-024**: System MUST allow uploading multiple PDF files for each required waiver type
-- **FR-024a**: System MUST support concurrent waiver uploads by multiple users for the same event without restrictions (all uploads are accepted and added to the event)
-- **FR-025**: When a waiver is uploaded, system MUST capture and store the retention policy from the waiver type at that moment
-- **FR-026**: System MUST securely store uploaded waiver PDFs with access controls based on user permissions
-- **FR-026a**: System MUST support configurable file storage backend (local filesystem or cloud storage) for uploaded waiver PDFs
+- **FR-022**: System MUST allow uploading image files (JPEG, PNG, TIFF) as waivers for events marked with "waivers collected" as true
+- **FR-022a**: System MUST provide HTML file input with mobile camera capture support using `accept="image/*"` and `capture="environment"` attributes for direct camera access on mobile devices
+- **FR-022b**: System MUST allow users to choose between taking a new photo with their device camera or selecting existing images from their device gallery
+- **FR-023**: System MUST validate that uploaded files are valid image formats (JPEG, PNG, TIFF) and reject other file types
+- **FR-023a**: System MUST automatically convert uploaded image files to compressed black and white PDF format
+- **FR-023b**: System MUST perform image-to-PDF conversion synchronously during upload and provide immediate feedback to user
+- **FR-023c**: System MUST optimize converted PDFs for storage efficiency (target: 1-3MB per converted document)
+- **FR-024**: System MUST allow uploading multiple image files for each required waiver type (each converted to separate PDF)
+- **FR-024a**: System MUST support concurrent waiver uploads by multiple users for the same event without restrictions (all uploads are accepted, converted, and added to the event)
+- **FR-025**: When a waiver is uploaded and converted, system MUST capture and store the retention policy from the waiver type at that moment
+- **FR-026**: System MUST securely store converted waiver PDFs with access controls based on user permissions
+- **FR-026a**: System MUST support configurable file storage backend (local filesystem or cloud storage) for converted waiver PDFs
 - **FR-027**: System MUST associate each uploaded waiver with the event, waiver type, upload date, uploader identity, and captured retention policy
 - **FR-028**: System MUST display upload count for each required waiver type per event
 
@@ -215,7 +244,7 @@ Located in `plugins/Waivers/src/Model/Entity/` and `plugins/Waivers/src/Model/Ta
 
 - **Event Activity Waiver**: Junction entity linking core Event Activities to required Waiver Types. Contains: event_activity_id (FK to core Event Activity), waiver_type_id (FK), required boolean (indicates if waiver is required or optional for this activity). Defines which waivers are needed for which activities. Example: "Armored Combat" activity requires "Adult Combat Waiver".
 
-- **Event Waiver**: A specific PDF file uploaded for an event. Contains: event_id (FK to core Event), member_id (FK), waiver_type_id (FK), PDF file reference/path, upload date, uploaded_by_id (FK), captured retention policy (from waiver type at upload time), calculated expiration date, status. Related to Event (many-to-one), Member (many-to-one), and Waiver Type (many-to-one). Tracks actual waivers uploaded for specific events.
+- **Event Waiver**: A converted PDF file from uploaded waiver image. Contains: event_id (FK to core Event), member_id (FK), waiver_type_id (FK), converted PDF file reference/path, original_filename, upload date, uploaded_by_id (FK), captured retention policy (from waiver type at upload time), calculated expiration date, status. Related to Event (many-to-one), Member (many-to-one), and Waiver Type (many-to-one). Tracks waiver images uploaded and converted to compressed black and white PDFs for specific events.
 
 ## Success Criteria *(mandatory)*
 
@@ -223,18 +252,23 @@ Located in `plugins/Waivers/src/Model/Entity/` and `plugins/Waivers/src/Model/Ta
 
 - **SC-001**: Kingdom officers can configure all waiver types, event types, and event activities within 1 hour of system launch
 - **SC-002**: Event stewards can create a new event with activities and determine required waivers in under 5 minutes
-- **SC-003**: Event stewards can upload batch waivers (10-50 PDFs) for an event within 10 minutes
+- **SC-003**: Event stewards can upload and convert batch waiver images (10-50 files) for an event within 10 minutes, with conversion happening synchronously
 - **SC-004**: Officers can identify waivers eligible for deletion based on retention policies in under 2 minutes
 - **SC-005**: System maintains 100% accuracy in capturing retention policies with uploaded waivers (policy at upload time is preserved)
-- **SC-006**: 95% of event stewards successfully upload waivers without requiring support assistance
-- **SC-007**: Legal compliance officers can locate all waivers for a specific event or time period within 3 minutes
+- **SC-006**: 95% of event stewards successfully upload and convert waiver images without requiring support assistance
+- **SC-007**: Legal compliance officers can locate all converted waiver PDFs for a specific event or time period within 3 minutes
 - **SC-008**: System reduces time spent on manual waiver tracking by 75% compared to spreadsheet-based tracking
 - **SC-009**: Zero instances of waiver retention policy confusion (captured policy always matches what was active at upload)
 - **SC-010**: Event waiver collection compliance improves to 90% of applicable events within 6 months of deployment
+- **SC-011**: Image-to-PDF conversion reduces average storage requirements by 60-80% compared to storing original high-resolution scanned images
+- **SC-012**: 98% of uploaded images convert successfully to compressed black and white PDF on first attempt
+- **SC-013**: Mobile device users can successfully capture and upload waiver photos directly from their device camera without additional training
+- **SC-014**: At least 70% of waiver uploads occur via mobile devices using camera capture within 3 months of deployment (indicating mobile-first adoption)
+- **SC-015**: Average time to upload a single waiver via mobile camera capture is under 30 seconds from camera open to conversion confirmation
 
 ## Assumptions
 
-1. **PDF Format Standard**: All waivers will be provided as PDF documents. The system will not need to convert other formats to PDF.
+1. **Image Upload with PDF Conversion**: Event stewards will upload waiver documents as image files (JPEG, PNG, TIFF - common scanner output formats). The system will automatically convert uploaded images to compressed black and white PDF format to optimize storage space. Final storage format is always PDF.
 
 2. **Retention Policy Format**: Retention policies use a structured format with three fields: duration number (integer), duration unit (years/months/days), and anchor point (event_end_date/upload_date/permanent). The system calculates expiration dates based on this structured data.
 
@@ -262,9 +296,11 @@ Located in `plugins/Waivers/src/Model/Entity/` and `plugins/Waivers/src/Model/Ta
 
 14. **Cross-Plugin Compatibility**: The Waivers plugin references core Event and Event Activity entities via foreign keys. Core Events and Activities remain functional without the Waivers plugin installed (waiver-related associations are optional). Event Activities can be used by any plugin for activity tracking.
 
-12. **File Size Limits**: Individual waiver PDF uploads will be limited to 10MB per file, which accommodates scanned multi-page documents.
+15. **File Size Limits**: Individual waiver PDF uploads will be limited to 10MB per file, which accommodates scanned multi-page documents.
 
-13. **Activity Overlap**: If an event has multiple activities requiring the same waiver type, the system will consolidate the requirement (waiver appears once, not multiple times).
+16. **Activity Overlap**: If an event has multiple activities requiring the same waiver type, the system will consolidate the requirement (waiver appears once, not multiple times).
+
+17. **DPI and Pixel Size Minimums**: Individual waiver PDF uploads will be at least 100DPI at 8"x11" or 2048x2048px in raw pixel sizes. The PDF may be bigger but not smaller so that it is readable.
 
 ## Architecture Overview
 
@@ -332,12 +368,13 @@ Located in `plugins/Waivers/src/Model/Entity/` and `plugins/Waivers/src/Model/Ta
 
 1. **Existing KMP Branch System**: Events must be associated with existing branches in the KMP system
 2. **Awards Plugin**: Requires data migration from award_events to new core Event entity; Awards plugin will be refactored to use core Event
-3. **File Storage Infrastructure**: Requires secure file storage for PDF uploads (file system or cloud storage)
-4. **PDF Validation Library**: Requires ability to validate uploaded files are valid PDF format
-5. **Authorization System**: Integrates with existing KMP authorization policies and role system
-6. **CakePHP Framework**: Built on existing KMP CakePHP 5.x foundation
-7. **Existing Member System**: May need to reference members for permission checks (who can create events, upload waivers)
-8. **Plugin System**: Waivers plugin will depend on core Event and Event Type entities
+3. **File Storage Infrastructure**: Requires secure file storage for converted PDF files (file system or cloud storage)
+4. **Image Validation Library**: Requires ability to validate uploaded files are valid image formats (JPEG, PNG, TIFF)
+5. **Image-to-PDF Conversion Library**: Requires library to convert images to compressed black and white PDF (e.g., Imagick/ImageMagick with Ghostscript, or FPDF/TCPDF with GD)
+6. **Authorization System**: Integrates with existing KMP authorization policies and role system
+7. **CakePHP Framework**: Built on existing KMP CakePHP 5.x foundation
+8. **Existing Member System**: May need to reference members for permission checks (who can create events, upload waivers)
+9. **Plugin System**: Waivers plugin will depend on core Event and Event Type entities
 
 ## Out of Scope
 
