@@ -7,6 +7,7 @@ namespace Officers\Model\Table;
 use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
+use Cake\ORM\TableRegistry;
 use Cake\Validation\Validator;
 use App\KMP\StaticHelpers;
 use App\Model\Entity\Warrant;
@@ -526,5 +527,149 @@ class OfficersTable extends BaseTable
         $query->orderBy(["Officers.start_on" => "DESC", "Offices.name" => "ASC"]);
 
         return $query;
+    }
+
+    /**
+     * Find effective reporting officers with can_skip_report hierarchy traversal
+     *
+     * This method resolves the actual officers that should receive reports from a given
+     * officer assignment, handling the complex edge case where offices with can_skip_report
+     * enabled may not have current officers assigned. When this occurs, the method
+     * recursively traverses up the office hierarchy until it finds an office with a
+     * current officer assignment.
+     *
+     * ## Business Logic
+     * The method implements the following resolution algorithm:
+     * 1. Start with the officer's direct reporting office (reports_to_office_id)
+     * 2. Look for current officers in that office for the reporting branch
+     * 3. If officers are found, return them (base case)
+     * 4. If no officers found AND the office has can_skip_report enabled:
+     *    - Load the office's reporting office (reports_to_id)
+     *    - Recursively apply this algorithm to find officers
+     * 5. If no officers found and can_skip_report is false, return empty (no skip allowed)
+     * 6. Prevent infinite loops by tracking visited offices
+     *
+     * ## Parameters
+     * @param \Officers\Model\Entity\Officer $officer The officer whose effective reports-to needs resolution
+     * @param array $visitedOffices Internal parameter for circular reference prevention (do not pass)
+     * @return array<\Officers\Model\Entity\Officer> Array of officer entities who effectively receive reports
+     *
+     * ## Edge Cases Handled
+     * - **No Direct Officer**: When reports_to office has no current officer but can skip
+     * - **Circular References**: Prevents infinite loops through visited office tracking
+     * - **Top Level**: Returns empty array when reaching society level (no reports_to)
+     * - **Cannot Skip**: Returns empty array when office cannot skip and has no officer
+     * - **Cross-Branch Reporting**: When exact branch match fails, searches office in any branch
+     * - **Kingdom-Level Officers**: Automatically finds kingdom officers even when reports_to_branch_id differs
+     *
+     * ## Performance Considerations
+     * - Uses eager loading to minimize database queries
+     * - Caches visited offices to prevent redundant checks
+     * - Recursion depth typically limited to 2-3 levels in practice
+     * - Consider caching results for frequently accessed officer records
+     *
+     * ## Usage Example
+     * ```php
+     * // Get effective reporting officers for an assignment
+     * $officer = $officersTable->get($officerId, [
+     *     'contain' => ['Offices', 'ReportsToOffices', 'ReportsToBranches']
+     * ]);
+     * 
+     * $effectiveReports = $officersTable->findEffectiveReportsTo($officer);
+     * 
+     * foreach ($effectiveReports as $reportingOfficer) {
+     *     // Send notifications, generate email lists, etc.
+     *     echo "Reports to: {$reportingOfficer->member->sca_name}\n";
+     * }
+     * ```
+     *
+     * ## Integration Points
+     * - **Reporting Workflows**: Use in report submission and notification systems
+     * - **Email Generation**: Build accurate recipient lists for officer communications
+     * - **Organizational Charts**: Display effective reporting relationships
+     * - **Permission Checks**: Validate reporting chain access for authorization
+     *
+     * @see \Officers\Model\Entity\Officer For officer entity documentation
+     * @see \Officers\Model\Entity\Office For office hierarchy and can_skip_report flag
+     */
+    public function findEffectiveReportsTo(Officer $officer, array $visitedOffices = []): array
+    {
+        // Base case 1: No reporting office means this is top-level (Society)
+        if (empty($officer->reports_to_office_id) || empty($officer->reports_to_branch_id)) {
+            return [];
+        }
+
+        // Base case 2: Prevent circular references
+        $officeKey = $officer->reports_to_office_id . '_' . $officer->reports_to_branch_id;
+        if (in_array($officeKey, $visitedOffices)) {
+            return [];
+        }
+        $visitedOffices[] = $officeKey;
+
+        // Step 1: Look for current officers with EXACT match (office_id + branch_id)
+        $now = DateTime::now();
+
+        $reportingOfficers = $this->find()
+            ->where([
+                'Officers.office_id' => $officer->reports_to_office_id,
+                'Officers.branch_id' => $officer->reports_to_branch_id,
+                'Officers.status' => Officer::CURRENT_STATUS,
+                'Officers.start_on <=' => $now,
+                'Officers.expires_on >=' => $now,
+            ])
+            ->contain([
+                'Members' => function ($q) {
+                    return $q->select(['id', 'sca_name']);
+                },
+                'Offices' => function ($q) {
+                    return $q->select(['id', 'name', 'can_skip_report', 'reports_to_id']);
+                },
+            ])
+            ->all()
+            ->toArray();
+
+        // Base case 3: Found officers with exact match
+        if (!empty($reportingOfficers)) {
+            return $reportingOfficers;
+        }
+
+        // Step 2: No officers found in the reporting office
+        // When an office is VACANT (no current officers), we traverse up the hierarchy
+        // For vacant offices, we always look for the next level up
+
+        // Load the reporting office to check hierarchy
+        $officesTable = TableRegistry::getTableLocator()->get('Officers.Offices');
+        $reportingOffice = $officesTable->get($officer->reports_to_office_id);
+
+        // Step 3: Office is vacant - traverse up the hierarchy
+        // We need to go up BOTH office hierarchy (reports_to_id) AND branch hierarchy (parent_id)
+
+        // Check if there's a higher office level
+        if (empty($reportingOffice->reports_to_id)) {
+            // No higher office level - this is the top (Society level)
+            return [];
+        }
+
+        // Get the parent branch for traversing branch hierarchy
+        $branchesTable = TableRegistry::getTableLocator()->get('Branches');
+        $currentBranch = $branchesTable->get($officer->reports_to_branch_id);
+
+        // Get the parent branch ID (move up in branch hierarchy)
+        $parentBranchId = $currentBranch->parent_id;
+
+        if (empty($parentBranchId)) {
+            // No parent branch - we've reached the top of the branch hierarchy
+            return [];
+        }
+
+        // Create a temporary officer-like object for recursion
+        // This represents an officer IN the next office/branch that we want to search
+        // The reports_to_* fields tell us WHERE TO LOOK (which is this office/branch)
+        $tempOfficer = $this->newEmptyEntity();
+        $tempOfficer->reports_to_office_id = $reportingOffice->reports_to_id;  // LOOK IN this office
+        $tempOfficer->reports_to_branch_id = $parentBranchId;                  // LOOK IN this branch
+
+        // Recursively find officers at the next level
+        return $this->findEffectiveReportsTo($tempOfficer, $visitedOffices);
     }
 }

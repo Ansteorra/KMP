@@ -32,9 +32,9 @@ return [
     'Awards' => [
         'migrationOrder' => 3,
     ],
-    'Events' => [
-        'migrationOrder' => 4,
-    ],
+    //'Events' => [
+    //    'migrationOrder' => 4,
+    //],
     //'Template' => [
     //    'migrationOrder' => 4,
     //],

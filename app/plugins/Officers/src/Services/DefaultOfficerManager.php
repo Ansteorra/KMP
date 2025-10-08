@@ -351,17 +351,30 @@ class DefaultOfficerManager implements OfficerManagerInterface
             $newOfficer->reports_to_office_id = $office->reports_to_id;
             $branchTable = TableRegistry::getTableLocator()->get('Branches');
             $branch = $branchTable->get($branchId);
+
             if ($branch->parent_id != null) {
+                // Use the new compatibility checking method to find the right branch
+                // This ensures the reports_to_office can actually exist in the reports_to_branch
+                $officesTable = TableRegistry::getTableLocator()->get('Officers.Offices');
+
                 if (!$office->can_skip_report) {
-                    $newOfficer->reports_to_branch_id = $branch->parent_id;
+                    // For offices that can't skip reporting, find the compatible parent branch
+                    // starting from the immediate parent
+                    $compatibleBranchId = $officesTable->findCompatibleBranchForOffice(
+                        $branch->parent_id,
+                        $office->reports_to_id
+                    );
+                    $newOfficer->reports_to_branch_id = $compatibleBranchId;
                 } else {
-                    //iterate through the parents till we find one that has this office or the root
+                    // For offices that can skip reporting, first try to find a branch
+                    // where this office is actually filled
                     $currentBranchId = $branch->parent_id;
                     $previousBranchId = $branchId;
                     $setReportsToBranch = false;
+
                     while ($currentBranchId != null) {
                         $officersCount = $officerTable->find('Current')
-                            ->where(['branch_id' => $currentBranchId, 'office_id' => $officeId])
+                            ->where(['branch_id' => $currentBranchId, 'office_id' => $office->reports_to_id])
                             ->count();
                         if ($officersCount > 0) {
                             $newOfficer->reports_to_branch_id = $currentBranchId;
@@ -372,8 +385,14 @@ class DefaultOfficerManager implements OfficerManagerInterface
                         $currentBranch = $branchTable->get($currentBranchId);
                         $currentBranchId = $currentBranch->parent_id;
                     }
+
+                    // If no filled office found, use compatibility checking
                     if (!$setReportsToBranch) {
-                        $newOfficer->reports_to_branch_id = $previousBranchId;
+                        $compatibleBranchId = $officesTable->findCompatibleBranchForOffice(
+                            $previousBranchId,
+                            $office->reports_to_id
+                        );
+                        $newOfficer->reports_to_branch_id = $compatibleBranchId;
                     }
                 }
             } else {

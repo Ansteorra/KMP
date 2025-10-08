@@ -10,6 +10,10 @@ use Authorization\Policy\ResultInterface;
 use App\KMP\KmpIdentityInterface;
 use App\Policy\BasePolicy;
 use App\Model\Entity\BaseEntity;
+use App\Model\Entity\Permission;
+use Authorization\IdentityInterface;
+use Authorization\Policy\BeforePolicyInterface;
+use Cake\ORM\Table;
 
 /**
  * HelloWorld Policy
@@ -56,4 +60,13 @@ use App\Model\Entity\BaseEntity;
  * @see \App\Policy\BasePolicy
  * @see \Authorization\Policy\PolicyInterface
  */
-class EventsControllerPolicy extends BasePolicy {}
+class EventsControllerPolicy extends BasePolicy
+{
+    public function before(
+        ?IdentityInterface $user,
+        mixed $resource,
+        string $action,
+    ): ResultInterface|bool|null {
+        return true;
+    }
+}
