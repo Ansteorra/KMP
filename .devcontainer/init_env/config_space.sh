@@ -118,6 +118,8 @@ if [ ! -f /etc/apache2/ssl/dev.crt ] || [ ! -f /etc/apache2/ssl/dev.key ]; then
 fi
 
 #sudo chown -R vscode:vscode /workspaces/KMP
+curl -LsSf https://astral.sh/uv/install.sh | sh
+uv tool install specify-cli --from git+https://github.com/github/spec-kit.git
 
 sudo mkdir -p /workspaces/KMP/app/images/uploaded
 sudo mkdir -p /workspaces/KMP/app/images/cache
@@ -127,4 +129,5 @@ sudo chown -R www-data:www-data /workspaces/KMP/app/images
 # Start Apache
 echo "Starting Apache..."
 sudo apachectl restart
+
 

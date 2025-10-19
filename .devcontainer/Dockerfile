@@ -175,5 +175,3 @@ USER root
 
 # Create directory for mermerd config
 RUN mkdir -p /home/vscode && chown vscode:vscode /home/vscode
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-RUN uv tool install specify-cli --from git+https://github.com/github/spec-kit.git
