@@ -22,17 +22,18 @@ Enables Kingdom officers and gathering stewards to:
 
 ### IF YOU ARE: Product Owner / Stakeholder
 
-**Read**: `spec.md` (focus on User Stories and Requirements)  
-**Time**: 30-45 minutes  
+**Read**: `USER_FLOWS.md` (visual diagrams), `spec.md` (focus on User Stories and Requirements)  
+**Time**: 45-60 minutes  
 **Questions to Answer**:
-1. Do the user stories match our needs?
-2. Are there any missing requirements?
-3. Are the success criteria clear?
+1. Do the user workflows match how our users work?
+2. Do the user stories match our needs?
+3. Are there any missing requirements?
+4. Are the success criteria clear?
 
 ### IF YOU ARE: Developer / Engineer
 
-**Read**: `research.md`, `data-model.md`, `contracts/`  
-**Time**: 60-90 minutes  
+**Read**: `USER_FLOWS.md` (technical flow), `research.md`, `data-model.md`, `contracts/`  
+**Time**: 75-105 minutes  
 **Questions to Answer**:
 1. Are the technical decisions sound?
 2. Is the database design complete?
@@ -63,6 +64,7 @@ Enables Kingdom officers and gathering stewards to:
 | Document | Size | Read Time | Priority |
 |----------|------|-----------|----------|
 | [README.md](./README.md) | 13KB | 10 min | ⭐ START HERE |
+| [USER_FLOWS.md](./USER_FLOWS.md) | 18KB | 15 min | ⭐ VISUAL OVERVIEW |
 | [spec.md](./spec.md) | 40KB | 30 min | 🔴 HIGH |
 | [plan.md](./plan.md) | 15KB | 15 min | 🔴 HIGH |
 | [research.md](./research.md) | 15KB | 20 min | 🔴 HIGH |
@@ -71,6 +73,8 @@ Enables Kingdom officers and gathering stewards to:
 | [quickstart.md](./quickstart.md) | 13KB | 20 min | 🟢 LOW |
 
 **Total Review Time**: 2-3 hours (depending on role)
+
+**💡 TIP**: Start with [USER_FLOWS.md](./USER_FLOWS.md) to see visual diagrams of the three main workflows!
 
 ---
 

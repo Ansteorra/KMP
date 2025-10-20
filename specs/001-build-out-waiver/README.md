@@ -36,6 +36,17 @@ This feature adds a comprehensive **Gathering Waiver Tracking System** to KMP, e
 | [📋 plan.md](./plan.md) | 15KB | **Implementation plan** - Constitution check, complexity assessment, phase completion | 🔴 **HIGH** |
 | [📄 PLANNING_SESSION_SUMMARY.md](./PLANNING_SESSION_SUMMARY.md) | 8KB | **Session overview** - Quick summary of planning accomplishments | 🟡 **MEDIUM** |
 
+### User Flow Diagrams
+
+| Document | Size | Purpose | Review Priority |
+|----------|------|---------|-----------------|
+| [🔄 USER_FLOWS.md](./USER_FLOWS.md) | 18KB | **Visual user workflows** - Three main flows with Mermaid diagrams | 🔴 **HIGH** |
+
+**Three Key Workflows Documented**:
+1. **Configuring the Baseline System** - Kingdom Officer sets up types and policies
+2. **Creating a Gathering** - Steward sets up a specific event with activities
+3. **Uploading Waivers for a Gathering** - Mobile/desktop waiver capture and conversion
+
 ### Phase 0: Research Documents
 
 | Document | Size | Purpose | Review Priority |
@@ -160,6 +171,39 @@ Review the overall architecture:
 ---
 
 ## 🎨 Visual Overview
+
+### User Workflows
+
+The system has **three primary user workflows**, each optimized for its specific role and use case:
+
+#### 1. 🔧 [Configuring the Baseline System](./USER_FLOWS.md#flow-1-configuring-the-baseline-system)
+**Role**: Kingdom Officer  
+**Frequency**: Initial setup (1-2x per year)  
+**Steps**:
+```
+Configure Gathering Types → Configure Waiver Types → Link Activities to Waivers
+```
+Sets up the types and policies that define how the system operates.
+
+#### 2. 📅 [Creating a Gathering](./USER_FLOWS.md#flow-2-creating-a-gathering)
+**Role**: Gathering Steward or Kingdom Officer  
+**Frequency**: Before each event  
+**Steps**:
+```
+Enter Basic Info → Add Activities → System Auto-Links Waivers → Publish
+```
+Creates a specific gathering and automatically determines required waivers.
+
+#### 3. 📱 [Uploading Waivers](./USER_FLOWS.md#flow-3-uploading-waivers-for-a-gathering)
+**Role**: Gathering Steward  
+**Frequency**: During/after each event  
+**Steps**:
+```
+Select Gathering → Capture Images (Mobile Camera) → Auto-Convert to PDF → Store
+```
+Mobile-optimized workflow with automatic image-to-PDF conversion (90-95% size reduction).
+
+**👉 See [USER_FLOWS.md](./USER_FLOWS.md) for complete visual diagrams of all three workflows**
 
 ### System Architecture
 
