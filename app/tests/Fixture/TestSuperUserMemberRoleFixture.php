@@ -36,7 +36,8 @@ class TestSuperUserMemberRoleFixture extends BaseTestFixture
                 'expires_on' => null,
                 'start_on' => DateTime::now(),
                 'approver_id' => 1, // Admin
-                'granting_model' => 'Direct Grant',
+                'entity_type' => 'Direct Grant',
+                'entity_id' => null,
                 'created' => DateTime::now(),
                 'created_by' => 1,
             ]

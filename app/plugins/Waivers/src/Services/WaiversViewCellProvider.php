@@ -29,11 +29,13 @@ use App\View\Cell\BasePluginCell;
  * 
  * **View Cell Types Provided**:
  * 1. **Gathering Activity Waivers Tab** - Shows waiver requirements for activities
+ * 2. **Gathering Required Waivers Tab** - Shows aggregated waiver requirements for gatherings
  * 
  * **Integration Contexts**:
  * - **Gathering Activity Views**: Waiver requirement display and management
+ * - **Gathering Views**: Aggregated waiver requirements across all activities
  * - **Waiver Management**: Configuration of activity-specific waiver requirements
- * - **Compliance Tracking**: Waiver coverage status for activities
+ * - **Compliance Tracking**: Waiver coverage status for activities and gatherings
  * 
  * **Cell Configuration Features**:
  * - Route-based visibility controls
@@ -106,6 +108,12 @@ class WaiversViewCellProvider
      * - **Integration**: Activity configuration and compliance workflow
      * - **Display**: Tabbed interface with waiver requirement listing
      * 
+     * **Gathering Required Waivers Cell**:
+     * - **Context**: Gathering detail views
+     * - **Purpose**: Shows aggregated waiver requirements from all activities
+     * - **Integration**: Gathering compliance planning and overview
+     * - **Display**: Tabbed interface with deduplicated waiver listing
+     * 
      * **Route-Based Visibility**:
      * Cells are conditionally displayed based on current route context,
      * ensuring appropriate integration without cluttering unrelated views.
@@ -137,6 +145,19 @@ class WaiversViewCellProvider
             'cell' => 'Waivers.GatheringActivityWaivers',
             'validRoutes' => [
                 ['controller' => 'GatheringActivities', 'action' => 'view', 'plugin' => null],
+            ]
+        ];
+
+        // Cell for aggregated waiver requirements on gatherings
+        $cells[] = [
+            'type' => ViewCellRegistry::PLUGIN_TYPE_TAB,
+            'label' => 'Required Waivers',
+            'id' => 'gathering-required-waivers',
+            'order' => 2,
+            'tabBtnBadge' => null,
+            'cell' => 'Waivers.GatheringRequiredWaivers',
+            'validRoutes' => [
+                ['controller' => 'Gatherings', 'action' => 'view', 'plugin' => null],
             ]
         ];
 

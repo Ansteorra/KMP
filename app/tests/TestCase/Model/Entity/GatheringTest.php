@@ -161,8 +161,8 @@ class GatheringTest extends TestCase
     {
         $gathering = new Gathering([
             'name' => 'Single Day Practice',
-            'start_date' => '2025-06-15',
-            'end_date' => '2025-06-15', // Same day
+            'start_date' => new \Cake\I18n\DateTime('2025-06-15'),
+            'end_date' => new \Cake\I18n\DateTime('2025-06-15'), // Same day
         ]);
 
         $this->assertNotNull($gathering->start_date);

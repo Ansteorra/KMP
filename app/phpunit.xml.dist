@@ -9,6 +9,7 @@
     <php>
         <ini name="memory_limit" value="-1"/>
         <ini name="apc.enable_cli" value="1"/>
+        <env name="FIXTURE_SCHEMA_METADATA" value="_test"/>
     </php>
 
     <!-- Add any additional test suites you want to run here -->
@@ -21,7 +22,9 @@
 
     <!-- Load extension for fixtures -->
     <extensions>
-        <bootstrap class="Cake\TestSuite\Fixture\Extension\PHPUnitExtension"/>
+        <bootstrap class="Cake\TestSuite\Fixture\Extension\PHPUnitExtension">
+            <parameter name="fixtureStrategy" value="truncate"/>
+        </bootstrap>
     </extensions>
 
     <!-- Ignore vendor tests in code coverage reports -->

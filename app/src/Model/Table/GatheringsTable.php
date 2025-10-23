@@ -45,7 +45,9 @@ class GatheringsTable extends Table
 
         $this->addBehavior('Timestamp');
         $this->addBehavior('Muffin/Footprint.Footprint');
-        $this->addBehavior('Muffin/Trash.Trash');
+        $this->addBehavior('Muffin/Trash.Trash', [
+            'field' => 'deleted'
+        ]);
 
         $this->belongsTo('Branches', [
             'foreignKey' => 'branch_id',

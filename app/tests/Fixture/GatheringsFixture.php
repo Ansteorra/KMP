@@ -9,15 +9,18 @@ namespace App\Test\Fixture;
  *
  * Test fixture for Gatherings table.
  * Provides sample gatherings for testing.
+ * 
+ * Note: Relies on existing database schema from bin/setup_test_database.sh
+ * Uses TruncateStrategy (configured in phpunit.xml.dist) to preserve schema.
  */
 class GatheringsFixture extends BaseTestFixture
 {
     /**
-     * Import table definition from database
+     * The table name
      *
-     * @var array<string, mixed>
+     * @var string
      */
-    public array $import = ['table' => 'gatherings'];
+    public string $table = 'gatherings';
 
     /**
      * Initialize the fixture.
