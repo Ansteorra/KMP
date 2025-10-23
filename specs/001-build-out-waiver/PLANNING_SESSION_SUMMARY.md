@@ -49,8 +49,10 @@
 6. `quickstart.md` - Developer onboarding guide
 
 **Data Model**:
-- **7 Entities**: 3 core, 4 plugin
-- **ERD Diagram**: Visual representation of all relationships
+- **10 Entities**: 4 core, 5 plugin, 1 reference
+- **Polymorphic Pattern**: Documents entity follows Notes model (entity_type + entity_id) for reusable document storage
+- **Many-to-Many**: GatheringWaiverActivities join table enables flexible waiver-activity coverage
+- **ERD Diagram**: Visual representation of all relationships including polymorphic links
 - **Complete Schemas**: All columns, types, indexes, foreign keys documented
 - **Migration Strategy**: Awards plugin data migration documented
 
@@ -72,15 +74,20 @@
 ## Architecture Summary
 
 ### Core Entities (in `src/Model/`)
-1. **GatheringTypes** - Types of gatherings (Practice, Tournament, etc.)
-2. **Gatherings** - Specific gathering instances with dates
-3. **GatheringActivities** - Activities within gatherings (Armored Combat, Archery)
+1. **Documents** - Generic polymorphic document storage (follows Notes pattern)
+2. **GatheringTypes** - Types of gatherings (Practice, Tournament, etc.)
+3. **Gatherings** - Specific gathering instances with dates
+4. **GatheringActivities** - Activities within gatherings (Armored Combat, Archery)
 
 ### Plugin Entities (in `plugins/Waivers/`)
-4. **WaiverTypes** - Waiver categories with retention policies
-5. **GatheringActivityWaivers** - Join table (activities ↔ waiver types)
-6. **GatheringWaivers** - Uploaded waiver PDFs
-7. **WaiverConfiguration** - Plugin settings
+5. **WaiverTypes** - Waiver categories with retention policies
+6. **GatheringActivityWaivers** - Join table (activities ↔ required waiver types)
+7. **GatheringWaivers** - Waiver metadata with document reference (business logic)
+8. **GatheringWaiverActivities** - Join table (waivers ↔ activities covered) - many-to-many
+9. **WaiverConfiguration** - Plugin settings
+
+### Reference Entities
+10. **Members** - Existing entity (referenced by Documents, GatheringWaivers)
 
 ### Key Services
 - `ImageToPdfConversionService` - Converts images to B&W PDFs

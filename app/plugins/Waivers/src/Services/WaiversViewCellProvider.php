@@ -1,0 +1,145 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Waivers\Services;
+
+use App\KMP\StaticHelpers;
+use App\Services\ViewCellRegistry;
+use App\View\Cell\BasePluginCell;
+
+/**
+ * Waivers View Cell Provider Service
+ * 
+ * **Purpose**: Provides view cell configurations for the Waivers plugin with
+ * comprehensive integration support for gathering activities, waiver management,
+ * and compliance tracking.
+ * 
+ * **Core Responsibilities**:
+ * - View Cell Registration - Complete cell configuration for Waivers plugin
+ * - Route-Based Cell Visibility - Context-aware cell display logic
+ * - Multi-Format Support - Tab, JSON, and modal cell configurations
+ * - Integration Point Management - Seamless plugin integration with core views
+ * - Plugin State Management - Conditional cell registration based on availability
+ * 
+ * **Architecture**: 
+ * This service implements the view cell provider pattern for the Waivers plugin,
+ * registering cells with the ViewCellRegistry for automatic rendering in appropriate
+ * contexts. It supports multiple cell types and routing configurations.
+ * 
+ * **View Cell Types Provided**:
+ * 1. **Gathering Activity Waivers Tab** - Shows waiver requirements for activities
+ * 
+ * **Integration Contexts**:
+ * - **Gathering Activity Views**: Waiver requirement display and management
+ * - **Waiver Management**: Configuration of activity-specific waiver requirements
+ * - **Compliance Tracking**: Waiver coverage status for activities
+ * 
+ * **Cell Configuration Features**:
+ * - Route-based visibility controls
+ * - Order-based positioning in view
+ * - Badge support for notification counts
+ * - Icon and label customization
+ * - Multi-format rendering support
+ * 
+ * **ViewCellRegistry Integration**:
+ * Utilizes the KMP ViewCellRegistry system for automatic cell discovery and
+ * rendering in appropriate view contexts, enabling seamless plugin integration
+ * without core application modifications.
+ * 
+ * **Performance Considerations**:
+ * - Plugin availability checking prevents unnecessary processing
+ * - Static method design for efficient cell configuration generation
+ * - Route-based conditional loading for optimal performance
+ * - Lazy loading of cell content through CakePHP cell system
+ * 
+ * **Usage Examples**:
+ * 
+ * ```php
+ * // View cells are automatically registered through ViewCellRegistry
+ * // and appear in appropriate contexts:
+ * 
+ * // Gathering Activity view: Shows "Waivers" tab with required waivers
+ * ```
+ * 
+ * **Cell Types**:
+ * - **TAB**: Tabbed interface integration for multi-section views
+ * - **JSON**: API endpoint integration for AJAX and mobile support
+ * - **MODAL**: Modal dialog integration for detailed views
+ * 
+ * **Integration Points**:
+ * - StaticHelpers::pluginEnabled() - Plugin availability validation
+ * - ViewCellRegistry - Cell registration and management system
+ * - BasePluginCell - Common cell functionality and patterns
+ * - Waivers View Cells - Actual cell implementation classes
+ * 
+ * **Troubleshooting**:
+ * - Verify plugin is enabled in configuration
+ * - Check ViewCellRegistry registration success
+ * - Validate cell classes exist and are accessible
+ * - Monitor cell rendering performance and content loading
+ * 
+ * @see ViewCellRegistry Cell registration and management
+ * @see GatheringActivityWaiversCell Gathering activity waiver display cell
+ * @see BasePluginCell Common plugin cell functionality
+ */
+class WaiversViewCellProvider
+{
+    /**
+     * Get Waivers Plugin View Cells
+     *
+     * Generates complete view cell configurations for Waivers plugin integration
+     * with gathering activity management and waiver compliance tracking.
+     * 
+     * **Cell Configuration Structure**:
+     * Each cell includes:
+     * - Type: TAB, JSON, or MODAL for different integration contexts
+     * - Label: User-visible text for tab headers and navigation
+     * - ID: Unique identifier for cell targeting and customization
+     * - Order: Positioning within view containers
+     * - Cell: CakePHP cell class path for rendering
+     * - Valid Routes: Route specifications for conditional display
+     * 
+     * **Gathering Activity Waivers Cell**:
+     * - **Context**: Gathering activity detail views
+     * - **Purpose**: Shows waiver requirements for the activity
+     * - **Integration**: Activity configuration and compliance workflow
+     * - **Display**: Tabbed interface with waiver requirement listing
+     * 
+     * **Route-Based Visibility**:
+     * Cells are conditionally displayed based on current route context,
+     * ensuring appropriate integration without cluttering unrelated views.
+     * 
+     * **Plugin Availability Check**:
+     * Returns empty array if Waivers plugin is disabled, preventing
+     * error conditions and maintaining application stability.
+     * 
+     * @param array $urlParams URL parameters from current request context
+     * @param mixed $user Current authenticated user (may be null for API calls)
+     * @return array Complete view cell configurations for Waivers plugin
+     */
+    public static function getViewCells(array $urlParams, $user = null): array
+    {
+        // Check if plugin is enabled
+        if (!StaticHelpers::pluginEnabled('Waivers')) {
+            return [];
+        }
+
+        $cells = [];
+
+        // Cell for waiver requirements on gathering activities
+        $cells[] = [
+            'type' => ViewCellRegistry::PLUGIN_TYPE_TAB,
+            'label' => 'Required Waivers',
+            'id' => 'gathering-activity-waivers',
+            'order' => 1,
+            'tabBtnBadge' => null,
+            'cell' => 'Waivers.GatheringActivityWaivers',
+            'validRoutes' => [
+                ['controller' => 'GatheringActivities', 'action' => 'view', 'plugin' => null],
+            ]
+        ];
+
+        return $cells;
+    }
+}

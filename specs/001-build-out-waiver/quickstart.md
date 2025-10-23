@@ -64,12 +64,15 @@ git checkout -b 001-build-out-waiver
 
 ```bash
 cd app
+bin/cake bake migration CreateDocuments
 bin/cake bake migration CreateGatheringTypes
 bin/cake bake migration CreateGatherings
 bin/cake bake migration CreateGatheringActivities
 ```
 
 Fill in migration files based on `data-model.md` schemas.
+
+**Important**: Documents migration must be created first as GatheringWaivers will reference it.
 
 ### 3. Create Plugin
 
@@ -85,8 +88,11 @@ This creates `app/plugins/Waivers/` structure.
 bin/cake bake migration CreateWaiverTypes --plugin Waivers
 bin/cake bake migration CreateGatheringActivityWaivers --plugin Waivers
 bin/cake bake migration CreateGatheringWaivers --plugin Waivers
+bin/cake bake migration CreateGatheringWaiverActivities --plugin Waivers
 bin/cake bake migration CreateWaiverConfiguration --plugin Waivers
 ```
+
+**Note**: GatheringWaiverActivities is the many-to-many join table between GatheringWaivers and GatheringActivities.
 
 ### 5. Run Migrations
 
@@ -99,6 +105,7 @@ bin/cake migrations migrate --plugin Waivers
 
 **Core Models**:
 ```bash
+bin/cake bake model Documents
 bin/cake bake model GatheringTypes
 bin/cake bake model Gatherings
 bin/cake bake model GatheringActivities
@@ -109,7 +116,66 @@ bin/cake bake model GatheringActivities
 bin/cake bake model WaiverTypes --plugin Waivers
 bin/cake bake model GatheringActivityWaivers --plugin Waivers
 bin/cake bake model GatheringWaivers --plugin Waivers
+bin/cake bake model GatheringWaiverActivities --plugin Waivers
 bin/cake bake model WaiverConfiguration --plugin Waivers
+```
+
+**Important Association Setup**:
+
+After baking, manually configure these associations:
+
+**DocumentsTable.php** (Core - `src/Model/Table/DocumentsTable.php`):
+```php
+// No explicit associations - polymorphic relationships handled via custom finders
+public function initialize(array $config): void
+{
+    parent::initialize($config);
+    
+    $this->belongsTo('UploadedBy', [
+        'className' => 'Members',
+        'foreignKey' => 'uploaded_by'
+    ]);
+    
+    $this->addBehavior('Timestamp');
+    $this->addBehavior('Muffin/Footprint.Footprint');
+}
+
+// Custom finder for polymorphic lookups
+public function findForEntity(Query $query, array $options): Query
+{
+    return $query->where([
+        'Documents.entity_type' => $options['entity_type'],
+        'Documents.entity_id' => $options['entity_id']
+    ]);
+}
+```
+
+**GatheringWaiversTable.php** (Plugin - `plugins/Waivers/src/Model/Table/GatheringWaiversTable.php`):
+```php
+public function initialize(array $config): void
+{
+    parent::initialize($config);
+    
+    $this->belongsTo('Gatherings');
+    $this->belongsTo('WaiverTypes');
+    $this->belongsTo('Members');
+    
+    // One-to-one with Documents
+    $this->belongsTo('Documents', [
+        'className' => 'Documents',
+        'foreignKey' => 'document_id'
+    ]);
+    
+    // Many-to-many with GatheringActivities via join table
+    $this->belongsToMany('GatheringActivities', [
+        'through' => 'Waivers.GatheringWaiverActivities',
+        'foreignKey' => 'gathering_waiver_id',
+        'targetForeignKey' => 'gathering_activity_id'
+    ]);
+    
+    $this->addBehavior('Timestamp');
+    $this->addBehavior('Muffin/Footprint.Footprint');
+}
 ```
 
 ### 7. Bake Controllers
@@ -309,7 +375,125 @@ $conversionService = new ImageToPdfConversionService();
 $success = $conversionService->convertToPdf($imagePath, $pdfPath);
 ```
 
-### Pattern 4: Policy for Authorization
+### Pattern 4: Working with Documents + GatheringWaivers (Polymorphic Pattern)
+
+**Creating a Waiver with Document** (`plugins/Waivers/src/Controller/GatheringWaiversController.php`):
+```php
+public function upload()
+{
+    if ($this->request->is('post')) {
+        $data = $this->request->getData();
+        $uploadedFile = $data['waiver_file']; // UploadedFile object
+        
+        // 1. Convert image to PDF
+        $conversionService = new ImageToPdfConversionService();
+        $storedFilename = $this->generateFilename($uploadedFile);
+        $filePath = 'waivers/' . date('Y/m/') . $storedFilename;
+        $fullPath = WWW_ROOT . 'files/' . $filePath;
+        
+        $conversionService->convertToPdf($uploadedFile->getStream()->getMetadata('uri'), $fullPath);
+        
+        // 2. Create Document record (polymorphic)
+        $document = $this->GatheringWaivers->Documents->newEntity([
+            'entity_type' => 'Waivers.GatheringWaivers', // Will be set after waiver is saved
+            'entity_id' => null,                         // Will be set after waiver is saved
+            'uploaded_by' => $this->Authentication->getIdentity()->id,
+            'original_filename' => $uploadedFile->getClientFilename(),
+            'stored_filename' => $storedFilename,
+            'file_path' => $filePath,
+            'mime_type' => 'application/pdf',
+            'file_size' => filesize($fullPath),
+            'checksum' => hash_file('sha256', $fullPath),
+            'storage_adapter' => 'local',
+            'metadata' => json_encode([
+                'source' => 'mobile_camera',
+                'converted_from' => $uploadedFile->getClientMediaType(),
+                'compression_ratio' => round(filesize($fullPath) / $uploadedFile->getSize(), 2)
+            ])
+        ]);
+        
+        if ($this->GatheringWaivers->Documents->save($document)) {
+            // 3. Create GatheringWaiver record with document reference
+            $waiver = $this->GatheringWaivers->newEntity([
+                'gathering_id' => $data['gathering_id'],
+                'member_id' => $data['member_id'] ?? null,
+                'waiver_type_id' => $data['waiver_type_id'],
+                'document_id' => $document->id,
+                'retention_date' => $this->calculateRetentionDate($data['waiver_type_id'], $data['gathering_id']),
+                'status' => 'active'
+            ]);
+            
+            if ($this->GatheringWaivers->save($waiver)) {
+                // 4. Update document with waiver's ID (complete polymorphic link)
+                $document->entity_id = $waiver->id;
+                $this->GatheringWaivers->Documents->save($document);
+                
+                $this->Flash->success('Waiver uploaded successfully');
+                return $this->redirect(['action' => 'index']);
+            }
+        }
+    }
+}
+```
+
+**Querying Waivers with Documents**:
+```php
+// Get waiver with document
+$waiver = $this->GatheringWaivers->get($id, [
+    'contain' => ['Documents', 'WaiverTypes', 'Members', 'Gatherings']
+]);
+$filePath = $waiver->document->file_path;
+$originalFilename = $waiver->document->original_filename;
+
+// Find all documents for a specific entity type
+$waiverDocuments = $this->Documents->find('forEntity', [
+    'entity_type' => 'Waivers.GatheringWaivers',
+    'entity_id' => $waiverId
+])->all();
+
+// Find all waivers with expired retention dates
+$expiredWaivers = $this->GatheringWaivers->find()
+    ->where(['retention_date <' => FrozenDate::now()])
+    ->where(['status' => 'active'])
+    ->contain(['Documents']) // Include file info
+    ->all();
+```
+
+**Deleting Waiver + Document** (two-step with safety):
+```php
+public function delete($id)
+{
+    $waiver = $this->GatheringWaivers->get($id, ['contain' => ['Documents']]);
+    $this->Authorization->authorize($waiver);
+    
+    if ($this->request->is(['post', 'delete'])) {
+        // Step 1: Soft delete waiver
+        $waiver->status = 'deleted';
+        if ($this->GatheringWaivers->save($waiver)) {
+            $this->Flash->success('Waiver marked for deletion');
+        }
+    }
+}
+
+public function confirm_deletion($id)
+{
+    $waiver = $this->GatheringWaivers->get($id, ['contain' => ['Documents']]);
+    $this->Authorization->authorize($waiver, 'confirmDeletion');
+    
+    if ($this->request->is(['post', 'delete'])) {
+        $document = $waiver->document;
+        
+        // Step 2: Hard delete waiver, then document
+        if ($this->GatheringWaivers->delete($waiver)) {
+            // Delete document record (triggers file deletion via afterDelete callback)
+            $this->GatheringWaivers->Documents->delete($document);
+            $this->Flash->success('Waiver permanently deleted');
+        }
+    }
+}
+```
+
+### Pattern 5: Policy for Authorization
 
 **Policy** (`plugins/Waivers/src/Policy/GatheringWaiverPolicy.php`):
 ```php
@@ -337,8 +521,14 @@ class GatheringWaiverPolicy
     
     public function canDelete(IdentityInterface $member, GatheringWaiver $waiver): bool
     {
-        // Only compliance officers can delete
+        // Only compliance officers can soft delete
         return $member->hasRole('Compliance Officer');
+    }
+    
+    public function canConfirmDeletion(IdentityInterface $member, GatheringWaiver $waiver): bool
+    {
+        // Only compliance officers can hard delete
+        return $member->hasRole('Compliance Officer') && $waiver->status === 'deleted';
     }
     
     public function canView(IdentityInterface $member, GatheringWaiver $waiver): bool

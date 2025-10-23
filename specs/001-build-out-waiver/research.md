@@ -368,6 +368,79 @@ public function calculateExpirationDate(FrozenTime $gatheringEndDate, array $ret
 
 ---
 
+### 8. Generic Document Storage vs Waiver-Specific Storage
+
+**Question**: Should uploaded waiver files be stored directly in GatheringWaivers table, or should we create a generic Documents entity for reusable file storage?
+
+**Options Evaluated**:
+
+1. **Waiver-Specific Storage (Direct Fields in GatheringWaivers)**
+   - Pros: Simpler initial implementation, direct relationship, fewer tables
+   - Cons: Cannot reuse for other document types, duplicates storage logic, future features require new tables
+   - Maintainability: Requires duplicating file management code for each document type
+
+2. **Generic Documents Entity (Polymorphic Pattern)**
+   - Pros: Reusable across features (member photos, meeting minutes, financial records), follows KMP's Notes pattern, single DocumentsTable with shared logic
+   - Cons: Slightly more complex relationships, requires understanding polymorphic pattern
+   - Maintainability: Centralizes file storage logic, easy to add new document types
+
+**Decision**: **Generic Documents Entity with Polymorphic Relationships**
+
+**Rationale**:
+- **Established Pattern**: KMP already uses polymorphic pattern for Notes (entity_type + entity_id)
+- **Future-Proof**: Enables member photos, meeting minutes, financial records without schema changes
+- **Code Reuse**: Single DocumentsTable, DocumentsController, upload service for all document types
+- **Consistency**: Follows KMP architectural conventions
+- **Separation of Concerns**: Documents handles file storage/metadata, GatheringWaivers handles business logic
+- **Query Flexibility**: Can find documents by entity or entities by document
+
+**Implementation Pattern**:
+```php
+// Documents table (Core - src/Model/)
+CREATE TABLE documents (
+    id INT PRIMARY KEY,
+    entity_type VARCHAR(255),  // 'Waivers.GatheringWaivers', 'Members', etc.
+    entity_id INT,             // Polymorphic FK
+    uploaded_by INT,           // FK to members
+    file_path VARCHAR(255),
+    mime_type VARCHAR(100),
+    file_size INT,
+    checksum VARCHAR(64),      // SHA-256
+    storage_adapter VARCHAR(50), // 'local' or 's3'
+    metadata JSON,
+    // ... audit fields
+    INDEX (entity_type, entity_id)  // CRITICAL for polymorphic lookups
+);
+
+// GatheringWaivers table (Plugin - plugins/Waivers/src/Model/)
+CREATE TABLE gathering_waivers (
+    id INT PRIMARY KEY,
+    gathering_id INT,
+    member_id INT,
+    waiver_type_id INT,
+    document_id INT UNIQUE,    // One-to-one with Documents
+    retention_date DATE,
+    status ENUM,
+    // ... business logic fields
+    FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE RESTRICT
+);
+
+// Usage examples
+$waiver->document;  // Access file via association
+$this->Documents->find('forEntity', [
+    'entity_type' => 'Waivers.GatheringWaivers',
+    'entity_id' => $waiverId
+]);
+```
+
+**Future Use Cases Enabled**:
+- Member profile photos: `entity_type='Members'`
+- Meeting minutes: `entity_type='Meetings'`
+- Financial records: `entity_type='Financial.Transactions'`
+- Award certificates: `entity_type='Awards.Recommendations'`
+
+---
+
 ## Research Summary
 
 All technical unknowns have been researched and decisions made:
@@ -379,6 +452,7 @@ All technical unknowns have been researched and decisions made:
 5. ✅ **Mobile UI**: Turbo Frame wizard pattern with progressive disclosure
 6. ✅ **Date Calculation**: CakePHP FrozenTime for retention policy dates
 7. ✅ **Automated Deletion**: Queue Plugin job with two-step deletion process
+8. ✅ **Document Storage**: Generic Documents entity with polymorphic pattern (follows Notes model)
 
 ## Next Steps
 

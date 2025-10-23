@@ -44,6 +44,372 @@ __webpack_require__.r(__webpack_exports__);
 
 /***/ }),
 
+/***/ "./assets/js/controllers/activity-waiver-manager-controller.js":
+/*!*********************************************************************!*\
+  !*** ./assets/js/controllers/activity-waiver-manager-controller.js ***!
+  \*********************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+
+/**
+ * Activity Waiver Manager Controller
+ * 
+ * Manages the waiver selection interface for gathering activities.
+ * Provides visual feedback and validation for waiver associations.
+ */
+class ActivityWaiverManagerController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static targets = ["waiverCheckbox", "selectedCount", "waiverList"];
+  static values = {
+    minWaivers: {
+      type: Number,
+      default: 0
+    },
+    maxWaivers: {
+      type: Number,
+      default: 99
+    }
+  };
+
+  /**
+   * Initialize the controller
+   */
+  connect() {
+    this.updateSelectedCount();
+    this.updateVisualState();
+  }
+
+  /**
+   * Handle waiver checkbox toggle
+   */
+  toggleWaiver(event) {
+    this.updateSelectedCount();
+    this.updateVisualState();
+    this.validateSelection();
+  }
+
+  /**
+   * Update the selected waiver count display
+   */
+  updateSelectedCount() {
+    if (!this.hasSelectedCountTarget) return;
+    const selectedCount = this.getSelectedWaivers().length;
+    const countText = selectedCount === 0 ? "No waivers selected" : selectedCount === 1 ? "1 waiver selected" : `${selectedCount} waivers selected`;
+    this.selectedCountTarget.textContent = countText;
+  }
+
+  /**
+   * Update visual state of selected waivers
+   */
+  updateVisualState() {
+    this.waiverCheckboxTargets.forEach(checkbox => {
+      const container = checkbox.closest('.form-check, .checkbox');
+      if (!container) return;
+      if (checkbox.checked) {
+        container.classList.add('selected');
+        container.style.backgroundColor = '#e7f3ff';
+        container.style.borderLeft = '3px solid #0d6efd';
+        container.style.paddingLeft = '0.5rem';
+      } else {
+        container.classList.remove('selected');
+        container.style.backgroundColor = '';
+        container.style.borderLeft = '';
+        container.style.paddingLeft = '';
+      }
+    });
+  }
+
+  /**
+   * Validate waiver selection
+   */
+  validateSelection() {
+    const selectedCount = this.getSelectedWaivers().length;
+    const isValid = selectedCount >= this.minWaiversValue && selectedCount <= this.maxWaiversValue;
+
+    // Update validation state
+    if (this.hasWaiverListTarget) {
+      if (!isValid && selectedCount > 0) {
+        this.waiverListTarget.classList.add('is-invalid');
+      } else {
+        this.waiverListTarget.classList.remove('is-invalid');
+      }
+    }
+    return isValid;
+  }
+
+  /**
+   * Get array of selected waiver IDs
+   */
+  getSelectedWaivers() {
+    return this.waiverCheckboxTargets.filter(checkbox => checkbox.checked).map(checkbox => checkbox.value);
+  }
+
+  /**
+   * Select all waivers
+   */
+  selectAll() {
+    this.waiverCheckboxTargets.forEach(checkbox => {
+      checkbox.checked = true;
+    });
+    this.updateSelectedCount();
+    this.updateVisualState();
+    this.validateSelection();
+  }
+
+  /**
+   * Deselect all waivers
+   */
+  deselectAll() {
+    this.waiverCheckboxTargets.forEach(checkbox => {
+      checkbox.checked = false;
+    });
+    this.updateSelectedCount();
+    this.updateVisualState();
+    this.validateSelection();
+  }
+}
+
+// Add to global controllers registry
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["activity-waiver-manager"] = ActivityWaiverManagerController;
+
+// Export as default for ES6 import
+/* harmony default export */ __webpack_exports__["default"] = (ActivityWaiverManagerController);
+
+/***/ }),
+
+/***/ "./assets/js/controllers/delete-confirmation-controller.js":
+/*!*****************************************************************!*\
+  !*** ./assets/js/controllers/delete-confirmation-controller.js ***!
+  \*****************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+
+/**
+ * Delete Confirmation Controller
+ * 
+ * Provides enhanced confirmation dialogs for delete actions with
+ * context-aware messaging and undo capability hints.
+ */
+class DeleteConfirmationController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static values = {
+    itemType: String,
+    itemName: String,
+    hasReferences: {
+      type: Boolean,
+      default: false
+    },
+    referenceCount: {
+      type: Number,
+      default: 0
+    }
+  };
+
+  /**
+   * Handle delete button click
+   */
+  confirm(event) {
+    const message = this.buildConfirmMessage();
+    if (!confirm(message)) {
+      event.preventDefault();
+      event.stopPropagation();
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * Build context-aware confirmation message
+   */
+  buildConfirmMessage() {
+    let message = `Are you sure you want to delete this ${this.itemTypeValue}?`;
+    if (this.hasItemNameValue) {
+      message = `Are you sure you want to delete "${this.itemNameValue}"?`;
+    }
+    if (this.hasReferencesValue) {
+      message += `\n\nWarning: This ${this.itemTypeValue} is referenced by `;
+      message += this.referenceCountValue === 1 ? "1 other item" : `${this.referenceCountValue} other items`;
+      message += ". Deleting it may affect those items.";
+    }
+    message += "\n\nThis action cannot be undone.";
+    return message;
+  }
+}
+
+// Add to global controllers registry
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["delete-confirmation"] = DeleteConfirmationController;
+
+// Export as default for ES6 import
+/* harmony default export */ __webpack_exports__["default"] = (DeleteConfirmationController);
+
+/***/ }),
+
+/***/ "./assets/js/controllers/gathering-type-form-controller.js":
+/*!*****************************************************************!*\
+  !*** ./assets/js/controllers/gathering-type-form-controller.js ***!
+  \*****************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+
+/**
+ * Gathering Type Form Controller
+ * 
+ * Handles real-time validation and user feedback for gathering type forms.
+ * Provides immediate feedback on name availability and description length.
+ */
+class GatheringTypeFormController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static targets = ["name", "description", "nameError", "descriptionCount", "submitButton"];
+  static values = {
+    maxDescriptionLength: {
+      type: Number,
+      default: 500
+    },
+    checkNameUrl: String
+  };
+
+  /**
+   * Initialize the controller
+   */
+  connect() {
+    if (this.hasDescriptionTarget) {
+      this.updateDescriptionCount();
+    }
+  }
+
+  /**
+   * Validate name field on blur
+   */
+  validateName() {
+    if (!this.hasNameTarget) return;
+    const name = this.nameTarget.value.trim();
+    if (name.length === 0) {
+      this.showNameError("Name is required");
+      return false;
+    }
+    if (name.length < 3) {
+      this.showNameError("Name must be at least 3 characters");
+      return false;
+    }
+    if (name.length > 128) {
+      this.showNameError("Name must be less than 128 characters");
+      return false;
+    }
+    this.clearNameError();
+    return true;
+  }
+
+  /**
+   * Update description character count
+   */
+  updateDescriptionCount() {
+    if (!this.hasDescriptionTarget || !this.hasDescriptionCountTarget) return;
+    const length = this.descriptionTarget.value.length;
+    const remaining = this.maxDescriptionLengthValue - length;
+    this.descriptionCountTarget.textContent = `${length} / ${this.maxDescriptionLengthValue} characters`;
+    if (remaining < 50) {
+      this.descriptionCountTarget.classList.add('text-warning');
+      this.descriptionCountTarget.classList.remove('text-muted');
+    } else {
+      this.descriptionCountTarget.classList.remove('text-warning');
+      this.descriptionCountTarget.classList.add('text-muted');
+    }
+    if (length > this.maxDescriptionLengthValue) {
+      this.descriptionCountTarget.classList.add('text-danger');
+      this.descriptionCountTarget.classList.remove('text-warning');
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * Show name error message
+   */
+  showNameError(message) {
+    if (this.hasNameErrorTarget) {
+      this.nameErrorTarget.textContent = message;
+      this.nameErrorTarget.classList.remove('d-none');
+    }
+    if (this.hasNameTarget) {
+      this.nameTarget.classList.add('is-invalid');
+    }
+  }
+
+  /**
+   * Clear name error message
+   */
+  clearNameError() {
+    if (this.hasNameErrorTarget) {
+      this.nameErrorTarget.classList.add('d-none');
+    }
+    if (this.hasNameTarget) {
+      this.nameTarget.classList.remove('is-invalid');
+      this.nameTarget.classList.add('is-valid');
+    }
+  }
+
+  /**
+   * Validate entire form before submission
+   */
+  validateForm(event) {
+    let isValid = true;
+    if (this.hasNameTarget) {
+      isValid = this.validateName() && isValid;
+    }
+    if (this.hasDescriptionTarget) {
+      isValid = this.updateDescriptionCount() && isValid;
+    }
+    if (!isValid) {
+      event.preventDefault();
+      this.showValidationSummary();
+    }
+    return isValid;
+  }
+
+  /**
+   * Show validation summary
+   */
+  showValidationSummary() {
+    // Flash a message at the top of the form
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-danger alert-dismissible fade show';
+    alert.role = 'alert';
+    alert.innerHTML = `
+            <strong>Validation Error:</strong> Please correct the errors below.
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+    this.element.prepend(alert);
+
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+      alert.remove();
+    }, 5000);
+  }
+}
+
+// Add to global controllers registry
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["gathering-type-form"] = GatheringTypeFormController;
+
+// Export as default for ES6 import
+/* harmony default export */ __webpack_exports__["default"] = (GatheringTypeFormController);
+
+/***/ }),
+
 /***/ "./assets/js/index.js":
 /*!****************************!*\
   !*** ./assets/js/index.js ***!
@@ -51,21 +417,33 @@ __webpack_require__.r(__webpack_exports__);
 /***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
 
 __webpack_require__.r(__webpack_exports__);
-/* harmony import */ var bootstrap__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! bootstrap */ "./node_modules/bootstrap/dist/js/bootstrap.esm.js");
-/* harmony import */ var _hotwired_turbo__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @hotwired/turbo */ "./node_modules/@hotwired/turbo/dist/turbo.es2017-esm.js");
-/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
-/* harmony import */ var _KMP_utils_js__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./KMP_utils.js */ "./assets/js/KMP_utils.js");
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+/* harmony import */ var bootstrap__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! bootstrap */ "./node_modules/bootstrap/dist/js/bootstrap.esm.js");
+/* harmony import */ var _KMP_utils_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./KMP_utils.js */ "./assets/js/KMP_utils.js");
+/* harmony import */ var _controllers_activity_waiver_manager_controller__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./controllers/activity-waiver-manager-controller */ "./assets/js/controllers/activity-waiver-manager-controller.js");
+/* harmony import */ var _controllers_delete_confirmation_controller__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./controllers/delete-confirmation-controller */ "./assets/js/controllers/delete-confirmation-controller.js");
+/* harmony import */ var _controllers_gathering_type_form_controller__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./controllers/gathering-type-form-controller */ "./assets/js/controllers/gathering-type-form-controller.js");
 /* provided dependency */ var bootstrap = __webpack_require__(/*! bootstrap */ "./node_modules/bootstrap/dist/js/bootstrap.esm.js");
 // export for others scripts to use
 
 
 
 
+// Import Stimulus controllers
+
+
+
 
 //window.$ = $;
 //window.jQuery = jQuery;
-window.KMP_utils = _KMP_utils_js__WEBPACK_IMPORTED_MODULE_3__["default"];
-window.Stimulus = _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_2__.Application.start();
+window.KMP_utils = _KMP_utils_js__WEBPACK_IMPORTED_MODULE_2__["default"];
+window.Stimulus = _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Application.start();
+
+// Register imported controllers
+Stimulus.register("activity-waiver-manager", _controllers_activity_waiver_manager_controller__WEBPACK_IMPORTED_MODULE_3__["default"]);
+Stimulus.register("gathering-type-form", _controllers_gathering_type_form_controller__WEBPACK_IMPORTED_MODULE_5__["default"]);
+Stimulus.register("delete-confirmation", _controllers_delete_confirmation_controller__WEBPACK_IMPORTED_MODULE_4__["default"]);
+
 // load all the controllers that have registered in the window.Controllers object
 for (var controller in window.Controllers) {
   Stimulus.register(controller, window.Controllers[controller]);

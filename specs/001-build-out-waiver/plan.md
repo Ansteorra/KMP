@@ -17,8 +17,9 @@ The Gathering Waiver Tracking System enables Kingdom officers and gathering stew
 6. **Search & Reporting**: Search gatherings and generate compliance reports
 
 **Core Architecture Decisions**:
-- **Core Entities**: Gathering, Gathering Type, Gathering Activity (broadly reusable across plugins)
-- **Waivers Plugin**: Contains waiver-specific entities (Waiver Type, Gathering Activity Waiver, Gathering Waiver)
+- **Core Entities**: Document (generic polymorphic storage), Gathering, Gathering Type, Gathering Activity (broadly reusable across plugins)
+- **Waivers Plugin**: Contains waiver-specific entities (Waiver Type, Gathering Activity Waiver, Gathering Waiver, Gathering Waiver Activities)
+- **Polymorphic Pattern**: Documents entity follows Notes model (entity_type + entity_id) for future reusability
 - **Awards Migration**: Migrate `award_gatherings` table to core Gathering entity, refactor Awards plugin
 - **Storage Optimization**: Image-to-PDF conversion reduces storage by 60-80%
 
@@ -42,11 +43,11 @@ The Gathering Waiver Tracking System enables Kingdom officers and gathering stew
 Verify compliance with KMP Constitution (`.specify/memory/constitution.md`):
 
 - [x] **CakePHP Conventions**: 
-  - Core entities in `src/Model/` (Gathering, GatheringType, GatheringActivity)
+  - Core entities in `src/Model/` (Document, Gathering, GatheringType, GatheringActivity)
   - Plugin structure for Waivers in `plugins/Waivers/`
-  - Controllers follow naming: `GatheringsController`, `GatheringTypesController`, `WaiverTypesController` (plugin)
-  - Templates in lowercase snake_case: `gatherings/`, `gathering_types/`, etc.
-  - Migrations for all schema changes
+  - Controllers follow naming: `DocumentsController`, `GatheringsController`, `GatheringTypesController`, `WaiverTypesController` (plugin)
+  - Templates in lowercase snake_case: `documents/`, `gatherings/`, `gathering_types/`, etc.
+  - Migrations for all schema changes (Documents must be created before Waivers plugin migrations)
   
 - [x] **Plugin Architecture**: 
   - Waivers implemented as **separate plugin** (`plugins/Waivers/`)
@@ -164,13 +165,16 @@ app/plugins/[FeatureName]/
 This feature requires a **hybrid approach** as clarified in the specification:
 
 1. **Core Entities** (in `src/Model/`):
+   - `Document` - Generic polymorphic document storage (follows Notes pattern with entity_type + entity_id)
    - `Gathering`, `GatheringType`, `GatheringActivity` - These are broadly reusable across KMP (not just waivers)
    - Enables future features to leverage gatherings (e.g., attendance tracking, event announcements, photo galleries)
+   - Documents entity enables future document types (member photos, meeting minutes, financial records) without schema changes
    - Follows CakePHP convention: shared domain models live in core application
    
 2. **Waivers Plugin** (in `plugins/Waivers/`):
-   - `WaiverType`, `GatheringActivityWaiver`, `GatheringWaiver`, `WaiverConfiguration` - Waiver-specific entities
+   - `WaiverType`, `GatheringActivityWaiver`, `GatheringWaiver`, `GatheringWaiverActivities`, `WaiverConfiguration` - Waiver-specific entities
    - Self-contained waiver management logic (upload, conversion, retention, deletion)
+   - GatheringWaiver stores business logic and references Document via document_id (one-to-one)
    - Independent testing and potential distribution to other SCA chapters
    - Follows plugin architecture principle: feature is cohesive and could be disabled/enabled independently
 
@@ -254,7 +258,9 @@ All technical unknowns have been researched and resolved:
 3. ✅ `quickstart.md` - Developer onboarding guide
 
 **Data Model Summary**:
-- **7 entities**: 3 core (GatheringTypes, Gatherings, GatheringActivities), 4 plugin (WaiverTypes, GatheringActivityWaivers, GatheringWaivers, WaiverConfiguration)
+- **10 entities**: 4 core (Documents, GatheringTypes, Gatherings, GatheringActivities), 5 plugin (WaiverTypes, GatheringActivityWaivers, GatheringWaivers, GatheringWaiverActivities, WaiverConfiguration), 1 reference (Members)
+- **Polymorphic pattern**: Documents entity follows Notes model (entity_type + entity_id) for reusable document storage
+- **Many-to-many**: GatheringWaiverActivities join table enables flexible waiver-activity coverage
 - **Complete ERD** with all relationships, foreign keys, indexes
 - **Migration strategy** documented for Awards plugin data migration
 
@@ -271,6 +277,216 @@ All technical unknowns have been researched and resolved:
 - Testing strategy
 - Common commands reference
 
+### Awards Plugin Migration Strategy
+
+**Context**: The Awards plugin currently tracks events in an `award_events` table. This migration consolidates event tracking into the core `Gathering` entity, enabling cross-plugin event management.
+
+**Migration Goals**:
+1. Migrate all `award_events` data to core `gatherings` table
+2. Create "Kingdom Calendar Event" gathering type for migrated events
+3. Update Awards plugin foreign keys to reference `gatherings`
+4. Refactor Awards plugin models, controllers, and views
+5. Verify data integrity and Awards functionality
+6. Remove `award_events` table after verification period
+
+**Migration Steps**:
+
+**Step 1: Create Kingdom Calendar Event Gathering Type**
+```php
+// Migration: 20250101000001_CreateKingdomCalendarEventType.php
+public function up()
+{
+    $table = $this->table('gathering_types');
+    $table->insert([
+        'name' => 'Kingdom Calendar Event',
+        'description' => 'Official kingdom calendar events (migrated from Awards plugin)',
+        'is_active' => true,
+        'created' => date('Y-m-d H:i:s'),
+        'modified' => date('Y-m-d H:i:s')
+    ])->save();
+}
+```
+
+**Step 2: Migrate award_events → gatherings**
+```php
+// Migration: 20250101000002_MigrateAwardEventsToGatherings.php
+public function up()
+{
+    // Get gathering_type_id for "Kingdom Calendar Event"
+    $gatheringTypeId = $this->fetchRow(
+        "SELECT id FROM gathering_types WHERE name = 'Kingdom Calendar Event'"
+    )['id'];
+    
+    // Migrate all events
+    $this->execute("
+        INSERT INTO gatherings (
+            gathering_type_id, name, location, branch_id,
+            start_date, end_date, waivers_collected, notes,
+            created_by, created, modified
+        )
+        SELECT 
+            {$gatheringTypeId}, name, location, branch_id,
+            start_date, end_date, FALSE, description,
+            created_by, created, modified
+        FROM award_events
+    ");
+    
+    // Create temporary mapping table
+    $this->execute("
+        CREATE TEMPORARY TABLE event_gathering_mapping AS
+        SELECT ae.id as old_event_id, g.id as new_gathering_id
+        FROM award_events ae
+        JOIN gatherings g ON (
+            g.name = ae.name 
+            AND g.start_date = ae.start_date
+            AND g.branch_id = ae.branch_id
+            AND g.gathering_type_id = {$gatheringTypeId}
+        )
+    ");
+}
+```
+
+**Step 3: Update Awards Plugin Foreign Keys**
+```php
+// Migration: 20250101000003_UpdateAwardsPluginForeignKeys.php
+public function up()
+{
+    // Add gathering_id column to recommendations
+    if (!$this->hasColumn('recommendations', 'gathering_id')) {
+        $this->table('recommendations')
+            ->addColumn('gathering_id', 'integer', [
+                'null' => true,
+                'after' => 'event_id'
+            ])
+            ->addForeignKey('gathering_id', 'gatherings', 'id', [
+                'delete' => 'RESTRICT',
+                'update' => 'CASCADE'
+            ])
+            ->update();
+    }
+    
+    // Populate gathering_id from mapping
+    $this->execute("
+        UPDATE recommendations r
+        JOIN event_gathering_mapping egm ON r.event_id = egm.old_event_id
+        SET r.gathering_id = egm.new_gathering_id
+    ");
+    
+    // Verify migration complete
+    $unmigrated = $this->fetchRow(
+        "SELECT COUNT(*) as count FROM recommendations 
+         WHERE event_id IS NOT NULL AND gathering_id IS NULL"
+    );
+    
+    if ($unmigrated['count'] > 0) {
+        throw new Exception("{$unmigrated['count']} recommendations failed to migrate");
+    }
+    
+    // Drop old event_id column
+    $this->table('recommendations')
+        ->removeColumn('event_id')
+        ->update();
+    
+    // Update other Awards tables with event_id FK (if any)
+    // ... repeat for other tables ...
+    
+    // Drop mapping table
+    $this->execute("DROP TEMPORARY TABLE IF EXISTS event_gathering_mapping");
+}
+
+public function down()
+{
+    throw new Exception('Migration rollback not supported - restore from backup');
+}
+```
+
+**Step 4: Update Awards Plugin Code**
+
+**Models** (`Awards/src/Model/Table/RecommendationsTable.php`):
+```php
+public function initialize(array $config): void
+{
+    parent::initialize($config);
+    
+    // OLD: $this->belongsTo('Events', [...]);
+    
+    // NEW:
+    $this->belongsTo('Gatherings', [
+        'foreignKey' => 'gathering_id',
+        'joinType' => 'INNER',
+        'className' => 'Gatherings'  // Core app entity
+    ]);
+}
+```
+
+**Controllers** - Replace all:
+- `$this->Events` → `$this->fetchTable('Gatherings')`
+- `->event_id` → `->gathering_id`
+- `contain(['Events'])` → `contain(['Gatherings'])`
+
+**Views** - Update field references:
+- `$recommendation->event` → `$recommendation->gathering`
+- Form controls for event selection
+
+**Step 5: Verification**
+```sql
+-- Before migration counts
+SELECT COUNT(*) as event_count FROM award_events;
+SELECT COUNT(*) as recommendations_with_events FROM recommendations WHERE event_id IS NOT NULL;
+
+-- After migration counts
+SELECT COUNT(*) as gathering_count FROM gatherings 
+WHERE gathering_type_id = (SELECT id FROM gathering_types WHERE name = 'Kingdom Calendar Event');
+SELECT COUNT(*) as recommendations_with_gatherings FROM recommendations WHERE gathering_id IS NOT NULL;
+
+-- Verify no orphans
+SELECT * FROM recommendations WHERE gathering_id IS NULL;
+```
+
+**Step 6: Testing Checklist**
+- [ ] All award_events data appears in gatherings table
+- [ ] All recommendations correctly linked to gatherings
+- [ ] Awards plugin CRUD operations work (view, create, edit recommendations)
+- [ ] Gathering selection dropdowns work in Awards forms
+- [ ] Reports show correct gathering information
+- [ ] No SQL errors in application logs
+- [ ] Performance acceptable (no slow queries)
+
+**Step 7: Backup & Cleanup**
+```sql
+-- Rename table for 30-day retention
+RENAME TABLE award_events TO award_events_backup_20250101;
+
+-- After 30 days of successful operation
+DROP TABLE award_events_backup_20250101;
+```
+
+**Rollback Strategy**:
+- Full database backup before migration
+- Keep `award_events_backup` table for 30 days
+- Document restoration procedure if critical issues found
+- No automatic rollback (manual restoration from backup only)
+
+**Testing Requirements**:
+- Integration tests for full Awards workflow with new Gatherings
+- Verify all existing Awards features function correctly
+- Load test with realistic data volumes (1000+ events, 5000+ recommendations)
+- Cross-browser testing of Awards UI
+
+**Dependencies**:
+- Core Gathering entities must exist before Awards migration
+- Awards plugin cannot function during migration window (brief downtime)
+- Communication plan for users about migration timing
+
+**Success Criteria**:
+- 100% of award_events data migrated to gatherings
+- 100% of recommendations linked to correct gatherings
+- Zero data loss
+- Awards plugin fully functional with new data model
+- Performance maintained or improved
+
+---
+
 ### ⏭️ Phase 2: Implementation Tasks (NEXT)
 
 **Command**: `/speckit.tasks`
@@ -283,7 +499,7 @@ This command will generate `tasks.md` with granular development tasks organized 
 - Milestone 5: Mobile UI (Stimulus controllers)
 - Milestone 6: Retention policies
 - Milestone 7: Testing
-- Milestone 8: Awards migration
+- Milestone 8: Awards migration (detailed steps from above)
 
 **Note**: Do NOT run `/speckit.tasks` until Phase 0 and Phase 1 are complete and reviewed. This plan document serves as the gate.
 

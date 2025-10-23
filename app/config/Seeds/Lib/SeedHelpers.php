@@ -7,6 +7,54 @@ use Cake\ORM\TableRegistry;
 
 class SeedHelpers
 {
+    /**
+     * @var bool Flag to indicate if we're in test fixture loading mode
+     */
+    private static bool $testMode = false;
+
+    /**
+     * @var array Static lookup maps for test fixtures
+     * These IDs match the auto-increment order of fixture loading
+     */
+    private static array $testLookups = [
+        'branches' => ['Kingdom' => 1],
+        'roles' => ['Admin' => 1, 'TestSuperUser' => 2],
+        'permissions' => [
+            'Is Super User' => 1,
+            'Can Manage Roles' => 2,
+            'Can Do All But Is Not A Super User' => 3,
+        ],
+        'members' => [
+            'admin@test.com' => 1,
+            'Admin von Admin' => 1,
+            'testsuper@test.com' => 2,
+            'Test Super User' => 2,
+        ],
+    ];
+
+    /**
+     * Enable test mode with static lookups
+     */
+    public static function enableTestMode(): void
+    {
+        self::$testMode = true;
+    }
+
+    /**
+     * Disable test mode
+     */
+    public static function disableTestMode(): void
+    {
+        self::$testMode = false;
+    }
+
+    /**
+     * Set test lookup value
+     */
+    public static function setTestLookup(string $table, string $key, int $value): void
+    {
+        self::$testLookups[$table][$key] = $value;
+    }
 
     public static function getActivityGroupId(string $name): int
     {
@@ -20,6 +68,12 @@ class SeedHelpers
         if ($name === null) {
             return null;
         }
+
+        // Test mode: use static lookup
+        if (self::$testMode && isset(self::$testLookups['roles'][$name])) {
+            return self::$testLookups['roles'][$name];
+        }
+
         $rolesTable = TableRegistry::getTableLocator()->get('Roles');
         $role = $rolesTable->find()->where(['name' => $name])->firstOrFail();
         return $role->id;
@@ -27,6 +81,11 @@ class SeedHelpers
 
     public static  function getPermissionId(string $name): int
     {
+        // Test mode: use static lookup
+        if (self::$testMode && isset(self::$testLookups['permissions'][$name])) {
+            return self::$testLookups['permissions'][$name];
+        }
+
         $permissionsTable = TableRegistry::getTableLocator()->get('Permissions');
         $permission = $permissionsTable->find()->where(['name' => $name])->firstOrFail();
         return $permission->id;
@@ -34,6 +93,11 @@ class SeedHelpers
 
     public static  function getMemberId(string $emailOrScaName): int
     {
+        // Test mode: use static lookup
+        if (self::$testMode && isset(self::$testLookups['members'][$emailOrScaName])) {
+            return self::$testLookups['members'][$emailOrScaName];
+        }
+
         $membersTable = TableRegistry::getTableLocator()->get('Members');
         $member = $membersTable->find()->where([
             'OR' => ['email_address' => $emailOrScaName, 'sca_name' => $emailOrScaName]
@@ -46,6 +110,12 @@ class SeedHelpers
         if ($name === null) {
             return null;
         }
+
+        // Test mode: use static lookup
+        if (self::$testMode && isset(self::$testLookups['branches'][$name])) {
+            return self::$testLookups['branches'][$name];
+        }
+
         $branchesTable = TableRegistry::getTableLocator()->get('Branches');
         $branch = $branchesTable->find()->where(['name' => $name])->select(['id'])->firstOrFail();
         return $branch->id;

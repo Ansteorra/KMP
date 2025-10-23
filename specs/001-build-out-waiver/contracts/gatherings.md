@@ -52,16 +52,11 @@ Batch creates activities:
 ```json
 {
   "activities": [
-    {"name": "Armored Combat", "sort_order": 1},
-    {"name": "Archery", "sort_order": 2}
+    {"name": "Armored Combat"},
+    {"name": "Archery"}
   ]
 }
 ```
-
-### Reorder Activities
-**PATCH** `/gatherings/:id/activities/reorder`
-
-Updates sort_order for drag-and-drop
 
 ---
 

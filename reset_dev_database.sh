@@ -58,8 +58,8 @@ MYSQL_CMD=(mysql -h "$DB_HOST" -u"$DB_USER" -p"$DB_PASS" "$DB_NAME")
 # Disable foreign key checks during import for safety (dump likely already handles this)
 "${MYSQL_CMD[@]}" < "$SEED_SQL"
 
-echo "[4/4] Applying any new migrations (bin/cake migrations migrate)..."
-bin/cake migrations migrate
+#echo "[4/4] Applying any new migrations (bin/cake migrations migrate)..."
+#bin/cake migrations migrate
 
 # If DevLoad seed is still desired after raw SQL import, uncomment next line:
 # bin/cake migrations seed --seed DevLoad

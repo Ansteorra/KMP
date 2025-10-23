@@ -98,8 +98,7 @@ flowchart TD
         SaveBasic --> AddActivities[Add Activities to Gathering]
         AddActivities --> ActivityForm[Activity Entry Form]
         ActivityForm --> InputActivity["Enter: Activity Name<br/>e.g., 'Armored Combat'"]
-        InputActivity --> InputInstructions["Enter: Instructions<br/>e.g., 'Authorized armor required'"]
-        InputInstructions --> SaveActivity[Save Activity]
+        InputActivity --> SaveActivity[Save Activity]
         SaveActivity --> AutoLink[System Auto-Links<br/>Required Waivers]
         AutoLink --> ShowRequired["Shows: Adult General Waiver ✓<br/>Armored Combat Waiver ✓"]
         ShowRequired --> MoreAct{Add More<br/>Activities?}

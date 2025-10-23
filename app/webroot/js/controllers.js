@@ -52,6 +52,145 @@ __webpack_require__.r(__webpack_exports__);
 
 /***/ }),
 
+/***/ "./assets/js/controllers/activity-waiver-manager-controller.js":
+/*!*********************************************************************!*\
+  !*** ./assets/js/controllers/activity-waiver-manager-controller.js ***!
+  \*********************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+
+/**
+ * Activity Waiver Manager Controller
+ * 
+ * Manages the waiver selection interface for gathering activities.
+ * Provides visual feedback and validation for waiver associations.
+ */
+class ActivityWaiverManagerController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static targets = ["waiverCheckbox", "selectedCount", "waiverList"];
+  static values = {
+    minWaivers: {
+      type: Number,
+      default: 0
+    },
+    maxWaivers: {
+      type: Number,
+      default: 99
+    }
+  };
+
+  /**
+   * Initialize the controller
+   */
+  connect() {
+    this.updateSelectedCount();
+    this.updateVisualState();
+  }
+
+  /**
+   * Handle waiver checkbox toggle
+   */
+  toggleWaiver(event) {
+    this.updateSelectedCount();
+    this.updateVisualState();
+    this.validateSelection();
+  }
+
+  /**
+   * Update the selected waiver count display
+   */
+  updateSelectedCount() {
+    if (!this.hasSelectedCountTarget) return;
+    const selectedCount = this.getSelectedWaivers().length;
+    const countText = selectedCount === 0 ? "No waivers selected" : selectedCount === 1 ? "1 waiver selected" : `${selectedCount} waivers selected`;
+    this.selectedCountTarget.textContent = countText;
+  }
+
+  /**
+   * Update visual state of selected waivers
+   */
+  updateVisualState() {
+    this.waiverCheckboxTargets.forEach(checkbox => {
+      const container = checkbox.closest('.form-check, .checkbox');
+      if (!container) return;
+      if (checkbox.checked) {
+        container.classList.add('selected');
+        container.style.backgroundColor = '#e7f3ff';
+        container.style.borderLeft = '3px solid #0d6efd';
+        container.style.paddingLeft = '0.5rem';
+      } else {
+        container.classList.remove('selected');
+        container.style.backgroundColor = '';
+        container.style.borderLeft = '';
+        container.style.paddingLeft = '';
+      }
+    });
+  }
+
+  /**
+   * Validate waiver selection
+   */
+  validateSelection() {
+    const selectedCount = this.getSelectedWaivers().length;
+    const isValid = selectedCount >= this.minWaiversValue && selectedCount <= this.maxWaiversValue;
+
+    // Update validation state
+    if (this.hasWaiverListTarget) {
+      if (!isValid && selectedCount > 0) {
+        this.waiverListTarget.classList.add('is-invalid');
+      } else {
+        this.waiverListTarget.classList.remove('is-invalid');
+      }
+    }
+    return isValid;
+  }
+
+  /**
+   * Get array of selected waiver IDs
+   */
+  getSelectedWaivers() {
+    return this.waiverCheckboxTargets.filter(checkbox => checkbox.checked).map(checkbox => checkbox.value);
+  }
+
+  /**
+   * Select all waivers
+   */
+  selectAll() {
+    this.waiverCheckboxTargets.forEach(checkbox => {
+      checkbox.checked = true;
+    });
+    this.updateSelectedCount();
+    this.updateVisualState();
+    this.validateSelection();
+  }
+
+  /**
+   * Deselect all waivers
+   */
+  deselectAll() {
+    this.waiverCheckboxTargets.forEach(checkbox => {
+      checkbox.checked = false;
+    });
+    this.updateSelectedCount();
+    this.updateVisualState();
+    this.validateSelection();
+  }
+}
+
+// Add to global controllers registry
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["activity-waiver-manager"] = ActivityWaiverManagerController;
+
+// Export as default for ES6 import
+/* harmony default export */ __webpack_exports__["default"] = (ActivityWaiverManagerController);
+
+/***/ }),
+
 /***/ "./assets/js/controllers/app-setting-form-controller.js":
 /*!**************************************************************!*\
   !*** ./assets/js/controllers/app-setting-form-controller.js ***!
@@ -1242,6 +1381,79 @@ window.Controllers["delay-forward"] = DelayForwardController;
 
 /***/ }),
 
+/***/ "./assets/js/controllers/delete-confirmation-controller.js":
+/*!*****************************************************************!*\
+  !*** ./assets/js/controllers/delete-confirmation-controller.js ***!
+  \*****************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+
+/**
+ * Delete Confirmation Controller
+ * 
+ * Provides enhanced confirmation dialogs for delete actions with
+ * context-aware messaging and undo capability hints.
+ */
+class DeleteConfirmationController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static values = {
+    itemType: String,
+    itemName: String,
+    hasReferences: {
+      type: Boolean,
+      default: false
+    },
+    referenceCount: {
+      type: Number,
+      default: 0
+    }
+  };
+
+  /**
+   * Handle delete button click
+   */
+  confirm(event) {
+    const message = this.buildConfirmMessage();
+    if (!confirm(message)) {
+      event.preventDefault();
+      event.stopPropagation();
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * Build context-aware confirmation message
+   */
+  buildConfirmMessage() {
+    let message = `Are you sure you want to delete this ${this.itemTypeValue}?`;
+    if (this.hasItemNameValue) {
+      message = `Are you sure you want to delete "${this.itemNameValue}"?`;
+    }
+    if (this.hasReferencesValue) {
+      message += `\n\nWarning: This ${this.itemTypeValue} is referenced by `;
+      message += this.referenceCountValue === 1 ? "1 other item" : `${this.referenceCountValue} other items`;
+      message += ". Deleting it may affect those items.";
+    }
+    message += "\n\nThis action cannot be undone.";
+    return message;
+  }
+}
+
+// Add to global controllers registry
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["delete-confirmation"] = DeleteConfirmationController;
+
+// Export as default for ES6 import
+/* harmony default export */ __webpack_exports__["default"] = (DeleteConfirmationController);
+
+/***/ }),
+
 /***/ "./assets/js/controllers/detail-tabs-controller.js":
 /*!*********************************************************!*\
   !*** ./assets/js/controllers/detail-tabs-controller.js ***!
@@ -1412,6 +1624,212 @@ if (!window.Controllers) {
   window.Controllers = {};
 }
 window.Controllers["filter-grid"] = FilterGrid;
+
+/***/ }),
+
+/***/ "./assets/js/controllers/gathering-clone-controller.js":
+/*!*************************************************************!*\
+  !*** ./assets/js/controllers/gathering-clone-controller.js ***!
+  \*************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+
+/**
+ * Gathering Clone Controller
+ * 
+ * Handles the clone gathering modal form interactions
+ */
+class GatheringCloneController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static targets = ["nameInput", "startDate", "endDate"];
+  connect() {
+    console.log("Gathering clone controller connected");
+  }
+
+  /**
+   * Validate that end date is not before start date
+   */
+  validateDates() {
+    if (!this.hasStartDateTarget || !this.hasEndDateTarget) {
+      return;
+    }
+    const startDate = new Date(this.startDateTarget.value);
+    const endDate = new Date(this.endDateTarget.value);
+    if (startDate > endDate) {
+      this.endDateTarget.setCustomValidity("End date must be on or after start date");
+      this.endDateTarget.classList.add("is-invalid");
+    } else {
+      this.endDateTarget.setCustomValidity("");
+      this.endDateTarget.classList.remove("is-invalid");
+    }
+  }
+}
+
+// Add to global controllers registry
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["gathering-clone"] = GatheringCloneController;
+
+/***/ }),
+
+/***/ "./assets/js/controllers/gathering-type-form-controller.js":
+/*!*****************************************************************!*\
+  !*** ./assets/js/controllers/gathering-type-form-controller.js ***!
+  \*****************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+
+/**
+ * Gathering Type Form Controller
+ * 
+ * Handles real-time validation and user feedback for gathering type forms.
+ * Provides immediate feedback on name availability and description length.
+ */
+class GatheringTypeFormController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static targets = ["name", "description", "nameError", "descriptionCount", "submitButton"];
+  static values = {
+    maxDescriptionLength: {
+      type: Number,
+      default: 500
+    },
+    checkNameUrl: String
+  };
+
+  /**
+   * Initialize the controller
+   */
+  connect() {
+    if (this.hasDescriptionTarget) {
+      this.updateDescriptionCount();
+    }
+  }
+
+  /**
+   * Validate name field on blur
+   */
+  validateName() {
+    if (!this.hasNameTarget) return;
+    const name = this.nameTarget.value.trim();
+    if (name.length === 0) {
+      this.showNameError("Name is required");
+      return false;
+    }
+    if (name.length < 3) {
+      this.showNameError("Name must be at least 3 characters");
+      return false;
+    }
+    if (name.length > 128) {
+      this.showNameError("Name must be less than 128 characters");
+      return false;
+    }
+    this.clearNameError();
+    return true;
+  }
+
+  /**
+   * Update description character count
+   */
+  updateDescriptionCount() {
+    if (!this.hasDescriptionTarget || !this.hasDescriptionCountTarget) return;
+    const length = this.descriptionTarget.value.length;
+    const remaining = this.maxDescriptionLengthValue - length;
+    this.descriptionCountTarget.textContent = `${length} / ${this.maxDescriptionLengthValue} characters`;
+    if (remaining < 50) {
+      this.descriptionCountTarget.classList.add('text-warning');
+      this.descriptionCountTarget.classList.remove('text-muted');
+    } else {
+      this.descriptionCountTarget.classList.remove('text-warning');
+      this.descriptionCountTarget.classList.add('text-muted');
+    }
+    if (length > this.maxDescriptionLengthValue) {
+      this.descriptionCountTarget.classList.add('text-danger');
+      this.descriptionCountTarget.classList.remove('text-warning');
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * Show name error message
+   */
+  showNameError(message) {
+    if (this.hasNameErrorTarget) {
+      this.nameErrorTarget.textContent = message;
+      this.nameErrorTarget.classList.remove('d-none');
+    }
+    if (this.hasNameTarget) {
+      this.nameTarget.classList.add('is-invalid');
+    }
+  }
+
+  /**
+   * Clear name error message
+   */
+  clearNameError() {
+    if (this.hasNameErrorTarget) {
+      this.nameErrorTarget.classList.add('d-none');
+    }
+    if (this.hasNameTarget) {
+      this.nameTarget.classList.remove('is-invalid');
+      this.nameTarget.classList.add('is-valid');
+    }
+  }
+
+  /**
+   * Validate entire form before submission
+   */
+  validateForm(event) {
+    let isValid = true;
+    if (this.hasNameTarget) {
+      isValid = this.validateName() && isValid;
+    }
+    if (this.hasDescriptionTarget) {
+      isValid = this.updateDescriptionCount() && isValid;
+    }
+    if (!isValid) {
+      event.preventDefault();
+      this.showValidationSummary();
+    }
+    return isValid;
+  }
+
+  /**
+   * Show validation summary
+   */
+  showValidationSummary() {
+    // Flash a message at the top of the form
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-danger alert-dismissible fade show';
+    alert.role = 'alert';
+    alert.innerHTML = `
+            <strong>Validation Error:</strong> Please correct the errors below.
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+    this.element.prepend(alert);
+
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+      alert.remove();
+    }, 5000);
+  }
+}
+
+// Add to global controllers registry
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["gathering-type-form"] = GatheringTypeFormController;
+
+// Export as default for ES6 import
+/* harmony default export */ __webpack_exports__["default"] = (GatheringTypeFormController);
 
 /***/ }),
 
@@ -21901,6 +22319,186 @@ window.Controllers["recommendation-kanban"] = RecommendationKanbanController;
 
 /***/ }),
 
+/***/ "./plugins/Events/assets/js/controllers/hello-world-controller.js":
+/*!************************************************************************!*\
+  !*** ./plugins/Events/assets/js/controllers/hello-world-controller.js ***!
+  \************************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+
+/**
+ * Hello World Stimulus Controller
+ * 
+ * This controller demonstrates the Stimulus.js pattern used in KMP plugins.
+ * Stimulus controllers provide interactive behavior for frontend components
+ * without requiring a full JavaScript framework.
+ * 
+ * Key Concepts:
+ * - Targets: DOM elements the controller interacts with
+ * - Values: Properties that can be set from HTML attributes
+ * - Actions: Event handlers triggered by user interaction
+ * - Outlets: Connections to other Stimulus controllers
+ * 
+ * Usage in HTML:
+ * <div data-controller="hello-world"
+ *      data-hello-world-message-value="Hello from Stimulus!">
+ *   <input data-hello-world-target="input" type="text">
+ *   <button data-action="click->hello-world#greet">Greet</button>
+ *   <div data-hello-world-target="output"></div>
+ * </div>
+ */
+class HelloWorldController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  // Define targets - elements this controller interacts with
+  static targets = ["input", "output", "counter"];
+
+  // Define values - properties that can be set from HTML data attributes
+  static values = {
+    message: {
+      type: String,
+      default: "Hello, World!"
+    },
+    count: {
+      type: Number,
+      default: 0
+    }
+  };
+
+  /**
+   * Initialize the controller
+   * Called once when the controller is first instantiated
+   */
+  initialize() {
+    console.log("HelloWorld controller initialized");
+  }
+
+  /**
+   * Connect the controller to the DOM
+   * Called when the controller is connected to the DOM
+   */
+  connect() {
+    console.log("HelloWorld controller connected to:", this.element);
+    this.updateCounter();
+  }
+
+  /**
+   * Disconnect the controller from the DOM
+   * Called when the controller is disconnected from the DOM
+   * Use for cleanup (removing event listeners, timers, etc.)
+   */
+  disconnect() {
+    console.log("HelloWorld controller disconnected");
+  }
+
+  /**
+   * Greet action - Display a greeting message
+   * Triggered by: data-action="click->hello-world#greet"
+   */
+  greet(event) {
+    event.preventDefault();
+
+    // Get the input value if available
+    const name = this.hasInputTarget ? this.inputTarget.value : "World";
+
+    // Create greeting message
+    const greeting = name ? `${this.messageValue}, ${name}!` : this.messageValue;
+
+    // Display in output target
+    if (this.hasOutputTarget) {
+      this.outputTarget.textContent = greeting;
+      this.outputTarget.classList.add("alert", "alert-success", "mt-3");
+    }
+
+    // Increment counter
+    this.countValue++;
+  }
+
+  /**
+   * Clear action - Clear the output
+   * Triggered by: data-action="click->hello-world#clear"
+   */
+  clear(event) {
+    event.preventDefault();
+    if (this.hasInputTarget) {
+      this.inputTarget.value = "";
+    }
+    if (this.hasOutputTarget) {
+      this.outputTarget.textContent = "";
+      this.outputTarget.className = "";
+    }
+  }
+
+  /**
+   * Value changed callback - Called when message value changes
+   * Automatically called when messageValue is updated
+   */
+  messageValueChanged() {
+    console.log("Message value changed to:", this.messageValue);
+  }
+
+  /**
+   * Value changed callback - Called when count value changes
+   * Automatically called when countValue is updated
+   */
+  countValueChanged() {
+    this.updateCounter();
+  }
+
+  /**
+   * Update the counter display
+   */
+  updateCounter() {
+    if (this.hasCounterTarget) {
+      this.counterTarget.textContent = this.countValue;
+    }
+  }
+
+  /**
+   * Example of a method that could be called from other controllers
+   * or JavaScript code
+   */
+  showMessage(message) {
+    if (this.hasOutputTarget) {
+      this.outputTarget.textContent = message;
+      this.outputTarget.classList.add("alert", "alert-info", "mt-3");
+    }
+  }
+
+  /**
+   * Example of an async method - fetch data from server
+   */
+  async fetchData(url) {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      if (this.hasOutputTarget) {
+        this.outputTarget.textContent = "Error loading data";
+        this.outputTarget.classList.add("alert", "alert-danger", "mt-3");
+      }
+      return null;
+    }
+  }
+}
+
+// Register the controller globally
+// This makes it available to the Stimulus application
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["hello-world"] = HelloWorldController;
+/* harmony default export */ __webpack_exports__["default"] = (HelloWorldController);
+
+/***/ }),
+
 /***/ "./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js":
 /*!*******************************************************************************************!*\
   !*** ./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js ***!
@@ -24209,12 +24807,857 @@ if (!window.Controllers) {
 }
 window.Controllers["officer-roster-table"] = OfficerRosterTableForm;
 
+/***/ }),
+
+/***/ "./plugins/Template/assets/js/controllers/hello-world-controller.js":
+/*!**************************************************************************!*\
+  !*** ./plugins/Template/assets/js/controllers/hello-world-controller.js ***!
+  \**************************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+
+/**
+ * Hello World Stimulus Controller
+ * 
+ * This controller demonstrates the Stimulus.js pattern used in KMP plugins.
+ * Stimulus controllers provide interactive behavior for frontend components
+ * without requiring a full JavaScript framework.
+ * 
+ * Key Concepts:
+ * - Targets: DOM elements the controller interacts with
+ * - Values: Properties that can be set from HTML attributes
+ * - Actions: Event handlers triggered by user interaction
+ * - Outlets: Connections to other Stimulus controllers
+ * 
+ * Usage in HTML:
+ * <div data-controller="hello-world"
+ *      data-hello-world-message-value="Hello from Stimulus!">
+ *   <input data-hello-world-target="input" type="text">
+ *   <button data-action="click->hello-world#greet">Greet</button>
+ *   <div data-hello-world-target="output"></div>
+ * </div>
+ */
+class HelloWorldController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  // Define targets - elements this controller interacts with
+  static targets = ["input", "output", "counter"];
+
+  // Define values - properties that can be set from HTML data attributes
+  static values = {
+    message: {
+      type: String,
+      default: "Hello, World!"
+    },
+    count: {
+      type: Number,
+      default: 0
+    }
+  };
+
+  /**
+   * Initialize the controller
+   * Called once when the controller is first instantiated
+   */
+  initialize() {
+    console.log("HelloWorld controller initialized");
+  }
+
+  /**
+   * Connect the controller to the DOM
+   * Called when the controller is connected to the DOM
+   */
+  connect() {
+    console.log("HelloWorld controller connected to:", this.element);
+    this.updateCounter();
+  }
+
+  /**
+   * Disconnect the controller from the DOM
+   * Called when the controller is disconnected from the DOM
+   * Use for cleanup (removing event listeners, timers, etc.)
+   */
+  disconnect() {
+    console.log("HelloWorld controller disconnected");
+  }
+
+  /**
+   * Greet action - Display a greeting message
+   * Triggered by: data-action="click->hello-world#greet"
+   */
+  greet(event) {
+    event.preventDefault();
+
+    // Get the input value if available
+    const name = this.hasInputTarget ? this.inputTarget.value : "World";
+
+    // Create greeting message
+    const greeting = name ? `${this.messageValue}, ${name}!` : this.messageValue;
+
+    // Display in output target
+    if (this.hasOutputTarget) {
+      this.outputTarget.textContent = greeting;
+      this.outputTarget.classList.add("alert", "alert-success", "mt-3");
+    }
+
+    // Increment counter
+    this.countValue++;
+  }
+
+  /**
+   * Clear action - Clear the output
+   * Triggered by: data-action="click->hello-world#clear"
+   */
+  clear(event) {
+    event.preventDefault();
+    if (this.hasInputTarget) {
+      this.inputTarget.value = "";
+    }
+    if (this.hasOutputTarget) {
+      this.outputTarget.textContent = "";
+      this.outputTarget.className = "";
+    }
+  }
+
+  /**
+   * Value changed callback - Called when message value changes
+   * Automatically called when messageValue is updated
+   */
+  messageValueChanged() {
+    console.log("Message value changed to:", this.messageValue);
+  }
+
+  /**
+   * Value changed callback - Called when count value changes
+   * Automatically called when countValue is updated
+   */
+  countValueChanged() {
+    this.updateCounter();
+  }
+
+  /**
+   * Update the counter display
+   */
+  updateCounter() {
+    if (this.hasCounterTarget) {
+      this.counterTarget.textContent = this.countValue;
+    }
+  }
+
+  /**
+   * Example of a method that could be called from other controllers
+   * or JavaScript code
+   */
+  showMessage(message) {
+    if (this.hasOutputTarget) {
+      this.outputTarget.textContent = message;
+      this.outputTarget.classList.add("alert", "alert-info", "mt-3");
+    }
+  }
+
+  /**
+   * Example of an async method - fetch data from server
+   */
+  async fetchData(url) {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      if (this.hasOutputTarget) {
+        this.outputTarget.textContent = "Error loading data";
+        this.outputTarget.classList.add("alert", "alert-danger", "mt-3");
+      }
+      return null;
+    }
+  }
+}
+
+// Register the controller globally
+// This makes it available to the Stimulus application
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["hello-world"] = HelloWorldController;
+/* harmony default export */ __webpack_exports__["default"] = (HelloWorldController);
+
+/***/ }),
+
+/***/ "./plugins/Waivers/assets/css/waivers.css":
+/*!************************************************!*\
+  !*** ./plugins/Waivers/assets/css/waivers.css ***!
+  \************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+// extracted by mini-css-extract-plugin
+
+
+/***/ }),
+
+/***/ "./plugins/Waivers/assets/js/controllers/add-requirement-controller.js":
+/*!*****************************************************************************!*\
+  !*** ./plugins/Waivers/assets/js/controllers/add-requirement-controller.js ***!
+  \*****************************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+/**
+ * Waivers Add Requirement Controller
+ * 
+ * Stimulus.js controller that manages waiver requirement workflows for
+ * gathering activities in the KMP Waivers Plugin. Provides interactive
+ * interface for adding waiver requirements with dynamic waiver type
+ * discovery and validation.
+ * 
+ * **Core Functionality**:
+ * - Waiver requirement form management with activity context
+ * - Dynamic waiver type discovery (excluding already assigned types)
+ * - Real-time form validation for waiver requirements
+ * - Activity-specific waiver requirement workflows
+ * 
+ * **Dynamic Waiver Type Discovery**:
+ * - Fetches available waiver types via AJAX
+ * - Excludes waiver types already assigned to the activity
+ * - Includes only active, non-deleted waiver types
+ * - Handles activity-specific waiver type filtering
+ * 
+ * **State Management Features**:
+ * - Submit button disabled until valid waiver type selected
+ * - Waiver type dropdown populated on modal open
+ * - Dynamic option population with activity context
+ * - Form initialization with proper disabled states
+ * 
+ * **API Integration**:
+ * - RESTful endpoint communication with activity context
+ * - JSON response processing for waiver type data
+ * - Proper HTTP headers for AJAX requests
+ * - Error handling for API failures
+ * 
+ * **Integration Points**:
+ * - GatheringActivityWaivers Controller - Available waiver types API
+ * - Waiver Requirement Forms - Form submission integration
+ * - Stimulus Application - Global controller registration
+ * 
+ * **Usage Examples**:
+ * ```html
+ * <!-- Waiver requirement modal -->
+ * <div data-controller="waivers-add-requirement"
+ *      data-waivers-add-requirement-url-value="/waivers/gathering-activity-waivers/available-waiver-types">
+ *   <input type="hidden" data-waivers-add-requirement-target="activityId" value="1">
+ *   <select data-waivers-add-requirement-target="waiverType"
+ *           data-action="ready->waivers-add-requirement#loadWaiverTypes">
+ *   </select>
+ * </div>
+ * ```
+ * 
+ * @see GatheringActivityWaiversController.availableWaiverTypes() Server endpoint
+ * @see GatheringActivityWaivers Waiver requirement entity
+ */
+
+
+class WaiversAddRequirement extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static values = {
+    url: String
+  };
+  static targets = ["waiverType", "submitBtn", "activityId"];
+
+  /**
+   * Load Available Waiver Types
+   * 
+   * Fetches list of waiver types that can be added to the activity,
+   * excluding types already assigned and including only active types.
+   * 
+   * **API Request**:
+   * - Includes activity ID for filtering assigned types
+   * - Fetches only active, non-deleted waiver types
+   * - Processes waiver type data for dropdown population
+   * - Manages form state during data loading
+   * 
+   * **State Management**:
+   * Populates waiver type dropdown and enables form submission
+   * once valid selection is made.
+   */
+  loadWaiverTypes() {
+    let activityId = this.activityIdTarget.value;
+    let url = this.urlValue + "/" + activityId;
+    fetch(url, this.optionsForFetch()).then(response => response.json()).then(data => {
+      let list = [];
+      if (data.waiverTypes && data.waiverTypes.length > 0) {
+        data.waiverTypes.forEach(item => {
+          list.push({
+            value: item.id,
+            text: item.name
+          });
+        });
+      }
+      this.waiverTypeTarget.options = list;
+      this.submitBtnTarget.disabled = true;
+    }).catch(error => {
+      console.error('Error loading waiver types:', error);
+      this.submitBtnTarget.disabled = true;
+    });
+  }
+
+  /**
+   * Configure AJAX Request Options
+   * 
+   * Provides standard AJAX request configuration for Waivers API
+   * communication with proper headers for JSON responses.
+   * 
+   * @returns {Object} Fetch options configuration
+   */
+  optionsForFetch() {
+    return {
+      headers: {
+        "X-Requested-With": "XMLHttpRequest",
+        "Accept": "application/json"
+      }
+    };
+  }
+
+  /**
+   * Validate Form Completion
+   * 
+   * Checks if a valid waiver type is selected to enable submission.
+   * 
+   * **Validation**:
+   * - Verifies waiver type selection with numeric validation
+   * - Controls submit button state for user experience
+   * - Provides immediate feedback on form completion
+   */
+  checkReadyToSubmit() {
+    let waiverTypeValue = this.waiverTypeTarget.value;
+    let waiverTypeNum = parseInt(waiverTypeValue);
+    if (waiverTypeNum > 0) {
+      this.submitBtnTarget.disabled = false;
+    } else {
+      this.submitBtnTarget.disabled = true;
+    }
+  }
+
+  /**
+   * Initialize Submit Button State
+   * 
+   * Ensures submit button starts disabled to prevent
+   * premature form submission.
+   */
+  submitBtnTargetConnected() {
+    if (this.hasSubmitBtnTarget) {
+      this.submitBtnTarget.disabled = true;
+    }
+  }
+}
+
+// Add to global controllers registry
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["waivers-add-requirement"] = WaiversAddRequirement;
+
+/***/ }),
+
+/***/ "./plugins/Waivers/assets/js/controllers/hello-world-controller.js":
+/*!*************************************************************************!*\
+  !*** ./plugins/Waivers/assets/js/controllers/hello-world-controller.js ***!
+  \*************************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+
+/**
+ * Hello World Stimulus Controller
+ * 
+ * This controller demonstrates the Stimulus.js pattern used in KMP plugins.
+ * Stimulus controllers provide interactive behavior for frontend components
+ * without requiring a full JavaScript framework.
+ * 
+ * Key Concepts:
+ * - Targets: DOM elements the controller interacts with
+ * - Values: Properties that can be set from HTML attributes
+ * - Actions: Event handlers triggered by user interaction
+ * - Outlets: Connections to other Stimulus controllers
+ * 
+ * Usage in HTML:
+ * <div data-controller="hello-world"
+ *      data-hello-world-message-value="Hello from Stimulus!">
+ *   <input data-hello-world-target="input" type="text">
+ *   <button data-action="click->hello-world#greet">Greet</button>
+ *   <div data-hello-world-target="output"></div>
+ * </div>
+ */
+class HelloWorldController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  // Define targets - elements this controller interacts with
+  static targets = ["input", "output", "counter"];
+
+  // Define values - properties that can be set from HTML data attributes
+  static values = {
+    message: {
+      type: String,
+      default: "Hello, World!"
+    },
+    count: {
+      type: Number,
+      default: 0
+    }
+  };
+
+  /**
+   * Initialize the controller
+   * Called once when the controller is first instantiated
+   */
+  initialize() {
+    console.log("HelloWorld controller initialized");
+  }
+
+  /**
+   * Connect the controller to the DOM
+   * Called when the controller is connected to the DOM
+   */
+  connect() {
+    console.log("HelloWorld controller connected to:", this.element);
+    this.updateCounter();
+  }
+
+  /**
+   * Disconnect the controller from the DOM
+   * Called when the controller is disconnected from the DOM
+   * Use for cleanup (removing event listeners, timers, etc.)
+   */
+  disconnect() {
+    console.log("HelloWorld controller disconnected");
+  }
+
+  /**
+   * Greet action - Display a greeting message
+   * Triggered by: data-action="click->hello-world#greet"
+   */
+  greet(event) {
+    event.preventDefault();
+
+    // Get the input value if available
+    const name = this.hasInputTarget ? this.inputTarget.value : "World";
+
+    // Create greeting message
+    const greeting = name ? `${this.messageValue}, ${name}!` : this.messageValue;
+
+    // Display in output target
+    if (this.hasOutputTarget) {
+      this.outputTarget.textContent = greeting;
+      this.outputTarget.classList.add("alert", "alert-success", "mt-3");
+    }
+
+    // Increment counter
+    this.countValue++;
+  }
+
+  /**
+   * Clear action - Clear the output
+   * Triggered by: data-action="click->hello-world#clear"
+   */
+  clear(event) {
+    event.preventDefault();
+    if (this.hasInputTarget) {
+      this.inputTarget.value = "";
+    }
+    if (this.hasOutputTarget) {
+      this.outputTarget.textContent = "";
+      this.outputTarget.className = "";
+    }
+  }
+
+  /**
+   * Value changed callback - Called when message value changes
+   * Automatically called when messageValue is updated
+   */
+  messageValueChanged() {
+    console.log("Message value changed to:", this.messageValue);
+  }
+
+  /**
+   * Value changed callback - Called when count value changes
+   * Automatically called when countValue is updated
+   */
+  countValueChanged() {
+    this.updateCounter();
+  }
+
+  /**
+   * Update the counter display
+   */
+  updateCounter() {
+    if (this.hasCounterTarget) {
+      this.counterTarget.textContent = this.countValue;
+    }
+  }
+
+  /**
+   * Example of a method that could be called from other controllers
+   * or JavaScript code
+   */
+  showMessage(message) {
+    if (this.hasOutputTarget) {
+      this.outputTarget.textContent = message;
+      this.outputTarget.classList.add("alert", "alert-info", "mt-3");
+    }
+  }
+
+  /**
+   * Example of an async method - fetch data from server
+   */
+  async fetchData(url) {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      if (this.hasOutputTarget) {
+        this.outputTarget.textContent = "Error loading data";
+        this.outputTarget.classList.add("alert", "alert-danger", "mt-3");
+      }
+      return null;
+    }
+  }
+}
+
+// Register the controller globally
+// This makes it available to the Stimulus application
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["hello-world"] = HelloWorldController;
+/* harmony default export */ __webpack_exports__["default"] = (HelloWorldController);
+
+/***/ }),
+
+/***/ "./plugins/Waivers/assets/js/controllers/retention-policy-input-controller.js":
+/*!************************************************************************************!*\
+  !*** ./plugins/Waivers/assets/js/controllers/retention-policy-input-controller.js ***!
+  \************************************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+
+/**
+ * Retention Policy Input Controller
+ * 
+ * Provides a structured interface for retention policy configuration with real-time preview.
+ * Replaces simple JSON textarea with user-friendly inputs (years, months, days, anchor).
+ * 
+ * Targets:
+ * - anchorSelect: The anchor point selection (gathering_end_date, upload_date, permanent)
+ * - yearsInput: Years input field
+ * - monthsInput: Months input field
+ * - daysInput: Days input field
+ * - durationSection: Container for duration inputs (hidden when anchor=permanent)
+ * - preview: Preview text showing formatted policy
+ * - hiddenInput: Hidden input that stores the JSON value for form submission
+ * 
+ * Actions:
+ * - updatePreview: Updates preview text and hidden JSON field when any input changes
+ */
+class RetentionPolicyInputController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static targets = ["anchorSelect", "yearsInput", "monthsInput", "daysInput", "durationSection", "preview", "hiddenInput"];
+
+  /**
+   * Initialize controller
+   */
+  connect() {
+    // Initialize preview on load
+    this.updatePreview();
+  }
+
+  /**
+   * Update preview text and hidden JSON field
+   * Called whenever any input changes
+   */
+  updatePreview() {
+    const anchor = this.anchorSelectTarget.value;
+    const years = parseInt(this.yearsInputTarget.value) || 0;
+    const months = parseInt(this.monthsInputTarget.value) || 0;
+    const days = parseInt(this.daysInputTarget.value) || 0;
+
+    // Show/hide duration section based on anchor
+    if (anchor === 'permanent') {
+      this.durationSectionTarget.style.display = 'none';
+    } else {
+      this.durationSectionTarget.style.display = 'block';
+    }
+
+    // Build JSON structure
+    let policy = {
+      anchor: anchor
+    };
+
+    // Add duration if not permanent
+    if (anchor !== 'permanent') {
+      policy.duration = {};
+      if (years > 0) policy.duration.years = years;
+      if (months > 0) policy.duration.months = months;
+      if (days > 0) policy.duration.days = days;
+    }
+
+    // Update hidden input with JSON
+    this.hiddenInputTarget.value = JSON.stringify(policy);
+
+    // Update preview text
+    this.previewTarget.textContent = this.formatPreviewText(anchor, years, months, days);
+  }
+
+  /**
+   * Format preview text in human-readable format
+   * 
+   * @param {string} anchor - The anchor point
+   * @param {number} years - Years duration
+   * @param {number} months - Months duration
+   * @param {number} days - Days duration
+   * @returns {string} Formatted preview text
+   */
+  formatPreviewText(anchor, years, months, days) {
+    // Handle permanent retention
+    if (anchor === 'permanent') {
+      return 'Permanent retention (never expires)';
+    }
+
+    // Build duration parts
+    const parts = [];
+    if (years > 0) {
+      parts.push(`${years} ${years === 1 ? 'year' : 'years'}`);
+    }
+    if (months > 0) {
+      parts.push(`${months} ${months === 1 ? 'month' : 'months'}`);
+    }
+    if (days > 0) {
+      parts.push(`${days} ${days === 1 ? 'day' : 'days'}`);
+    }
+
+    // If no duration specified, show warning
+    if (parts.length === 0) {
+      return '⚠️ No duration specified';
+    }
+
+    // Format anchor point text
+    const anchorText = anchor === 'gathering_end_date' ? 'from gathering end date' : 'from upload date';
+    return `${parts.join(', ')} ${anchorText}`;
+  }
+
+  /**
+   * Parse existing JSON value into form fields
+   * Called when editing an existing waiver type
+   * 
+   * @param {string} jsonValue - JSON string from database
+   */
+  parseJson(jsonValue) {
+    try {
+      const policy = JSON.parse(jsonValue);
+
+      // Set anchor
+      if (policy.anchor) {
+        this.anchorSelectTarget.value = policy.anchor;
+      }
+
+      // Set duration values
+      if (policy.duration) {
+        this.yearsInputTarget.value = policy.duration.years || 0;
+        this.monthsInputTarget.value = policy.duration.months || 0;
+        this.daysInputTarget.value = policy.duration.days || 0;
+      }
+
+      // Update preview
+      this.updatePreview();
+    } catch (e) {
+      console.error('Failed to parse retention policy JSON:', e);
+      this.previewTarget.textContent = '⚠️ Invalid JSON format';
+    }
+  }
+
+  /**
+   * Validate inputs before form submission
+   * 
+   * @returns {boolean} True if valid, false otherwise
+   */
+  validate() {
+    const anchor = this.anchorSelectTarget.value;
+
+    // Permanent is always valid
+    if (anchor === 'permanent') {
+      return true;
+    }
+
+    // Check that at least one duration value is specified
+    const years = parseInt(this.yearsInputTarget.value) || 0;
+    const months = parseInt(this.monthsInputTarget.value) || 0;
+    const days = parseInt(this.daysInputTarget.value) || 0;
+    if (years === 0 && months === 0 && days === 0) {
+      alert('Please specify at least one duration value (years, months, or days)');
+      return false;
+    }
+    return true;
+  }
+}
+
+// Add to global controllers registry
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["retention-policy-input"] = RetentionPolicyInputController;
+
+/***/ }),
+
+/***/ "./plugins/Waivers/assets/js/controllers/waiver-template-controller.js":
+/*!*****************************************************************************!*\
+  !*** ./plugins/Waivers/assets/js/controllers/waiver-template-controller.js ***!
+  \*****************************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+
+/**
+ * WaiverTemplate Stimulus Controller
+ * 
+ * Manages the waiver template source selection interface, allowing users
+ * to choose between uploading a PDF file or providing an external URL.
+ * 
+ * Features:
+ * - Toggle between file upload and URL input
+ * - Show/hide appropriate fields based on selection
+ * - Clear unused fields when switching modes
+ * 
+ * Values:
+ * - source: String - Current template source ('upload', 'url', or 'none')
+ * 
+ * Targets:
+ * - uploadSection: Container for file upload field
+ * - urlSection: Container for external URL field
+ * - fileInput: File input element
+ * - urlInput: URL text input element
+ * 
+ * Usage:
+ * <div data-controller="waiver-template">
+ *   <select data-action="change->waiver-template#toggleSource" 
+ *           data-waiver-template-target="sourceSelect">
+ *     <option value="none">No Template</option>
+ *     <option value="upload">Upload PDF</option>
+ *     <option value="url">External URL</option>
+ *   </select>
+ *   
+ *   <div data-waiver-template-target="uploadSection">
+ *     <input type="file" data-waiver-template-target="fileInput">
+ *   </div>
+ *   
+ *   <div data-waiver-template-target="urlSection">
+ *     <input type="text" data-waiver-template-target="urlInput">
+ *   </div>
+ * </div>
+ */
+class WaiverTemplateController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static targets = ["uploadSection", "urlSection", "fileInput", "urlInput", "sourceSelect"];
+  static values = {
+    source: {
+      type: String,
+      default: "none"
+    }
+  };
+
+  /**
+   * Initialize controller
+   */
+  connect() {
+    // Set initial state based on existing values
+    this.updateDisplay();
+  }
+
+  /**
+   * Handle template source selection change
+   * 
+   * @param {Event} event - Change event from source select
+   */
+  toggleSource(event) {
+    this.sourceValue = event.target.value;
+    this.updateDisplay();
+  }
+
+  /**
+   * Handle file input change - auto-select upload option
+   * 
+   * @param {Event} event - Change event from file input
+   */
+  fileSelected(event) {
+    if (event.target.files && event.target.files.length > 0) {
+      // Auto-select "upload" in the dropdown
+      if (this.hasSourceSelectTarget) {
+        this.sourceSelectTarget.value = "upload";
+        this.sourceValue = "upload";
+        this.updateDisplay();
+      }
+    }
+  }
+
+  /**
+   * Update the display based on current source value
+   */
+  updateDisplay() {
+    const source = this.sourceValue;
+
+    // Show/hide sections based on selection
+    if (this.hasUploadSectionTarget) {
+      this.uploadSectionTarget.style.display = source === "upload" ? "block" : "none";
+    }
+    if (this.hasUrlSectionTarget) {
+      this.urlSectionTarget.style.display = source === "url" ? "block" : "none";
+    }
+
+    // Clear unused fields
+    if (source !== "upload" && this.hasFileInputTarget) {
+      this.fileInputTarget.value = "";
+    }
+    if (source !== "url" && this.hasUrlInputTarget) {
+      this.urlInputTarget.value = "";
+    }
+  }
+
+  /**
+   * Handle source value changes
+   */
+  sourceValueChanged() {
+    this.updateDisplay();
+  }
+}
+
+// Register controller globally
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["waiver-template"] = WaiverTemplateController;
+
 /***/ })
 
 },
 /******/ function(__webpack_require__) { // webpackRuntimeModules
 /******/ var __webpack_exec__ = function(moduleId) { return __webpack_require__(__webpack_require__.s = moduleId); }
-/******/ __webpack_require__.O(0, ["js/core","css/app","css/dashboard","css/cover","css/signin"], function() { return __webpack_exec__("./assets/js/controllers/app-setting-form-controller.js"), __webpack_exec__("./assets/js/controllers/auto-complete-controller.js"), __webpack_exec__("./assets/js/controllers/branch-links-controller.js"), __webpack_exec__("./assets/js/controllers/csv-download-controller.js"), __webpack_exec__("./assets/js/controllers/delayed-forward-controller.js"), __webpack_exec__("./assets/js/controllers/detail-tabs-controller.js"), __webpack_exec__("./assets/js/controllers/filter-grid-controller.js"), __webpack_exec__("./assets/js/controllers/guifier-controller.js"), __webpack_exec__("./assets/js/controllers/image-preview-controller.js"), __webpack_exec__("./assets/js/controllers/kanban-controller.js"), __webpack_exec__("./assets/js/controllers/member-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-pwa-controller.js"), __webpack_exec__("./assets/js/controllers/member-unique-email-controller.js"), __webpack_exec__("./assets/js/controllers/member-verify-form-controller.js"), __webpack_exec__("./assets/js/controllers/modal-opener-controller.js"), __webpack_exec__("./assets/js/controllers/nav-bar-controller.js"), __webpack_exec__("./assets/js/controllers/outlet-button-controller.js"), __webpack_exec__("./assets/js/controllers/permission-add-role-controller.js"), __webpack_exec__("./assets/js/controllers/permission-manage-policies-controller.js"), __webpack_exec__("./assets/js/controllers/revoke-form-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-member-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-permission-controller.js"), __webpack_exec__("./assets/js/controllers/select-all-switch-list-controller.js"), __webpack_exec__("./assets/js/controllers/session-extender-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/gw-sharing-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/renew-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/request-auth-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/award-form-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-add-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-bulk-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-quick-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-table-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/recommendation-kanban-controller.js"), __webpack_exec__("./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/assign-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/edit-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/office-form-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-search-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-table-controller.js"), __webpack_exec__("./assets/css/app.css"), __webpack_exec__("./assets/css/signin.css"), __webpack_exec__("./assets/css/cover.css"), __webpack_exec__("./assets/css/dashboard.css"); });
+/******/ __webpack_require__.O(0, ["js/core","css/app","css/waivers","css/dashboard","css/cover","css/signin"], function() { return __webpack_exec__("./assets/js/controllers/activity-waiver-manager-controller.js"), __webpack_exec__("./assets/js/controllers/app-setting-form-controller.js"), __webpack_exec__("./assets/js/controllers/auto-complete-controller.js"), __webpack_exec__("./assets/js/controllers/branch-links-controller.js"), __webpack_exec__("./assets/js/controllers/csv-download-controller.js"), __webpack_exec__("./assets/js/controllers/delayed-forward-controller.js"), __webpack_exec__("./assets/js/controllers/delete-confirmation-controller.js"), __webpack_exec__("./assets/js/controllers/detail-tabs-controller.js"), __webpack_exec__("./assets/js/controllers/filter-grid-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-clone-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-type-form-controller.js"), __webpack_exec__("./assets/js/controllers/guifier-controller.js"), __webpack_exec__("./assets/js/controllers/image-preview-controller.js"), __webpack_exec__("./assets/js/controllers/kanban-controller.js"), __webpack_exec__("./assets/js/controllers/member-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-pwa-controller.js"), __webpack_exec__("./assets/js/controllers/member-unique-email-controller.js"), __webpack_exec__("./assets/js/controllers/member-verify-form-controller.js"), __webpack_exec__("./assets/js/controllers/modal-opener-controller.js"), __webpack_exec__("./assets/js/controllers/nav-bar-controller.js"), __webpack_exec__("./assets/js/controllers/outlet-button-controller.js"), __webpack_exec__("./assets/js/controllers/permission-add-role-controller.js"), __webpack_exec__("./assets/js/controllers/permission-manage-policies-controller.js"), __webpack_exec__("./assets/js/controllers/revoke-form-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-member-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-permission-controller.js"), __webpack_exec__("./assets/js/controllers/select-all-switch-list-controller.js"), __webpack_exec__("./assets/js/controllers/session-extender-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/gw-sharing-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/renew-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/request-auth-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/award-form-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-add-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-bulk-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-quick-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-table-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/recommendation-kanban-controller.js"), __webpack_exec__("./plugins/Events/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/assign-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/edit-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/office-form-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-search-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-table-controller.js"), __webpack_exec__("./plugins/Template/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/add-requirement-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/retention-policy-input-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-template-controller.js"), __webpack_exec__("./assets/css/app.css"), __webpack_exec__("./assets/css/signin.css"), __webpack_exec__("./assets/css/cover.css"), __webpack_exec__("./assets/css/dashboard.css"), __webpack_exec__("./plugins/Waivers/assets/css/waivers.css"); });
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);

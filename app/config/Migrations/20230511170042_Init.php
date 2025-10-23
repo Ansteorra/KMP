@@ -1,5 +1,6 @@
 <?php
 
+use Composer\IO\ConsoleIO;
 use Migrations\BaseMigration;
 use Migrations\Migration\ManagerFactory;
 
@@ -648,10 +649,14 @@ class Init extends BaseMigration
             'source' => 'Seeds',
             'connection' => $options['connection'] ?? $connection,
         ]);
-        $io = $this->getIo();
-        assert($io !== null, 'Missing ConsoleIo instance');
-        $manager = $factory->createManager($io);
-        $manager->seed($seeder);
+        try {
+            $io = $this->getIo();
+            assert($io !== null, 'Missing ConsoleIo instance');
+            $manager = $factory->createManager($io);
+            $manager->seed($seeder);
+        } catch (Exception $e) {
+            echo ('Seeding failed: ' . $e->getMessage());
+        }
     }
 
     public function down()

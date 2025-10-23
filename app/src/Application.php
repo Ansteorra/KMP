@@ -222,7 +222,7 @@ class Application extends BaseApplication implements
         if ($configVersion != $currentConfigVersion) {
             // Update configuration version first
             StaticHelpers::setAppSetting('KMP.configVersion', $currentConfigVersion, null, true);
-            
+
             // Core KMP Settings - Basic application configuration
             StaticHelpers::getAppSetting('KMP.BranchInitRun', '', null, true);                           // Tracks branch initialization
             StaticHelpers::getAppSetting('KMP.KingdomName', 'please_set', null, true);                  // Primary kingdom identifier
@@ -232,7 +232,7 @@ class Application extends BaseApplication implements
             StaticHelpers::getAppSetting('KMP.Login.Graphic', 'populace_badge.png', null, true);        // Login page graphic
             StaticHelpers::getAppSetting('KMP.EnablePublicRegistration', 'yes', null, true);            // Allow public sign-ups
             StaticHelpers::getAppSetting('App.version', '0.0.0', null, true);                           // Application version tracking
-            
+
             // Member Card Display Settings - Visual presentation of member information
             StaticHelpers::getAppSetting('Member.ViewCard.Graphic', 'auth_card_back.gif', null, true);         // Card background image
             StaticHelpers::getAppSetting('Member.ViewCard.HeaderColor', 'gold', null, true);                   // Card header color scheme
@@ -240,29 +240,29 @@ class Application extends BaseApplication implements
             StaticHelpers::getAppSetting('Member.ViewMobileCard.Template', 'view_mobile_card', null, true);    // Mobile card template
             StaticHelpers::getAppSetting('Member.MobileCard.ThemeColor', 'gold', null, true);                  // Mobile theme color
             StaticHelpers::getAppSetting('Member.MobileCard.BgColor', 'gold', null, true);                     // Mobile background color
-            
+
             // Member Management Email Settings - Contact addresses for various member processes
             StaticHelpers::getAppSetting('Members.AccountVerificationContactEmail', 'please_set', null, true);  // Account verification support
             StaticHelpers::getAppSetting('Members.AccountDisabledContactEmail', 'please_set', null, true);      // Disabled account support
             StaticHelpers::getAppSetting('Members.NewMemberSecretaryEmail', 'member@test.com', null, true);     // New member notifications
             StaticHelpers::getAppSetting('Members.NewMinorSecretaryEmail', 'minorSet@test.com', null, true);    // Minor member notifications
-            
+
             // Email System Configuration - Global email settings
             StaticHelpers::getAppSetting('Email.SystemEmailFromAddress', 'site@test.com', null, true);  // System sender address
             StaticHelpers::getAppSetting('Email.SiteAdminSignature', 'site', null, true);               // Default email signature
-            
+
             // Activity Management Settings - Event and activity coordination
             StaticHelpers::getAppSetting('Activity.SecretaryEmail', 'please_set', null, true);  // Activity coordinator email
             StaticHelpers::getAppSetting('Activity.SecretaryName', 'please_set', null, true);   // Activity coordinator name
-            
+
             // Warrant System Configuration - Officer warrant management
             StaticHelpers::getAppSetting('Warrant.LastCheck', DateTime::now()->subDays(1)->toDateString(), null, true);  // Last warrant validation
             StaticHelpers::getAppSetting('KMP.RequireActiveWarrantForSecurity', 'yes', null, true);                     // Warrant requirement for security roles
             StaticHelpers::getAppSetting('Warrant.RosterApprovalsRequired', '2', null, true);                           // Number of approvals needed for roster changes
-            
+
             // Help and Documentation Settings
             StaticHelpers::getAppSetting('KMP.AppSettings.HelpUrl', 'https://github.com/Ansteorra/KMP/wiki/App-Settings', null, true);  // Settings help URL
-            
+
             // Branch Type Configuration - Organizational structure definitions
             // Uses YAML format for complex data structures
             StaticHelpers::getAppSetting('Branches.Types', yaml_emit([
@@ -379,17 +379,17 @@ class Application extends BaseApplication implements
                     'cacheTime' => Configure::read('Asset.cacheTime'),  // Use configured cache time
                 ]),
             )
-            
+
             // 4. Routing Middleware - URL to controller/action mapping
             // For large applications, consider enabling route caching in production
             // See: https://github.com/CakeDC/cakephp-cached-routing
             ->add(new RoutingMiddleware($this))
-            
+
             // 5. Body Parser Middleware - Request body parsing
             // Parses JSON, XML, and form data into $request->getData()
             // Documentation: https://book.cakephp.org/4/en/controllers/middleware.html#body-parser-middleware
             ->add(new BodyParserMiddleware())
-            
+
             // 6. CSRF Protection Middleware - Cross-site request forgery protection
             // Uses secure cookie settings for maximum security
             // Documentation: https://book.cakephp.org/4/en/security/csrf.html#cross-site-request-forgery-csrf-middleware
@@ -400,11 +400,11 @@ class Application extends BaseApplication implements
                     'sameSite' => 'Strict', // Strict same-site policy for maximum protection
                 ]),
             )
-            
+
             // 7. Authentication Middleware - User login and session management
             // Must be added after routing and body parser to access request data
             ->add(new AuthenticationMiddleware($this))
-            
+
             // 8. Authorization Middleware - Permission checking and access control
             // Enforces policy-based authorization on all requests
             ->add(
@@ -427,7 +427,7 @@ class Application extends BaseApplication implements
                     ],
                 ]),
             )
-            
+
             // 9. Footprint Middleware - User activity tracking for auditing
             // Tracks which user performed what actions for security and compliance
             ->add('Muffin/Footprint.Footprint');
@@ -493,14 +493,14 @@ class Application extends BaseApplication implements
             ActiveWindowManagerInterface::class,   // Interface for dependency injection
             DefaultActiveWindowManager::class,     // Concrete implementation
         );
-        
+
         // Register WarrantManager for warrant lifecycle management
         // Depends on ActiveWindowManager for handling warrant validity periods
         $container->add(
             WarrantManagerInterface::class,        // Interface for dependency injection
             DefaultWarrantManager::class,          // Concrete implementation
         )->addArgument(ActiveWindowManagerInterface::class);  // Inject ActiveWindowManager dependency
-        
+
         // Register CSV export service for data export functionality
         // No dependencies required - provides standalone export capabilities
         $container->add(
@@ -584,11 +584,11 @@ class Application extends BaseApplication implements
             AbstractIdentifier::CREDENTIAL_USERNAME => 'email_address',  // Use email as username
             AbstractIdentifier::CREDENTIAL_PASSWORD => 'password',       // Password field name
         ];
-        
+
         // Load authenticators in order of precedence
         // Session authenticator should always be first for performance
         $service->loadAuthenticator('Authentication.Session');          // Check existing sessions first
-        
+
         // Form authenticator handles login form submissions
         $service->loadAuthenticator('Authentication.Form', [
             'fields' => $fields,                             // Field mapping configuration
@@ -608,7 +608,7 @@ class Application extends BaseApplication implements
                 'userModel' => 'Members',                    // Members table for user data
             ],
             'fields' => $fields,                             // Field mapping for credentials
-            
+
             // Password hasher configuration with fallback support
             // Allows migration from legacy password formats to modern hashing
             'passwordHasher' => [

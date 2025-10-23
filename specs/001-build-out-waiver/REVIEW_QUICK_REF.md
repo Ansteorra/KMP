@@ -159,12 +159,13 @@ SIGNATURE: _________________ DATE: _________
 | Metric | Value |
 |--------|-------|
 | **Story Points** | 21 (high complexity) |
-| **Entities** | 8 (3 core, 4 plugin) |
+| **Entities** | 10 (4 core, 5 plugin, 1 reference) |
 | **API Endpoints** | 15+ |
 | **Dependencies** | ImageMagick, Flysystem |
 | **Testing** | PHPUnit (unit + integration) |
 | **Risk Level** | Medium-High |
 | **Impact** | High (legal compliance) |
+| **Pattern** | Polymorphic Documents (reusable) |
 
 ---
 

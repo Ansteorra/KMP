@@ -194,9 +194,10 @@ As a Kingdom officer or legal compliance officer, I need to search for gathering
 - **FR-022a**: System MUST provide HTML file input with mobile camera capture support using `accept="image/*"` and `capture="environment"` attributes for direct camera access on mobile devices
 - **FR-022b**: System MUST allow users to choose between taking a new photo with their device camera or selecting existing images from their device gallery
 - **FR-023**: System MUST validate that uploaded files are valid image formats (JPEG, PNG, TIFF) and reject other file types
-- **FR-023a**: System MUST automatically convert uploaded image files to compressed black and white PDF format
-- **FR-023b**: System MUST perform image-to-PDF conversion synchronously during upload and provide immediate feedback to user
-- **FR-023c**: System MUST optimize converted PDFs for storage efficiency (target: 1-3MB per converted document)
+- **FR-023a**: System MUST automatically convert uploaded image files to compressed black and white PDF format using Imagick Group4 (CCITT T.6) compression with quality setting of 85, achieving 90-95% file size reduction
+- **FR-023b**: System MUST perform image-to-PDF conversion synchronously during upload (typical 2-5 seconds per image) and provide immediate feedback to user (UI response within 200ms, completion message within 500ms)
+- **FR-023c**: System MUST optimize converted PDFs for storage efficiency (target: 1-3MB per converted document) with warning displayed for files 3-5MB and strong warning for files over 5MB
+- **FR-023d**: System MUST validate uploaded files with maximum size of 25MB per file, valid MIME types (image/jpeg, image/png, image/tiff), and sanitized filenames (alphanumeric, underscores, hyphens only)
 - **FR-024**: System MUST allow uploading multiple image files for each required waiver type (each converted to separate PDF)
 - **FR-024a**: System MUST support concurrent waiver uploads by multiple users for the same gathering without restrictions (all uploads are accepted, converted, and added to the gathering)
 - **FR-025**: When a waiver is uploaded and converted, system MUST capture and store the retention policy from the waiver type at that moment
@@ -207,9 +208,10 @@ As a Kingdom officer or legal compliance officer, I need to search for gathering
 
 **Retention and Compliance**:
 - **FR-029**: System MUST calculate waiver retention expiration dates based on the captured retention policy's structured format (duration + unit + anchor) and the relevant date (gathering end date or upload date)
-- **FR-030**: System MUST identify waivers eligible for deletion based on expired retention periods
-- **FR-031**: System MUST prevent accidental deletion of waivers that have not reached retention expiration
+- **FR-030**: System MUST identify waivers eligible for deletion based on expired retention periods through automated daily Queue job that marks waiver status as 'expired' and notifies compliance officer
+- **FR-031**: System MUST prevent accidental deletion of waivers that have not reached retention expiration by only allowing deletion of waivers with status='expired'
 - **FR-031a**: System MUST enforce waiver deletion authorization through explicit authorization policy that can be applied to any role via KMP's existing authorization system
+- **FR-031b**: System MUST support bulk deletion of expired waivers with multi-layer safeguards: status verification, JavaScript confirmation requiring "DELETE" to be typed, mandatory deletion reason (audit trail), and authorization check
 - **FR-032**: System MUST provide clear indication of which waivers are within retention period and which have expired
 
 **Search and Reporting**:
@@ -219,10 +221,60 @@ As a Kingdom officer or legal compliance officer, I need to search for gathering
 - **FR-036**: System MUST track and display waiver collection compliance metrics (percentage of gatherings with waivers collected and uploaded)
 
 **Security and Permissions**:
-- **FR-037**: System MUST enforce role-based access control for waiver configuration, gathering creation, and waiver uploads
-- **FR-038**: System MUST log all waiver uploads with user identity, timestamp, and gathering association
-- **FR-039**: System MUST restrict waiver PDF downloads to authorized users only
+- **FR-037**: System MUST enforce role-based access control for waiver configuration, gathering creation, and waiver uploads using specific permissions: manage_waivers (configuration), upload_waivers (upload), delete_expired_waivers (deletion), view_waivers (viewing)
+- **FR-038**: System MUST log all waiver operations (upload, download, deletion, configuration changes) with comprehensive audit trail capturing: user ID, timestamp, action type, entity ID, IP address, and metadata, with minimum 7-year retention
+- **FR-039**: System MUST restrict waiver PDF downloads to authorized users only (gathering steward, branch officers, or users with view_waivers permission) through policy-based authorization
 - **FR-040**: System MUST integrate with existing KMP authorization policies for branch-level and kingdom-level permissions
+
+### Non-Functional Requirements
+
+#### Performance
+
+- **NFR-001**: Image-to-PDF conversion MUST complete within 2-5 seconds per image for typical waiver sizes (3-5MB JPEG)
+- **NFR-002**: System MUST support batch upload of up to 50 images completing within 10 minutes (sequential processing acceptable for initial release)
+- **NFR-003**: Mobile upload over typical mobile networks MUST complete within 30 seconds for single image
+- **NFR-004**: Database queries for waiver lists MUST complete within 500ms for collections up to 1000 waivers
+- **NFR-005**: Retention policy calculations for bulk operations (daily expiry check) MUST complete within 5 minutes for 10,000 waivers
+
+#### Security
+
+- **NFR-006**: System MUST prevent SQL injection through CakePHP ORM prepared statements (no raw SQL queries)
+- **NFR-007**: System MUST provide CSRF protection on all state-changing operations through CakePHP FormProtection component and Turbo Forms integration
+- **NFR-008**: System MUST sanitize all user input through CakePHP automatic escaping and ORM parameter binding
+- **NFR-009**: System MUST prevent path traversal attacks through filename sanitization (alphanumeric + _ + - only) and storage outside webroot
+- **NFR-010**: System MUST validate MIME types for all uploaded files before processing
+- **NFR-011**: System MUST store all PDF files outside publicly accessible webroot with access only via authorized controller actions
+- **NFR-012**: System MUST calculate and verify SHA-256 checksums for all stored documents to detect corruption or tampering
+
+#### Accessibility
+
+- **NFR-013**: All interactive elements MUST be keyboard navigable following Bootstrap 5 accessibility standards
+- **NFR-014**: All form controls MUST include proper ARIA labels and descriptions for screen reader compatibility
+- **NFR-015**: Color contrast MUST meet WCAG AA standards (minimum 4.5:1 for normal text) using Bootstrap 5 default theme
+- **NFR-016**: Touch targets on mobile devices MUST be minimum 44x44 pixels following Bootstrap touch-friendly standards
+- **NFR-017**: All custom UI components MUST include appropriate ARIA roles and states
+
+#### Usability
+
+- **NFR-018**: Error messages MUST be specific and actionable (e.g., "Image file must be 25MB or smaller. Please reduce file size and try again." rather than "Upload failed")
+- **NFR-019**: Loading indicators MUST appear within 200ms of user action (Turbo progress bar for navigation, custom spinner for conversion)
+- **NFR-020**: Progress feedback MUST be provided for batch operations showing "Converting 3 of 10 images..."
+- **NFR-021**: Destructive actions MUST require explicit confirmation with clear consequences explained
+- **NFR-022**: Complex form fields MUST include help text with examples (e.g., retention period format: "Example: 7 years, 6 months")
+
+#### Browser Compatibility
+
+- **NFR-023**: System MUST support iOS Safari 14+ (HTML5 File API and camera capture)
+- **NFR-024**: System MUST support Android Chrome 90+ (HTML5 File API and camera capture)
+- **NFR-025**: Desktop browsers: Chrome 90+, Firefox 88+, Safari 14+, Edge 90+
+
+#### Data Integrity
+
+- **NFR-026**: All database foreign key constraints MUST be enforced with appropriate CASCADE/RESTRICT behaviors
+- **NFR-027**: All multi-step operations (upload → convert → save) MUST use database transactions with rollback on failure
+- **NFR-028**: Documents.entity_id MUST never be NULL (stub-first creation pattern required)
+- **NFR-029**: Retention policy JSON MUST be validated on save with strict schema enforcement
+- **NFR-030**: All date calculations MUST use UTC timezone with proper conversion for display
 
 ### Key Entities
 
@@ -236,6 +288,8 @@ Located in `src/Model/Entity/` and `src/Model/Table/`:
 
 - **Gathering Activity**: Specific activities that occur at gatherings (e.g., "Armored Combat", "Rapier Combat", "Archery", "Feast", "Court"). Contains: unique name, description, gathering_type_id (FK), active status. Related to Gathering Type (many-to-one). **Used by**: Waivers plugin (determine waiver requirements), Awards plugin (track which activity an award was given at), future plugins (registrations, schedules).
 
+- **Document**: Generic polymorphic document storage entity (follows Notes pattern). Contains: entity_type (polymorphic class name), entity_id (polymorphic FK), uploaded_by (FK to Members), original_filename, stored_filename, file_path, mime_type, file_size, checksum (SHA-256), storage_adapter (local/s3), metadata (JSON), audit fields. Uses entity_type + entity_id pattern to link to any entity. **Used by**: Waivers plugin (store waiver PDFs), future features (member photos, meeting minutes, financial records). **Design rationale**: Generic pattern enables reuse across multiple document types without schema changes.
+
 #### Waivers Plugin Entities
 
 Located in `plugins/Waivers/src/Model/Entity/` and `plugins/Waivers/src/Model/Table/`:
@@ -244,7 +298,9 @@ Located in `plugins/Waivers/src/Model/Entity/` and `plugins/Waivers/src/Model/Ta
 
 - **Gathering Activity Waiver**: Junction entity linking core Gathering Activities to required Waiver Types. Contains: gathering_activity_id (FK to core Gathering Activity), waiver_type_id (FK), required boolean (indicates if waiver is required or optional for this activity). Defines which waivers are needed for which activities. Example: "Armored Combat" activity requires "Adult Combat Waiver".
 
-- **Gathering Waiver**: A converted PDF file from uploaded waiver image. Contains: gathering_id (FK to core Gathering), member_id (FK), waiver_type_id (FK), converted PDF file reference/path, original_filename, upload date, uploaded_by_id (FK), captured retention policy (from waiver type at upload time), calculated expiration date, status. Related to Gathering (many-to-one), Member (many-to-one), and Waiver Type (many-to-one). Tracks waiver images uploaded and converted to compressed black and white PDFs for specific gatherings.
+- **Gathering Waiver**: Waiver metadata entity linking gatherings to uploaded documents. Contains: gathering_id (FK to core Gathering), member_id (FK), waiver_type_id (FK declared at upload), document_id (FK to core Documents), calculated retention_date, status (active/expired/deleted), notes. Related to Gathering (many-to-one), Member (many-to-one), Waiver Type (many-to-one), and Document (one-to-one). Tracks waiver-specific business logic (retention, compliance status) while delegating file storage to generic Documents entity.
+
+- **Gathering Waiver Activities**: Junction entity tracking which activities each waiver covers (many-to-many). Contains: gathering_waiver_id (FK), gathering_activity_id (FK). Enables single waiver to cover multiple activities and multiple waivers per activity. Separates declared waiver type (user intent at upload) from actual activity coverage (verified after review).
 
 ## Success Criteria *(mandatory)*
 
@@ -274,33 +330,39 @@ Located in `plugins/Waivers/src/Model/Entity/` and `plugins/Waivers/src/Model/Ta
 
 3. **Single Branch Per Gathering**: Each gathering is run by one primary branch, though the gathering may involve participants from multiple branches.
 
-4. **Waiver Template Storage**: Waiver type PDF templates are stored externally (file server or cloud storage) and referenced by URL/path. The system stores the reference, not the template file itself.
+4. **Waiver Template Storage**: Waiver type PDF templates are stored in the Documents entity with entity_type='Waivers.WaiverTypes', separating template storage from signed waiver storage.
 
-5. **Uploaded Waiver Storage**: Uploaded waiver PDFs can be stored either on local filesystem or cloud storage, configured at deployment time. The system abstracts the storage mechanism to support both options.
+5. **Generic Document Storage**: The system uses a generic Documents entity (following KMP's Notes pattern) with polymorphic relationships. Waiver PDFs are stored in Documents with entity_type='Waivers.GatheringWaivers'. This architecture enables future document types (member photos, meeting minutes, financial records) without schema changes. Documents can be stored either on local filesystem or cloud storage (S3), configured at deployment time via Flysystem. **Initial implementation restricts entity_type to whitelist**: 'Waivers.GatheringWaivers' and 'Waivers.WaiverTypes' for type safety, expandable via constant update.
+
+5a. **Documents Entity Lifecycle**: Documents are created using stub-first pattern: (1) Create GatheringWaiver stub, (2) Convert image to PDF, (3) Save to storage, (4) Create Document with entity_id set to stub ID, (5) Update stub with document_id. Documents.entity_id is NEVER NULL. Transaction ensures atomicity with rollback on failure.
 
 6. **Batch Uploads**: Gathering stewards will upload waiver PDFs one at a time or in small batches through a web interface. Large-scale bulk imports are not required for initial release.
 
-7. **Concurrent Uploads**: Multiple users may upload waivers to the same gathering simultaneously. The system handles concurrent uploads without locking or queuing; all uploads are accepted and stored.
+7. **Concurrent Uploads**: Multiple users may upload waivers to the same gathering simultaneously. The system handles concurrent uploads without explicit file locking; all uploads create new records (no conflicts). Concurrent edits to same gathering use CakePHP optimistic locking via modified timestamp.
 
 8. **Member Signature Tracking**: Individual member signatures within waiver PDFs are not tracked or indexed. Waivers are tracked at the document level per gathering, not per member per waiver.
 
 9. **Existing KMP Integration**: The system will integrate with existing KMP entities (Branches, Members, Authorization Policies) using established patterns.
 
-10. **Manual Retention Enforcement**: The system will identify waivers eligible for deletion but will not automatically delete them. Deletion will be a manual administrative action with appropriate safeguards, controlled by authorization policy.
+10. **Manual Retention Enforcement**: The system will identify waivers eligible for deletion (daily Queue job marks status='expired') but will not automatically delete them. Deletion requires manual review by compliance officer with multi-layer safeguards: (1) status must be 'expired', (2) JavaScript confirmation requiring "DELETE" to be typed, (3) mandatory deletion reason for audit trail, (4) authorization check for delete_expired_waivers permission. Bulk deletion supported for efficiency.
 
 11. **Gathering Immutability After Upload**: Once waivers are uploaded for an gathering, the gathering's activity associations become immutable to preserve data integrity and prevent orphaned waivers.
 
 12. **Core vs Plugin Architecture**: Gathering, Gathering Type, and Gathering Activity are core KMP entities available to all plugins. Waiver-specific functionality (Waiver Type, Gathering Activity Waiver, Gathering Waiver) resides in the Waivers plugin.
 
-13. **Awards Plugin Migration**: Existing award_gatherings data will be migrated to the core Gathering entity. The Awards plugin will be refactored to use core Gathering and optionally Gathering Activity (to track which activity an award was given at), eliminating the award_gatherings table.
+13. **Awards Plugin Migration**: Existing award_events data will be migrated to the core Gathering entity with gathering_type="Kingdom Calendar Event". Migration process: (1) Create "Kingdom Calendar Event" gathering type, (2) Migrate all award_events to gatherings table, (3) Update Awards plugin foreign keys (recommendations.event_id → gathering_id), (4) Update Awards model associations and queries, (5) Verify data integrity, (6) Backup award_events table (30-day retention), (7) Drop award_events after verification. See DECISIONS.md for detailed migration code.
 
 14. **Cross-Plugin Compatibility**: The Waivers plugin references core Gathering and Gathering Activity entities via foreign keys. Core Gatherings and Activities remain functional without the Waivers plugin installed (waiver-related associations are optional). Gathering Activities can be used by any plugin for activity tracking.
 
-15. **File Size Limits**: Individual waiver PDF uploads will be limited to 10MB per file, which accommodates scanned multi-page documents.
+15. **File Size Limits**: Individual waiver image uploads (pre-conversion) limited to 25MB per file. After conversion to compressed black and white PDF, typical storage is 1-3MB (90-95% reduction). Files 3-5MB show info message, files over 5MB show warning. Post-conversion files are not rejected, only warned.
 
 16. **Activity Overlap**: If an gathering has multiple activities requiring the same waiver type, the system will consolidate the requirement (waiver appears once, not multiple times).
 
 17. **DPI and Pixel Size Minimums**: Individual waiver PDF uploads will be at least 100DPI at 8"x11" or 2048x2048px in raw pixel sizes. The PDF may be bigger but not smaller so that it is readable.
+
+18. **Browser Compatibility**: System requires HTML5 File API and camera capture support. Minimum versions: iOS Safari 14+ (2020), Android Chrome 90+ (2021). Desktop: Chrome 90+, Firefox 88+, Safari 14+, Edge 90+.
+
+19. **waiver_type_id Assignment**: waiver_type_id is assigned at upload time based on user's declared intent. User selects waiver type from dropdown during upload. This enables immediate retention calculation and compliance checking. Note: waiver_type_id represents declared waiver type, not verified content (system trusts user selection).
 
 ## Architecture Overview
 

@@ -154,10 +154,12 @@ Review the overall architecture:
 
 | Location | Entities | Purpose |
 |----------|----------|---------|
-| Core (`src/Model/`) | 3 entities | GatheringTypes, Gatherings, GatheringActivities (reusable) |
-| Plugin (`plugins/Waivers/`) | 4 entities | WaiverTypes, GatheringActivityWaivers, GatheringWaivers, WaiverConfiguration |
+| Core (`src/Model/`) | 4 entities | Documents (polymorphic), GatheringTypes, Gatherings, GatheringActivities (reusable) |
+| Plugin (`plugins/Waivers/`) | 5 entities | WaiverTypes, GatheringActivityWaivers, GatheringWaivers, GatheringWaiverActivities, WaiverConfiguration |
 | Existing | 1 entity | Members (reference only) |
-| **Total** | **8 entities** | Complete system |
+| **Total** | **10 entities** | Complete system |
+
+**Key Pattern**: Documents entity uses polymorphic pattern (entity_type + entity_id) following Notes model, enabling future reuse for member photos, meeting minutes, financial records.
 
 ### API Coverage
 

@@ -17,7 +17,9 @@ class WarrantsFixture extends BaseTestFixture
     public function init(): void
     {
         $this->records = [];
-        $this->records = array_merge($this->records, $this->getData('InitWarrantsSeed')['warrants']);
+        // Note: InitWarrantsSeed returns warrant_rosters, permissions, and warrant_periods
+        // The actual warrants are created in run() method after rosters exist
+        // For test fixtures, we start with an empty warrants table
         parent::init();
     }
 }

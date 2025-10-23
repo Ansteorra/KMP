@@ -3,8 +3,3 @@
   * Copyright 2011-2025 The Bootstrap Authors (https://github.com/twbs/bootstrap/graphs/contributors)
   * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
   */
-
-/*!
-Turbo 8.0.13
-Copyright © 2025 37signals LLC
- */

@@ -1,0 +1,23 @@
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Composer
+/vendor/
+composer.lock
+
+# Testing
+/tmp/
+/logs/
+phpunit.xml
+
+# Build artifacts
+/webroot/js/
+/webroot/css/

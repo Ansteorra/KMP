@@ -21,8 +21,13 @@ class InitRolesPermissionsSeed extends BaseSeed
     {
         return [
             [
-                'permission_id' => SeedHelpers::getPermissionId("Can Do All But Is Not A Super User"), //1,
-                'role_id' => SeedHelpers::getRoleId("Admin"), //1,
+                'permission_id' => SeedHelpers::getPermissionId("Is Super User"),
+                'role_id' => SeedHelpers::getRoleId("Admin"),
+                'created_by' => 1,
+            ],
+            [
+                'permission_id' => SeedHelpers::getPermissionId("Can Do All But Is Not A Super User"),
+                'role_id' => SeedHelpers::getRoleId("Admin"),
                 'created_by' => 1,
             ]
         ];

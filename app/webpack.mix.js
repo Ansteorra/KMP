@@ -56,6 +56,7 @@ mix.setPublicPath('./webroot')
     .css('assets/css/signin.css', 'webroot/css')
     .css('assets/css/cover.css', 'webroot/css')
     .css('assets/css/dashboard.css', 'webroot/css')
+    .css('plugins/Waivers/assets/css/waivers.css', 'webroot/css/waivers.css')
     .version()
     .sourceMaps();
 
