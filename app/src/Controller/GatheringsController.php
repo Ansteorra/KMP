@@ -305,7 +305,7 @@ class GatheringsController extends AppController
     /**
      * Add method
      *
-     * Creates a new gathering with optional activity selection.
+     * Creates a new gathering. Activities can be added after creation.
      *
      * @return \Cake\Http\Response|null|void Redirects on successful add, renders view otherwise.
      */
@@ -325,9 +325,7 @@ class GatheringsController extends AppController
                 $data['end_date'] = $data['start_date'];
             }
 
-            $gathering = $this->Gatherings->patchEntity($gathering, $data, [
-                'associated' => ['GatheringActivities'],
-            ]);
+            $gathering = $this->Gatherings->patchEntity($gathering, $data);
 
             if ($this->Gatherings->save($gathering)) {
                 $this->Flash->success(__(
@@ -358,10 +356,8 @@ class GatheringsController extends AppController
         // Load form options
         $branches = $this->Gatherings->Branches->find('list')->orderBy(['name' => 'ASC']);
         $gatheringTypes = $this->Gatherings->GatheringTypes->find('list')->orderBy(['name' => 'ASC']);
-        $gatheringActivities = $this->Gatherings->GatheringActivities->find('all')
-            ->orderBy(['name' => 'ASC']);
 
-        $this->set(compact('gathering', 'branches', 'gatheringTypes', 'gatheringActivities'));
+        $this->set(compact('gathering', 'branches', 'gatheringTypes'));
     }
 
     /**

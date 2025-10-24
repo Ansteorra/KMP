@@ -5,7 +5,6 @@
  * @var \App\Model\Entity\Gathering $gathering
  * @var \App\Model\Entity\Branch[] $branches
  * @var \App\Model\Entity\GatheringType[] $gatheringTypes
- * @var \App\Model\Entity\GatheringActivity[] $gatheringActivities
  */
 ?>
 <?php
@@ -103,47 +102,6 @@ $this->KMP->endBlock();
                 'label' => 'Notes',
                 'placeholder' => 'Additional information about the gathering...'
             ]) ?>
-        </div>
-
-        <div class="mb-3">
-            <label class="form-label"><?= __('Gathering Activities') ?></label>
-            <small class="form-text text-muted d-block mb-2">
-                Select the activities that will be part of this gathering.
-            </small>
-
-            <?php if (!empty($gatheringActivities)): ?>
-                <div class="list-group">
-                    <?php foreach ($gatheringActivities as $activity): ?>
-                        <label class="list-group-item">
-                            <div class="d-flex align-items-start">
-                                <div class="form-check">
-                                    <?= $this->Form->checkbox('gathering_activities._ids[]', [
-                                        'value' => $activity->id,
-                                        'id' => 'activity-' . $activity->id,
-                                        'class' => 'form-check-input'
-                                    ]) ?>
-                                </div>
-                                <div class="ms-2 flex-grow-1">
-                                    <strong><?= h($activity->name) ?></strong>
-                                    <?php if (!empty($activity->description)): ?>
-                                        <div class="text-muted small"><?= h($activity->description) ?></div>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-                        </label>
-                    <?php endforeach; ?>
-                </div>
-            <?php else: ?>
-                <div class="alert alert-info">
-                    <i class="bi bi-info-circle"></i>
-                    No gathering activities have been created yet.
-                    <?= $this->Html->link(
-                        'Create one now',
-                        ['controller' => 'GatheringActivities', 'action' => 'add'],
-                        ['target' => '_blank']
-                    ) ?>
-                </div>
-            <?php endif; ?>
         </div>
     </fieldset>
 
