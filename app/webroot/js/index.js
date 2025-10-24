@@ -418,13 +418,15 @@ window.Controllers["gathering-type-form"] = GatheringTypeFormController;
 
 __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
-/* harmony import */ var bootstrap__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! bootstrap */ "./node_modules/bootstrap/dist/js/bootstrap.esm.js");
-/* harmony import */ var _KMP_utils_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./KMP_utils.js */ "./assets/js/KMP_utils.js");
-/* harmony import */ var _controllers_activity_waiver_manager_controller__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./controllers/activity-waiver-manager-controller */ "./assets/js/controllers/activity-waiver-manager-controller.js");
-/* harmony import */ var _controllers_delete_confirmation_controller__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./controllers/delete-confirmation-controller */ "./assets/js/controllers/delete-confirmation-controller.js");
-/* harmony import */ var _controllers_gathering_type_form_controller__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./controllers/gathering-type-form-controller */ "./assets/js/controllers/gathering-type-form-controller.js");
+/* harmony import */ var _hotwired_turbo__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @hotwired/turbo */ "./node_modules/@hotwired/turbo/dist/turbo.es2017-esm.js");
+/* harmony import */ var bootstrap__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! bootstrap */ "./node_modules/bootstrap/dist/js/bootstrap.esm.js");
+/* harmony import */ var _KMP_utils_js__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./KMP_utils.js */ "./assets/js/KMP_utils.js");
+/* harmony import */ var _controllers_activity_waiver_manager_controller__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./controllers/activity-waiver-manager-controller */ "./assets/js/controllers/activity-waiver-manager-controller.js");
+/* harmony import */ var _controllers_delete_confirmation_controller__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./controllers/delete-confirmation-controller */ "./assets/js/controllers/delete-confirmation-controller.js");
+/* harmony import */ var _controllers_gathering_type_form_controller__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./controllers/gathering-type-form-controller */ "./assets/js/controllers/gathering-type-form-controller.js");
 /* provided dependency */ var bootstrap = __webpack_require__(/*! bootstrap */ "./node_modules/bootstrap/dist/js/bootstrap.esm.js");
 // export for others scripts to use
+
 
 
 
@@ -434,15 +436,18 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
+// Disable Turbo Drive (automatic navigation) but keep Turbo Frames working
+_hotwired_turbo__WEBPACK_IMPORTED_MODULE_1__.session.drive = false;
+
 //window.$ = $;
 //window.jQuery = jQuery;
-window.KMP_utils = _KMP_utils_js__WEBPACK_IMPORTED_MODULE_2__["default"];
+window.KMP_utils = _KMP_utils_js__WEBPACK_IMPORTED_MODULE_3__["default"];
 window.Stimulus = _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Application.start();
 
 // Register imported controllers
-Stimulus.register("activity-waiver-manager", _controllers_activity_waiver_manager_controller__WEBPACK_IMPORTED_MODULE_3__["default"]);
-Stimulus.register("gathering-type-form", _controllers_gathering_type_form_controller__WEBPACK_IMPORTED_MODULE_5__["default"]);
-Stimulus.register("delete-confirmation", _controllers_delete_confirmation_controller__WEBPACK_IMPORTED_MODULE_4__["default"]);
+Stimulus.register("activity-waiver-manager", _controllers_activity_waiver_manager_controller__WEBPACK_IMPORTED_MODULE_4__["default"]);
+Stimulus.register("gathering-type-form", _controllers_gathering_type_form_controller__WEBPACK_IMPORTED_MODULE_6__["default"]);
+Stimulus.register("delete-confirmation", _controllers_delete_confirmation_controller__WEBPACK_IMPORTED_MODULE_5__["default"]);
 
 // load all the controllers that have registered in the window.Controllers object
 for (var controller in window.Controllers) {

@@ -78,9 +78,9 @@ use Cake\Core\Configure;
 if (!$this->fetch("html")) {
     echo $this->KMP->startBlock("html");
     if (Configure::check("App.language")) {
-        printf('<html data-turbo="false" lang="%s">', Configure::read("App.language"));
+        printf('<html lang="%s">', Configure::read("App.language"));
     } else {
-        echo "<html data-turbo='false' lang='en' >";
+        echo "<html lang='en' >";
     }
     $this->KMP->endBlock();
 }

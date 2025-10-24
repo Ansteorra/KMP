@@ -15,6 +15,8 @@
         'action' => 'clone',
         $gathering->id,
     ],
+    'data-controller' => 'gathering-clone',
+    'data-action' => 'submit->gathering-clone#validateForm'
 ]) ?>
 
 <?php echo $this->Modal->create(__('Clone "{0}"', $gathering->name), [
@@ -35,7 +37,6 @@
         'required' => true,
         'class' => 'form-control',
         'label' => __('New Gathering Name'),
-        'data-controller' => 'gathering-clone',
         'data-gathering-clone-target' => 'nameInput'
     ]) ?>
 </div>
@@ -48,20 +49,20 @@
             'class' => 'form-control',
             'label' => __('Start Date'),
             'data-gathering-clone-target' => 'startDate',
-            'data-action' => 'change->gathering-clone#validateDates'
+            'data-action' => 'change->gathering-clone#startDateChanged'
         ]) ?>
     </div>
     <div class="col-md-6 mb-3">
         <?= $this->Form->control('end_date', [
             'type' => 'date',
-            'required' => true,
+            'required' => false,
             'class' => 'form-control',
             'label' => __('End Date'),
             'data-gathering-clone-target' => 'endDate',
-            'data-action' => 'change->gathering-clone#validateDates'
+            'data-action' => 'change->gathering-clone#endDateChanged'
         ]) ?>
         <small class="form-text text-muted">
-            <?= __('End date must be on or after start date.') ?>
+            <?= __('Will default to start date if not specified. For single-day gatherings, leave blank or use the same date as start date.') ?>
         </small>
     </div>
 </div>
@@ -101,7 +102,8 @@
 <?php echo $this->Modal->end([
     $this->Form->button(__('Create Clone'), [
         'class' => 'btn btn-info',
-        'id' => 'clone_gathering_submit'
+        'id' => 'clone_gathering_submit',
+        'data-gathering-clone-target' => 'submitButton'
     ]),
     $this->Form->button(__('Close'), [
         'data-bs-dismiss' => 'modal',

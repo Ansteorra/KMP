@@ -1554,7 +1554,11 @@ class DetailTabsController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0
     }
     var frame = document.getElementById(tab + '-frame');
     if (frame) {
-      frame.reload();
+      // Check if frame has been loaded before - if it has a src and is complete, reload it
+      // Otherwise, let the lazy loading handle the initial load
+      if (frame.loaded || frame.complete && !frame.hasAttribute('loading')) {
+        frame.reload();
+      }
     }
   }
 
@@ -1572,6 +1576,400 @@ if (!window.Controllers) {
   window.Controllers = {};
 }
 window.Controllers["detail-tabs"] = DetailTabsController;
+
+/***/ }),
+
+/***/ "./assets/js/controllers/file-size-validator-controller.js":
+/*!*****************************************************************!*\
+  !*** ./assets/js/controllers/file-size-validator-controller.js ***!
+  \*****************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _babel_runtime_helpers_objectSpread2__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @babel/runtime/helpers/objectSpread2 */ "./node_modules/@babel/runtime/helpers/esm/objectSpread2.js");
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+
+
+/**
+ * File Size Validator Controller
+ * 
+ * Validates file sizes against PHP upload limits before submission.
+ * Provides immediate feedback to users when files exceed server limits,
+ * preventing failed uploads and improving user experience.
+ * 
+ * Features:
+ * - Pre-upload file size validation
+ * - Multiple file support
+ * - Customizable warning messages
+ * - Integration with existing upload controls
+ * - Real-time feedback on file selection
+ * 
+ * Values:
+ * - maxSize: Maximum file size in bytes (from PHP upload_max_filesize/post_max_size)
+ * - maxSizeFormatted: Human-readable max size (e.g., '25MB')
+ * - totalMaxSize: Maximum total size for multiple files (defaults to maxSize)
+ * - showWarning: Whether to show warning messages (default: true)
+ * 
+ * Targets:
+ * - fileInput: File input element(s) to monitor
+ * - warning: Container for warning messages (optional)
+ * - submitButton: Submit button to disable when files are invalid (optional)
+ * 
+ * Events Dispatched:
+ * - file-size-validator:valid - All files are valid
+ * - file-size-validator:invalid - One or more files exceed limits
+ * - file-size-validator:warning - Warning displayed to user
+ * 
+ * Usage:
+ * ```html
+ * <div data-controller="file-size-validator"
+ *      data-file-size-validator-max-size-value="26214400"
+ *      data-file-size-validator-max-size-formatted-value="25MB">
+ *   
+ *   <input type="file" 
+ *          data-file-size-validator-target="fileInput"
+ *          data-action="change->file-size-validator#validateFiles">
+ *   
+ *   <div data-file-size-validator-target="warning" 
+ *        class="alert alert-warning d-none"></div>
+ *   
+ *   <button type="submit" 
+ *           data-file-size-validator-target="submitButton">
+ *     Upload
+ *   </button>
+ * </div>
+ * ```
+ * 
+ * @example Multiple Files
+ * ```html
+ * <input type="file" 
+ *        multiple
+ *        data-file-size-validator-target="fileInput"
+ *        data-action="change->file-size-validator#validateFiles">
+ * ```
+ * 
+ * @example Custom Total Limit
+ * ```html
+ * <div data-controller="file-size-validator"
+ *      data-file-size-validator-max-size-value="26214400"
+ *      data-file-size-validator-total-max-size-value="52428800">
+ * ```
+ */
+class FileSizeValidatorController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__.Controller {
+  static targets = ["fileInput", "warning", "submitButton"];
+  static values = {
+    maxSize: Number,
+    // Maximum single file size in bytes
+    maxSizeFormatted: String,
+    // Human-readable format (e.g., '25MB')
+    totalMaxSize: Number,
+    // Maximum total size for multiple files
+    showWarning: {
+      type: Boolean,
+      default: true
+    },
+    warningClass: {
+      type: String,
+      default: 'alert alert-warning'
+    },
+    errorClass: {
+      type: String,
+      default: 'alert alert-danger'
+    }
+  };
+
+  /**
+   * Initialize controller
+   */
+  connect() {
+    console.log('FileSizeValidatorController connected', {
+      maxSize: this.maxSizeValue,
+      maxSizeFormatted: this.maxSizeFormattedValue,
+      totalMaxSize: this.totalMaxSizeValue
+    });
+
+    // Default total max to single max if not specified
+    if (!this.hasTotalMaxSizeValue) {
+      this.totalMaxSizeValue = this.maxSizeValue;
+    }
+
+    // Validate any pre-selected files
+    if (this.hasFileInputTarget) {
+      this.fileInputTargets.forEach(input => {
+        if (input.files && input.files.length > 0) {
+          this.validateFiles({
+            target: input
+          });
+        }
+      });
+    }
+  }
+
+  /**
+   * Validate selected files
+   * 
+   * @param {Event} event - File input change event
+   */
+  validateFiles(event) {
+    const input = event.target;
+
+    // Collect all files from all file inputs in this controller's scope
+    let allFiles = [];
+    if (this.hasFileInputTarget) {
+      this.fileInputTargets.forEach(inputEl => {
+        if (inputEl.files && inputEl.files.length > 0) {
+          allFiles = allFiles.concat(Array.from(inputEl.files));
+        }
+      });
+    }
+    if (allFiles.length === 0) {
+      this.clearWarning();
+      this.enableSubmit();
+      return;
+    }
+    const validation = this.checkFileSizes(allFiles);
+    if (!validation.valid) {
+      this.showInvalidFilesWarning(validation);
+      this.disableSubmit();
+
+      // Dispatch invalid event
+      this.dispatch('invalid', {
+        detail: {
+          files: validation.invalidFiles,
+          message: validation.message
+        }
+      });
+    } else if (validation.warning) {
+      this.showTotalSizeWarning(validation);
+
+      // Still allow submission but warn user
+      this.enableSubmit();
+
+      // Dispatch warning event
+      this.dispatch('warning', {
+        detail: {
+          totalSize: validation.totalSize,
+          message: validation.message
+        }
+      });
+    } else {
+      this.clearWarning();
+      this.enableSubmit();
+
+      // Dispatch valid event
+      this.dispatch('valid', {
+        detail: {
+          files: files.map(f => ({
+            name: f.name,
+            size: f.size
+          })),
+          totalSize: validation.totalSize
+        }
+      });
+    }
+  }
+
+  /**
+   * Check file sizes and return validation result
+   * 
+   * @param {File[]} files - Array of File objects
+   * @returns {Object} Validation result
+   */
+  checkFileSizes(files) {
+    const invalidFiles = [];
+    let totalSize = 0;
+    files.forEach(file => {
+      totalSize += file.size;
+      if (file.size > this.maxSizeValue) {
+        invalidFiles.push({
+          name: file.name,
+          size: file.size,
+          formattedSize: this.formatBytes(file.size),
+          exceededBy: file.size - this.maxSizeValue
+        });
+      }
+    });
+
+    // Check if any individual files exceed limit
+    if (invalidFiles.length > 0) {
+      return {
+        valid: false,
+        invalidFiles,
+        totalSize,
+        totalFileCount: files.length,
+        message: this.buildInvalidFilesMessage(invalidFiles)
+      };
+    }
+
+    // Check if total size exceeds limit (for multiple files or accumulated uploads)
+    // Show warning when total size exceeds the post_max_size limit
+    if (totalSize > this.totalMaxSizeValue) {
+      return {
+        valid: true,
+        warning: true,
+        totalSize,
+        totalFileCount: files.length,
+        formattedTotal: this.formatBytes(totalSize),
+        message: this.buildTotalSizeWarningMessage(totalSize, files.length)
+      };
+    }
+    return {
+      valid: true,
+      warning: false,
+      totalSize,
+      totalFileCount: files.length,
+      formattedTotal: this.formatBytes(totalSize)
+    };
+  }
+
+  /**
+   * Build error message for invalid files
+   * 
+   * @param {Array} invalidFiles - Array of invalid file objects
+   * @returns {string} Error message
+   */
+  buildInvalidFilesMessage(invalidFiles) {
+    const maxSize = this.maxSizeFormattedValue || this.formatBytes(this.maxSizeValue);
+    if (invalidFiles.length === 1) {
+      const file = invalidFiles[0];
+      return `The file "${file.name}" (${file.formattedSize}) exceeds the maximum upload size of ${maxSize}.`;
+    }
+    const fileList = invalidFiles.map(f => `• ${f.name} (${f.formattedSize})`).join('\n');
+    return `${invalidFiles.length} file(s) exceed the maximum upload size of ${maxSize}:\n\n${fileList}\n\nPlease remove or replace these files before uploading.`;
+  }
+
+  /**
+   * Build warning message for total size
+   * 
+   * @param {number} totalSize - Total size in bytes
+   * @param {number} fileCount - Number of files
+   * @returns {string} Warning message
+   */
+  buildTotalSizeWarningMessage(totalSize, fileCount) {
+    const totalFormatted = this.formatBytes(totalSize);
+    const maxFormatted = this.formatBytes(this.totalMaxSizeValue);
+    if (fileCount === 1) {
+      return `Warning: The file size (${totalFormatted}) exceeds the recommended upload limit of ${maxFormatted}. The upload may fail depending on server configuration.`;
+    }
+    return `Warning: You have selected ${fileCount} file(s) with a combined size of ${totalFormatted}, which exceeds the recommended limit of ${maxFormatted}. The upload may fail depending on server configuration.`;
+  }
+
+  /**
+   * Show warning for invalid files
+   * 
+   * @param {Object} validation - Validation result
+   */
+  showInvalidFilesWarning(validation) {
+    if (!this.showWarningValue || !this.hasWarningTarget) {
+      // Still show browser alert if no warning target
+      alert(validation.message);
+      return;
+    }
+    this.warningTarget.innerHTML = this.formatWarningMessage(validation.message, 'error');
+    this.warningTarget.className = this.errorClassValue;
+    this.warningTarget.classList.remove('d-none');
+  }
+
+  /**
+   * Show warning for total size
+   * 
+   * @param {Object} validation - Validation result
+   */
+  showTotalSizeWarning(validation) {
+    if (!this.showWarningValue || !this.hasWarningTarget) {
+      return;
+    }
+    this.warningTarget.innerHTML = this.formatWarningMessage(validation.message, 'warning');
+    this.warningTarget.className = this.warningClassValue;
+    this.warningTarget.classList.remove('d-none');
+  }
+
+  /**
+   * Format warning message with icon
+   * 
+   * @param {string} message - Warning message
+   * @param {string} type - Message type ('error' or 'warning')
+   * @returns {string} Formatted HTML
+   */
+  formatWarningMessage(message, type = 'warning') {
+    const icon = type === 'error' ? '<i class="bi bi-exclamation-triangle-fill"></i>' : '<i class="bi bi-exclamation-circle-fill"></i>';
+
+    // Preserve line breaks
+    const formattedMessage = message.replace(/\n/g, '<br>');
+    return `${icon} ${formattedMessage}`;
+  }
+
+  /**
+   * Clear warning message
+   */
+  clearWarning() {
+    if (this.hasWarningTarget) {
+      this.warningTarget.classList.add('d-none');
+      this.warningTarget.innerHTML = '';
+    }
+  }
+
+  /**
+   * Disable submit button
+   */
+  disableSubmit() {
+    if (this.hasSubmitButtonTarget) {
+      this.submitButtonTargets.forEach(button => {
+        button.disabled = true;
+      });
+    }
+  }
+
+  /**
+   * Enable submit button
+   */
+  enableSubmit() {
+    if (this.hasSubmitButtonTarget) {
+      this.submitButtonTargets.forEach(button => {
+        button.disabled = false;
+      });
+    }
+  }
+
+  /**
+   * Format bytes to human-readable string
+   * 
+   * @param {number} bytes - Size in bytes
+   * @param {number} decimals - Number of decimal places
+   * @returns {string} Formatted size string
+   */
+  formatBytes(bytes, decimals = 2) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + sizes[i];
+  }
+
+  /**
+   * Dispatch custom event
+   * 
+   * @param {string} eventName - Event name (without prefix)
+   * @param {Object} options - Event options
+   */
+  dispatch(eventName, options = {}) {
+    const event = new CustomEvent(`file-size-validator:${eventName}`, (0,_babel_runtime_helpers_objectSpread2__WEBPACK_IMPORTED_MODULE_0__["default"])({
+      bubbles: true,
+      cancelable: true
+    }, options));
+    this.element.dispatchEvent(event);
+  }
+}
+
+// Register controller
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["file-size-validator"] = FileSizeValidatorController;
+/* harmony default export */ __webpack_exports__["default"] = (FileSizeValidatorController);
 
 /***/ }),
 
@@ -1641,30 +2039,128 @@ __webpack_require__.r(__webpack_exports__);
 /**
  * Gathering Clone Controller
  * 
- * Handles the clone gathering modal form interactions
+ * Handles the clone gathering modal form interactions with date validation and defaulting.
+ * 
+ * Features:
+ * - Automatically defaults end date to start date when start date changes
+ * - Validates that end date is not before start date
+ * - Provides real-time feedback to users
  */
 class GatheringCloneController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
-  static targets = ["nameInput", "startDate", "endDate"];
+  static targets = ["nameInput", "startDate", "endDate", "submitButton"];
+
+  /**
+   * Connect function - runs when controller connects to DOM
+   */
   connect() {
-    console.log("Gathering clone controller connected");
+    // Set up initial validation when modal opens
+    if (this.hasStartDateTarget && this.hasEndDateTarget) {
+      this.validateDates();
+    }
   }
 
   /**
-   * Validate that end date is not before start date
+   * Handle start date changes
+   * Automatically updates end date to match start date if end date is empty or before start date
+   */
+  startDateChanged(event) {
+    const startDate = this.startDateTarget.value;
+    const endDate = this.endDateTarget.value;
+
+    // If end date is empty or before start date, set it to start date
+    if (!endDate || endDate < startDate) {
+      this.endDateTarget.value = startDate;
+    }
+
+    // Validate dates
+    this.validateDates();
+  }
+
+  /**
+   * Handle end date changes
+   * Validates that end date is not before start date
+   */
+  endDateChanged(event) {
+    this.validateDates();
+  }
+
+  /**
+   * Validate dates
+   * Ensures end date is on or after start date
    */
   validateDates() {
     if (!this.hasStartDateTarget || !this.hasEndDateTarget) {
-      return;
+      return true;
     }
-    const startDate = new Date(this.startDateTarget.value);
-    const endDate = new Date(this.endDateTarget.value);
-    if (startDate > endDate) {
-      this.endDateTarget.setCustomValidity("End date must be on or after start date");
-      this.endDateTarget.classList.add("is-invalid");
+    const startDate = this.startDateTarget.value;
+    const endDate = this.endDateTarget.value;
+
+    // Clear any previous validation messages
+    this.clearValidationMessages();
+    if (startDate && endDate && endDate < startDate) {
+      // End date is before start date - show error
+      this.showValidationError(this.endDateTarget, 'End date cannot be before start date');
+
+      // Disable submit button
+      if (this.hasSubmitButtonTarget) {
+        this.submitButtonTarget.disabled = true;
+      }
+      return false;
     } else {
-      this.endDateTarget.setCustomValidity("");
-      this.endDateTarget.classList.remove("is-invalid");
+      // Dates are valid - enable submit button
+      if (this.hasSubmitButtonTarget) {
+        this.submitButtonTarget.disabled = false;
+      }
+      return true;
     }
+  }
+
+  /**
+   * Validate form before submission
+   */
+  validateForm(event) {
+    if (!this.validateDates()) {
+      event.preventDefault();
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * Show validation error message
+   */
+  showValidationError(element, message) {
+    // Add invalid class to element
+    element.classList.add('is-invalid');
+
+    // Create or update feedback element
+    let feedbackElement = element.parentElement.querySelector('.invalid-feedback');
+    if (!feedbackElement) {
+      feedbackElement = document.createElement('div');
+      feedbackElement.className = 'invalid-feedback';
+      element.parentElement.appendChild(feedbackElement);
+    }
+    feedbackElement.textContent = message;
+    feedbackElement.style.display = 'block';
+  }
+
+  /**
+   * Clear validation messages
+   */
+  clearValidationMessages() {
+    // Remove invalid classes
+    if (this.hasStartDateTarget) {
+      this.startDateTarget.classList.remove('is-invalid');
+    }
+    if (this.hasEndDateTarget) {
+      this.endDateTarget.classList.remove('is-invalid');
+    }
+
+    // Remove feedback elements
+    const feedbackElements = this.element.querySelectorAll('.invalid-feedback');
+    feedbackElements.forEach(el => {
+      el.style.display = 'none';
+    });
   }
 }
 
@@ -1673,6 +2169,151 @@ if (!window.Controllers) {
   window.Controllers = {};
 }
 window.Controllers["gathering-clone"] = GatheringCloneController;
+
+/***/ }),
+
+/***/ "./assets/js/controllers/gathering-form-controller.js":
+/*!************************************************************!*\
+  !*** ./assets/js/controllers/gathering-form-controller.js ***!
+  \************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+
+/**
+ * Gathering Form Controller
+ * 
+ * Manages client-side validation and UX improvements for gathering forms.
+ * 
+ * Features:
+ * - Automatically defaults end date to start date when start date changes
+ * - Validates that end date is not before start date
+ * - Provides real-time feedback to users
+ */
+class GatheringFormController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  // Define targets - elements this controller interacts with
+  static targets = ["startDate", "endDate", "submitButton"];
+
+  /**
+   * Connect function - runs when controller connects to DOM
+   */
+  connect() {
+    // Set up initial validation when page loads
+    if (this.hasStartDateTarget && this.hasEndDateTarget) {
+      this.validateDates();
+    }
+  }
+
+  /**
+   * Handle start date changes
+   * Automatically updates end date to match start date if end date is empty or before start date
+   */
+  startDateChanged(event) {
+    const startDate = this.startDateTarget.value;
+    const endDate = this.endDateTarget.value;
+
+    // If end date is empty or before start date, set it to start date
+    if (!endDate || endDate < startDate) {
+      this.endDateTarget.value = startDate;
+    }
+
+    // Validate dates
+    this.validateDates();
+  }
+
+  /**
+   * Handle end date changes
+   * Validates that end date is not before start date
+   */
+  endDateChanged(event) {
+    this.validateDates();
+  }
+
+  /**
+   * Validate dates
+   * Ensures end date is on or after start date
+   */
+  validateDates() {
+    const startDate = this.startDateTarget.value;
+    const endDate = this.endDateTarget.value;
+
+    // Clear any previous validation messages
+    this.clearValidationMessages();
+    if (startDate && endDate && endDate < startDate) {
+      // End date is before start date - show error
+      this.showValidationError(this.endDateTarget, 'End date cannot be before start date');
+
+      // Disable submit button
+      if (this.hasSubmitButtonTarget) {
+        this.submitButtonTarget.disabled = true;
+      }
+      return false;
+    } else {
+      // Dates are valid - enable submit button
+      if (this.hasSubmitButtonTarget) {
+        this.submitButtonTarget.disabled = false;
+      }
+      return true;
+    }
+  }
+
+  /**
+   * Validate form before submission
+   */
+  validateForm(event) {
+    if (!this.validateDates()) {
+      event.preventDefault();
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * Show validation error message
+   */
+  showValidationError(element, message) {
+    // Add invalid class to element
+    element.classList.add('is-invalid');
+
+    // Create or update feedback element
+    let feedbackElement = element.parentElement.querySelector('.invalid-feedback');
+    if (!feedbackElement) {
+      feedbackElement = document.createElement('div');
+      feedbackElement.className = 'invalid-feedback';
+      element.parentElement.appendChild(feedbackElement);
+    }
+    feedbackElement.textContent = message;
+    feedbackElement.style.display = 'block';
+  }
+
+  /**
+   * Clear validation messages
+   */
+  clearValidationMessages() {
+    // Remove invalid classes
+    if (this.hasStartDateTarget) {
+      this.startDateTarget.classList.remove('is-invalid');
+    }
+    if (this.hasEndDateTarget) {
+      this.endDateTarget.classList.remove('is-invalid');
+    }
+
+    // Remove feedback elements
+    const feedbackElements = this.element.querySelectorAll('.invalid-feedback');
+    feedbackElements.forEach(el => {
+      el.style.display = 'none';
+    });
+  }
+}
+
+// Add to global controllers registry
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["gathering-form"] = GatheringFormController;
 
 /***/ }),
 
@@ -4200,6 +4841,143 @@ if (!window.Controllers) {
   window.Controllers = {};
 }
 window.Controllers["session-extender"] = SessionExtender;
+
+/***/ }),
+
+/***/ "./node_modules/@babel/runtime/helpers/esm/defineProperty.js":
+/*!*******************************************************************!*\
+  !*** ./node_modules/@babel/runtime/helpers/esm/defineProperty.js ***!
+  \*******************************************************************/
+/***/ (function(__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": function() { return /* binding */ _defineProperty; }
+/* harmony export */ });
+/* harmony import */ var _toPropertyKey_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./toPropertyKey.js */ "./node_modules/@babel/runtime/helpers/esm/toPropertyKey.js");
+
+function _defineProperty(e, r, t) {
+  return (r = (0,_toPropertyKey_js__WEBPACK_IMPORTED_MODULE_0__["default"])(r)) in e ? Object.defineProperty(e, r, {
+    value: t,
+    enumerable: !0,
+    configurable: !0,
+    writable: !0
+  }) : e[r] = t, e;
+}
+
+
+/***/ }),
+
+/***/ "./node_modules/@babel/runtime/helpers/esm/objectSpread2.js":
+/*!******************************************************************!*\
+  !*** ./node_modules/@babel/runtime/helpers/esm/objectSpread2.js ***!
+  \******************************************************************/
+/***/ (function(__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": function() { return /* binding */ _objectSpread2; }
+/* harmony export */ });
+/* harmony import */ var _defineProperty_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./defineProperty.js */ "./node_modules/@babel/runtime/helpers/esm/defineProperty.js");
+
+function ownKeys(e, r) {
+  var t = Object.keys(e);
+  if (Object.getOwnPropertySymbols) {
+    var o = Object.getOwnPropertySymbols(e);
+    r && (o = o.filter(function (r) {
+      return Object.getOwnPropertyDescriptor(e, r).enumerable;
+    })), t.push.apply(t, o);
+  }
+  return t;
+}
+function _objectSpread2(e) {
+  for (var r = 1; r < arguments.length; r++) {
+    var t = null != arguments[r] ? arguments[r] : {};
+    r % 2 ? ownKeys(Object(t), !0).forEach(function (r) {
+      (0,_defineProperty_js__WEBPACK_IMPORTED_MODULE_0__["default"])(e, r, t[r]);
+    }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(t)) : ownKeys(Object(t)).forEach(function (r) {
+      Object.defineProperty(e, r, Object.getOwnPropertyDescriptor(t, r));
+    });
+  }
+  return e;
+}
+
+
+/***/ }),
+
+/***/ "./node_modules/@babel/runtime/helpers/esm/toPrimitive.js":
+/*!****************************************************************!*\
+  !*** ./node_modules/@babel/runtime/helpers/esm/toPrimitive.js ***!
+  \****************************************************************/
+/***/ (function(__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": function() { return /* binding */ toPrimitive; }
+/* harmony export */ });
+/* harmony import */ var _typeof_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./typeof.js */ "./node_modules/@babel/runtime/helpers/esm/typeof.js");
+
+function toPrimitive(t, r) {
+  if ("object" != (0,_typeof_js__WEBPACK_IMPORTED_MODULE_0__["default"])(t) || !t) return t;
+  var e = t[Symbol.toPrimitive];
+  if (void 0 !== e) {
+    var i = e.call(t, r || "default");
+    if ("object" != (0,_typeof_js__WEBPACK_IMPORTED_MODULE_0__["default"])(i)) return i;
+    throw new TypeError("@@toPrimitive must return a primitive value.");
+  }
+  return ("string" === r ? String : Number)(t);
+}
+
+
+/***/ }),
+
+/***/ "./node_modules/@babel/runtime/helpers/esm/toPropertyKey.js":
+/*!******************************************************************!*\
+  !*** ./node_modules/@babel/runtime/helpers/esm/toPropertyKey.js ***!
+  \******************************************************************/
+/***/ (function(__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": function() { return /* binding */ toPropertyKey; }
+/* harmony export */ });
+/* harmony import */ var _typeof_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./typeof.js */ "./node_modules/@babel/runtime/helpers/esm/typeof.js");
+/* harmony import */ var _toPrimitive_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./toPrimitive.js */ "./node_modules/@babel/runtime/helpers/esm/toPrimitive.js");
+
+
+function toPropertyKey(t) {
+  var i = (0,_toPrimitive_js__WEBPACK_IMPORTED_MODULE_1__["default"])(t, "string");
+  return "symbol" == (0,_typeof_js__WEBPACK_IMPORTED_MODULE_0__["default"])(i) ? i : i + "";
+}
+
+
+/***/ }),
+
+/***/ "./node_modules/@babel/runtime/helpers/esm/typeof.js":
+/*!***********************************************************!*\
+  !*** ./node_modules/@babel/runtime/helpers/esm/typeof.js ***!
+  \***********************************************************/
+/***/ (function(__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": function() { return /* binding */ _typeof; }
+/* harmony export */ });
+function _typeof(o) {
+  "@babel/helpers - typeof";
+
+  return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) {
+    return typeof o;
+  } : function (o) {
+    return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o;
+  }, _typeof(o);
+}
+
 
 /***/ }),
 
@@ -29127,7 +29905,10 @@ class WaiverUploadWizardController extends _hotwired_stimulus__WEBPACK_IMPORTED_
       type: Number,
       default: 4
     },
-    gatheringId: Number
+    gatheringId: Number,
+    maxFileSize: Number,
+    // Maximum single file size in bytes
+    totalMaxSize: Number // Maximum total upload size in bytes
   };
   connect() {
     console.log("Waiver Upload Wizard connected");
@@ -29340,6 +30121,13 @@ class WaiverUploadWizardController extends _hotwired_stimulus__WEBPACK_IMPORTED_
   }
   handleFileSelect(event) {
     const files = Array.from(event.target.files);
+
+    // Get max file size (use configured value or fallback to 10MB)
+    const maxFileSize = this.hasMaxFileSizeValue ? this.maxFileSizeValue : 10 * 1024 * 1024;
+    const totalMaxSize = this.hasTotalMaxSizeValue ? this.totalMaxSizeValue : maxFileSize;
+
+    // Calculate current total size
+    const currentTotalSize = this.uploadedPages.reduce((sum, page) => sum + page.size, 0);
     files.forEach(file => {
       // Validate file type
       if (!this.isValidImageFile(file)) {
@@ -29347,9 +30135,22 @@ class WaiverUploadWizardController extends _hotwired_stimulus__WEBPACK_IMPORTED_
         return;
       }
 
-      // Validate file size (max 10MB)
-      if (file.size > 10 * 1024 * 1024) {
-        this.showError(`File too large: ${file.name}. Maximum size is 10MB.`);
+      // Validate individual file size
+      if (file.size > maxFileSize) {
+        const maxFormatted = this.formatBytes(maxFileSize);
+        const fileFormatted = this.formatBytes(file.size);
+        this.showError(`File too large: ${file.name} (${fileFormatted}). Maximum size per file is ${maxFormatted}.`);
+        return;
+      }
+
+      // Check if adding this file would exceed total size limit
+      const newTotalSize = currentTotalSize + file.size;
+      if (newTotalSize > totalMaxSize) {
+        const totalFormatted = this.formatBytes(newTotalSize);
+        const maxFormatted = this.formatBytes(totalMaxSize);
+        const currentFormatted = this.formatBytes(currentTotalSize);
+        const fileFormatted = this.formatBytes(file.size);
+        this.showError(`Cannot add ${file.name} (${fileFormatted}). ` + `Current total: ${currentFormatted}. ` + `Adding this file would exceed the maximum total upload size of ${maxFormatted} ` + `(would be ${totalFormatted}).`);
         return;
       }
 
@@ -29359,6 +30160,11 @@ class WaiverUploadWizardController extends _hotwired_stimulus__WEBPACK_IMPORTED_
 
     // Clear input so same file can be selected again
     event.target.value = '';
+
+    // Show total size info if we have files
+    if (this.uploadedPages.length > 0) {
+      this.updateTotalSizeDisplay();
+    }
   }
   isValidImageFile(file) {
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/tiff'];
@@ -29389,6 +30195,11 @@ class WaiverUploadWizardController extends _hotwired_stimulus__WEBPACK_IMPORTED_
       page.number = idx + 1;
     });
     this.renderPages();
+
+    // Update total size display after removal
+    if (this.uploadedPages.length > 0) {
+      this.updateTotalSizeDisplay();
+    }
   }
   renderPages() {
     if (!this.hasPagesPreviewTarget) return;
@@ -29657,6 +30468,42 @@ class WaiverUploadWizardController extends _hotwired_stimulus__WEBPACK_IMPORTED_
     console.error('CSRF token not found');
     return '';
   }
+
+  /**
+   * Format bytes to human-readable string
+   * 
+   * @param {number} bytes - Size in bytes
+   * @param {number} decimals - Number of decimal places
+   * @returns {string} Formatted size string
+   */
+  formatBytes(bytes, decimals = 2) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+  }
+
+  /**
+   * Update the display to show current total size
+   */
+  updateTotalSizeDisplay() {
+    const totalSize = this.uploadedPages.reduce((sum, page) => sum + page.size, 0);
+    const totalFormatted = this.formatBytes(totalSize);
+
+    // If we're getting close to the limit, show a warning
+    if (this.hasTotalMaxSizeValue) {
+      const percentUsed = totalSize / this.totalMaxSizeValue * 100;
+      if (percentUsed > 80 && percentUsed <= 100) {
+        // Show warning when using 80-100% of limit
+        const remaining = this.totalMaxSizeValue - totalSize;
+        const remainingFormatted = this.formatBytes(remaining);
+        const maxFormatted = this.formatBytes(this.totalMaxSizeValue);
+        console.warn(`Upload size warning: ${totalFormatted} of ${maxFormatted} used. ` + `${remainingFormatted} remaining.`);
+      }
+    }
+  }
 }
 
 // Register controller
@@ -29671,7 +30518,7 @@ window.Controllers["waiver-upload-wizard"] = WaiverUploadWizardController;
 },
 /******/ function(__webpack_require__) { // webpackRuntimeModules
 /******/ var __webpack_exec__ = function(moduleId) { return __webpack_require__(__webpack_require__.s = moduleId); }
-/******/ __webpack_require__.O(0, ["js/core","css/app","css/waivers","css/dashboard","css/cover","css/signin","css/waiver-upload"], function() { return __webpack_exec__("./assets/js/controllers/activity-waiver-manager-controller.js"), __webpack_exec__("./assets/js/controllers/app-setting-form-controller.js"), __webpack_exec__("./assets/js/controllers/auto-complete-controller.js"), __webpack_exec__("./assets/js/controllers/branch-links-controller.js"), __webpack_exec__("./assets/js/controllers/csv-download-controller.js"), __webpack_exec__("./assets/js/controllers/delayed-forward-controller.js"), __webpack_exec__("./assets/js/controllers/delete-confirmation-controller.js"), __webpack_exec__("./assets/js/controllers/detail-tabs-controller.js"), __webpack_exec__("./assets/js/controllers/filter-grid-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-clone-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-type-form-controller.js"), __webpack_exec__("./assets/js/controllers/guifier-controller.js"), __webpack_exec__("./assets/js/controllers/image-preview-controller.js"), __webpack_exec__("./assets/js/controllers/kanban-controller.js"), __webpack_exec__("./assets/js/controllers/member-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-pwa-controller.js"), __webpack_exec__("./assets/js/controllers/member-unique-email-controller.js"), __webpack_exec__("./assets/js/controllers/member-verify-form-controller.js"), __webpack_exec__("./assets/js/controllers/modal-opener-controller.js"), __webpack_exec__("./assets/js/controllers/nav-bar-controller.js"), __webpack_exec__("./assets/js/controllers/outlet-button-controller.js"), __webpack_exec__("./assets/js/controllers/permission-add-role-controller.js"), __webpack_exec__("./assets/js/controllers/permission-manage-policies-controller.js"), __webpack_exec__("./assets/js/controllers/revoke-form-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-member-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-permission-controller.js"), __webpack_exec__("./assets/js/controllers/select-all-switch-list-controller.js"), __webpack_exec__("./assets/js/controllers/session-extender-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/gw-sharing-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/renew-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/request-auth-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/award-form-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-add-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-bulk-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-quick-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-table-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/recommendation-kanban-controller.js"), __webpack_exec__("./plugins/Events/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/assign-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/edit-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/office-form-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-search-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-table-controller.js"), __webpack_exec__("./plugins/Template/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/add-requirement-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/camera-capture-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/retention-policy-input-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-template-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-wizard-controller.js"), __webpack_exec__("./assets/css/app.css"), __webpack_exec__("./assets/css/signin.css"), __webpack_exec__("./assets/css/cover.css"), __webpack_exec__("./assets/css/dashboard.css"), __webpack_exec__("./plugins/Waivers/assets/css/waivers.css"), __webpack_exec__("./plugins/Waivers/assets/css/waiver-upload.css"); });
+/******/ __webpack_require__.O(0, ["js/core","css/app","css/waivers","css/dashboard","css/cover","css/signin","css/waiver-upload"], function() { return __webpack_exec__("./assets/js/controllers/activity-waiver-manager-controller.js"), __webpack_exec__("./assets/js/controllers/app-setting-form-controller.js"), __webpack_exec__("./assets/js/controllers/auto-complete-controller.js"), __webpack_exec__("./assets/js/controllers/branch-links-controller.js"), __webpack_exec__("./assets/js/controllers/csv-download-controller.js"), __webpack_exec__("./assets/js/controllers/delayed-forward-controller.js"), __webpack_exec__("./assets/js/controllers/delete-confirmation-controller.js"), __webpack_exec__("./assets/js/controllers/detail-tabs-controller.js"), __webpack_exec__("./assets/js/controllers/file-size-validator-controller.js"), __webpack_exec__("./assets/js/controllers/filter-grid-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-clone-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-form-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-type-form-controller.js"), __webpack_exec__("./assets/js/controllers/guifier-controller.js"), __webpack_exec__("./assets/js/controllers/image-preview-controller.js"), __webpack_exec__("./assets/js/controllers/kanban-controller.js"), __webpack_exec__("./assets/js/controllers/member-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-pwa-controller.js"), __webpack_exec__("./assets/js/controllers/member-unique-email-controller.js"), __webpack_exec__("./assets/js/controllers/member-verify-form-controller.js"), __webpack_exec__("./assets/js/controllers/modal-opener-controller.js"), __webpack_exec__("./assets/js/controllers/nav-bar-controller.js"), __webpack_exec__("./assets/js/controllers/outlet-button-controller.js"), __webpack_exec__("./assets/js/controllers/permission-add-role-controller.js"), __webpack_exec__("./assets/js/controllers/permission-manage-policies-controller.js"), __webpack_exec__("./assets/js/controllers/revoke-form-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-member-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-permission-controller.js"), __webpack_exec__("./assets/js/controllers/select-all-switch-list-controller.js"), __webpack_exec__("./assets/js/controllers/session-extender-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/gw-sharing-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/renew-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/request-auth-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/award-form-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-add-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-bulk-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-quick-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-table-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/recommendation-kanban-controller.js"), __webpack_exec__("./plugins/Events/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/assign-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/edit-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/office-form-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-search-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-table-controller.js"), __webpack_exec__("./plugins/Template/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/add-requirement-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/camera-capture-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/retention-policy-input-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-template-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-wizard-controller.js"), __webpack_exec__("./assets/css/app.css"), __webpack_exec__("./assets/css/signin.css"), __webpack_exec__("./assets/css/cover.css"), __webpack_exec__("./assets/css/dashboard.css"), __webpack_exec__("./plugins/Waivers/assets/css/waivers.css"), __webpack_exec__("./plugins/Waivers/assets/css/waiver-upload.css"); });
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);

@@ -109,13 +109,18 @@ class GatheringsTable extends Table
 
         $validator
             ->date('end_date')
-            ->requirePresence('end_date', 'create')
-            ->notEmptyDate('end_date')
+            ->allowEmptyDate('end_date')
             ->add('end_date', 'validEndDate', [
                 'rule' => function ($value, $context) {
+                    // If end_date is empty, validation passes (will be defaulted in controller)
+                    if (empty($value)) {
+                        return true;
+                    }
+                    // If start_date is empty, skip this validation
                     if (empty($context['data']['start_date'])) {
                         return true;
                     }
+                    // Ensure end_date is on or after start_date
                     return $value >= $context['data']['start_date'];
                 },
                 'message' => __('End date must be on or after start date'),

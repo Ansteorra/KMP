@@ -103,33 +103,45 @@
 
     <p class="lead"><?= __('Add one or more pages to your waiver document') ?></p>
 
-    <div class="text-center mb-4">
-        <button type="button"
-            class="btn btn-lg btn-primary"
-            data-action="click->waiver-upload-wizard#triggerFileInput">
-            <i class="bi bi-plus-circle"></i>
-            <?= __('Add Page') ?>
-        </button>
+    <!-- File size validation wrapper -->
+    <div data-controller="file-size-validator"
+        data-file-size-validator-max-size-value="<?= h($uploadLimits['maxFileSize']) ?>"
+        data-file-size-validator-max-size-formatted-value="<?= h($uploadLimits['formatted']) ?>"
+        data-file-size-validator-total-max-size-value="<?= h($uploadLimits['postMaxSize']) ?>">
 
-        <!-- Hidden file input -->
-        <input type="file"
-            accept="image/jpeg,image/jpg,image/png,image/tiff"
-            multiple
-            capture="environment"
-            class="d-none"
-            data-waiver-upload-wizard-target="fileInput"
-            data-action="change->waiver-upload-wizard#handleFileSelect">
-    </div>
+        <!-- Warning message container -->
+        <div data-file-size-validator-target="warning" class="d-none mb-3"></div>
 
-    <div class="alert alert-info">
-        <i class="bi bi-info-circle"></i>
-        <strong><?= __('Tips:') ?></strong>
-        <ul class="mb-0 mt-2">
-            <li><?= __('Take clear, well-lit photos') ?></li>
-            <li><?= __('Supported formats: JPEG, PNG, TIFF') ?></li>
-            <li><?= __('Maximum file size: 10MB per image') ?></li>
-            <li><?= __('Images will be converted to black & white PDF') ?></li>
-        </ul>
+        <div class="text-center mb-4">
+            <button type="button"
+                class="btn btn-lg btn-primary"
+                data-action="click->waiver-upload-wizard#triggerFileInput">
+                <i class="bi bi-plus-circle"></i>
+                <?= __('Add Page') ?>
+            </button>
+
+            <!-- Hidden file input -->
+            <input type="file"
+                accept="image/jpeg,image/jpg,image/png,image/tiff"
+                multiple
+                capture="environment"
+                class="d-none"
+                data-waiver-upload-wizard-target="fileInput"
+                data-file-size-validator-target="fileInput"
+                data-action="change->waiver-upload-wizard#handleFileSelect change->file-size-validator#validateFiles">
+        </div>
+
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i>
+            <strong><?= __('Tips:') ?></strong>
+            <ul class="mb-0 mt-2">
+                <li><?= __('Take clear, well-lit photos') ?></li>
+                <li><?= __('Supported formats: JPEG, PNG, TIFF') ?></li>
+                <li><?= __('Maximum file size per image: {0}', h($uploadLimits['formatted'])) ?></li>
+                <li><?= __('Recommended total size: {0}', h($uploadLimits['formatted'])) ?></li>
+                <li><?= __('Images will be converted to black & white PDF') ?></li>
+            </ul>
+        </div>
     </div>
 
     <!-- Pages Preview -->

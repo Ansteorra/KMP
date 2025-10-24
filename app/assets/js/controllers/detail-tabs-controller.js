@@ -1,4 +1,4 @@
-import { Controller } from "@hotwired/stimulus"
+import { Controller } from "@hotwired/stimulus";
 
 /**
  * DetailTabs Stimulus Controller
@@ -84,7 +84,11 @@ class DetailTabsController extends Controller {
         }
         var frame = document.getElementById(tab + '-frame');
         if (frame) {
-            frame.reload();
+            // Check if frame has been loaded before - if it has a src and is complete, reload it
+            // Otherwise, let the lazy loading handle the initial load
+            if (frame.loaded || (frame.complete && !frame.hasAttribute('loading'))) {
+                frame.reload();
+            }
         }
     }
 

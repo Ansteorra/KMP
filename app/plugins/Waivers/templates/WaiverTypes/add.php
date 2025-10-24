@@ -9,6 +9,9 @@
 $this->extend("/layout/TwitterBootstrap/dashboard");
 $this->append('css', $this->AssetMix->css('waivers'));
 
+// Get PHP upload limits for client-side validation
+$uploadLimits = $this->KMP->getUploadLimits();
+
 echo $this->KMP->startBlock("title");
 echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Add Waiver Type';
 $this->KMP->endBlock(); ?>
@@ -63,15 +66,24 @@ $this->KMP->endBlock(); ?>
                     </small>
                 </div>
 
-                <div data-waiver-template-target="uploadSection" style="display: none;">
+                <div data-waiver-template-target="uploadSection"
+                    style="display: none;"
+                    data-controller="file-size-validator"
+                    data-file-size-validator-max-size-value="<?= h($uploadLimits['maxFileSize']) ?>"
+                    data-file-size-validator-max-size-formatted-value="<?= h($uploadLimits['formatted']) ?>">
+
+                    <!-- Warning message container -->
+                    <div data-file-size-validator-target="warning" class="d-none mb-3"></div>
+
                     <?= $this->Form->control('template_file', [
                         'type' => 'file',
                         'label' => 'Upload PDF Template',
                         'class' => 'form-control',
                         'accept' => '.pdf',
                         'data-waiver-template-target' => 'fileInput',
-                        'data-action' => 'change->waiver-template#fileSelected',
-                        'help' => 'Upload a blank PDF template for this waiver type'
+                        'data-file-size-validator-target' => 'fileInput',
+                        'data-action' => 'change->waiver-template#fileSelected change->file-size-validator#validateFiles',
+                        'help' => 'Upload a blank PDF template for this waiver type (max size: ' . h($uploadLimits['formatted']) . ')'
                     ]) ?>
                 </div>
 

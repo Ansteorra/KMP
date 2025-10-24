@@ -27,13 +27,13 @@ echo $this->element('turboActiveTabs', [
         "upcoming" => [
             "label" => __("Upcoming"),
             "id" => "upcoming-warrants",
-            "selected" => true,
+            "selected" => false,
             "turboUrl" => $this->URL->build(["controller" => "Warrants", "action" => "AllWarrants", "upcoming"])
         ],
         "pending" => [
             "label" => __("Pending"),
             "id" => "pending-warrants",
-            "selected" => true,
+            "selected" => false,
             "turboUrl" => $this->URL->build(["controller" => "Warrants", "action" => "AllWarrants", "pending"])
         ],
         "previous" => [

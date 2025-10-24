@@ -1,6 +1,7 @@
 
 // export for others scripts to use
 import { Application } from "@hotwired/stimulus";
+import * as Turbo from "@hotwired/turbo";
 import 'bootstrap';
 import KMP_utils from './KMP_utils.js';
 
@@ -8,6 +9,9 @@ import KMP_utils from './KMP_utils.js';
 import ActivityWaiverManagerController from './controllers/activity-waiver-manager-controller';
 import DeleteConfirmationController from './controllers/delete-confirmation-controller';
 import GatheringTypeFormController from './controllers/gathering-type-form-controller';
+
+// Disable Turbo Drive (automatic navigation) but keep Turbo Frames working
+Turbo.session.drive = false;
 
 //window.$ = $;
 //window.jQuery = jQuery;

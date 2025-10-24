@@ -59,19 +59,20 @@ $this->KMP->endBlock();
                     'required' => true,
                     'class' => 'form-control',
                     'data-gathering-form-target' => 'startDate',
-                    'data-action' => 'change->gathering-form#validateDates'
+                    'data-action' => 'change->gathering-form#startDateChanged'
                 ]) ?>
             </div>
             <div class="col-md-6 mb-3">
                 <?= $this->Form->control('end_date', [
                     'type' => 'date',
-                    'required' => true,
+                    'required' => false,
                     'class' => 'form-control',
                     'data-gathering-form-target' => 'endDate',
-                    'data-action' => 'change->gathering-form#validateDates'
+                    'data-action' => 'change->gathering-form#endDateChanged'
                 ]) ?>
                 <small class="form-text text-muted">
-                    End date must be on or after start date. For single-day gatherings, use the same date.
+                    Will default to start date if not specified. For single-day gatherings, leave blank or use the same
+                    date as start date.
                 </small>
             </div>
         </div>

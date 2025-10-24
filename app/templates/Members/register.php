@@ -10,6 +10,9 @@
 ?>
 <?php $this->extend("/layout/TwitterBootstrap/register");
 
+// Get PHP upload limits for client-side validation
+$uploadLimits = $this->KMP->getUploadLimits();
+
 echo $this->KMP->startBlock("title");
 echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': New Member Register';
 $this->KMP->endBlock(); ?>
@@ -69,7 +72,7 @@ $this->KMP->endBlock(); ?>
                         <select name="birth_month" id="birth-month" class="form-select" required="required">
                             <option value=""></option>
                             <?php foreach ($months as $index => $value) : ?>
-                            <option value="<?= $index ?>"><?= $value ?></option>
+                                <option value="<?= $index ?>"><?= $value ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -77,14 +80,21 @@ $this->KMP->endBlock(); ?>
                         <select name="birth_year" id="birth-year" class="form-select" required="required">
                             <option value=""></option>
                             <?php foreach ($years as $index => $value) : ?>
-                            <option value="<?= $index ?>"><?= $value ?></option>
+                                <option value="<?= $index ?>"><?= $value ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
                 </div>
                 <div class="mb-3 form-group">
                     <label class="form-label">Upload Membership Card (optional)</label>
-                    <div class="card col-3" data-controller="image-preview">
+                    <div class="card col-3"
+                        data-controller="image-preview file-size-validator"
+                        data-file-size-validator-max-size-value="<?= h($uploadLimits['maxFileSize']) ?>"
+                        data-file-size-validator-max-size-formatted-value="<?= h($uploadLimits['formatted']) ?>">
+
+                        <!-- Warning message container -->
+                        <div data-file-size-validator-target="warning" class="d-none m-2"></div>
+
                         <div class="card-body text-center">
                             <svg class="bi bi-card-image text-secondary text-center" width="200" height="200"
                                 fill="currentColor" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"
@@ -97,7 +107,10 @@ $this->KMP->endBlock(); ?>
                         </div>
                         <div class="card-footer">
                             <input type="file" name="member_card" class="form-control" accept="image/*"
-                                data-image-preview-target="file" data-action="change->image-preview#preview">
+                                data-image-preview-target="file"
+                                data-file-size-validator-target="fileInput"
+                                data-action="change->image-preview#preview change->file-size-validator#validateFiles">
+                            <small class="text-muted d-block mt-1">Max size: <?= h($uploadLimits['formatted']) ?></small>
                         </div>
                     </div>
             </fieldset>

@@ -36,7 +36,9 @@ class WaiverUploadWizardController extends Controller {
     static values = {
         currentStep: { type: Number, default: 1 },
         totalSteps: { type: Number, default: 4 },
-        gatheringId: Number
+        gatheringId: Number,
+        maxFileSize: Number,           // Maximum single file size in bytes
+        totalMaxSize: Number           // Maximum total upload size in bytes
     }
 
     connect() {
@@ -272,6 +274,13 @@ class WaiverUploadWizardController extends Controller {
     handleFileSelect(event) {
         const files = Array.from(event.target.files)
         
+        // Get max file size (use configured value or fallback to 10MB)
+        const maxFileSize = this.hasMaxFileSizeValue ? this.maxFileSizeValue : (10 * 1024 * 1024)
+        const totalMaxSize = this.hasTotalMaxSizeValue ? this.totalMaxSizeValue : maxFileSize
+        
+        // Calculate current total size
+        const currentTotalSize = this.uploadedPages.reduce((sum, page) => sum + page.size, 0)
+        
         files.forEach(file => {
             // Validate file type
             if (!this.isValidImageFile(file)) {
@@ -279,9 +288,28 @@ class WaiverUploadWizardController extends Controller {
                 return
             }
 
-            // Validate file size (max 10MB)
-            if (file.size > 10 * 1024 * 1024) {
-                this.showError(`File too large: ${file.name}. Maximum size is 10MB.`)
+            // Validate individual file size
+            if (file.size > maxFileSize) {
+                const maxFormatted = this.formatBytes(maxFileSize)
+                const fileFormatted = this.formatBytes(file.size)
+                this.showError(`File too large: ${file.name} (${fileFormatted}). Maximum size per file is ${maxFormatted}.`)
+                return
+            }
+
+            // Check if adding this file would exceed total size limit
+            const newTotalSize = currentTotalSize + file.size
+            if (newTotalSize > totalMaxSize) {
+                const totalFormatted = this.formatBytes(newTotalSize)
+                const maxFormatted = this.formatBytes(totalMaxSize)
+                const currentFormatted = this.formatBytes(currentTotalSize)
+                const fileFormatted = this.formatBytes(file.size)
+                
+                this.showError(
+                    `Cannot add ${file.name} (${fileFormatted}). ` +
+                    `Current total: ${currentFormatted}. ` +
+                    `Adding this file would exceed the maximum total upload size of ${maxFormatted} ` +
+                    `(would be ${totalFormatted}).`
+                )
                 return
             }
 
@@ -291,6 +319,11 @@ class WaiverUploadWizardController extends Controller {
 
         // Clear input so same file can be selected again
         event.target.value = ''
+        
+        // Show total size info if we have files
+        if (this.uploadedPages.length > 0) {
+            this.updateTotalSizeDisplay()
+        }
     }
 
     isValidImageFile(file) {
@@ -328,6 +361,11 @@ class WaiverUploadWizardController extends Controller {
         })
 
         this.renderPages()
+        
+        // Update total size display after removal
+        if (this.uploadedPages.length > 0) {
+            this.updateTotalSizeDisplay()
+        }
     }
 
     renderPages() {
@@ -608,6 +646,50 @@ class WaiverUploadWizardController extends Controller {
 
         console.error('CSRF token not found')
         return ''
+    }
+    
+    /**
+     * Format bytes to human-readable string
+     * 
+     * @param {number} bytes - Size in bytes
+     * @param {number} decimals - Number of decimal places
+     * @returns {string} Formatted size string
+     */
+    formatBytes(bytes, decimals = 2) {
+        if (bytes === 0) return '0 Bytes'
+        
+        const k = 1024
+        const dm = decimals < 0 ? 0 : decimals
+        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB']
+        
+        const i = Math.floor(Math.log(bytes) / Math.log(k))
+        
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i]
+    }
+    
+    /**
+     * Update the display to show current total size
+     */
+    updateTotalSizeDisplay() {
+        const totalSize = this.uploadedPages.reduce((sum, page) => sum + page.size, 0)
+        const totalFormatted = this.formatBytes(totalSize)
+        
+        // If we're getting close to the limit, show a warning
+        if (this.hasTotalMaxSizeValue) {
+            const percentUsed = (totalSize / this.totalMaxSizeValue) * 100
+            
+            if (percentUsed > 80 && percentUsed <= 100) {
+                // Show warning when using 80-100% of limit
+                const remaining = this.totalMaxSizeValue - totalSize
+                const remainingFormatted = this.formatBytes(remaining)
+                const maxFormatted = this.formatBytes(this.totalMaxSizeValue)
+                
+                console.warn(
+                    `Upload size warning: ${totalFormatted} of ${maxFormatted} used. ` +
+                    `${remainingFormatted} remaining.`
+                )
+            }
+        }
     }
 }
 

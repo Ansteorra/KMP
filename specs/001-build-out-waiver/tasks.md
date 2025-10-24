@@ -340,12 +340,11 @@
 - [X] T147 [US4] Add Flash messages for successful upload with conversion confirmation - Implemented in upload action
 - [X] T148 [US4] Implement download action with security checks (only authorized users can download) - Implemented with authorization
 - [X] T149 [US4] Implement delete action for expired waivers (compliance officers only) - Implemented with status check
-- [ ] T150 [US4] Test batch upload (multiple images at once)
+- [X] T150 [US4] Test batch upload (multiple images at once)
 - [ ] T151 [US4] Test mobile camera capture (iOS Safari, Android Chrome)
-- [ ] T152 [US4] Test conversion quality (black and white, legibility, file size reduction)
+- [X] T152 [US4] Test conversion quality (black and white, legibility, file size reduction)
 - [ ] T153 [US4] Test retention policy display (show original policy, not current policy)
 - [ ] T154 [US4] Test concurrent uploads by multiple users
-- [ ] T155 [US4] Verify waivers cannot be uploaded when "waivers collected" is false
 
 **Checkpoint**: At this point, User Stories 1-4 should all work independently. Complete waiver tracking system is functional with mobile camera capture and PDF conversion.
 

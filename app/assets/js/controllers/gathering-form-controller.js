@@ -1,23 +1,24 @@
 import { Controller } from "@hotwired/stimulus";
 
 /**
- * Gathering Clone Controller
+ * Gathering Form Controller
  * 
- * Handles the clone gathering modal form interactions with date validation and defaulting.
+ * Manages client-side validation and UX improvements for gathering forms.
  * 
  * Features:
  * - Automatically defaults end date to start date when start date changes
  * - Validates that end date is not before start date
  * - Provides real-time feedback to users
  */
-class GatheringCloneController extends Controller {
-    static targets = ["nameInput", "startDate", "endDate", "submitButton"]
+class GatheringFormController extends Controller {
+    // Define targets - elements this controller interacts with
+    static targets = ["startDate", "endDate", "submitButton"]
     
     /**
      * Connect function - runs when controller connects to DOM
      */
     connect() {
-        // Set up initial validation when modal opens
+        // Set up initial validation when page loads
         if (this.hasStartDateTarget && this.hasEndDateTarget) {
             this.validateDates();
         }
@@ -53,10 +54,6 @@ class GatheringCloneController extends Controller {
      * Ensures end date is on or after start date
      */
     validateDates() {
-        if (!this.hasStartDateTarget || !this.hasEndDateTarget) {
-            return true;
-        }
-        
         const startDate = this.startDateTarget.value;
         const endDate = this.endDateTarget.value;
         
@@ -139,4 +136,4 @@ class GatheringCloneController extends Controller {
 if (!window.Controllers) {
     window.Controllers = {};
 }
-window.Controllers["gathering-clone"] = GatheringCloneController;
+window.Controllers["gathering-form"] = GatheringFormController;
