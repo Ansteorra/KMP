@@ -46,7 +46,7 @@ class GatheringWaiversTable extends Table
     {
         parent::initialize($config);
 
-        $this->setTable('gathering_waivers');
+        $this->setTable('waivers_gathering_waivers');
         $this->setDisplayField('id');
         $this->setPrimaryKey('id');
 
@@ -107,8 +107,7 @@ class GatheringWaiversTable extends Table
 
         $validator
             ->integer('document_id')
-            ->requirePresence('document_id', 'create')
-            ->notEmptyString('document_id');
+            ->allowEmptyString('document_id');
 
         $validator
             ->scalar('status')

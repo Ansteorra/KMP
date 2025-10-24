@@ -40,8 +40,9 @@ class GatheringWaiverActivitiesTable extends Table
     {
         parent::initialize($config);
 
-        $this->setTable('gathering_waiver_activities');
-        $this->setPrimaryKey(['gathering_waiver_id', 'gathering_activity_id']);
+        $this->setTable('waivers_gathering_waiver_activities');
+        $this->setDisplayField('id');
+        $this->setPrimaryKey('id');
 
         $this->addBehavior('Timestamp');
         $this->addBehavior('Muffin/Footprint.Footprint');

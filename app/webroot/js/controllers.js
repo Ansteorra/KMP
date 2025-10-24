@@ -24989,6 +24989,19 @@ window.Controllers["hello-world"] = HelloWorldController;
 
 /***/ }),
 
+/***/ "./plugins/Waivers/assets/css/waiver-upload.css":
+/*!******************************************************!*\
+  !*** ./plugins/Waivers/assets/css/waiver-upload.css ***!
+  \******************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+// extracted by mini-css-extract-plugin
+
+
+/***/ }),
+
 /***/ "./plugins/Waivers/assets/css/waivers.css":
 /*!************************************************!*\
   !*** ./plugins/Waivers/assets/css/waivers.css ***!
@@ -25163,6 +25176,162 @@ if (!window.Controllers) {
   window.Controllers = {};
 }
 window.Controllers["waivers-add-requirement"] = WaiversAddRequirement;
+
+/***/ }),
+
+/***/ "./plugins/Waivers/assets/js/controllers/camera-capture-controller.js":
+/*!****************************************************************************!*\
+  !*** ./plugins/Waivers/assets/js/controllers/camera-capture-controller.js ***!
+  \****************************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+
+/**
+ * Camera Capture Controller
+ * 
+ * Provides enhanced mobile camera capture functionality.
+ * Works in conjunction with HTML5 file input capture attribute.
+ * 
+ * Note: Most camera functionality is handled by HTML5 capture="environment"
+ * attribute. This controller provides UI enhancements and fallback behavior.
+ * 
+ * Targets:
+ * - cameraInput: File input with camera capture
+ * - cameraButton: Optional button to trigger camera
+ * - preview: Preview area for captured images
+ * 
+ * Actions:
+ * - triggerCamera: Open device camera
+ * - handleCapture: Handle image capture
+ */
+class CameraCaptureController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static targets = ["cameraInput", "cameraButton", "preview"];
+
+  /**
+   * Initialize controller
+   */
+  connect() {
+    console.log('CameraCaptureController connected');
+    this.detectMobileDevice();
+  }
+
+  /**
+   * Detect if user is on mobile device
+   * Updates UI to show mobile-specific instructions
+   */
+  detectMobileDevice() {
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    if (isMobile) {
+      console.log('Mobile device detected - camera capture available');
+
+      // Could add visual indicators that camera is available
+      if (this.hasCameraInputTarget) {
+        const parent = this.cameraInputTarget.parentElement;
+        const helpText = parent.querySelector('.form-text');
+        if (helpText) {
+          helpText.classList.add('text-success');
+          helpText.innerHTML = '<i class="bi bi-camera-fill"></i> ' + helpText.innerHTML;
+        }
+      }
+    }
+  }
+
+  /**
+   * Trigger camera input
+   * Useful if you have a custom camera button instead of using the file input directly
+   * 
+   * @param {Event} event Button click event
+   */
+  triggerCamera(event) {
+    event.preventDefault();
+    if (this.hasCameraInputTarget) {
+      this.cameraInputTarget.click();
+    }
+  }
+
+  /**
+   * Handle image capture
+   * Called when user selects/captures an image
+   * 
+   * @param {Event} event File input change event
+   */
+  handleCapture(event) {
+    const files = event.target.files;
+    if (files && files.length > 0) {
+      console.log(`Captured ${files.length} image(s)`);
+
+      // Show preview if target exists
+      if (this.hasPreviewTarget) {
+        this.showImagePreview(files[0]);
+      }
+
+      // Dispatch custom event for other controllers to handle
+      this.dispatch('imageCaptured', {
+        detail: {
+          files: Array.from(files)
+        }
+      });
+    }
+  }
+
+  /**
+   * Show image preview (optional enhancement)
+   * 
+   * @param {File} file Image file to preview
+   */
+  showImagePreview(file) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      this.previewTarget.innerHTML = `
+                <div class="card">
+                    <img src="${e.target.result}" class="card-img-top" alt="Preview" style="max-height: 300px; object-fit: contain;">
+                    <div class="card-body">
+                        <p class="card-text text-center">
+                            <small class="text-muted">${file.name} (${this.formatFileSize(file.size)})</small>
+                        </p>
+                    </div>
+                </div>
+            `;
+      this.previewTarget.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+  }
+
+  /**
+   * Format file size
+   * 
+   * @param {number} bytes File size in bytes
+   * @returns {string} Formatted size
+   */
+  formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  }
+
+  /**
+   * Check if browser supports camera capture
+   * 
+   * @returns {boolean} True if capture is supported
+   */
+  static supportsCameraCapture() {
+    const input = document.createElement('input');
+    input.setAttribute('capture', 'camera');
+    return input.capture !== undefined;
+  }
+}
+
+// Add to global controllers registry
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["camera-capture"] = CameraCaptureController;
 
 /***/ }),
 
@@ -25652,12 +25821,294 @@ if (!window.Controllers) {
 }
 window.Controllers["waiver-template"] = WaiverTemplateController;
 
+/***/ }),
+
+/***/ "./plugins/Waivers/assets/js/controllers/waiver-upload-controller.js":
+/*!***************************************************************************!*\
+  !*** ./plugins/Waivers/assets/js/controllers/waiver-upload-controller.js ***!
+  \***************************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+
+/**
+ * Waiver Upload Controller
+ * 
+ * Handles file selection, validation, preview, and upload progress for waiver images.
+ * Supports multiple file uploads with mobile camera capture integration.
+ * 
+ * Targets:
+ * - waiverType: Waiver type select dropdown
+ * - fileInput: File input element
+ * - preview: Preview area container
+ * - progress: Progress bar container
+ * - progressBar: Progress bar element
+ * - progressText: Progress text element
+ * - submitButton: Submit button
+ * 
+ * Actions:
+ * - handleFileSelect: Triggered when files are selected
+ * - handleSubmit: Triggered when form is submitted
+ */
+class WaiverUploadController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static targets = ["waiverType", "fileInput", "preview", "progress", "progressBar", "progressText", "submitButton"];
+
+  /**
+   * Maximum file size in bytes (25MB)
+   */
+  static MAX_FILE_SIZE = 25 * 1024 * 1024;
+
+  /**
+   * Allowed MIME types for image uploads
+   */
+  static ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/tiff'];
+
+  /**
+   * Initialize controller
+   */
+  connect() {
+    console.log('WaiverUploadController connected');
+    this.selectedFiles = [];
+  }
+
+  /**
+   * Handle file selection from input
+   * 
+   * @param {Event} event File input change event
+   */
+  handleFileSelect(event) {
+    const files = Array.from(event.target.files);
+    if (files.length === 0) {
+      return;
+    }
+
+    // Validate files
+    const validationResults = files.map(file => this.validateFile(file));
+    const invalidFiles = validationResults.filter(result => !result.valid);
+    if (invalidFiles.length > 0) {
+      // Show error messages
+      const errors = invalidFiles.map(result => result.error).join('\n');
+      alert(`File validation errors:\n\n${errors}`);
+    }
+
+    // Filter to only valid files and append to existing selection
+    const validFiles = files.filter((file, index) => validationResults[index].valid);
+
+    // Append new valid files to existing selection
+    this.selectedFiles = [...this.selectedFiles, ...validFiles];
+
+    // Create a new DataTransfer to update the file input with all selected files
+    const dataTransfer = new DataTransfer();
+    this.selectedFiles.forEach(file => {
+      dataTransfer.items.add(file);
+    });
+    this.fileInputTarget.files = dataTransfer.files;
+
+    // Update preview
+    if (this.selectedFiles.length > 0) {
+      this.showPreview();
+    } else {
+      this.hidePreview();
+    }
+  }
+
+  /**
+   * Validate a single file
+   * 
+   * @param {File} file File to validate
+   * @returns {Object} Validation result {valid: boolean, error: string}
+   */
+  validateFile(file) {
+    // Check file size
+    if (file.size > WaiverUploadController.MAX_FILE_SIZE) {
+      return {
+        valid: false,
+        error: `${file.name}: File size (${this.formatFileSize(file.size)}) exceeds maximum of 25MB`
+      };
+    }
+
+    // Check file type
+    if (!WaiverUploadController.ALLOWED_TYPES.includes(file.type)) {
+      return {
+        valid: false,
+        error: `${file.name}: Invalid file type (${file.type}). Only JPEG, PNG, and TIFF images are allowed.`
+      };
+    }
+    return {
+      valid: true
+    };
+  }
+
+  /**
+   * Format file size for display
+   * 
+   * @param {number} bytes File size in bytes
+   * @returns {string} Formatted file size
+   */
+  formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  }
+
+  /**
+   * Show file preview area with selected files
+   */
+  showPreview() {
+    if (!this.hasPreviewTarget) return;
+
+    // Build preview HTML
+    const previewList = document.getElementById('file-preview-list');
+    if (!previewList) return;
+    previewList.innerHTML = '';
+    this.selectedFiles.forEach((file, index) => {
+      const item = document.createElement('div');
+      item.className = 'list-group-item d-flex justify-content-between align-items-center';
+      item.innerHTML = `
+                <div>
+                    <i class="bi bi-file-image text-primary"></i>
+                    <strong>${this.escapeHtml(file.name)}</strong>
+                    <br>
+                    <small class="text-muted">${this.formatFileSize(file.size)}</small>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-danger" data-index="${index}">
+                    <i class="bi bi-x"></i>
+                </button>
+            `;
+
+      // Add click handler to remove button
+      const removeBtn = item.querySelector('button');
+      removeBtn.addEventListener('click', () => this.removeFile(index));
+      previewList.appendChild(item);
+    });
+
+    // Show preview area
+    this.previewTarget.style.display = 'block';
+  }
+
+  /**
+   * Hide file preview area
+   */
+  hidePreview() {
+    if (!this.hasPreviewTarget) return;
+    this.previewTarget.style.display = 'none';
+  }
+
+  /**
+   * Remove a file from selection
+   * 
+   * @param {number} index File index to remove
+   */
+  removeFile(index) {
+    this.selectedFiles.splice(index, 1);
+    if (this.selectedFiles.length === 0) {
+      this.hidePreview();
+      this.fileInputTarget.value = '';
+    } else {
+      // Update file input with remaining files
+      const dataTransfer = new DataTransfer();
+      this.selectedFiles.forEach(file => {
+        dataTransfer.items.add(file);
+      });
+      this.fileInputTarget.files = dataTransfer.files;
+      this.showPreview();
+    }
+  }
+
+  /**
+   * Handle form submission
+   * 
+   * @param {Event} event Form submit event
+   */
+  handleSubmit(event) {
+    // Validate waiver type is selected
+    if (!this.waiverTypeTarget.value) {
+      event.preventDefault();
+      alert('Please select a waiver type');
+      return;
+    }
+
+    // Validate files are selected
+    if (this.selectedFiles.length === 0) {
+      event.preventDefault();
+      alert('Please select at least one image file to upload');
+      return;
+    }
+
+    // Show progress bar
+    if (this.hasProgressTarget) {
+      this.progressTarget.style.display = 'block';
+      this.updateProgress(0);
+    }
+
+    // Disable submit button
+    if (this.hasSubmitButtonTarget) {
+      this.submitButtonTarget.disabled = true;
+      this.submitButtonTarget.innerHTML = '<i class="bi bi-hourglass-split"></i> Uploading & Converting...';
+    }
+
+    // Form will submit normally - progress will be indeterminate
+    // since we're doing synchronous conversion on the server
+    this.simulateProgress();
+  }
+
+  /**
+   * Simulate upload progress (since conversion is synchronous)
+   */
+  simulateProgress() {
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += 5;
+      if (progress >= 95) {
+        progress = 95; // Stop at 95% until server responds
+        clearInterval(interval);
+      }
+      this.updateProgress(progress);
+    }, 200);
+  }
+
+  /**
+   * Update progress bar
+   * 
+   * @param {number} percent Progress percentage (0-100)
+   */
+  updateProgress(percent) {
+    if (!this.hasProgressBarTarget || !this.hasProgressTextTarget) return;
+    this.progressBarTarget.style.width = `${percent}%`;
+    this.progressBarTarget.setAttribute('aria-valuenow', percent);
+    this.progressTextTarget.textContent = `${Math.round(percent)}%`;
+  }
+
+  /**
+   * Escape HTML to prevent XSS
+   * 
+   * @param {string} text Text to escape
+   * @returns {string} Escaped text
+   */
+  escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+}
+
+// Add to global controllers registry
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["waiver-upload"] = WaiverUploadController;
+
 /***/ })
 
 },
 /******/ function(__webpack_require__) { // webpackRuntimeModules
 /******/ var __webpack_exec__ = function(moduleId) { return __webpack_require__(__webpack_require__.s = moduleId); }
-/******/ __webpack_require__.O(0, ["js/core","css/app","css/waivers","css/dashboard","css/cover","css/signin"], function() { return __webpack_exec__("./assets/js/controllers/activity-waiver-manager-controller.js"), __webpack_exec__("./assets/js/controllers/app-setting-form-controller.js"), __webpack_exec__("./assets/js/controllers/auto-complete-controller.js"), __webpack_exec__("./assets/js/controllers/branch-links-controller.js"), __webpack_exec__("./assets/js/controllers/csv-download-controller.js"), __webpack_exec__("./assets/js/controllers/delayed-forward-controller.js"), __webpack_exec__("./assets/js/controllers/delete-confirmation-controller.js"), __webpack_exec__("./assets/js/controllers/detail-tabs-controller.js"), __webpack_exec__("./assets/js/controllers/filter-grid-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-clone-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-type-form-controller.js"), __webpack_exec__("./assets/js/controllers/guifier-controller.js"), __webpack_exec__("./assets/js/controllers/image-preview-controller.js"), __webpack_exec__("./assets/js/controllers/kanban-controller.js"), __webpack_exec__("./assets/js/controllers/member-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-pwa-controller.js"), __webpack_exec__("./assets/js/controllers/member-unique-email-controller.js"), __webpack_exec__("./assets/js/controllers/member-verify-form-controller.js"), __webpack_exec__("./assets/js/controllers/modal-opener-controller.js"), __webpack_exec__("./assets/js/controllers/nav-bar-controller.js"), __webpack_exec__("./assets/js/controllers/outlet-button-controller.js"), __webpack_exec__("./assets/js/controllers/permission-add-role-controller.js"), __webpack_exec__("./assets/js/controllers/permission-manage-policies-controller.js"), __webpack_exec__("./assets/js/controllers/revoke-form-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-member-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-permission-controller.js"), __webpack_exec__("./assets/js/controllers/select-all-switch-list-controller.js"), __webpack_exec__("./assets/js/controllers/session-extender-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/gw-sharing-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/renew-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/request-auth-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/award-form-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-add-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-bulk-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-quick-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-table-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/recommendation-kanban-controller.js"), __webpack_exec__("./plugins/Events/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/assign-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/edit-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/office-form-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-search-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-table-controller.js"), __webpack_exec__("./plugins/Template/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/add-requirement-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/retention-policy-input-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-template-controller.js"), __webpack_exec__("./assets/css/app.css"), __webpack_exec__("./assets/css/signin.css"), __webpack_exec__("./assets/css/cover.css"), __webpack_exec__("./assets/css/dashboard.css"), __webpack_exec__("./plugins/Waivers/assets/css/waivers.css"); });
+/******/ __webpack_require__.O(0, ["js/core","css/app","css/waivers","css/dashboard","css/cover","css/signin","css/waiver-upload"], function() { return __webpack_exec__("./assets/js/controllers/activity-waiver-manager-controller.js"), __webpack_exec__("./assets/js/controllers/app-setting-form-controller.js"), __webpack_exec__("./assets/js/controllers/auto-complete-controller.js"), __webpack_exec__("./assets/js/controllers/branch-links-controller.js"), __webpack_exec__("./assets/js/controllers/csv-download-controller.js"), __webpack_exec__("./assets/js/controllers/delayed-forward-controller.js"), __webpack_exec__("./assets/js/controllers/delete-confirmation-controller.js"), __webpack_exec__("./assets/js/controllers/detail-tabs-controller.js"), __webpack_exec__("./assets/js/controllers/filter-grid-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-clone-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-type-form-controller.js"), __webpack_exec__("./assets/js/controllers/guifier-controller.js"), __webpack_exec__("./assets/js/controllers/image-preview-controller.js"), __webpack_exec__("./assets/js/controllers/kanban-controller.js"), __webpack_exec__("./assets/js/controllers/member-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-pwa-controller.js"), __webpack_exec__("./assets/js/controllers/member-unique-email-controller.js"), __webpack_exec__("./assets/js/controllers/member-verify-form-controller.js"), __webpack_exec__("./assets/js/controllers/modal-opener-controller.js"), __webpack_exec__("./assets/js/controllers/nav-bar-controller.js"), __webpack_exec__("./assets/js/controllers/outlet-button-controller.js"), __webpack_exec__("./assets/js/controllers/permission-add-role-controller.js"), __webpack_exec__("./assets/js/controllers/permission-manage-policies-controller.js"), __webpack_exec__("./assets/js/controllers/revoke-form-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-member-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-permission-controller.js"), __webpack_exec__("./assets/js/controllers/select-all-switch-list-controller.js"), __webpack_exec__("./assets/js/controllers/session-extender-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/gw-sharing-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/renew-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/request-auth-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/award-form-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-add-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-bulk-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-quick-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-table-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/recommendation-kanban-controller.js"), __webpack_exec__("./plugins/Events/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/assign-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/edit-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/office-form-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-search-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-table-controller.js"), __webpack_exec__("./plugins/Template/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/add-requirement-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/camera-capture-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/retention-policy-input-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-template-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-controller.js"), __webpack_exec__("./assets/css/app.css"), __webpack_exec__("./assets/css/signin.css"), __webpack_exec__("./assets/css/cover.css"), __webpack_exec__("./assets/css/dashboard.css"), __webpack_exec__("./plugins/Waivers/assets/css/waivers.css"), __webpack_exec__("./plugins/Waivers/assets/css/waiver-upload.css"); });
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);

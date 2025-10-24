@@ -10,6 +10,10 @@ use Cake\ORM\TableRegistry;
 /**
  * Gathering Required Waivers View Cell
  * 
+ * **Note**: This cell has been superseded by GatheringWaiversCell which combines
+ * both requirements and upload/management functionality. This cell is retained for
+ * backward compatibility and potential use in other contexts.
+ * 
  * **Purpose**: Displays aggregated waiver requirements for a gathering by analyzing
  * all activities associated with the gathering and presenting a consolidated view
  * of required waivers.

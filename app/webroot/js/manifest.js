@@ -117,7 +117,8 @@
 /******/ 			"css/waivers": 0,
 /******/ 			"css/dashboard": 0,
 /******/ 			"css/cover": 0,
-/******/ 			"css/signin": 0
+/******/ 			"css/signin": 0,
+/******/ 			"css/waiver-upload": 0
 /******/ 		};
 /******/ 		
 /******/ 		// no chunk on demand loading

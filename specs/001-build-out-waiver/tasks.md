@@ -312,34 +312,34 @@
 
 ### Tests for User Story 4
 
-- [ ] T125 [P] [US4] Create GatheringWaiversFixture in `app/plugins/Waivers/tests/Fixture/GatheringWaiversFixture.php` with sample waiver uploads
-- [ ] T126 [P] [US4] Create DocumentsFixture in `app/tests/Fixture/DocumentsFixture.php` with sample document records
-- [ ] T127 [P] [US4] Create GatheringWaiversControllerTest in `app/plugins/Waivers/tests/TestCase/Controller/GatheringWaiversControllerTest.php` (test upload, view, download, delete with authorization)
-- [ ] T128 [P] [US4] Create ImageToPdfConversionServiceTest in `app/plugins/Waivers/tests/TestCase/Services/ImageToPdfConversionServiceTest.php` (test conversion quality, compression, error handling)
-- [ ] T129 [P] [US4] Create WaiverStorageServiceTest in `app/plugins/Waivers/tests/TestCase/Services/WaiverStorageServiceTest.php` (test save, retrieve, delete with Flysystem adapters)
+- [X] T125 [P] [US4] Create GatheringWaiversFixture in `app/plugins/Waivers/tests/Fixture/GatheringWaiversFixture.php` with sample waiver uploads
+- [X] T126 [P] [US4] Create DocumentsFixture in `app/tests/Fixture/DocumentsFixture.php` with sample document records
+- [X] T127 [P] [US4] Create GatheringWaiversControllerTest in `app/plugins/Waivers/tests/TestCase/Controller/GatheringWaiversControllerTest.php` (test upload, view, download, delete with authorization)
+- [X] T128 [P] [US4] Create ImageToPdfConversionServiceTest in `app/plugins/Waivers/tests/TestCase/Services/ImageToPdfConversionServiceTest.php` (test conversion quality, compression, error handling)
+- [X] T129 [P] [US4] Create WaiverStorageServiceTest in `app/plugins/Waivers/tests/TestCase/Services/WaiverStorageServiceTest.php` (test save, retrieve, delete with Flysystem adapters)
 
 ### Implementation for User Story 4
 
-- [ ] T130 [P] [US4] Create GatheringWaiversController in `app/plugins/Waivers/src/Controller/GatheringWaiversController.php` with upload, view, download, delete actions
-- [ ] T131 [P] [US4] Add authorization checks in GatheringWaiversController initialize() method
-- [ ] T132 [US4] Create upload template in `app/plugins/Waivers/templates/GatheringWaivers/upload.php` with image upload interface for each required waiver type
-- [ ] T133 [US4] Add HTML5 file input with mobile camera capture support: `<input type="file" accept="image/*" capture="environment" multiple>`
-- [ ] T134 [US4] Create index template in `app/plugins/Waivers/templates/GatheringWaivers/index.php` showing uploaded waivers with counts per waiver type
-- [ ] T135 [US4] Create view template in `app/plugins/Waivers/templates/GatheringWaivers/view.php` showing waiver details, retention policy, download link
-- [ ] T136 [US4] Wrap waiver upload interface in `<turbo-frame id="waiver-upload-{gathering_id}">` for partial updates
-- [ ] T137 [US4] Add Turbo Stream responses for upload progress and completion feedback
-- [ ] T138 [US4] Implement upload action: validate images → convert to PDF (ImageToPdfConversionService) → save to storage (WaiverStorageService) → create Document record → calculate retention_date (RetentionPolicyService) → create GatheringWaiver record → update Document.entity_id
-- [ ] T139 [P] [US4] Create waiver-upload-controller.js in `app/plugins/Waivers/assets/js/controllers/waiver-upload-controller.js` (Stimulus controller for file selection, validation, batch upload, progress display)
-- [ ] T140 [P] [US4] Create camera-capture-controller.js in `app/plugins/Waivers/assets/js/controllers/camera-capture-controller.js` (Stimulus controller for mobile camera integration, preview before upload)
-- [ ] T141 [P] [US4] Add CSS styling for upload interface in `app/plugins/Waivers/assets/css/waiver-upload.css` (responsive, mobile-first design)
-- [ ] T142 [US4] Register Stimulus controllers in `app/assets/js/index.js`
-- [ ] T143 [US4] Compile assets: `cd app && npm run dev`
-- [ ] T144 [US4] Add image file validation (JPEG, PNG, TIFF only, max 25MB per file)
-- [ ] T145 [US4] Add conversion error handling with clear user feedback (corrupted image, insufficient memory, etc.)
-- [ ] T146 [US4] Implement retention policy capture at upload time (from waiver_type.retention_periods)
-- [ ] T147 [US4] Add Flash messages for successful upload with conversion confirmation
-- [ ] T148 [US4] Implement download action with security checks (only authorized users can download)
-- [ ] T149 [US4] Implement delete action for expired waivers (compliance officers only)
+- [X] T130 [P] [US4] Create GatheringWaiversController in `app/plugins/Waivers/src/Controller/GatheringWaiversController.php` with upload, view, download, delete actions
+- [X] T131 [P] [US4] Add authorization checks in GatheringWaiversController initialize() method
+- [X] T132 [US4] Create upload template in `app/plugins/Waivers/templates/GatheringWaivers/upload.php` with image upload interface for each required waiver type
+- [X] T133 [US4] Add HTML5 file input with mobile camera capture support: `<input type="file" accept="image/*" capture="environment" multiple>`
+- [X] T134 [US4] Create index template in `app/plugins/Waivers/templates/GatheringWaivers/index.php` showing uploaded waivers with counts per waiver type
+- [X] T135 [US4] Create view template in `app/plugins/Waivers/templates/GatheringWaivers/view.php` showing waiver details, retention policy, download link
+- [X] T136 [US4] Wrap waiver upload interface in `<turbo-frame id="waiver-upload-{gathering_id}">` for partial updates
+- [ ] T137 [US4] Add Turbo Stream responses for upload progress and completion feedback (DEFERRED: basic form works, Turbo enhancement can be added later)
+- [X] T138 [US4] Implement upload action: validate images → convert to PDF (ImageToPdfConversionService) → save to storage (WaiverStorageService) → create Document record → calculate retention_date (RetentionPolicyService) → create GatheringWaiver record → update Document.entity_id
+- [X] T139 [P] [US4] Create waiver-upload-controller.js in `app/plugins/Waivers/assets/js/controllers/waiver-upload-controller.js` (Stimulus controller for file selection, validation, batch upload, progress display)
+- [X] T140 [P] [US4] Create camera-capture-controller.js in `app/plugins/Waivers/assets/js/controllers/camera-capture-controller.js` (Stimulus controller for mobile camera integration, preview before upload)
+- [X] T141 [P] [US4] Add CSS styling for upload interface in `app/plugins/Waivers/assets/css/waiver-upload.css` (responsive, mobile-first design)
+- [X] T142 [US4] Register Stimulus controllers in `app/assets/js/index.js` (auto-registered via Controllers global)
+- [X] T143 [US4] Compile assets: `cd app && npm run dev`
+- [X] T144 [US4] Add image file validation (JPEG, PNG, TIFF only, max 25MB per file) - Implemented in controller and Stimulus
+- [X] T145 [US4] Add conversion error handling with clear user feedback (corrupted image, insufficient memory, etc.) - Implemented in _processWaiverUpload
+- [X] T146 [US4] Implement retention policy capture at upload time (from waiver_type.retention_periods) - Implemented in _processWaiverUpload
+- [X] T147 [US4] Add Flash messages for successful upload with conversion confirmation - Implemented in upload action
+- [X] T148 [US4] Implement download action with security checks (only authorized users can download) - Implemented with authorization
+- [X] T149 [US4] Implement delete action for expired waivers (compliance officers only) - Implemented with status check
 - [ ] T150 [US4] Test batch upload (multiple images at once)
 - [ ] T151 [US4] Test mobile camera capture (iOS Safari, Android Chrome)
 - [ ] T152 [US4] Test conversion quality (black and white, legibility, file size reduction)

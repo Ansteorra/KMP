@@ -94,10 +94,12 @@ class GatheringsController extends AppController
         $this->Authorization->authorize($gathering);
 
         // Check if waivers exist (for activity locking)
+        // This is used to determine if activities can be added/removed
         $hasWaivers = false;
-        // TODO: Check when Waivers plugin is implemented
-        // $hasWaivers = $this->fetchTable('Waivers.GatheringWaivers')
-        //     ->find()->where(['gathering_id' => $id])->count() > 0;
+        if (class_exists('Waivers\Model\Table\GatheringWaiversTable')) {
+            $hasWaivers = $this->fetchTable('Waivers.GatheringWaivers')
+                ->find()->where(['gathering_id' => $id])->count() > 0;
+        }
 
         // Get available activities (not already in this gathering)
         $existingActivityIds = array_column($gathering->gathering_activities, 'id');

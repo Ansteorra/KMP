@@ -45,7 +45,7 @@ class CreateGatheringWaivers extends BaseMigration
         $table->addColumn('document_id', 'integer', [
             'default' => null,
             'limit' => 11,
-            'null' => false,
+            'null' => true,
             'comment' => 'Document entity containing the actual waiver file'
         ]);
 

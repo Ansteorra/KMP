@@ -1,11 +1,12 @@
 {
-    "/js/controllers.js": "/js/controllers.js?id=ab2da76fe01b4627acb1bcb83b6bebbe",
+    "/js/controllers.js": "/js/controllers.js?id=e22487ce6269c43ae856d2ea48814f60",
     "/js/index.js": "/js/index.js?id=df40f71cc84ca74b8b1246d0bc64606f",
-    "/js/manifest.js": "/js/manifest.js?id=90ea1186069aa49620645cbe4699750f",
+    "/js/manifest.js": "/js/manifest.js?id=19c2e697bfc50a7f99e7d5cdee0af892",
     "/js/core.js": "/js/core.js?id=abcaa184f10a37a38db720c11ac2ad2a",
     "/css/app.css": "/css/app.css?id=3f813fcecda9b266b9f78c18b1433b2f",
     "/css/waivers.css": "/css/waivers.css?id=de6ca8a5c7679c02dc05816a574d6c28",
     "/css/dashboard.css": "/css/dashboard.css?id=0174e01203bf660ca73f4c4e0ac0c8fe",
     "/css/cover.css": "/css/cover.css?id=770ff33ad3b6da7f68b71cba8c4a8a11",
-    "/css/signin.css": "/css/signin.css?id=8f1cb32112ff8c42630846c0da547f89"
+    "/css/signin.css": "/css/signin.css?id=8f1cb32112ff8c42630846c0da547f89",
+    "/css/waiver-upload.css": "/css/waiver-upload.css?id=21bc96dc16e5cb09c213208ef2282435"
 }

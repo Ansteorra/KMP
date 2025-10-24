@@ -18,15 +18,15 @@ echo $this->KMP->startBlock("pageTitle") ?>
 
 <?= $this->KMP->startBlock("recordActions") ?>
 <?php if ($user->checkCan("edit", $gathering)) : ?>
-<?= $this->Html->link(__('Edit'), ['action' => 'edit', $gathering->id], ['class' => 'btn btn-primary btn-sm']) ?>
+    <?= $this->Html->link(__('Edit'), ['action' => 'edit', $gathering->id], ['class' => 'btn btn-primary btn-sm']) ?>
 <?php endif; ?>
 <?php if ($gathering->gathering_type->clonable && $user->checkCan("add", $gathering)) : ?>
-<button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#cloneGatheringModal">
-    <i class="bi bi-files"></i> <?= __('Clone') ?>
-</button>
+    <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#cloneGatheringModal">
+        <i class="bi bi-files"></i> <?= __('Clone') ?>
+    </button>
 <?php endif; ?>
 <?php if ($user->checkCan("delete", $gathering)) : ?>
-<?= $this->Form->postLink(
+    <?= $this->Form->postLink(
         __('Delete'),
         ['action' => 'delete', $gathering->id],
         [
@@ -70,24 +70,24 @@ echo $this->KMP->startBlock("pageTitle") ?>
     <td class="col-10"><?= h($gathering->end_date->format('F j, Y')) ?></td>
 </tr>
 <?php if ($gathering->start_date != $gathering->end_date): ?>
-<tr scope="row">
-    <th class="col"><?= __('Duration') ?></th>
-    <td class="col-10">
-        <?= $gathering->start_date->diffInDays($gathering->end_date) + 1 ?> days
-    </td>
-</tr>
+    <tr scope="row">
+        <th class="col"><?= __('Duration') ?></th>
+        <td class="col-10">
+            <?= $gathering->start_date->diffInDays($gathering->end_date) + 1 ?> days
+        </td>
+    </tr>
 <?php endif; ?>
 <?php if (!empty($gathering->location)): ?>
-<tr scope="row">
-    <th class="col"><?= __('Location') ?></th>
-    <td class="col-10"><?= h($gathering->location) ?></td>
-</tr>
+    <tr scope="row">
+        <th class="col"><?= __('Location') ?></th>
+        <td class="col-10"><?= h($gathering->location) ?></td>
+    </tr>
 <?php endif; ?>
 <?php if (!empty($gathering->description)): ?>
-<tr scope="row">
-    <th class="col"><?= __('Notes') ?></th>
-    <td class="col-10"><?= $this->Text->autoParagraph(h($gathering->description)) ?></td>
-</tr>
+    <tr scope="row">
+        <th class="col"><?= __('Notes') ?></th>
+        <td class="col-10"><?= $this->Text->autoParagraph(h($gathering->description)) ?></td>
+    </tr>
 <?php endif; ?>
 <tr scope="row">
     <th class="col"><?= __('Created') ?></th>
@@ -114,51 +114,51 @@ echo $this->KMP->startBlock("pageTitle") ?>
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h5><?= __('Gathering Activities') ?></h5>
         <?php if ($user->checkCan('edit', $gathering) && !$hasWaivers): ?>
-        <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addActivityModal">
-            <i class="bi bi-plus-circle"></i> <?= __('Add Activity') ?>
-        </button>
+            <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addActivityModal">
+                <i class="bi bi-plus-circle"></i> <?= __('Add Activity') ?>
+            </button>
         <?php endif; ?>
     </div>
 
     <?php if ($hasWaivers): ?>
-    <div class="alert alert-info">
-        <i class="bi bi-info-circle"></i>
-        <?= __('Activities are locked because waivers have been uploaded for this gathering.') ?>
-    </div>
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i>
+            <?= __('Activities are locked because waivers have been uploaded for this gathering.') ?>
+        </div>
     <?php endif; ?>
 
     <?php if (!empty($gathering->gathering_activities)): ?>
-    <div class="table-responsive">
-        <table class="table table-striped">
-            <thead>
-                <tr>
-                    <th><?= __('Activity') ?></th>
-                    <th><?= __('Description') ?></th>
-                    <th><?= __('Waiver Requirements') ?></th>
-                    <th class="actions"><?= __('Actions') ?></th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($gathering->gathering_activities as $activity): ?>
-                <tr>
-                    <td>
-                        <?= $this->Html->link(
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th><?= __('Activity') ?></th>
+                        <th><?= __('Description') ?></th>
+                        <th><?= __('Waiver Requirements') ?></th>
+                        <th class="actions"><?= __('Actions') ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($gathering->gathering_activities as $activity): ?>
+                        <tr>
+                            <td>
+                                <?= $this->Html->link(
                                     h($activity->name),
                                     ['controller' => 'GatheringActivities', 'action' => 'view', $activity->id]
                                 ) ?>
-                    </td>
-                    <td><?= h($activity->description) ?></td>
-                    <td>
-                        <span class="text-muted">Waiver info from plugin</span>
-                    </td>
-                    <td class="actions text-end text-nowrap">
-                        <?= $this->Html->link(
+                            </td>
+                            <td><?= h($activity->description) ?></td>
+                            <td>
+                                <span class="text-muted">Waiver info from plugin</span>
+                            </td>
+                            <td class="actions text-end text-nowrap">
+                                <?= $this->Html->link(
                                     '<i class="bi bi-eye-fill"></i>',
                                     ['controller' => 'GatheringActivities', 'action' => 'view', $activity->id],
                                     ['escape' => false, 'title' => __('View'), 'class' => 'btn btn-sm btn-secondary']
                                 ) ?>
-                        <?php if ($user->checkCan('edit', $gathering) && !$hasWaivers): ?>
-                        <?= $this->Form->postLink(
+                                <?php if ($user->checkCan('edit', $gathering) && !$hasWaivers): ?>
+                                    <?= $this->Form->postLink(
                                         '<i class="bi bi-x-circle-fill"></i>',
                                         ['action' => 'remove-activity', $gathering->id, $activity->id],
                                         [
@@ -168,21 +168,21 @@ echo $this->KMP->startBlock("pageTitle") ?>
                                             'class' => 'btn btn-sm btn-danger'
                                         ]
                                     ) ?>
-                        <?php endif; ?>
-                    </td>
-                </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
-    </div>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
     <?php else: ?>
-    <div class="alert alert-secondary">
-        <i class="bi bi-info-circle"></i>
-        <?= __('No activities have been added to this gathering yet.') ?>
-        <?php if ($user->checkCan('edit', $gathering) && !$hasWaivers): ?>
-        <?= __('Click "Add Activity" above to get started.') ?>
-        <?php endif; ?>
-    </div>
+        <div class="alert alert-secondary">
+            <i class="bi bi-info-circle"></i>
+            <?= __('No activities have been added to this gathering yet.') ?>
+            <?php if ($user->checkCan('edit', $gathering) && !$hasWaivers): ?>
+                <?= __('Click "Add Activity" above to get started.') ?>
+            <?php endif; ?>
+        </div>
     <?php endif; ?>
 </div>
 <?php $this->KMP->endBlock() ?>
