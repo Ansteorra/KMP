@@ -30,7 +30,7 @@ use Cake\ORM\Entity;
  * @property \App\Model\Entity\GatheringActivity[] $gathering_activities
  * @property \Waivers\Model\Entity\GatheringWaiver[] $gathering_waivers
  */
-class Gathering extends Entity
+class Gathering extends BaseEntity
 {
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().

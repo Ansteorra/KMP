@@ -52,6 +52,49 @@ __webpack_require__.r(__webpack_exports__);
 
 /***/ }),
 
+/***/ "./assets/js/controllers/activity-toggle-controller.js":
+/*!*************************************************************!*\
+  !*** ./assets/js/controllers/activity-toggle-controller.js ***!
+  \*************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+
+/**
+ * ActivityToggleController
+ * 
+ * Handles enabling/disabling the custom description field when an activity
+ * checkbox is toggled on the gathering edit form.
+ */
+class ActivityToggleController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static targets = ["checkbox", "descriptionField"];
+
+  /**
+   * Toggle the description field based on checkbox state
+   */
+  toggleDescription(event) {
+    const checkbox = event.target;
+    const descriptionField = this.descriptionFieldTarget;
+    if (checkbox.checked) {
+      descriptionField.disabled = false;
+    } else {
+      descriptionField.disabled = true;
+      descriptionField.value = ''; // Clear the value when unchecked
+    }
+  }
+}
+
+// Add to global controllers registry
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["activity-toggle"] = ActivityToggleController;
+
+/***/ }),
+
 /***/ "./assets/js/controllers/activity-waiver-manager-controller.js":
 /*!*********************************************************************!*\
   !*** ./assets/js/controllers/activity-waiver-manager-controller.js ***!
@@ -1579,6 +1622,77 @@ window.Controllers["detail-tabs"] = DetailTabsController;
 
 /***/ }),
 
+/***/ "./assets/js/controllers/edit-activity-description-controller.js":
+/*!***********************************************************************!*\
+  !*** ./assets/js/controllers/edit-activity-description-controller.js ***!
+  \***********************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+
+/**
+ * EditActivityDescriptionController
+ * 
+ * Handles populating the edit activity description modal with data
+ * when the edit button is clicked.
+ */
+class EditActivityDescriptionController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static targets = ["activityId", "activityName", "defaultDescription", "customDescription"];
+  connect() {
+    // Listen for modal show event to populate data
+    const modal = document.getElementById('editActivityDescriptionModal');
+    if (modal) {
+      modal.addEventListener('show.bs.modal', this.handleModalShow.bind(this));
+    }
+  }
+
+  /**
+   * Handle modal show event - populate with data from the clicked button
+   */
+  handleModalShow(event) {
+    // Get the button that triggered the modal
+    const button = event.relatedTarget;
+    if (button) {
+      // Extract data from button attributes
+      const activityId = button.getAttribute('data-activity-id');
+      const activityName = button.getAttribute('data-activity-name');
+      const defaultDescription = button.getAttribute('data-default-description');
+      const customDescription = button.getAttribute('data-custom-description');
+
+      // Populate the modal fields
+      if (this.hasActivityIdTarget) {
+        this.activityIdTarget.value = activityId;
+      }
+      if (this.hasActivityNameTarget) {
+        this.activityNameTarget.textContent = activityName;
+      }
+      if (this.hasDefaultDescriptionTarget) {
+        this.defaultDescriptionTarget.textContent = defaultDescription || 'No default description';
+      }
+      if (this.hasCustomDescriptionTarget) {
+        this.customDescriptionTarget.value = customDescription || '';
+      }
+    }
+  }
+  disconnect() {
+    const modal = document.getElementById('editActivityDescriptionModal');
+    if (modal) {
+      modal.removeEventListener('show.bs.modal', this.handleModalShow.bind(this));
+    }
+  }
+}
+
+// Add to global controllers registry
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["edit-activity-description"] = EditActivityDescriptionController;
+
+/***/ }),
+
 /***/ "./assets/js/controllers/file-size-validator-controller.js":
 /*!*****************************************************************!*\
   !*** ./assets/js/controllers/file-size-validator-controller.js ***!
@@ -2314,6 +2428,407 @@ if (!window.Controllers) {
   window.Controllers = {};
 }
 window.Controllers["gathering-form"] = GatheringFormController;
+
+/***/ }),
+
+/***/ "./assets/js/controllers/gathering-location-autocomplete-controller.js":
+/*!*****************************************************************************!*\
+  !*** ./assets/js/controllers/gathering-location-autocomplete-controller.js ***!
+  \*****************************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+
+/**
+ * GatheringLocationAutocompleteController
+ * 
+ * Provides Google Places Autocomplete for gathering location input fields
+ * using the classic google.maps.places.Autocomplete API.
+ * 
+ * Note: We use the classic API instead of PlaceAutocompleteElement because
+ * the new web component API doesn't expose selected place data programmatically.
+ * The classic API provides reliable place_changed events and getPlace() method.
+ * 
+ * @example
+ * <input type="text" 
+ *        data-controller="gathering-location-autocomplete"
+ *        data-gathering-location-autocomplete-api-key-value="YOUR-KEY">
+ */
+class GatheringLocationAutocompleteController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static values = {
+    apiKey: String // Google Maps API key
+  };
+
+  /**
+   * Initialize the controller
+   */
+  initialize() {
+    this.autocompleteElement = null;
+    this.isGoogleMapsLoaded = false;
+    this.isInitialized = false; // Prevent re-initialization loop
+    this.lastSelectedAddress = null; // Store the selected address
+  }
+
+  /**
+   * Connect function - runs when controller connects to DOM
+   */
+  async connect() {
+    console.log("GatheringLocationAutocompleteController connected");
+
+    // Prevent re-initialization if already set up
+    if (this.isInitialized) {
+      console.log("Autocomplete already initialized, skipping");
+      return;
+    }
+
+    // Mark as initializing immediately to prevent race conditions
+    this.isInitialized = true;
+
+    // Load Google Maps Places library if not already loaded
+    await this.loadGoogleMapsPlaces();
+
+    // Initialize autocomplete on the input field
+    this.initAutocomplete();
+  }
+
+  /**
+   * Load Google Maps Places library
+   */
+  async loadGoogleMapsPlaces() {
+    // Check if already loaded
+    if (typeof google !== 'undefined' && google.maps && google.maps.places) {
+      this.isGoogleMapsLoaded = true;
+      return Promise.resolve();
+    }
+    return new Promise((resolve, reject) => {
+      // Create script tag to load Google Maps with Places library
+      const script = document.createElement('script');
+      const apiKey = this.apiKeyValue || '';
+      const keyParam = apiKey ? `key=${apiKey}&` : '';
+      script.src = `https://maps.googleapis.com/maps/api/js?${keyParam}libraries=places&loading=async&callback=initGatheringLocationAutocomplete`;
+      script.async = true;
+      script.defer = true;
+
+      // Set up callback
+      window.initGatheringLocationAutocomplete = () => {
+        this.isGoogleMapsLoaded = true;
+        delete window.initGatheringLocationAutocomplete;
+        resolve();
+      };
+      script.onerror = () => {
+        console.error('Failed to load Google Maps Places library');
+        reject(new Error('Failed to load Google Maps Places library'));
+      };
+      document.head.appendChild(script);
+    });
+  }
+
+  /**
+   * Initialize Google Places Autocomplete using the classic Autocomplete class
+   * (PlaceAutocompleteElement doesn't expose data programmatically, so we use the old API)
+   */
+  initAutocomplete() {
+    if (!this.isGoogleMapsLoaded) {
+      console.error('Google Maps not loaded');
+      return;
+    }
+
+    // Use the old Autocomplete API which actually works
+    // Use 'geocode' type for addresses, or omit types to get all place types
+    this.autocomplete = new google.maps.places.Autocomplete(this.element, {
+      types: ['geocode']
+    });
+
+    // Listen for place selection
+    this.autocomplete.addListener('place_changed', () => {
+      const place = this.autocomplete.getPlace();
+      if (place && place.formatted_address) {
+        console.log('✓ Place selected:', place.formatted_address);
+        this.lastSelectedAddress = place.formatted_address;
+        this.element.value = place.formatted_address;
+      }
+    });
+    console.log('Google Places Autocomplete initialized (classic API)');
+  }
+
+  /**
+   * Cleanup when controller disconnects
+   */
+  disconnect() {
+    // Clean up the autocomplete
+    if (this.autocomplete) {
+      google.maps.event.clearInstanceListeners(this.autocomplete);
+    }
+    this.autocomplete = null;
+    this.isInitialized = false;
+  }
+}
+
+// Add to global controllers registry
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["gathering-location-autocomplete"] = GatheringLocationAutocompleteController;
+console.log("GatheringLocationAutocompleteController registered in window.Controllers");
+
+/***/ }),
+
+/***/ "./assets/js/controllers/gathering-map-controller.js":
+/*!***********************************************************!*\
+  !*** ./assets/js/controllers/gathering-map-controller.js ***!
+  \***********************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+
+/**
+ * GatheringMapController
+ * 
+ * Handles interactive map display for gathering locations using Google Maps.
+ * Displays the location on a map and provides options to open in external mapping services
+ * for directions and navigation.
+ * 
+ * @example
+ * <div data-controller="gathering-map" 
+ *      data-gathering-map-location-value="123 Main St, City, State"
+ *      data-gathering-map-gathering-name-value="Great Western War">
+ *   <div data-gathering-map-target="map"></div>
+ * </div>
+ */
+class GatheringMapController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  // Define targets - elements this controller interacts with
+  static targets = ["map", "error"];
+
+  // Define values - properties that can be set from HTML
+  static values = {
+    location: String,
+    // The address/location string
+    gatheringName: String,
+    // Name of the gathering
+    apiKey: String,
+    // Google Maps API key (optional)
+    zoom: {
+      // Default zoom level
+      type: Number,
+      default: 15
+    }
+  };
+
+  /**
+   * Initialize the controller
+   */
+  initialize() {
+    this.map = null;
+    this.marker = null;
+    this.geocoded = false;
+  }
+
+  /**
+   * Connect function - runs when controller connects to DOM
+   */
+  connect() {
+    console.log("GatheringMapController connected");
+    if (!this.locationValue) {
+      this.showError("No location provided");
+      return;
+    }
+
+    // Initialize Google Maps
+    this.initGoogleMap();
+  }
+
+  /**
+   * Initialize Google Maps
+   */
+  async initGoogleMap() {
+    try {
+      // Check if Google Maps API is loaded
+      if (typeof google === 'undefined' || !google.maps) {
+        // Load Google Maps API dynamically if not present
+        await this.loadGoogleMapsScript();
+      }
+
+      // Initialize the map with required configuration for AdvancedMarkerElement
+      const mapOptions = {
+        zoom: this.zoomValue,
+        center: {
+          lat: 0,
+          lng: 0
+        },
+        // Will be updated after geocoding
+        mapId: 'GATHERING_MAP',
+        // Required for AdvancedMarkerElement
+        mapTypeId: 'roadmap'
+      };
+      this.map = new google.maps.Map(this.mapTarget, mapOptions);
+
+      // Geocode the location and add marker
+      await this.geocodeAndDisplayGoogle();
+    } catch (error) {
+      console.error("Error initializing Google Maps:", error);
+      this.showError("Failed to load map. Please try again later.");
+    }
+  }
+
+  /**
+   * Load Google Maps Script dynamically with marker library
+   */
+  loadGoogleMapsScript() {
+    return new Promise((resolve, reject) => {
+      if (typeof google !== 'undefined' && google.maps) {
+        resolve();
+        return;
+      }
+      const script = document.createElement('script');
+      const apiKey = this.apiKeyValue || '';
+      const keyParam = apiKey ? `key=${apiKey}&` : '';
+      // Load with marker library for AdvancedMarkerElement and loading=async for performance
+      script.src = `https://maps.googleapis.com/maps/api/js?${keyParam}libraries=marker&loading=async&callback=initGoogleMapsCallback`;
+      script.async = true;
+      script.defer = true;
+      window.initGoogleMapsCallback = () => {
+        delete window.initGoogleMapsCallback;
+        resolve();
+      };
+      script.onerror = () => reject(new Error('Failed to load Google Maps script'));
+      document.head.appendChild(script);
+    });
+  }
+
+  /**
+   * Geocode location and display on Google Maps with AdvancedMarkerElement
+   */
+  async geocodeAndDisplayGoogle() {
+    const geocoder = new google.maps.Geocoder();
+    geocoder.geocode({
+      address: this.locationValue
+    }, async (results, status) => {
+      if (status === 'OK' && results[0]) {
+        const location = results[0].geometry.location;
+
+        // Center map on location
+        this.map.setCenter(location);
+
+        // Import the AdvancedMarkerElement library
+        try {
+          const {
+            AdvancedMarkerElement
+          } = await google.maps.importLibrary("marker");
+
+          // Create marker using AdvancedMarkerElement
+          this.marker = new AdvancedMarkerElement({
+            map: this.map,
+            position: location,
+            title: this.gatheringNameValue || 'Gathering Location'
+          });
+
+          // Add info window
+          const infoWindow = new google.maps.InfoWindow({
+            content: `
+                            <div style="padding: 8px;">
+                                <strong>${this.gatheringNameValue || 'Gathering Location'}</strong><br>
+                                <span style="color: #666;">${this.locationValue}</span>
+                            </div>
+                        `
+          });
+
+          // Add click listener to marker
+          this.marker.addListener('click', () => {
+            infoWindow.open({
+              anchor: this.marker,
+              map: this.map
+            });
+          });
+
+          // Open info window by default
+          infoWindow.open({
+            anchor: this.marker,
+            map: this.map
+          });
+          this.geocoded = true;
+        } catch (error) {
+          console.error('Error loading AdvancedMarkerElement:', error);
+          this.showError('Failed to display marker on map');
+        }
+      } else {
+        console.error('Geocode was not successful:', status);
+        this.showError(`Unable to find location: ${this.locationValue}`);
+      }
+    });
+  }
+
+  /**
+   * Open location in Google Maps (new window/tab)
+   */
+  openInGoogleMaps(event) {
+    event.preventDefault();
+    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(this.locationValue)}`;
+    window.open(url, '_blank');
+  }
+
+  /**
+   * Open location in Apple Maps (works on supported devices)
+   */
+  openInAppleMaps(event) {
+    event.preventDefault();
+    const url = `https://maps.apple.com/?q=${encodeURIComponent(this.locationValue)}`;
+    window.open(url, '_blank');
+  }
+
+  /**
+   * Get directions to location in Google Maps
+   */
+  getDirections(event) {
+    event.preventDefault();
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(this.locationValue)}`;
+    window.open(url, '_blank');
+  }
+
+  /**
+   * Show error message
+   */
+  showError(message) {
+    if (this.hasErrorTarget) {
+      this.errorTarget.textContent = message;
+      this.errorTarget.style.display = 'block';
+    } else {
+      console.error(message);
+      // Create error display if target doesn't exist
+      const errorDiv = document.createElement('div');
+      errorDiv.className = 'alert alert-warning';
+      errorDiv.innerHTML = `<i class="bi bi-exclamation-triangle"></i> ${message}`;
+      this.mapTarget.parentNode.insertBefore(errorDiv, this.mapTarget);
+    }
+
+    // Hide map container if there's an error
+    if (this.hasMapTarget) {
+      this.mapTarget.style.display = 'none';
+    }
+  }
+
+  /**
+   * Cleanup when controller disconnects
+   */
+  disconnect() {
+    if (this.map) {
+      // Clean up map resources
+      this.map = null;
+      this.marker = null;
+    }
+  }
+}
+
+// Add to global controllers registry
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["gathering-map"] = GatheringMapController;
 
 /***/ }),
 
@@ -30518,7 +31033,7 @@ window.Controllers["waiver-upload-wizard"] = WaiverUploadWizardController;
 },
 /******/ function(__webpack_require__) { // webpackRuntimeModules
 /******/ var __webpack_exec__ = function(moduleId) { return __webpack_require__(__webpack_require__.s = moduleId); }
-/******/ __webpack_require__.O(0, ["js/core","css/app","css/waivers","css/dashboard","css/cover","css/signin","css/waiver-upload"], function() { return __webpack_exec__("./assets/js/controllers/activity-waiver-manager-controller.js"), __webpack_exec__("./assets/js/controllers/app-setting-form-controller.js"), __webpack_exec__("./assets/js/controllers/auto-complete-controller.js"), __webpack_exec__("./assets/js/controllers/branch-links-controller.js"), __webpack_exec__("./assets/js/controllers/csv-download-controller.js"), __webpack_exec__("./assets/js/controllers/delayed-forward-controller.js"), __webpack_exec__("./assets/js/controllers/delete-confirmation-controller.js"), __webpack_exec__("./assets/js/controllers/detail-tabs-controller.js"), __webpack_exec__("./assets/js/controllers/file-size-validator-controller.js"), __webpack_exec__("./assets/js/controllers/filter-grid-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-clone-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-form-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-type-form-controller.js"), __webpack_exec__("./assets/js/controllers/guifier-controller.js"), __webpack_exec__("./assets/js/controllers/image-preview-controller.js"), __webpack_exec__("./assets/js/controllers/kanban-controller.js"), __webpack_exec__("./assets/js/controllers/member-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-pwa-controller.js"), __webpack_exec__("./assets/js/controllers/member-unique-email-controller.js"), __webpack_exec__("./assets/js/controllers/member-verify-form-controller.js"), __webpack_exec__("./assets/js/controllers/modal-opener-controller.js"), __webpack_exec__("./assets/js/controllers/nav-bar-controller.js"), __webpack_exec__("./assets/js/controllers/outlet-button-controller.js"), __webpack_exec__("./assets/js/controllers/permission-add-role-controller.js"), __webpack_exec__("./assets/js/controllers/permission-manage-policies-controller.js"), __webpack_exec__("./assets/js/controllers/revoke-form-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-member-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-permission-controller.js"), __webpack_exec__("./assets/js/controllers/select-all-switch-list-controller.js"), __webpack_exec__("./assets/js/controllers/session-extender-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/gw-sharing-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/renew-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/request-auth-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/award-form-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-add-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-bulk-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-quick-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-table-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/recommendation-kanban-controller.js"), __webpack_exec__("./plugins/Events/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/assign-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/edit-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/office-form-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-search-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-table-controller.js"), __webpack_exec__("./plugins/Template/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/add-requirement-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/camera-capture-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/retention-policy-input-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-template-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-wizard-controller.js"), __webpack_exec__("./assets/css/app.css"), __webpack_exec__("./assets/css/signin.css"), __webpack_exec__("./assets/css/cover.css"), __webpack_exec__("./assets/css/dashboard.css"), __webpack_exec__("./plugins/Waivers/assets/css/waivers.css"), __webpack_exec__("./plugins/Waivers/assets/css/waiver-upload.css"); });
+/******/ __webpack_require__.O(0, ["js/core","css/app","css/waivers","css/dashboard","css/cover","css/signin","css/waiver-upload"], function() { return __webpack_exec__("./assets/js/controllers/activity-toggle-controller.js"), __webpack_exec__("./assets/js/controllers/activity-waiver-manager-controller.js"), __webpack_exec__("./assets/js/controllers/app-setting-form-controller.js"), __webpack_exec__("./assets/js/controllers/auto-complete-controller.js"), __webpack_exec__("./assets/js/controllers/branch-links-controller.js"), __webpack_exec__("./assets/js/controllers/csv-download-controller.js"), __webpack_exec__("./assets/js/controllers/delayed-forward-controller.js"), __webpack_exec__("./assets/js/controllers/delete-confirmation-controller.js"), __webpack_exec__("./assets/js/controllers/detail-tabs-controller.js"), __webpack_exec__("./assets/js/controllers/edit-activity-description-controller.js"), __webpack_exec__("./assets/js/controllers/file-size-validator-controller.js"), __webpack_exec__("./assets/js/controllers/filter-grid-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-clone-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-form-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-location-autocomplete-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-map-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-type-form-controller.js"), __webpack_exec__("./assets/js/controllers/guifier-controller.js"), __webpack_exec__("./assets/js/controllers/image-preview-controller.js"), __webpack_exec__("./assets/js/controllers/kanban-controller.js"), __webpack_exec__("./assets/js/controllers/member-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-pwa-controller.js"), __webpack_exec__("./assets/js/controllers/member-unique-email-controller.js"), __webpack_exec__("./assets/js/controllers/member-verify-form-controller.js"), __webpack_exec__("./assets/js/controllers/modal-opener-controller.js"), __webpack_exec__("./assets/js/controllers/nav-bar-controller.js"), __webpack_exec__("./assets/js/controllers/outlet-button-controller.js"), __webpack_exec__("./assets/js/controllers/permission-add-role-controller.js"), __webpack_exec__("./assets/js/controllers/permission-manage-policies-controller.js"), __webpack_exec__("./assets/js/controllers/revoke-form-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-member-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-permission-controller.js"), __webpack_exec__("./assets/js/controllers/select-all-switch-list-controller.js"), __webpack_exec__("./assets/js/controllers/session-extender-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/gw-sharing-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/renew-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/request-auth-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/award-form-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-add-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-bulk-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-quick-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-table-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/recommendation-kanban-controller.js"), __webpack_exec__("./plugins/Events/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/assign-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/edit-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/office-form-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-search-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-table-controller.js"), __webpack_exec__("./plugins/Template/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/add-requirement-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/camera-capture-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/retention-policy-input-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-template-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-wizard-controller.js"), __webpack_exec__("./assets/css/app.css"), __webpack_exec__("./assets/css/signin.css"), __webpack_exec__("./assets/css/cover.css"), __webpack_exec__("./assets/css/dashboard.css"), __webpack_exec__("./plugins/Waivers/assets/css/waivers.css"), __webpack_exec__("./plugins/Waivers/assets/css/waiver-upload.css"); });
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);

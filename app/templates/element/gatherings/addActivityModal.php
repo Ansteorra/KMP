@@ -32,24 +32,49 @@
     <?php if (!empty($availableActivities)): ?>
         <div class="list-group">
             <?php foreach ($availableActivities as $activity): ?>
-                <label class="list-group-item">
+                <div class="list-group-item">
                     <div class="d-flex align-items-start">
                         <div class="form-check">
                             <?= $this->Form->checkbox('activity_ids[]', [
                                 'value' => $activity->id,
                                 'id' => 'modal-activity-' . $activity->id,
                                 'class' => 'form-check-input',
-                                'hiddenField' => false
+                                'hiddenField' => false,
+                                'data-controller' => 'activity-toggle',
+                                'data-action' => 'change->activity-toggle#toggleDescription',
+                                'data-activity-toggle-target' => 'checkbox'
                             ]) ?>
                         </div>
                         <div class="ms-2 flex-grow-1">
-                            <strong><?= h($activity->name) ?></strong>
+                            <label for="modal-activity-<?= $activity->id ?>">
+                                <strong><?= h($activity->name) ?></strong>
+                            </label>
                             <?php if (!empty($activity->description)): ?>
-                                <div class="text-muted small"><?= h($activity->description) ?></div>
+                                <div class="text-muted small mb-2">
+                                    <i class="bi bi-info-circle"></i> <?= __('Default:') ?> <?= h($activity->description) ?>
+                                </div>
                             <?php endif; ?>
+
+                            <!-- Custom description field -->
+                            <div class="mt-2" data-controller="activity-toggle" data-activity-toggle-target="descriptionContainer">
+                                <label for="custom-description-<?= $activity->id ?>" class="form-label small">
+                                    <?= __('Custom Description (optional)') ?>
+                                </label>
+                                <?= $this->Form->textarea('custom_descriptions[' . $activity->id . ']', [
+                                    'id' => 'custom-description-' . $activity->id,
+                                    'class' => 'form-control form-control-sm',
+                                    'rows' => 2,
+                                    'placeholder' => __('Override the default description for this gathering'),
+                                    'disabled' => true,
+                                    'data-activity-toggle-target' => 'descriptionField'
+                                ]) ?>
+                                <small class="form-text text-muted">
+                                    <?= __('Example: "Baronial Championship" instead of "Open practice"') ?>
+                                </small>
+                            </div>
                         </div>
                     </div>
-                </label>
+                </div>
             <?php endforeach; ?>
         </div>
     <?php else: ?>

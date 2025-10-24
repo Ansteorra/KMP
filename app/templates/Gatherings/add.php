@@ -78,11 +78,21 @@ $this->KMP->endBlock();
         </div>
 
         <div class="mb-3">
+            <?php
+            // Get Google Maps API key for autocomplete
+            $apiKey = $this->KMP->getAppSetting('GoogleMaps.ApiKey', '');
+            ?>
             <?= $this->Form->control('location', [
                 'type' => 'text',
                 'class' => 'form-control',
-                'placeholder' => 'e.g., City Park, 123 Main St, Online'
+                'placeholder' => 'Start typing an address or place name...',
+                'data-controller' => 'gathering-location-autocomplete',
+                'data-gathering-location-autocomplete-api-key-value' => h($apiKey),
+                'autocomplete' => 'off'  // Disable browser autocomplete to avoid conflicts
             ]) ?>
+            <small class="form-text text-muted">
+                <?= __('Start typing to see address suggestions powered by Google Maps') ?>
+            </small>
         </div>
 
         <div class="mb-3">

@@ -5,8 +5,6 @@
  * @var \App\Model\Entity\Gathering $gathering
  * @var \App\Model\Entity\Branch[] $branches
  * @var \App\Model\Entity\GatheringType[] $gatheringTypes
- * @var \App\Model\Entity\GatheringActivity[] $gatheringActivities
- * @var bool $hasWaivers
  */
 ?>
 <?php
@@ -20,8 +18,7 @@ $this->KMP->endBlock();
 <div class="gatherings form content">
     <?= $this->Form->create($gathering, [
         'data-controller' => 'gathering-form',
-        'data-action' => 'submit->gathering-form#validateForm',
-        'data-gathering-form-has-waivers-value' => $hasWaivers ? 'true' : 'false'
+        'data-action' => 'submit->gathering-form#validateForm'
     ]) ?>
     <fieldset>
         <legend><?= __('Edit Gathering') ?></legend>
@@ -78,10 +75,21 @@ $this->KMP->endBlock();
         </div>
 
         <div class="mb-3">
+            <?php
+            // Get Google Maps API key for autocomplete
+            $apiKey = $this->KMP->getAppSetting('GoogleMaps.ApiKey', '');
+            ?>
             <?= $this->Form->control('location', [
                 'type' => 'text',
-                'class' => 'form-control'
+                'class' => 'form-control',
+                'placeholder' => 'Start typing an address or place name...',
+                'data-controller' => 'gathering-location-autocomplete',
+                'data-gathering-location-autocomplete-api-key-value' => h($apiKey),
+                'autocomplete' => 'off'  // Disable browser autocomplete to avoid conflicts
             ]) ?>
+            <small class="form-text text-muted">
+                <?= __('Start typing to see address suggestions powered by Google Maps') ?>
+            </small>
         </div>
 
         <div class="mb-3">
@@ -91,80 +99,6 @@ $this->KMP->endBlock();
                 'class' => 'form-control',
                 'label' => 'Notes'
             ]) ?>
-        </div>
-
-        <div class="mb-3">
-            <label class="form-label"><?= __('Gathering Activities') ?></label>
-
-            <?php if ($hasWaivers): ?>
-                <div class="alert alert-warning">
-                    <i class="bi bi-lock-fill"></i>
-                    <strong><?= __('Activities are locked') ?></strong><br>
-                    <?= __('Waivers have been uploaded for this gathering, so activities cannot be changed. This ensures the integrity of collected waivers.') ?>
-                </div>
-
-                <!-- Display selected activities as read-only -->
-                <?php if (!empty($gathering->gathering_activities)): ?>
-                    <div class="list-group">
-                        <?php foreach ($gathering->gathering_activities as $activity): ?>
-                            <div class="list-group-item">
-                                <div class="d-flex align-items-start">
-                                    <div class="form-check">
-                                        <input type="checkbox" checked disabled class="form-check-input">
-                                    </div>
-                                    <div class="ms-2 flex-grow-1">
-                                        <strong><?= h($activity->name) ?></strong>
-                                        <?php if (!empty($activity->description)): ?>
-                                            <div class="text-muted small"><?= h($activity->description) ?></div>
-                                        <?php endif; ?>
-                                    </div>
-                                </div>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-                <?php endif; ?>
-
-            <?php else: ?>
-                <!-- Editable activity selection -->
-                <small class="form-text text-muted d-block mb-2">
-                    Select the activities that will be part of this gathering.
-                </small>
-
-                <?php if (!empty($gatheringActivities)): ?>
-                    <div class="list-group">
-                        <?php foreach ($gatheringActivities as $activity): ?>
-                            <label class="list-group-item">
-                                <div class="d-flex align-items-start">
-                                    <div class="form-check">
-                                        <?= $this->Form->checkbox('gathering_activities._ids[]', [
-                                            'value' => $activity->id,
-                                            'id' => 'activity-' . $activity->id,
-                                            'class' => 'form-check-input',
-                                            'checked' => in_array($activity->id, array_column($gathering->gathering_activities, 'id'))
-                                        ]) ?>
-                                    </div>
-                                    <div class="ms-2 flex-grow-1">
-                                        <strong><?= h($activity->name) ?></strong>
-                                        <?php if (!empty($activity->description)): ?>
-                                            <div class="text-muted small"><?= h($activity->description) ?></div>
-                                        <?php endif; ?>
-                                    </div>
-                                </div>
-                            </label>
-                        <?php endforeach; ?>
-                    </div>
-                <?php else: ?>
-                    <div class="alert alert-info">
-                        <i class="bi bi-info-circle"></i>
-                        No gathering activities have been created yet.
-                        <?= $this->Html->link(
-                            'Create one now',
-                            ['controller' => 'GatheringActivities', 'action' => 'add'],
-                            ['target' => '_blank']
-                        ) ?>
-                    </div>
-                <?php endif; ?>
-            <?php endif; ?>
         </div>
     </fieldset>
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Waivers\Model\Entity;
 
 use Cake\ORM\Entity;
+use App\Model\Entity\BaseEntity;
 
 /**
  * GatheringWaiverActivity Entity
@@ -18,7 +19,7 @@ use Cake\ORM\Entity;
  * @property \Waivers\Model\Entity\GatheringWaiver $gathering_waiver
  * @property \App\Model\Entity\GatheringActivity $gathering_activity
  */
-class GatheringWaiverActivity extends Entity
+class GatheringWaiverActivity extends BaseEntity
 {
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().

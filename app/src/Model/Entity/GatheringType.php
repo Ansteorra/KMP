@@ -21,7 +21,7 @@ use Cake\ORM\Entity;
  *
  * @property \App\Model\Entity\Gathering[] $gatherings
  */
-class GatheringType extends Entity
+class GatheringType extends BaseEntity
 {
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().

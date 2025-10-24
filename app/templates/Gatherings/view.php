@@ -46,19 +46,23 @@ echo $this->KMP->startBlock("pageTitle") ?>
 <tr scope="row">
     <th class="col"><?= __('Branch') ?></th>
     <td class="col-10">
-        <?= $gathering->has('branch') ? $this->Html->link(
-            $gathering->branch->name,
-            ['controller' => 'Branches', 'action' => 'view', $gathering->branch->id]
-        ) : '' ?>
+        <?php if ($gathering->has('branch')): ?>
+
+            <?php if ($user->can('view', $gathering->branch)): ?>
+                <?= $this->Html->link(
+                    $gathering->branch->name,
+                    ['controller' => 'Branches', 'action' => 'view', $gathering->branch->id]
+                ) ?>
+            <?php else: ?>
+                <?= h($gathering->branch->name) ?>
+            <?php endif; ?>
+
+        <?php endif; ?>
     </td>
 </tr>
 <tr scope="row">
     <th class="col"><?= __('Gathering Type') ?></th>
-    <td class="col-10">
-        <?= $gathering->has('gathering_type') ? $this->Html->link(
-            $gathering->gathering_type->name,
-            ['controller' => 'GatheringTypes', 'action' => 'view', $gathering->gathering_type->id]
-        ) : '' ?>
+    <td class="col-10"><?= h($gathering->gathering_type->name) ?>
     </td>
 </tr>
 <tr scope="row">
@@ -105,6 +109,12 @@ echo $this->KMP->startBlock("pageTitle") ?>
     <?= __("Activities") ?>
     <span class="badge bg-secondary"><?= count($gathering->gathering_activities) ?></span>
 </button>
+<?php if (!empty($gathering->location)): ?>
+    <button class="nav-link" id="nav-location-tab" data-bs-toggle="tab" data-bs-target="#nav-location"
+        type="button" role="tab" aria-controls="nav-location" aria-selected="false" data-detail-tabs-target='tabBtn'>
+        <i class="bi bi-geo-alt-fill"></i> <?= __("Location") ?>
+    </button>
+<?php endif; ?>
 <?php $this->KMP->endBlock() ?>
 
 <?php $this->KMP->startBlock("tabContent") ?>
@@ -112,20 +122,12 @@ echo $this->KMP->startBlock("pageTitle") ?>
     aria-labelledby="nav-activities-tab" data-detail-tabs-target="tabContent">
 
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5><?= __('Gathering Activities') ?></h5>
         <?php if ($user->checkCan('edit', $gathering) && !$hasWaivers): ?>
             <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addActivityModal">
                 <i class="bi bi-plus-circle"></i> <?= __('Add Activity') ?>
             </button>
         <?php endif; ?>
     </div>
-
-    <?php if ($hasWaivers): ?>
-        <div class="alert alert-info">
-            <i class="bi bi-info-circle"></i>
-            <?= __('Activities are locked because waivers have been uploaded for this gathering.') ?>
-        </div>
-    <?php endif; ?>
 
     <?php if (!empty($gathering->gathering_activities)): ?>
         <div class="table-responsive">
@@ -134,30 +136,42 @@ echo $this->KMP->startBlock("pageTitle") ?>
                     <tr>
                         <th><?= __('Activity') ?></th>
                         <th><?= __('Description') ?></th>
-                        <th><?= __('Waiver Requirements') ?></th>
-                        <th class="actions"><?= __('Actions') ?></th>
+                        <th class="actions"></th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php foreach ($gathering->gathering_activities as $activity): ?>
                         <tr>
                             <td>
-                                <?= $this->Html->link(
-                                    h($activity->name),
-                                    ['controller' => 'GatheringActivities', 'action' => 'view', $activity->id]
-                                ) ?>
+                                <?= h($activity->name) ?>
                             </td>
-                            <td><?= h($activity->description) ?></td>
                             <td>
-                                <span class="text-muted">Waiver info from plugin</span>
+                                <?php
+                                // Use custom description if set, otherwise fall back to default activity description
+                                $description = $activity->_joinData->custom_description ?? $activity->description;
+                                echo h($description);
+                                ?>
                             </td>
                             <td class="actions text-end text-nowrap">
-                                <?= $this->Html->link(
-                                    '<i class="bi bi-eye-fill"></i>',
-                                    ['controller' => 'GatheringActivities', 'action' => 'view', $activity->id],
-                                    ['escape' => false, 'title' => __('View'), 'class' => 'btn btn-sm btn-secondary']
-                                ) ?>
+                                <?php if ($user->checkCan('view', $activity)): ?>
+                                    <?= $this->Html->link(
+                                        '<i class="bi bi-eye-fill"></i>',
+                                        ['controller' => 'GatheringActivities', 'action' => 'view', $activity->id],
+                                        ['escape' => false, 'title' => __('View'), 'class' => 'btn btn-sm btn-secondary']
+                                    ) ?>
+                                <?php endif; ?>
                                 <?php if ($user->checkCan('edit', $gathering) && !$hasWaivers): ?>
+                                    <button type="button"
+                                        class="btn btn-sm btn-primary"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#editActivityDescriptionModal"
+                                        data-activity-id="<?= $activity->id ?>"
+                                        data-activity-name="<?= h($activity->name) ?>"
+                                        data-default-description="<?= h($activity->description) ?>"
+                                        data-custom-description="<?= h($activity->_joinData->custom_description ?? '') ?>"
+                                        title="<?= __('Edit Description') ?>">
+                                        <i class="bi bi-pencil-fill"></i>
+                                    </button>
                                     <?= $this->Form->postLink(
                                         '<i class="bi bi-x-circle-fill"></i>',
                                         ['action' => 'remove-activity', $gathering->id, $activity->id],
@@ -185,6 +199,14 @@ echo $this->KMP->startBlock("pageTitle") ?>
         </div>
     <?php endif; ?>
 </div>
+
+<?php if (!empty($gathering->location)): ?>
+    <?= $this->element('gatherings/mapTab', [
+        'gathering' => $gathering,
+        'user' => $user,
+    ]) ?>
+<?php endif; ?>
+
 <?php $this->KMP->endBlock() ?>
 
 <?php
@@ -195,6 +217,12 @@ if ($user->checkCan('edit', $gathering) && !$hasWaivers) {
     echo $this->element('gatherings/addActivityModal', [
         'gathering' => $gathering,
         'availableActivities' => $availableActivities,
+        'user' => $user,
+    ]);
+
+    // Edit Activity Description Modal
+    echo $this->element('gatherings/editActivityDescriptionModal', [
+        'gathering' => $gathering,
         'user' => $user,
     ]);
 }

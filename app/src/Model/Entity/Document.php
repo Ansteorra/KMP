@@ -33,7 +33,7 @@ use Cake\ORM\Entity;
  * @property \App\Model\Entity\Member $creator
  * @property \App\Model\Entity\Member $modifier
  */
-class Document extends Entity
+class Document extends BaseEntity
 {
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().

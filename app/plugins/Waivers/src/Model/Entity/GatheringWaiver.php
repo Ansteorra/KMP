@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Waivers\Model\Entity;
 
 use Cake\ORM\Entity;
+use App\Model\Entity\BaseEntity;
 
 /**
  * GatheringWaiver Entity
@@ -27,7 +28,7 @@ use Cake\ORM\Entity;
  * @property \App\Model\Entity\Member $created_by_member
  * @property \Waivers\Model\Entity\GatheringWaiverActivity[] $gathering_waiver_activities
  */
-class GatheringWaiver extends Entity
+class GatheringWaiver extends BaseEntity
 {
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().
@@ -110,5 +111,41 @@ class GatheringWaiver extends Entity
             'deleted' => 'Deleted',
             default => ucfirst($this->status),
         };
+    }
+
+    /**
+     * Get branch ID for authorization scoping
+     * 
+     * Returns the branch ID of the hosting branch for this waiver's gathering.
+     * This enables proper authorization checks by allowing policies to determine
+     * which branch context the waiver belongs to.
+     * 
+     * The branch ID is obtained through the gathering relationship, which connects
+     * the waiver to its hosting branch. This supports the authorization system's
+     * requirement to check permissions based on organizational scope.
+     * 
+     * @return int|null Branch ID from the gathering's hosting branch, or null if not determinable
+     */
+    public function getBranchId(): ?int
+    {
+        // Try to get from eager-loaded gathering relationship
+        if ($this->gathering) {
+            return $this->gathering->branch_id;
+        }
+
+        // If gathering_id exists but gathering not loaded, fetch it
+        if ($this->gathering_id) {
+            $gatheringsTable = \Cake\ORM\TableRegistry::getTableLocator()->get('Gatherings');
+            $gathering = $gatheringsTable->find()
+                ->where(['id' => $this->gathering_id])
+                ->select(['branch_id'])
+                ->first();
+
+            if ($gathering) {
+                return $gathering->branch_id;
+            }
+        }
+
+        return null;
     }
 }

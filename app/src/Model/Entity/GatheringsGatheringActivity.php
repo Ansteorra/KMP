@@ -15,6 +15,7 @@ use Cake\ORM\Entity;
  * @property int $gathering_id
  * @property int $gathering_activity_id
  * @property int $sort_order
+ * @property string|null $custom_description
  * @property \Cake\I18n\DateTime $created
  * @property \Cake\I18n\DateTime|null $modified
  * @property int|null $created_by
@@ -23,7 +24,7 @@ use Cake\ORM\Entity;
  * @property \App\Model\Entity\Gathering $gathering
  * @property \App\Model\Entity\GatheringActivity $gathering_activity
  */
-class GatheringsGatheringActivity extends Entity
+class GatheringsGatheringActivity extends BaseEntity
 {
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().
@@ -34,6 +35,7 @@ class GatheringsGatheringActivity extends Entity
         'gathering_id' => true,
         'gathering_activity_id' => true,
         'sort_order' => true,
+        'custom_description' => true,
         'created' => true,
         'modified' => true,
         'created_by' => true,

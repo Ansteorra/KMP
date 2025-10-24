@@ -283,6 +283,7 @@ class GatheringsController extends AppController
 
         $this->Authorization->authorize($gathering);
 
+        //TODO: find a way to do this with out breaking the plugin/core boundry.
         // Check if waivers exist (for activity locking)
         // This is used to determine if activities can be added/removed
         $hasWaivers = false;
@@ -375,33 +376,11 @@ class GatheringsController extends AppController
      */
     public function edit($id = null)
     {
-        $gathering = $this->Gatherings->get($id, contain: [
-            'GatheringActivities'
-        ]);
+        $gathering = $this->Gatherings->get($id);
         $this->Authorization->authorize($gathering);
 
-        // Check if waivers have been uploaded (T118)
-        // This will be implemented when GatheringWaivers from US4 is available
-        $hasWaivers = false;
-        // TODO: Check if waivers exist for this gathering
-        // $waiverCount = $this->fetchTable('Waivers.GatheringWaivers')
-        //     ->find()->where(['gathering_id' => $id])->count();
-        // $hasWaivers = $waiverCount > 0;
-
         if ($this->request->is(['patch', 'post', 'put'])) {
-            $data = $this->request->getData();
-
-            // If waivers exist, remove activity changes from request
-            if ($hasWaivers && isset($data['gathering_activities'])) {
-                unset($data['gathering_activities']);
-                $this->Flash->warning(__(
-                    'Activity selection cannot be changed because waivers have been uploaded for this gathering.'
-                ));
-            }
-
-            $gathering = $this->Gatherings->patchEntity($gathering, $data, [
-                'associated' => $hasWaivers ? [] : ['GatheringActivities'],
-            ]);
+            $gathering = $this->Gatherings->patchEntity($gathering, $this->request->getData());
 
             if ($this->Gatherings->save($gathering)) {
                 $this->Flash->success(__(
@@ -432,10 +411,8 @@ class GatheringsController extends AppController
         // Load form options
         $branches = $this->Gatherings->Branches->find('list')->orderBy(['name' => 'ASC']);
         $gatheringTypes = $this->Gatherings->GatheringTypes->find('list')->orderBy(['name' => 'ASC']);
-        $gatheringActivities = $this->Gatherings->GatheringActivities->find('all')
-            ->orderBy(['name' => 'ASC']);
 
-        $this->set(compact('gathering', 'branches', 'gatheringTypes', 'gatheringActivities', 'hasWaivers'));
+        $this->set(compact('gathering', 'branches', 'gatheringTypes'));
     }
 
     /**
@@ -520,6 +497,9 @@ class GatheringsController extends AppController
             return $this->redirect(['action' => 'view', $id]);
         }
 
+        // Get custom descriptions if provided
+        $customDescriptions = $this->request->getData('custom_descriptions', []);
+
         // Get existing activity IDs
         $existingIds = array_column($gathering->gathering_activities, 'id');
 
@@ -536,11 +516,18 @@ class GatheringsController extends AppController
         $successCount = 0;
 
         foreach ($newActivityIds as $activityId) {
-            $link = $GatheringsGatheringActivities->newEntity([
+            $linkData = [
                 'gathering_id' => $id,
                 'gathering_activity_id' => $activityId,
                 'sort_order' => 999 // Will be at the end
-            ]);
+            ];
+
+            // Add custom description if provided
+            if (isset($customDescriptions[$activityId]) && !empty(trim($customDescriptions[$activityId]))) {
+                $linkData['custom_description'] = trim($customDescriptions[$activityId]);
+            }
+
+            $link = $GatheringsGatheringActivities->newEntity($linkData);
 
             if ($GatheringsGatheringActivities->save($link)) {
                 $successCount++;
@@ -606,6 +593,81 @@ class GatheringsController extends AppController
             $this->Flash->success(__('Activity removed successfully.'));
         } else {
             $this->Flash->error(__('Unable to remove activity. Please try again.'));
+        }
+
+        return $this->redirect(['action' => 'view', $gatheringId]);
+    }
+
+    /**
+     * Edit Activity Description method
+     *
+     * Updates the custom description for an activity in a gathering.
+     *
+     * @param string|null $gatheringId Gathering id.
+     * @return \Cake\Http\Response|null Redirects to view.
+     * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
+     */
+    public function editActivityDescription($gatheringId = null)
+    {
+        $this->request->allowMethod(['post']);
+        $gathering = $this->Gatherings->get($gatheringId);
+        $this->Authorization->authorize($gathering);
+
+        // Check if waivers exist - can't modify activities if they do
+        // TODO: Implement when Waivers plugin is available
+        $hasWaivers = false;
+        // $hasWaivers = $this->fetchTable('Waivers.GatheringWaivers')
+        //     ->find()->where(['gathering_id' => $gatheringId])->count() > 0;
+
+        if ($hasWaivers) {
+            $this->Flash->error(__(
+                'Cannot edit activity descriptions because waivers have been uploaded for this gathering.'
+            ));
+            return $this->redirect(['action' => 'view', $gatheringId]);
+        }
+
+        $activityId = $this->request->getData('activity_id');
+        $customDescription = $this->request->getData('custom_description');
+
+        if (empty($activityId)) {
+            $this->Flash->error(__('Activity ID is required.'));
+            return $this->redirect(['action' => 'view', $gatheringId]);
+        }
+
+        $GatheringsGatheringActivities = $this->fetchTable('GatheringsGatheringActivities');
+        $link = $GatheringsGatheringActivities->find()
+            ->where([
+                'gathering_id' => $gatheringId,
+                'gathering_activity_id' => $activityId
+            ])
+            ->first();
+
+        if (!$link) {
+            $this->Flash->error(__('Activity link not found.'));
+            return $this->redirect(['action' => 'view', $gatheringId]);
+        }
+
+        // Update the custom description (can be empty to clear it)
+        $link->custom_description = !empty(trim($customDescription)) ? trim($customDescription) : null;
+
+        if ($GatheringsGatheringActivities->save($link)) {
+            $this->Flash->success(__('Activity description updated successfully.'));
+        } else {
+            $errors = $link->getErrors();
+            if (!empty($errors)) {
+                $errorMessages = [];
+                foreach ($errors as $field => $fieldErrors) {
+                    foreach ($fieldErrors as $error) {
+                        $errorMessages[] = $error;
+                    }
+                }
+                $this->Flash->error(__(
+                    'Unable to update activity description: {0}',
+                    implode(', ', $errorMessages)
+                ));
+            } else {
+                $this->Flash->error(__('Unable to update activity description. Please try again.'));
+            }
         }
 
         return $this->redirect(['action' => 'view', $gatheringId]);

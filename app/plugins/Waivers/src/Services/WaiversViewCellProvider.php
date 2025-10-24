@@ -145,7 +145,27 @@ class WaiversViewCellProvider
             'cell' => 'Waivers.GatheringActivityWaivers',
             'validRoutes' => [
                 ['controller' => 'GatheringActivities', 'action' => 'view', 'plugin' => null],
-            ]
+            ],
+            'authCallback' => function ($urlParams, $user) {
+                if (!$user) {
+                    return false;
+                }
+
+                // Get the gathering ID from URL parameters
+                $gatheringId = $urlParams['pass'][0] ?? null;
+                if (!$gatheringId) {
+                    return false;
+                }
+
+                // Create an empty GatheringWaiver entity with gathering context
+                // This allows the policy to use getBranchId() to determine the hosting branch
+                $gatheringWaiversTable = \Cake\ORM\TableRegistry::getTableLocator()->get('Waivers.GatheringWaivers');
+                $tempWaiver = $gatheringWaiversTable->newEmptyEntity();
+                $tempWaiver->gathering_id = $gatheringId;
+
+                // Check if user has canViewGatheringWaivers permission for this branch
+                return $user->checkCan('ViewGatheringWaivers', $tempWaiver);
+            }
         ];
 
         // Cell for comprehensive waiver display on gatherings (requirements + upload/management)
@@ -158,7 +178,27 @@ class WaiversViewCellProvider
             'cell' => 'Waivers.GatheringWaivers',
             'validRoutes' => [
                 ['controller' => 'Gatherings', 'action' => 'view', 'plugin' => null],
-            ]
+            ],
+            'authCallback' => function ($urlParams, $user) {
+                if (!$user) {
+                    return false;
+                }
+
+                // Get the gathering ID from URL parameters
+                $gatheringId = $urlParams['pass'][0] ?? null;
+                if (!$gatheringId) {
+                    return false;
+                }
+
+                // Create an empty GatheringWaiver entity with gathering context
+                // This allows the policy to use getBranchId() to determine the hosting branch
+                $gatheringWaiversTable = \Cake\ORM\TableRegistry::getTableLocator()->get('Waivers.GatheringWaivers');
+                $tempWaiver = $gatheringWaiversTable->newEmptyEntity();
+                $tempWaiver->gathering_id = $gatheringId;
+
+                // Check if user has canViewGatheringWaivers permission for this branch
+                return $user->checkCan('ViewGatheringWaivers', $tempWaiver);
+            }
         ];
 
         return $cells;

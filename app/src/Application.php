@@ -358,11 +358,11 @@ class Application extends BaseApplication implements
                     ->withHeader(
                         'Content-Security-Policy',
                         "default-src 'self'; " .                                              // Default to same origin
-                            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; " .  // Allow CDN scripts (needed for libraries)
+                            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://maps.googleapis.com; " .  // Allow CDN scripts and Google Maps
                             "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; " . // Allow Google Fonts
                             "font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net;" .    // Font sources
                             "img-src 'self' data: https:; " .                                // Allow HTTPS images and data URIs
-                            "connect-src 'self'; " .                                         // AJAX/fetch restrictions
+                            "connect-src 'self' https://maps.googleapis.com https://places.googleapis.com; " .             // AJAX/fetch restrictions - allow Google Maps and Places API
                             "frame-src 'self'; " .                                           // iframe restrictions
                             "object-src 'none'; " .                                          // Disable plugins
                             "base-uri 'self'; " .                                            // Prevent base tag attacks

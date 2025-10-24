@@ -77,6 +77,11 @@ class GatheringsGatheringActivitiesTable extends Table
             ->integer('sort_order')
             ->notEmptyString('sort_order');
 
+        $validator
+            ->scalar('custom_description')
+            ->allowEmptyString('custom_description')
+            ->maxLength('custom_description', 65535); // TEXT field max length
+
         return $validator;
     }
 
