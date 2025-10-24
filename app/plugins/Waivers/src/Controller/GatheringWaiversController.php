@@ -132,7 +132,7 @@ class GatheringWaiversController extends AppController
     {
         $gatheringWaiver = $this->GatheringWaivers->get($id, [
             'contain' => [
-                'Gatherings' => ['GatheringTypes', 'Branches'],
+                'Gatherings' => ['GatheringTypes', 'Branches', 'GatheringActivities'],
                 'WaiverTypes',
                 'Members',
                 'Documents',
@@ -142,7 +142,11 @@ class GatheringWaiversController extends AppController
 
         $this->Authorization->authorize($gatheringWaiver);
 
-        $this->set(compact('gatheringWaiver'));
+        // Load all waiver types and gathering activities for the change type/activities modal
+        $waiverTypes = $this->GatheringWaivers->WaiverTypes->find('list')->order(['name' => 'ASC'])->toArray();
+        $gatheringActivities = $gatheringWaiver->gathering->gathering_activities ?? [];
+
+        $this->set(compact('gatheringWaiver', 'waiverTypes', 'gatheringActivities'));
     }
 
     /**
@@ -689,6 +693,213 @@ class GatheringWaiversController extends AppController
         }
 
         return $response;
+    }
+
+    /**
+     * Change waiver type and activity associations
+     *
+     * Allows authorized users to change which waiver type and activities
+     * an uploaded waiver is associated with. This is useful for correcting
+     * mistakes made during upload.
+     *
+     * Requires canChangeWaiverType authorization policy.
+     *
+     * @param string|null $id Waiver id.
+     * @return \Cake\Http\Response|null Redirects on success.
+     * @throws \Cake\Http\Exception\NotFoundException When record not found.
+     * @throws \Cake\Http\Exception\BadRequestException When validation fails.
+     */
+    public function changeTypeActivities(?string $id = null)
+    {
+        $this->request->allowMethod(['post', 'put']);
+
+        $gatheringWaiver = $this->GatheringWaivers->get($id, [
+            'contain' => [
+                'Gatherings' => ['GatheringActivities'],
+                'GatheringWaiverActivities' => ['GatheringActivities'],
+                'WaiverTypes',
+            ],
+        ]);
+
+        // Check authorization - this uses the canChangeWaiverType policy
+        $this->Authorization->authorize($gatheringWaiver, 'canChangeWaiverType');
+
+        $data = $this->request->getData();
+        $waiverTypeId = $data['waiver_type_id'] ?? null;
+        $activityIds = $data['activity_ids'] ?? [];
+
+        // Validate inputs
+        if (empty($waiverTypeId)) {
+            $this->Flash->error(__('Please select a waiver type.'));
+            return $this->redirect(['action' => 'view', $id]);
+        }
+
+        if (empty($activityIds)) {
+            $this->Flash->error(__('Please select at least one activity.'));
+            return $this->redirect(['action' => 'view', $id]);
+        }
+
+        // Verify waiver type exists
+        $WaiverTypes = $this->fetchTable('Waivers.WaiverTypes');
+        $newWaiverType = $WaiverTypes->get($waiverTypeId);
+        if (!$newWaiverType) {
+            $this->Flash->error(__('Invalid waiver type selected.'));
+            return $this->redirect(['action' => 'view', $id]);
+        }
+
+        // Verify all activities belong to the gathering
+        $gatheringActivityIds = array_map(
+            fn($activity) => $activity->id,
+            $gatheringWaiver->gathering->gathering_activities
+        );
+
+        foreach ($activityIds as $activityId) {
+            if (!in_array($activityId, $gatheringActivityIds)) {
+                $this->Flash->error(__('One or more selected activities do not belong to this gathering.'));
+                return $this->redirect(['action' => 'view', $id]);
+            }
+        }
+
+        // Capture before state for audit note
+        $oldWaiverTypeName = $gatheringWaiver->waiver_type->name;
+        $oldActivityNames = array_map(
+            fn($wa) => $wa->gathering_activity->name,
+            $gatheringWaiver->gathering_waiver_activities
+        );
+
+        // Get new activity names for audit note
+        $newActivityNames = [];
+        foreach ($gatheringWaiver->gathering->gathering_activities as $activity) {
+            if (in_array($activity->id, $activityIds)) {
+                $newActivityNames[] = $activity->name;
+            }
+        }
+
+        // Start transaction
+        $connection = $this->GatheringWaivers->getConnection();
+        $connection->begin();
+
+        try {
+            // Update waiver type
+            $gatheringWaiver->waiver_type_id = $waiverTypeId;
+            if (!$this->GatheringWaivers->save($gatheringWaiver)) {
+                throw new \Exception('Failed to update waiver type');
+            }
+
+            // Delete existing activity associations
+            $GatheringWaiverActivities = $this->fetchTable('Waivers.GatheringWaiverActivities');
+            $GatheringWaiverActivities->deleteAll(['gathering_waiver_id' => $id]);
+
+            // Create new activity associations
+            foreach ($activityIds as $activityId) {
+                $activityWaiver = $GatheringWaiverActivities->newEntity([
+                    'gathering_waiver_id' => $id,
+                    'gathering_activity_id' => $activityId,
+                ]);
+
+                if (!$GatheringWaiverActivities->save($activityWaiver)) {
+                    throw new \Exception('Failed to create activity association');
+                }
+            }
+
+            // Create audit note with before/after snapshot
+            $auditNote = $this->GatheringWaivers->AuditNotes->newEntity([
+                'entity_id' => $id,
+                'entity_type' => 'Waivers.GatheringWaivers',
+                'subject' => 'Waiver Type and Activities Changed',
+                'body' => $this->_buildAuditNoteBody(
+                    $oldWaiverTypeName,
+                    $newWaiverType->name,
+                    $oldActivityNames,
+                    $newActivityNames
+                ),
+                'author_id' => $this->Authentication->getIdentity()->id,
+                'private' => false,
+            ]);
+
+            if (!$this->GatheringWaivers->AuditNotes->save($auditNote)) {
+                throw new \Exception('Failed to create audit note');
+            }
+
+            $connection->commit();
+
+            $this->Flash->success(__('Waiver type and activity associations have been updated successfully.'));
+        } catch (\Exception $e) {
+            $connection->rollback();
+            $this->Flash->error(__('Failed to update waiver: {0}', $e->getMessage()));
+            Log::error('Error updating waiver type/activities: ' . $e->getMessage());
+        }
+
+        return $this->redirect(['action' => 'view', $id]);
+    }
+
+    /**
+     * Build the audit note body with before/after comparison
+     *
+     * @param string $oldWaiverType Old waiver type name
+     * @param string $newWaiverType New waiver type name
+     * @param array $oldActivities Old activity names
+     * @param array $newActivities New activity names
+     * @return string Formatted audit note body
+     */
+    private function _buildAuditNoteBody(
+        string $oldWaiverType,
+        string $newWaiverType,
+        array $oldActivities,
+        array $newActivities
+    ): string {
+        $body = "Administrative change made to waiver associations.\n\n";
+
+        // Waiver type changes
+        $body .= "=== Waiver Type ===\n";
+        if ($oldWaiverType !== $newWaiverType) {
+            $body .= "Changed from: {$oldWaiverType}\n";
+            $body .= "Changed to: {$newWaiverType}\n\n";
+        } else {
+            $body .= "Unchanged: {$oldWaiverType}\n\n";
+        }
+
+        // Activity associations changes
+        $body .= "=== Activity Associations ===\n";
+
+        // Activities removed
+        $removedActivities = array_diff($oldActivities, $newActivities);
+        if (!empty($removedActivities)) {
+            $body .= "Removed from:\n";
+            foreach ($removedActivities as $activity) {
+                $body .= "  - {$activity}\n";
+            }
+            $body .= "\n";
+        }
+
+        // Activities added
+        $addedActivities = array_diff($newActivities, $oldActivities);
+        if (!empty($addedActivities)) {
+            $body .= "Added to:\n";
+            foreach ($addedActivities as $activity) {
+                $body .= "  + {$activity}\n";
+            }
+            $body .= "\n";
+        }
+
+        // Activities unchanged
+        $unchangedActivities = array_intersect($oldActivities, $newActivities);
+        if (!empty($unchangedActivities)) {
+            $body .= "Remained on:\n";
+            foreach ($unchangedActivities as $activity) {
+                $body .= "  = {$activity}\n";
+            }
+            $body .= "\n";
+        }
+
+        $body .= "=== Summary ===\n";
+        $body .= sprintf(
+            "Changed from %d activity association(s) to %d activity association(s).",
+            count($oldActivities),
+            count($newActivities)
+        );
+
+        return $body;
     }
 
     /**

@@ -25,6 +25,16 @@ echo $this->KMP->startBlock("recordActions");
         ['action' => 'index', '?' => ['gathering_id' => $gatheringWaiver->gathering_id]],
         ['class' => 'btn btn-secondary', 'escape' => false]
     ) ?>
+    <?php
+    $user = $this->getRequest()->getAttribute('identity');
+    if ($user && $user->checkCan('canChangeWaiverType', $gatheringWaiver)): ?>
+        <button type="button"
+            class="btn btn-warning"
+            data-bs-toggle="modal"
+            data-bs-target="#changeTypeActivitiesModal">
+            <i class="bi bi-pencil-square"></i> <?= __('Change Type/Activities') ?>
+        </button>
+    <?php endif; ?>
     <?php if ($gatheringWaiver->status === 'expired'): ?>
         <?= $this->Form->postLink(
             '<i class="bi bi-trash-fill"></i> ' . __('Delete'),
@@ -303,6 +313,43 @@ echo $this->KMP->startBlock("recordDetails");
     </div>
 </div>
 
+<!-- Audit Notes Section -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-journal-text"></i> <?= __('Audit History & Notes') ?>
+                </h5>
+            </div>
+            <div class="card-body">
+                <?php
+                // Check if user can add notes
+                $user = $this->getRequest()->getAttribute('identity');
+                $canAddNote = $user && $user->checkCan('canChangeWaiverType', $gatheringWaiver);
+
+                echo $this->cell('Notes', [
+                    $gatheringWaiver->id,
+                    'Waivers.GatheringWaivers',
+                    false,  // Don't show private notes
+                    $canAddNote  // Can create notes if has changeWaiverType permission
+                ]);
+                ?>
+            </div>
+        </div>
+    </div>
+</div>
+
 <?php
 $this->KMP->endBlock();
+
+// Include the change type/activities modal
+$user = $this->getRequest()->getAttribute('identity');
+if ($user && $user->checkCan('canChangeWaiverType', $gatheringWaiver)) {
+    echo $this->element('Waivers.GatheringWaivers/changeTypeActivitiesModal', [
+        'gatheringWaiver' => $gatheringWaiver,
+        'waiverTypes' => $waiverTypes,
+        'gatheringActivities' => $gatheringActivities,
+    ]);
+}
 ?>
