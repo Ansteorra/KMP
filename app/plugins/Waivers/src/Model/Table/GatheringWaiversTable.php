@@ -15,7 +15,6 @@ use Cake\Validation\Validator;
  *
  * @property \App\Model\Table\GatheringsTable&\Cake\ORM\Association\BelongsTo $Gatherings
  * @property \Waivers\Model\Table\WaiverTypesTable&\Cake\ORM\Association\BelongsTo $WaiverTypes
- * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $Members
  * @property \App\Model\Table\DocumentsTable&\Cake\ORM\Association\BelongsTo $Documents
  * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $CreatedByMembers
  * @property \Waivers\Model\Table\GatheringWaiverActivitiesTable&\Cake\ORM\Association\HasMany $GatheringWaiverActivities
@@ -65,10 +64,6 @@ class GatheringWaiversTable extends Table
             'joinType' => 'INNER',
             'className' => 'Waivers.WaiverTypes',
         ]);
-        $this->belongsTo('Members', [
-            'foreignKey' => 'member_id',
-            'className' => 'Members',
-        ]);
         $this->belongsTo('Documents', [
             'foreignKey' => 'document_id',
             'joinType' => 'INNER',
@@ -107,10 +102,6 @@ class GatheringWaiversTable extends Table
             ->integer('waiver_type_id')
             ->requirePresence('waiver_type_id', 'create')
             ->notEmptyString('waiver_type_id');
-
-        $validator
-            ->integer('member_id')
-            ->allowEmptyString('member_id');
 
         $validator
             ->integer('document_id')
@@ -156,9 +147,6 @@ class GatheringWaiversTable extends Table
         ]);
         $rules->add($rules->existsIn(['waiver_type_id'], 'WaiverTypes'), [
             'errorField' => 'waiver_type_id',
-        ]);
-        $rules->add($rules->existsIn(['member_id'], 'Members'), [
-            'errorField' => 'member_id',
         ]);
         $rules->add($rules->existsIn(['document_id'], 'Documents'), [
             'errorField' => 'document_id',
@@ -206,17 +194,5 @@ class GatheringWaiversTable extends Table
     public function findByGathering(SelectQuery $query, int $gatheringId): SelectQuery
     {
         return $query->where(['GatheringWaivers.gathering_id' => $gatheringId]);
-    }
-
-    /**
-     * Find waivers for a specific member
-     *
-     * @param \Cake\ORM\Query\SelectQuery $query The query object
-     * @param int $memberId The member ID
-     * @return \Cake\ORM\Query\SelectQuery
-     */
-    public function findByMember(SelectQuery $query, int $memberId): SelectQuery
-    {
-        return $query->where(['GatheringWaivers.member_id' => $memberId]);
     }
 }

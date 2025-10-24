@@ -96,7 +96,7 @@ class GatheringWaiversController extends AppController
         // Get all waivers for this gathering
         $query = $this->GatheringWaivers->find()
             ->where(['gathering_id' => $gatheringId])
-            ->contain(['WaiverTypes', 'Members', 'Documents'])
+            ->contain(['WaiverTypes', 'Documents'])
             ->order(['GatheringWaivers.created' => 'DESC']);
 
         $gatheringWaivers = $this->paginate($query);
@@ -134,7 +134,6 @@ class GatheringWaiversController extends AppController
             'contain' => [
                 'Gatherings' => ['GatheringTypes', 'Branches', 'GatheringActivities'],
                 'WaiverTypes',
-                'Members',
                 'Documents',
                 'GatheringWaiverActivities' => ['GatheringActivities'],
             ],
@@ -180,6 +179,23 @@ class GatheringWaiversController extends AppController
             ],
         ]);
 
+        // Load waiver requirements for each activity
+        if (!empty($gathering->gathering_activities)) {
+            $activityIds = collection($gathering->gathering_activities)->extract('id')->toArray();
+            $GatheringActivityWaivers = $this->fetchTable('Waivers.GatheringActivityWaivers');
+            $activityWaivers = $GatheringActivityWaivers->find()
+                ->where(['gathering_activity_id IN' => $activityIds])
+                ->toArray();
+
+            // Group by activity ID
+            $waiversByActivity = collection($activityWaivers)->groupBy('gathering_activity_id')->toArray();
+
+            // Add to activities
+            foreach ($gathering->gathering_activities as $activity) {
+                $activity->gathering_activity_waivers = $waiversByActivity[$activity->id] ?? [];
+            }
+        }
+
         // Check if gathering has required waivers
         $requiredWaiverTypes = $this->_getRequiredWaiverTypes($gathering);
         if (empty($requiredWaiverTypes)) {
@@ -194,8 +210,6 @@ class GatheringWaiversController extends AppController
             $data = $this->request->getData();
             $uploadedFiles = $data['waiver_images'] ?? [];
             $waiverTypeId = $data['waiver_type_id'] ?? null;
-            // Convert empty string to null for member_id
-            $memberId = !empty($data['member_id']) ? (int)$data['member_id'] : null;
             $notes = $data['notes'] ?? '';
             $activityIds = $data['activity_ids'] ?? [];
 
@@ -219,7 +233,6 @@ class GatheringWaiversController extends AppController
                     $uploadedFiles,
                     $gathering,
                     $waiverType,
-                    $memberId,
                     $notes,
                     $activityIds
                 );
@@ -439,7 +452,6 @@ class GatheringWaiversController extends AppController
      * @param array $uploadedFiles Array of UploadedFileInterface objects
      * @param mixed $gathering Gathering entity
      * @param mixed $waiverType WaiverType entity
-     * @param int|null $memberId Member ID if applicable
      * @param string $notes Notes for the waiver
      * @param array $activityIds Array of activity IDs to associate
      * @return ServiceResult
@@ -448,7 +460,6 @@ class GatheringWaiversController extends AppController
         array $uploadedFiles,
         $gathering,
         $waiverType,
-        ?int $memberId,
         string $notes,
         array $activityIds
     ): ServiceResult {
@@ -502,7 +513,6 @@ class GatheringWaiversController extends AppController
         $gatheringWaiver = $this->GatheringWaivers->newEntity([
             'gathering_id' => $gathering->id,
             'waiver_type_id' => $waiverType->id,
-            'member_id' => $memberId,
             'document_id' => null, // Temporary - will be updated after Document is created
             'retention_date' => $retentionDate,
             'status' => 'active',

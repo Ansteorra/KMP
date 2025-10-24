@@ -102,20 +102,6 @@ echo $this->KMP->startBlock("recordDetails");
                         <?php endif; ?>
                     </dd>
 
-                    <dt class="col-sm-3"><?= __('Member') ?></dt>
-                    <dd class="col-sm-9">
-                        <?php if ($gatheringWaiver->member): ?>
-                            <?= $this->Html->link(
-                                h($gatheringWaiver->member->sca_name),
-                                ['controller' => 'Members', 'action' => 'view', $gatheringWaiver->member->id]
-                            ) ?>
-                            <br>
-                            <small class="text-muted"><?= h($gatheringWaiver->member->legal_name) ?></small>
-                        <?php else: ?>
-                            <span class="text-muted"><?= __('(No member associated)') ?></span>
-                        <?php endif; ?>
-                    </dd>
-
                     <dt class="col-sm-3"><?= __('Status') ?></dt>
                     <dd class="col-sm-9">
                         <?php if ($gatheringWaiver->status === 'active'): ?>

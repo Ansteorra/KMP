@@ -14,7 +14,6 @@ use Cake\ORM\Entity;
  * @property int $id
  * @property int $gathering_id
  * @property int $waiver_type_id
- * @property int|null $member_id
  * @property int $document_id
  * @property string $status
  * @property \Cake\I18n\Date $retention_date
@@ -24,7 +23,6 @@ use Cake\ORM\Entity;
  *
  * @property \App\Model\Entity\Gathering $gathering
  * @property \Waivers\Model\Entity\WaiverType $waiver_type
- * @property \App\Model\Entity\Member|null $member
  * @property \App\Model\Entity\Document $document
  * @property \App\Model\Entity\Member $created_by_member
  * @property \Waivers\Model\Entity\GatheringWaiverActivity[] $gathering_waiver_activities
@@ -39,7 +37,6 @@ class GatheringWaiver extends Entity
     protected array $_accessible = [
         'gathering_id' => true,
         'waiver_type_id' => true,
-        'member_id' => true,
         'document_id' => true,
         'status' => true,
         'retention_date' => true,
@@ -48,7 +45,6 @@ class GatheringWaiver extends Entity
         'modified' => true,
         'gathering' => true,
         'waiver_type' => true,
-        'member' => true,
         'document' => true,
         'created_by_member' => true,
         'gathering_waiver_activities' => true,

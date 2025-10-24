@@ -110,7 +110,6 @@ $this->KMP->endBlock();
                 <thead>
                     <tr>
                         <th><?= $this->Paginator->sort('waiver_type_id', __('Waiver Type')) ?></th>
-                        <th><?= $this->Paginator->sort('member_id', __('Member')) ?></th>
                         <th><?= $this->Paginator->sort('status', __('Status')) ?></th>
                         <th><?= $this->Paginator->sort('retention_date', __('Retention Until')) ?></th>
                         <th><?= $this->Paginator->sort('created', __('Uploaded')) ?></th>
@@ -122,16 +121,6 @@ $this->KMP->endBlock();
                         <tr>
                             <td>
                                 <strong><?= h($waiver->waiver_type->name) ?></strong>
-                            </td>
-                            <td>
-                                <?php if ($waiver->member): ?>
-                                    <?= $this->Html->link(
-                                        h($waiver->member->sca_name),
-                                        ['controller' => 'Members', 'action' => 'view', $waiver->member->id]
-                                    ) ?>
-                                <?php else: ?>
-                                    <span class="text-muted"><?= __('(No member)') ?></span>
-                                <?php endif; ?>
                             </td>
                             <td>
                                 <?php if ($waiver->status === 'active'): ?>
