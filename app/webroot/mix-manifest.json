@@ -1,12 +1,20 @@
 {
-    "/js/controllers.js": "/js/controllers.js?id=211c716de3bff86bf26d84ce2965f031",
+    "/js/controllers.js": "/js/controllers.js?id=20b3bd508779cdceb709a0da13f9c7c5",
     "/js/index.js": "/js/index.js?id=14c0110efdcc28afe102e7a2bee8e505",
-    "/js/manifest.js": "/js/manifest.js?id=19c2e697bfc50a7f99e7d5cdee0af892",
+    "/js/manifest.js": "/js/manifest.js?id=626506d3bd023c0814e1817641e38fa4",
     "/js/core.js": "/js/core.js?id=915d26b8943aab8ee00bb1007486ba50",
-    "/css/app.css": "/css/app.css?id=4482b2221370ec794d6a48958283c68f",
+    "/css/app.css": "/css/app.css?id=2220319c0656d5f5ca2395fa8cecfef8",
     "/css/waivers.css": "/css/waivers.css?id=de6ca8a5c7679c02dc05816a574d6c28",
     "/css/dashboard.css": "/css/dashboard.css?id=0174e01203bf660ca73f4c4e0ac0c8fe",
     "/css/cover.css": "/css/cover.css?id=770ff33ad3b6da7f68b71cba8c4a8a11",
     "/css/signin.css": "/css/signin.css?id=8f1cb32112ff8c42630846c0da547f89",
-    "/css/waiver-upload.css": "/css/waiver-upload.css?id=21bc96dc16e5cb09c213208ef2282435"
+    "/css/waiver-upload.css": "/css/waiver-upload.css?id=21bc96dc16e5cb09c213208ef2282435",
+    "/fonts/fa-brands-400.woff2": "/fonts/fa-brands-400.woff2?id=a2bd65836e7e0a11022ab245fa729a46",
+    "/fonts/fa-regular-400.woff2": "/fonts/fa-regular-400.woff2?id=361c2c3c1e1e4d82f04d825edaa07550",
+    "/fonts/fa-solid-900.woff2": "/fonts/fa-solid-900.woff2?id=151d5eddd0b377f0c7f8df5d8515d654",
+    "/fonts/fa-v4compatibility.woff2": "/fonts/fa-v4compatibility.woff2?id=d642cac2f6fc1ec00aa8c50956f65b74",
+    "/fonts/vendor/@fortawesome/fontawesome-free/webfa-brands-400.woff2": "/fonts/vendor/@fortawesome/fontawesome-free/webfa-brands-400.woff2?id=a2bd65836e7e0a11022ab245fa729a46",
+    "/fonts/vendor/@fortawesome/fontawesome-free/webfa-regular-400.woff2": "/fonts/vendor/@fortawesome/fontawesome-free/webfa-regular-400.woff2?id=361c2c3c1e1e4d82f04d825edaa07550",
+    "/fonts/vendor/@fortawesome/fontawesome-free/webfa-solid-900.woff2": "/fonts/vendor/@fortawesome/fontawesome-free/webfa-solid-900.woff2?id=151d5eddd0b377f0c7f8df5d8515d654",
+    "/fonts/vendor/@fortawesome/fontawesome-free/webfa-v4compatibility.woff2": "/fonts/vendor/@fortawesome/fontawesome-free/webfa-v4compatibility.woff2?id=d642cac2f6fc1ec00aa8c50956f65b74"
 }

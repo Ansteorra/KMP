@@ -188,60 +188,90 @@ class AwardsViewCellProvider
         if (!StaticHelpers::pluginEnabled('Awards')) {
             return [];
         }
-        if (!$urlParams["controller"] == 'Members') {
-            return [];
-        }
-        //$emptyRecommendation = TableRegistry::getTableLocator()->get('Recommendations')->newEmptyEntity();
 
         $cells = [];
 
-        // Member Submitted Recs Cell - shows award recommendations submitted by a member
-        // only show this if you are allowed to see recommendations OR this is your own profile
-        if (
-            $urlParams['action'] == 'profile'
-            || (
-                $urlParams["action"] == 'view'
-                && $user->id == $urlParams['pass'][0]
-            )
-            || ($user->can('ViewSubmittedByMember', 'Awards.Recommendations'))
-        ) {
-            $cells[] = [
-                'type' => ViewCellRegistry::PLUGIN_TYPE_TAB,
-                'label' => 'Submitted Award Recs.',
-                'id' => 'member-submitted-recs',
-                'order' => 3,
-                'tabBtnBadge' => null,
-                'cell' => 'Awards.MemberSubmittedRecs',
-                'validRoutes' => [
-                    ['controller' => 'Members', 'action' => 'view', 'plugin' => null],
-                    ['controller' => 'Members', 'action' => 'profile', 'plugin' => null]
-                ]
-            ];
+        // Handle Members controller views
+        if ($urlParams["controller"] == 'Members') {
+            // Member Submitted Recs Cell - shows award recommendations submitted by a member
+            // only show this if you are allowed to see recommendations OR this is your own profile
+            if (
+                $urlParams['action'] == 'profile'
+                || (
+                    $urlParams["action"] == 'view'
+                    && $user->id == $urlParams['pass'][0]
+                )
+                || ($user->can('ViewSubmittedByMember', 'Awards.Recommendations'))
+            ) {
+                $cells[] = [
+                    'type' => ViewCellRegistry::PLUGIN_TYPE_TAB,
+                    'label' => 'Submitted Award Recs.',
+                    'id' => 'member-submitted-recs',
+                    'order' => 3,
+                    'tabBtnBadge' => null,
+                    'cell' => 'Awards.MemberSubmittedRecs',
+                    'validRoutes' => [
+                        ['controller' => 'Members', 'action' => 'view', 'plugin' => null],
+                        ['controller' => 'Members', 'action' => 'profile', 'plugin' => null]
+                    ]
+                ];
+            }
+
+            // Recs For Member Cell - shows award recommendations received by a member
+            // you can't see this if you are looking at your own profile
+            if (
+                $urlParams['action'] != 'profile'
+                && (
+                    $urlParams["action"] == 'view'
+                    && $user->id != $urlParams['pass'][0]
+                )
+                &&
+                ($user->can('ViewSubmittedForMember', 'Awards.Recommendations'))
+            ) {
+                $cells[] = [
+                    'type' => ViewCellRegistry::PLUGIN_TYPE_TAB,
+                    'label' => 'Received Award Recs.',
+                    'id' => 'recs-for-member',
+                    'order' => 4,
+                    'tabBtnBadge' => null,
+                    'cell' => 'Awards.RecsForMember',
+                    'validRoutes' => [
+                        ['controller' => 'Members', 'action' => 'view', 'plugin' => null],
+                    ]
+                ];
+            }
         }
 
-        // Recs For Member Cell - shows award recommendations received by a member
-        // you can't see this if you are looking at your own profile
-        if (
-            $urlParams['action'] != 'profile'
-            && (
-                $urlParams["action"] == 'view'
-                && $user->id != $urlParams['pass'][0]
-            )
-            &&
-            ($user->can('ViewSubmittedForMember', 'Awards.Recommendations'))
-        ) {
-            $cells[] = [
-                'type' => ViewCellRegistry::PLUGIN_TYPE_TAB,
-                'label' => 'Received Award Recs.',
-                'id' => 'recs-for-member',
-                'order' => 4,
-                'tabBtnBadge' => null,
-                'cell' => 'Awards.RecsForMember',
-                'validRoutes' => [
-                    ['controller' => 'Members', 'action' => 'view', 'plugin' => null],
-                ]
-            ];
+        // Handle GatheringActivities controller views
+        if ($urlParams["controller"] == 'GatheringActivities' && $urlParams['action'] == 'view') {
+            // Activity Awards Cell - shows awards that can be given during this activity
+            // Load the gathering activity to check permissions
+            $gatheringActivitiesTable = TableRegistry::getTableLocator()->get('GatheringActivities');
+            try {
+                $activityId = $urlParams['pass'][0] ?? null;
+                if ($activityId) {
+                    $gatheringActivity = $gatheringActivitiesTable->get($activityId);
+
+                    // Only show if user can view the activity
+                    if ($user->can('view', $gatheringActivity)) {
+                        $cells[] = [
+                            'type' => ViewCellRegistry::PLUGIN_TYPE_TAB,
+                            'label' => 'Awards',
+                            'id' => 'activity-awards',
+                            'order' => 10,
+                            'tabBtnBadge' => null,
+                            'cell' => 'Awards.ActivityAwards',
+                            'validRoutes' => [
+                                ['controller' => 'GatheringActivities', 'action' => 'view', 'plugin' => null],
+                            ]
+                        ];
+                    }
+                }
+            } catch (\Exception $e) {
+                // If activity not found or error, just don't add the cell
+            }
         }
+
         return $cells;
     }
 }

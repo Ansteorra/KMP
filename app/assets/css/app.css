@@ -2,6 +2,8 @@
 @import url("https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css");
 @import 'bootstrap-icon-sizes.css';
 @import 'dashboard.css';
+@import '~easymde/dist/easymde.min.css';
+@import '~@fortawesome/fontawesome-free/css/all.min.css';
 
 .sublink.nav-link {
     padding-bottom: 0;
@@ -311,7 +313,7 @@ input:checked+.slider:before {
 }
 
 /* Ensure Google Maps and Bing Maps embed properly */
-[data-gathering-map-target="map"] > div {
+[data-gathering-map-target="map"]>div {
     width: 100% !important;
     height: 100% !important;
 }
@@ -326,4 +328,116 @@ input:checked+.slider:before {
     font-size: 1.1em;
     display: block;
     margin-bottom: 5px;
+}
+
+/* Markdown content styling */
+.markdown-content {
+    line-height: 1.6;
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4,
+.markdown-content h5,
+.markdown-content h6 {
+    margin-top: 1em;
+    margin-bottom: 0.5em;
+    font-weight: 600;
+}
+
+.markdown-content h1 {
+    font-size: 1.75em;
+    border-bottom: 2px solid #e9ecef;
+    padding-bottom: 0.3em;
+}
+
+.markdown-content h2 {
+    font-size: 1.5em;
+    border-bottom: 1px solid #e9ecef;
+    padding-bottom: 0.3em;
+}
+
+.markdown-content h3 {
+    font-size: 1.25em;
+}
+
+.markdown-content p {
+    margin-bottom: 1em;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+    margin-bottom: 1em;
+    padding-left: 2em;
+}
+
+.markdown-content li {
+    margin-bottom: 0.25em;
+}
+
+.markdown-content code {
+    background-color: #f8f9fa;
+    padding: 0.2em 0.4em;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 0.9em;
+}
+
+.markdown-content pre {
+    background-color: #f8f9fa;
+    padding: 1em;
+    border-radius: 5px;
+    overflow-x: auto;
+    margin-bottom: 1em;
+}
+
+.markdown-content pre code {
+    background-color: transparent;
+    padding: 0;
+}
+
+.markdown-content blockquote {
+    border-left: 4px solid #dee2e6;
+    padding-left: 1em;
+    margin-left: 0;
+    color: #6c757d;
+    font-style: italic;
+}
+
+.markdown-content a {
+    color: #0d6efd;
+    text-decoration: none;
+}
+
+.markdown-content a:hover {
+    text-decoration: underline;
+}
+
+.markdown-content img {
+    max-width: 100%;
+    height: auto;
+}
+
+.markdown-content table {
+    width: 100%;
+    margin-bottom: 1em;
+    border-collapse: collapse;
+}
+
+.markdown-content table th,
+.markdown-content table td {
+    padding: 0.5em;
+    border: 1px solid #dee2e6;
+}
+
+.markdown-content table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+}
+
+.markdown-content hr {
+    margin: 1.5em 0;
+    border: 0;
+    border-top: 1px solid #dee2e6;
 }

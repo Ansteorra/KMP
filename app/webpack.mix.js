@@ -51,6 +51,17 @@ mix.setPublicPath('./webroot')
                 'bootstrap': 'bootstrap',
             }),
         ],
+        module: {
+            rules: [
+                {
+                    test: /\.(woff|woff2|eot|ttf|otf|svg)$/,
+                    type: 'asset/resource',
+                    generator: {
+                        filename: 'fonts/[name][ext]'
+                    }
+                }
+            ]
+        }
     })
     .css('assets/css/app.css', 'webroot/css')
     .css('assets/css/signin.css', 'webroot/css')
@@ -58,6 +69,7 @@ mix.setPublicPath('./webroot')
     .css('assets/css/dashboard.css', 'webroot/css')
     .css('plugins/Waivers/assets/css/waivers.css', 'webroot/css/waivers.css')
     .css('plugins/Waivers/assets/css/waiver-upload.css', 'webroot/css/waiver-upload.css')
+    .copyDirectory('node_modules/@fortawesome/fontawesome-free/webfonts', 'webroot/fonts')
     .version()
     .sourceMaps();
 

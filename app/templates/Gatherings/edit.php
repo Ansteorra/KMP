@@ -97,8 +97,14 @@ $this->KMP->endBlock();
                 'type' => 'textarea',
                 'rows' => 4,
                 'class' => 'form-control',
-                'label' => 'Notes'
+                'label' => 'Description (Markdown supported)',
+                'data-controller' => 'markdown-editor',
+                'data-markdown-editor-placeholder-value' => 'Enter gathering description using Markdown...',
+                'data-markdown-editor-min-height-value' => '250px'
             ]) ?>
+            <small class="form-text text-muted">
+                <?= __('You can use Markdown formatting: **bold**, *italic*, # headings, - lists, [links](url), etc.') ?>
+            </small>
         </div>
     </fieldset>
 

@@ -84,8 +84,17 @@ class GatheringsController extends AppController
 
         $gatherings = $this->paginate($query);
 
-        // Load filter options
-        $branches = $this->Gatherings->Branches->find('list')->orderBy(['name' => 'ASC']);
+        // Load filter options - filter branches based on user permissions
+        $currentUser = $this->Authentication->getIdentity();
+        $branchIds = $currentUser->getBranchIdsForAction('index', 'Gatherings');
+
+        $branchesQuery = $this->Gatherings->Branches->find('list')->orderBy(['name' => 'ASC']);
+        if ($branchIds !== null) {
+            // User has limited access - filter to specific branches
+            $branchesQuery->where(['Branches.id IN' => $branchIds]);
+        }
+        $branches = $branchesQuery;
+
         $gatheringTypes = $this->Gatherings->GatheringTypes->find('list')->orderBy(['name' => 'ASC']);
 
         $this->set(compact('gatherings', 'branches', 'gatheringTypes'));
@@ -353,8 +362,17 @@ class GatheringsController extends AppController
             }
         }
 
-        // Load form options
-        $branches = $this->Gatherings->Branches->find('list')->orderBy(['name' => 'ASC']);
+        // Load form options - filter branches based on user permissions
+        $currentUser = $this->Authentication->getIdentity();
+        $branchIds = $currentUser->getBranchIdsForAction('add', 'Gatherings');
+
+        $branchesQuery = $this->Gatherings->Branches->find('list')->orderBy(['name' => 'ASC']);
+        if ($branchIds !== null) {
+            // User has limited access - filter to specific branches
+            $branchesQuery->where(['Branches.id IN' => $branchIds]);
+        }
+        $branches = $branchesQuery;
+
         $gatheringTypes = $this->Gatherings->GatheringTypes->find('list')->orderBy(['name' => 'ASC']);
 
         $this->set(compact('gathering', 'branches', 'gatheringTypes'));
@@ -404,8 +422,17 @@ class GatheringsController extends AppController
             }
         }
 
-        // Load form options
-        $branches = $this->Gatherings->Branches->find('list')->orderBy(['name' => 'ASC']);
+        // Load form options - filter branches based on user permissions
+        $currentUser = $this->Authentication->getIdentity();
+        $branchIds = $currentUser->getBranchIdsForAction('edit', $gathering);
+
+        $branchesQuery = $this->Gatherings->Branches->find('list')->orderBy(['name' => 'ASC']);
+        if ($branchIds !== null) {
+            // User has limited access - filter to specific branches
+            $branchesQuery->where(['Branches.id IN' => $branchIds]);
+        }
+        $branches = $branchesQuery;
+
         $gatheringTypes = $this->Gatherings->GatheringTypes->find('list')->orderBy(['name' => 'ASC']);
 
         $this->set(compact('gathering', 'branches', 'gatheringTypes'));
@@ -486,58 +513,45 @@ class GatheringsController extends AppController
             return $this->redirect(['action' => 'view', $id]);
         }
 
-        $activityIds = $this->request->getData('activity_ids');
+        $activityId = $this->request->getData('activity_id');
 
-        if (empty($activityIds)) {
-            $this->Flash->error(__('Please select at least one activity to add.'));
+        if (empty($activityId)) {
+            $this->Flash->error(__('Please select an activity to add.'));
             return $this->redirect(['action' => 'view', $id]);
         }
 
-        // Get custom descriptions if provided
-        $customDescriptions = $this->request->getData('custom_descriptions', []);
+        // Get custom description if provided
+        $customDescription = $this->request->getData('custom_description');
 
         // Get existing activity IDs
         $existingIds = array_column($gathering->gathering_activities, 'id');
 
-        // Filter out activities that are already linked
-        $newActivityIds = array_diff($activityIds, $existingIds);
-
-        if (empty($newActivityIds)) {
-            $this->Flash->warning(__('The selected activities are already part of this gathering.'));
+        // Check if activity is already linked
+        if (in_array($activityId, $existingIds)) {
+            $this->Flash->warning(__('This activity is already part of this gathering.'));
             return $this->redirect(['action' => 'view', $id]);
         }
 
-        // Link the new activities
+        // Link the new activity
         $GatheringsGatheringActivities = $this->fetchTable('GatheringsGatheringActivities');
-        $successCount = 0;
 
-        foreach ($newActivityIds as $activityId) {
-            $linkData = [
-                'gathering_id' => $id,
-                'gathering_activity_id' => $activityId,
-                'sort_order' => 999 // Will be at the end
-            ];
+        $linkData = [
+            'gathering_id' => $id,
+            'gathering_activity_id' => $activityId,
+            'sort_order' => 999 // Will be at the end
+        ];
 
-            // Add custom description if provided
-            if (isset($customDescriptions[$activityId]) && !empty(trim($customDescriptions[$activityId]))) {
-                $linkData['custom_description'] = trim($customDescriptions[$activityId]);
-            }
-
-            $link = $GatheringsGatheringActivities->newEntity($linkData);
-
-            if ($GatheringsGatheringActivities->save($link)) {
-                $successCount++;
-            }
+        // Add custom description if provided
+        if (!empty(trim($customDescription))) {
+            $linkData['custom_description'] = trim($customDescription);
         }
 
-        if ($successCount > 0) {
-            $this->Flash->success(__(
-                '{0} {1} added successfully.',
-                $successCount,
-                __n('activity', 'activities', $successCount)
-            ));
+        $link = $GatheringsGatheringActivities->newEntity($linkData);
+
+        if ($GatheringsGatheringActivities->save($link)) {
+            $this->Flash->success(__('Activity added successfully.'));
         } else {
-            $this->Flash->error(__('Unable to add activities. Please try again.'));
+            $this->Flash->error(__('Unable to add activity. Please try again.'));
         }
 
         return $this->redirect(['action' => 'view', $id]);

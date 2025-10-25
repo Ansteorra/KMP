@@ -2,10 +2,10 @@
 
 /**
  * Map Tab Element for Gathering View
- * 
+ *
  * Displays an interactive map of the gathering location with options to
  * open in external mapping services for directions.
- * 
+ *
  * @var \App\View\AppView $this
  * @var \App\Model\Entity\Gathering $gathering
  * @var \App\Model\Entity\Member $user
@@ -15,8 +15,13 @@
 $apiKey = $this->KMP->getAppSetting('GoogleMaps.ApiKey', '');
 ?>
 
-<div class="related tab-pane fade m-3" id="nav-location" role="tabpanel"
-    aria-labelledby="nav-location-tab" data-detail-tabs-target="tabContent">
+<div class="related tab-pane fade m-3"
+    id="nav-location"
+    role="tabpanel"
+    aria-labelledby="nav-location-tab"
+    data-detail-tabs-target="tabContent"
+    data-tab-order="20"
+    style="order: 20;">
 
     <div class="row">
         <div class="col-12">

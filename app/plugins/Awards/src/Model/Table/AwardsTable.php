@@ -204,6 +204,7 @@ use App\Model\Table\BaseTable;
  * @property \Awards\Model\Table\LevelsTable&\Cake\ORM\Association\BelongsTo $Levels Award precedence hierarchy  
  * @property \App\Model\Table\BranchesTable&\Cake\ORM\Association\BelongsTo $Branches Organizational scoping
  * @property \Awards\Model\Table\RecommendationsTable&\Cake\ORM\Association\HasMany $Recommendations Workflow integration
+ * @property \App\Model\Table\GatheringActivitiesTable&\Cake\ORM\Association\BelongsToMany $GatheringActivities Activities awards can be given during
  *
  * @method \Awards\Model\Entity\Award newEmptyEntity() Create new empty award entity
  * @method \Awards\Model\Entity\Award newEntity(array $data, array $options = []) Create new award entity with data
@@ -380,6 +381,14 @@ class AwardsTable extends BaseTable
             'foreignKey' => 'award_id',
             'joinType' => 'INNER',
             'className' => 'Awards.Recommendations',
+        ]);
+
+        // Many-to-many relationship with GatheringActivities
+        $this->belongsToMany('GatheringActivities', [
+            'foreignKey' => 'award_id',
+            'targetForeignKey' => 'gathering_activity_id',
+            'joinTable' => 'award_gathering_activities',
+            'through' => 'Awards.AwardGatheringActivities',
         ]);
 
         $this->addBehavior("Timestamp");

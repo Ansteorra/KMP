@@ -20,14 +20,6 @@ $this->KMP->endBlock();
 
 <h3><?= __('Gatherings') ?></h3>
 
-<div class="mb-3">
-    <?= $this->Html->link(
-        '<i class="bi bi-plus-circle"></i> ' . __('New Gathering'),
-        ['action' => 'add'],
-        ['class' => 'btn btn-primary', 'escape' => false]
-    ) ?>
-</div>
-
 <?php
 // Configure tabs for gatherings with temporal filtering
 echo $this->element('turboActiveTabs', [

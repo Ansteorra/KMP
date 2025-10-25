@@ -132,6 +132,9 @@ class AppView extends View
         // This provides custom form controls and KMP utilities
         $this->loadHelper('Kmp');
 
+        // Load Markdown helper for rendering markdown content
+        $this->loadHelper('Markdown');
+
         // Configure Glide for responsive image processing
         // All option values should match the corresponding options for `GlideFilter`.
         $this->loadHelper('ADmad/Glide.Glide', [

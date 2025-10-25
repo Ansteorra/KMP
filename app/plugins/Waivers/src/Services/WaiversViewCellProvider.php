@@ -173,7 +173,7 @@ class WaiversViewCellProvider
             'type' => ViewCellRegistry::PLUGIN_TYPE_TAB,
             'label' => 'Waivers',
             'id' => 'gathering-waivers',
-            'order' => 2,
+            'order' => 10,
             'tabBtnBadge' => null,
             'cell' => 'Waivers.GatheringWaivers',
             'validRoutes' => [

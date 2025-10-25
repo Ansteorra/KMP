@@ -125,7 +125,9 @@ if (!$this->fetch("tb_body_start")) {
  */
 if (!$this->fetch("tb_flash")) {
     echo $this->KMP->startBlock("tb_flash");
+    echo '<div id="flash-messages">';
     echo $this->Flash->render();
+    echo '</div>';
     $this->KMP->endBlock();
 }
 if (!$this->fetch("tb_body_end")) {
