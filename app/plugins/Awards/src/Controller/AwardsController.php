@@ -511,9 +511,9 @@ class AwardsController extends AppController
         $this->Authorization->authorize($award, 'edit');
 
         // Check if this is a Turbo request (not a regular form submission)
-        $isTurboRequest = $this->request->getHeaderLine('Accept') !== '' && 
-                          strpos($this->request->getHeaderLine('Accept'), 'text/vnd.turbo-stream.html') !== false ||
-                          $this->request->is('ajax');
+        $isTurboRequest = $this->request->getHeaderLine('Accept') !== '' &&
+            strpos($this->request->getHeaderLine('Accept'), 'text/vnd.turbo-stream.html') !== false ||
+            $this->request->is('ajax');
 
         $awardGatheringActivitiesTable = $this->fetchTable('Awards.AwardGatheringActivities');
         $awardGatheringActivity = $awardGatheringActivitiesTable->find()
@@ -575,9 +575,9 @@ class AwardsController extends AppController
         $this->Authorization->authorize($gatheringActivity, 'edit');
 
         // Check if this is a Turbo request (not a regular form submission)
-        $isTurboRequest = $this->request->getHeaderLine('Accept') !== '' && 
-                          strpos($this->request->getHeaderLine('Accept'), 'text/vnd.turbo-stream.html') !== false ||
-                          $this->request->is('ajax');
+        $isTurboRequest = $this->request->getHeaderLine('Accept') !== '' &&
+            strpos($this->request->getHeaderLine('Accept'), 'text/vnd.turbo-stream.html') !== false ||
+            $this->request->is('ajax');
 
         if ($this->request->is('post')) {
             $data = $this->request->getData();
@@ -704,7 +704,7 @@ class AwardsController extends AppController
             }
         }
 
-        
+
         $streams[] = '</template>';
         $streams[] = '</turbo-stream>';
 
