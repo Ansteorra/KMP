@@ -4099,6 +4099,7 @@ __webpack_require__.r(__webpack_exports__);
  * - urlCache: Hidden element containing URLs to cache (JSON format)
  * - status: Status display element for online/offline indication
  * - refreshBtn: Button for manual page refresh
+ * - hubLinkContainer: Container for mobile hub link (shown only when online)
  * 
  * Usage:
  * <div data-controller="member-mobile-card-pwa" 
@@ -4111,7 +4112,7 @@ __webpack_require__.r(__webpack_exports__);
  * </div>
  */
 class MemberMobileCardPWA extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
-  static targets = ["urlCache", "status", "refreshBtn"];
+  static targets = ["urlCache", "status", "refreshBtn", "hubLinkContainer"];
   static values = {
     swUrl: String
   };
@@ -4136,6 +4137,11 @@ class MemberMobileCardPWA extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0_
       statusDiv.classList.remove('bg-danger');
       statusDiv.classList.add('bg-success');
       refreshButton.hidden = false;
+
+      // Show mobile hub link when online
+      if (this.hasHubLinkContainerTarget) {
+        this.hubLinkContainerTarget.hidden = false;
+      }
       if (this.sw) {
         this.sw.active.postMessage({
           type: 'ONLINE'
@@ -4147,6 +4153,11 @@ class MemberMobileCardPWA extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0_
       statusDiv.classList.remove('bg-success');
       statusDiv.classList.add('bg-danger');
       refreshButton.hidden = true;
+
+      // Hide mobile hub link when offline
+      if (this.hasHubLinkContainerTarget) {
+        this.hubLinkContainerTarget.hidden = true;
+      }
       if (this.sw) {
         this.sw.active.postMessage({
           type: 'OFFLINE'
@@ -4195,7 +4206,12 @@ class MemberMobileCardPWA extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0_
    */
   connect() {
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', this.manageOnlineStatus.bind(this));
+      // Check if page is already loaded, otherwise wait for load event
+      if (document.readyState === 'complete') {
+        this.manageOnlineStatus();
+      } else {
+        window.addEventListener('load', this.manageOnlineStatus.bind(this));
+      }
     }
     setInterval(this.refreshPageIfOnline, 300000);
   }
@@ -4406,6 +4422,381 @@ if (!window.Controllers) {
   window.Controllers = {};
 }
 window.Controllers["member-verify-form"] = MemberVerifyForm;
+
+/***/ }),
+
+/***/ "./assets/js/controllers/mobile-hub-controller.js":
+/*!********************************************************!*\
+  !*** ./assets/js/controllers/mobile-hub-controller.js ***!
+  \********************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+
+/**
+ * Mobile Hub Stimulus Controller
+ * 
+ * Manages the main mobile member hub interface with navigation and feature modules.
+ * Provides a unified mobile experience for authorization requests, approvals, and
+ * waiver submissions with PWA support and offline capability awareness.
+ * 
+ * Features:
+ * - Mobile-optimized hub interface
+ * - Feature module navigation
+ * - Real-time data loading
+ * - Approval queue monitoring
+ * - Gathering waiver management
+ * - PWA integration with status awareness
+ * - Expandable architecture for future features
+ * 
+ * Values:
+ * - url: String - API endpoint for hub data
+ * 
+ * Targets:
+ * - loading: Loading indicator
+ * - memberInfo: Member information container
+ * - memberName: Member's full name
+ * - scaName: Member's SCA name
+ * - membershipStatus: Membership status display
+ * - authCount: Authorization count badge
+ * - statusBar: Connection status bar
+ * - cardSection: Member card feature section
+ * - requestSection: Authorization request section
+ * - approvalSection: Approval queue section
+ * - approvalCount: Pending approval count badge
+ * - waiverSection: Waiver submission section
+ * - pendingRequests: Pending requests container
+ * - pendingRequestsList: List of pending requests
+ * - gatheringsList: Gatherings container
+ * - gatheringsListContent: List of gatherings
+ * - lastUpdate: Last update timestamp
+ * - refreshBtn: Refresh button
+ * 
+ * Usage:
+ * <div data-controller="mobile-hub" 
+ *      data-mobile-hub-url-value="/api/mobile-hub/data">
+ *   <!-- Hub content -->
+ * </div>
+ */
+class MobileHub extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static targets = ["loading", "memberInfo", "memberName", "scaName", "membershipStatus", "authCount", "statusBar", "cardSection", "requestSection", "approvalSection", "approvalCount", "waiverSection", "pendingRequests", "pendingRequestsList", "gatheringsList", "gatheringsListContent", "lastUpdate", "refreshBtn"];
+  static values = {
+    url: String
+  };
+
+  /**
+   * Initialize controller
+   * Sets up initial state
+   */
+  initialize() {
+    this.isOnline = navigator.onLine;
+    this.hubData = null;
+  }
+
+  /**
+   * Connect controller to DOM
+   * Loads initial hub data and sets up event listeners
+   */
+  connect() {
+    console.log('Mobile Hub controller connected');
+
+    // Set initial online status
+    this.updateStatusBar(this.isOnline);
+
+    // Listen for online/offline events
+    window.addEventListener('online', this.handleOnline.bind(this));
+    window.addEventListener('offline', this.handleOffline.bind(this));
+
+    // Load hub data
+    this.loadHubData();
+  }
+
+  /**
+   * Disconnect controller
+   * Cleanup event listeners
+   */
+  disconnect() {
+    window.removeEventListener('online', this.handleOnline.bind(this));
+    window.removeEventListener('offline', this.handleOffline.bind(this));
+  }
+
+  /**
+   * Handle online event
+   * Updates UI and reloads data
+   */
+  handleOnline() {
+    console.log('Connection restored');
+    this.isOnline = true;
+    this.updateStatusBar(true);
+    this.loadHubData();
+  }
+
+  /**
+   * Handle offline event
+   * Updates UI for offline mode
+   */
+  handleOffline() {
+    console.log('Connection lost');
+    this.isOnline = false;
+    this.updateStatusBar(false);
+  }
+
+  /**
+   * Update connection status bar
+   * 
+   * @param {Boolean} online - Connection status
+   */
+  updateStatusBar(online) {
+    if (this.hasStatusBarTarget) {
+      if (online) {
+        this.statusBarTarget.classList.remove('offline-indicator');
+        this.statusBarTarget.classList.add('online-indicator');
+        this.statusBarTarget.innerHTML = '<i class="bi bi-wifi"></i> Online';
+      } else {
+        this.statusBarTarget.classList.remove('online-indicator');
+        this.statusBarTarget.classList.add('offline-indicator');
+        this.statusBarTarget.innerHTML = '<i class="bi bi-wifi-off"></i> Offline';
+      }
+    }
+  }
+
+  /**
+   * Load hub data from API
+   * Fetches member information, authorization status, and available features
+   */
+  async loadHubData() {
+    if (!this.isOnline) {
+      console.log('Offline - using cached data');
+      return;
+    }
+    try {
+      this.loadingTarget.hidden = false;
+      this.memberInfoTarget.hidden = true;
+      const response = await fetch(this.urlValue, this.optionsForFetch());
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      console.log('Hub data loaded:', data);
+      this.hubData = data;
+      this.renderHubData(data);
+    } catch (error) {
+      console.error('Error loading hub data:', error);
+      this.showError('Unable to load hub data. Please try again.');
+    } finally {
+      this.loadingTarget.hidden = true;
+    }
+  }
+
+  /**
+   * Render hub data to UI
+   * Updates all sections with loaded data
+   * 
+   * @param {Object} data - Hub data from API
+   */
+  renderHubData(data) {
+    // Update member information
+    if (data.member) {
+      this.memberNameTarget.textContent = `${data.member.first_name} ${data.member.last_name}`;
+      this.scaNameTarget.textContent = data.member.sca_name;
+
+      // Update membership status
+      if (data.member.membership_expires_on) {
+        const expiresDate = new Date(data.member.membership_expires_on);
+        const isPast = expiresDate < new Date();
+        this.membershipStatusTarget.textContent = isPast ? 'Expired' : 'Current';
+        this.membershipStatusTarget.className = isPast ? 'text-danger' : 'text-success';
+      } else {
+        this.membershipStatusTarget.textContent = 'Unknown';
+      }
+      this.memberInfoTarget.hidden = false;
+    }
+
+    // Update authorization count
+    if (data.authorizations) {
+      const currentAuthCount = data.authorizations.filter(auth => auth.status === 'approved' && new Date(auth.expires_on) > new Date()).length;
+      this.authCountTarget.textContent = currentAuthCount;
+    }
+
+    // Update pending requests
+    if (data.pendingRequests && data.pendingRequests.length > 0) {
+      this.renderPendingRequests(data.pendingRequests);
+      this.pendingRequestsTarget.hidden = false;
+    }
+
+    // Show/hide approval section based on permissions
+    if (data.approvalQueue && data.approvalQueue.length > 0) {
+      this.approvalCountTarget.textContent = data.approvalQueue.length;
+      this.approvalSectionTarget.hidden = false;
+    } else if (data.canApprove) {
+      this.approvalSectionTarget.hidden = false;
+    }
+
+    // Show/hide waiver section based on permissions
+    if (data.canSubmitWaivers && data.gatherings && data.gatherings.length > 0) {
+      this.renderGatherings(data.gatherings);
+      this.waiverSectionTarget.hidden = false;
+    } else if (data.canSubmitWaivers) {
+      this.waiverSectionTarget.hidden = false;
+    }
+
+    // Update last update time
+    this.lastUpdateTarget.textContent = new Date().toLocaleString();
+  }
+
+  /**
+   * Render pending authorization requests
+   * 
+   * @param {Array} requests - Array of pending requests
+   */
+  renderPendingRequests(requests) {
+    const html = requests.map(request => `
+            <div class="alert alert-info mb-2">
+                <strong>${request.activity_name}</strong><br>
+                <small>Requested: ${new Date(request.requested_on).toLocaleDateString()}</small>
+                <br><small>Approver: ${request.approver_name}</small>
+            </div>
+        `).join('');
+    this.pendingRequestsListTarget.innerHTML = html;
+  }
+
+  /**
+   * Render gatherings list
+   * 
+   * @param {Array} gatherings - Array of gatherings
+   */
+  renderGatherings(gatherings) {
+    const html = gatherings.map(gathering => `
+            <div class="alert alert-secondary mb-2">
+                <strong>${gathering.name}</strong><br>
+                <small>${new Date(gathering.start_date).toLocaleDateString()} - 
+                       ${new Date(gathering.end_date).toLocaleDateString()}</small>
+            </div>
+        `).join('');
+    this.gatheringsListContentTarget.innerHTML = html;
+    this.gatheringsListTarget.hidden = false;
+  }
+
+  /**
+   * View member authorization card
+   * Navigates to card view
+   */
+  viewCard(event) {
+    event.preventDefault();
+    console.log('Viewing card');
+
+    // Extract token from URL and navigate to card view
+    const urlParts = this.urlValue.split('/');
+    const token = urlParts[urlParts.length - 1].replace('Json', '');
+    window.location.href = `/members/view-mobile-card/${token}`;
+  }
+
+  /**
+   * Show authorization request interface
+   * TODO: Implement authorization request modal/view
+   */
+  showAuthRequest(event) {
+    event.preventDefault();
+    console.log('Showing authorization request');
+
+    // For now, show alert - will be replaced with modal/dedicated view
+    alert('Authorization request feature coming soon!\n\nThis will allow you to:\n- Browse available activities\n- Select an approver\n- Submit your request');
+  }
+
+  /**
+   * Show approval queue interface
+   * TODO: Implement approval queue modal/view
+   */
+  showApprovals(event) {
+    event.preventDefault();
+    console.log('Showing approval queue');
+
+    // For now, show alert - will be replaced with modal/dedicated view
+    alert('Approval queue feature coming soon!\n\nThis will allow you to:\n- View pending approval requests\n- Review member qualifications\n- Approve or deny requests');
+  }
+
+  /**
+   * Show waiver submission interface
+   * TODO: Implement waiver submission modal/view
+   */
+  showWaiverSubmit(event) {
+    event.preventDefault();
+    console.log('Showing waiver submission');
+
+    // For now, show alert - will be replaced with modal/dedicated view
+    alert('Waiver submission feature coming soon!\n\nThis will allow you to:\n- Select a gathering\n- Upload signed waiver documents\n- Track submission status');
+  }
+
+  /**
+   * Refresh hub data
+   * Manually reloads all hub data
+   */
+  refresh(event) {
+    event.preventDefault();
+    console.log('Refreshing hub data');
+    if (!this.isOnline) {
+      alert('Cannot refresh while offline');
+      return;
+    }
+
+    // Add visual feedback
+    this.refreshBtnTarget.disabled = true;
+    this.refreshBtnTarget.innerHTML = '<i class="bi bi-arrow-clockwise spinner-border spinner-border-sm"></i> Refreshing...';
+    this.loadHubData().finally(() => {
+      this.refreshBtnTarget.disabled = false;
+      this.refreshBtnTarget.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Refresh Data';
+    });
+  }
+
+  /**
+   * Show error message
+   * 
+   * @param {String} message - Error message to display
+   */
+  showError(message) {
+    // Create temporary error alert
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-danger m-3';
+    alert.innerHTML = `
+            <i class="bi bi-exclamation-triangle"></i> ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+
+    // Insert after status bar
+    if (this.hasStatusBarTarget) {
+      this.statusBarTarget.after(alert);
+    }
+
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => alert.remove(), 5000);
+  }
+
+  /**
+   * Configure fetch options for AJAX requests
+   * 
+   * @return {Object} Fetch options
+   */
+  optionsForFetch() {
+    return {
+      method: 'GET',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      credentials: 'same-origin'
+    };
+  }
+}
+
+// Register controller globally
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["mobile-hub"] = MobileHub;
 
 /***/ }),
 
@@ -43853,10 +44244,11 @@ __webpack_require__.r(__webpack_exports__);
  * @extends {Controller}
  */
 class AwardsRecommendationAddForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
-  static targets = ["scaMember", "notFound", "branch", "externalLinks", "awardDescriptions", "award", "reason", "events", "specialty"];
+  static targets = ["scaMember", "notFound", "branch", "externalLinks", "awardDescriptions", "award", "reason", "gatherings", "specialty"];
   static values = {
     publicProfileUrl: String,
-    awardListUrl: String
+    awardListUrl: String,
+    gatheringsUrl: String
   };
 
   /**
@@ -43879,6 +44271,7 @@ class AwardsRecommendationAddForm extends _hotwired_stimulus__WEBPACK_IMPORTED_M
    * 
    * Handles award selection from tabbed interface and triggers specialty
    * population based on award configuration and requirements.
+   * Also updates the gatherings list to show only relevant gatherings.
    * 
    * @param {Event} event - Click event from award selection tab
    * @returns {void}
@@ -43887,6 +44280,53 @@ class AwardsRecommendationAddForm extends _hotwired_stimulus__WEBPACK_IMPORTED_M
     let awardId = event.target.dataset.awardId;
     this.awardTarget.value = awardId;
     this.populateSpecialties(event);
+    this.updateGatherings(awardId);
+  }
+
+  /**
+   * Update gatherings list based on selected award
+   * 
+   * Fetches and updates the gatherings list to show only gatherings
+   * that have activities linked to the selected award. Marks gatherings
+   * where the member has indicated attendance with crown sharing.
+   * 
+   * @param {string} awardId - The selected award ID
+   * @returns {void}
+   */
+  updateGatherings(awardId) {
+    if (!awardId || !this.hasGatheringsTarget) {
+      return;
+    }
+
+    // Get member_id if available
+    let memberId = this.hasScaMemberTarget ? this.scaMemberTarget.value : '';
+
+    // Build URL with query params
+    let url = this.gatheringsUrlValue + '/' + awardId;
+    if (memberId) {
+      url += '?member_id=' + memberId;
+    }
+    fetch(url, this.optionsForFetch()).then(response => response.json()).then(data => {
+      if (data.gatherings) {
+        // Clear existing options
+        while (this.gatheringsTarget.options.length > 0) {
+          this.gatheringsTarget.options.remove(0);
+        }
+
+        // Add new options
+        data.gatherings.forEach(gathering => {
+          let option = document.createElement('option');
+          option.value = gathering.id;
+          option.text = gathering.display;
+          this.gatheringsTarget.options.add(option);
+        });
+
+        // Enable the gatherings field if there are options
+        this.gatheringsTarget.disabled = data.gatherings.length === 0;
+      }
+    }).catch(error => {
+      console.error('Error fetching gatherings:', error);
+    });
   }
 
   /**
@@ -44382,11 +44822,12 @@ __webpack_require__.r(__webpack_exports__);
  * @extends {Controller}
  */
 class AwardsRecommendationBulkEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
-  static targets = ["bulkIds", "events", "state", "planToGiveBlock", "planToGiveEvent", "givenBlock", "recId", "turboFrame", "givenDate", "closeReason", "closeReasonBlock", "stateRulesBlock"];
+  static targets = ["bulkIds", "gatherings", "state", "planToGiveBlock", "planToGiveGathering", "givenBlock", "recId", "turboFrame", "givenDate", "closeReason", "closeReasonBlock", "stateRulesBlock"];
   static values = {
     formUrl: String,
     turboFrameUrl: String,
-    bulkIds: Array
+    bulkIds: Array,
+    gatheringsUrl: String
   };
   static outlets = ['outlet-btn'];
 
@@ -44417,7 +44858,69 @@ class AwardsRecommendationBulkEditForm extends _hotwired_stimulus__WEBPACK_IMPOR
     actionUrl = actionUrl.replace(/update-states/, "updateStates");
     this.element.setAttribute("action", actionUrl);
     console.log("setId", this.element["action"]);
+
+    // Update gatherings list based on selected recommendations
+    this.updateGatherings();
     return;
+  }
+
+  /**
+   * Update gatherings dropdown based on selected recommendations and status
+   * 
+   * Makes AJAX call to fetch gatherings that can give ALL selected awards
+   * based on the intersection of their gathering activities.
+   * 
+   * @returns {void}
+   */
+  async updateGatherings() {
+    // Need both IDs and URL to fetch gatherings
+    if (!this.bulkIdsValue || this.bulkIdsValue.length === 0 || !this.gatheringsUrlValue) {
+      return;
+    }
+    const status = this.stateTarget.value;
+    const currentSelection = this.planToGiveGatheringTarget.value;
+    try {
+      const response = await fetch(this.gatheringsUrlValue, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({
+          ids: this.bulkIdsValue,
+          status: status
+        })
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+
+      // Clear existing options except the first (empty) one
+      while (this.planToGiveGatheringTarget.options.length > 1) {
+        this.planToGiveGatheringTarget.remove(1);
+      }
+
+      // Add new options
+      if (data.gatherings && data.gatherings.length > 0) {
+        data.gatherings.forEach(gathering => {
+          const option = document.createElement('option');
+          option.value = gathering.id;
+          option.textContent = gathering.display_name;
+          this.planToGiveGatheringTarget.appendChild(option);
+        });
+
+        // Restore previous selection if it still exists
+        if (currentSelection) {
+          const optionExists = Array.from(this.planToGiveGatheringTarget.options).some(opt => opt.value === currentSelection);
+          if (optionExists) {
+            this.planToGiveGatheringTarget.value = currentSelection;
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching gatherings:', error);
+    }
   }
 
   /**
@@ -44485,7 +44988,7 @@ class AwardsRecommendationBulkEditForm extends _hotwired_stimulus__WEBPACK_IMPOR
     var rules = JSON.parse(rulesstring);
     this.planToGiveBlockTarget.style.display = "none";
     this.givenBlockTarget.style.display = "none";
-    this.planToGiveEventTarget.required = false;
+    this.planToGiveGatheringTarget.required = false;
     this.givenDateTarget.required = false;
     this.closeReasonBlockTarget.style.display = "none";
     this.closeReasonTarget.required = false;
@@ -44517,6 +45020,9 @@ class AwardsRecommendationBulkEditForm extends _hotwired_stimulus__WEBPACK_IMPOR
         });
       }
     }
+
+    // Update gatherings list when status changes (affects future vs all gatherings)
+    this.updateGatherings();
   }
 
   /**
@@ -44754,12 +45260,13 @@ __webpack_require__.r(__webpack_exports__);
  * @extends {Controller}
  */
 class AwardsRecommendationEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
-  static targets = ["scaMember", "notFound", "branch", "externalLinks", "domain", "award", "reason", "events", "specialty", "state", "planToGiveBlock", "planToGiveEvent", "givenBlock", "recId", "turboFrame", "givenDate", "closeReason", "closeReasonBlock", "stateRulesBlock"];
+  static targets = ["scaMember", "notFound", "branch", "externalLinks", "domain", "award", "reason", "gatherings", "specialty", "state", "planToGiveBlock", "planToGiveGathering", "givenBlock", "recId", "turboFrame", "givenDate", "closeReason", "closeReasonBlock", "stateRulesBlock"];
   static values = {
     publicProfileUrl: String,
     awardListUrl: String,
     formUrl: String,
-    turboFrameUrl: String
+    turboFrameUrl: String,
+    gatheringsUrl: String
   };
   static outlets = ['outlet-btn'];
 
@@ -44824,6 +45331,7 @@ class AwardsRecommendationEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_
    * 
    * Handles award selection and triggers specialty population based on
    * award configuration with existing data preservation.
+   * Also updates the gatherings list to show only relevant gatherings.
    * 
    * @param {Event} event - Click event from award selection
    * @returns {void}
@@ -44833,7 +45341,119 @@ class AwardsRecommendationEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_
     this.awardTarget.value = awardId;
     if (this.awardTarget.value != "") {
       this.populateSpecialties(event);
+      this.updateGatherings(awardId);
     }
+  }
+
+  /**
+   * Update gatherings list based on selected award
+   * 
+   * Fetches and updates the gatherings list to show only gatherings
+   * that have activities linked to the selected award. Marks gatherings
+   * where the member has indicated attendance with crown sharing.
+   * If status is "Given", shows all gatherings (past and future).
+   * 
+   * @param {string} awardId - The selected award ID
+   * @returns {void}
+   */
+  updateGatherings(awardId) {
+    if (!awardId) {
+      return;
+    }
+
+    // Get member_id if available
+    let memberId = this.hasScaMemberTarget ? this.scaMemberTarget.value : '';
+
+    // Get status if available
+    let status = this.hasStateTarget ? this.stateTarget.value : '';
+
+    // Build URL with query params
+    let url = this.gatheringsUrlValue + '/' + awardId;
+    let params = new URLSearchParams();
+    if (memberId) {
+      params.append('member_id', memberId);
+    }
+    if (status) {
+      params.append('status', status);
+    }
+    if (params.toString()) {
+      url += '?' + params.toString();
+    }
+    fetch(url, this.optionsForFetch()).then(response => response.json()).then(data => {
+      if (data.gatherings) {
+        // Update the gatherings checkboxes
+        const gatheringsContainer = document.getElementById('recommendation__gathering_ids');
+        if (gatheringsContainer) {
+          // Save currently selected values
+          const selectedValues = [];
+          gatheringsContainer.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
+            selectedValues.push(cb.value);
+          });
+
+          // Clear existing options
+          gatheringsContainer.innerHTML = '';
+
+          // Add new options as checkboxes
+          data.gatherings.forEach(gathering => {
+            const div = document.createElement('div');
+            div.className = 'form-check';
+            const input = document.createElement('input');
+            input.type = 'checkbox';
+            input.className = 'form-check-input';
+            input.name = 'gatherings[_ids][]';
+            input.value = gathering.id;
+            input.id = `gathering-${gathering.id}`;
+
+            // Restore checked state if it was previously selected
+            if (selectedValues.includes(gathering.id.toString())) {
+              input.checked = true;
+            }
+            const label = document.createElement('label');
+            label.className = 'form-check-label';
+            label.htmlFor = `gathering-${gathering.id}`;
+            label.textContent = gathering.display;
+            div.appendChild(input);
+            div.appendChild(label);
+            gatheringsContainer.appendChild(div);
+          });
+        }
+
+        // Also update the planToGiveGathering dropdown if it exists
+        if (this.hasPlanToGiveGatheringTarget) {
+          // Try to get current value, fallback to initial value stored on connect
+          const currentValue = this.planToGiveGatheringTarget.value || this.planToGiveGatheringTarget.dataset.initialValue || '';
+
+          // Clear existing options
+          this.planToGiveGatheringTarget.innerHTML = '';
+
+          // Add default option
+          const defaultOption = document.createElement('option');
+          defaultOption.value = '';
+          defaultOption.textContent = 'Select Gathering';
+          this.planToGiveGatheringTarget.appendChild(defaultOption);
+
+          // Add gathering options
+          data.gatherings.forEach(gathering => {
+            const option = document.createElement('option');
+            option.value = gathering.id;
+            option.textContent = gathering.display;
+
+            // Restore selected state if it matches current or initial value
+            if (gathering.id.toString() === currentValue) {
+              option.selected = true;
+            }
+            this.planToGiveGatheringTarget.appendChild(option);
+          });
+
+          // Update the stored value for next time
+          if (currentValue) {
+            this.planToGiveGatheringTarget.dataset.initialValue = currentValue;
+          }
+        }
+      }
+    }).catch(error => {
+      console.error('Error fetching gatherings:', error);
+    });
   }
 
   /**
@@ -45061,12 +45681,26 @@ class AwardsRecommendationEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_
     }
     this.planToGiveBlockTarget.style.display = "none";
     this.givenBlockTarget.style.display = "none";
-    this.givenDateTarget.value = "";
+
+    // Store the current givenDate value before potentially clearing it
+    if (this.givenDateTarget.value && !this.givenDateTarget.dataset.initialValue) {
+      this.givenDateTarget.dataset.initialValue = this.givenDateTarget.value;
+    }
+
+    // Only clear givenDate if it doesn't have an initial value stored
+    if (!this.givenDateTarget.dataset.initialValue) {
+      this.givenDateTarget.value = "";
+    } else {
+      // Restore the initial value if it was cleared
+      if (!this.givenDateTarget.value) {
+        this.givenDateTarget.value = this.givenDateTarget.dataset.initialValue;
+      }
+    }
     this.domainTarget.disabled = false;
     this.awardTarget.disabled = false;
     this.specialtyTarget.disabled = this.specialtyTarget.hidden;
     this.scaMemberTarget.disabled = false;
-    this.planToGiveEventTarget.required = false;
+    this.planToGiveGatheringTarget.required = false;
     this.givenDateTarget.required = false;
     this.closeReasonBlockTarget.style.display = "none";
     this.closeReasonTarget.required = false;
@@ -45105,6 +45739,11 @@ class AwardsRecommendationEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_
         });
       }
     }
+
+    // Update gatherings when state changes (e.g., to/from "Given")
+    if (this.hasAwardTarget && this.awardTarget.value) {
+      this.updateGatherings(this.awardTarget.value);
+    }
   }
 
   /**
@@ -45115,7 +45754,12 @@ class AwardsRecommendationEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_
    * 
    * @returns {void}
    */
-  connect() {}
+  connect() {
+    // Store the initial gathering_id value so it persists through option updates
+    if (this.hasPlanToGiveGatheringTarget && this.planToGiveGatheringTarget.value) {
+      this.planToGiveGatheringTarget.dataset.initialValue = this.planToGiveGatheringTarget.value;
+    }
+  }
 
   /**
    * Handle recommendation ID target connection
@@ -45132,6 +45776,36 @@ class AwardsRecommendationEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_
     actionUrl = actionUrl.replace(/\/\d+$/, "");
     actionUrl = actionUrl + "/" + recId;
     this.element.setAttribute("action", actionUrl);
+  }
+
+  /**
+   * Handle planToGiveGathering target connection
+   * 
+   * Stores the initial gathering_id value when the field connects so it
+   * persists through dynamic option updates.
+   * 
+   * @returns {void}
+   */
+  planToGiveGatheringTargetConnected() {
+    // Store the initial value from the server-rendered form
+    if (this.planToGiveGatheringTarget.value) {
+      this.planToGiveGatheringTarget.dataset.initialValue = this.planToGiveGatheringTarget.value;
+    }
+  }
+
+  /**
+   * Handle givenDate target connection
+   * 
+   * Stores the initial given date value when the field connects so it
+   * persists through field rule updates.
+   * 
+   * @returns {void}
+   */
+  givenDateTargetConnected() {
+    // Store the initial value from the server-rendered form
+    if (this.givenDateTarget.value) {
+      this.givenDateTarget.dataset.initialValue = this.givenDateTarget.value;
+    }
   }
 }
 // add to window.Controllers with a name of the controller
@@ -45326,12 +46000,13 @@ __webpack_require__.r(__webpack_exports__);
  * @extends {Controller}
  */
 class AwardsRecommendationQuickEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
-  static targets = ["domain", "award", "reason", "events", "specialty", "state", "planToGiveBlock", "planToGiveEvent", "givenBlock", "recId", "turboFrame", "givenDate", "closeReason", "closeReasonBlock", "stateRulesBlock"];
+  static targets = ["domain", "award", "reason", "gatherings", "specialty", "state", "planToGiveBlock", "planToGiveGathering", "givenBlock", "recId", "memberId", "turboFrame", "givenDate", "closeReason", "closeReasonBlock", "stateRulesBlock"];
   static values = {
     publicProfileUrl: String,
     awardListUrl: String,
     formUrl: String,
-    turboFrameUrl: String
+    turboFrameUrl: String,
+    gatheringsUrl: String
   };
   static outlets = ['outlet-btn'];
 
@@ -45396,6 +46071,7 @@ class AwardsRecommendationQuickEditForm extends _hotwired_stimulus__WEBPACK_IMPO
    * 
    * Handles award selection and triggers specialty population for
    * quick editing with existing data preservation.
+   * Also updates the gatherings list to show only relevant gatherings.
    * 
    * @param {Event} event - Click event from award selection
    * @returns {void}
@@ -45405,7 +46081,119 @@ class AwardsRecommendationQuickEditForm extends _hotwired_stimulus__WEBPACK_IMPO
     this.awardTarget.value = awardId;
     if (this.awardTarget.value != "") {
       this.populateSpecialties(event);
+      this.updateGatherings(awardId);
     }
+  }
+
+  /**
+   * Update gatherings list based on selected award
+   * 
+   * Fetches and updates the gatherings list to show only gatherings
+   * that have activities linked to the selected award. Marks gatherings
+   * where the member has indicated attendance with crown sharing.
+   * If status is "Given", shows all gatherings (past and future).
+   * 
+   * @param {string} awardId - The selected award ID
+   * @returns {void}
+   */
+  updateGatherings(awardId) {
+    if (!awardId) {
+      return;
+    }
+
+    // Get member_id if available
+    let memberId = this.hasMemberIdTarget ? this.memberIdTarget.value : '';
+
+    // Get status if available
+    let status = this.hasStateTarget ? this.stateTarget.value : '';
+
+    // Build URL with query params
+    let url = this.gatheringsUrlValue + '/' + awardId;
+    let params = new URLSearchParams();
+    if (memberId) {
+      params.append('member_id', memberId);
+    }
+    if (status) {
+      params.append('status', status);
+    }
+    if (params.toString()) {
+      url += '?' + params.toString();
+    }
+    fetch(url, this.optionsForFetch()).then(response => response.json()).then(data => {
+      if (data.gatherings) {
+        // Update the gatherings checkboxes
+        const gatheringsContainer = document.getElementById('recommendation__gathering_ids');
+        if (gatheringsContainer) {
+          // Save currently selected values
+          const selectedValues = [];
+          gatheringsContainer.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
+            selectedValues.push(cb.value);
+          });
+
+          // Clear existing options
+          gatheringsContainer.innerHTML = '';
+
+          // Add new options as checkboxes
+          data.gatherings.forEach(gathering => {
+            const div = document.createElement('div');
+            div.className = 'form-check';
+            const input = document.createElement('input');
+            input.type = 'checkbox';
+            input.className = 'form-check-input';
+            input.name = 'gatherings[_ids][]';
+            input.value = gathering.id;
+            input.id = `gathering-${gathering.id}`;
+
+            // Restore checked state if it was previously selected
+            if (selectedValues.includes(gathering.id.toString())) {
+              input.checked = true;
+            }
+            const label = document.createElement('label');
+            label.className = 'form-check-label';
+            label.htmlFor = `gathering-${gathering.id}`;
+            label.textContent = gathering.display;
+            div.appendChild(input);
+            div.appendChild(label);
+            gatheringsContainer.appendChild(div);
+          });
+        }
+
+        // Also update the planToGiveGathering dropdown if it exists
+        if (this.hasPlanToGiveGatheringTarget) {
+          // Try to get current value, fallback to initial value stored on connect
+          const currentValue = this.planToGiveGatheringTarget.value || this.planToGiveGatheringTarget.dataset.initialValue || '';
+
+          // Clear existing options
+          this.planToGiveGatheringTarget.innerHTML = '';
+
+          // Add default option
+          const defaultOption = document.createElement('option');
+          defaultOption.value = '';
+          defaultOption.textContent = 'Select Gathering';
+          this.planToGiveGatheringTarget.appendChild(defaultOption);
+
+          // Add gathering options
+          data.gatherings.forEach(gathering => {
+            const option = document.createElement('option');
+            option.value = gathering.id;
+            option.textContent = gathering.display;
+
+            // Restore selected state if it matches current or initial value
+            if (gathering.id.toString() === currentValue) {
+              option.selected = true;
+            }
+            this.planToGiveGatheringTarget.appendChild(option);
+          });
+
+          // Update the stored value for next time
+          if (currentValue) {
+            this.planToGiveGatheringTarget.dataset.initialValue = currentValue;
+          }
+        }
+      }
+    }).catch(error => {
+      console.error('Error fetching gatherings:', error);
+    });
   }
 
   /**
@@ -45563,11 +46351,25 @@ class AwardsRecommendationQuickEditForm extends _hotwired_stimulus__WEBPACK_IMPO
     }
     this.planToGiveBlockTarget.style.display = "none";
     this.givenBlockTarget.style.display = "none";
-    this.givenDateTarget.value = "";
+
+    // Store the current givenDate value before potentially clearing it
+    if (this.givenDateTarget.value && !this.givenDateTarget.dataset.initialValue) {
+      this.givenDateTarget.dataset.initialValue = this.givenDateTarget.value;
+    }
+
+    // Only clear givenDate if it doesn't have an initial value stored
+    if (!this.givenDateTarget.dataset.initialValue) {
+      this.givenDateTarget.value = "";
+    } else {
+      // Restore the initial value if it was cleared
+      if (!this.givenDateTarget.value) {
+        this.givenDateTarget.value = this.givenDateTarget.dataset.initialValue;
+      }
+    }
     this.domainTarget.disabled = false;
     this.awardTarget.disabled = false;
     this.specialtyTarget.disabled = this.specialtyTarget.hidden;
-    this.planToGiveEventTarget.required = false;
+    this.planToGiveGatheringTarget.required = false;
     this.givenDateTarget.required = false;
     this.closeReasonBlockTarget.style.display = "none";
     this.closeReasonTarget.required = false;
@@ -45599,6 +46401,11 @@ class AwardsRecommendationQuickEditForm extends _hotwired_stimulus__WEBPACK_IMPO
         });
       }
     }
+
+    // Update gatherings when state changes (e.g., to/from "Given")
+    if (this.hasAwardTarget && this.awardTarget.value) {
+      this.updateGatherings(this.awardTarget.value);
+    }
   }
 
   /**
@@ -45609,7 +46416,12 @@ class AwardsRecommendationQuickEditForm extends _hotwired_stimulus__WEBPACK_IMPO
    * 
    * @returns {void}
    */
-  connect() {}
+  connect() {
+    // Store the initial gathering_id value so it persists through option updates
+    if (this.hasPlanToGiveGatheringTarget && this.planToGiveGatheringTarget.value) {
+      this.planToGiveGatheringTarget.dataset.initialValue = this.planToGiveGatheringTarget.value;
+    }
+  }
 
   /**
    * Handle recommendation ID target connection for quick edit
@@ -45626,6 +46438,36 @@ class AwardsRecommendationQuickEditForm extends _hotwired_stimulus__WEBPACK_IMPO
     actionUrl = actionUrl.replace(/\/\d+$/, "");
     actionUrl = actionUrl + "/" + recId;
     this.element.setAttribute("action", actionUrl);
+  }
+
+  /**
+   * Handle planToGiveGathering target connection for quick edit
+   * 
+   * Stores the initial gathering_id value when the field connects so it
+   * persists through dynamic option updates.
+   * 
+   * @returns {void}
+   */
+  planToGiveGatheringTargetConnected() {
+    // Store the initial value from the server-rendered form
+    if (this.planToGiveGatheringTarget.value) {
+      this.planToGiveGatheringTarget.dataset.initialValue = this.planToGiveGatheringTarget.value;
+    }
+  }
+
+  /**
+   * Handle givenDate target connection for quick edit
+   * 
+   * Stores the initial given date value when the field connects so it
+   * persists through field rule updates.
+   * 
+   * @returns {void}
+   */
+  givenDateTargetConnected() {
+    // Store the initial value from the server-rendered form
+    if (this.givenDateTarget.value) {
+      this.givenDateTarget.dataset.initialValue = this.givenDateTarget.value;
+    }
   }
 }
 // add to window.Controllers with a name of the controller
@@ -50638,7 +51480,7 @@ window.Controllers["waiver-upload-wizard"] = WaiverUploadWizardController;
 },
 /******/ function(__webpack_require__) { // webpackRuntimeModules
 /******/ var __webpack_exec__ = function(moduleId) { return __webpack_require__(__webpack_require__.s = moduleId); }
-/******/ __webpack_require__.O(0, ["js/core","css/app","css/waivers","css/dashboard","css/cover","css/signin","css/waiver-upload"], function() { return __webpack_exec__("./assets/js/controllers/activity-toggle-controller.js"), __webpack_exec__("./assets/js/controllers/activity-waiver-manager-controller.js"), __webpack_exec__("./assets/js/controllers/add-activity-modal-controller.js"), __webpack_exec__("./assets/js/controllers/app-setting-form-controller.js"), __webpack_exec__("./assets/js/controllers/auto-complete-controller.js"), __webpack_exec__("./assets/js/controllers/branch-links-controller.js"), __webpack_exec__("./assets/js/controllers/csv-download-controller.js"), __webpack_exec__("./assets/js/controllers/delayed-forward-controller.js"), __webpack_exec__("./assets/js/controllers/delete-confirmation-controller.js"), __webpack_exec__("./assets/js/controllers/detail-tabs-controller.js"), __webpack_exec__("./assets/js/controllers/edit-activity-description-controller.js"), __webpack_exec__("./assets/js/controllers/file-size-validator-controller.js"), __webpack_exec__("./assets/js/controllers/filter-grid-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-clone-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-form-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-location-autocomplete-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-map-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-type-form-controller.js"), __webpack_exec__("./assets/js/controllers/guifier-controller.js"), __webpack_exec__("./assets/js/controllers/image-preview-controller.js"), __webpack_exec__("./assets/js/controllers/kanban-controller.js"), __webpack_exec__("./assets/js/controllers/markdown-editor-controller.js"), __webpack_exec__("./assets/js/controllers/member-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-pwa-controller.js"), __webpack_exec__("./assets/js/controllers/member-unique-email-controller.js"), __webpack_exec__("./assets/js/controllers/member-verify-form-controller.js"), __webpack_exec__("./assets/js/controllers/modal-opener-controller.js"), __webpack_exec__("./assets/js/controllers/nav-bar-controller.js"), __webpack_exec__("./assets/js/controllers/outlet-button-controller.js"), __webpack_exec__("./assets/js/controllers/permission-add-role-controller.js"), __webpack_exec__("./assets/js/controllers/permission-manage-policies-controller.js"), __webpack_exec__("./assets/js/controllers/revoke-form-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-member-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-permission-controller.js"), __webpack_exec__("./assets/js/controllers/select-all-switch-list-controller.js"), __webpack_exec__("./assets/js/controllers/session-extender-controller.js"), __webpack_exec__("./assets/js/controllers/turbo-modal-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/gw-sharing-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/renew-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/request-auth-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/award-form-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-add-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-bulk-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-quick-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-table-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/recommendation-kanban-controller.js"), __webpack_exec__("./plugins/Events/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/assign-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/edit-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/office-form-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-search-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-table-controller.js"), __webpack_exec__("./plugins/Template/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/add-requirement-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/camera-capture-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/retention-policy-input-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-template-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-wizard-controller.js"), __webpack_exec__("./assets/css/app.css"), __webpack_exec__("./assets/css/signin.css"), __webpack_exec__("./assets/css/cover.css"), __webpack_exec__("./assets/css/dashboard.css"), __webpack_exec__("./plugins/Waivers/assets/css/waivers.css"), __webpack_exec__("./plugins/Waivers/assets/css/waiver-upload.css"); });
+/******/ __webpack_require__.O(0, ["js/core","css/app","css/waivers","css/dashboard","css/cover","css/signin","css/waiver-upload"], function() { return __webpack_exec__("./assets/js/controllers/activity-toggle-controller.js"), __webpack_exec__("./assets/js/controllers/activity-waiver-manager-controller.js"), __webpack_exec__("./assets/js/controllers/add-activity-modal-controller.js"), __webpack_exec__("./assets/js/controllers/app-setting-form-controller.js"), __webpack_exec__("./assets/js/controllers/auto-complete-controller.js"), __webpack_exec__("./assets/js/controllers/branch-links-controller.js"), __webpack_exec__("./assets/js/controllers/csv-download-controller.js"), __webpack_exec__("./assets/js/controllers/delayed-forward-controller.js"), __webpack_exec__("./assets/js/controllers/delete-confirmation-controller.js"), __webpack_exec__("./assets/js/controllers/detail-tabs-controller.js"), __webpack_exec__("./assets/js/controllers/edit-activity-description-controller.js"), __webpack_exec__("./assets/js/controllers/file-size-validator-controller.js"), __webpack_exec__("./assets/js/controllers/filter-grid-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-clone-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-form-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-location-autocomplete-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-map-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-type-form-controller.js"), __webpack_exec__("./assets/js/controllers/guifier-controller.js"), __webpack_exec__("./assets/js/controllers/image-preview-controller.js"), __webpack_exec__("./assets/js/controllers/kanban-controller.js"), __webpack_exec__("./assets/js/controllers/markdown-editor-controller.js"), __webpack_exec__("./assets/js/controllers/member-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-pwa-controller.js"), __webpack_exec__("./assets/js/controllers/member-unique-email-controller.js"), __webpack_exec__("./assets/js/controllers/member-verify-form-controller.js"), __webpack_exec__("./assets/js/controllers/mobile-hub-controller.js"), __webpack_exec__("./assets/js/controllers/modal-opener-controller.js"), __webpack_exec__("./assets/js/controllers/nav-bar-controller.js"), __webpack_exec__("./assets/js/controllers/outlet-button-controller.js"), __webpack_exec__("./assets/js/controllers/permission-add-role-controller.js"), __webpack_exec__("./assets/js/controllers/permission-manage-policies-controller.js"), __webpack_exec__("./assets/js/controllers/revoke-form-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-member-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-permission-controller.js"), __webpack_exec__("./assets/js/controllers/select-all-switch-list-controller.js"), __webpack_exec__("./assets/js/controllers/session-extender-controller.js"), __webpack_exec__("./assets/js/controllers/turbo-modal-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/gw-sharing-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/renew-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/request-auth-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/award-form-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-add-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-bulk-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-quick-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-table-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/recommendation-kanban-controller.js"), __webpack_exec__("./plugins/Events/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/assign-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/edit-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/office-form-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-search-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-table-controller.js"), __webpack_exec__("./plugins/Template/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/add-requirement-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/camera-capture-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/retention-policy-input-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-template-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-wizard-controller.js"), __webpack_exec__("./assets/css/app.css"), __webpack_exec__("./assets/css/signin.css"), __webpack_exec__("./assets/css/cover.css"), __webpack_exec__("./assets/css/dashboard.css"), __webpack_exec__("./plugins/Waivers/assets/css/waivers.css"), __webpack_exec__("./plugins/Waivers/assets/css/waiver-upload.css"); });
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);

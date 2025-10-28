@@ -572,6 +572,14 @@ class MembersController extends AppController
                 'PreviousMemberRoles' => function (SelectQuery $q) {
                     return $this->_addRolesSelectAndContain($q);
                 },
+                'GatheringAttendances' => function (SelectQuery $q) {
+                    return $q->contain([
+                        'Gatherings' => function (SelectQuery $q) {
+                            return $q->contain(['Branches', 'GatheringTypes'])
+                                ->orderBy(['Gatherings.start_date' => 'ASC']);
+                        }
+                    ]);
+                },
             ])
             ->where(['Members.id' => $id]);
         //$memberQuery = $this->Members->addJsonWhere($memberQuery, "Members.additional_info", "$.sports", "football");
@@ -621,6 +629,18 @@ class MembersController extends AppController
             Member::STATUS_VERIFIED_MINOR => Member::STATUS_VERIFIED_MINOR,
         ];
         $publicInfo = $member->publicData();
+
+        // Get available gatherings for attendance registration (started or future only)
+        $now = new DateTime();
+        $availableGatherings = $this->Members->GatheringAttendances->Gatherings
+            ->find('list', keyField: 'id', valueField: function ($entity) {
+                return $entity->name . ' (' . $entity->start_date->format('M d, Y') . ')';
+            })
+            ->where(['Gatherings.end_date >=' => $now])
+            ->contain(['Branches', 'GatheringTypes'])
+            ->orderBy(['Gatherings.start_date' => 'ASC'])
+            ->toArray();
+
         $this->set(
             compact(
                 'member',
@@ -632,6 +652,7 @@ class MembersController extends AppController
                 'backUrl',
                 'statusList',
                 'publicInfo',
+                'availableGatherings',
             ),
         );
         $this->viewBuilder()->setTemplate('view');

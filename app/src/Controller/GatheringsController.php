@@ -288,6 +288,15 @@ class GatheringsController extends AppController
             'GatheringTypes' => ['fields' => ['id', 'name', 'clonable']],
             'GatheringActivities',
             'Creators' => ['fields' => ['id', 'sca_name']],
+            'GatheringAttendances' => [
+                'Members' => ['fields' => ['id', 'sca_name']],
+                'conditions' => [
+                    'OR' => [
+                        'GatheringAttendances.share_with_hosting_group' => true,
+                        'GatheringAttendances.is_public' => true,
+                    ]
+                ]
+            ],
         ]);
 
         $this->Authorization->authorize($gathering);
@@ -308,7 +317,23 @@ class GatheringsController extends AppController
             ->orderBy(['name' => 'ASC'])
             ->all();
 
-        $this->set(compact('gathering', 'hasWaivers', 'availableActivities'));
+        // Get total attendance count (all attendance records, including private)
+        $totalAttendanceCount = $this->Gatherings->GatheringAttendances
+            ->find()
+            ->where(['gathering_id' => $id])
+            ->count();
+
+        // Check if current user has an attendance record for this gathering
+        $currentUser = $this->Authentication->getIdentity();
+        $userAttendance = $this->Gatherings->GatheringAttendances
+            ->find()
+            ->where([
+                'gathering_id' => $id,
+                'member_id' => $currentUser->id
+            ])
+            ->first();
+
+        $this->set(compact('gathering', 'hasWaivers', 'availableActivities', 'totalAttendanceCount', 'userAttendance'));
     }
 
     /**

@@ -362,12 +362,16 @@ class GatheringActivityService
 
                 if (count($required) > 0) {
                     // Check if there are active waivers covering this activity
+                    // Exclude declined waivers as they are not valid
                     $hasWaivers = $this->GatheringWaiverActivities->find()
                         ->where([
                             'gathering_activity_id' => $activity->id,
                         ])
                         ->contain(['GatheringWaivers' => function ($q) {
-                            return $q->where(['GatheringWaivers.status' => 'active']);
+                            return $q->where([
+                                'GatheringWaivers.status' => 'active',
+                                'GatheringWaivers.declined_at IS' => null, // Exclude declined waivers
+                            ]);
                         }])
                         ->count() > 0;
 

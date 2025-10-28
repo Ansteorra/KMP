@@ -363,10 +363,21 @@ class RecommendationsTable extends BaseTable
             "targetForeignKey" => "event_id",
             "className" => "Awards.Events",
         ]);
+        $this->belongsToMany("Gatherings", [
+            "joinTable" => "awards_recommendations_events",
+            "foreignKey" => "recommendation_id",
+            "targetForeignKey" => "gathering_id",
+            "className" => "Gatherings",
+        ]);
         $this->belongsTo("AssignedEvent", [
             'foreignKey' => 'event_id',
             'joinType' => 'LEFT',
             "className" => "Awards.Events",
+        ]);
+        $this->belongsTo("AssignedGathering", [
+            'foreignKey' => 'gathering_id',
+            'joinType' => 'LEFT',
+            "className" => "Gatherings",
         ]);
         $this->hasMany("Notes", [
             "foreignKey" => "entity_id",

@@ -15,6 +15,7 @@ use Cake\ORM\RulesChecker;
  * @property \App\Model\Table\GatheringTypesTable&\Cake\ORM\Association\BelongsTo $GatheringTypes
  * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $Creators
  * @property \App\Model\Table\GatheringActivitiesTable&\Cake\ORM\Association\BelongsToMany $GatheringActivities
+ * @property \App\Model\Table\GatheringAttendancesTable&\Cake\ORM\Association\HasMany $GatheringAttendances
  * @property \Waivers\Model\Table\GatheringWaiversTable&\Cake\ORM\Association\HasMany $GatheringWaivers
  *
  * @method \App\Model\Entity\Gathering newEmptyEntity()
@@ -70,6 +71,12 @@ class GatheringsTable extends Table
             'joinTable' => 'gatherings_gathering_activities',
             'through' => 'GatheringsGatheringActivities',
             'sort' => ['GatheringsGatheringActivities.sort_order' => 'ASC'],
+            'dependent' => true,
+        ]);
+
+        // One-to-many relationship with attendance records
+        $this->hasMany('GatheringAttendances', [
+            'foreignKey' => 'gathering_id',
             'dependent' => true,
         ]);
     }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Waivers\Controller;
 
+use App\KMP\StaticHelpers;
 use App\Services\DocumentService;
 use App\Services\ServiceResult;
 use Cake\Http\Exception\BadRequestException;
@@ -68,57 +69,150 @@ class GatheringWaiversController extends AppController
     }
 
     /**
-     * Index method - List waivers for a gathering with counts per waiver type
+     * Index method - List waivers
+     * 
+     * If gathering_id is provided, shows waivers for that specific gathering.
+     * Otherwise, shows all waivers for gatherings the user has permission to view.
      *
      * @return \Cake\Http\Response|null|void Renders view
-     * @throws \Cake\Http\Exception\BadRequestException When gathering_id is missing
      */
     public function index()
     {
         $gatheringId = $this->request->getQuery('gathering_id');
+        $currentUser = $this->Authentication->getIdentity();
 
-        if (!$gatheringId) {
-            throw new BadRequestException(__('Gathering ID is required'));
-        }
+        if ($gatheringId) {
+            // Show waivers for specific gathering
+            $Gatherings = $this->fetchTable('Gatherings');
+            $gathering = $Gatherings->get($gatheringId, [
+                'contain' => [
+                    'GatheringTypes',
+                    'Branches',
+                ],
+            ]);
 
-        // Get gathering with its activities
-        $Gatherings = $this->fetchTable('Gatherings');
-        $gathering = $Gatherings->get($gatheringId, [
-            'contain' => [
-                'GatheringTypes',
-                'Branches',
-                'GatheringActivities',
-            ],
-        ]);
+            $this->Authorization->authorize($gathering, 'view');
 
-        $this->Authorization->authorize($gathering, 'view');
+            // Get all waivers for this gathering
+            $query = $this->GatheringWaivers->find()
+                ->where(['gathering_id' => $gatheringId])
+                ->contain(['WaiverTypes', 'Documents'])
+                ->order(['GatheringWaivers.created' => 'DESC']);
 
-        // Get all waivers for this gathering
-        $query = $this->GatheringWaivers->find()
-            ->where(['gathering_id' => $gatheringId])
-            ->contain(['WaiverTypes', 'Documents'])
-            ->order(['GatheringWaivers.created' => 'DESC']);
+            $gatheringWaivers = $this->paginate($query);
 
-        $gatheringWaivers = $this->paginate($query);
+            // Get required waiver types for this gathering's activities
+            $GatheringActivityWaivers = $this->fetchTable('Waivers.GatheringActivityWaivers');
+            $requiredWaiverTypes = $GatheringActivityWaivers->find()
+                ->innerJoinWith('GatheringActivities.Gatherings', function ($q) use ($gatheringId) {
+                    return $q->where(['Gatherings.id' => $gatheringId]);
+                })
+                ->contain(['WaiverTypes'])
+                ->where(['GatheringActivityWaivers.deleted IS' => null])
+                ->group(['GatheringActivityWaivers.waiver_type_id'])
+                ->all();
 
-        // Calculate waiver counts per type
-        $waiverCounts = $this->GatheringWaivers->find()
-            ->where(['gathering_id' => $gatheringId])
-            ->contain(['WaiverTypes'])
-            ->select([
-                'waiver_type_id',
-                'count' => $query->func()->count('*'),
+            // Calculate waiver counts per type (excluding declined waivers)
+            $waiverCounts = $this->GatheringWaivers->find()
+                ->where([
+                    'gathering_id' => $gatheringId,
+                    'declined_at IS' => null, // Exclude declined waivers from counts
+                ])
+                ->contain(['WaiverTypes'])
+                ->select([
+                    'waiver_type_id',
+                    'count' => $query->func()->count('*'),
+                ])
+                ->group('waiver_type_id')
+                ->toArray();
+
+            // Format counts for easy lookup
+            $countsMap = [];
+            foreach ($waiverCounts as $count) {
+                $countsMap[$count->waiver_type_id] = $count->count;
+            }
+
+            $this->set(compact('gathering', 'gatheringWaivers', 'countsMap', 'requiredWaiverTypes'));
+        } else {
+            // Show all waivers for accessible gatherings
+            $branchIds = $currentUser->getBranchIdsForAction('view', 'Waivers.GatheringWaivers');
+
+            // If user has no permissions, show empty list
+            if (is_array($branchIds) && empty($branchIds)) {
+                $this->Flash->error(__('You do not have permission to view waivers.'));
+                return $this->redirect(['controller' => 'Pages', 'action' => 'display', 'home']);
+            }
+
+            // Get all branches or filtered by permission
+            $Branches = $this->fetchTable('Branches');
+            if ($branchIds === null) {
+                // Global permission - all branches
+                $branchIds = $Branches->find()->select(['id'])->all()->extract('id')->toArray();
+            }
+
+            // Build base query
+            $query = $this->GatheringWaivers->find()
+                ->where(['GatheringWaivers.deleted IS' => null])
+                ->innerJoinWith('Gatherings', function ($q) use ($branchIds) {
+                    return $q->where([
+                        'Gatherings.branch_id IN' => $branchIds,
+                        'Gatherings.deleted IS' => null,
+                    ]);
+                });
+
+            // Apply search filters
+            $searchTerm = $this->request->getQuery('search');
+            $branchId = $this->request->getQuery('branch_id');
+            $startDate = $this->request->getQuery('start_date');
+            $endDate = $this->request->getQuery('end_date');
+
+            if (!empty($searchTerm)) {
+                $query->where([
+                    'OR' => [
+                        'Gatherings.name LIKE' => '%' . $searchTerm . '%',
+                    ],
+                ]);
+            }
+
+            if (!empty($branchId)) {
+                $query->where(['Gatherings.branch_id' => $branchId]);
+            }
+
+            if (!empty($startDate)) {
+                $query->where(['GatheringWaivers.created >=' => $startDate]);
+            }
+
+            if (!empty($endDate)) {
+                // Add one day to include the end date fully
+                $endDateTime = new \Cake\I18n\Date($endDate);
+                $endDateTime = $endDateTime->addDay();
+                $query->where(['GatheringWaivers.created <' => $endDateTime]);
+            }
+
+            $query->contain([
+                'Gatherings' => function ($q) {
+                    return $q->select(['id', 'name', 'start_date', 'end_date', 'branch_id']);
+                },
+                'Gatherings.Branches' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+                'WaiverTypes',
+                'Documents',
             ])
-            ->group('waiver_type_id')
-            ->toArray();
+                ->order(['GatheringWaivers.created' => 'DESC']);
 
-        // Format counts for easy lookup
-        $countsMap = [];
-        foreach ($waiverCounts as $count) {
-            $countsMap[$count->waiver_type_id] = $count->count;
+            $gatheringWaivers = $this->paginate($query);
+
+            // Get list of branches for filter dropdown
+            $branches = $Branches->find('list')
+                ->where(['Branches.id IN' => $branchIds])
+                ->order(['Branches.name' => 'ASC'])
+                ->toArray();
+
+            $this->set(compact('gatheringWaivers', 'branches'));
+            $this->set('gathering', null); // No specific gathering
+            $this->set('countsMap', []); // No counts when viewing all
         }
-
-        $this->set(compact('gathering', 'gatheringWaivers', 'countsMap'));
     }
 
     /**
@@ -136,6 +230,7 @@ class GatheringWaiversController extends AppController
                 'WaiverTypes',
                 'Documents',
                 'GatheringWaiverActivities' => ['GatheringActivities'],
+                'DeclinedByMembers',
             ],
         ]);
 
@@ -951,5 +1046,662 @@ class GatheringWaiversController extends AppController
         }
 
         return $this->redirect($this->referer());
+    }
+
+    /**
+     * Decline method - Decline/reject an invalid waiver
+     *
+     * Allows authorized users to decline waivers that were submitted but are invalid.
+     * Waivers can only be declined within 30 days of upload.
+     *
+     * Requirements:
+     * - User must have decline permission
+     * - Waiver must be within 30 days of upload
+     * - Waiver must not already be declined
+     * - Decline reason must be provided
+     *
+     * @param string|null $id Gathering Waiver id.
+     * @return \Cake\Http\Response|null Redirects on success.
+     * @throws \Cake\Http\Exception\NotFoundException When record not found.
+     */
+    public function decline(?string $id = null)
+    {
+        $this->request->allowMethod(['post', 'put', 'patch']);
+
+        $gatheringWaiver = $this->GatheringWaivers->get($id, [
+            'contain' => ['Gatherings', 'WaiverTypes'],
+        ]);
+
+        $this->Authorization->authorize($gatheringWaiver, 'decline');
+
+        // Check if waiver can be declined
+        if (!$gatheringWaiver->can_be_declined) {
+            if ($gatheringWaiver->is_declined) {
+                $this->Flash->error(__('This waiver has already been declined.'));
+            } elseif ($gatheringWaiver->status === 'expired' || $gatheringWaiver->status === 'deleted') {
+                $this->Flash->error(__('Expired or deleted waivers cannot be declined.'));
+            } else {
+                $this->Flash->error(__('This waiver can no longer be declined. Waivers can only be declined within 30 days of upload.'));
+            }
+            return $this->redirect($this->referer());
+        }
+
+        // Get decline reason from request
+        $declineReason = $this->request->getData('decline_reason');
+
+        if (empty($declineReason)) {
+            $this->Flash->error(__('Please provide a reason for declining this waiver.'));
+            return $this->redirect($this->referer());
+        }
+
+        // Update waiver with decline information
+        $gatheringWaiver->declined_at = new \Cake\I18n\DateTime();
+        $gatheringWaiver->declined_by = $this->Authentication->getIdentity()->getIdentifier();
+        $gatheringWaiver->decline_reason = $declineReason;
+        $gatheringWaiver->status = 'declined';
+
+        if ($this->GatheringWaivers->save($gatheringWaiver)) {
+            $this->Flash->success(__('The waiver has been declined.'));
+
+            // Log the decline action
+            Log::info('Waiver declined', [
+                'waiver_id' => $gatheringWaiver->id,
+                'gathering_id' => $gatheringWaiver->gathering_id,
+                'declined_by' => $gatheringWaiver->declined_by,
+                'decline_reason' => $declineReason,
+            ]);
+        } else {
+            $this->Flash->error(__('The waiver could not be declined. Please, try again.'));
+        }
+
+        return $this->redirect($this->referer());
+    }
+
+    /**
+     * Needing Waivers method - List gatherings that need waivers uploaded
+     *
+     * Shows gatherings where:
+     * - End date is today or in the future
+     * - Have required waivers configured
+     * - Missing at least one required waiver upload
+     * - User has permission to upload waivers for the gathering's branch
+     *
+     * This provides an action list for users with waiver upload permissions.
+     *
+     * @return \Cake\Http\Response|null|void Renders view
+     */
+    public function needingWaivers()
+    {
+        // Authorize access to this action
+        $this->Authorization->authorize($this->request);
+
+        $currentUser = $this->Authentication->getIdentity();
+
+        // Get branches user can upload waivers for
+        $branchIds = $currentUser->getBranchIdsForAction('add', 'Waivers.GatheringWaivers');
+
+        // If user has no branch permissions, show empty list
+        if ($branchIds === null) {
+            // null means global permission - get all branches
+            $Branches = $this->fetchTable('Branches');
+            $branchIds = $Branches->find()->select(['id'])->all()->extract('id')->toArray();
+        } elseif (empty($branchIds)) {
+            // Empty array means no permission
+            $this->set('gatherings', []);
+            return;
+        }
+
+        // Get gatherings that need waivers
+        $Gatherings = $this->fetchTable('Gatherings');
+        $today = Date::now()->toDateString();
+        $oneWeekFromNow = Date::now()->addDays(7)->toDateString();
+
+        // Find gatherings with:
+        // 1. end_date >= today (or null which defaults to start_date) - ongoing or future
+        // 2. If future event: start_date <= one week from now (only show gatherings within the next 7 days)
+        // 3. In branches user has permission for
+        // 4. Have required waivers configured (checked via activities)
+        $query = $Gatherings->find()
+            ->where([
+                'OR' => [
+                    'Gatherings.end_date >=' => $today,
+                    'AND' => [
+                        'Gatherings.end_date IS' => null,
+                        'Gatherings.start_date >=' => $today,
+                    ]
+                ],
+                'OR' => [
+                    'Gatherings.start_date <' => $today, // Already started (past or ongoing)
+                    'Gatherings.start_date <=' => $oneWeekFromNow, // Starts within next 7 days
+                ],
+                'Gatherings.branch_id IN' => $branchIds,
+                'Gatherings.deleted IS' => null,
+            ])
+            ->contain([
+                'Branches',
+                'GatheringTypes',
+                'GatheringActivities' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+            ])
+            ->order(['Gatherings.start_date' => 'ASC', 'Gatherings.name' => 'ASC']);
+
+        $allGatherings = $query->all();
+
+        // Filter to only gatherings that have required waivers and are missing at least one
+        $GatheringActivityWaivers = $this->fetchTable('Waivers.GatheringActivityWaivers');
+        $gatheringsNeedingWaivers = [];
+
+        foreach ($allGatherings as $gathering) {
+            if (empty($gathering->gathering_activities)) {
+                continue; // No activities = no waiver requirements
+            }
+
+            $activityIds = collection($gathering->gathering_activities)->extract('id')->toArray();
+
+            // Get required waiver types for this gathering's activities
+            $requiredWaiverTypes = $GatheringActivityWaivers->find()
+                ->where([
+                    'gathering_activity_id IN' => $activityIds,
+                    'deleted IS' => null,
+                ])
+                ->select(['waiver_type_id'])
+                ->distinct(['waiver_type_id'])
+                ->all()
+                ->extract('waiver_type_id')
+                ->toArray();
+
+            if (empty($requiredWaiverTypes)) {
+                continue; // No required waivers
+            }
+
+            // Get uploaded waiver types for this gathering
+            $uploadedWaiverTypes = $this->GatheringWaivers->find()
+                ->where([
+                    'gathering_id' => $gathering->id,
+                    'deleted IS' => null,
+                    'declined_at IS' => null, // Exclude declined waivers
+                ])
+                ->select(['waiver_type_id'])
+                ->distinct(['waiver_type_id'])
+                ->all()
+                ->extract('waiver_type_id')
+                ->toArray();
+
+            // Check if any required waivers are missing
+            $missingWaiverTypes = array_diff($requiredWaiverTypes, $uploadedWaiverTypes);
+
+            if (!empty($missingWaiverTypes)) {
+                // Load waiver type names
+                $WaiverTypes = $this->fetchTable('Waivers.WaiverTypes');
+                $missingWaiverNames = $WaiverTypes->find()
+                    ->where(['id IN' => $missingWaiverTypes])
+                    ->order(['name' => 'ASC'])
+                    ->all()
+                    ->extract('name')
+                    ->toArray();
+
+                $gathering->missing_waiver_count = count($missingWaiverTypes);
+                $gathering->missing_waiver_names = $missingWaiverNames;
+                $gatheringsNeedingWaivers[] = $gathering;
+            }
+        }
+
+        $this->set(compact('gatheringsNeedingWaivers'));
+    }
+
+    /**
+     * Dashboard method - Comprehensive waiver secretary dashboard
+     *
+     * Provides a centralized view of waiver compliance status including:
+     * - Overall statistics and metrics
+     * - Gatherings missing waivers
+     * - Branches with compliance issues
+     * - Recent waiver activity
+     * - Search functionality
+     *
+     * @return \Cake\Http\Response|null|void Renders dashboard view
+     */
+    public function dashboard()
+    {
+        // Authorize access to dashboard
+        $this->Authorization->authorize($this->request);
+
+        $currentUser = $this->Authentication->getIdentity();
+        $branchIds = $currentUser->getBranchIdsForAction('add', 'Waivers.GatheringWaivers');
+
+        // If user has no permissions, redirect
+        if (is_array($branchIds) && empty($branchIds)) {
+            $this->Flash->error(__('You do not have permission to access the waiver dashboard.'));
+            return $this->redirect(['controller' => 'Pages', 'action' => 'display', 'home']);
+        }
+
+        // Get all branches or filtered by permission
+        $Branches = $this->fetchTable('Branches');
+        if ($branchIds === null) {
+            // Global permission - all branches
+            $branchIds = $Branches->find()->select(['id'])->all()->extract('id')->toArray();
+        }
+
+        // Handle waiver search
+        $searchResults = null;
+        $searchTerm = $this->request->getQuery('search');
+        if ($searchTerm) {
+            $searchResults = $this->_searchWaivers($searchTerm, $branchIds);
+        }
+
+        // Get key statistics
+        $statistics = $this->_getDashboardStatistics($branchIds);
+
+        // Get gatherings with incomplete waivers (separated by status)
+        $waiverGatherings = $this->_getGatheringsWithIncompleteWaivers($branchIds, 30);
+        $gatheringsMissingWaivers = $waiverGatherings['missing']; // Past events (>48hrs after end)
+        $gatheringsNeedingWaivers = $waiverGatherings['upcoming']; // Upcoming/ongoing events
+
+        // Get branches with compliance issues
+        $branchesWithIssues = $this->_getBranchesWithIssues($branchIds);
+
+        // Get recent waiver activity (last 30 days)
+        $recentActivity = $this->_getRecentWaiverActivity($branchIds, 30);
+
+        // Get waiver types summary
+        $waiverTypesSummary = $this->_getWaiverTypesSummary($branchIds);
+
+        // Get compliance days setting
+        $complianceDays = (int)StaticHelpers::getAppSetting('Waivers.ComplianceDays', '2', 'int', false);
+
+        $this->set(compact(
+            'statistics',
+            'gatheringsMissingWaivers',
+            'gatheringsNeedingWaivers',
+            'branchesWithIssues',
+            'recentActivity',
+            'waiverTypesSummary',
+            'searchResults',
+            'searchTerm',
+            'complianceDays'
+        ));
+    }
+
+    /**
+     * Search for waivers across all accessible gatherings
+     *
+     * @param string $searchTerm Search term (gathering name, branch name, member name)
+     * @param array $branchIds Branches the user can access
+     * @return array Search results
+     */
+    private function _searchWaivers(string $searchTerm, array $branchIds): array
+    {
+        $query = $this->GatheringWaivers->find()
+            ->where([
+                'GatheringWaivers.deleted IS' => null,
+                'OR' => [
+                    'Gatherings.name LIKE' => '%' . $searchTerm . '%',
+                    'Branches.name LIKE' => '%' . $searchTerm . '%',
+                    'CreatedByMembers.sca_name LIKE' => '%' . $searchTerm . '%',
+                    'CreatedByMembers.first_name LIKE' => '%' . $searchTerm . '%',
+                    'CreatedByMembers.last_name LIKE' => '%' . $searchTerm . '%',
+                    'WaiverTypes.name LIKE' => '%' . $searchTerm . '%',
+                ],
+            ])
+            ->innerJoinWith('Gatherings.Branches', function ($q) use ($branchIds) {
+                return $q->where([
+                    'Branches.id IN' => $branchIds,
+                    'Branches.deleted IS' => null,
+                ]);
+            })
+            ->innerJoinWith('Gatherings', function ($q) {
+                return $q->where([
+                    'Gatherings.deleted IS' => null,
+                ]);
+            })
+            ->contain([
+                'Gatherings' => function ($q) {
+                    return $q->select(['id', 'name', 'start_date', 'end_date', 'branch_id']);
+                },
+                'Gatherings.Branches' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+                'WaiverTypes' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+                'CreatedByMembers' => function ($q) {
+                    return $q->select(['id', 'sca_name', 'first_name', 'last_name']);
+                },
+            ])
+            ->order(['GatheringWaivers.created' => 'DESC'])
+            ->limit(50);
+
+        return $query->all()->toArray();
+    }
+
+    /**
+     * Get dashboard statistics
+     *
+     * @param array $branchIds Branches to include in statistics
+     * @return array Statistics data
+     */
+    private function _getDashboardStatistics(array $branchIds): array
+    {
+        $Gatherings = $this->fetchTable('Gatherings');
+        $today = Date::now();
+        $thirtyDaysAgo = Date::now()->subDays(30);
+        $thirtyDaysFromNow = Date::now()->addDays(30);
+
+        // Total waivers count
+        $totalWaivers = $this->GatheringWaivers->find()
+            ->innerJoinWith('Gatherings', function ($q) use ($branchIds) {
+                return $q->where([
+                    'Gatherings.branch_id IN' => $branchIds,
+                    'Gatherings.deleted IS' => null,
+                ]);
+            })
+            ->where(['GatheringWaivers.deleted IS' => null])
+            ->count();
+
+        // Waivers uploaded in last 30 days
+        $recentWaivers = $this->GatheringWaivers->find()
+            ->innerJoinWith('Gatherings', function ($q) use ($branchIds) {
+                return $q->where([
+                    'Gatherings.branch_id IN' => $branchIds,
+                    'Gatherings.deleted IS' => null,
+                ]);
+            })
+            ->where([
+                'GatheringWaivers.deleted IS' => null,
+                'GatheringWaivers.created >=' => $thirtyDaysAgo->toDateString(),
+            ])
+            ->count();
+
+        // Declined waivers count
+        $declinedWaivers = $this->GatheringWaivers->find()
+            ->innerJoinWith('Gatherings', function ($q) use ($branchIds) {
+                return $q->where([
+                    'Gatherings.branch_id IN' => $branchIds,
+                    'Gatherings.deleted IS' => null,
+                ]);
+            })
+            ->where([
+                'GatheringWaivers.deleted IS' => null,
+                'GatheringWaivers.declined_at IS NOT' => null,
+            ])
+            ->count();
+
+        // Get gatherings with incomplete waivers
+        $waiverGatherings = $this->_getGatheringsWithIncompleteWaivers($branchIds, 30);
+        $gatheringsMissingCount = count($waiverGatherings['missing']); // Past events
+        $gatheringsNeedingCount = count($waiverGatherings['upcoming']); // Upcoming events
+
+        // Unique branches with gatherings
+        $branchesWithGatherings = $Gatherings->find()
+            ->where([
+                'branch_id IN' => $branchIds,
+                'deleted IS' => null,
+                'start_date >=' => $thirtyDaysAgo->toDateString(),
+            ])
+            ->select(['branch_id'])
+            ->distinct(['branch_id'])
+            ->count();
+
+        return [
+            'totalWaivers' => $totalWaivers,
+            'recentWaivers' => $recentWaivers,
+            'declinedWaivers' => $declinedWaivers,
+            'gatheringsMissingCount' => $gatheringsMissingCount,
+            'gatheringsNeedingCount' => $gatheringsNeedingCount,
+            'branchesWithGatherings' => $branchesWithGatherings,
+        ];
+    }
+
+    /**
+     * Get gatherings with incomplete waivers, separated by status
+     *
+     * Returns two arrays:
+     * - 'missing': Events that ended >ComplianceDays ago without complete waivers (compliance issue)
+     * - 'upcoming': Future/ongoing events without complete waivers (action needed)
+     *
+     * @param array $branchIds Branches to check
+     * @param int $daysAhead How many days ahead to look for upcoming events
+     * @return array Array with 'missing' and 'upcoming' keys
+     */
+    private function _getGatheringsWithIncompleteWaivers(array $branchIds, int $daysAhead): array
+    {
+        $Gatherings = $this->fetchTable('Gatherings');
+        $GatheringActivityWaivers = $this->fetchTable('Waivers.GatheringActivityWaivers');
+        $today = Date::now();
+        $todayString = $today->toDateString();
+        $futureDate = Date::now()->addDays($daysAhead)->toDateString();
+        // Look back further to catch past due events
+        $pastCutoff = Date::now()->subDays(90)->toDateString(); // Look back 90 days for missing waivers
+
+        // Get compliance days from settings (default: 2 days)
+        $complianceDays = (int)StaticHelpers::getAppSetting('Waivers.ComplianceDays', '2', 'int', false);
+
+        // Find all gatherings in extended date range (including past events)
+        $query = $Gatherings->find()
+            ->where([
+                'OR' => [
+                    // Future/ongoing events
+                    'Gatherings.end_date >=' => $todayString,
+                    // Events with null end date
+                    'AND' => [
+                        'Gatherings.end_date IS' => null,
+                        'Gatherings.start_date >=' => $todayString,
+                    ],
+                    // Past events (look back up to 90 days)
+                    'Gatherings.end_date >=' => $pastCutoff,
+                ],
+                'Gatherings.start_date <=' => $futureDate,
+                'Gatherings.branch_id IN' => $branchIds,
+                'Gatherings.deleted IS' => null,
+            ])
+            ->contain([
+                'Branches',
+                'GatheringActivities' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+            ])
+            ->order(['Gatherings.start_date' => 'ASC']);
+
+        $allGatherings = $query->all();
+        $gatheringsMissing = []; // Past events (>48hrs after end)
+        $gatheringsUpcoming = []; // Future/ongoing events
+
+        foreach ($allGatherings as $gathering) {
+            if (empty($gathering->gathering_activities)) {
+                continue;
+            }
+
+            $activityIds = collection($gathering->gathering_activities)->extract('id')->toArray();
+
+            // Get required waiver types
+            $requiredWaiverTypes = $GatheringActivityWaivers->find()
+                ->where([
+                    'gathering_activity_id IN' => $activityIds,
+                    'deleted IS' => null,
+                ])
+                ->select(['waiver_type_id'])
+                ->distinct(['waiver_type_id'])
+                ->all()
+                ->extract('waiver_type_id')
+                ->toArray();
+
+            if (empty($requiredWaiverTypes)) {
+                continue;
+            }
+
+            // Get uploaded waiver types
+            $uploadedWaiverTypes = $this->GatheringWaivers->find()
+                ->where([
+                    'gathering_id' => $gathering->id,
+                    'deleted IS' => null,
+                    'declined_at IS' => null,
+                ])
+                ->select(['waiver_type_id'])
+                ->distinct(['waiver_type_id'])
+                ->all()
+                ->extract('waiver_type_id')
+                ->toArray();
+
+            $missingWaiverTypes = array_diff($requiredWaiverTypes, $uploadedWaiverTypes);
+
+            if (!empty($missingWaiverTypes)) {
+                $WaiverTypes = $this->fetchTable('Waivers.WaiverTypes');
+                $missingWaiverNames = $WaiverTypes->find()
+                    ->where(['id IN' => $missingWaiverTypes])
+                    ->order(['name' => 'ASC'])
+                    ->all()
+                    ->extract('name')
+                    ->toArray();
+
+                $gathering->missing_waiver_count = count($missingWaiverTypes);
+                $gathering->missing_waiver_names = $missingWaiverNames;
+
+                // Determine if this is missing (>ComplianceDays past end) or upcoming
+                $endDate = $gathering->end_date ? Date::parse($gathering->end_date) : Date::parse($gathering->start_date);
+                $daysAfterEnd = $today->diffInDays($endDate, false);
+
+                // diffInDays with false returns negative if end date is in the past
+                // So -3 means 3 days ago, -1 means 1 day ago, +1 means 1 day in future
+                if ($daysAfterEnd < -$complianceDays) {
+                    // Event ended more than ComplianceDays ago - MISSING (compliance issue)
+                    // Example: If complianceDays=2, daysAfterEnd=-3 means event ended 3 days ago (past due)
+                    $gatheringsMissing[] = $gathering;
+                } else {
+                    // Event is upcoming, ongoing, or ended within ComplianceDays - UPCOMING (action needed)
+                    // Example: If complianceDays=2, daysAfterEnd=-1 (ended yesterday), 0 (ends today), +5 (5 days from now)
+                    $gatheringsUpcoming[] = $gathering;
+                }
+            }
+        }
+
+        return [
+            'missing' => $gatheringsMissing,
+            'upcoming' => $gatheringsUpcoming,
+        ];
+    }
+
+    /**
+     * Get branches with compliance issues
+     *
+     * @param array $branchIds Branches to check
+     * @return array Branches with issue counts
+     */
+    private function _getBranchesWithIssues(array $branchIds): array
+    {
+        $Gatherings = $this->fetchTable('Gatherings');
+        $Branches = $this->fetchTable('Branches');
+        $waiverGatherings = $this->_getGatheringsWithIncompleteWaivers($branchIds, 60);
+
+        // Only use 'missing' gatherings (past due >2 days) for compliance issues
+        // Upcoming events are not compliance issues yet
+        $allGatheringsWithIssues = $waiverGatherings['missing'];
+
+        // Group by branch
+        $branchIssues = [];
+        foreach ($allGatheringsWithIssues as $gathering) {
+            $branchId = $gathering->branch_id;
+            if (!isset($branchIssues[$branchId])) {
+                $branchIssues[$branchId] = [
+                    'branch' => $gathering->branch,
+                    'gathering_count' => 0,
+                    'total_missing_waivers' => 0,
+                ];
+            }
+            $branchIssues[$branchId]['gathering_count']++;
+            $branchIssues[$branchId]['total_missing_waivers'] += $gathering->missing_waiver_count;
+        }
+
+        // Sort by gathering count descending
+        usort($branchIssues, function ($a, $b) {
+            return $b['gathering_count'] <=> $a['gathering_count'];
+        });
+
+        return array_slice($branchIssues, 0, 10); // Top 10 branches with issues
+    }
+
+    /**
+     * Get recent waiver activity
+     *
+     * @param array $branchIds Branches to include
+     * @param int $days Days to look back
+     * @return array Recent waivers
+     */
+    private function _getRecentWaiverActivity(array $branchIds, int $days): array
+    {
+        $sinceDate = Date::now()->subDays($days);
+
+        $query = $this->GatheringWaivers->find()
+            ->where([
+                'GatheringWaivers.deleted IS' => null,
+                'GatheringWaivers.created >=' => $sinceDate->toDateString(),
+            ])
+            ->innerJoinWith('Gatherings', function ($q) use ($branchIds) {
+                return $q->where([
+                    'Gatherings.branch_id IN' => $branchIds,
+                    'Gatherings.deleted IS' => null,
+                ]);
+            })
+            ->contain([
+                'Gatherings' => function ($q) {
+                    return $q->select(['id', 'name', 'branch_id']);
+                },
+                'Gatherings.Branches' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+                'WaiverTypes' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+                'CreatedByMembers' => function ($q) {
+                    return $q->select(['id', 'sca_name']);
+                },
+            ])
+            ->order(['GatheringWaivers.created' => 'DESC'])
+            ->limit(20);
+
+        return $query->all()->toArray();
+    }
+
+    /**
+     * Get summary of waivers by type
+     *
+     * @param array $branchIds Branches to include
+     * @return array Waiver type counts
+     */
+    private function _getWaiverTypesSummary(array $branchIds): array
+    {
+        $WaiverTypes = $this->fetchTable('Waivers.WaiverTypes');
+
+        // Get all active waiver types
+        $waiverTypes = $WaiverTypes->find()
+            ->where([
+                'is_active' => true,
+                'deleted IS' => null,
+            ])
+            ->order(['name' => 'ASC'])
+            ->all();
+
+        $summary = [];
+        foreach ($waiverTypes as $waiverType) {
+            $count = $this->GatheringWaivers->find()
+                ->innerJoinWith('Gatherings', function ($q) use ($branchIds) {
+                    return $q->where([
+                        'Gatherings.branch_id IN' => $branchIds,
+                        'Gatherings.deleted IS' => null,
+                    ]);
+                })
+                ->where([
+                    'GatheringWaivers.waiver_type_id' => $waiverType->id,
+                    'GatheringWaivers.deleted IS' => null,
+                ])
+                ->count();
+
+            $summary[] = [
+                'waiver_type' => $waiverType,
+                'count' => $count,
+            ];
+        }
+
+        return $summary;
     }
 }

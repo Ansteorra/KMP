@@ -20,6 +20,7 @@ echo $this->Form->create(null, [
     'data-awards-rec-edit-award-list-url-value' => $this->URL->build(['controller' => 'Awards', 'action' => 'awardsByDomain', 'plugin' => "Awards"]),
     'data-awards-rec-edit-form-url-value' => $formUrl,
     'data-awards-rec-edit-turbo-frame-url-value' => $turboFrameUrl,
+    'data-awards-rec-edit-gatherings-url-value' => $this->URL->build(['controller' => 'Recommendations', 'action' => 'gatheringsForAward', 'plugin' => 'Awards'])
 
 
 ]);

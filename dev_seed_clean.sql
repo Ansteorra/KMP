@@ -1390,6 +1390,53 @@ VALUES (
 UNLOCK TABLES;
 
 --
+-- Table structure for table `activities_phinxlog`
+--
+
+DROP TABLE IF EXISTS `activities_phinxlog`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */
+;
+/*!40101 SET character_set_client = utf8mb4 */
+;
+CREATE TABLE `activities_phinxlog` (
+    `version` bigint(20) NOT NULL,
+    `migration_name` varchar(100) DEFAULT NULL,
+    `start_time` timestamp NULL DEFAULT NULL,
+    `end_time` timestamp NULL DEFAULT NULL,
+    `breakpoint` tinyint(1) NOT NULL DEFAULT 0,
+    PRIMARY KEY (`version`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb3 COLLATE = utf8mb3_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */
+;
+
+--
+-- Dumping data for table `activities_phinxlog`
+--
+
+LOCK TABLES `activities_phinxlog` WRITE;
+/*!40000 ALTER TABLE `activities_phinxlog` DISABLE KEYS */
+;
+INSERT INTO
+    `activities_phinxlog`
+VALUES (
+        20240614001010,
+        'InitActivities',
+        '2024-09-29 15:47:03',
+        '2024-09-29 15:47:03',
+        0
+    ),
+    (
+        20250228144601,
+        'MakeTermMonthsNotYears',
+        '2025-03-01 14:24:26',
+        '2025-03-01 14:24:26',
+        0
+    );
+/*!40000 ALTER TABLE `activities_phinxlog` ENABLE KEYS */
+;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `app_settings`
 --
 
@@ -4607,6 +4654,74 @@ VALUES (
         NULL
     );
 /*!40000 ALTER TABLE `awards_levels` ENABLE KEYS */
+;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `awards_phinxlog`
+--
+
+DROP TABLE IF EXISTS `awards_phinxlog`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */
+;
+/*!40101 SET character_set_client = utf8mb4 */
+;
+CREATE TABLE `awards_phinxlog` (
+    `version` bigint(20) NOT NULL,
+    `migration_name` varchar(100) DEFAULT NULL,
+    `start_time` timestamp NULL DEFAULT NULL,
+    `end_time` timestamp NULL DEFAULT NULL,
+    `breakpoint` tinyint(1) NOT NULL DEFAULT 0,
+    PRIMARY KEY (`version`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb3 COLLATE = utf8mb3_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */
+;
+
+--
+-- Dumping data for table `awards_phinxlog`
+--
+
+LOCK TABLES `awards_phinxlog` WRITE;
+/*!40000 ALTER TABLE `awards_phinxlog` DISABLE KEYS */
+;
+INSERT INTO
+    `awards_phinxlog`
+VALUES (
+        20240614001010,
+        'InitAwards',
+        '2024-09-29 15:47:03',
+        '2024-09-29 15:47:04',
+        0
+    ),
+    (
+        20240912174050,
+        'AddPersonToNotify',
+        '2024-09-29 15:47:04',
+        '2024-09-29 15:47:04',
+        0
+    ),
+    (
+        20241017085448,
+        'AddEventClosedFlag',
+        '2024-10-31 23:13:10',
+        '2024-10-31 23:13:10',
+        0
+    ),
+    (
+        20241018230237,
+        'AddNoActionReason',
+        '2024-10-31 23:13:10',
+        '2024-10-31 23:13:10',
+        0
+    ),
+    (
+        20241018231315,
+        'RecommendationStates',
+        '2024-10-31 23:13:10',
+        '2024-10-31 23:13:10',
+        0
+    );
+/*!40000 ALTER TABLE `awards_phinxlog` ENABLE KEYS */
 ;
 UNLOCK TABLES;
 
@@ -9517,6 +9632,74 @@ VALUES (
         'baron'
     );
 /*!40000 ALTER TABLE `officers_offices` ENABLE KEYS */
+;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `officers_phinxlog`
+--
+
+DROP TABLE IF EXISTS `officers_phinxlog`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */
+;
+/*!40101 SET character_set_client = utf8mb4 */
+;
+CREATE TABLE `officers_phinxlog` (
+    `version` bigint(20) NOT NULL,
+    `migration_name` varchar(100) DEFAULT NULL,
+    `start_time` timestamp NULL DEFAULT NULL,
+    `end_time` timestamp NULL DEFAULT NULL,
+    `breakpoint` tinyint(1) NOT NULL DEFAULT 0,
+    PRIMARY KEY (`version`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb3 COLLATE = utf8mb3_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */
+;
+
+--
+-- Dumping data for table `officers_phinxlog`
+--
+
+LOCK TABLES `officers_phinxlog` WRITE;
+/*!40000 ALTER TABLE `officers_phinxlog` DISABLE KEYS */
+;
+INSERT INTO
+    `officers_phinxlog`
+VALUES (
+        20240614000951,
+        'InitOffices',
+        '2024-09-29 15:47:03',
+        '2024-09-29 15:47:03',
+        0
+    ),
+    (
+        20241231161659,
+        'RefactorOfficeHierarchy',
+        '2025-01-12 01:02:22',
+        '2025-01-12 01:02:22',
+        0
+    ),
+    (
+        20250124204321,
+        'AddViewOfficersPermission',
+        '2025-02-03 14:35:12',
+        '2025-02-03 14:35:12',
+        0
+    ),
+    (
+        20250227230922,
+        'AddDomainToDepartment',
+        '2025-03-01 14:35:53',
+        '2025-03-01 14:35:53',
+        0
+    ),
+    (
+        20250228133830,
+        'MakeOfficerTermMonthsNotYears',
+        '2025-03-01 14:35:53',
+        '2025-03-01 14:35:53',
+        0
+    );
+/*!40000 ALTER TABLE `officers_phinxlog` ENABLE KEYS */
 ;
 UNLOCK TABLES;
 
@@ -15091,6 +15274,177 @@ VALUES (
 UNLOCK TABLES;
 
 --
+-- Table structure for table `phinxlog`
+--
+
+DROP TABLE IF EXISTS `phinxlog`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */
+;
+/*!40101 SET character_set_client = utf8mb4 */
+;
+CREATE TABLE `phinxlog` (
+    `version` bigint(20) NOT NULL,
+    `migration_name` varchar(100) DEFAULT NULL,
+    `start_time` timestamp NULL DEFAULT NULL,
+    `end_time` timestamp NULL DEFAULT NULL,
+    `breakpoint` tinyint(1) NOT NULL DEFAULT 0,
+    PRIMARY KEY (`version`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb3 COLLATE = utf8mb3_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */
+;
+
+--
+-- Dumping data for table `phinxlog`
+--
+
+LOCK TABLES `phinxlog` WRITE;
+/*!40000 ALTER TABLE `phinxlog` DISABLE KEYS */
+;
+INSERT INTO
+    `phinxlog`
+VALUES (
+        20230511170042,
+        'Init',
+        '2024-09-29 15:47:02',
+        '2024-09-29 15:47:03',
+        0
+    ),
+    (
+        20241001141705,
+        'AddViewMembersPermission',
+        '2024-10-02 22:37:15',
+        '2024-10-02 22:37:15',
+        0
+    ),
+    (
+        20241009145957,
+        'AddTitlePronounsPronunciationToMembers',
+        '2024-10-31 23:13:10',
+        '2024-10-31 23:13:10',
+        0
+    ),
+    (
+        20241024125311,
+        'ChangeAppSettingValueToText',
+        '2024-10-31 23:13:10',
+        '2024-10-31 23:13:10',
+        0
+    ),
+    (
+        20241204160759,
+        'Warrants',
+        '2025-01-12 01:02:18',
+        '2025-01-12 01:02:18',
+        0
+    ),
+    (
+        20241207172311,
+        'AddWarrantableToMembers',
+        '2025-01-12 01:02:18',
+        '2025-01-12 01:02:22',
+        0
+    ),
+    (
+        20241225192403,
+        'RefactorAgnosticJoinFields',
+        '2025-01-12 01:02:22',
+        '2025-01-12 01:02:22',
+        0
+    ),
+    (
+        20241231164137,
+        'AddTypeToBranches',
+        '2025-01-12 01:02:22',
+        '2025-01-12 01:02:22',
+        0
+    ),
+    (
+        20250108190610,
+        'AddRequiredToAppSetting',
+        '2025-01-12 01:02:22',
+        '2025-01-12 01:02:22',
+        0
+    ),
+    (
+        20250227173909,
+        'AddScopeToMemberRoles',
+        '2025-03-01 14:24:26',
+        '2025-03-01 14:24:26',
+        0
+    ),
+    (
+        20250227230531,
+        'AddDomainToBranch',
+        '2025-03-01 14:24:26',
+        '2025-03-01 14:24:26',
+        0
+    ),
+    (
+        20250328010857,
+        'PermissionPolicies',
+        '2025-04-10 19:40:02',
+        '2025-04-10 19:40:02',
+        0
+    ),
+    (
+        20250415203922,
+        'ConvertAppSettingsToSingleRecord',
+        '2025-04-21 14:17:19',
+        '2025-04-21 14:17:19',
+        0
+    );
+/*!40000 ALTER TABLE `phinxlog` ENABLE KEYS */
+;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `queue_phinxlog`
+--
+
+DROP TABLE IF EXISTS `queue_phinxlog`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */
+;
+/*!40101 SET character_set_client = utf8mb4 */
+;
+CREATE TABLE `queue_phinxlog` (
+    `version` bigint(20) NOT NULL,
+    `migration_name` varchar(100) DEFAULT NULL,
+    `start_time` timestamp NULL DEFAULT NULL,
+    `end_time` timestamp NULL DEFAULT NULL,
+    `breakpoint` tinyint(1) NOT NULL DEFAULT 0,
+    PRIMARY KEY (`version`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb3 COLLATE = utf8mb3_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */
+;
+
+--
+-- Dumping data for table `queue_phinxlog`
+--
+
+LOCK TABLES `queue_phinxlog` WRITE;
+/*!40000 ALTER TABLE `queue_phinxlog` DISABLE KEYS */
+;
+INSERT INTO
+    `queue_phinxlog`
+VALUES (
+        20240307154751,
+        'MigrationQueueInitV8',
+        '2025-02-03 14:35:12',
+        '2025-02-03 14:35:12',
+        0
+    ),
+    (
+        20250129194018,
+        'AddQueueEngineManagerPermission',
+        '2025-02-03 14:35:12',
+        '2025-02-03 14:35:12',
+        0
+    );
+/*!40000 ALTER TABLE `queue_phinxlog` ENABLE KEYS */
+;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `queue_processes`
 --
 
@@ -17649,6 +18003,50 @@ LOCK TABLES `tokens` WRITE;
 /*!40000 ALTER TABLE `tokens` ENABLE KEYS */
 ;
 UNLOCK TABLES;
+
+--
+-- Table structure for table `tools_phinxlog`
+--
+
+DROP TABLE IF EXISTS `tools_phinxlog`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */
+;
+/*!40101 SET character_set_client = utf8mb4 */
+;
+CREATE TABLE `tools_phinxlog` (
+    `version` bigint(20) NOT NULL,
+    `migration_name` varchar(100) DEFAULT NULL,
+    `start_time` timestamp NULL DEFAULT NULL,
+    `end_time` timestamp NULL DEFAULT NULL,
+    `breakpoint` tinyint(1) NOT NULL DEFAULT 0,
+    PRIMARY KEY (`version`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb3 COLLATE = utf8mb3_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */
+;
+
+--
+-- Dumping data for table `tools_phinxlog`
+--
+
+LOCK TABLES `tools_phinxlog` WRITE;
+/*!40000 ALTER TABLE `tools_phinxlog` DISABLE KEYS */
+;
+INSERT INTO
+    `tools_phinxlog`
+VALUES (
+        20200430170235,
+        'MigrationToolsTokens',
+        '2025-02-03 14:35:12',
+        '2025-02-03 14:35:12',
+        0
+    );
+/*!40000 ALTER TABLE `tools_phinxlog` ENABLE KEYS */
+;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `warrant_periods`
+--
 
 DROP TABLE IF EXISTS `warrant_periods`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */

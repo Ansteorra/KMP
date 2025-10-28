@@ -28,6 +28,7 @@ use Cake\ORM\Entity;
  * @property \App\Model\Entity\GatheringType $gathering_type
  * @property \App\Model\Entity\Member $creator
  * @property \App\Model\Entity\GatheringActivity[] $gathering_activities
+ * @property \App\Model\Entity\GatheringAttendance[] $gathering_attendances
  * @property \Waivers\Model\Entity\GatheringWaiver[] $gathering_waivers
  */
 class Gathering extends BaseEntity
@@ -52,6 +53,7 @@ class Gathering extends BaseEntity
         'gathering_type' => true,
         'creator' => true,
         'gathering_activities' => true,
+        'gathering_attendances' => true,
         'gathering_waivers' => true,
     ];
 

@@ -10,6 +10,7 @@ use Cake\I18n\DateTime;
 use App\KMP\StaticHelpers;
 use Authorization\Exception\ForbiddenException;
 use Cake\Log\Log;
+use Cake\ORM\TableRegistry;
 use Exception;
 use PhpParser\Node\Stmt\TryCatch;
 use App\Services\CsvExportService;
@@ -803,7 +804,7 @@ class RecommendationsController extends AppController
 
         $ids = explode(',', $this->request->getData('ids'));
         $newState = $this->request->getData('newState');
-        $event_id = $this->request->getData('event_id');
+        $gathering_id = $this->request->getData('gathering_id');
         $given = $this->request->getData('given');
         $note = $this->request->getData('note');
         $close_reason = $this->request->getData('close_reason');
@@ -832,8 +833,8 @@ class RecommendationsController extends AppController
                     'status' => $newStatus
                 ];
 
-                if ($event_id) {
-                    $updateFields['event_id'] = $event_id;
+                if ($gathering_id) {
+                    $updateFields['gathering_id'] = $gathering_id;
                 }
 
                 if ($given) {
@@ -1015,7 +1016,7 @@ class RecommendationsController extends AppController
     public function view(?string $id = null): ?\Cake\Http\Response
     {
         try {
-            $recommendation = $this->Recommendations->get($id, contain: ['Requesters', 'Members', 'Branches', 'Awards', 'Events', 'ScheduledEvent']);
+            $recommendation = $this->Recommendations->get($id, contain: ['Requesters', 'Members', 'Branches', 'Awards', 'Gatherings', 'AssignedGathering']);
             if (!$recommendation) {
                 throw new \Cake\Http\Exception\NotFoundException(__('Recommendation not found'));
             }
@@ -1291,25 +1292,25 @@ class RecommendationsController extends AppController
 
             $awards = $this->Recommendations->Awards->find('list', limit: 200)->all();
 
-            $eventsData = $this->Recommendations->Events->find()
+            $gatheringsTable = TableRegistry::getTableLocator()->get('Gatherings');
+            $gatheringsData = $gatheringsTable->find()
                 ->contain(['Branches' => function ($q) {
                     return $q->select(['id', 'name']);
                 }])
                 ->where([
                     'start_date >' => DateTime::now(),
-                    'OR' => ['closed' => false, 'closed IS' => null]
                 ])
                 ->select(['id', 'name', 'start_date', 'end_date', 'Branches.name'])
                 ->orderBy(['start_date' => 'ASC'])
                 ->all();
 
-            $events = [];
-            foreach ($eventsData as $event) {
-                $events[$event->id] = $event->name . ' in ' . $event->branch->name . ' on '
-                    . $event->start_date->toDateString() . ' - ' . $event->end_date->toDateString();
+            $gatherings = [];
+            foreach ($gatheringsData as $gathering) {
+                $gatherings[$gathering->id] = $gathering->name . ' in ' . $gathering->branch->name . ' on '
+                    . $gathering->start_date->toDateString() . ' - ' . $gathering->end_date->toDateString();
             }
 
-            $this->set(compact('recommendation', 'branches', 'awards', 'events', 'awardsDomains', 'awardsLevels'));
+            $this->set(compact('recommendation', 'branches', 'awards', 'gatherings', 'awardsDomains', 'awardsLevels'));
             return null;
         } catch (\Exception $e) {
             $this->Recommendations->getConnection()->rollback();
@@ -1588,26 +1589,27 @@ class RecommendationsController extends AppController
 
         $awards = $this->Recommendations->Awards->find('list', limit: 200)->all();
 
-        $eventsData = $this->Recommendations->Events->find()
+        $gatheringsTable = $this->fetchTable('Gatherings');
+        $gatheringsData = $gatheringsTable->find()
             ->contain(['Branches' => function ($q) {
                 return $q->select(['id', 'name']);
             }])
             ->where(['start_date >' => DateTime::now()])
-            ->select(['id', 'name', 'start_date', 'end_date', 'Branches.name'])
+            ->select(['id', 'name', 'start_date', 'end_date', 'Gatherings.branch_id'])
             ->orderBy(['start_date' => 'ASC'])
             ->all();
 
-        $events = [];
-        foreach ($eventsData as $event) {
-            $events[$event->id] = $event->name . ' in ' . $event->branch->name . ' on '
-                . $event->start_date->toDateString() . ' - ' . $event->end_date->toDateString();
+        $gatherings = [];
+        foreach ($gatheringsData as $gathering) {
+            $gatherings[$gathering->id] = $gathering->name . ' in ' . $gathering->branch->name . ' on '
+                . $gathering->start_date->toDateString() . ' - ' . $gathering->end_date->toDateString();
         }
 
         $this->set(compact(
             'recommendation',
             'branches',
             'awards',
-            'events',
+            'gatherings',
             'awardsDomains',
             'awardsLevels',
             'headerImage'
@@ -2576,8 +2578,8 @@ class RecommendationsController extends AppController
                 'Members',
                 'Branches',
                 'Awards',
-                'Events',
-                'ScheduledEvent',
+                'Gatherings',
+                'AssignedGathering',
                 'Awards.Domains'
             ]);
 
@@ -2605,14 +2607,15 @@ class RecommendationsController extends AppController
                 ->where(['domain_id' => $recommendation->domain_id])
                 ->all();
 
-            $eventsData = $this->Recommendations->Events->find()
-                ->contain(['Branches' => function ($q) {
-                    return $q->select(['id', 'name']);
-                }])
-                ->where(['OR' => ['closed' => false, 'closed IS' => null]])
-                ->select(['id', 'name', 'start_date', 'end_date', 'Branches.name'])
-                ->orderBy(['start_date' => 'ASC'])
-                ->all();
+            // Get filtered gatherings for this award
+            // If status is "Given", show all gatherings (past and future) for retroactive entry
+            $futureOnly = ($recommendation->status !== 'Given');
+            $gatheringList = $this->getFilteredGatheringsForAward(
+                $recommendation->award_id,
+                $recommendation->member_id,
+                $futureOnly,
+                $recommendation->gathering_id  // Include the currently assigned gathering
+            );
 
             // Format status list for dropdown
             $statusList = Recommendation::getStatuses();
@@ -2624,20 +2627,13 @@ class RecommendationsController extends AppController
                 }
             }
 
-            // Format event list for dropdown
-            $eventList = [];
-            foreach ($eventsData as $event) {
-                $eventList[$event->id] = $event->name . ' in ' . $event->branch->name . ' on '
-                    . $event->start_date->toDateString() . ' - ' . $event->end_date->toDateString();
-            }
-
             $rules = StaticHelpers::getAppSetting('Awards.RecommendationStateRules');
             $this->set(compact(
                 'rules',
                 'recommendation',
                 'branches',
                 'awards',
-                'eventList',
+                'gatheringList',
                 'awardsDomains',
                 'awardsLevels',
                 'statusList'
@@ -2830,8 +2826,8 @@ class RecommendationsController extends AppController
                 'Members',
                 'Branches',
                 'Awards',
-                'Events',
-                'ScheduledEvent',
+                'Gatherings',
+                'AssignedGathering',
                 'Awards.Domains'
             ]);
 
@@ -2859,14 +2855,15 @@ class RecommendationsController extends AppController
                 ->where(['domain_id' => $recommendation->domain_id])
                 ->all();
 
-            $eventsData = $this->Recommendations->Events->find()
-                ->contain(['Branches' => function ($q) {
-                    return $q->select(['id', 'name']);
-                }])
-                ->where(['OR' => ['closed' => false, 'closed IS' => null]])
-                ->select(['id', 'name', 'start_date', 'end_date', 'Branches.name'])
-                ->orderBy(['start_date' => 'ASC'])
-                ->all();
+            // Get filtered gatherings for this award
+            // If status is "Given", show all gatherings (past and future) for retroactive entry
+            $futureOnly = ($recommendation->status !== 'Given');
+            $gatheringList = $this->getFilteredGatheringsForAward(
+                $recommendation->award_id,
+                $recommendation->member_id,
+                $futureOnly,
+                $recommendation->gathering_id  // Include the currently assigned gathering
+            );
 
             // Format status list for dropdown
             $statusList = Recommendation::getStatuses();
@@ -2878,20 +2875,13 @@ class RecommendationsController extends AppController
                 }
             }
 
-            // Format event list for dropdown
-            $eventList = [];
-            foreach ($eventsData as $event) {
-                $eventList[$event->id] = $event->name . ' in ' . $event->branch->name . ' on '
-                    . $event->start_date->toDateString() . ' - ' . $event->end_date->toDateString();
-            }
-
             $rules = StaticHelpers::getAppSetting('Awards.RecommendationStateRules');
             $this->set(compact(
                 'rules',
                 'recommendation',
                 'branches',
                 'awards',
-                'eventList',
+                'gatheringList',
                 'awardsDomains',
                 'awardsLevels',
                 'statusList'
@@ -3089,12 +3079,12 @@ class RecommendationsController extends AppController
                 ->orderBy(['name' => 'ASC'])
                 ->toArray();
 
-            // Get events data
-            $eventsData = $this->Recommendations->Events->find()
+            // Get gatherings data
+            $gatheringsTable = TableRegistry::getTableLocator()->get('Gatherings');
+            $gatheringsData = $gatheringsTable->find()
                 ->contain(['Branches' => function ($q) {
                     return $q->select(['id', 'name']);
                 }])
-                ->where(['OR' => ['closed' => false, 'closed IS' => null]])
                 ->select(['id', 'name', 'start_date', 'end_date', 'Branches.name'])
                 ->orderBy(['start_date' => 'ASC'])
                 ->all();
@@ -3109,15 +3099,15 @@ class RecommendationsController extends AppController
                 }
             }
 
-            // Format event list for dropdown
-            $eventList = [];
-            foreach ($eventsData as $event) {
-                $eventList[$event->id] = $event->name . ' in ' . $event->branch->name . ' on '
-                    . $event->start_date->toDateString() . ' - ' . $event->end_date->toDateString();
+            // Format gathering list for dropdown
+            $gatheringList = [];
+            foreach ($gatheringsData as $gathering) {
+                $gatheringList[$gathering->id] = $gathering->name . ' in ' . $gathering->branch->name . ' on '
+                    . $gathering->start_date->toDateString() . ' - ' . $gathering->end_date->toDateString();
             }
 
             $rules = StaticHelpers::getAppSetting('Awards.RecommendationStateRules');
-            $this->set(compact('rules', 'branches', 'eventList', 'statusList'));
+            $this->set(compact('rules', 'branches', 'gatheringList', 'statusList'));
             return null;
         } catch (\Exception $e) {
             Log::error('Error in bulk edit form: ' . $e->getMessage());
@@ -3362,37 +3352,37 @@ class RecommendationsController extends AppController
                     'member_sca_name',
                     'created',
                     'state',
-                    'Events.name',
+                    'Gatherings.name',
                     'call_into_court',
                     'court_availability',
                     'requester_sca_name',
                     'contact_email',
                     'contact_phone',
                     'state_date',
-                    'AssignedEvent.name'
+                    'AssignedGathering.name'
                 ],
             ];
 
             $action = $view;
             $recommendations = $this->paginate($recommendations);
 
-            // Get recommendation state rules and events data
+            // Get recommendation state rules and gatherings data
             $rules = StaticHelpers::getAppSetting("Awards.RecommendationStateRules");
 
-            $eventsData = $this->Recommendations->Events->find()
+            $gatheringsTable = TableRegistry::getTableLocator()->get('Gatherings');
+            $gatheringsData = $gatheringsTable->find()
                 ->contain(['Branches' => function ($q) {
                     return $q->select(['id', 'name']);
                 }])
-                ->where(['OR' => ['closed' => false, 'closed IS' => null]])
                 ->select(['id', 'name', 'start_date', 'end_date', 'Branches.name'])
                 ->orderBy(['start_date' => 'ASC'])
                 ->all();
 
-            // Format event list for display
-            $eventList = [];
-            foreach ($eventsData as $event) {
-                $eventList[$event->id] = $event->name . " in " . $event->branch->name . " on "
-                    . $event->start_date->toDateString() . " - " . $event->end_date->toDateString();
+            // Format gathering list for display
+            $gatheringList = [];
+            foreach ($gatheringsData as $gathering) {
+                $gatheringList[$gathering->id] = $gathering->name . " in " . $gathering->branch->name . " on "
+                    . $gathering->start_date->toDateString() . " - " . $gathering->end_date->toDateString();
             }
 
             // Set variables for the view
@@ -3407,7 +3397,7 @@ class RecommendationsController extends AppController
                 'action',
                 'fullStatusList',
                 'rules',
-                'eventList'
+                'gatheringList'
             ));
         } catch (\Exception $e) {
             Log::error('Error in runTable: ' . $e->getMessage());
@@ -4386,7 +4376,7 @@ class RecommendationsController extends AppController
                 'Recommendations.court_availability',
                 'Recommendations.status',
                 'Recommendations.state_date',
-                'Recommendations.event_id',
+                'Recommendations.gathering_id',
                 'Recommendations.given',
                 'Recommendations.modified',
                 'Recommendations.created',
@@ -4406,8 +4396,8 @@ class RecommendationsController extends AppController
                 'Members.title',
                 'Members.pronouns',
                 'Members.pronunciation',
-                'AssignedEvent.id',
-                'AssignedEvent.name',
+                'AssignedGathering.id',
+                'AssignedGathering.name',
                 'Awards.id',
                 'Awards.abbreviation',
                 'Awards.branch_id',
@@ -4448,7 +4438,7 @@ class RecommendationsController extends AppController
                 'Awards.Domains' => function ($q) {
                     return $q->select(['id', 'name']);
                 },
-                'Events' => function ($q) {
+                'Gatherings' => function ($q) {
                     return $q->select(['id', 'name', 'start_date', 'end_date']);
                 },
                 'Notes' => function ($q) {
@@ -4457,7 +4447,7 @@ class RecommendationsController extends AppController
                 'Notes.Authors' => function ($q) {
                     return $q->select(['id', 'sca_name']);
                 },
-                'AssignedEvent' => function ($q) {
+                'AssignedGathering' => function ($q) {
                     return $q->select(['id', 'name']);
                 }
             ]);
@@ -4692,5 +4682,467 @@ class RecommendationsController extends AppController
         }
 
         return $filterArray;
+    }
+
+    /**
+     * Get filtered gatherings for an award with attendance information
+     *
+     * Returns an array of gatherings filtered by activities linked to the specified award
+     * via the AwardGatheringActivities table. Optionally includes attendance information
+     * for a specific member, marking gatherings where the member has indicated attendance
+     * with share_with_crown enabled.
+     *
+     * @param int $awardId The award ID to filter gatherings for
+     * @param int|null $memberId Optional member ID to check attendance information
+     * @param bool $futureOnly Whether to only include future gatherings (default: true)
+     * @param int|null $includeGatheringId Force inclusion of a specific gathering ID (e.g., already assigned gathering)
+     * @return array Associative array with gathering IDs as keys and formatted display strings as values
+     */
+    protected function getFilteredGatheringsForAward(int $awardId, ?int $memberId = null, bool $futureOnly = true, ?int $includeGatheringId = null): array
+    {
+        // Get all gathering activities linked to this award
+        $awardGatheringActivitiesTable = $this->fetchTable('Awards.AwardGatheringActivities');
+        $linkedActivities = $awardGatheringActivitiesTable->find()
+            ->where(['award_id' => $awardId])
+            ->select(['gathering_activity_id'])
+            ->toArray();
+
+        $activityIds = array_map(function ($row) {
+            return $row->gathering_activity_id;
+        }, $linkedActivities);
+
+        // If no activities are linked to the award, return empty array
+        if (empty($activityIds)) {
+            return [];
+        }
+
+        // Get gatherings that have these activities
+        $gatheringsTable = $this->fetchTable('Gatherings');
+        $query = $gatheringsTable->find()
+            ->contain([
+                'Branches' => function ($q) {
+                    return $q->select(['id', 'name']);
+                }
+            ])
+            ->select(['id', 'name', 'start_date', 'end_date', 'Gatherings.branch_id'])
+            ->orderBy(['start_date' => 'DESC']);
+
+        // Only filter by date if futureOnly is true
+        if ($futureOnly) {
+            $query->where(['start_date >' => DateTime::now()]);
+            $query->orderBy(['start_date' => 'ASC']);
+        }
+
+        // Filter by linked activities
+        $query->matching('GatheringActivities', function ($q) use ($activityIds) {
+            return $q->where(['GatheringActivities.id IN' => $activityIds]);
+        });
+
+        $gatheringsData = $query->all();
+
+        // Get attendance information for the member if member_id provided
+        $attendanceMap = [];
+        if ($memberId) {
+            $attendanceTable = $this->fetchTable('GatheringAttendances');
+            $attendances = $attendanceTable->find()
+                ->where([
+                    'member_id' => $memberId,
+                    'deleted IS' => null
+                ])
+                ->select(['gathering_id', 'share_with_crown'])
+                ->toArray();
+
+            foreach ($attendances as $attendance) {
+                $attendanceMap[$attendance->gathering_id] = $attendance->share_with_crown;
+            }
+        }
+
+        // Build the response array
+        $gatherings = [];
+        foreach ($gatheringsData as $gathering) {
+            $displayName = $gathering->name . ' in ' . $gathering->branch->name . ' on '
+                . $gathering->start_date->toDateString() . ' - ' . $gathering->end_date->toDateString();
+
+            $hasAttendance = isset($attendanceMap[$gathering->id]);
+            $shareWithCrown = $hasAttendance && $attendanceMap[$gathering->id];
+
+            // Add indicator if member is attending and sharing with crown
+            if ($shareWithCrown) {
+                $displayName .= ' *';
+            }
+
+            $gatherings[$gathering->id] = $displayName;
+        }
+
+        // If a specific gathering ID should be included (e.g., already assigned to recommendation)
+        // and it's not already in the list, add it
+        if ($includeGatheringId && !isset($gatherings[$includeGatheringId])) {
+            $gatheringsTable = $this->fetchTable('Gatherings');
+            $specificGathering = $gatheringsTable->find()
+                ->contain(['Branches' => function ($q) {
+                    return $q->select(['id', 'name']);
+                }])
+                ->where(['Gatherings.id' => $includeGatheringId])
+                ->select(['id', 'name', 'start_date', 'end_date', 'Gatherings.branch_id'])
+                ->first();
+
+            if ($specificGathering) {
+                $displayName = $specificGathering->name . ' in ' . $specificGathering->branch->name . ' on '
+                    . $specificGathering->start_date->toDateString() . ' - ' . $specificGathering->end_date->toDateString();
+
+                $hasAttendance = isset($attendanceMap[$specificGathering->id]);
+                $shareWithCrown = $hasAttendance && $attendanceMap[$specificGathering->id];
+
+                if ($shareWithCrown) {
+                    $displayName .= ' *';
+                }
+
+                // Add to the beginning of the array so it appears first
+                $gatherings = [$specificGathering->id => $displayName] + $gatherings;
+            }
+        }
+
+        return $gatherings;
+    }
+
+    /**
+     * Get gatherings for a specific award filtered by linked activities
+     *
+     * Returns a JSON array of gatherings that have activities linked to the specified award
+     * via the AwardGatheringActivities table. Also includes attendance information for the
+     * specified member, marking gatherings where the member has indicated attendance with
+     * share_with_crown enabled.
+     *
+     * ## Response Format
+     *
+     * Returns JSON array with gathering information including:
+     * - **id**: Gathering identifier
+     * - **name**: Gathering name
+     * - **display**: Formatted display string with branch and dates
+     * - **has_attendance**: Boolean indicating if member has attendance record
+     * - **share_with_crown**: Boolean indicating if attendance is shared with crown
+     *
+     * ## Usage Examples
+     *
+     * ```javascript
+     * // Fetch gatherings for an award and member
+     * fetch('/awards/recommendations/gatherings-for-award/123?member_id=456')
+     *   .then(response => response.json())
+     *   .then(gatherings => {
+     *     gatherings.forEach(g => {
+     *       console.log(g.display); // "Event Name in Branch on 2024-01-15 - 2024-01-17 *"
+     *     });
+     *   });
+     * ```
+     *
+     * @param string|null $awardId The award ID to filter gatherings for
+     * @return void Renders JSON response
+     * @throws \Cake\Http\Exception\NotFoundException When award not found
+     */
+    public function gatheringsForAward(?string $awardId = null): void
+    {
+        $this->request->allowMethod(['get']);
+
+        // Skip authorization - this is a data endpoint for add/edit forms
+        // Authorization is handled at the form action level
+        $this->Authorization->skipAuthorization();
+
+        try {
+            // Get member_id from query params if provided
+            $memberId = $this->request->getQuery('member_id');
+
+            // Get status from query params to determine if we should show all gatherings
+            $status = $this->request->getQuery('status');
+            $futureOnly = ($status !== 'Given');
+
+            // Get the award to verify it exists
+            $awardsTable = $this->fetchTable('Awards.Awards');
+            $award = $awardsTable->get($awardId);
+
+            // Get all gathering activities linked to this award
+            $awardGatheringActivitiesTable = $this->fetchTable('Awards.AwardGatheringActivities');
+            $linkedActivities = $awardGatheringActivitiesTable->find()
+                ->where(['award_id' => $awardId])
+                ->select(['gathering_activity_id'])
+                ->toArray();
+
+            $activityIds = array_map(function ($row) {
+                return $row->gathering_activity_id;
+            }, $linkedActivities);
+
+            // Get gatherings that have these activities
+            $gatheringsTable = $this->fetchTable('Gatherings');
+            $query = $gatheringsTable->find()
+                ->contain([
+                    'Branches' => function ($q) {
+                        return $q->select(['id', 'name']);
+                    }
+                ])
+                ->select(['id', 'name', 'start_date', 'end_date', 'Gatherings.branch_id']);
+
+            // Only filter by date if futureOnly is true
+            if ($futureOnly) {
+                $query->where(['start_date >' => DateTime::now()])
+                    ->orderBy(['start_date' => 'ASC']);
+            } else {
+                $query->orderBy(['start_date' => 'DESC']);
+            }
+
+            // If there are linked activities, filter by them
+            if (!empty($activityIds)) {
+                $query->matching('GatheringActivities', function ($q) use ($activityIds) {
+                    return $q->where(['GatheringActivities.id IN' => $activityIds]);
+                });
+            } else {
+                // If no activities are linked to the award, return empty array
+                $this->set([
+                    'gatherings' => [],
+                    '_serialize' => ['gatherings']
+                ]);
+                $this->viewBuilder()->setOption('serialize', ['gatherings']);
+                return;
+            }
+
+            $gatheringsData = $query->all();
+
+            // Get attendance information for the member if member_id provided
+            $attendanceMap = [];
+            if ($memberId) {
+                $attendanceTable = $this->fetchTable('GatheringAttendances');
+                $attendances = $attendanceTable->find()
+                    ->where([
+                        'member_id' => $memberId,
+                        'deleted IS' => null
+                    ])
+                    ->select(['gathering_id', 'share_with_crown'])
+                    ->toArray();
+
+                foreach ($attendances as $attendance) {
+                    $attendanceMap[$attendance->gathering_id] = $attendance->share_with_crown;
+                }
+            }
+
+            // Build the response array
+            $gatherings = [];
+            foreach ($gatheringsData as $gathering) {
+                $displayName = $gathering->name . ' in ' . $gathering->branch->name . ' on '
+                    . $gathering->start_date->toDateString() . ' - ' . $gathering->end_date->toDateString();
+
+                $hasAttendance = isset($attendanceMap[$gathering->id]);
+                $shareWithCrown = $hasAttendance && $attendanceMap[$gathering->id];
+
+                // Add indicator if member is attending and sharing with crown
+                if ($shareWithCrown) {
+                    $displayName .= ' *';
+                }
+
+                $gatherings[] = [
+                    'id' => $gathering->id,
+                    'name' => $gathering->name,
+                    'display' => $displayName,
+                    'has_attendance' => $hasAttendance,
+                    'share_with_crown' => $shareWithCrown
+                ];
+            }
+
+            $this->set([
+                'gatherings' => $gatherings,
+                '_serialize' => ['gatherings']
+            ]);
+            $this->viewBuilder()->setClassName('Json');
+            $this->viewBuilder()->setOption('serialize', ['gatherings']);
+        } catch (\Exception $e) {
+            Log::error('Error in gatheringsForAward: ' . $e->getMessage());
+            $this->set([
+                'error' => 'An error occurred while fetching gatherings',
+                '_serialize' => ['error']
+            ]);
+            $this->viewBuilder()->setClassName('Json');
+            $this->viewBuilder()->setOption('serialize', ['error']);
+            $this->response = $this->response->withStatus(500);
+        }
+    }
+
+    /**
+     * Get gatherings for bulk edit based on selected recommendations
+     *
+     * Returns gatherings that have activities that can give out ALL the awards in the
+     * selected recommendations (intersection of valid gatherings). Also includes
+     * attendance information for all members in the selected recommendations.
+     *
+     * @return void Renders JSON response
+     */
+    public function gatheringsForBulkEdit(): void
+    {
+        $this->request->allowMethod(['post']);
+
+        // Skip authorization - this is a data endpoint for bulk edit form
+        $this->Authorization->skipAuthorization();
+
+        try {
+            // Get recommendation IDs from request
+            $ids = $this->request->getData('ids');
+            if (empty($ids) || !is_array($ids)) {
+                $this->set([
+                    'gatherings' => [],
+                    '_serialize' => ['gatherings']
+                ]);
+                $this->viewBuilder()->setClassName('Json');
+                $this->viewBuilder()->setOption('serialize', ['gatherings']);
+                return;
+            }
+
+            // Get status from request to determine if we should show all gatherings
+            $status = $this->request->getData('status');
+            $futureOnly = ($status !== 'Given');
+
+            // Fetch the selected recommendations with their awards and members
+            $recommendations = $this->Recommendations->find()
+                ->where(['Recommendations.id IN' => $ids])
+                ->contain(['Awards', 'Members'])
+                ->all();
+
+            if ($recommendations->isEmpty()) {
+                $this->set([
+                    'gatherings' => [],
+                    '_serialize' => ['gatherings']
+                ]);
+                $this->viewBuilder()->setClassName('Json');
+                $this->viewBuilder()->setOption('serialize', ['gatherings']);
+                return;
+            }
+
+            // Get all unique award IDs and member IDs
+            $awardIds = [];
+            $memberIds = [];
+            foreach ($recommendations as $rec) {
+                $awardIds[] = $rec->award_id;
+                if ($rec->member_id) {
+                    $memberIds[] = $rec->member_id;
+                }
+            }
+            $awardIds = array_unique($awardIds);
+            $memberIds = array_unique($memberIds);
+
+            // For each award, get the gathering activities that can give it out
+            $awardGatheringActivitiesTable = $this->fetchTable('Awards.AwardGatheringActivities');
+            $activityIdsByAward = [];
+
+            foreach ($awardIds as $awardId) {
+                $linkedActivities = $awardGatheringActivitiesTable->find()
+                    ->where(['award_id' => $awardId])
+                    ->select(['gathering_activity_id'])
+                    ->toArray();
+
+                $activityIds = array_map(function ($row) {
+                    return $row->gathering_activity_id;
+                }, $linkedActivities);
+
+                $activityIdsByAward[$awardId] = $activityIds;
+            }
+
+            // Find intersection - gatherings must have activities for ALL awards
+            $commonActivityIds = null;
+            foreach ($activityIdsByAward as $awardId => $activityIds) {
+                if ($commonActivityIds === null) {
+                    $commonActivityIds = $activityIds;
+                } else {
+                    // Keep only activities that exist in both arrays
+                    $commonActivityIds = array_intersect($commonActivityIds, $activityIds);
+                }
+            }
+
+            // If no common activities, return empty
+            if (empty($commonActivityIds)) {
+                $this->set([
+                    'gatherings' => [],
+                    '_serialize' => ['gatherings']
+                ]);
+                $this->viewBuilder()->setClassName('Json');
+                $this->viewBuilder()->setOption('serialize', ['gatherings']);
+                return;
+            }
+
+            // Get gatherings that have these activities
+            $gatheringsTable = $this->fetchTable('Gatherings');
+            $query = $gatheringsTable->find()
+                ->contain([
+                    'Branches' => function ($q) {
+                        return $q->select(['id', 'name']);
+                    }
+                ])
+                ->select(['id', 'name', 'start_date', 'end_date', 'Gatherings.branch_id'])
+                ->orderBy(['start_date' => 'DESC']);
+
+            // Only filter by date if futureOnly is true
+            if ($futureOnly) {
+                $query->where(['start_date >' => DateTime::now()]);
+                $query->orderBy(['start_date' => 'ASC']);
+            }
+
+            // Filter by common activities
+            $query->matching('GatheringActivities', function ($q) use ($commonActivityIds) {
+                return $q->where(['GatheringActivities.id IN' => $commonActivityIds]);
+            });
+
+            $gatheringsData = $query->all();
+
+            // Get attendance information for all members if any provided
+            $attendanceMap = [];
+            if (!empty($memberIds)) {
+                $attendanceTable = $this->fetchTable('GatheringAttendances');
+                $attendances = $attendanceTable->find()
+                    ->where([
+                        'member_id IN' => $memberIds,
+                        'deleted IS' => null,
+                        'share_with_crown' => true
+                    ])
+                    ->select(['gathering_id', 'member_id'])
+                    ->toArray();
+
+                foreach ($attendances as $attendance) {
+                    if (!isset($attendanceMap[$attendance->gathering_id])) {
+                        $attendanceMap[$attendance->gathering_id] = 0;
+                    }
+                    $attendanceMap[$attendance->gathering_id]++;
+                }
+            }
+
+            // Build the response array
+            $gatherings = [];
+            foreach ($gatheringsData as $gathering) {
+                $displayName = $gathering->name . ' in ' . $gathering->branch->name . ' on '
+                    . $gathering->start_date->toDateString() . ' - ' . $gathering->end_date->toDateString();
+
+                // Add indicator if any members are attending and sharing with crown
+                if (isset($attendanceMap[$gathering->id])) {
+                    $count = $attendanceMap[$gathering->id];
+                    $displayName .= ' *(' . $count . ')';
+                }
+
+                $gatherings[] = [
+                    'id' => $gathering->id,
+                    'name' => $gathering->name,
+                    'display' => $displayName,
+                    'attendance_count' => $attendanceMap[$gathering->id] ?? 0
+                ];
+            }
+
+            $this->set([
+                'gatherings' => $gatherings,
+                '_serialize' => ['gatherings']
+            ]);
+            $this->viewBuilder()->setClassName('Json');
+            $this->viewBuilder()->setOption('serialize', ['gatherings']);
+        } catch (\Exception $e) {
+            Log::error('Error in gatheringsForBulkEdit: ' . $e->getMessage());
+            $this->set([
+                'error' => 'An error occurred while fetching gatherings',
+                '_serialize' => ['error']
+            ]);
+            $this->viewBuilder()->setClassName('Json');
+            $this->viewBuilder()->setOption('serialize', ['error']);
+            $this->response = $this->response->withStatus(500);
+        }
     }
 }

@@ -133,4 +133,27 @@ class GatheringWaiverPolicy extends BasePolicy
         $method = __FUNCTION__;
         return $this->_hasPolicy($user, $method, $entity);
     }
+
+    public function canNeedingWaivers(\App\KMP\KmpIdentityInterface $user, \App\Model\Entity\BaseEntity $entity, ...$optionalArgs): bool
+    {
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
+    }
+
+    /**
+     * Check if user can decline a waiver
+     * 
+     * Users can decline waivers if they have the decline permission for the gathering's branch.
+     * Additional business rules (30-day limit, not already declined) are checked in the controller.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user User identity
+     * @param \App\Model\Entity\BaseEntity $entity GatheringWaiver entity
+     * @param mixed ...$optionalArgs Optional arguments
+     * @return bool Authorization result
+     */
+    public function canDecline(\App\KMP\KmpIdentityInterface $user, \App\Model\Entity\BaseEntity $entity, ...$optionalArgs): bool
+    {
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
+    }
 }

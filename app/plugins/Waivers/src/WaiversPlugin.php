@@ -267,7 +267,7 @@ class WaiversPlugin extends BasePlugin implements KMPPluginInterface
     protected function initializeSettings(): void
     {
         // Version-based configuration management
-        $currentConfigVersion = '1.0.0';
+        $currentConfigVersion = '1.0.1';
         $configVersion = StaticHelpers::getAppSetting('Waivers.configVersion', '0.0.0', null, true);
 
         if ($configVersion != $currentConfigVersion) {
@@ -278,6 +278,9 @@ class WaiversPlugin extends BasePlugin implements KMPPluginInterface
             StaticHelpers::getAppSetting('Plugin.Waivers.Active', 'yes', null, true);
             StaticHelpers::getAppSetting('Plugin.Waivers.ShowInNavigation', 'yes', null, true);
             StaticHelpers::getAppSetting('Plugin.Waivers.HelloWorldMessage', 'Hello, World!', null, true);
+
+            // Compliance settings
+            StaticHelpers::getAppSetting('Waivers.ComplianceDays', '2', null, true);
         }
     }
 }

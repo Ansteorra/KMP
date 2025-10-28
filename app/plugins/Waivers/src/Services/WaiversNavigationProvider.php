@@ -84,12 +84,46 @@ class WaiversNavigationProvider
             "order" => 600,
         ];
 
+        // Waiver Secretary Dashboard - primary navigation item
+        if ($user !== null) {
+            $items[] = [
+                "type" => "link",
+                "mergePath" => ["Waivers"],
+                "label" => "All Waivers",
+                "order" => 6,
+                "url" => [
+                    "controller" => "GatheringWaivers",
+                    "action" => "index",
+                    "plugin" => "Waivers",
+                ],
+                "icon" => "bi-list-ul",
+                "activePaths" => [
+                    "waivers/GatheringWaivers/dashboard",
+                ]
+            ];
+            $items[] = [
+                "type" => "link",
+                "mergePath" => ["Waivers"],
+                "label" => "Waiver Dashboard",
+                "order" => 5,
+                "url" => [
+                    "controller" => "GatheringWaivers",
+                    "action" => "dashboard",
+                    "plugin" => "Waivers",
+                ],
+                "icon" => "bi-speedometer2",
+                "activePaths" => [
+                    "waivers/GatheringWaivers/dashboard",
+                ]
+            ];
+        }
+
         // Waiver Types menu item
         $items[] = [
             "type" => "link",
-            "mergePath" => ["Waivers"],
+            "mergePath" => ["Config"],
             "label" => "Waiver Types",
-            "order" => 10,
+            "order" => 100,
             "url" => [
                 "controller" => "WaiverTypes",
                 "action" => "index",
@@ -102,6 +136,31 @@ class WaiversNavigationProvider
                 "waivers/WaiverTypes/edit/*",
             ]
         ];
+
+        // Add "Gatherings Needing Waivers" to Actions Parent if user is logged in
+        if ($user !== null) {
+            $items[] = [
+                "type" => "link",
+                "mergePath" => ["Action Items"],
+                "label" => "Gatherings Needing Waivers",
+                "order" => 25,  // Order within Actions Parent section
+                "url" => [
+                    "controller" => "GatheringWaivers",
+                    "action" => "needingWaivers",
+                    "plugin" => "Waivers",
+                ],
+                "icon" => "bi-file-earmark-check",
+                "badgeClass" => "bg-danger",
+                "badgeValue" => [
+                    "class" => "Waivers\Model\Table\GatheringWaiversTable",
+                    "method" => "countGatheringsNeedingWaivers",
+                    "argument" => $user->getIdentifier()
+                ],
+                "activePaths" => [
+                    "waivers/GatheringWaivers/needingWaivers",
+                ]
+            ];
+        }
 
         // Example: Menu item with dynamic badge (notification count)
         // Uncomment and customize for real implementation

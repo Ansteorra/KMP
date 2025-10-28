@@ -61,23 +61,23 @@ echo $this->KMP->startBlock('pageTitle') ?>
 <?php $this->KMP->endBlock() ?>
 <?= $this->KMP->startBlock('recordActions') ?>
 <?php if ($user->checkCan('verifyMembership', 'Members') && $needVerification) { ?>
-<button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
-    data-bs-target="#verifyMembershipModal">Verify Membership</button>
+    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
+        data-bs-target="#verifyMembershipModal">Verify Membership</button>
 <?php } ?>
 <?php if (
     $user->checkCan('partialEdit', $member) && ($member->membership_card_path == null || strlen($member->membership_card_path) < 1)
 ) { ?>
-<button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#submitMemberCardModal"
-    id='scaCardUploadBtn'>Submit Updated SCA Info</button>
+    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#submitMemberCardModal"
+        id='scaCardUploadBtn'>Submit Updated SCA Info</button>
 <?php }
 if (
     $user->checkCan('edit', $member) ||
     $user->checkCan('partialEdit', $member)
 ) { ?>
-<button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal"
-    id='editModalBtn'>Edit</button>
-<button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#passwordModal"
-    id='passwordModalBtn'>Change Password</button>
+    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal"
+        id='editModalBtn'>Edit</button>
+    <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#passwordModal"
+        id='passwordModalBtn'>Change Password</button>
 <?php } ?>
 <?php $this->KMP->endBlock() ?>
 
@@ -94,16 +94,20 @@ $this->KMP->endBlock() ?>
     aria-controls="nav-roles" aria-selected="false" data-detail-tabs-target='tabBtn' data-tab-order="10"
     style="order: 10;"><?= __('Roles') ?>
 </button>
+<button class="nav-link" id="nav-gatherings-tab" data-bs-toggle="tab" data-bs-target="#nav-gatherings" type="button" role="tab"
+    aria-controls="nav-gatherings" aria-selected="false" data-detail-tabs-target='tabBtn' data-tab-order="15"
+    style="order: 15;"><?= __('Gatherings') ?>
+</button>
 <button class="nav-link" id="nav-notes-tab" data-bs-toggle="tab" data-bs-target="#nav-notes" type="button" role="tab"
     aria-controls="nav-notes" aria-selected="false" data-detail-tabs-target='tabBtn' data-tab-order="20"
     style="order: 20;"><?= __('Notes') ?>
 </button>
 <?php if (!empty($aiForm)) : ?>
-<button class="nav-link" id="nav-add-info-tab" data-bs-toggle="tab" data-bs-target="#nav-add-info" type="button"
-    role="tab" aria-controls="nav-add-info" aria-selected="false" data-detail-tabs-target='tabBtn' data-tab-order="30"
-    style="order: 30;">
-    <?= __('Additional Info') ?>
-</button>
+    <button class="nav-link" id="nav-add-info-tab" data-bs-toggle="tab" data-bs-target="#nav-add-info" type="button"
+        role="tab" aria-controls="nav-add-info" aria-selected="false" data-detail-tabs-target='tabBtn' data-tab-order="30"
+        style="order: 30;">
+        <?= __('Additional Info') ?>
+    </button>
 <?php endif; ?>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock('tabContent') ?>
@@ -188,6 +192,14 @@ $this->KMP->endBlock() ?>
         echo '<p>No Roles Assigned</p>';
     } ?>
 </div>
+<div class="related tab-pane fade m-3" id="nav-gatherings" role="tabpanel" aria-labelledby="nav-gatherings-tab"
+    data-detail-tabs-target="tabContent" data-tab-order="15" style="order: 15;">
+    <?= $this->element('members/gatheringAttendances', [
+        'user' => $user,
+        'member' => $member,
+        'availableGatherings' => $availableGatherings
+    ]) ?>
+</div>
 <div class="related tab-pane fade m-3" id="nav-notes" role="tabpanel" aria-labelledby="nav-notes-tab"
     data-detail-tabs-target="tabContent" data-tab-order="20" style="order: 20;">
     <?= $this->cell('Notes', [
@@ -197,9 +209,9 @@ $this->KMP->endBlock() ?>
     ]) ?>
 </div>
 <?php if (!empty($aiForm)) : ?>
-<div class="related tab-pane fade m-3" id="nav-add-info" role="tabpanel" aria-labelledby="nav-add-info-tab"
-    data-detail-tabs-target="tabContent" data-tab-order="30" style="order: 30;">
-    <?php
+    <div class="related tab-pane fade m-3" id="nav-add-info" role="tabpanel" aria-labelledby="nav-add-info-tab"
+        data-detail-tabs-target="tabContent" data-tab-order="30" style="order: 30;">
+        <?php
         $appInfo = $member->additional_info;
         $userEditableOnly = !$user->checkCan('edit', $member);
         if ($user->checkCan('editAdditionalInfo', $member)) {
@@ -301,12 +313,12 @@ $this->KMP->endBlock() ?>
             ]);
             echo $this->form->end();
         } else { ?>
-    <table class='table table-striped'>
-        <?php foreach ($aiForm as $fieldKey => $fieldType) { ?>
-        <tr scope="row">
-            <th class="col"><?= str_replace('_', ' ', $fieldKey) ?></th>
-            <td class="col-10">
-                <?php
+            <table class='table table-striped'>
+                <?php foreach ($aiForm as $fieldKey => $fieldType) { ?>
+                    <tr scope="row">
+                        <th class="col"><?= str_replace('_', ' ', $fieldKey) ?></th>
+                        <td class="col-10">
+                            <?php
                             $pipePos = strpos($fieldType, '|');
                             $managerOnly = false;
                             $userEditable = false;
@@ -342,12 +354,12 @@ $this->KMP->endBlock() ?>
                                     break;
                             }
                             ?>
-            </td>
-        </tr>
+                        </td>
+                    </tr>
+                <?php } ?>
+            </table>
         <?php } ?>
-    </table>
-    <?php } ?>
-</div>
+    </div>
 <?php endif; ?>
 <?php $this->KMP->endBlock() ?>
 <?php
@@ -367,6 +379,11 @@ echo $this->element('members/verifyMembershipModal', [
 ]);
 echo $this->element('members/submitMemberCard', [
     'user' => $user,
+]);
+echo $this->element('members/gatheringAttendanceModals', [
+    'user' => $user,
+    'member' => $member,
+    'availableGatherings' => $availableGatherings,
 ]);
 // End writing to modal block in layout
 $this->KMP->endBlock(); ?>

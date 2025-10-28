@@ -18,10 +18,10 @@ echo $this->KMP->startBlock("pageTitle") ?>
 <?php $this->KMP->endBlock() ?>
 <?= $this->KMP->startBlock("recordActions") ?>
 <?php if ($user->checkCan('edit', $recommendation)) : ?>
-    <button type="button" class="btn btn-primary btn-sm edit-rec" data-bs-toggle="modal" data-bs-target="#editModal"
-        data-controller="outlet-btn" data-action="click->outlet-btn#fireNotice"
-        data-outlet-btn-btn-data-value='{ "id":<?= $recommendation->id ?>}'>Edit</button>
-    <?php
+<button type="button" class="btn btn-primary btn-sm edit-rec" data-bs-toggle="modal" data-bs-target="#editModal"
+    data-controller="outlet-btn" data-action="click->outlet-btn#fireNotice"
+    data-outlet-btn-btn-data-value='{ "id":<?= $recommendation->id ?>}'>Edit</button>
+<?php
     echo $this->Form->postLink(
         __("Delete"),
         ["action" => "delete", $recommendation->id],
@@ -73,10 +73,10 @@ echo $this->KMP->startBlock("pageTitle") ?>
         <?php
         if ($recommendation->given != null) :
             $given =  h($recommendation->given->toFormattedDateString());
-            echo " at " . h($recommendation->scheduled_event->name) . "  on " . $given;
+            echo " at " . h($recommendation->assigned_gathering->name) . "  on " . $given;
         endif;
-        if ($recommendation->scheduled_event && $recommendation->given == null):
-            echo "to be given at " . h($recommendation->scheduled_event->name);
+        if ($recommendation->assigned_gathering && $recommendation->given == null):
+            echo "to be given at " . h($recommendation->assigned_gathering->name);
         endif; ?>
     </td>
 </tr>
@@ -99,15 +99,15 @@ echo $this->KMP->startBlock("pageTitle") ?>
     <td><?= h($recommendation->contact_number) ?></td>
 </tr>
 <tr>
-    <th scope="row"><?= __('Suggested Events') ?></th>
+    <th scope="row"><?= __('Suggested Gatherings') ?></th>
     <td>
         <ul>
-            <?php foreach ($recommendation->events as $events) : ?>
-                <li><?= $this->Html->link($events->name, ['controller' => 'Events', 'action' => 'view', $events->id]) ?>
-                    <?php if ($recommendation->event_id == $events->id) {
+            <?php foreach ($recommendation->gatherings as $gathering) : ?>
+            <li><?= $this->Html->link($gathering->name, ['controller' => 'Gatherings', 'action' => 'view', $gathering->id, 'plugin' => null]) ?>
+                <?php if ($recommendation->gathering_id == $gathering->id) {
                         echo " (Plan to Give)";
                     } ?>
-                </li>
+            </li>
             <?php endforeach; ?>
         </ul>
     </td>

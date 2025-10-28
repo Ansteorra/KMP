@@ -178,6 +178,7 @@ use JeremyHarris\LazyLoad\ORM\LazyLoadEntityTrait;
  * @property \App\Model\Entity\MemberRole[] $current_member_roles Current active role assignments
  * @property \App\Model\Entity\MemberRole[] $previous_member_roles Historical role assignments
  * @property \App\Model\Entity\MemberRole[] $upcoming_member_roles Future role assignments
+ * @property \App\Model\Entity\GatheringAttendance[] $gathering_attendances Gathering attendance records
  */
 class Member extends BaseEntity implements
     KmpIdentityInterface,

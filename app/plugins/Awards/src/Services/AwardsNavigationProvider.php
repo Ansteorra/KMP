@@ -322,35 +322,6 @@ class AwardsNavigationProvider
             ],
             [
                 "type" => "link",
-                "mergePath" => ["Award Recs."],
-                "label" => "Award Events",
-                "order" => 33,
-                "url" => [
-                    "controller" => "Events",
-                    "plugin" => "Awards",
-                    "action" => "index",
-                    "model" => "Awards.Events",
-                ],
-                "icon" => "bi-calendar-check",
-                "activePaths" => [
-                    "awards/Events/view/*",
-                ]
-            ],
-            [
-                "type" => "link",
-                "mergePath" => ["Award Recs.", "Award Events"],
-                "label" => "New Award Events",
-                "order" => 0,
-                "url" => [
-                    "controller" => "Events",
-                    "plugin" => "Awards",
-                    "action" => "add",
-                    "model" => "Awards.Events",
-                ],
-                "icon" => "bi-plus",
-            ],
-            [
-                "type" => "link",
                 "mergePath" => ["Members"],
                 "label" => "Submit Award Rec.",
                 "order" => 30,

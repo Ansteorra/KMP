@@ -25,4 +25,22 @@ class GatheringPolicy extends BasePolicy
     {
         return true;
     }
+
+    /**
+     * Check if user can view attendance information for a gathering
+     *
+     * Users with appropriate permissions can view attendance details including
+     * total count and list of attendees who have shared with the hosting group.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The user.
+     * @param \App\Model\Entity\BaseEntity $entity The gathering entity
+     * @param mixed ...$optionalArgs Optional arguments
+     * @return bool
+     */
+    public function canViewAttendance(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
+    {
+        $method = __FUNCTION__;
+
+        return $this->_hasPolicy($user, $method, $entity);
+    }
 }

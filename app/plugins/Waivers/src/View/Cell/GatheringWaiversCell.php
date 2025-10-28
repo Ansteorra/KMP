@@ -200,11 +200,27 @@ class GatheringWaiversCell extends Cell
             ])
             ->all();
 
-        // Check if waivers have been uploaded
+        // Check if waivers have been uploaded (excluding declined waivers)
         $gatheringWaiversTable = TableRegistry::getTableLocator()->get('Waivers.GatheringWaivers');
         $hasWaivers = $gatheringWaiversTable->find()
-            ->where(['gathering_id' => $gatheringId])
+            ->where([
+                'gathering_id' => $gatheringId,
+                'declined_at IS' => null, // Exclude declined waivers
+            ])
             ->count() > 0;
+
+        // Get total waiver count (including declined)
+        $totalWaiverCount = $gatheringWaiversTable->find()
+            ->where(['gathering_id' => $gatheringId])
+            ->count();
+
+        // Get declined waiver count
+        $declinedWaiverCount = $gatheringWaiversTable->find()
+            ->where([
+                'gathering_id' => $gatheringId,
+                'declined_at IS NOT' => null, // Only declined waivers
+            ])
+            ->count();
 
         // Get waiver upload statistics by activity and type
         // We need to check GatheringWaiverActivities to see which activities each waiver is for
@@ -212,9 +228,13 @@ class GatheringWaiversCell extends Cell
         $activityWaiverStats = [];
         if ($hasWaivers && !empty($activityIds)) {
             // Load all waiver-activity associations for activities in this gathering
+            // Exclude declined waivers from statistics
             $waiverActivityLinks = $gatheringWaiverActivitiesTable->find()
                 ->contain(['GatheringWaivers' => function ($q) use ($gatheringId) {
-                    return $q->where(['GatheringWaivers.gathering_id' => $gatheringId]);
+                    return $q->where([
+                        'GatheringWaivers.gathering_id' => $gatheringId,
+                        'GatheringWaivers.declined_at IS' => null, // Exclude declined waivers
+                    ]);
                 }])
                 ->where(['GatheringWaiverActivities.gathering_activity_id IN' => $activityIds])
                 ->all();
@@ -296,6 +316,8 @@ class GatheringWaiversCell extends Cell
         $this->set('activitiesWithWaivers', $activitiesWithWaivers);
         $this->set('isEmpty', empty($activitiesWithWaivers));
         $this->set('hasWaivers', $hasWaivers);
+        $this->set('totalWaiverCount', $totalWaiverCount);
+        $this->set('declinedWaiverCount', $declinedWaiverCount);
         $this->set('overallStats', [
             'complete' => $overallComplete,
             'pending' => $overallPending,

@@ -118,7 +118,8 @@ class Recommendation extends BaseEntity
         'member_id' => true,
         'branch_id' => true,
         'award_id' => true,
-        'event_id' => true,
+        'event_id' => true,  // Deprecated - kept for migration compatibility, use gathering_id instead
+        'gathering_id' => true,
         'given' => true,
         'status' => true,
         'state' => true,

@@ -35,6 +35,16 @@ echo $this->KMP->startBlock("recordActions");
             <i class="bi bi-pencil-square"></i> <?= __('Change Type/Activities') ?>
         </button>
     <?php endif; ?>
+    <?php
+    // Show decline button if user can decline and waiver can be declined
+    if ($user && $user->checkCan('canDecline', $gatheringWaiver) && $gatheringWaiver->can_be_declined): ?>
+        <button type="button"
+            class="btn btn-danger"
+            data-bs-toggle="modal"
+            data-bs-target="#declineWaiverModal">
+            <i class="bi bi-x-circle-fill"></i> <?= __('Decline Waiver') ?>
+        </button>
+    <?php endif; ?>
     <?php if ($gatheringWaiver->status === 'expired'): ?>
         <?= $this->Form->postLink(
             '<i class="bi bi-trash-fill"></i> ' . __('Delete'),
@@ -104,7 +114,9 @@ echo $this->KMP->startBlock("recordDetails");
 
                     <dt class="col-sm-3"><?= __('Status') ?></dt>
                     <dd class="col-sm-9">
-                        <?php if ($gatheringWaiver->status === 'active'): ?>
+                        <?php if ($gatheringWaiver->is_declined): ?>
+                            <span class="badge bg-danger"><?= __('Declined') ?></span>
+                        <?php elseif ($gatheringWaiver->status === 'active'): ?>
                             <span class="badge bg-success"><?= __('Active') ?></span>
                         <?php elseif ($gatheringWaiver->status === 'expired'): ?>
                             <span class="badge bg-danger"><?= __('Expired') ?></span>
@@ -112,6 +124,43 @@ echo $this->KMP->startBlock("recordDetails");
                             <span class="badge bg-secondary"><?= h($gatheringWaiver->status) ?></span>
                         <?php endif; ?>
                     </dd>
+
+                    <?php if ($gatheringWaiver->is_declined): ?>
+                        <dt class="col-sm-3"><?= __('Declined At') ?></dt>
+                        <dd class="col-sm-9">
+                            <?= h($gatheringWaiver->declined_at->format('F d, Y g:i A')) ?>
+                        </dd>
+
+                        <?php if (!empty($gatheringWaiver->declined_by_member)): ?>
+                            <dt class="col-sm-3"><?= __('Declined By') ?></dt>
+                            <dd class="col-sm-9">
+                                <?php
+                                $declinedByName = $gatheringWaiver->declined_by_member->SCA_name
+                                    ?? $gatheringWaiver->declined_by_member->modern_name
+                                    ?? 'Unknown';
+                                ?>
+                                <?= $this->Html->link(
+                                    h($declinedByName),
+                                    ['plugin' => false, 'controller' => 'Members', 'action' => 'view', $gatheringWaiver->declined_by]
+                                ) ?>
+                            </dd>
+                        <?php elseif (!empty($gatheringWaiver->declined_by)): ?>
+                            <dt class="col-sm-3"><?= __('Declined By') ?></dt>
+                            <dd class="col-sm-9">
+                                <?= __('Member ID: {0}', h($gatheringWaiver->declined_by)) ?>
+                            </dd>
+                        <?php endif; ?>
+
+                        <?php if ($gatheringWaiver->decline_reason): ?>
+                            <dt class="col-sm-3"><?= __('Decline Reason') ?></dt>
+                            <dd class="col-sm-9">
+                                <div class="alert alert-danger mb-0">
+                                    <i class="bi bi-exclamation-triangle-fill"></i>
+                                    <?= nl2br(h($gatheringWaiver->decline_reason)) ?>
+                                </div>
+                            </dd>
+                        <?php endif; ?>
+                    <?php endif; ?>
 
                     <dt class="col-sm-3"><?= __('Uploaded') ?></dt>
                     <dd class="col-sm-9">
@@ -338,4 +387,79 @@ if ($user && $user->checkCan('canChangeWaiverType', $gatheringWaiver)) {
         'gatheringActivities' => $gatheringActivities,
     ]);
 }
+
+// Include the decline waiver modal
+if ($user && $user->checkCan('canDecline', $gatheringWaiver) && $gatheringWaiver->can_be_declined): ?>
+    <!-- Decline Waiver Modal -->
+    <div class="modal fade" id="declineWaiverModal" tabindex="-1" aria-labelledby="declineWaiverModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <?= $this->Form->create(null, [
+                    'url' => ['action' => 'decline', $gatheringWaiver->id],
+                    'type' => 'post'
+                ]) ?>
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="declineWaiverModalLabel">
+                        <i class="bi bi-x-circle-fill"></i> <?= __('Decline Waiver') ?>
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        <strong><?= __('Warning:') ?></strong>
+                        <?= __('You are about to decline this waiver. This action cannot be undone.') ?>
+                    </div>
+
+                    <div class="mb-3">
+                        <p><strong><?= __('Waiver Details:') ?></strong></p>
+                        <ul>
+                            <li><?= __('Type: {0}', h($gatheringWaiver->waiver_type->name)) ?></li>
+                            <li><?= __('Uploaded: {0}', h($gatheringWaiver->created->format('M d, Y'))) ?></li>
+                            <li><?= __('Gathering: {0}', h($gatheringWaiver->gathering->name)) ?></li>
+                        </ul>
+                    </div>
+
+                    <div class="mb-3">
+                        <?= $this->Form->control('decline_reason', [
+                            'label' => __('Reason for Declining (Required)'),
+                            'type' => 'textarea',
+                            'rows' => 4,
+                            'required' => true,
+                            'class' => 'form-control',
+                            'placeholder' => __('Please provide a detailed reason why this waiver is being declined...')
+                        ]) ?>
+                        <small class="form-text text-muted">
+                            <i class="bi bi-info-circle"></i>
+                            <?= __('This reason will be visible to users who can view this waiver.') ?>
+                        </small>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <i class="bi bi-clock"></i>
+                        <strong><?= __('Note:') ?></strong>
+                        <?= __(
+                            'Waivers can only be declined within 30 days of upload. This waiver was uploaded {0}.',
+                            $gatheringWaiver->created->timeAgoInWords()
+                        ) ?>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x"></i> <?= __('Cancel') ?>
+                    </button>
+                    <?= $this->Form->button(
+                        '<i class="bi bi-x-circle-fill"></i> ' . __('Decline Waiver'),
+                        [
+                            'type' => 'submit',
+                            'class' => 'btn btn-danger',
+                            'escape' => false
+                        ]
+                    ) ?>
+                </div>
+                <?= $this->Form->end() ?>
+            </div>
+        </div>
+    </div>
+<?php endif;
 ?>

@@ -16,6 +16,7 @@ Follow CakePHP's conventional directory structure:
   - `Services/` - Service classes
   - `Policy/` - Authorization policies
 - `config/` - Configuration files
+  - `.env` - Environment variables including database credentials (!! AVOID committing sensitive info, but use this when you need to call the database !!)
 - `plugins/` - Plugin directories
 - `templates/` - Template files
 - `webroot/` - Public web files

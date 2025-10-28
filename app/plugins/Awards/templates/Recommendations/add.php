@@ -21,7 +21,8 @@ $this->KMP->endBlock(); ?>
             'plugin' => null
         ]),
         'data-action' => 'submit->awards-rec-add#submit',
-        'data-awards-rec-add-award-list-url-value' => $this->URL->build(['controller' => 'Awards', 'action' => 'awardsByDomain', 'plugin' => "Awards"])
+        'data-awards-rec-add-award-list-url-value' => $this->URL->build(['controller' => 'Awards', 'action' => 'awardsByDomain', 'plugin' => "Awards"]),
+        'data-awards-rec-add-gatherings-url-value' => $this->URL->build(['controller' => 'Recommendations', 'action' => 'gatheringsForAward', 'plugin' => 'Awards'])
     ]) ?>
     <fieldset>
         <legend><?= __('Submit Award Recommendation') ?></legend>
@@ -114,12 +115,12 @@ $this->KMP->endBlock(); ?>
             'label' => 'Reason for Recommendation',
             'data-awards-rec-add-target' => 'reason'
         ]);
-        echo $this->Form->control('events._ids', [
-            'label' => 'Events They May Attend:',
+        echo $this->Form->control('gatherings._ids', [
+            'label' => 'Gatherings/Events They May Attend:',
             "type" => "select",
             "multiple" => "checkbox",
-            'options' => $events,
-            'data-awards-rec-add-target' => 'events'
+            'options' => $gatherings,
+            'data-awards-rec-add-target' => 'gatherings'
         ]);
         ?>
     </fieldset>

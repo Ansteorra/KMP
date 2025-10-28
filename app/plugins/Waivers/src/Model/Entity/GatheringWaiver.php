@@ -21,11 +21,15 @@ use App\Model\Entity\BaseEntity;
  * @property int $created_by
  * @property \Cake\I18n\DateTime $created
  * @property \Cake\I18n\DateTime $modified
+ * @property \Cake\I18n\DateTime|null $declined_at
+ * @property int|null $declined_by
+ * @property string|null $decline_reason
  *
  * @property \App\Model\Entity\Gathering $gathering
  * @property \Waivers\Model\Entity\WaiverType $waiver_type
  * @property \App\Model\Entity\Document $document
  * @property \App\Model\Entity\Member $created_by_member
+ * @property \App\Model\Entity\Member $declined_by_member
  * @property \Waivers\Model\Entity\GatheringWaiverActivity[] $gathering_waiver_activities
  */
 class GatheringWaiver extends BaseEntity
@@ -44,10 +48,14 @@ class GatheringWaiver extends BaseEntity
         'created_by' => true,
         'created' => true,
         'modified' => true,
+        'declined_at' => true,
+        'declined_by' => true,
+        'decline_reason' => true,
         'gathering' => true,
         'waiver_type' => true,
         'document' => true,
         'created_by_member' => true,
+        'declined_by_member' => true,
         'gathering_waiver_activities' => true,
     ];
 
@@ -80,12 +88,57 @@ class GatheringWaiver extends BaseEntity
     }
 
     /**
+     * Virtual field indicating if waiver is declined
+     *
+     * @return bool
+     */
+    protected function _getIsDeclined(): bool
+    {
+        return !empty($this->declined_at);
+    }
+
+    /**
+     * Virtual field indicating if waiver can be declined
+     * 
+     * A waiver can be declined if:
+     * - It has not already been declined
+     * - It was created within the last 30 days
+     * - It is not expired or deleted
+     *
+     * @return bool
+     */
+    protected function _getCanBeDeclined(): bool
+    {
+        // Already declined
+        if ($this->is_declined) {
+            return false;
+        }
+
+        // Expired or deleted waivers cannot be declined
+        if ($this->status === 'expired' || $this->status === 'deleted') {
+            return false;
+        }
+
+        // Check if within 30 days of creation
+        if (empty($this->created)) {
+            return false;
+        }
+
+        $thirtyDaysAgo = new \Cake\I18n\DateTime('-30 days');
+        return $this->created >= $thirtyDaysAgo;
+    }
+
+    /**
      * Virtual field for status badge class
      *
      * @return string
      */
     protected function _getStatusBadgeClass(): string
     {
+        if ($this->is_declined) {
+            return 'badge-danger';
+        }
+
         return match ($this->status) {
             'active' => $this->is_expired ? 'badge-warning' : 'badge-success',
             'pending' => 'badge-info',
@@ -101,6 +154,10 @@ class GatheringWaiver extends BaseEntity
      */
     protected function _getStatusDisplay(): string
     {
+        if ($this->is_declined) {
+            return 'Declined';
+        }
+
         if ($this->status === 'active' && $this->is_expired) {
             return 'Expired';
         }
