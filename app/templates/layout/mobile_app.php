@@ -302,6 +302,16 @@ if ($currentUser && $currentUser->mobile_card_token) {
             // Re-index array after filtering
             $mobileMenuItems = array_values($mobileMenuItems);
 
+            // Add "Switch to Desktop" as the last menu item
+            $mobileMenuItems[] = [
+                'label' => 'Switch to Desktop',
+                'icon' => 'bi-display',
+                'url' => $this->Url->build(['controller' => 'App', 'action' => 'switchView', 'plugin' => null, '?' => ['mode' => 'desktop']]),
+                'order' => 9999,  // High order to place it last
+                'color' => 'secondary',
+                'badge' => null
+            ];
+
             if (!empty($mobileMenuItems)) :
             ?>
 
