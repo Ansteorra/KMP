@@ -379,4 +379,40 @@ class AuthorizationApprovalPolicy extends BasePolicy
         $method = __FUNCTION__;
         return $this->_hasPolicy($user, $method, $approval);
     }
+
+    /**
+     * Check if the user can approve authorization requests via mobile interface.
+     *
+     * Determines approval authority for authorization requests in mobile workflows based on 
+     * activity-specific permission requirements. Uses identical authorization logic to approve()
+     * method for consistent permission validation across desktop and mobile interfaces.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The requesting user
+     * @param \Activities\Model\Entity\AuthorizationApproval $entity The authorization approval entity
+     * @param mixed ...$optionalArgs Additional arguments for policy evaluation
+     * @return bool True if user can approve the authorization request via mobile, false otherwise
+     * @see \Activities\Policy\AuthorizationApprovalPolicy::canApprove() Desktop approval authorization
+     */
+    function canMobileApprove(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
+    {
+        return $this->canApprove($user, $entity, ...$optionalArgs);
+    }
+
+    /**
+     * Check if the user can deny authorization requests via mobile interface.
+     *
+     * Determines denial authority for authorization requests in mobile workflows based on 
+     * activity-specific permission requirements. Uses identical authorization logic to deny()
+     * method for consistent permission validation across desktop and mobile interfaces.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The requesting user
+     * @param \Activities\Model\Entity\AuthorizationApproval $entity The authorization approval entity
+     * @param mixed ...$optionalArgs Additional arguments for policy evaluation
+     * @return bool True if user can deny the authorization request via mobile, false otherwise
+     * @see \Activities\Policy\AuthorizationApprovalPolicy::canDeny() Desktop denial authorization
+     */
+    function canMobileDeny(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
+    {
+        return $this->canDeny($user, $entity, ...$optionalArgs);
+    }
 }

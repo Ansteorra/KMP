@@ -95,6 +95,7 @@ class WaiversNavigationProvider
                     "controller" => "GatheringWaivers",
                     "action" => "index",
                     "plugin" => "Waivers",
+                    "model" => "Waivers.GatheringWaivers"
                 ],
                 "icon" => "bi-list-ul",
                 "activePaths" => [

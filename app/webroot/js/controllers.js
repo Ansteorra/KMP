@@ -3810,6 +3810,266 @@ window.Controllers["member-card-profile"] = MemberCardProfile;
 
 /***/ }),
 
+/***/ "./assets/js/controllers/member-mobile-card-menu-controller.js":
+/*!*********************************************************************!*\
+  !*** ./assets/js/controllers/member-mobile-card-menu-controller.js ***!
+  \*********************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+
+/**
+ * MemberMobileCardMenu Stimulus Controller
+ * 
+ * Manages mobile-optimized menu interface for PWA member cards with floating
+ * action button (FAB) style menu system. Provides plugin-based menu item
+ * registration and navigation for mobile-optimized features.
+ * 
+ * Features:
+ * - Floating action button (FAB) menu interface
+ * - Plugin-registered menu items with icons and badges
+ * - Mobile-optimized touch interactions
+ * - Expandable/collapsible menu system
+ * - Bootstrap icon integration
+ * - Notification badge support
+ * - Smooth animations and transitions
+ * - Accessible ARIA attributes
+ * 
+ * Values:
+ * - menuItems: String (JSON) - Array of menu item configurations from plugins
+ * 
+ * Targets:
+ * - fab: Main floating action button
+ * - menu: Menu items container
+ * - menuItem: Individual menu item buttons
+ * - badge: Notification badge elements
+ * 
+ * Menu Item Structure (from plugins):
+ * {
+ *   label: "Submit Waiver",
+ *   icon: "bi-file-earmark-text",  // Bootstrap icon class
+ *   url: "/waivers/mobile-submit",
+ *   order: 10,
+ *   badge: null | number,  // Optional notification count
+ *   color: "primary" | "success" | "danger" | etc
+ * }
+ * 
+ * Usage:
+ * <div data-controller="member-mobile-card-menu"
+ *      data-member-mobile-card-menu-menu-items-value='[...]'>
+ *   <button data-member-mobile-card-menu-target="fab"
+ *           data-action="click->member-mobile-card-menu#toggleMenu">
+ *     <i class="bi bi-three-dots"></i>
+ *   </button>
+ *   <div data-member-mobile-card-menu-target="menu" hidden>
+ *     <!-- Menu items rendered here -->
+ *   </div>
+ * </div>
+ */
+class MemberMobileCardMenu extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static targets = ["fab", "menu", "menuItem", "badge"];
+  static values = {
+    menuItems: String
+  };
+
+  /**
+   * Initialize controller state
+   * Sets up menu state tracking
+   */
+  initialize() {
+    this.menuOpen = false;
+    this.items = [];
+  }
+
+  /**
+   * Connect controller to DOM
+   * Initializes menu with plugin-registered items
+   */
+  connect() {
+    console.log("MemberMobileCardMenu connected");
+    this.loadMenuItems();
+    this.renderMenu();
+  }
+
+  /**
+   * Load menu items from JSON value
+   * Parses and validates plugin-registered menu items
+   */
+  loadMenuItems() {
+    try {
+      if (this.menuItemsValue) {
+        this.items = JSON.parse(this.menuItemsValue);
+        // Sort by order
+        this.items.sort((a, b) => (a.order || 999) - (b.order || 999));
+        console.log("Loaded menu items:", this.items);
+      }
+    } catch (error) {
+      console.error("Error parsing menu items:", error);
+      this.items = [];
+    }
+  }
+
+  /**
+   * Render menu items into DOM
+   * Creates button elements for each menu item with icons and badges
+   */
+  renderMenu() {
+    if (!this.hasMenuTarget || this.items.length === 0) {
+      return;
+    }
+
+    // Clear existing menu items
+    this.menuTarget.innerHTML = '';
+
+    // Create menu items
+    this.items.forEach(item => {
+      const menuItem = this.createMenuItem(item);
+      this.menuTarget.appendChild(menuItem);
+    });
+  }
+
+  /**
+   * Create menu item DOM element
+   * Generates button with icon, label, and optional badge
+   * 
+   * @param {Object} item Menu item configuration
+   * @returns {HTMLElement} Menu item button element
+   */
+  createMenuItem(item) {
+    const button = document.createElement('a');
+    button.href = item.url;
+    button.className = `btn btn-${item.color || 'primary'} btn-lg w-100 mb-2 d-flex align-items-center justify-content-between mobile-menu-item`;
+    button.setAttribute('data-member-mobile-card-menu-target', 'menuItem');
+    button.setAttribute('data-action', 'click->member-mobile-card-menu#closeMenu');
+    button.setAttribute('role', 'button');
+    button.setAttribute('aria-label', item.label);
+
+    // Create content wrapper
+    const content = document.createElement('span');
+    content.className = 'd-flex align-items-center';
+
+    // Add icon
+    if (item.icon) {
+      const icon = document.createElement('i');
+      icon.className = `bi ${item.icon} me-2`;
+      icon.setAttribute('aria-hidden', 'true');
+      content.appendChild(icon);
+    }
+
+    // Add label
+    const label = document.createElement('span');
+    label.textContent = item.label;
+    content.appendChild(label);
+    button.appendChild(content);
+
+    // Add badge if present
+    if (item.badge !== null && item.badge !== undefined && item.badge > 0) {
+      const badge = document.createElement('span');
+      badge.className = 'badge bg-danger rounded-pill';
+      badge.setAttribute('data-member-mobile-card-menu-target', 'badge');
+      badge.textContent = item.badge;
+      button.appendChild(badge);
+    }
+    return button;
+  }
+
+  /**
+   * Toggle menu open/closed state
+   * Handles FAB button click to show/hide menu
+   * 
+   * @param {Event} event Click event
+   */
+  toggleMenu(event) {
+    event.preventDefault();
+    if (this.menuOpen) {
+      this.closeMenu();
+    } else {
+      this.openMenu();
+    }
+  }
+
+  /**
+   * Open menu display
+   * Shows menu items with animation
+   */
+  openMenu() {
+    if (!this.hasMenuTarget) return;
+    this.menuOpen = true;
+    this.menuTarget.hidden = false;
+
+    // Add animation class
+    this.menuTarget.classList.add('menu-opening');
+
+    // Update FAB appearance
+    if (this.hasFabTarget) {
+      this.fabTarget.classList.add('menu-active');
+    }
+
+    // Remove animation class after animation completes
+    setTimeout(() => {
+      this.menuTarget.classList.remove('menu-opening');
+    }, 300);
+  }
+
+  /**
+   * Close menu display
+   * Hides menu items with animation
+   */
+  closeMenu() {
+    if (!this.hasMenuTarget) return;
+    this.menuOpen = false;
+
+    // Add closing animation class
+    this.menuTarget.classList.add('menu-closing');
+
+    // Update FAB appearance
+    if (this.hasFabTarget) {
+      this.fabTarget.classList.remove('menu-active');
+    }
+
+    // Hide after animation completes
+    setTimeout(() => {
+      this.menuTarget.hidden = true;
+      this.menuTarget.classList.remove('menu-closing');
+    }, 300);
+  }
+
+  /**
+   * Handle clicks outside menu to close it
+   * 
+   * @param {Event} event Click event
+   */
+  handleOutsideClick(event) {
+    if (!this.menuOpen) return;
+
+    // Check if click is outside menu and FAB
+    const clickedOutside = !this.element.contains(event.target);
+    if (clickedOutside) {
+      this.closeMenu();
+    }
+  }
+
+  /**
+   * Disconnect controller from DOM
+   * Cleans up event listeners
+   */
+  disconnect() {
+    // Cleanup if needed
+    console.log("MemberMobileCardMenu disconnected");
+  }
+}
+
+// Register controller globally
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["member-mobile-card-menu"] = MemberMobileCardMenu;
+
+/***/ }),
+
 /***/ "./assets/js/controllers/member-mobile-card-profile-controller.js":
 /*!************************************************************************!*\
   !*** ./assets/js/controllers/member-mobile-card-profile-controller.js ***!
@@ -3879,6 +4139,24 @@ class MemberMobileCardProfile extends _hotwired_stimulus__WEBPACK_IMPORTED_MODUL
   initialize() {
     this.currentCard = null;
     this.cardCount = 0;
+
+    // Listen for PWA ready event
+    this.handlePwaReady = this.handlePwaReady.bind(this);
+  }
+
+  /**
+   * Disconnect controller from DOM
+   * Cleans up event listeners
+   */
+  disconnect() {
+    this.element.removeEventListener('pwa-ready', this.handlePwaReady);
+  }
+
+  /**
+   * Handle PWA ready event from PWA controller
+   */
+  handlePwaReady() {
+    this.pwaReadyValue = true;
   }
 
   /**
@@ -3909,7 +4187,6 @@ class MemberMobileCardProfile extends _hotwired_stimulus__WEBPACK_IMPORTED_MODUL
    * Triggers card loading when PWA becomes available
    */
   pwaReadyValueChanged() {
-    console.log("pwaReadyValueChanged");
     if (this.pwaReadyValue) {
       this.loadCard();
     }
@@ -3939,12 +4216,14 @@ class MemberMobileCardProfile extends _hotwired_stimulus__WEBPACK_IMPORTED_MODUL
     this.loadingTarget.hidden = false;
     this.memberDetailsTarget.hidden = true;
     if (!this.pwaReadyValue) {
-      console.log("PWA not ready");
       return;
-    } else {
-      console.log("PWA ready");
     }
-    fetch(this.urlValue, this.optionsForFetch()).then(response => response.json()).then(data => {
+    fetch(this.urlValue, this.optionsForFetch()).then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      return response.json();
+    }).then(data => {
       this.loadingTarget.hidden = true;
       this.memberDetailsTarget.hidden = false;
       this.nameTarget.textContent = data.member.first_name + ' ' + data.member.last_name;
@@ -4046,16 +4325,25 @@ class MemberMobileCardProfile extends _hotwired_stimulus__WEBPACK_IMPORTED_MODUL
           this.currentCard.appendChild(groupTable);
         }
       }
+    }).catch(error => {
+      console.error("Error loading card:", error);
+      this.loadingTarget.hidden = true;
+      this.memberDetailsTarget.hidden = false;
+      this.nameTarget.textContent = "Error loading card data";
     });
   }
 
   /**
    * Connect controller to DOM
-   * Initializes mobile profile card interface
+   * Initializes mobile profile card interface and sets up PWA event listener
    */
   connect() {
-    console.log("MemberMobileCardProfile connected");
-    //this.loadCard();
+    this.element.addEventListener('pwa-ready', this.handlePwaReady);
+
+    // Check if PWA is already ready (event may have fired before we connected)
+    if (this.pwaReadyValue) {
+      this.loadCard();
+    }
   }
 }
 if (!window.Controllers) {
@@ -4099,7 +4387,6 @@ __webpack_require__.r(__webpack_exports__);
  * - urlCache: Hidden element containing URLs to cache (JSON format)
  * - status: Status display element for online/offline indication
  * - refreshBtn: Button for manual page refresh
- * - hubLinkContainer: Container for mobile hub link (shown only when online)
  * 
  * Usage:
  * <div data-controller="member-mobile-card-pwa" 
@@ -4112,7 +4399,10 @@ __webpack_require__.r(__webpack_exports__);
  * </div>
  */
 class MemberMobileCardPWA extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
-  static targets = ["urlCache", "status", "refreshBtn", "hubLinkContainer"];
+  static targets = ["urlCache", "status", "refreshBtn"];
+
+  // Make refreshBtn optional
+  static optionalTargets = ["refreshBtn"];
   static values = {
     swUrl: String
   };
@@ -4131,32 +4421,28 @@ class MemberMobileCardPWA extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0_
    */
   updateOnlineStatus() {
     const statusDiv = this.statusTarget;
-    const refreshButton = this.refreshBtnTarget;
+    const refreshButton = this.hasRefreshBtnTarget ? this.refreshBtnTarget : null;
     if (navigator.onLine) {
       statusDiv.textContent = 'Online';
       statusDiv.classList.remove('bg-danger');
       statusDiv.classList.add('bg-success');
-      refreshButton.hidden = false;
-
-      // Show mobile hub link when online
-      if (this.hasHubLinkContainerTarget) {
-        this.hubLinkContainerTarget.hidden = false;
+      if (refreshButton) {
+        refreshButton.hidden = false;
       }
       if (this.sw) {
         this.sw.active.postMessage({
           type: 'ONLINE'
         });
       }
-      refreshButton.click();
+      if (refreshButton) {
+        refreshButton.click();
+      }
     } else {
       statusDiv.textContent = 'Offline';
       statusDiv.classList.remove('bg-success');
       statusDiv.classList.add('bg-danger');
-      refreshButton.hidden = true;
-
-      // Hide mobile hub link when offline
-      if (this.hasHubLinkContainerTarget) {
-        this.hubLinkContainerTarget.hidden = true;
+      if (refreshButton) {
+        refreshButton.hidden = true;
       }
       if (this.sw) {
         this.sw.active.postMessage({
@@ -4174,20 +4460,42 @@ class MemberMobileCardPWA extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0_
     this.updateOnlineStatus();
     window.addEventListener('online', this.updateOnlineStatus.bind(this));
     window.addEventListener('offline', this.updateOnlineStatus.bind(this));
-    navigator.serviceWorker.register(this.swUrlValue).then(registration => {
-      this.sw = registration;
-      new Promise(r => setTimeout(r, 100)).then(() => {
-        console.log('Service Worker registered with scope:', registration.scope);
-        console.log('Service Worker active:', registration.active);
-        registration.active.postMessage({
-          type: 'CACHE_URLS',
-          payload: this.urlCacheValue
-        });
-        this.element.attributes['data-member-mobile-card-profile-pwa-ready-value'].value = true;
+
+    // Register service worker with a slight delay to ensure all controllers are connected
+    setTimeout(() => {
+      navigator.serviceWorker.register(this.swUrlValue).then(registration => {
+        this.sw = registration;
+
+        // Wait for service worker to be active
+        const waitForActive = () => {
+          if (registration.active) {
+            registration.active.postMessage({
+              type: 'CACHE_URLS',
+              payload: this.urlCacheValue
+            });
+
+            // Dispatch custom event to notify profile controller PWA is ready
+            const event = new CustomEvent('pwa-ready', {
+              bubbles: true
+            });
+            this.element.dispatchEvent(event);
+          } else if (registration.installing) {
+            registration.installing.addEventListener('statechange', e => {
+              if (e.target.state === 'activated') {
+                waitForActive();
+              }
+            });
+          } else if (registration.waiting) {
+            waitForActive();
+          } else {
+            setTimeout(waitForActive, 100);
+          }
+        };
+        waitForActive();
+      }, error => {
+        console.error('Service Worker registration failed:', error);
       });
-    }, error => {
-      console.log('Service Worker registration failed:', error);
-    });
+    }, 100);
   }
 
   /**
@@ -4206,11 +4514,12 @@ class MemberMobileCardPWA extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0_
    */
   connect() {
     if ('serviceWorker' in navigator) {
-      // Check if page is already loaded, otherwise wait for load event
-      if (document.readyState === 'complete') {
-        this.manageOnlineStatus();
+      // Start PWA initialization immediately or on DOMContentLoaded/load
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', this.manageOnlineStatus.bind(this));
       } else {
-        window.addEventListener('load', this.manageOnlineStatus.bind(this));
+        // readyState is 'interactive' or 'complete', safe to initialize
+        this.manageOnlineStatus();
       }
     }
     setInterval(this.refreshPageIfOnline, 300000);
@@ -4429,374 +4738,9 @@ window.Controllers["member-verify-form"] = MemberVerifyForm;
 /*!********************************************************!*\
   !*** ./assets/js/controllers/mobile-hub-controller.js ***!
   \********************************************************/
-/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
-__webpack_require__.r(__webpack_exports__);
-/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+/***/ (function() {
 
 
-/**
- * Mobile Hub Stimulus Controller
- * 
- * Manages the main mobile member hub interface with navigation and feature modules.
- * Provides a unified mobile experience for authorization requests, approvals, and
- * waiver submissions with PWA support and offline capability awareness.
- * 
- * Features:
- * - Mobile-optimized hub interface
- * - Feature module navigation
- * - Real-time data loading
- * - Approval queue monitoring
- * - Gathering waiver management
- * - PWA integration with status awareness
- * - Expandable architecture for future features
- * 
- * Values:
- * - url: String - API endpoint for hub data
- * 
- * Targets:
- * - loading: Loading indicator
- * - memberInfo: Member information container
- * - memberName: Member's full name
- * - scaName: Member's SCA name
- * - membershipStatus: Membership status display
- * - authCount: Authorization count badge
- * - statusBar: Connection status bar
- * - cardSection: Member card feature section
- * - requestSection: Authorization request section
- * - approvalSection: Approval queue section
- * - approvalCount: Pending approval count badge
- * - waiverSection: Waiver submission section
- * - pendingRequests: Pending requests container
- * - pendingRequestsList: List of pending requests
- * - gatheringsList: Gatherings container
- * - gatheringsListContent: List of gatherings
- * - lastUpdate: Last update timestamp
- * - refreshBtn: Refresh button
- * 
- * Usage:
- * <div data-controller="mobile-hub" 
- *      data-mobile-hub-url-value="/api/mobile-hub/data">
- *   <!-- Hub content -->
- * </div>
- */
-class MobileHub extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
-  static targets = ["loading", "memberInfo", "memberName", "scaName", "membershipStatus", "authCount", "statusBar", "cardSection", "requestSection", "approvalSection", "approvalCount", "waiverSection", "pendingRequests", "pendingRequestsList", "gatheringsList", "gatheringsListContent", "lastUpdate", "refreshBtn"];
-  static values = {
-    url: String
-  };
-
-  /**
-   * Initialize controller
-   * Sets up initial state
-   */
-  initialize() {
-    this.isOnline = navigator.onLine;
-    this.hubData = null;
-  }
-
-  /**
-   * Connect controller to DOM
-   * Loads initial hub data and sets up event listeners
-   */
-  connect() {
-    console.log('Mobile Hub controller connected');
-
-    // Set initial online status
-    this.updateStatusBar(this.isOnline);
-
-    // Listen for online/offline events
-    window.addEventListener('online', this.handleOnline.bind(this));
-    window.addEventListener('offline', this.handleOffline.bind(this));
-
-    // Load hub data
-    this.loadHubData();
-  }
-
-  /**
-   * Disconnect controller
-   * Cleanup event listeners
-   */
-  disconnect() {
-    window.removeEventListener('online', this.handleOnline.bind(this));
-    window.removeEventListener('offline', this.handleOffline.bind(this));
-  }
-
-  /**
-   * Handle online event
-   * Updates UI and reloads data
-   */
-  handleOnline() {
-    console.log('Connection restored');
-    this.isOnline = true;
-    this.updateStatusBar(true);
-    this.loadHubData();
-  }
-
-  /**
-   * Handle offline event
-   * Updates UI for offline mode
-   */
-  handleOffline() {
-    console.log('Connection lost');
-    this.isOnline = false;
-    this.updateStatusBar(false);
-  }
-
-  /**
-   * Update connection status bar
-   * 
-   * @param {Boolean} online - Connection status
-   */
-  updateStatusBar(online) {
-    if (this.hasStatusBarTarget) {
-      if (online) {
-        this.statusBarTarget.classList.remove('offline-indicator');
-        this.statusBarTarget.classList.add('online-indicator');
-        this.statusBarTarget.innerHTML = '<i class="bi bi-wifi"></i> Online';
-      } else {
-        this.statusBarTarget.classList.remove('online-indicator');
-        this.statusBarTarget.classList.add('offline-indicator');
-        this.statusBarTarget.innerHTML = '<i class="bi bi-wifi-off"></i> Offline';
-      }
-    }
-  }
-
-  /**
-   * Load hub data from API
-   * Fetches member information, authorization status, and available features
-   */
-  async loadHubData() {
-    if (!this.isOnline) {
-      console.log('Offline - using cached data');
-      return;
-    }
-    try {
-      this.loadingTarget.hidden = false;
-      this.memberInfoTarget.hidden = true;
-      const response = await fetch(this.urlValue, this.optionsForFetch());
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
-      console.log('Hub data loaded:', data);
-      this.hubData = data;
-      this.renderHubData(data);
-    } catch (error) {
-      console.error('Error loading hub data:', error);
-      this.showError('Unable to load hub data. Please try again.');
-    } finally {
-      this.loadingTarget.hidden = true;
-    }
-  }
-
-  /**
-   * Render hub data to UI
-   * Updates all sections with loaded data
-   * 
-   * @param {Object} data - Hub data from API
-   */
-  renderHubData(data) {
-    // Update member information
-    if (data.member) {
-      this.memberNameTarget.textContent = `${data.member.first_name} ${data.member.last_name}`;
-      this.scaNameTarget.textContent = data.member.sca_name;
-
-      // Update membership status
-      if (data.member.membership_expires_on) {
-        const expiresDate = new Date(data.member.membership_expires_on);
-        const isPast = expiresDate < new Date();
-        this.membershipStatusTarget.textContent = isPast ? 'Expired' : 'Current';
-        this.membershipStatusTarget.className = isPast ? 'text-danger' : 'text-success';
-      } else {
-        this.membershipStatusTarget.textContent = 'Unknown';
-      }
-      this.memberInfoTarget.hidden = false;
-    }
-
-    // Update authorization count
-    if (data.authorizations) {
-      const currentAuthCount = data.authorizations.filter(auth => auth.status === 'approved' && new Date(auth.expires_on) > new Date()).length;
-      this.authCountTarget.textContent = currentAuthCount;
-    }
-
-    // Update pending requests
-    if (data.pendingRequests && data.pendingRequests.length > 0) {
-      this.renderPendingRequests(data.pendingRequests);
-      this.pendingRequestsTarget.hidden = false;
-    }
-
-    // Show/hide approval section based on permissions
-    if (data.approvalQueue && data.approvalQueue.length > 0) {
-      this.approvalCountTarget.textContent = data.approvalQueue.length;
-      this.approvalSectionTarget.hidden = false;
-    } else if (data.canApprove) {
-      this.approvalSectionTarget.hidden = false;
-    }
-
-    // Show/hide waiver section based on permissions
-    if (data.canSubmitWaivers && data.gatherings && data.gatherings.length > 0) {
-      this.renderGatherings(data.gatherings);
-      this.waiverSectionTarget.hidden = false;
-    } else if (data.canSubmitWaivers) {
-      this.waiverSectionTarget.hidden = false;
-    }
-
-    // Update last update time
-    this.lastUpdateTarget.textContent = new Date().toLocaleString();
-  }
-
-  /**
-   * Render pending authorization requests
-   * 
-   * @param {Array} requests - Array of pending requests
-   */
-  renderPendingRequests(requests) {
-    const html = requests.map(request => `
-            <div class="alert alert-info mb-2">
-                <strong>${request.activity_name}</strong><br>
-                <small>Requested: ${new Date(request.requested_on).toLocaleDateString()}</small>
-                <br><small>Approver: ${request.approver_name}</small>
-            </div>
-        `).join('');
-    this.pendingRequestsListTarget.innerHTML = html;
-  }
-
-  /**
-   * Render gatherings list
-   * 
-   * @param {Array} gatherings - Array of gatherings
-   */
-  renderGatherings(gatherings) {
-    const html = gatherings.map(gathering => `
-            <div class="alert alert-secondary mb-2">
-                <strong>${gathering.name}</strong><br>
-                <small>${new Date(gathering.start_date).toLocaleDateString()} - 
-                       ${new Date(gathering.end_date).toLocaleDateString()}</small>
-            </div>
-        `).join('');
-    this.gatheringsListContentTarget.innerHTML = html;
-    this.gatheringsListTarget.hidden = false;
-  }
-
-  /**
-   * View member authorization card
-   * Navigates to card view
-   */
-  viewCard(event) {
-    event.preventDefault();
-    console.log('Viewing card');
-
-    // Extract token from URL and navigate to card view
-    const urlParts = this.urlValue.split('/');
-    const token = urlParts[urlParts.length - 1].replace('Json', '');
-    window.location.href = `/members/view-mobile-card/${token}`;
-  }
-
-  /**
-   * Show authorization request interface
-   * TODO: Implement authorization request modal/view
-   */
-  showAuthRequest(event) {
-    event.preventDefault();
-    console.log('Showing authorization request');
-
-    // For now, show alert - will be replaced with modal/dedicated view
-    alert('Authorization request feature coming soon!\n\nThis will allow you to:\n- Browse available activities\n- Select an approver\n- Submit your request');
-  }
-
-  /**
-   * Show approval queue interface
-   * TODO: Implement approval queue modal/view
-   */
-  showApprovals(event) {
-    event.preventDefault();
-    console.log('Showing approval queue');
-
-    // For now, show alert - will be replaced with modal/dedicated view
-    alert('Approval queue feature coming soon!\n\nThis will allow you to:\n- View pending approval requests\n- Review member qualifications\n- Approve or deny requests');
-  }
-
-  /**
-   * Show waiver submission interface
-   * TODO: Implement waiver submission modal/view
-   */
-  showWaiverSubmit(event) {
-    event.preventDefault();
-    console.log('Showing waiver submission');
-
-    // For now, show alert - will be replaced with modal/dedicated view
-    alert('Waiver submission feature coming soon!\n\nThis will allow you to:\n- Select a gathering\n- Upload signed waiver documents\n- Track submission status');
-  }
-
-  /**
-   * Refresh hub data
-   * Manually reloads all hub data
-   */
-  refresh(event) {
-    event.preventDefault();
-    console.log('Refreshing hub data');
-    if (!this.isOnline) {
-      alert('Cannot refresh while offline');
-      return;
-    }
-
-    // Add visual feedback
-    this.refreshBtnTarget.disabled = true;
-    this.refreshBtnTarget.innerHTML = '<i class="bi bi-arrow-clockwise spinner-border spinner-border-sm"></i> Refreshing...';
-    this.loadHubData().finally(() => {
-      this.refreshBtnTarget.disabled = false;
-      this.refreshBtnTarget.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Refresh Data';
-    });
-  }
-
-  /**
-   * Show error message
-   * 
-   * @param {String} message - Error message to display
-   */
-  showError(message) {
-    // Create temporary error alert
-    const alert = document.createElement('div');
-    alert.className = 'alert alert-danger m-3';
-    alert.innerHTML = `
-            <i class="bi bi-exclamation-triangle"></i> ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        `;
-
-    // Insert after status bar
-    if (this.hasStatusBarTarget) {
-      this.statusBarTarget.after(alert);
-    }
-
-    // Auto-dismiss after 5 seconds
-    setTimeout(() => alert.remove(), 5000);
-  }
-
-  /**
-   * Configure fetch options for AJAX requests
-   * 
-   * @return {Object} Fetch options
-   */
-  optionsForFetch() {
-    return {
-      method: 'GET',
-      headers: {
-        'X-Requested-With': 'XMLHttpRequest',
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      },
-      credentials: 'same-origin'
-    };
-  }
-}
-
-// Register controller globally
-if (!window.Controllers) {
-  window.Controllers = {};
-}
-window.Controllers["mobile-hub"] = MobileHub;
 
 /***/ }),
 
@@ -43334,6 +43278,211 @@ window.Controllers["gw_sharing"] = GWSharingController;
 
 /***/ }),
 
+/***/ "./plugins/Activities/assets/js/controllers/mobile-request-auth-controller.js":
+/*!************************************************************************************!*\
+  !*** ./plugins/Activities/assets/js/controllers/mobile-request-auth-controller.js ***!
+  \************************************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+
+/**
+ * Mobile Authorization Request Controller
+ * 
+ * Handles mobile-optimized authorization request workflow including:
+ * - Online/offline detection
+ * - Dynamic approver loading based on activity selection
+ * - Form validation
+ * - Touch-optimized interactions
+ */
+class MobileRequestAuthController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static targets = ["form", "activitySelect", "approverSelect", "approverHelp", "submitBtn", "submitText", "onlineStatus"];
+  static values = {
+    approversUrl: String,
+    memberId: Number
+  };
+
+  /**
+   * Initialize controller and check online status
+   */
+  connect() {
+    console.log("Mobile Request Auth controller connected");
+
+    // Check online status on load
+    this.checkOnlineStatus();
+
+    // Listen for online/offline events
+    window.addEventListener('online', this.checkOnlineStatus.bind(this));
+    window.addEventListener('offline', this.checkOnlineStatus.bind(this));
+
+    // Prevent form submission if offline
+    this.formTarget.addEventListener('submit', this.handleSubmit.bind(this));
+
+    // Initial validation state
+    this.validateForm();
+  }
+
+  /**
+   * Cleanup event listeners
+   */
+  disconnect() {
+    window.removeEventListener('online', this.checkOnlineStatus.bind(this));
+    window.removeEventListener('offline', this.checkOnlineStatus.bind(this));
+  }
+
+  /**
+   * Check if user is online and update UI accordingly
+   */
+  checkOnlineStatus() {
+    const isOnline = navigator.onLine;
+    if (!isOnline) {
+      // Show offline warning
+      this.onlineStatusTarget.hidden = false;
+      this.onlineStatusTarget.classList.add('offline');
+
+      // Disable form elements
+      this.activitySelectTarget.disabled = true;
+      this.approverSelectTarget.disabled = true;
+      this.submitBtnTarget.disabled = true;
+
+      // Update help text
+      this.approverHelpTarget.textContent = "You must be online to submit requests";
+    } else {
+      // Hide offline warning
+      this.onlineStatusTarget.hidden = true;
+      this.onlineStatusTarget.classList.remove('offline');
+
+      // Re-enable activity select
+      this.activitySelectTarget.disabled = false;
+
+      // Restore previous state
+      this.validateForm();
+
+      // Update help text
+      if (!this.activitySelectTarget.value) {
+        this.approverHelpTarget.textContent = "Select an activity to see available approvers";
+      }
+    }
+  }
+
+  /**
+   * Load approvers when activity is selected
+   */
+  async loadApprovers(event) {
+    const activityId = event.target.value;
+
+    // Reset approver dropdown
+    this.approverSelectTarget.innerHTML = '<option value="">-- Loading approvers... --</option>';
+    this.approverSelectTarget.disabled = true;
+    this.approverHelpTarget.textContent = "Loading approvers...";
+    this.submitBtnTarget.disabled = true;
+    if (!activityId) {
+      this.approverSelectTarget.innerHTML = '<option value="">-- Select activity first --</option>';
+      this.approverHelpTarget.textContent = "Select an activity to see available approvers";
+      return;
+    }
+
+    // Check if online
+    if (!navigator.onLine) {
+      this.approverSelectTarget.innerHTML = '<option value="">-- You must be online --</option>';
+      this.approverHelpTarget.textContent = "You must be online to load approvers";
+      return;
+    }
+    try {
+      // Fetch approvers from API
+      const url = `${this.approversUrlValue}/${activityId}/${this.memberIdValue}`;
+      const response = await fetch(url, {
+        headers: {
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+
+      // Clear loading option
+      this.approverSelectTarget.innerHTML = '';
+
+      // Add empty option
+      const emptyOption = document.createElement('option');
+      emptyOption.value = '';
+      emptyOption.textContent = '-- Choose an approver --';
+      this.approverSelectTarget.appendChild(emptyOption);
+
+      // Add approver options
+      // API returns array directly, not wrapped in approvers property
+      if (data && Array.isArray(data) && data.length > 0) {
+        data.forEach(approver => {
+          const option = document.createElement('option');
+          option.value = approver.id;
+          // API returns sca_name, not name
+          option.textContent = approver.sca_name;
+          this.approverSelectTarget.appendChild(option);
+        });
+        this.approverSelectTarget.disabled = false;
+        this.approverHelpTarget.textContent = `${data.length} approver(s) available`;
+      } else {
+        const noApprovers = document.createElement('option');
+        noApprovers.value = '';
+        noApprovers.textContent = '-- No approvers available --';
+        this.approverSelectTarget.appendChild(noApprovers);
+        this.approverHelpTarget.textContent = "No approvers found for this activity";
+      }
+    } catch (error) {
+      console.error('Error loading approvers:', error);
+      this.approverSelectTarget.innerHTML = '<option value="">-- Error loading approvers --</option>';
+      this.approverHelpTarget.textContent = "Failed to load approvers. Please try again.";
+    }
+
+    // Revalidate form
+    this.validateForm();
+  }
+
+  /**
+   * Validate form and enable/disable submit button
+   */
+  validateForm() {
+    const activitySelected = this.activitySelectTarget.value !== '';
+    const approverSelected = this.approverSelectTarget.value !== '';
+    const isOnline = navigator.onLine;
+    const isValid = activitySelected && approverSelected && isOnline;
+    this.submitBtnTarget.disabled = !isValid;
+  }
+
+  /**
+   * Handle form submission
+   */
+  handleSubmit(event) {
+    // Prevent submission if offline
+    if (!navigator.onLine) {
+      event.preventDefault();
+      alert('You must be online to submit authorization requests');
+      return false;
+    }
+
+    // Show loading state
+    this.submitBtnTarget.disabled = true;
+    this.submitTextTarget.innerHTML = '<span class="loading-spinner"></span>Submitting...';
+
+    // Form will submit normally to the controller action
+    return true;
+  }
+}
+
+// Register controller globally
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["mobile-request-auth"] = MobileRequestAuthController;
+/* harmony default export */ __webpack_exports__["default"] = (MobileRequestAuthController);
+
+/***/ }),
+
 /***/ "./plugins/Activities/assets/js/controllers/renew-auth-controller.js":
 /*!***************************************************************************!*\
   !*** ./plugins/Activities/assets/js/controllers/renew-auth-controller.js ***!
@@ -51480,7 +51629,7 @@ window.Controllers["waiver-upload-wizard"] = WaiverUploadWizardController;
 },
 /******/ function(__webpack_require__) { // webpackRuntimeModules
 /******/ var __webpack_exec__ = function(moduleId) { return __webpack_require__(__webpack_require__.s = moduleId); }
-/******/ __webpack_require__.O(0, ["js/core","css/app","css/waivers","css/dashboard","css/cover","css/signin","css/waiver-upload"], function() { return __webpack_exec__("./assets/js/controllers/activity-toggle-controller.js"), __webpack_exec__("./assets/js/controllers/activity-waiver-manager-controller.js"), __webpack_exec__("./assets/js/controllers/add-activity-modal-controller.js"), __webpack_exec__("./assets/js/controllers/app-setting-form-controller.js"), __webpack_exec__("./assets/js/controllers/auto-complete-controller.js"), __webpack_exec__("./assets/js/controllers/branch-links-controller.js"), __webpack_exec__("./assets/js/controllers/csv-download-controller.js"), __webpack_exec__("./assets/js/controllers/delayed-forward-controller.js"), __webpack_exec__("./assets/js/controllers/delete-confirmation-controller.js"), __webpack_exec__("./assets/js/controllers/detail-tabs-controller.js"), __webpack_exec__("./assets/js/controllers/edit-activity-description-controller.js"), __webpack_exec__("./assets/js/controllers/file-size-validator-controller.js"), __webpack_exec__("./assets/js/controllers/filter-grid-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-clone-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-form-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-location-autocomplete-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-map-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-type-form-controller.js"), __webpack_exec__("./assets/js/controllers/guifier-controller.js"), __webpack_exec__("./assets/js/controllers/image-preview-controller.js"), __webpack_exec__("./assets/js/controllers/kanban-controller.js"), __webpack_exec__("./assets/js/controllers/markdown-editor-controller.js"), __webpack_exec__("./assets/js/controllers/member-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-pwa-controller.js"), __webpack_exec__("./assets/js/controllers/member-unique-email-controller.js"), __webpack_exec__("./assets/js/controllers/member-verify-form-controller.js"), __webpack_exec__("./assets/js/controllers/mobile-hub-controller.js"), __webpack_exec__("./assets/js/controllers/modal-opener-controller.js"), __webpack_exec__("./assets/js/controllers/nav-bar-controller.js"), __webpack_exec__("./assets/js/controllers/outlet-button-controller.js"), __webpack_exec__("./assets/js/controllers/permission-add-role-controller.js"), __webpack_exec__("./assets/js/controllers/permission-manage-policies-controller.js"), __webpack_exec__("./assets/js/controllers/revoke-form-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-member-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-permission-controller.js"), __webpack_exec__("./assets/js/controllers/select-all-switch-list-controller.js"), __webpack_exec__("./assets/js/controllers/session-extender-controller.js"), __webpack_exec__("./assets/js/controllers/turbo-modal-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/gw-sharing-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/renew-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/request-auth-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/award-form-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-add-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-bulk-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-quick-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-table-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/recommendation-kanban-controller.js"), __webpack_exec__("./plugins/Events/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/assign-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/edit-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/office-form-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-search-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-table-controller.js"), __webpack_exec__("./plugins/Template/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/add-requirement-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/camera-capture-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/retention-policy-input-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-template-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-wizard-controller.js"), __webpack_exec__("./assets/css/app.css"), __webpack_exec__("./assets/css/signin.css"), __webpack_exec__("./assets/css/cover.css"), __webpack_exec__("./assets/css/dashboard.css"), __webpack_exec__("./plugins/Waivers/assets/css/waivers.css"), __webpack_exec__("./plugins/Waivers/assets/css/waiver-upload.css"); });
+/******/ __webpack_require__.O(0, ["js/core","css/app","css/waivers","css/dashboard","css/cover","css/signin","css/waiver-upload"], function() { return __webpack_exec__("./assets/js/controllers/activity-toggle-controller.js"), __webpack_exec__("./assets/js/controllers/activity-waiver-manager-controller.js"), __webpack_exec__("./assets/js/controllers/add-activity-modal-controller.js"), __webpack_exec__("./assets/js/controllers/app-setting-form-controller.js"), __webpack_exec__("./assets/js/controllers/auto-complete-controller.js"), __webpack_exec__("./assets/js/controllers/branch-links-controller.js"), __webpack_exec__("./assets/js/controllers/csv-download-controller.js"), __webpack_exec__("./assets/js/controllers/delayed-forward-controller.js"), __webpack_exec__("./assets/js/controllers/delete-confirmation-controller.js"), __webpack_exec__("./assets/js/controllers/detail-tabs-controller.js"), __webpack_exec__("./assets/js/controllers/edit-activity-description-controller.js"), __webpack_exec__("./assets/js/controllers/file-size-validator-controller.js"), __webpack_exec__("./assets/js/controllers/filter-grid-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-clone-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-form-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-location-autocomplete-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-map-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-type-form-controller.js"), __webpack_exec__("./assets/js/controllers/guifier-controller.js"), __webpack_exec__("./assets/js/controllers/image-preview-controller.js"), __webpack_exec__("./assets/js/controllers/kanban-controller.js"), __webpack_exec__("./assets/js/controllers/markdown-editor-controller.js"), __webpack_exec__("./assets/js/controllers/member-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-menu-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-pwa-controller.js"), __webpack_exec__("./assets/js/controllers/member-unique-email-controller.js"), __webpack_exec__("./assets/js/controllers/member-verify-form-controller.js"), __webpack_exec__("./assets/js/controllers/mobile-hub-controller.js"), __webpack_exec__("./assets/js/controllers/modal-opener-controller.js"), __webpack_exec__("./assets/js/controllers/nav-bar-controller.js"), __webpack_exec__("./assets/js/controllers/outlet-button-controller.js"), __webpack_exec__("./assets/js/controllers/permission-add-role-controller.js"), __webpack_exec__("./assets/js/controllers/permission-manage-policies-controller.js"), __webpack_exec__("./assets/js/controllers/revoke-form-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-member-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-permission-controller.js"), __webpack_exec__("./assets/js/controllers/select-all-switch-list-controller.js"), __webpack_exec__("./assets/js/controllers/session-extender-controller.js"), __webpack_exec__("./assets/js/controllers/turbo-modal-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/gw-sharing-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/mobile-request-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/renew-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/request-auth-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/award-form-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-add-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-bulk-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-quick-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-table-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/recommendation-kanban-controller.js"), __webpack_exec__("./plugins/Events/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/assign-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/edit-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/office-form-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-search-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-table-controller.js"), __webpack_exec__("./plugins/Template/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/add-requirement-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/camera-capture-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/retention-policy-input-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-template-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-wizard-controller.js"), __webpack_exec__("./assets/css/app.css"), __webpack_exec__("./assets/css/signin.css"), __webpack_exec__("./assets/css/cover.css"), __webpack_exec__("./assets/css/dashboard.css"), __webpack_exec__("./plugins/Waivers/assets/css/waivers.css"), __webpack_exec__("./plugins/Waivers/assets/css/waiver-upload.css"); });
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);

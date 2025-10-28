@@ -589,6 +589,16 @@ class Application extends BaseApplication implements
         // Session authenticator should always be first for performance
         $service->loadAuthenticator('Authentication.Session');          // Check existing sessions first
 
+        // Mobile Card Token authenticator for PWA mobile card access
+        // Allows passwordless authentication via secure token in URL
+        $service->loadAuthenticator('MobileCardToken', [
+            'tokenParam' => 'token',                         // URL parameter name
+            'fields' => [
+                'mobile_card_token' => 'token'               // Database field mapping
+            ],
+            'userModel' => 'Members',                        // Members table
+        ]);
+
         // Form authenticator handles login form submissions
         $service->loadAuthenticator('Authentication.Form', [
             'fields' => $fields,                             // Field mapping configuration

@@ -188,6 +188,31 @@ class ActivitiesViewCellProvider
             ]
         ];
 
+        // Mobile menu items for PWA card
+        // These items will appear on all mobile pages (empty validRoutes = show everywhere)
+        // except the page they link to (filtered out by mobile_app.php layout)
+        $cells[] = [
+            'type' => ViewCellRegistry::PLUGIN_TYPE_MOBILE_MENU,
+            'label' => 'Request Authorization',
+            'icon' => 'bi-file-earmark-check',
+            'url' => ['controller' => 'Authorizations', 'action' => 'mobileRequestAuthorization', 'plugin' => 'Activities'],
+            'order' => 10,
+            'color' => 'success',
+            'badge' => null,
+            'validRoutes' => [] // Empty = show everywhere
+        ];
+
+        $cells[] = [
+            'type' => ViewCellRegistry::PLUGIN_TYPE_MOBILE_MENU,
+            'label' => 'Approve Authorizations',
+            'icon' => 'bi-check-circle',
+            'url' => ['controller' => 'AuthorizationApprovals', 'action' => 'mobileApproveAuthorizations', 'plugin' => 'Activities'],
+            'order' => 20,
+            'color' => 'primary',
+            'badge' => null, // TODO: Add count of pending approvals
+            'validRoutes' => [] // Empty = show everywhere
+        ];
+
         return $cells;
     }
 }

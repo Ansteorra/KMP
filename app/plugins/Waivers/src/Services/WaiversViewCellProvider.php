@@ -201,6 +201,20 @@ class WaiversViewCellProvider
             }
         ];
 
+        // Mobile menu items for PWA card
+        // This item will appear on all mobile pages (empty validRoutes = show everywhere)
+        // except the page it links to (filtered out by mobile_app.php layout)
+        $cells[] = [
+            'type' => ViewCellRegistry::PLUGIN_TYPE_MOBILE_MENU,
+            'label' => 'Submit Waiver',
+            'icon' => 'bi-file-earmark-text',
+            'url' => '/waivers/mobile-submit',
+            'order' => 30,
+            'color' => 'info',
+            'badge' => null,
+            'validRoutes' => [] // Empty = show everywhere
+        ];
+
         return $cells;
     }
 }

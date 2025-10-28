@@ -295,6 +295,63 @@ class AuthorizationApprovalsTablePolicy extends BasePolicy
     }
 
     /**
+     * Apply authorization scope for mobile approve authorizations interface.
+     * 
+     * This method provides the same scoping logic as myQueue since the mobile interface
+     * displays the same approval queue data in a mobile-optimized format.
+     * 
+     * @param \App\KMP\KmpIdentityInterface $user The requesting user
+     * @param \Cake\ORM\Query $query The base query to scope
+     * @return \Cake\ORM\Query The personally scoped query
+     */
+    public function scopeMobileApproveAuthorizations(KmpIdentityInterface $user, $query)
+    {
+        return $query->where(["approver_id" => $user->getIdentifier()]);
+    }
+
+    /**
+     * Apply authorization scope for mobile approve action.
+     * 
+     * Uses the same scoping as view since mobile approve displays and processes
+     * individual approval requests.
+     * 
+     * @param \App\KMP\KmpIdentityInterface $user The requesting user
+     * @param \Cake\ORM\Query $query The base query to scope
+     * @return \Cake\ORM\Query The scoped query
+     */
+    public function scopeMobileApprove(KmpIdentityInterface $user, $query)
+    {
+        $authorizationApprovalsTable = TableRegistry::getTableLocator()->get("Activities.AuthorizationApprovals");
+        $authorizationApproval = $authorizationApprovalsTable->newEmptyEntity();
+
+        if ($this->canAllQueues($user, $authorizationApproval)) {
+            return $query;
+        }
+        return $query->where(["approver_id" => $user->getIdentifier()]);
+    }
+
+    /**
+     * Apply authorization scope for mobile deny action.
+     * 
+     * Uses the same scoping as view since mobile deny displays and processes
+     * individual approval requests.
+     * 
+     * @param \App\KMP\KmpIdentityInterface $user The requesting user
+     * @param \Cake\ORM\Query $query The base query to scope
+     * @return \Cake\ORM\Query The scoped query
+     */
+    public function scopeMobileDeny(KmpIdentityInterface $user, $query)
+    {
+        $authorizationApprovalsTable = TableRegistry::getTableLocator()->get("Activities.AuthorizationApprovals");
+        $authorizationApproval = $authorizationApprovalsTable->newEmptyEntity();
+
+        if ($this->canAllQueues($user, $authorizationApproval)) {
+            return $query;
+        }
+        return $query->where(["approver_id" => $user->getIdentifier()]);
+    }
+
+    /**
      * Apply authorization scope to view queries for approval details.
      *
      * Implements sophisticated query scoping for approval detail view operations based on user

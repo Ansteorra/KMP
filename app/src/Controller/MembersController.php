@@ -703,12 +703,20 @@ class MembersController extends AppController
         ];
         $member = $this->Members
             ->find()
-            ->select('mobile_card_token')
             ->where(['Members.mobile_card_token' => $id, 'Members.status NOT IN' => $inactiveStatuses])
             ->first();
         if (!$member) {
             throw new NotFoundException();
         }
+
+        // Authenticate user with mobile card token and persist session
+        // This allows the user to access other features that require authentication
+        $result = $this->Authentication->getResult();
+        if ($result->isValid()) {
+            // User authenticated via token - persist the session
+            $this->Authentication->setIdentity($member);
+        }
+
         $this->Authorization->skipAuthorization();
         // sort filter out expired member roles
         $message_variables = [
@@ -728,11 +736,32 @@ class MembersController extends AppController
                 'Member.MobileCard.BgColor',
             ),
         ];
+
+        // Prepare watermark image for layout - build full URL for image
+        $graphicPath = WWW_ROOT . 'img' . DS . $message_variables["marshal_auth_graphic"];
+        if (file_exists($graphicPath)) {
+            $watermarkimg = "data:image/gif;base64," . base64_encode(file_get_contents($graphicPath));
+        } else {
+            $watermarkimg = null;
+        }
+
+        // Build card URL for member-mobile-card-profile controller
+        $cardUrl = Router::url(['controller' => 'Members', 'action' => 'viewMobileCardJson', $member->mobile_card_token], true);
+
+        // Set layout variables for mobile_app layout
+        $this->set('mobileTitle', 'Mobile Activities Authorization Card');
+        $this->set('mobileHeaderColor', $message_variables['marshal_auth_header_color']);
+        $this->set('watermarkImage', $watermarkimg);
+        $this->set('showRefreshBtn', true); // Mobile card needs refresh button
+        $this->set('cardUrl', $cardUrl); // For member-mobile-card-profile controller
+
         $this->set(compact('member', 'message_variables'));
         $customTemplate = StaticHelpers::getAppSetting(
             'Member.ViewMobileCard.Template',
         );
-        $this->viewBuilder()->setTemplate($customTemplate);
+        $this->viewBuilder()
+            ->setTemplate($customTemplate)
+            ->setLayout('mobile_app');
     }
 
     /**

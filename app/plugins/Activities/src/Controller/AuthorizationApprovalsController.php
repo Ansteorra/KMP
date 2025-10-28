@@ -199,6 +199,7 @@ namespace Activities\Controller;
 use Activities\Services\AuthorizationManagerInterface;
 use Cake\Mailer\MailerAwareTrait;
 use Cake\Event\EventInterface;
+use App\KMP\StaticHelpers;
 
 class AuthorizationApprovalsController extends AppController
 {
@@ -774,6 +775,199 @@ class AuthorizationApprovalsController extends AppController
         $isMyQueue = true;
         $this->set(compact("queueFor", "isMyQueue", "authorizationApprovals"));
         $this->render('view');
+    }
+
+    /**
+     * Mobile-optimized approval queue interface for processing authorization requests.
+     * 
+     * Provides a mobile-friendly interface for approvers to view and process their pending
+     * authorization approval requests. Uses the mobile_app layout for consistent PWA experience.
+     * 
+     * @return void
+     */
+    public function mobileApproveAuthorizations()
+    {
+        // Get current user
+        $currentUser = $this->Authentication->getIdentity();
+        if (!$currentUser) {
+            $this->Flash->error(__('You must be logged in to approve authorizations.'));
+            return $this->redirect(['controller' => 'Members', 'action' => 'login', 'plugin' => null]);
+        }
+
+        // Get pending approvals for this approver
+        $member_id = $currentUser->getIdentifier();
+        $query = $this->getAuthorizationApprovalsQuery($member_id);
+        $this->Authorization->applyScope($query);
+        $authorizationApprovals = $query->all();
+
+        // Set view variables
+        $queueFor = $currentUser->sca_name;
+        $isMyQueue = true;
+        $this->set(compact('queueFor', 'isMyQueue', 'authorizationApprovals'));
+
+        // Use mobile app layout for consistent UX
+        $this->viewBuilder()->setLayout('mobile_app');
+        $this->set('mobileTitle', 'Approve Authorizations');
+        $this->set('mobileBackUrl', $this->request->referer());
+        $this->set('mobileHeaderColor', StaticHelpers::getAppSetting(
+            'Member.MobileCard.BgColor',
+        ));
+        $this->set('showRefreshBtn', true);
+    }
+
+    /**
+     * Mobile-optimized approval form interface.
+     * 
+     * Displays authorization request details and allows approver to select next approver
+     * or approve as final. Handles both GET (display form) and POST (process approval).
+     * 
+     * @param \Activities\Services\AuthorizationManagerInterface $maService Authorization management service
+     * @param string|null $id Authorization Approval ID
+     * @return \Cake\Http\Response|null
+     */
+    public function mobileApprove(AuthorizationManagerInterface $maService, $id = null)
+    {
+        $this->request->allowMethod(['get', 'post']);
+
+        if (!$id) {
+            $id = $this->request->getData('id');
+        }
+
+        // Load authorization approval with all required data
+        $authorizationApproval = $this->AuthorizationApprovals->get($id, [
+            'contain' => [
+                'Authorizations' => [
+                    'Members',
+                    'Activities'
+                ]
+            ]
+        ]);
+
+        if (!$authorizationApproval) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+
+        $this->Authorization->authorize($authorizationApproval);
+
+        // Handle POST - process approval
+        if ($this->request->is('post')) {
+            $approverId = $this->Authentication->getIdentity()->getIdentifier();
+            $nextApproverId = $this->request->getData('next_approver_id');
+
+            $maResult = $maService->approve(
+                (int)$id,
+                (int)$approverId,
+                (int)$nextApproverId
+            );
+
+            if (!$maResult->success) {
+                $this->Flash->error(__('The authorization approval could not be approved. Please try again.'));
+            } else {
+                $this->Flash->success(__('The authorization has been approved.'));
+                
+                // Redirect to approver's mobile card
+                $approver = $this->AuthorizationApprovals->Members->get($approverId, ['fields' => ['id', 'mobile_card_token']]);
+                return $this->redirect([
+                    'controller' => 'Members',
+                    'action' => 'viewMobileCard',
+                    'plugin' => null,
+                    $approver->mobile_card_token
+                ]);
+            }
+        }
+
+        // GET - display form
+        // Check if more approvals are needed
+        $authorization = $authorizationApproval->authorization;
+        $authsNeeded = $authorization->is_renewal
+            ? $authorization->activity->num_required_renewers
+            : $authorization->activity->num_required_authorizors;
+        $hasMoreApprovalsToGo = ($authsNeeded - $authorization->approval_count) > 1;
+
+        $this->set(compact('authorizationApproval', 'hasMoreApprovalsToGo'));
+
+        // Use mobile app layout
+        $this->viewBuilder()->setLayout('mobile_app');
+        $this->set('mobileTitle', 'Approve Authorization');
+        $this->set('mobileBackUrl', ['action' => 'mobileApproveAuthorizations']);
+        $this->set('mobileHeaderColor', '#198754');
+        $this->set('showRefreshBtn', false);
+    }
+
+    /**
+     * Mobile-optimized denial form interface.
+     * 
+     * Displays authorization request details and allows approver to deny with reason.
+     * Handles both GET (display form) and POST (process denial).
+     * 
+     * @param \Activities\Services\AuthorizationManagerInterface $maService Authorization management service
+     * @param string|null $id Authorization Approval ID
+     * @return \Cake\Http\Response|null
+     */
+    public function mobileDeny(AuthorizationManagerInterface $maService, $id = null)
+    {
+        $this->request->allowMethod(['get', 'post']);
+
+        if (!$id) {
+            $id = $this->request->getData('id');
+        }
+
+        // Load authorization approval with all required data
+        $authorizationApproval = $this->AuthorizationApprovals->get($id, [
+            'contain' => [
+                'Authorizations' => [
+                    'Members',
+                    'Activities'
+                ]
+            ]
+        ]);
+
+        if (!$authorizationApproval) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+
+        $this->Authorization->authorize($authorizationApproval);
+
+        // Handle POST - process denial
+        if ($this->request->is('post')) {
+            $approverId = $this->Authentication->getIdentity()->getIdentifier();
+            $approverNotes = $this->request->getData('approver_notes');
+
+            if (empty($approverNotes)) {
+                $this->Flash->error(__('Please provide a reason for denial.'));
+            } else {
+                $maResult = $maService->deny(
+                    (int)$id,
+                    (int)$approverId,
+                    $approverNotes
+                );
+
+                if (!$maResult->success) {
+                    $this->Flash->error(__('The authorization approval could not be denied. Please try again.'));
+                } else {
+                    $this->Flash->success(__('The authorization has been denied.'));
+                    
+                    // Redirect to approver's mobile card
+                    $approver = $this->AuthorizationApprovals->Members->get($approverId, ['fields' => ['id', 'mobile_card_token']]);
+                    return $this->redirect([
+                        'controller' => 'Members',
+                        'action' => 'viewMobileCard',
+                        'plugin' => null,
+                        $approver->mobile_card_token
+                    ]);
+                }
+            }
+        }
+
+        // GET - display form
+        $this->set(compact('authorizationApproval'));
+
+        // Use mobile app layout
+        $this->viewBuilder()->setLayout('mobile_app');
+        $this->set('mobileTitle', 'Deny Authorization');
+        $this->set('mobileBackUrl', ['action' => 'mobileApproveAuthorizations']);
+        $this->set('mobileHeaderColor', '#dc3545');
+        $this->set('showRefreshBtn', false);
     }
 
     /**

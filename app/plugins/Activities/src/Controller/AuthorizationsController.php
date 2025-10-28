@@ -221,11 +221,37 @@ class AuthorizationsController extends AppController
         if ($maResult->success) {
             $this->Flash->success(__("The Authorization has been requested."));
 
+            // Check if request came from mobile interface
+            $referer = $this->referer();
+            if (strpos($referer, '/mobile') !== false || strpos($referer, 'view-mobile-card') !== false) {
+                // Get the member's mobile card URL
+                $member = $this->Authorizations->Members->get($memberId, ['fields' => ['id', 'mobile_card_token']]);
+                return $this->redirect([
+                    'controller' => 'Members',
+                    'action' => 'viewMobileCard',
+                    'plugin' => null,
+                    $member->mobile_card_token
+                ]);
+            }
+
             return $this->redirect($this->referer());
         }
         $this->Flash->error(
             __($maResult->reason),
         );
+
+        // Check if request came from mobile interface for error case too
+        $referer = $this->referer();
+        if (strpos($referer, '/mobile') !== false || strpos($referer, 'view-mobile-card') !== false) {
+            // Get the member's mobile card URL
+            $member = $this->Authorizations->Members->get($memberId, ['fields' => ['id', 'mobile_card_token']]);
+            return $this->redirect([
+                'controller' => 'Members',
+                'action' => 'viewMobileCard',
+                'plugin' => null,
+                $member->mobile_card_token
+            ]);
+        }
 
         return $this->redirect($this->referer());
     }
@@ -256,13 +282,85 @@ class AuthorizationsController extends AppController
         ) {
             $this->Flash->success(__("The Authorization has been requested."));
 
+            // Check if request came from mobile interface
+            $referer = $this->referer();
+            if (strpos($referer, '/mobile') !== false || strpos($referer, 'view-mobile-card') !== false) {
+                // Get the member's mobile card URL
+                $member = $this->Authorizations->Members->get($memberId, ['fields' => ['id', 'mobile_card_token']]);
+                return $this->redirect([
+                    'controller' => 'Members',
+                    'action' => 'viewMobileCard',
+                    'plugin' => null,
+                    $member->mobile_card_token
+                ]);
+            }
+
             return $this->redirect($this->referer());
         }
         $this->Flash->error(
             __($maResult->reason),
         );
 
+        // Check if request came from mobile interface for error case too
+        $referer = $this->referer();
+        if (strpos($referer, '/mobile') !== false || strpos($referer, 'view-mobile-card') !== false) {
+            // Get the member's mobile card URL
+            $member = $this->Authorizations->Members->get($memberId, ['fields' => ['id', 'mobile_card_token']]);
+            return $this->redirect([
+                'controller' => 'Members',
+                'action' => 'viewMobileCard',
+                'plugin' => null,
+                $member->mobile_card_token
+            ]);
+        }
+
         return $this->redirect($this->referer());
+    }
+
+    /**
+     * Mobile authorization request action
+     * 
+     * Provides a mobile-optimized interface for members to request new authorizations.
+     * This action displays a streamlined form with large touch targets and simplified
+     * UI optimized for mobile PWA experience.
+     *
+     * @return \Cake\Http\Response|null|void Renders mobile request form
+     */
+    public function mobileRequestAuthorization()
+    {
+        // Get current user
+        $currentUser = $this->Authentication->getIdentity();
+        if (!$currentUser) {
+            $this->Flash->error(__('You must be logged in to request authorizations.'));
+            return $this->redirect(['controller' => 'Members', 'action' => 'login', 'plugin' => null]);
+        }
+
+        // Skip authorization check - any authenticated user can request for themselves
+        $this->Authorization->skipAuthorization();
+
+        // Get member ID
+        $memberId = $currentUser->id;
+
+        // Load activities table
+        $activitiesTable = TableRegistry::getTableLocator()->get('Activities.Activities');
+
+        // Get available activities (not deleted)
+        $activities = $activitiesTable->find('list', [
+            'keyField' => 'id',
+            'valueField' => 'name'
+        ])
+            ->order(['Activities.name' => 'ASC']);
+
+        $this->set(compact('memberId', 'activities'));
+
+        // Use mobile app layout for consistent UX
+        $this->viewBuilder()->setLayout('mobile_app');
+        $this->set('mobileTitle', 'Request Authorization');
+        $this->set('mobileBackUrl', $this->request->referer());
+        $this->set('mobileHeaderColor', StaticHelpers::getAppSetting(
+            'Member.MobileCard.BgColor',
+        ));
+        $this->set('showRefreshBtn', false); // No refresh button needed for form page
     }
 
     public function memberAuthorizations($state, $id)
