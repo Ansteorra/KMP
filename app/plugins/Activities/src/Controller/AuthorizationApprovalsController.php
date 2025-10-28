@@ -864,7 +864,7 @@ class AuthorizationApprovalsController extends AppController
                 $this->Flash->error(__('The authorization approval could not be approved. Please try again.'));
             } else {
                 $this->Flash->success(__('The authorization has been approved.'));
-                
+
                 // Redirect to approver's mobile card
                 $approver = $this->AuthorizationApprovals->Members->get($approverId, ['fields' => ['id', 'mobile_card_token']]);
                 return $this->redirect([
@@ -946,7 +946,7 @@ class AuthorizationApprovalsController extends AppController
                     $this->Flash->error(__('The authorization approval could not be denied. Please try again.'));
                 } else {
                     $this->Flash->success(__('The authorization has been denied.'));
-                    
+
                     // Redirect to approver's mobile card
                     $approver = $this->AuthorizationApprovals->Members->get($approverId, ['fields' => ['id', 'mobile_card_token']]);
                     return $this->redirect([
@@ -2186,116 +2186,116 @@ class AuthorizationApprovalsController extends AppController
      * <!-- Standard form submission for denial -->
      * <form method="post" action="/activities/authorization-approvals/deny">
      *     <input type="hidden" name="id" value="<?= $approval->id ?>">
-* <textarea name="approver_notes" placeholder="Reason for denial..." required></textarea>
-* <button type="submit" class="btn btn-danger">Deny Authorization</button>
-* </form>
-* ```
-*
-* ### AJAX Denial Processing
-* ```javascript
-* // AJAX-based denial with notes
-* function denyApproval(approvalId, notes) {
-* $.post('/activities/authorization-approvals/deny', {
-* id: approvalId,
-* approver_notes: notes
-* }).done(function(response) {
-* location.reload(); // Refresh to show updated status
-* });
-* }
-* ```
-*
-* ### Modal Dialog Integration
-* ```javascript
-* // Modal-based denial with note collection
-* $('#deny-modal').on('show.bs.modal', function(event) {
-* const approvalId = $(event.relatedTarget).data('approval-id');
-* $(this).find('form').attr('action',
-* `/activities/authorization-approvals/deny/${approvalId}`);
-* });
-* ```
-*
-* ## Audit Trail and Compliance
-*
-* ### Comprehensive Logging
-* - **Denial Documentation**: Complete record of denial decisions and reasoning
-* - **Timestamp Tracking**: Precise timing of denial actions for audit purposes
-* - **User Attribution**: Clear attribution of denial actions to specific users
-* - **Note Preservation**: Permanent storage of denial reasoning and feedback
-*
-* ### Compliance Features
-* - **Regulatory Compliance**: Supports regulatory requirements for decision documentation
-* - **Historical Analysis**: Enables analysis of denial patterns and trends
-* - **Quality Improvement**: Data supports continuous improvement of authorization processes
-* - **Transparency**: Clear audit trail for organizational transparency
-*
-* ## Extension Opportunities
-*
-* ### Enhanced Denial Features
-* - **Conditional Denial**: Support for conditional denial with remediation options
-* - **Appeal Process**: Integration with denial appeal and review processes
-* - **Escalation Rules**: Automatic escalation for certain types of denials
-* - **Bulk Denial**: Mass denial operations for administrative efficiency
-*
-* ### Workflow Enhancements
-* - **Denial Categories**: Categorized denial reasons for better tracking
-* - **Remediation Suggestions**: Automated suggestions for addressing denial reasons
-* - **Learning System**: AI-powered learning from denial patterns
-* - **Predictive Analysis**: Prediction of likely denial outcomes
-*
-* ### User Experience Improvements
-* - **Rich Text Notes**: Enhanced note editing with formatting options
-* - **Template Notes**: Pre-defined denial reason templates
-* - **Collaborative Denial**: Multi-approver denial with consensus requirements
-* - **Notification Customization**: Customizable denial notification templates
-*
-* ### Analytics and Reporting
-* - **Denial Analytics**: Comprehensive analytics on denial patterns and trends
-* - **Performance Metrics**: Denial processing time and efficiency metrics
-* - **Quality Metrics**: Analysis of denial accuracy and consistency
-* - **Process Improvement**: Data-driven insights for process optimization
-*
-* @param \Activities\Services\AuthorizationManagerInterface $maService Authorization management service
-* @param string|null $id Authorization Approval ID for denial processing
-* @return \Cake\Http\Response|null Redirects to referer after processing
-* @throws \Cake\Http\Exception\NotFoundException When approval entity is not found
-* @throws \Cake\Http\Exception\MethodNotAllowedException When invalid HTTP method used
-* @throws \Authorization\Exception\ForbiddenException When user lacks denial permissions
-* @see \Activities\Services\AuthorizationManagerInterface::deny() For denial business logic
-* @see \Activities\Policy\AuthorizationApprovalPolicy For authorization rules
-* @see \Cake\Http\ServerRequest::allowMethod() For HTTP method validation
-*
-* @since Activities Plugin 1.0.0
-*/
-public function deny(AuthorizationManagerInterface $maService, $id = null)
-{
-$this->request->allowMethod(["post"]);
-if ($id == null) {
-$id = $this->request->getData("id");
-}
-$authorizationApproval = $this->AuthorizationApprovals->get($id);
-if (!$authorizationApproval) {
-throw new \Cake\Http\Exception\NotFoundException();
-}
-$this->Authorization->authorize($authorizationApproval);
-$maResult = $maService->deny(
-(int)$id,
-$this->Authentication->getIdentity()->getIdentifier(),
-$this->request->getData("approver_notes"),
-);
-if (
-!$maResult->success
-) {
-$this->Flash->error(
-__(
-"The authorization approval could not be rejected. Please, try again.",
-),
-);
-} else {
-$this->Flash->success(
-__("The authorization approval has been rejected."),
-);
-}
+     * <textarea name="approver_notes" placeholder="Reason for denial..." required></textarea>
+     * <button type="submit" class="btn btn-danger">Deny Authorization</button>
+     * </form>
+     * ```
+     *
+     * ### AJAX Denial Processing
+     * ```javascript
+     * // AJAX-based denial with notes
+     * function denyApproval(approvalId, notes) {
+     * $.post('/activities/authorization-approvals/deny', {
+     * id: approvalId,
+     * approver_notes: notes
+     * }).done(function(response) {
+     * location.reload(); // Refresh to show updated status
+     * });
+     * }
+     * ```
+     *
+     * ### Modal Dialog Integration
+     * ```javascript
+     * // Modal-based denial with note collection
+     * $('#deny-modal').on('show.bs.modal', function(event) {
+     * const approvalId = $(event.relatedTarget).data('approval-id');
+     * $(this).find('form').attr('action',
+     * `/activities/authorization-approvals/deny/${approvalId}`);
+     * });
+     * ```
+     *
+     * ## Audit Trail and Compliance
+     *
+     * ### Comprehensive Logging
+     * - **Denial Documentation**: Complete record of denial decisions and reasoning
+     * - **Timestamp Tracking**: Precise timing of denial actions for audit purposes
+     * - **User Attribution**: Clear attribution of denial actions to specific users
+     * - **Note Preservation**: Permanent storage of denial reasoning and feedback
+     *
+     * ### Compliance Features
+     * - **Regulatory Compliance**: Supports regulatory requirements for decision documentation
+     * - **Historical Analysis**: Enables analysis of denial patterns and trends
+     * - **Quality Improvement**: Data supports continuous improvement of authorization processes
+     * - **Transparency**: Clear audit trail for organizational transparency
+     *
+     * ## Extension Opportunities
+     *
+     * ### Enhanced Denial Features
+     * - **Conditional Denial**: Support for conditional denial with remediation options
+     * - **Appeal Process**: Integration with denial appeal and review processes
+     * - **Escalation Rules**: Automatic escalation for certain types of denials
+     * - **Bulk Denial**: Mass denial operations for administrative efficiency
+     *
+     * ### Workflow Enhancements
+     * - **Denial Categories**: Categorized denial reasons for better tracking
+     * - **Remediation Suggestions**: Automated suggestions for addressing denial reasons
+     * - **Learning System**: AI-powered learning from denial patterns
+     * - **Predictive Analysis**: Prediction of likely denial outcomes
+     *
+     * ### User Experience Improvements
+     * - **Rich Text Notes**: Enhanced note editing with formatting options
+     * - **Template Notes**: Pre-defined denial reason templates
+     * - **Collaborative Denial**: Multi-approver denial with consensus requirements
+     * - **Notification Customization**: Customizable denial notification templates
+     *
+     * ### Analytics and Reporting
+     * - **Denial Analytics**: Comprehensive analytics on denial patterns and trends
+     * - **Performance Metrics**: Denial processing time and efficiency metrics
+     * - **Quality Metrics**: Analysis of denial accuracy and consistency
+     * - **Process Improvement**: Data-driven insights for process optimization
+     *
+     * @param \Activities\Services\AuthorizationManagerInterface $maService Authorization management service
+     * @param string|null $id Authorization Approval ID for denial processing
+     * @return \Cake\Http\Response|null Redirects to referer after processing
+     * @throws \Cake\Http\Exception\NotFoundException When approval entity is not found
+     * @throws \Cake\Http\Exception\MethodNotAllowedException When invalid HTTP method used
+     * @throws \Authorization\Exception\ForbiddenException When user lacks denial permissions
+     * @see \Activities\Services\AuthorizationManagerInterface::deny() For denial business logic
+     * @see \Activities\Policy\AuthorizationApprovalPolicy For authorization rules
+     * @see \Cake\Http\ServerRequest::allowMethod() For HTTP method validation
+     *
+     * @since Activities Plugin 1.0.0
+     */
+    public function deny(AuthorizationManagerInterface $maService, $id = null)
+    {
+        $this->request->allowMethod(["post"]);
+        if ($id == null) {
+            $id = $this->request->getData("id");
+        }
+        $authorizationApproval = $this->AuthorizationApprovals->get($id);
+        if (!$authorizationApproval) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+        $this->Authorization->authorize($authorizationApproval);
+        $maResult = $maService->deny(
+            (int)$id,
+            $this->Authentication->getIdentity()->getIdentifier(),
+            $this->request->getData("approver_notes"),
+        );
+        if (
+            !$maResult->success
+        ) {
+            $this->Flash->error(
+                __(
+                    "The authorization approval could not be rejected. Please, try again.",
+                ),
+            );
+        } else {
+            $this->Flash->success(
+                __("The authorization approval has been rejected."),
+            );
+        }
 
-return $this->redirect($this->referer());
-}
+        return $this->redirect($this->referer());
+    }
 }
