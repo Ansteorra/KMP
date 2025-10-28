@@ -523,7 +523,7 @@ class GatheringsController extends AppController
     {
         $this->request->allowMethod(['post']);
         $gathering = $this->Gatherings->get($id, contain: ['GatheringActivities']);
-        $this->Authorization->authorize($gathering);
+        $this->Authorization->authorize($gathering, "edit");
 
         // Check if waivers exist - can't modify activities if they do
         // TODO: Implement when Waivers plugin is available
@@ -596,7 +596,7 @@ class GatheringsController extends AppController
     {
         $this->request->allowMethod(['post']);
         $gathering = $this->Gatherings->get($gatheringId);
-        $this->Authorization->authorize($gathering);
+        $this->Authorization->authorize($gathering, "edit");
 
         // Check if waivers exist - can't modify activities if they do
         // TODO: Implement when Waivers plugin is available

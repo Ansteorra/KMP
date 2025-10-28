@@ -44,6 +44,11 @@ self.addEventListener('message', event => {
 });
 
 self.addEventListener('fetch', (event) => {
+    // Only handle http and https requests, skip chrome-extension and other schemes
+    if (!event.request.url.startsWith('http')) {
+        return;
+    }
+
     event.respondWith(
         (async function () {
             try {

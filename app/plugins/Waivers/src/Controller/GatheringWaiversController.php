@@ -1678,7 +1678,7 @@ class GatheringWaiversController extends AppController
                 'is_active' => true,
                 'deleted IS' => null,
             ])
-            ->order(['name' => 'ASC'])
+            ->orderBy(['name' => 'ASC'])
             ->all();
 
         $summary = [];
@@ -1703,5 +1703,360 @@ class GatheringWaiversController extends AppController
         }
 
         return $summary;
+    }
+
+    /**
+     * Mobile gathering selection interface
+     * 
+     * Displays a list of gatherings that the user has permission to upload waivers for.
+     * Filters to show gatherings starting in the next 7 days or ended in the last 30 days.
+     * 
+     * @return \Cake\Http\Response|null|void
+     */
+    public function mobileSelectGathering()
+    {
+        $tempWaiver = $this->GatheringWaivers->newEmptyEntity();
+        $this->Authorization->authorize($tempWaiver, "add");
+
+        $currentUser = $this->Authentication->getIdentity();
+        if (!$currentUser) {
+            $this->Flash->error(__('You must be logged in to upload waivers.'));
+            return $this->redirect(['controller' => 'Members', 'action' => 'login', 'plugin' => null]);
+        }
+
+        // Check if user can add GatheringWaivers and get branch IDs they have permission for
+        $branchIds = $currentUser->getBranchIdsForAction('add', $tempWaiver);
+
+        // If branchIds is null, user has global permission (super user or global permission)
+        // If empty array, user has no permission
+        if (is_array($branchIds) && empty($branchIds)) {
+            $this->Flash->error(__('You do not have permission to upload waivers.'));
+            return $this->redirect($this->request->referer());
+        }
+
+        // Get date range for filtering gatherings
+        // Start: 7 days from now
+        // End: 30 days ago
+        $startDate = new \DateTime('+7 days');
+        $endDate = new \DateTime('-30 days');
+
+        // STEP 1: Get list of gathering IDs that meet all criteria
+        // - Have waiver requirements configured
+        // - User has permission to upload waivers
+        // - Within date range
+        $GatheringActivityWaivers = $this->fetchTable('Waivers.GatheringActivityWaivers');
+
+        // Use innerJoinWith to properly join through the associations
+        $gatheringIdsQuery = $GatheringActivityWaivers->find()
+            ->innerJoinWith('GatheringActivities.Gatherings')
+            ->where([
+                'GatheringActivityWaivers.deleted IS' => null,
+                'GatheringActivities.deleted IS' => null,
+                'Gatherings.deleted IS' => null,
+                'OR' => [
+                    'Gatherings.start_date <=' => $startDate,
+                    'Gatherings.end_date >=' => $endDate
+                ]
+            ])
+            ->select(['gathering_id' => 'Gatherings.id'])
+            ->distinct(['Gatherings.id']);
+
+        // If not global permission, filter by branch IDs
+        if ($branchIds !== null) {
+            $gatheringIdsQuery->where(['Gatherings.branch_id IN' => $branchIds]);
+        }
+
+        // Extract gathering IDs
+        $gatheringIds = $gatheringIdsQuery->all()->extract('gathering_id')->toArray();
+
+        // If no gatherings found, show empty state
+        if (empty($gatheringIds)) {
+            $authorizedGatherings = [];
+        } else {
+            // STEP 2: Fetch full gathering details for authorized gatherings, sorted by start date
+            $Gatherings = $this->fetchTable('Gatherings');
+            $authorizedGatherings = $Gatherings->find()
+                ->where(['Gatherings.id IN' => $gatheringIds])
+                ->contain(['Branches', 'GatheringTypes'])
+                ->orderBy(['Gatherings.start_date' => 'DESC'])
+                ->all()
+                ->toArray();
+        }
+
+        $this->set(compact('authorizedGatherings'));
+
+        // Use mobile app layout
+        $this->viewBuilder()->setLayout('mobile_app');
+        $this->set('mobileTitle', 'Select Gathering');
+        $this->set('mobileBackUrl', $this->request->referer());
+        $this->set('mobileHeaderColor', '#0dcaf0'); // info color
+        $this->set('showRefreshBtn', false);
+    }
+
+    /**
+     * Mobile waiver upload interface
+     * 
+     * Simplified mobile waiver upload wizard optimized for phone cameras.
+     * Takes gathering_id parameter and provides streamlined upload flow.
+     * 
+     * @param string|null $gatheringId Gathering ID
+     * @return \Cake\Http\Response|null|void
+     */
+    public function mobileUpload(?string $gatheringId = null)
+    {
+
+        if (!$gatheringId) {
+            $gatheringId = $this->request->getQuery('gathering_id');
+        }
+
+        if (!$gatheringId) {
+            return $this->redirect(['action' => 'mobileSelectGathering']);
+        }
+
+        // Get gathering with activities
+        $Gatherings = $this->fetchTable('Gatherings');
+        $gathering = $Gatherings->get($gatheringId, [
+            'contain' => [
+                'GatheringTypes',
+                'Branches',
+                'GatheringActivities',
+            ],
+        ]);
+        $tempWaiver = $this->GatheringWaivers->newEmptyEntity();
+        $tempWaiver->gathering = $gathering;
+        $tempWaiver->gathering_id = $gatheringId;
+        $this->Authorization->authorize($tempWaiver, "add");
+
+        // Load waiver requirements for each activity
+        if (!empty($gathering->gathering_activities)) {
+            $activityIds = collection($gathering->gathering_activities)->extract('id')->toArray();
+            $GatheringActivityWaivers = $this->fetchTable('Waivers.GatheringActivityWaivers');
+            $activityWaivers = $GatheringActivityWaivers->find()
+                ->where(['gathering_activity_id IN' => $activityIds])
+                ->contain(['WaiverTypes'])
+                ->toArray();
+
+            // Group by activity ID
+            $waiversByActivity = collection($activityWaivers)->groupBy('gathering_activity_id')->toArray();
+
+            // Add to activities
+            foreach ($gathering->gathering_activities as $activity) {
+                $activity->gathering_activity_waivers = $waiversByActivity[$activity->id] ?? [];
+            }
+        }
+
+        // Check if gathering has required waivers
+        $requiredWaiverTypes = $this->_getRequiredWaiverTypes($gathering);
+        if (empty($requiredWaiverTypes)) {
+            $this->Flash->error(__('This gathering is not configured to collect waivers.'));
+            return $this->redirect(['action' => 'mobileSelectGathering']);
+        }
+
+        // Check if user has permission to add waivers for this gathering's branch
+        $currentUser = $this->Authentication->getIdentity();
+        $tempWaiver = $this->GatheringWaivers->newEmptyEntity();
+        $tempWaiver->gathering_id = $gathering->id;
+        $tempWaiver->gathering = $gathering;
+
+        $branchIds = $currentUser->getBranchIdsForAction('add', $tempWaiver);
+
+        // If branchIds is an empty array, user has no permission
+        if (is_array($branchIds) && !in_array($gathering->branch_id, $branchIds)) {
+            $this->Flash->error(__('You do not have permission to upload waivers for this gathering.'));
+            return $this->redirect(['action' => 'mobileSelectGathering']);
+        }
+
+        // If branchIds is null, user has global permission (allowed)
+        // If branchIds contains the gathering's branch_id, user has permission (allowed)
+
+        // Handle POST - process uploads
+        if ($this->request->is('post')) {
+            $data = $this->request->getData();
+            $uploadedFiles = $data['waiver_images'] ?? [];
+            $waiverTypeId = $data['waiver_type_id'] ?? null;
+            $notes = $data['notes'] ?? '';
+            $activityIds = $data['activity_ids'] ?? [];
+
+            if (empty($uploadedFiles) || !$waiverTypeId) {
+                $this->Flash->error(__('Please select waiver type and upload at least one image.'));
+                return $this->redirect($this->referer());
+            }
+
+            if (empty($activityIds)) {
+                $this->Flash->error(__('Please select at least one activity that this waiver applies to.'));
+                return $this->redirect($this->referer());
+            }
+
+            // Get waiver type for retention policy
+            $WaiverTypes = $this->fetchTable('Waivers.WaiverTypes');
+            $waiverType = $WaiverTypes->get($waiverTypeId);
+
+            // Process all uploaded files as a single multi-page waiver
+            try {
+                $result = $this->_processMultipleWaiverImages(
+                    $uploadedFiles,
+                    $gathering,
+                    $waiverType,
+                    $notes,
+                    $activityIds
+                );
+
+                if ($result->isSuccess()) {
+                    // Get redirect URL to mobile card
+                    $currentUser = $this->Authentication->getIdentity();
+                    $Members = $this->fetchTable('Members');
+                    $member = $Members->get($currentUser->id, ['fields' => ['id', 'mobile_card_token']]);
+                    $redirectUrl = $this->request->getAttribute('base') . '/' .
+                        $this->Url->build([
+                            'controller' => 'Members',
+                            'action' => 'viewMobileCard',
+                            'plugin' => null,
+                            $member->mobile_card_token
+                        ]);
+
+                    // If AJAX request, return JSON response (don't set Flash message)
+                    if ($this->request->is('ajax')) {
+                        $this->viewBuilder()->setClassName('Json');
+                        $this->set('success', true);
+                        $this->set('message', __('Waiver uploaded successfully with {0} page(s).', count($uploadedFiles)));
+                        $this->set('redirectUrl', $redirectUrl);
+                        $this->viewBuilder()->setOption('serialize', ['success', 'message', 'redirectUrl']);
+                        return;
+                    }
+
+                    // For non-AJAX, set Flash and redirect
+                    $this->Flash->success(__(
+                        'Waiver uploaded successfully with {0} page(s).',
+                        count($uploadedFiles)
+                    ));
+
+                    // Otherwise, regular redirect
+                    return $this->redirect([
+                        'controller' => 'Members',
+                        'action' => 'viewMobileCard',
+                        'plugin' => null,
+                        $member->mobile_card_token
+                    ]);
+                } else {
+                    $this->Flash->error(__('Failed to upload waiver: {0}', $result->getError()));
+                }
+            } catch (\Exception $e) {
+                $this->Flash->error(__('Error uploading waiver: {0}', $e->getMessage()));
+                Log::error('Waiver upload error: ' . $e->getMessage());
+            }
+        }
+
+        // Build activity data for client
+        $activitiesData = [];
+        if (!empty($gathering->gathering_activities)) {
+            foreach ($gathering->gathering_activities as $activity) {
+                $waiverTypeIds = [];
+                if (!empty($activity->gathering_activity_waivers)) {
+                    foreach ($activity->gathering_activity_waivers as $activityWaiver) {
+                        $waiverTypeIds[] = $activityWaiver->waiver_type_id;
+                    }
+
+                    // Only add this activity if it has waivers
+                    $activitiesData[] = [
+                        'id' => $activity->id,
+                        'name' => $activity->name,
+                        'description' => $activity->description ?? '',
+                        'waiver_types' => $waiverTypeIds
+                    ];
+                }
+            }
+        }
+
+        $waiverTypesData = [];
+        if (!empty($requiredWaiverTypes)) {
+            foreach ($requiredWaiverTypes as $waiverType) {
+                $waiverTypesData[] = [
+                    'id' => $waiverType->id,
+                    'name' => $waiverType->name,
+                    'description' => $waiverType->description ?? ''
+                ];
+            }
+        }
+
+        // Get upload limits for validation
+        $uploadLimits = $this->_getUploadLimits();
+
+        $this->set(compact('gathering', 'requiredWaiverTypes', 'activitiesData', 'waiverTypesData', 'uploadLimits'));
+
+        // Use mobile app layout
+        $this->viewBuilder()->setLayout('mobile_app');
+        $this->set('mobileTitle', 'Upload Waiver');
+        $this->set('mobileBackUrl', ['action' => 'mobileSelectGathering']);
+        $this->set('mobileHeaderColor', '#0dcaf0'); // info color
+        $this->set('showRefreshBtn', false);
+    }
+
+    /**
+     * Get upload limits from PHP configuration
+     * 
+     * @return array Upload limits with maxFileSize and formatted values
+     */
+    private function _getUploadLimits(): array
+    {
+        // Parse upload_max_filesize
+        $uploadMax = $this->_parsePhpSize(ini_get('upload_max_filesize'));
+
+        // Parse post_max_size
+        $postMax = $this->_parsePhpSize(ini_get('post_max_size'));
+
+        // The effective limit is the smaller of the two
+        $maxFileSize = min($uploadMax, $postMax);
+
+        return [
+            'maxFileSize' => $maxFileSize,
+            'maxFileSizeMB' => round($maxFileSize / 1024 / 1024, 2),
+            'formatted' => $this->_formatBytes($maxFileSize),
+            'uploadMaxFilesize' => $uploadMax,
+            'postMaxSize' => $postMax,
+        ];
+    }
+
+    /**
+     * Parse PHP size notation to bytes
+     * 
+     * @param string $size Size string from PHP ini setting
+     * @return int Size in bytes
+     */
+    private function _parsePhpSize(string $size): int
+    {
+        $size = trim($size);
+        $last = strtolower($size[strlen($size) - 1]);
+        $value = (int)$size;
+
+        switch ($last) {
+            case 'g':
+                $value *= 1024;
+                // Fall through
+            case 'm':
+                $value *= 1024;
+                // Fall through
+            case 'k':
+                $value *= 1024;
+        }
+
+        return $value;
+    }
+
+    /**
+     * Format bytes to human-readable size
+     * 
+     * @param int $bytes Size in bytes
+     * @param int $precision Decimal precision
+     * @return string Formatted size string
+     */
+    private function _formatBytes(int $bytes, int $precision = 2): string
+    {
+        $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+
+        for ($i = 0; $bytes > 1024 && $i < count($units) - 1; $i++) {
+            $bytes /= 1024;
+        }
+
+        return round($bytes, $precision) . ' ' . $units[$i];
     }
 }

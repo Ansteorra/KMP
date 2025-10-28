@@ -514,21 +514,51 @@ class WaiverUploadWizardController extends Controller {
                 formData.append('waiver_images[]', page.file)
             })
 
-            // Get CSRF token from meta tag or cookie
+            // Get CSRF token and add to form data (CakePHP expects it in the body)
             const csrfToken = this.getCsrfToken()
+            if (csrfToken) {
+                formData.append('_csrfToken', csrfToken)
+            }
             
             // Submit via fetch
             const response = await fetch(window.location.href, {
                 method: 'POST',
                 body: formData,
                 headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-Token': csrfToken
+                    'X-Requested-With': 'XMLHttpRequest'
                 }
             })
 
             if (response.ok) {
-                // Show success step
+                // Check content type
+                const contentType = response.headers.get('content-type')
+                console.log('Response content-type:', contentType)
+                
+                // If response is HTML (redirect happened), follow it
+                if (contentType && contentType.includes('text/html')) {
+                    console.log('Received HTML response, following redirect')
+                    const html = await response.text()
+                    // Check if it contains a redirect meta tag or just reload
+                    window.location.reload()
+                    return
+                }
+                
+                // Parse JSON response
+                const data = await response.json().catch((err) => {
+                    console.error('Failed to parse JSON response:', err)
+                    return {}
+                })
+                
+                console.log('Upload response data:', data)
+                
+                // If we have a redirect URL (mobile mode), redirect immediately
+                if (data.redirectUrl) {
+                    console.log('Redirecting to:', data.redirectUrl)
+                    window.location.href = data.redirectUrl
+                    return
+                }
+                
+                // Otherwise show success step (desktop mode)
                 this.showSuccessStep()
             } else {
                 const data = await response.json().catch(() => ({}))

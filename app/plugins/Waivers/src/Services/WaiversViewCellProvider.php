@@ -207,8 +207,8 @@ class WaiversViewCellProvider
         $cells[] = [
             'type' => ViewCellRegistry::PLUGIN_TYPE_MOBILE_MENU,
             'label' => 'Submit Waiver',
-            'icon' => 'bi-file-earmark-text',
-            'url' => '/waivers/mobile-submit',
+            'icon' => 'bi-file-earmark-arrow-up',
+            'url' => ['controller' => 'GatheringWaivers', 'action' => 'mobileSelectGathering', 'plugin' => 'Waivers'],
             'order' => 30,
             'color' => 'info',
             'badge' => null,
