@@ -20,11 +20,17 @@ $this->KMP->endBlock(); ?>
             <h3>Waiver Types</h3>
         </div>
         <div class="col text-end">
-            <?= $this->Html->link(
-                'Add Waiver Type',
-                ['action' => 'add'],
-                ['class' => 'btn btn-primary btn-sm']
-            ) ?>
+            <?php
+            $waiverTypesTable = \Cake\ORM\TableRegistry::getTableLocator()->get("Waivers.WaiverTypes");
+            $tempWaiverType = $waiverTypesTable->newEmptyEntity();
+            if ($user->checkCan("add", $tempWaiverType)) :
+            ?>
+                <?= $this->Html->link(
+                    ' Add Waiver Type',
+                    ['action' => 'add'],
+                    ['class' => 'btn btn-primary btn-sm bi bi-plus-circle', 'data-turbo-frame' => '_top']
+                ) ?>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -70,7 +76,8 @@ $this->KMP->endBlock(); ?>
                         <td><?= h($waiverType->description) ?></td>
                         <td>
                             <?php if (!empty($waiverType->template_path)): ?>
-                                <a href="<?= h($waiverType->template_path) ?>" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary" title="View External Template">
+                                <a href="<?= h($waiverType->template_path) ?>" target="_blank" rel="noopener"
+                                    class="btn btn-sm btn-outline-primary" title="View External Template">
                                     <i class="bi bi-box-arrow-up-right"></i>
                                 </a>
                             <?php elseif (!empty($waiverType->document_id)): ?>
@@ -159,6 +166,7 @@ $this->KMP->endBlock(); ?>
             <?= $this->Paginator->next(__('next') . ' >') ?>
             <?= $this->Paginator->last(__('last') . ' >>') ?>
         </ul>
-        <p><?= $this->Paginator->counter(__('Page {{page}} of {{pages}}, showing {{current}} record(s) out of {{count}} total')) ?></p>
+        <p><?= $this->Paginator->counter(__('Page {{page}} of {{pages}}, showing {{current}} record(s) out of {{count}} total')) ?>
+        </p>
     </div>
 </turbo-frame>

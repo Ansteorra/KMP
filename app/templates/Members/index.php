@@ -16,9 +16,26 @@ if (!$isTurboFrame) {
 
 ?>
 <?php if (!$isTurboFrame) : ?>
-<h3>
-    Members
-</h3>
+    <div class="row align-items-start">
+        <div class="col">
+            <h3>
+                Members
+            </h3>
+        </div>
+        <div class="col text-end">
+            <?php
+            $membersTable = \Cake\ORM\TableRegistry::getTableLocator()->get("Members");
+            $tempMember = $membersTable->newEmptyEntity();
+            if ($user->checkCan("add", $tempMember)) :
+            ?>
+                <?= $this->Html->link(
+                    ' Add Member',
+                    ['action' => 'add'],
+                    ['class' => 'btn btn-primary btn-sm bi bi-plus-circle', 'data-turbo-frame' => '_top']
+                ) ?>
+            <?php endif; ?>
+        </div>
+    </div>
 <?php endif; ?>
 <turbo-frame id="membersList" data-turbo='true'>
     <table class="table table-striped">
@@ -51,22 +68,22 @@ if (!$isTurboFrame) {
         </thead>
         <tbody>
             <?php foreach ($Members as $Member) : ?>
-            <tr>
-                <td><?= h($Member->sca_name) ?></td>
-                <td><?= h($Member->branch->name) ?></td>
-                <td><?= h($Member->first_name) ?></td>
-                <td><?= h($Member->last_name) ?></td>
-                <td><?= h($Member->email_address) ?></td>
-                <td><?= h($Member->status) ?></td>
-                <td><?= h($Member->last_login) ?></td>
-                <td class="actions text-end text-nowrap" data-turbo='false'>
-                    <?= $this->Html->link(
+                <tr>
+                    <td><?= h($Member->sca_name) ?></td>
+                    <td><?= h($Member->branch->name) ?></td>
+                    <td><?= h($Member->first_name) ?></td>
+                    <td><?= h($Member->last_name) ?></td>
+                    <td><?= h($Member->email_address) ?></td>
+                    <td><?= h($Member->status) ?></td>
+                    <td><?= h($Member->last_login) ?></td>
+                    <td class="actions text-end text-nowrap" data-turbo='false'>
+                        <?= $this->Html->link(
                             __(""),
                             ["action" => "view", $Member->id],
                             ["title" => __("View"), "class" => "btn-sm btn btn-secondary bi bi-binoculars-fill"],
                         ) ?>
-                    <?php if ($user->isSuperUser()) { ?>
-                    <?= $this->Form->postLink(
+                        <?php if ($user->isSuperUser()) { ?>
+                            <?= $this->Form->postLink(
                                 __("Delete"),
                                 ["action" => "delete", $Member->id],
                                 [
@@ -78,9 +95,9 @@ if (!$isTurboFrame) {
                                     "class" => "btn btn-danger btn-sm",
                                 ],
                             ) ?>
-                    <?php } ?>
-                </td>
-            </tr>
+                        <?php } ?>
+                    </td>
+                </tr>
             <?php endforeach; ?>
         </tbody>
     </table>

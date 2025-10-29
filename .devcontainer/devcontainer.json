@@ -44,6 +44,11 @@
 		8025, // Port for Mailpit SMTP server
 		9324 // Port for Playwright test report
 	],
+	"appPort": [
+		"8080:8080",
+		"8025:8025",
+		"9324:9324"
+	],
 	"runArgs": [
 		"--add-host=host.docker.internal:host-gateway",
 		"--env=DISPLAY=host.docker.internal:0"

@@ -342,7 +342,10 @@ class Application extends BaseApplication implements
             // Provides defense-in-depth against common web vulnerabilities
             ->add(function ($request, $handler) {
                 $response = $handler->handle($request);
-                return $response
+                $isDevelopment = Configure::read('debug');
+
+                // Base security headers (always applied)
+                $response = $response
                     // Prevent MIME type sniffing attacks
                     ->withHeader('X-Content-Type-Options', 'nosniff')
                     // Prevent clickjacking by restricting frame embedding
@@ -350,26 +353,36 @@ class Application extends BaseApplication implements
                     // Enable XSS protection in older browsers
                     ->withHeader('X-XSS-Protection', '1; mode=block')
                     // Control referrer information leakage
-                    ->withHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
-                    // Enforce HTTPS connections (24 hours cache)
-                    ->withHeader('Strict-Transport-Security', 'max-age=86400; includeSubDomains')
-                    // Comprehensive Content Security Policy
-                    // Prevents XSS by controlling resource loading sources
-                    ->withHeader(
-                        'Content-Security-Policy',
-                        "default-src 'self'; " .                                              // Default to same origin
-                            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://maps.googleapis.com; " .  // Allow CDN scripts and Google Maps
-                            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; " . // Allow Google Fonts
-                            "font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net;" .    // Font sources
-                            "img-src 'self' data: https:; " .                                // Allow HTTPS images and data URIs
-                            "connect-src 'self' https://maps.googleapis.com https://places.googleapis.com; " .             // AJAX/fetch restrictions - allow Google Maps and Places API
-                            "frame-src 'self'; " .                                           // iframe restrictions
-                            "object-src 'none'; " .                                          // Disable plugins
-                            "base-uri 'self'; " .                                            // Prevent base tag attacks
-                            "form-action 'self'; " .                                         // Form submission restrictions
-                            "frame-ancestors 'self'; " .                                     // Embedding restrictions
-                            "upgrade-insecure-requests"                                      // Auto-upgrade HTTP to HTTPS
-                    );
+                    ->withHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+
+                // HTTPS enforcement headers (only in production/UAT)
+                if (!$isDevelopment) {
+                    $response = $response
+                        // Enforce HTTPS connections (24 hours cache)
+                        ->withHeader('Strict-Transport-Security', 'max-age=86400; includeSubDomains');
+                }
+
+                // Build CSP policy
+                $csp = "default-src 'self'; " .                                              // Default to same origin
+                    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://maps.googleapis.com; " .  // Allow CDN scripts and Google Maps
+                    "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; " . // Allow Google Fonts
+                    "font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net;" .    // Font sources
+                    "img-src 'self' data: https:; " .                                // Allow HTTPS images and data URIs
+                    "connect-src 'self' https://maps.googleapis.com https://places.googleapis.com; " .             // AJAX/fetch restrictions - allow Google Maps and Places API
+                    "frame-src 'self'; " .                                           // iframe restrictions
+                    "object-src 'none'; " .                                          // Disable plugins
+                    "base-uri 'self'; " .                                            // Prevent base tag attacks
+                    "form-action 'self'; " .                                         // Form submission restrictions
+                    "frame-ancestors 'self'";                                        // Embedding restrictions
+
+                // Add upgrade-insecure-requests only in production/UAT
+                if (!$isDevelopment) {
+                    $csp .= "; upgrade-insecure-requests";                           // Auto-upgrade HTTP to HTTPS
+                }
+
+                // Comprehensive Content Security Policy
+                // Prevents XSS by controlling resource loading sources
+                return $response->withHeader('Content-Security-Policy', $csp);
             })
 
             // 3. Asset Middleware - Static file serving with caching
@@ -396,8 +409,8 @@ class Application extends BaseApplication implements
             ->add(
                 new CsrfProtectionMiddleware([
                     'httponly' => true,    // Prevent JavaScript access to CSRF cookie
-                    'secure' => true,      // Only send cookie over HTTPS
-                    'sameSite' => 'Strict', // Strict same-site policy for maximum protection
+                    'secure' => !Configure::read('debug'),      // Only send cookie over HTTPS in production/UAT (Safari requires this to be false for HTTP)
+                    'sameSite' => Configure::read('debug') ? 'Lax' : 'Strict', // Lax in dev for Safari compatibility, Strict in production
                 ]),
             )
 

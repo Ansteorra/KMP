@@ -40,12 +40,16 @@ RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local
 RUN echo "Listen 8080" >> /etc/apache2/ports.conf && \
     a2enmod rewrite
 
-# Configure PHP 8.3 (APCu and assertions)
+# Configure PHP 8.3 (APCu, assertions, and file upload limits)
 RUN echo "extension=apcu.so" >> /etc/php/8.3/cli/php.ini && \
     echo "extension=apcu.so" >> /etc/php/8.3/apache2/php.ini && \
     echo "apc.enable_cli=1" >> /etc/php/8.3/cli/php.ini && \
     echo "zend.assertions=1" >> /etc/php/8.3/apache2/php.ini && \
-    echo "zend.assertions=1" >> /etc/php/8.3/cli/php.ini
+    echo "zend.assertions=1" >> /etc/php/8.3/cli/php.ini && \
+    sed -i 's/^upload_max_filesize = 2M/upload_max_filesize = 5M/' /etc/php/8.3/cli/php.ini && \
+    sed -i 's/^upload_max_filesize = 2M/upload_max_filesize = 5M/' /etc/php/8.3/apache2/php.ini && \
+    sed -i 's/^post_max_size = 8M/post_max_size = 20M/' /etc/php/8.3/cli/php.ini && \
+    sed -i 's/^post_max_size = 8M/post_max_size = 20M/' /etc/php/8.3/apache2/php.ini
 
 # Copy and configure Xdebug
 COPY init_env/20-xdebug.ini /etc/php/8.3/cli/conf.d/20-xdebug.ini

@@ -14,7 +14,8 @@
 
 <div class="card cardbox mx-3"
     data-controller="activities-approve-and-assign-auth"
-    data-activities-approve-and-assign-auth-url-value="<?= $this->Url->build(['plugin' => 'activities', 'controller' => 'AuthorizationApprovals', 'action' => 'AvailableApproversList']) ?>">
+    data-activities-approve-and-assign-auth-url-value="<?= $this->Url->build(['plugin' => 'activities', 'controller' => 'AuthorizationApprovals', 'action' => 'AvailableApproversList']) ?>"
+    data-activities-approve-and-assign-auth-approval-id-value="<?= $authorizationApproval->id ?>">
     <div class="card-body">
         <h3 class="card-title text-center display-6 text-success">
             <i class="bi bi-check-circle me-2"></i>Approve Authorization

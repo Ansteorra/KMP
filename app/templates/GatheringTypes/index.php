@@ -12,7 +12,26 @@ echo $this->KMP->startBlock("title");
 echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Gathering Types';
 $this->KMP->endBlock();
 ?>
-<h3><?= __('Gathering Types') ?></h3>
+<div class="row align-items-start">
+    <div class="col">
+        <h3>
+            Gathering Types
+        </h3>
+    </div>
+    <div class="col text-end">
+        <?php
+        $gatheringTypesTable = \Cake\ORM\TableRegistry::getTableLocator()->get("GatheringTypes");
+        $tempGatheringType = $gatheringTypesTable->newEmptyEntity();
+        if ($user->checkCan("add", $tempGatheringType)) :
+        ?>
+            <?= $this->Html->link(
+                ' Add Gathering Type',
+                ['action' => 'add'],
+                ['class' => 'btn btn-primary btn-sm bi bi-plus-circle', 'data-turbo-frame' => '_top']
+            ) ?>
+        <?php endif; ?>
+    </div>
+</div>
 <div class="table-responsive">
     <table class="table table-striped">
         <thead>
@@ -26,16 +45,16 @@ $this->KMP->endBlock();
         </thead>
         <tbody>
             <?php foreach ($gatheringTypes as $gatheringType): ?>
-            <tr>
-                <td><?= h($gatheringType->name) ?></td>
-                <td><?= h($gatheringType->description) ?></td>
-                <td><?= $gatheringType->clonable ? '<i class="bi bi-check-circle-fill text-success"></i>' : '<i class="bi bi-x-circle-fill text-muted"></i>' ?>
-                </td>
-                <td><?= h($gatheringType->created) ?></td>
-                <td class="actions">
-                    <?= $this->Html->link('<i class="bi bi-binoculars-fill"></i>', ['action' => 'view', $gatheringType->id], ['escape' => false, 'title' => __('View'), 'class' => 'btn btn-sm btn-secondary']) ?>
-                </td>
-            </tr>
+                <tr>
+                    <td><?= h($gatheringType->name) ?></td>
+                    <td><?= h($gatheringType->description) ?></td>
+                    <td><?= $gatheringType->clonable ? '<i class="bi bi-check-circle-fill text-success"></i>' : '<i class="bi bi-x-circle-fill text-muted"></i>' ?>
+                    </td>
+                    <td><?= h($gatheringType->created) ?></td>
+                    <td class="actions">
+                        <?= $this->Html->link('<i class="bi bi-binoculars-fill"></i>', ['action' => 'view', $gatheringType->id], ['escape' => false, 'title' => __('View'), 'class' => 'btn btn-sm btn-secondary']) ?>
+                    </td>
+                </tr>
             <?php endforeach; ?>
         </tbody>
     </table>

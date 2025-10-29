@@ -17,8 +17,29 @@ echo $this->KMP->startBlock("title");
 echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Gatherings';
 $this->KMP->endBlock();
 ?>
-
-<h3><?= __('Gatherings') ?></h3>
+<div class="row align-items-start">
+    <div class="col">
+        <h3>
+            Gatherings
+        </h3>
+    </div>
+    <div class="col text-end">
+        <?php
+        $gatheringsTable = \Cake\ORM\TableRegistry::getTableLocator()->get("Gatherings");
+        $tempGathering = $gatheringsTable->newEmptyEntity();
+        if ($branch_id) {
+            $tempGathering->branch_id = $branch_id;
+        }
+        if ($user->checkCan("add", $tempGathering)) :
+        ?>
+            <?= $this->Html->link(
+                ' Add Gathering',
+                ['action' => 'add'],
+                ['class' => 'btn btn-primary btn-sm bi bi-plus-circle', 'data-turbo-frame' => '_top']
+            ) ?>
+        <?php endif; ?>
+    </div>
+</div>
 
 <?php
 // Configure tabs for gatherings with temporal filtering

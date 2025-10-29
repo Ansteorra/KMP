@@ -21,7 +21,8 @@ $this->KMP->endBlock();
         'data-action' => 'submit->gathering-form#validateForm'
     ]) ?>
     <fieldset>
-        <legend><?= __('Add Gathering') ?></legend>
+        <legend><a href="#" onclick="window.history.back(); return false;" class="bi bi-arrow-left-circle"></a>
+            <?= __('Add Gathering') ?></legend>
 
         <div class="mb-3">
             <?= $this->Form->control('name', [

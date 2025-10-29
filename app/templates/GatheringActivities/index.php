@@ -12,7 +12,26 @@ echo $this->KMP->startBlock("title");
 echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Gathering Activities';
 $this->KMP->endBlock();
 ?>
-<h3><?= __('Gathering Activities') ?></h3>
+<div class="row align-items-start">
+    <div class="col">
+        <h3>
+            Gathering Activities
+        </h3>
+    </div>
+    <div class="col text-end">
+        <?php
+        $gatheringActivitiesTable = \Cake\ORM\TableRegistry::getTableLocator()->get("GatheringActivities");
+        $tempActivity = $gatheringActivitiesTable->newEmptyEntity();
+        if ($user->checkCan("add", $tempActivity)) :
+        ?>
+            <?= $this->Html->link(
+                ' Add Gathering Activity',
+                ['action' => 'add'],
+                ['class' => 'btn btn-primary btn-sm bi bi-plus-circle', 'data-turbo-frame' => '_top']
+            ) ?>
+        <?php endif; ?>
+    </div>
+</div>
 <div class="table-responsive">
     <table class="table table-striped">
         <thead>
@@ -45,5 +64,6 @@ $this->KMP->endBlock();
         <?= $this->Paginator->next(__('next') . ' >') ?>
         <?= $this->Paginator->last(__('last') . ' >>') ?>
     </ul>
-    <p><?= $this->Paginator->counter(__('Page {{page}} of {{pages}}, showing {{current}} record(s) out of {{count}} total')) ?></p>
+    <p><?= $this->Paginator->counter(__('Page {{page}} of {{pages}}, showing {{current}} record(s) out of {{count}} total')) ?>
+    </p>
 </div>

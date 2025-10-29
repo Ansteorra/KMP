@@ -18,7 +18,8 @@ $this->KMP->endBlock(); ?>
 <div class="activities form content">
     <?= $this->Form->create($activity) ?>
     <fieldset>
-        <legend><?= __("Add Activity") ?></legend>
+        <legend><a href="#" onclick="window.history.back(); return false;" class="bi bi-arrow-left-circle"></a>
+            <?= __("Add Activity") ?></legend>
         <?php
         echo $this->Form->control("name");
         echo $this->Form->control("activity_group_id", [

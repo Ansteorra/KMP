@@ -866,7 +866,7 @@ class AuthorizationApprovalsController extends AppController
                 $this->Flash->success(__('The authorization has been approved.'));
 
                 // Redirect to approver's mobile card
-                $approver = $this->AuthorizationApprovals->Members->get($approverId, ['fields' => ['id', 'mobile_card_token']]);
+                $approver = $this->AuthorizationApprovals->Approvers->get($approverId, ['fields' => ['id', 'mobile_card_token']]);
                 return $this->redirect([
                     'controller' => 'Members',
                     'action' => 'viewMobileCard',
@@ -948,7 +948,7 @@ class AuthorizationApprovalsController extends AppController
                     $this->Flash->success(__('The authorization has been denied.'));
 
                     // Redirect to approver's mobile card
-                    $approver = $this->AuthorizationApprovals->Members->get($approverId, ['fields' => ['id', 'mobile_card_token']]);
+                    $approver = $this->AuthorizationApprovals->Approvers->get($approverId, ['fields' => ['id', 'mobile_card_token']]);
                     return $this->redirect([
                         'controller' => 'Members',
                         'action' => 'viewMobileCard',

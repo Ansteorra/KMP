@@ -14,7 +14,8 @@ $this->KMP->endBlock(); ?>
 <div class="activityGroup form content">
     <?= $this->Form->create($domain) ?>
     <fieldset>
-        <legend><?= __("Add Award Domain") ?></legend>
+        <legend><a href="#" onclick="window.history.back(); return false;" class="bi bi-arrow-left-circle"></a>
+            <?= __("Add Award Domain") ?></legend>
         <?php echo $this->Form->control("name"); ?>
     </fieldset>
     <div class='text-end'><?= $this->Form->button(__("Submit"), [

@@ -274,8 +274,8 @@ class WaiverUploadWizardController extends Controller {
     handleFileSelect(event) {
         const files = Array.from(event.target.files)
         
-        // Get max file size (use configured value or fallback to 10MB)
-        const maxFileSize = this.hasMaxFileSizeValue ? this.maxFileSizeValue : (10 * 1024 * 1024)
+        // Get max file size (use configured value or fallback to 5MB)
+        const maxFileSize = this.hasMaxFileSizeValue ? this.maxFileSizeValue : (5 * 1024 * 1024)
         const totalMaxSize = this.hasTotalMaxSizeValue ? this.totalMaxSizeValue : maxFileSize
         
         // Calculate current total size
@@ -488,9 +488,12 @@ class WaiverUploadWizardController extends Controller {
             return
         }
 
-        // Disable submit button
+        // Disable submit button and show processing page immediately
         this.submitButtonTarget.disabled = true
-        this.submitButtonTarget.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Uploading...'
+        this.showProcessingStep()
+
+        // Track when we started (for minimum 2-second display)
+        const startTime = Date.now()
 
         try {
             const formData = new FormData()
@@ -530,19 +533,6 @@ class WaiverUploadWizardController extends Controller {
             })
 
             if (response.ok) {
-                // Check content type
-                const contentType = response.headers.get('content-type')
-                console.log('Response content-type:', contentType)
-                
-                // If response is HTML (redirect happened), follow it
-                if (contentType && contentType.includes('text/html')) {
-                    console.log('Received HTML response, following redirect')
-                    const html = await response.text()
-                    // Check if it contains a redirect meta tag or just reload
-                    window.location.reload()
-                    return
-                }
-                
                 // Parse JSON response
                 const data = await response.json().catch((err) => {
                     console.error('Failed to parse JSON response:', err)
@@ -551,15 +541,21 @@ class WaiverUploadWizardController extends Controller {
                 
                 console.log('Upload response data:', data)
                 
-                // If we have a redirect URL (mobile mode), redirect immediately
-                if (data.redirectUrl) {
-                    console.log('Redirecting to:', data.redirectUrl)
-                    window.location.href = data.redirectUrl
-                    return
-                }
+                // Calculate how long to wait (minimum 2 seconds total)
+                const elapsed = Date.now() - startTime
+                const remainingTime = Math.max(0, 2000 - elapsed)
                 
-                // Otherwise show success step (desktop mode)
-                this.showSuccessStep()
+                // Wait for remaining time, then redirect
+                setTimeout(() => {
+                    if (data.redirectUrl) {
+                        console.log('Redirecting to:', data.redirectUrl)
+                        window.location.href = data.redirectUrl
+                    } else {
+                        // Fallback redirect
+                        window.location.href = `/gatherings/view/${this.gatheringIdValue}`
+                    }
+                }, remainingTime)
+                
             } else {
                 const data = await response.json().catch(() => ({}))
                 this.showError(data.message || 'Upload failed. Please try again.')
@@ -575,40 +571,31 @@ class WaiverUploadWizardController extends Controller {
         }
     }
 
-    showSuccessStep() {
+    showProcessingStep() {
         // Hide all regular steps
         this.stepTargets.forEach(step => step.classList.add('d-none'))
 
-        // Show success message
-        const successHtml = `
+        // Show processing message
+        const processingHtml = `
             <div class="text-center py-5">
                 <div class="mb-4">
-                    <i class="bi bi-check-circle-fill text-success" style="font-size: 5rem;"></i>
+                    <div class="spinner-border text-primary" role="status" style="width: 5rem; height: 5rem;">
+                        <span class="visually-hidden">Uploading...</span>
+                    </div>
                 </div>
-                <h2 class="mb-3">Waiver Uploaded Successfully!</h2>
+                <h2 class="mb-3">Processing Your Waiver</h2>
                 <p class="lead text-muted mb-4">
-                    Your waiver has been uploaded and is being processed.
+                    Please wait while we upload and process your waiver...
                 </p>
                 <div class="alert alert-info d-inline-block">
                     <i class="bi bi-info-circle"></i>
-                    Uploaded ${this.uploadedPages.length} page(s) for ${this.selectedActivities.length} activity(s)
-                </div>
-                <div class="mt-4">
-                    <p class="text-muted">Redirecting to gathering view...</p>
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
+                    Uploading ${this.uploadedPages.length} page(s) for ${this.selectedActivities.length} activity(s)
                 </div>
             </div>
         `
 
         const container = this.element.querySelector('.wizard-container') || this.element
-        container.innerHTML = successHtml
-
-        // Redirect after 2 seconds
-        setTimeout(() => {
-            window.location.href = `/gatherings/view/${this.gatheringIdValue}`
-        }, 2000)
+        container.innerHTML = processingHtml
     }
 
     // Validation

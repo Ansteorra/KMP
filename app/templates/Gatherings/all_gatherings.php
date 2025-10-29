@@ -105,8 +105,11 @@ $stateLabels = [
 ];
 $label = isset($stateLabels[$state]) ? $stateLabels[$state] : ucfirst($state);
 
-// Generate turbo frame ID from state (must match the ID in index.php)
-$turboFrameId = str_replace('_', '-', $state) . '-gatherings-frame';
+// Generate turbo frame ID from state
+// Support branch-specific prefix for unique IDs when embedded in branch view
+$branchId = $this->getRequest()->getQuery('branch_id');
+$idPrefix = $branchId ? 'branch-' : '';
+$turboFrameId = $idPrefix . str_replace('_', '-', $state) . '-gatherings-frame';
 
 // Configure table data
 $tableData = [

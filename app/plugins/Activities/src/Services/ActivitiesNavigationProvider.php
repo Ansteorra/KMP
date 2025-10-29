@@ -200,19 +200,6 @@ class ActivitiesNavigationProvider
             ],
             [
                 "type" => "link",
-                "mergePath" => ["Config", "Activity Groups"],
-                "label" => "New Activity Group",
-                "order" => 0,
-                "url" => [
-                    "controller" => "ActivityGroups",
-                    "plugin" => "Activities",
-                    "action" => "add",
-                    "model" => "Activities.ActivityGroups",
-                ],
-                "icon" => "bi-plus",
-            ],
-            [
-                "type" => "link",
                 "mergePath" => ["Config"],
                 "label" => "Activities",
                 "order" => 30,
@@ -226,19 +213,6 @@ class ActivitiesNavigationProvider
                 "activePaths" => [
                     "activities/activities/view/*",
                 ]
-            ],
-            [
-                "type" => "link",
-                "mergePath" => ["Config", "Activities"],
-                "label" => "New Activity",
-                "order" => 0,
-                "url" => [
-                    "controller" => "Activities",
-                    "action" => "add",
-                    "plugin" => "Activities",
-                    "model" => "Activities.Activities",
-                ],
-                "icon" => "bi-plus",
             ],
             [
                 "type" => "link",

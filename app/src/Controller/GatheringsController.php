@@ -63,23 +63,30 @@ class GatheringsController extends AppController
                 'GatheringActivities',
                 'Creators' => ['fields' => ['id', 'sca_name']]
             ])
-            ->order(['Gatherings.start_date' => 'DESC']);
-
+            ->orderBy(['Gatherings.start_date' => 'DESC']);
+        $branch_id = null;
+        $gathering_type_id = null;
+        $start_date = null;
+        $end_date = null;
         // Apply filters if provided
         if ($this->request->getQuery('branch_id')) {
-            $query->where(['Gatherings.branch_id' => $this->request->getQuery('branch_id')]);
+            $branch_id = $this->request->getQuery('branch_id');
+            $query->where(['Gatherings.branch_id' => $branch_id]);
         }
 
         if ($this->request->getQuery('gathering_type_id')) {
-            $query->where(['Gatherings.gathering_type_id' => $this->request->getQuery('gathering_type_id')]);
+            $gathering_type_id = $this->request->getQuery('gathering_type_id');
+            $query->where(['Gatherings.gathering_type_id' => $gathering_type_id]);
         }
 
         if ($this->request->getQuery('start_date')) {
-            $query->where(['Gatherings.start_date >=' => $this->request->getQuery('start_date')]);
+            $start_date = $this->request->getQuery('start_date');
+            $query->where(['Gatherings.start_date >=' => $start_date]);
         }
 
         if ($this->request->getQuery('end_date')) {
-            $query->where(['Gatherings.end_date <=' => $this->request->getQuery('end_date')]);
+            $end_date = $this->request->getQuery('end_date');
+            $query->where(['Gatherings.end_date <=' => $end_date]);
         }
 
         $gatherings = $this->paginate($query);
@@ -97,7 +104,7 @@ class GatheringsController extends AppController
 
         $gatheringTypes = $this->Gatherings->GatheringTypes->find('list')->orderBy(['name' => 'ASC']);
 
-        $this->set(compact('gatherings', 'branches', 'gatheringTypes'));
+        $this->set(compact('gatherings', 'branches', 'gatheringTypes', 'branch_id', 'gathering_type_id', 'start_date', 'end_date'));
     }
 
     /**
@@ -260,15 +267,19 @@ class GatheringsController extends AppController
      * Add conditions - Optimize gathering queries for performance and security
      *
      * Applies query optimization and field selection for gathering listing operations.
-     * Currently a placeholder for future search/filter functionality.
+     * Supports branch filtering via query parameters.
      *
      * @param \Cake\ORM\Query $query Base gathering query to optimize
      * @return \Cake\ORM\Query Optimized query with conditions
      */
     protected function addConditions($query)
     {
-        // Placeholder for search and additional filter conditions
-        // Can be extended with search terms, branch filters, etc.
+        // Apply branch filter if provided
+        if ($this->request->getQuery('branch_id')) {
+            $query->where(['Gatherings.branch_id' => $this->request->getQuery('branch_id')]);
+        }
+
+        // Placeholder for additional search and filter conditions
         return $query;
     }
 

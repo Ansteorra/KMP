@@ -18,14 +18,8 @@ $this->KMP->endBlock(); ?>
 
 <div class="row align-items-start mb-3">
     <div class="col">
-        <h3>Add Waiver Type</h3>
-    </div>
-    <div class="col text-end">
-        <?= $this->Html->link(
-            'Back to List',
-            ['action' => 'index'],
-            ['class' => 'btn btn-secondary btn-sm']
-        ) ?>
+        <h3><a href="#" onclick="window.history.back(); return false;" class="bi bi-arrow-left-circle"></a>
+            Add Waiver Type</h3>
     </div>
 </div>
 
@@ -66,8 +60,7 @@ $this->KMP->endBlock(); ?>
                     </small>
                 </div>
 
-                <div data-waiver-template-target="uploadSection"
-                    style="display: none;"
+                <div data-waiver-template-target="uploadSection" style="display: none;"
                     data-controller="file-size-validator"
                     data-file-size-validator-max-size-value="<?= h($uploadLimits['maxFileSize']) ?>"
                     data-file-size-validator-max-size-formatted-value="<?= h($uploadLimits['formatted']) ?>">

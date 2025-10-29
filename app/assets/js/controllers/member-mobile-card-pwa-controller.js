@@ -149,6 +149,7 @@ class MemberMobileCardPWA extends Controller {
     /**
      * Connect controller to DOM
      * Initializes service worker support and sets up periodic refresh
+     * Falls back to basic online detection if Service Workers not available
      */
     connect() {
         if ('serviceWorker' in navigator) {
@@ -159,6 +160,20 @@ class MemberMobileCardPWA extends Controller {
                 // readyState is 'interactive' or 'complete', safe to initialize
                 this.manageOnlineStatus();
             }
+        } else {
+            // Service Workers not available (likely HTTP on IP address)
+            // Fall back to basic online/offline detection without PWA features
+            console.warn('Service Workers not available - PWA features disabled. Access via localhost or HTTPS for full functionality.');
+            this.updateOnlineStatus();
+            window.addEventListener('online', this.updateOnlineStatus.bind(this));
+            window.addEventListener('offline', this.updateOnlineStatus.bind(this));
+            
+            // Dispatch PWA ready event even without Service Workers
+            // This allows the profile controller to load data
+            setTimeout(() => {
+                const event = new CustomEvent('pwa-ready', { bubbles: true });
+                this.element.dispatchEvent(event);
+            }, 100);
         }
         setInterval(this.refreshPageIfOnline, 300000);
     }

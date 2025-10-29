@@ -1,4 +1,4 @@
-import { Controller } from "@hotwired/stimulus"
+import { Controller } from "@hotwired/stimulus";
 
 /**
  * Activities Approve and Assign Authorization Stimulus Controller
@@ -107,9 +107,25 @@ import { Controller } from "@hotwired/stimulus"
 class ActivitiesApproveAndAssignAuthorization extends Controller {
     static values = {
         url: String,
+        approvalId: Number
     }
     static targets = ["approvers", "submitBtn", "id"]
     static outlets = ["outlet-btn"]
+
+    /**
+     * Controller Connection Handler
+     * 
+     * Initializes the controller when connected to the DOM. If an approval ID
+     * is provided via data attribute, automatically loads the approvers list.
+     * This supports both the outlet-based workflow and direct page load scenarios.
+     */
+    connect() {
+        // If approval ID is provided as a value, load approvers immediately
+        if (this.hasApprovalIdValue && this.approvalIdValue > 0) {
+            this.idTarget.value = this.approvalIdValue;
+            this.getApprovers();
+        }
+    }
 
     /**
      * Set Activity ID and Trigger Approver Discovery
@@ -191,14 +207,21 @@ class ActivitiesApproveAndAssignAuthorization extends Controller {
             fetch(url, this.optionsForFetch())
                 .then(response => response.json())
                 .then(data => {
-                    let list = [];
+                    // Clear existing options except the first one (empty option)
+                    const emptyOption = this.approversTarget.options[0];
+                    this.approversTarget.innerHTML = '';
+                    if (emptyOption) {
+                        this.approversTarget.appendChild(emptyOption);
+                    }
+                    
+                    // Add new options
                     data.forEach((item) => {
-                        list.push({
-                            value: item.id,
-                            text: item.sca_name
-                        });
+                        const option = document.createElement('option');
+                        option.value = item.id;
+                        option.textContent = item.sca_name;
+                        this.approversTarget.appendChild(option);
                     });
-                    this.approversTarget.options = list;
+                    
                     this.submitBtnTarget.disabled = true;
                     this.approversTarget.disabled = false;
                 });

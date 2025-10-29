@@ -222,19 +222,6 @@ class AwardsNavigationProvider
             ],
             [
                 "type" => "link",
-                "mergePath" => ["Award Recs.", "Recommendations"],
-                "label" => "New Recommendation",
-                "order" => 20,
-                "url" => [
-                    "controller" => "Recommendations",
-                    "plugin" => "Awards",
-                    "action" => "add",
-                    "model" => "Awards.Recommendations",
-                ],
-                "icon" => "bi-plus",
-            ],
-            [
-                "type" => "link",
                 "mergePath" => ["Config"],
                 "label" => "Award Domains",
                 "order" => 30,
@@ -248,19 +235,6 @@ class AwardsNavigationProvider
                 "activePaths" => [
                     "awards/Domains/view/*",
                 ]
-            ],
-            [
-                "type" => "link",
-                "mergePath" => ["Config", "Award Domains"],
-                "label" => "New Award Domain",
-                "order" => 0,
-                "url" => [
-                    "controller" => "Domains",
-                    "plugin" => "Awards",
-                    "action" => "add",
-                    "model" => "Awards.Domains",
-                ],
-                "icon" => "bi-plus",
             ],
             [
                 "type" => "link",
@@ -280,19 +254,6 @@ class AwardsNavigationProvider
             ],
             [
                 "type" => "link",
-                "mergePath" => ["Config", "Award Levels"],
-                "label" => "New Award Domain",
-                "order" => 0,
-                "url" => [
-                    "controller" => "Levels",
-                    "plugin" => "Awards",
-                    "action" => "add",
-                    "model" => "Awards.Levels",
-                ],
-                "icon" => "bi-plus",
-            ],
-            [
-                "type" => "link",
                 "mergePath" => ["Config"],
                 "label" => "Awards",
                 "order" => 32,
@@ -306,19 +267,6 @@ class AwardsNavigationProvider
                 "activePaths" => [
                     "awards/Awards/view/*",
                 ]
-            ],
-            [
-                "type" => "link",
-                "mergePath" => ["Config", "Awards"],
-                "label" => "New Award",
-                "order" => 0,
-                "url" => [
-                    "controller" => "Awards",
-                    "plugin" => "Awards",
-                    "action" => "add",
-                    "model" => "Awards.Awards",
-                ],
-                "icon" => "bi-plus",
             ],
             [
                 "type" => "link",

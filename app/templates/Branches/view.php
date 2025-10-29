@@ -83,43 +83,27 @@ echo $this->KMP->startBlock('pageTitle') ?>
 <!-- Branch view tabs with ordering:
      Order 1: Officers plugin tab (if enabled)
      Order 10: Members tab (primary data)
+     Order 15: Gatherings tab (branch events)
      Order 20: Sub-branches tab (secondary data) -->
 <?php if ($branch->can_have_members) : ?>
-    <button class="nav-link"
-        id="nav-members-tab"
-        data-bs-toggle="tab"
-        data-bs-target="#nav-members"
-        type="button"
-        role="tab"
-        aria-controls="nav-members"
-        aria-selected="false"
-        data-detail-tabs-target='tabBtn'
-        data-tab-order="10"
+    <button class="nav-link" id="nav-members-tab" data-bs-toggle="tab" data-bs-target="#nav-members" type="button"
+        role="tab" aria-controls="nav-members" aria-selected="false" data-detail-tabs-target='tabBtn' data-tab-order="10"
         style="order: 10;"><?= __('Members') ?>
     </button>
 <?php endif; ?>
-<button class="nav-link"
-    id="nav-branches-tab"
-    data-bs-toggle="tab"
-    data-bs-target="#nav-branches"
-    type="button"
-    role="tab"
-    aria-controls="nav-branches"
-    aria-selected="false"
-    data-detail-tabs-target='tabBtn'
-    data-tab-order="20"
+<button class="nav-link" id="nav-gatherings-tab" data-bs-toggle="tab" data-bs-target="#nav-gatherings" type="button"
+    role="tab" aria-controls="nav-gatherings" aria-selected="false" data-detail-tabs-target='tabBtn' data-tab-order="15"
+    style="order: 15;"><?= __('Gatherings') ?>
+</button>
+<button class="nav-link" id="nav-branches-tab" data-bs-toggle="tab" data-bs-target="#nav-branches" type="button"
+    role="tab" aria-controls="nav-branches" aria-selected="false" data-detail-tabs-target='tabBtn' data-tab-order="20"
     style="order: 20;"><?= __('Branches') ?>
 </button>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock('tabContent') ?>
 <?php if ($branch->can_have_members) : ?>
-    <div class="related tab-pane fade m-3"
-        id="nav-members"
-        role="tabpanel"
-        aria-labelledby="nav-members-tab"
-        data-detail-tabs-target="tabContent"
-        data-tab-order="10"
-        style="order: 10;">
+    <div class="related tab-pane fade m-3" id="nav-members" role="tabpanel" aria-labelledby="nav-members-tab"
+        data-detail-tabs-target="tabContent" data-tab-order="10" style="order: 10;">
         <?php if (!empty($branch->members)) : ?>
             <div class="table-responsive">
                 <table class="table table-striped">
@@ -164,13 +148,64 @@ echo $this->KMP->startBlock('pageTitle') ?>
         <?php endif; ?>
     </div>
 <?php endif; ?>
-<div class="related tab-pane fade m-3"
-    id="nav-branches"
-    role="tabpanel"
-    aria-labelledby="nav-branches-tab"
-    data-detail-tabs-target="tabContent"
-    data-tab-order="20"
-    style="order: 20;">
+<div class="related tab-pane fade m-3" id="nav-gatherings" role="tabpanel" aria-labelledby="nav-gatherings-tab"
+    data-detail-tabs-target="tabContent" data-tab-order="15" style="order: 15;">
+    <?php
+    // Configure tabs for gatherings with temporal filtering for this branch
+    echo $this->element('turboActiveTabs', [
+        'user' => $user,
+        'tabGroupName' => "branchGatheringTabs",
+        'tabs' => [
+            "this_month" => [
+                "label" => __("This Month"),
+                "id" => "branch-this-month-gatherings",
+                "selected" => true,
+                "turboUrl" => $this->URL->build([
+                    "controller" => "Gatherings",
+                    "action" => "allGatherings",
+                    "this_month",
+                    "?" => ["branch_id" => $branch->id]
+                ])
+            ],
+            "next_month" => [
+                "label" => __("Next Month"),
+                "id" => "branch-next-month-gatherings",
+                "selected" => false,
+                "turboUrl" => $this->URL->build([
+                    "controller" => "Gatherings",
+                    "action" => "allGatherings",
+                    "next_month",
+                    "?" => ["branch_id" => $branch->id]
+                ])
+            ],
+            "future" => [
+                "label" => __("Future"),
+                "id" => "branch-future-gatherings",
+                "selected" => false,
+                "turboUrl" => $this->URL->build([
+                    "controller" => "Gatherings",
+                    "action" => "allGatherings",
+                    "future",
+                    "?" => ["branch_id" => $branch->id]
+                ])
+            ],
+            "previous" => [
+                "label" => __("Previous"),
+                "id" => "branch-previous-gatherings",
+                "selected" => false,
+                "turboUrl" => $this->URL->build([
+                    "controller" => "Gatherings",
+                    "action" => "allGatherings",
+                    "previous",
+                    "?" => ["branch_id" => $branch->id]
+                ])
+            ]
+        ]
+    ]);
+    ?>
+</div>
+<div class="related tab-pane fade m-3" id="nav-branches" role="tabpanel" aria-labelledby="nav-branches-tab"
+    data-detail-tabs-target="tabContent" data-tab-order="20" style="order: 20;">
     <?php if (!empty($branch->children)) : ?>
         <div class="table-responsive">
             <table class="table table-striped">

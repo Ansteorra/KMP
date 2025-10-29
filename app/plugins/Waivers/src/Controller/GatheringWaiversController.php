@@ -333,19 +333,72 @@ class GatheringWaiversController extends AppController
                 );
 
                 if ($result->isSuccess()) {
+                    // Determine redirect URL based on referer or default to index
+                    $referer = $this->request->referer();
+                    $redirectUrl = null;
+
+                    // If coming from mobile card view, redirect back there
+                    if ($referer && strpos($referer, 'view-mobile-card') !== false) {
+                        $redirectUrl = $referer;
+                    } elseif ($referer && strpos($referer, 'viewMobileCard') !== false) {
+                        $redirectUrl = $referer;
+                    } else {
+                        // Default to waiver index for this gathering
+                        $redirectUrl = \Cake\Routing\Router::url([
+                            'plugin' => 'Waivers',
+                            'controller' => 'GatheringWaivers',
+                            'action' => 'index',
+                            '?' => ['gathering_id' => $gatheringId]
+                        ], true); // true = full base URL
+                    }
+
+                    // Set Flash message (will show on redirect page)
                     $this->Flash->success(__(
                         'Waiver uploaded successfully with {0} page(s).',
                         count($uploadedFiles)
                     ));
+
+                    // If AJAX request, return JSON response
+                    if ($this->request->is('ajax')) {
+                        $this->viewBuilder()->setClassName('Json');
+                        $this->set('success', true);
+                        $this->set('redirectUrl', $redirectUrl);
+                        $this->viewBuilder()->setOption('serialize', ['success', 'redirectUrl']);
+                        return;
+                    }
+
+                    // For non-AJAX, redirect
+                    return $this->redirect($redirectUrl);
                 } else {
+                    // Handle error case
+                    if ($this->request->is('ajax')) {
+                        $this->Flash->error(__('Failed to upload waiver: {0}', $result->getError()));
+                        $this->viewBuilder()->setClassName('Json');
+                        $this->set('success', false);
+                        $this->set('redirectUrl', $this->request->referer());
+                        $this->viewBuilder()->setOption('serialize', ['success', 'redirectUrl']);
+                        return;
+                    }
+
                     $this->Flash->error(__('Failed to upload waiver: {0}', $result->getError()));
                 }
             } catch (\Exception $e) {
-                $this->Flash->error(__('Error uploading waiver: {0}', $e->getMessage()));
                 Log::error('Waiver upload error: ' . $e->getMessage());
+
+                // Handle exception for AJAX request
+                if ($this->request->is('ajax')) {
+                    $this->Flash->error(__('Error uploading waiver: {0}', $e->getMessage()));
+                    $this->viewBuilder()->setClassName('Json');
+                    $this->set('success', false);
+                    $this->set('redirectUrl', $this->request->referer());
+                    $this->viewBuilder()->setOption('serialize', ['success', 'redirectUrl']);
+                    return;
+                }
+
+                $this->Flash->error(__('Error uploading waiver: {0}', $e->getMessage()));
             }
 
-            return $this->redirect(['action' => 'index', '?' => ['gathering_id' => $gatheringId]]);
+            return $this->redirect($this->referer());
         }
 
         // GET request - show upload form
@@ -1878,6 +1931,14 @@ class GatheringWaiversController extends AppController
             $activityIds = $data['activity_ids'] ?? [];
 
             if (empty($uploadedFiles) || !$waiverTypeId) {
+                // Handle error for AJAX request
+                if ($this->request->is('ajax')) {
+                    $this->viewBuilder()->setClassName('Json');
+                    $this->set('success', false);
+                    $this->set('message', __('Please select waiver type and upload at least one image.'));
+                    $this->viewBuilder()->setOption('serialize', ['success', 'message']);
+                    return;
+                }
                 $this->Flash->error(__('Please select waiver type and upload at least one image.'));
                 return $this->redirect($this->referer());
             }
@@ -1906,21 +1967,27 @@ class GatheringWaiversController extends AppController
                     $currentUser = $this->Authentication->getIdentity();
                     $Members = $this->fetchTable('Members');
                     $member = $Members->get($currentUser->id, ['fields' => ['id', 'mobile_card_token']]);
-                    $redirectUrl = $this->request->getAttribute('base') . '/' .
-                        $this->Url->build([
-                            'controller' => 'Members',
-                            'action' => 'viewMobileCard',
-                            'plugin' => null,
-                            $member->mobile_card_token
-                        ]);
 
-                    // If AJAX request, return JSON response (don't set Flash message)
+                    // Build the redirect URL using Router
+                    $redirectUrl = \Cake\Routing\Router::url([
+                        'controller' => 'Members',
+                        'action' => 'viewMobileCard',
+                        'plugin' => null,
+                        $member->mobile_card_token
+                    ], true); // true = full base URL
+
+                    // If AJAX request, return JSON response
                     if ($this->request->is('ajax')) {
+                        // Don't set Flash message for AJAX - will be set on redirect
+                        $this->Flash->success(__(
+                            'Waiver uploaded successfully with {0} page(s).',
+                            count($uploadedFiles)
+                        ));
+
                         $this->viewBuilder()->setClassName('Json');
                         $this->set('success', true);
-                        $this->set('message', __('Waiver uploaded successfully with {0} page(s).', count($uploadedFiles)));
                         $this->set('redirectUrl', $redirectUrl);
-                        $this->viewBuilder()->setOption('serialize', ['success', 'message', 'redirectUrl']);
+                        $this->viewBuilder()->setOption('serialize', ['success', 'redirectUrl']);
                         return;
                     }
 

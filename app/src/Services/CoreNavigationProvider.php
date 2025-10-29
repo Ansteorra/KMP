@@ -149,17 +149,6 @@ class CoreNavigationProvider
             [
                 'type' => 'link',
                 'mergePath' => ['Members', 'Members'],
-                'label' => 'New Member',
-                'order' => 0,
-                'url' => [
-                    'controller' => 'Members',
-                    'action' => 'add',
-                ],
-                'icon' => 'bi-person-plus',
-            ],
-            [
-                'type' => 'link',
-                'mergePath' => ['Members', 'Members'],
                 'label' => 'Verification Queues',
                 'order' => 20,
                 'url' => [
@@ -217,17 +206,6 @@ class CoreNavigationProvider
             ],
             [
                 'type' => 'link',
-                'mergePath' => ['Gatherings', 'All Gatherings'],
-                'label' => 'New Gathering',
-                'order' => 0,
-                'url' => [
-                    'controller' => 'Gatherings',
-                    'action' => 'add',
-                ],
-                'icon' => 'bi-plus-circle',
-            ],
-            [
-                'type' => 'link',
                 'mergePath' => ['Config'],
                 'label' => 'App Settings',
                 'order' => 0,
@@ -250,17 +228,6 @@ class CoreNavigationProvider
                 'activePaths' => [
                     'Branches/view/*',
                 ],
-            ],
-            [
-                'type' => 'link',
-                'mergePath' => ['Config', 'Branches'],
-                'label' => 'New Branch',
-                'order' => 0,
-                'url' => [
-                    'controller' => 'Branches',
-                    'action' => 'add',
-                ],
-                'icon' => 'bi-plus',
             ],
             [
                 'type' => 'link',
@@ -289,17 +256,6 @@ class CoreNavigationProvider
             ],
             [
                 'type' => 'link',
-                'mergePath' => ['Config', 'Gathering Types'],
-                'label' => 'New Gathering Type',
-                'order' => 0,
-                'url' => [
-                    'controller' => 'GatheringTypes',
-                    'action' => 'add',
-                ],
-                'icon' => 'bi-plus',
-            ],
-            [
-                'type' => 'link',
                 'mergePath' => ['Config'],
                 'label' => 'Gathering Activities',
                 'order' => 80,
@@ -311,17 +267,6 @@ class CoreNavigationProvider
                 'activePaths' => [
                     'GatheringActivities/view/*',
                 ],
-            ],
-            [
-                'type' => 'link',
-                'mergePath' => ['Config', 'Gathering Activities'],
-                'label' => 'New Activity',
-                'order' => 0,
-                'url' => [
-                    'controller' => 'GatheringActivities',
-                    'action' => 'add',
-                ],
-                'icon' => 'bi-plus',
             ],
             [
                 'type' => 'link',
@@ -361,17 +306,6 @@ class CoreNavigationProvider
             ],
             [
                 'type' => 'link',
-                'mergePath' => ['Security', 'Roles'],
-                'label' => 'New Role',
-                'order' => 0,
-                'url' => [
-                    'controller' => 'Roles',
-                    'action' => 'add',
-                ],
-                'icon' => 'bi-plus',
-            ],
-            [
-                'type' => 'link',
                 'mergePath' => ['Security'],
                 'label' => 'Permissions',
                 'order' => 10,
@@ -383,17 +317,6 @@ class CoreNavigationProvider
                 'activePaths' => [
                     'Permissions/view/*',
                 ],
-            ],
-            [
-                'type' => 'link',
-                'mergePath' => ['Security', 'Permissions'],
-                'label' => 'New Permission',
-                'order' => 0,
-                'url' => [
-                    'controller' => 'Permissions',
-                    'action' => 'add',
-                ],
-                'icon' => 'bi-plus',
             ],
             [
                 'type' => 'link',

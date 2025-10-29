@@ -251,19 +251,6 @@ class OfficersNavigationProvider
             ],
             [
                 "type" => "link",
-                "mergePath" => ["Config", "Departments"],
-                "label" => "New Departments",
-                "order" => 0,
-                "url" => [
-                    "plugin" => "Officers",
-                    "controller" => "Departments",
-                    "action" => "add",
-                    "model" => "Officers.Departments",
-                ],
-                "icon" => "bi-plus",
-            ],
-            [
-                "type" => "link",
                 "mergePath" => ["Config"],
                 "label" => "Offices",
                 "order" => 50,
@@ -277,19 +264,6 @@ class OfficersNavigationProvider
                 "activePaths" => [
                     "officers/offices/view/*",
                 ]
-            ],
-            [
-                "type" => "link",
-                "mergePath" => ["Config", "Offices"],
-                "label" => "New Office",
-                "order" => 0,
-                "url" => [
-                    "plugin" => "Officers",
-                    "controller" => "Offices",
-                    "action" => "add",
-                    "model" => "Officers.Offices",
-                ],
-                "icon" => "bi-plus",
             ],
             [
                 "type" => "link",
