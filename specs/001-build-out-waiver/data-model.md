@@ -7,15 +7,19 @@
 
 This document defines the complete data model for the Gathering Waiver Tracking System, including both core entities and plugin-specific entities.
 
-**Entity Count**: 10 entities total
+**Entity Count**: 9 entities total
 - **Core Entities**: 4 (GatheringTypes, Gatherings, GatheringActivities, Documents)
-- **Plugin Entities**: 5 (WaiverTypes, GatheringActivityWaivers, GatheringWaivers, GatheringWaiverActivities, WaiverConfiguration)
-- **Existing Reference**: 1 (Members)
+- **Plugin Entities**: 4 (WaiverTypes, GatheringActivityWaivers, GatheringWaivers, GatheringWaiverActivities)
+- **Join Table**: 1 (GatheringsGatheringActivities - many-to-many between Gatherings and GatheringActivities)
+- **Existing Reference**: 2 (Members, Branches)
 
 **Key Design Decisions**: 
 - Many-to-many relationship between GatheringWaivers and GatheringActivities allows flexible waiver coverage (one waiver can cover multiple activities, one activity can have multiple waivers)
-- Generic Documents entity using polymorphic pattern (like Notes) enables reuse for future document management needs (member photos, meeting minutes, financial records, etc.)
-- GatheringWaivers references Documents via polymorphic relationship, enabling waiver-specific metadata while leveraging generic file storage
+- Many-to-many relationship between Gatherings and GatheringActivities via GatheringsGatheringActivities join table
+- Generic Documents entity using polymorphic pattern (like Notes) enables reuse for future document management needs
+- GatheringWaivers references Documents, enabling waiver-specific metadata while leveraging generic file storage
+- WaiverTypes stores retention_periods as JSON for flexible policy configuration
+- Soft deletes implemented on GatheringActivityWaivers for data integrity
 
 ---
 
@@ -180,17 +184,19 @@ erDiagram
 **Polymorphic Pattern**:
 - GatheringWaivers references Documents via `document_id` (one-to-one)
 - Documents identifies parent entity via `entity_type='Waivers.GatheringWaivers'` + `entity_id`
-- This pattern enables future document types (member photos, meeting minutes, etc.) without schema changes
+- This pattern enables future document types without schema changes
 
 **Key Relationships**:
 - `Members` create `Gatherings` and upload `Documents`
-- `Gatherings` have `GatheringWaivers` (waiver metadata)
+- `Branches` host `Gatherings`
+- `Gatherings` have many `GatheringWaivers` (waiver metadata)
+- `Gatherings` have many `GatheringActivities` through `GatheringsGatheringActivities` (many-to-many)
 - `GatheringWaivers` reference `Documents` (actual files)
 - `Documents` use polymorphic pattern to link back to any entity type
 
 **Entity Location**:
-- Core entities (GatheringTypes, Gatherings, GatheringActivities, Documents) → `src/Model/`
-- Plugin entities (WaiverTypes, GatheringActivityWaivers, GatheringWaivers, GatheringWaiverActivities, WaiverConfiguration) → `plugins/Waivers/src/Model/`
+- Core entities (GatheringTypes, Gatherings, GatheringActivities, Documents, GatheringsGatheringActivities) → `src/Model/`
+- Plugin entities (WaiverTypes, GatheringActivityWaivers, GatheringWaivers, GatheringWaiverActivities) → `plugins/Waivers/src/Model/`
 - **Many-to-Many**: A single waiver can cover multiple activities (e.g., general waiver covers all), and an activity can have multiple waivers (different participants, multiple days)
 
 ### Workflow Diagram

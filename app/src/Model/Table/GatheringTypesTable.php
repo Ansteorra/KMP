@@ -71,6 +71,17 @@ class GatheringTypesTable extends Table
             ->boolean('clonable')
             ->notEmptyString('clonable');
 
+        $validator
+            ->scalar('color')
+            ->maxLength('color', 7)
+            ->notEmptyString('color')
+            ->add('color', 'validHexColor', [
+                'rule' => function ($value) {
+                    return preg_match('/^#[0-9A-Fa-f]{6}$/', $value);
+                },
+                'message' => 'Color must be a valid hex color code (e.g., #0d6efd)'
+            ]);
+
         return $validator;
     }
 

@@ -34,6 +34,7 @@ class MarkdownEditorController extends Controller {
             placeholder: this.placeholderValue,
             minHeight: this.minHeightValue,
             spellChecker: false,
+            autoDownloadFontAwesome: false, // Font Awesome is already loaded via @fortawesome/fontawesome-free
             status: ["lines", "words", "cursor"],
             toolbar: [
                 "bold",

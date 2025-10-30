@@ -369,7 +369,7 @@ class Application extends BaseApplication implements
                     "font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net;" .    // Font sources
                     "img-src 'self' data: https:; " .                                // Allow HTTPS images and data URIs
                     "connect-src 'self' https://maps.googleapis.com https://places.googleapis.com; " .             // AJAX/fetch restrictions - allow Google Maps and Places API
-                    "frame-src 'self'; " .                                           // iframe restrictions
+                    "frame-src 'self' https://www.google.com; " .                    // iframe restrictions - allow Google Maps embeds
                     "object-src 'none'; " .                                          // Disable plugins
                     "base-uri 'self'; " .                                            // Prevent base tag attacks
                     "form-action 'self'; " .                                         // Form submission restrictions

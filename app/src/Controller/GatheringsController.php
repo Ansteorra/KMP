@@ -108,6 +108,266 @@ class GatheringsController extends AppController
     }
 
     /**
+     * Calendar view method
+     *
+     * Displays gatherings in an interactive calendar format with month/week/list views.
+     * Allows users to view, filter, and mark attendance for gatherings.
+     *
+     * @return \Cake\Http\Response|null|void Renders calendar view
+     */
+    public function calendar()
+    {
+        // Create security entity for authorization
+        $securityGathering = $this->Gatherings->newEmptyEntity();
+        $this->Authorization->authorize($securityGathering, 'index');
+
+        $currentUser = $this->Authentication->getIdentity();
+        $branchIds = $currentUser->getBranchIdsForAction('index', 'Gatherings');
+
+        // Get query parameters for date navigation and filters
+        $year = (int)$this->request->getQuery('year', date('Y'));
+        $month = (int)$this->request->getQuery('month', date('m'));
+        $view = $this->request->getQuery('view', 'month'); // month, week, list
+        $branchFilter = $this->request->getQuery('branch_id');
+        $typeFilter = $this->request->getQuery('gathering_type_id');
+        $activityFilter = $this->request->getQuery('activity_id');
+
+        // Validate year and month
+        if ($year < 1900 || $year > 2100) {
+            $year = (int)date('Y');
+        }
+        if ($month < 1 || $month > 12) {
+            $month = (int)date('m');
+        }
+
+        // Calculate date ranges
+        $startDate = new DateTime(sprintf("%04d-%02d-01", $year, $month));
+        $endDate = clone $startDate;
+        $endDate->modify('last day of this month')->setTime(23, 59, 59);
+
+        // For calendar display, we need to include days from previous/next months
+        $calendarStart = clone $startDate;
+        // Move back to the previous Sunday (or stay if already Sunday)
+        $dayOfWeek = (int)$calendarStart->format('w');
+        if ($dayOfWeek > 0) {
+            $calendarStart->modify("-{$dayOfWeek} days");
+        }
+
+        $calendarEnd = clone $endDate;
+        // Move forward to the next Saturday (or stay if already Saturday)
+        $dayOfWeek = (int)$calendarEnd->format('w');
+        if ($dayOfWeek < 6) {
+            $daysToAdd = 6 - $dayOfWeek;
+            $calendarEnd->modify("+{$daysToAdd} days");
+        }
+
+        // Build query for gatherings in the calendar range
+        $query = $this->Gatherings->find()
+            ->contain([
+                'Branches' => ['fields' => ['id', 'name']],
+                'GatheringTypes' => ['fields' => ['id', 'name', 'color']],
+                'GatheringActivities' => ['fields' => ['id', 'name']],
+                'GatheringAttendances' => [
+                    'conditions' => ['GatheringAttendances.member_id' => $currentUser->id],
+                    'fields' => ['id', 'gathering_id', 'member_id']
+                ]
+            ])
+            ->where([
+                'OR' => [
+                    [
+                        'Gatherings.start_date >=' => $calendarStart->format('Y-m-d'),
+                        'Gatherings.start_date <=' => $calendarEnd->format('Y-m-d')
+                    ],
+                    [
+                        'Gatherings.end_date >=' => $calendarStart->format('Y-m-d'),
+                        'Gatherings.end_date <=' => $calendarEnd->format('Y-m-d')
+                    ],
+                    [
+                        'Gatherings.start_date <' => $calendarStart->format('Y-m-d'),
+                        'Gatherings.end_date >' => $calendarEnd->format('Y-m-d')
+                    ]
+                ]
+            ])
+            ->orderBy(['Gatherings.start_date' => 'ASC']);
+
+        // Apply filters
+        if ($branchIds !== null) {
+            $query->where(['Gatherings.branch_id IN' => $branchIds]);
+        }
+
+        if ($branchFilter) {
+            $query->where(['Gatherings.branch_id' => $branchFilter]);
+        }
+
+        if ($typeFilter) {
+            $query->where(['Gatherings.gathering_type_id' => $typeFilter]);
+        }
+
+        if ($activityFilter) {
+            $query->matching('GatheringActivities', function ($q) use ($activityFilter) {
+                return $q->where(['GatheringActivities.id' => $activityFilter]);
+            });
+        }
+
+        $gatherings = $query->all();
+
+        // Load filter options
+        $branchesQuery = $this->Gatherings->Branches->find('list')->orderBy(['name' => 'ASC']);
+        if ($branchIds !== null) {
+            $branchesQuery->where(['Branches.id IN' => $branchIds]);
+        }
+        $branches = $branchesQuery;
+
+        $gatheringTypes = $this->Gatherings->GatheringTypes->find('list')->orderBy(['name' => 'ASC']);
+        $gatheringActivities = $this->Gatherings->GatheringActivities->find('list')->orderBy(['name' => 'ASC']);
+
+        // Navigation dates
+        $prevMonth = clone $startDate;
+        $prevMonth->modify('-1 month');
+        $nextMonth = clone $startDate;
+        $nextMonth->modify('+1 month');
+
+        $this->set(compact(
+            'gatherings',
+            'year',
+            'month',
+            'view',
+            'startDate',
+            'endDate',
+            'calendarStart',
+            'calendarEnd',
+            'prevMonth',
+            'nextMonth',
+            'branches',
+            'gatheringTypes',
+            'gatheringActivities',
+            'branchFilter',
+            'typeFilter',
+            'activityFilter'
+        ));
+    }
+
+    /**
+     * Quick view method for calendar modal
+     *
+     * Returns a simplified view of a gathering for the calendar quick view modal.
+     * This provides essential information without the full page layout.
+     *
+     * @param string|null $id Gathering id.
+     * @return \Cake\Http\Response|null|void Renders quick view partial
+     * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
+     */
+    public function quickView($id = null)
+    {
+        $gathering = $this->Gatherings->get($id, [
+            'contain' => [
+                'Branches' => ['fields' => ['id', 'name']],
+                'GatheringTypes' => ['fields' => ['id', 'name', 'color', 'clonable']],
+                'GatheringActivities',
+                'GatheringAttendances' => [
+                    'Members' => ['fields' => ['id', 'sca_name']],
+                    'conditions' => [
+                        'OR' => [
+                            'GatheringAttendances.is_public' => true,
+                            'GatheringAttendances.share_with_kingdom' => true,
+                        ]
+                    ]
+                ],
+                'Creators' => ['fields' => ['id', 'sca_name']]
+            ],
+            'fields' => [
+                'id',
+                'name',
+                'description',
+                'start_date',
+                'end_date',
+                'location',
+                'latitude',
+                'longitude',
+                'branch_id',
+                'gathering_type_id',
+                'created',
+                'modified'
+            ]
+        ]);
+
+        // Limit attendances to 10 for the quick view
+        if (!empty($gathering->gathering_attendances)) {
+            $gathering->gathering_attendances = array_slice($gathering->gathering_attendances, 0, 10);
+        }
+
+        $this->Authorization->authorize($gathering);
+
+        // Check if current user is attending
+        $currentUser = $this->Authentication->getIdentity();
+        $userAttendance = $this->Gatherings->GatheringAttendances
+            ->find()
+            ->where([
+                'gathering_id' => $id,
+                'member_id' => $currentUser->id
+            ])
+            ->first();
+
+        // Check if user can still attend (gathering hasn't ended)
+        $today = \Cake\I18n\Date::now();
+        $canAttend = $gathering->end_date >= $today;
+
+        $this->set(compact('gathering', 'userAttendance', 'canAttend'));
+    }
+
+    /**
+     * Attendance Modal - Returns the attendance modal content for AJAX loading
+     * 
+     * This action provides the attendance modal form dynamically for use in the calendar view.
+     * It reuses the attendGatheringModal element to ensure consistent UI and functionality.
+     *
+     * @param string|null $id Gathering ID
+     * @return void
+     */
+    public function attendanceModal($id = null)
+    {
+        $this->request->allowMethod(['get']);
+
+        $gathering = $this->Gatherings->get($id, [
+            'contain' => [
+                'Branches' => ['fields' => ['id', 'name']],
+                'GatheringTypes' => ['fields' => ['id', 'name']],
+            ],
+            'fields' => [
+                'id',
+                'name',
+                'start_date',
+                'end_date',
+                'branch_id',
+                'gathering_type_id'
+            ]
+        ]);
+
+        $this->Authorization->authorize($gathering, 'view');
+
+        $currentUser = $this->Authentication->getIdentity();
+
+        // Check if editing existing attendance
+        $attendanceId = $this->request->getQuery('attendance_id');
+        $userAttendance = null;
+
+        if ($attendanceId) {
+            $userAttendance = $this->Gatherings->GatheringAttendances
+                ->find()
+                ->where([
+                    'id' => $attendanceId,
+                    'member_id' => $currentUser->id,
+                    'gathering_id' => $id
+                ])
+                ->first();
+        }
+
+        // Render just the modal content (not full layout)
+        $this->viewBuilder()->setLayout('ajax');
+        $this->set(compact('gathering', 'userAttendance', 'currentUser'));
+    }
+
+    /**
      * All gatherings method - Filtered gathering listing with export capability
      *
      * Provides comprehensive gathering listing with temporal filtering, pagination,

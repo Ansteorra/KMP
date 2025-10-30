@@ -2846,6 +2846,7 @@ class GatheringLocationAutocompleteController extends _hotwired_stimulus__WEBPAC
   static values = {
     apiKey: String // Google Maps API key
   };
+  static targets = ["input", "latitude", "longitude"]; // Input field and hidden form fields for lat/lng
 
   /**
    * Initialize the controller
@@ -2855,6 +2856,7 @@ class GatheringLocationAutocompleteController extends _hotwired_stimulus__WEBPAC
     this.isGoogleMapsLoaded = false;
     this.isInitialized = false; // Prevent re-initialization loop
     this.lastSelectedAddress = null; // Store the selected address
+    this.lastSelectedPlace = null; // Store the full place object with geometry
   }
 
   /**
@@ -2923,7 +2925,7 @@ class GatheringLocationAutocompleteController extends _hotwired_stimulus__WEBPAC
 
     // Use the old Autocomplete API which actually works
     // Use 'geocode' type for addresses, or omit types to get all place types
-    this.autocomplete = new google.maps.places.Autocomplete(this.element, {
+    this.autocomplete = new google.maps.places.Autocomplete(this.inputTarget, {
       types: ['geocode']
     });
 
@@ -2933,7 +2935,27 @@ class GatheringLocationAutocompleteController extends _hotwired_stimulus__WEBPAC
       if (place && place.formatted_address) {
         console.log('✓ Place selected:', place.formatted_address);
         this.lastSelectedAddress = place.formatted_address;
-        this.element.value = place.formatted_address;
+        this.lastSelectedPlace = place;
+        this.inputTarget.value = place.formatted_address;
+
+        // Extract and store latitude/longitude if available
+        if (place.geometry && place.geometry.location) {
+          const lat = place.geometry.location.lat();
+          const lng = place.geometry.location.lng();
+          console.log('✓ Coordinates:', lat, lng);
+
+          // Update hidden form fields if they exist
+          if (this.hasLatitudeTarget) {
+            this.latitudeTarget.value = lat;
+            console.log('✓ Set latitude field:', lat);
+          }
+          if (this.hasLongitudeTarget) {
+            this.longitudeTarget.value = lng;
+            console.log('✓ Set longitude field:', lng);
+          }
+        } else {
+          console.log('⚠ No geometry data available for selected place');
+        }
       }
     });
     console.log('Google Places Autocomplete initialized (classic API)');
@@ -2998,6 +3020,10 @@ class GatheringMapController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE
     // Name of the gathering
     apiKey: String,
     // Google Maps API key (optional)
+    latitude: Number,
+    // Stored latitude (optional, saves API call)
+    longitude: Number,
+    // Stored longitude (optional, saves API call)
     zoom: {
       // Default zoom level
       type: Number,
@@ -3088,8 +3114,27 @@ class GatheringMapController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE
 
   /**
    * Geocode location and display on Google Maps with AdvancedMarkerElement
+   * Uses stored lat/lng if available to avoid geocoding API call
    */
   async geocodeAndDisplayGoogle() {
+    // Check if we have stored coordinates to avoid API call
+    if (this.hasLatitudeValue && this.hasLongitudeValue) {
+      console.log('Using stored coordinates:', this.latitudeValue, this.longitudeValue);
+      const location = {
+        lat: this.latitudeValue,
+        lng: this.longitudeValue
+      };
+
+      // Center map on stored location
+      this.map.setCenter(location);
+
+      // Create marker at stored location
+      await this.createMarker(location);
+      return;
+    }
+
+    // No stored coordinates, use geocoding API
+    console.log('No stored coordinates, geocoding address:', this.locationValue);
     const geocoder = new google.maps.Geocoder();
     geocoder.geocode({
       address: this.locationValue
@@ -3100,47 +3145,9 @@ class GatheringMapController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE
         // Center map on location
         this.map.setCenter(location);
 
-        // Import the AdvancedMarkerElement library
-        try {
-          const {
-            AdvancedMarkerElement
-          } = await google.maps.importLibrary("marker");
-
-          // Create marker using AdvancedMarkerElement
-          this.marker = new AdvancedMarkerElement({
-            map: this.map,
-            position: location,
-            title: this.gatheringNameValue || 'Gathering Location'
-          });
-
-          // Add info window
-          const infoWindow = new google.maps.InfoWindow({
-            content: `
-                            <div style="padding: 8px;">
-                                <strong>${this.gatheringNameValue || 'Gathering Location'}</strong><br>
-                                <span style="color: #666;">${this.locationValue}</span>
-                            </div>
-                        `
-          });
-
-          // Add click listener to marker
-          this.marker.addListener('click', () => {
-            infoWindow.open({
-              anchor: this.marker,
-              map: this.map
-            });
-          });
-
-          // Open info window by default
-          infoWindow.open({
-            anchor: this.marker,
-            map: this.map
-          });
-          this.geocoded = true;
-        } catch (error) {
-          console.error('Error loading AdvancedMarkerElement:', error);
-          this.showError('Failed to display marker on map');
-        }
+        // Create marker
+        await this.createMarker(location);
+        this.geocoded = true;
       } else {
         console.error('Geocode was not successful:', status);
         this.showError(`Unable to find location: ${this.locationValue}`);
@@ -3149,29 +3156,101 @@ class GatheringMapController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE
   }
 
   /**
+   * Create marker on the map
+   * @param {Object} location - Google Maps LatLng or {lat, lng} object
+   */
+  async createMarker(location) {
+    try {
+      // Import the AdvancedMarkerElement library
+      const {
+        AdvancedMarkerElement
+      } = await google.maps.importLibrary("marker");
+
+      // Create marker using AdvancedMarkerElement
+      this.marker = new AdvancedMarkerElement({
+        map: this.map,
+        position: location,
+        title: this.gatheringNameValue || 'Gathering Location'
+      });
+
+      // Add info window
+      const infoWindow = new google.maps.InfoWindow({
+        content: `
+                    <div style="padding: 8px;">
+                        <strong>${this.gatheringNameValue || 'Gathering Location'}</strong><br>
+                        <span style="color: #666;">${this.locationValue}</span>
+                    </div>
+                `
+      });
+
+      // Add click listener to marker
+      this.marker.addListener('click', () => {
+        infoWindow.open({
+          anchor: this.marker,
+          map: this.map
+        });
+      });
+
+      // Open info window by default
+      infoWindow.open({
+        anchor: this.marker,
+        map: this.map
+      });
+      this.geocoded = true;
+    } catch (error) {
+      console.error('Error creating marker:', error);
+      this.showError('Failed to display marker on map');
+    }
+  }
+
+  /**
    * Open location in Google Maps (new window/tab)
+   * Uses stored lat/lng if available for precise location, otherwise uses address string
    */
   openInGoogleMaps(event) {
     event.preventDefault();
-    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(this.locationValue)}`;
+    let url;
+    if (this.hasLatitudeValue && this.hasLongitudeValue) {
+      // Use precise coordinates
+      url = `https://www.google.com/maps/search/?api=1&query=${this.latitudeValue},${this.longitudeValue}`;
+    } else {
+      // Fall back to address string
+      url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(this.locationValue)}`;
+    }
     window.open(url, '_blank');
   }
 
   /**
    * Open location in Apple Maps (works on supported devices)
+   * Uses stored lat/lng if available for precise location, otherwise uses address string
    */
   openInAppleMaps(event) {
     event.preventDefault();
-    const url = `https://maps.apple.com/?q=${encodeURIComponent(this.locationValue)}`;
+    let url;
+    if (this.hasLatitudeValue && this.hasLongitudeValue) {
+      // Use precise coordinates - Apple Maps uses ll parameter
+      url = `https://maps.apple.com/?ll=${this.latitudeValue},${this.longitudeValue}&q=${encodeURIComponent(this.locationValue)}`;
+    } else {
+      // Fall back to address string
+      url = `https://maps.apple.com/?q=${encodeURIComponent(this.locationValue)}`;
+    }
     window.open(url, '_blank');
   }
 
   /**
    * Get directions to location in Google Maps
+   * Uses stored lat/lng if available for precise destination, otherwise uses address string
    */
   getDirections(event) {
     event.preventDefault();
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(this.locationValue)}`;
+    let url;
+    if (this.hasLatitudeValue && this.hasLongitudeValue) {
+      // Use precise coordinates
+      url = `https://www.google.com/maps/dir/?api=1&destination=${this.latitudeValue},${this.longitudeValue}`;
+    } else {
+      // Fall back to address string
+      url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(this.locationValue)}`;
+    }
     window.open(url, '_blank');
   }
 
@@ -3374,6 +3453,445 @@ window.Controllers["gathering-type-form"] = GatheringTypeFormController;
 
 /***/ }),
 
+/***/ "./assets/js/controllers/gatherings-calendar-controller.js":
+/*!*****************************************************************!*\
+  !*** ./assets/js/controllers/gatherings-calendar-controller.js ***!
+  \*****************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+/* provided dependency */ var bootstrap = __webpack_require__(/*! bootstrap */ "./node_modules/bootstrap/dist/js/bootstrap.esm.js");
+
+
+/**
+ * Gatherings Calendar Controller
+ *
+ * Manages the interactive calendar view for gatherings across the kingdom.
+ * 
+ * Features:
+ * - Quick view modal for gathering details
+ * - Toggle attendance for gatherings
+ * - Location map integration
+ * - Real-time UI updates
+ * - Responsive calendar navigation
+ * 
+ * HTML Structure:
+ * ```html
+ * <div data-controller="gatherings-calendar"
+ *      data-gatherings-calendar-year-value="2025"
+ *      data-gatherings-calendar-month-value="10"
+ *      data-gatherings-calendar-view-value="month">
+ *   
+ *   <!-- Calendar grid -->
+ *   <div class="gathering-item"
+ *        data-action="click->gatherings-calendar#showQuickView"
+ *        data-gathering-id="123">
+ *     Gathering Name
+ *   </div>
+ * </div>
+ * ```
+ */
+class GatheringsCalendarController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static values = {
+    year: Number,
+    month: Number,
+    view: String
+  };
+
+  /**
+   * Initialize the calendar controller
+   */
+  initialize() {
+    this.modalElement = null;
+    this.modalInstance = null;
+    this.turboFrame = null;
+  }
+
+  /**
+   * Connect event - setup Bootstrap modal
+   */
+  connect() {
+    console.log('Gatherings Calendar Controller connected');
+
+    // Find the modal and turbo-frame elements
+    this.modalElement = document.getElementById('gatheringQuickViewModal');
+    this.turboFrame = document.getElementById('gatheringQuickView');
+    console.log('Modal element:', this.modalElement);
+    console.log('Turbo frame:', this.turboFrame);
+    if (this.modalElement) {
+      this.modalInstance = new bootstrap.Modal(this.modalElement);
+      console.log('Modal instance created');
+    } else {
+      console.error('Modal element not found!');
+    }
+    if (!this.turboFrame) {
+      console.error('Turbo frame element not found!');
+    }
+  }
+
+  /**
+   * Show quick view modal for a gathering
+   * 
+   * @param {Event} event Click event
+   */
+  async showQuickView(event) {
+    event.preventDefault(); // Prevent normal navigation
+
+    console.log('showQuickView called - opening modal');
+
+    // Get the gathering URL from the link
+    const url = event.currentTarget.getAttribute('href');
+    console.log('Loading gathering from:', url);
+
+    // Show the modal first
+    if (this.modalInstance) {
+      this.modalInstance.show();
+      console.log('Modal shown');
+    } else {
+      console.error('Modal instance not found');
+      return;
+    }
+
+    // Fetch and load content into turbo-frame
+    if (this.turboFrame) {
+      try {
+        console.log('Fetching content from:', url);
+        const response = await fetch(url, {
+          headers: {
+            'Accept': 'text/html',
+            'Turbo-Frame': 'gatheringQuickView'
+          }
+        });
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const html = await response.text();
+        console.log('Received HTML, length:', html.length);
+
+        // Parse the HTML to extract just the turbo-frame content
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const turboFrameContent = doc.querySelector('turbo-frame#gatheringQuickView');
+        if (turboFrameContent) {
+          // Clear existing content
+          while (this.turboFrame.firstChild) {
+            this.turboFrame.removeChild(this.turboFrame.firstChild);
+          }
+
+          // Move child nodes from parsed content to our turbo-frame
+          // This preserves attributes without HTML encoding
+          while (turboFrameContent.firstChild) {
+            this.turboFrame.appendChild(turboFrameContent.firstChild);
+          }
+          console.log('Content loaded into turbo-frame');
+
+          // Fix close button - Bootstrap's event delegation doesn't work on dynamically loaded content
+          const closeButton = this.modalElement.querySelector('.btn-close');
+          if (closeButton) {
+            closeButton.addEventListener('click', () => {
+              if (this.modalInstance) {
+                this.modalInstance.hide();
+              }
+            });
+          }
+        } else {
+          console.error('Could not find turbo-frame in response');
+          console.log('Response HTML:', html.substring(0, 500));
+          this.turboFrame.innerHTML = '<div class="alert alert-danger">Failed to load gathering details</div>';
+        }
+      } catch (error) {
+        console.error('Error loading gathering:', error);
+        this.turboFrame.innerHTML = '<div class="alert alert-danger">Error loading gathering details</div>';
+      }
+    } else {
+      console.error('Turbo frame not found');
+    }
+  }
+
+  /**
+   * Show attendance modal with prepopulated data
+   * 
+   * @param {Event} event Click event
+   */
+  /**
+   * Show attendance modal for marking or editing attendance
+   * Loads modal content dynamically from server to get full form UI
+   * 
+   * @param {Event} event Click event
+   */
+  async showAttendanceModal(event) {
+    const button = event.currentTarget;
+    const action = button.dataset.attendanceAction || 'add';
+    const gatheringId = button.dataset.gatheringId;
+    const attendanceId = button.dataset.attendanceId || '';
+
+    // Get the attendance modal
+    const attendanceModal = document.getElementById('attendanceModal');
+    if (!attendanceModal) {
+      console.error('Attendance modal not found');
+      return;
+    }
+    const modalContent = document.getElementById('attendanceModalContent');
+    if (!modalContent) {
+      console.error('Attendance modal content container not found');
+      return;
+    }
+    try {
+      // Show loading state
+      modalContent.innerHTML = `
+                <div class="modal-header">
+                    <h5 class="modal-title">Loading...</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            `;
+
+      // Show modal
+      const bsModal = new bootstrap.Modal(attendanceModal);
+      bsModal.show();
+
+      // Fetch the modal content from server
+      let url;
+      if (action === 'edit' && attendanceId) {
+        url = `/gatherings/attendance-modal/${gatheringId}?attendance_id=${attendanceId}`;
+      } else {
+        url = `/gatherings/attendance-modal/${gatheringId}`;
+      }
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const html = await response.text();
+      modalContent.innerHTML = html;
+
+      // Manually attach click handler to close button since Bootstrap's event delegation
+      // doesn't work on dynamically inserted content
+      const closeButton = modalContent.querySelector('.btn-close');
+      if (closeButton) {
+        closeButton.addEventListener('click', () => {
+          const bsModal = bootstrap.Modal.getInstance(attendanceModal);
+          if (bsModal) {
+            bsModal.hide();
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error loading attendance modal:', error);
+      modalContent.innerHTML = `
+                <div class="modal-header">
+                    <h5 class="modal-title text-danger">Error</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger">
+                        Failed to load attendance form. Please try again or refresh the page.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            `;
+    }
+  }
+  /**
+   * Mark attendance for a gathering from quick view
+   * 
+   * @param {Event} event Click event
+   */
+  async markAttendance(event) {
+    const button = event.currentTarget;
+    const gatheringId = button.dataset.gatheringId;
+    if (!gatheringId) {
+      console.error('No gathering ID found');
+      return;
+    }
+
+    // Navigate to the gathering view page to mark attendance
+    window.location.href = `/gatherings/view/${gatheringId}#attend`;
+  }
+
+  /**
+   * Update attendance for a gathering from quick view
+   * 
+   * @param {Event} event Click event
+   */
+  async updateAttendance(event) {
+    const button = event.currentTarget;
+    const gatheringId = button.dataset.gatheringId;
+
+    // Navigate to the gathering view page to update attendance
+    window.location.href = `/gatherings/view/${gatheringId}#attend`;
+  }
+
+  /**
+   * Toggle attendance for a gathering (legacy method for list view)
+   * 
+   * @param {Event} event Click event
+   */
+  async toggleAttendance(event) {
+    const button = event.currentTarget;
+    const gatheringId = button.dataset.gatheringId;
+    const isCurrentlyAttending = button.dataset.attending === 'true';
+    if (!gatheringId) {
+      console.error('No gathering ID found');
+      return;
+    }
+
+    // Disable button during request
+    const originalContent = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Processing...';
+    try {
+      const url = isCurrentlyAttending ? `/gathering-attendances/edit/${gatheringId}` : `/gathering-attendances/add`;
+      const method = isCurrentlyAttending ? 'PUT' : 'POST';
+      const body = new FormData();
+      body.append('gathering_id', gatheringId);
+      body.append('status', 'attending');
+      const response = await fetch(url, {
+        method: method,
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'X-CSRF-Token': this.getCsrfToken()
+        },
+        body: body
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+
+      // Update UI
+      if (data.success) {
+        button.dataset.attending = 'true';
+        button.classList.remove('btn-outline-success');
+        button.classList.add('btn-success');
+        button.innerHTML = '<i class="bi bi-check-circle"></i> Attending';
+
+        // Show success message
+        this.showToast('Success!', 'Your attendance has been recorded.', 'success');
+
+        // Reload page to update calendar display
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+      } else {
+        throw new Error(data.message || 'Failed to update attendance');
+      }
+    } catch (error) {
+      console.error('Error toggling attendance:', error);
+      this.showToast('Error', 'Failed to update attendance. Please try again.', 'danger');
+
+      // Restore button
+      button.disabled = false;
+      button.innerHTML = originalContent;
+    }
+  }
+
+  /**
+   * Show location map for a gathering
+   * 
+   * @param {Event} event Click event
+   */
+  showLocation(event) {
+    const gatheringId = event.currentTarget.dataset.gatheringId;
+    if (!gatheringId) {
+      console.error('No gathering ID found');
+      return;
+    }
+
+    // Navigate to gathering view with location tab active
+    window.location.href = `/gatherings/view/${gatheringId}#nav-location-tab`;
+  }
+
+  /**
+   * Get CSRF token from meta tag or form
+   * 
+   * @returns {string} CSRF token
+   */
+  getCsrfToken() {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta) {
+      return meta.getAttribute('content');
+    }
+    const input = document.querySelector('input[name="_csrfToken"]');
+    if (input) {
+      return input.value;
+    }
+    return '';
+  }
+
+  /**
+   * Show toast notification
+   * 
+   * @param {string} title Toast title
+   * @param {string} message Toast message
+   * @param {string} type Bootstrap color type (success, danger, warning, info)
+   */
+  showToast(title, message, type = 'info') {
+    // Create toast container if it doesn't exist
+    let container = document.getElementById('toast-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'toast-container';
+      container.className = 'toast-container position-fixed top-0 end-0 p-3';
+      container.style.zIndex = '9999';
+      document.body.appendChild(container);
+    }
+
+    // Create toast element
+    const toastId = `toast-${Date.now()}`;
+    const toastHtml = `
+            <div id="${toastId}" class="toast align-items-center text-white bg-${type} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="d-flex">
+                    <div class="toast-body">
+                        <strong>${title}</strong><br>
+                        ${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            </div>
+        `;
+    container.insertAdjacentHTML('beforeend', toastHtml);
+
+    // Show toast
+    const toastElement = document.getElementById(toastId);
+    const toast = new bootstrap.Toast(toastElement, {
+      autohide: true,
+      delay: 3000
+    });
+    toast.show();
+
+    // Remove from DOM after hidden
+    toastElement.addEventListener('hidden.bs.toast', () => {
+      toastElement.remove();
+    });
+  }
+
+  /**
+   * Disconnect event - cleanup
+   */
+  disconnect() {
+    if (this.modalInstance) {
+      this.modalInstance.dispose();
+    }
+  }
+}
+
+// Register controller globally
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["gatherings-calendar"] = GatheringsCalendarController;
+/* harmony default export */ __webpack_exports__["default"] = (GatheringsCalendarController);
+
+/***/ }),
+
 /***/ "./assets/js/controllers/guifier-controller.js":
 /*!*****************************************************!*\
   !*** ./assets/js/controllers/guifier-controller.js ***!
@@ -3433,6 +3951,8 @@ class GuifierController extends Controller {
       dataType: this.typeValue,
       rootContainerName: 'setting',
       fullScreen: true,
+      autoDownloadFontAwesome: false,
+      // Font Awesome is already loaded via @fortawesome/fontawesome-free
       onChange: () => {
         this.hiddenTarget.value = this.guifier.getData(this.typeValue);
         // console.log(this.hiddenTarget.value);
@@ -3835,6 +4355,8 @@ class MarkdownEditorController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODU
       placeholder: this.placeholderValue,
       minHeight: this.minHeightValue,
       spellChecker: false,
+      autoDownloadFontAwesome: false,
+      // Font Awesome is already loaded via @fortawesome/fontawesome-free
       status: ["lines", "words", "cursor"],
       toolbar: ["bold", "italic", "heading", "|", "quote", "unordered-list", "ordered-list", "|", "link", "image", "|", "preview", "side-by-side", "fullscreen", "|", "guide"],
       // Ensure the editor works with form submissions
@@ -51893,7 +52415,7 @@ window.Controllers["waiver-upload-wizard"] = WaiverUploadWizardController;
 },
 /******/ function(__webpack_require__) { // webpackRuntimeModules
 /******/ var __webpack_exec__ = function(moduleId) { return __webpack_require__(__webpack_require__.s = moduleId); }
-/******/ __webpack_require__.O(0, ["js/core","css/app","css/waivers","css/dashboard","css/cover","css/signin","css/waiver-upload"], function() { return __webpack_exec__("./assets/js/controllers/activity-toggle-controller.js"), __webpack_exec__("./assets/js/controllers/activity-waiver-manager-controller.js"), __webpack_exec__("./assets/js/controllers/add-activity-modal-controller.js"), __webpack_exec__("./assets/js/controllers/app-setting-form-controller.js"), __webpack_exec__("./assets/js/controllers/auto-complete-controller.js"), __webpack_exec__("./assets/js/controllers/branch-links-controller.js"), __webpack_exec__("./assets/js/controllers/csv-download-controller.js"), __webpack_exec__("./assets/js/controllers/delayed-forward-controller.js"), __webpack_exec__("./assets/js/controllers/delete-confirmation-controller.js"), __webpack_exec__("./assets/js/controllers/detail-tabs-controller.js"), __webpack_exec__("./assets/js/controllers/edit-activity-description-controller.js"), __webpack_exec__("./assets/js/controllers/email-template-editor-controller.js"), __webpack_exec__("./assets/js/controllers/email-template-form-controller.js"), __webpack_exec__("./assets/js/controllers/file-size-validator-controller.js"), __webpack_exec__("./assets/js/controllers/filter-grid-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-clone-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-form-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-location-autocomplete-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-map-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-type-form-controller.js"), __webpack_exec__("./assets/js/controllers/guifier-controller.js"), __webpack_exec__("./assets/js/controllers/image-preview-controller.js"), __webpack_exec__("./assets/js/controllers/kanban-controller.js"), __webpack_exec__("./assets/js/controllers/markdown-editor-controller.js"), __webpack_exec__("./assets/js/controllers/member-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-menu-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-pwa-controller.js"), __webpack_exec__("./assets/js/controllers/member-unique-email-controller.js"), __webpack_exec__("./assets/js/controllers/member-verify-form-controller.js"), __webpack_exec__("./assets/js/controllers/mobile-hub-controller.js"), __webpack_exec__("./assets/js/controllers/modal-opener-controller.js"), __webpack_exec__("./assets/js/controllers/nav-bar-controller.js"), __webpack_exec__("./assets/js/controllers/outlet-button-controller.js"), __webpack_exec__("./assets/js/controllers/permission-add-role-controller.js"), __webpack_exec__("./assets/js/controllers/permission-manage-policies-controller.js"), __webpack_exec__("./assets/js/controllers/revoke-form-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-member-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-permission-controller.js"), __webpack_exec__("./assets/js/controllers/select-all-switch-list-controller.js"), __webpack_exec__("./assets/js/controllers/session-extender-controller.js"), __webpack_exec__("./assets/js/controllers/turbo-modal-controller.js"), __webpack_exec__("./assets/js/controllers/variable-insert-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/gw-sharing-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/mobile-request-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/renew-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/request-auth-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/award-form-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-add-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-bulk-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-quick-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-table-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/recommendation-kanban-controller.js"), __webpack_exec__("./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/assign-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/edit-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/office-form-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-search-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-table-controller.js"), __webpack_exec__("./plugins/Template/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/add-requirement-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/camera-capture-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/retention-policy-input-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-template-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-wizard-controller.js"), __webpack_exec__("./assets/css/app.css"), __webpack_exec__("./assets/css/signin.css"), __webpack_exec__("./assets/css/cover.css"), __webpack_exec__("./assets/css/dashboard.css"), __webpack_exec__("./plugins/Waivers/assets/css/waivers.css"), __webpack_exec__("./plugins/Waivers/assets/css/waiver-upload.css"); });
+/******/ __webpack_require__.O(0, ["js/core","css/app","css/waivers","css/dashboard","css/cover","css/signin","css/waiver-upload"], function() { return __webpack_exec__("./assets/js/controllers/activity-toggle-controller.js"), __webpack_exec__("./assets/js/controllers/activity-waiver-manager-controller.js"), __webpack_exec__("./assets/js/controllers/add-activity-modal-controller.js"), __webpack_exec__("./assets/js/controllers/app-setting-form-controller.js"), __webpack_exec__("./assets/js/controllers/auto-complete-controller.js"), __webpack_exec__("./assets/js/controllers/branch-links-controller.js"), __webpack_exec__("./assets/js/controllers/csv-download-controller.js"), __webpack_exec__("./assets/js/controllers/delayed-forward-controller.js"), __webpack_exec__("./assets/js/controllers/delete-confirmation-controller.js"), __webpack_exec__("./assets/js/controllers/detail-tabs-controller.js"), __webpack_exec__("./assets/js/controllers/edit-activity-description-controller.js"), __webpack_exec__("./assets/js/controllers/email-template-editor-controller.js"), __webpack_exec__("./assets/js/controllers/email-template-form-controller.js"), __webpack_exec__("./assets/js/controllers/file-size-validator-controller.js"), __webpack_exec__("./assets/js/controllers/filter-grid-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-clone-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-form-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-location-autocomplete-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-map-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-type-form-controller.js"), __webpack_exec__("./assets/js/controllers/gatherings-calendar-controller.js"), __webpack_exec__("./assets/js/controllers/guifier-controller.js"), __webpack_exec__("./assets/js/controllers/image-preview-controller.js"), __webpack_exec__("./assets/js/controllers/kanban-controller.js"), __webpack_exec__("./assets/js/controllers/markdown-editor-controller.js"), __webpack_exec__("./assets/js/controllers/member-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-menu-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-pwa-controller.js"), __webpack_exec__("./assets/js/controllers/member-unique-email-controller.js"), __webpack_exec__("./assets/js/controllers/member-verify-form-controller.js"), __webpack_exec__("./assets/js/controllers/mobile-hub-controller.js"), __webpack_exec__("./assets/js/controllers/modal-opener-controller.js"), __webpack_exec__("./assets/js/controllers/nav-bar-controller.js"), __webpack_exec__("./assets/js/controllers/outlet-button-controller.js"), __webpack_exec__("./assets/js/controllers/permission-add-role-controller.js"), __webpack_exec__("./assets/js/controllers/permission-manage-policies-controller.js"), __webpack_exec__("./assets/js/controllers/revoke-form-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-member-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-permission-controller.js"), __webpack_exec__("./assets/js/controllers/select-all-switch-list-controller.js"), __webpack_exec__("./assets/js/controllers/session-extender-controller.js"), __webpack_exec__("./assets/js/controllers/turbo-modal-controller.js"), __webpack_exec__("./assets/js/controllers/variable-insert-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/gw-sharing-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/mobile-request-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/renew-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/request-auth-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/award-form-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-add-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-bulk-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-quick-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-table-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/recommendation-kanban-controller.js"), __webpack_exec__("./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/assign-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/edit-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/office-form-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-search-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-table-controller.js"), __webpack_exec__("./plugins/Template/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/add-requirement-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/camera-capture-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/retention-policy-input-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-template-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-wizard-controller.js"), __webpack_exec__("./assets/css/app.css"), __webpack_exec__("./assets/css/signin.css"), __webpack_exec__("./assets/css/cover.css"), __webpack_exec__("./assets/css/dashboard.css"), __webpack_exec__("./plugins/Waivers/assets/css/waivers.css"), __webpack_exec__("./plugins/Waivers/assets/css/waiver-upload.css"); });
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);

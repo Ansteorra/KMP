@@ -24,6 +24,11 @@ $this->KMP->endBlock();
         </h3>
     </div>
     <div class="col text-end">
+        <?= $this->Html->link(
+            '<i class="bi bi-calendar-event"></i> Calendar View',
+            ['action' => 'calendar'],
+            ['class' => 'btn btn-info btn-sm', 'escape' => false]
+        ) ?>
         <?php
         $gatheringsTable = \Cake\ORM\TableRegistry::getTableLocator()->get("Gatherings");
         $tempGathering = $gatheringsTable->newEmptyEntity();

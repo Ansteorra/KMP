@@ -139,6 +139,18 @@ class GatheringsTable extends Table
             ->allowEmptyString('location');
 
         $validator
+            ->decimal('latitude')
+            ->allowEmptyString('latitude')
+            ->greaterThanOrEqual('latitude', -90)
+            ->lessThanOrEqual('latitude', 90);
+
+        $validator
+            ->decimal('longitude')
+            ->allowEmptyString('longitude')
+            ->greaterThanOrEqual('longitude', -180)
+            ->lessThanOrEqual('longitude', 180);
+
+        $validator
             ->nonNegativeInteger('created_by')
             ->requirePresence('created_by', 'create')
             ->notEmptyString('created_by');

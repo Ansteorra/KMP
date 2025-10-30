@@ -20,6 +20,8 @@ class GatheringLocationAutocompleteController extends Controller {
         apiKey: String  // Google Maps API key
     }
     
+    static targets = ["input", "latitude", "longitude"]  // Input field and hidden form fields for lat/lng
+    
     /**
      * Initialize the controller
      */
@@ -28,6 +30,7 @@ class GatheringLocationAutocompleteController extends Controller {
         this.isGoogleMapsLoaded = false
         this.isInitialized = false  // Prevent re-initialization loop
         this.lastSelectedAddress = null  // Store the selected address
+        this.lastSelectedPlace = null  // Store the full place object with geometry
     }
     
     /**
@@ -100,7 +103,7 @@ class GatheringLocationAutocompleteController extends Controller {
         
         // Use the old Autocomplete API which actually works
         // Use 'geocode' type for addresses, or omit types to get all place types
-        this.autocomplete = new google.maps.places.Autocomplete(this.element, {
+        this.autocomplete = new google.maps.places.Autocomplete(this.inputTarget, {
             types: ['geocode']
         })
         
@@ -111,7 +114,28 @@ class GatheringLocationAutocompleteController extends Controller {
             if (place && place.formatted_address) {
                 console.log('✓ Place selected:', place.formatted_address)
                 this.lastSelectedAddress = place.formatted_address
-                this.element.value = place.formatted_address
+                this.lastSelectedPlace = place
+                this.inputTarget.value = place.formatted_address
+                
+                // Extract and store latitude/longitude if available
+                if (place.geometry && place.geometry.location) {
+                    const lat = place.geometry.location.lat()
+                    const lng = place.geometry.location.lng()
+                    
+                    console.log('✓ Coordinates:', lat, lng)
+                    
+                    // Update hidden form fields if they exist
+                    if (this.hasLatitudeTarget) {
+                        this.latitudeTarget.value = lat
+                        console.log('✓ Set latitude field:', lat)
+                    }
+                    if (this.hasLongitudeTarget) {
+                        this.longitudeTarget.value = lng
+                        console.log('✓ Set longitude field:', lng)
+                    }
+                } else {
+                    console.log('⚠ No geometry data available for selected place')
+                }
             }
         })
         

@@ -45,7 +45,11 @@ $apiKey = $this->KMP->getAppSetting('GoogleMaps.ApiKey', '');
                 data-gathering-map-location-value="<?= h($gathering->location) ?>"
                 data-gathering-map-gathering-name-value="<?= h($gathering->name) ?>"
                 data-gathering-map-api-key-value="<?= h($apiKey) ?>"
-                data-gathering-map-zoom-value="15">
+                data-gathering-map-zoom-value="15"
+                <?php if (!empty($gathering->latitude) && !empty($gathering->longitude)): ?>
+                data-gathering-map-latitude-value="<?= h($gathering->latitude) ?>"
+                data-gathering-map-longitude-value="<?= h($gathering->longitude) ?>"
+                <?php endif; ?>>
 
                 <!-- Error display area -->
                 <div data-gathering-map-target="error" class="alert alert-warning" style="display: none;">

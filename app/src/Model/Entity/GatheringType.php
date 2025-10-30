@@ -15,6 +15,7 @@ use Cake\ORM\Entity;
  * @property int $id
  * @property string $name
  * @property string|null $description
+ * @property string $color
  * @property bool $clonable
  * @property \Cake\I18n\DateTime $created
  * @property \Cake\I18n\DateTime $modified
@@ -31,6 +32,7 @@ class GatheringType extends BaseEntity
     protected array $_accessible = [
         'name' => true,
         'description' => true,
+        'color' => true,
         'clonable' => true,
         'created' => true,
         'modified' => true,

@@ -23,6 +23,8 @@ class GatheringMapController extends Controller {
         location: String,        // The address/location string
         gatheringName: String,   // Name of the gathering
         apiKey: String,          // Google Maps API key (optional)
+        latitude: Number,        // Stored latitude (optional, saves API call)
+        longitude: Number,       // Stored longitude (optional, saves API call)
         zoom: {                  // Default zoom level
             type: Number, 
             default: 15
@@ -113,8 +115,27 @@ class GatheringMapController extends Controller {
     
     /**
      * Geocode location and display on Google Maps with AdvancedMarkerElement
+     * Uses stored lat/lng if available to avoid geocoding API call
      */
     async geocodeAndDisplayGoogle() {
+        // Check if we have stored coordinates to avoid API call
+        if (this.hasLatitudeValue && this.hasLongitudeValue) {
+            console.log('Using stored coordinates:', this.latitudeValue, this.longitudeValue)
+            const location = {
+                lat: this.latitudeValue,
+                lng: this.longitudeValue
+            }
+            
+            // Center map on stored location
+            this.map.setCenter(location)
+            
+            // Create marker at stored location
+            await this.createMarker(location)
+            return
+        }
+        
+        // No stored coordinates, use geocoding API
+        console.log('No stored coordinates, geocoding address:', this.locationValue)
         const geocoder = new google.maps.Geocoder()
         
         geocoder.geocode({ address: this.locationValue }, async (results, status) => {
@@ -124,46 +145,10 @@ class GatheringMapController extends Controller {
                 // Center map on location
                 this.map.setCenter(location)
                 
-                // Import the AdvancedMarkerElement library
-                try {
-                    const { AdvancedMarkerElement } = await google.maps.importLibrary("marker")
-                    
-                    // Create marker using AdvancedMarkerElement
-                    this.marker = new AdvancedMarkerElement({
-                        map: this.map,
-                        position: location,
-                        title: this.gatheringNameValue || 'Gathering Location'
-                    })
-                    
-                    // Add info window
-                    const infoWindow = new google.maps.InfoWindow({
-                        content: `
-                            <div style="padding: 8px;">
-                                <strong>${this.gatheringNameValue || 'Gathering Location'}</strong><br>
-                                <span style="color: #666;">${this.locationValue}</span>
-                            </div>
-                        `
-                    })
-                    
-                    // Add click listener to marker
-                    this.marker.addListener('click', () => {
-                        infoWindow.open({
-                            anchor: this.marker,
-                            map: this.map
-                        })
-                    })
-                    
-                    // Open info window by default
-                    infoWindow.open({
-                        anchor: this.marker,
-                        map: this.map
-                    })
-                    
-                    this.geocoded = true
-                } catch (error) {
-                    console.error('Error loading AdvancedMarkerElement:', error)
-                    this.showError('Failed to display marker on map')
-                }
+                // Create marker
+                await this.createMarker(location)
+                
+                this.geocoded = true
             } else {
                 console.error('Geocode was not successful:', status)
                 this.showError(`Unable to find location: ${this.locationValue}`)
@@ -172,29 +157,100 @@ class GatheringMapController extends Controller {
     }
     
     /**
+     * Create marker on the map
+     * @param {Object} location - Google Maps LatLng or {lat, lng} object
+     */
+    async createMarker(location) {
+        try {
+            // Import the AdvancedMarkerElement library
+            const { AdvancedMarkerElement } = await google.maps.importLibrary("marker")
+            
+            // Create marker using AdvancedMarkerElement
+            this.marker = new AdvancedMarkerElement({
+                map: this.map,
+                position: location,
+                title: this.gatheringNameValue || 'Gathering Location'
+            })
+            
+            // Add info window
+            const infoWindow = new google.maps.InfoWindow({
+                content: `
+                    <div style="padding: 8px;">
+                        <strong>${this.gatheringNameValue || 'Gathering Location'}</strong><br>
+                        <span style="color: #666;">${this.locationValue}</span>
+                    </div>
+                `
+            })
+            
+            // Add click listener to marker
+            this.marker.addListener('click', () => {
+                infoWindow.open({
+                    anchor: this.marker,
+                    map: this.map
+                })
+            })
+            
+            // Open info window by default
+            infoWindow.open({
+                anchor: this.marker,
+                map: this.map
+            })
+            
+            this.geocoded = true
+        } catch (error) {
+            console.error('Error creating marker:', error)
+            this.showError('Failed to display marker on map')
+        }
+    }
+    
+    /**
      * Open location in Google Maps (new window/tab)
+     * Uses stored lat/lng if available for precise location, otherwise uses address string
      */
     openInGoogleMaps(event) {
         event.preventDefault()
-        const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(this.locationValue)}`
+        let url
+        if (this.hasLatitudeValue && this.hasLongitudeValue) {
+            // Use precise coordinates
+            url = `https://www.google.com/maps/search/?api=1&query=${this.latitudeValue},${this.longitudeValue}`
+        } else {
+            // Fall back to address string
+            url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(this.locationValue)}`
+        }
         window.open(url, '_blank')
     }
     
     /**
      * Open location in Apple Maps (works on supported devices)
+     * Uses stored lat/lng if available for precise location, otherwise uses address string
      */
     openInAppleMaps(event) {
         event.preventDefault()
-        const url = `https://maps.apple.com/?q=${encodeURIComponent(this.locationValue)}`
+        let url
+        if (this.hasLatitudeValue && this.hasLongitudeValue) {
+            // Use precise coordinates - Apple Maps uses ll parameter
+            url = `https://maps.apple.com/?ll=${this.latitudeValue},${this.longitudeValue}&q=${encodeURIComponent(this.locationValue)}`
+        } else {
+            // Fall back to address string
+            url = `https://maps.apple.com/?q=${encodeURIComponent(this.locationValue)}`
+        }
         window.open(url, '_blank')
     }
     
     /**
      * Get directions to location in Google Maps
+     * Uses stored lat/lng if available for precise destination, otherwise uses address string
      */
     getDirections(event) {
         event.preventDefault()
-        const url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(this.locationValue)}`
+        let url
+        if (this.hasLatitudeValue && this.hasLongitudeValue) {
+            // Use precise coordinates
+            url = `https://www.google.com/maps/dir/?api=1&destination=${this.latitudeValue},${this.longitudeValue}`
+        } else {
+            // Fall back to address string
+            url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(this.locationValue)}`
+        }
         window.open(url, '_blank')
     }
     

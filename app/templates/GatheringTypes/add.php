@@ -45,6 +45,15 @@ $this->KMP->endBlock();
                 0 / 500 characters
             </small>
         </div>
+        <div class="mb-3">
+            <?= $this->Form->control('color', [
+                'type' => 'color',
+                'label' => 'Calendar Color',
+                'default' => '#0d6efd',
+                'class' => 'form-control form-control-color',
+                'help' => 'Choose a color for this gathering type in the calendar view'
+            ]) ?>
+        </div>
         <?php
         echo $this->Form->control('clonable', [
             'label' => 'Allow cloning gatherings of this type',

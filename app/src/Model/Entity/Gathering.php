@@ -20,6 +20,8 @@ use Cake\ORM\Entity;
  * @property \Cake\I18n\Date $start_date
  * @property \Cake\I18n\Date $end_date
  * @property string|null $location
+ * @property float|null $latitude
+ * @property float|null $longitude
  * @property int $created_by
  * @property \Cake\I18n\DateTime $created
  * @property \Cake\I18n\DateTime $modified
@@ -46,6 +48,8 @@ class Gathering extends BaseEntity
         'start_date' => true,
         'end_date' => true,
         'location' => true,
+        'latitude' => true,
+        'longitude' => true,
         'created_by' => true,
         'created' => true,
         'modified' => true,

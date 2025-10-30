@@ -29,6 +29,8 @@ layout: default
 | **4.3 [Warrant Lifecycle](4.3-warrant-lifecycle.md)** | Complete warrant state machine and approval process documentation |
 | **4.4 [RBAC Security Architecture](4.4-rbac-security-architecture.md)** | Complete RBAC system with warrant temporal validation layer |
 | **4.5 [View Patterns](4.5-view-patterns.md)** | Template system, helpers, and UI components |
+| **4.6 [Gatherings System](4.6-gatherings-system.md)** | Event management, calendar views, and attendance tracking |
+| **4.7 [Document Management & Retention System](4.7-document-management-system.md)** | File uploads, storage, and retention policies |
 | **5. [Plugins](5-plugins.md)** | |
 | **5.1 [Officers Plugin](5.1-officers-plugin.md)** | Officers management and roster system |
 | **5.2 [Awards Plugin](5.2-awards-plugin.md)** | Award recommendations and management system |
@@ -36,6 +38,7 @@ layout: default
 | **5.4 [GitHubIssueSubmitter Plugin](5.4-github-issue-submitter-plugin.md)** | User feedback submission to GitHub |
 | **5.5 [Bootstrap Plugin](5.5-bootstrap-plugin.md)** | UI framework integration |
 | **5.6 [Activities Plugin](5.6-activities-plugin.md)** | Comprehensive authorization management system |
+| **5.7 [Waivers Plugin](5.7-waivers-plugin.md)** | Waiver upload, tracking, and compliance management |
 | **6. [Services](6-services.md)** | Service layer architecture and implementations |
 | **7. [Development Workflow](7-development-workflow.md)** | |
 | 7.1 Coding Standards | PHP and JavaScript coding standards |

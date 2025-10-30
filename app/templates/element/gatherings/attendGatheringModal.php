@@ -4,11 +4,14 @@
  * @var \App\View\AppView $this
  * @var \App\Model\Entity\Gathering $gathering
  * @var \App\Model\Entity\GatheringAttendance|null $userAttendance
+ * @var string|null $modalId Optional custom modal ID (defaults to 'attendGatheringModal')
+ * @var bool $fromCalendar Whether this modal is being used from the calendar view
  */
 
 $isEdit = !empty($userAttendance);
-$modalId = 'attendGatheringModal';
-$formId = 'attendGatheringForm';
+$modalId = $modalId ?? 'attendGatheringModal';
+$formId = $modalId . 'Form';
+$fromCalendar = $fromCalendar ?? false;
 
 // Debug: Check if we're in edit mode
 if ($isEdit) {
@@ -19,17 +22,24 @@ if ($isEdit) {
 ?>
 
 <!-- Attend/Edit Gathering Attendance Modal -->
-<div class="modal fade" id="<?= $modalId ?>" tabindex="-1" aria-labelledby="<?= $modalId ?>Label" aria-hidden="true">
+<div class="modal fade"
+    id="<?= $modalId ?>"
+    tabindex="-1"
+    aria-labelledby="<?= $modalId ?>Label"
+    aria-hidden="true"
+    <?php if ($fromCalendar): ?>
+    data-calendar-modal="true"
+    <?php endif; ?>>
     <div class="modal-dialog">
-        <div class="modal-content">
+        <div class="modal-content" id="<?= $modalId ?>Content">
             <?php if ($isEdit): ?>
-            <?= $this->Form->create(null, [
+                <?= $this->Form->create(null, [
                     'type' => 'post',
                     'url' => ['controller' => 'GatheringAttendances', 'action' => 'edit', $userAttendance->id],
                     'id' => $formId
                 ]) ?>
             <?php else: ?>
-            <?= $this->Form->create(null, [
+                <?= $this->Form->create(null, [
                     'type' => 'post',
                     'url' => ['controller' => 'GatheringAttendances', 'action' => 'add'],
                     'id' => $formId
@@ -49,10 +59,10 @@ if ($isEdit) {
                         gathering (not a replacement for paypal prereg).</small>
                 </div>
                 <?php if (!$isEdit): ?>
-                <?= $this->Form->hidden('member_id', ['value' => $user->id]) ?>
-                <?= $this->Form->hidden('gathering_id', ['value' => $gathering->id]) ?>
+                    <?= $this->Form->hidden('member_id', ['value' => $user->id]) ?>
+                    <?= $this->Form->hidden('gathering_id', ['value' => $gathering->id]) ?>
                 <?php else: ?>
-                <?= $this->Form->hidden('id', ['value' => $userAttendance->id]) ?>
+                    <?= $this->Form->hidden('id', ['value' => $userAttendance->id]) ?>
                 <?php endif; ?>
 
                 <div class="alert alert-info">
@@ -60,7 +70,7 @@ if ($isEdit) {
                     <small>
                         <?= $gathering->start_date->format('F j, Y') ?>
                         <?php if (!$gathering->start_date->equals($gathering->end_date)): ?>
-                        - <?= $gathering->end_date->format('F j, Y') ?>
+                            - <?= $gathering->end_date->format('F j, Y') ?>
                         <?php endif; ?>
                     </small>
                 </div>
@@ -124,10 +134,10 @@ if ($isEdit) {
 
             <div class="modal-footer">
                 <?php if ($isEdit): ?>
-                <button type="button" class="btn btn-outline-danger btn-sm me-auto"
-                    onclick="if (confirm('<?= h(__('Are you sure you want to remove your attendance registration?')) ?>')) { document.getElementById('deleteAttendanceForm_<?= $userAttendance->id ?>').submit(); }">
-                    <?= __('Remove My Attendance') ?>
-                </button>
+                    <button type="button" class="btn btn-outline-danger btn-sm me-auto"
+                        onclick="if (confirm('<?= h(__('Are you sure you want to remove your attendance registration?')) ?>')) { document.getElementById('deleteAttendanceForm_<?= $userAttendance->id ?>').submit(); }">
+                        <?= __('Remove My Attendance') ?>
+                    </button>
                 <?php endif; ?>
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="submit" class="btn btn-primary" form="<?= $formId ?>">
@@ -139,14 +149,14 @@ if ($isEdit) {
 </div>
 
 <?php if ($isEdit): ?>
-<!-- Separate hidden delete form outside modal -->
-<?= $this->Form->create(null, [
+    <!-- Separate hidden delete form outside modal -->
+    <?= $this->Form->create(null, [
         'type' => 'post',
         'url' => ['controller' => 'GatheringAttendances', 'action' => 'delete', $userAttendance->id],
         'id' => 'deleteAttendanceForm_' . $userAttendance->id,
         'style' => 'display: none;'
     ]) ?>
-<?= $this->Form->end() ?>
+    <?= $this->Form->end() ?>
 <?php endif; ?>
 </div>
 </div>
