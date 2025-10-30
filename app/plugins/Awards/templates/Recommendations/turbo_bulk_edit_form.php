@@ -1,6 +1,6 @@
 <turbo-frame id="bulkEditRecommendation">
     <script type="application/json" data-awards-rec-bulk-edit-target="stateRulesBlock" class="d-none">
-    <?= json_encode($rules) ?>
+        <?= json_encode($rules) ?>
     </script>
     <fieldset>
 
@@ -31,13 +31,13 @@
                 'container' => ['data-awards-rec-bulk-edit-target' => 'closeReasonBlock'],
             ]
         );
-        echo $this->Form->control('event_id', [
+        echo $this->Form->control('gathering_id', [
             'label' => 'Plan to Give At',
             "type" => "select",
-            'options' => $eventList,
+            'options' => $gatheringList,
             'empty' => true,
             'value' => "",
-            'data-awards-rec-bulk-edit-target' => 'planToGiveEvent',
+            'data-awards-rec-bulk-edit-target' => 'planToGiveGathering',
             'container' => ['data-awards-rec-bulk-edit-target' => 'planToGiveBlock'],
         ]);
         echo $this->Form->control(

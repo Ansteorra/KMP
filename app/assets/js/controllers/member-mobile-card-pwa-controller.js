@@ -1,4 +1,4 @@
-import { Controller } from "@hotwired/stimulus"
+import { Controller } from "@hotwired/stimulus";
 
 /**
  * MemberMobileCardPWA Stimulus Controller
@@ -36,8 +36,19 @@ import { Controller } from "@hotwired/stimulus"
  */
 class MemberMobileCardPWA extends Controller {
     static targets = ["urlCache", "status", "refreshBtn"]
+    
+    // Make refreshBtn optional
+    static optionalTargets = ["refreshBtn"]
+    
     static values = {
-        swUrl: String
+        swUrl: String,
+        authCardUrl: String,  // URL to the auth card page
+        isAuthCard: Boolean   // Whether current page is the auth card
+    }
+
+    initialize() {
+        this.boundUpdateOnlineStatus = this.updateOnlineStatus.bind(this);
+        this.boundManageOnlineStatus = this.manageOnlineStatus.bind(this);
     }
 
     /**
@@ -51,33 +62,64 @@ class MemberMobileCardPWA extends Controller {
     /**
      * Update online/offline status display and service worker communication
      * Changes visual indicators and manages service worker state
+     * Dispatches custom events for other controllers to respond to offline state
      */
     updateOnlineStatus() {
         const statusDiv = this.statusTarget;
-        const refreshButton = this.refreshBtnTarget;
+        const refreshButton = this.hasRefreshBtnTarget ? this.refreshBtnTarget : null;
 
         if (navigator.onLine) {
             statusDiv.textContent = 'Online';
             statusDiv.classList.remove('bg-danger');
             statusDiv.classList.add('bg-success');
-            refreshButton.hidden = false;
+            if (refreshButton) {
+                refreshButton.hidden = false;
+            }
             if (this.sw) {
                 this.sw.active.postMessage({
                     type: 'ONLINE'
                 });
             }
-            refreshButton.click();
+            if (refreshButton) {
+                refreshButton.click();
+            }
+            
+            // Dispatch custom event for online state
+            this.dispatchStatusEvent('online');
         } else {
             statusDiv.textContent = 'Offline';
             statusDiv.classList.remove('bg-success');
             statusDiv.classList.add('bg-danger');
-            refreshButton.hidden = true;
+            if (refreshButton) {
+                refreshButton.hidden = true;
+            }
             if (this.sw) {
                 this.sw.active.postMessage({
                     type: 'OFFLINE'
                 });
             }
+            
+            // Dispatch custom event for offline state
+            this.dispatchStatusEvent('offline');
         }
+    }
+
+    /**
+     * Dispatch connection status event
+     * 
+     * @param {string} status - 'online' or 'offline'
+     */
+    dispatchStatusEvent(status) {
+        const event = new CustomEvent('connection-status-changed', {
+            bubbles: true,
+            detail: {
+                status: status,
+                isOnline: status === 'online',
+                isAuthCard: this.hasIsAuthCardValue && this.isAuthCardValue,
+                authCardUrl: this.hasAuthCardUrlValue ? this.authCardUrlValue : null
+            }
+        });
+        this.element.dispatchEvent(event);
     }
 
     /**
@@ -86,23 +128,51 @@ class MemberMobileCardPWA extends Controller {
      */
     manageOnlineStatus() {
         this.updateOnlineStatus();
-        window.addEventListener('online', this.updateOnlineStatus.bind(this));
-        window.addEventListener('offline', this.updateOnlineStatus.bind(this));
-        navigator.serviceWorker.register(this.swUrlValue)
-            .then(registration => {
-                this.sw = registration;
-                new Promise(r => setTimeout(r, 100)).then(() => {
-                    console.log('Service Worker registered with scope:', registration.scope);
-                    console.log('Service Worker active:', registration.active);
-                    registration.active.postMessage({
-                        type: 'CACHE_URLS',
-                        payload: this.urlCacheValue
-                    });
-                    this.element.attributes['data-member-mobile-card-profile-pwa-ready-value'].value = true;
+        window.addEventListener('online', this.boundUpdateOnlineStatus);
+        window.addEventListener('offline', this.boundUpdateOnlineStatus);
+        
+        // Register service worker with a slight delay to ensure all controllers are connected
+        setTimeout(() => {
+            navigator.serviceWorker.register(this.swUrlValue)
+                .then(registration => {
+                    this.sw = registration;
+                    
+                    // Wait for service worker to be active
+                    const waitForActive = () => {
+                        if (registration.active) {
+                            registration.active.postMessage({
+                                type: 'CACHE_URLS',
+                                payload: this.urlCacheValue
+                            });
+                            
+                            // Dispatch custom event to notify profile controller PWA is ready
+                            const event = new CustomEvent('pwa-ready', { bubbles: true });
+                            this.element.dispatchEvent(event);
+                        } else if (registration.installing) {
+                            registration.installing.addEventListener('statechange', (e) => {
+                                if (e.target.state === 'activated') {
+                                    waitForActive();
+                                }
+                            });
+                        } else if (registration.waiting) {
+                            // Attach statechange listener to avoid synchronous recursion
+                            registration.waiting.addEventListener('statechange', (e) => {
+                                if (e.target.state === 'activated') {
+                                    waitForActive();
+                                }
+                            });
+                            // Also set a timeout fallback in case state doesn't change
+                            setTimeout(waitForActive, 100);
+                        } else {
+                            setTimeout(waitForActive, 100);
+                        }
+                    };
+                    
+                    waitForActive();
+                }, error => {
+                    console.error('Service Worker registration failed:', error);
                 });
-            }, error => {
-                console.log('Service Worker registration failed:', error);
-            });
+        }, 100);
     }
 
     /**
@@ -118,22 +188,49 @@ class MemberMobileCardPWA extends Controller {
     /**
      * Connect controller to DOM
      * Initializes service worker support and sets up periodic refresh
+     * Falls back to basic online detection if Service Workers not available
      */
     connect() {
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', this.manageOnlineStatus.bind(this));
+            // Start PWA initialization immediately or on DOMContentLoaded/load
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', this.boundManageOnlineStatus, { once: true });
+            } else {
+                // readyState is 'interactive' or 'complete', safe to initialize
+                this.manageOnlineStatus();
+            }
+        } else {
+            // Service Workers not available (likely HTTP on IP address)
+            // Fall back to basic online/offline detection without PWA features
+            console.warn('Service Workers not available - PWA features disabled. Access via localhost or HTTPS for full functionality.');
+            this.updateOnlineStatus();
+            window.addEventListener('online', this.boundUpdateOnlineStatus);
+            window.addEventListener('offline', this.boundUpdateOnlineStatus);
+            
+            // Dispatch PWA ready event even without Service Workers
+            // This allows the profile controller to load data
+            setTimeout(() => {
+                const event = new CustomEvent('pwa-ready', { bubbles: true });
+                this.element.dispatchEvent(event);
+            }, 100);
         }
-        setInterval(this.refreshPageIfOnline, 300000);
+    this.refreshIntervalId = setInterval(() => this.refreshPageIfOnline(), 300000);
     }
 
     /**
      * Disconnect controller from DOM
-     * Cleans up event listeners to prevent memory leaks
+     * Cleans up event listeners and intervals to prevent memory leaks
      */
     disconnect() {
-        window.addEventListener('load', this.manageOnlineStatus.bind(this));
-        window.removeEventListener('online', this.updateOnlineStatus.bind(this));
-        window.removeEventListener('offline', this.updateOnlineStatus.bind(this));
+        // Clear refresh interval
+        if (this.refreshIntervalId) {
+            clearInterval(this.refreshIntervalId);
+            this.refreshIntervalId = null;
+        }
+        
+        // Remove online/offline listeners
+        window.removeEventListener('online', this.boundUpdateOnlineStatus);
+        window.removeEventListener('offline', this.boundUpdateOnlineStatus);
     }
 
 }

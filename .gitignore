@@ -10,3 +10,4 @@ nohup.out
 security-reports/
 security-reports/**/.*
 .DS_Store
+amp_no_commit.sql

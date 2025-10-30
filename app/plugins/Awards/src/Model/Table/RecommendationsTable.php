@@ -223,99 +223,12 @@ use App\Model\Table\BaseTable;
 class RecommendationsTable extends BaseTable
 {
     /**
-     * Initialize method - Configure complex associations, behaviors, and state management
-     * 
-     * Establishes the foundational configuration for the RecommendationsTable, including database
-     * table mapping, display field configuration, and extensive association relationships for
-     * recommendation workflow management, state machine integration, and comprehensive audit
-     * trail capabilities. This method also configures essential behaviors for timestamp
-     * management, user tracking, soft deletion, and sortable stack ranking.
-     * 
-     * ## Table Configuration
-     * - Maps to `awards_recommendations` database table
-     * - Sets `member_sca_name` as the display field for recommendation identification
-     * - Configures `id` as the primary key for standard entity management
-     * 
-     * ## Behavior Integration
-     * 
-     * ### Core Behaviors
-     * - **Timestamp Behavior**: Automatic creation and modification timestamp management
-     * - **Footprint Behavior**: User tracking for creation and modification accountability
-     * - **Trash Behavior**: Soft deletion support with data retention and recovery capabilities
-     * 
-     * ### Sortable Behavior
-     * - **Field**: `stack_rank` for recommendation prioritization and organization
-     * - **Purpose**: Enables administrative ranking and workflow prioritization
-     * - **Usage**: Supports recommendation queue management and administrative coordination
-     * 
-     * ## Association Architecture
-     * The initialize method establishes comprehensive relationships within the Awards ecosystem:
-     * 
-     * ### Member Associations
-     * 
-     * #### Requesters (belongsTo)
-     * - **Purpose**: Links recommendations to submitting members for accountability
-     * - **Foreign Key**: `requester_id` with LEFT join for optional authentication
-     * - **Class**: Members entity for member management integration
-     * - **Usage**: Supports both authenticated and guest recommendation workflows
-     * 
-     * #### Members (belongsTo)
-     * - **Purpose**: Links recommendations to recommended members for award processing
-     * - **Foreign Key**: `member_id` with LEFT join for flexible member association
-     * - **Class**: Members entity for comprehensive member integration
-     * - **Usage**: Enables member-specific recommendation processing and validation
-     * 
-     * ### Awards System Associations
-     * 
-     * #### Awards (belongsTo)
-     * - **Purpose**: Links recommendations to specific awards for processing workflows
-     * - **Foreign Key**: `award_id` with INNER join requirement for award integrity
-     * - **Class**: Awards.Awards entity for award system integration
-     * - **Usage**: Enables award-specific recommendation validation and processing
-     * 
-     * #### Branches (belongsTo)
-     * - **Purpose**: Links recommendations to organizational branches for scoping
-     * - **Foreign Key**: `branch_id` for organizational structure integration
-     * - **Class**: Branches entity for organizational management
-     * - **Usage**: Supports branch-scoped recommendation management and access control
-     * 
-     * ### Event Management Associations
-     * 
-     * #### ScheduledEvent (belongsTo)
-     * - **Purpose**: Links recommendations to scheduled events for ceremony coordination
-     * - **Foreign Key**: `event_id` with LEFT join for optional event assignment
-     * - **Class**: Awards.Events entity for event management integration
-     * - **Usage**: Supports event-based recommendation processing and ceremony coordination
-     * 
-     * #### Events (belongsToMany)
-     * - **Purpose**: Many-to-many relationship for flexible event-recommendation mapping
-     * - **Join Table**: `awards_recommendations_events` for complex assignment workflows
-     * - **Foreign Key**: `recommendation_id` linking to recommendations
-     * - **Target Foreign Key**: `event_id` linking to events
-     * - **Class**: Awards.Events entity for comprehensive event integration
-     * 
-     * #### AssignedEvent (belongsTo)
-     * - **Purpose**: Direct event assignment for ceremony coordination
-     * - **Foreign Key**: `event_id` with LEFT join for optional assignment
-     * - **Class**: Awards.Events entity for ceremony management
-     * - **Usage**: Supports direct event assignment and ceremony coordination workflows
-     * 
-     * ### Workflow Support Associations
-     * 
-     * #### Notes (hasMany)
-     * - **Purpose**: Links recommendations to documentation notes for workflow tracking
-     * - **Foreign Key**: `entity_id` with entity type condition for proper scoping
-     * - **Class**: Notes entity for documentation management
-     * - **Conditions**: `Notes.entity_type = 'Awards.Recommendations'` for type safety
-     * - **Usage**: Supports recommendation documentation and administrative workflow tracking
-     * 
-     * #### RecommendationStateLogs (hasMany)
-     * - **Purpose**: Links recommendations to state change logs for comprehensive audit trail
-     * - **Foreign Key**: `recommendation_id` for direct state logging association
-     * - **Class**: Awards.RecommendationsStatesLog entity for audit trail management
-     * - **Usage**: Enables comprehensive state change tracking and administrative oversight
-     * 
-     * @param array<string, mixed> $config The configuration for the Table.
+     * Configure the Recommendations table: table name, display/primary fields, behaviors, and associations.
+     *
+     * Sets the database table and primary/display fields, attaches timestamp, footprint, trash, and sortable
+     * behaviors, and defines associations used for member links, awards, events/gatherings, notes, and state logs.
+     *
+     * @param array<string,mixed> $config Table configuration options.
      * @return void
      */
     public function initialize(array $config): void
@@ -363,10 +276,21 @@ class RecommendationsTable extends BaseTable
             "targetForeignKey" => "event_id",
             "className" => "Awards.Events",
         ]);
+        $this->belongsToMany("Gatherings", [
+            "joinTable" => "awards_recommendations_events",
+            "foreignKey" => "recommendation_id",
+            "targetForeignKey" => "gathering_id",
+            "className" => "Gatherings",
+        ]);
         $this->belongsTo("AssignedEvent", [
             'foreignKey' => 'event_id',
             'joinType' => 'LEFT',
             "className" => "Awards.Events",
+        ]);
+        $this->belongsTo("AssignedGathering", [
+            'foreignKey' => 'gathering_id',
+            'joinType' => 'LEFT',
+            "className" => "Gatherings",
         ]);
         $this->hasMany("Notes", [
             "foreignKey" => "entity_id",
@@ -735,79 +659,15 @@ class RecommendationsTable extends BaseTable
     }
 
     /**
-     * Add branch scope query conditions for organizational access control
-     * 
-     * Applies branch-based filtering to recommendation queries for organizational access control
-     * and administrative scoping. This method ensures that recommendation discovery and management
-     * operations respect organizational boundaries and administrative permissions, supporting
-     * branch-scoped recommendation management and award ceremony coordination.
-     * 
-     * ## Access Control Implementation
-     * 
-     * ### Branch Filtering Logic
-     * - **Input Validation**: Checks for empty branch ID arrays to avoid unnecessary filtering
-     * - **Query Modification**: Applies IN clause for multiple branch support through Awards association
-     * - **Field**: Filters on `Awards.branch_id` field for organizational scoping through award association
-     * - **Return**: Returns modified query object for method chaining and additional filtering
-     * 
-     * ### Organizational Scoping
-     * - Supports branch-based administrative access control for recommendation management
-     * - Enables organizational scoping for ceremony coordination and award processing
-     * - Provides consistent filtering across different administrative interfaces and workflows
-     * - Integration with authorization policies for secure recommendation discovery and management
-     * 
-     * ## Usage Patterns
-     * 
-     * ### Administrative Recommendation Discovery
-     * ```php
-     * // Scope recommendations to user's authorized branches
-     * $query = $recommendationsTable->find();
-     * $query = $recommendationsTable->addBranchScopeQuery($query, $userBranchIds);
-     * $recommendations = $query->toArray();
-     * ```
-     * 
-     * ### Authorization Integration
-     * ```php
-     * // Combine with authorization policies
-     * $authorizedBranches = $this->Authorization->applyScope($user, 'index');
-     * $query = $recommendationsTable->find()
-     *     ->where(['deleted IS' => null])
-     *     ->contain(['Awards', 'Members']);
-     * $query = $recommendationsTable->addBranchScopeQuery($query, $authorizedBranches);
-     * ```
-     * 
-     * ### Ceremony Coordination
-     * ```php
-     * // Find recommendations for specific organizational scope
-     * $branchRecommendations = $recommendationsTable->find()
-     *     ->contain(['Awards', 'Events'])
-     *     ->where(['state' => 'approved']);
-     * $branchRecommendations = $recommendationsTable->addBranchScopeQuery($branchRecommendations, $coordinatorBranches);
-     * ```
-     * 
-     * ## Integration Benefits
-     * 
-     * ### Security Enhancement
-     * - Prevents unauthorized access to recommendations outside organizational scope
-     * - Ensures administrative permissions are respected in recommendation discovery and processing
-     * - Supports data privacy and organizational boundaries for recommendation management
-     * - Integration with broader authorization and access control systems for comprehensive security
-     * 
-     * ### Performance Optimization
-     * - Efficient query modification with minimal overhead for organizational filtering
-     * - Database-level filtering for optimal performance in large-scale recommendation systems
-     * - Supports large-scale organizational recommendation management and ceremony coordination
-     * - Compatible with query optimization and caching strategies for administrative interfaces
-     * 
-     * ### Administrative Coordination
-     * - Enables branch-specific recommendation management and ceremony coordination
-     * - Supports organizational workflow management and administrative oversight
-     * - Integration with award processing and ceremony planning through organizational scoping
-     * - Administrative flexibility for complex organizational structures and workflow requirements
-     * 
-     * @param \Cake\ORM\Query\SelectQuery $query The query to modify with branch scoping
-     * @param array $branchIDs Array of branch IDs for organizational scoping
-     * @return \Cake\ORM\Query\SelectQuery Modified query with branch filtering applied
+     * Apply branch-based filtering to a recommendations query.
+     *
+     * Filters the provided query so only records whose associated Awards.branch_id
+     * is contained in $branchIDs are returned. If $branchIDs is empty, the query
+     * is returned unchanged.
+     *
+     * @param \Cake\ORM\Query\SelectQuery $query The query to modify.
+     * @param int[] $branchIDs Array of branch IDs to restrict Awards.branch_id to.
+     * @return \Cake\ORM\Query\SelectQuery The query with branch filtering applied.
      */
     public function addBranchScopeQuery($query, $branchIDs): SelectQuery
     {

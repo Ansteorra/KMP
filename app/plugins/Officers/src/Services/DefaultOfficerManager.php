@@ -194,107 +194,19 @@ class DefaultOfficerManager implements OfficerManagerInterface
         $this->warrantManager = $warrantManager;
     }
     /**
-     * Officer Assignment Implementation
-     * 
-     * Implements comprehensive officer assignment workflow including office validation,
-     * member verification, temporal management, hierarchical relationship establishment,
-     * warrant integration, and notification processing. This method handles the complete
-     * assignment business logic with comprehensive error handling and service coordination.
-     * 
-     * ## Assignment Processing Workflow
-     * 
-     * **Entity Creation and Validation**: Creates new Officer entity, validates office
-     * requirements including warrant requirements and member warrantable status,
-     * performs comprehensive validation for assignment eligibility and compliance.
-     * 
-     * **Temporal Assignment Management**: Calculates assignment end dates based on office
-     * term length configuration, determines assignment status based on temporal context,
-     * handles immediate assignments and future-dated assignments appropriately.
-     * 
-     * **Hierarchical Relationship Establishment**: Establishes deputy relationships for
-     * deputy positions, configures reporting structure based on office hierarchy,
-     * navigates branch hierarchy for proper reporting chain establishment.
-     * 
-     * **Current Officer Management**: Handles replacement scenarios for offices with
-     * only_one_per_branch constraints, automatically releases current officers when
-     * necessary, maintains organizational continuity during officer transitions.
-     * 
-     * ## Office Validation and Configuration
-     * 
-     * **Warrant Requirement Validation**: Validates warrant requirements for warrant-required
-     * offices, verifies member warrantable status, ensures compliance with warrant
-     * policies and organizational security requirements for appropriate assignments.
-     * 
-     * **Term Length Processing**: Processes office term length configuration including
-     * automatic end date calculation for term-limited offices, indefinite assignments
-     * for term-unlimited offices, and comprehensive temporal assignment coordination.
-     * 
-     * **Deputy Configuration**: Handles deputy assignment configuration including deputy
-     * description processing, deputy-to relationship establishment, hierarchical
-     * coordination, and comprehensive deputy-specific assignment management.
-     * 
-     * ## Hierarchical Management Implementation
-     * 
-     * **Reporting Structure Navigation**: Navigates branch hierarchy to establish proper
-     * reporting relationships, handles skip-reporting configurations, finds appropriate
-     * reporting targets based on organizational structure and office availability.
-     * 
-     * **Branch Hierarchy Processing**: Processes branch parent relationships, iterates
-     * through organizational hierarchy, identifies appropriate reporting levels,
-     * establishes comprehensive organizational reporting structure for assignments.
-     * 
-     * ## ActiveWindow Integration
-     * 
-     * **Temporal Assignment Processing**: Integrates with ActiveWindowManager for assignment
-     * lifecycle management, establishes temporal validation, configures automatic status
-     * transitions, and provides comprehensive temporal assignment coordination.
-     * 
-     * **Role Assignment Coordination**: Coordinates role assignment through ActiveWindow
-     * integration, manages role grants based on office configuration, establishes
-     * comprehensive role management for officer assignments and organizational security.
-     * 
-     * ## Warrant System Integration
-     * 
-     * **Automatic Warrant Request Creation**: Creates warrant requests for warrant-required
-     * offices, includes deputy description in warrant names, coordinates with WarrantManager
-     * for comprehensive warrant processing and role assignment coordination.
-     * 
-     * **Warrant Request Processing**: Processes warrant requests including warrant title
-     * generation, entity association, temporal coordination, and comprehensive warrant
-     * lifecycle management for officer assignment and security compliance.
-     * 
-     * ## Notification and Communication
-     * 
-     * **Assignment Notification Processing**: Sends assignment notifications including
-     * hire details, appointment information, warrant status, and comprehensive stakeholder
-     * communication for assignment coordination and organizational transparency.
-     * 
-     * **Email Communication Coordination**: Coordinates email notifications through
-     * queued mailer system, includes relevant assignment details, provides comprehensive
-     * communication for assignment processing and stakeholder coordination.
-     * 
-     * ## Error Handling and Validation
-     * 
-     * **Business Rule Validation**: Validates business rules including member warrantable
-     * status, office availability, assignment constraints, and organizational compliance
-     * with comprehensive validation and error reporting for reliable operations.
-     * 
-     * **Service Integration Error Handling**: Handles service integration errors including
-     * ActiveWindow failures, warrant processing errors, notification failures, and
-     * comprehensive error management for robust assignment processing and recovery.
-     * 
-     * @param int $officeId Office identifier for assignment target validation and processing
-     * @param int $memberId Member identifier for assignment subject validation and verification  
-     * @param int $branchId Branch identifier for organizational context and hierarchical processing
-     * @param DateTime $startOn Assignment start date for temporal processing and validation
-     * @param DateTime|null $endOn Optional assignment end date for temporal management
-     * @param string|null $deputyDescription Optional deputy description for hierarchical assignments
-     * @param int $approverId Approver identifier for administrative oversight and audit trails
-     * @param string|null $emailAddress Optional email address for notification coordination
-     * @return ServiceResult Comprehensive result including success status, assignment data, and error information
-     * 
-     * @since 1.0.0
-     * @version 2.0.0
+     * Assign a member to an office within a branch, persisting the Officer record,
+     * establishing reporting/deputy relationships, starting the ActiveWindow lifecycle,
+     * optionally requesting a warrant, and queuing a hire notification.
+     *
+     * @param int $officeId Office identifier for the assignment target.
+     * @param int $memberId Member identifier being assigned to the office.
+     * @param int $branchId Branch identifier providing organizational context.
+     * @param DateTime $startOn Assignment start date.
+     * @param DateTime|null $endOn Optional assignment end date; if null, may be derived from the office term length.
+     * @param string|null $deputyDescription Optional deputy description for deputy assignments.
+     * @param int $approverId Identifier of the approver performing the assignment.
+     * @param string|null $emailAddress Optional email address to store on the Officer record and use for notifications.
+     * @return ServiceResult ServiceResult with `success === true` on success; on failure `success === false` and `reason` contains an error message.
      */
     public function assign(
         int $officeId,
@@ -351,17 +263,30 @@ class DefaultOfficerManager implements OfficerManagerInterface
             $newOfficer->reports_to_office_id = $office->reports_to_id;
             $branchTable = TableRegistry::getTableLocator()->get('Branches');
             $branch = $branchTable->get($branchId);
+
             if ($branch->parent_id != null) {
+                // Use the new compatibility checking method to find the right branch
+                // This ensures the reports_to_office can actually exist in the reports_to_branch
+                $officesTable = TableRegistry::getTableLocator()->get('Officers.Offices');
+
                 if (!$office->can_skip_report) {
-                    $newOfficer->reports_to_branch_id = $branch->parent_id;
+                    // For offices that can't skip reporting, find the compatible parent branch
+                    // starting from the immediate parent
+                    $compatibleBranchId = $officesTable->findCompatibleBranchForOffice(
+                        $branch->parent_id,
+                        $office->reports_to_id
+                    );
+                    $newOfficer->reports_to_branch_id = $compatibleBranchId;
                 } else {
-                    //iterate through the parents till we find one that has this office or the root
+                    // For offices that can skip reporting, first try to find a branch
+                    // where this office is actually filled
                     $currentBranchId = $branch->parent_id;
                     $previousBranchId = $branchId;
                     $setReportsToBranch = false;
+
                     while ($currentBranchId != null) {
                         $officersCount = $officerTable->find('Current')
-                            ->where(['branch_id' => $currentBranchId, 'office_id' => $officeId])
+                            ->where(['branch_id' => $currentBranchId, 'office_id' => $office->reports_to_id])
                             ->count();
                         if ($officersCount > 0) {
                             $newOfficer->reports_to_branch_id = $currentBranchId;
@@ -372,8 +297,14 @@ class DefaultOfficerManager implements OfficerManagerInterface
                         $currentBranch = $branchTable->get($currentBranchId);
                         $currentBranchId = $currentBranch->parent_id;
                     }
+
+                    // If no filled office found, use compatibility checking
                     if (!$setReportsToBranch) {
-                        $newOfficer->reports_to_branch_id = $previousBranchId;
+                        $compatibleBranchId = $officesTable->findCompatibleBranchForOffice(
+                            $previousBranchId,
+                            $office->reports_to_id
+                        );
+                        $newOfficer->reports_to_branch_id = $compatibleBranchId;
                     }
                 }
             } else {

@@ -21,6 +21,13 @@ The Kingdom Management Portal (KMP) employs a sophisticated plugin architecture 
 - [Development Best Practices](#development-best-practices)
 - [Troubleshooting](#troubleshooting)
 - [Individual Plugin Documentation](#individual-plugin-documentation)
+  - [Officers Plugin](5.1-officers-plugin.md)
+  - [Awards Plugin](5.2-awards-plugin.md)
+  - [Queue Plugin](5.3-queue-plugin.md)
+  - [GitHub Issue Submitter](5.4-github-issue-submitter-plugin.md)
+  - [Bootstrap Plugin](5.5-bootstrap-plugin.md)
+  - [Activities Plugin](5.6-activities-plugin.md)
+  - [Waivers Plugin](5.7-waivers-plugin.md)
 
 ## Core Plugin Infrastructure
 
@@ -745,6 +752,7 @@ The following plugins are documented in detail in separate files to facilitate c
 - **[5.1 Officers Plugin](5.1-officers-plugin.md)** - Officer structure, responsibilities, and hierarchy management
 - **[5.2 Awards Plugin](5.2-awards-plugin.md)** - Award recommendation and processing system
 - **[5.6 Activities Plugin](5.6-activities-plugin.md)** - Comprehensive authorization management system
+- **[5.7 Waivers Plugin](5.7-waivers-plugin.md)** - Waiver upload, tracking, and compliance management for gatherings
 
 ### Utility and Infrastructure Plugins
 

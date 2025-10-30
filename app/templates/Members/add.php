@@ -18,7 +18,8 @@ $this->KMP->endBlock(); ?>
 <div class="Members form content">
     <?= $this->Form->create($member) ?>
     <fieldset>
-        <legend><?= __("Add Member") ?></legend>
+        <legend><a href="#" onclick="window.history.back(); return false;" class="bi bi-arrow-left-circle"></a>
+            <?= __("Add Member") ?></legend>
         <?php
         echo $this->Form->control("title");
         echo $this->Form->control("sca_name");

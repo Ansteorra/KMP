@@ -32,4 +32,13 @@ return [
     'Awards' => [
         'migrationOrder' => 3,
     ],
+    'Waivers' => [
+        'migrationOrder' => 4,
+    ],
+    //'Events' => [
+    //    'migrationOrder' => 5,
+    //],
+    //'Template' => [
+    //    'migrationOrder' => 6,
+    //],
 ];

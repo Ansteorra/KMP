@@ -1,4 +1,4 @@
-import { Controller } from "@hotwired/stimulus"
+import { Controller } from "@hotwired/stimulus";
 
 /**
  * MemberMobileCardProfile Stimulus Controller
@@ -58,6 +58,24 @@ class MemberMobileCardProfile extends Controller {
     initialize() {
         this.currentCard = null;
         this.cardCount = 0;
+        
+        // Listen for PWA ready event
+        this.handlePwaReady = this.handlePwaReady.bind(this);
+    }
+
+    /**
+     * Disconnect controller from DOM
+     * Cleans up event listeners
+     */
+    disconnect() {
+        this.element.removeEventListener('pwa-ready', this.handlePwaReady);
+    }
+
+    /**
+     * Handle PWA ready event from PWA controller
+     */
+    handlePwaReady() {
+        this.pwaReadyValue = true;
     }
 
     /**
@@ -92,7 +110,6 @@ class MemberMobileCardProfile extends Controller {
      * Triggers card loading when PWA becomes available
      */
     pwaReadyValueChanged() {
-        console.log("pwaReadyValueChanged");
         if (this.pwaReadyValue) {
             this.loadCard();
         }
@@ -122,13 +139,15 @@ class MemberMobileCardProfile extends Controller {
         this.loadingTarget.hidden = false;
         this.memberDetailsTarget.hidden = true;
         if (!this.pwaReadyValue) {
-            console.log("PWA not ready");
             return;
-        } else {
-            console.log("PWA ready");
         }
         fetch(this.urlValue, this.optionsForFetch())
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
                 this.loadingTarget.hidden = true;
                 this.memberDetailsTarget.hidden = false;
@@ -232,16 +251,26 @@ class MemberMobileCardProfile extends Controller {
                         this.currentCard.appendChild(groupTable);
                     }
                 }
+            })
+            .catch(error => {
+                console.error("Error loading card:", error);
+                this.loadingTarget.hidden = true;
+                this.memberDetailsTarget.hidden = false;
+                this.nameTarget.textContent = "Error loading card data";
             });
     }
 
     /**
      * Connect controller to DOM
-     * Initializes mobile profile card interface
+     * Initializes mobile profile card interface and sets up PWA event listener
      */
     connect() {
-        console.log("MemberMobileCardProfile connected");
-        //this.loadCard();
+        this.element.addEventListener('pwa-ready', this.handlePwaReady);
+        
+        // Check if PWA is already ready (event may have fired before we connected)
+        if (this.pwaReadyValue) {
+            this.loadCard();
+        }
     }
 
 }

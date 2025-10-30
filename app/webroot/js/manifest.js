@@ -20,7 +20,7 @@
 /******/ 		};
 /******/ 	
 /******/ 		// Execute the module function
-/******/ 		__webpack_modules__[moduleId](module, module.exports, __webpack_require__);
+/******/ 		__webpack_modules__[moduleId].call(module.exports, module, module.exports, __webpack_require__);
 /******/ 	
 /******/ 		// Return the exports of the module
 /******/ 		return module.exports;
@@ -61,6 +61,18 @@
 /******/ 				}
 /******/ 			}
 /******/ 			return result;
+/******/ 		};
+/******/ 	}();
+/******/ 	
+/******/ 	/* webpack/runtime/compat get default export */
+/******/ 	!function() {
+/******/ 		// getDefaultExport function for compatibility with non-harmony modules
+/******/ 		__webpack_require__.n = function(module) {
+/******/ 			var getter = module && module.__esModule ?
+/******/ 				function() { return module['default']; } :
+/******/ 				function() { return module; };
+/******/ 			__webpack_require__.d(getter, { a: getter });
+/******/ 			return getter;
 /******/ 		};
 /******/ 	}();
 /******/ 	
@@ -114,9 +126,11 @@
 /******/ 		var installedChunks = {
 /******/ 			"/js/manifest": 0,
 /******/ 			"css/app": 0,
+/******/ 			"css/waivers": 0,
 /******/ 			"css/dashboard": 0,
 /******/ 			"css/cover": 0,
-/******/ 			"css/signin": 0
+/******/ 			"css/signin": 0,
+/******/ 			"css/waiver-upload": 0
 /******/ 		};
 /******/ 		
 /******/ 		// no chunk on demand loading

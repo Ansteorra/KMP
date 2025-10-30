@@ -10,6 +10,7 @@ use Cake\I18n\DateTime;
 use App\KMP\StaticHelpers;
 use Authorization\Exception\ForbiddenException;
 use Cake\Log\Log;
+use Cake\ORM\TableRegistry;
 use Exception;
 use PhpParser\Node\Stmt\TryCatch;
 use App\Services\CsvExportService;
@@ -637,159 +638,19 @@ class RecommendationsController extends AppController
     }
 
     /**
-     * Bulk state transition management for multiple recommendations
-     * 
-     * Provides comprehensive bulk update capabilities for recommendation state management,
-     * enabling administrative users to efficiently process multiple recommendations
-     * simultaneously. This method implements transactional bulk operations with
-     * comprehensive validation, audit trail integration, and error recovery mechanisms
-     * to ensure data integrity during large-scale workflow operations.
-     * 
-     * ## Bulk Operation Architecture
-     * 
-     * ### Multi-Recommendation Processing
-     * - **Batch Selection**: Process multiple recommendations in a single operation
-     * - **State Synchronization**: Coordinate state/status mapping for consistency
-     * - **Atomic Transactions**: Ensure all-or-nothing processing for data integrity
-     * - **Performance Optimization**: Efficient bulk database operations
-     * 
-     * ### Operation Types
-     * - **State Transitions**: Change recommendation states in bulk
-     * - **Event Assignment**: Assign recommendations to award ceremonies
-     * - **Date Management**: Update given dates for ceremony coordination
-     * - **Administrative Notes**: Add bulk notes for operational tracking
-     * 
-     * ## Transaction Management
-     * 
-     * ### ACID Compliance
-     * - **Atomic Operations**: All updates succeed or all fail together
-     * - **Consistency Validation**: Ensure state transitions follow business rules
-     * - **Isolation Control**: Prevent concurrent modification conflicts
-     * - **Durability Guarantee**: Permanent storage of successful operations
-     * 
-     * ### Error Recovery
-     * - **Automatic Rollback**: Complete rollback on any operation failure
-     * - **Partial Success Handling**: Clear indication of which operations succeeded
-     * - **Data Integrity Protection**: Prevent partial updates that corrupt workflow state
-     * - **Error Logging**: Comprehensive logging for troubleshooting failed operations
-     * 
-     * ## State Management Integration
-     * 
-     * ### State/Status Mapping
-     * - **Automatic Resolution**: Map states to appropriate status categories
-     * - **Validation Logic**: Ensure state transitions are valid per business rules
-     * - **Consistency Enforcement**: Maintain status/state relationship integrity
-     * - **Business Rule Application**: Apply workflow rules during transitions
-     * 
-     * ### Supported State Changes
-     * - **Workflow Progression**: Move recommendations through approval workflow
-     * - **Administrative Actions**: Administrative state changes for process management
-     * - **Ceremony Assignment**: Assign approved recommendations to specific events
-     * - **Final Disposition**: Mark recommendations as complete or closed
-     * 
-     * ## Data Enhancement Operations
-     * 
-     * ### Event Assignment
-     * - **Ceremony Coordination**: Assign recommendations to award ceremonies
-     * - **Scheduling Integration**: Coordinate with event scheduling system
-     * - **Capacity Management**: Respect event capacity constraints
-     * - **Conflict Resolution**: Handle scheduling conflicts and constraints
-     * 
-     * ### Date Management
-     * - **Given Date Updates**: Record actual award presentation dates
-     * - **Temporal Validation**: Ensure dates are logical and consistent
-     * - **Historical Tracking**: Maintain historical record of date changes
-     * - **Scheduling Coordination**: Integrate with event scheduling systems
-     * 
-     * ### Note Integration
-     * - **Bulk Annotation**: Add administrative notes to multiple recommendations
-     * - **Audit Trail**: Comprehensive audit trail for bulk operations
-     * - **Attribution Tracking**: Track which user performed bulk operations
-     * - **Content Management**: Standardized note format for bulk operations
-     * 
-     * ## Authorization & Security
-     * 
-     * ### Permission Validation
-     * - **Bulk Operation Authorization**: Verify user can perform bulk operations
-     * - **State Transition Permissions**: Validate permissions for target states
-     * - **Administrative Access**: Ensure appropriate authorization level
-     * - **Data Access Control**: Validate access to all affected recommendations
-     * 
-     * ### Security Considerations
-     * - **Input Validation**: Comprehensive validation of all bulk operation parameters
-     * - **SQL Injection Prevention**: Parameterized queries for all database operations
-     * - **Authorization Checking**: Per-recommendation authorization validation
-     * - **Audit Logging**: Complete audit trail for security and compliance
-     * 
-     * ## User Interface Integration
-     * 
-     * ### Form Processing
-     * - **Multi-Selection Support**: Handle form data for multiple selected recommendations
-     * - **Parameter Validation**: Validate all form parameters before processing
-     * - **Error Feedback**: Provide clear feedback for validation errors
-     * - **Success Confirmation**: Confirm successful operations to users
-     * 
-     * ### Turbo Frame Support
-     * - **Partial Page Updates**: Support for Turbo Frame partial updates
-     * - **Response Handling**: Appropriate response format for different request types
-     * - **User Experience**: Seamless user experience for bulk operations
-     * - **Progress Feedback**: Real-time feedback during bulk processing
-     * 
-     * ## Performance Optimization
-     * 
-     * ### Efficient Database Operations
-     * - **Bulk Updates**: Use efficient bulk update operations where possible
-     * - **Selective Loading**: Load only required data for bulk operations
-     * - **Index Utilization**: Optimize queries for database index usage
-     * - **Memory Management**: Efficient memory usage for large bulk operations
-     * 
-     * ### Scalability Considerations
-     * - **Batch Size Limits**: Respect practical limits for bulk operation size
-     * - **Resource Management**: Efficient use of database connections and memory
-     * - **Performance Monitoring**: Track performance of bulk operations
-     * - **Optimization Strategies**: Continuous optimization for better performance
-     * 
-     * ## Error Handling & Recovery
-     * 
-     * ### Comprehensive Error Management
-     * - **Validation Errors**: Clear messaging for validation failures
-     * - **Database Errors**: Robust handling of database operation failures
-     * - **Business Logic Errors**: Proper handling of workflow rule violations
-     * - **System Errors**: Safe handling of unexpected system errors
-     * 
-     * ### User Communication
-     * - **Success Messages**: Clear confirmation of successful operations
-     * - **Error Messages**: Helpful error messages for failed operations
-     * - **Partial Success**: Clear indication when some operations succeed/fail
-     * - **Guidance Messaging**: Guidance for resolving error conditions
-     * 
-     * ## Usage Examples
-     * 
-     * ```php
-     * // Bulk approve recommendations
-     * POST /awards/recommendations/updateStates
-     * Body: {
-     *   'ids': '1,2,3,4',
-     *   'newState': 'Approved',
-     *   'event_id': '5',
-     *   'note': 'Bulk approved for ceremony'
-     * }
-     * 
-     * // Bulk ceremony assignment
-     * POST /awards/recommendations/updateStates
-     * Body: {
-     *   'ids': '10,11,12',
-     *   'newState': 'AssignedToCeremony',
-     *   'event_id': '3',
-     *   'given': '2024-02-15'
-     * }
-     * ```
-     * 
-     * @return \Cake\Http\Response|null Redirects to configured page or back to current view
-     * 
-     * @see \Awards\Model\Entity\Recommendation::getStatuses() For state/status mapping
+     * Perform a transactional bulk state transition and related updates for multiple recommendations.
+     *
+     * Updates the selected recommendations' state and corresponding status, and optionally sets
+     * gathering assignment, given date, and close reason. When a note is provided, an administrative
+     * note is created for each affected recommendation attributed to the current user. All changes
+     * are applied inside a transaction and will be committed on success or rolled back on failure.
+     *
+     * Redirects to the provided current_page request value when present, otherwise redirects to the
+     * table view for the current view/status. Flash messages are set to indicate success or failure.
+     *
+     * @return \Cake\Http\Response|null Redirects to configured page or back to table view
+     * @see \Awards\Model\Entity\Recommendation::getStatuses() For state → status mapping
      * @see \Awards\Model\Table\NotesTable For note creation and management
-     * @see runTable() For return to table view after operations
      */
     public function updateStates(): ?\Cake\Http\Response
     {
@@ -803,7 +664,7 @@ class RecommendationsController extends AppController
 
         $ids = explode(',', $this->request->getData('ids'));
         $newState = $this->request->getData('newState');
-        $event_id = $this->request->getData('event_id');
+        $gathering_id = $this->request->getData('gathering_id');
         $given = $this->request->getData('given');
         $note = $this->request->getData('note');
         $close_reason = $this->request->getData('close_reason');
@@ -832,8 +693,8 @@ class RecommendationsController extends AppController
                     'status' => $newStatus
                 ];
 
-                if ($event_id) {
-                    $updateFields['event_id'] = $event_id;
+                if ($gathering_id) {
+                    $updateFields['gathering_id'] = $gathering_id;
                 }
 
                 if ($given) {
@@ -885,137 +746,19 @@ class RecommendationsController extends AppController
     }
 
     /**
-     * Comprehensive recommendation detail display with workflow context
-     * 
-     * Provides detailed view of individual recommendations with complete context
-     * including member information, award details, workflow history, and related
-     * data. This method serves as the primary interface for detailed recommendation
-     * review, enabling users to access all relevant information for informed
-     * decision-making during the recommendation workflow process.
-     * 
-     * ## Data Presentation Architecture
-     * 
-     * ### Comprehensive Data Loading
-     * - **Primary Entities**: Recommendation with all core attributes
-     * - **Relationship Data**: Complete loading of related entities (Members, Awards, etc.)
-     * - **Workflow Context**: State history and transition information
-     * - **Administrative Data**: Creation, modification, and assignment details
-     * 
-     * ### Association Management
-     * - **Member Details**: Complete member profile integration
-     * - **Award Information**: Full award hierarchy and specification details
-     * - **Event Context**: Related events and ceremony information
-     * - **Branch Integration**: Branch hierarchy and organizational context
-     * 
-     * ## Authorization & Access Control
-     * 
-     * ### View Authorization
-     * - **Entity-Level Permissions**: Authorization specific to the recommendation
-     * - **Contextual Access**: Access control based on recommendation state and user role
-     * - **Data Visibility**: Sensitive information filtered based on permissions
-     * - **Operation Availability**: Available actions determined by authorization level
-     * 
-     * ### Security Considerations
-     * - **Direct Access Protection**: Prevent unauthorized direct URL access
-     * - **Data Filtering**: Filter sensitive data based on user permissions
-     * - **Audit Logging**: Log access to recommendation details for security tracking
-     * - **Permission Integration**: Deep integration with RBAC permission system
-     * 
-     * ## Workflow Integration
-     * 
-     * ### State Context Display
-     * - **Current State**: Clear indication of current workflow state
-     * - **Available Transitions**: Display of available next states
-     * - **Business Rules**: Integration with workflow business rules
-     * - **Historical Context**: Access to state transition history
-     * 
-     * ### Domain Integration
-     * - **Award Hierarchy**: Display award domain for contextual navigation
-     * - **Specialty Information**: Award specialty details and requirements
-     * - **Branch Context**: Branch-specific award information
-     * - **Event Coordination**: Related event and ceremony information
-     * 
-     * ## User Experience Design
-     * 
-     * ### Comprehensive Information Display
-     * - **Member Profile**: Complete member information and preferences
-     * - **Award Details**: Full award specification and requirements
-     * - **Submission Context**: Original submission details and reasoning
-     * - **Administrative Data**: Creation, modification, and workflow tracking
-     * 
-     * ### Navigation Integration
-     * - **Contextual Navigation**: Navigation options based on current state
-     * - **Related Records**: Links to related recommendations, members, awards
-     * - **Workflow Actions**: Available workflow actions for current user
-     * - **Administrative Tools**: Administrative functions for authorized users
-     * 
-     * ## Error Handling & Recovery
-     * 
-     * ### Not Found Handling
-     * - **Record Validation**: Verify recommendation exists before processing
-     * - **Soft Deletion**: Handle soft-deleted recommendations appropriately
-     * - **Permission Failures**: Graceful handling of authorization failures
-     * - **User Feedback**: Clear messaging for various error conditions
-     * 
-     * ### Exception Management
-     * - **Database Errors**: Robust handling of database access errors
-     * - **Authorization Errors**: Proper handling of permission failures
-     * - **System Errors**: Safe error handling with user-friendly messaging
-     * - **Logging Integration**: Comprehensive error logging for troubleshooting
-     * 
-     * ## Performance Optimization
-     * 
-     * ### Efficient Data Loading
-     * - **Selective Containments**: Load only required relationship data
-     * - **Query Optimization**: Optimized queries for minimal database impact
-     * - **Caching Strategy**: Strategic caching of frequently accessed data
-     * - **Association Management**: Efficient loading of related entities
-     * 
-     * ### Response Optimization
-     * - **Data Processing**: Efficient processing of loaded data for display
-     * - **Template Optimization**: Optimized view templates for performance
-     * - **Resource Management**: Efficient use of server resources
-     * - **User Experience**: Fast response times for better user experience
-     * 
-     * ## Integration Points
-     * 
-     * ### System Integration
-     * - **Member Management**: Integration with member profile system
-     * - **Award System**: Deep integration with award hierarchy system
-     * - **Event Management**: Integration with event and ceremony systems
-     * - **Note System**: Integration with note and comment systems
-     * 
-     * ### Workflow Integration
-     * - **State Machine**: Integration with recommendation state machine
-     * - **Business Rules**: Enforcement of workflow business rules
-     * - **Audit System**: Integration with audit and logging systems
-     * - **Notification System**: Integration with workflow notifications
-     * 
-     * ## Usage Examples
-     * 
-     * ```php
-     * // View specific recommendation
-     * GET /awards/recommendations/view/123
-     * 
-     * // View with workflow context
-     * $controller->view('123'); // Returns complete recommendation context
-     * 
-     * // Administrative view
-     * GET /awards/recommendations/view/456?admin=true
-     * ```
-     * 
-     * @param string|null $id Recommendation ID to display
-     * @return \Cake\Http\Response|null|void Renders detailed view template
-     * @throws \Cake\Http\Exception\NotFoundException When recommendation not found or inaccessible
-     * 
-     * @see \Awards\Model\Entity\Recommendation For recommendation entity structure
-     * @see \Authorization\AuthorizationServiceInterface For authorization integration
-     * @see edit() For recommendation modification capabilities
+     * Display a single recommendation with its workflow context and related entities.
+     *
+     * Loads the recommendation together with related data (requester, member, branch, award, gatherings)
+     * and authorizes view access before exposing the entity to the view layer.
+     *
+     * @param string|null $id The recommendation ID to display.
+     * @return \Cake\Http\Response|null The response for the rendered view, or null if the controller does not return a response.
+     * @throws \Cake\Http\Exception\NotFoundException If the recommendation does not exist or is inaccessible.
      */
     public function view(?string $id = null): ?\Cake\Http\Response
     {
         try {
-            $recommendation = $this->Recommendations->get($id, contain: ['Requesters', 'Members', 'Branches', 'Awards', 'Events', 'ScheduledEvent']);
+            $recommendation = $this->Recommendations->get($id, contain: ['Requesters', 'Members', 'Branches', 'Awards', 'Gatherings', 'AssignedGathering']);
             if (!$recommendation) {
                 throw new \Cake\Http\Exception\NotFoundException(__('Recommendation not found'));
             }
@@ -1030,174 +773,16 @@ class RecommendationsController extends AppController
     }
 
     /**
-     * Authenticated recommendation submission with member integration
-     * 
-     * Provides comprehensive recommendation submission interface for authenticated
-     * users, featuring automatic member data integration, award validation, event
-     * coordination, and initial state management. This method implements the primary
-     * recommendation creation workflow for logged-in members, with sophisticated
-     * data validation, member preference synchronization, and workflow initialization.
-     * 
-     * ## Submission Workflow Architecture
-     * 
-     * ### Authentication Integration
-     * - **User Context**: Automatic requester identification from authentication
-     * - **Profile Integration**: Synchronization with user profile data
-     * - **Permission Validation**: Authorization check for recommendation submission
-     * - **Session Management**: Secure session-based user identification
-     * 
-     * ### Member Data Integration
-     * - **Automatic Population**: Auto-populate requester information from user profile
-     * - **Contact Synchronization**: Sync contact information from member profile
-     * - **Preference Loading**: Load member-specific award and ceremony preferences
-     * - **Branch Resolution**: Automatic branch assignment based on member data
-     * 
-     * ## Form Processing & Validation
-     * 
-     * ### Input Processing
-     * - **Entity Patching**: Secure entity patching with validation
-     * - **Data Sanitization**: Comprehensive input sanitization and validation
-     * - **Business Rule Validation**: Application of recommendation business rules
-     * - **Specialty Handling**: Special processing for award specialty selections
-     * 
-     * ### Member Integration Logic
-     * - **Member Selection**: Handle both existing member and "not found" scenarios
-     * - **Profile Synchronization**: Sync selected member's profile data
-     * - **Preference Integration**: Load member court and ceremony preferences
-     * - **Branch Assignment**: Automatic branch assignment from member data
-     * 
-     * ## Court Preference Management
-     * 
-     * ### Additional Info Integration
-     * - **Court Call Preferences**: Integration with member court call preferences
-     * - **Availability Settings**: Sync court availability from member profile
-     * - **Notification Contacts**: Load person-to-notify information from member data
-     * - **Default Handling**: Appropriate defaults for missing preference data
-     * 
-     * ### Preference Processing
-     * - **Data Extraction**: Extract preferences from member additional_info field
-     * - **Validation Logic**: Validate preference data for consistency
-     * - **Default Assignment**: Assign appropriate defaults for missing preferences
-     * - **Error Handling**: Graceful handling of preference loading errors
-     * 
-     * ## State Initialization
-     * 
-     * ### Workflow State Setup
-     * - **Initial Status**: Automatic assignment of initial workflow status
-     * - **State Assignment**: Set initial state based on workflow configuration
-     * - **Timestamp Management**: Record state date for workflow tracking
-     * - **Status Coordination**: Ensure status/state consistency
-     * 
-     * ### Workflow Integration
-     * - **Business Rules**: Apply initial workflow business rules
-     * - **State Machine**: Initialize recommendation in state machine
-     * - **Audit Trail**: Create initial audit trail entries
-     * - **Notification Setup**: Initialize notification workflows
-     * 
-     * ## Transaction Management
-     * 
-     * ### Data Consistency
-     * - **Atomic Operations**: Ensure recommendation creation is atomic
-     * - **Referential Integrity**: Maintain referential integrity with related entities
-     * - **Error Recovery**: Complete rollback on any operation failure
-     * - **Consistency Validation**: Validate data consistency before commit
-     * 
-     * ### Member Data Synchronization
-     * - **Profile Loading**: Secure loading of member profile data
-     * - **Preference Extraction**: Safe extraction of preference data
-     * - **Error Handling**: Graceful handling of member data loading errors
-     * - **Fallback Strategies**: Appropriate fallbacks for missing member data
-     * 
-     * ## Form Data Preparation
-     * 
-     * ### Dropdown Population
-     * - **Award Hierarchy**: Load awards, domains, and levels for selection
-     * - **Branch Management**: Load eligible branches with member capability flags
-     * - **Event Integration**: Load available events for recommendation assignment
-     * - **Dynamic Loading**: Efficient loading of form option data
-     * 
-     * ### Data Formatting
-     * - **Branch Formatting**: Special formatting for branch selection with metadata
-     * - **Event Formatting**: Descriptive formatting for event selection
-     * - **Award Organization**: Hierarchical organization of award options
-     * - **User Experience**: Optimized data presentation for form usability
-     * 
-     * ## Authorization & Security
-     * 
-     * ### Permission Validation
-     * - **Submission Authorization**: Verify user can submit recommendations
-     * - **Member Access**: Validate access to selected member data
-     * - **Award Permissions**: Ensure user can nominate for selected awards
-     * - **Event Access**: Validate access to selected events
-     * 
-     * ### Data Security
-     * - **Input Validation**: Comprehensive validation of all form inputs
-     * - **SQL Injection Prevention**: Parameterized queries for all database operations
-     * - **Data Sanitization**: Proper sanitization of user input data
-     * - **Authorization Checking**: Multi-level authorization validation
-     * 
-     * ## Navigation & User Experience
-     * 
-     * ### Post-Submission Navigation
-     * - **Success Redirect**: Conditional redirect based on user permissions
-     * - **View Access**: Redirect to recommendation view if user has access
-     * - **Profile Fallback**: Fallback to user profile for limited access users
-     * - **Context Preservation**: Maintain user context through navigation
-     * 
-     * ### Error Handling
-     * - **Validation Errors**: Clear presentation of validation errors
-     * - **System Errors**: Graceful handling of system errors
-     * - **User Feedback**: Comprehensive user feedback through Flash messages
-     * - **Recovery Guidance**: Clear guidance for error recovery
-     * 
-     * ## Performance Optimization
-     * 
-     * ### Efficient Data Loading
-     * - **Selective Queries**: Load only required data for form population
-     * - **Optimized Associations**: Efficient loading of related entities
-     * - **Caching Strategy**: Strategic caching of frequently used data
-     * - **Query Optimization**: Optimized queries for responsive user experience
-     * 
-     * ### Resource Management
-     * - **Memory Efficiency**: Efficient memory usage during data processing
-     * - **Connection Management**: Proper database connection management
-     * - **Transaction Optimization**: Optimized transaction handling
-     * - **Response Time**: Fast response times for better user experience
-     * 
-     * ## Integration Points
-     * 
-     * ### System Integration
-     * - **Member Management**: Deep integration with member profile system
-     * - **Award System**: Integration with award hierarchy and validation
-     * - **Event System**: Integration with event management system
-     * - **Notification System**: Integration with workflow notifications
-     * 
-     * ### Workflow Integration
-     * - **State Machine**: Integration with recommendation state machine
-     * - **Business Rules**: Enforcement of submission business rules
-     * - **Audit System**: Integration with audit and logging systems
-     * - **Authorization System**: Deep integration with RBAC system
-     * 
-     * ## Usage Examples
-     * 
-     * ```php
-     * // Standard recommendation submission
-     * GET /awards/recommendations/add
-     * POST /awards/recommendations/add
-     * 
-     * // Programmatic submission
-     * $controller->add(); // Displays form or processes submission
-     * 
-     * // With pre-selected award
-     * GET /awards/recommendations/add?award_id=123
-     * ```
-     * 
-     * @return \Cake\Http\Response|null|void Redirects on successful submission or renders form
-     * 
-     * @see submitRecommendation() For unauthenticated public submission workflow
+     * Display the recommendation submission form for authenticated users and process posted submissions.
+     *
+     * Creates a new Recommendation linked to the current user, optionally associates member data and preferences,
+     * initializes workflow state fields and court preference defaults, saves the record within a database transaction,
+     * and either redirects on success or re-renders the form with dropdown data (awards, domains, levels, branches, gatherings).
+     *
+     * @return \Cake\Http\Response|null|void Redirects on successful submission or renders the form on GET / validation failure
+     * @see submitRecommendation() For the unauthenticated public submission workflow
      * @see view() For recommendation detail display after submission
      * @see \Awards\Model\Entity\Recommendation For recommendation entity structure
-     * @see \Awards\Model\Entity\Recommendation::getStatuses() For workflow state management
      */
     public function add(): ?\Cake\Http\Response
     {
@@ -1291,25 +876,25 @@ class RecommendationsController extends AppController
 
             $awards = $this->Recommendations->Awards->find('list', limit: 200)->all();
 
-            $eventsData = $this->Recommendations->Events->find()
+            $gatheringsTable = TableRegistry::getTableLocator()->get('Gatherings');
+            $gatheringsData = $gatheringsTable->find()
                 ->contain(['Branches' => function ($q) {
                     return $q->select(['id', 'name']);
                 }])
                 ->where([
                     'start_date >' => DateTime::now(),
-                    'OR' => ['closed' => false, 'closed IS' => null]
                 ])
                 ->select(['id', 'name', 'start_date', 'end_date', 'Branches.name'])
                 ->orderBy(['start_date' => 'ASC'])
                 ->all();
 
-            $events = [];
-            foreach ($eventsData as $event) {
-                $events[$event->id] = $event->name . ' in ' . $event->branch->name . ' on '
-                    . $event->start_date->toDateString() . ' - ' . $event->end_date->toDateString();
+            $gatherings = [];
+            foreach ($gatheringsData as $gathering) {
+                $gatherings[$gathering->id] = $gathering->name . ' in ' . $gathering->branch->name . ' on '
+                    . $gathering->start_date->toDateString() . ' - ' . $gathering->end_date->toDateString();
             }
 
-            $this->set(compact('recommendation', 'branches', 'awards', 'events', 'awardsDomains', 'awardsLevels'));
+            $this->set(compact('recommendation', 'branches', 'awards', 'gatherings', 'awardsDomains', 'awardsLevels'));
             return null;
         } catch (\Exception $e) {
             $this->Recommendations->getConnection()->rollback();
@@ -1320,172 +905,15 @@ class RecommendationsController extends AppController
     }
 
     /**
-     * Public recommendation submission without authentication requirements
-     * 
-     * Enables community members without KMP system accounts to submit award
-     * recommendations through a public interface. This method implements a
-     * guest submission workflow that maintains data integrity and security
-     * while providing accessibility for external community participation
-     * in the award recommendation process.
-     * 
-     * ## Public Access Architecture
-     * 
-     * ### Authentication Bypass
-     * - **Skip Authorization**: Explicit authorization skip for public access
-     * - **Guest Detection**: Automatic detection of unauthenticated users
-     * - **Redirect Logic**: Redirect authenticated users to standard submission
-     * - **Security Considerations**: Maintain security despite public access
-     * 
-     * ### Guest Workflow Management
-     * - **Anonymous Submission**: Handle submissions without user accounts
-     * - **Contact Information**: Require comprehensive contact information
-     * - **Validation Enhancement**: Enhanced validation for guest submissions
-     * - **Moderation Queue**: Special handling for guest-submitted recommendations
-     * 
-     * ## Enhanced Validation & Security
-     * 
-     * ### Input Validation
-     * - **Comprehensive Validation**: Enhanced validation for untrusted input
-     * - **Data Sanitization**: Aggressive sanitization of all user input
-     * - **Business Rule Enforcement**: Strict enforcement of recommendation rules
-     * - **Spam Prevention**: Integration with anti-spam measures
-     * 
-     * ### Security Measures
-     * - **Rate Limiting**: Protection against submission abuse
-     * - **Input Filtering**: Comprehensive filtering of malicious input
-     * - **Audit Logging**: Enhanced logging for security monitoring
-     * - **Validation Bypass Prevention**: Prevent validation bypass attempts
-     * 
-     * ## Requester Information Management
-     * 
-     * ### Anonymous Requester Handling
-     * - **External Requester**: Handle requesters not in member database
-     * - **Contact Validation**: Validate contact information thoroughly
-     * - **SCA Name Resolution**: Handle SCA name lookup and validation
-     * - **Information Completion**: Ensure all required information collected
-     * 
-     * ### Member Integration
-     * - **Member Lookup**: Attempt to link to existing member records
-     * - **Profile Synchronization**: Sync data when member match found
-     * - **Preference Integration**: Load member preferences when available
-     * - **Data Consistency**: Maintain consistency between systems
-     * 
-     * ## Transaction & Data Management
-     * 
-     * ### Enhanced Transaction Handling
-     * - **Atomic Operations**: Ensure submission atomicity for data integrity
-     * - **Error Recovery**: Comprehensive error recovery for failed submissions
-     * - **Data Validation**: Multi-level validation before commit
-     * - **Rollback Safety**: Safe rollback on any operation failure
-     * 
-     * ### Member Data Integration
-     * - **Profile Loading**: Safe loading of member profile data when available
-     * - **Preference Extraction**: Extract member preferences safely
-     * - **Default Assignment**: Appropriate defaults for missing data
-     * - **Error Tolerance**: Graceful handling of member data loading errors
-     * 
-     * ## Form Data & User Experience
-     * 
-     * ### Enhanced Form Presentation
-     * - **Guest Interface**: Specialized interface for guest users
-     * - **Header Graphics**: Branded header for public interface
-     * - **Help Information**: Enhanced help and guidance for external users
-     * - **Accessibility**: Ensure accessibility for diverse user base
-     * 
-     * ### Data Preparation
-     * - **Comprehensive Options**: Full range of awards, events, and branches
-     * - **Descriptive Formatting**: Enhanced descriptions for guest users
-     * - **Filtering Logic**: Appropriate filtering for public access
-     * - **User Guidance**: Clear guidance for form completion
-     * 
-     * ## State Initialization & Workflow
-     * 
-     * ### Guest Submission State
-     * - **Initial State**: Appropriate initial state for guest submissions
-     * - **Moderation Queue**: Integration with moderation workflows
-     * - **Review Process**: Enhanced review process for guest submissions
-     * - **Approval Chain**: Specialized approval chain for external submissions
-     * 
-     * ### Workflow Integration
-     * - **State Machine**: Proper integration with recommendation state machine
-     * - **Business Rules**: Application of business rules for guest submissions
-     * - **Audit Trail**: Comprehensive audit trail for guest submissions
-     * - **Notification System**: Integration with notification workflows
-     * 
-     * ## Court Preference Handling
-     * 
-     * ### Default Preference Management
-     * - **Safe Defaults**: Appropriate defaults for court preferences
-     * - **Member Integration**: Load preferences when member data available
-     * - **Validation Logic**: Validate preference data consistency
-     * - **Error Handling**: Graceful handling of preference loading errors
-     * 
-     * ### Additional Information Processing
-     * - **Profile Synchronization**: Sync with member additional_info when available
-     * - **Preference Extraction**: Safe extraction of court preferences
-     * - **Default Assignment**: Assign appropriate defaults for missing data
-     * - **Consistency Maintenance**: Maintain data consistency across systems
-     * 
-     * ## Error Handling & Recovery
-     * 
-     * ### Comprehensive Error Management
-     * - **Validation Errors**: Clear presentation of validation errors
-     * - **System Errors**: Graceful handling of system errors
-     * - **Database Errors**: Robust handling of database operation failures
-     * - **User Communication**: Clear error messaging for guest users
-     * 
-     * ### Recovery Strategies
-     * - **Automatic Retry**: Automatic retry for transient errors
-     * - **Data Preservation**: Preserve user input during error recovery
-     * - **Guidance Provision**: Clear guidance for error resolution
-     * - **Support Integration**: Integration with support systems
-     * 
-     * ## Performance & Scalability
-     * 
-     * ### Guest Access Optimization
-     * - **Efficient Loading**: Optimized data loading for guest interface
-     * - **Caching Strategy**: Strategic caching for frequently accessed data
-     * - **Response Optimization**: Fast response times for public interface
-     * - **Resource Management**: Efficient use of server resources
-     * 
-     * ### Abuse Prevention
-     * - **Rate Limiting**: Prevent submission abuse through rate limiting
-     * - **Resource Protection**: Protect server resources from abuse
-     * - **Monitoring Integration**: Integration with abuse monitoring systems
-     * - **Automatic Mitigation**: Automatic mitigation of abuse attempts
-     * 
-     * ## Integration Points
-     * 
-     * ### System Integration
-     * - **Member System**: Integration with member lookup and validation
-     * - **Award System**: Full integration with award hierarchy
-     * - **Event System**: Integration with event management
-     * - **Notification System**: Integration with workflow notifications
-     * 
-     * ### External Integration
-     * - **Anti-Spam Systems**: Integration with spam prevention systems
-     * - **Monitoring Systems**: Integration with security monitoring
-     * - **Analytics Systems**: Integration with usage analytics
-     * - **Support Systems**: Integration with user support systems
-     * 
-     * ## Usage Examples
-     * 
-     * ```php
-     * // Public recommendation form
-     * GET /awards/recommendations/submitRecommendation
-     * 
-     * // Guest submission
-     * POST /awards/recommendations/submitRecommendation
-     * 
-     * // With referral parameters
-     * GET /awards/recommendations/submitRecommendation?member_id=123
-     * ```
-     * 
-     * @return \Cake\Http\Response|null|void Renders public submission form or processes submission
-     * 
+     * Render and process the public recommendation submission form for guest users.
+     *
+     * Presents a guest-facing form to submit award recommendations and handles form
+     * submissions, creating a new recommendation record while applying necessary
+     * defaults and minimal member-data integration when a matching member is provided.
+     *
+     * @return \Cake\Http\Response|null Redirects authenticated users or after successful redirects; otherwise renders the form.
      * @see add() For authenticated member submission workflow
      * @see beforeFilter() For authentication bypass configuration
-     * @see \App\KMP\StaticHelpers::getAppSetting() For configuration loading
      */
     public function submitRecommendation(): ?\Cake\Http\Response
     {
@@ -1588,26 +1016,27 @@ class RecommendationsController extends AppController
 
         $awards = $this->Recommendations->Awards->find('list', limit: 200)->all();
 
-        $eventsData = $this->Recommendations->Events->find()
+        $gatheringsTable = $this->fetchTable('Gatherings');
+        $gatheringsData = $gatheringsTable->find()
             ->contain(['Branches' => function ($q) {
                 return $q->select(['id', 'name']);
             }])
             ->where(['start_date >' => DateTime::now()])
-            ->select(['id', 'name', 'start_date', 'end_date', 'Branches.name'])
+            ->select(['id', 'name', 'start_date', 'end_date', 'Gatherings.branch_id'])
             ->orderBy(['start_date' => 'ASC'])
             ->all();
 
-        $events = [];
-        foreach ($eventsData as $event) {
-            $events[$event->id] = $event->name . ' in ' . $event->branch->name . ' on '
-                . $event->start_date->toDateString() . ' - ' . $event->end_date->toDateString();
+        $gatherings = [];
+        foreach ($gatheringsData as $gathering) {
+            $gatherings[$gathering->id] = $gathering->name . ' in ' . $gathering->branch->name . ' on '
+                . $gathering->start_date->toDateString() . ' - ' . $gathering->end_date->toDateString();
         }
 
         $this->set(compact(
             'recommendation',
             'branches',
             'awards',
-            'events',
+            'gatherings',
             'awardsDomains',
             'awardsLevels',
             'headerImage'
@@ -2395,178 +1824,16 @@ class RecommendationsController extends AppController
 
     #region JSON calls
     /**
-     * Dynamic edit form generation for Turbo Frame partial updates
-     * 
-     * Provides comprehensive dynamic form generation for recommendation editing
-     * within Turbo Frame contexts, enabling seamless partial page updates and
-     * enhanced user experience. This method generates fully populated edit forms
-     * with complete dropdown data, state rules, and workflow integration for
-     * in-place editing capabilities.
-     * 
-     * ## Turbo Frame Architecture
-     * 
-     * ### Partial Update Integration
-     * - **Frame-Based Updates**: Generate forms specifically for Turbo Frame integration
-     * - **Seamless Experience**: Enable editing without full page refresh
-     * - **Progressive Enhancement**: Enhanced experience with JavaScript, functional without
-     * - **Performance Optimization**: Optimized for fast partial page updates
-     * 
-     * ### Dynamic Form Generation
-     * - **Context-Aware Forms**: Forms generated based on recommendation context
-     * - **Complete Data Loading**: Full dropdown and option data for comprehensive editing
-     * - **State Rule Integration**: Integration with workflow state rules and validation
-     * - **Real-Time Updates**: Support for real-time form updates and validation
-     * 
-     * ## Comprehensive Data Loading
-     * 
-     * ### Recommendation Context
-     * - **Full Entity Loading**: Complete recommendation loading with all associations
-     * - **Related Data**: Load all related entities (Members, Awards, Events, etc.)
-     * - **Domain Integration**: Domain context for award filtering and organization
-     * - **Historical Context**: Access to recommendation history and state information
-     * 
-     * ### Form Data Preparation
-     * - **Award Hierarchies**: Complete loading of domains, levels, and awards
-     * - **Branch Management**: Branch data with member capability flags
-     * - **Event Integration**: Available events with descriptive formatting
-     * - **State Information**: Current state rules and transition possibilities
-     * 
-     * ## Dropdown & Option Management
-     * 
-     * ### Award System Integration
-     * - **Domain Filtering**: Awards filtered by recommendation's current domain
-     * - **Specialty Handling**: Award specialties loaded and formatted
-     * - **Level Organization**: Award levels with hierarchical organization
-     * - **Validation Rules**: Award selection validation and business rules
-     * 
-     * ### Event Management
-     * - **Available Events**: Events filtered by availability and status
-     * - **Descriptive Formatting**: Events formatted with branch and date information
-     * - **Status Filtering**: Only open/available events included
-     * - **Branch Coordination**: Event-branch relationship information
-     * 
-     * ## State Management Integration
-     * 
-     * ### Workflow State Rules
-     * - **State Validation**: Current state rules for workflow validation
-     * - **Transition Rules**: Available state transitions for current recommendation
-     * - **Business Logic**: Integration with recommendation workflow business logic
-     * - **Permission Integration**: State visibility based on user permissions
-     * 
-     * ### Status List Processing
-     * - **Hierarchical Organization**: Status lists organized by category
-     * - **State Mapping**: Status-to-state mapping for workflow management
-     * - **Permission Filtering**: Filter states based on user permissions
-     * - **Validation Rules**: State transition validation rules
-     * 
-     * ## Authorization & Security
-     * 
-     * ### View Authorization
-     * - **Entity-Level Permissions**: Authorization specific to the recommendation
-     * - **Edit Context**: Ensure user has permissions for editing operations
-     * - **Data Access**: Validate access to associated data and relationships
-     * - **Security Validation**: Comprehensive security validation for form access
-     * 
-     * ### Data Security
-     * - **Input Validation**: Prepare for comprehensive input validation
-     * - **SQL Injection Prevention**: Secure data loading and preparation
-     * - **Authorization Checking**: Multi-level authorization validation
-     * - **Data Filtering**: Filter sensitive data based on user permissions
-     * 
-     * ## Form Optimization
-     * 
-     * ### Performance Considerations
-     * - **Selective Loading**: Load only required data for form generation
-     * - **Efficient Queries**: Optimized database queries for fast form generation
-     * - **Caching Strategy**: Strategic caching of frequently used form data
-     * - **Resource Management**: Efficient use of server resources
-     * 
-     * ### User Experience
-     * - **Fast Loading**: Optimized for fast form generation and display
-     * - **Complete Functionality**: Full editing functionality in partial update
-     * - **Validation Integration**: Complete validation and error handling
-     * - **Context Preservation**: Maintain user context throughout editing
-     * 
-     * ## Branch & Member Integration
-     * 
-     * ### Branch Management
-     * - **Member Capability**: Branch data includes member capability flags
-     * - **Organizational Structure**: Proper branch hierarchy and organization
-     * - **Permission Integration**: Branch access based on user permissions
-     * - **Validation Rules**: Branch selection validation and business rules
-     * 
-     * ### Member Context
-     * - **Profile Integration**: Integration with member profile system
-     * - **Relationship Management**: Handle member-recommendation relationships
-     * - **Preference Loading**: Load member preferences for court and ceremony
-     * - **Data Synchronization**: Coordinate with member data systems
-     * 
-     * ## Error Handling & Recovery
-     * 
-     * ### Comprehensive Error Management
-     * - **Not Found Handling**: Proper handling of missing recommendations
-     * - **Authorization Errors**: Clear messaging for permission failures
-     * - **Data Loading Errors**: Robust handling of data loading failures
-     * - **System Errors**: Safe handling of unexpected system errors
-     * 
-     * ### User Communication
-     * - **Error Messages**: Clear error messaging for form generation failures
-     * - **Fallback Options**: Appropriate fallback options for error conditions
-     * - **Recovery Guidance**: Guidance for resolving error conditions
-     * - **Context Preservation**: Maintain user context during error handling
-     * 
-     * ## Integration Points
-     * 
-     * ### Frontend Integration
-     * - **Turbo Framework**: Deep integration with Hotwired Turbo framework
-     * - **Stimulus Controllers**: Integration with Stimulus JavaScript controllers
-     * - **CSS Framework**: Integration with Bootstrap for styling and layout
-     * - **Accessibility**: Ensure form accessibility and usability standards
-     * 
-     * ### Backend Integration
-     * - **Workflow System**: Integration with recommendation workflow management
-     * - **Authorization System**: Deep integration with RBAC authorization
-     * - **Configuration System**: Integration with application configuration
-     * - **Validation System**: Integration with comprehensive validation framework
-     * 
-     * ## Advanced Features
-     * 
-     * ### Dynamic Form Features
-     * - **Conditional Fields**: Form fields that appear/disappear based on selections
-     * - **Real-Time Validation**: Client-side validation with server-side coordination
-     * - **Auto-Complete**: Integration with auto-complete functionality
-     * - **Progressive Disclosure**: Show/hide form sections based on context
-     * 
-     * ### Workflow Integration
-     * - **State Awareness**: Forms adapt based on current recommendation state
-     * - **Business Rules**: Form validation based on workflow business rules
-     * - **Permission Context**: Form features based on user permissions
-     * - **Audit Integration**: Form changes integrated with audit trail
-     * 
-     * ## Usage Examples
-     * 
-     * ```php
-     * // Turbo Frame edit form
-     * GET /awards/recommendations/turboEditForm/123
-     * 
-     * // AJAX form generation
-     * fetch('/awards/recommendations/turboEditForm/456')
-     *   .then(response => response.text())
-     *   .then(html => updateFormContainer(html));
-     * 
-     * // Within Turbo Frame
-     * <turbo-frame id="edit-form">
-     *   <!-- Form content loaded here -->
-     * </turbo-frame>
-     * ```
-     * 
-     * @param string|null $id Recommendation ID for form generation
-     * @return \Cake\Http\Response|null|void Renders edit form template for Turbo Frame
-     * @throws \Cake\Http\Exception\NotFoundException When recommendation not found
-     * 
-     * @see edit() For form processing and submission handling
-     * @see turboQuickEditForm() For streamlined editing interface
-     * @see \App\KMP\StaticHelpers::getAppSetting() For configuration loading
+     * Render a populated edit form for a recommendation intended for Turbo Frame partial updates.
+     *
+     * Loads the recommendation and related lookup data (awards, domains, branches, gatherings, state rules)
+     * and exposes them to the view so the Turbo Frame can display an in-place edit form.
+     *
+     * @param string|null $id Recommendation ID to load for the form
+     * @return \Cake\Http\Response|null A Response when the action issues an explicit response, or null after setting view variables for rendering
+     * @throws \Cake\Http\Exception\NotFoundException If the recommendation cannot be found
+     * @see edit() For form submission handling
+     * @see turboQuickEditForm() For a streamlined quick-edit variant
      */
     public function turboEditForm(?string $id = null): ?\Cake\Http\Response
     {
@@ -2576,8 +1843,8 @@ class RecommendationsController extends AppController
                 'Members',
                 'Branches',
                 'Awards',
-                'Events',
-                'ScheduledEvent',
+                'Gatherings',
+                'AssignedGathering',
                 'Awards.Domains'
             ]);
 
@@ -2605,14 +1872,15 @@ class RecommendationsController extends AppController
                 ->where(['domain_id' => $recommendation->domain_id])
                 ->all();
 
-            $eventsData = $this->Recommendations->Events->find()
-                ->contain(['Branches' => function ($q) {
-                    return $q->select(['id', 'name']);
-                }])
-                ->where(['OR' => ['closed' => false, 'closed IS' => null]])
-                ->select(['id', 'name', 'start_date', 'end_date', 'Branches.name'])
-                ->orderBy(['start_date' => 'ASC'])
-                ->all();
+            // Get filtered gatherings for this award
+            // If status is "Given", show all gatherings (past and future) for retroactive entry
+            $futureOnly = ($recommendation->status !== 'Given');
+            $gatheringList = $this->getFilteredGatheringsForAward(
+                $recommendation->award_id,
+                $recommendation->member_id,
+                $futureOnly,
+                $recommendation->gathering_id  // Include the currently assigned gathering
+            );
 
             // Format status list for dropdown
             $statusList = Recommendation::getStatuses();
@@ -2624,20 +1892,13 @@ class RecommendationsController extends AppController
                 }
             }
 
-            // Format event list for dropdown
-            $eventList = [];
-            foreach ($eventsData as $event) {
-                $eventList[$event->id] = $event->name . ' in ' . $event->branch->name . ' on '
-                    . $event->start_date->toDateString() . ' - ' . $event->end_date->toDateString();
-            }
-
             $rules = StaticHelpers::getAppSetting('Awards.RecommendationStateRules');
             $this->set(compact(
                 'rules',
                 'recommendation',
                 'branches',
                 'awards',
-                'eventList',
+                'gatheringList',
                 'awardsDomains',
                 'awardsLevels',
                 'statusList'
@@ -2649,177 +1910,17 @@ class RecommendationsController extends AppController
     }
 
     /**
-     * Streamlined quick edit form for efficient recommendation modifications
-     * 
-     * Provides a simplified, streamlined editing interface optimized for quick
-     * modifications and common editing tasks. This method generates a focused
-     * edit form with essential fields and reduced complexity, enabling efficient
-     * workflow management and rapid recommendation updates through Turbo Frame
-     * partial updates.
-     * 
-     * ## Quick Edit Philosophy
-     * 
-     * ### Streamlined Interface Design
-     * - **Essential Fields Only**: Focus on most commonly modified fields
-     * - **Reduced Complexity**: Simplified interface for faster user interaction
-     * - **Workflow Optimization**: Optimized for common workflow operations
-     * - **Efficient Processing**: Faster form generation and submission processing
-     * 
-     * ### User Experience Focus
-     * - **Rapid Edits**: Enable quick modifications without full form complexity
-     * - **Context Awareness**: Maintain context while simplifying interface
-     * - **Minimal Cognitive Load**: Reduce cognitive load for routine operations
-     * - **Workflow Integration**: Seamless integration with workflow processes
-     * 
-     * ## Form Data Optimization
-     * 
-     * ### Selective Data Loading
-     * - **Essential Data Only**: Load only data required for quick edit operations
-     * - **Performance Optimization**: Optimized data loading for speed
-     * - **Reduced Overhead**: Minimize server overhead for routine operations
-     * - **Efficient Queries**: Streamlined database queries for fast response
-     * 
-     * ### Core Edit Elements
-     * - **Award Information**: Essential award and domain information
-     * - **Branch Management**: Core branch selection and management
-     * - **Event Assignment**: Key event assignment and scheduling
-     * - **State Management**: Essential state and status information
-     * 
-     * ## Dropdown Management
-     * 
-     * ### Essential Options
-     * - **Domain Filtering**: Awards filtered by recommendation's domain context
-     * - **Branch Selection**: Branch options with member capability information
-     * - **Event Options**: Available events with essential descriptive information
-     * - **State Options**: Current state options based on workflow rules
-     * 
-     * ### Optimized Data Presentation
-     * - **Simplified Formatting**: Streamlined formatting for quick comprehension
-     * - **Essential Information**: Include only essential information for decisions
-     * - **Performance Focus**: Optimize for fast rendering and interaction
-     * - **User Clarity**: Clear, unambiguous option presentation
-     * 
-     * ## State Rule Integration
-     * 
-     * ### Workflow Rule Application
-     * - **State Validation**: Apply state rules for valid transitions
-     * - **Business Logic**: Integrate workflow business logic appropriately
-     * - **Permission Context**: Consider user permissions in rule application
-     * - **Transition Validation**: Validate available state transitions
-     * 
-     * ### Simplified Rule Processing
-     * - **Essential Rules Only**: Focus on rules relevant to quick edit operations
-     * - **Performance Optimization**: Streamlined rule processing for speed
-     * - **User Guidance**: Clear guidance on available options and restrictions
-     * - **Error Prevention**: Prevent invalid operations through rule enforcement
-     * 
-     * ## Authorization & Security
-     * 
-     * ### Quick Edit Authorization
-     * - **Entity-Level Validation**: Ensure user can perform quick edits on recommendation
-     * - **Operation Permissions**: Validate permissions for specific quick edit operations
-     * - **Context Security**: Consider recommendation context in authorization
-     * - **Minimal Security Overhead**: Efficient security validation for performance
-     * 
-     * ### Streamlined Security
-     * - **Essential Security**: Focus on essential security validation
-     * - **Performance Balance**: Balance security with performance requirements
-     * - **User Experience**: Maintain security without impacting user experience
-     * - **Efficient Validation**: Streamlined validation processes
-     * 
-     * ## Performance Optimization
-     * 
-     * ### Quick Response Times
-     * - **Minimal Data Loading**: Load only essential data for form generation
-     * - **Efficient Processing**: Streamlined processing for fast response
-     * - **Optimized Queries**: Database queries optimized for speed
-     * - **Resource Efficiency**: Efficient use of server resources
-     * 
-     * ### User Interface Performance
-     * - **Fast Rendering**: Optimized for fast form rendering
-     * - **Minimal Overhead**: Reduce interface overhead for better performance
-     * - **Progressive Loading**: Support for progressive loading when needed
-     * - **Responsive Design**: Maintain responsiveness across devices
-     * 
-     * ## User Experience Design
-     * 
-     * ### Workflow Integration
-     * - **Common Operations**: Focus on most common editing operations
-     * - **Workflow Context**: Maintain workflow context throughout editing
-     * - **Task Efficiency**: Enable efficient completion of routine tasks
-     * - **User Productivity**: Enhance user productivity through streamlined interface
-     * 
-     * ### Interface Simplification
-     * - **Reduced Complexity**: Simplify interface while maintaining functionality
-     * - **Clear Focus**: Clear focus on essential editing capabilities
-     * - **Minimal Distractions**: Reduce interface distractions and clutter
-     * - **Intuitive Design**: Intuitive design for faster user adoption
-     * 
-     * ## Error Handling & Recovery
-     * 
-     * ### Streamlined Error Management
-     * - **Quick Error Detection**: Fast detection and communication of errors
-     * - **Simplified Recovery**: Streamlined error recovery processes
-     * - **User Guidance**: Clear guidance for resolving common issues
-     * - **Context Preservation**: Maintain user context during error handling
-     * 
-     * ### Efficient Error Communication
-     * - **Clear Messaging**: Clear, concise error messaging
-     * - **Quick Resolution**: Enable quick resolution of common errors
-     * - **Minimal Disruption**: Minimize disruption to user workflow
-     * - **Recovery Support**: Support for efficient error recovery
-     * 
-     * ## Integration Points
-     * 
-     * ### Turbo Frame Integration
-     * - **Partial Updates**: Optimized for Turbo Frame partial updates
-     * - **Seamless Experience**: Seamless integration with existing interfaces
-     * - **Performance Focus**: Performance-focused integration approach
-     * - **User Experience**: Enhanced user experience through partial updates
-     * 
-     * ### Workflow System
-     * - **Workflow Efficiency**: Enable efficient workflow operations
-     * - **Process Integration**: Integration with existing workflow processes
-     * - **State Management**: Efficient state management and transitions
-     * - **Business Logic**: Integration with workflow business logic
-     * 
-     * ## Use Case Optimization
-     * 
-     * ### Common Edit Scenarios
-     * - **State Transitions**: Quick state changes and workflow progression
-     * - **Event Assignment**: Rapid event assignment and scheduling
-     * - **Basic Updates**: Common field updates and modifications
-     * - **Status Changes**: Quick status and state management
-     * 
-     * ### Workflow Efficiency
-     * - **Batch Operations**: Support for efficient batch operations
-     * - **Routine Tasks**: Optimize for routine administrative tasks
-     * - **User Productivity**: Enable higher user productivity
-     * - **Process Improvement**: Support continuous process improvement
-     * 
-     * ## Usage Examples
-     * 
-     * ```php
-     * // Quick edit form generation
-     * GET /awards/recommendations/turboQuickEditForm/123
-     * 
-     * // AJAX quick edit
-     * fetch('/awards/recommendations/turboQuickEditForm/456')
-     *   .then(response => response.text())
-     *   .then(html => updateQuickEditForm(html));
-     * 
-     * // Turbo Frame quick edit
-     * <turbo-frame id="quick-edit">
-     *   <!-- Streamlined form content -->
-     * </turbo-frame>
-     * ```
-     * 
-     * @param string|null $id Recommendation ID for quick edit form generation
-     * @return \Cake\Http\Response|null|void Renders streamlined edit form template
-     * @throws \Cake\Http\Exception\NotFoundException When recommendation not found
-     * 
-     * @see turboEditForm() For comprehensive editing interface
-     * @see edit() For form processing and submission handling
+     * Render a streamlined Turbo Frame quick-edit form for a recommendation.
+     *
+     * Provides a minimal edit form containing the most commonly changed fields,
+     * populated with essential dropdowns (awards, branches, gatherings, status)
+     * and state rules to support rapid in-place edits.
+     *
+     * @param string|null $id Recommendation ID to load for the quick-edit form.
+     * @return \Cake\Http\Response|null Renders the quick-edit template or null when rendering within a Turbo Frame.
+     * @throws \Cake\Http\Exception\NotFoundException If the recommendation cannot be found.
+     * @see turboEditForm() For the full edit interface
+     * @see edit() For form submission handling
      * @see kanbanUpdate() For drag-and-drop state transitions
      */
     public function turboQuickEditForm(?string $id = null): ?\Cake\Http\Response
@@ -2830,8 +1931,8 @@ class RecommendationsController extends AppController
                 'Members',
                 'Branches',
                 'Awards',
-                'Events',
-                'ScheduledEvent',
+                'Gatherings',
+                'AssignedGathering',
                 'Awards.Domains'
             ]);
 
@@ -2859,14 +1960,15 @@ class RecommendationsController extends AppController
                 ->where(['domain_id' => $recommendation->domain_id])
                 ->all();
 
-            $eventsData = $this->Recommendations->Events->find()
-                ->contain(['Branches' => function ($q) {
-                    return $q->select(['id', 'name']);
-                }])
-                ->where(['OR' => ['closed' => false, 'closed IS' => null]])
-                ->select(['id', 'name', 'start_date', 'end_date', 'Branches.name'])
-                ->orderBy(['start_date' => 'ASC'])
-                ->all();
+            // Get filtered gatherings for this award
+            // If status is "Given", show all gatherings (past and future) for retroactive entry
+            $futureOnly = ($recommendation->status !== 'Given');
+            $gatheringList = $this->getFilteredGatheringsForAward(
+                $recommendation->award_id,
+                $recommendation->member_id,
+                $futureOnly,
+                $recommendation->gathering_id  // Include the currently assigned gathering
+            );
 
             // Format status list for dropdown
             $statusList = Recommendation::getStatuses();
@@ -2878,20 +1980,13 @@ class RecommendationsController extends AppController
                 }
             }
 
-            // Format event list for dropdown
-            $eventList = [];
-            foreach ($eventsData as $event) {
-                $eventList[$event->id] = $event->name . ' in ' . $event->branch->name . ' on '
-                    . $event->start_date->toDateString() . ' - ' . $event->end_date->toDateString();
-            }
-
             $rules = StaticHelpers::getAppSetting('Awards.RecommendationStateRules');
             $this->set(compact(
                 'rules',
                 'recommendation',
                 'branches',
                 'awards',
-                'eventList',
+                'gatheringList',
                 'awardsDomains',
                 'awardsLevels',
                 'statusList'
@@ -2903,173 +1998,14 @@ class RecommendationsController extends AppController
     }
 
     /**
-     * Bulk editing form for multi-selection recommendation operations
-     * 
-     * Provides comprehensive bulk editing capabilities through a dynamic form
-     * interface that enables simultaneous modification of multiple recommendations.
-     * This method generates forms optimized for bulk operations including state
-     * transitions, event assignments, and administrative bulk processing with
-     * comprehensive validation and transaction safety.
-     * 
-     * ## Bulk Operations Architecture
-     * 
-     * ### Multi-Selection Design
-     * - **Batch Processing**: Support for simultaneous modification of multiple recommendations
-     * - **Selection Management**: Handle multiple recommendation selections efficiently
-     * - **Operation Coordination**: Coordinate operations across multiple entities
-     * - **Transaction Management**: Ensure atomic operations across multiple recommendations
-     * 
-     * ### Form Optimization
-     * - **Bulk-Specific Interface**: Interface optimized for bulk operations
-     * - **Efficient Data Loading**: Load data efficiently for bulk operation context
-     * - **Performance Focus**: Optimized for handling multiple entity operations
-     * - **User Experience**: Streamlined experience for bulk modifications
-     * 
-     * ## Administrative Interface
-     * 
-     * ### Bulk Authorization
-     * - **Administrative Permissions**: Validate user has bulk operation permissions
-     * - **Operation Validation**: Ensure user can perform specific bulk operations
-     * - **Security Context**: Consider security implications of bulk operations
-     * - **Permission Scoping**: Apply appropriate permission scoping for bulk access
-     * 
-     * ### Administrative Features
-     * - **Enhanced Controls**: Administrative controls for bulk operations
-     * - **Validation Override**: Administrative validation override capabilities
-     * - **Audit Integration**: Enhanced audit integration for bulk operations
-     * - **Error Management**: Comprehensive error management for bulk operations
-     * 
-     * ## Form Data Management
-     * 
-     * ### Bulk-Optimized Data Loading
-     * - **Essential Data Only**: Load only data required for bulk operations
-     * - **Efficient Queries**: Optimized database queries for bulk form generation
-     * - **Resource Management**: Efficient resource management for bulk operations
-     * - **Performance Optimization**: Optimized for handling bulk operation complexity
-     * 
-     * ### Dropdown & Option Management
-     * - **Branch Selection**: Branch options for bulk assignment operations
-     * - **Event Assignment**: Event options for bulk ceremony assignment
-     * - **State Management**: State options for bulk state transitions
-     * - **Status Processing**: Status options for bulk status management
-     * 
-     * ## State & Event Management
-     * 
-     * ### Bulk State Operations
-     * - **State Transitions**: Support for bulk state transitions
-     * - **Status Management**: Bulk status assignment and management
-     * - **Workflow Integration**: Integration with workflow state management
-     * - **Business Rule Application**: Apply business rules to bulk operations
-     * 
-     * ### Event Assignment Bulk Operations
-     * - **Ceremony Assignment**: Bulk assignment to award ceremonies
-     * - **Event Coordination**: Coordinate multiple recommendations with events
-     * - **Scheduling Management**: Bulk scheduling and timeline management
-     * - **Capacity Management**: Consider event capacity in bulk assignments
-     * 
-     * ## Workflow Rule Integration
-     * 
-     * ### Bulk Rule Processing
-     * - **State Rules**: Apply state rules to bulk operations
-     * - **Business Logic**: Integrate workflow business logic for bulk operations
-     * - **Validation Rules**: Comprehensive validation for bulk modifications
-     * - **Permission Rules**: Apply permission rules to bulk operations
-     * 
-     * ### Rule Configuration
-     * - **Dynamic Rules**: Load appropriate rules for bulk operation context
-     * - **Configuration Integration**: Integration with application configuration
-     * - **Rule Validation**: Validate rules apply appropriately to bulk operations
-     * - **Exception Handling**: Handle rule exceptions in bulk contexts
-     * 
-     * ## Performance & Scalability
-     * 
-     * ### Bulk Operation Performance
-     * - **Efficient Processing**: Optimized processing for bulk operations
-     * - **Resource Management**: Efficient resource management for large bulk operations
-     * - **Scalability**: Support for scalable bulk operation processing
-     * - **Performance Monitoring**: Monitor performance of bulk operations
-     * 
-     * ### User Interface Performance
-     * - **Fast Form Generation**: Optimized form generation for bulk interfaces
-     * - **Responsive Design**: Maintain responsiveness during bulk operations
-     * - **Progressive Enhancement**: Support for progressive enhancement
-     * - **User Feedback**: Real-time feedback during bulk processing
-     * 
-     * ## Security & Authorization
-     * 
-     * ### Bulk Security Validation
-     * - **Enhanced Security**: Enhanced security validation for bulk operations
-     * - **Operation Authorization**: Validate authorization for each bulk operation type
-     * - **Data Protection**: Protect against unauthorized bulk modifications
-     * - **Audit Requirements**: Meet audit requirements for bulk operations
-     * 
-     * ### Multi-Entity Authorization
-     * - **Individual Authorization**: Validate authorization for each affected recommendation
-     * - **Bulk Permission**: Validate bulk operation permissions
-     * - **Security Scoping**: Apply appropriate security scoping
-     * - **Access Control**: Comprehensive access control for bulk operations
-     * 
-     * ## Error Handling & Validation
-     * 
-     * ### Bulk Error Management
-     * - **Comprehensive Validation**: Validate all aspects of bulk operations
-     * - **Error Aggregation**: Aggregate and present errors from multiple operations
-     * - **Partial Success Handling**: Handle scenarios where some operations succeed
-     * - **Recovery Strategies**: Provide recovery strategies for bulk operation failures
-     * 
-     * ### User Communication
-     * - **Clear Error Messaging**: Clear messaging for bulk operation errors
-     * - **Success Feedback**: Comprehensive feedback for successful bulk operations
-     * - **Progress Indication**: Progress indication for long-running bulk operations
-     * - **Context Preservation**: Maintain user context during bulk operations
-     * 
-     * ## Integration Points
-     * 
-     * ### Workflow Integration
-     * - **Bulk Workflow**: Integration with workflow systems for bulk operations
-     * - **State Management**: Coordinate bulk operations with state management
-     * - **Business Rules**: Apply business rules consistently across bulk operations
-     * - **Audit Integration**: Comprehensive audit integration for bulk operations
-     * 
-     * ### System Integration
-     * - **Transaction System**: Integration with transaction management
-     * - **Authorization System**: Deep integration with authorization systems
-     * - **Configuration System**: Integration with application configuration
-     * - **Logging System**: Comprehensive logging for bulk operations
-     * 
-     * ## User Experience Design
-     * 
-     * ### Bulk Operation UX
-     * - **Clear Interface**: Clear interface design for bulk operations
-     * - **Operation Clarity**: Clear indication of what bulk operations will do
-     * - **Confirmation Workflows**: Appropriate confirmation for bulk operations
-     * - **Undo Capabilities**: Support for undoing bulk operations when possible
-     * 
-     * ### Efficiency Focus
-     * - **Administrative Efficiency**: Enable efficient administrative operations
-     * - **Workflow Optimization**: Optimize common bulk workflow operations
-     * - **User Productivity**: Enhance user productivity through bulk capabilities
-     * - **Process Improvement**: Support continuous process improvement
-     * 
-     * ## Usage Examples
-     * 
-     * ```php
-     * // Bulk edit form generation
-     * GET /awards/recommendations/turboBulkEditForm
-     * 
-     * // AJAX bulk form
-     * fetch('/awards/recommendations/turboBulkEditForm')
-     *   .then(response => response.text())
-     *   .then(html => updateBulkEditForm(html));
-     * 
-     * // Integration with selection
-     * const selectedIds = getSelectedRecommendations();
-     * loadBulkEditForm(selectedIds);
-     * ```
-     * 
-     * @return \Cake\Http\Response|null|void Renders bulk edit form template
-     * @throws \Cake\Http\Exception\InternalErrorException When bulk form preparation fails
-     * 
+     * Render the Turbo Frame bulk edit form for modifying multiple recommendations at once.
+     *
+     * Prepares dropdowns and supporting data for bulk operations (branches, gatherings,
+     * state/status options and state rules) and exposes them to the view as
+     * `rules`, `branches`, `gatheringList`, and `statusList`.
+     *
+     * @return \Cake\Http\Response|null|void The response when rendering the bulk edit form template, or null when rendering proceeds in-controller.
+     * @throws \Cake\Http\Exception\InternalErrorException When preparation of bulk form data fails.
      * @see updateStates() For bulk state transition processing
      * @see turboEditForm() For individual recommendation editing
      * @see \App\KMP\StaticHelpers::getAppSetting() For configuration loading
@@ -3089,12 +2025,12 @@ class RecommendationsController extends AppController
                 ->orderBy(['name' => 'ASC'])
                 ->toArray();
 
-            // Get events data
-            $eventsData = $this->Recommendations->Events->find()
+            // Get gatherings data
+            $gatheringsTable = TableRegistry::getTableLocator()->get('Gatherings');
+            $gatheringsData = $gatheringsTable->find()
                 ->contain(['Branches' => function ($q) {
                     return $q->select(['id', 'name']);
                 }])
-                ->where(['OR' => ['closed' => false, 'closed IS' => null]])
                 ->select(['id', 'name', 'start_date', 'end_date', 'Branches.name'])
                 ->orderBy(['start_date' => 'ASC'])
                 ->all();
@@ -3109,15 +2045,15 @@ class RecommendationsController extends AppController
                 }
             }
 
-            // Format event list for dropdown
-            $eventList = [];
-            foreach ($eventsData as $event) {
-                $eventList[$event->id] = $event->name . ' in ' . $event->branch->name . ' on '
-                    . $event->start_date->toDateString() . ' - ' . $event->end_date->toDateString();
+            // Format gathering list for dropdown
+            $gatheringList = [];
+            foreach ($gatheringsData as $gathering) {
+                $gatheringList[$gathering->id] = $gathering->name . ' in ' . $gathering->branch->name . ' on '
+                    . $gathering->start_date->toDateString() . ' - ' . $gathering->end_date->toDateString();
             }
 
             $rules = StaticHelpers::getAppSetting('Awards.RecommendationStateRules');
-            $this->set(compact('rules', 'branches', 'eventList', 'statusList'));
+            $this->set(compact('rules', 'branches', 'gatheringList', 'statusList'));
             return null;
         } catch (\Exception $e) {
             Log::error('Error in bulk edit form: ' . $e->getMessage());
@@ -3127,162 +2063,19 @@ class RecommendationsController extends AppController
     #endregion
 
     /**
-     * Core table data processing with pagination, authorization, and display formatting
-     * 
-     * Implements the core logic for tabular recommendation display including query
-     * execution, permission-based filtering, pagination management, and comprehensive
-     * data preparation for tabular interfaces. This protected method serves as the
-     * foundation for all tabular recommendation displays with sophisticated filtering,
-     * authorization scoping, and performance optimization.
-     * 
-     * ## Query Execution & Data Processing
-     * 
-     * ### Recommendation Query Building
-     * - **Filter Application**: Apply provided filter criteria to recommendation queries
-     * - **Authorization Scoping**: Apply user-based authorization scoping automatically
-     * - **Association Loading**: Load required associations for display and export
-     * - **Performance Optimization**: Optimize queries for responsive user experience
-     * 
-     * ### Status List Processing
-     * - **Dynamic Status Filtering**: Filter status lists based on current status parameter
-     * - **Permission-Based Filtering**: Filter statuses based on user permissions
-     * - **Hierarchical Organization**: Organize statuses for dropdown and display use
-     * - **Validation Integration**: Integrate with status validation and business rules
-     * 
-     * ## Authorization & Permission Management
-     * 
-     * ### Permission-Based Visibility
-     * - **Hidden State Filtering**: Filter out states that require special permissions
-     * - **User Permission Checking**: Validate user permissions for viewing hidden states
-     * - **Dynamic Status Lists**: Adjust status lists based on permission levels
-     * - **Data Protection**: Protect sensitive recommendation data based on access level
-     * 
-     * ### Authorization Scoping
-     * - **Query-Level Scoping**: Apply authorization scoping at database query level
-     * - **Entity-Level Filtering**: Filter individual recommendations based on access
-     * - **Context-Aware Security**: Apply security based on user context and role
-     * - **Branch Scoping**: Apply branch-based access control when appropriate
-     * 
-     * ## Data Preparation & Formatting
-     * 
-     * ### Association Data Loading
-     * - **Awards Information**: Load award data with abbreviations and specifications
-     * - **Domain Organization**: Load domain information for categorization
-     * - **Branch Integration**: Load branch data with member capability information
-     * - **Event Coordination**: Load event data for ceremony coordination
-     * 
-     * ### Display Optimization
-     * - **Efficient Data Structures**: Organize data efficiently for display templates
-     * - **Format Conversion**: Convert data to appropriate formats for presentation
-     * - **Relationship Management**: Handle complex relationships for display
-     * - **Performance Focus**: Optimize data structures for rendering performance
-     * 
-     * ## Pagination Management
-     * 
-     * ### Sortable Field Configuration
-     * - **Column Sorting**: Configure sortable columns for user interaction
-     * - **Association Sorting**: Enable sorting on associated entity fields
-     * - **Performance Optimization**: Optimize sorting for database performance
-     * - **User Experience**: Provide intuitive sorting capabilities
-     * 
-     * ### Pagination Optimization
-     * - **Memory Efficiency**: Efficient pagination for large datasets
-     * - **Query Optimization**: Optimize paginated queries for performance
-     * - **User Navigation**: Provide effective navigation through large datasets
-     * - **Performance Monitoring**: Monitor pagination performance for optimization
-     * 
-     * ## State Rules & Business Logic
-     * 
-     * ### Workflow Integration
-     * - **State Rules**: Load and apply recommendation state rules
-     * - **Business Logic**: Integrate workflow business logic with display
-     * - **Validation Rules**: Apply validation rules for state management
-     * - **Permission Rules**: Integrate permission rules with workflow display
-     * 
-     * ### Configuration Management
-     * - **Dynamic Configuration**: Load configuration based on current context
-     * - **Rule Application**: Apply configuration rules to data display
-     * - **Business Rule Integration**: Integrate business rules with table display
-     * - **Validation Integration**: Integrate validation with table functionality
-     * 
-     * ## Event & Branch Management
-     * 
-     * ### Event Data Processing
-     * - **Available Events**: Load and format available events for display
-     * - **Event Filtering**: Filter events based on status and availability
-     * - **Descriptive Formatting**: Format events with comprehensive descriptions
-     * - **Branch Coordination**: Coordinate event data with branch information
-     * 
-     * ### Branch Integration
-     * - **Member Capability**: Include branch member capability information
-     * - **Hierarchical Organization**: Organize branches hierarchically
-     * - **Permission Integration**: Apply branch permissions appropriately
-     * - **Selection Support**: Support branch selection for filtering and operations
-     * 
-     * ## Error Handling & Recovery
-     * 
-     * ### Comprehensive Error Management
-     * - **Query Errors**: Handle database query errors gracefully
-     * - **Permission Errors**: Handle authorization and permission errors
-     * - **Data Loading Errors**: Robust handling of data loading failures
-     * - **System Errors**: Safe handling of unexpected system errors
-     * 
-     * ### User Communication
-     * - **Error Messaging**: Clear error messaging through Flash component
-     * - **Fallback Strategies**: Provide fallback strategies for error conditions
-     * - **Recovery Guidance**: Guide users through error recovery processes
-     * - **Context Preservation**: Maintain user context during error handling
-     * 
-     * ## Performance Optimization
-     * 
-     * ### Query Performance
-     * - **Efficient Queries**: Optimize database queries for performance
-     * - **Index Utilization**: Ensure queries utilize appropriate database indexes
-     * - **Association Optimization**: Optimize association loading for performance
-     * - **Caching Strategy**: Implement strategic caching for frequently accessed data
-     * 
-     * ### Memory Management
-     * - **Efficient Data Structures**: Use memory-efficient data structures
-     * - **Resource Management**: Manage server resources efficiently
-     * - **Garbage Collection**: Support efficient garbage collection
-     * - **Performance Monitoring**: Monitor performance for continuous optimization
-     * 
-     * ## Integration Points
-     * 
-     * ### System Integration
-     * - **Authorization System**: Deep integration with RBAC authorization
-     * - **Configuration System**: Integration with application configuration
-     * - **Workflow System**: Integration with recommendation workflow management
-     * - **Audit System**: Integration with audit and logging systems
-     * 
-     * ### Data System Integration
-     * - **ORM Integration**: Deep integration with CakePHP ORM system
-     * - **Query Builder**: Integration with CakePHP query builder
-     * - **Pagination System**: Integration with CakePHP pagination
-     * - **Association System**: Integration with CakePHP association system
-     * 
-     * ## Usage Examples
-     * 
-     * ```php
-     * // Basic table processing
-     * $this->runTable($filterArray, 'All', 'Default');
-     * 
-     * // Status-filtered table
-     * $this->runTable($processedFilter, 'Approved', 'Admin');
-     * 
-     * // Custom view processing
-     * $this->runTable($customFilter, 'InProgress', 'Review');
-     * ```
-     * 
-     * @param array $filterArray Filter criteria for querying recommendations
-     * @param string $status Status filter to apply ('All', 'Approved', 'Pending', etc.)
-     * @param string $view Current view configuration name for context
-     * @return void Sets view variables for template rendering
-     * 
-     * @see table() For public table interface that calls this method
-     * @see getRecommendationQuery() For the core query building implementation
-     * @see \Cake\ORM\Query For query building and execution
-     * @see \App\KMP\StaticHelpers::getAppSetting() For configuration loading
+     * Prepare and paginate recommendation data for the tabular view and expose it to the template.
+     *
+     * Builds and executes the filtered recommendation query, applies permission-based visibility,
+     * prepares status lists, loads auxiliary lists (awards, domains, branches, gatherings), and
+     * sets view variables required by the table template.
+     *
+     * @param array $filterArray Filter criteria to apply to the recommendations query (field => value pairs).
+     * @param string $status Status filter to apply (e.g., 'All', 'Approved', 'Pending').
+     * @param string $view Current view configuration name used for context and permissions.
+     * @return void Sets view variables used by the table template (recommendations, statusList, awards, domains, branches, view, status, action, fullStatusList, rules, gatheringList).
+     *
+     * @see table()
+     * @see getRecommendationQuery()
      */
     protected function runTable(array $filterArray, string $status, string $view = "Default"): void
     {
@@ -3362,37 +2155,37 @@ class RecommendationsController extends AppController
                     'member_sca_name',
                     'created',
                     'state',
-                    'Events.name',
+                    'Gatherings.name',
                     'call_into_court',
                     'court_availability',
                     'requester_sca_name',
                     'contact_email',
                     'contact_phone',
                     'state_date',
-                    'AssignedEvent.name'
+                    'AssignedGathering.name'
                 ],
             ];
 
             $action = $view;
             $recommendations = $this->paginate($recommendations);
 
-            // Get recommendation state rules and events data
+            // Get recommendation state rules and gatherings data
             $rules = StaticHelpers::getAppSetting("Awards.RecommendationStateRules");
 
-            $eventsData = $this->Recommendations->Events->find()
+            $gatheringsTable = TableRegistry::getTableLocator()->get('Gatherings');
+            $gatheringsData = $gatheringsTable->find()
                 ->contain(['Branches' => function ($q) {
                     return $q->select(['id', 'name']);
                 }])
-                ->where(['OR' => ['closed' => false, 'closed IS' => null]])
                 ->select(['id', 'name', 'start_date', 'end_date', 'Branches.name'])
                 ->orderBy(['start_date' => 'ASC'])
                 ->all();
 
-            // Format event list for display
-            $eventList = [];
-            foreach ($eventsData as $event) {
-                $eventList[$event->id] = $event->name . " in " . $event->branch->name . " on "
-                    . $event->start_date->toDateString() . " - " . $event->end_date->toDateString();
+            // Format gathering list for display
+            $gatheringList = [];
+            foreach ($gatheringsData as $gathering) {
+                $gatheringList[$gathering->id] = $gathering->name . " in " . $gathering->branch->name . " on "
+                    . $gathering->start_date->toDateString() . " - " . $gathering->end_date->toDateString();
             }
 
             // Set variables for the view
@@ -3407,7 +2200,7 @@ class RecommendationsController extends AppController
                 'action',
                 'fullStatusList',
                 'rules',
-                'eventList'
+                'gatheringList'
             ));
         } catch (\Exception $e) {
             Log::error('Error in runTable: ' . $e->getMessage());
@@ -4188,181 +2981,17 @@ class RecommendationsController extends AppController
     }
 
     /**
-     * Build comprehensive recommendation queries with advanced filtering, authorization, and optimization
-     * 
-     * Implements the core query building functionality for recommendation data access,
-     * featuring sophisticated filtering capabilities, authorization-based scoping,
-     * association optimization, and performance tuning. This protected method serves
-     * as the foundation for all recommendation data access with consistent querying
-     * patterns, security integration, and comprehensive data loading strategies.
-     * 
-     * ## Query Architecture & Foundation
-     * 
-     * ### Base Query Construction
-     * - **Core Field Selection**: Select essential recommendation fields efficiently
-     * - **Association Planning**: Plan association loading for optimal performance
-     * - **Index Optimization**: Structure queries to utilize database indexes effectively
-     * - **Memory Management**: Optimize queries for memory-efficient data loading
-     * 
-     * ### Association Loading Strategy
-     * - **Deep Associations**: Load nested associations efficiently
-     * - **Selective Loading**: Load only required association data
-     * - **Performance Optimization**: Optimize association queries for responsiveness
-     * - **Circular Reference Prevention**: Prevent circular reference issues in associations
-     * 
-     * ## Comprehensive Filtering System
-     * 
-     * ### Multi-Criteria Filter Processing
-     * - **Status Filtering**: Filter by recommendation status and state
-     * - **Member Filtering**: Filter by member information and characteristics
-     * - **Award Filtering**: Filter by award types, domains, and specifications
-     * - **Date Range Filtering**: Filter by creation, modification, and event dates
-     * 
-     * ### Advanced Search Capabilities
-     * - **Text Search**: Full-text search across recommendation content
-     * - **Fuzzy Matching**: Fuzzy matching for flexible search capabilities
-     * - **Field-Specific Search**: Targeted search within specific fields
-     * - **Combined Criteria**: Support multiple search criteria simultaneously
-     * 
-     * ## Authorization & Security Integration
-     * 
-     * ### Permission-Based Query Scoping
-     * - **User-Based Filtering**: Apply user-specific authorization filters
-     * - **Role-Based Access**: Filter based on user roles and capabilities
-     * - **Branch-Based Scoping**: Apply branch-based access control to queries
-     * - **Context-Aware Security**: Apply security based on operational context
-     * 
-     * ### Data Protection & Privacy
-     * - **Sensitive Data Filtering**: Filter sensitive data based on access level
-     * - **Privacy Compliance**: Ensure queries comply with privacy regulations
-     * - **Audit Integration**: Integrate query access with audit systems
-     * - **Security Logging**: Log security-relevant query operations
-     * 
-     * ## Performance Optimization
-     * 
-     * ### Query Performance Tuning
-     * - **Efficient Joins**: Optimize join operations for performance
-     * - **Index Utilization**: Ensure queries utilize appropriate database indexes
-     * - **Subquery Optimization**: Optimize subqueries for better performance
-     * - **Result Set Limitation**: Implement appropriate result set limitations
-     * 
-     * ### Memory & Resource Management
-     * - **Efficient Data Structures**: Use memory-efficient data structures
-     * - **Lazy Loading**: Implement lazy loading where appropriate
-     * - **Resource Cleanup**: Proper cleanup of query resources
-     * - **Garbage Collection**: Support efficient garbage collection
-     * 
-     * ## Association Configuration
-     * 
-     * ### Core Entity Associations
-     * - **Member Association**: Load member data with names, titles, and contact info
-     * - **Award Association**: Load award data with types, domains, and precedence
-     * - **Branch Association**: Load branch data with hierarchy and capabilities
-     * - **Event Association**: Load event data for ceremony coordination
-     * 
-     * ### Nested Association Loading
-     * - **Member Branch**: Load member's branch information through associations
-     * - **Award Domain**: Load award domain information for categorization
-     * - **Requester Information**: Load requester data for attribution
-     * - **State History**: Load state transition history for audit trails
-     * 
-     * ## Filter Processing Pipeline
-     * 
-     * ### Filter Validation & Sanitization
-     * - **Input Validation**: Validate filter input for security and correctness
-     * - **Data Sanitization**: Sanitize filter data to prevent injection attacks
-     * - **Type Checking**: Verify filter data types and formats
-     * - **Range Validation**: Validate date ranges and numeric limits
-     * 
-     * ### Dynamic Filter Application
-     * - **Conditional Filters**: Apply filters conditionally based on context
-     * - **Filter Combination**: Combine multiple filters efficiently
-     * - **Filter Optimization**: Optimize filter application for performance
-     * - **Filter Persistence**: Support filter persistence across requests
-     * 
-     * ## Data Integrity & Consistency
-     * 
-     * ### Query Result Validation
-     * - **Data Consistency Checks**: Validate data consistency in query results
-     * - **Referential Integrity**: Ensure referential integrity in associations
-     * - **Business Rule Validation**: Apply business rules to query results
-     * - **Data Quality Assurance**: Ensure data quality in query responses
-     * 
-     * ### Transaction Safety
-     * - **Read Consistency**: Ensure read consistency in concurrent environments
-     * - **Isolation Levels**: Apply appropriate transaction isolation levels
-     * - **Deadlock Prevention**: Prevent deadlocks in complex queries
-     * - **Resource Locking**: Manage resource locking appropriately
-     * 
-     * ## Error Handling & Recovery
-     * 
-     * ### Comprehensive Error Management
-     * - **Query Errors**: Handle database query errors gracefully
-     * - **Connection Errors**: Handle database connection errors
-     * - **Timeout Errors**: Handle query timeout errors appropriately
-     * - **Resource Errors**: Handle resource exhaustion errors
-     * 
-     * ### Fallback Strategies
-     * - **Query Simplification**: Simplify queries on complex errors
-     * - **Alternative Approaches**: Provide alternative query approaches
-     * - **Partial Results**: Return partial results when appropriate
-     * - **Error Recovery**: Implement error recovery strategies
-     * 
-     * ## Integration Points
-     * 
-     * ### ORM Integration
-     * - **CakePHP ORM**: Deep integration with CakePHP ORM system
-     * - **Query Builder**: Integration with CakePHP query builder
-     * - **Association System**: Integration with CakePHP association system
-     * - **Behavior Integration**: Integration with model behaviors
-     * 
-     * ### Service Integration
-     * - **Authorization Service**: Integration with authorization services
-     * - **Configuration Service**: Integration with configuration management
-     * - **Audit Service**: Integration with audit and logging services
-     * - **Caching Service**: Integration with caching systems
-     * 
-     * ## Query Result Processing
-     * 
-     * ### Result Set Optimization
-     * - **Efficient Iteration**: Optimize result set iteration
-     * - **Memory Management**: Manage memory usage during result processing
-     * - **Data Transformation**: Transform results for specific use cases
-     * - **Format Conversion**: Convert results to required formats
-     * 
-     * ### Post-Query Processing
-     * - **Data Enrichment**: Enrich query results with additional data
-     * - **Calculated Fields**: Add calculated fields to query results
-     * - **Aggregation**: Perform aggregation on query results
-     * - **Sorting Enhancement**: Enhance sorting capabilities
-     * 
-     * ## Usage Examples
-     * 
-     * ```php
-     * // Basic query without filters
-     * $query = $this->getRecommendationQuery();
-     * 
-     * // Filtered query for specific status
-     * $statusFilter = ['status' => 'Approved'];
-     * $query = $this->getRecommendationQuery($statusFilter);
-     * 
-     * // Complex multi-criteria filter
-     * $complexFilter = [
-     *     'status' => 'InProgress',
-     *     'award_id' => 123,
-     *     'branch_id' => 456,
-     *     'date_range' => ['start' => '2024-01-01', 'end' => '2024-12-31']
-     * ];
-     * $query = $this->getRecommendationQuery($complexFilter);
-     * ```
-     * 
-     * @param array|null $filterArray Optional array of conditions to filter recommendations
-     * @return \Cake\Datasource\QueryInterface The recommendation query with containments and filters applied
-     * 
-     * @see runTable() For table data processing that uses this query
-     * @see runBoard() For kanban board data processing that uses this query
-     * @see runExport() For export functionality that uses this query
-     * @see processFilter() For filter processing logic
+     * Build a Recommendation query with necessary containments, applied filters, and authorization scope.
+     *
+     * Constructs the base query used by table, board, and export flows: selects core recommendation fields,
+     * loads related associations (awards, levels, branches, members, requesters, gatherings, notes, etc.),
+     * applies an optional array of conditions and request query parameter filters, and enforces authorization
+     * scoping. When $view is "SubmittedByMember" and the current identity matches the provided member_id
+     * query parameter, authorization scoping is skipped to allow members to view their own submissions.
+     *
+     * @param array|null $filterArray Optional associative array of conditions to apply to the query (e.g. ['status' => 'Approved']).
+     * @param string|null $view Optional view identifier that may change scoping behavior (e.g. 'SubmittedByMember').
+     * @return \Cake\Datasource\QueryInterface The configured recommendations query ready for execution or further modification.
      */
     protected function getRecommendationQuery(?array $filterArray = null, ?string $view = null): \Cake\Datasource\QueryInterface
     {
@@ -4386,7 +3015,7 @@ class RecommendationsController extends AppController
                 'Recommendations.court_availability',
                 'Recommendations.status',
                 'Recommendations.state_date',
-                'Recommendations.event_id',
+                'Recommendations.gathering_id',
                 'Recommendations.given',
                 'Recommendations.modified',
                 'Recommendations.created',
@@ -4406,8 +3035,8 @@ class RecommendationsController extends AppController
                 'Members.title',
                 'Members.pronouns',
                 'Members.pronunciation',
-                'AssignedEvent.id',
-                'AssignedEvent.name',
+                'AssignedGathering.id',
+                'AssignedGathering.name',
                 'Awards.id',
                 'Awards.abbreviation',
                 'Awards.branch_id',
@@ -4448,7 +3077,7 @@ class RecommendationsController extends AppController
                 'Awards.Domains' => function ($q) {
                     return $q->select(['id', 'name']);
                 },
-                'Events' => function ($q) {
+                'Gatherings' => function ($q) {
                     return $q->select(['id', 'name', 'start_date', 'end_date']);
                 },
                 'Notes' => function ($q) {
@@ -4457,7 +3086,7 @@ class RecommendationsController extends AppController
                 'Notes.Authors' => function ($q) {
                     return $q->select(['id', 'sca_name']);
                 },
-                'AssignedEvent' => function ($q) {
+                'AssignedGathering' => function ($q) {
                     return $q->select(['id', 'name']);
                 }
             ]);
@@ -4515,152 +3144,21 @@ class RecommendationsController extends AppController
     }
 
     /**
-     * Process filter configuration into query conditions with dynamic parameter substitution
-     * 
-     * Implements sophisticated filter processing for recommendation queries, featuring
-     * dynamic parameter substitution, path expression normalization, and comprehensive
-     * filter transformation capabilities. This protected method serves as the core
-     * filter processing engine with support for request parameter injection, SQL
-     * path expression handling, and flexible query condition generation.
-     * 
-     * ## Filter Processing Architecture
-     * 
-     * ### Configuration-to-Query Transformation
-     * - **Filter Configuration Parsing**: Parse complex filter configuration arrays
-     * - **Query Condition Generation**: Transform configurations into database query conditions
-     * - **Parameter Substitution**: Dynamic parameter substitution from request data
-     * - **Path Expression Normalization**: Normalize SQL path expressions for database compatibility
-     * 
-     * ### Dynamic Parameter Injection
-     * - **Request Parameter Integration**: Inject request parameters into filter conditions
-     * - **Parameter Validation**: Validate injected parameters for security and correctness
-     * - **Default Value Handling**: Handle missing or empty request parameters gracefully
-     * - **Type Conversion**: Convert request parameters to appropriate data types
-     * 
-     * ## Special Syntax Processing
-     * 
-     * ### Parameter Delimiter Syntax
-     * - **Delimiter Recognition**: Recognize "-" wrapped parameter names for substitution
-     * - **Parameter Extraction**: Extract parameter names from delimiter syntax
-     * - **Value Substitution**: Substitute parameter values from request query string
-     * - **Null Handling**: Handle cases where referenced parameters are not present
-     * 
-     * ### Path Expression Transformation
-     * - **Arrow Notation Conversion**: Convert "->" notation to "." for SQL compatibility
-     * - **Association Path Handling**: Handle complex association path expressions
-     * - **Field Reference Normalization**: Normalize field references for query building
-     * - **SQL Injection Prevention**: Prevent SQL injection through path expression validation
-     * 
-     * ## Query Condition Generation
-     * 
-     * ### Condition Building Pipeline
-     * - **Key Normalization**: Normalize filter keys for database compatibility
-     * - **Value Processing**: Process and validate filter values
-     * - **Condition Assembly**: Assemble normalized conditions for query execution
-     * - **Complex Condition Support**: Support complex query conditions and operators
-     * 
-     * ### Multi-Value Filter Support
-     * - **Array Value Handling**: Handle array values for IN conditions
-     * - **Range Conditions**: Support range conditions for date and numeric fields
-     * - **Pattern Matching**: Support pattern matching with wildcards
-     * - **Negation Support**: Support negation conditions for exclusion filters
-     * 
-     * ## Security & Validation
-     * 
-     * ### Input Validation & Sanitization
-     * - **Parameter Validation**: Validate all injected parameters for security
-     * - **Type Checking**: Verify parameter types before substitution
-     * - **Range Validation**: Validate parameter ranges where appropriate
-     * - **Format Validation**: Validate parameter formats and patterns
-     * 
-     * ### SQL Injection Prevention
-     * - **Safe Parameter Binding**: Use safe parameter binding for all injected values
-     * - **Path Validation**: Validate path expressions to prevent injection
-     * - **Query Escaping**: Properly escape all dynamic query components
-     * - **Whitelist Validation**: Validate against whitelisted field names and operators
-     * 
-     * ## Filter Configuration Support
-     * 
-     * ### Configuration Flexibility
-     * - **Nested Configuration**: Support nested filter configuration structures
-     * - **Conditional Filters**: Support conditional filter application
-     * - **Default Filters**: Support default filter values and fallbacks
-     * - **Override Handling**: Handle filter overrides and precedence
-     * 
-     * ### Advanced Filter Types
-     * - **Text Search Filters**: Support full-text search filter processing
-     * - **Date Range Filters**: Process date range filters with proper formatting
-     * - **Numeric Range Filters**: Handle numeric range filters efficiently
-     * - **Association Filters**: Process filters on associated entity fields
-     * 
-     * ## Performance Optimization
-     * 
-     * ### Efficient Processing
-     * - **Minimal Processing Overhead**: Minimize processing overhead for filter transformation
-     * - **Caching Support**: Support caching of processed filter configurations
-     * - **Lazy Evaluation**: Implement lazy evaluation where appropriate
-     * - **Memory Efficiency**: Efficient memory usage during filter processing
-     * 
-     * ### Query Optimization
-     * - **Index-Friendly Conditions**: Generate conditions that utilize database indexes
-     * - **Query Plan Optimization**: Structure conditions for optimal query plans
-     * - **Join Optimization**: Optimize conditions for efficient join operations
-     * - **Subquery Minimization**: Minimize subquery usage where possible
-     * 
-     * ## Error Handling & Recovery
-     * 
-     * ### Comprehensive Error Management
-     * - **Parameter Errors**: Handle missing or invalid parameter references
-     * - **Type Conversion Errors**: Handle type conversion errors gracefully
-     * - **Format Errors**: Handle format validation errors appropriately
-     * - **Configuration Errors**: Handle malformed filter configurations
-     * 
-     * ### Fallback Strategies
-     * - **Default Values**: Provide sensible defaults for missing parameters
-     * - **Filter Removal**: Remove invalid filters rather than failing entirely
-     * - **Partial Processing**: Continue processing valid filters when errors occur
-     * - **Error Logging**: Log processing errors for debugging and monitoring
-     * 
-     * ## Integration Points
-     * 
-     * ### Request Integration
-     * - **Query Parameter Access**: Access request query parameters efficiently
-     * - **Parameter Type Handling**: Handle various parameter types from requests
-     * - **Request Validation**: Validate request parameters before processing
-     * - **Context Preservation**: Preserve request context during processing
-     * 
-     * ### Query Builder Integration
-     * - **CakePHP Query Integration**: Generate conditions compatible with CakePHP queries
-     * - **ORM Compatibility**: Ensure compatibility with CakePHP ORM query building
-     * - **Association Support**: Support association-based query conditions
-     * - **Behavior Integration**: Integration with model behaviors
-     * 
-     * ## Usage Examples
-     * 
-     * ```php
-     * // Basic filter processing
-     * $filter = ['status' => 'Approved', 'branch_id' => '-branch-'];
-     * $processed = $this->processFilter($filter);
-     * 
-     * // Complex path expressions
-     * $filter = ['Member->Branch->name' => '-branch_name-'];
-     * $processed = $this->processFilter($filter);
-     * 
-     * // Multiple condition processing
-     * $filter = [
-     *     'Award->domain' => '-domain-',
-     *     'created >=' => '-start_date-',
-     *     'status' => 'InProgress'
-     * ];
-     * $processed = $this->processFilter($filter);
-     * ```
-     * 
-     * @param array $filter The filter configuration array with potential parameter references
-     * @return array The processed filter array ready for use in database queries
-     * 
-     * @see getRecommendationQuery() For query building that uses processed filters
-     * @see table() For table interface that processes filters
-     * @see \Cake\Http\ServerRequest::getQuery() For request parameter access
+     * Normalize a filter configuration into query-ready conditions.
+     *
+     * Converts association arrow notation ("->") to dot notation and substitutes
+     * placeholder values wrapped in "-" with the corresponding request query
+     * parameter values (e.g. '-branch-' is replaced by $this->request->getQuery('branch')).
+     * Placeholders that are missing or empty are omitted from the resulting array.
+     *
+     * @param array $filter Filter configuration where keys may use "->" for associations
+     *                      and values may be literal values or parameter placeholders
+     *                      wrapped in "-" (e.g. "-paramName-").
+     * @return array An associative array of normalized conditions suitable for use
+     *               with CakePHP query building (association paths use "." and
+     *               parameter placeholders have been replaced or removed).
+     *
+     * @see getRecommendationQuery() For how the processed filters are applied to queries
      */
     protected function processFilter(array $filter): array
     {
@@ -4692,5 +3190,437 @@ class RecommendationsController extends AppController
         }
 
         return $filterArray;
+    }
+
+    /**
+     * Retrieve gatherings linked to an award and format them for display, optionally marking member attendance.
+     *
+     * @param int $awardId The award ID whose linked gatherings should be returned.
+     * @param int|null $memberId Optional member ID; when provided, gatherings the member attends with `share_with_crown` enabled are marked.
+     * @param bool $futureOnly When true, include only gatherings with a start date in the future.
+     * @param int|null $includeGatheringId If provided, ensure this gathering ID is included in the results even if it would be excluded by the activity or date filters.
+     * @return array Associative array mapping gathering ID => formatted display string ("Name in Branch on YYYY-MM-DD - YYYY-MM-DD"); entries with an asterisk indicate the member is attending and sharing with crown.
+    protected function getFilteredGatheringsForAward(int $awardId, ?int $memberId = null, bool $futureOnly = true, ?int $includeGatheringId = null): array
+    {
+        // Get all gathering activities linked to this award
+        $awardGatheringActivitiesTable = $this->fetchTable('Awards.AwardGatheringActivities');
+        $linkedActivities = $awardGatheringActivitiesTable->find()
+            ->where(['award_id' => $awardId])
+            ->select(['gathering_activity_id'])
+            ->toArray();
+
+        $activityIds = array_map(function ($row) {
+            return $row->gathering_activity_id;
+        }, $linkedActivities);
+
+        // If no activities are linked to the award, return empty array
+        if (empty($activityIds)) {
+            return [];
+        }
+
+        // Get gatherings that have these activities
+        $gatheringsTable = $this->fetchTable('Gatherings');
+        $query = $gatheringsTable->find()
+            ->contain([
+                'Branches' => function ($q) {
+                    return $q->select(['id', 'name']);
+                }
+            ])
+            ->select(['id', 'name', 'start_date', 'end_date', 'Gatherings.branch_id'])
+            ->orderBy(['start_date' => 'DESC']);
+
+        // Only filter by date if futureOnly is true
+        if ($futureOnly) {
+            $query->where(['start_date >' => DateTime::now()]);
+            $query->orderBy(['start_date' => 'ASC']);
+        }
+
+        // Filter by linked activities
+        $query->matching('GatheringActivities', function ($q) use ($activityIds) {
+            return $q->where(['GatheringActivities.id IN' => $activityIds]);
+        });
+
+        $gatheringsData = $query->all();
+
+        // Get attendance information for the member if member_id provided
+        $attendanceMap = [];
+        if ($memberId) {
+            $attendanceTable = $this->fetchTable('GatheringAttendances');
+            $attendances = $attendanceTable->find()
+                ->where([
+                    'member_id' => $memberId,
+                    'deleted IS' => null
+                ])
+                ->select(['gathering_id', 'share_with_crown'])
+                ->toArray();
+
+            foreach ($attendances as $attendance) {
+                $attendanceMap[$attendance->gathering_id] = $attendance->share_with_crown;
+            }
+        }
+
+        // Build the response array
+        $gatherings = [];
+        foreach ($gatheringsData as $gathering) {
+            $displayName = $gathering->name . ' in ' . $gathering->branch->name . ' on '
+                . $gathering->start_date->toDateString() . ' - ' . $gathering->end_date->toDateString();
+
+            $hasAttendance = isset($attendanceMap[$gathering->id]);
+            $shareWithCrown = $hasAttendance && $attendanceMap[$gathering->id];
+
+            // Add indicator if member is attending and sharing with crown
+            if ($shareWithCrown) {
+                $displayName .= ' *';
+            }
+
+            $gatherings[$gathering->id] = $displayName;
+        }
+
+        // If a specific gathering ID should be included (e.g., already assigned to recommendation)
+        // and it's not already in the list, add it
+        if ($includeGatheringId && !isset($gatherings[$includeGatheringId])) {
+            $gatheringsTable = $this->fetchTable('Gatherings');
+            $specificGathering = $gatheringsTable->find()
+                ->contain(['Branches' => function ($q) {
+                    return $q->select(['id', 'name']);
+                }])
+                ->where(['Gatherings.id' => $includeGatheringId])
+                ->select(['id', 'name', 'start_date', 'end_date', 'Gatherings.branch_id'])
+                ->first();
+
+            if ($specificGathering) {
+                $displayName = $specificGathering->name . ' in ' . $specificGathering->branch->name . ' on '
+                    . $specificGathering->start_date->toDateString() . ' - ' . $specificGathering->end_date->toDateString();
+
+                $hasAttendance = isset($attendanceMap[$specificGathering->id]);
+                $shareWithCrown = $hasAttendance && $attendanceMap[$specificGathering->id];
+
+                if ($shareWithCrown) {
+                    $displayName .= ' *';
+                }
+
+                // Add to the beginning of the array so it appears first
+                $gatherings = [$specificGathering->id => $displayName] + $gatherings;
+            }
+        }
+
+        return $gatherings;
+    }
+
+    /**
+     * Return gatherings linked to an award, optionally including attendance indicators for a member.
+     *
+     * Renders a JSON array where each item contains: `id`, `name`, `display` (formatted branch and date range,
+     * with an appended `*` when the member is attending and sharing with crown), `has_attendance`, and
+     * `share_with_crown`.
+     *
+     * @param string|null $awardId The award ID to filter gatherings for.
+     * @throws \Cake\Http\Exception\NotFoundException When the specified award cannot be found.
+     */
+    public function gatheringsForAward(?string $awardId = null): void
+    {
+        $this->request->allowMethod(['get']);
+
+        // Skip authorization - this is a data endpoint for add/edit forms
+        // Authorization is handled at the form action level
+        $this->Authorization->skipAuthorization();
+
+        try {
+            // Get member_id from query params if provided
+            $memberId = $this->request->getQuery('member_id');
+
+            // Get status from query params to determine if we should show all gatherings
+            $status = $this->request->getQuery('status');
+            $futureOnly = ($status !== 'Given');
+
+            // Get the award to verify it exists
+            $awardsTable = $this->fetchTable('Awards.Awards');
+            $award = $awardsTable->get($awardId);
+
+            // Get all gathering activities linked to this award
+            $awardGatheringActivitiesTable = $this->fetchTable('Awards.AwardGatheringActivities');
+            $linkedActivities = $awardGatheringActivitiesTable->find()
+                ->where(['award_id' => $awardId])
+                ->select(['gathering_activity_id'])
+                ->toArray();
+
+            $activityIds = array_map(function ($row) {
+                return $row->gathering_activity_id;
+            }, $linkedActivities);
+
+            // Get gatherings that have these activities
+            $gatheringsTable = $this->fetchTable('Gatherings');
+            $query = $gatheringsTable->find()
+                ->contain([
+                    'Branches' => function ($q) {
+                        return $q->select(['id', 'name']);
+                    }
+                ])
+                ->select(['id', 'name', 'start_date', 'end_date', 'Gatherings.branch_id']);
+
+            // Only filter by date if futureOnly is true
+            if ($futureOnly) {
+                $query->where(['start_date >' => DateTime::now()])
+                    ->orderBy(['start_date' => 'ASC']);
+            } else {
+                $query->orderBy(['start_date' => 'DESC']);
+            }
+
+            // If there are linked activities, filter by them
+            if (!empty($activityIds)) {
+                $query->matching('GatheringActivities', function ($q) use ($activityIds) {
+                    return $q->where(['GatheringActivities.id IN' => $activityIds]);
+                });
+            } else {
+                // If no activities are linked to the award, return empty array
+                $this->set([
+                    'gatherings' => [],
+                    '_serialize' => ['gatherings']
+                ]);
+                $this->viewBuilder()->setOption('serialize', ['gatherings']);
+                return;
+            }
+
+            $gatheringsData = $query->all();
+
+            // Get attendance information for the member if member_id provided
+            $attendanceMap = [];
+            if ($memberId) {
+                $attendanceTable = $this->fetchTable('GatheringAttendances');
+                $attendances = $attendanceTable->find()
+                    ->where([
+                        'member_id' => $memberId,
+                        'deleted IS' => null
+                    ])
+                    ->select(['gathering_id', 'share_with_crown'])
+                    ->toArray();
+
+                foreach ($attendances as $attendance) {
+                    $attendanceMap[$attendance->gathering_id] = $attendance->share_with_crown;
+                }
+            }
+
+            // Build the response array
+            $gatherings = [];
+            foreach ($gatheringsData as $gathering) {
+                $displayName = $gathering->name . ' in ' . $gathering->branch->name . ' on '
+                    . $gathering->start_date->toDateString() . ' - ' . $gathering->end_date->toDateString();
+
+                $hasAttendance = isset($attendanceMap[$gathering->id]);
+                $shareWithCrown = $hasAttendance && $attendanceMap[$gathering->id];
+
+                // Add indicator if member is attending and sharing with crown
+                if ($shareWithCrown) {
+                    $displayName .= ' *';
+                }
+
+                $gatherings[] = [
+                    'id' => $gathering->id,
+                    'name' => $gathering->name,
+                    'display' => $displayName,
+                    'has_attendance' => $hasAttendance,
+                    'share_with_crown' => $shareWithCrown
+                ];
+            }
+
+            $this->set([
+                'gatherings' => $gatherings,
+                '_serialize' => ['gatherings']
+            ]);
+            $this->viewBuilder()->setClassName('Json');
+            $this->viewBuilder()->setOption('serialize', ['gatherings']);
+        } catch (\Exception $e) {
+            Log::error('Error in gatheringsForAward: ' . $e->getMessage());
+            $this->set([
+                'error' => 'An error occurred while fetching gatherings',
+                '_serialize' => ['error']
+            ]);
+            $this->viewBuilder()->setClassName('Json');
+            $this->viewBuilder()->setOption('serialize', ['error']);
+            $this->response = $this->response->withStatus(500);
+        }
+    }
+
+    /**
+     * Build and return a JSON list of gatherings suitable for bulk-editing the selected recommendations.
+     *
+     * Determines gatherings that offer activities common to all awards referenced by the provided recommendation IDs,
+     * optionally limits to future gatherings depending on the supplied status, and includes attendance counts for members
+     * referenced by the recommendations when they share attendance with Crown. Expects a POST request with `ids` (array
+     * of recommendation ids) and optional `status`; skips authorization and renders a JSON payload with a `gatherings`
+     * array (each item contains `id`, `name`, `display`, and `attendance_count`).
+     */
+    public function gatheringsForBulkEdit(): void
+    {
+        $this->request->allowMethod(['post']);
+
+        // Skip authorization - this is a data endpoint for bulk edit form
+        $this->Authorization->skipAuthorization();
+
+        try {
+            // Get recommendation IDs from request
+            $ids = $this->request->getData('ids');
+            if (empty($ids) || !is_array($ids)) {
+                $this->set([
+                    'gatherings' => [],
+                    '_serialize' => ['gatherings']
+                ]);
+                $this->viewBuilder()->setClassName('Json');
+                $this->viewBuilder()->setOption('serialize', ['gatherings']);
+                return;
+            }
+
+            // Get status from request to determine if we should show all gatherings
+            $status = $this->request->getData('status');
+            $futureOnly = ($status !== 'Given');
+
+            // Fetch the selected recommendations with their awards and members
+            $recommendations = $this->Recommendations->find()
+                ->where(['Recommendations.id IN' => $ids])
+                ->contain(['Awards', 'Members'])
+                ->all();
+
+            if ($recommendations->isEmpty()) {
+                $this->set([
+                    'gatherings' => [],
+                    '_serialize' => ['gatherings']
+                ]);
+                $this->viewBuilder()->setClassName('Json');
+                $this->viewBuilder()->setOption('serialize', ['gatherings']);
+                return;
+            }
+
+            // Get all unique award IDs and member IDs
+            $awardIds = [];
+            $memberIds = [];
+            foreach ($recommendations as $rec) {
+                $awardIds[] = $rec->award_id;
+                if ($rec->member_id) {
+                    $memberIds[] = $rec->member_id;
+                }
+            }
+            $awardIds = array_unique($awardIds);
+            $memberIds = array_unique($memberIds);
+
+            // For each award, get the gathering activities that can give it out
+            $awardGatheringActivitiesTable = $this->fetchTable('Awards.AwardGatheringActivities');
+            $activityIdsByAward = [];
+
+            foreach ($awardIds as $awardId) {
+                $linkedActivities = $awardGatheringActivitiesTable->find()
+                    ->where(['award_id' => $awardId])
+                    ->select(['gathering_activity_id'])
+                    ->toArray();
+
+                $activityIds = array_map(function ($row) {
+                    return $row->gathering_activity_id;
+                }, $linkedActivities);
+
+                $activityIdsByAward[$awardId] = $activityIds;
+            }
+
+            // Find intersection - gatherings must have activities for ALL awards
+            $commonActivityIds = null;
+            foreach ($activityIdsByAward as $awardId => $activityIds) {
+                if ($commonActivityIds === null) {
+                    $commonActivityIds = $activityIds;
+                } else {
+                    // Keep only activities that exist in both arrays
+                    $commonActivityIds = array_intersect($commonActivityIds, $activityIds);
+                }
+            }
+
+            // If no common activities, return empty
+            if (empty($commonActivityIds)) {
+                $this->set([
+                    'gatherings' => [],
+                    '_serialize' => ['gatherings']
+                ]);
+                $this->viewBuilder()->setClassName('Json');
+                $this->viewBuilder()->setOption('serialize', ['gatherings']);
+                return;
+            }
+
+            // Get gatherings that have these activities
+            $gatheringsTable = $this->fetchTable('Gatherings');
+            $query = $gatheringsTable->find()
+                ->contain([
+                    'Branches' => function ($q) {
+                        return $q->select(['id', 'name']);
+                    }
+                ])
+                ->select(['id', 'name', 'start_date', 'end_date', 'Gatherings.branch_id'])
+                ->orderBy(['start_date' => 'DESC']);
+
+            // Only filter by date if futureOnly is true
+            if ($futureOnly) {
+                $query->where(['start_date >' => DateTime::now()]);
+                $query->orderBy(['start_date' => 'ASC']);
+            }
+
+            // Filter by common activities
+            $query->matching('GatheringActivities', function ($q) use ($commonActivityIds) {
+                return $q->where(['GatheringActivities.id IN' => $commonActivityIds]);
+            });
+
+            $gatheringsData = $query->all();
+
+            // Get attendance information for all members if any provided
+            $attendanceMap = [];
+            if (!empty($memberIds)) {
+                $attendanceTable = $this->fetchTable('GatheringAttendances');
+                $attendances = $attendanceTable->find()
+                    ->where([
+                        'member_id IN' => $memberIds,
+                        'deleted IS' => null,
+                        'share_with_crown' => true
+                    ])
+                    ->select(['gathering_id', 'member_id'])
+                    ->toArray();
+
+                foreach ($attendances as $attendance) {
+                    if (!isset($attendanceMap[$attendance->gathering_id])) {
+                        $attendanceMap[$attendance->gathering_id] = 0;
+                    }
+                    $attendanceMap[$attendance->gathering_id]++;
+                }
+            }
+
+            // Build the response array
+            $gatherings = [];
+            foreach ($gatheringsData as $gathering) {
+                $displayName = $gathering->name . ' in ' . $gathering->branch->name . ' on '
+                    . $gathering->start_date->toDateString() . ' - ' . $gathering->end_date->toDateString();
+
+                // Add indicator if any members are attending and sharing with crown
+                if (isset($attendanceMap[$gathering->id])) {
+                    $count = $attendanceMap[$gathering->id];
+                    $displayName .= ' *(' . $count . ')';
+                }
+
+                $gatherings[] = [
+                    'id' => $gathering->id,
+                    'name' => $gathering->name,
+                    'display' => $displayName,
+                    'attendance_count' => $attendanceMap[$gathering->id] ?? 0
+                ];
+            }
+
+            $this->set([
+                'gatherings' => $gatherings,
+                '_serialize' => ['gatherings']
+            ]);
+            $this->viewBuilder()->setClassName('Json');
+            $this->viewBuilder()->setOption('serialize', ['gatherings']);
+        } catch (\Exception $e) {
+            Log::error('Error in gatheringsForBulkEdit: ' . $e->getMessage());
+            $this->set([
+                'error' => 'An error occurred while fetching gatherings',
+                '_serialize' => ['error']
+            ]);
+            $this->viewBuilder()->setClassName('Json');
+            $this->viewBuilder()->setOption('serialize', ['error']);
+            $this->response = $this->response->withStatus(500);
+        }
     }
 }

@@ -1,14 +1,18 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Mailer;
 
 use App\KMP\StaticHelpers;
 use App\Model\Table\AppSettingsTable;
+use Cake\Log\Log;
 use Cake\Mailer\Mailer;
 
 class KMPMailer extends Mailer
 {
+    use TemplateAwareMailerTrait;
+
     protected AppSettingsTable $appSettings;
 
     public function __construct()
@@ -19,7 +23,6 @@ class KMPMailer extends Mailer
 
     public function resetPassword($to, $url): void
     {
-
         $sendFrom = StaticHelpers::getAppSetting('Email.SystemEmailFromAddress');
         $this->setTo($to)
             ->setFrom($sendFrom)
@@ -50,10 +53,11 @@ class KMPMailer extends Mailer
         $portalName = StaticHelpers::getAppSetting('KMP.LongSiteTitle');
         $this->setTo($to)
             ->setFrom($sendFrom)
-            ->setSubject('Welcome ' . $sca_name . ' to ' . $portalName)
+            ->setSubject("Welcome $sca_name to $portalName")
             ->setViewVars([
                 'email' => $to,
                 'passwordResetUrl' => $url,
+                'portalName' => $portalName,
                 'memberScaName' => $sca_name,
                 'siteAdminSignature' => StaticHelpers::getAppSetting('Email.SiteAdminSignature'),
             ]);
@@ -69,7 +73,7 @@ class KMPMailer extends Mailer
             ->setViewVars([
                 'memberViewUrl' => $url,
                 'memberScaName' => $sca_name,
-                'memberCardPresent' => $membershipCardPresent,
+                'memberCardPresent' => $membershipCardPresent ? "uploaded" : "not uploaded",
                 'siteAdminSignature' => StaticHelpers::getAppSetting('Email.SiteAdminSignature'),
             ]);
     }
@@ -84,7 +88,7 @@ class KMPMailer extends Mailer
             ->setViewVars([
                 'memberViewUrl' => $url,
                 'memberScaName' => $sca_name,
-                'memberCardPresent' => $membershipCardPresent,
+                'memberCardPresent' => $membershipCardPresent ? "uploaded" : "not uploaded",
                 'siteAdminSignature' => StaticHelpers::getAppSetting('Email.SiteAdminSignature'),
             ]);
     }

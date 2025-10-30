@@ -90,7 +90,20 @@ if [ ! -d "node_modules/playwright" ] || [ ! -d "$HOME/.cache/ms-playwright" ]; 
     sudo npx playwright install-deps
 fi
 
-sudo chmod -R 766 logs
+# Setup proper permissions for logs and tmp directories
+echo "Setting up logs and tmp directories..."
+sudo mkdir -p "$REPO_PATH/app/logs"
+sudo mkdir -p "$REPO_PATH/app/tmp"
+sudo mkdir -p "$REPO_PATH/app/tmp/cache"
+sudo mkdir -p "$REPO_PATH/app/tmp/cache/models"
+sudo mkdir -p "$REPO_PATH/app/tmp/cache/persistent"
+sudo mkdir -p "$REPO_PATH/app/tmp/cache/views"
+sudo mkdir -p "$REPO_PATH/app/tmp/sessions"
+sudo mkdir -p "$REPO_PATH/app/tmp/tests"
+sudo chmod -R 775 "$REPO_PATH/app/logs"
+sudo chmod -R 775 "$REPO_PATH/app/tmp"
+sudo chown -R www-data:www-data "$REPO_PATH/app/logs"
+sudo chown -R www-data:www-data "$REPO_PATH/app/tmp"
 
 # Setup cron job for queue processing
 echo "Setting up cron job..."
@@ -118,6 +131,8 @@ if [ ! -f /etc/apache2/ssl/dev.crt ] || [ ! -f /etc/apache2/ssl/dev.key ]; then
 fi
 
 #sudo chown -R vscode:vscode /workspaces/KMP
+curl -LsSf https://astral.sh/uv/install.sh | sh
+uv tool install specify-cli --from git+https://github.com/github/spec-kit.git
 
 sudo mkdir -p /workspaces/KMP/app/images/uploaded
 sudo mkdir -p /workspaces/KMP/app/images/cache
@@ -127,4 +142,5 @@ sudo chown -R www-data:www-data /workspaces/KMP/app/images
 # Start Apache
 echo "Starting Apache..."
 sudo apachectl restart
+
 

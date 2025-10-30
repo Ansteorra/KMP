@@ -631,4 +631,90 @@ class AppController extends Controller
         // Perform authorization check via Authorization component
         $this->Authorization->authorize($params);
     }
+
+    /**
+     * Switch View Mode Action
+     * 
+     * Allows users to switch between mobile and desktop view modes by storing
+     * their preference in the session and redirecting to the appropriate interface.
+     * 
+     * ## View Modes & Redirects
+     * 
+     * - mobile: Redirects to viewMobileCard with user's mobile_card_token
+     * - desktop: Redirects to Members/profile page
+     * 
+     * ## Session Storage
+     * 
+     * The preference is stored in the session as 'viewMode' and persists across
+     * the user's session until they log out or switch modes again.
+     * 
+     * ## URL Parameters
+     * 
+     * - mode: The view mode to switch to ('mobile' or 'desktop')
+     * 
+     * ## Usage
+     * 
+     * ```php
+     * // Switch to mobile view
+     * $this->Html->link('Switch to Mobile', [
+     *     'controller' => 'App',
+     *     'action' => 'switchView',
+     *     '?' => ['mode' => 'mobile']
+     * ]);
+     * 
+     * // Switch to desktop view
+     * $this->Html->link('Switch to Desktop', [
+     *     'controller' => 'App',
+     *     'action' => 'switchView',
+     *     '?' => ['mode' => 'desktop']
+     * ]);
+     * ```
+     * 
+     * @return \Cake\Http\Response Redirects to mobile card or member profile
+     */
+    public function switchView()
+    {
+        // Skip authorization check - view switching should be available to all authenticated users
+        $this->Authorization->skipAuthorization();
+
+        $mode = $this->request->getQuery('mode', 'desktop');
+
+        // Validate mode parameter
+        if (!in_array($mode, ['mobile', 'desktop'])) {
+            $mode = 'desktop';
+        }
+
+        // Store preference in session
+        $session = $this->request->getSession();
+        $session->write('viewMode', $mode);
+
+        // Get current user identity
+        $currentUser = $this->request->getAttribute('identity');
+
+        $this->Flash->success(__('Switched to {0} view.', $mode));
+
+        // Redirect based on mode
+        if ($mode === 'mobile') {
+            // Redirect to mobile card view with user's token
+            if ($currentUser && $currentUser->mobile_card_token) {
+                return $this->redirect([
+                    'controller' => 'Members',
+                    'action' => 'viewMobileCard',
+                    'plugin' => null,
+                    $currentUser->mobile_card_token
+                ]);
+            } else {
+                // Fallback if no mobile card token exists
+                $this->Flash->error(__('Mobile card not available. Please contact an administrator.'));
+                return $this->redirect(['controller' => 'Members', 'action' => 'index', 'plugin' => null]);
+            }
+        } else {
+            // Redirect to desktop profile view
+            return $this->redirect([
+                'controller' => 'Members',
+                'action' => 'profile',
+                'plugin' => null
+            ]);
+        }
+    }
 }

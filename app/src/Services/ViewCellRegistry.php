@@ -22,6 +22,7 @@ class ViewCellRegistry
     public const PLUGIN_TYPE_DETAIL = 'detail';
     public const PLUGIN_TYPE_MODAL = 'modal';
     public const PLUGIN_TYPE_JSON = 'json';
+    public const PLUGIN_TYPE_MOBILE_MENU = 'mobile_menu';
 
     /**
      * @var array View cells registry
@@ -94,6 +95,17 @@ class ViewCellRegistry
      */
     private static function cellMatchesRoute(array $cell, array $urlParams, ?Member $user = null): bool
     {
+        // For MOBILE_MENU items with no validRoutes, show everywhere
+        if (isset($cell['type']) && $cell['type'] === self::PLUGIN_TYPE_MOBILE_MENU) {
+            if (!isset($cell['validRoutes']) || !is_array($cell['validRoutes']) || empty($cell['validRoutes'])) {
+                // No valid routes means show everywhere - skip to auth callback check
+                if (isset($cell['authCallback']) && is_callable($cell['authCallback'])) {
+                    return call_user_func($cell['authCallback'], $urlParams, $user);
+                }
+                return true;
+            }
+        }
+
         // Check if cell has valid routes defined
         if (!isset($cell['validRoutes']) || !is_array($cell['validRoutes'])) {
             return false;

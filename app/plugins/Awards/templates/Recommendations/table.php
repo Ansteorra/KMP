@@ -47,9 +47,9 @@ $currentUrl = $this->request->getRequestTarget();
     if ($this->request->getQuery("member_id")) {
         echo $this->Form->hidden("member_id", ["value" => $this->request->getQuery("member_id")]);
     }
-    //check if there is a hidden event_id in the query string and add a hidden field for it is there
-    if ($this->request->getQuery("event_id")) {
-        echo $this->Form->hidden("event_id", ["value" => $this->request->getQuery("event_id")]);
+    //check if there is a hidden gathering_id in the query string and add a hidden field for it is there
+    if ($this->request->getQuery("gathering_id")) {
+        echo $this->Form->hidden("gathering_id", ["value" => $this->request->getQuery("gathering_id")]);
     } ?>
     <?= $this->Form->hidden("sort", ["value" => $this->request->getQuery("sort")]) ?>
     <?= $this->Form->hidden("direction", ["value" => $this->request->getQuery("direction")]) ?>
@@ -186,7 +186,7 @@ $currentUrl = $this->request->getRequestTarget();
                         <th scope="col">Close Reason</th>
                     <?php endif; ?>
                     <?php if ($columns["Event"]): ?>
-                        <th scope="col"><?= $this->Paginator->sort("AssignedEvent.name", "Event") ?></th>
+                        <th scope="col"><?= $this->Paginator->sort("AssignedGathering.name", "Event") ?></th>
                     <?php endif; ?>
                     <?php if ($columns["State Date"]): ?>
                         <th scope="col"><?= $this->Paginator->sort("State Date") ?></th>
@@ -324,10 +324,10 @@ $currentUrl = $this->request->getRequestTarget();
                                 <?php
 
                                 //sort the events array by start date asending
-                                usort($recommendation->events, function ($a, $b) {
+                                usort($recommendation->gatherings, function ($a, $b) {
                                     return $a->start_date->toUnixString() <=> $b->start_date->toUnixString();
                                 });
-                                $remainingEvents = $recommendation->events;
+                                $remainingEvents = $recommendation->gatherings;
                                 //filter out events that have already happened
                                 $remainingEvents = array_filter($remainingEvents, function ($event) {
                                     return $event->end_date->toUnixString() >= \Cake\I18n\Date::now()->toUnixString();
@@ -379,7 +379,7 @@ $currentUrl = $this->request->getRequestTarget();
                             <td><?= h($recommendation->close_reason) ?></td>
                         <?php endif; ?>
                         <?php if ($columns["Event"]): ?>
-                            <td><?= h($recommendation->assigned_event ? $recommendation->assigned_event->name : "") ?></td>
+                            <td><?= h($recommendation->assigned_gathering ? $recommendation->assigned_gathering->name : "") ?></td>
                         <?php endif; ?>
                         <?php if ($columns["State Date"]): ?>
                             <td><?= $recommendation->state_date ? h($recommendation->state_date->toDateString()) : h($recommendation->created->toDateString()) ?>
@@ -433,13 +433,17 @@ $currentUrl = $this->request->getRequestTarget();
                             colspan="<?= ($columnCount + 1) ?>">
                             <td colspan="<?= $columnCount + 1 ?>">
                                 <div class="card">
-                                    <div class="card-header">Events</div>
+                                    <div class="card-header">Gatherings/Events</div>
                                     <div class="card-body">
                                         <ul>
-                                            <?php foreach ($recommendation->events as $event) : ?>
-                                                <li style="white-space:nowrap">
-                                                    <?= h($event->name) ?><br><?= h($event->start_date->toDateString()) ?></li>
-                                            <?php endforeach; ?>
+                                            <?php if (!empty($recommendation->gatherings)) : ?>
+                                                <?php foreach ($recommendation->gatherings as $gathering) : ?>
+                                                    <li style="white-space:nowrap">
+                                                        <?= h($gathering->name) ?><br><?= h($gathering->start_date->toDateString()) ?></li>
+                                                <?php endforeach; ?>
+                                            <?php else : ?>
+                                                <li>No gatherings/events assigned</li>
+                                            <?php endif; ?>
                                         </ul>
                                     </div>
                                 </div>

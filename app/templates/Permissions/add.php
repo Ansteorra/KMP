@@ -19,7 +19,8 @@ $this->KMP->endBlock();
 <div class="permissions form content">
     <?= $this->Form->create($permission) ?>
     <fieldset>
-        <legend><?= __("Add Permission") ?></legend>
+        <legend><a href="#" onclick="window.history.back(); return false;" class="bi bi-arrow-left-circle"></a>
+            <?= __("Add Permission") ?></legend>
         <?php
         echo $this->Form->control("name");
         echo $this->Form->control("require_active_membership", [

@@ -200,6 +200,16 @@ class AuthorizationsController extends AppController
         return $this->redirect($this->referer());
     }
 
+    /**
+     * Handle submission of a new authorization request for a member.
+     *
+     * Creates an authorization request for the provided member and activity, enforces controller
+     * authorization, submits the request via the authorization manager, sets success or error
+     * flash messages, and redirects back to the referring page. If the request originated from
+     * a mobile context, redirects to the member's mobile card view.
+     *
+     * @return \Cake\Http\Response|null The response produced by a redirect, or null if none.
+     */
     public function add(AuthorizationManagerInterface $maService)
     {
         $this->request->allowMethod(["post"]);
@@ -221,15 +231,37 @@ class AuthorizationsController extends AppController
         if ($maResult->success) {
             $this->Flash->success(__("The Authorization has been requested."));
 
+            // Redirect to mobile card if request came from mobile interface
+            $mobileRedirect = $this->redirectIfMobileContext((int) $memberId);
+            if ($mobileRedirect !== null) {
+                return $mobileRedirect;
+            }
+
             return $this->redirect($this->referer());
         }
         $this->Flash->error(
             __($maResult->reason),
         );
 
+        // Redirect to mobile card if request came from mobile interface
+        $mobileRedirect = $this->redirectIfMobileContext((int) $memberId);
+        if ($mobileRedirect !== null) {
+            return $mobileRedirect;
+        }
+
         return $this->redirect($this->referer());
     }
 
+    /**
+     * Submit a renewal request for a member's authorization.
+     *
+     * Processes a renewal request from POST data, delegates the request to the AuthorizationManager service,
+     * sets a success or error flash message, and redirects back to the referring page or to the member's
+     * mobile card view when the request originated from the mobile interface.
+     *
+     * @param \Activities\Service\AuthorizationManagerInterface $maService Service used to submit the authorization request.
+     * @return \Cake\Http\Response|null Redirect response to the referrer or member mobile card, or null if no redirect is produced.
+     */
     public function renew(AuthorizationManagerInterface $maService)
     {
         $this->request->allowMethod(["post"]);
@@ -256,15 +288,82 @@ class AuthorizationsController extends AppController
         ) {
             $this->Flash->success(__("The Authorization has been requested."));
 
+            // Redirect to mobile card if request came from mobile interface
+            $mobileRedirect = $this->redirectIfMobileContext((int) $memberId);
+            if ($mobileRedirect !== null) {
+                return $mobileRedirect;
+            }
+
             return $this->redirect($this->referer());
         }
         $this->Flash->error(
             __($maResult->reason),
         );
 
+        // Redirect to mobile card if request came from mobile interface
+        $mobileRedirect = $this->redirectIfMobileContext((int) $memberId);
+        if ($mobileRedirect !== null) {
+            return $mobileRedirect;
+        }
+
         return $this->redirect($this->referer());
     }
 
+    /**
+     * Display a mobile-optimized form for members to request authorizations.
+     *
+     * Provides the view with the requesting member's ID and available activities, and configures the mobile layout and UI metadata.
+     *
+     * @return \Cake\Http\Response|null|void A redirect Response when unauthenticated users are redirected; otherwise null/void. 
+     */
+    public function mobileRequestAuthorization()
+    {
+        // Get current user
+        $currentUser = $this->Authentication->getIdentity();
+        if (!$currentUser) {
+            $this->Flash->error(__('You must be logged in to request authorizations.'));
+            return $this->redirect(['controller' => 'Members', 'action' => 'login', 'plugin' => null]);
+        }
+
+        // Skip authorization check - any authenticated user can request for themselves
+        $this->Authorization->skipAuthorization();
+
+        // Get member ID
+        $memberId = $currentUser->id;
+
+        // Load activities table
+        $activitiesTable = TableRegistry::getTableLocator()->get('Activities.Activities');
+
+        // Get available activities (not deleted)
+        $activities = $activitiesTable->find('list', [
+            'keyField' => 'id',
+            'valueField' => 'name'
+        ])
+            ->order(['Activities.name' => 'ASC']);
+
+        $this->set(compact('memberId', 'activities'));
+
+        // Use mobile app layout for consistent UX
+        $this->viewBuilder()->setLayout('mobile_app');
+        $this->set('mobileTitle', 'Request Authorization');
+        $this->set('mobileBackUrl', $this->request->referer());
+        $this->set('mobileHeaderColor', StaticHelpers::getAppSetting(
+            'Member.MobileCard.BgColor',
+        ));
+        $this->set('showRefreshBtn', false); // No refresh button needed for form page
+    }
+
+    /**
+     * Display paginated authorizations for a member filtered by state.
+     *
+     * Loads authorizations for the specified member in one of the states: "current", "pending", or "previous",
+     * enforces view permission on the member, paginates the results, and exposes `authorizations`, `member`,
+     * and `state` to the view.
+     *
+     * @param string $state The authorization state to display ("current", "pending", or "previous").
+     * @param int $id The member id whose authorizations are being displayed.
+     * @throws \Cake\Http\Exception\NotFoundException If the state is invalid or the member does not exist.
+     */
     public function memberAuthorizations($state, $id)
     {
         if ($state != 'current' && $state == 'pending' && $state == 'previous') {
@@ -503,5 +602,33 @@ class AuthorizationsController extends AppController
                     return $q->select(["RevokedBy.sca_name"]);
                 }
             ]);
+    }
+
+    /**
+     * Helper method to redirect to mobile card view if request came from mobile interface
+     *
+     * Checks if the referer contains mobile-specific patterns and redirects to the member's
+     * mobile card view if applicable. Returns null if not a mobile context.
+     *
+     * @param int $memberId The member ID to redirect to
+     * @return \Cake\Http\Response|null Redirect response to mobile card or null if not mobile context
+     */
+    private function redirectIfMobileContext(int $memberId): ?\Cake\Http\Response
+    {
+        $referer = $this->referer();
+
+        // Check if request came from mobile interface
+        if (strpos($referer, '/mobile') !== false || strpos($referer, 'view-mobile-card') !== false) {
+            // Get the member's mobile card URL
+            $member = $this->Authorizations->Members->get($memberId, ['fields' => ['id', 'mobile_card_token']]);
+            return $this->redirect([
+                'controller' => 'Members',
+                'action' => 'viewMobileCard',
+                'plugin' => null,
+                $member->mobile_card_token
+            ]);
+        }
+
+        return null;
     }
 }

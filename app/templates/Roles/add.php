@@ -16,7 +16,8 @@ $this->KMP->endBlock(); ?>
 <div class="roles form content">
     <?= $this->Form->create($role) ?>
     <fieldset>
-        <legend><?= __("Add Role") ?></legend>
+        <legend><a href="#" onclick="window.history.back(); return false;" class="bi bi-arrow-left-circle"></a>
+            <?= __("Add Role") ?></legend>
         <?php
         echo $this->Form->control("name");
         echo $this->Form->control("permissions._ids", [

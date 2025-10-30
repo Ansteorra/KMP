@@ -1,17 +1,22 @@
 
 // export for others scripts to use
+import { Application } from "@hotwired/stimulus";
+import * as Turbo from "@hotwired/turbo";
 import 'bootstrap';
-import * as Turbo from "@hotwired/turbo"
-import { Application, Controller } from "@hotwired/stimulus"
 import KMP_utils from './KMP_utils.js';
+
+// Disable Turbo Drive (automatic navigation) but keep Turbo Frames working
+Turbo.session.drive = false;
 
 //window.$ = $;
 //window.jQuery = jQuery;
 window.KMP_utils = KMP_utils;
-window.Stimulus = Application.start();
+const stimulusApp = Application.start();
+window.Stimulus = stimulusApp;
+
 // load all the controllers that have registered in the window.Controllers object
-for (var controller in window.Controllers) {
-    Stimulus.register(controller, window.Controllers[controller]);
+for (const controller in window.Controllers) {
+    stimulusApp.register(controller, window.Controllers[controller]);
 }
 
 //activate boostrap tooltips

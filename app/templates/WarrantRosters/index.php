@@ -27,14 +27,14 @@ $tabs["Pending"] = [
 $tabs["Approved"] = [
     "label" => __("Approved"),
     "id" => "approved",
-    "selected" => true,
+    "selected" => false,
     "turboUrl" => $this->URL->build(["controller" => "warrant-rosters", "action" => "All_Rosters", "plugin" => null,  WarrantRoster::STATUS_APPROVED])
 ];
 
 $tabs["Declined"] = [
     "label" => __("Declined"),
     "id" => "declined",
-    "selected" => true,
+    "selected" => false,
     "turboUrl" => $this->URL->build(["controller" => "warrant-rosters", "action" => "All_Rosters", "plugin" => null,  WarrantRoster::STATUS_DECLINED])
 ];
 

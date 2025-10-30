@@ -255,42 +255,70 @@ class AuthorizationApprovalsTablePolicy extends BasePolicy
     }
 
     /**
-     * Apply authorization scope to personal queue queries.
+     * Apply personal approver scope to the provided query.
      *
-     * Implements strict personal scoping for approval queue operations, ensuring approvers
-     * can only access their own assigned approval items.
+     * Limits query results to approval items assigned to the given user.
      *
-     * **Scoping Logic:**
-     * - Always applies personal scope filter regardless of administrative permissions
-     * - Ensures queue privacy and approver responsibility boundaries
-     * - Provides dedicated interface for personal queue management
-     *
-     * **Query Modification:**
-     * - Adds `WHERE approver_id = :userId` filter to limit access to assigned items
-     * - Database-level filtering for performance and security
-     * - Maintains approver workflow isolation and privacy
-     *
-     * **Usage Examples:**
-     * ```php
-     * // Personal queue access in controller
-     * $myQueue = $this->Authorization->applyScope($this->AuthorizationApprovals->find(), 'myQueue');
-     * 
-     * // Service-level personal queue operations
-     * $personalItems = $this->authorizationPolicy->scopeMyQueue($user, $baseQuery);
-     * ```
-     *
-     * **Security Implementation:**
-     * - Strict personal scope enforcement regardless of other permissions
-     * - Maintains approver privacy and workflow boundaries
-     * - Prevents cross-contamination between approver queues
-     * - Optimized for personal queue management workflows
-     *
-     * @param \App\KMP\KmpIdentityInterface $user The requesting user
-     * @param \Cake\ORM\Query $query The base query to scope
-     * @return \Cake\ORM\Query The personally scoped query
+     * @param \App\KMP\KmpIdentityInterface $user The requesting user whose identifier will be matched against `approver_id`.
+     * @param \Cake\ORM\Query $query The base query to apply the personal scope to.
+     * @return \Cake\ORM\Query The query filtered so `approver_id` equals the user's identifier.
      */
     public function scopeMyQueue(KmpIdentityInterface $user, $query)
     {
+        return $query->where(["approver_id" => $user->getIdentifier()]);
+    }
+
+    /**
+     * Apply personal approver scope to queries used by the mobile approve authorizations interface.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The requesting user whose approver_id will be enforced.
+     * @param \Cake\ORM\Query $query The base query to scope.
+     * @return \Cake\ORM\Query The query filtered to records with approver_id equal to the user's identifier.
+     */
+    public function scopeMobileApproveAuthorizations(KmpIdentityInterface $user, $query)
+    {
+        return $query->where(["approver_id" => $user->getIdentifier()]);
+    }
+
+    /**
+     * Apply authorization scope for the mobile approve action.
+     *
+     * Restricts the query to the requesting user's personal approvals (approver_id equals the user's identifier)
+     * when the user does not have administrative access to all queues; returns the unmodified query otherwise.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The requesting user.
+     * @param \Cake\ORM\Query $query The base query to scope.
+     * @return \Cake\ORM\Query The scoped or unmodified query.
+     */
+    public function scopeMobileApprove(KmpIdentityInterface $user, $query)
+    {
+        $authorizationApprovalsTable = TableRegistry::getTableLocator()->get("Activities.AuthorizationApprovals");
+        $authorizationApproval = $authorizationApprovalsTable->newEmptyEntity();
+
+        if ($this->canAllQueues($user, $authorizationApproval)) {
+            return $query;
+        }
+        return $query->where(["approver_id" => $user->getIdentifier()]);
+    }
+
+    /**
+     * Apply authorization scope to queries for the mobile deny action.
+     *
+     * Scopes the query to the requesting user's approvals when the user does not
+     * have administrative access to all queues.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The requesting user.
+     * @param \Cake\ORM\Query $query The base query to scope.
+     * @return \Cake\ORM\Query The query scoped to the user's approver_id when the user lacks all-queues access, otherwise the unmodified query.
+     */
+    public function scopeMobileDeny(KmpIdentityInterface $user, $query)
+    {
+        $authorizationApprovalsTable = TableRegistry::getTableLocator()->get("Activities.AuthorizationApprovals");
+        $authorizationApproval = $authorizationApprovalsTable->newEmptyEntity();
+
+        if ($this->canAllQueues($user, $authorizationApproval)) {
+            return $query;
+        }
         return $query->where(["approver_id" => $user->getIdentifier()]);
     }
 

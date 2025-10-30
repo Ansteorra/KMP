@@ -6,25 +6,25 @@ use App\KMP\StaticHelpers;
 
 <turbo-frame id="<?= $tableConfig["id"] ?>" data-turbo='true'>
     <?php if (!empty($tableConfig['exportButton'])): ?>
-        <div class="d-flex justify-content-end align-items-center mb-2 mt-2">
-            <a href="<?= h($tableConfig['exportButton']['url']) ?>" class="btn btn-outline-primary btn-sm"
-                data-controller="csv-download" data-csv-download-url-value="<?= h($tableConfig['exportButton']['url']) ?>"
-                <?php if (!empty($tableConfig['exportButton']['filename'])): ?>
-                data-csv-download-filename-value="<?= h($tableConfig['exportButton']['filename']) ?>" <?php endif; ?>
-                <?php if (!empty($tableConfig['exportButton']['fields'])): ?>
-                data-csv-download-fields-value='<?= json_encode($tableConfig['exportButton']['fields']) ?>' <?php endif; ?>
-                title="Download CSV">
-                <i class="bi bi-download"></i> Download CSV
-            </a>
-        </div>
+    <div class="d-flex justify-content-end align-items-center mb-2 mt-2">
+        <a href="<?= h($tableConfig['exportButton']['url']) ?>" class="btn btn-outline-primary btn-sm"
+            data-controller="csv-download" data-csv-download-url-value="<?= h($tableConfig['exportButton']['url']) ?>"
+            <?php if (!empty($tableConfig['exportButton']['filename'])): ?>
+            data-csv-download-filename-value="<?= h($tableConfig['exportButton']['filename']) ?>" <?php endif; ?>
+            <?php if (!empty($tableConfig['exportButton']['fields'])): ?>
+            data-csv-download-fields-value='<?= json_encode($tableConfig['exportButton']['fields']) ?>' <?php endif; ?>
+            title="Download CSV">
+            <i class="bi bi-download"></i> Download CSV
+        </a>
+    </div>
     <?php endif; ?>
     <div class="table-responsive">
         <table class="table table-striped">
             <thead>
                 <tr>
                     <?php foreach ($tableConfig["columns"] as $column => $value) { ?>
-                        <th scope="col" class="<?= $column == "Actions" ? "actions" : "" ?>">
-                            <?php
+                    <th scope="col" class="<?= $column == "Actions" ? "actions" : "" ?>">
+                        <?php
                             //if the colunm name is in the sortable array then add the sort icon
                             if (isset($tableConfig["columns"]) && in_array($column, $tableConfig["columns"])) {
                                 $sort = $this->Paginator->sort($column);
@@ -33,18 +33,18 @@ use App\KMP\StaticHelpers;
                                 echo __($column == "Actions" ? "" : $column);
                             }
                             ?>
-                        </th>
+                    </th>
                     <?php } ?>
                 </tr>
             </thead>
             <tbody>
                 <?php foreach ($tableConfig["data"] as $data) { ?>
 
-                    <tr>
-                        <?php foreach ($tableConfig["columns"] as $column => $value) {
+                <tr>
+                    <?php foreach ($tableConfig["columns"] as $column => $value) {
                             if ($column == "Actions") { ?>
-                                <td class="actions text-end text-nowrap">
-                                    <?php foreach ($value as $link) {
+                    <td class="actions text-end text-nowrap">
+                        <?php foreach ($value as $link) {
                                         if (isset($link["condition"])) {
                                             //loop through the conditions and if any of them are false, skip this link
                                             $skip = false;
@@ -83,6 +83,8 @@ use App\KMP\StaticHelpers;
                                             }
                                             switch ($link["type"]) {
                                                 case "link":
+                                                    // Add data-turbo-frame="_top" to break out of turbo frame
+                                                    $link["options"]["data-turbo-frame"] = "_top";
                                                     echo $this->Html->link(
                                                         __($link["label"]),
                                                         [
@@ -103,6 +105,8 @@ use App\KMP\StaticHelpers;
                                                     );
                                                     break;
                                                 case "postLink":
+                                                    // Add data-turbo-frame="_top" to break out of turbo frame
+                                                    $link["options"]["data-turbo-frame"] = "_top";
                                                     echo $this->Form->postLink(
                                                         __($link["label"]),
                                                         [
@@ -119,7 +123,7 @@ use App\KMP\StaticHelpers;
                                     }
                                     echo "</td>";
                                 } else { ?>
-                                <td class="align-top"><?php
+                    <td class="align-top"><?php
 
                                                         $record = StaticHelpers::getValue($value, $data);
                                                         //if the value is a DateTime then call ->toDateString() on it
@@ -139,29 +143,29 @@ use App\KMP\StaticHelpers;
                                                             echo $record;
                                                         }
                                                         ?></td>
-                        <?php }
+                    <?php }
                             } ?>
-                    </tr>
+                </tr>
 
                 <?php } ?>
             </tbody>
         </table>
         <?php if ($tableConfig["usePagination"]) { ?>
-            <div class="paginator">
-                <ul class="pagination">
-                    <?= $this->Paginator->first("«", ["label" => __("First")]) ?>
-                    <?= $this->Paginator->prev("‹", [
+        <div class="paginator">
+            <ul class="pagination">
+                <?= $this->Paginator->first("«", ["label" => __("First")]) ?>
+                <?= $this->Paginator->prev("‹", [
                         "label" => __("Previous"),
                     ]) ?>
-                    <?= $this->Paginator->numbers() ?>
-                    <?= $this->Paginator->next("›", ["label" => __("Next")]) ?>
-                    <?= $this->Paginator->last("»", ["label" => __("Last")]) ?>
-                </ul>
-                <p><?= $this->Paginator->counter(
+                <?= $this->Paginator->numbers() ?>
+                <?= $this->Paginator->next("›", ["label" => __("Next")]) ?>
+                <?= $this->Paginator->last("»", ["label" => __("Last")]) ?>
+            </ul>
+            <p><?= $this->Paginator->counter(
                         __(
                             "Page {{page}} of {{pages}}, showing {{current}} record(s) out of {{count}} total",
                         ),
                     ) ?></p>
-            </div>
+        </div>
         <?php } ?>
 </turbo-frame>

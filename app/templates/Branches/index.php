@@ -14,30 +14,46 @@ $this->KMP->endBlock();
 function branchHierachyTable($branches, $me, $parent_string = "")
 {
 ?>
-<?php foreach ($branches as $branch) {
+    <?php foreach ($branches as $branch) {
         $name = $parent_string . "/" . $branch->name; ?>
-<tr>
-    <td><?= h($name) ?></td>
-    <td><?= h($branch->type) ?></td>
-    <td><?= h($branch->location) ?></td>
-    <td class="actions text-end text-nowrap">
-        <?= $me->Html->link(
+        <tr>
+            <td><?= h($name) ?></td>
+            <td><?= h($branch->type) ?></td>
+            <td><?= h($branch->location) ?></td>
+            <td class="actions text-end text-nowrap">
+                <?= $me->Html->link(
                     __(""),
                     ["action" => "view", $branch->id],
                     ["title" => __("View"), "class" => "btn-sm btn btn-secondary bi bi-binoculars-fill", "data-turbo-frame" => "_top"],
                 ) ?>
-    </td>
-</tr>
-<?php if (!empty($branch->children)) { ?>
-<?php branchHierachyTable($branch->children, $me, $name); ?>
-<?php }
+            </td>
+        </tr>
+        <?php if (!empty($branch->children)) { ?>
+            <?php branchHierachyTable($branch->children, $me, $name); ?>
+    <?php }
     } ?>
 <?php
 }
 ?>
-<h3>
-    Branches
-</h3>
+<div class="row align-items-start">
+    <div class="col">
+        <h3>
+            Branches
+        </h3>
+    </div>
+    <div class="col text-end">
+        <?php
+        if ($user->checkCan("add", "Branches")) :
+        ?>
+            <?= $this->Html->link(
+                __(" Add Branch"),
+                ["action" => "add"],
+                ["class" => "btn btn-primary btn-sm bi bi-plus-circle ", "data-turbo-frame" => "_top"],
+            )
+            ?>
+        <?php endif; ?>
+    </div>
+</div>
 <turbo-frame id="branchesList" data-turbo='true'>
     <table class="table table-striped">
         <thead>

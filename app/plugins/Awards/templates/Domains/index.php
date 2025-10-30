@@ -10,10 +10,25 @@
 echo $this->KMP->startBlock("title");
 echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Award Domains';
 $this->KMP->endBlock(); ?>
-<h3>
-    Award Domains
-</h3>
 
+<div class="row align-items-start">
+    <div class="col">
+        <h3>
+            Award Domains
+        </h3>
+    </div>
+    <div class="col text-end">
+        <?php
+        if ($user->checkCan("add", "Awards.Domains")) :
+        ?>
+            <?= $this->Html->link(
+                ' Add Domain',
+                ['action' => 'add'],
+                ['class' => 'btn btn-primary btn-sm bi bi-plus-circle', 'data-turbo-frame' => '_top']
+            ) ?>
+        <?php endif; ?>
+    </div>
+</div>
 <table class="table table-striped">
     <thead>
         <tr>

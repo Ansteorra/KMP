@@ -131,4 +131,65 @@ class ServiceResult
             $this->data = $data;
         }
     }
+
+    /**
+     * Check if the service operation was successful
+     * 
+     * Convenience method that returns the success property.
+     * Provides a more fluent API for checking results.
+     * 
+     * @return bool True if operation succeeded, false otherwise
+     * 
+     * @example
+     * ```php
+     * if ($result->isSuccess()) {
+     *     // Handle success
+     * }
+     * ```
+     */
+    public function isSuccess(): bool
+    {
+        return $this->success;
+    }
+
+    /**
+     * Get the data payload
+     * 
+     * Convenience method that returns the data property.
+     * Consider checking isSuccess() before calling this method.
+     * 
+     * @return mixed The data payload or null
+     * 
+     * @example
+     * ```php
+     * if ($result->isSuccess()) {
+     *     $id = $result->getData();
+     * }
+     * ```
+     */
+    public function getData()
+    {
+        return $this->data;
+    }
+
+    /**
+     * Get the error message
+     * 
+     * Convenience method that returns the reason property.
+     * Typically used when isSuccess() is false to get the error message.
+     * 
+     * @return string|null The error message or null
+     * 
+     * @example
+     * ```php
+     * if (!$result->isSuccess()) {
+     *     $error = $result->getError();
+     *     $this->Flash->error($error);
+     * }
+     * ```
+     */
+    public function getError(): ?string
+    {
+        return $this->reason;
+    }
 }

@@ -1,4 +1,4 @@
-import Guifier from 'guifier'
+import Guifier from 'guifier';
 
 const { Controller } = require("@hotwired/stimulus");
 
@@ -45,6 +45,7 @@ class GuifierController extends Controller {
             dataType: this.typeValue,
             rootContainerName: 'setting',
             fullScreen: true,
+            autoDownloadFontAwesome: false, // Font Awesome is already loaded via @fortawesome/fontawesome-free
             onChange: () => {
                 this.hiddenTarget.value = this.guifier.getData(this.typeValue)
                 // console.log(this.hiddenTarget.value);

@@ -51,9 +51,9 @@ __webpack_require__.r(__webpack_exports__);
 /***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
 
 __webpack_require__.r(__webpack_exports__);
-/* harmony import */ var bootstrap__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! bootstrap */ "./node_modules/bootstrap/dist/js/bootstrap.esm.js");
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
 /* harmony import */ var _hotwired_turbo__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @hotwired/turbo */ "./node_modules/@hotwired/turbo/dist/turbo.es2017-esm.js");
-/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+/* harmony import */ var bootstrap__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! bootstrap */ "./node_modules/bootstrap/dist/js/bootstrap.esm.js");
 /* harmony import */ var _KMP_utils_js__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./KMP_utils.js */ "./assets/js/KMP_utils.js");
 /* provided dependency */ var bootstrap = __webpack_require__(/*! bootstrap */ "./node_modules/bootstrap/dist/js/bootstrap.esm.js");
 // export for others scripts to use
@@ -62,13 +62,18 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
+// Disable Turbo Drive (automatic navigation) but keep Turbo Frames working
+_hotwired_turbo__WEBPACK_IMPORTED_MODULE_1__.session.drive = false;
+
 //window.$ = $;
 //window.jQuery = jQuery;
 window.KMP_utils = _KMP_utils_js__WEBPACK_IMPORTED_MODULE_3__["default"];
-window.Stimulus = _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_2__.Application.start();
+const stimulusApp = _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Application.start();
+window.Stimulus = stimulusApp;
+
 // load all the controllers that have registered in the window.Controllers object
-for (var controller in window.Controllers) {
-  Stimulus.register(controller, window.Controllers[controller]);
+for (const controller in window.Controllers) {
+  stimulusApp.register(controller, window.Controllers[controller]);
 }
 
 //activate boostrap tooltips

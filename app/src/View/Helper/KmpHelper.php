@@ -467,4 +467,90 @@ class KmpHelper extends Helper
         $url = $Url->css($css);
         return (new Mix())($url);
     }
+
+    /**
+     * Get PHP upload configuration limits in bytes
+     * 
+     * Returns the smaller of upload_max_filesize and post_max_size
+     * as that determines the practical upload limit. Useful for
+     * client-side validation before file upload.
+     * 
+     * @return array Array with 'maxFileSize' in bytes and 'formatted' human-readable string
+     * 
+     * @example
+     * ```php
+     * // In template
+     * $limits = $this->Kmp->getUploadLimits();
+     * // Returns: ['maxFileSize' => 26214400, 'formatted' => '25MB']
+     * 
+     * // Pass to JavaScript
+     * <div data-controller="file-upload"
+     *      data-file-upload-max-size-value="<?= $limits['maxFileSize'] ?>">
+     * ```
+     */
+    public function getUploadLimits(): array
+    {
+        // Parse upload_max_filesize
+        $uploadMax = $this->parsePhpSize(ini_get('upload_max_filesize'));
+
+        // Parse post_max_size
+        $postMax = $this->parsePhpSize(ini_get('post_max_size'));
+
+        // The effective limit is the smaller of the two
+        $maxFileSize = min($uploadMax, $postMax);
+
+        return [
+            'maxFileSize' => $maxFileSize,
+            'formatted' => $this->formatBytes($maxFileSize),
+            'uploadMaxFilesize' => $uploadMax,
+            'postMaxSize' => $postMax,
+        ];
+    }
+
+    /**
+     * Parse PHP size notation to bytes
+     * 
+     * Converts PHP ini size notation (e.g., '25M', '2G', '512K') to bytes.
+     * Handles various formats used in php.ini configuration.
+     * 
+     * @param string $size Size string from PHP ini setting
+     * @return int Size in bytes
+     */
+    private function parsePhpSize(string $size): int
+    {
+        $size = trim($size);
+        $last = strtolower($size[strlen($size) - 1]);
+        $value = (int)$size;
+
+        switch ($last) {
+            case 'g':
+                $value *= 1024;
+                // Fall through
+            case 'm':
+                $value *= 1024;
+                // Fall through
+            case 'k':
+                $value *= 1024;
+        }
+
+        return $value;
+    }
+
+    /**
+     * Format bytes to human-readable string
+     * 
+     * @param int $bytes Size in bytes
+     * @param int $precision Decimal precision
+     * @return string Formatted size string (e.g., '25MB', '1.5GB')
+     */
+    private function formatBytes(int $bytes, int $precision = 0): string
+    {
+        $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+
+        for ($i = 0; $bytes > 1024 && $i < count($units) - 1; $i++) {
+            $bytes /= 1024;
+        }
+
+        return round($bytes, $precision) . $units[$i];
+    }
 }

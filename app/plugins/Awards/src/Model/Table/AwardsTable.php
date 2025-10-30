@@ -204,6 +204,7 @@ use App\Model\Table\BaseTable;
  * @property \Awards\Model\Table\LevelsTable&\Cake\ORM\Association\BelongsTo $Levels Award precedence hierarchy  
  * @property \App\Model\Table\BranchesTable&\Cake\ORM\Association\BelongsTo $Branches Organizational scoping
  * @property \Awards\Model\Table\RecommendationsTable&\Cake\ORM\Association\HasMany $Recommendations Workflow integration
+ * @property \App\Model\Table\GatheringActivitiesTable&\Cake\ORM\Association\BelongsToMany $GatheringActivities Activities awards can be given during
  *
  * @method \Awards\Model\Entity\Award newEmptyEntity() Create new empty award entity
  * @method \Awards\Model\Entity\Award newEntity(array $data, array $options = []) Create new award entity with data
@@ -232,125 +233,14 @@ use App\Model\Table\BaseTable;
 class AwardsTable extends BaseTable
 {
     /**
-     * Initialize the Awards table with comprehensive configuration and association management
-     * 
-     * Establishes the foundational configuration for the Awards table including database
-     * table mapping, display field configuration, association definitions, and behavior
-     * integration. This method configures the complete table architecture for award
-     * management with hierarchical associations, audit capabilities, and data integrity.
-     * 
-     * ## Table Configuration & Mapping
-     * 
-     * ### Database Table Configuration
-     * - **Table Mapping**: Maps to 'awards_awards' database table
-     * - **Display Field**: Configures 'name' as the primary display field for UI components
-     * - **Primary Key**: Establishes 'id' as the primary key for entity identification
-     * - **Schema Integration**: Integrates with database schema and constraint definitions
-     * 
-     * ### Performance Configuration
-     * - **Query Optimization**: Table configuration optimized for hierarchical queries
-     * - **Index Utilization**: Configuration designed to utilize database indexes effectively
-     * - **Association Performance**: Association configuration optimized for deep loading
-     * - **Memory Management**: Efficient memory usage configuration for large datasets
-     * 
-     * ## Comprehensive Association Architecture
-     * 
-     * ### Hierarchical Relationship Configuration
-     * - **Domain Association**: INNER JOIN to Awards.Domains for award categorization
-     * - **Level Association**: INNER JOIN to Awards.Levels for precedence hierarchy
-     * - **Branch Association**: INNER JOIN to Branches for organizational scoping
-     * - **Recommendations Association**: One-to-many relationship for workflow integration
-     * 
-     * ### Association Loading Strategy
-     * - **Required Associations**: INNER JOINs for essential hierarchical relationships
-     * - **Performance Optimization**: Association configuration optimized for query performance
-     * - **Referential Integrity**: Association constraints ensuring data consistency
-     * - **Deep Loading Support**: Configuration supporting deep association loading patterns
-     * 
-     * ## Behavior Integration & Capabilities
-     * 
-     * ### Timestamp Behavior Configuration
-     * - **Automatic Timestamping**: Automatic created and modified timestamp management
-     * - **Audit Trail Support**: Comprehensive audit trail through timestamp tracking
-     * - **Temporal Analysis**: Support for temporal analysis and historical reporting
-     * - **Data Lifecycle**: Complete data lifecycle tracking from creation to modification
-     * 
-     * ### Footprint Behavior Integration
-     * - **User Attribution**: Automatic tracking of created_by and modified_by fields
-     * - **Administrative Accountability**: User accountability for all award modifications
-     * - **Change Tracking**: Comprehensive change tracking for administrative oversight
-     * - **Audit Compliance**: Full audit compliance through user attribution tracking
-     * 
-     * ### Trash Behavior Configuration
-     * - **Soft Deletion**: Soft deletion pattern implementation for data preservation
-     * - **Recovery Capabilities**: Support for data recovery and restoration operations
-     * - **Audit Requirements**: Maintain deleted records for audit and compliance
-     * - **Data Preservation**: Preserve award data for organizational continuity
-     * 
-     * ## Data Integrity & Validation Setup
-     * 
-     * ### Association Constraint Configuration
-     * - **Foreign Key Constraints**: Comprehensive foreign key constraint configuration
-     * - **Referential Integrity**: Ensures referential integrity across all associations
-     * - **Cascade Handling**: Proper cascade handling for related record management
-     * - **Constraint Validation**: Database-level constraint validation integration
-     * 
-     * ### Business Rule Foundation
-     * - **Validation Framework**: Foundation for comprehensive validation framework
-     * - **Business Logic**: Integration points for business logic and rule enforcement
-     * - **Data Quality**: Data quality assurance through association validation
-     * - **Consistency Enforcement**: Ensures data consistency across award hierarchy
-     * 
-     * ## Performance Optimization Configuration
-     * 
-     * ### Query Performance Setup
-     * - **Join Optimization**: Optimized join strategies for hierarchical queries
-     * - **Index Strategy**: Configuration supporting optimal index utilization
-     * - **Association Loading**: Efficient association loading patterns and strategies
-     * - **Query Caching**: Foundation for query result caching and optimization
-     * 
-     * ### Resource Management
-     * - **Memory Efficiency**: Memory-efficient configuration for large operations
-     * - **Connection Management**: Database connection management optimization
-     * - **Resource Pooling**: Support for connection pooling and resource sharing
-     * - **Concurrent Access**: Configuration supporting concurrent data access patterns
-     * 
-     * ## Integration Points & System Architecture
-     * 
-     * ### Award Hierarchy Integration
-     * - **Domain Integration**: Deep integration with award domain classification system
-     * - **Level Integration**: Integration with precedence level hierarchy management
-     * - **Branch Integration**: Organizational branch scoping and administrative control
-     * - **Workflow Integration**: Integration with recommendation workflow and state management
-     * 
-     * ### Administrative System Integration
-     * - **CRUD Operations**: Foundation for complete CRUD operation support
-     * - **Form Integration**: Integration with administrative forms and interfaces
-     * - **Validation Integration**: Real-time validation for administrative operations
-     * - **Error Handling**: Comprehensive error handling for administrative workflows
-     * 
-     * ## Usage Examples & Configuration Patterns
-     * 
-     * ```php
-     * // Automatic table configuration during application bootstrap
-     * $awardsTable = TableRegistry::getTableLocator()->get('Awards.Awards');
-     * 
-     * // Association loading with configured relationships
-     * $awards = $awardsTable->find()
-     *     ->contain(['Domains', 'Levels', 'Branches', 'Recommendations']);
-     * 
-     * // Behavior integration with automatic tracking
-     * $award = $awardsTable->newEntity($data);
-     * $awardsTable->save($award); // Automatic timestamps and user attribution
-     * ```
-     * 
-     * @param array<string, mixed> $config The configuration array for table initialization
+     * Configure the Awards table's schema, associations, and behaviors.
+     *
+     * Sets the table name, display field, and primary key; defines associations
+     * (Domains, Levels, Branches, Recommendations, and GatheringActivities) and
+     * attaches the Timestamp, Footprint, and Trash behaviors.
+     *
+     * @param array<string,mixed> $config Configuration options provided by CakePHP for table initialization.
      * @return void
-     * 
-     * @see \App\Model\Table\BaseTable::initialize() For base table initialization
-     * @see \Awards\Model\Table\DomainsTable For domain association integration
-     * @see \Awards\Model\Table\LevelsTable For level association integration
-     * @see \Awards\Model\Table\RecommendationsTable For recommendation association integration
      */
     public function initialize(array $config): void
     {
@@ -380,6 +270,14 @@ class AwardsTable extends BaseTable
             'foreignKey' => 'award_id',
             'joinType' => 'INNER',
             'className' => 'Awards.Recommendations',
+        ]);
+
+        // Many-to-many relationship with GatheringActivities
+        $this->belongsToMany('GatheringActivities', [
+            'foreignKey' => 'award_id',
+            'targetForeignKey' => 'gathering_activity_id',
+            'joinTable' => 'award_gathering_activities',
+            'through' => 'Awards.AwardGatheringActivities',
         ]);
 
         $this->addBehavior("Timestamp");

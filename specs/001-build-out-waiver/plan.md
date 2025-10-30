@@ -1,0 +1,530 @@
+# Implementation Plan: Gathering Waiver Tracking System
+
+**Branch**: `001-build-out-waiver` | **Date**: 2025-10-30 | **Status**: ✅ **COMPLETE** (User Stories 1-4)  
+**Spec**: [spec.md](./spec.md) | **Completion**: [SPEC_COMPLETE.md](./SPEC_COMPLETE.md)
+
+**Implementation Date**: October 19-30, 2025  
+**Progress**: 161/235 tasks (68%) - **Production Ready**
+
+## Summary
+
+The Gathering Waiver Tracking System enables Kingdom officers and gathering stewards to manage legal waivers for SCA gatherings (tournaments, practices, feasts, etc.). **Implementation completed for User Stories 1-4 (68% of planned work).**
+
+### ✅ Implemented Features:
+
+1. **Configuration**: Define Waiver Types (with retention policies), Gathering Types, and Gathering Activities with their waiver requirements
+2. **Gathering Management**: Create gatherings with activities, automatically determining required waivers, with cloning support
+3. **Image-to-PDF Conversion**: Upload waiver images (JPEG, PNG, TIFF) via web or mobile camera, automatically convert to compressed black and white PDF
+4. **Mobile-First**: HTML5 camera capture for on-site waiver collection using phones/tablets with wizard interface
+5. **Retention Management**: Capture retention policies at upload time, track waiver status
+6. **Dashboard & Reporting**: Comprehensive waiver secretary dashboard with compliance monitoring, past due alerts, upcoming events, branch tracking, search, and activity feed
+
+### ⏸️ Deferred for Future Enhancement:
+
+- **Advanced Search & Reporting** (User Story 5): Export functionality, historical trends, custom date ranges, predictive analytics
+  - Basic functionality already implemented in dashboard
+  - Can be added as future enhancement based on usage patterns
+
+**Core Architecture Implemented**:
+- **Core Entities**: Document (polymorphic storage), Gathering, GatheringType, GatheringActivity, GatheringsGatheringActivities (many-to-many)
+- **Waivers Plugin**: WaiverType, GatheringActivityWaiver, GatheringWaiver, GatheringWaiverActivity
+- **Polymorphic Pattern**: Documents entity supports multiple entity types for future reusability
+- **Awards Migration Completed**: Award events migrated to core Gatherings table, Awards plugin now uses GatheringActivities for activity tracking
+- **Storage Optimization**: Image-to-PDF conversion achieves 60-80% storage reduction
+
+## Technical Context
+
+**Language/Version**: PHP 8.1+  
+**Primary Dependencies**: CakePHP 5.x, Hotwired (Turbo + Stimulus.JS), Bootstrap, Laravel Mix  
+**Storage**: MySQL 5.7+ or MariaDB 10.2+  
+**Testing**: PHPUnit (PHP), Playwright (UI tests - optional)  
+**Target Platform**: Web application (responsive, multi-browser)
+**Project Type**: Web application (CakePHP MVC+ with plugins)  
+**Architecture**: Plugin-based modular architecture, Service layer for business logic, Turbo Frames for partial updates  
+**Performance Goals**: Standard web application performance; <500ms page load, efficient database queries, fast partial updates via Turbo  
+**Constraints**: CakePHP conventions, PSR-12 coding standards, multi-tenant SCA kingdom support, Hotwired patterns for frontend  
+**Scale/Scope**: Multi-kingdom deployment, thousands of members per kingdom, complex role-based permissions, multi-tab/multi-grid interfaces
+
+## Constitution Check
+
+*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+
+Verify compliance with KMP Constitution (`.specify/memory/constitution.md`):
+
+- [x] **CakePHP Conventions**: 
+  - Core entities in `src/Model/` (Document, Gathering, GatheringType, GatheringActivity)
+  - Plugin structure for Waivers in `plugins/Waivers/`
+  - Controllers follow naming: `DocumentsController`, `GatheringsController`, `GatheringTypesController`, `WaiverTypesController` (plugin)
+  - Templates in lowercase snake_case: `documents/`, `gatherings/`, `gathering_types/`, etc.
+  - Migrations for all schema changes (Documents must be created before Waivers plugin migrations)
+  
+- [x] **Plugin Architecture**: 
+  - Waivers implemented as **separate plugin** (`plugins/Waivers/`)
+  - Core Gathering entities remain in core KMP for cross-plugin reusability
+  - Plugin registration in `config/plugins.php` with migration order
+  - NavigationProvider for menu integration
+  - Independent plugin testing
+
+- [x] **Hotwired Stack**: 
+  - Turbo Frames for waiver upload interfaces (multi-tab scenarios: configuration → gathering creation → waiver uploads)
+  - Turbo Streams for real-time upload progress and conversion feedback
+  - Stimulus controllers for:
+    - Mobile camera capture integration (`camera-capture-controller.js`)
+    - Image validation (`image-validator-controller.js`)
+    - Multi-file upload handling (`batch-upload-controller.js`)
+    - Retention policy calculator UI (`retention-calculator-controller.js`)
+
+- [x] **Test Coverage**: 
+  - PHPUnit tests for all controllers (CRUD operations, authorization)
+  - Model tests for entities and tables (validation, relationships)
+  - Service tests for image-to-PDF conversion, retention calculation
+  - Integration tests for full waiver upload workflow
+  - Fixtures for gathering types, activities, waiver types
+
+- [x] **Security & Authorization**: 
+  - Policy classes: `GatheringPolicy`, `GatheringTypePolicy`, `GatheringActivityPolicy`, `WaiverTypePolicy`, `WaiverPolicy`
+  - Role-based access: Kingdom officers configure; gathering stewards manage gatherings/uploads; compliance officers view/delete expired waivers
+  - File access controls: Only authorized users can download waiver PDFs
+  - Input validation: Image format validation, file size limits, retention policy structure validation
+
+- [x] **Service Layer**: 
+  - `ImageToPdfConversionService`: Handles image conversion to compressed black and white PDF
+  - `RetentionPolicyService`: Calculates expiration dates, identifies eligible deletions
+  - `WaiverStorageService`: Abstracts file storage (local/cloud)
+  - `GatheringActivityService`: Determines required waivers based on selected activities
+  - `AwardsMigrationService`: Handles data migration from `award_gatherings` to core `gatherings`
+
+- [x] **Code Quality**: 
+  - PSR-12 compliance via PHP_CodeSniffer
+  - Type declarations (`declare(strict_types=1);`) throughout
+  - PHPDoc blocks for all classes, methods, properties
+  - ESLint for Stimulus controllers
+  - Static analysis via PHPStan
+
+**Justification for any deviations**: None - all constitution principles are followed.
+
+## Project Structure
+
+### Documentation (this feature)
+
+```
+specs/[###-feature]/
+├── plan.md              # This file (/speckit.plan command output)
+├── research.md          # Phase 0 output (/speckit.plan command)
+├── data-model.md        # Phase 1 output (/speckit.plan command)
+├── quickstart.md        # Phase 1 output (/speckit.plan command)
+├── contracts/           # Phase 1 output (/speckit.plan command)
+└── tasks.md             # Phase 2 output (/speckit.tasks command - NOT created by /speckit.plan)
+```
+
+### Source Code (KMP CakePHP Structure)
+
+**For Core Features**:
+```
+app/
+├── src/
+│   ├── Controller/         # Controllers for this feature
+│   ├── Model/
+│   │   ├── Entity/        # Entity classes
+│   │   └── Table/         # Table classes
+│   ├── Services/          # Service layer for business logic
+│   ├── Policy/            # Authorization policies
+│   └── View/              # View cells and helpers
+├── templates/             # View templates
+├── assets/
+│   ├── css/              # Feature-specific CSS
+│   └── js/
+│       └── controllers/  # Stimulus.JS controllers
+├── tests/
+│   └── TestCase/
+│       ├── Controller/   # Controller tests
+│       ├── Model/        # Model tests
+│       └── Service/      # Service tests
+└── config/
+    └── Migrations/       # Database migrations
+```
+
+**For Plugin-Based Features**:
+```
+app/plugins/[FeatureName]/
+├── src/
+│   ├── [FeatureName]Plugin.php  # Main plugin class
+│   ├── Controller/              # Plugin controllers
+│   ├── Model/                   # Plugin models
+│   ├── Services/                # Plugin services (including NavigationProvider)
+│   ├── Event/                   # Event listeners (CallForCellsHandler, etc.)
+│   └── Policy/                  # Plugin authorization policies
+├── templates/                   # Plugin templates
+├── assets/
+│   ├── css/                     # Plugin CSS
+│   └── js/
+│       └── controllers/         # Plugin Stimulus controllers
+├── tests/                       # Plugin tests
+├── config/
+│   ├── Migrations/              # Plugin migrations
+│   └── bootstrap.php            # Plugin bootstrap
+└── webroot/                     # Plugin public assets
+```
+
+## Project Structure Decision
+
+**Structure Decision**: **Plugin-Based Feature** with **Core Entities**
+
+**Rationale**: 
+This feature requires a **hybrid approach** as clarified in the specification:
+
+1. **Core Entities** (in `src/Model/`):
+   - `Document` - Generic polymorphic document storage (follows Notes pattern with entity_type + entity_id)
+   - `Gathering`, `GatheringType`, `GatheringActivity` - These are broadly reusable across KMP (not just waivers)
+   - Enables future features to leverage gatherings (e.g., attendance tracking, event announcements, photo galleries)
+   - Documents entity enables future document types (member photos, meeting minutes, financial records) without schema changes
+   - Follows CakePHP convention: shared domain models live in core application
+   
+2. **Waivers Plugin** (in `plugins/Waivers/`):
+   - `WaiverType`, `GatheringActivityWaiver`, `GatheringWaiver`, `GatheringWaiverActivities`, `WaiverConfiguration` - Waiver-specific entities
+   - Self-contained waiver management logic (upload, conversion, retention, deletion)
+   - GatheringWaiver stores business logic and references Document via document_id (one-to-one)
+   - Independent testing and potential distribution to other SCA chapters
+   - Follows plugin architecture principle: feature is cohesive and could be disabled/enabled independently
+
+3. **Data Migration** (one-time):
+   - Migrate `award_gatherings` data to new core `gatherings` table
+   - Update Awards plugin to reference core `gatherings` instead of plugin-specific table
+   - Ensures gatherings become a shared resource across all plugins
+
+This structure balances **reusability** (core gatherings) with **modularity** (waiver logic in plugin).
+
+## Complexity Tracking
+
+**Estimated Story Points**: **21**
+
+**Complexity Factors**:
+- **High Complexity**:
+  - Image-to-PDF conversion with black and white compression (library evaluation, quality tuning)
+  - Mobile camera HTML5 integration (cross-device testing, permission handling)
+  - Data migration from `award_gatherings` to core `gatherings` (Awards plugin refactoring)
+  - Configurable retention policies with JSON schema validation
+  - Multi-tab Turbo Frames workflow (configuration → gathering → activities → waivers)
+  - Automated retention policy execution with safe deletion
+  
+- **Medium Complexity**:
+  - Plugin architecture setup with NavigationProvider
+  - RBAC policies for multiple roles (officers, stewards, compliance)
+  - Search and reporting UI with multiple filter criteria
+  - File storage abstraction (local/cloud)
+  - Comprehensive test coverage (unit, integration, UI)
+  
+- **Low Complexity**:
+  - Standard CRUD for configuration entities (Waiver Types, Gathering Types, Activities)
+  - CakePHP form validation and entity management
+  - Bootstrap UI components for mobile-first design
+
+**Risk Assessment**: **Medium-High**
+
+**High-Risk Areas**: 
+1. **Image Conversion Quality**: Achieving acceptable quality in compressed black and white PDFs while keeping file sizes small
+2. **Mobile Camera Compatibility**: HTML5 camera API behavior varies across devices/browsers (iOS Safari, Android Chrome)
+3. **Awards Migration**: Safely migrating existing gathering data without breaking Awards plugin functionality
+4. **Retention Policy Bugs**: Incorrect date calculations could lead to premature deletion of legal documents
+5. **Storage Backend Switching**: Configurable storage must handle existing files gracefully during backend changes
+6. **Performance**: PDF conversion for batch uploads of 20+ images per gathering needs optimization
+
+**Constitution Compliance**: No violations - all constitution principles are followed
+
+---
+
+## Phase Completion Status
+
+### ✅ Phase 0: Research (COMPLETE)
+
+**Output**: `research.md`
+
+All technical unknowns have been researched and resolved:
+- ✅ Image-to-PDF conversion library selected (Imagick with Group4 compression)
+- ✅ Mobile camera integration approach determined (HTML5 file input with `capture="environment"`)
+- ✅ Black and white compression technique decided (Group4/CCITT T.6)
+- ✅ Storage backend abstraction designed (Flysystem)
+- ✅ Mobile-first UI patterns defined (Turbo Frame wizard)
+- ✅ Retention policy date calculation approach (CakePHP FrozenTime)
+- ✅ Automated deletion implementation strategy (Queue Plugin job)
+
+**Key Decisions**:
+- **Image Library**: Imagick (ImageMagick PHP extension) for best compression control
+- **Mobile Pattern**: HTML5 `<input capture="environment">` for simplicity and reliability
+- **Storage**: Flysystem for flexible local/S3 storage
+- **Date Handling**: CakePHP FrozenTime (immutable, handles edge cases)
+- **Automation**: Queue Plugin with two-step deletion process (mark → review → delete)
+
+### ✅ Phase 1: Design (COMPLETE)
+
+**Outputs**:
+1. ✅ `data-model.md` - Complete entity definitions with ERD
+2. ✅ `contracts/` - API endpoint specifications
+   - `README.md` - API conventions and patterns
+   - `gathering-types.md` - Core gathering types endpoints
+   - `gatherings.md` - Core gatherings endpoints  
+   - `gathering-waivers.md` - Plugin waiver upload/management endpoints
+3. ✅ `quickstart.md` - Developer onboarding guide
+
+**Data Model Summary**:
+- **10 entities**: 4 core (Documents, GatheringTypes, Gatherings, GatheringActivities), 5 plugin (WaiverTypes, GatheringActivityWaivers, GatheringWaivers, GatheringWaiverActivities, WaiverConfiguration), 1 reference (Members)
+- **Polymorphic pattern**: Documents entity follows Notes model (entity_type + entity_id) for reusable document storage
+- **Many-to-many**: GatheringWaiverActivities join table enables flexible waiver-activity coverage
+- **Complete ERD** with all relationships, foreign keys, indexes
+- **Migration strategy** documented for Awards plugin data migration
+
+**API Contracts**:
+- RESTful endpoints following CakePHP conventions
+- Turbo Frame/Stream integration patterns
+- Mobile upload workflow documented
+- Authorization rules per endpoint
+
+**Quickstart Guide**:
+- Prerequisites (Imagick, Flysystem)
+- Step-by-step setup instructions
+- Code patterns for Turbo, Stimulus, Services, Policies
+- Testing strategy
+- Common commands reference
+
+### Awards Plugin Migration Strategy
+
+**Context**: The Awards plugin currently tracks events in an `award_events` table. This migration consolidates event tracking into the core `Gathering` entity, enabling cross-plugin event management.
+
+**Migration Goals**:
+1. Migrate all `award_events` data to core `gatherings` table
+2. Create "Kingdom Calendar Event" gathering type for migrated events
+3. Update Awards plugin foreign keys to reference `gatherings`
+4. Refactor Awards plugin models, controllers, and views
+5. Verify data integrity and Awards functionality
+6. Remove `award_events` table after verification period
+
+**Migration Steps**:
+
+**Step 1: Create Kingdom Calendar Event Gathering Type**
+```php
+// Migration: 20250101000001_CreateKingdomCalendarEventType.php
+public function up()
+{
+    $table = $this->table('gathering_types');
+    $table->insert([
+        'name' => 'Kingdom Calendar Event',
+        'description' => 'Official kingdom calendar events (migrated from Awards plugin)',
+        'is_active' => true,
+        'created' => date('Y-m-d H:i:s'),
+        'modified' => date('Y-m-d H:i:s')
+    ])->save();
+}
+```
+
+**Step 2: Migrate award_events → gatherings**
+```php
+// Migration: 20250101000002_MigrateAwardEventsToGatherings.php
+public function up()
+{
+    // Get gathering_type_id for "Kingdom Calendar Event"
+    $gatheringTypeId = $this->fetchRow(
+        "SELECT id FROM gathering_types WHERE name = 'Kingdom Calendar Event'"
+    )['id'];
+    
+    // Migrate all events
+    $this->execute("
+        INSERT INTO gatherings (
+            gathering_type_id, name, location, branch_id,
+            start_date, end_date, waivers_collected, notes,
+            created_by, created, modified
+        )
+        SELECT 
+            {$gatheringTypeId}, name, location, branch_id,
+            start_date, end_date, FALSE, description,
+            created_by, created, modified
+        FROM award_events
+    ");
+    
+    // Create temporary mapping table
+    $this->execute("
+        CREATE TEMPORARY TABLE event_gathering_mapping AS
+        SELECT ae.id as old_event_id, g.id as new_gathering_id
+        FROM award_events ae
+        JOIN gatherings g ON (
+            g.name = ae.name 
+            AND g.start_date = ae.start_date
+            AND g.branch_id = ae.branch_id
+            AND g.gathering_type_id = {$gatheringTypeId}
+        )
+    ");
+}
+```
+
+**Step 3: Update Awards Plugin Foreign Keys**
+```php
+// Migration: 20250101000003_UpdateAwardsPluginForeignKeys.php
+public function up()
+{
+    // Add gathering_id column to recommendations
+    if (!$this->hasColumn('recommendations', 'gathering_id')) {
+        $this->table('recommendations')
+            ->addColumn('gathering_id', 'integer', [
+                'null' => true,
+                'after' => 'event_id'
+            ])
+            ->addForeignKey('gathering_id', 'gatherings', 'id', [
+                'delete' => 'RESTRICT',
+                'update' => 'CASCADE'
+            ])
+            ->update();
+    }
+    
+    // Populate gathering_id from mapping
+    $this->execute("
+        UPDATE recommendations r
+        JOIN event_gathering_mapping egm ON r.event_id = egm.old_event_id
+        SET r.gathering_id = egm.new_gathering_id
+    ");
+    
+    // Verify migration complete
+    $unmigrated = $this->fetchRow(
+        "SELECT COUNT(*) as count FROM recommendations 
+         WHERE event_id IS NOT NULL AND gathering_id IS NULL"
+    );
+    
+    if ($unmigrated['count'] > 0) {
+        throw new Exception("{$unmigrated['count']} recommendations failed to migrate");
+    }
+    
+    // Drop old event_id column
+    $this->table('recommendations')
+        ->removeColumn('event_id')
+        ->update();
+    
+    // Update other Awards tables with event_id FK (if any)
+    // ... repeat for other tables ...
+    
+    // Drop mapping table
+    $this->execute("DROP TEMPORARY TABLE IF EXISTS event_gathering_mapping");
+}
+
+public function down()
+{
+    throw new Exception('Migration rollback not supported - restore from backup');
+}
+```
+
+**Step 4: Update Awards Plugin Code**
+
+**Models** (`Awards/src/Model/Table/RecommendationsTable.php`):
+```php
+public function initialize(array $config): void
+{
+    parent::initialize($config);
+    
+    // OLD: $this->belongsTo('Events', [...]);
+    
+    // NEW:
+    $this->belongsTo('Gatherings', [
+        'foreignKey' => 'gathering_id',
+        'joinType' => 'INNER',
+        'className' => 'Gatherings'  // Core app entity
+    ]);
+}
+```
+
+**Controllers** - Replace all:
+- `$this->Events` → `$this->fetchTable('Gatherings')`
+- `->event_id` → `->gathering_id`
+- `contain(['Events'])` → `contain(['Gatherings'])`
+
+**Views** - Update field references:
+- `$recommendation->event` → `$recommendation->gathering`
+- Form controls for event selection
+
+**Step 5: Verification**
+```sql
+-- Before migration counts
+SELECT COUNT(*) as event_count FROM award_events;
+SELECT COUNT(*) as recommendations_with_events FROM recommendations WHERE event_id IS NOT NULL;
+
+-- After migration counts
+SELECT COUNT(*) as gathering_count FROM gatherings 
+WHERE gathering_type_id = (SELECT id FROM gathering_types WHERE name = 'Kingdom Calendar Event');
+SELECT COUNT(*) as recommendations_with_gatherings FROM recommendations WHERE gathering_id IS NOT NULL;
+
+-- Verify no orphans
+SELECT * FROM recommendations WHERE gathering_id IS NULL;
+```
+
+**Step 6: Testing Checklist**
+- [ ] All award_events data appears in gatherings table
+- [ ] All recommendations correctly linked to gatherings
+- [ ] Awards plugin CRUD operations work (view, create, edit recommendations)
+- [ ] Gathering selection dropdowns work in Awards forms
+- [ ] Reports show correct gathering information
+- [ ] No SQL errors in application logs
+- [ ] Performance acceptable (no slow queries)
+
+**Step 7: Backup & Cleanup**
+```sql
+-- Rename table for 30-day retention
+RENAME TABLE award_events TO award_events_backup_20250101;
+
+-- After 30 days of successful operation
+DROP TABLE award_events_backup_20250101;
+```
+
+**Rollback Strategy**:
+- Full database backup before migration
+- Keep `award_events_backup` table for 30 days
+- Document restoration procedure if critical issues found
+- No automatic rollback (manual restoration from backup only)
+
+**Testing Requirements**:
+- Integration tests for full Awards workflow with new Gatherings
+- Verify all existing Awards features function correctly
+- Load test with realistic data volumes (1000+ events, 5000+ recommendations)
+- Cross-browser testing of Awards UI
+
+**Dependencies**:
+- Core Gathering entities must exist before Awards migration
+- Awards plugin cannot function during migration window (brief downtime)
+- Communication plan for users about migration timing
+
+**Success Criteria**:
+- 100% of award_events data migrated to gatherings
+- 100% of recommendations linked to correct gatherings
+- Zero data loss
+- Awards plugin fully functional with new data model
+- Performance maintained or improved
+
+---
+
+### ⏭️ Phase 2: Implementation Tasks (NEXT)
+
+**Command**: `/speckit.tasks`
+
+This command will generate `tasks.md` with granular development tasks organized by milestone:
+- Milestone 1: Database setup (migrations, seeds)
+- Milestone 2: Core entities (models, basic CRUD)
+- Milestone 3: Plugin setup (Waivers plugin structure)
+- Milestone 4: Image conversion service
+- Milestone 5: Mobile UI (Stimulus controllers)
+- Milestone 6: Retention policies
+- Milestone 7: Testing
+- Milestone 8: Awards migration (detailed steps from above)
+
+**Note**: Do NOT run `/speckit.tasks` until Phase 0 and Phase 1 are complete and reviewed. This plan document serves as the gate.
+
+---
+
+## Final Checklist Before Implementation
+
+Before proceeding to create development tasks:
+
+- [x] **Constitution Check Passed**: All 7 principles verified
+- [x] **Phase 0 Research Complete**: All technical unknowns resolved
+- [x] **Phase 1 Design Complete**: Data model, contracts, quickstart all generated
+- [ ] **Spec Reviewed**: Feature spec has been reviewed and approved by stakeholders
+- [ ] **Plan Reviewed**: This implementation plan has been reviewed and approved
+- [ ] **Agent Context Updated**: Run `.specify/scripts/bash/update-agent-context.sh copilot` to update AI context
+
+**Status**: ✅ Ready for task generation (`/speckit.tasks`)
+
+---

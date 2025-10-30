@@ -7,6 +7,22 @@ layout: default
 
 This section documents the primary modules that make up the foundation of the Kingdom Management Portal. These modules manage the essential data and functionality required across the entire application.
 
+## Module Documentation
+
+For detailed documentation on each core module, see:
+
+- **[4.1 Member Lifecycle](4.1-member-lifecycle.md)** - Complete member lifecycle and data flow documentation
+- **[4.2 Branch Hierarchy](4.2-branch-hierarchy.md)** - Organizational structure and tree management
+- **[4.3 Warrant Lifecycle](4.3-warrant-lifecycle.md)** - Warrant state machine and approval processes  
+- **[4.4 RBAC Security Architecture](4.4-rbac-security-architecture.md)** - Role-based access control with warrant temporal validation
+- **[4.5 View Patterns](4.5-view-patterns.md)** - Template system, helpers, and UI components
+- **[4.6 Gatherings System](4.6-gatherings-system.md)** - Event management, calendar views, and attendance tracking
+- **[4.7 Document Management & Retention System](4.7-document-management-system.md)** - File uploads, storage, and retention policies
+
+## Overview
+
+Below is a high-level overview of the core modules. For comprehensive documentation, refer to the individual module pages listed above.
+
 ## 4.1 Member Management
 
 The member management module is the cornerstone of the KMP system, handling all aspects of member records, registration, and profile management.

@@ -16,6 +16,7 @@ Follow CakePHP's conventional directory structure:
   - `Services/` - Service classes
   - `Policy/` - Authorization policies
 - `config/` - Configuration files
+  - `.env` - Environment variables including database credentials (!! AVOID committing sensitive info, but use this when you need to call the database !!)
 - `plugins/` - Plugin directories
 - `templates/` - Template files
 - `webroot/` - Public web files
@@ -402,6 +403,75 @@ async fetchData() {
     }
 }
 ```
+
+## View Templates and Tab Ordering
+
+### Tab Ordering System
+
+KMP uses a CSS flexbox-based tab ordering system that allows mixing plugin tabs with template-specific tabs in any order.
+
+#### Base Template Tabs
+
+When adding tabs in view templates, always specify the order using `data-tab-order` attribute and inline `style="order: X;"`:
+
+```php
+<?php $this->KMP->startBlock("tabButtons") ?>
+<button class="nav-link" 
+    id="nav-my-tab-tab" 
+    data-bs-toggle="tab" 
+    data-bs-target="#nav-my-tab" 
+    type="button" 
+    role="tab"
+    aria-controls="nav-my-tab" 
+    aria-selected="false" 
+    data-detail-tabs-target='tabBtn'
+    data-tab-order="10"
+    style="order: 10;"><?= __("My Tab") ?>
+</button>
+<?php $this->KMP->endBlock() ?>
+
+<?php $this->KMP->startBlock("tabContent") ?>
+<div class="related tab-pane fade m-3" 
+    id="nav-my-tab" 
+    role="tabpanel" 
+    aria-labelledby="nav-my-tab-tab"
+    data-detail-tabs-target="tabContent"
+    data-tab-order="10"
+    style="order: 10;">
+    <!-- Tab content here -->
+</div>
+<?php $this->KMP->endBlock() ?>
+```
+
+#### Order Value Guidelines
+
+- **1-10**: Plugin tabs (Officers, Authorizations, Awards, etc.)
+- **10-20**: Primary entity tabs (Members, Roles, Notes)
+- **20-30**: Secondary entity tabs (Additional Info, Settings)
+- **30+**: Administrative or rarely used tabs
+- **999**: Default fallback for tabs without explicit order
+
+#### Plugin Tabs
+
+Plugin tabs automatically use the `order` field from their ViewCellRegistry configuration:
+
+```php
+$cells[] = [
+    'type' => ViewCellRegistry::PLUGIN_TYPE_TAB,
+    'label' => 'Tab Name',
+    'id' => 'my-tab',
+    'order' => 5,  // Controls tab position
+    'cell' => 'Plugin.Cell',
+    'validRoutes' => [...]
+];
+```
+
+#### Key Requirements
+
+1. Both tab button and content panel must have matching `data-tab-order` and `style="order: X;"`
+2. Use increments of 5 or 10 for order values to allow future insertions
+3. Add comments explaining order choices
+4. See `/docs/tab-ordering-system.md` for complete documentation
 
 ## Git Workflow
 

@@ -10,9 +10,25 @@
 echo $this->KMP->startBlock("title");
 echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Activities';
 $this->KMP->endBlock(); ?>
-<h3>
-    Activities
-</h3>
+
+<div class="row align-items-start">
+    <div class="col">
+        <h3>
+            Activities
+        </h3>
+    </div>
+    <div class="col text-end">
+        <?php
+        if ($user->checkCan("add", "Activities.Activities")) :
+        ?>
+            <?= $this->Html->link(
+                ' Add Activity',
+                ['action' => 'add'],
+                ['class' => 'btn btn-primary btn-sm bi bi-plus-circle', 'data-turbo-frame' => '_top']
+            ) ?>
+        <?php endif; ?>
+    </div>
+</div>
 <table class="table table-striped">
     <thead>
         <tr>
@@ -41,32 +57,32 @@ $this->KMP->endBlock(); ?>
     </thead>
     <tbody>
         <?php foreach ($activities as $activity) : ?>
-        <tr>
-            <td><?= h($activity->name) ?></td>
-            <td><?= h($activity->activity_group->name) ?></td>
-            <td class="text-center"><?= $activity->role
+            <tr>
+                <td><?= h($activity->name) ?></td>
+                <td><?= h($activity->activity_group->name) ?></td>
+                <td class="text-center"><?= $activity->role
                                             ? h($activity->role->name)
                                             : "None" ?></td>
-            <td class="text-center"><?= $this->Number->format(
+                <td class="text-center"><?= $this->Number->format(
                                             $activity->term_length,
                                         ) ?></td>
-            <td class="text-center"><?= $activity->minimum_age === null
+                <td class="text-center"><?= $activity->minimum_age === null
                                             ? ""
                                             : $this->Number->format($activity->minimum_age) ?></td>
-            <td class="text-center"><?= $activity->maximum_age === null
+                <td class="text-center"><?= $activity->maximum_age === null
                                             ? ""
                                             : $this->Number->format($activity->maximum_age) ?></td>
-            <td class="text-center"><?= $this->Number->format(
+                <td class="text-center"><?= $this->Number->format(
                                             $activity->num_required_authorizors,
                                         ) ?></td>
-            <td class="actions text-end text-nowrap">
-                <?= $this->Html->link(
+                <td class="actions text-end text-nowrap">
+                    <?= $this->Html->link(
                         __(""),
                         ["action" => "view", $activity->id],
                         ["title" => __("View"), "class" => "btn-sm btn btn-secondary bi bi-binoculars-fill"],
                     ) ?>
-            </td>
-        </tr>
+                </td>
+            </tr>
         <?php endforeach; ?>
     </tbody>
 </table>

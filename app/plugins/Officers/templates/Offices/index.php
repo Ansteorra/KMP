@@ -10,9 +10,22 @@
 echo $this->KMP->startBlock("title");
 echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Offices';
 $this->KMP->endBlock(); ?>
-<h3>
-    Offices
-</h3>
+<div class="row align-items-start">
+    <div class="col">
+        <h3>Offices</h3>
+    </div>
+    <div class="col text-end">
+        <?php
+        if ($user->checkCan("add", "Officers.Offices")) :
+        ?>
+        <?= $this->Html->link(
+                ' Add Office',
+                ['action' => 'add'],
+                ['class' => 'btn btn-primary btn-sm bi bi-plus-circle', 'data-turbo-frame' => '_top']
+            ) ?>
+        <?php endif; ?>
+    </div>
+</div>
 <table class="table table-striped">
     <thead>
         <tr>
@@ -33,50 +46,50 @@ $this->KMP->endBlock(); ?>
     </thead>
     <tbody>
         <?php foreach ($offices as $office) : ?>
-            <tr>
-                <td><?= h($office->name) ?></td>
-                <td><?= h($office->department->name) ?></td>
-                <td class="text-center"><?= h($office->term_length) ?></td>
-                <td class="text-center"><?= $this->Kmp->bool(
+        <tr>
+            <td><?= h($office->name) ?></td>
+            <td><?= h($office->department->name) ?></td>
+            <td class="text-center"><?= h($office->term_length) ?></td>
+            <td class="text-center"><?= $this->Kmp->bool(
                                             $office->required_office,
                                             $this->Html,
                                         ) ?></td>
-                <td class="text-center"><?= $this->Kmp->bool(
+            <td class="text-center"><?= $this->Kmp->bool(
                                             $office->can_skip_report,
                                             $this->Html,
                                         ) ?></td>
-                <td class="text-center"><?= $this->Kmp->bool(
+            <td class="text-center"><?= $this->Kmp->bool(
                                             $office->requires_warrant,
                                             $this->Html,
                                         ) ?></td>
-                <td class="text-center"><?= $this->Kmp->bool(
+            <td class="text-center"><?= $this->Kmp->bool(
                                             $office->only_one_per_branch,
                                             $this->Html,
                                         ) ?></td>
-                <td class="text-center"><?= h(
+            <td class="text-center"><?= h(
                                             $office->reports_to === null
                                                 ? "Society"
                                                 : $office->reports_to->name,
                                         ) ?></td>
-                <td class="text-center"><?= h(
+            <td class="text-center"><?= h(
                                             $office->deputy_to === null
                                                 ? ""
                                                 : $office->deputy_to->name,
                                         ) ?></td>
 
-                <td class="text-center"><?= h(
+            <td class="text-center"><?= h(
                                             $office->grants_role === null
                                                 ? ""
                                                 : $office->grants_role->name,
                                         ) ?></td>
-                <td class="actions text-end text-nowrap">
-                    <?= $this->Html->link(
+            <td class="actions text-end text-nowrap">
+                <?= $this->Html->link(
                         __(""),
                         ["action" => "view", $office->id],
                         ["title" => __("View"), "class" => "btn-sm btn btn-secondary bi bi-binoculars-fill"],
                     ) ?>
-                </td>
-            </tr>
+            </td>
+        </tr>
         <?php endforeach; ?>
     </tbody>
 </table>

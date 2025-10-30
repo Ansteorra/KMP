@@ -116,17 +116,19 @@
             'value' => $recommendation->reason,
             'disabled' => 'disabled',
         ]);
-        $selectedEvents = [];
-        foreach ($recommendation->events as $event) {
-            $selectedEvents[] = $event->id;
+        $selectedGatherings = [];
+        if (!empty($recommendation->gatherings)) {
+            foreach ($recommendation->gatherings as $gathering) {
+                $selectedGatherings[] = $gathering->id;
+            }
         }
-        echo $this->Form->control('events._ids', [
-            'label' => 'Events They May Attend:',
+        echo $this->Form->control('gatherings._ids', [
+            'label' => 'Gatherings/Events They May Attend:',
             "type" => "select",
             "multiple" => "checkbox",
-            'options' => $eventList,
-            'value' => $selectedEvents,
-            'id' => 'recommendation__event_ids',
+            'options' => $gatheringList,
+            'value' => $selectedGatherings,
+            'id' => 'recommendation__gathering_ids',
         ]);
         echo $this->Form->control('contact_number', [
             'type' => 'tel',
@@ -158,21 +160,32 @@
                 'container' => ['data-awards-rec-edit-target' => 'closeReasonBlock'],
             ]
         );
-        echo $this->Form->control('event_id', [
+        echo $this->Form->control('gathering_id', [
             'label' => 'Plan to Give At',
             "type" => "select",
-            'options' => $eventList,
+            'options' => $gatheringList,
             'empty' => true,
-            'value' => $recommendation->event_id,
-            'data-awards-rec-edit-target' => 'planToGiveEvent',
+            'value' => $recommendation->gathering_id,
+            'data-awards-rec-edit-target' => 'planToGiveGathering',
             'container' => ['data-awards-rec-edit-target' => 'planToGiveBlock'],
         ]);
+
+        // Format given date for HTML5 date input (requires Y-m-d format)
+        $givenValue = null;
+        if ($recommendation->given) {
+            if (is_object($recommendation->given) && method_exists($recommendation->given, 'format')) {
+                $givenValue = $recommendation->given->format('Y-m-d');
+            } elseif (is_string($recommendation->given)) {
+                $givenValue = date('Y-m-d', strtotime($recommendation->given));
+            }
+        }
+
         echo $this->Form->control(
             'given',
             [
                 'type' => 'date',
                 'label' => 'Given On',
-                'value' => $recommendation->given,
+                'value' => $givenValue,
                 'data-awards-rec-edit-target' => 'givenDate',
                 'container' => ['data-awards-rec-edit-target' => 'givenBlock'],
             ]

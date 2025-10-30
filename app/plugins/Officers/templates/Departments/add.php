@@ -14,7 +14,8 @@ $this->KMP->endBlock(); ?>
 <div class="activityGroup form content">
     <?= $this->Form->create($department) ?>
     <fieldset>
-        <legend><?= __("Add Department") ?></legend>
+        <legend><a href="#" onclick="window.history.back(); return false;" class="bi bi-arrow-left-circle"></a>
+            <?= __("Add Department") ?></legend>
         <?php echo $this->Form->control("name"); ?>
         <?php echo $this->Form->control("domain", ['label' => 'Email Domain', 'placeholder' => 'e.g. branch.example.com']); ?>
     </fieldset>

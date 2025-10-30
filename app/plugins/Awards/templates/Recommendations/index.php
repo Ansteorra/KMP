@@ -16,12 +16,28 @@ if (!$isTurboFrame) {
 }
 $recommendation = [];
 ?>
-<h3>
-    Award Recommendations
-    <?php if ($status != "Index") : ?>
-    : <?= Inflector::humanize($status) ?>
-    <?php endif; ?>
-</h3>
+
+<div class="row align-items-start">
+    <div class="col">
+        <h3>
+            Award Recommendations
+            <?php if ($status != "Index") : ?>
+                : <?= Inflector::humanize($status) ?>
+            <?php endif; ?>
+        </h3>
+    </div>
+    <div class="col text-end">
+        <?php
+        if ($user->checkCan("add", "Awards.Recommendations")) :
+        ?>
+            <?= $this->Html->link(
+                ' Add Recommendation',
+                ['action' => 'add'],
+                ['class' => 'btn btn-primary btn-sm bi bi-plus-circle', 'data-turbo-frame' => '_top']
+            ) ?>
+        <?php endif; ?>
+    </div>
+</div>
 <?php
 $tabs = [];
 if ($pageConfig['table']['use']) {

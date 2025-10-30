@@ -199,6 +199,7 @@ namespace Activities\Controller;
 use Activities\Services\AuthorizationManagerInterface;
 use Cake\Mailer\MailerAwareTrait;
 use Cake\Event\EventInterface;
+use App\KMP\StaticHelpers;
 
 class AuthorizationApprovalsController extends AppController
 {
@@ -569,196 +570,13 @@ class AuthorizationApprovalsController extends AppController
     }
 
     /**
-     * Display personal approval queue for authenticated approver with optional token-based access.
-     * 
-     * This method provides individual approvers with access to their personal approval queue,
-     * supporting both authenticated web access and secure token-based access from email notifications.
-     * It delivers a personalized interface for managing pending approval requests with comprehensive
-     * authorization details and workflow context.
-     * 
-     * ## Method Overview
-     * 
-     * The myQueue method serves as the primary interface for individual approver queue management:
-     * - **Personal Queue Access**: Displays approvals specifically assigned to the authenticated user
-     * - **Token-Based Security**: Supports secure email-based access with authorization tokens
-     * - **Comprehensive Context**: Provides complete authorization and activity details for decision making
-     * - **Workflow Integration**: Seamless integration with approval processing workflows
-     * - **Real-Time Updates**: Current status and priority information for pending approvals
-     * 
-     * ## Access Methods
-     * 
-     * ### Authenticated Web Access
-     * ```php
-     * // Standard authenticated access to personal queue
-     * $member_id = $this->Authentication->getIdentity()->getIdentifier();
-     * $query = $this->getAuthorizationApprovalsQuery($member_id);
-     * ```
-     * 
-     * ### Token-Based Email Access
-     * ```php
-     * // Secure token-based access from email notifications
-     * if ($token) {
-     *     $query = $query->where(["authorization_token" => $token]);
-     * }
-     * ```
-     * 
-     * ## Security Architecture
-     * 
-     * ### Authorization Framework
-     * - **Model Authorization**: Automatic authorization configured in beforeFilter()
-     * - **Identity Verification**: Member identity validation through authentication system
-     * - **Token Validation**: Secure token verification for email-based access
-     * - **Scope Application**: Automatic application of authorization scopes for data filtering
-     * 
-     * ### Token-Based Security
-     * - **Secure Token Validation**: Cryptographically secure token verification
-     * - **Time-Limited Access**: Token-based access with expiration controls
-     * - **Single-Use Tokens**: Tokens designed for specific approval workflows
-     * - **Audit Trail**: Complete logging of token-based access attempts
-     * 
-     * ## Data Presentation
-     * 
-     * ### Queue Information Display
-     * The personal queue interface provides:
-     * - **Queue Owner Identity**: Clear identification of queue owner (approver name)
-     * - **Personal Context**: Visual indication that this is the user's personal queue
-     * - **Approval Details**: Comprehensive information for each pending approval
-     * - **Activity Context**: Complete activity and member information for decision making
-     * 
-     * ### Approval Context
-     * Each approval in the queue includes:
-     * - **Authorization Details**: Member, activity, and approval requirements
-     * - **Workflow Status**: Current approval workflow status and progress
-     * - **Decision Context**: Information necessary for approval decision making
-     * - **Priority Indicators**: Urgency and priority information for workflow management
-     * 
-     * ## Query Architecture
-     * 
-     * ### Protected Query Method Integration
-     * ```php
-     * // Utilizes protected helper method for consistent query construction
-     * $query = $this->getAuthorizationApprovalsQuery($member_id);
-     * 
-     * // Includes comprehensive relationship loading:
-     * // - Authorization details and status
-     * // - Member information and qualifications
-     * // - Activity requirements and specifications
-     * // - Approver information and context
-     * ```
-     * 
-     * ### Token-Specific Filtering
-     * ```php
-     * // Token-based filtering for email access
-     * if ($token) {
-     *     $query = $query->where(["authorization_token" => $token]);
-     * }
-     * 
-     * // Ensures token-based access only shows relevant approvals
-     * ```
-     * 
-     * ## User Experience
-     * 
-     * ### Personal Queue Interface
-     * - **Personalized Display**: Clear indication of personal queue ownership
-     * - **Approval Context**: Complete information for informed decision making
-     * - **Action Accessibility**: Easy access to approve, deny, and delegation operations
-     * - **Workflow Visibility**: Clear indication of approval workflow status and requirements
-     * 
-     * ### Email Integration
-     * - **Token-Based Access**: Secure access from email notifications without authentication
-     * - **Direct Navigation**: Email links provide direct access to relevant approvals
-     * - **Seamless Workflow**: Smooth transition from email notification to approval action
-     * - **Security Transparency**: Clear indication of access method and security context
-     * 
-     * ## Template Integration
-     * 
-     * ### Shared View Template
-     * ```php
-     * // Uses the same view template as the general view method
-     * $this->render('view');
-     * 
-     * // Template variables:
-     * // - $queueFor: Approver name for queue identification
-     * // - $isMyQueue: Boolean flag indicating personal queue
-     * // - $authorizationApprovals: Collection of pending approvals
-     * ```
-     * 
-     * ### Template Context
-     * - **Queue Identification**: Template receives queue owner information
-     * - **Personal Context**: Boolean flag for personal queue styling and behavior
-     * - **Approval Collection**: Complete collection of pending approvals with full context
-     * 
-     * ## Integration Points
-     * 
-     * ### Authentication Integration
-     * - **Identity System**: Integration with KMP member identity system
-     * - **Session Management**: Seamless integration with authentication sessions
-     * - **Token Validation**: Secure token verification for email-based access
-     * - **Access Logging**: Comprehensive audit logging for queue access
-     * 
-     * ### Email System Integration
-     * - **Notification Tokens**: Integration with email notification token generation
-     * - **Secure Access**: Token-based access from email notifications
-     * - **Workflow Continuity**: Seamless transition from email to approval action
-     * - **Security Compliance**: Maintains security standards for email-based workflows
-     * 
-     * ### Navigation Integration
-     * - **Personal Navigation**: Integration with personal navigation and dashboard
-     * - **Badge Notifications**: Queue count integration with navigation badges
-     * - **Quick Access**: Direct access from navigation and notification systems
-     * - **Context Awareness**: Navigation reflects personal queue context and status
-     * 
-     * ## Usage Examples
-     * 
-     * ### Standard Personal Queue Access
-     * ```php
-     * // Authenticated user accesses personal queue
-     * // URL: /activities/authorization-approvals/my-queue
-     * // Displays all pending approvals for authenticated user
-     * ```
-     * 
-     * ### Token-Based Email Access
-     * ```php
-     * // Email-based access with secure token
-     * // URL: /activities/authorization-approvals/my-queue/abc123token
-     * // Shows specific approval accessible via email token
-     * ```
-     * 
-     * ### Template Integration
-     * ```php
-     * // Template displays personal queue with context
-     * if ($isMyQueue) {
-     *     echo "Your Personal Approval Queue";
-     * }
-     * echo "Queue for: " . h($queueFor);
-     * ```
-     * 
-     * ## Extension Opportunities
-     * 
-     * ### Enhanced Personal Interface
-     * - **Dashboard Integration**: Personal approval dashboard with analytics
-     * - **Priority Management**: Personal priority settings and approval ordering
-     * - **Batch Operations**: Bulk approval operations for personal queue
-     * - **Custom Notifications**: Personalized notification preferences and settings
-     * 
-     * ### Email Workflow Enhancements
-     * - **One-Click Approval**: Direct approval actions from email interface
-     * - **Email Response Processing**: Process approval responses via email
-     * - **Enhanced Tokens**: Advanced token features with extended security
-     * - **Mobile Optimization**: Mobile-optimized email-based approval interfaces
-     * 
-     * ### Workflow Integration
-     * - **Calendar Integration**: Calendar-based approval scheduling and reminders
-     * - **Delegation Tools**: Enhanced delegation and workflow assignment features
-     * - **Approval Analytics**: Personal approval performance metrics and analytics
-     * - **Workflow Automation**: Automated approval routing and escalation features
-     * 
-     * @param string|null $token Optional authorization token for email-based access
-     * @return \Cake\Http\Response|null|void Renders the view template with personal queue data
-     * @see \Activities\Controller\AuthorizationApprovalsController::getAuthorizationApprovalsQuery() For query construction
-     * @see \Activities\Template\AuthorizationApprovals\view.php For shared view template
-     * @see \Cake\Authentication\AuthenticationServiceInterface For identity management
-     * 
+     * Display the authenticated approver's personal approval queue, optionally filtered by an email access token.
+     *
+     * When a token is provided, the queue is restricted to approvals matching that token to support secure
+     * email-based access; otherwise the method shows all pending approvals assigned to the authenticated user.
+     *
+     * @param string|null $token Optional authorization token from an email notification used to filter the queue.
+     * @see \Activities\Controller\AuthorizationApprovalsController::getAuthorizationApprovalsQuery() For query construction.
      * @since Activities Plugin 1.0.0
      */
     public function myQueue($token = null)
@@ -774,6 +592,200 @@ class AuthorizationApprovalsController extends AppController
         $isMyQueue = true;
         $this->set(compact("queueFor", "isMyQueue", "authorizationApprovals"));
         $this->render('view');
+    }
+
+    /**
+     * Mobile-optimized approval queue interface for processing authorization requests.
+     * 
+     * Provides a mobile-friendly interface for approvers to view and process their pending
+     * authorization approval requests. Uses the mobile_app layout for consistent PWA experience.
+     * 
+     * @return void
+     */
+    public function mobileApproveAuthorizations()
+    {
+        // Get current user
+        $currentUser = $this->Authentication->getIdentity();
+        if (!$currentUser) {
+            $this->Flash->error(__('You must be logged in to approve authorizations.'));
+            return $this->redirect(['controller' => 'Members', 'action' => 'login', 'plugin' => null]);
+        }
+
+        // Get pending approvals for this approver
+        $member_id = $currentUser->getIdentifier();
+        $query = $this->getAuthorizationApprovalsQuery($member_id);
+        $this->Authorization->applyScope($query);
+        $authorizationApprovals = $query->all();
+
+        // Set view variables
+        $queueFor = $currentUser->sca_name;
+        $isMyQueue = true;
+        $this->set(compact('queueFor', 'isMyQueue', 'authorizationApprovals'));
+
+        // Use mobile app layout for consistent UX
+        $this->viewBuilder()->setLayout('mobile_app');
+        $this->set('mobileTitle', 'Approve Authorizations');
+        $this->set('mobileBackUrl', $this->request->referer());
+        $this->set('mobileHeaderColor', StaticHelpers::getAppSetting(
+            'Member.MobileCard.BgColor',
+        ));
+        $this->set('showRefreshBtn', true);
+    }
+
+    /**
+     * Renders a mobile-optimized approval form for an authorization and processes approval submissions.
+     *
+     * Displays authorization request details and whether further approvals are required. If the request is a POST,
+     * attempts to perform the approval via the provided authorization manager and redirects to the approver's mobile card on success;
+     * on failure it renders the form with an error flash message.
+     *
+     * @param \Activities\Services\AuthorizationManagerInterface $maService Authorization management service used to perform approve operations.
+     * @param string|null $id Authorization Approval ID; if null the value is read from request data.
+     * @return \Cake\Http\Response|null A redirect response when the approval succeeds, or null after rendering the form or when approval fails.
+     */
+    public function mobileApprove(AuthorizationManagerInterface $maService, $id = null)
+    {
+        $this->request->allowMethod(['get', 'post']);
+
+        if (!$id) {
+            $id = $this->request->getData('id');
+        }
+
+        // Load authorization approval with all required data
+        $authorizationApproval = $this->AuthorizationApprovals->get($id, [
+            'contain' => [
+                'Authorizations' => [
+                    'Members',
+                    'Activities'
+                ]
+            ]
+        ]);
+
+        if (!$authorizationApproval) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+
+        $this->Authorization->authorize($authorizationApproval);
+
+        // Handle POST - process approval
+        if ($this->request->is('post')) {
+            $approverId = $this->Authentication->getIdentity()->getIdentifier();
+            $nextApproverId = $this->request->getData('next_approver_id');
+
+            $maResult = $maService->approve(
+                (int)$id,
+                (int)$approverId,
+                (int)$nextApproverId
+            );
+
+            if (!$maResult->success) {
+                $this->Flash->error(__('The authorization approval could not be approved. Please try again.'));
+            } else {
+                $this->Flash->success(__('The authorization has been approved.'));
+
+                // Redirect to approver's mobile card
+                $approver = $this->AuthorizationApprovals->Approvers->get($approverId, ['fields' => ['id', 'mobile_card_token']]);
+                return $this->redirect([
+                    'controller' => 'Members',
+                    'action' => 'viewMobileCard',
+                    'plugin' => null,
+                    $approver->mobile_card_token
+                ]);
+            }
+        }
+
+        // GET - display form
+        // Check if more approvals are needed
+        $authorization = $authorizationApproval->authorization;
+        $authsNeeded = $authorization->is_renewal
+            ? $authorization->activity->num_required_renewers
+            : $authorization->activity->num_required_authorizors;
+        $hasMoreApprovalsToGo = ($authsNeeded - $authorization->approval_count) > 1;
+
+        $this->set(compact('authorizationApproval', 'hasMoreApprovalsToGo'));
+
+        // Use mobile app layout
+        $this->viewBuilder()->setLayout('mobile_app');
+        $this->set('mobileTitle', 'Approve Authorization');
+        $this->set('mobileBackUrl', ['action' => 'mobileApproveAuthorizations']);
+        $this->set('mobileHeaderColor', '#198754');
+        $this->set('showRefreshBtn', false);
+    }
+
+    /**
+     * Mobile-optimized denial form interface.
+     * 
+     * Displays authorization request details and allows approver to deny with reason.
+     * Handles both GET (display form) and POST (process denial).
+     * 
+     * @param \Activities\Services\AuthorizationManagerInterface $maService Authorization management service
+     * @param string|null $id Authorization Approval ID
+     * @return \Cake\Http\Response|null
+     */
+    public function mobileDeny(AuthorizationManagerInterface $maService, $id = null)
+    {
+        $this->request->allowMethod(['get', 'post']);
+
+        if (!$id) {
+            $id = $this->request->getData('id');
+        }
+
+        // Load authorization approval with all required data
+        $authorizationApproval = $this->AuthorizationApprovals->get($id, [
+            'contain' => [
+                'Authorizations' => [
+                    'Members',
+                    'Activities'
+                ]
+            ]
+        ]);
+
+        if (!$authorizationApproval) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+
+        $this->Authorization->authorize($authorizationApproval);
+
+        // Handle POST - process denial
+        if ($this->request->is('post')) {
+            $approverId = $this->Authentication->getIdentity()->getIdentifier();
+            $approverNotes = $this->request->getData('approver_notes');
+
+            if (empty($approverNotes)) {
+                $this->Flash->error(__('Please provide a reason for denial.'));
+            } else {
+                $maResult = $maService->deny(
+                    (int)$id,
+                    (int)$approverId,
+                    $approverNotes
+                );
+
+                if (!$maResult->success) {
+                    $this->Flash->error(__('The authorization approval could not be denied. Please try again.'));
+                } else {
+                    $this->Flash->success(__('The authorization has been denied.'));
+
+                    // Redirect to approver's mobile card
+                    $approver = $this->AuthorizationApprovals->Approvers->get($approverId, ['fields' => ['id', 'mobile_card_token']]);
+                    return $this->redirect([
+                        'controller' => 'Members',
+                        'action' => 'viewMobileCard',
+                        'plugin' => null,
+                        $approver->mobile_card_token
+                    ]);
+                }
+            }
+        }
+
+        // GET - display form
+        $this->set(compact('authorizationApproval'));
+
+        // Use mobile app layout
+        $this->viewBuilder()->setLayout('mobile_app');
+        $this->set('mobileTitle', 'Deny Authorization');
+        $this->set('mobileBackUrl', ['action' => 'mobileApproveAuthorizations']);
+        $this->set('mobileHeaderColor', '#dc3545');
+        $this->set('showRefreshBtn', false);
     }
 
     /**
@@ -1812,296 +1824,50 @@ class AuthorizationApprovalsController extends AppController
     }
 
     /**
-     * Process authorization denial with comprehensive workflow management and audit trail.
-     * 
-     * This method handles the denial/rejection of authorization approval requests, integrating
-     * with the AuthorizationManager service to execute denial logic, manage workflow termination,
-     * and handle notification processes. It provides comprehensive error handling, user feedback,
-     * and audit trail management for denial operations within the Activities plugin authorization system.
-     * 
-     * ## Method Overview
-     * 
-     * The deny method serves as the primary interface for processing approval denials:
-     * - **Service Integration**: Delegates business logic to AuthorizationManagerInterface
-     * - **Workflow Termination**: Handles proper termination of approval workflows upon denial
-     * - **Notes Support**: Captures approver notes and feedback for denial reasoning
-     * - **Comprehensive Validation**: Entity authorization and business rule validation
-     * - **User Feedback**: Clear success and error messaging for denial operations
-     * - **Audit Trail**: Complete audit logging through service integration
-     * 
-     * ## Request Processing Architecture
-     * 
-     * ### HTTP Method Security
-     * ```php
-     * // Restricts to POST requests only for security
-     * $this->request->allowMethod(["post"]);
-     * 
-     * // Prevents CSRF attacks and accidental denials
-     * // Requires explicit POST request with proper token
-     * ```
-     * 
-     * ### Parameter Handling
-     * ```php
-     * // Flexible parameter handling for different request contexts
-     * if ($id == null) {
-     *     $id = $this->request->getData("id");
-     * }
-     * 
-     * // Supports both URL parameter and form data approaches
-     * ```
-     * 
-     * ## Security Architecture
-     * 
-     * ### Entity Authorization
-     * ```php
-     * // Load and authorize specific approval entity
-     * $authorizationApproval = $this->AuthorizationApprovals->get($id);
-     * if (!$authorizationApproval) {
-     *     throw new \Cake\Http\Exception\NotFoundException();
-     * }
-     * $this->Authorization->authorize($authorizationApproval);
-     * ```
-     * 
-     * ### Authorization Validation
-     * - **Entity Existence**: Confirms approval entity exists before processing
-     * - **Individual Authorization**: Policy-based authorization for specific denial
-     * - **Denial Permissions**: Ensures user has permission to deny specific authorization
-     * - **Business Rule Compliance**: Validation through AuthorizationApprovalPolicy
-     * 
-     * ## Service Integration Architecture
-     * 
-     * ### AuthorizationManager Service
-     * ```php
-     * // Service injection through method parameter
-     * public function deny(AuthorizationManagerInterface $maService, $id = null)
-     * 
-     * // Service method invocation with comprehensive parameters
-     * $maResult = $maService->deny(
-     *     (int)$id,                                              // Approval ID
-     *     $this->Authentication->getIdentity()->getIdentifier(), // Denier ID
-     *     $this->request->getData("approver_notes"),             // Denial notes
-     * );
-     * ```
-     * 
-     * ### Business Logic Delegation
-     * - **Service Responsibility**: Complex denial logic handled by service layer
-     * - **Transaction Management**: Service manages database transactions and consistency
-     * - **Workflow Termination**: Service handles proper workflow termination upon denial
-     * - **Notification Management**: Service coordinates denial notifications and communications
-     * 
-     * ## Denial Notes and Feedback
-     * 
-     * ### Approver Notes Capture
-     * ```php
-     * // Extract denial reasoning from request data
-     * $approverNotes = $this->request->getData("approver_notes");
-     * 
-     * // Pass notes to service for processing and storage
-     * $maResult = $maService->deny($id, $denierID, $approverNotes);
-     * ```
-     * 
-     * ### Feedback Management
-     * - **Denial Reasoning**: Captures detailed reasoning for denial decisions
-     * - **Audit Documentation**: Notes become part of permanent audit trail
-     * - **Communication Support**: Notes used in denial notification emails
-     * - **Learning Opportunities**: Feedback helps improve future authorization requests
-     * 
-     * ## Workflow Management
-     * 
-     * ### Approval Workflow Termination
-     * ```php
-     * // Service handles workflow termination logic
-     * $maResult = $maService->deny($id, $denierID, $notes);
-     * 
-     * // No additional approvers needed after denial
-     * // Workflow terminates immediately upon denial
-     * ```
-     * 
-     * ### Termination Processing
-     * - **Immediate Termination**: Denial immediately terminates approval workflow
-     * - **Status Updates**: All related entities updated to reflect denial status
-     * - **Cleanup Operations**: Service handles cleanup of pending approval requests
-     * - **Notification Triggers**: Denial triggers appropriate notification workflows
-     * 
-     * ## Error Handling and User Feedback
-     * 
-     * ### Service Result Processing
-     * ```php
-     * // Comprehensive result handling from service
-     * if (!$maResult->success) {
-     *     $this->Flash->error(__(
-     *         "The authorization approval could not be rejected. Please, try again."
-     *     ));
-     * } else {
-     *     $this->Flash->success(__(
-     *         "The authorization approval has been rejected."
-     *     ));
-     * }
-     * ```
-     * 
-     * ### User Experience
-     * ```php
-     * // Consistent navigation pattern
-     * return $this->redirect($this->referer());
-     * ```
-     * 
-     * ### Error Recovery
-     * - **Clear Error Messages**: User-friendly error messaging for failed denials
-     * - **Referrer Redirection**: Returns user to originating page for context
-     * - **State Preservation**: Maintains user context during error scenarios
-     * - **Retry Support**: Clear indication that user can retry the operation
-     * 
-     * ## User Experience Design
-     * 
-     * ### Navigation Flow
-     * - **Contextual Return**: Redirects back to originating page (referer)
-     * - **Action Confirmation**: Clear confirmation messaging for successful denials
-     * - **Error Recovery**: Seamless error handling with retry opportunities
-     * - **Workflow Closure**: Clear indication that workflow has been terminated
-     * 
-     * ### Interface Integration
-     * - **Form Processing**: Seamless integration with denial forms and note fields
-     * - **AJAX Support**: Compatible with AJAX-based denial interfaces
-     * - **Modal Dialog Support**: Foundation for modal-based denial operations
-     * - **Mobile Compatibility**: Mobile-friendly denial processing
-     * 
-     * ## Integration Points
-     * 
-     * ### AuthorizationManager Service
-     * - **Business Logic**: All denial business logic handled by service
-     * - **Transaction Management**: Service ensures data consistency and integrity
-     * - **Notification System**: Service coordinates denial notifications
-     * - **Audit Trail**: Service maintains comprehensive audit logging
-     * 
-     * ### Authentication System
-     * - **Identity Management**: Integration with member authentication system
-     * - **Session Management**: Leverages authenticated user session information
-     * - **Permission Validation**: Integration with RBAC permission system
-     * - **Security Context**: Maintains security context throughout denial process
-     * 
-     * ### Activities Plugin Integration
-     * - **Workflow Management**: Integration with Activities plugin denial workflows
-     * - **Authorization System**: Seamless integration with authorization lifecycle
-     * - **Notification System**: Integration with denial notification systems
-     * - **Administrative Tools**: Integration with administrative oversight and monitoring
-     * 
-     * ## Usage Examples
-     * 
-     * ### Form-Based Denial
-     * ```html
-     * <!-- Standard form submission for denial -->
-     * <form method="post" action="/activities/authorization-approvals/deny">
-     *     <input type="hidden" name="id" value="<?= $approval->id ?>">
-* <textarea name="approver_notes" placeholder="Reason for denial..." required></textarea>
-* <button type="submit" class="btn btn-danger">Deny Authorization</button>
-* </form>
-* ```
-*
-* ### AJAX Denial Processing
-* ```javascript
-* // AJAX-based denial with notes
-* function denyApproval(approvalId, notes) {
-* $.post('/activities/authorization-approvals/deny', {
-* id: approvalId,
-* approver_notes: notes
-* }).done(function(response) {
-* location.reload(); // Refresh to show updated status
-* });
-* }
-* ```
-*
-* ### Modal Dialog Integration
-* ```javascript
-* // Modal-based denial with note collection
-* $('#deny-modal').on('show.bs.modal', function(event) {
-* const approvalId = $(event.relatedTarget).data('approval-id');
-* $(this).find('form').attr('action',
-* `/activities/authorization-approvals/deny/${approvalId}`);
-* });
-* ```
-*
-* ## Audit Trail and Compliance
-*
-* ### Comprehensive Logging
-* - **Denial Documentation**: Complete record of denial decisions and reasoning
-* - **Timestamp Tracking**: Precise timing of denial actions for audit purposes
-* - **User Attribution**: Clear attribution of denial actions to specific users
-* - **Note Preservation**: Permanent storage of denial reasoning and feedback
-*
-* ### Compliance Features
-* - **Regulatory Compliance**: Supports regulatory requirements for decision documentation
-* - **Historical Analysis**: Enables analysis of denial patterns and trends
-* - **Quality Improvement**: Data supports continuous improvement of authorization processes
-* - **Transparency**: Clear audit trail for organizational transparency
-*
-* ## Extension Opportunities
-*
-* ### Enhanced Denial Features
-* - **Conditional Denial**: Support for conditional denial with remediation options
-* - **Appeal Process**: Integration with denial appeal and review processes
-* - **Escalation Rules**: Automatic escalation for certain types of denials
-* - **Bulk Denial**: Mass denial operations for administrative efficiency
-*
-* ### Workflow Enhancements
-* - **Denial Categories**: Categorized denial reasons for better tracking
-* - **Remediation Suggestions**: Automated suggestions for addressing denial reasons
-* - **Learning System**: AI-powered learning from denial patterns
-* - **Predictive Analysis**: Prediction of likely denial outcomes
-*
-* ### User Experience Improvements
-* - **Rich Text Notes**: Enhanced note editing with formatting options
-* - **Template Notes**: Pre-defined denial reason templates
-* - **Collaborative Denial**: Multi-approver denial with consensus requirements
-* - **Notification Customization**: Customizable denial notification templates
-*
-* ### Analytics and Reporting
-* - **Denial Analytics**: Comprehensive analytics on denial patterns and trends
-* - **Performance Metrics**: Denial processing time and efficiency metrics
-* - **Quality Metrics**: Analysis of denial accuracy and consistency
-* - **Process Improvement**: Data-driven insights for process optimization
-*
-* @param \Activities\Services\AuthorizationManagerInterface $maService Authorization management service
-* @param string|null $id Authorization Approval ID for denial processing
-* @return \Cake\Http\Response|null Redirects to referer after processing
-* @throws \Cake\Http\Exception\NotFoundException When approval entity is not found
-* @throws \Cake\Http\Exception\MethodNotAllowedException When invalid HTTP method used
-* @throws \Authorization\Exception\ForbiddenException When user lacks denial permissions
-* @see \Activities\Services\AuthorizationManagerInterface::deny() For denial business logic
-* @see \Activities\Policy\AuthorizationApprovalPolicy For authorization rules
-* @see \Cake\Http\ServerRequest::allowMethod() For HTTP method validation
-*
-* @since Activities Plugin 1.0.0
-*/
-public function deny(AuthorizationManagerInterface $maService, $id = null)
-{
-$this->request->allowMethod(["post"]);
-if ($id == null) {
-$id = $this->request->getData("id");
-}
-$authorizationApproval = $this->AuthorizationApprovals->get($id);
-if (!$authorizationApproval) {
-throw new \Cake\Http\Exception\NotFoundException();
-}
-$this->Authorization->authorize($authorizationApproval);
-$maResult = $maService->deny(
-(int)$id,
-$this->Authentication->getIdentity()->getIdentifier(),
-$this->request->getData("approver_notes"),
-);
-if (
-!$maResult->success
-) {
-$this->Flash->error(
-__(
-"The authorization approval could not be rejected. Please, try again.",
-),
-);
-} else {
-$this->Flash->success(
-__("The authorization approval has been rejected."),
-);
-}
+     * Process a denial for an authorization approval and redirect back to the referring page.
+     *
+     * Calls the AuthorizationManager service to perform denial processing (including recording approver notes,
+     * terminating the approval workflow, triggering notifications, and writing audit information), flashes a
+     * success or error message for the user, and returns a redirect to the referrer.
+     *
+     * @param \Activities\Services\AuthorizationManagerInterface $maService Authorization management service used to execute denial logic
+     * @param string|null $id Authorization Approval ID; if null the id will be read from request data
+     * @return \Cake\Http\Response|null Redirect response to the referring page or null
+     * @throws \Cake\Http\Exception\NotFoundException When the specified approval entity does not exist
+     * @throws \Cake\Http\Exception\MethodNotAllowedException When the request method is not POST
+     * @throws \Authorization\Exception\ForbiddenException When the current user is not authorized to deny the approval
+     * @since Activities Plugin 1.0.0
+     */
+    public function deny(AuthorizationManagerInterface $maService, $id = null)
+    {
+        $this->request->allowMethod(["post"]);
+        if ($id == null) {
+            $id = $this->request->getData("id");
+        }
+        $authorizationApproval = $this->AuthorizationApprovals->get($id);
+        if (!$authorizationApproval) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+        $this->Authorization->authorize($authorizationApproval);
+        $maResult = $maService->deny(
+            (int)$id,
+            $this->Authentication->getIdentity()->getIdentifier(),
+            $this->request->getData("approver_notes"),
+        );
+        if (
+            !$maResult->success
+        ) {
+            $this->Flash->error(
+                __(
+                    "The authorization approval could not be rejected. Please, try again.",
+                ),
+            );
+        } else {
+            $this->Flash->success(
+                __("The authorization approval has been rejected."),
+            );
+        }
 
-return $this->redirect($this->referer());
-}
+        return $this->redirect($this->referer());
+    }
 }

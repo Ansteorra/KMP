@@ -84,6 +84,13 @@ class CoreNavigationProvider
             ],
             [
                 'type' => 'parent',
+                'label' => 'Gatherings',
+                'icon' => 'bi-calendar-event',
+                'id' => 'navheader_gatherings',
+                'order' => 25,
+            ],
+            [
+                'type' => 'parent',
                 'label' => 'Config',
                 'icon' => 'bi-database-gear',
                 'id' => 'navheader_config',
@@ -142,17 +149,6 @@ class CoreNavigationProvider
             [
                 'type' => 'link',
                 'mergePath' => ['Members', 'Members'],
-                'label' => 'New Member',
-                'order' => 0,
-                'url' => [
-                    'controller' => 'Members',
-                    'action' => 'add',
-                ],
-                'icon' => 'bi-person-plus',
-            ],
-            [
-                'type' => 'link',
-                'mergePath' => ['Members', 'Members'],
                 'label' => 'Verification Queues',
                 'order' => 20,
                 'url' => [
@@ -196,6 +192,20 @@ class CoreNavigationProvider
             ],
             [
                 'type' => 'link',
+                'mergePath' => ['Gatherings'],
+                'label' => 'All Gatherings',
+                'order' => 0,
+                'url' => [
+                    'controller' => 'Gatherings',
+                    'action' => 'index',
+                ],
+                'icon' => 'bi-calendar-event',
+                'activePaths' => [
+                    'Gatherings/view/*',
+                ],
+            ],
+            [
+                'type' => 'link',
                 'mergePath' => ['Config'],
                 'label' => 'App Settings',
                 'order' => 0,
@@ -221,17 +231,6 @@ class CoreNavigationProvider
             ],
             [
                 'type' => 'link',
-                'mergePath' => ['Config', 'Branches'],
-                'label' => 'New Branch',
-                'order' => 0,
-                'url' => [
-                    'controller' => 'Branches',
-                    'action' => 'add',
-                ],
-                'icon' => 'bi-plus',
-            ],
-            [
-                'type' => 'link',
                 'mergePath' => ['Config'],
                 'label' => 'Warrant Periods',
                 'order' => 60,
@@ -240,6 +239,61 @@ class CoreNavigationProvider
                     'action' => 'index',
                 ],
                 'icon' => 'bi-calendar-range',
+            ],
+            [
+                'type' => 'link',
+                'mergePath' => ['Config'],
+                'label' => 'Gathering Types',
+                'order' => 70,
+                'url' => [
+                    'controller' => 'GatheringTypes',
+                    'action' => 'index',
+                ],
+                'icon' => 'bi-collection',
+                'activePaths' => [
+                    'GatheringTypes/view/*',
+                ],
+            ],
+            [
+                'type' => 'link',
+                'mergePath' => ['Config'],
+                'label' => 'Gathering Activities',
+                'order' => 80,
+                'url' => [
+                    'controller' => 'GatheringActivities',
+                    'action' => 'index',
+                ],
+                'icon' => 'bi-list-task',
+                'activePaths' => [
+                    'GatheringActivities/view/*',
+                ],
+            ],
+            [
+                'type' => 'link',
+                'mergePath' => ['Config'],
+                'label' => 'Email Templates',
+                'order' => 85,
+                'url' => [
+                    'controller' => 'EmailTemplates',
+                    'action' => 'index',
+                ],
+                'icon' => 'bi-envelope',
+                'activePaths' => [
+                    'EmailTemplates/view/*',
+                    'EmailTemplates/add',
+                    'EmailTemplates/edit/*',
+                ],
+            ],
+            [
+                'type' => 'link',
+                'mergePath' => ['Config', 'Email Templates'],
+                'label' => 'Discover',
+                'order' => 10,
+                'url' => [
+                    'controller' => 'EmailTemplates',
+                    'action' => 'discover',
+                ],
+                'icon' => 'bi-search',
             ],
             [
                 'type' => 'link',
@@ -279,17 +333,6 @@ class CoreNavigationProvider
             ],
             [
                 'type' => 'link',
-                'mergePath' => ['Security', 'Roles'],
-                'label' => 'New Role',
-                'order' => 0,
-                'url' => [
-                    'controller' => 'Roles',
-                    'action' => 'add',
-                ],
-                'icon' => 'bi-plus',
-            ],
-            [
-                'type' => 'link',
                 'mergePath' => ['Security'],
                 'label' => 'Permissions',
                 'order' => 10,
@@ -301,17 +344,6 @@ class CoreNavigationProvider
                 'activePaths' => [
                     'Permissions/view/*',
                 ],
-            ],
-            [
-                'type' => 'link',
-                'mergePath' => ['Security', 'Permissions'],
-                'label' => 'New Permission',
-                'order' => 0,
-                'url' => [
-                    'controller' => 'Permissions',
-                    'action' => 'add',
-                ],
-                'icon' => 'bi-plus',
             ],
             [
                 'type' => 'link',

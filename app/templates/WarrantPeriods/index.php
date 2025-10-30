@@ -17,8 +17,12 @@ $this->KMP->endBlock(); ?>
         </h3>
     </div>
     <div class="col text-end">
-        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
-            data-bs-target="#addModal">Add</button>
+        <?php
+        if ($user->checkCan("add", "WarrantPeriods")) :
+        ?>
+            <button type="button" class="btn btn-primary btn-sm bi bi-plus-circle" data-bs-toggle="modal"
+                data-bs-target="#addModal"> Add Warrant Period</button>
+        <?php endif; ?>
     </div>
 </div>
 <table class="table table-striped">
