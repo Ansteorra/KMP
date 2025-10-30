@@ -185,17 +185,18 @@ class MemberMobileCardPWA extends Controller {
 
     /**
      * Disconnect controller from DOM
-     * Cleans up event listeners to prevent memory leaks
+     * Cleans up event listeners and intervals to prevent memory leaks
      */
     disconnect() {
+        // Clear refresh interval
         if (this.refreshIntervalId) {
             clearInterval(this.refreshIntervalId);
             this.refreshIntervalId = null;
         }
-        document.removeEventListener('DOMContentLoaded', this.boundManageOnlineStatus, { once: true });
+        
+        // Remove online/offline listeners
         window.removeEventListener('online', this.boundUpdateOnlineStatus);
         window.removeEventListener('offline', this.boundUpdateOnlineStatus);
-        window.removeEventListener('load', this.boundManageOnlineStatus);
     }
 
 }

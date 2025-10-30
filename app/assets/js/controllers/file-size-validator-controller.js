@@ -224,21 +224,34 @@ class FileSizeValidatorController extends Controller {
     }
 
     /**
+     * Escape HTML special characters to prevent XSS
+     * 
+     * @param {string} str - String to escape
+     * @returns {string} Escaped string
+     */
+    escapeHtml(str) {
+        const div = document.createElement('div')
+        div.textContent = str
+        return div.innerHTML
+    }
+
+    /**
      * Build error message for invalid files
      * 
      * @param {Array} invalidFiles - Array of invalid file objects
-     * @returns {string} Error message
+     * @returns {string} Error message with HTML-escaped file names
      */
     buildInvalidFilesMessage(invalidFiles) {
         const maxSize = this.maxSizeFormattedValue || this.formatBytes(this.maxSizeValue)
         
         if (invalidFiles.length === 1) {
             const file = invalidFiles[0]
-            return `The file "${file.name}" (${file.formattedSize}) exceeds the maximum upload size of ${maxSize}.`
+            const escapedName = this.escapeHtml(file.name)
+            return `The file "${escapedName}" (${file.formattedSize}) exceeds the maximum upload size of ${maxSize}.`
         }
         
         const fileList = invalidFiles.map(f => 
-            `• ${f.name} (${f.formattedSize})`
+            `• ${this.escapeHtml(f.name)} (${f.formattedSize})`
         ).join('\n')
         
         return `${invalidFiles.length} file(s) exceed the maximum upload size of ${maxSize}:\n\n${fileList}\n\nPlease remove or replace these files before uploading.`
@@ -286,6 +299,8 @@ class FileSizeValidatorController extends Controller {
      */
     showTotalSizeWarning(validation) {
         if (!this.showWarningValue || !this.hasWarningTarget) {
+            // Still show browser alert if no warning target
+            alert(validation.message)
             return
         }
         
