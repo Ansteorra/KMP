@@ -61,8 +61,12 @@ class MemberMobileCardMenu extends Controller {
     initialize() {
         this.menuOpen = false;
         this.items = [];
+        this.isOnline = navigator.onLine;
+        this.authCardUrl = null;
         // Create bound handler for outside clicks
         this._handleOutsideClick = this.handleOutsideClick.bind(this);
+        // Create bound handler for connection status changes
+        this._handleConnectionStatusChanged = this.handleConnectionStatusChanged.bind(this);
     }
 
     /**
@@ -77,6 +81,12 @@ class MemberMobileCardMenu extends Controller {
         // Register outside click handler
         document.addEventListener('click', this._handleOutsideClick);
         document.addEventListener('touchstart', this._handleOutsideClick);
+        
+        // Register connection status handler
+        document.addEventListener('connection-status-changed', this._handleConnectionStatusChanged);
+        
+        // Update initial offline state
+        this.updateOfflineState();
     }
 
     /**
@@ -131,6 +141,10 @@ class MemberMobileCardMenu extends Controller {
         button.setAttribute('data-action', 'click->member-mobile-card-menu#closeMenu');
         button.setAttribute('role', 'button');
         button.setAttribute('aria-label', item.label);
+        
+        // Store the item data for offline state management
+        button.dataset.itemLabel = item.label;
+        button.dataset.itemUrl = item.url;
 
         // Create content wrapper
         const content = document.createElement('span');
@@ -243,6 +257,48 @@ class MemberMobileCardMenu extends Controller {
     }
 
     /**
+     * Handle connection status changes from PWA controller
+     * 
+     * @param {CustomEvent} event Connection status event
+     */
+    handleConnectionStatusChanged(event) {
+        this.isOnline = event.detail.isOnline;
+        this.authCardUrl = event.detail.authCardUrl;
+        this.updateOfflineState();
+    }
+
+    /**
+     * Update menu items based on offline state
+     * Disables/grays out non-auth-card items when offline
+     */
+    updateOfflineState() {
+        if (!this.hasMenuItemTarget) return;
+
+        this.menuItemTargets.forEach(item => {
+            const itemUrl = item.dataset.itemUrl;
+            const itemLabel = item.dataset.itemLabel;
+            
+            // Check if this is the Auth Card item
+            const isAuthCard = itemLabel === 'Auth Card' || 
+                              (this.authCardUrl && itemUrl && itemUrl.includes('viewMobileCard'));
+            
+            if (!this.isOnline && !isAuthCard) {
+                // Offline and not auth card - disable
+                item.classList.add('disabled');
+                item.style.opacity = '0.5';
+                item.style.pointerEvents = 'none';
+                item.setAttribute('aria-disabled', 'true');
+            } else {
+                // Online or is auth card - enable
+                item.classList.remove('disabled');
+                item.style.opacity = '1';
+                item.style.pointerEvents = 'auto';
+                item.removeAttribute('aria-disabled');
+            }
+        });
+    }
+
+    /**
      * Disconnect controller from DOM
      * Cleans up event listeners
      */
@@ -252,6 +308,12 @@ class MemberMobileCardMenu extends Controller {
             document.removeEventListener('click', this._handleOutsideClick);
             document.removeEventListener('touchstart', this._handleOutsideClick);
         }
+        
+        // Remove connection status handler
+        if (this._handleConnectionStatusChanged) {
+            document.removeEventListener('connection-status-changed', this._handleConnectionStatusChanged);
+        }
+        
         console.log("MemberMobileCardMenu disconnected");
     }
 }

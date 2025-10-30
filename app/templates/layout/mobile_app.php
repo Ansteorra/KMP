@@ -227,6 +227,57 @@ if ($currentUser && $currentUser->mobile_card_token) {
             font-size: 12px;
             padding: 4px 8px;
         }
+
+        /* Offline Overlay Styles */
+        .mobile-offline-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            padding: 20px;
+            backdrop-filter: blur(4px);
+        }
+
+        .mobile-offline-content {
+            background: white;
+            border-radius: 16px;
+            padding: 32px 24px;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        }
+
+        .mobile-offline-icon {
+            font-size: 64px;
+            color: #dc3545;
+            margin-bottom: 16px;
+        }
+
+        .mobile-offline-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #212529;
+            margin-bottom: 12px;
+        }
+
+        .mobile-offline-message {
+            font-size: 16px;
+            color: #6c757d;
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+
+        .mobile-offline-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
     </style>
 
     <!-- JavaScript -->
@@ -239,10 +290,29 @@ if ($currentUser && $currentUser->mobile_card_token) {
 
 <body class="viewMobileCard">
     <?= $this->Flash->render() ?>
-    <div data-controller="member-mobile-card-pwa<?= isset($cardUrl) ? ' member-mobile-card-profile' : '' ?>" <?php if (isset($cardUrl)): ?>
+    <?php
+    // Determine if this is the auth card page and build auth card URL
+    $currentController = $this->request->getParam('controller');
+    $currentAction = $this->request->getParam('action');
+    $currentPlugin = $this->request->getParam('plugin');
+    $isAuthCard = ($currentController === 'Members' && $currentAction === 'viewMobileCard' && $currentPlugin === null);
+
+    $authCardUrl = ['controller' => 'Members', 'action' => 'viewMobileCard', 'plugin' => null];
+    if ($currentUser && $currentUser->mobile_card_token) {
+        $authCardUrl[] = $currentUser->mobile_card_token;
+    }
+    $authCardUrlBuilt = $this->Url->build($authCardUrl);
+    ?>
+    <div data-controller="member-mobile-card-pwa<?= isset($cardUrl) ? ' member-mobile-card-profile' : '' ?><?= !$isAuthCard ? ' mobile-offline-overlay' : '' ?>" <?php if (isset($cardUrl)): ?>
         data-member-mobile-card-profile-url-value="<?= h($cardUrl) ?>"
         data-member-mobile-card-profile-pwa-ready-value="false" <?php endif; ?>
-        data-member-mobile-card-pwa-sw-url-value="<?= $swUrl ?>" data-member-mobile-card-pwa-pwa-ready-value="false">
+        data-member-mobile-card-pwa-sw-url-value="<?= $swUrl ?>"
+        data-member-mobile-card-pwa-pwa-ready-value="false"
+        data-member-mobile-card-pwa-auth-card-url-value="<?= h($authCardUrlBuilt) ?>"
+        data-member-mobile-card-pwa-is-auth-card-value="<?= $isAuthCard ? 'true' : 'false' ?>"
+        <?php if (!$isAuthCard): ?>
+        data-mobile-offline-overlay-auth-card-url-value="<?= h($authCardUrlBuilt) ?>"
+        <?php endif; ?>>
         <div class="row">
             <?php
             // Mobile Menu - Plugin-registered action items
@@ -264,17 +334,7 @@ if ($currentUser && $currentUser->mobile_card_token) {
             }
 
             // Add core "Auth Card" menu item if not on viewMobileCard page
-            $currentController = $this->request->getParam('controller');
-            $currentAction = $this->request->getParam('action');
-            $currentPlugin = $this->request->getParam('plugin');
-
-            if (!($currentController === 'Members' && $currentAction === 'viewMobileCard' && $currentPlugin === null)) {
-                // Build Auth Card URL with mobile_card_token if available
-                $authCardUrl = ['controller' => 'Members', 'action' => 'viewMobileCard', 'plugin' => null];
-                if ($currentUser && $currentUser->mobile_card_token) {
-                    $authCardUrl[] = $currentUser->mobile_card_token;
-                }
-
+            if (!$isAuthCard) {
                 $mobileMenuItems[] = [
                     'label' => 'Auth Card',
                     'icon' => 'bi-person-vcard',

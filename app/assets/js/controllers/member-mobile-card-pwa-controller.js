@@ -41,7 +41,9 @@ class MemberMobileCardPWA extends Controller {
     static optionalTargets = ["refreshBtn"]
     
     static values = {
-        swUrl: String
+        swUrl: String,
+        authCardUrl: String,  // URL to the auth card page
+        isAuthCard: Boolean   // Whether current page is the auth card
     }
 
     initialize() {
@@ -60,6 +62,7 @@ class MemberMobileCardPWA extends Controller {
     /**
      * Update online/offline status display and service worker communication
      * Changes visual indicators and manages service worker state
+     * Dispatches custom events for other controllers to respond to offline state
      */
     updateOnlineStatus() {
         const statusDiv = this.statusTarget;
@@ -80,6 +83,9 @@ class MemberMobileCardPWA extends Controller {
             if (refreshButton) {
                 refreshButton.click();
             }
+            
+            // Dispatch custom event for online state
+            this.dispatchStatusEvent('online');
         } else {
             statusDiv.textContent = 'Offline';
             statusDiv.classList.remove('bg-success');
@@ -92,7 +98,28 @@ class MemberMobileCardPWA extends Controller {
                     type: 'OFFLINE'
                 });
             }
+            
+            // Dispatch custom event for offline state
+            this.dispatchStatusEvent('offline');
         }
+    }
+
+    /**
+     * Dispatch connection status event
+     * 
+     * @param {string} status - 'online' or 'offline'
+     */
+    dispatchStatusEvent(status) {
+        const event = new CustomEvent('connection-status-changed', {
+            bubbles: true,
+            detail: {
+                status: status,
+                isOnline: status === 'online',
+                isAuthCard: this.hasIsAuthCardValue && this.isAuthCardValue,
+                authCardUrl: this.hasAuthCardUrlValue ? this.authCardUrlValue : null
+            }
+        });
+        this.element.dispatchEvent(event);
     }
 
     /**
@@ -128,7 +155,14 @@ class MemberMobileCardPWA extends Controller {
                                 }
                             });
                         } else if (registration.waiting) {
-                            waitForActive();
+                            // Attach statechange listener to avoid synchronous recursion
+                            registration.waiting.addEventListener('statechange', (e) => {
+                                if (e.target.state === 'activated') {
+                                    waitForActive();
+                                }
+                            });
+                            // Also set a timeout fallback in case state doesn't change
+                            setTimeout(waitForActive, 100);
                         } else {
                             setTimeout(waitForActive, 100);
                         }

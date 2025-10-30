@@ -2474,18 +2474,31 @@ class FileSizeValidatorController extends _hotwired_stimulus__WEBPACK_IMPORTED_M
   }
 
   /**
+   * Escape HTML special characters to prevent XSS
+   * 
+   * @param {string} str - String to escape
+   * @returns {string} Escaped string
+   */
+  escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  /**
    * Build error message for invalid files
    * 
    * @param {Array} invalidFiles - Array of invalid file objects
-   * @returns {string} Error message
+   * @returns {string} Error message with HTML-escaped file names
    */
   buildInvalidFilesMessage(invalidFiles) {
     const maxSize = this.maxSizeFormattedValue || this.formatBytes(this.maxSizeValue);
     if (invalidFiles.length === 1) {
       const file = invalidFiles[0];
-      return `The file "${file.name}" (${file.formattedSize}) exceeds the maximum upload size of ${maxSize}.`;
+      const escapedName = this.escapeHtml(file.name);
+      return `The file "${escapedName}" (${file.formattedSize}) exceeds the maximum upload size of ${maxSize}.`;
     }
-    const fileList = invalidFiles.map(f => `• ${f.name} (${f.formattedSize})`).join('\n');
+    const fileList = invalidFiles.map(f => `• ${this.escapeHtml(f.name)} (${f.formattedSize})`).join('\n');
     return `${invalidFiles.length} file(s) exceed the maximum upload size of ${maxSize}:\n\n${fileList}\n\nPlease remove or replace these files before uploading.`;
   }
 
@@ -2528,6 +2541,8 @@ class FileSizeValidatorController extends _hotwired_stimulus__WEBPACK_IMPORTED_M
    */
   showTotalSizeWarning(validation) {
     if (!this.showWarningValue || !this.hasWarningTarget) {
+      // Still show browser alert if no warning target
+      alert(validation.message);
       return;
     }
     this.warningTarget.innerHTML = this.formatWarningMessage(validation.message, 'warning');
@@ -4845,8 +4860,12 @@ class MemberMobileCardMenu extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0
   initialize() {
     this.menuOpen = false;
     this.items = [];
+    this.isOnline = navigator.onLine;
+    this.authCardUrl = null;
     // Create bound handler for outside clicks
     this._handleOutsideClick = this.handleOutsideClick.bind(this);
+    // Create bound handler for connection status changes
+    this._handleConnectionStatusChanged = this.handleConnectionStatusChanged.bind(this);
   }
 
   /**
@@ -4861,6 +4880,12 @@ class MemberMobileCardMenu extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0
     // Register outside click handler
     document.addEventListener('click', this._handleOutsideClick);
     document.addEventListener('touchstart', this._handleOutsideClick);
+
+    // Register connection status handler
+    document.addEventListener('connection-status-changed', this._handleConnectionStatusChanged);
+
+    // Update initial offline state
+    this.updateOfflineState();
   }
 
   /**
@@ -4915,6 +4940,10 @@ class MemberMobileCardMenu extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0
     button.setAttribute('data-action', 'click->member-mobile-card-menu#closeMenu');
     button.setAttribute('role', 'button');
     button.setAttribute('aria-label', item.label);
+
+    // Store the item data for offline state management
+    button.dataset.itemLabel = item.label;
+    button.dataset.itemUrl = item.url;
 
     // Create content wrapper
     const content = document.createElement('span');
@@ -5022,6 +5051,45 @@ class MemberMobileCardMenu extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0
   }
 
   /**
+   * Handle connection status changes from PWA controller
+   * 
+   * @param {CustomEvent} event Connection status event
+   */
+  handleConnectionStatusChanged(event) {
+    this.isOnline = event.detail.isOnline;
+    this.authCardUrl = event.detail.authCardUrl;
+    this.updateOfflineState();
+  }
+
+  /**
+   * Update menu items based on offline state
+   * Disables/grays out non-auth-card items when offline
+   */
+  updateOfflineState() {
+    if (!this.hasMenuItemTarget) return;
+    this.menuItemTargets.forEach(item => {
+      const itemUrl = item.dataset.itemUrl;
+      const itemLabel = item.dataset.itemLabel;
+
+      // Check if this is the Auth Card item
+      const isAuthCard = itemLabel === 'Auth Card' || this.authCardUrl && itemUrl && itemUrl.includes('viewMobileCard');
+      if (!this.isOnline && !isAuthCard) {
+        // Offline and not auth card - disable
+        item.classList.add('disabled');
+        item.style.opacity = '0.5';
+        item.style.pointerEvents = 'none';
+        item.setAttribute('aria-disabled', 'true');
+      } else {
+        // Online or is auth card - enable
+        item.classList.remove('disabled');
+        item.style.opacity = '1';
+        item.style.pointerEvents = 'auto';
+        item.removeAttribute('aria-disabled');
+      }
+    });
+  }
+
+  /**
    * Disconnect controller from DOM
    * Cleans up event listeners
    */
@@ -5030,6 +5098,11 @@ class MemberMobileCardMenu extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0
     if (this._handleOutsideClick) {
       document.removeEventListener('click', this._handleOutsideClick);
       document.removeEventListener('touchstart', this._handleOutsideClick);
+    }
+
+    // Remove connection status handler
+    if (this._handleConnectionStatusChanged) {
+      document.removeEventListener('connection-status-changed', this._handleConnectionStatusChanged);
     }
     console.log("MemberMobileCardMenu disconnected");
   }
@@ -5377,7 +5450,10 @@ class MemberMobileCardPWA extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0_
   // Make refreshBtn optional
   static optionalTargets = ["refreshBtn"];
   static values = {
-    swUrl: String
+    swUrl: String,
+    authCardUrl: String,
+    // URL to the auth card page
+    isAuthCard: Boolean // Whether current page is the auth card
   };
   initialize() {
     this.boundUpdateOnlineStatus = this.updateOnlineStatus.bind(this);
@@ -5395,6 +5471,7 @@ class MemberMobileCardPWA extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0_
   /**
    * Update online/offline status display and service worker communication
    * Changes visual indicators and manages service worker state
+   * Dispatches custom events for other controllers to respond to offline state
    */
   updateOnlineStatus() {
     const statusDiv = this.statusTarget;
@@ -5414,6 +5491,9 @@ class MemberMobileCardPWA extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0_
       if (refreshButton) {
         refreshButton.click();
       }
+
+      // Dispatch custom event for online state
+      this.dispatchStatusEvent('online');
     } else {
       statusDiv.textContent = 'Offline';
       statusDiv.classList.remove('bg-success');
@@ -5426,7 +5506,28 @@ class MemberMobileCardPWA extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0_
           type: 'OFFLINE'
         });
       }
+
+      // Dispatch custom event for offline state
+      this.dispatchStatusEvent('offline');
     }
+  }
+
+  /**
+   * Dispatch connection status event
+   * 
+   * @param {string} status - 'online' or 'offline'
+   */
+  dispatchStatusEvent(status) {
+    const event = new CustomEvent('connection-status-changed', {
+      bubbles: true,
+      detail: {
+        status: status,
+        isOnline: status === 'online',
+        isAuthCard: this.hasIsAuthCardValue && this.isAuthCardValue,
+        authCardUrl: this.hasAuthCardUrlValue ? this.authCardUrlValue : null
+      }
+    });
+    this.element.dispatchEvent(event);
   }
 
   /**
@@ -5463,7 +5564,14 @@ class MemberMobileCardPWA extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0_
               }
             });
           } else if (registration.waiting) {
-            waitForActive();
+            // Attach statechange listener to avoid synchronous recursion
+            registration.waiting.addEventListener('statechange', e => {
+              if (e.target.state === 'activated') {
+                waitForActive();
+              }
+            });
+            // Also set a timeout fallback in case state doesn't change
+            setTimeout(waitForActive, 100);
           } else {
             setTimeout(waitForActive, 100);
           }
@@ -5523,19 +5631,18 @@ class MemberMobileCardPWA extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0_
 
   /**
    * Disconnect controller from DOM
-   * Cleans up event listeners to prevent memory leaks
+   * Cleans up event listeners and intervals to prevent memory leaks
    */
   disconnect() {
+    // Clear refresh interval
     if (this.refreshIntervalId) {
       clearInterval(this.refreshIntervalId);
       this.refreshIntervalId = null;
     }
-    document.removeEventListener('DOMContentLoaded', this.boundManageOnlineStatus, {
-      once: true
-    });
+
+    // Remove online/offline listeners
     window.removeEventListener('online', this.boundUpdateOnlineStatus);
     window.removeEventListener('offline', this.boundUpdateOnlineStatus);
-    window.removeEventListener('load', this.boundManageOnlineStatus);
   }
 }
 if (!window.Controllers) {
@@ -5744,6 +5851,166 @@ window.Controllers["member-verify-form"] = MemberVerifyForm;
 /***/ (function() {
 
 
+
+/***/ }),
+
+/***/ "./assets/js/controllers/mobile-offline-overlay-controller.js":
+/*!********************************************************************!*\
+  !*** ./assets/js/controllers/mobile-offline-overlay-controller.js ***!
+  \********************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+
+/**
+ * MobileOfflineOverlay Stimulus Controller
+ * 
+ * Manages offline state overlay for mobile pages that require internet connection.
+ * Shows a blocking overlay when offline with option to return to the auth card.
+ * The auth card page itself doesn't use this controller as it works offline.
+ * 
+ * Features:
+ * - Detects offline state from PWA controller
+ * - Shows blocking overlay with message
+ * - Provides "Return to Auth Card" button
+ * - Automatically hides when back online
+ * - Only active on non-auth-card pages
+ * 
+ * Values:
+ * - authCardUrl: String - URL to navigate to auth card
+ * 
+ * Usage:
+ * <div data-controller="mobile-offline-overlay"
+ *      data-mobile-offline-overlay-auth-card-url-value="/members/view-mobile-card/token">
+ * </div>
+ */
+class MobileOfflineOverlayController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static values = {
+    authCardUrl: String
+  };
+
+  /**
+   * Initialize controller
+   */
+  initialize() {
+    this.isOnline = navigator.onLine;
+    this.overlay = null;
+    this._handleConnectionStatusChanged = this.handleConnectionStatusChanged.bind(this);
+  }
+
+  /**
+   * Connect controller to DOM
+   */
+  connect() {
+    console.log("MobileOfflineOverlayController connected");
+
+    // Listen for connection status changes
+    document.addEventListener('connection-status-changed', this._handleConnectionStatusChanged);
+
+    // Check initial state
+    if (!this.isOnline) {
+      this.showOverlay();
+    }
+  }
+
+  /**
+   * Handle connection status changes from PWA controller
+   * 
+   * @param {CustomEvent} event Connection status event
+   */
+  handleConnectionStatusChanged(event) {
+    const wasOnline = this.isOnline;
+    this.isOnline = event.detail.isOnline;
+
+    // Update auth card URL if provided
+    if (event.detail.authCardUrl) {
+      this.authCardUrlValue = event.detail.authCardUrl;
+    }
+
+    // Show overlay when going offline, hide when coming online
+    if (!this.isOnline && wasOnline) {
+      this.showOverlay();
+    } else if (this.isOnline && !wasOnline) {
+      this.hideOverlay();
+    }
+  }
+
+  /**
+   * Show offline overlay
+   */
+  showOverlay() {
+    if (this.overlay) return; // Already showing
+
+    // Create overlay element
+    this.overlay = document.createElement('div');
+    this.overlay.className = 'mobile-offline-overlay';
+    this.overlay.setAttribute('role', 'dialog');
+    this.overlay.setAttribute('aria-modal', 'true');
+    this.overlay.setAttribute('aria-labelledby', 'offline-title');
+
+    // Build content
+    const content = `
+            <div class="mobile-offline-content">
+                <div class="mobile-offline-icon">
+                    <i class="bi bi-wifi-off" aria-hidden="true"></i>
+                </div>
+                <h2 id="offline-title" class="mobile-offline-title">You're Offline</h2>
+                <p class="mobile-offline-message">
+                    This page requires an internet connection. 
+                    You can return to your Auth Card which works offline.
+                </p>
+                <div class="mobile-offline-buttons">
+                    <a href="${this.authCardUrlValue}" 
+                       class="btn btn-primary btn-lg">
+                        <i class="bi bi-person-vcard me-2"></i>
+                        Return to Auth Card
+                    </a>
+                </div>
+            </div>
+        `;
+    this.overlay.innerHTML = content;
+    document.body.appendChild(this.overlay);
+
+    // Disable page interaction
+    document.body.style.overflow = 'hidden';
+  }
+
+  /**
+   * Hide offline overlay
+   */
+  hideOverlay() {
+    if (!this.overlay) return;
+    this.overlay.remove();
+    this.overlay = null;
+
+    // Re-enable page interaction
+    document.body.style.overflow = '';
+  }
+
+  /**
+   * Disconnect controller from DOM
+   */
+  disconnect() {
+    // Remove event listener
+    if (this._handleConnectionStatusChanged) {
+      document.removeEventListener('connection-status-changed', this._handleConnectionStatusChanged);
+    }
+
+    // Remove overlay if present
+    this.hideOverlay();
+    console.log("MobileOfflineOverlayController disconnected");
+  }
+}
+
+// Register controller globally
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["mobile-offline-overlay"] = MobileOfflineOverlayController;
+/* harmony default export */ __webpack_exports__["default"] = (MobileOfflineOverlayController);
 
 /***/ }),
 
@@ -52587,7 +52854,7 @@ window.Controllers["waiver-upload-wizard"] = WaiverUploadWizardController;
 },
 /******/ function(__webpack_require__) { // webpackRuntimeModules
 /******/ var __webpack_exec__ = function(moduleId) { return __webpack_require__(__webpack_require__.s = moduleId); }
-/******/ __webpack_require__.O(0, ["js/core","css/app","css/waivers","css/dashboard","css/cover","css/signin","css/waiver-upload"], function() { return __webpack_exec__("./assets/js/controllers/activity-toggle-controller.js"), __webpack_exec__("./assets/js/controllers/activity-waiver-manager-controller.js"), __webpack_exec__("./assets/js/controllers/add-activity-modal-controller.js"), __webpack_exec__("./assets/js/controllers/app-setting-form-controller.js"), __webpack_exec__("./assets/js/controllers/auto-complete-controller.js"), __webpack_exec__("./assets/js/controllers/base-gathering-form-controller.js"), __webpack_exec__("./assets/js/controllers/branch-links-controller.js"), __webpack_exec__("./assets/js/controllers/csv-download-controller.js"), __webpack_exec__("./assets/js/controllers/delayed-forward-controller.js"), __webpack_exec__("./assets/js/controllers/delete-confirmation-controller.js"), __webpack_exec__("./assets/js/controllers/detail-tabs-controller.js"), __webpack_exec__("./assets/js/controllers/edit-activity-description-controller.js"), __webpack_exec__("./assets/js/controllers/email-template-editor-controller.js"), __webpack_exec__("./assets/js/controllers/email-template-form-controller.js"), __webpack_exec__("./assets/js/controllers/file-size-validator-controller.js"), __webpack_exec__("./assets/js/controllers/filter-grid-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-clone-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-form-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-location-autocomplete-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-map-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-type-form-controller.js"), __webpack_exec__("./assets/js/controllers/gatherings-calendar-controller.js"), __webpack_exec__("./assets/js/controllers/guifier-controller.js"), __webpack_exec__("./assets/js/controllers/image-preview-controller.js"), __webpack_exec__("./assets/js/controllers/kanban-controller.js"), __webpack_exec__("./assets/js/controllers/markdown-editor-controller.js"), __webpack_exec__("./assets/js/controllers/member-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-menu-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-pwa-controller.js"), __webpack_exec__("./assets/js/controllers/member-unique-email-controller.js"), __webpack_exec__("./assets/js/controllers/member-verify-form-controller.js"), __webpack_exec__("./assets/js/controllers/mobile-hub-controller.js"), __webpack_exec__("./assets/js/controllers/modal-opener-controller.js"), __webpack_exec__("./assets/js/controllers/nav-bar-controller.js"), __webpack_exec__("./assets/js/controllers/outlet-button-controller.js"), __webpack_exec__("./assets/js/controllers/permission-add-role-controller.js"), __webpack_exec__("./assets/js/controllers/permission-manage-policies-controller.js"), __webpack_exec__("./assets/js/controllers/revoke-form-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-member-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-permission-controller.js"), __webpack_exec__("./assets/js/controllers/select-all-switch-list-controller.js"), __webpack_exec__("./assets/js/controllers/session-extender-controller.js"), __webpack_exec__("./assets/js/controllers/turbo-modal-controller.js"), __webpack_exec__("./assets/js/controllers/variable-insert-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/gw-sharing-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/mobile-request-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/renew-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/request-auth-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/award-form-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-add-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-bulk-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-quick-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-table-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/recommendation-kanban-controller.js"), __webpack_exec__("./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/assign-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/edit-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/office-form-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-search-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-table-controller.js"), __webpack_exec__("./plugins/Template/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/add-requirement-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/camera-capture-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/retention-policy-input-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-template-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-wizard-controller.js"), __webpack_exec__("./assets/css/app.css"), __webpack_exec__("./assets/css/signin.css"), __webpack_exec__("./assets/css/cover.css"), __webpack_exec__("./assets/css/dashboard.css"), __webpack_exec__("./plugins/Waivers/assets/css/waivers.css"), __webpack_exec__("./plugins/Waivers/assets/css/waiver-upload.css"); });
+/******/ __webpack_require__.O(0, ["js/core","css/app","css/waivers","css/dashboard","css/cover","css/signin","css/waiver-upload"], function() { return __webpack_exec__("./assets/js/controllers/activity-toggle-controller.js"), __webpack_exec__("./assets/js/controllers/activity-waiver-manager-controller.js"), __webpack_exec__("./assets/js/controllers/add-activity-modal-controller.js"), __webpack_exec__("./assets/js/controllers/app-setting-form-controller.js"), __webpack_exec__("./assets/js/controllers/auto-complete-controller.js"), __webpack_exec__("./assets/js/controllers/base-gathering-form-controller.js"), __webpack_exec__("./assets/js/controllers/branch-links-controller.js"), __webpack_exec__("./assets/js/controllers/csv-download-controller.js"), __webpack_exec__("./assets/js/controllers/delayed-forward-controller.js"), __webpack_exec__("./assets/js/controllers/delete-confirmation-controller.js"), __webpack_exec__("./assets/js/controllers/detail-tabs-controller.js"), __webpack_exec__("./assets/js/controllers/edit-activity-description-controller.js"), __webpack_exec__("./assets/js/controllers/email-template-editor-controller.js"), __webpack_exec__("./assets/js/controllers/email-template-form-controller.js"), __webpack_exec__("./assets/js/controllers/file-size-validator-controller.js"), __webpack_exec__("./assets/js/controllers/filter-grid-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-clone-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-form-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-location-autocomplete-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-map-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-type-form-controller.js"), __webpack_exec__("./assets/js/controllers/gatherings-calendar-controller.js"), __webpack_exec__("./assets/js/controllers/guifier-controller.js"), __webpack_exec__("./assets/js/controllers/image-preview-controller.js"), __webpack_exec__("./assets/js/controllers/kanban-controller.js"), __webpack_exec__("./assets/js/controllers/markdown-editor-controller.js"), __webpack_exec__("./assets/js/controllers/member-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-menu-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-pwa-controller.js"), __webpack_exec__("./assets/js/controllers/member-unique-email-controller.js"), __webpack_exec__("./assets/js/controllers/member-verify-form-controller.js"), __webpack_exec__("./assets/js/controllers/mobile-hub-controller.js"), __webpack_exec__("./assets/js/controllers/mobile-offline-overlay-controller.js"), __webpack_exec__("./assets/js/controllers/modal-opener-controller.js"), __webpack_exec__("./assets/js/controllers/nav-bar-controller.js"), __webpack_exec__("./assets/js/controllers/outlet-button-controller.js"), __webpack_exec__("./assets/js/controllers/permission-add-role-controller.js"), __webpack_exec__("./assets/js/controllers/permission-manage-policies-controller.js"), __webpack_exec__("./assets/js/controllers/revoke-form-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-member-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-permission-controller.js"), __webpack_exec__("./assets/js/controllers/select-all-switch-list-controller.js"), __webpack_exec__("./assets/js/controllers/session-extender-controller.js"), __webpack_exec__("./assets/js/controllers/turbo-modal-controller.js"), __webpack_exec__("./assets/js/controllers/variable-insert-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/gw-sharing-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/mobile-request-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/renew-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/request-auth-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/award-form-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-add-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-bulk-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-quick-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-table-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/recommendation-kanban-controller.js"), __webpack_exec__("./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/assign-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/edit-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/office-form-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-search-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-table-controller.js"), __webpack_exec__("./plugins/Template/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/add-requirement-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/camera-capture-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/retention-policy-input-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-template-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-wizard-controller.js"), __webpack_exec__("./assets/css/app.css"), __webpack_exec__("./assets/css/signin.css"), __webpack_exec__("./assets/css/cover.css"), __webpack_exec__("./assets/css/dashboard.css"), __webpack_exec__("./plugins/Waivers/assets/css/waivers.css"), __webpack_exec__("./plugins/Waivers/assets/css/waiver-upload.css"); });
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
