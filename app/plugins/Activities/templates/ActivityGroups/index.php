@@ -10,10 +10,26 @@
 echo $this->KMP->startBlock("title");
 echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Activity Groups';
 $this->KMP->endBlock(); ?>
-<h3>
-    Activity Groups
-</h3>
-
+<div class="row align-items-start">
+    <div class="col">
+        <h3>
+            Activity Groups
+        </h3>
+    </div>
+    <div class="col text-end">
+        <?php
+        $activityGroupsTable = \Cake\ORM\TableRegistry::getTableLocator()->get("Activities.ActivityGroups");
+        $tempActivityGroup = $activityGroupsTable->newEmptyEntity();
+        if ($user->checkCan("add", $tempActivityGroup)) :
+        ?>
+            <?= $this->Html->link(
+                ' Add Activity Group',
+                ['action' => 'add'],
+                ['class' => 'btn btn-primary btn-sm bi bi-plus-circle', 'data-turbo-frame' => '_top']
+            ) ?>
+        <?php endif; ?>
+    </div>
+</div>
 <table class="table table-striped">
     <thead>
         <tr>

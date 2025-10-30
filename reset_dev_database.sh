@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # Reset the development database, load cleaned seed SQL, then apply any new migrations.
 # Steps:
-# 1. Drop & recreate / clean via Cake commands (resetDatabase + updateDatabase)
+# 1. Drop & recreate / clean via Cake commands (resetDatabase)
 # 2. Load raw seed data from dev_seed_clean.sql (MariaDB dump)
-# 3. Run pending migrations (in case new ones were added after the dump)
-# 4. (Optional) Run a specific development seed class if still needed
+# 3. Run pending migrations (to test new migrations against previously deployed database)
+# 4. Update database (updateDatabase)
+# 5. Reset all member passwords to TestPassword
 
 set -euo pipefail
 
@@ -49,17 +50,17 @@ cd "$APP_DIR"
 echo "[1/4] Resetting database schema (bin/cake resetDatabase)..."
 bin/cake resetDatabase
 
-echo "[2/4] Updating database (bin/cake updateDatabase)..."
-bin/cake updateDatabase
-
-echo "[3/4] Loading seed SQL dump ($SEED_SQL) into $DB_NAME..." 
+echo "[2/4] Loading seed SQL dump ($SEED_SQL) into $DB_NAME..." 
 MYSQL_CMD=(mysql -h "$DB_HOST" -u"$DB_USER" -p"$DB_PASS" "$DB_NAME")
 
 # Disable foreign key checks during import for safety (dump likely already handles this)
 "${MYSQL_CMD[@]}" < "$SEED_SQL"
 
-echo "[4/4] Applying any new migrations (bin/cake migrations migrate)..."
+echo "[3/4] Applying any new migrations (bin/cake migrations migrate)..."
 bin/cake migrations migrate
+
+echo "[4/4] Updating database (bin/cake updateDatabase)..."
+bin/cake updateDatabase
 
 # If DevLoad seed is still desired after raw SQL import, uncomment next line:
 # bin/cake migrations seed --seed DevLoad

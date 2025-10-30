@@ -10,8 +10,26 @@
 echo $this->KMP->startBlock("title");
 echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Offices';
 $this->KMP->endBlock(); ?>
+<div class="row align-items-start">
+    <div class="col">
+        <h3>Offices</h3>
+    </div>
+    <div class="col text-end">
+        <?php
+        $officesTable = \Cake\ORM\TableRegistry::getTableLocator()->get("Officers.Offices");
+        $tempOffice = $officesTable->newEmptyEntity();
+        if ($user->checkCan("add", $tempOffice)) :
+        ?>
+            <?= $this->Html->link(
+                ' Add Office',
+                ['action' => 'add'],
+                ['class' => 'btn btn-primary btn-sm bi bi-plus-circle', 'data-turbo-frame' => '_top']
+            ) ?>
+        <?php endif; ?>
+    </div>
+</div>
 <h3>
-    Offices
+
 </h3>
 <table class="table table-striped">
     <thead>

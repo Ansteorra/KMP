@@ -319,56 +319,15 @@ class AuthorizationApprovalPolicy extends BasePolicy
     }
 
     /**
-     * Check if the user can view a list of available approvers for authorization workflows.
+     * Determines whether a user may view the list of available approvers for an authorization workflow.
      *
-     * Determines access to approver discovery interface based on dual authorization model
-     * combining approver ownership and administrative permission validation.
+     * Grants access when the user is the approval's assigned approver; otherwise falls back to policy-based
+     * permission checks to allow administrative or delegated approver discovery.
      *
-     * **Authorization Logic:**
-     * 1. **Assigned Approver Access**: Direct access for assigned approvers to discover alternative approvers
-     * 2. **Administrative Access**: Permission-based access for approval workflow management
-     * 3. **Permission Validation**: Delegates to BasePolicy for administrative approver discovery permissions
-     *
-     * **Approver-Based Access:**
-     * - Direct access when user is the assigned approver for the authorization
-     * - Enables approver reassignment and workflow delegation capabilities
-     * - Supports approval workflow flexibility and backup approver discovery
-     *
-     * **Permission-Based Access:**
-     * For administrative operations, typically requires permissions such as:
-     * - "Activities.manageApprovers": Authority to view and manage approver assignments
-     * - "Activities.manageApprovals": Administrative approval workflow management
-     * - "Activities.assignApprovers": Permission for approver assignment and reassignment
-     * - Branch-scoped permissions: Organizational boundaries for approver discovery
-     *
-     * **Approver Discovery Features:**
-     * - List of qualified approvers for specific activity types
-     * - Approver availability and workload information
-     * - Alternative approver suggestions for workflow management
-     * - Integration with approval authority validation
-     *
-     * **Usage Examples:**
-     * ```php
-     * // Assigned approver discovering alternatives
-     * $this->Authorization->authorize($authorizationApproval, 'availableApproversList'); // Returns true for assigned approver
-     * 
-     * // Administrative approver management
-     * if ($this->Authorization->can($user, 'availableApproversList', $authorizationApproval)) {
-     *     $availableApprovers = $this->getQualifiedApprovers($approval->authorization->activity_id);
-     * }
-     * ```
-     *
-     * **Security Considerations:**
-     * - Approver discovery maintains workflow flexibility while ensuring qualified alternatives
-     * - Administrative access requires appropriate permission validation
-     * - Prevents unauthorized access to approver information and workflow details
-     * - Integration with approval authority validation for accurate approver lists
-     *
-     * @param \App\KMP\KmpIdentityInterface $user The requesting user
-     * @param \Activities\Model\Entity\AuthorizationApproval $approval The authorization approval entity
-     * @param mixed ...$optionalArgs Additional arguments for policy evaluation
-     * @return bool True if user can view available approvers list, false otherwise
-     * @see \App\Policy\BasePolicy::_hasPolicy() Core permission validation for administrative access
+     * @param \App\KMP\KmpIdentityInterface $user The requesting user.
+     * @param \Activities\Model\Entity\AuthorizationApproval $approval The authorization approval entity whose approver ownership is evaluated.
+     * @param mixed ...$optionalArgs Additional optional arguments for policy evaluation.
+     * @return bool `true` if the user can view the available approvers list, `false` otherwise.
      */
     function canAvailableApproversList(KmpIdentityInterface $user, $approval): bool
     {
@@ -378,5 +337,31 @@ class AuthorizationApprovalPolicy extends BasePolicy
         }
         $method = __FUNCTION__;
         return $this->_hasPolicy($user, $method, $approval);
+    }
+
+    /**
+     * Determine whether the user may approve the authorization request from a mobile interface.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The requesting user.
+     * @param \Activities\Model\Entity\AuthorizationApproval $entity The authorization approval entity.
+     * @param mixed ...$optionalArgs Additional arguments for policy evaluation.
+     * @return bool true if the user can approve the authorization request, false otherwise.
+     */
+    function canMobileApprove(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
+    {
+        return $this->canApprove($user, $entity, ...$optionalArgs);
+    }
+
+    /**
+     * Determine whether the user may deny the authorization request via the mobile interface.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The requesting user.
+     * @param \Activities\Model\Entity\AuthorizationApproval $entity The authorization approval entity.
+     * @param mixed ...$optionalArgs Additional arguments for policy evaluation.
+     * @return bool `true` if the user can deny the authorization request, `false` otherwise.
+     */
+    function canMobileDeny(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
+    {
+        return $this->canDeny($user, $entity, ...$optionalArgs);
     }
 }

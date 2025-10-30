@@ -156,6 +156,7 @@ use Cake\Validation\Validator;
  * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $Parents Parent member for minors
  * @property \App\Model\Table\RolesTable&\Cake\ORM\Association\BelongsToMany $Roles Role assignments through MemberRoles
  * @property \App\Model\Table\PendingAuthorizationsTable&\Cake\ORM\Association\HasMany $PendingAuthorizations Authorization requests
+ * @property \App\Model\Table\GatheringAttendancesTable&\Cake\ORM\Association\HasMany $GatheringAttendances Gathering attendance records
  *
  * @method \App\Model\Entity\Member newEmptyEntity()
  * @method \App\Model\Entity\Member newEntity(array $data, array $options = [])
@@ -265,6 +266,11 @@ class MembersTable extends BaseTable
             'className' => 'Members',
             'foreignKey' => 'parent_id',
         ]);
+
+        $this->hasMany('GatheringAttendances', [
+            'foreignKey' => 'member_id',
+        ]);
+
         $this->addBehavior('Timestamp');
         $this->addBehavior('Muffin/Footprint.Footprint');
         $this->addBehavior('Muffin/Trash.Trash');

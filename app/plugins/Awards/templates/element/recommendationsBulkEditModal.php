@@ -19,6 +19,7 @@ echo $this->Form->create(null, [
     'data-awards-rec-bulk-edit-award-list-url-value' => $this->URL->build(['controller' => 'Awards', 'action' => 'awardsByDomain', 'plugin' => "Awards"]),
     'data-awards-rec-bulk-edit-form-url-value' => $formUrl,
     'data-awards-rec-bulk-edit-turbo-frame-url-value' => $turboFrameUrl,
+    'data-awards-rec-bulk-edit-gatherings-url-value' => $this->URL->build(['controller' => 'Recommendations', 'action' => 'gatheringsForBulkEdit', 'plugin' => "Awards"]),
 
 
 ]);
@@ -49,7 +50,7 @@ echo $this->Modal->create("Bulk Edit Recommendations", [
 ]);
 ?>
 <script type="application/json" data-awards-rec-bulk-edit-target="stateRulesBlock" class="d-none">
-<?= json_encode($rules) ?>
+    <?= json_encode($rules) ?>
 </script>
 <fieldset>
 
@@ -76,13 +77,13 @@ echo $this->Modal->create("Bulk Edit Recommendations", [
             'container' => ['data-awards-rec-bulk-edit-target' => 'closeReasonBlock'],
         ]
     );
-    echo $this->Form->control('event_id', [
+    echo $this->Form->control('gathering_id', [
         'label' => 'Plan to Give At',
         "type" => "select",
-        'options' => $eventList,
+        'options' => $gatheringList,
         'empty' => true,
         'value' => "",
-        'data-awards-rec-bulk-edit-target' => 'planToGiveEvent',
+        'data-awards-rec-bulk-edit-target' => 'planToGiveGathering',
         'container' => ['data-awards-rec-bulk-edit-target' => 'planToGiveBlock'],
     ]);
     echo $this->Form->control(

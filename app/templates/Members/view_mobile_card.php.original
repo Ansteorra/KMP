@@ -1,0 +1,269 @@
+<?php
+
+use Cake\I18n\DateTime;
+use Cake\I18n\Date;
+use Cake\Routing\Asset;
+use App\Services\ViewCellRegistry;
+
+echo $this->KMP->startBlock("title");
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Mobile Activities Authorization Card';
+$this->KMP->endBlock();
+$cardUrl = $this->Url->build(['controller' => 'Members', 'action' => 'viewMobileCardJson', $member->mobile_card_token]);
+$cardManifest = $this->Url->build(['controller' => 'Members', 'action' => 'card.webmanifest', $member->mobile_card_token]);
+$swUrl = Asset::url("sw.js");
+//home_marshal6.gif
+$watermarkimg =
+    "data:image/gif;base64," .
+    base64_encode(
+        file_get_contents(
+            $this->Url->image($message_variables["marshal_auth_graphic"], [
+                "fullBase" => true,
+            ]),
+        ),
+    );
+$now = Date::now();
+?>
+<?php echo $this->KMP->startBlock("manifest"); ?>
+<link rel="manifest" href="<?= $cardManifest ?>" />
+<?php $this->KMP->endBlock(); ?>
+<style>
+json {
+    display: none;
+}
+
+.viewMobileCard {
+    background-color: <?=h($message_variables["marshal_auth_header_color"],
+        ) ?>;
+}
+
+.cardbox {
+    background-color: rgb(255 255 255 / 85%) !important;
+}
+
+.card-body dl,
+table.card-body-table tbody tr td,
+table.card-body-table tbody tr th {
+    background-color: rgb(255 255 255 / 60%) !important;
+
+}
+
+.card-body::after {
+    content: "";
+    background-image: url('<?php echo $watermarkimg; ?>');
+    background-size: 21.4rem 20rem;
+    background-repeat: no-repeat;
+    background-position: center;
+    opacity: 1;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    position: absolute;
+    z-index: -1;
+    display: inline-block;
+}
+
+/* Status and Menu Pills - Consistent Styling */
+.mobile-menu-pill-container {
+    position: fixed;
+    top: 8px;
+    left: 12px;
+    z-index: 1000;
+}
+
+.mobile-menu-pill,
+[data-member-mobile-card-pwa-target="status"] {
+    padding: 6px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    white-space: nowrap;
+    transition: all 0.3s ease;
+    min-height: 32px;
+}
+
+.mobile-menu-pill i {
+    font-size: 16px;
+    margin-right: 6px;
+}
+
+.mobile-menu-pill:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+}
+
+.mobile-menu-pill.menu-active {
+    background-color: #0d6efd !important;
+    color: white !important;
+}
+
+.mobile-menu-items {
+    position: absolute;
+    top: 48px;
+    left: 0;
+    min-width: 280px;
+    max-width: 320px;
+    background: white;
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    animation: menuSlideDown 0.3s ease-out;
+}
+
+.mobile-menu-items.menu-opening {
+    animation: menuSlideDown 0.3s ease-out;
+}
+
+.mobile-menu-items.menu-closing {
+    animation: menuSlideUp 0.3s ease-in;
+}
+
+@keyframes menuSlideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.9);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes menuSlideUp {
+    from {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.9);
+    }
+}
+
+.mobile-menu-item {
+    text-decoration: none;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 16px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.mobile-menu-item:hover {
+    transform: translateX(4px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.mobile-menu-item:last-child {
+    margin-bottom: 0 !important;
+}
+
+.mobile-menu-item i {
+    font-size: 20px;
+}
+
+.mobile-menu-item .badge {
+    font-size: 12px;
+    padding: 4px 8px;
+}
+</style>
+<div data-controller="member-mobile-card-pwa member-mobile-card-profile"
+    data-member-mobile-card-profile-url-value="<?= $cardUrl ?>" data-member-mobile-card-pwa-sw-url-value="<?= $swUrl ?>"
+    data-member-mobile-card-profile-pwa-ready-value="false">
+    <?php
+    // Mobile Menu - Plugin-registered action items
+    $mobileMenuItems = [];
+    if (isset($pluginViewCells[ViewCellRegistry::PLUGIN_TYPE_MOBILE_MENU]) && !empty($pluginViewCells[ViewCellRegistry::PLUGIN_TYPE_MOBILE_MENU])) {
+        $mobileMenuItems = $pluginViewCells[ViewCellRegistry::PLUGIN_TYPE_MOBILE_MENU];
+
+        // Convert URL arrays to strings
+        foreach ($mobileMenuItems as &$item) {
+            if (is_array($item['url'])) {
+                $item['url'] = $this->Url->build($item['url']);
+            }
+        }
+        unset($item); // Break reference
+
+        // Convert associative array to numeric array for JSON encoding
+        // ViewCellRegistry returns items keyed by order, but JavaScript expects a simple array
+        $mobileMenuItems = array_values($mobileMenuItems);
+    }
+
+    if (!empty($mobileMenuItems)) :
+    ?>
+    <div class="mobile-menu-pill-container" data-controller="member-mobile-card-menu"
+        data-member-mobile-card-menu-menu-items-value='<?= h(json_encode($mobileMenuItems)) ?>'>
+        <button class="badge mobile-menu-pill btn btn-light rounded-pill shadow text-black"
+            data-member-mobile-card-menu-target="fab" data-action="click->member-mobile-card-menu#toggleMenu"
+            aria-label="Open menu" type="button">
+            <i class="bi bi-list" aria-hidden="true"></i>
+            <span>Menu</span>
+        </button>
+        <div class="mobile-menu-items" data-member-mobile-card-menu-target="menu" hidden>
+        </div>
+    </div>
+    <?php endif; ?>
+
+    <div scope="col" class="col text-end mx-3 my-2">
+        <span data-member-mobile-card-pwa-target="status"
+            class="badge rounded-pill text-center bg-danger">Offline</span>
+    </div>
+    <div class="card cardbox mx-3">
+        <div class="card-body">
+            <h3 class="card-title text-center display-6">
+                <?= h($message_variables["kingdom"]) ?><br />
+                Activity Authorization
+            </h3>
+            <div class="text-center" data-member-mobile-card-profile-target="loading">
+                <div class="spinner-border" style="width: 3rem; height: 3rem;" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+            <dl class="row" hidden data-member-mobile-card-profile-target="memberDetails">
+                <dt class="col-6 text-end">Legal Name</dt>
+                <dd class="col-6" data-member-mobile-card-profile-target="name"></dd>
+                <dt class="col-6 text-end">Society Name</dt>
+                <dd class="col-6" data-member-mobile-card-profile-target="scaName"></dd>
+                <dt class="col-6 text-end">Branch</dt>
+                <dd class="col-6" data-member-mobile-card-profile-target="branchName"></dd>
+                <dt class="col-6 text-end">Membership</dt>
+                <dd class="col-6" data-member-mobile-card-profile-target="membershipInfo"></dd>
+                <dt class="col-6 text-end">Background Check</dt>
+                <dd class="col-6" data-member-mobile-card-profile-target="backgroundCheck"></dd>
+                <dt class="col-6 text-end">Last Refresh</dt>
+                <dd class="col-6" data-member-mobile-card-profile-target="lastUpdate"></dd>
+                </dd>
+            </dl>
+        </div>
+    </div>
+    <div id="pluginCards" data-member-mobile-card-profile-target="cardSet"></div>
+
+    <div scope="row" class="row ms-3 me-3 mb-5 mt-2">
+        <span scope="col" class="col text-center">
+            <span data-member-mobile-card-pwa-target="refreshBtn"
+                data-action="click->member-mobile-card-profile#loadCard"
+                class="btn btn-small text-center btn-secondary bi bi-arrow-clockwise"></span>
+        </span>
+    </div>
+    <div class="row text-center">
+        <?= $this->element('copyrightFooter', []) ?>
+    </div>
+    <json data-member-mobile-card-pwa-target="urlCache">
+        <?php
+        $cacheList = [];
+        $cacheList[] = $cardUrl;
+        $cacheList[] = $swUrl;
+        $cacheList[] = $this->KMP->getMixScriptUrl('manifest', $this->Url);
+        $cacheList[] = $this->KMP->getMixScriptUrl('core', $this->Url);
+        $cacheList[] = $this->KMP->getMixScriptUrl('controllers', $this->Url);
+        $cacheList[] = $this->KMP->getMixScriptUrl('index', $this->Url);
+        $cacheList[] = $this->KMP->getMixStyleUrl('app', $this->Url);
+        $cacheList[] = Asset::imageUrl("favicon.ico");
+        $cacheList[] = $this->request->getPath();
+        echo json_encode($cacheList); ?>
+    </json>
+</div>

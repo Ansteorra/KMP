@@ -178,6 +178,7 @@ use JeremyHarris\LazyLoad\ORM\LazyLoadEntityTrait;
  * @property \App\Model\Entity\MemberRole[] $current_member_roles Current active role assignments
  * @property \App\Model\Entity\MemberRole[] $previous_member_roles Historical role assignments
  * @property \App\Model\Entity\MemberRole[] $upcoming_member_roles Future role assignments
+ * @property \App\Model\Entity\GatheringAttendance[] $gathering_attendances Gathering attendance records
  */
 class Member extends BaseEntity implements
     KmpIdentityInterface,
@@ -942,6 +943,178 @@ class Member extends BaseEntity implements
         }
 
         return false;
+    }
+
+    /**
+     * Get all branch IDs where member has permission for a specific policy action
+     *
+     * This method returns an array of branch IDs where the member has permission to
+     * perform a specific action on a given entity type. It's particularly useful for
+     * populating dropdowns or autocomplete fields with branches that a user can
+     * perform actions against.
+     *
+     * ## Authorization Integration
+     * - **Policy Resolution**: Uses the member's policies to determine branch access
+     * - **Entity-Based**: Takes an entity or table name to determine the policy class
+     * - **Action-Based**: Filters by specific action (e.g., 'edit', 'view', 'delete')
+     * - **Branch Scoping**: Returns only branches within member's authorized scope
+     *
+     * ## Return Values
+     * - **null**: Member has global permission (all branches) or is super user
+     * - **array**: Specific branch IDs where member has permission
+     * - **empty array**: Member has no permission for this action
+     *
+     * ## Scoping Rules
+     * The method respects permission scoping rules:
+     * - **SCOPE_GLOBAL**: Returns null indicating all branches
+     * - **SCOPE_BRANCH_ONLY**: Returns specific branch IDs
+     * - **SCOPE_BRANCH_AND_CHILDREN**: Returns branch IDs with hierarchical access
+     *
+     * @param string $action The policy action/method name (e.g., 'edit', 'view', 'delete')
+     * @param mixed $resource Entity instance, table name, or entity class to check permission for
+     * @return array|null Array of branch IDs where permission granted, null for global access, empty array for no access
+     *
+     * @example
+     * ```php
+     * // Get branches where user can edit members
+     * $editableBranches = $currentUser->getBranchIdsForAction('edit', 'Members');
+     * 
+     * if ($editableBranches === null) {
+     *     // User has global edit permission - show all branches
+     *     $branches = $branchesTable->find()->all();
+     * } elseif (!empty($editableBranches)) {
+     *     // User has limited edit permission - show only authorized branches
+     *     $branches = $branchesTable->find()
+     *         ->where(['id IN' => $editableBranches])
+     *         ->all();
+     * } else {
+     *     // User has no edit permission - show no branches
+     *     $branches = [];
+     * }
+     * 
+     * // Use with specific entity
+     * $member = $membersTable->newEmptyEntity();
+     * $branchIds = $currentUser->getBranchIdsForAction('edit', $member);
+     * 
+     * // Populate dropdown in controller
+     * $branches = $branchesTable->find('list')
+     *     ->where(function ($exp) use ($branchIds) {
+     *         if ($branchIds === null) {
+     *             return $exp; // No filtering for global access
+     *         }
+     *         return $exp->in('id', $branchIds);
+     *     })
+     *     ->all();
+     * $this->set(compact('branches'));
+     * ```
+     */
+    public function getBranchIdsForAction(string $action, mixed $resource): ?array
+    {
+        // Super users have access to all branches
+        if ($this->isSuperUser()) {
+            return null;
+        }
+
+        // Resolve resource to entity if string table name provided
+        if (is_string($resource)) {
+            $resource = TableRegistry::getTableLocator()
+                ->get($resource)
+                ->newEmptyEntity();
+        }
+
+        // Get the policy class name from the resource
+        $policyClass = $this->resolvePolicyClass($resource);
+        if ($policyClass === null) {
+            return [];
+        }
+
+        // Convert action to policy method name (e.g., 'edit' -> 'canEdit')
+        $policyMethod = 'can' . ucfirst($action);
+
+        // Get member's policies
+        $policies = $this->getPolicies();
+        if (empty($policies)) {
+            return [];
+        }
+
+        // Check if policy class exists in member's policies
+        $policyClassData = $policies[$policyClass] ?? null;
+        if (empty($policyClassData)) {
+            return [];
+        }
+
+        // Check if policy method exists for this policy class
+        $policyMethodData = $policyClassData[$policyMethod] ?? null;
+        if (empty($policyMethodData)) {
+            return [];
+        }
+
+        // Check scoping rule to determine branch access
+        if ($policyMethodData->scoping_rule === Permission::SCOPE_GLOBAL) {
+            return null; // Global access - all branches
+        }
+
+        // Return specific branch IDs
+        return $policyMethodData->branch_ids ?? [];
+    }
+
+    /**
+     * Resolve the policy class name from a resource
+     *
+     * Helper method to determine the appropriate policy class for a given
+     * resource (entity, table, or class name).
+     *
+     * @param mixed $resource Entity instance, table instance, or class name
+     * @return string|null Fully qualified policy class name, or null if not resolvable
+     */
+    protected function resolvePolicyClass(mixed $resource): ?string
+    {
+        // If resource is a Table instance, get the entity class
+        if ($resource instanceof \Cake\ORM\Table) {
+            $entityClass = $resource->getEntityClass();
+            if ($entityClass === "Cake\ORM\Entity") {
+                // Generic entity - use table name for policy
+                $tableName = $resource->getAlias();
+                return $this->getPolicyClassFromTableName($tableName);
+            }
+            $resource = new $entityClass();
+        }
+
+        // If resource is an entity, determine its policy class
+        if ($resource instanceof BaseEntity) {
+            $entityClass = get_class($resource);
+            $policyClass = str_replace('Model\Entity', 'Policy', $entityClass) . 'Policy';
+
+            // Check if this is a plugin entity
+            if (strpos($entityClass, 'Plugin') !== false || strpos($entityClass, '\\') === 0) {
+                return $policyClass;
+            }
+
+            // Standard app entity
+            return $policyClass;
+        }
+
+        return null;
+    }
+
+    /**
+     * Get policy class from table name
+     *
+     * Converts a table name to its corresponding policy class name.
+     *
+     * @param string $tableName The table name (e.g., 'Members', 'Branches')
+     * @return string Fully qualified policy class name
+     */
+    protected function getPolicyClassFromTableName(string $tableName): string
+    {
+        // Handle plugin tables (e.g., 'Officers.Offices')
+        if (strpos($tableName, '.') !== false) {
+            [$plugin, $name] = explode('.', $tableName, 2);
+            return "{$plugin}\\Policy\\{$name}Policy";
+        }
+
+        // Standard app table
+        return "App\\Policy\\{$tableName}Policy";
     }
 
     /**

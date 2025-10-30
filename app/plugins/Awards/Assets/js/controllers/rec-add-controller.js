@@ -1,4 +1,4 @@
-import { Controller } from "@hotwired/stimulus"
+import { Controller } from "@hotwired/stimulus";
 
 /**
  * Awards Recommendation Add Controller
@@ -168,12 +168,13 @@ class AwardsRecommendationAddForm extends Controller {
         "awardDescriptions",
         "award",
         "reason",
-        "events",
+        "gatherings",
         "specialty",
     ];
     static values = {
         publicProfileUrl: String,
-        awardListUrl: String
+        awardListUrl: String,
+        gatheringsUrl: String
     };
 
     /**
@@ -196,6 +197,7 @@ class AwardsRecommendationAddForm extends Controller {
      * 
      * Handles award selection from tabbed interface and triggers specialty
      * population based on award configuration and requirements.
+     * Also updates the gatherings list to show only relevant gatherings.
      * 
      * @param {Event} event - Click event from award selection tab
      * @returns {void}
@@ -204,6 +206,57 @@ class AwardsRecommendationAddForm extends Controller {
         let awardId = event.target.dataset.awardId;
         this.awardTarget.value = awardId;
         this.populateSpecialties(event);
+        this.updateGatherings(awardId);
+    }
+
+    /**
+     * Update gatherings list based on selected award
+     * 
+     * Fetches and updates the gatherings list to show only gatherings
+     * that have activities linked to the selected award. Marks gatherings
+     * where the member has indicated attendance with crown sharing.
+     * 
+     * @param {string} awardId - The selected award ID
+     * @returns {void}
+     */
+    updateGatherings(awardId) {
+        if (!awardId || !this.hasGatheringsTarget) {
+            return;
+        }
+
+        // Get member_id if available
+        let memberId = this.hasScaMemberTarget ? this.scaMemberTarget.value : '';
+        
+        // Build URL with query params
+        let url = this.gatheringsUrlValue + '/' + awardId;
+        if (memberId) {
+            url += '?member_id=' + memberId;
+        }
+
+        fetch(url, this.optionsForFetch())
+            .then(response => response.json())
+            .then(data => {
+                if (data.gatherings) {
+                    // Clear existing options
+                    while (this.gatheringsTarget.options.length > 0) {
+                        this.gatheringsTarget.options.remove(0);
+                    }
+
+                    // Add new options
+                    data.gatherings.forEach(gathering => {
+                        let option = document.createElement('option');
+                        option.value = gathering.id;
+                        option.text = gathering.display;
+                        this.gatheringsTarget.options.add(option);
+                    });
+
+                    // Enable the gatherings field if there are options
+                    this.gatheringsTarget.disabled = data.gatherings.length === 0;
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching gatherings:', error);
+            });
     }
 
     /**

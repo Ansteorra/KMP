@@ -869,10 +869,10 @@ class OfficesTable extends BaseTable
     }
 
     /**
-     * Get all offices in the reporting tree for a given office using breadth-first traversal.
+     * Return the office IDs that are reachable from a given office through deputy or reporting relationships in breadth-first order.
      *
-     * @param int $rootOfficeId The root office ID.
-     * @return int[]
+     * @param int $rootOfficeId The starting office ID whose reporting tree will be traversed; the returned list excludes this root.
+     * @return int[] An array of office IDs encountered in breadth-first order, excluding the root office.
      */
     private function getReportingTreeOffices(int $rootOfficeId): array
     {
@@ -907,5 +907,59 @@ class OfficesTable extends BaseTable
         }
 
         return $allOfficeIds;
+    }
+
+    /**
+     * Determine the appropriate branch ID for an office's reports_to_branch_id.
+     *
+     * Finds a branch starting from $startBranchId (and moving up the parent chain if necessary)
+     * that is compatible with the branch types allowed for the specified reports-to office.
+     *
+     * @param int $startBranchId The branch where the officer is being hired.
+     * @param int|null $reportsToOfficeId The ID of the office this officer reports to, or null.
+     * @return int|null The branch ID compatible with the reports-to office, or null if no reports-to office was provided.
+     */
+    public function findCompatibleBranchForOffice(int $startBranchId, ?int $reportsToOfficeId): ?int
+    {
+        // If no reporting office, no branch needed
+        if ($reportsToOfficeId === null) {
+            return null;
+        }
+
+        // Get the office to check its branch_types
+        $office = $this->get($reportsToOfficeId, ['fields' => ['id', 'applicable_branch_types']]);
+
+        // If office has no branch type restrictions, use the parent branch
+        if (empty($office->applicable_branch_types)) {
+            $branchTable = TableRegistry::getTableLocator()->get('Branches');
+            $branch = $branchTable->get($startBranchId, ['fields' => ['id', 'parent_id']]);
+            return $branch->parent_id;
+        }
+
+        // Get the branch types the office is compatible with
+        $compatibleBranchTypes = $office->branch_types;
+
+        // Traverse up the branch hierarchy looking for a compatible branch
+        $branchTable = TableRegistry::getTableLocator()->get('Branches');
+        $currentBranchId = $startBranchId;
+        $lastValidBranchId = $startBranchId; // Fallback to top if nothing matches
+
+        while ($currentBranchId !== null) {
+            $currentBranch = $branchTable->get($currentBranchId, ['fields' => ['id', 'type', 'parent_id']]);
+
+            // Check if this branch type is compatible with the office
+            if (in_array($currentBranch->type, $compatibleBranchTypes)) {
+                return $currentBranchId;
+            }
+
+            // Remember this as a potential fallback
+            $lastValidBranchId = $currentBranchId;
+
+            // Move up to parent
+            $currentBranchId = $currentBranch->parent_id;
+        }
+
+        // If we didn't find a match, return the top of the hierarchy
+        return $lastValidBranchId;
     }
 }

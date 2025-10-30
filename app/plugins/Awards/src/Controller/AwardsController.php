@@ -133,37 +133,16 @@ class AwardsController extends AppController
         $this->set(compact('awards'));
     }
 
-    /**
-     * Award View - Comprehensive award detail display and management interface
-     * 
-     * Provides detailed award information with complete hierarchical context and
-     * administrative management capabilities. This view serves as the central
-     * interface for award inspection, modification, and hierarchical relationship
-     * management within the awards system.
-     * 
-     * ## Award Detail Display:
-     * Displays comprehensive award information including:
-     * - Complete award configuration and description
-     * - Domain, level, and branch hierarchical relationships
-     * - Administrative metadata and audit trail information
-     * - Integration context with recommendation workflows
-     * 
-     * ## Administrative Context:
-     * Provides dropdown lists and selection interfaces for award modification:
-     * - Domain selection for categorical organization
-     * - Level selection with precedence ordering
-     * - Branch selection with hierarchical tree display
-     * 
-     * ## Security Validation:
-     * Implements entity-level authorization to ensure users can only view
-     * awards within their administrative scope and organizational boundaries.
-     * 
-     * @param string|null $id Award identifier for detail retrieval
-     * @return \Cake\Http\Response|null|void Renders award detail view
-     * @throws \Cake\Http\Exception\NotFoundException When award not found
-     * 
-     * @see \Awards\Model\Table\AwardsTable::find() For award retrieval with relationships
-     * @see \Authorization\Controller\Component\AuthorizationComponent::authorize() For entity authorization
+    / **
+     * Display a single award with its domain, level, branch, and related gathering activities and prepare form data for the management view.
+     *
+     * Loads the award and its related Domains, Levels, Branches, and GatheringActivities, enforces entity authorization,
+     * and provides lists for domains, levels (ordered by progression), branch tree, and gathering activities not yet associated
+     * with the award for use in the view.
+     *
+     * @param string|null $id Award identifier to retrieve.
+     * @return \Cake\Http\Response|null|void A Response when the action issues a redirect or other response, otherwise no value.
+     * @throws \Cake\Http\Exception\NotFoundException If no award exists with the provided id.
      */
     public function view($id = null)
     {
@@ -177,6 +156,9 @@ class AwardsController extends AppController
                 },
                 'Branches' => function ($q) {
                     return $q->select(['id', 'name']);
+                },
+                'GatheringActivities' => function ($q) {
+                    return $q->select(['id', 'name', 'description']);
                 }
             ])
             ->first();
@@ -194,7 +176,24 @@ class AwardsController extends AppController
                 return $entity->id;
             })
             ->orderBy(["name" => "ASC"])->toArray();
-        $this->set(compact('award', 'awardsDomains', 'awardsLevels', 'branches'));
+
+        // Get available activities for the add modal
+        $gatheringActivitiesTable = $this->fetchTable('GatheringActivities');
+        $existingActivityIds = array_map(function ($activity) {
+            return $activity->id;
+        }, $award->gathering_activities);
+
+        $availableActivities = $gatheringActivitiesTable->find('list')
+            ->where(function ($exp) use ($existingActivityIds) {
+                if (!empty($existingActivityIds)) {
+                    return $exp->notIn('id', $existingActivityIds);
+                }
+                return $exp;
+            })
+            ->orderBy(['name' => 'ASC'])
+            ->toArray();
+
+        $this->set(compact('award', 'awardsDomains', 'awardsLevels', 'branches', 'availableActivities'));
     }
 
     /**
@@ -360,34 +359,11 @@ class AwardsController extends AppController
     }
 
     /**
-     * Awards by Domain API - Dynamic award discovery for recommendation workflows
-     * 
-     * Provides a JSON API endpoint for dynamic award discovery based on domain
-     * selection. This endpoint supports recommendation workflow interfaces by
-     * returning awards filtered by domain with hierarchical organization and
-     * level-based ordering for optimal user experience.
-     * 
-     * ## API Functionality:
-     * - **Domain Filtering**: Returns awards within specified domain category
-     * - **Hierarchical Data**: Includes domain, level, and branch context
-     * - **Optimized Ordering**: Sorts by level progression order and award name
-     * - **JSON Response**: Formatted for AJAX consumption and dynamic interfaces
-     * 
-     * ## Public Access:
-     * This endpoint allows unauthenticated access to support recommendation
-     * form workflows where users need to discover available awards based on
-     * domain selection without requiring full authentication.
-     * 
-     * ## Query Optimization:
-     * Implements efficient database queries with selective field loading and
-     * strategic containment to minimize response size while providing complete
-     * hierarchical context for award selection interfaces.
-     * 
-     * @param string|null $domainId Domain identifier for award filtering
-     * @return \Cake\Http\Response JSON response with filtered award list
-     * 
-     * @see \Awards\Model\Table\AwardsTable::find() For domain-filtered award retrieval
-     * @see \Authorization\Controller\Component\AuthorizationComponent::skipAuthorization() For public access
+     * Provide a JSON list of awards filtered by a domain, including domain,
+     * level, and branch context ordered by level progression and award name.
+     *
+     * @param string|null $domainId Domain identifier to filter awards; pass `null` to select awards with no domain.
+     * @return \Cake\Http\Response JSON response containing an array of awards with their associated Domains, Levels, and Branches.
      */
     public function awardsByDomain($domainId = null)
     {
@@ -411,5 +387,295 @@ class AwardsController extends AppController
             ->withType("application/json")
             ->withStringBody(json_encode($awards));
         return $this->response;
+    }
+
+    / **
+         * Associate a gathering activity with an award.
+         *
+         * Creates a join record linking the specified award to the provided gathering activity
+         * and redirects back to the award's view page.
+         *
+         * @param string|null $id The award identifier.
+         * @return \Cake\Http\Response|null Redirect response to the award view.
+         * @throws \Cake\Http\Exception\NotFoundException If the award cannot be found.
+         * /
+    public function addActivity($id = null)
+    {
+        $this->request->allowMethod(['post']);
+
+        $award = $this->Awards->get($id);
+        $this->Authorization->authorize($award, 'edit');
+
+        if ($this->request->is('post')) {
+            $data = $this->request->getData();
+            $gatheringActivityId = $data['gathering_activity_id'] ?? null;
+
+            if (!$gatheringActivityId) {
+                $this->Flash->error(__('Please select an activity.'));
+                return $this->redirect(['action' => 'view', $id]);
+            }
+
+            // Create the association
+            $awardGatheringActivitiesTable = $this->fetchTable('Awards.AwardGatheringActivities');
+            $awardGatheringActivity = $awardGatheringActivitiesTable->newEntity([
+                'award_id' => $id,
+                'gathering_activity_id' => $gatheringActivityId,
+            ]);
+
+            if ($awardGatheringActivitiesTable->save($awardGatheringActivity)) {
+                $this->Flash->success(__('The activity has been added to this award.'));
+            } else {
+                // Log validation errors for debugging
+                $errors = $awardGatheringActivity->getErrors();
+                if (!empty($errors)) {
+                    \Cake\Log\Log::error('Failed to add activity to award: ' . json_encode($errors));
+                    $errorMessages = [];
+                    foreach ($errors as $field => $fieldErrors) {
+                        foreach ($fieldErrors as $error) {
+                            $errorMessages[] = "$field: $error";
+                        }
+                    }
+                    $this->Flash->error(__('The activity could not be added: {0}', implode(', ', $errorMessages)));
+                } else {
+                    \Cake\Log\Log::error('Failed to add activity to award with no validation errors');
+                    $this->Flash->error(__('The activity could not be added. Please try again.'));
+                }
+            }
+        }
+
+        return $this->redirect(['action' => 'view', $id]);
+    }
+
+    /**
+     * Dissociate a gathering activity from an award.
+     *
+     * Deletes the association between the specified award and gathering activity and sets an appropriate flash message.
+     *
+     * @param string|null $awardId Award identifier.
+     * @param string|null $activityId Gathering activity identifier.
+     * @return \Cake\Http\Response|null Redirects to the award view or returns Turbo Stream content when requested.
+     * @throws \Cake\Http\Exception\NotFoundException If the award does not exist.
+     */
+    public function removeActivity($awardId = null, $activityId = null)
+    {
+        $this->request->allowMethod(['post', 'delete']);
+
+        $award = $this->Awards->get($awardId);
+        $this->Authorization->authorize($award, 'edit');
+
+        // Check if this is a Turbo request (not a regular form submission)
+        $isTurboRequest = $this->request->getHeaderLine('Accept') !== '' &&
+            strpos($this->request->getHeaderLine('Accept'), 'text/vnd.turbo-stream.html') !== false ||
+            $this->request->is('ajax');
+
+        $awardGatheringActivitiesTable = $this->fetchTable('Awards.AwardGatheringActivities');
+        $awardGatheringActivity = $awardGatheringActivitiesTable->find()
+            ->where([
+                'award_id' => $awardId,
+                'gathering_activity_id' => $activityId,
+            ])
+            ->first();
+
+        if ($awardGatheringActivity) {
+            if ($awardGatheringActivitiesTable->delete($awardGatheringActivity)) {
+                $this->Flash->success(__('The activity has been removed from this award.'));
+            } else {
+                $this->Flash->error(__('The activity could not be removed. Please try again.'));
+            }
+        } else {
+            $this->Flash->error(__('Activity association not found.'));
+        }
+
+        // If this is a Turbo request from GatheringActivity view, render the cell
+        if ($isTurboRequest) {
+            // Create a view instance to render the cell
+            $view = $this->createView();
+            $cell = $view->cell('Awards.ActivityAwards', [$activityId]);
+
+            // Get flash messages
+            $flashMessages = $this->request->getSession()->read('Flash');
+            $this->request->getSession()->delete('Flash');
+
+            // Build Turbo Stream response
+            $turboStream = $this->_buildTurboStreamResponse($cell->render(), $flashMessages);
+            $this->response = $this->response
+                ->withType('text/vnd.turbo-stream.html')
+                ->withStringBody($turboStream);
+            return $this->response;
+        }
+
+        return $this->redirect(['action' => 'view', $awardId]);
+    }
+
+    /**
+     * Attach an award to a gathering activity from the GatheringActivity context.
+     *
+     * Creates an AwardGatheringActivity association and returns either a turbo-stream
+     * response updating the activity's awards cell (for Turbo/AJAX requests) or a
+     * redirect to the gathering activity view for standard form submissions.
+     *
+     * @param string|null $activityId The gathering activity identifier.
+     * @return \Cake\Http\Response|null A Response containing turbo-stream HTML when the request expects turbo streams; otherwise a redirect Response to the gathering activity view.
+     * @throws \Cake\Http\Exception\NotFoundException If the specified gathering activity does not exist.
+     */
+    public function addActivityToGatheringActivity($activityId = null)
+    {
+        $this->request->allowMethod(['post']);
+
+        // Load the gathering activity to check permissions
+        $gatheringActivitiesTable = $this->fetchTable('GatheringActivities');
+        $gatheringActivity = $gatheringActivitiesTable->get($activityId);
+        $this->Authorization->authorize($gatheringActivity, 'edit');
+
+        // Check if this is a Turbo request (not a regular form submission)
+        $isTurboRequest = $this->request->getHeaderLine('Accept') !== '' &&
+            strpos($this->request->getHeaderLine('Accept'), 'text/vnd.turbo-stream.html') !== false ||
+            $this->request->is('ajax');
+
+        if ($this->request->is('post')) {
+            $data = $this->request->getData();
+            $awardId = $data['award_id'] ?? null;
+
+            if (!$awardId) {
+                $this->Flash->error(__('Please select an award.'));
+                if ($isTurboRequest) {
+                    // Return Turbo Stream with frame update and flash messages
+                    $view = $this->createView();
+                    $cell = $view->cell('Awards.ActivityAwards', [$gatheringActivity->id]);
+
+                    // Get flash messages
+                    $flashMessages = $this->request->getSession()->read('Flash');
+                    $this->request->getSession()->delete('Flash');
+
+                    // Build Turbo Stream response
+                    $turboStream = $this->_buildTurboStreamResponse($cell->render(), $flashMessages);
+                    $this->response = $this->response
+                        ->withType('text/vnd.turbo-stream.html')
+                        ->withStringBody($turboStream);
+                    return $this->response;
+                }
+                return $this->redirect(['plugin' => null, 'controller' => 'GatheringActivities', 'action' => 'view', $activityId]);
+            }
+
+            // Create the association
+            $awardGatheringActivitiesTable = $this->fetchTable('Awards.AwardGatheringActivities');
+            $awardGatheringActivity = $awardGatheringActivitiesTable->newEntity([
+                'award_id' => $awardId,
+                'gathering_activity_id' => $activityId,
+            ]);
+
+            if ($awardGatheringActivitiesTable->save($awardGatheringActivity)) {
+                $this->Flash->success(__('The award has been added to this activity.'));
+            } else {
+                // Log validation errors for debugging
+                $errors = $awardGatheringActivity->getErrors();
+                if (!empty($errors)) {
+                    \Cake\Log\Log::error('Failed to add award to activity: ' . json_encode($errors));
+                    $errorMessages = [];
+                    foreach ($errors as $field => $fieldErrors) {
+                        foreach ($fieldErrors as $error) {
+                            $errorMessages[] = "$field: $error";
+                        }
+                    }
+                    $this->Flash->error(__('The award could not be added: {0}', implode(', ', $errorMessages)));
+                } else {
+                    \Cake\Log\Log::error('Failed to add award to activity with no validation errors');
+                    $this->Flash->error(__('The award could not be added. Please try again.'));
+                }
+            }
+        }
+
+        // If this is a Turbo request, render the cell instead of redirecting
+        if ($isTurboRequest) {
+            // Create a view instance to render the cell
+            $view = $this->createView();
+            $cell = $view->cell('Awards.ActivityAwards', [$gatheringActivity->id]);
+
+            // Get flash messages
+            $flashMessages = $this->request->getSession()->read('Flash');
+            $this->request->getSession()->delete('Flash');
+
+            // Build Turbo Stream response
+            $turboStream = $this->_buildTurboStreamResponse($cell->render(), $flashMessages);
+            $this->response = $this->response
+                ->withType('text/vnd.turbo-stream.html')
+                ->withStringBody($turboStream);
+            return $this->response;
+        }
+
+        return $this->redirect(['plugin' => null, 'controller' => 'GatheringActivities', 'action' => 'view', $activityId]);
+    }
+
+    /**
+         * Builds a Turbo Stream payload that replaces the flash messages frame and,
+         * if present, replaces the provided turbo-frame with the given content.
+         *
+         * Flash messages (if provided) are rendered as Bootstrap alert markup. The
+         * supplied $frameContent should include a <turbo-frame id="..."> element;
+         * when an id is found that frame will be replaced in the returned payload.
+         *
+         * @param string $frameContent HTML containing a turbo-frame to be inserted/replaced
+         * @param array|null $flashMessages Flash messages grouped by key; each message is an array
+         *                                 with a 'message' string and an optional 'element'
+         *                                 (e.g. 'flash/success') used to determine the alert type
+         * @return string The combined turbo-stream HTML payload
+         */
+    protected function _buildTurboStreamResponse(string $frameContent, ?array $flashMessages = null): string
+    {
+        $streams = [];
+
+        // Always include the frame update
+        // The frame content already includes <turbo-frame id="...">
+        $streams[] = '<turbo-stream action="replace" target="flash-messages">';
+        $streams[] = '<template>';
+
+        // Render flash messages if any
+        if (!empty($flashMessages)) {
+            foreach ($flashMessages as $key => $messages) {
+                foreach ($messages as $message) {
+                    $text = $message['message'] ?? '';
+
+                    // Extract type from element field (e.g., 'flash/success' -> 'success')
+                    $element = $message['element'] ?? 'flash/info';
+                    $type = 'info';
+                    if (strpos($element, '/') !== false) {
+                        $parts = explode('/', $element);
+                        $type = end($parts);
+                    }
+
+                    // Map CakePHP flash types to Bootstrap alert types
+                    $alertType = match ($type) {
+                        'error' => 'danger',
+                        'success' => 'success',
+                        'warning' => 'warning',
+                        'info' => 'info',
+                        default => 'info'
+                    };
+
+                    $streams[] = sprintf(
+                        '<div class="alert alert-%s alert-dismissible fade show" role="alert">%s<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>',
+                        h($alertType),
+                        h($text)
+                    );
+                }
+            }
+        }
+
+
+        $streams[] = '</template>';
+        $streams[] = '</turbo-stream>';
+
+        // Add the frame content as a second turbo-stream
+        // Extract the frame ID from the content
+        if (preg_match('/<turbo-frame id="([^"]+)"/', $frameContent, $matches)) {
+            $frameId = $matches[1];
+            $streams[] = sprintf('<turbo-stream action="replace" target="%s">', h($frameId));
+            $streams[] = '<template>';
+            $streams[] = $frameContent;
+            $streams[] = '</template>';
+            $streams[] = '</turbo-stream>';
+        }
+
+        return implode("\n", $streams);
     }
 }

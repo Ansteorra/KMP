@@ -10,10 +10,26 @@
 echo $this->KMP->startBlock("title");
 echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Award Domains';
 $this->KMP->endBlock(); ?>
-<h3>
-    Award Domains
-</h3>
-
+<div class="row align-items-start">
+    <div class="col">
+        <h3>
+            Awards
+        </h3>
+    </div>
+    <div class="col text-end">
+        <?php
+        $awardsTable = \Cake\ORM\TableRegistry::getTableLocator()->get("Awards.Awards");
+        $tempAward = $awardsTable->newEmptyEntity();
+        if ($user->checkCan("add", $tempAward)) :
+        ?>
+            <?= $this->Html->link(
+                ' Add Award',
+                ['action' => 'add'],
+                ['class' => 'btn btn-primary btn-sm bi bi-plus-circle', 'data-turbo-frame' => '_top']
+            ) ?>
+        <?php endif; ?>
+    </div>
+</div>
 <table class="table table-striped">
     <thead>
         <tr>

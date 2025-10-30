@@ -4,6 +4,9 @@ use App\KMP\StaticHelpers;
 
 $canPartialEdit = $user->checkCan("partialEdit", $member);
 
+// Get PHP upload limits for client-side validation
+$uploadLimits = $this->KMP->getUploadLimits();
+
 if ($canPartialEdit) {
     echo $this->Form->create($memberForm, [
         "url" => [
@@ -22,7 +25,13 @@ echo $this->Modal->create("Submit your SCA Card ", [
     <?php if ($user->checkCan("partialEdit", $member)): ?>
     <div class="mb-3 form-group">
         <label class="form-label">Upload Membership Card</label>
-        <div class="card" data-controller="image-preview">
+        <div class="card" data-controller="image-preview file-size-validator"
+            data-file-size-validator-max-size-value="<?= h($uploadLimits['maxFileSize']) ?>"
+            data-file-size-validator-max-size-formatted-value="<?= h($uploadLimits['formatted']) ?>">
+
+            <!-- Warning message container -->
+            <div data-file-size-validator-target="warning" class="d-none m-2"></div>
+
             <div class="card-body text-center">
                 <svg class="bi bi-card-image text-secondary text-center" width="200" height="200" fill="currentColor"
                     viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" data-image-preview-target="loading">
@@ -34,7 +43,9 @@ echo $this->Modal->create("Submit your SCA Card ", [
             </div>
             <div class="card-footer">
                 <input type="file" name="member_card" class="form-control" accept="image/*"
-                    data-image-preview-target="file" data-action="change->image-preview#preview">
+                    data-image-preview-target="file" data-file-size-validator-target="fileInput"
+                    data-action="change->image-preview#preview change->file-size-validator#validateFiles">
+                <small class="text-muted d-block mt-1">Max size: <?= h($uploadLimits['formatted']) ?></small>
             </div>
         </div>
         <?php endif ?>

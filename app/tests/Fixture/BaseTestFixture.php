@@ -12,8 +12,12 @@ use RuntimeException;
  */
 class BaseTestFixture extends TestFixture
 {
-    protected function getData(string $seed, ?string $plugin = null): array
+    protected function getData(string $seed, ?string $plugin = null, bool $optional = false): array
     {
+        // Enable test mode in SeedHelpers to use static lookups instead of DB queries
+        require_once dirname(__DIR__, 2) . '/config/Seeds/Lib/SeedHelpers.php';
+        \SeedHelpers::enableTestMode();
+
         // create path to seed file it should be ../../[plugin]/config/Seeds/[seed].php or ../config/Seeds/[seed].php
         $path = dirname(__DIR__, 2) . '/config/Seeds/' . $seed . '.php';
         if ($plugin) {
@@ -23,6 +27,9 @@ class BaseTestFixture extends TestFixture
         if (file_exists($path)) {
             include_once $path;
         } else {
+            if ($optional) {
+                return [];
+            }
             throw new RuntimeException('Seed file not found: ' . $path);
         }
         //get the class name from the seed file

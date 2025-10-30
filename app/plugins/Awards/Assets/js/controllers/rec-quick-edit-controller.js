@@ -1,6 +1,6 @@
 
 
-import { Controller } from "@hotwired/stimulus"
+import { Controller } from "@hotwired/stimulus";
 
 /**
  * Awards Recommendation Quick Edit Controller
@@ -179,13 +179,14 @@ class AwardsRecommendationQuickEditForm extends Controller {
         "domain",
         "award",
         "reason",
-        "events",
+        "gatherings",
         "specialty",
         "state",
         "planToGiveBlock",
-        "planToGiveEvent",
+        "planToGiveGathering",
         "givenBlock",
         "recId",
+        "memberId",
         "turboFrame",
         "givenDate",
         "closeReason",
@@ -197,6 +198,7 @@ class AwardsRecommendationQuickEditForm extends Controller {
         awardListUrl: String,
         formUrl: String,
         turboFrameUrl: String,
+        gatheringsUrl: String
     };
     static outlets = ['outlet-btn'];
 
@@ -261,6 +263,7 @@ class AwardsRecommendationQuickEditForm extends Controller {
      * 
      * Handles award selection and triggers specialty population for
      * quick editing with existing data preservation.
+     * Also updates the gatherings list to show only relevant gatherings.
      * 
      * @param {Event} event - Click event from award selection
      * @returns {void}
@@ -270,7 +273,129 @@ class AwardsRecommendationQuickEditForm extends Controller {
         this.awardTarget.value = awardId;
         if (this.awardTarget.value != "") {
             this.populateSpecialties(event);
+            this.updateGatherings(awardId);
         }
+    }
+
+    /**
+     * Update gatherings list based on selected award
+     * 
+     * Fetches and updates the gatherings list to show only gatherings
+     * that have activities linked to the selected award. Marks gatherings
+     * where the member has indicated attendance with crown sharing.
+     * If status is "Given", shows all gatherings (past and future).
+     * 
+     * @param {string} awardId - The selected award ID
+     * @returns {void}
+     */
+    updateGatherings(awardId) {
+        if (!awardId) {
+            return;
+        }
+
+        // Get member_id if available
+        let memberId = this.hasMemberIdTarget ? this.memberIdTarget.value : '';
+        
+        // Get status if available
+        let status = this.hasStateTarget ? this.stateTarget.value : '';
+        
+        // Build URL with query params
+        let url = this.gatheringsUrlValue + '/' + awardId;
+        let params = new URLSearchParams();
+        if (memberId) {
+            params.append('member_id', memberId);
+        }
+        if (status) {
+            params.append('status', status);
+        }
+        if (params.toString()) {
+            url += '?' + params.toString();
+        }
+
+        fetch(url, this.optionsForFetch())
+            .then(response => response.json())
+            .then(data => {
+                if (data.gatherings) {
+                    // Update the gatherings checkboxes
+                    const gatheringsContainer = document.getElementById('recommendation__gathering_ids');
+                    if (gatheringsContainer) {
+                        // Save currently selected values
+                        const selectedValues = [];
+                        gatheringsContainer.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
+                            selectedValues.push(cb.value);
+                        });
+
+                        // Clear existing options
+                        gatheringsContainer.innerHTML = '';
+
+                        // Add new options as checkboxes
+                        data.gatherings.forEach(gathering => {
+                            const div = document.createElement('div');
+                            div.className = 'form-check';
+                            
+                            const input = document.createElement('input');
+                            input.type = 'checkbox';
+                            input.className = 'form-check-input';
+                            input.name = 'gatherings[_ids][]';
+                            input.value = gathering.id;
+                            input.id = `gathering-${gathering.id}`;
+                            
+                            // Restore checked state if it was previously selected
+                            if (selectedValues.includes(gathering.id.toString())) {
+                                input.checked = true;
+                            }
+                            
+                            const label = document.createElement('label');
+                            label.className = 'form-check-label';
+                            label.htmlFor = `gathering-${gathering.id}`;
+                            label.textContent = gathering.display;
+                            
+                            div.appendChild(input);
+                            div.appendChild(label);
+                            gatheringsContainer.appendChild(div);
+                        });
+                    }
+                    
+                    // Also update the planToGiveGathering dropdown if it exists
+                    if (this.hasPlanToGiveGatheringTarget) {
+                        // Try to get current value, fallback to initial value stored on connect
+                        const currentValue = this.planToGiveGatheringTarget.value || 
+                                            this.planToGiveGatheringTarget.dataset.initialValue || 
+                                            '';
+                        
+                        // Clear existing options
+                        this.planToGiveGatheringTarget.innerHTML = '';
+                        
+                        // Add default option
+                        const defaultOption = document.createElement('option');
+                        defaultOption.value = '';
+                        defaultOption.textContent = 'Select Gathering';
+                        this.planToGiveGatheringTarget.appendChild(defaultOption);
+                        
+                        // Add gathering options
+                        data.gatherings.forEach(gathering => {
+                            const option = document.createElement('option');
+                            option.value = gathering.id;
+                            option.textContent = gathering.display;
+                            
+                            // Restore selected state if it matches current or initial value
+                            if (gathering.id.toString() === currentValue) {
+                                option.selected = true;
+                            }
+                            
+                            this.planToGiveGatheringTarget.appendChild(option);
+                        });
+                        
+                        // Update the stored value for next time
+                        if (currentValue) {
+                            this.planToGiveGatheringTarget.dataset.initialValue = currentValue;
+                        }
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching gatherings:', error);
+            });
     }
 
     /**
@@ -412,11 +537,26 @@ class AwardsRecommendationQuickEditForm extends Controller {
 
         this.planToGiveBlockTarget.style.display = "none";
         this.givenBlockTarget.style.display = "none";
-        this.givenDateTarget.value = "";
+        
+        // Store the current givenDate value before potentially clearing it
+        if (this.givenDateTarget.value && !this.givenDateTarget.dataset.initialValue) {
+            this.givenDateTarget.dataset.initialValue = this.givenDateTarget.value;
+        }
+        
+        // Only clear givenDate if it doesn't have an initial value stored
+        if (!this.givenDateTarget.dataset.initialValue) {
+            this.givenDateTarget.value = "";
+        } else {
+            // Restore the initial value if it was cleared
+            if (!this.givenDateTarget.value) {
+                this.givenDateTarget.value = this.givenDateTarget.dataset.initialValue;
+            }
+        }
+        
         this.domainTarget.disabled = false;
         this.awardTarget.disabled = false;
         this.specialtyTarget.disabled = this.specialtyTarget.hidden;
-        this.planToGiveEventTarget.required = false;
+        this.planToGiveGatheringTarget.required = false;
         this.givenDateTarget.required = false;
         this.closeReasonBlockTarget.style.display = "none";
         this.closeReasonTarget.required = false;
@@ -449,6 +589,11 @@ class AwardsRecommendationQuickEditForm extends Controller {
                 });
             }
         }
+        
+        // Update gatherings when state changes (e.g., to/from "Given")
+        if (this.hasAwardTarget && this.awardTarget.value) {
+            this.updateGatherings(this.awardTarget.value);
+        }
     }
 
     /**
@@ -460,7 +605,10 @@ class AwardsRecommendationQuickEditForm extends Controller {
      * @returns {void}
      */
     connect() {
-
+        // Store the initial gathering_id value so it persists through option updates
+        if (this.hasPlanToGiveGatheringTarget && this.planToGiveGatheringTarget.value) {
+            this.planToGiveGatheringTarget.dataset.initialValue = this.planToGiveGatheringTarget.value;
+        }
     }
 
     /**
@@ -478,6 +626,36 @@ class AwardsRecommendationQuickEditForm extends Controller {
         actionUrl = actionUrl.replace(/\/\d+$/, "");
         actionUrl = actionUrl + "/" + recId;
         this.element.setAttribute("action", actionUrl);
+    }
+    
+    /**
+     * Handle planToGiveGathering target connection for quick edit
+     * 
+     * Stores the initial gathering_id value when the field connects so it
+     * persists through dynamic option updates.
+     * 
+     * @returns {void}
+     */
+    planToGiveGatheringTargetConnected() {
+        // Store the initial value from the server-rendered form
+        if (this.planToGiveGatheringTarget.value) {
+            this.planToGiveGatheringTarget.dataset.initialValue = this.planToGiveGatheringTarget.value;
+        }
+    }
+    
+    /**
+     * Handle givenDate target connection for quick edit
+     * 
+     * Stores the initial given date value when the field connects so it
+     * persists through field rule updates.
+     * 
+     * @returns {void}
+     */
+    givenDateTargetConnected() {
+        // Store the initial value from the server-rendered form
+        if (this.givenDateTarget.value) {
+            this.givenDateTarget.dataset.initialValue = this.givenDateTarget.value;
+        }
     }
 }
 // add to window.Controllers with a name of the controller

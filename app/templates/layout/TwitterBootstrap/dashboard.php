@@ -134,6 +134,13 @@ $url = $fullBaseUrl . "/keepalive";
             <?php endforeach; ?>
             <li class="nav-item text-nowrap mx-1">
                 <?= $this->Html->link(
+                    '<i class="bi bi-phone"></i> ' . __("Mobile"),
+                    ["controller" => "App", "action" => "switchView", 'plugin' => null, '?' => ['mode' => 'mobile']],
+                    ["class" => "btn btn-outline-secondary", "escape" => false, "title" => __("Switch to mobile view")],
+                ) ?>
+            </li>
+            <li class="nav-item text-nowrap mx-1">
+                <?= $this->Html->link(
                     __("Sign out"),
                     ["controller" => "Members", "action" => "logout", 'plugin' => null],
                     ["class" => "btn btn-outline-secondary"],

@@ -44,14 +44,39 @@ self.addEventListener('message', event => {
 });
 
 self.addEventListener('fetch', (event) => {
+    // Only handle http and https requests, skip chrome-extension and other schemes
+    if (!event.request.url.startsWith('http')) {
+        return;
+    }
+
     event.respondWith(
         (async function () {
             try {
-                return await fetch(event.request);
+                // Try to fetch from network first
+                const networkResponse = await fetch(event.request);
+                
+                // Cache successful responses (including JSON endpoints)
+                if (networkResponse && networkResponse.status === 200) {
+                    const cache = await caches.open(CACHE_NAME);
+                    // Clone the response because it can only be consumed once
+                    cache.put(event.request, networkResponse.clone());
+                }
+                
+                return networkResponse;
             } catch (err) {
-                console.log(event.request);
-                var response = await caches.open(CACHE_NAME).then((cache) => cache.match(event.request, { ignoreVary: true }));
-                return response;
+                // Network failed, try to serve from cache
+                console.log('Network request failed, serving from cache:', event.request.url);
+                const cachedResponse = await caches.open(CACHE_NAME).then((cache) => 
+                    cache.match(event.request, { ignoreVary: true })
+                );
+                
+                if (cachedResponse) {
+                    return cachedResponse;
+                }
+                
+                // If no cache available, return a basic offline response
+                console.error('No cache available for:', event.request.url);
+                throw err;
             }
         })(),
     );

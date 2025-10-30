@@ -1,9 +1,9 @@
 /*M!999999\- enable the sandbox mode */ 
--- MariaDB dump 10.19  Distrib 10.11.11-MariaDB, for debian-linux-gnu (aarch64)
+-- MariaDB dump 10.19  Distrib 10.11.14-MariaDB, for debian-linux-gnu (aarch64)
 --
--- Host: 127.0.0.1    Database: KMP_DEV
+-- Host: localhost    Database: KMP_DEV
 -- ------------------------------------------------------
--- Server version	10.11.11-MariaDB-0+deb12u1
+-- Server version	10.11.14-MariaDB-0+deb12u2
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -29,10 +29,10 @@ CREATE TABLE `activities_activities` (
   `term_length` int(11) NOT NULL,
   `activity_group_id` int(11) NOT NULL,
   `grants_role_id` int(11) DEFAULT NULL,
-  `minimum_age` int(2) DEFAULT NULL,
-  `maximum_age` int(2) DEFAULT NULL,
-  `num_required_authorizors` int(2) NOT NULL DEFAULT 1,
-  `num_required_renewers` int(2) NOT NULL DEFAULT 1,
+  `minimum_age` int(11) DEFAULT NULL,
+  `maximum_age` int(11) DEFAULT NULL,
+  `num_required_authorizors` int(11) NOT NULL DEFAULT 1,
+  `num_required_renewers` int(11) NOT NULL DEFAULT 1,
   `permission_id` int(11) DEFAULT NULL,
   `modified` datetime DEFAULT NULL,
   `created` datetime NOT NULL,
@@ -45,8 +45,8 @@ CREATE TABLE `activities_activities` (
   KEY `deleted` (`deleted`),
   KEY `permission_id` (`permission_id`),
   CONSTRAINT `activities_activities_ibfk_1` FOREIGN KEY (`activity_group_id`) REFERENCES `activities_activity_groups` (`id`),
-  CONSTRAINT `activities_activities_ibfk_2` FOREIGN KEY (`permission_id`) REFERENCES `permissions` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+  CONSTRAINT `activities_activities_ibfk_2` FOREIGN KEY (`permission_id`) REFERENCES `permissions` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=67 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -67,7 +67,7 @@ CREATE TABLE `activities_activity_groups` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`),
   KEY `deleted` (`deleted`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -89,9 +89,9 @@ CREATE TABLE `activities_authorization_approvals` (
   PRIMARY KEY (`id`),
   KEY `approver_id` (`approver_id`),
   KEY `authorization_id` (`authorization_id`),
-  CONSTRAINT `activities_authorization_approvals_ibfk_1` FOREIGN KEY (`authorization_id`) REFERENCES `activities_authorizations` (`id`),
-  CONSTRAINT `activities_authorization_approvals_ibfk_2` FOREIGN KEY (`approver_id`) REFERENCES `members` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+  CONSTRAINT `activities_authorization_approvals_ibfk_1` FOREIGN KEY (`authorization_id`) REFERENCES `activities_authorizations` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `activities_authorization_approvals_ibfk_2` FOREIGN KEY (`approver_id`) REFERENCES `members` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=9312 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -120,10 +120,10 @@ CREATE TABLE `activities_authorizations` (
   KEY `start_on` (`start_on`),
   KEY `expires_on` (`expires_on`),
   KEY `granted_member_role_id` (`granted_member_role_id`),
-  CONSTRAINT `activities_authorizations_ibfk_1` FOREIGN KEY (`activity_id`) REFERENCES `activities_activities` (`id`),
-  CONSTRAINT `activities_authorizations_ibfk_2` FOREIGN KEY (`member_id`) REFERENCES `members` (`id`),
-  CONSTRAINT `activities_authorizations_ibfk_3` FOREIGN KEY (`granted_member_role_id`) REFERENCES `member_roles` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+  CONSTRAINT `activities_authorizations_ibfk_1` FOREIGN KEY (`activity_id`) REFERENCES `activities_activities` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `activities_authorizations_ibfk_2` FOREIGN KEY (`member_id`) REFERENCES `members` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `activities_authorizations_ibfk_3` FOREIGN KEY (`granted_member_role_id`) REFERENCES `member_roles` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=9317 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -153,7 +153,7 @@ DROP TABLE IF EXISTS `app_settings`;
 CREATE TABLE `app_settings` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `name` varchar(255) NOT NULL,
-  `value` text NOT NULL,
+  `value` text DEFAULT NULL,
   `modified` datetime DEFAULT NULL,
   `created` datetime NOT NULL,
   `created_by` int(11) DEFAULT NULL,
@@ -162,7 +162,7 @@ CREATE TABLE `app_settings` (
   `required` tinyint(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`)
-) ENGINE=InnoDB AUTO_INCREMENT=502 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=85 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -196,9 +196,9 @@ CREATE TABLE `awards_awards` (
   KEY `branch_id` (`branch_id`),
   KEY `deleted` (`deleted`),
   CONSTRAINT `awards_awards_ibfk_1` FOREIGN KEY (`domain_id`) REFERENCES `awards_domains` (`id`),
-  CONSTRAINT `awards_awards_ibfk_2` FOREIGN KEY (`level_id`) REFERENCES `awards_levels` (`id`),
-  CONSTRAINT `awards_awards_ibfk_3` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+  CONSTRAINT `awards_awards_ibfk_2` FOREIGN KEY (`level_id`) REFERENCES `awards_levels` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `awards_awards_ibfk_3` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=81 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -219,7 +219,7 @@ CREATE TABLE `awards_domains` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`),
   KEY `deleted` (`deleted`)
-) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -247,8 +247,8 @@ CREATE TABLE `awards_events` (
   KEY `end_date` (`end_date`),
   KEY `branch_id` (`branch_id`),
   KEY `deleted` (`deleted`),
-  CONSTRAINT `awards_events_ibfk_1` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+  CONSTRAINT `awards_events_ibfk_1` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=52 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -332,11 +332,11 @@ CREATE TABLE `awards_recommendations` (
   KEY `requester_id` (`requester_id`),
   KEY `member_id` (`member_id`),
   KEY `award_id` (`award_id`),
-  CONSTRAINT `awards_recommendations_ibfk_1` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`),
-  CONSTRAINT `awards_recommendations_ibfk_2` FOREIGN KEY (`requester_id`) REFERENCES `members` (`id`),
-  CONSTRAINT `awards_recommendations_ibfk_3` FOREIGN KEY (`member_id`) REFERENCES `members` (`id`),
-  CONSTRAINT `awards_recommendations_ibfk_4` FOREIGN KEY (`award_id`) REFERENCES `awards_awards` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+  CONSTRAINT `awards_recommendations_ibfk_1` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `awards_recommendations_ibfk_2` FOREIGN KEY (`requester_id`) REFERENCES `members` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `awards_recommendations_ibfk_3` FOREIGN KEY (`member_id`) REFERENCES `members` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `awards_recommendations_ibfk_4` FOREIGN KEY (`award_id`) REFERENCES `awards_awards` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=586 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -355,7 +355,7 @@ CREATE TABLE `awards_recommendations_events` (
   KEY `event_id` (`event_id`),
   CONSTRAINT `awards_recommendations_events_ibfk_1` FOREIGN KEY (`recommendation_id`) REFERENCES `awards_recommendations` (`id`),
   CONSTRAINT `awards_recommendations_events_ibfk_2` FOREIGN KEY (`event_id`) REFERENCES `awards_events` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2091 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -376,8 +376,8 @@ CREATE TABLE `awards_recommendations_states_logs` (
   `created_by` int(11) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `recommendation_id` (`recommendation_id`),
-  CONSTRAINT `awards_recommendations_states_logs_ibfk_1` FOREIGN KEY (`recommendation_id`) REFERENCES `awards_recommendations` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+  CONSTRAINT `awards_recommendations_states_logs_ibfk_1` FOREIGN KEY (`recommendation_id`) REFERENCES `awards_recommendations` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=1158 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -409,8 +409,113 @@ CREATE TABLE `branches` (
   KEY `lft` (`lft`),
   KEY `rght` (`rght`),
   KEY `deleted` (`deleted`),
-  CONSTRAINT `branches_ibfk_1` FOREIGN KEY (`parent_id`) REFERENCES `branches` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+  CONSTRAINT `branches_ibfk_1` FOREIGN KEY (`parent_id`) REFERENCES `branches` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=43 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `documents`
+--
+
+DROP TABLE IF EXISTS `documents`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `documents` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `entity_type` varchar(100) NOT NULL COMMENT 'Polymorphic entity type (e.g., Waivers.GatheringWaivers, Members)',
+  `entity_id` int(11) NOT NULL COMMENT 'Polymorphic entity ID',
+  `original_filename` varchar(255) NOT NULL COMMENT 'Original filename from upload',
+  `stored_filename` varchar(255) NOT NULL COMMENT 'Sanitized filename for storage',
+  `file_path` varchar(500) NOT NULL COMMENT 'Full path to file in storage',
+  `mime_type` varchar(100) NOT NULL COMMENT 'File MIME type',
+  `file_size` int(11) NOT NULL COMMENT 'File size in bytes',
+  `checksum` varchar(64) NOT NULL COMMENT 'SHA-256 checksum for integrity verification',
+  `storage_adapter` varchar(50) NOT NULL DEFAULT 'local' COMMENT 'Storage adapter used (local, s3, etc.)',
+  `metadata` text DEFAULT NULL COMMENT 'JSON metadata (conversion info, etc.)',
+  `uploaded_by` int(11) NOT NULL COMMENT 'Member ID who uploaded the document',
+  `created` datetime NOT NULL,
+  `modified` datetime NOT NULL,
+  `created_by` int(11) NOT NULL,
+  `modified_by` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_documents_file_path` (`file_path`),
+  KEY `idx_documents_entity` (`entity_type`,`entity_id`),
+  KEY `idx_documents_checksum` (`checksum`),
+  KEY `idx_documents_uploaded_by` (`uploaded_by`),
+  KEY `idx_documents_created` (`created`),
+  KEY `fk_documents_created_by` (`created_by`),
+  KEY `fk_documents_modified_by` (`modified_by`),
+  CONSTRAINT `fk_documents_created_by` FOREIGN KEY (`created_by`) REFERENCES `members` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `fk_documents_modified_by` FOREIGN KEY (`modified_by`) REFERENCES `members` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `fk_documents_uploaded_by` FOREIGN KEY (`uploaded_by`) REFERENCES `members` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `gathering_activities`
+--
+
+DROP TABLE IF EXISTS `gathering_activities`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `gathering_activities` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) NOT NULL COMMENT 'Name of the activity (e.g., Heavy Combat, Archery, A&S Display)',
+  `description` text DEFAULT NULL COMMENT 'Description of the activity',
+  `created` datetime NOT NULL,
+  `modified` datetime NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `gathering_types`
+--
+
+DROP TABLE IF EXISTS `gathering_types`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `gathering_types` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) NOT NULL COMMENT 'Name of the gathering type (e.g., Tournament, Practice, Feast)',
+  `description` text DEFAULT NULL COMMENT 'Description of this gathering type',
+  `clonable` tinyint(1) NOT NULL DEFAULT 1 COMMENT 'Whether this type can be used as a template for new gatherings',
+  `created` datetime NOT NULL,
+  `modified` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_gathering_types_name` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `gatherings`
+--
+
+DROP TABLE IF EXISTS `gatherings`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `gatherings` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `branch_id` int(11) NOT NULL COMMENT 'Branch hosting this gathering',
+  `gathering_type_id` int(11) NOT NULL COMMENT 'Type of gathering',
+  `name` varchar(255) NOT NULL COMMENT 'Name of the gathering',
+  `description` text DEFAULT NULL COMMENT 'Description of the gathering',
+  `start_date` date NOT NULL COMMENT 'Start date of the gathering',
+  `end_date` date NOT NULL COMMENT 'End date of the gathering',
+  `location` varchar(255) DEFAULT NULL COMMENT 'Location of the gathering',
+  `created_by` int(11) NOT NULL COMMENT 'Member who created this gathering (steward)',
+  `created` datetime NOT NULL,
+  `modified` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_gatherings_branch` (`branch_id`),
+  KEY `idx_gatherings_type` (`gathering_type_id`),
+  KEY `idx_gatherings_created_by` (`created_by`),
+  KEY `idx_gatherings_start_date` (`start_date`),
+  KEY `idx_gatherings_end_date` (`end_date`),
+  CONSTRAINT `fk_gatherings_branch` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `fk_gatherings_created_by` FOREIGN KEY (`created_by`) REFERENCES `members` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `fk_gatherings_type` FOREIGN KEY (`gathering_type_id`) REFERENCES `gathering_types` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -444,11 +549,11 @@ CREATE TABLE `member_roles` (
   KEY `granting_id` (`entity_id`),
   KEY `granting_model` (`entity_type`),
   KEY `branch_id` (`branch_id`),
-  CONSTRAINT `member_roles_ibfk_1` FOREIGN KEY (`member_id`) REFERENCES `members` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `member_roles_ibfk_2` FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `member_roles_ibfk_3` FOREIGN KEY (`approver_id`) REFERENCES `members` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `member_roles_ibfk_4` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=InnoDB AUTO_INCREMENT=203 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+  CONSTRAINT `member_roles_ibfk_1` FOREIGN KEY (`member_id`) REFERENCES `members` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `member_roles_ibfk_2` FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `member_roles_ibfk_3` FOREIGN KEY (`approver_id`) REFERENCES `members` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `member_roles_ibfk_4` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=380 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -484,10 +589,10 @@ CREATE TABLE `members` (
   `password_token_expires_on` datetime DEFAULT NULL,
   `last_login` datetime DEFAULT NULL,
   `last_failed_login` datetime DEFAULT NULL,
-  `failed_login_attempts` int(2) DEFAULT NULL,
+  `failed_login_attempts` int(11) DEFAULT NULL,
   `birth_month` int(11) DEFAULT NULL,
   `birth_year` int(11) DEFAULT NULL,
-  `additional_info` varchar(255) NOT NULL DEFAULT '{}',
+  `additional_info` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL DEFAULT _utf8mb3'{}' CHECK (json_valid(`additional_info`)),
   `membership_card_path` varchar(256) DEFAULT NULL,
   `modified` datetime DEFAULT NULL,
   `created` datetime NOT NULL,
@@ -502,8 +607,8 @@ CREATE TABLE `members` (
   UNIQUE KEY `email_address` (`email_address`),
   KEY `deleted` (`deleted`),
   KEY `branch_id` (`branch_id`),
-  CONSTRAINT `members_ibfk_1` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=InnoDB AUTO_INCREMENT=203 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+  CONSTRAINT `members_ibfk_1` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=2884 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -525,7 +630,7 @@ CREATE TABLE `notes` (
   PRIMARY KEY (`id`),
   KEY `topic_id` (`entity_id`),
   KEY `topic_model` (`entity_type`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=802 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -590,14 +695,14 @@ CREATE TABLE `officers_officers` (
   KEY `reports_to_office_id` (`reports_to_office_id`),
   KEY `deputy_to_branch_id` (`deputy_to_branch_id`),
   KEY `deputy_to_office_id` (`deputy_to_office_id`),
-  CONSTRAINT `officers_officers_ibfk_1` FOREIGN KEY (`reports_to_branch_id`) REFERENCES `branches` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `officers_officers_ibfk_2` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `officers_officers_ibfk_3` FOREIGN KEY (`member_id`) REFERENCES `members` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `officers_officers_ibfk_4` FOREIGN KEY (`office_id`) REFERENCES `officers_offices` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `officers_officers_ibfk_5` FOREIGN KEY (`reports_to_office_id`) REFERENCES `officers_offices` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `officers_officers_ibfk_6` FOREIGN KEY (`deputy_to_branch_id`) REFERENCES `branches` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `officers_officers_ibfk_7` FOREIGN KEY (`deputy_to_office_id`) REFERENCES `officers_offices` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+  CONSTRAINT `officers_officers_ibfk_1` FOREIGN KEY (`reports_to_branch_id`) REFERENCES `branches` (`id`),
+  CONSTRAINT `officers_officers_ibfk_2` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`),
+  CONSTRAINT `officers_officers_ibfk_3` FOREIGN KEY (`member_id`) REFERENCES `members` (`id`),
+  CONSTRAINT `officers_officers_ibfk_4` FOREIGN KEY (`office_id`) REFERENCES `officers_offices` (`id`),
+  CONSTRAINT `officers_officers_ibfk_5` FOREIGN KEY (`reports_to_office_id`) REFERENCES `officers_offices` (`id`),
+  CONSTRAINT `officers_officers_ibfk_6` FOREIGN KEY (`deputy_to_branch_id`) REFERENCES `branches` (`id`),
+  CONSTRAINT `officers_officers_ibfk_7` FOREIGN KEY (`deputy_to_office_id`) REFERENCES `officers_offices` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=958 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -633,11 +738,11 @@ CREATE TABLE `officers_offices` (
   KEY `grants_role_id` (`grants_role_id`),
   KEY `deputy_to_id` (`deputy_to_id`),
   KEY `reports_to_id` (`reports_to_id`),
-  CONSTRAINT `officers_offices_ibfk_1` FOREIGN KEY (`department_id`) REFERENCES `officers_departments` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `officers_offices_ibfk_2` FOREIGN KEY (`grants_role_id`) REFERENCES `roles` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `officers_offices_ibfk_3` FOREIGN KEY (`deputy_to_id`) REFERENCES `officers_offices` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `officers_offices_ibfk_4` FOREIGN KEY (`reports_to_id`) REFERENCES `officers_offices` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=InnoDB AUTO_INCREMENT=91 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+  CONSTRAINT `officers_offices_ibfk_1` FOREIGN KEY (`department_id`) REFERENCES `officers_departments` (`id`),
+  CONSTRAINT `officers_offices_ibfk_2` FOREIGN KEY (`grants_role_id`) REFERENCES `roles` (`id`),
+  CONSTRAINT `officers_offices_ibfk_3` FOREIGN KEY (`deputy_to_id`) REFERENCES `officers_offices` (`id`),
+  CONSTRAINT `officers_offices_ibfk_4` FOREIGN KEY (`reports_to_id`) REFERENCES `officers_offices` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=96 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -671,8 +776,8 @@ CREATE TABLE `permission_policies` (
   `policy_method` varchar(255) NOT NULL,
   PRIMARY KEY (`id`),
   KEY `permission_id` (`permission_id`),
-  CONSTRAINT `permission_policies_ibfk_1` FOREIGN KEY (`permission_id`) REFERENCES `permissions` (`id`) ON DELETE CASCADE ON UPDATE NO ACTION
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+  CONSTRAINT `permission_policies_ibfk_1` FOREIGN KEY (`permission_id`) REFERENCES `permissions` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=782 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -687,7 +792,7 @@ CREATE TABLE `permissions` (
   `name` varchar(255) NOT NULL,
   `require_active_membership` tinyint(1) NOT NULL DEFAULT 0,
   `require_active_background_check` tinyint(1) NOT NULL DEFAULT 0,
-  `require_min_age` int(2) NOT NULL DEFAULT 0,
+  `require_min_age` int(11) NOT NULL DEFAULT 0,
   `is_system` tinyint(1) NOT NULL DEFAULT 0,
   `is_super_user` tinyint(1) NOT NULL DEFAULT 0,
   `requires_warrant` tinyint(1) NOT NULL DEFAULT 0,
@@ -700,7 +805,7 @@ CREATE TABLE `permissions` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`),
   KEY `deleted` (`deleted`)
-) ENGINE=InnoDB AUTO_INCREMENT=210 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1078 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -755,7 +860,7 @@ CREATE TABLE `queue_processes` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `workerkey` (`workerkey`),
   UNIQUE KEY `pid` (`pid`,`server`)
-) ENGINE=InnoDB AUTO_INCREMENT=56 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=44951 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -776,15 +881,15 @@ CREATE TABLE `queued_jobs` (
   `fetched` datetime DEFAULT NULL,
   `completed` datetime DEFAULT NULL,
   `progress` float unsigned DEFAULT NULL,
-  `attempts` tinyint(4) unsigned DEFAULT 0,
+  `attempts` tinyint(3) unsigned DEFAULT 0,
   `failure_message` text DEFAULT NULL,
   `workerkey` varchar(45) DEFAULT NULL,
   `status` varchar(190) DEFAULT NULL,
-  `priority` int(11) unsigned NOT NULL DEFAULT 5,
+  `priority` int(10) unsigned NOT NULL DEFAULT 5,
   PRIMARY KEY (`id`),
   KEY `completed` (`completed`),
   KEY `job_task` (`job_task`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=771 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -806,7 +911,7 @@ CREATE TABLE `roles` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`),
   KEY `deleted` (`deleted`)
-) ENGINE=InnoDB AUTO_INCREMENT=208 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1119 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -825,9 +930,9 @@ CREATE TABLE `roles_permissions` (
   PRIMARY KEY (`id`),
   KEY `role_id` (`role_id`),
   KEY `permission_id` (`permission_id`),
-  CONSTRAINT `roles_permissions_ibfk_1` FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `roles_permissions_ibfk_2` FOREIGN KEY (`permission_id`) REFERENCES `permissions` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+  CONSTRAINT `roles_permissions_ibfk_1` FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `roles_permissions_ibfk_2` FOREIGN KEY (`permission_id`) REFERENCES `permissions` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=350 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -870,6 +975,132 @@ CREATE TABLE `tools_phinxlog` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `waivers_gathering_activity_waivers`
+--
+
+DROP TABLE IF EXISTS `waivers_gathering_activity_waivers`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `waivers_gathering_activity_waivers` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `gathering_activity_id` int(11) NOT NULL COMMENT 'Gathering activity this waiver requirement applies to',
+  `waiver_type_id` int(11) NOT NULL COMMENT 'Type of waiver required for this activity',
+  `created` datetime NOT NULL,
+  `modified` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_gathering_activity_waivers_unique` (`gathering_activity_id`,`waiver_type_id`),
+  KEY `idx_gathering_activity_waivers_activity` (`gathering_activity_id`),
+  KEY `idx_gathering_activity_waivers_type` (`waiver_type_id`),
+  CONSTRAINT `fk_gathering_activity_waivers_activity` FOREIGN KEY (`gathering_activity_id`) REFERENCES `gathering_activities` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `fk_gathering_activity_waivers_type` FOREIGN KEY (`waiver_type_id`) REFERENCES `waivers_waiver_types` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `waivers_gathering_waiver_activities`
+--
+
+DROP TABLE IF EXISTS `waivers_gathering_waiver_activities`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `waivers_gathering_waiver_activities` (
+  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'Unique identifier',
+  `gathering_waiver_id` int(11) NOT NULL COMMENT 'FK to gathering_waivers.id - the waiver document',
+  `gathering_activity_id` int(11) NOT NULL COMMENT 'FK to gathering_activities.id - the activity covered',
+  `created` datetime NOT NULL COMMENT 'Record creation timestamp',
+  `modified` datetime NOT NULL COMMENT 'Last modification timestamp',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_gathering_waiver_activities_unique` (`gathering_waiver_id`,`gathering_activity_id`),
+  KEY `idx_gathering_waiver_activities_waiver` (`gathering_waiver_id`),
+  KEY `idx_gathering_waiver_activities_activity` (`gathering_activity_id`),
+  CONSTRAINT `fk_gathering_waiver_activities_activity` FOREIGN KEY (`gathering_activity_id`) REFERENCES `gathering_activities` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_gathering_waiver_activities_waiver` FOREIGN KEY (`gathering_waiver_id`) REFERENCES `waivers_gathering_waivers` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `waivers_gathering_waivers`
+--
+
+DROP TABLE IF EXISTS `waivers_gathering_waivers`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `waivers_gathering_waivers` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `gathering_id` int(11) NOT NULL COMMENT 'Gathering this waiver is for',
+  `waiver_type_id` int(11) NOT NULL COMMENT 'Type of waiver (declared at upload time)',
+  `member_id` int(11) DEFAULT NULL COMMENT 'Member who signed the waiver (nullable for anonymous/unknown participants)',
+  `document_id` int(11) NOT NULL COMMENT 'Document entity containing the actual waiver file',
+  `retention_date` date NOT NULL COMMENT 'Date when this waiver can be deleted (calculated at upload time)',
+  `status` varchar(50) NOT NULL DEFAULT 'active' COMMENT 'Status: active, expired, deleted',
+  `notes` text DEFAULT NULL COMMENT 'Optional notes about this waiver',
+  `created` datetime NOT NULL,
+  `modified` datetime NOT NULL,
+  `created_by` int(11) NOT NULL COMMENT 'Member who uploaded this waiver',
+  `modified_by` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_gathering_waivers_document` (`document_id`),
+  KEY `idx_gathering_waivers_gathering` (`gathering_id`),
+  KEY `idx_gathering_waivers_type` (`waiver_type_id`),
+  KEY `idx_gathering_waivers_member` (`member_id`),
+  KEY `idx_gathering_waivers_retention` (`retention_date`),
+  KEY `idx_gathering_waivers_status` (`status`),
+  KEY `idx_gathering_waivers_created` (`created`),
+  KEY `idx_gathering_waivers_created_by` (`created_by`),
+  KEY `fk_gathering_waivers_modified_by` (`modified_by`),
+  CONSTRAINT `fk_gathering_waivers_created_by` FOREIGN KEY (`created_by`) REFERENCES `members` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `fk_gathering_waivers_document` FOREIGN KEY (`document_id`) REFERENCES `documents` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `fk_gathering_waivers_gathering` FOREIGN KEY (`gathering_id`) REFERENCES `gatherings` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `fk_gathering_waivers_member` FOREIGN KEY (`member_id`) REFERENCES `members` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `fk_gathering_waivers_modified_by` FOREIGN KEY (`modified_by`) REFERENCES `members` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `fk_gathering_waivers_type` FOREIGN KEY (`waiver_type_id`) REFERENCES `waivers_waiver_types` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `waivers_phinxlog`
+--
+
+DROP TABLE IF EXISTS `waivers_phinxlog`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `waivers_phinxlog` (
+  `version` bigint(20) NOT NULL,
+  `migration_name` varchar(100) DEFAULT NULL,
+  `start_time` timestamp NULL DEFAULT NULL,
+  `end_time` timestamp NULL DEFAULT NULL,
+  `breakpoint` tinyint(1) NOT NULL DEFAULT 0,
+  PRIMARY KEY (`version`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `waivers_waiver_types`
+--
+
+DROP TABLE IF EXISTS `waivers_waiver_types`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `waivers_waiver_types` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) NOT NULL COMMENT 'Name of the waiver type (e.g., General Adult Waiver, Minor Waiver, Equestrian Waiver)',
+  `description` text DEFAULT NULL COMMENT 'Description of this waiver type',
+  `document_id` int(11) DEFAULT NULL COMMENT 'FK to documents.id for uploaded template files (null if using external URL)',
+  `template_path` varchar(500) DEFAULT NULL COMMENT 'External URL to template (e.g., SCA.org link). Use document_id for uploaded files.',
+  `retention_policy` text NOT NULL COMMENT 'JSON: {"anchor": "gathering_end_date", "duration": {"years": 7, "months": 6, "days": 0}}',
+  `convert_to_pdf` tinyint(1) NOT NULL DEFAULT 1 COMMENT 'Whether to convert uploaded waivers to PDF format',
+  `is_active` tinyint(1) NOT NULL DEFAULT 1 COMMENT 'Whether this waiver type is currently active',
+  `created` datetime NOT NULL,
+  `modified` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_waiver_types_name` (`name`),
+  KEY `idx_waiver_types_active` (`is_active`),
+  KEY `idx_waiver_types_document_id` (`document_id`),
+  CONSTRAINT `waivers_waiver_types_ibfk_1` FOREIGN KEY (`document_id`) REFERENCES `documents` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `warrant_periods`
 --
 
@@ -883,7 +1114,7 @@ CREATE TABLE `warrant_periods` (
   `created` datetime NOT NULL,
   `created_by` int(11) DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -901,9 +1132,9 @@ CREATE TABLE `warrant_roster_approvals` (
   PRIMARY KEY (`id`),
   KEY `approver_id` (`approver_id`),
   KEY `warrant_roster_id` (`warrant_roster_id`),
-  CONSTRAINT `warrant_roster_approvals_ibfk_1` FOREIGN KEY (`warrant_roster_id`) REFERENCES `warrant_rosters` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `warrant_roster_approvals_ibfk_2` FOREIGN KEY (`approver_id`) REFERENCES `members` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+  CONSTRAINT `warrant_roster_approvals_ibfk_1` FOREIGN KEY (`warrant_roster_id`) REFERENCES `warrant_rosters` (`id`),
+  CONSTRAINT `warrant_roster_approvals_ibfk_2` FOREIGN KEY (`approver_id`) REFERENCES `members` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=605 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -924,7 +1155,7 @@ CREATE TABLE `warrant_rosters` (
   `created_by` int(11) DEFAULT NULL,
   `modified_by` int(11) DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=418 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -960,15 +1191,11 @@ CREATE TABLE `warrants` (
   KEY `member_id` (`member_id`),
   KEY `member_role_id` (`member_role_id`),
   KEY `warrant_roster_id` (`warrant_roster_id`),
-  CONSTRAINT `warrants_ibfk_1` FOREIGN KEY (`member_id`) REFERENCES `members` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `warrants_ibfk_2` FOREIGN KEY (`member_role_id`) REFERENCES `member_roles` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `warrants_ibfk_3` FOREIGN KEY (`warrant_roster_id`) REFERENCES `warrant_rosters` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+  CONSTRAINT `warrants_ibfk_1` FOREIGN KEY (`member_id`) REFERENCES `members` (`id`),
+  CONSTRAINT `warrants_ibfk_2` FOREIGN KEY (`member_role_id`) REFERENCES `member_roles` (`id`),
+  CONSTRAINT `warrants_ibfk_3` FOREIGN KEY (`warrant_roster_id`) REFERENCES `warrant_rosters` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=2512 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping routines for database 'KMP_DEV'
---
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -979,4 +1206,4 @@ CREATE TABLE `warrants` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-04-15 23:05:00
+-- Dump completed on 2025-10-23 12:14:08

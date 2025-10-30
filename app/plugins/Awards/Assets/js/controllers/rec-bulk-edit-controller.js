@@ -1,6 +1,6 @@
 
 
-import { Controller } from "@hotwired/stimulus"
+import { Controller } from "@hotwired/stimulus";
 
 /**
  * Awards Recommendation Bulk Edit Controller
@@ -220,10 +220,10 @@ import { Controller } from "@hotwired/stimulus"
 class AwardsRecommendationBulkEditForm extends Controller {
     static targets = [
         "bulkIds",
-        "events",
+        "gatherings",
         "state",
         "planToGiveBlock",
-        "planToGiveEvent",
+        "planToGiveGathering",
         "givenBlock",
         "recId",
         "turboFrame",
@@ -236,6 +236,7 @@ class AwardsRecommendationBulkEditForm extends Controller {
         formUrl: String,
         turboFrameUrl: String,
         bulkIds: Array,
+        gatheringsUrl: String,
     };
     static outlets = ['outlet-btn'];
 
@@ -267,7 +268,76 @@ class AwardsRecommendationBulkEditForm extends Controller {
         actionUrl = actionUrl.replace(/update-states/, "updateStates");
         this.element.setAttribute("action", actionUrl);
         console.log("setId", this.element["action"]);
+        
+        // Update gatherings list based on selected recommendations
+        this.updateGatherings();
+        
         return
+    }
+
+    /**
+     * Update gatherings dropdown based on selected recommendations and status
+     * 
+     * Makes AJAX call to fetch gatherings that can give ALL selected awards
+     * based on the intersection of their gathering activities.
+     * 
+     * @returns {void}
+     */
+    async updateGatherings() {
+        // Need both IDs and URL to fetch gatherings
+        if (!this.bulkIdsValue || this.bulkIdsValue.length === 0 || !this.gatheringsUrlValue) {
+            return;
+        }
+
+        const status = this.stateTarget.value;
+        const currentSelection = this.planToGiveGatheringTarget.value;
+
+        try {
+            const response = await fetch(this.gatheringsUrlValue, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({
+                    ids: this.bulkIdsValue,
+                    status: status
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            
+            // Clear existing options except the first (empty) one
+            while (this.planToGiveGatheringTarget.options.length > 1) {
+                this.planToGiveGatheringTarget.remove(1);
+            }
+
+            // Add new options
+            if (data.gatherings && data.gatherings.length > 0) {
+                data.gatherings.forEach(gathering => {
+                    const option = document.createElement('option');
+                    option.value = gathering.id;
+                    option.textContent = gathering.display_name;
+                    this.planToGiveGatheringTarget.appendChild(option);
+                });
+
+                // Restore previous selection if it still exists
+                if (currentSelection) {
+                    const optionExists = Array.from(this.planToGiveGatheringTarget.options).some(
+                        opt => opt.value === currentSelection
+                    );
+                    if (optionExists) {
+                        this.planToGiveGatheringTarget.value = currentSelection;
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching gatherings:', error);
+        }
     }
 
     /**
@@ -335,7 +405,7 @@ class AwardsRecommendationBulkEditForm extends Controller {
         var rules = JSON.parse(rulesstring);
         this.planToGiveBlockTarget.style.display = "none";
         this.givenBlockTarget.style.display = "none";
-        this.planToGiveEventTarget.required = false;
+        this.planToGiveGatheringTarget.required = false;
         this.givenDateTarget.required = false;
         this.closeReasonBlockTarget.style.display = "none";
         this.closeReasonTarget.required = false;
@@ -367,6 +437,9 @@ class AwardsRecommendationBulkEditForm extends Controller {
                 });
             }
         }
+        
+        // Update gatherings list when status changes (affects future vs all gatherings)
+        this.updateGatherings();
     }
 
     /**

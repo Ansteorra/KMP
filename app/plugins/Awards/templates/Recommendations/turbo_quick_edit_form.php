@@ -1,11 +1,12 @@
 <turbo-frame id="editRecommendation">
     <script type="application/json" data-awards-rec-quick-edit-target="stateRulesBlock" class="d-none">
-        <?= json_encode($rules) ?>
+    <?= json_encode($rules) ?>
     </script>
     <fieldset>
 
         <?php
         echo $this->Form->hidden('id', ['value' => $recommendation->id, 'data-awards-rec-quick-edit-target' => 'recId']);
+        echo $this->Form->hidden('member_id', ['value' => $recommendation->member_id, 'data-awards-rec-quick-edit-target' => 'memberId']);
         ?>
         <div style="margin:0 !important;" class="form-group text pb-3"><label class="form-label"
                 for="member-sca-name">Recommendation For</label>
@@ -79,11 +80,44 @@
             'value' => $recommendation->reason,
             'disabled' => 'disabled',
         ]);
-        echo '<ul>';
-        foreach ($recommendation->events as $event) {
-            echo '<li>' . $event->name . '</li>';
+
+        // Display gatherings with attendance indicators
+        if (!empty($recommendation->gatherings)) {
+            echo '<div class="mb-3">';
+            echo '<label class="form-label">Gatherings/Events They May Attend:</label>';
+            echo '<ul>';
+            foreach ($recommendation->gatherings as $gathering) {
+                // Build display name with branch and dates
+                $displayName = h($gathering->name);
+                if (isset($gathering->branch)) {
+                    $displayName .= ' in ' . h($gathering->branch->name);
+                }
+                if (isset($gathering->start_date)) {
+                    $displayName .= ' on ' . $gathering->start_date->toDateString();
+                    if (isset($gathering->end_date)) {
+                        $displayName .= ' - ' . $gathering->end_date->toDateString();
+                    }
+                }
+
+                // Check if this gathering has attendance indicator from the member
+                // Look for matching gathering in the gatheringList which has attendance info
+                $hasAttendanceMarker = false;
+                if (isset($gatheringList[$gathering->id])) {
+                    // If the gathering in the list ends with ' *', member is attending with share_with_crown
+                    $hasAttendanceMarker = str_ends_with($gatheringList[$gathering->id], ' *');
+                }
+
+                // Add attendance indicator
+                if ($hasAttendanceMarker) {
+                    $displayName .= ' <strong>*</strong>';
+                }
+
+                echo '<li>' . $displayName . '</li>';
+            }
+            echo '</ul>';
+            echo '</div>';
         }
-        echo '</ul>';
+
         echo $this->Form->control(
             'state',
             [
@@ -102,21 +136,32 @@
                 'container' => ['data-awards-rec-quick-edit-target' => 'closeReasonBlock'],
             ]
         );
-        echo $this->Form->control('event_id', [
+        echo $this->Form->control('gathering_id', [
             'label' => 'Plan to Give At',
             "type" => "select",
-            'options' => $eventList,
+            'options' => $gatheringList,
             'empty' => true,
-            'value' => $recommendation->event_id,
-            'data-awards-rec-quick-edit-target' => 'planToGiveEvent',
+            'value' => $recommendation->gathering_id,
+            'data-awards-rec-quick-edit-target' => 'planToGiveGathering',
             'container' => ['data-awards-rec-quick-edit-target' => 'planToGiveBlock'],
         ]);
+
+        // Format given date for HTML5 date input (requires Y-m-d format)
+        $givenValue = null;
+        if ($recommendation->given) {
+            if (is_object($recommendation->given) && method_exists($recommendation->given, 'format')) {
+                $givenValue = $recommendation->given->format('Y-m-d');
+            } elseif (is_string($recommendation->given)) {
+                $givenValue = date('Y-m-d', strtotime($recommendation->given));
+            }
+        }
+
         echo $this->Form->control(
             'given',
             [
                 'type' => 'date',
                 'label' => 'Given On',
-                'value' => $recommendation->given,
+                'value' => $givenValue,
                 'data-awards-rec-quick-edit-target' => 'givenDate',
                 'container' => ['data-awards-rec-quick-edit-target' => 'givenBlock'],
             ]

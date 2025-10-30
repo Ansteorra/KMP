@@ -60,6 +60,7 @@ use App\Model\Entity\BaseEntity;
  * @property \Awards\Model\Entity\Domain $awards_domain Domain relationship for categorical organization
  * @property \Awards\Model\Entity\Level $awards_level Level relationship for precedence hierarchy
  * @property \App\Model\Entity\Branch $branch Branch relationship for organizational scope
+ * @property \App\Model\Entity\GatheringActivity[] $gathering_activities Gathering activities this award can be given out during
  * 
  * @package Awards\Model\Entity
  * @see \Awards\Model\Entity\Domain For award categorization
@@ -110,5 +111,6 @@ class Award extends BaseEntity
         'awards_domain' => true,
         'awards_level' => true,
         'branch' => true,
+        'gathering_activities' => true,
     ];
 }

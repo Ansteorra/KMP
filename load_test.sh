@@ -1,0 +1,1 @@
+mysql -h "localhost" -u"KMPSQLDEV" -p"P@ssw0rd" "KMP_DEV" < ./test.sql
