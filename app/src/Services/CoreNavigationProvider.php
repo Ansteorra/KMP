@@ -270,6 +270,33 @@ class CoreNavigationProvider
             ],
             [
                 'type' => 'link',
+                'mergePath' => ['Config'],
+                'label' => 'Email Templates',
+                'order' => 85,
+                'url' => [
+                    'controller' => 'EmailTemplates',
+                    'action' => 'index',
+                ],
+                'icon' => 'bi-envelope',
+                'activePaths' => [
+                    'EmailTemplates/view/*',
+                    'EmailTemplates/add',
+                    'EmailTemplates/edit/*',
+                ],
+            ],
+            [
+                'type' => 'link',
+                'mergePath' => ['Config', 'Email Templates'],
+                'label' => 'Discover',
+                'order' => 10,
+                'url' => [
+                    'controller' => 'EmailTemplates',
+                    'action' => 'discover',
+                ],
+                'icon' => 'bi-search',
+            ],
+            [
+                'type' => 'link',
                 'mergePath' => ['Security'],
                 'label' => 'Warrants',
                 'order' => 0,

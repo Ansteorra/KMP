@@ -1770,6 +1770,314 @@ window.Controllers["edit-activity-description"] = EditActivityDescriptionControl
 
 /***/ }),
 
+/***/ "./assets/js/controllers/email-template-editor-controller.js":
+/*!*******************************************************************!*\
+  !*** ./assets/js/controllers/email-template-editor-controller.js ***!
+  \*******************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+/* harmony import */ var easymde__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! easymde */ "./node_modules/easymde/src/js/easymde.js");
+/* harmony import */ var easymde__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(easymde__WEBPACK_IMPORTED_MODULE_1__);
+
+
+
+/**
+ * Email Template Editor Controller
+ * 
+ * Extends markdown editor functionality with variable insertion support for email templates.
+ * Provides buttons to insert available variables into the template.
+ * 
+ * Usage:
+ * <div data-controller="email-template-editor"
+ *      data-email-template-editor-variables-value='[{"name":"userName","description":"User name"}]'>
+ *   <textarea data-email-template-editor-target="editor"></textarea>
+ *   <div data-email-template-editor-target="variableButtons"></div>
+ * </div>
+ * 
+ * Values:
+ * - variables: Array of available variables [{name, description}]
+ * - placeholder: Placeholder text for the editor
+ * - minHeight: Minimum height of the editor
+ */
+class EmailTemplateEditorController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static targets = ["editor", "variableButtons"];
+  static values = {
+    variables: {
+      type: Array,
+      default: []
+    },
+    placeholder: {
+      type: String,
+      default: "Enter email template..."
+    },
+    minHeight: {
+      type: String,
+      default: "400px"
+    }
+  };
+  initialize() {
+    this.editor = null;
+  }
+  connect() {
+    // Initialize EasyMDE on the textarea
+    this.editor = new (easymde__WEBPACK_IMPORTED_MODULE_1___default())({
+      element: this.editorTarget,
+      placeholder: this.placeholderValue,
+      minHeight: this.minHeightValue,
+      spellChecker: false,
+      status: ["lines", "words", "cursor"],
+      toolbar: this.buildToolbar(),
+      forceSync: true,
+      autosave: {
+        enabled: false
+      },
+      previewRender: plainText => {
+        return this.renderPreview(plainText);
+      }
+    });
+
+    // Render variable insertion buttons if we have variables
+    if (this.hasVariableButtonsTarget && this.variablesValue.length > 0) {
+      this.renderVariableButtons();
+    }
+    console.log('Email template editor initialized with', this.variablesValue.length, 'variables');
+  }
+  disconnect() {
+    if (this.editor) {
+      this.editor.toTextArea();
+      this.editor = null;
+    }
+  }
+
+  /**
+   * Build custom toolbar with variable insertion button
+   */
+  buildToolbar() {
+    const toolbar = ["bold", "italic", "heading", "|", "quote", "unordered-list", "ordered-list", "|", "link", "|", "preview", "side-by-side", "fullscreen", "|"];
+
+    // Add custom variable insertion button
+    if (this.variablesValue.length > 0) {
+      toolbar.push({
+        name: "insert-variable",
+        action: editor => {
+          this.showVariableMenu(editor);
+        },
+        className: "fa fa-code",
+        title: "Insert Variable"
+      });
+    }
+    toolbar.push("guide");
+    return toolbar;
+  }
+
+  /**
+   * Show variable insertion menu
+   */
+  showVariableMenu(editor) {
+    // Get cursor position
+    const cm = editor.codemirror;
+    const cursor = cm.getCursor();
+
+    // Create a simple prompt with variable options
+    const varNames = this.variablesValue.map(v => v.name).join(', ');
+    const selectedVar = prompt(`Available variables:\n${varNames}\n\nEnter variable name to insert:`);
+    if (selectedVar) {
+      const variable = this.variablesValue.find(v => v.name === selectedVar);
+      if (variable) {
+        cm.replaceSelection(`{{${variable.name}}}`);
+      } else {
+        alert('Invalid variable name');
+      }
+    }
+  }
+
+  /**
+   * Render variable insertion buttons
+   */
+  renderVariableButtons() {
+    const container = this.variableButtonsTarget;
+    container.innerHTML = '<div class="mb-2"><strong>Available Variables:</strong> Click to insert</div>';
+    const buttonGroup = document.createElement('div');
+    buttonGroup.className = 'btn-group flex-wrap mb-3';
+    buttonGroup.setAttribute('role', 'group');
+    this.variablesValue.forEach(variable => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn-sm btn-outline-primary';
+      btn.textContent = `{{${variable.name}}}`;
+      btn.title = variable.description || variable.name;
+      btn.addEventListener('click', e => {
+        e.preventDefault();
+        this.insertVariable(variable.name);
+      });
+      buttonGroup.appendChild(btn);
+    });
+    container.appendChild(buttonGroup);
+
+    // Add syntax help
+    const helpText = document.createElement('div');
+    helpText.className = 'alert alert-info small';
+    helpText.innerHTML = '<strong>Syntax:</strong> Use <code>{{variableName}}</code> or <code>${variableName}</code> to insert variables. They will be replaced with actual values when the email is sent.';
+    container.appendChild(helpText);
+  }
+
+  /**
+   * Insert a variable at the current cursor position
+   */
+  insertVariable(variableName) {
+    if (!this.editor) return;
+    const cm = this.editor.codemirror;
+    const doc = cm.getDoc();
+    const cursor = doc.getCursor();
+    doc.replaceRange(`{{${variableName}}}`, cursor);
+
+    // Move cursor after the inserted text
+    cm.focus();
+  }
+
+  /**
+   * Render preview with variable highlighting
+   */
+  renderPreview(plainText) {
+    // Convert markdown to HTML
+    let html = this.editor.markdown(plainText);
+
+    // Highlight variables in the preview
+    html = html.replace(/\{\{([^}]+)\}\}/g, '<span class="badge bg-primary">{{$1}}</span>');
+    html = html.replace(/\$\{([^}]+)\}/g, '<span class="badge bg-success">${$1}</span>');
+    return html;
+  }
+
+  /**
+   * Get the editor content
+   */
+  getValue() {
+    return this.editor ? this.editor.value() : '';
+  }
+
+  /**
+   * Set the editor content
+   */
+  setValue(value) {
+    if (this.editor) {
+      this.editor.value(value);
+    }
+  }
+}
+
+// Add to global controllers registry
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["email-template-editor"] = EmailTemplateEditorController;
+
+/***/ }),
+
+/***/ "./assets/js/controllers/email-template-form-controller.js":
+/*!*****************************************************************!*\
+  !*** ./assets/js/controllers/email-template-form-controller.js ***!
+  \*****************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+
+/**
+ * Email Template Form Controller
+ * 
+ * Manages the dynamic behavior of the email template form:
+ * - Populates action methods based on selected mailer class
+ * - Updates available variables when action is selected
+ * - Updates default subject when action is selected
+ * 
+ * Usage:
+ * <div data-controller="email-template-form"
+ *      data-email-template-form-mailers-value='[...]'>
+ *   <select data-email-template-form-target="mailerSelect"
+ *           data-action="email-template-form#mailerChanged"></select>
+ *   <select data-email-template-form-target="actionSelect"
+ *           data-action="email-template-form#actionChanged"></select>
+ *   <input data-email-template-form-target="availableVars">
+ *   <input data-email-template-form-target="subjectTemplate">
+ * </div>
+ */
+class EmailTemplateFormController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static targets = ["mailerSelect", "actionSelect", "availableVars", "subjectTemplate"];
+  static values = {
+    mailers: {
+      type: Array,
+      default: []
+    }
+  };
+
+  /**
+   * Handle mailer class selection change
+   * Populates the action method dropdown with methods from the selected mailer
+   */
+  mailerChanged(event) {
+    const selectedClass = this.mailerSelectTarget.value;
+
+    // Clear action select
+    this.actionSelectTarget.innerHTML = '<option value="">-- Select Action --</option>';
+    if (!selectedClass) {
+      return;
+    }
+
+    // Find the selected mailer
+    const mailer = this.mailersValue.find(m => m.class === selectedClass);
+    if (!mailer || !mailer.methods) {
+      return;
+    }
+
+    // Populate action methods
+    mailer.methods.forEach(method => {
+      const option = document.createElement('option');
+      option.value = method.name;
+      option.textContent = method.name;
+      option.dataset.vars = JSON.stringify(method.availableVars || []);
+      option.dataset.subject = method.defaultSubject || '';
+      this.actionSelectTarget.appendChild(option);
+    });
+    console.log(`Populated ${mailer.methods.length} methods for mailer: ${mailer.shortName}`);
+  }
+
+  /**
+   * Handle action method selection change
+   * Updates available variables and default subject
+   */
+  actionChanged(event) {
+    const selectedOption = this.actionSelectTarget.selectedOptions[0];
+    if (!selectedOption || !selectedOption.dataset.vars) {
+      return;
+    }
+
+    // Update available vars
+    if (this.hasAvailableVarsTarget) {
+      this.availableVarsTarget.value = selectedOption.dataset.vars;
+      console.log('Updated available vars:', selectedOption.dataset.vars);
+    }
+
+    // Update subject if available
+    if (this.hasSubjectTemplateTarget && selectedOption.dataset.subject) {
+      this.subjectTemplateTarget.value = selectedOption.dataset.subject;
+      console.log('Updated subject template:', selectedOption.dataset.subject);
+    }
+  }
+}
+
+// Add to global controllers registry
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["email-template-form"] = EmailTemplateFormController;
+
+/***/ }),
+
 /***/ "./assets/js/controllers/file-size-validator-controller.js":
 /*!*****************************************************************!*\
   !*** ./assets/js/controllers/file-size-validator-controller.js ***!
@@ -5956,6 +6264,88 @@ if (!window.Controllers) {
   window.Controllers = {};
 }
 window.Controllers["turbo-modal"] = TurboModal;
+
+/***/ }),
+
+/***/ "./assets/js/controllers/variable-insert-controller.js":
+/*!*************************************************************!*\
+  !*** ./assets/js/controllers/variable-insert-controller.js ***!
+  \*************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+
+/**
+ * Variable Insert Controller
+ * 
+ * Provides variable insertion functionality for textarea/input fields.
+ * Allows clicking buttons to insert template variables at cursor position.
+ * 
+ * Usage:
+ * <div data-controller="variable-insert">
+ *   <textarea data-variable-insert-target="field" id="my-field"></textarea>
+ *   <button data-action="variable-insert#insert" 
+ *           data-variable-insert-variable-param="email">
+ *     Insert {{email}}
+ *   </button>
+ * </div>
+ */
+class VariableInsertController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static targets = ["field"];
+
+  /**
+   * Insert a variable at the cursor position in the target field
+   * 
+   * @param {Event} event - Click event from button
+   */
+  insert(event) {
+    event.preventDefault();
+    const variable = event.params.variable;
+    if (!variable) {
+      console.warn('No variable specified for insertion');
+      return;
+    }
+    const field = this.fieldTarget;
+    if (!field) {
+      console.warn('No field target found');
+      return;
+    }
+
+    // Get current cursor position
+    const start = field.selectionStart;
+    const end = field.selectionEnd;
+    const text = field.value;
+
+    // Build variable syntax
+    const variableText = `{{${variable}}}`;
+
+    // Insert variable at cursor position
+    const before = text.substring(0, start);
+    const after = text.substring(end);
+    field.value = before + variableText + after;
+
+    // Move cursor after the inserted text
+    const newPosition = start + variableText.length;
+    field.selectionStart = field.selectionEnd = newPosition;
+
+    // Focus the field
+    field.focus();
+
+    // Trigger input event for any listeners
+    field.dispatchEvent(new Event('input', {
+      bubbles: true
+    }));
+  }
+}
+
+// Add to global controllers registry
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["variable-insert"] = VariableInsertController;
 
 /***/ }),
 
@@ -47224,186 +47614,6 @@ window.Controllers["recommendation-kanban"] = RecommendationKanbanController;
 
 /***/ }),
 
-/***/ "./plugins/Events/assets/js/controllers/hello-world-controller.js":
-/*!************************************************************************!*\
-  !*** ./plugins/Events/assets/js/controllers/hello-world-controller.js ***!
-  \************************************************************************/
-/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
-__webpack_require__.r(__webpack_exports__);
-/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
-
-
-/**
- * Hello World Stimulus Controller
- * 
- * This controller demonstrates the Stimulus.js pattern used in KMP plugins.
- * Stimulus controllers provide interactive behavior for frontend components
- * without requiring a full JavaScript framework.
- * 
- * Key Concepts:
- * - Targets: DOM elements the controller interacts with
- * - Values: Properties that can be set from HTML attributes
- * - Actions: Event handlers triggered by user interaction
- * - Outlets: Connections to other Stimulus controllers
- * 
- * Usage in HTML:
- * <div data-controller="hello-world"
- *      data-hello-world-message-value="Hello from Stimulus!">
- *   <input data-hello-world-target="input" type="text">
- *   <button data-action="click->hello-world#greet">Greet</button>
- *   <div data-hello-world-target="output"></div>
- * </div>
- */
-class HelloWorldController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
-  // Define targets - elements this controller interacts with
-  static targets = ["input", "output", "counter"];
-
-  // Define values - properties that can be set from HTML data attributes
-  static values = {
-    message: {
-      type: String,
-      default: "Hello, World!"
-    },
-    count: {
-      type: Number,
-      default: 0
-    }
-  };
-
-  /**
-   * Initialize the controller
-   * Called once when the controller is first instantiated
-   */
-  initialize() {
-    console.log("HelloWorld controller initialized");
-  }
-
-  /**
-   * Connect the controller to the DOM
-   * Called when the controller is connected to the DOM
-   */
-  connect() {
-    console.log("HelloWorld controller connected to:", this.element);
-    this.updateCounter();
-  }
-
-  /**
-   * Disconnect the controller from the DOM
-   * Called when the controller is disconnected from the DOM
-   * Use for cleanup (removing event listeners, timers, etc.)
-   */
-  disconnect() {
-    console.log("HelloWorld controller disconnected");
-  }
-
-  /**
-   * Greet action - Display a greeting message
-   * Triggered by: data-action="click->hello-world#greet"
-   */
-  greet(event) {
-    event.preventDefault();
-
-    // Get the input value if available
-    const name = this.hasInputTarget ? this.inputTarget.value : "World";
-
-    // Create greeting message
-    const greeting = name ? `${this.messageValue}, ${name}!` : this.messageValue;
-
-    // Display in output target
-    if (this.hasOutputTarget) {
-      this.outputTarget.textContent = greeting;
-      this.outputTarget.classList.add("alert", "alert-success", "mt-3");
-    }
-
-    // Increment counter
-    this.countValue++;
-  }
-
-  /**
-   * Clear action - Clear the output
-   * Triggered by: data-action="click->hello-world#clear"
-   */
-  clear(event) {
-    event.preventDefault();
-    if (this.hasInputTarget) {
-      this.inputTarget.value = "";
-    }
-    if (this.hasOutputTarget) {
-      this.outputTarget.textContent = "";
-      this.outputTarget.className = "";
-    }
-  }
-
-  /**
-   * Value changed callback - Called when message value changes
-   * Automatically called when messageValue is updated
-   */
-  messageValueChanged() {
-    console.log("Message value changed to:", this.messageValue);
-  }
-
-  /**
-   * Value changed callback - Called when count value changes
-   * Automatically called when countValue is updated
-   */
-  countValueChanged() {
-    this.updateCounter();
-  }
-
-  /**
-   * Update the counter display
-   */
-  updateCounter() {
-    if (this.hasCounterTarget) {
-      this.counterTarget.textContent = this.countValue;
-    }
-  }
-
-  /**
-   * Example of a method that could be called from other controllers
-   * or JavaScript code
-   */
-  showMessage(message) {
-    if (this.hasOutputTarget) {
-      this.outputTarget.textContent = message;
-      this.outputTarget.classList.add("alert", "alert-info", "mt-3");
-    }
-  }
-
-  /**
-   * Example of an async method - fetch data from server
-   */
-  async fetchData(url) {
-    try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      if (this.hasOutputTarget) {
-        this.outputTarget.textContent = "Error loading data";
-        this.outputTarget.classList.add("alert", "alert-danger", "mt-3");
-      }
-      return null;
-    }
-  }
-}
-
-// Register the controller globally
-// This makes it available to the Stimulus application
-if (!window.Controllers) {
-  window.Controllers = {};
-}
-window.Controllers["hello-world"] = HelloWorldController;
-/* harmony default export */ __webpack_exports__["default"] = (HelloWorldController);
-
-/***/ }),
-
 /***/ "./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js":
 /*!*******************************************************************************************!*\
   !*** ./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js ***!
@@ -51683,7 +51893,7 @@ window.Controllers["waiver-upload-wizard"] = WaiverUploadWizardController;
 },
 /******/ function(__webpack_require__) { // webpackRuntimeModules
 /******/ var __webpack_exec__ = function(moduleId) { return __webpack_require__(__webpack_require__.s = moduleId); }
-/******/ __webpack_require__.O(0, ["js/core","css/app","css/waivers","css/dashboard","css/cover","css/signin","css/waiver-upload"], function() { return __webpack_exec__("./assets/js/controllers/activity-toggle-controller.js"), __webpack_exec__("./assets/js/controllers/activity-waiver-manager-controller.js"), __webpack_exec__("./assets/js/controllers/add-activity-modal-controller.js"), __webpack_exec__("./assets/js/controllers/app-setting-form-controller.js"), __webpack_exec__("./assets/js/controllers/auto-complete-controller.js"), __webpack_exec__("./assets/js/controllers/branch-links-controller.js"), __webpack_exec__("./assets/js/controllers/csv-download-controller.js"), __webpack_exec__("./assets/js/controllers/delayed-forward-controller.js"), __webpack_exec__("./assets/js/controllers/delete-confirmation-controller.js"), __webpack_exec__("./assets/js/controllers/detail-tabs-controller.js"), __webpack_exec__("./assets/js/controllers/edit-activity-description-controller.js"), __webpack_exec__("./assets/js/controllers/file-size-validator-controller.js"), __webpack_exec__("./assets/js/controllers/filter-grid-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-clone-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-form-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-location-autocomplete-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-map-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-type-form-controller.js"), __webpack_exec__("./assets/js/controllers/guifier-controller.js"), __webpack_exec__("./assets/js/controllers/image-preview-controller.js"), __webpack_exec__("./assets/js/controllers/kanban-controller.js"), __webpack_exec__("./assets/js/controllers/markdown-editor-controller.js"), __webpack_exec__("./assets/js/controllers/member-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-menu-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-pwa-controller.js"), __webpack_exec__("./assets/js/controllers/member-unique-email-controller.js"), __webpack_exec__("./assets/js/controllers/member-verify-form-controller.js"), __webpack_exec__("./assets/js/controllers/mobile-hub-controller.js"), __webpack_exec__("./assets/js/controllers/modal-opener-controller.js"), __webpack_exec__("./assets/js/controllers/nav-bar-controller.js"), __webpack_exec__("./assets/js/controllers/outlet-button-controller.js"), __webpack_exec__("./assets/js/controllers/permission-add-role-controller.js"), __webpack_exec__("./assets/js/controllers/permission-manage-policies-controller.js"), __webpack_exec__("./assets/js/controllers/revoke-form-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-member-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-permission-controller.js"), __webpack_exec__("./assets/js/controllers/select-all-switch-list-controller.js"), __webpack_exec__("./assets/js/controllers/session-extender-controller.js"), __webpack_exec__("./assets/js/controllers/turbo-modal-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/gw-sharing-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/mobile-request-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/renew-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/request-auth-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/award-form-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-add-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-bulk-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-quick-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-table-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/recommendation-kanban-controller.js"), __webpack_exec__("./plugins/Events/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/assign-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/edit-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/office-form-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-search-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-table-controller.js"), __webpack_exec__("./plugins/Template/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/add-requirement-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/camera-capture-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/retention-policy-input-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-template-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-wizard-controller.js"), __webpack_exec__("./assets/css/app.css"), __webpack_exec__("./assets/css/signin.css"), __webpack_exec__("./assets/css/cover.css"), __webpack_exec__("./assets/css/dashboard.css"), __webpack_exec__("./plugins/Waivers/assets/css/waivers.css"), __webpack_exec__("./plugins/Waivers/assets/css/waiver-upload.css"); });
+/******/ __webpack_require__.O(0, ["js/core","css/app","css/waivers","css/dashboard","css/cover","css/signin","css/waiver-upload"], function() { return __webpack_exec__("./assets/js/controllers/activity-toggle-controller.js"), __webpack_exec__("./assets/js/controllers/activity-waiver-manager-controller.js"), __webpack_exec__("./assets/js/controllers/add-activity-modal-controller.js"), __webpack_exec__("./assets/js/controllers/app-setting-form-controller.js"), __webpack_exec__("./assets/js/controllers/auto-complete-controller.js"), __webpack_exec__("./assets/js/controllers/branch-links-controller.js"), __webpack_exec__("./assets/js/controllers/csv-download-controller.js"), __webpack_exec__("./assets/js/controllers/delayed-forward-controller.js"), __webpack_exec__("./assets/js/controllers/delete-confirmation-controller.js"), __webpack_exec__("./assets/js/controllers/detail-tabs-controller.js"), __webpack_exec__("./assets/js/controllers/edit-activity-description-controller.js"), __webpack_exec__("./assets/js/controllers/email-template-editor-controller.js"), __webpack_exec__("./assets/js/controllers/email-template-form-controller.js"), __webpack_exec__("./assets/js/controllers/file-size-validator-controller.js"), __webpack_exec__("./assets/js/controllers/filter-grid-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-clone-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-form-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-location-autocomplete-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-map-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-type-form-controller.js"), __webpack_exec__("./assets/js/controllers/guifier-controller.js"), __webpack_exec__("./assets/js/controllers/image-preview-controller.js"), __webpack_exec__("./assets/js/controllers/kanban-controller.js"), __webpack_exec__("./assets/js/controllers/markdown-editor-controller.js"), __webpack_exec__("./assets/js/controllers/member-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-menu-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-pwa-controller.js"), __webpack_exec__("./assets/js/controllers/member-unique-email-controller.js"), __webpack_exec__("./assets/js/controllers/member-verify-form-controller.js"), __webpack_exec__("./assets/js/controllers/mobile-hub-controller.js"), __webpack_exec__("./assets/js/controllers/modal-opener-controller.js"), __webpack_exec__("./assets/js/controllers/nav-bar-controller.js"), __webpack_exec__("./assets/js/controllers/outlet-button-controller.js"), __webpack_exec__("./assets/js/controllers/permission-add-role-controller.js"), __webpack_exec__("./assets/js/controllers/permission-manage-policies-controller.js"), __webpack_exec__("./assets/js/controllers/revoke-form-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-member-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-permission-controller.js"), __webpack_exec__("./assets/js/controllers/select-all-switch-list-controller.js"), __webpack_exec__("./assets/js/controllers/session-extender-controller.js"), __webpack_exec__("./assets/js/controllers/turbo-modal-controller.js"), __webpack_exec__("./assets/js/controllers/variable-insert-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/gw-sharing-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/mobile-request-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/renew-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/request-auth-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/award-form-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-add-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-bulk-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-quick-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-table-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/recommendation-kanban-controller.js"), __webpack_exec__("./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/assign-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/edit-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/office-form-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-search-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-table-controller.js"), __webpack_exec__("./plugins/Template/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/add-requirement-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/camera-capture-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/retention-policy-input-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-template-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-wizard-controller.js"), __webpack_exec__("./assets/css/app.css"), __webpack_exec__("./assets/css/signin.css"), __webpack_exec__("./assets/css/cover.css"), __webpack_exec__("./assets/css/dashboard.css"), __webpack_exec__("./plugins/Waivers/assets/css/waivers.css"), __webpack_exec__("./plugins/Waivers/assets/css/waiver-upload.css"); });
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);

@@ -2,12 +2,15 @@
 
 namespace Activities\Mailer;
 
+use App\Mailer\TemplateAwareMailerTrait;
 use Cake\Mailer\Mailer;
 use Cake\Routing\Router;
 use App\KMP\StaticHelpers;
 
 class ActivitiesMailer extends Mailer
 {
+    use TemplateAwareMailerTrait;
+
     public function __construct()
     {
         parent::__construct();
