@@ -33,14 +33,15 @@ class DeleteConfirmationController extends Controller {
      * Build context-aware confirmation message
      */
     buildConfirmMessage() {
-        let message = `Are you sure you want to delete this ${this.itemTypeValue}?`;
+        const itemType = this.itemTypeValue || 'item';
+        let message = `Are you sure you want to delete this ${itemType}?`;
         
         if (this.hasItemNameValue) {
             message = `Are you sure you want to delete "${this.itemNameValue}"?`;
         }
         
         if (this.hasReferencesValue) {
-            message += `\n\nWarning: This ${this.itemTypeValue} is referenced by `;
+            message += `\n\nWarning: This ${itemType} is referenced by `;
             message += this.referenceCountValue === 1 
                 ? "1 other item" 
                 : `${this.referenceCountValue} other items`;

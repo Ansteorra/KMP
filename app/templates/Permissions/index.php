@@ -18,9 +18,7 @@ $this->KMP->endBlock(); ?>
     </div>
     <div class="col text-end">
         <?php
-        $permissionsTable = \Cake\ORM\TableRegistry::getTableLocator()->get("Permissions");
-        $tempPermission = $permissionsTable->newEmptyEntity();
-        if ($user->checkCan("add", $tempPermission)) :
+        if ($user->checkCan("add", "Permissions")) :
         ?>
             <?= $this->Html->link(
                 ' Add Permission',

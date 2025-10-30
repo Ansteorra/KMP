@@ -19,8 +19,8 @@ class CreateGatheringAttendances extends BaseMigration
      *
      * The table tracks member attendance for gatherings and includes attendance notes,
      * sharing permission flags, audit fields (created, modified, created_by, modified_by, deleted),
-     * a unique constraint on (gathering_id, member_id), and foreign keys to gatherings and members
-     * with appropriate delete/update behaviors.
+     * a unique constraint on (gathering_id, member_id, deleted) to allow soft-deleted records,
+     * and foreign keys to gatherings and members with appropriate delete/update behaviors.
      *
      * @return void
      */
@@ -112,8 +112,9 @@ class CreateGatheringAttendances extends BaseMigration
         $table->addIndex(['member_id'], ['name' => 'idx_gathering_attendances_member']);
         $table->addIndex(['created_by'], ['name' => 'idx_gathering_attendances_created_by']);
 
-        // Unique constraint - a member can only have one attendance record per gathering
-        $table->addIndex(['gathering_id', 'member_id'], [
+        // Unique constraint - a member can only have one ACTIVE attendance record per gathering
+        // Includes 'deleted' field so soft-deleted records don't conflict (NULL values allow duplicates)
+        $table->addIndex(['gathering_id', 'member_id', 'deleted'], [
             'name' => 'idx_gathering_attendances_unique',
             'unique' => true
         ]);
@@ -133,6 +134,11 @@ class CreateGatheringAttendances extends BaseMigration
             'delete' => 'SET_NULL',
             'update' => 'NO_ACTION',
             'constraint' => 'fk_gathering_attendances_created_by'
+        ]);
+        $table->addForeignKey('modified_by', 'members', 'id', [
+            'delete' => 'SET_NULL',
+            'update' => 'NO_ACTION',
+            'constraint' => 'fk_gathering_attendances_modified_by'
         ]);
 
         $table->create();

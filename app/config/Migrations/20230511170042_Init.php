@@ -16,6 +16,7 @@ class Init extends BaseMigration
      * Create the initial database schema (tables, indices, and foreign keys) and execute the migration seed.
      *
      * Builds configuration and operational tables, applies relationship constraints, and attempts to run the InitMigration seed; if seeding fails the error message is printed.
+     * */
     public function up()
     {
         #region Configuration Schema

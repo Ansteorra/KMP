@@ -65,6 +65,7 @@ class CreateGatheringActivities extends BaseMigration
 
         // Indexes
         $table->addPrimaryKey(["id"]);
+        $table->addIndex(['name'], ['name' => 'idx_gathering_activities_name', 'unique' => true]);
 
         $table->create();
     }

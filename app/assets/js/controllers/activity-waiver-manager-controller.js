@@ -57,14 +57,8 @@ class ActivityWaiverManagerController extends Controller {
             
             if (checkbox.checked) {
                 container.classList.add('selected');
-                container.style.backgroundColor = '#e7f3ff';
-                container.style.borderLeft = '3px solid #0d6efd';
-                container.style.paddingLeft = '0.5rem';
             } else {
                 container.classList.remove('selected');
-                container.style.backgroundColor = '';
-                container.style.borderLeft = '';
-                container.style.paddingLeft = '';
             }
         });
     }

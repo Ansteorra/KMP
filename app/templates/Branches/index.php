@@ -43,9 +43,7 @@ function branchHierachyTable($branches, $me, $parent_string = "")
     </div>
     <div class="col text-end">
         <?php
-        $branchTable = \Cake\ORM\TableRegistry::getTableLocator()->get("Branches");
-        $tempBranch = $branchTable->newEmptyEntity();
-        if ($user->checkCan("add", $tempBranch)) :
+        if ($user->checkCan("add", "Branches")) :
         ?>
             <?= $this->Html->link(
                 __(" Add Branch"),

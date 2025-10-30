@@ -28,9 +28,7 @@ $recommendation = [];
     </div>
     <div class="col text-end">
         <?php
-        $recommendationTable = \Cake\ORM\TableRegistry::getTableLocator()->get("Awards.Recommendations");
-        $tempRecommendation = $recommendationTable->newEmptyEntity();
-        if ($user->checkCan("add", $tempRecommendation)) :
+        if ($user->checkCan("add", "Awards.Recommendations")) :
         ?>
             <?= $this->Html->link(
                 ' Add Recommendation',

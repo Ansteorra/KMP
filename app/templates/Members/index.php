@@ -24,9 +24,7 @@ if (!$isTurboFrame) {
         </div>
         <div class="col text-end">
             <?php
-            $membersTable = \Cake\ORM\TableRegistry::getTableLocator()->get("Members");
-            $tempMember = $membersTable->newEmptyEntity();
-            if ($user->checkCan("add", $tempMember)) :
+            if ($user->checkCan("add", "Members")) :
             ?>
                 <?= $this->Html->link(
                     ' Add Member',

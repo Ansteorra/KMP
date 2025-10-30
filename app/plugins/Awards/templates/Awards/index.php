@@ -18,9 +18,7 @@ $this->KMP->endBlock(); ?>
     </div>
     <div class="col text-end">
         <?php
-        $awardsTable = \Cake\ORM\TableRegistry::getTableLocator()->get("Awards.Awards");
-        $tempAward = $awardsTable->newEmptyEntity();
-        if ($user->checkCan("add", $tempAward)) :
+        if ($user->checkCan("add", "Awards.Awards")) :
         ?>
             <?= $this->Html->link(
                 ' Add Award',

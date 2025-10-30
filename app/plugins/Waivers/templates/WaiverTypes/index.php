@@ -21,9 +21,7 @@ $this->KMP->endBlock(); ?>
         </div>
         <div class="col text-end">
             <?php
-            $waiverTypesTable = \Cake\ORM\TableRegistry::getTableLocator()->get("Waivers.WaiverTypes");
-            $tempWaiverType = $waiverTypesTable->newEmptyEntity();
-            if ($user->checkCan("add", $tempWaiverType)) :
+            if ($user->checkCan("add", "Waivers.WaiverTypes")) :
             ?>
                 <?= $this->Html->link(
                     ' Add Waiver Type',

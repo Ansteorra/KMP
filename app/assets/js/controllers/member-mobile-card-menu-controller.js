@@ -61,6 +61,8 @@ class MemberMobileCardMenu extends Controller {
     initialize() {
         this.menuOpen = false;
         this.items = [];
+        // Create bound handler for outside clicks
+        this._handleOutsideClick = this.handleOutsideClick.bind(this);
     }
 
     /**
@@ -71,6 +73,10 @@ class MemberMobileCardMenu extends Controller {
         console.log("MemberMobileCardMenu connected");
         this.loadMenuItems();
         this.renderMenu();
+        
+        // Register outside click handler
+        document.addEventListener('click', this._handleOutsideClick);
+        document.addEventListener('touchstart', this._handleOutsideClick);
     }
 
     /**
@@ -241,7 +247,11 @@ class MemberMobileCardMenu extends Controller {
      * Cleans up event listeners
      */
     disconnect() {
-        // Cleanup if needed
+        // Remove outside click handlers
+        if (this._handleOutsideClick) {
+            document.removeEventListener('click', this._handleOutsideClick);
+            document.removeEventListener('touchstart', this._handleOutsideClick);
+        }
         console.log("MemberMobileCardMenu disconnected");
     }
 }

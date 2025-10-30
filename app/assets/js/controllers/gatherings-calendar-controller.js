@@ -285,6 +285,7 @@ class GatheringsCalendarController extends Controller {
     async toggleAttendance(event) {
         const button = event.currentTarget
         const gatheringId = button.dataset.gatheringId
+        const attendanceId = button.dataset.attendanceId
         const isCurrentlyAttending = button.dataset.attending === 'true'
         
         if (!gatheringId) {
@@ -298,23 +299,39 @@ class GatheringsCalendarController extends Controller {
         button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Processing...'
         
         try {
-            const url = isCurrentlyAttending 
-                ? `/gathering-attendances/edit/${gatheringId}`
-                : `/gathering-attendances/add`
+            let url, method, body
             
-            const method = isCurrentlyAttending ? 'PUT' : 'POST'
-            const body = new FormData()
-            body.append('gathering_id', gatheringId)
-            body.append('status', 'attending')
+            if (isCurrentlyAttending) {
+                // Remove attendance - use DELETE request
+                if (!attendanceId) {
+                    throw new Error('No attendance ID found for removal')
+                }
+                url = `/gathering-attendances/delete/${attendanceId}`
+                method = 'DELETE'
+                // No body needed for DELETE
+            } else {
+                // Add attendance - use POST request
+                url = `/gathering-attendances/add`
+                method = 'POST'
+                body = new FormData()
+                body.append('gathering_id', gatheringId)
+                body.append('status', 'attending')
+            }
             
-            const response = await fetch(url, {
+            const fetchOptions = {
                 method: method,
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
                     'X-CSRF-Token': this.getCsrfToken()
-                },
-                body: body
-            })
+                }
+            }
+            
+            // Add body only for POST requests
+            if (body) {
+                fetchOptions.body = body
+            }
+            
+            const response = await fetch(url, fetchOptions)
             
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`)
@@ -322,15 +339,31 @@ class GatheringsCalendarController extends Controller {
             
             const data = await response.json()
             
-            // Update UI
+            // Update UI based on action
             if (data.success) {
-                button.dataset.attending = 'true'
-                button.classList.remove('btn-outline-success')
-                button.classList.add('btn-success')
-                button.innerHTML = '<i class="bi bi-check-circle"></i> Attending'
-                
-                // Show success message
-                this.showToast('Success!', 'Your attendance has been recorded.', 'success')
+                if (isCurrentlyAttending) {
+                    // Removed attendance
+                    button.dataset.attending = 'false'
+                    button.removeAttribute('data-attendance-id')
+                    button.classList.remove('btn-success')
+                    button.classList.add('btn-outline-success')
+                    button.innerHTML = '<i class="bi bi-calendar-check"></i> Attend'
+                    
+                    // Show success message
+                    this.showToast('Success!', 'Your attendance has been removed.', 'success')
+                } else {
+                    // Added attendance
+                    button.dataset.attending = 'true'
+                    if (data.attendance_id) {
+                        button.dataset.attendanceId = data.attendance_id
+                    }
+                    button.classList.remove('btn-outline-success')
+                    button.classList.add('btn-success')
+                    button.innerHTML = '<i class="bi bi-check-circle"></i> Attending'
+                    
+                    // Show success message
+                    this.showToast('Success!', 'Your attendance has been recorded.', 'success')
+                }
                 
                 // Reload page to update calendar display
                 setTimeout(() => {

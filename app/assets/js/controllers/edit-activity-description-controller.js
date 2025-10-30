@@ -10,10 +10,13 @@ class EditActivityDescriptionController extends Controller {
     static targets = ["activityId", "activityName", "defaultDescription", "customDescription"]
     
     connect() {
+        // Store bound function reference for proper cleanup
+        this.boundHandleModalShow = this.handleModalShow.bind(this);
+        
         // Listen for modal show event to populate data
         const modal = document.getElementById('editActivityDescriptionModal');
         if (modal) {
-            modal.addEventListener('show.bs.modal', this.handleModalShow.bind(this));
+            modal.addEventListener('show.bs.modal', this.boundHandleModalShow);
         }
     }
     
@@ -52,8 +55,9 @@ class EditActivityDescriptionController extends Controller {
     
     disconnect() {
         const modal = document.getElementById('editActivityDescriptionModal');
-        if (modal) {
-            modal.removeEventListener('show.bs.modal', this.handleModalShow.bind(this));
+        if (modal && this.boundHandleModalShow) {
+            modal.removeEventListener('show.bs.modal', this.boundHandleModalShow);
+            this.boundHandleModalShow = null;
         }
     }
 }

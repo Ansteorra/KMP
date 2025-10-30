@@ -18,11 +18,9 @@ $this->KMP->endBlock(); ?>
     </div>
     <div class="col text-end">
         <?php
-        $emailTemplatesTable = \Cake\ORM\TableRegistry::getTableLocator()->get("EmailTemplates");
-        $tempEmailTemplate = $emailTemplatesTable->newEmptyEntity();
-        if ($user->checkCan("add", $tempEmailTemplate)) :
+        if ($user->checkCan("add", "EmailTemplates")) :
         ?>
-        <?= $this->Html->link(
+            <?= $this->Html->link(
                 ' Add Email Template',
                 ['action' => 'add'],
                 ['class' => 'btn btn-primary btn-sm bi bi-plus-circle', 'data-turbo-frame' => '_top']
@@ -73,40 +71,40 @@ $this->KMP->endBlock(); ?>
         </thead>
         <tbody>
             <?php foreach ($emailTemplates as $emailTemplate): ?>
-            <tr>
-                <td><code><?= h($emailTemplate->mailer_class) ?></code></td>
-                <td><code><?= h($emailTemplate->action_method) ?></code></td>
-                <td class="text-truncate" style="max-width: 250px;" title="<?= h($emailTemplate->subject_template) ?>">
-                    <?= h($emailTemplate->subject_template) ?>
-                </td>
-                <td>
-                    <?php if ($emailTemplate->html_template): ?>
-                    <span class="badge bg-info">HTML</span>
-                    <?php endif; ?>
-                    <?php if ($emailTemplate->text_template): ?>
-                    <span class="badge bg-secondary">Text</span>
-                    <?php endif; ?>
-                </td>
-                <td>
-                    <?php if ($emailTemplate->is_active): ?>
-                    <span class="badge bg-success">Active</span>
-                    <?php else: ?>
-                    <span class="badge bg-warning text-dark">Inactive</span>
-                    <?php endif; ?>
-                </td>
-                <td><?= h($emailTemplate->modified->format('Y-m-d H:i')) ?></td>
-                <td class="actions text-end text-nowrap">
-                    <?= $this->Html->link(
+                <tr>
+                    <td><code><?= h($emailTemplate->mailer_class) ?></code></td>
+                    <td><code><?= h($emailTemplate->action_method) ?></code></td>
+                    <td class="text-truncate" style="max-width: 250px;" title="<?= h($emailTemplate->subject_template) ?>">
+                        <?= h($emailTemplate->subject_template) ?>
+                    </td>
+                    <td>
+                        <?php if ($emailTemplate->html_template): ?>
+                            <span class="badge bg-info">HTML</span>
+                        <?php endif; ?>
+                        <?php if ($emailTemplate->text_template): ?>
+                            <span class="badge bg-secondary">Text</span>
+                        <?php endif; ?>
+                    </td>
+                    <td>
+                        <?php if ($emailTemplate->is_active): ?>
+                            <span class="badge bg-success">Active</span>
+                        <?php else: ?>
+                            <span class="badge bg-warning text-dark">Inactive</span>
+                        <?php endif; ?>
+                    </td>
+                    <td><?= h($emailTemplate->modified->format('Y-m-d H:i')) ?></td>
+                    <td class="actions text-end text-nowrap">
+                        <?= $this->Html->link(
                             '',
                             ['action' => 'view', $emailTemplate->id],
                             ['title' => __('View'), 'class' => 'btn-sm btn btn-secondary bi bi-binoculars-fill']
                         ) ?>
-                    <?= $this->Html->link(
+                        <?= $this->Html->link(
                             '',
                             ['action' => 'edit', $emailTemplate->id],
                             ['title' => __('Edit'), 'class' => 'btn-sm btn btn-primary bi bi-pencil-fill']
                         ) ?>
-                    <?= $this->Form->postLink(
+                        <?= $this->Form->postLink(
                             '',
                             ['action' => 'delete', $emailTemplate->id],
                             [
@@ -115,8 +113,8 @@ $this->KMP->endBlock(); ?>
                                 'class' => 'btn-sm btn btn-danger bi bi-trash-fill'
                             ]
                         ) ?>
-                </td>
-            </tr>
+                    </td>
+                </tr>
             <?php endforeach; ?>
         </tbody>
     </table>

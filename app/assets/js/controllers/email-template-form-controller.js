@@ -67,20 +67,27 @@ class EmailTemplateFormController extends Controller {
     actionChanged(event) {
         const selectedOption = this.actionSelectTarget.selectedOptions[0]
         
-        if (!selectedOption || !selectedOption.dataset.vars) {
+        // If no option selected, clear everything and return
+        if (!selectedOption) {
             return
         }
         
-        // Update available vars
+        // Always update available vars (clear if dataset.vars is missing)
         if (this.hasAvailableVarsTarget) {
-            this.availableVarsTarget.value = selectedOption.dataset.vars
-            console.log('Updated available vars:', selectedOption.dataset.vars)
+            const varsValue = selectedOption.dataset.vars || ''
+            this.availableVarsTarget.value = varsValue
+            if (varsValue) {
+                console.log('Updated available vars:', varsValue)
+            }
         }
         
-        // Update subject if available
-        if (this.hasSubjectTemplateTarget && selectedOption.dataset.subject) {
-            this.subjectTemplateTarget.value = selectedOption.dataset.subject
-            console.log('Updated subject template:', selectedOption.dataset.subject)
+        // Always update subject template (clear if dataset.subject is missing)
+        if (this.hasSubjectTemplateTarget) {
+            const subjectValue = selectedOption.dataset.subject || ''
+            this.subjectTemplateTarget.value = subjectValue
+            if (subjectValue) {
+                console.log('Updated subject template:', subjectValue)
+            }
         }
     }
 }

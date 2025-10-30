@@ -19,7 +19,7 @@ class CreateGatheringsGatheringActivities extends BaseMigration
 {
     public bool $autoId = false;
 
-    / **
+    /**
      * Create the gatherings_gathering_activities join table with its columns, indexes, and foreign key constraints.
      *
      * This migration defines an explicit `id` primary key, `gathering_id` and `gathering_activity_id` foreign keys,

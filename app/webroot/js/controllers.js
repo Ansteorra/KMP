@@ -161,14 +161,8 @@ class ActivityWaiverManagerController extends _hotwired_stimulus__WEBPACK_IMPORT
       if (!container) return;
       if (checkbox.checked) {
         container.classList.add('selected');
-        container.style.backgroundColor = '#e7f3ff';
-        container.style.borderLeft = '3px solid #0d6efd';
-        container.style.paddingLeft = '0.5rem';
       } else {
         container.classList.remove('selected');
-        container.style.backgroundColor = '';
-        container.style.borderLeft = '';
-        container.style.paddingLeft = '';
       }
     });
   }
@@ -1078,6 +1072,152 @@ window.Controllers["ac"] = AutoComplete;
 
 /***/ }),
 
+/***/ "./assets/js/controllers/base-gathering-form-controller.js":
+/*!*****************************************************************!*\
+  !*** ./assets/js/controllers/base-gathering-form-controller.js ***!
+  \*****************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   BaseGatheringFormController: function() { return /* binding */ BaseGatheringFormController; }
+/* harmony export */ });
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+
+/**
+ * Base Gathering Form Controller
+ * 
+ * Provides shared date validation logic for gathering forms.
+ * Extended by gathering-form-controller and gathering-clone-controller.
+ * 
+ * Features:
+ * - Automatically defaults end date to start date when start date changes
+ * - Validates that end date is not before start date
+ * - Provides real-time feedback to users
+ */
+class BaseGatheringFormController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  // Define targets - elements this controller interacts with
+  static targets = ["startDate", "endDate", "submitButton"];
+
+  /**
+   * Connect function - runs when controller connects to DOM
+   */
+  connect() {
+    // Set up initial validation when page loads
+    if (this.hasStartDateTarget && this.hasEndDateTarget) {
+      this.validateDates();
+    }
+  }
+
+  /**
+   * Handle start date changes
+   * Automatically updates end date to match start date if end date is empty or before start date
+   */
+  startDateChanged(event) {
+    const startDate = this.startDateTarget.value;
+    const endDate = this.endDateTarget.value;
+
+    // If end date is empty or before start date, set it to start date
+    if (!endDate || endDate < startDate) {
+      this.endDateTarget.value = startDate;
+    }
+
+    // Validate dates
+    this.validateDates();
+  }
+
+  /**
+   * Handle end date changes
+   * Validates that end date is not before start date
+   */
+  endDateChanged(event) {
+    this.validateDates();
+  }
+
+  /**
+   * Validate dates
+   * Ensures end date is on or after start date
+   */
+  validateDates() {
+    if (!this.hasStartDateTarget || !this.hasEndDateTarget) {
+      return true;
+    }
+    const startDate = this.startDateTarget.value;
+    const endDate = this.endDateTarget.value;
+
+    // Clear any previous validation messages
+    this.clearValidationMessages();
+    if (startDate && endDate && endDate < startDate) {
+      // End date is before start date - show error
+      this.showValidationError(this.endDateTarget, 'End date cannot be before start date');
+
+      // Disable submit button
+      if (this.hasSubmitButtonTarget) {
+        this.submitButtonTarget.disabled = true;
+      }
+      return false;
+    } else {
+      // Dates are valid - enable submit button
+      if (this.hasSubmitButtonTarget) {
+        this.submitButtonTarget.disabled = false;
+      }
+      return true;
+    }
+  }
+
+  /**
+   * Validate form before submission
+   */
+  validateForm(event) {
+    if (!this.validateDates()) {
+      event.preventDefault();
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * Show validation error message
+   */
+  showValidationError(element, message) {
+    // Add invalid class to element
+    element.classList.add('is-invalid');
+
+    // Create or update feedback element
+    let feedbackElement = element.parentElement.querySelector('.invalid-feedback');
+    if (!feedbackElement) {
+      feedbackElement = document.createElement('div');
+      feedbackElement.className = 'invalid-feedback';
+      element.parentElement.appendChild(feedbackElement);
+    }
+    feedbackElement.textContent = message;
+    feedbackElement.style.display = 'block';
+  }
+
+  /**
+   * Clear validation messages
+   */
+  clearValidationMessages() {
+    // Remove invalid classes
+    if (this.hasStartDateTarget) {
+      this.startDateTarget.classList.remove('is-invalid');
+    }
+    if (this.hasEndDateTarget) {
+      this.endDateTarget.classList.remove('is-invalid');
+    }
+
+    // Remove feedback elements
+    const feedbackElements = this.element.querySelectorAll('.invalid-feedback');
+    feedbackElements.forEach(el => {
+      el.style.display = 'none';
+    });
+  }
+}
+
+/***/ }),
+
 /***/ "./assets/js/controllers/branch-links-controller.js":
 /*!**********************************************************!*\
   !*** ./assets/js/controllers/branch-links-controller.js ***!
@@ -1519,12 +1659,13 @@ class DeleteConfirmationController extends _hotwired_stimulus__WEBPACK_IMPORTED_
    * Build context-aware confirmation message
    */
   buildConfirmMessage() {
-    let message = `Are you sure you want to delete this ${this.itemTypeValue}?`;
+    const itemType = this.itemTypeValue || 'item';
+    let message = `Are you sure you want to delete this ${itemType}?`;
     if (this.hasItemNameValue) {
       message = `Are you sure you want to delete "${this.itemNameValue}"?`;
     }
     if (this.hasReferencesValue) {
-      message += `\n\nWarning: This ${this.itemTypeValue} is referenced by `;
+      message += `\n\nWarning: This ${itemType} is referenced by `;
       message += this.referenceCountValue === 1 ? "1 other item" : `${this.referenceCountValue} other items`;
       message += ". Deleting it may affect those items.";
     }
@@ -1619,9 +1760,6 @@ class DetailTabsController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0
         if (firstTab) {
           firstTab.click();
           this.foundFirst = true;
-        } else {
-          // Fallback to DOM order if no order specified
-          this.tabBtnTargets[0].click();
         }
         window.scrollTo(0, 0);
       }
@@ -1658,7 +1796,7 @@ class DetailTabsController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0
   tabBtnClicked(event) {
     // Get first tab based on order, not DOM position
     const firstTab = this.getFirstTabByOrder();
-    const firstTabId = firstTab ? firstTab.id : this.tabBtnTargets[0].id;
+    const firstTabId = firstTab?.id || this.tabBtnTargets[0]?.id;
     var eventTabId = event.target.id;
     var tab = event.target.id.replace('nav-', '').replace('-tab', '');
     if (this.updateUrlValue) {
@@ -1719,10 +1857,13 @@ __webpack_require__.r(__webpack_exports__);
 class EditActivityDescriptionController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
   static targets = ["activityId", "activityName", "defaultDescription", "customDescription"];
   connect() {
+    // Store bound function reference for proper cleanup
+    this.boundHandleModalShow = this.handleModalShow.bind(this);
+
     // Listen for modal show event to populate data
     const modal = document.getElementById('editActivityDescriptionModal');
     if (modal) {
-      modal.addEventListener('show.bs.modal', this.handleModalShow.bind(this));
+      modal.addEventListener('show.bs.modal', this.boundHandleModalShow);
     }
   }
 
@@ -1756,8 +1897,9 @@ class EditActivityDescriptionController extends _hotwired_stimulus__WEBPACK_IMPO
   }
   disconnect() {
     const modal = document.getElementById('editActivityDescriptionModal');
-    if (modal) {
-      modal.removeEventListener('show.bs.modal', this.handleModalShow.bind(this));
+    if (modal && this.boundHandleModalShow) {
+      modal.removeEventListener('show.bs.modal', this.boundHandleModalShow);
+      this.boundHandleModalShow = null;
     }
   }
 }
@@ -2052,20 +2194,28 @@ class EmailTemplateFormController extends _hotwired_stimulus__WEBPACK_IMPORTED_M
    */
   actionChanged(event) {
     const selectedOption = this.actionSelectTarget.selectedOptions[0];
-    if (!selectedOption || !selectedOption.dataset.vars) {
+
+    // If no option selected, clear everything and return
+    if (!selectedOption) {
       return;
     }
 
-    // Update available vars
+    // Always update available vars (clear if dataset.vars is missing)
     if (this.hasAvailableVarsTarget) {
-      this.availableVarsTarget.value = selectedOption.dataset.vars;
-      console.log('Updated available vars:', selectedOption.dataset.vars);
+      const varsValue = selectedOption.dataset.vars || '';
+      this.availableVarsTarget.value = varsValue;
+      if (varsValue) {
+        console.log('Updated available vars:', varsValue);
+      }
     }
 
-    // Update subject if available
-    if (this.hasSubjectTemplateTarget && selectedOption.dataset.subject) {
-      this.subjectTemplateTarget.value = selectedOption.dataset.subject;
-      console.log('Updated subject template:', selectedOption.dataset.subject);
+    // Always update subject template (clear if dataset.subject is missing)
+    if (this.hasSubjectTemplateTarget) {
+      const subjectValue = selectedOption.dataset.subject || '';
+      this.subjectTemplateTarget.value = subjectValue;
+      if (subjectValue) {
+        console.log('Updated subject template:', subjectValue);
+      }
     }
   }
 }
@@ -2260,7 +2410,7 @@ class FileSizeValidatorController extends _hotwired_stimulus__WEBPACK_IMPORTED_M
       // Dispatch valid event
       this.dispatch('valid', {
         detail: {
-          files: files.map(f => ({
+          files: allFiles.map(f => ({
             name: f.name,
             size: f.size
           })),
@@ -2532,135 +2682,25 @@ window.Controllers["filter-grid"] = FilterGrid;
 
 "use strict";
 __webpack_require__.r(__webpack_exports__);
-/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+/* harmony import */ var _base_gathering_form_controller__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./base-gathering-form-controller */ "./assets/js/controllers/base-gathering-form-controller.js");
 
 
 /**
  * Gathering Clone Controller
  * 
  * Handles the clone gathering modal form interactions with date validation and defaulting.
+ * Extends BaseGatheringFormController for shared date validation logic.
  * 
  * Features:
  * - Automatically defaults end date to start date when start date changes
  * - Validates that end date is not before start date
  * - Provides real-time feedback to users
  */
-class GatheringCloneController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+class GatheringCloneController extends _base_gathering_form_controller__WEBPACK_IMPORTED_MODULE_0__.BaseGatheringFormController {
+  // Define additional targets specific to clone form
   static targets = ["nameInput", "startDate", "endDate", "submitButton"];
 
-  /**
-   * Connect function - runs when controller connects to DOM
-   */
-  connect() {
-    // Set up initial validation when modal opens
-    if (this.hasStartDateTarget && this.hasEndDateTarget) {
-      this.validateDates();
-    }
-  }
-
-  /**
-   * Handle start date changes
-   * Automatically updates end date to match start date if end date is empty or before start date
-   */
-  startDateChanged(event) {
-    const startDate = this.startDateTarget.value;
-    const endDate = this.endDateTarget.value;
-
-    // If end date is empty or before start date, set it to start date
-    if (!endDate || endDate < startDate) {
-      this.endDateTarget.value = startDate;
-    }
-
-    // Validate dates
-    this.validateDates();
-  }
-
-  /**
-   * Handle end date changes
-   * Validates that end date is not before start date
-   */
-  endDateChanged(event) {
-    this.validateDates();
-  }
-
-  /**
-   * Validate dates
-   * Ensures end date is on or after start date
-   */
-  validateDates() {
-    if (!this.hasStartDateTarget || !this.hasEndDateTarget) {
-      return true;
-    }
-    const startDate = this.startDateTarget.value;
-    const endDate = this.endDateTarget.value;
-
-    // Clear any previous validation messages
-    this.clearValidationMessages();
-    if (startDate && endDate && endDate < startDate) {
-      // End date is before start date - show error
-      this.showValidationError(this.endDateTarget, 'End date cannot be before start date');
-
-      // Disable submit button
-      if (this.hasSubmitButtonTarget) {
-        this.submitButtonTarget.disabled = true;
-      }
-      return false;
-    } else {
-      // Dates are valid - enable submit button
-      if (this.hasSubmitButtonTarget) {
-        this.submitButtonTarget.disabled = false;
-      }
-      return true;
-    }
-  }
-
-  /**
-   * Validate form before submission
-   */
-  validateForm(event) {
-    if (!this.validateDates()) {
-      event.preventDefault();
-      return false;
-    }
-    return true;
-  }
-
-  /**
-   * Show validation error message
-   */
-  showValidationError(element, message) {
-    // Add invalid class to element
-    element.classList.add('is-invalid');
-
-    // Create or update feedback element
-    let feedbackElement = element.parentElement.querySelector('.invalid-feedback');
-    if (!feedbackElement) {
-      feedbackElement = document.createElement('div');
-      feedbackElement.className = 'invalid-feedback';
-      element.parentElement.appendChild(feedbackElement);
-    }
-    feedbackElement.textContent = message;
-    feedbackElement.style.display = 'block';
-  }
-
-  /**
-   * Clear validation messages
-   */
-  clearValidationMessages() {
-    // Remove invalid classes
-    if (this.hasStartDateTarget) {
-      this.startDateTarget.classList.remove('is-invalid');
-    }
-    if (this.hasEndDateTarget) {
-      this.endDateTarget.classList.remove('is-invalid');
-    }
-
-    // Remove feedback elements
-    const feedbackElements = this.element.querySelectorAll('.invalid-feedback');
-    feedbackElements.forEach(el => {
-      el.style.display = 'none';
-    });
-  }
+  // All date validation functionality inherited from BaseGatheringFormController
 }
 
 // Add to global controllers registry
@@ -2679,133 +2719,22 @@ window.Controllers["gathering-clone"] = GatheringCloneController;
 
 "use strict";
 __webpack_require__.r(__webpack_exports__);
-/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+/* harmony import */ var _base_gathering_form_controller__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./base-gathering-form-controller */ "./assets/js/controllers/base-gathering-form-controller.js");
 
 
 /**
  * Gathering Form Controller
  * 
  * Manages client-side validation and UX improvements for gathering forms.
+ * Extends BaseGatheringFormController for shared date validation logic.
  * 
  * Features:
  * - Automatically defaults end date to start date when start date changes
  * - Validates that end date is not before start date
  * - Provides real-time feedback to users
  */
-class GatheringFormController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
-  // Define targets - elements this controller interacts with
-  static targets = ["startDate", "endDate", "submitButton"];
-
-  /**
-   * Connect function - runs when controller connects to DOM
-   */
-  connect() {
-    // Set up initial validation when page loads
-    if (this.hasStartDateTarget && this.hasEndDateTarget) {
-      this.validateDates();
-    }
-  }
-
-  /**
-   * Handle start date changes
-   * Automatically updates end date to match start date if end date is empty or before start date
-   */
-  startDateChanged(event) {
-    const startDate = this.startDateTarget.value;
-    const endDate = this.endDateTarget.value;
-
-    // If end date is empty or before start date, set it to start date
-    if (!endDate || endDate < startDate) {
-      this.endDateTarget.value = startDate;
-    }
-
-    // Validate dates
-    this.validateDates();
-  }
-
-  /**
-   * Handle end date changes
-   * Validates that end date is not before start date
-   */
-  endDateChanged(event) {
-    this.validateDates();
-  }
-
-  /**
-   * Validate dates
-   * Ensures end date is on or after start date
-   */
-  validateDates() {
-    const startDate = this.startDateTarget.value;
-    const endDate = this.endDateTarget.value;
-
-    // Clear any previous validation messages
-    this.clearValidationMessages();
-    if (startDate && endDate && endDate < startDate) {
-      // End date is before start date - show error
-      this.showValidationError(this.endDateTarget, 'End date cannot be before start date');
-
-      // Disable submit button
-      if (this.hasSubmitButtonTarget) {
-        this.submitButtonTarget.disabled = true;
-      }
-      return false;
-    } else {
-      // Dates are valid - enable submit button
-      if (this.hasSubmitButtonTarget) {
-        this.submitButtonTarget.disabled = false;
-      }
-      return true;
-    }
-  }
-
-  /**
-   * Validate form before submission
-   */
-  validateForm(event) {
-    if (!this.validateDates()) {
-      event.preventDefault();
-      return false;
-    }
-    return true;
-  }
-
-  /**
-   * Show validation error message
-   */
-  showValidationError(element, message) {
-    // Add invalid class to element
-    element.classList.add('is-invalid');
-
-    // Create or update feedback element
-    let feedbackElement = element.parentElement.querySelector('.invalid-feedback');
-    if (!feedbackElement) {
-      feedbackElement = document.createElement('div');
-      feedbackElement.className = 'invalid-feedback';
-      element.parentElement.appendChild(feedbackElement);
-    }
-    feedbackElement.textContent = message;
-    feedbackElement.style.display = 'block';
-  }
-
-  /**
-   * Clear validation messages
-   */
-  clearValidationMessages() {
-    // Remove invalid classes
-    if (this.hasStartDateTarget) {
-      this.startDateTarget.classList.remove('is-invalid');
-    }
-    if (this.hasEndDateTarget) {
-      this.endDateTarget.classList.remove('is-invalid');
-    }
-
-    // Remove feedback elements
-    const feedbackElements = this.element.querySelectorAll('.invalid-feedback');
-    feedbackElements.forEach(el => {
-      el.style.display = 'none';
-    });
-  }
+class GatheringFormController extends _base_gathering_form_controller__WEBPACK_IMPORTED_MODULE_0__.BaseGatheringFormController {
+  // All functionality inherited from BaseGatheringFormController
 }
 
 // Add to global controllers registry
@@ -2870,15 +2799,23 @@ class GatheringLocationAutocompleteController extends _hotwired_stimulus__WEBPAC
       console.log("Autocomplete already initialized, skipping");
       return;
     }
+    try {
+      // Load Google Maps Places library if not already loaded
+      await this.loadGoogleMapsPlaces();
 
-    // Mark as initializing immediately to prevent race conditions
-    this.isInitialized = true;
+      // Initialize autocomplete on the input field
+      this.initAutocomplete();
 
-    // Load Google Maps Places library if not already loaded
-    await this.loadGoogleMapsPlaces();
-
-    // Initialize autocomplete on the input field
-    this.initAutocomplete();
+      // Only mark as initialized after both succeed
+      this.isInitialized = true;
+      console.log("Autocomplete initialization complete");
+    } catch (error) {
+      // Reset flag on failure to allow future reconnects to retry
+      this.isInitialized = false;
+      console.error("Failed to initialize autocomplete:", error);
+      // Optionally rethrow or handle gracefully
+      // throw error;
+    }
   }
 
   /**
@@ -2994,6 +2931,9 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
 
 
+// Module-scoped promise to memoize Google Maps loading and prevent concurrent script injections
+let googleMapsLoaderPromise = null;
+
 /**
  * GatheringMapController
  * 
@@ -3089,13 +3029,55 @@ class GatheringMapController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE
 
   /**
    * Load Google Maps Script dynamically with marker library
+   * Memoized to prevent concurrent script injections and share a single Promise
    */
   loadGoogleMapsScript() {
-    return new Promise((resolve, reject) => {
-      if (typeof google !== 'undefined' && google.maps) {
-        resolve();
-        return;
-      }
+    // Return existing promise if already loading
+    if (googleMapsLoaderPromise) {
+      console.log("Google Maps already loading, returning existing promise");
+      return googleMapsLoaderPromise;
+    }
+
+    // Check if already loaded
+    if (typeof google !== 'undefined' && google.maps) {
+      console.log("Google Maps already loaded");
+      return Promise.resolve();
+    }
+
+    // Check if script tag already exists to prevent duplicates
+    const existingScript = document.querySelector('script[src*="maps.googleapis.com/maps/api/js"]');
+    if (existingScript) {
+      console.log("Google Maps script already in DOM, waiting for load");
+      // Script exists but may not be loaded yet, create a promise to wait for it
+      googleMapsLoaderPromise = new Promise((resolve, reject) => {
+        // Check if it's already loaded
+        if (typeof google !== 'undefined' && google.maps) {
+          resolve();
+          googleMapsLoaderPromise = null;
+          return;
+        }
+
+        // Wait for the existing script to load
+        const checkInterval = setInterval(() => {
+          if (typeof google !== 'undefined' && google.maps) {
+            clearInterval(checkInterval);
+            resolve();
+            googleMapsLoaderPromise = null;
+          }
+        }, 100);
+
+        // Timeout after 10 seconds
+        setTimeout(() => {
+          clearInterval(checkInterval);
+          googleMapsLoaderPromise = null;
+          reject(new Error('Timeout waiting for Google Maps to load'));
+        }, 10000);
+      });
+      return googleMapsLoaderPromise;
+    }
+
+    // Create and assign the promise once
+    googleMapsLoaderPromise = new Promise((resolve, reject) => {
       const script = document.createElement('script');
       const apiKey = this.apiKeyValue || '';
       const keyParam = apiKey ? `key=${apiKey}&` : '';
@@ -3104,12 +3086,25 @@ class GatheringMapController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE
       script.async = true;
       script.defer = true;
       window.initGoogleMapsCallback = () => {
+        console.log("Google Maps loaded successfully");
+        // Cleanup global callback
         delete window.initGoogleMapsCallback;
+        // Reset module-scoped promise on success
+        googleMapsLoaderPromise = null;
         resolve();
       };
-      script.onerror = () => reject(new Error('Failed to load Google Maps script'));
+      script.onerror = error => {
+        console.error("Failed to load Google Maps script");
+        // Cleanup global callback
+        delete window.initGoogleMapsCallback;
+        // Reset module-scoped promise on failure to allow retries
+        googleMapsLoaderPromise = null;
+        reject(new Error('Failed to load Google Maps script'));
+      };
       document.head.appendChild(script);
+      console.log("Google Maps script appended to DOM");
     });
+    return googleMapsLoaderPromise;
   }
 
   /**
@@ -3314,7 +3309,7 @@ __webpack_require__.r(__webpack_exports__);
  * Provides immediate feedback on name availability and description length.
  */
 class GatheringTypeFormController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
-  static targets = ["name", "description", "nameError", "descriptionCount", "submitButton"];
+  static targets = ["name", "description", "nameError", "descriptionCount", "descriptionError", "submitButton"];
   static values = {
     maxDescriptionLength: {
       type: Number,
@@ -3329,6 +3324,8 @@ class GatheringTypeFormController extends _hotwired_stimulus__WEBPACK_IMPORTED_M
   connect() {
     if (this.hasDescriptionTarget) {
       this.updateDescriptionCount();
+      // Set maxLength attribute to prevent typing beyond limit
+      this.descriptionTarget.setAttribute('maxlength', this.maxDescriptionLengthValue);
     }
   }
 
@@ -3358,8 +3355,14 @@ class GatheringTypeFormController extends _hotwired_stimulus__WEBPACK_IMPORTED_M
    * Update description character count
    */
   updateDescriptionCount() {
-    if (!this.hasDescriptionTarget || !this.hasDescriptionCountTarget) return;
-    const length = this.descriptionTarget.value.length;
+    if (!this.hasDescriptionTarget || !this.hasDescriptionCountTarget) return true;
+    let length = this.descriptionTarget.value.length;
+
+    // Prevent typing beyond max length
+    if (length > this.maxDescriptionLengthValue) {
+      this.descriptionTarget.value = this.descriptionTarget.value.substring(0, this.maxDescriptionLengthValue);
+      length = this.maxDescriptionLengthValue;
+    }
     const remaining = this.maxDescriptionLengthValue - length;
     this.descriptionCountTarget.textContent = `${length} / ${this.maxDescriptionLengthValue} characters`;
     if (remaining < 50) {
@@ -3372,9 +3375,77 @@ class GatheringTypeFormController extends _hotwired_stimulus__WEBPACK_IMPORTED_M
     if (length > this.maxDescriptionLengthValue) {
       this.descriptionCountTarget.classList.add('text-danger');
       this.descriptionCountTarget.classList.remove('text-warning');
+      this.showDescriptionError(`Description cannot exceed ${this.maxDescriptionLengthValue} characters`);
+      this.disableSubmit();
       return false;
+    } else {
+      this.descriptionCountTarget.classList.remove('text-danger');
+      this.clearDescriptionError();
+      this.enableSubmit();
+      return true;
     }
-    return true;
+  }
+
+  /**
+   * Show description error message
+   */
+  showDescriptionError(message) {
+    if (this.hasDescriptionTarget) {
+      this.descriptionTarget.classList.add('is-invalid');
+      this.descriptionTarget.setAttribute('aria-invalid', 'true');
+    }
+
+    // Create or update error element if it doesn't exist
+    let errorElement;
+    if (this.hasDescriptionErrorTarget) {
+      errorElement = this.descriptionErrorTarget;
+    } else {
+      // Create error element dynamically
+      errorElement = document.createElement('div');
+      errorElement.className = 'invalid-feedback';
+      errorElement.id = 'description-error';
+      errorElement.setAttribute('data-gathering-type-form-target', 'descriptionError');
+      this.descriptionTarget.parentElement.appendChild(errorElement);
+    }
+    errorElement.textContent = message;
+    errorElement.classList.remove('d-none');
+    errorElement.style.display = 'block';
+    if (this.hasDescriptionTarget) {
+      this.descriptionTarget.setAttribute('aria-describedby', 'description-error');
+    }
+  }
+
+  /**
+   * Clear description error message
+   */
+  clearDescriptionError() {
+    if (this.hasDescriptionTarget) {
+      this.descriptionTarget.classList.remove('is-invalid');
+      this.descriptionTarget.removeAttribute('aria-invalid');
+      this.descriptionTarget.removeAttribute('aria-describedby');
+    }
+    if (this.hasDescriptionErrorTarget) {
+      this.descriptionErrorTarget.classList.add('d-none');
+      this.descriptionErrorTarget.style.display = 'none';
+    }
+  }
+
+  /**
+   * Disable submit button
+   */
+  disableSubmit() {
+    if (this.hasSubmitButtonTarget) {
+      this.submitButtonTarget.disabled = true;
+    }
+  }
+
+  /**
+   * Enable submit button
+   */
+  enableSubmit() {
+    if (this.hasSubmitButtonTarget) {
+      this.submitButtonTarget.disabled = false;
+    }
   }
 
   /**
@@ -3425,9 +3496,19 @@ class GatheringTypeFormController extends _hotwired_stimulus__WEBPACK_IMPORTED_M
    * Show validation summary
    */
   showValidationSummary() {
+    // Check for existing alert and clean it up
+    const existingAlert = this.element.querySelector('.alert.alert-danger.validation-summary');
+    if (existingAlert) {
+      // Clear any pending timeout
+      if (existingAlert.dataset.timeoutId) {
+        clearTimeout(parseInt(existingAlert.dataset.timeoutId));
+      }
+      existingAlert.remove();
+    }
+
     // Flash a message at the top of the form
     const alert = document.createElement('div');
-    alert.className = 'alert alert-danger alert-dismissible fade show';
+    alert.className = 'alert alert-danger alert-dismissible fade show validation-summary';
     alert.role = 'alert';
     alert.innerHTML = `
             <strong>Validation Error:</strong> Please correct the errors below.
@@ -3435,10 +3516,28 @@ class GatheringTypeFormController extends _hotwired_stimulus__WEBPACK_IMPORTED_M
         `;
     this.element.prepend(alert);
 
-    // Auto-dismiss after 5 seconds
-    setTimeout(() => {
+    // Store timeout ID for cleanup
+    const timeoutId = setTimeout(() => {
       alert.remove();
     }, 5000);
+    alert.dataset.timeoutId = timeoutId.toString();
+
+    // Handle manual close button click
+    const closeButton = alert.querySelector('.btn-close');
+    if (closeButton) {
+      closeButton.addEventListener('click', () => {
+        if (alert.dataset.timeoutId) {
+          clearTimeout(parseInt(alert.dataset.timeoutId));
+        }
+      });
+    }
+
+    // Handle Bootstrap dismissal event
+    alert.addEventListener('closed.bs.alert', () => {
+      if (alert.dataset.timeoutId) {
+        clearTimeout(parseInt(alert.dataset.timeoutId));
+      }
+    });
   }
 }
 
@@ -3737,6 +3836,7 @@ class GatheringsCalendarController extends _hotwired_stimulus__WEBPACK_IMPORTED_
   async toggleAttendance(event) {
     const button = event.currentTarget;
     const gatheringId = button.dataset.gatheringId;
+    const attendanceId = button.dataset.attendanceId;
     const isCurrentlyAttending = button.dataset.attending === 'true';
     if (!gatheringId) {
       console.error('No gathering ID found');
@@ -3748,33 +3848,66 @@ class GatheringsCalendarController extends _hotwired_stimulus__WEBPACK_IMPORTED_
     button.disabled = true;
     button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Processing...';
     try {
-      const url = isCurrentlyAttending ? `/gathering-attendances/edit/${gatheringId}` : `/gathering-attendances/add`;
-      const method = isCurrentlyAttending ? 'PUT' : 'POST';
-      const body = new FormData();
-      body.append('gathering_id', gatheringId);
-      body.append('status', 'attending');
-      const response = await fetch(url, {
+      let url, method, body;
+      if (isCurrentlyAttending) {
+        // Remove attendance - use DELETE request
+        if (!attendanceId) {
+          throw new Error('No attendance ID found for removal');
+        }
+        url = `/gathering-attendances/delete/${attendanceId}`;
+        method = 'DELETE';
+        // No body needed for DELETE
+      } else {
+        // Add attendance - use POST request
+        url = `/gathering-attendances/add`;
+        method = 'POST';
+        body = new FormData();
+        body.append('gathering_id', gatheringId);
+        body.append('status', 'attending');
+      }
+      const fetchOptions = {
         method: method,
         headers: {
           'X-Requested-With': 'XMLHttpRequest',
           'X-CSRF-Token': this.getCsrfToken()
-        },
-        body: body
-      });
+        }
+      };
+
+      // Add body only for POST requests
+      if (body) {
+        fetchOptions.body = body;
+      }
+      const response = await fetch(url, fetchOptions);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data = await response.json();
 
-      // Update UI
+      // Update UI based on action
       if (data.success) {
-        button.dataset.attending = 'true';
-        button.classList.remove('btn-outline-success');
-        button.classList.add('btn-success');
-        button.innerHTML = '<i class="bi bi-check-circle"></i> Attending';
+        if (isCurrentlyAttending) {
+          // Removed attendance
+          button.dataset.attending = 'false';
+          button.removeAttribute('data-attendance-id');
+          button.classList.remove('btn-success');
+          button.classList.add('btn-outline-success');
+          button.innerHTML = '<i class="bi bi-calendar-check"></i> Attend';
 
-        // Show success message
-        this.showToast('Success!', 'Your attendance has been recorded.', 'success');
+          // Show success message
+          this.showToast('Success!', 'Your attendance has been removed.', 'success');
+        } else {
+          // Added attendance
+          button.dataset.attending = 'true';
+          if (data.attendance_id) {
+            button.dataset.attendanceId = data.attendance_id;
+          }
+          button.classList.remove('btn-outline-success');
+          button.classList.add('btn-success');
+          button.innerHTML = '<i class="bi bi-check-circle"></i> Attending';
+
+          // Show success message
+          this.showToast('Success!', 'Your attendance has been recorded.', 'success');
+        }
 
         // Reload page to update calendar display
         setTimeout(() => {
@@ -4712,6 +4845,8 @@ class MemberMobileCardMenu extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0
   initialize() {
     this.menuOpen = false;
     this.items = [];
+    // Create bound handler for outside clicks
+    this._handleOutsideClick = this.handleOutsideClick.bind(this);
   }
 
   /**
@@ -4722,6 +4857,10 @@ class MemberMobileCardMenu extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0
     console.log("MemberMobileCardMenu connected");
     this.loadMenuItems();
     this.renderMenu();
+
+    // Register outside click handler
+    document.addEventListener('click', this._handleOutsideClick);
+    document.addEventListener('touchstart', this._handleOutsideClick);
   }
 
   /**
@@ -4887,7 +5026,11 @@ class MemberMobileCardMenu extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0
    * Cleans up event listeners
    */
   disconnect() {
-    // Cleanup if needed
+    // Remove outside click handlers
+    if (this._handleOutsideClick) {
+      document.removeEventListener('click', this._handleOutsideClick);
+      document.removeEventListener('touchstart', this._handleOutsideClick);
+    }
     console.log("MemberMobileCardMenu disconnected");
   }
 }
@@ -5236,6 +5379,10 @@ class MemberMobileCardPWA extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0_
   static values = {
     swUrl: String
   };
+  initialize() {
+    this.boundUpdateOnlineStatus = this.updateOnlineStatus.bind(this);
+    this.boundManageOnlineStatus = this.manageOnlineStatus.bind(this);
+  }
 
   /**
    * Handle URL cache target connection
@@ -5288,8 +5435,8 @@ class MemberMobileCardPWA extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0_
    */
   manageOnlineStatus() {
     this.updateOnlineStatus();
-    window.addEventListener('online', this.updateOnlineStatus.bind(this));
-    window.addEventListener('offline', this.updateOnlineStatus.bind(this));
+    window.addEventListener('online', this.boundUpdateOnlineStatus);
+    window.addEventListener('offline', this.boundUpdateOnlineStatus);
 
     // Register service worker with a slight delay to ensure all controllers are connected
     setTimeout(() => {
@@ -5347,7 +5494,9 @@ class MemberMobileCardPWA extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0_
     if ('serviceWorker' in navigator) {
       // Start PWA initialization immediately or on DOMContentLoaded/load
       if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', this.manageOnlineStatus.bind(this));
+        document.addEventListener('DOMContentLoaded', this.boundManageOnlineStatus, {
+          once: true
+        });
       } else {
         // readyState is 'interactive' or 'complete', safe to initialize
         this.manageOnlineStatus();
@@ -5357,8 +5506,8 @@ class MemberMobileCardPWA extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0_
       // Fall back to basic online/offline detection without PWA features
       console.warn('Service Workers not available - PWA features disabled. Access via localhost or HTTPS for full functionality.');
       this.updateOnlineStatus();
-      window.addEventListener('online', this.updateOnlineStatus.bind(this));
-      window.addEventListener('offline', this.updateOnlineStatus.bind(this));
+      window.addEventListener('online', this.boundUpdateOnlineStatus);
+      window.addEventListener('offline', this.boundUpdateOnlineStatus);
 
       // Dispatch PWA ready event even without Service Workers
       // This allows the profile controller to load data
@@ -5369,7 +5518,7 @@ class MemberMobileCardPWA extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0_
         this.element.dispatchEvent(event);
       }, 100);
     }
-    setInterval(this.refreshPageIfOnline, 300000);
+    this.refreshIntervalId = setInterval(() => this.refreshPageIfOnline(), 300000);
   }
 
   /**
@@ -5377,9 +5526,16 @@ class MemberMobileCardPWA extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0_
    * Cleans up event listeners to prevent memory leaks
    */
   disconnect() {
-    window.addEventListener('load', this.manageOnlineStatus.bind(this));
-    window.removeEventListener('online', this.updateOnlineStatus.bind(this));
-    window.removeEventListener('offline', this.updateOnlineStatus.bind(this));
+    if (this.refreshIntervalId) {
+      clearInterval(this.refreshIntervalId);
+      this.refreshIntervalId = null;
+    }
+    document.removeEventListener('DOMContentLoaded', this.boundManageOnlineStatus, {
+      once: true
+    });
+    window.removeEventListener('online', this.boundUpdateOnlineStatus);
+    window.removeEventListener('offline', this.boundUpdateOnlineStatus);
+    window.removeEventListener('load', this.boundManageOnlineStatus);
   }
 }
 if (!window.Controllers) {
@@ -6830,11 +6986,11 @@ class VariableInsertController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODU
       console.warn('No variable specified for insertion');
       return;
     }
-    const field = this.fieldTarget;
-    if (!field) {
+    if (!this.hasFieldTarget) {
       console.warn('No field target found');
       return;
     }
+    const field = this.fieldTarget;
 
     // Get current cursor position
     const start = field.selectionStart;
@@ -44257,6 +44413,16 @@ class MobileRequestAuthController extends _hotwired_stimulus__WEBPACK_IMPORTED_M
   };
 
   /**
+   * Initialize controller - cache bound event handlers
+   */
+  initialize() {
+    // Cache bound handlers for proper cleanup
+    this._onOnline = this.checkOnlineStatus.bind(this);
+    this._onOffline = this.checkOnlineStatus.bind(this);
+    this._onSubmit = this.handleSubmit.bind(this);
+  }
+
+  /**
    * Initialize controller and check online status
    */
   connect() {
@@ -44265,12 +44431,12 @@ class MobileRequestAuthController extends _hotwired_stimulus__WEBPACK_IMPORTED_M
     // Check online status on load
     this.checkOnlineStatus();
 
-    // Listen for online/offline events
-    window.addEventListener('online', this.checkOnlineStatus.bind(this));
-    window.addEventListener('offline', this.checkOnlineStatus.bind(this));
+    // Listen for online/offline events using cached handlers
+    window.addEventListener('online', this._onOnline);
+    window.addEventListener('offline', this._onOffline);
 
-    // Prevent form submission if offline
-    this.formTarget.addEventListener('submit', this.handleSubmit.bind(this));
+    // Prevent form submission if offline using cached handler
+    this.formTarget.addEventListener('submit', this._onSubmit);
 
     // Initial validation state
     this.validateForm();
@@ -44280,8 +44446,12 @@ class MobileRequestAuthController extends _hotwired_stimulus__WEBPACK_IMPORTED_M
    * Cleanup event listeners
    */
   disconnect() {
-    window.removeEventListener('online', this.checkOnlineStatus.bind(this));
-    window.removeEventListener('offline', this.checkOnlineStatus.bind(this));
+    // Remove listeners using same cached handlers
+    window.removeEventListener('online', this._onOnline);
+    window.removeEventListener('offline', this._onOffline);
+    if (this.hasFormTarget) {
+      this.formTarget.removeEventListener('submit', this._onSubmit);
+    }
   }
 
   /**
@@ -44306,8 +44476,9 @@ class MobileRequestAuthController extends _hotwired_stimulus__WEBPACK_IMPORTED_M
       this.onlineStatusTarget.hidden = true;
       this.onlineStatusTarget.classList.remove('offline');
 
-      // Re-enable activity select
+      // Re-enable form elements
       this.activitySelectTarget.disabled = false;
+      this.approverSelectTarget.disabled = false;
 
       // Restore previous state
       this.validateForm();
@@ -45682,9 +45853,10 @@ class AwardsRecommendationAddForm extends _hotwired_stimulus__WEBPACK_IMPORTED_M
     this.notFoundTarget.disabled = true;
     this.reasonTarget.value = "";
     this.personToNotifyTarget.value = "";
-    this.eventsTargets.forEach(element => {
-      element.checked = false;
-    });
+    if (this.hasGatheringsTarget) {
+      this.gatheringsTarget.value = "";
+      this.gatheringsTarget.disabled = true;
+    }
   }
 }
 // add to window.Controllers with a name of the controller
@@ -52415,7 +52587,7 @@ window.Controllers["waiver-upload-wizard"] = WaiverUploadWizardController;
 },
 /******/ function(__webpack_require__) { // webpackRuntimeModules
 /******/ var __webpack_exec__ = function(moduleId) { return __webpack_require__(__webpack_require__.s = moduleId); }
-/******/ __webpack_require__.O(0, ["js/core","css/app","css/waivers","css/dashboard","css/cover","css/signin","css/waiver-upload"], function() { return __webpack_exec__("./assets/js/controllers/activity-toggle-controller.js"), __webpack_exec__("./assets/js/controllers/activity-waiver-manager-controller.js"), __webpack_exec__("./assets/js/controllers/add-activity-modal-controller.js"), __webpack_exec__("./assets/js/controllers/app-setting-form-controller.js"), __webpack_exec__("./assets/js/controllers/auto-complete-controller.js"), __webpack_exec__("./assets/js/controllers/branch-links-controller.js"), __webpack_exec__("./assets/js/controllers/csv-download-controller.js"), __webpack_exec__("./assets/js/controllers/delayed-forward-controller.js"), __webpack_exec__("./assets/js/controllers/delete-confirmation-controller.js"), __webpack_exec__("./assets/js/controllers/detail-tabs-controller.js"), __webpack_exec__("./assets/js/controllers/edit-activity-description-controller.js"), __webpack_exec__("./assets/js/controllers/email-template-editor-controller.js"), __webpack_exec__("./assets/js/controllers/email-template-form-controller.js"), __webpack_exec__("./assets/js/controllers/file-size-validator-controller.js"), __webpack_exec__("./assets/js/controllers/filter-grid-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-clone-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-form-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-location-autocomplete-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-map-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-type-form-controller.js"), __webpack_exec__("./assets/js/controllers/gatherings-calendar-controller.js"), __webpack_exec__("./assets/js/controllers/guifier-controller.js"), __webpack_exec__("./assets/js/controllers/image-preview-controller.js"), __webpack_exec__("./assets/js/controllers/kanban-controller.js"), __webpack_exec__("./assets/js/controllers/markdown-editor-controller.js"), __webpack_exec__("./assets/js/controllers/member-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-menu-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-pwa-controller.js"), __webpack_exec__("./assets/js/controllers/member-unique-email-controller.js"), __webpack_exec__("./assets/js/controllers/member-verify-form-controller.js"), __webpack_exec__("./assets/js/controllers/mobile-hub-controller.js"), __webpack_exec__("./assets/js/controllers/modal-opener-controller.js"), __webpack_exec__("./assets/js/controllers/nav-bar-controller.js"), __webpack_exec__("./assets/js/controllers/outlet-button-controller.js"), __webpack_exec__("./assets/js/controllers/permission-add-role-controller.js"), __webpack_exec__("./assets/js/controllers/permission-manage-policies-controller.js"), __webpack_exec__("./assets/js/controllers/revoke-form-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-member-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-permission-controller.js"), __webpack_exec__("./assets/js/controllers/select-all-switch-list-controller.js"), __webpack_exec__("./assets/js/controllers/session-extender-controller.js"), __webpack_exec__("./assets/js/controllers/turbo-modal-controller.js"), __webpack_exec__("./assets/js/controllers/variable-insert-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/gw-sharing-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/mobile-request-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/renew-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/request-auth-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/award-form-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-add-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-bulk-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-quick-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-table-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/recommendation-kanban-controller.js"), __webpack_exec__("./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/assign-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/edit-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/office-form-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-search-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-table-controller.js"), __webpack_exec__("./plugins/Template/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/add-requirement-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/camera-capture-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/retention-policy-input-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-template-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-wizard-controller.js"), __webpack_exec__("./assets/css/app.css"), __webpack_exec__("./assets/css/signin.css"), __webpack_exec__("./assets/css/cover.css"), __webpack_exec__("./assets/css/dashboard.css"), __webpack_exec__("./plugins/Waivers/assets/css/waivers.css"), __webpack_exec__("./plugins/Waivers/assets/css/waiver-upload.css"); });
+/******/ __webpack_require__.O(0, ["js/core","css/app","css/waivers","css/dashboard","css/cover","css/signin","css/waiver-upload"], function() { return __webpack_exec__("./assets/js/controllers/activity-toggle-controller.js"), __webpack_exec__("./assets/js/controllers/activity-waiver-manager-controller.js"), __webpack_exec__("./assets/js/controllers/add-activity-modal-controller.js"), __webpack_exec__("./assets/js/controllers/app-setting-form-controller.js"), __webpack_exec__("./assets/js/controllers/auto-complete-controller.js"), __webpack_exec__("./assets/js/controllers/base-gathering-form-controller.js"), __webpack_exec__("./assets/js/controllers/branch-links-controller.js"), __webpack_exec__("./assets/js/controllers/csv-download-controller.js"), __webpack_exec__("./assets/js/controllers/delayed-forward-controller.js"), __webpack_exec__("./assets/js/controllers/delete-confirmation-controller.js"), __webpack_exec__("./assets/js/controllers/detail-tabs-controller.js"), __webpack_exec__("./assets/js/controllers/edit-activity-description-controller.js"), __webpack_exec__("./assets/js/controllers/email-template-editor-controller.js"), __webpack_exec__("./assets/js/controllers/email-template-form-controller.js"), __webpack_exec__("./assets/js/controllers/file-size-validator-controller.js"), __webpack_exec__("./assets/js/controllers/filter-grid-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-clone-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-form-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-location-autocomplete-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-map-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-type-form-controller.js"), __webpack_exec__("./assets/js/controllers/gatherings-calendar-controller.js"), __webpack_exec__("./assets/js/controllers/guifier-controller.js"), __webpack_exec__("./assets/js/controllers/image-preview-controller.js"), __webpack_exec__("./assets/js/controllers/kanban-controller.js"), __webpack_exec__("./assets/js/controllers/markdown-editor-controller.js"), __webpack_exec__("./assets/js/controllers/member-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-menu-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-pwa-controller.js"), __webpack_exec__("./assets/js/controllers/member-unique-email-controller.js"), __webpack_exec__("./assets/js/controllers/member-verify-form-controller.js"), __webpack_exec__("./assets/js/controllers/mobile-hub-controller.js"), __webpack_exec__("./assets/js/controllers/modal-opener-controller.js"), __webpack_exec__("./assets/js/controllers/nav-bar-controller.js"), __webpack_exec__("./assets/js/controllers/outlet-button-controller.js"), __webpack_exec__("./assets/js/controllers/permission-add-role-controller.js"), __webpack_exec__("./assets/js/controllers/permission-manage-policies-controller.js"), __webpack_exec__("./assets/js/controllers/revoke-form-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-member-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-permission-controller.js"), __webpack_exec__("./assets/js/controllers/select-all-switch-list-controller.js"), __webpack_exec__("./assets/js/controllers/session-extender-controller.js"), __webpack_exec__("./assets/js/controllers/turbo-modal-controller.js"), __webpack_exec__("./assets/js/controllers/variable-insert-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/gw-sharing-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/mobile-request-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/renew-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/request-auth-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/award-form-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-add-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-bulk-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-quick-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-table-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/recommendation-kanban-controller.js"), __webpack_exec__("./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/assign-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/edit-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/office-form-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-search-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-table-controller.js"), __webpack_exec__("./plugins/Template/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/add-requirement-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/camera-capture-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/retention-policy-input-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-template-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-wizard-controller.js"), __webpack_exec__("./assets/css/app.css"), __webpack_exec__("./assets/css/signin.css"), __webpack_exec__("./assets/css/cover.css"), __webpack_exec__("./assets/css/dashboard.css"), __webpack_exec__("./plugins/Waivers/assets/css/waivers.css"), __webpack_exec__("./plugins/Waivers/assets/css/waiver-upload.css"); });
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);

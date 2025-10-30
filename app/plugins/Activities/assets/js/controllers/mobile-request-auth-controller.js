@@ -26,6 +26,16 @@ class MobileRequestAuthController extends Controller {
     }
 
     /**
+     * Initialize controller - cache bound event handlers
+     */
+    initialize() {
+        // Cache bound handlers for proper cleanup
+        this._onOnline = this.checkOnlineStatus.bind(this)
+        this._onOffline = this.checkOnlineStatus.bind(this)
+        this._onSubmit = this.handleSubmit.bind(this)
+    }
+
+    /**
      * Initialize controller and check online status
      */
     connect() {
@@ -34,12 +44,12 @@ class MobileRequestAuthController extends Controller {
         // Check online status on load
         this.checkOnlineStatus()
         
-        // Listen for online/offline events
-        window.addEventListener('online', this.checkOnlineStatus.bind(this))
-        window.addEventListener('offline', this.checkOnlineStatus.bind(this))
+        // Listen for online/offline events using cached handlers
+        window.addEventListener('online', this._onOnline)
+        window.addEventListener('offline', this._onOffline)
         
-        // Prevent form submission if offline
-        this.formTarget.addEventListener('submit', this.handleSubmit.bind(this))
+        // Prevent form submission if offline using cached handler
+        this.formTarget.addEventListener('submit', this._onSubmit)
         
         // Initial validation state
         this.validateForm()
@@ -49,8 +59,13 @@ class MobileRequestAuthController extends Controller {
      * Cleanup event listeners
      */
     disconnect() {
-        window.removeEventListener('online', this.checkOnlineStatus.bind(this))
-        window.removeEventListener('offline', this.checkOnlineStatus.bind(this))
+        // Remove listeners using same cached handlers
+        window.removeEventListener('online', this._onOnline)
+        window.removeEventListener('offline', this._onOffline)
+        
+        if (this.hasFormTarget) {
+            this.formTarget.removeEventListener('submit', this._onSubmit)
+        }
     }
 
     /**
@@ -76,8 +91,9 @@ class MobileRequestAuthController extends Controller {
             this.onlineStatusTarget.hidden = true
             this.onlineStatusTarget.classList.remove('offline')
             
-            // Re-enable activity select
+            // Re-enable form elements
             this.activitySelectTarget.disabled = false
+            this.approverSelectTarget.disabled = false
             
             // Restore previous state
             this.validateForm()

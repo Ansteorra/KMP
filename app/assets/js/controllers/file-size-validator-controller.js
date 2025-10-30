@@ -160,7 +160,7 @@ class FileSizeValidatorController extends Controller {
             // Dispatch valid event
             this.dispatch('valid', { 
                 detail: { 
-                    files: files.map(f => ({ name: f.name, size: f.size })),
+                    files: allFiles.map(f => ({ name: f.name, size: f.size })),
                     totalSize: validation.totalSize 
                 } 
             })

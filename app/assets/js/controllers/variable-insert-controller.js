@@ -32,11 +32,12 @@ class VariableInsertController extends Controller {
             return
         }
         
-        const field = this.fieldTarget
-        if (!field) {
+        if (!this.hasFieldTarget) {
             console.warn('No field target found')
             return
         }
+        
+        const field = this.fieldTarget
         
         // Get current cursor position
         const start = field.selectionStart

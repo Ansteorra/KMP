@@ -18,9 +18,7 @@ $this->KMP->endBlock(); ?>
     </div>
     <div class="col text-end">
         <?php
-        $warrantPeriodsTable = \Cake\ORM\TableRegistry::getTableLocator()->get("WarrantPeriods");
-        $tempWarrantPeriod = $warrantPeriodsTable->newEmptyEntity();
-        if ($user->checkCan("add", $tempWarrantPeriod)) :
+        if ($user->checkCan("add", "WarrantPeriods")) :
         ?>
             <button type="button" class="btn btn-primary btn-sm bi bi-plus-circle" data-bs-toggle="modal"
                 data-bs-target="#addModal"> Add Warrant Period</button>

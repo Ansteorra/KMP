@@ -4,6 +4,23 @@ declare(strict_types=1);
 
 use Migrations\BaseMigration;
 
+/**
+ * CreateDocuments Migration
+ * 
+ * Creates the documents table for storing file metadata and polymorphic associations.
+ * 
+ * IMPORTANT AUDIT FIELD SEMANTICS:
+ * - uploaded_by: NULLABLE - The member who physically uploaded the file. Set to NULL if
+ *   the member is deleted (via SET_NULL foreign key). This allows member deletion without
+ *   cascading to documents while preserving upload history where possible.
+ * - created_by: NULLABLE - The member who created the database record. May be NULL if
+ *   the record was created by a system process (e.g., automated migrations, imports).
+ * - modified_by: NULLABLE - The member who last modified the record. May be NULL if
+ *   modified by a system process.
+ * 
+ * All audit fields use SET_NULL on member deletion to preserve document records while
+ * allowing member management flexibility.
+ */
 class CreateDocuments extends BaseMigration
 {
     public bool $autoId = false;
@@ -93,12 +110,13 @@ class CreateDocuments extends BaseMigration
             'comment' => 'JSON metadata (conversion info, etc.)'
         ]);
 
-        // Who uploaded this document
+        // Audit fields - see class docblock for important semantic distinctions
+        // uploaded_by: NULLABLE - Physical file uploader (NULL if member deleted)
         $table->addColumn('uploaded_by', 'integer', [
             'default' => null,
             'limit' => 11,
-            'null' => false,
-            'comment' => 'Member ID who uploaded the document'
+            'null' => true,
+            'comment' => 'Member ID who uploaded the file (nullable - NULL if member deleted)'
         ]);
 
         $table->addColumn("modified", "datetime", [
@@ -111,15 +129,19 @@ class CreateDocuments extends BaseMigration
             "limit" => null,
             "null" => false,
         ]);
+        // created_by: NULLABLE - Database record creator (may be NULL for system processes)
         $table->addColumn("created_by", "integer", [
             "default" => null,
             "limit" => null,
             "null" => true,
+            'comment' => 'Member ID who created the record (nullable - may be system process)'
         ]);
+        // modified_by: NULLABLE - Database record modifier (may be NULL for system processes)
         $table->addColumn("modified_by", "integer", [
             "default" => null,
             "limit" => null,
             "null" => true,
+            'comment' => 'Member ID who last modified the record (nullable - may be system process)'
         ]);
         $table->addColumn("deleted", "datetime", [
             "default" => null,
@@ -135,19 +157,19 @@ class CreateDocuments extends BaseMigration
         $table->addIndex(['uploaded_by'], ['name' => 'idx_documents_uploaded_by']);
         $table->addIndex(['created'], ['name' => 'idx_documents_created']);
 
-        // Foreign keys
+        // Foreign keys - all use SET_NULL to allow member deletion without cascading to documents
         $table->addForeignKey('uploaded_by', 'members', 'id', [
-            'delete' => 'NO_ACTION',
+            'delete' => 'SET_NULL',
             'update' => 'NO_ACTION',
             'constraint' => 'fk_documents_uploaded_by'
         ]);
         $table->addForeignKey('created_by', 'members', 'id', [
-            'delete' => 'NO_ACTION',
+            'delete' => 'SET_NULL',
             'update' => 'NO_ACTION',
             'constraint' => 'fk_documents_created_by'
         ]);
         $table->addForeignKey('modified_by', 'members', 'id', [
-            'delete' => 'NO_ACTION',
+            'delete' => 'SET_NULL',
             'update' => 'NO_ACTION',
             'constraint' => 'fk_documents_modified_by'
         ]);

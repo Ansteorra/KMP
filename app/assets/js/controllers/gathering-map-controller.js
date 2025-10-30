@@ -1,5 +1,8 @@
 import { Controller } from "@hotwired/stimulus"
 
+// Module-scoped promise to memoize Google Maps loading and prevent concurrent script injections
+let googleMapsLoaderPromise = null
+
 /**
  * GatheringMapController
  * 
@@ -87,14 +90,56 @@ class GatheringMapController extends Controller {
     
     /**
      * Load Google Maps Script dynamically with marker library
+     * Memoized to prevent concurrent script injections and share a single Promise
      */
     loadGoogleMapsScript() {
-        return new Promise((resolve, reject) => {
-            if (typeof google !== 'undefined' && google.maps) {
-                resolve()
-                return
-            }
+        // Return existing promise if already loading
+        if (googleMapsLoaderPromise) {
+            console.log("Google Maps already loading, returning existing promise")
+            return googleMapsLoaderPromise
+        }
+        
+        // Check if already loaded
+        if (typeof google !== 'undefined' && google.maps) {
+            console.log("Google Maps already loaded")
+            return Promise.resolve()
+        }
+        
+        // Check if script tag already exists to prevent duplicates
+        const existingScript = document.querySelector('script[src*="maps.googleapis.com/maps/api/js"]')
+        if (existingScript) {
+            console.log("Google Maps script already in DOM, waiting for load")
+            // Script exists but may not be loaded yet, create a promise to wait for it
+            googleMapsLoaderPromise = new Promise((resolve, reject) => {
+                // Check if it's already loaded
+                if (typeof google !== 'undefined' && google.maps) {
+                    resolve()
+                    googleMapsLoaderPromise = null
+                    return
+                }
+                
+                // Wait for the existing script to load
+                const checkInterval = setInterval(() => {
+                    if (typeof google !== 'undefined' && google.maps) {
+                        clearInterval(checkInterval)
+                        resolve()
+                        googleMapsLoaderPromise = null
+                    }
+                }, 100)
+                
+                // Timeout after 10 seconds
+                setTimeout(() => {
+                    clearInterval(checkInterval)
+                    googleMapsLoaderPromise = null
+                    reject(new Error('Timeout waiting for Google Maps to load'))
+                }, 10000)
+            })
             
+            return googleMapsLoaderPromise
+        }
+        
+        // Create and assign the promise once
+        googleMapsLoaderPromise = new Promise((resolve, reject) => {
             const script = document.createElement('script')
             const apiKey = this.apiKeyValue || ''
             const keyParam = apiKey ? `key=${apiKey}&` : ''
@@ -104,13 +149,28 @@ class GatheringMapController extends Controller {
             script.defer = true
             
             window.initGoogleMapsCallback = () => {
+                console.log("Google Maps loaded successfully")
+                // Cleanup global callback
                 delete window.initGoogleMapsCallback
+                // Reset module-scoped promise on success
+                googleMapsLoaderPromise = null
                 resolve()
             }
             
-            script.onerror = () => reject(new Error('Failed to load Google Maps script'))
+            script.onerror = (error) => {
+                console.error("Failed to load Google Maps script")
+                // Cleanup global callback
+                delete window.initGoogleMapsCallback
+                // Reset module-scoped promise on failure to allow retries
+                googleMapsLoaderPromise = null
+                reject(new Error('Failed to load Google Maps script'))
+            }
+            
             document.head.appendChild(script)
+            console.log("Google Maps script appended to DOM")
         })
+        
+        return googleMapsLoaderPromise
     }
     
     /**

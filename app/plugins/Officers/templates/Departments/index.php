@@ -16,9 +16,7 @@ $this->KMP->endBlock(); ?>
     </div>
     <div class="col text-end">
         <?php
-        $departmentsTable = \Cake\ORM\TableRegistry::getTableLocator()->get("Officers.Departments");
-        $tempDepartment = $departmentsTable->newEmptyEntity();
-        if ($user->checkCan("add", $tempDepartment)) :
+        if ($user->checkCan("add", "Officers.Departments")) :
         ?>
             <?= $this->Html->link(
                 ' Add Department',

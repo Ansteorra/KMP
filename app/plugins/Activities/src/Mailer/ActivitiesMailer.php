@@ -66,7 +66,7 @@ class ActivitiesMailer extends Mailer
         string $status,
         string $memberScaName,
         int $memberId,
-        string $ApproverScaName,
+        string $approverScaName,
         string $nextApproverScaName,
         string $activityName,
     ) {
@@ -84,7 +84,7 @@ class ActivitiesMailer extends Mailer
             ->setSubject("Update on Authorization Request")
             ->setViewVars([
                 "memberScaName" => $memberScaName,
-                "approverScaName" => $ApproverScaName,
+                "approverScaName" => $approverScaName,
                 "status" => $status,
                 "activityName" => $activityName,
                 "memberCardUrl" => $url,

@@ -20,7 +20,7 @@ use Cake\ORM\Entity;
  * @property \Cake\I18n\DateTime|null $created
  * @property \Cake\I18n\DateTime|null $modified
  */
-class EmailTemplate extends Entity
+class EmailTemplate extends BaseEntity
 {
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().

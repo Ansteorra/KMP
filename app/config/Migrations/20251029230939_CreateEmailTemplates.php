@@ -65,6 +65,18 @@ class CreateEmailTemplates extends BaseMigration
             'default' => null,
             'null' => true,
         ]);
+        $table->addColumn('created_by', 'integer', [
+            'default' => null,
+            'limit' => 11,
+            'null' => true,
+            'comment' => 'Member ID who created this template',
+        ]);
+        $table->addColumn('modified_by', 'integer', [
+            'default' => null,
+            'limit' => 11,
+            'null' => true,
+            'comment' => 'Member ID who last modified this template',
+        ]);
 
         // Add indexes for performance
         $table->addIndex(['mailer_class', 'action_method'], [
@@ -72,6 +84,18 @@ class CreateEmailTemplates extends BaseMigration
             'name' => 'idx_mailer_action_unique',
         ]);
         $table->addIndex(['is_active']);
+
+        // Add foreign key constraints for audit fields
+        $table->addForeignKey('created_by', 'members', 'id', [
+            'delete' => 'SET_NULL',
+            'update' => 'CASCADE',
+            'constraint' => 'fk_email_templates_created_by'
+        ]);
+        $table->addForeignKey('modified_by', 'members', 'id', [
+            'delete' => 'SET_NULL',
+            'update' => 'CASCADE',
+            'constraint' => 'fk_email_templates_modified_by'
+        ]);
 
         $table->create();
     }

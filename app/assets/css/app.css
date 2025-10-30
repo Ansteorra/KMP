@@ -441,3 +441,11 @@ input:checked+.slider:before {
     border: 0;
     border-top: 1px solid #dee2e6;
 }
+
+/* Selected waiver checkbox styling */
+.form-check.selected,
+.checkbox.selected {
+    background-color: #e7f3ff;
+    border-left: 3px solid #0d6efd;
+    padding-left: 0.5rem;
+}

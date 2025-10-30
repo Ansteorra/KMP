@@ -45,14 +45,23 @@ class GatheringLocationAutocompleteController extends Controller {
             return
         }
         
-        // Mark as initializing immediately to prevent race conditions
-        this.isInitialized = true
-        
-        // Load Google Maps Places library if not already loaded
-        await this.loadGoogleMapsPlaces()
-        
-        // Initialize autocomplete on the input field
-        this.initAutocomplete()
+        try {
+            // Load Google Maps Places library if not already loaded
+            await this.loadGoogleMapsPlaces()
+            
+            // Initialize autocomplete on the input field
+            this.initAutocomplete()
+            
+            // Only mark as initialized after both succeed
+            this.isInitialized = true
+            console.log("Autocomplete initialization complete")
+        } catch (error) {
+            // Reset flag on failure to allow future reconnects to retry
+            this.isInitialized = false
+            console.error("Failed to initialize autocomplete:", error)
+            // Optionally rethrow or handle gracefully
+            // throw error;
+        }
     }
     
     /**

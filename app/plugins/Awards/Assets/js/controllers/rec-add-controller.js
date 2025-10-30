@@ -508,9 +508,10 @@ class AwardsRecommendationAddForm extends Controller {
         this.notFoundTarget.disabled = true;
         this.reasonTarget.value = "";
         this.personToNotifyTarget.value = "";
-        this.eventsTargets.forEach((element) => {
-            element.checked = false;
-        });
+        if (this.hasGatheringsTarget) {
+           this.gatheringsTarget.value = "";            
+           this.gatheringsTarget.disabled = true;
+        }
     }
 }
 // add to window.Controllers with a name of the controller

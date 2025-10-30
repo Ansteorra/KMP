@@ -19,9 +19,7 @@ $this->KMP->endBlock(); ?>
     </div>
     <div class="col text-end">
         <?php
-        $domainsTable = \Cake\ORM\TableRegistry::getTableLocator()->get("Awards.Domains");
-        $tempDomain = $domainsTable->newEmptyEntity();
-        if ($user->checkCan("add", $tempDomain)) :
+        if ($user->checkCan("add", "Awards.Domains")) :
         ?>
             <?= $this->Html->link(
                 ' Add Domain',

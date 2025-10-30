@@ -92,18 +92,18 @@ fi
 
 # Setup proper permissions for logs and tmp directories
 echo "Setting up logs and tmp directories..."
-sudo mkdir -p $(echo $REPO_PATH)/app/logs
-sudo mkdir -p $(echo $REPO_PATH)/app/tmp
-sudo mkdir -p $(echo $REPO_PATH)/app/tmp/cache
-sudo mkdir -p $(echo $REPO_PATH)/app/tmp/cache/models
-sudo mkdir -p $(echo $REPO_PATH)/app/tmp/cache/persistent
-sudo mkdir -p $(echo $REPO_PATH)/app/tmp/cache/views
-sudo mkdir -p $(echo $REPO_PATH)/app/tmp/sessions
-sudo mkdir -p $(echo $REPO_PATH)/app/tmp/tests
-sudo chmod -R 775 $(echo $REPO_PATH)/app/logs
-sudo chmod -R 775 $(echo $REPO_PATH)/app/tmp
-sudo chown -R www-data:www-data $(echo $REPO_PATH)/app/logs
-sudo chown -R www-data:www-data $(echo $REPO_PATH)/app/tmp
+sudo mkdir -p "$REPO_PATH/app/logs"
+sudo mkdir -p "$REPO_PATH/app/tmp"
+sudo mkdir -p "$REPO_PATH/app/tmp/cache"
+sudo mkdir -p "$REPO_PATH/app/tmp/cache/models"
+sudo mkdir -p "$REPO_PATH/app/tmp/cache/persistent"
+sudo mkdir -p "$REPO_PATH/app/tmp/cache/views"
+sudo mkdir -p "$REPO_PATH/app/tmp/sessions"
+sudo mkdir -p "$REPO_PATH/app/tmp/tests"
+sudo chmod -R 775 "$REPO_PATH/app/logs"
+sudo chmod -R 775 "$REPO_PATH/app/tmp"
+sudo chown -R www-data:www-data "$REPO_PATH/app/logs"
+sudo chown -R www-data:www-data "$REPO_PATH/app/tmp"
 
 # Setup cron job for queue processing
 echo "Setting up cron job..."

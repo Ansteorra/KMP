@@ -231,17 +231,10 @@ class AuthorizationsController extends AppController
         if ($maResult->success) {
             $this->Flash->success(__("The Authorization has been requested."));
 
-            // Check if request came from mobile interface
-            $referer = $this->referer();
-            if (strpos($referer, '/mobile') !== false || strpos($referer, 'view-mobile-card') !== false) {
-                // Get the member's mobile card URL
-                $member = $this->Authorizations->Members->get($memberId, ['fields' => ['id', 'mobile_card_token']]);
-                return $this->redirect([
-                    'controller' => 'Members',
-                    'action' => 'viewMobileCard',
-                    'plugin' => null,
-                    $member->mobile_card_token
-                ]);
+            // Redirect to mobile card if request came from mobile interface
+            $mobileRedirect = $this->redirectIfMobileContext((int) $memberId);
+            if ($mobileRedirect !== null) {
+                return $mobileRedirect;
             }
 
             return $this->redirect($this->referer());
@@ -250,17 +243,10 @@ class AuthorizationsController extends AppController
             __($maResult->reason),
         );
 
-        // Check if request came from mobile interface for error case too
-        $referer = $this->referer();
-        if (strpos($referer, '/mobile') !== false || strpos($referer, 'view-mobile-card') !== false) {
-            // Get the member's mobile card URL
-            $member = $this->Authorizations->Members->get($memberId, ['fields' => ['id', 'mobile_card_token']]);
-            return $this->redirect([
-                'controller' => 'Members',
-                'action' => 'viewMobileCard',
-                'plugin' => null,
-                $member->mobile_card_token
-            ]);
+        // Redirect to mobile card if request came from mobile interface
+        $mobileRedirect = $this->redirectIfMobileContext((int) $memberId);
+        if ($mobileRedirect !== null) {
+            return $mobileRedirect;
         }
 
         return $this->redirect($this->referer());
@@ -302,17 +288,10 @@ class AuthorizationsController extends AppController
         ) {
             $this->Flash->success(__("The Authorization has been requested."));
 
-            // Check if request came from mobile interface
-            $referer = $this->referer();
-            if (strpos($referer, '/mobile') !== false || strpos($referer, 'view-mobile-card') !== false) {
-                // Get the member's mobile card URL
-                $member = $this->Authorizations->Members->get($memberId, ['fields' => ['id', 'mobile_card_token']]);
-                return $this->redirect([
-                    'controller' => 'Members',
-                    'action' => 'viewMobileCard',
-                    'plugin' => null,
-                    $member->mobile_card_token
-                ]);
+            // Redirect to mobile card if request came from mobile interface
+            $mobileRedirect = $this->redirectIfMobileContext((int) $memberId);
+            if ($mobileRedirect !== null) {
+                return $mobileRedirect;
             }
 
             return $this->redirect($this->referer());
@@ -321,17 +300,10 @@ class AuthorizationsController extends AppController
             __($maResult->reason),
         );
 
-        // Check if request came from mobile interface for error case too
-        $referer = $this->referer();
-        if (strpos($referer, '/mobile') !== false || strpos($referer, 'view-mobile-card') !== false) {
-            // Get the member's mobile card URL
-            $member = $this->Authorizations->Members->get($memberId, ['fields' => ['id', 'mobile_card_token']]);
-            return $this->redirect([
-                'controller' => 'Members',
-                'action' => 'viewMobileCard',
-                'plugin' => null,
-                $member->mobile_card_token
-            ]);
+        // Redirect to mobile card if request came from mobile interface
+        $mobileRedirect = $this->redirectIfMobileContext((int) $memberId);
+        if ($mobileRedirect !== null) {
+            return $mobileRedirect;
         }
 
         return $this->redirect($this->referer());
@@ -630,5 +602,33 @@ class AuthorizationsController extends AppController
                     return $q->select(["RevokedBy.sca_name"]);
                 }
             ]);
+    }
+
+    /**
+     * Helper method to redirect to mobile card view if request came from mobile interface
+     *
+     * Checks if the referer contains mobile-specific patterns and redirects to the member's
+     * mobile card view if applicable. Returns null if not a mobile context.
+     *
+     * @param int $memberId The member ID to redirect to
+     * @return \Cake\Http\Response|null Redirect response to mobile card or null if not mobile context
+     */
+    private function redirectIfMobileContext(int $memberId): ?\Cake\Http\Response
+    {
+        $referer = $this->referer();
+
+        // Check if request came from mobile interface
+        if (strpos($referer, '/mobile') !== false || strpos($referer, 'view-mobile-card') !== false) {
+            // Get the member's mobile card URL
+            $member = $this->Authorizations->Members->get($memberId, ['fields' => ['id', 'mobile_card_token']]);
+            return $this->redirect([
+                'controller' => 'Members',
+                'action' => 'viewMobileCard',
+                'plugin' => null,
+                $member->mobile_card_token
+            ]);
+        }
+
+        return null;
     }
 }

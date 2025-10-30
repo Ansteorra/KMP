@@ -41,6 +41,9 @@ $this->KMP->endBlock();
                 'data-action' => 'input->gathering-type-form#updateDescriptionCount',
                 'class' => 'form-control'
             ]) ?>
+            <div class="invalid-feedback d-none" data-gathering-type-form-target="descriptionError">
+                Description is too long
+            </div>
             <small class="form-text text-muted" data-gathering-type-form-target="descriptionCount">
                 0 / 500 characters
             </small>

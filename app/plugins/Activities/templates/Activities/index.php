@@ -19,9 +19,7 @@ $this->KMP->endBlock(); ?>
     </div>
     <div class="col text-end">
         <?php
-        $activitiesTable = \Cake\ORM\TableRegistry::getTableLocator()->get("Activities.Activities");
-        $tempActivity = $activitiesTable->newEmptyEntity();
-        if ($user->checkCan("add", $tempActivity)) :
+        if ($user->checkCan("add", "Activities.Activities")) :
         ?>
             <?= $this->Html->link(
                 ' Add Activity',

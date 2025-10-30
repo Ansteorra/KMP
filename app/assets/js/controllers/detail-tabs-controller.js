@@ -59,9 +59,6 @@ class DetailTabsController extends Controller {
                 if (firstTab) {
                     firstTab.click();
                     this.foundFirst = true;
-                } else {
-                    // Fallback to DOM order if no order specified
-                    this.tabBtnTargets[0].click();
                 }
                 window.scrollTo(0, 0);
             }
@@ -99,7 +96,7 @@ class DetailTabsController extends Controller {
     tabBtnClicked(event) {
         // Get first tab based on order, not DOM position
         const firstTab = this.getFirstTabByOrder();
-        const firstTabId = firstTab ? firstTab.id : this.tabBtnTargets[0].id;
+        const firstTabId = firstTab?.id || this.tabBtnTargets[0]?.id;
         var eventTabId = event.target.id;
         var tab = event.target.id.replace('nav-', '').replace('-tab', '');
         if (this.updateUrlValue) {

@@ -19,9 +19,7 @@ $this->KMP->endBlock(); ?>
     </div>
     <div class="col text-end">
         <?php
-        $levelsTable = \Cake\ORM\TableRegistry::getTableLocator()->get("Awards.Levels");
-        $tempLevel = $levelsTable->newEmptyEntity();
-        if ($user->checkCan("add", $tempLevel)) :
+        if ($user->checkCan("add", "Awards.Levels")) :
         ?>
             <?= $this->Html->link(
                 ' Add Level',

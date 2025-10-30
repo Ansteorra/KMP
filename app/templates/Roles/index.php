@@ -18,9 +18,7 @@ $this->KMP->endBlock(); ?>
     </div>
     <div class="col text-end">
         <?php
-        $rolesTable = \Cake\ORM\TableRegistry::getTableLocator()->get("Roles");
-        $tempRole = $rolesTable->newEmptyEntity();
-        if ($user->checkCan("add", $tempRole)) :
+        if ($user->checkCan("add", "Roles")) :
         ?>
             <?= $this->Html->link(
                 ' Add Role',
