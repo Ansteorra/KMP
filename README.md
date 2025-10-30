@@ -1,6 +1,7 @@
 
 # KingdomMangementPortal
 ![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/jhandel/KMP?utm_source=oss&utm_medium=github&utm_campaign=jhandel%2FKMP&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
+
 Membership management system for SCA Kingdoms.
 
 Please review the wiki for solution details https://github.com/Ansteorra/KMP/wiki
