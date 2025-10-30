@@ -338,60 +338,17 @@ class Officer extends ActiveWindowBaseEntity
     }
 
     /**
-     * Reporting hierarchy list generation virtual property
+     * Return a formatted string of officers this position reports to, using mailto links when available.
      *
-     * Generates a formatted list of officers this position reports to,
-     * including email links where available and handling various
-     * organizational hierarchy scenarios. This property automatically
-     * handles the can_skip_report edge case by using effective reporting
-     * relationships that traverse vacant offices when allowed.
-     *
-     * ## Hierarchy Resolution
-     * 1. Check for effective reporting relationships (`effective_reports_to_currently`)
-     *    - Automatically handles can_skip_report logic
-     *    - Traverses up hierarchy when reporting offices are vacant
-     * 2. Check for deputy relationships (`deputy_to_currently`)
-     *    - Direct relationships without skip logic
-     * 3. Generate email links where contact information is available
-     * 4. Fall back to name-only display without email
-     * 5. Handle unfilled positions and top-level assignments
-     *
-     * ## can_skip_report Integration
-     * This property uses `effective_reports_to_currently` instead of the simple
-     * `reports_to_currently` association, which means:
-     * - If the direct reporting office is vacant but has can_skip_report = true,
-     *   the method automatically finds officers in the next level up
-     * - This ensures "Not Filled" is only shown when there truly are no
-     *   reporting officers anywhere in the chain
-     * - Prevents confusion from showing "Not Filled" for skippable vacant offices
-     *
-     * ## Return Values
-     * - **"Society"**: Top-level position with no reporting relationships
-     * - **"Not Filled"**: Reporting positions exist but are unfilled (and cannot skip)
-     * - **Formatted List**: Comma-separated list with email links where available
-     *
-     * ## Email Integration
-     * - Generates clickable mailto: links for officers with email addresses
-     * - Uses SCA names for officer identification
-     * - Removes duplicate entries from combined reporting lists
-     *
-     * ## Usage Example
-     * ```php
-     * $reportsTo = $officer->reports_to_list;
-     * echo "This officer reports to: " . $reportsTo;
-     * 
-     * // Output examples:
-     * // "Society" (top-level)
-     * // "Not Filled" (unfilled and cannot skip)
-     * // "<a href='mailto:officer@example.com'>Sir John</a>, Lady Jane"
-     * 
-     * // Automatic skip behavior:
-     * // If Regional Officer is vacant with can_skip_report = true,
-     * // this will show Kingdom Officer instead of "Not Filled"
-     * ```
+     * Uses the skip-aware effective reporting set to resolve reporting officers when an intermediate office
+     * is vacant and can_skip_report is enabled, and includes direct deputies after effective reports.
+     * Possible return values:
+     * - "Society" when the position is top-level (no reports or deputies),
+     * - "Not Filled" when reporting positions exist but no officers are available,
+     * - a comma-separated list of officer names or mailto links when contact addresses are present.
      *
      * @return string Formatted reporting hierarchy list with email links
-     * @see \Officers\Model\Entity\Officer::_getEffectiveReportsToCurrently() For skip logic
+     * @see \Officers\Model\Entity\Officer::_getEffectiveReportsToCurrently() For skip-aware reporting resolution
      */
     public function _getReportsToList()
     {
@@ -441,83 +398,14 @@ class Officer extends ActiveWindowBaseEntity
     }
 
     /**
-     * Effective reporting officers with can_skip_report hierarchy resolution
+     * Resolve the effective officers this assignment reports to using skip-aware hierarchy traversal.
      *
-     * This virtual property provides access to the effective officers this assignment
-     * reports to, automatically handling the complex edge case where reporting offices
-     * with `can_skip_report` enabled may not have current officer assignments. When
-     * this occurs, the property automatically traverses up the office hierarchy to
-     * find the next office with current officers.
+     * Traverses the reporting office chain honoring the office `can_skip_report` flag to find the nearest
+     * current officers who should receive reports; returns an empty array for top-level positions or when
+     * no effective reporting officers exist. The traversal prevents cycles.
      *
-     * ## Business Logic
-     * This property enhances the standard `reports_to_currently` association by:
-     * 1. Starting with direct reporting officers (if they exist)
-     * 2. If no officers found and reporting office has `can_skip_report` enabled:
-     *    - Automatically traversing up to the next reporting level
-     *    - Continuing until officers are found or top level is reached
-     * 3. Preventing infinite loops through visited office tracking
-     * 4. Returning empty array if no effective reporting officers exist
-     *
-     * ## Differences from reports_to_currently
-     * - **reports_to_currently**: Direct reporting officers only (simple association)
-     * - **effective_reports_to_currently**: Smart traversal with skip logic (computed)
-     *
-     * ## Use Cases
-     * - **Report Submission**: Determine actual recipients for officer reports
-     * - **Notification Systems**: Send alerts to effective supervisors
-     * - **Email Generation**: Build accurate distribution lists
-     * - **Organizational Charts**: Display effective reporting relationships
-     * - **Permission Validation**: Check reporting chain for authorization
-     *
-     * ## Performance Considerations
-     * - This property performs database queries when accessed
-     * - Results are not automatically cached between accesses
-     * - Consider caching results if accessed multiple times in same request
-     * - Typically resolves in 1-3 queries depending on hierarchy depth
-     *
-     * ## Return Value
-     * @return array<\Officers\Model\Entity\Officer> Array of officer entities who effectively receive reports
-     *
-     * ## Usage Example
-     * ```php
-     * // Get officer with necessary associations
-     * $officer = $officersTable->get($officerId, [
-     *     'contain' => ['Offices', 'ReportsToOffices', 'ReportsToBranches']
-     * ]);
-     * 
-     * // Access effective reporting officers
-     * $effectiveReports = $officer->effective_reports_to_currently;
-     * 
-     * // Generate notification list
-     * foreach ($effectiveReports as $reportingOfficer) {
-     *     // Send email, create notification, etc.
-     *     $email = $reportingOfficer->email_address ?? $reportingOfficer->member->email;
-     *     echo "Report to: {$reportingOfficer->member->sca_name} ({$email})\n";
-     * }
-     * 
-     * // Handle edge cases
-     * if (empty($effectiveReports)) {
-     *     echo "This is a top-level position with no reporting relationships";
-     * }
-     * ```
-     *
-     * ## Edge Cases Handled
-     * - **No Direct Officer + Can Skip**: Automatically finds next level up
-     * - **No Direct Officer + Cannot Skip**: Returns empty array
-     * - **Top Level Position**: Returns empty array (reports to Society)
-     * - **Circular References**: Prevents infinite loops
-     * - **Multiple Levels**: Recursively traverses as needed
-     *
-     * ## Integration with reports_to_list
-     * The `reports_to_list` virtual property can be enhanced to use this property:
-     * ```php
-     * // Compare standard vs effective reporting
-     * echo "Direct reports to: " . count($officer->reports_to_currently) . " officers\n";
-     * echo "Effective reports to: " . count($officer->effective_reports_to_currently) . " officers\n";
-     * ```
-     *
-     * @see \Officers\Model\Table\OfficersTable::findEffectiveReportsTo() For implementation details
-     * @see \Officers\Model\Entity\Office::$can_skip_report For skip reporting flag documentation
+     * @return array<\Officers\Model\Entity\Officer> Array of Officer entities that effectively receive reports.
+     * @see \Officers\Model\Table\OfficersTable::findEffectiveReportsTo()
      */
     protected function _getEffectiveReportsToCurrently(): array
     {

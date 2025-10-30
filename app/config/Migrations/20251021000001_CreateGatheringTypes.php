@@ -8,11 +8,12 @@ class CreateGatheringTypes extends BaseMigration
 {
     public bool $autoId = false;
     /**
-     * Change Method.
+     * Create the `gathering_types` table with its columns and indexes.
      *
-     * More information on this method is available here:
-     * https://book.cakephp.org/migrations/4/en/migrations.html#the-change-method
-     * @return void
+     * Defines columns: `id` (primary key, auto-increment integer), `name` (string, unique),
+     * `description` (text), `clonable` (boolean), `modified` (datetime), `created` (datetime),
+     * `created_by` (integer), `modified_by` (integer), and `deleted` (datetime), then adds a
+     * primary key on `id` and a unique index on `name` before creating the table.
      */
     public function change(): void
     {

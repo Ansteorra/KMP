@@ -13,10 +13,11 @@ use Migrations\BaseMigration;
 class AddColorToGatheringTypes extends BaseMigration
 {
     /**
-     * Change Method.
+     * Add a non-null `color` column to the `gathering_types` table for calendar visualization.
      *
-     * More information on this method is available here:
-     * https://book.cakephp.org/migrations/4/en/migrations.html#the-change-method
+     * The added column is a 7-character string with default value `#0d6efd`, a comment
+     * describing it as a hex color code for calendar display, and is positioned after the
+     * `description` column.
      *
      * @return void
      */

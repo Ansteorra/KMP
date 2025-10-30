@@ -284,25 +284,11 @@ class Recommendation extends BaseEntity
     }
 
     /**
-     * Get Branch ID - Retrieve organizational scope from award relationship
-     * 
-     * Determines the branch ID for this recommendation by examining the associated
-     * award's branch configuration. This method supports both eager-loaded award
-     * relationships and lazy loading when the award relationship is not available.
-     * 
-     * The branch ID determines organizational jurisdiction for the recommendation,
-     * affecting permissions, workflow routing, and ceremonial scheduling within
-     * the appropriate organizational boundaries.
-     * 
-     * ## Resolution Strategy:
-     * 1. **Direct Award Access**: Use eager-loaded award relationship if available
-     * 2. **Lazy Loading**: Query Awards table for branch_id if award_id is available
-     * 3. **Fallback**: Return null if no award association can be established
-     * 
-     * @return int|null Branch ID for organizational scope, or null if not determinable
-     * 
-     * @see \Awards\Model\Entity\Award For award branch configuration
-     * @see \App\Model\Entity\Branch For organizational hierarchy
+     * Determine the organizational branch ID associated with this recommendation's award.
+     *
+     * @return int|null The branch ID associated with the recommendation's award, or null if it cannot be determined.
+     * @see \Awards\Model\Entity\Award
+     * @see \App\Model\Entity\Branch
      */
     public function getBranchId(): ?int
     {

@@ -13,9 +13,9 @@ use Migrations\BaseSeed;
 class DevLoadGatheringsSeed extends BaseSeed
 {
     /**
-     * Get seed data
+     * Provide development seed entries for gatherings.
      *
-     * @return array<int, array<string, mixed>>
+     * @return array<int, array<string, mixed>> An array of gathering seed records; may be empty when no seeds are defined.
      */
     public function getData(): array
     {
@@ -25,11 +25,9 @@ class DevLoadGatheringsSeed extends BaseSeed
     }
 
     /**
-     * Run Method.
+     * Inserts development gathering seed data into the 'gatherings' table when present.
      *
-     * Write your database seeder using this method.
-     *
-     * @return void
+     * Retrieves seed data via getData() and performs a bulk insert into the 'gatherings' table only if the returned array is non-empty.
      */
     public function run(): void
     {

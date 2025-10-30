@@ -7,11 +7,9 @@ use Migrations\BaseMigration;
 class AddGatheringIdToRecommendationsEvents extends BaseMigration
 {
     /**
-     * Change Method.
+     * Apply schema changes to awards_recommendations_events: add a nullable integer `gathering_id` column, an index, and a foreign key constraint.
      *
-     * More information on this method is available here:
-     * https://book.cakephp.org/migrations/4/en/migrations.html#the-change-method
-     * @return void
+     * Adds column `gathering_id` (integer, nullable) positioned after `event_id`, creates non-unique index `BY_GATHERING_ID` on `gathering_id`, and adds foreign key `fk_recommendations_events_gathering_id` referencing `gatherings.id` with delete=SET_NULL and update=CASCADE.
      */
     public function change(): void
     {

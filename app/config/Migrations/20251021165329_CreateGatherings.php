@@ -8,10 +8,14 @@ class CreateGatherings extends BaseMigration
 {
     public bool $autoId = false;
     /**
-     * Change Method.
+     * Create the "gatherings" table and define its schema, indexes, and foreign key constraints.
      *
-     * More information on this method is available here:
-     * https://book.cakephp.org/migrations/4/en/migrations.html#the-change-method
+     * The table includes fields for identifiers, branch and gathering type relationships,
+     * name and description, start/end dates, location, timestamps, user audit fields, and soft-delete.
+     * Indexes are added for primary key, branch, gathering type, creator, and start/end dates.
+     * Foreign keys link branch_id -> branches.id, gathering_type_id -> gathering_types.id,
+     * and created_by -> members.id with NO_ACTION on update and delete.
+     *
      * @return void
      */
     public function change(): void

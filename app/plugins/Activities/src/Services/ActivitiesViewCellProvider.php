@@ -96,49 +96,13 @@ use App\View\Cell\BasePluginCell;
 class ActivitiesViewCellProvider
 {
     /**
-     * Get Activities Plugin View Cells
+     * Provide view cell configurations for the Activities plugin used across tabs, JSON endpoints, and mobile menus.
      *
-     * Generates complete view cell configurations for Activities plugin integration
-     * with permission management, member profiles, and API endpoints.
-     * 
-     * **Cell Configuration Structure**:
-     * Each cell includes:
-     * - Type: TAB, JSON, or MODAL for different integration contexts
-     * - Label: User-visible text for tab headers and navigation
-     * - ID: Unique identifier for cell targeting and customization
-     * - Order: Positioning within view containers
-     * - Cell: CakePHP cell class path for rendering
-     * - Valid Routes: Route specifications for conditional display
-     * 
-     * **Permission Activities Cell**:
-     * - **Context**: Permission detail views
-     * - **Purpose**: Shows activities that grant specific permissions
-     * - **Integration**: Permission management workflow
-     * - **Display**: Tabbed interface with activity listing
-     * 
-     * **Member Authorizations Cell**:
-     * - **Context**: Member profile and detail views
-     * - **Purpose**: Displays member authorization status and history
-     * - **Integration**: Member management and approval workflows
-     * - **Display**: Comprehensive authorization dashboard
-     * 
-     * **Member Authorization JSON Cell**:
-     * - **Context**: API endpoints and AJAX requests
-     * - **Purpose**: Provides structured authorization data
-     * - **Integration**: Mobile applications and dynamic interfaces
-     * - **Display**: JSON data format for programmatic consumption
-     * 
-     * **Route-Based Visibility**:
-     * Cells are conditionally displayed based on current route context,
-     * ensuring appropriate integration without cluttering unrelated views.
-     * 
-     * **Plugin Availability Check**:
-     * Returns empty array if Activities plugin is disabled, preventing
-     * error conditions and maintaining application stability.
-     * 
-     * @param array $urlParams URL parameters from current request context
-     * @param mixed $user Current authenticated user (may be null for API calls)
-     * @return array Complete view cell configurations for Activities plugin
+     * Generates an array of cells describing where and how Activities-related UI elements should be rendered. If the Activities plugin is disabled, an empty array is returned.
+     *
+     * @param array $urlParams URL parameters from the current request used to determine route-based visibility.
+     * @param mixed|null $user Current authenticated user or null.
+     * @return array Array of view cell configuration arrays for the Activities plugin.
      */
     public static function getViewCells(array $urlParams, $user = null): array
     {

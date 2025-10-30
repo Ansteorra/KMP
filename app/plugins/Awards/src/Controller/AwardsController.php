@@ -133,37 +133,16 @@ class AwardsController extends AppController
         $this->set(compact('awards'));
     }
 
-    /**
-     * Award View - Comprehensive award detail display and management interface
-     * 
-     * Provides detailed award information with complete hierarchical context and
-     * administrative management capabilities. This view serves as the central
-     * interface for award inspection, modification, and hierarchical relationship
-     * management within the awards system.
-     * 
-     * ## Award Detail Display:
-     * Displays comprehensive award information including:
-     * - Complete award configuration and description
-     * - Domain, level, and branch hierarchical relationships
-     * - Administrative metadata and audit trail information
-     * - Integration context with recommendation workflows
-     * 
-     * ## Administrative Context:
-     * Provides dropdown lists and selection interfaces for award modification:
-     * - Domain selection for categorical organization
-     * - Level selection with precedence ordering
-     * - Branch selection with hierarchical tree display
-     * 
-     * ## Security Validation:
-     * Implements entity-level authorization to ensure users can only view
-     * awards within their administrative scope and organizational boundaries.
-     * 
-     * @param string|null $id Award identifier for detail retrieval
-     * @return \Cake\Http\Response|null|void Renders award detail view
-     * @throws \Cake\Http\Exception\NotFoundException When award not found
-     * 
-     * @see \Awards\Model\Table\AwardsTable::find() For award retrieval with relationships
-     * @see \Authorization\Controller\Component\AuthorizationComponent::authorize() For entity authorization
+    / **
+     * Display a single award with its domain, level, branch, and related gathering activities and prepare form data for the management view.
+     *
+     * Loads the award and its related Domains, Levels, Branches, and GatheringActivities, enforces entity authorization,
+     * and provides lists for domains, levels (ordered by progression), branch tree, and gathering activities not yet associated
+     * with the award for use in the view.
+     *
+     * @param string|null $id Award identifier to retrieve.
+     * @return \Cake\Http\Response|null|void A Response when the action issues a redirect or other response, otherwise no value.
+     * @throws \Cake\Http\Exception\NotFoundException If no award exists with the provided id.
      */
     public function view($id = null)
     {
@@ -380,34 +359,11 @@ class AwardsController extends AppController
     }
 
     /**
-     * Awards by Domain API - Dynamic award discovery for recommendation workflows
-     * 
-     * Provides a JSON API endpoint for dynamic award discovery based on domain
-     * selection. This endpoint supports recommendation workflow interfaces by
-     * returning awards filtered by domain with hierarchical organization and
-     * level-based ordering for optimal user experience.
-     * 
-     * ## API Functionality:
-     * - **Domain Filtering**: Returns awards within specified domain category
-     * - **Hierarchical Data**: Includes domain, level, and branch context
-     * - **Optimized Ordering**: Sorts by level progression order and award name
-     * - **JSON Response**: Formatted for AJAX consumption and dynamic interfaces
-     * 
-     * ## Public Access:
-     * This endpoint allows unauthenticated access to support recommendation
-     * form workflows where users need to discover available awards based on
-     * domain selection without requiring full authentication.
-     * 
-     * ## Query Optimization:
-     * Implements efficient database queries with selective field loading and
-     * strategic containment to minimize response size while providing complete
-     * hierarchical context for award selection interfaces.
-     * 
-     * @param string|null $domainId Domain identifier for award filtering
-     * @return \Cake\Http\Response JSON response with filtered award list
-     * 
-     * @see \Awards\Model\Table\AwardsTable::find() For domain-filtered award retrieval
-     * @see \Authorization\Controller\Component\AuthorizationComponent::skipAuthorization() For public access
+     * Provide a JSON list of awards filtered by a domain, including domain,
+     * level, and branch context ordered by level progression and award name.
+     *
+     * @param string|null $domainId Domain identifier to filter awards; pass `null` to select awards with no domain.
+     * @return \Cake\Http\Response JSON response containing an array of awards with their associated Domains, Levels, and Branches.
      */
     public function awardsByDomain($domainId = null)
     {
@@ -433,17 +389,16 @@ class AwardsController extends AppController
         return $this->response;
     }
 
-    /**
-     * Add Activity - Associate a gathering activity with an award
-     * 
-     * Adds a gathering activity to an award, allowing the award to be given out
-     * during that specific type of activity. This creates an entry in the
-     * award_gathering_activities join table.
-     * 
-     * @param string|null $id Award identifier
-     * @return \Cake\Http\Response|null Redirects back to award view
-     * @throws \Cake\Http\Exception\NotFoundException When award not found
-     */
+    / **
+         * Associate a gathering activity with an award.
+         *
+         * Creates a join record linking the specified award to the provided gathering activity
+         * and redirects back to the award's view page.
+         *
+         * @param string|null $id The award identifier.
+         * @return \Cake\Http\Response|null Redirect response to the award view.
+         * @throws \Cake\Http\Exception\NotFoundException If the award cannot be found.
+         * /
     public function addActivity($id = null)
     {
         $this->request->allowMethod(['post']);
@@ -492,16 +447,14 @@ class AwardsController extends AppController
     }
 
     /**
-     * Remove Activity - Dissociate a gathering activity from an award
-     * 
-     * Removes a gathering activity from an award, preventing the award from being
-     * given out during that type of activity. This deletes the entry from the
-     * award_gathering_activities join table.
-     * 
-     * @param string|null $awardId Award identifier
-     * @param string|null $activityId Gathering Activity identifier
-     * @return \Cake\Http\Response|null Redirects back to award view or returns turbo frame content
-     * @throws \Cake\Http\Exception\NotFoundException When award not found
+     * Dissociate a gathering activity from an award.
+     *
+     * Deletes the association between the specified award and gathering activity and sets an appropriate flash message.
+     *
+     * @param string|null $awardId Award identifier.
+     * @param string|null $activityId Gathering activity identifier.
+     * @return \Cake\Http\Response|null Redirects to the award view or returns Turbo Stream content when requested.
+     * @throws \Cake\Http\Exception\NotFoundException If the award does not exist.
      */
     public function removeActivity($awardId = null, $activityId = null)
     {
@@ -555,15 +508,15 @@ class AwardsController extends AppController
     }
 
     /**
-     * Add Activity To Gathering Activity - Associate an award with a gathering activity
-     * 
-     * Adds an award to a gathering activity, allowing the award to be given out during
-     * that specific type of activity. This is the reverse operation of addActivity(),
-     * used when managing from the GatheringActivity view.
-     * 
-     * @param string|null $activityId Gathering Activity identifier
-     * @return \Cake\Http\Response|null Redirects back to gathering activity view or returns turbo frame content
-     * @throws \Cake\Http\Exception\NotFoundException When activity not found
+     * Attach an award to a gathering activity from the GatheringActivity context.
+     *
+     * Creates an AwardGatheringActivity association and returns either a turbo-stream
+     * response updating the activity's awards cell (for Turbo/AJAX requests) or a
+     * redirect to the gathering activity view for standard form submissions.
+     *
+     * @param string|null $activityId The gathering activity identifier.
+     * @return \Cake\Http\Response|null A Response containing turbo-stream HTML when the request expects turbo streams; otherwise a redirect Response to the gathering activity view.
+     * @throws \Cake\Http\Exception\NotFoundException If the specified gathering activity does not exist.
      */
     public function addActivityToGatheringActivity($activityId = null)
     {
@@ -654,15 +607,19 @@ class AwardsController extends AppController
     }
 
     /**
-     * Build Turbo Stream Response
-     * 
-     * Creates a Turbo Stream response that updates a frame and appends flash messages.
-     * This allows Turbo Frame responses to display flash messages without a full page reload.
-     * 
-     * @param string $frameContent The HTML content to update the frame with
-     * @param array|null $flashMessages Flash messages from session
-     * @return string Turbo Stream HTML
-     */
+         * Builds a Turbo Stream payload that replaces the flash messages frame and,
+         * if present, replaces the provided turbo-frame with the given content.
+         *
+         * Flash messages (if provided) are rendered as Bootstrap alert markup. The
+         * supplied $frameContent should include a <turbo-frame id="..."> element;
+         * when an id is found that frame will be replaced in the returned payload.
+         *
+         * @param string $frameContent HTML containing a turbo-frame to be inserted/replaced
+         * @param array|null $flashMessages Flash messages grouped by key; each message is an array
+         *                                 with a 'message' string and an optional 'element'
+         *                                 (e.g. 'flash/success') used to determine the alert type
+         * @return string The combined turbo-stream HTML payload
+         */
     protected function _buildTurboStreamResponse(string $frameContent, ?array $flashMessages = null): string
     {
         $streams = [];

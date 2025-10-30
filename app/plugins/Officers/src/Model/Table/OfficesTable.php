@@ -869,10 +869,10 @@ class OfficesTable extends BaseTable
     }
 
     /**
-     * Get all offices in the reporting tree for a given office using breadth-first traversal.
+     * Return the office IDs that are reachable from a given office through deputy or reporting relationships in breadth-first order.
      *
-     * @param int $rootOfficeId The root office ID.
-     * @return int[]
+     * @param int $rootOfficeId The starting office ID whose reporting tree will be traversed; the returned list excludes this root.
+     * @return int[] An array of office IDs encountered in breadth-first order, excluding the root office.
      */
     private function getReportingTreeOffices(int $rootOfficeId): array
     {
@@ -910,30 +910,14 @@ class OfficesTable extends BaseTable
     }
 
     /**
-     * Find the most appropriate branch for an office's reports_to_branch_id
-     * 
-     * This method solves the problem where an office being hired at a branch may have
-     * a reports_to_office_id that is only applicable to certain branch types. For example,
-     * hiring a Landed Nobility (which reports to King/Queen) at a local branch should set
-     * the reports_to_branch_id to the Kingdom level, not the parent region.
-     * 
-     * ## Algorithm
-     * 1. Check if the starting branch type is compatible with the office's branch_types
-     * 2. If compatible, return that branch ID
-     * 3. If not, traverse up the branch hierarchy to the parent
-     * 4. Repeat until a compatible branch is found
-     * 5. If no compatible branch is found, return the top of the hierarchy (kingdom)
-     * 
-     * ## Example Scenario
-     * - Hiring Landed Nobility (office_id 99, reports_to King/Queen office_id 1) at branch 41
-     * - Branch 41 is type "Local", parent is branch 13 type "Region"  
-     * - Office 1 (King/Queen) has branch_types ["Kingdom"]
-     * - Algorithm checks: Local (no), Region (no), Kingdom (yes!)
-     * - Returns the Kingdom branch ID
-     * 
-     * @param int $startBranchId The branch where the officer is being hired
-     * @param int $reportsToOfficeId The office ID this officer reports to
-     * @return int|null The branch ID where the reports_to_office can exist, or null if no office provided
+     * Determine the appropriate branch ID for an office's reports_to_branch_id.
+     *
+     * Finds a branch starting from $startBranchId (and moving up the parent chain if necessary)
+     * that is compatible with the branch types allowed for the specified reports-to office.
+     *
+     * @param int $startBranchId The branch where the officer is being hired.
+     * @param int|null $reportsToOfficeId The ID of the office this officer reports to, or null.
+     * @return int|null The branch ID compatible with the reports-to office, or null if no reports-to office was provided.
      */
     public function findCompatibleBranchForOffice(int $startBranchId, ?int $reportsToOfficeId): ?int
     {

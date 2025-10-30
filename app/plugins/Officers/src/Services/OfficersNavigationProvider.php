@@ -114,101 +114,16 @@ use App\KMP\StaticHelpers;
 class OfficersNavigationProvider
 {
     /**
-     * Officers Plugin Navigation Items Generator
-     * 
-     * Generates comprehensive navigation items for the Officers plugin including officer
-     * management, administrative configuration, reporting capabilities, and security tools.
-     * This method provides dynamic navigation generation with plugin availability checking,
-     * hierarchical organization, and comprehensive menu structure for officers functionality.
-     * 
-     * ## Navigation Generation Workflow
-     * 
-     * **Plugin Availability Validation**: Validates Officers plugin availability through
-     * StaticHelpers integration ensuring navigation items only appear when plugin is
-     * enabled and functional for appropriate system integration and user experience.
-     * 
-     * **Dynamic Navigation Assembly**: Assembles navigation items dynamically including
-     * officer management links, administrative configuration, reporting tools, and
-     * security features for comprehensive officers plugin navigation integration.
-     * 
-     * **Hierarchical Organization**: Organizes navigation items in hierarchical structure
-     * with merge paths, ordering priorities, logical grouping, and comprehensive menu
-     * organization for intuitive navigation flow and user experience optimization.
-     * 
-     * ## Officer Management Navigation
-     * 
-     * **Officer Index Access**: Provides navigation to officer management index including
-     * officer listing, assignment overview, management dashboard, and comprehensive
-     * officer administration for organizational management and operational oversight.
-     * 
-     * **Assignment Workflow Integration**: Integrates with officer assignment workflows
-     * through navigation routing, controller coordination, action specification, and
-     * comprehensive workflow integration for seamless officer management operations.
-     * 
-     * ## Administrative Configuration Navigation
-     * 
-     * **Department Management**: Provides navigation for department administration including
-     * department listing, department creation, organizational structure management, and
-     * comprehensive departmental configuration for organizational hierarchy setup.
-     * 
-     * **Office Configuration**: Provides navigation for office administration including
-     * office listing, office creation, hierarchical configuration, and comprehensive
-     * office management for organizational structure and assignment target setup.
-     * 
-     * ## Reporting and Analytics Navigation
-     * 
-     * **Department Officer Roster**: Provides navigation for department-based officer
-     * reporting including roster generation, assignment analytics, organizational
-     * reporting, and comprehensive department-level officer management and oversight.
-     * 
-     * **Organizational Reporting**: Enables access to organizational reporting tools
-     * including assignment analytics, officer status tracking, organizational health
-     * monitoring, and comprehensive reporting capabilities for administrative oversight.
-     * 
-     * ## Security and Compliance Navigation
-     * 
-     * **Officer Roster Generation**: Provides navigation for security-focused roster
-     * generation including warrant processing, compliance tracking, security validation,
-     * and comprehensive roster management for organizational security and governance.
-     * 
-     * **Warrant Integration**: Integrates with warrant management through navigation
-     * routing enabling warrant request processing, compliance monitoring, security
-     * oversight, and comprehensive warrant coordination for organizational security.
-     * 
-     * ## Navigation Item Configuration
-     * 
-     * **URL Generation and Routing**: Configures navigation URLs through CakePHP routing
-     * including plugin specification, controller identification, action definition, and
-     * comprehensive routing configuration for accurate navigation functionality.
-     * 
-     * **Visual Integration and Icons**: Integrates Bootstrap Icons for visual consistency
-     * including icon specification, theme coordination, visual feedback, and comprehensive
-     * visual integration for professional navigation appearance and user experience.
-     * 
-     * **Active Path Management**: Configures active path detection including pattern
-     * matching, navigation state tracking, visual feedback, and comprehensive navigation
-     * state management for accurate user interface feedback and application awareness.
-     * 
-     * **Merge Path Organization**: Organizes navigation through merge paths enabling
-     * hierarchical menu structure, category organization, logical grouping, and
-     * comprehensive menu organization for intuitive navigation and user experience.
-     * 
-     * ## Performance and Integration
-     * 
-     * **Conditional Generation**: Implements conditional navigation generation based on
-     * plugin availability optimizing performance, reducing unnecessary processing, and
-     * providing efficient navigation generation for system performance optimization.
-     * 
-     * **Static Method Optimization**: Utilizes static method implementation for performance
-     * optimization, reduced object instantiation overhead, and efficient navigation
-     * processing for high-performance application operation and resource efficiency.
-     * 
-     * @param Member $user Current authenticated user for context and permission validation
-     * @param array $params Request parameters for navigation customization and context processing
-     * @return array Comprehensive navigation items array with hierarchical organization and routing configuration
-     * 
-     * @since 1.0.0
-     * @version 2.0.0
+     * Builds navigation items for the Officers plugin.
+     *
+     * Generates the structured navigation definitions for officer management, configuration,
+     * reporting, and roster actions. Items are produced only when the Officers plugin is enabled.
+     *
+     * @param Member $user The current authenticated user (context for visibility/permissions).
+     * @param array $params Optional request or context parameters to customize generation.
+     * @return array An array of navigation item definitions. Each item includes keys such as
+     *               `type`, `mergePath`, `label`, `order`, `url` (plugin/controller/action/model),
+     *               `icon`, and optionally `activePaths`.
      */
     public static function getNavigationItems(Member $user, array $params = []): array
     {

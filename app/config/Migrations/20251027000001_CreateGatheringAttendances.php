@@ -15,10 +15,13 @@ class CreateGatheringAttendances extends BaseMigration
     public bool $autoId = false;
 
     /**
-     * Change Method.
+     * Create the gathering_attendances table with columns, indexes, and foreign key constraints.
      *
-     * More information on this method is available here:
-     * https://book.cakephp.org/migrations/4/en/migrations.html#the-change-method
+     * The table tracks member attendance for gatherings and includes attendance notes,
+     * sharing permission flags, audit fields (created, modified, created_by, modified_by, deleted),
+     * a unique constraint on (gathering_id, member_id), and foreign keys to gatherings and members
+     * with appropriate delete/update behaviors.
+     *
      * @return void
      */
     public function change(): void

@@ -7,11 +7,10 @@ use Migrations\BaseMigration;
 class AddLatLongToGatherings extends BaseMigration
 {
     /**
-     * Change Method.
+     * Add nullable latitude and longitude decimal columns to the gatherings table.
      *
-     * More information on this method is available here:
-     * https://book.cakephp.org/migrations/4/en/migrations.html#the-change-method
-     * @return void
+     * Adds `latitude` (DECIMAL(10,8)) and `longitude` (DECIMAL(11,8)) columns, both nullable,
+     * intended to store coordinates from Google Maps geocoding; each column includes a descriptive comment.
      */
     public function change(): void
     {

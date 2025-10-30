@@ -30,10 +30,12 @@ use Cake\ORM\RulesChecker;
 class AwardGatheringActivitiesTable extends Table
 {
     /**
-     * Initialize method
+     * Configure table metadata, behaviors, and associations for the AwardGatheringActivities table.
      *
-     * @param array<string, mixed> $config The configuration for the Table.
-     * @return void
+     * Sets table name, display field and primary key, attaches Timestamp and Footprint behaviors,
+     * and defines BelongsTo associations to Awards and GatheringActivities.
+     *
+     * @param array<string, mixed> $config Table configuration.
      */
     public function initialize(array $config): void
     {
@@ -59,10 +61,10 @@ class AwardGatheringActivitiesTable extends Table
     }
 
     /**
-     * Default validation rules.
+     * Configure validation rules ensuring `award_id` and `gathering_activity_id` are present, are integers greater than or equal to zero, and are not empty when creating a record.
      *
-     * @param \Cake\Validation\Validator $validator Validator instance.
-     * @return \Cake\Validation\Validator
+     * @param \Cake\Validation\Validator $validator Validator instance to modify.
+     * @return \Cake\Validation\Validator The configured validator.
      */
     public function validationDefault(Validator $validator): Validator
     {
@@ -80,11 +82,13 @@ class AwardGatheringActivitiesTable extends Table
     }
 
     /**
-     * Returns a rules checker object that will be used for validating
-     * application integrity.
+     * Configure application integrity rules for award-gathering activity associations.
+     *
+     * Adds rules that require the referenced Award and GatheringActivity records to exist
+     * and enforces that each (award_id, gathering_activity_id) pair is unique.
      *
      * @param \Cake\ORM\RulesChecker $rules The rules object to be modified.
-     * @return \Cake\ORM\RulesChecker
+     * @return \Cake\ORM\RulesChecker The configured RulesChecker.
      */
     public function buildRules(RulesChecker $rules): RulesChecker
     {
