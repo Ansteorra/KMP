@@ -376,11 +376,13 @@ class OfficersTable extends BaseTable
         return $rules;
     }
     /**
-     * Adds display conditions and fields to the query based on the officer type.
+     * Augments a SelectQuery with display-oriented fields, conditional expressions, containment, and ordering based on officer type.
      *
-     * @param \Cake\ORM\Query\SelectQuery $q The query object.
-     * @param string $type The type of officers to retrieve (current, upcoming, previous).
-     * @return \Cake\ORM\Query\SelectQuery The modified query object.
+     * Adds computed display expressions for revoke reason and reporting descriptions, selects common officer fields, and configures related containment (Members, Offices, RevokedBy, warrants, reporting/deputy relations) appropriate for 'current', 'upcoming', or 'previous' officer listings.
+     *
+     * @param \Cake\ORM\Query\SelectQuery $q The query to modify.
+     * @param string $type One of 'current', 'upcoming', or 'previous' to control which fields and associations are included.
+     * @return \Cake\ORM\Query\SelectQuery The modified query with added selects, containments, and ordering suitable for display.
      */
     public function addDisplayConditionsAndFields($q, $type)
     {
@@ -530,67 +532,11 @@ class OfficersTable extends BaseTable
     }
 
     /**
-     * Find effective reporting officers with can_skip_report hierarchy traversal
+     * Resolve the effective officers who should receive reports for a given officer by traversing the reporting office/branch hierarchy when offices may be vacant or configured to skip reporting.
      *
-     * This method resolves the actual officers that should receive reports from a given
-     * officer assignment, handling the complex edge case where offices with can_skip_report
-     * enabled may not have current officers assigned. When this occurs, the method
-     * recursively traverses up the office hierarchy until it finds an office with a
-     * current officer assignment.
-     *
-     * ## Business Logic
-     * The method implements the following resolution algorithm:
-     * 1. Start with the officer's direct reporting office (reports_to_office_id)
-     * 2. Look for current officers in that office for the reporting branch
-     * 3. If officers are found, return them (base case)
-     * 4. If no officers found AND the office has can_skip_report enabled:
-     *    - Load the office's reporting office (reports_to_id)
-     *    - Recursively apply this algorithm to find officers
-     * 5. If no officers found and can_skip_report is false, return empty (no skip allowed)
-     * 6. Prevent infinite loops by tracking visited offices
-     *
-     * ## Parameters
-     * @param \Officers\Model\Entity\Officer $officer The officer whose effective reports-to needs resolution
-     * @param array $visitedOffices Internal parameter for circular reference prevention (do not pass)
-     * @return array<\Officers\Model\Entity\Officer> Array of officer entities who effectively receive reports
-     *
-     * ## Edge Cases Handled
-     * - **No Direct Officer**: When reports_to office has no current officer but can skip
-     * - **Circular References**: Prevents infinite loops through visited office tracking
-     * - **Top Level**: Returns empty array when reaching society level (no reports_to)
-     * - **Cannot Skip**: Returns empty array when office cannot skip and has no officer
-     * - **Cross-Branch Reporting**: When exact branch match fails, searches office in any branch
-     * - **Kingdom-Level Officers**: Automatically finds kingdom officers even when reports_to_branch_id differs
-     *
-     * ## Performance Considerations
-     * - Uses eager loading to minimize database queries
-     * - Caches visited offices to prevent redundant checks
-     * - Recursion depth typically limited to 2-3 levels in practice
-     * - Consider caching results for frequently accessed officer records
-     *
-     * ## Usage Example
-     * ```php
-     * // Get effective reporting officers for an assignment
-     * $officer = $officersTable->get($officerId, [
-     *     'contain' => ['Offices', 'ReportsToOffices', 'ReportsToBranches']
-     * ]);
-     * 
-     * $effectiveReports = $officersTable->findEffectiveReportsTo($officer);
-     * 
-     * foreach ($effectiveReports as $reportingOfficer) {
-     *     // Send notifications, generate email lists, etc.
-     *     echo "Reports to: {$reportingOfficer->member->sca_name}\n";
-     * }
-     * ```
-     *
-     * ## Integration Points
-     * - **Reporting Workflows**: Use in report submission and notification systems
-     * - **Email Generation**: Build accurate recipient lists for officer communications
-     * - **Organizational Charts**: Display effective reporting relationships
-     * - **Permission Checks**: Validate reporting chain access for authorization
-     *
-     * @see \Officers\Model\Entity\Officer For officer entity documentation
-     * @see \Officers\Model\Entity\Office For office hierarchy and can_skip_report flag
+     * @param \Officers\Model\Entity\Officer $officer The officer assignment whose effective report recipients should be resolved; its `reports_to_office_id` and `reports_to_branch_id` determine the starting point.
+     * @param string[] $visitedOffices Internal set of visited "office_branch" keys used to prevent circular traversal (for internal use; callers should not populate this).
+     * @return \Officers\Model\Entity\Officer[] Array of officer entities that effectively receive reports for the given officer; empty array when none are found or when the resolution reaches the top-level (society). 
      */
     public function findEffectiveReportsTo(Officer $officer, array $visitedOffices = []): array
     {

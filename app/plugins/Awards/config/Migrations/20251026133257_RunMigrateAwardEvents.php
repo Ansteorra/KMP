@@ -10,6 +10,11 @@ use Cake\ORM\TableRegistry;
  */
 class RunMigrateAwardEvents extends BaseMigration
 {
+    /**
+     * Orchestrates the migration that converts Award Events into Gatherings and updates related references.
+     *
+     * Ensures a "Kingdom Court" gathering activity and a "Kingdom Calendar Event" gathering type exist, associates all awards with the activity, creates Gatherings for each Award Event (linking them to the activity and gathering type), and updates Award Recommendations to reference the newly created Gatherings.
+     */
     public function up(): void
     {
         echo "\nStarting Award Events to Gatherings migration...\n";
@@ -32,6 +37,11 @@ class RunMigrateAwardEvents extends BaseMigration
         echo "Migration completed successfully!\n";
     }
 
+    /**
+     * Ensure a "Kingdom Court" gathering activity exists, creating it if missing.
+     *
+     * @return \Cake\Datasource\EntityInterface The GatheringActivity entity representing "Kingdom Court".
+     */
     protected function createKingdomCourtActivity()
     {
         echo "Step 1: Creating Kingdom Court activity...\n";
@@ -47,6 +57,13 @@ class RunMigrateAwardEvents extends BaseMigration
         return $activity;
     }
 
+    /**
+     * Ensure every Award is associated with the given gathering activity.
+     *
+     * Creates missing AwardGatheringActivities junction records that link each Award to the specified gathering activity.
+     *
+     * @param int $activityId ID of the gathering activity to associate with each award.
+     */
     protected function associateAwardsWithActivity(int $activityId): void
     {
         echo "Step 2: Associating awards...\n";
@@ -63,6 +80,14 @@ class RunMigrateAwardEvents extends BaseMigration
         echo "  ✓ Associated {$count} awards\n";
     }
 
+    /**
+     * Ensures a GatheringTypes record named "Kingdom Calendar Event" exists and returns it.
+     *
+     * If the record does not exist, creates one with name "Kingdom Calendar Event" and description
+     * "Official Kingdom calendar events" and returns the newly created entity.
+     *
+     * @return \Cake\Datasource\EntityInterface The existing or newly created gathering type entity.
+     */
     protected function createKingdomCalendarEventType()
     {
         echo "Step 3: Creating gathering type...\n";
@@ -78,6 +103,17 @@ class RunMigrateAwardEvents extends BaseMigration
         return $type;
     }
 
+    /**
+     * Create Gatherings from every award Event and associate them with a gathering activity.
+     *
+     * Creates a Gathering for each record in Awards.Events using the provided gathering type,
+     * links each created Gathering to the specified activity, and returns a mapping from
+     * award event IDs to the newly created gathering IDs.
+     *
+     * @param int $gatheringTypeId The gathering type ID to assign to created Gatherings.
+     * @param int $activityId The gathering activity ID to associate each created Gathering with.
+     * @return array<int,int> Map where keys are award event IDs and values are the corresponding created gathering IDs.
+     */
     protected function createGatheringsFromAwardEvents(int $gatheringTypeId, int $activityId): array
     {
         echo "Steps 4-5: Creating gatherings...\n";
@@ -110,6 +146,14 @@ class RunMigrateAwardEvents extends BaseMigration
         return $map;
     }
 
+    /**
+     * Update award recommendations to reference newly created gatherings for mapped events.
+     *
+     * For each recommendation that has an `event_id`, sets its `gathering_id` to the corresponding
+     * gathering ID from the provided map when a mapping exists.
+     *
+     * @param int[] $eventGatheringMap Map of event IDs to gathering IDs (keys are event IDs, values are gathering IDs).
+     */
     protected function updateAwardRecommendations(array $eventGatheringMap): void
     {
         echo "Steps 6-7: Updating recommendations...\n";
@@ -146,6 +190,11 @@ class RunMigrateAwardEvents extends BaseMigration
         echo "  ✓ Updated {$count} recommendations\n";
     }
 
+    /**
+     * Indicates that this migration does not support rollback.
+     *
+     * Prints a message stating that rollback is not supported.
+     */
     public function down(): void
     {
         echo "Rollback not supported\n";

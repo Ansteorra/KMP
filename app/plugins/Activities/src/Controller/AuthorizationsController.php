@@ -200,6 +200,16 @@ class AuthorizationsController extends AppController
         return $this->redirect($this->referer());
     }
 
+    /**
+     * Handle submission of a new authorization request for a member.
+     *
+     * Creates an authorization request for the provided member and activity, enforces controller
+     * authorization, submits the request via the authorization manager, sets success or error
+     * flash messages, and redirects back to the referring page. If the request originated from
+     * a mobile context, redirects to the member's mobile card view.
+     *
+     * @return \Cake\Http\Response|null The response produced by a redirect, or null if none.
+     */
     public function add(AuthorizationManagerInterface $maService)
     {
         $this->request->allowMethod(["post"]);
@@ -256,6 +266,16 @@ class AuthorizationsController extends AppController
         return $this->redirect($this->referer());
     }
 
+    /**
+     * Submit a renewal request for a member's authorization.
+     *
+     * Processes a renewal request from POST data, delegates the request to the AuthorizationManager service,
+     * sets a success or error flash message, and redirects back to the referring page or to the member's
+     * mobile card view when the request originated from the mobile interface.
+     *
+     * @param \Activities\Service\AuthorizationManagerInterface $maService Service used to submit the authorization request.
+     * @return \Cake\Http\Response|null Redirect response to the referrer or member mobile card, or null if no redirect is produced.
+     */
     public function renew(AuthorizationManagerInterface $maService)
     {
         $this->request->allowMethod(["post"]);
@@ -318,13 +338,11 @@ class AuthorizationsController extends AppController
     }
 
     /**
-     * Mobile authorization request action
-     * 
-     * Provides a mobile-optimized interface for members to request new authorizations.
-     * This action displays a streamlined form with large touch targets and simplified
-     * UI optimized for mobile PWA experience.
+     * Display a mobile-optimized form for members to request authorizations.
      *
-     * @return \Cake\Http\Response|null|void Renders mobile request form
+     * Provides the view with the requesting member's ID and available activities, and configures the mobile layout and UI metadata.
+     *
+     * @return \Cake\Http\Response|null|void A redirect Response when unauthenticated users are redirected; otherwise null/void. 
      */
     public function mobileRequestAuthorization()
     {
@@ -363,6 +381,17 @@ class AuthorizationsController extends AppController
         $this->set('showRefreshBtn', false); // No refresh button needed for form page
     }
 
+    /**
+     * Display paginated authorizations for a member filtered by state.
+     *
+     * Loads authorizations for the specified member in one of the states: "current", "pending", or "previous",
+     * enforces view permission on the member, paginates the results, and exposes `authorizations`, `member`,
+     * and `state` to the view.
+     *
+     * @param string $state The authorization state to display ("current", "pending", or "previous").
+     * @param int $id The member id whose authorizations are being displayed.
+     * @throws \Cake\Http\Exception\NotFoundException If the state is invalid or the member does not exist.
+     */
     public function memberAuthorizations($state, $id)
     {
         if ($state != 'current' && $state == 'pending' && $state == 'previous') {

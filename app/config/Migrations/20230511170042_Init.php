@@ -12,6 +12,10 @@ class Init extends BaseMigration
     public bool $autoId = false;
 
 
+    /**
+     * Create the initial database schema (tables, indices, and foreign keys) and execute the migration seed.
+     *
+     * Builds configuration and operational tables, applies relationship constraints, and attempts to run the InitMigration seed; if seeding fails the error message is printed.
     public function up()
     {
         #region Configuration Schema
@@ -659,6 +663,13 @@ class Init extends BaseMigration
         }
     }
 
+    /**
+     * Reverts the migration by removing foreign keys and dropping tables created in up().
+     *
+     * Removes foreign keys on members.branch_id, member_roles.member_id, member_roles.role_id,
+     * and roles_permissions.role_id, then drops the tables: notes, roles_permissions, permissions,
+     * member_roles, members, branch_links, branches, roles, and app_settings.
+     */
     public function down()
     {
 

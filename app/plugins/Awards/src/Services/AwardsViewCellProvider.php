@@ -111,73 +111,17 @@ use Cake\ORM\TableRegistry;
 class AwardsViewCellProvider
 {
     /**
-     * Generate view cell configurations for Awards plugin integration
+     * Build view cell configurations for the Awards plugin based on request context and user permissions.
      *
-     * Creates comprehensive view cell configurations for award recommendation display across
-     * member profiles, administrative interfaces, and mobile API endpoints. The method implements
-     * context-aware registration with route-based visibility and permission-aware filtering.
-     * 
-     * The view cell generation process:
-     * 1. **Plugin Availability Check**: Verifies Awards plugin is enabled before generating configurations
-     * 2. **Context Analysis**: Analyzes URL parameters and user context for appropriate view cell selection
-     * 3. **Route-Based Filtering**: Applies route validation to ensure view cells appear in appropriate contexts
-     * 4. **Permission Integration**: Filters view cells based on user permissions and relationship context
-     * 5. **Configuration Generation**: Creates complete ViewCellRegistry-compatible configurations
-     * 
-     * ## View Cell Configurations
-     * 
-     * ### Member Submitted Recs Cell
-     * Displays award recommendations submitted by a member:
-     * - **Integration Context**: Member profile views and administrative member management
-     * - **Route Validation**: Valid for Members/view and Members/profile actions
-     * - **Tab Integration**: Appears as "Submitted Award Recs." tab with order priority 3
-     * - **Badge Support**: Supports dynamic badge display for submission counts
-     * 
-     * ### Recs For Member Cell
-     * Displays award recommendations received by a member:
-     * - **Context Filtering**: Only visible when viewing other members (not own profile)
-     * - **Route Validation**: Valid for Members/view action only (excluded from profile view)
-     * - **Tab Integration**: Appears as "Received Award Recs." tab with order priority 4
-     * - **Permission Awareness**: Automatically filtered based on user relationship to viewed member
-     * 
-     * ## Route-Based Display Logic
-     * 
-     * The method implements sophisticated route matching:
-     * - **Profile Exclusion**: Received recommendations cell excluded from profile action
-     * - **Self-View Filtering**: Users cannot see "received" recommendations on their own profile
-     * - **Parameter Validation**: Validates URL parameters for appropriate context determination
-     * - **Multi-Route Support**: Supports multiple valid routes per view cell configuration
+     * Generates an array of ViewCellRegistry-compatible configuration arrays for integration points
+     * such as member profile tabs and gathering activity views. Configurations are included only when
+     * the Awards plugin is enabled, the request context (controller/action/route parameters) matches
+     * a supported integration, and the current user has the required permission or relationship to view
+     * the underlying data.
      *
-     * @param array $urlParams URL parameters from current request for context determination
-     * @param mixed $user Current authenticated user for permission and relationship context
-     * @return array Complete view cell configurations ready for ViewCellRegistry registration
-     * 
-     * @example
-     * ```php
-     * // Basic view cell generation
-     * $urlParams = $this->request->getParam();
-     * $user = $this->getCurrentUser();
-     * $viewCells = AwardsViewCellProvider::getViewCells($urlParams, $user);
-     * 
-     * // Register with ViewCellRegistry
-     * foreach ($viewCells as $cellConfig) {
-     *     ViewCellRegistry::register($cellConfig);
-     * }
-     * ```
-     * 
-     * @example
-     * ```php
-     * // Mobile API integration
-     * $viewCells = AwardsViewCellProvider::getViewCells($urlParams, $user);
-     * $mobileData = [];
-     * 
-     * foreach ($viewCells as $cell) {
-     *     $mobileData[$cell['id']] = [
-     *         'label' => $cell['label'],
-     *         'data' => $this->cell($cell['cell'])
-     *     ];
-     * }
-     * ```
+     * @param array $urlParams Request URL parameters used to determine controller, action, and route context.
+     * @param mixed $user Current authenticated user used for permission and relationship checks.
+     * @return array An array of view cell configuration arrays ready for registration with ViewCellRegistry.
      */
     public static function getViewCells(array $urlParams, $user = null): array
     {

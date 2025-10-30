@@ -59,33 +59,15 @@ use Cake\Log\Log;
 class ActivityAwardsCell extends Cell
 {
     /**
-     * Display awards associated with a gathering activity
-     * 
-     * Retrieves and prepares data for displaying awards that can be given out during
-     * a specific gathering activity. Since Awards is a plugin, we load the data from
-     * the Awards side of the relationship (Awards that contain this GatheringActivity).
-     * 
-     * ## Data Loading
-     * - Loads gathering activity for basic info and permission checking
-     * - Queries Awards table for awards associated with this activity
-     * - Orders awards by sort_order for consistent display
-     * - Includes award hierarchical information (domain, level, branch)
-     * - Calculates available awards for the add functionality
-     * 
-     * ## Permission Handling
-     * - Checks user's ability to view the gathering activity
-     * - Determines edit permissions for add/remove functionality
-     * - Returns early if user lacks appropriate permissions
-     * 
-     * ## Variable Setup
-     * Sets the following template variables:
-     * - `gatheringActivity`: The gathering activity entity (basic info)
-     * - `awards`: Collection of associated awards
-     * - `canEdit`: Boolean indicating if user can manage associations
-     * - `availableAwards`: List of awards not yet associated (for add dropdown)
-     * 
-     * @param int $activityId Gathering activity identifier
-     * @return void
+     * Prepare and expose awards data related to a gathering activity for the view.
+     *
+     * Loads the gathering activity, enforces view/edit permissions, fetches awards
+     * associated with the activity (including domain, level, and branch relationships),
+     * and computes a list of awards not yet associated for addition when the user can edit.
+     *
+     * Exposes template variables: `gatheringActivity`, `awards`, `canEdit`, and `availableAwards`.
+     *
+     * @param int $activityId The ID of the gathering activity.
      */
     public function display($activityId)
     {

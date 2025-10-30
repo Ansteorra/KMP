@@ -20,11 +20,11 @@ class CreateAwardGatheringActivities extends BaseMigration
     public bool $autoId = false;
 
     /**
-     * Change Method.
+     * Create the award_gathering_activities join table linking awards to gathering activities.
      *
-     * More information on this method is available here:
-     * https://book.cakephp.org/migrations/4/en/migrations.html#the-change-method
-     * @return void
+     * The table includes an auto-increment primary key `id`, foreign keys `award_id` and `gathering_activity_id`,
+     * audit fields (`created`, `modified`, `created_by`, `modified_by`), indexes (including a unique composite index
+     * on `award_id` and `gathering_activity_id`), and foreign key constraints with cascade-on-delete.
      */
     public function change(): void
     {

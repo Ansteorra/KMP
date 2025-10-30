@@ -17,12 +17,13 @@ use Migrations\BaseSeed;
 class DevLoadGatheringActivitiesSeed extends BaseSeed
 {
     /**
-     * Get seed data
+     * Provide template gathering activity seed records.
      *
-     * These are template activities that can be linked to gatherings via
-     * the gatherings_gathering_activities join table.
+     * Each record contains `id`, `name`, `description`, `created`, and `modified`
+     * fields and represents a reusable activity template that can be linked to
+     * gatherings via the gatherings_gathering_activities join table.
      *
-     * @return array<int, array<string, mixed>>
+     * @return array<int, array<string, mixed>> Array of seed records keyed by numeric index.
      */
     public function getData(): array
     {
@@ -73,11 +74,7 @@ class DevLoadGatheringActivitiesSeed extends BaseSeed
     }
 
     /**
-     * Run Method.
-     *
-     * Write your database seeder using this method.
-     *
-     * @return void
+     * Inserts predefined gathering activity seed records into the 'gathering_activities' table for development and testing.
      */
     public function run(): void
     {

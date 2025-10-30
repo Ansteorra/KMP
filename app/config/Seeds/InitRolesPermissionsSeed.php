@@ -13,9 +13,12 @@ require_once __DIR__ . '/Lib/SeedHelpers.php';
 class InitRolesPermissionsSeed extends BaseSeed
 {
     /**
-     * Get data for seeding.
+     * Provide seed rows mapping the Admin role to initial permissions.
      *
-     * @return array
+     * Returns an array of associative arrays, each representing a row for the roles_permissions table with the keys:
+     * `permission_id` (permission identifier), `role_id` (role identifier), and `created_by` (user ID who created the mapping).
+     *
+     * @return array An array of seed rows: one linking Admin to "Is Super User" and one linking Admin to "Can Do All But Is Not A Super User".
      */
     public function getData(): array
     {
@@ -34,14 +37,9 @@ class InitRolesPermissionsSeed extends BaseSeed
     }
 
     /**
-     * Run Method.
+     * Inserts the initial role-permission mappings into the roles_permissions table.
      *
-     * Write your database seeder using this method.
-     *
-     * More information on writing seeds is available here:
-     * https://book.cakephp.org/phinx/0/en/seeding.html
-     *
-     * @return void
+     * Persists this seed's data to the database so the application has the required role-permission records. 
      */
     public function run(): void
     {

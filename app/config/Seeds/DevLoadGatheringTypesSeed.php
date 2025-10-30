@@ -13,9 +13,12 @@ use Migrations\BaseSeed;
 class DevLoadGatheringTypesSeed extends BaseSeed
 {
     /**
-     * Get seed data
+     * Provide predefined seed records for gathering types.
      *
-     * @return array<int, array<string, mixed>>
+     * Each element is an associative array representing a gathering type with keys:
+     * `id`, `name`, `description`, `clonable`, `created`, and `modified`.
+     *
+     * @return array<int, array<string, mixed>> Array of gathering type seed records.
      */
     public function getData(): array
     {
@@ -56,11 +59,9 @@ class DevLoadGatheringTypesSeed extends BaseSeed
     }
 
     /**
-     * Run Method.
+     * Inserts development seed records for gathering types into the database.
      *
-     * Write your database seeder using this method.
-     *
-     * @return void
+     * Retrieves seed data from getData() and inserts it into the 'gathering_types' table.
      */
     public function run(): void
     {

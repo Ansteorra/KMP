@@ -19,11 +19,13 @@ class CreateGatheringsGatheringActivities extends BaseMigration
 {
     public bool $autoId = false;
 
-    /**
-     * Change Method.
+    / **
+     * Create the gatherings_gathering_activities join table with its columns, indexes, and foreign key constraints.
      *
-     * More information on this method is available here:
-     * https://book.cakephp.org/migrations/4/en/migrations.html#the-change-method
+     * This migration defines an explicit `id` primary key, `gathering_id` and `gathering_activity_id` foreign keys,
+     * a `sort_order` column for ordering activities, audit fields (`created`, `modified`, `created_by`, `modified_by`),
+     * and indexes including a unique composite index on (`gathering_id`, `gathering_activity_id`) to prevent duplicate assignments.
+     *
      * @return void
      */
     public function change(): void

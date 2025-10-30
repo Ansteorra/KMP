@@ -87,44 +87,15 @@ use App\KMP\StaticHelpers;
 class ActivitiesNavigationProvider
 {
     /**
-     * Get Activities Plugin Navigation Items
+     * Build the Activities plugin navigation structure with dynamic badges and permission-aware visibility.
      *
-     * Generates complete navigation structure for Activities plugin with dynamic
-     * badge support, permission-based visibility, and workflow integration.
-     * 
-     * **Navigation Structure**:
-     * 1. **My Auth Queue** - Personal approval queue with real-time badge count
-     * 2. **Auth Queues** - Administrative approval queue management
-     * 3. **Activity Groups** - Categorical activity organization
-     * 4. **Activities** - Activity configuration and management
-     * 5. **Activity Authorizations** - Reporting and analytics
-     * 
-     * **Dynamic Badge Features**:
-     * - Real-time approval queue counts for immediate workflow visibility
-     * - Color-coded badges (bg-danger) for urgent attention items
-     * - Automated badge value calculation through table method callbacks
-     * 
-     * **Navigation Organization**:
-     * - Personal tools under "Members > {User Name}" path
-     * - Administrative tools under "Members" and "Config" paths
-     * - Reporting tools under "Reports" path
-     * - Hierarchical organization with sub-navigation support
-     * 
-     * **Icon Integration**:
-     * Uses Bootstrap Icons for consistent visual navigation:
-     * - bi-person-fill-check: Personal approval queue
-     * - bi-card-checklist: Administrative queues
-     * - bi-archive: Activity groups
-     * - bi-collection: Activities
-     * - bi-person-lines-fill: Reports
-     * 
-     * **Active Path Highlighting**:
-     * Includes activePaths configuration for context-aware navigation
-     * highlighting when users are working within specific workflows.
-     * 
-     * @param Member $user Current authenticated user for personalization
-     * @param array $params Request parameters for context (currently unused)
-     * @return array Complete navigation items array with badges and permissions
+     * When the Activities plugin is disabled this returns an empty array. Otherwise it returns
+     * an array of associative navigation item definitions (labels, urls, icons, order, optional
+     * badge configuration and active path hints) suitable for rendering the Activities menu.
+     *
+     * @param Member $user The current authenticated member used for personalization and badge calculations.
+     * @param array $params Optional context parameters (currently unused).
+     * @return array An array of navigation item definitions for the Activities plugin. 
      */
     public static function getNavigationItems(Member $user, array $params = []): array
     {

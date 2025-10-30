@@ -7,10 +7,13 @@ use Migrations\BaseMigration;
 class CreateEmailTemplates extends BaseMigration
 {
     /**
-     * Change Method.
+     * Create the `email_templates` database table used to store mailer templates and their metadata.
      *
-     * More information on this method is available here:
-     * https://book.cakephp.org/migrations/4/en/migrations.html#the-change-method
+     * The table includes columns for the mailer class, action method, subject template, HTML and text
+     * template bodies, available variables (JSON), an `is_active` flag, and `created`/`modified`
+     * timestamps. It also adds a unique composite index on (`mailer_class`, `action_method`) named
+     * `idx_mailer_action_unique` and a non-unique index on `is_active`.
+     *
      * @return void
      */
     public function change(): void

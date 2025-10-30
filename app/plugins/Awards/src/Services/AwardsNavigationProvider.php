@@ -107,61 +107,15 @@ use Awards\Model\Entity\Recommendation;
 class AwardsNavigationProvider
 {
     /**
-     * Generate comprehensive navigation items for Awards plugin
+     * Builds the Awards plugin navigation tree with static sections and per-status recommendation links.
      *
-     * Creates a complete navigation structure for the Awards plugin including recommendation
-     * workflows, administrative tools, configuration management, and reporting capabilities.
-     * The method implements dynamic content generation with status-based filtering, hierarchical
-     * organization, and Bootstrap Icons integration.
-     * 
-     * The navigation generation process:
-     * 1. **Plugin Availability Check**: Verifies Awards plugin is enabled before generating navigation
-     * 2. **Status-Based Generation**: Creates navigation items for each recommendation status with filtering
-     * 3. **Hierarchical Structure**: Organizes navigation into logical parent-child relationships
-     * 4. **Dynamic Content**: Integrates real-time status information and workflow context
-     * 5. **Icon Integration**: Applies Bootstrap Icons for consistent visual representation
-     * 
-     * ## Navigation Structure
-     * 
-     * The generated navigation includes:
-     * - **Award Recs. Parent**: Main navigation category for recommendation workflows
-     * - **Recommendations**: Access to recommendation listing with status filtering
-     * - **New Recommendation**: Quick access for recommendation submission
-     * - **Configuration**: Administrative access to domains, levels, awards, and events
-     * - **Member Integration**: Integration with member profiles for recommendation submission
-     * 
-     * ## Status-Based Navigation
-     * 
-     * For each recommendation status, the method generates:
-     * - Filtered navigation links with status-specific URLs
-     * - Consistent icon usage with "bi-file-earmark-check"
-     * - Active path detection for proper navigation highlighting
-     * - Merge path integration for hierarchical organization
-     * 
-     * ## Dynamic Badge Integration
-     * 
-     * The navigation structure supports badge integration through:
-     * - Status-based filtering URLs for queue count integration
-     * - Merge path structure for badge inheritance
-     * - Active path detection for workflow state visualization
-     * - Icon consistency for badge display integration
+     * The returned structure contains a parent header and core navigation items (Recommendations, Award Domains,
+     * Award Levels, Awards, Submit Award Rec.) plus additional links generated for each recommendation status that
+     * filter the Recommendations list. Items include mergePath, icon, order, URL, and active path metadata for UI integration.
      *
-     * @param \App\Model\Entity\Member $user Current authenticated user for authorization context
-     * @param array $params Request parameters for dynamic navigation generation
-     * @return array Complete navigation structure with hierarchical organization and status-based filtering
-     * 
-     * @example
-     * ```php
-     * // Basic navigation generation
-     * $user = $this->getCurrentUser();
-     * $navigation = AwardsNavigationProvider::getNavigationItems($user);
-     * 
-     * // With request parameters for context
-     * $navigation = AwardsNavigationProvider::getNavigationItems($user, [
-     *     'controller' => 'Recommendations',
-     *     'action' => 'index'
-     * ]);
-     * ```
+     * @param \App\Model\Entity\Member $user The current authenticated user used for authorization/context.
+     * @param array $params Optional request parameters that may influence active path or contextual navigation.
+     * @return array An array of navigation item arrays organized hierarchically, including static items and status-filtered recommendation links.
      */
     public static function getNavigationItems(Member $user, array $params = []): array
     {

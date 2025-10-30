@@ -17,11 +17,11 @@ use Migrations\BaseMigration;
 class AddCustomDescriptionToGatheringsGatheringActivities extends BaseMigration
 {
     /**
-     * Change Method.
+     * Add a nullable `custom_description` text column to the gatherings_gathering_activities table.
      *
-     * More information on this method is available here:
-     * https://book.cakephp.org/migrations/4/en/migrations.html#the-change-method
-     * @return void
+     * The column allows per-gathering overrides of an activity's default description. It is added
+     * with a default of null, is nullable, includes a descriptive comment, and is positioned after
+     * the `sort_order` column before the schema update is applied.
      */
     public function change(): void
     {

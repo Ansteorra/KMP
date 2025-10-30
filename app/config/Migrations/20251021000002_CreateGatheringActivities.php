@@ -8,11 +8,11 @@ class CreateGatheringActivities extends BaseMigration
 {
     public bool $autoId = false;
     /**
-     * Change Method.
+     * Create the `gathering_activities` table with its columns and primary key.
      *
-     * More information on this method is available here:
-     * https://book.cakephp.org/migrations/4/en/migrations.html#the-change-method
-     * @return void
+     * Defines columns for activity metadata (id, name, description), timestamps
+     * (created, modified, deleted) and user reference fields (created_by, modified_by),
+     * and sets `id` as the primary key.
      */
     public function change(): void
     {

@@ -33,7 +33,7 @@ class SeedHelpers
     ];
 
     /**
-     * Enable test mode with static lookups
+     * Activate test fixture mode so lookup methods return values from static test mappings instead of querying the database.
      */
     public static function enableTestMode(): void
     {
@@ -49,13 +49,24 @@ class SeedHelpers
     }
 
     /**
-     * Set test lookup value
-     */
+         * Store or update a static lookup value used during test-mode seeding.
+         *
+         * @param string $table The table namespace/key grouping for the lookup (e.g., 'Roles', 'Branches').
+         * @param string $key The lookup key within the table (for example a name or identifier).
+         * @param int $value The ID value to return when the lookup is used in test mode.
+         */
     public static function setTestLookup(string $table, string $key, int $value): void
     {
         self::$testLookups[$table][$key] = $value;
     }
 
+    /**
+     * Resolve an ActivityGroup's primary key from its name.
+     *
+     * @param string $name The activity group name to look up.
+     * @return int The matching ActivityGroup id.
+     * @throws \Cake\Datasource\Exception\RecordNotFoundException If no ActivityGroup with the given name exists.
+     */
     public static function getActivityGroupId(string $name): int
     {
         $activityGroupsTable = TableRegistry::getTableLocator()->get('Activities.ActivityGroups');
@@ -63,6 +74,16 @@ class SeedHelpers
         return $activityGroup->id;
     }
 
+    /**
+     * Resolve the ID of a role given its name.
+     *
+     * When a role name is provided, returns the associated role ID; if the name is null, returns null.
+     * In test mode the method will return a predefined lookup value when available instead of querying the database.
+     *
+     * @param string|null $name The role name to look up.
+     * @return int|null `int` role ID if found, `null` if `$name` is null.
+     * @throws \Cake\Datasource\Exception\RecordNotFoundException If no role with the given name exists.
+     */
     public static  function getRoleId(?string $name): ?int
     {
         if ($name === null) {
@@ -79,6 +100,15 @@ class SeedHelpers
         return $role->id;
     }
 
+    /**
+     * Resolve the ID for a permission by its name.
+     *
+     * If test mode is enabled and a static lookup exists for the given name, that value is returned; otherwise the Permissions table is queried.
+     *
+     * @param string $name The permission name to resolve.
+     * @return int The ID of the matching permission.
+     * @throws \Cake\Datasource\Exception\RecordNotFoundException If no permission with the given name exists.
+     */
     public static  function getPermissionId(string $name): int
     {
         // Test mode: use static lookup
@@ -91,6 +121,16 @@ class SeedHelpers
         return $permission->id;
     }
 
+    /**
+     * Resolve a member's numeric ID from an email address or SCA name.
+     *
+     * When test mode is enabled and a static test lookup exists for the provided key,
+     * the mapped ID from the test lookups is returned. Otherwise the function finds
+     * the member by matching either email_address or sca_name and returns its id.
+     *
+     * @param string $emailOrScaName The member's email address or SCA name to look up.
+     * @return int The resolved member ID.
+     */
     public static  function getMemberId(string $emailOrScaName): int
     {
         // Test mode: use static lookup
@@ -105,6 +145,13 @@ class SeedHelpers
         return $member->id;
     }
 
+    /**
+     * Resolves a branch name to its ID, using a static test lookup when test mode is enabled.
+     *
+     * @param string|null $name The branch name to resolve, or `null` to return `null`.
+     * @return int|null The branch's ID if found; `null` when `$name` is `null`.
+     * @throws \Cake\Datasource\Exception\RecordNotFoundException If no branch with the given name exists.
+     */
     public static function getBranchIdByName(?string $name): ?int
     {
         if ($name === null) {

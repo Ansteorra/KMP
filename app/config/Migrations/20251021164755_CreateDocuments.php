@@ -8,11 +8,16 @@ class CreateDocuments extends BaseMigration
 {
     public bool $autoId = false;
     /**
-     * Change Method.
+     * Create the `documents` table including its columns, indexes, and foreign keys.
      *
-     * More information on this method is available here:
-     * https://book.cakephp.org/migrations/4/en/migrations.html#the-change-method
-     * @return void
+     * Defines a schema for storing file metadata and polymorphic associations:
+     * - Primary key `id`.
+     * - Polymorphic fields `entity_type` and `entity_id`.
+     * - File metadata: `original_filename`, `stored_filename`, `file_path`, `mime_type`, `file_size`, `checksum`.
+     * - Storage and metadata: `storage_adapter`, `metadata`.
+     * - Uploader and audit fields: `uploaded_by`, `created`, `modified`, `created_by`, `modified_by`, `deleted`.
+     * - Indexes (composite index on entity, unique on `file_path`, and additional indexes on `checksum`, `uploaded_by`, `created`).
+     * - Foreign key constraints to `members.id` for `uploaded_by`, `created_by`, and `modified_by` with named constraints and NO_ACTION on update/delete.
      */
     public function change(): void
     {
