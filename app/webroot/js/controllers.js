@@ -51940,7 +51940,10 @@ class WaiverUploadController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE
   /**
    * Allowed MIME types for image uploads
    */
-  static ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/tiff'];
+  static ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/bmp', 'image/webp', 'image/x-ms-bmp',
+  // Alternative MIME type for BMP
+  'image/x-windows-bmp' // Another BMP variant
+  ];
 
   /**
    * Initialize controller
@@ -52010,7 +52013,7 @@ class WaiverUploadController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE
     if (!WaiverUploadController.ALLOWED_TYPES.includes(file.type)) {
       return {
         valid: false,
-        error: `${file.name}: Invalid file type (${file.type}). Only JPEG, PNG, and TIFF images are allowed.`
+        error: `${file.name}: Invalid file type (${file.type}). Only raster images are allowed (JPEG, PNG, GIF, BMP, WEBP). SVG and TIFF files are not supported.`
       };
     }
     return {
@@ -52442,7 +52445,7 @@ class WaiverUploadWizardController extends _hotwired_stimulus__WEBPACK_IMPORTED_
     files.forEach(file => {
       // Validate file type
       if (!this.isValidImageFile(file)) {
-        this.showError(`Invalid file type: ${file.name}. Please upload JPEG, PNG, or TIFF images.`);
+        this.showError(`Invalid file type: ${file.name}. Please upload raster images only (JPEG, PNG, GIF, BMP, or WEBP). SVG and TIFF files are not supported.`);
         return;
       }
 
@@ -52478,7 +52481,10 @@ class WaiverUploadWizardController extends _hotwired_stimulus__WEBPACK_IMPORTED_
     }
   }
   isValidImageFile(file) {
-    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/tiff'];
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/bmp', 'image/webp', 'image/x-ms-bmp',
+    // Alternative MIME type for BMP
+    'image/x-windows-bmp' // Another BMP variant
+    ];
     return validTypes.includes(file.type);
   }
   addPage(file) {

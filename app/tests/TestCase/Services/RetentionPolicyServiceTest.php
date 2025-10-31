@@ -2,21 +2,21 @@
 
 declare(strict_types=1);
 
-namespace Waivers\Test\TestCase\Services;
+namespace App\Test\TestCase\Services;
 
+use App\Services\RetentionPolicyService;
 use Cake\I18n\Date;
 use Cake\TestSuite\TestCase;
-use Waivers\Services\RetentionPolicyService;
 
 /**
- * Waivers\Services\RetentionPolicyService Test Case
+ * App\Services\RetentionPolicyService Test Case
  */
 class RetentionPolicyServiceTest extends TestCase
 {
     /**
      * Test subject
      *
-     * @var \Waivers\Services\RetentionPolicyService
+     * @var \App\Services\RetentionPolicyService
      */
     protected $RetentionPolicyService;
 

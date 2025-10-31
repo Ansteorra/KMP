@@ -2,26 +2,26 @@
 
 declare(strict_types=1);
 
-namespace Waivers\Services;
+namespace App\Services;
 
-use App\Services\ServiceResult;
 use Cake\Core\Configure;
 use Cake\Log\Log;
 
 /**
  * Image to PDF Conversion Service
  *
- * Converts uploaded image files (JPEG, PNG, GIF) to PDF format for waiver storage.
- * Uses GD extension for image processing and FPDF for PDF generation. This ensures
- * all waivers are stored in a consistent format regardless of upload type.
+ * Converts uploaded image files to PDF format for consistent document storage.
+ * Uses GD extension for image processing and generates PDFs directly. This ensures
+ * all images are stored in a consistent format regardless of upload type.
  * 
  * ## Features
  * 
- * - **Multiple Image Formats**: Supports JPEG, PNG, GIF input
+ * - **Multiple Image Formats**: Supports JPEG, PNG, GIF, BMP, WEBP, and WBMP
  * - **Automatic Sizing**: Fits images to standard page sizes (Letter, A4)
  * - **Quality Control**: Maintains image quality during conversion
  * - **Memory Efficient**: Processes images without excessive memory usage
  * - **Error Handling**: Returns ServiceResult for consistent error reporting
+ * - **Debug Support**: Saves failed files for troubleshooting
  * 
  * ## Usage Example
  * 
@@ -49,14 +49,10 @@ class ImageToPdfConversionService
 {
     /**
      * Supported image formats
+     * 
+     * Note: WEBP support depends on GD library compilation options
      */
-    private const SUPPORTED_FORMATS = ['jpg', 'jpeg', 'png', 'gif'];
-
-    /**
-     * Standard page size (US Letter in mm)
-     */
-    private const PAGE_WIDTH = 215.9;
-    private const PAGE_HEIGHT = 279.4;
+    private const SUPPORTED_FORMATS = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'wbmp'];
 
     /**
      * Convert an image file to PDF format
@@ -68,28 +64,20 @@ class ImageToPdfConversionService
      */
     public function convertImageToPdf(string $imagePath, string $outputPath, string $pageSize = 'letter'): ServiceResult
     {
-        // Validate input file exists
-        if (!file_exists($imagePath)) {
-            return new ServiceResult(false, 'Source image file not found');
-        }
-
         // Check if GD extension is available
         if (!extension_loaded('gd')) {
             return new ServiceResult(false, 'GD extension is not available for image processing');
         }
 
-        // Get image info
-        $imageInfo = @getimagesize($imagePath);
-        if ($imageInfo === false) {
-            return new ServiceResult(false, 'Unable to read image file information');
+        // Validate and get image info
+        $imageInfo = $this->validateAndGetImageInfo($imagePath, false);
+        if (!$imageInfo['success']) {
+            return new ServiceResult(false, $imageInfo['error']);
         }
 
-        [$width, $height, $type] = $imageInfo;
-
-        // Validate image type
-        if (!in_array($type, [IMAGETYPE_JPEG, IMAGETYPE_PNG, IMAGETYPE_GIF])) {
-            return new ServiceResult(false, 'Unsupported image format. Only JPEG, PNG, and GIF are supported');
-        }
+        $width = $imageInfo['width'];
+        $height = $imageInfo['height'];
+        $type = $imageInfo['type'];
 
         // Load the image based on type
         $image = $this->loadImage($imagePath, $type);
@@ -135,23 +123,12 @@ class ImageToPdfConversionService
         try {
             // Process each image
             foreach ($imagePaths as $imagePath) {
-                // Validate input file exists
-                if (!file_exists($imagePath)) {
-                    throw new \Exception("Image file not found: $imagePath");
-                }
+                // Validate and get image info (throws exception on failure)
+                $imageInfo = $this->validateAndGetImageInfo($imagePath, true);
 
-                // Get image info
-                $imageInfo = @getimagesize($imagePath);
-                if ($imageInfo === false) {
-                    throw new \Exception("Unable to read image file: $imagePath");
-                }
-
-                [$width, $height, $type] = $imageInfo;
-
-                // Validate image type
-                if (!in_array($type, [IMAGETYPE_JPEG, IMAGETYPE_PNG, IMAGETYPE_GIF])) {
-                    throw new \Exception("Unsupported image format: $imagePath");
-                }
+                $width = $imageInfo['width'];
+                $height = $imageInfo['height'];
+                $type = $imageInfo['type'];
 
                 // Load the image
                 $image = $this->loadImage($imagePath, $type);
@@ -170,8 +147,10 @@ class ImageToPdfConversionService
                 $jpegDataArray[] = [
                     'data' => $result['jpeg_data'],
                     'size' => $result['jpeg_size'],
-                    'width' => $result['width'],
-                    'height' => $result['height'],
+                    'jpeg_width' => $result['jpeg_width'],       // Actual JPEG pixel dimensions
+                    'jpeg_height' => $result['jpeg_height'],
+                    'display_width' => $result['display_width'],   // Display size in points
+                    'display_height' => $result['display_height'],
                 ];
             }
 
@@ -201,7 +180,98 @@ class ImageToPdfConversionService
     }
 
     /**
-     * Load image resource based on type
+     * Validate and get information about an image file
+     * 
+     * Performs comprehensive validation including:
+     * - File existence check
+     * - Image format detection
+     * - Format support verification
+     * - Debug file saving on failure
+     * 
+     * @param string $imagePath Path to image file
+     * @param bool $throwException If true, throws exception on failure; if false, returns error in array
+     * @return array{success: bool, width?: int, height?: int, type?: int, error?: string}
+     * @throws \Exception if validation fails and $throwException is true
+     */
+    private function validateAndGetImageInfo(string $imagePath, bool $throwException = false): array
+    {
+        // Validate input file exists
+        if (!file_exists($imagePath)) {
+            $error = "Image file not found: $imagePath";
+            if ($throwException) {
+                throw new \Exception($error);
+            }
+            return ['success' => false, 'error' => $error];
+        }
+
+        // Get image info
+        $imageInfo = @getimagesize($imagePath);
+        if ($imageInfo === false) {
+            // Save the failing file for debugging
+            //$debugPath = TMP . 'failed_image_' . date('Y-m-d_His') . '_' . basename($imagePath);
+            //copy($imagePath, $debugPath);
+
+            // Try to determine if it's an SVG or other unsupported format
+            $fileContent = file_get_contents($imagePath, false, null, 0, 1024);
+            $fileHeader = bin2hex(substr($fileContent, 0, 16));
+
+            // Log detailed debug info
+            Log::error('Failed to read image file', [
+                'path' => $imagePath,
+                //'saved_to' => $debugPath,
+                'file_size' => filesize($imagePath),
+                'file_header_hex' => $fileHeader,
+                'file_header_text' => substr($fileContent, 0, 64),
+                'mime_type' => mime_content_type($imagePath),
+            ]);
+
+            if (strpos($fileContent, '<svg') !== false || strpos($fileContent, '<?xml') !== false) {
+                $error = 'SVG files are not supported. Please upload raster images only (JPEG, PNG, GIF, BMP, WEBP, WBMP)';
+            } else {
+                $error = 'Unable to read image file. Supported formats: JPEG, PNG, GIF, BMP, WEBP, WBMP (raster images only)';
+            }
+
+            if ($throwException) {
+                throw new \Exception($error);
+            }
+            return ['success' => false, 'error' => $error];
+        }
+
+        [$width, $height, $type] = $imageInfo;
+
+        // Build list of supported IMAGETYPE constants
+        $supportedTypes = [
+            IMAGETYPE_JPEG,
+            IMAGETYPE_PNG,
+            IMAGETYPE_GIF,
+            IMAGETYPE_BMP,
+            IMAGETYPE_WBMP,
+        ];
+
+        // Add optional formats if available in this PHP build
+        if (defined('IMAGETYPE_WEBP')) {
+            $supportedTypes[] = IMAGETYPE_WEBP;
+        }
+
+        // Validate image type
+        if (!in_array($type, $supportedTypes)) {
+            $error = 'Unsupported image format. Supported formats: JPEG, PNG, GIF, BMP, WEBP, WBMP';
+            if ($throwException) {
+                throw new \Exception($error);
+            }
+            return ['success' => false, 'error' => $error];
+        }
+
+        return [
+            'success' => true,
+            'width' => $width,
+            'height' => $height,
+            'type' => $type,
+        ];
+    }
+
+    /**
+     * Load an image from file based on its type
      *
      * @param string $path Path to image
      * @param int $type Image type constant
@@ -209,12 +279,27 @@ class ImageToPdfConversionService
      */
     private function loadImage(string $path, int $type): \GdImage|false
     {
-        return match ($type) {
+        // Handle basic formats with match
+        $image = match ($type) {
             IMAGETYPE_JPEG => @imagecreatefromjpeg($path),
             IMAGETYPE_PNG => @imagecreatefrompng($path),
             IMAGETYPE_GIF => @imagecreatefromgif($path),
+            IMAGETYPE_BMP => @imagecreatefrombmp($path),
+            IMAGETYPE_WBMP => @imagecreatefromwbmp($path),
             default => false,
         };
+
+        // Return if we got an image from the match
+        if ($image !== false) {
+            return $image;
+        }
+
+        // Handle optional formats that may not be defined in all PHP builds
+        if (defined('IMAGETYPE_WEBP') && $type === IMAGETYPE_WEBP) {
+            return @imagecreatefromwebp($path);
+        }
+
+        return false;
     }
 
     /**
@@ -262,7 +347,7 @@ class ImageToPdfConversionService
         imagefilter($resizedImage, IMG_FILTER_CONTRAST, -30);
 
         // Create a temporary JPEG file with the processed image
-        $tempJpeg = tempnam(sys_get_temp_dir(), 'waiver_') . '.jpg';
+        $tempJpeg = tempnam(sys_get_temp_dir(), 'img2pdf_') . '.jpg';
 
         // Save with lower quality since it's black and white
         if (!imagejpeg($resizedImage, $tempJpeg, 70)) {
@@ -275,10 +360,21 @@ class ImageToPdfConversionService
         // Read JPEG data
         $jpegData = file_get_contents($tempJpeg);
         $jpegSize = filesize($tempJpeg);
+
+        // Get actual JPEG dimensions for the XObject declaration
+        $jpegInfo = @getimagesize($tempJpeg);
+        $jpegWidth = $imgWidth;  // Default to fitted dimensions
+        $jpegHeight = $imgHeight;
+        if ($jpegInfo !== false) {
+            $jpegWidth = $jpegInfo[0];
+            $jpegHeight = $jpegInfo[1];
+        }
+
         unlink($tempJpeg);
 
         // Create minimal PDF structure
-        $pdf = $this->buildPdfStructure($jpegData, $jpegSize, $imgWidth, $imgHeight, $pageWidth, $pageHeight);
+        // Pass JPEG pixel dimensions for XObject, and fitted dimensions for display size
+        $pdf = $this->buildPdfStructure($jpegData, $jpegSize, $jpegWidth, $jpegHeight, $imgWidth, $imgHeight, $pageWidth, $pageHeight);
 
         // Write PDF file
         if (file_put_contents($outputPath, $pdf) === false) {
@@ -320,10 +416,10 @@ class ImageToPdfConversionService
 
         $ratio = min($maxWidth / $imgWidth, $maxHeight / $imgHeight);
 
-        return [
-            (int)($imgWidth * $ratio),
-            (int)($imgHeight * $ratio)
-        ];
+        $fittedWidth = (int)($imgWidth * $ratio);
+        $fittedHeight = (int)($imgHeight * $ratio);
+
+        return [$fittedWidth, $fittedHeight];
     }
 
     /**
@@ -331,17 +427,19 @@ class ImageToPdfConversionService
      *
      * @param string $jpegData JPEG binary data
      * @param int $jpegSize JPEG file size
-     * @param int $imgWidth Fitted image width
-     * @param int $imgHeight Fitted image height
+     * @param int $jpegWidth Actual JPEG pixel width (for XObject)
+     * @param int $jpegHeight Actual JPEG pixel height (for XObject)
+     * @param int $displayWidth Display width in points (for transformation matrix)
+     * @param int $displayHeight Display height in points (for transformation matrix)
      * @param int $pageWidth Page width
      * @param int $pageHeight Page height
      * @return string PDF content
      */
-    private function buildPdfStructure(string $jpegData, int $jpegSize, int $imgWidth, int $imgHeight, int $pageWidth, int $pageHeight): string
+    private function buildPdfStructure(string $jpegData, int $jpegSize, int $jpegWidth, int $jpegHeight, int $displayWidth, int $displayHeight, int $pageWidth, int $pageHeight): string
     {
-        // Calculate position to center image
-        $x = ($pageWidth - $imgWidth) / 2;
-        $y = ($pageHeight - $imgHeight) / 2;
+        // Calculate position to center image based on display dimensions
+        $x = ($pageWidth - $displayWidth) / 2;
+        $y = ($pageHeight - $displayHeight) / 2;
 
         // Build PDF objects
         $objects = [];
@@ -355,13 +453,21 @@ class ImageToPdfConversionService
         // Object 3: Page
         $objects[3] = "3 0 obj\n<< /Type /Page /Parent 2 0 R /Resources << /XObject << /Im1 4 0 R >> >> /MediaBox [0 0 $pageWidth $pageHeight] /Contents 5 0 R >>\nendobj\n";
 
-        // Object 4: Image
-        $objects[4] = "4 0 obj\n<< /Type /XObject /Subtype /Image /Width $imgWidth /Height $imgHeight /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length $jpegSize >>\nstream\n$jpegData\nendstream\nendobj\n";
+        // Object 4: Image (using DeviceRGB since GD saves grayscale images as RGB JPEGs)
+        // Width/Height should match actual JPEG pixel dimensions
+        $objects[4] = "4 0 obj\n<< /Type /XObject /Subtype /Image /Width $jpegWidth /Height $jpegHeight /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length $jpegSize >>\nstream\n$jpegData\nendstream\nendobj\n";
 
         // Object 5: Content stream
-        $stream = "q\n$imgWidth 0 0 $imgHeight $x $y cm\n/Im1 Do\nQ\n";
+        // In PDF, images are 1x1 unit squares that need to be scaled and positioned
+        // Transformation matrix [a b c d e f] where:
+        // a = horizontal scaling (display width), d = vertical scaling (display height)
+        // e = horizontal position, f = vertical position
+        $stream = "q\n$displayWidth 0 0 $displayHeight $x $y cm\n/Im1 Do\nQ\n";
         $streamLength = strlen($stream);
         $objects[5] = "5 0 obj\n<< /Length $streamLength >>\nstream\n$stream\nendstream\nendobj\n";
+
+        // Sort objects by key to ensure they're written in numerical order
+        ksort($objects);
 
         // Build cross-reference table
         $xref = "xref\n0 6\n0000000000 65535 f \n";
@@ -390,12 +496,16 @@ class ImageToPdfConversionService
      */
     private function processImageForPdf(\GdImage $image, int $width, int $height, string $pageSize): array
     {
-        // Calculate dimensions to fit page
+        // Get actual dimensions from the image resource
+        $actualWidth = imagesx($image);
+        $actualHeight = imagesy($image);
+
+        // Calculate dimensions to fit page (these are the display dimensions in points)
         [$pageWidth, $pageHeight] = $this->getPageDimensions($pageSize);
-        [$imgWidth, $imgHeight] = $this->calculateFitDimensions($width, $height, $pageWidth, $pageHeight);
+        [$displayWidth, $displayHeight] = $this->calculateFitDimensions($width, $height, $pageWidth, $pageHeight);
 
         // Create a new image with the fitted dimensions
-        $resizedImage = imagecreatetruecolor($imgWidth, $imgHeight);
+        $resizedImage = imagecreatetruecolor($displayWidth, $displayHeight);
         if ($resizedImage === false) {
             return ['success' => false, 'error' => 'Failed to create resized image'];
         }
@@ -404,8 +514,8 @@ class ImageToPdfConversionService
         $white = imagecolorallocate($resizedImage, 255, 255, 255);
         imagefill($resizedImage, 0, 0, $white);
 
-        // Resize the original image to fit
-        if (!imagecopyresampled($resizedImage, $image, 0, 0, 0, 0, $imgWidth, $imgHeight, $width, $height)) {
+        // Resize the original image to fit - use ACTUAL resource dimensions
+        if (!imagecopyresampled($resizedImage, $image, 0, 0, 0, 0, $displayWidth, $displayHeight, $actualWidth, $actualHeight)) {
             imagedestroy($resizedImage);
             return ['success' => false, 'error' => 'Failed to resize image'];
         }
@@ -428,6 +538,16 @@ class ImageToPdfConversionService
 
         $jpegData = file_get_contents($tempJpeg);
         $jpegSize = filesize($tempJpeg);
+
+        // Get actual JPEG pixel dimensions (may differ slightly from display dimensions due to GD processing)
+        $jpegInfo = @getimagesize($tempJpeg);
+        $jpegWidth = $displayWidth;
+        $jpegHeight = $displayHeight;
+        if ($jpegInfo !== false) {
+            $jpegWidth = $jpegInfo[0];
+            $jpegHeight = $jpegInfo[1];
+        }
+
         unlink($tempJpeg);
         imagedestroy($resizedImage);
 
@@ -435,8 +555,10 @@ class ImageToPdfConversionService
             'success' => true,
             'jpeg_data' => $jpegData,
             'jpeg_size' => $jpegSize,
-            'width' => $imgWidth,
-            'height' => $imgHeight,
+            'jpeg_width' => $jpegWidth,       // Actual JPEG pixel dimensions
+            'jpeg_height' => $jpegHeight,
+            'display_width' => $displayWidth,   // Intended display size in points
+            'display_height' => $displayHeight,
         ];
     }
 
@@ -475,25 +597,32 @@ class ImageToPdfConversionService
             $imageObjects[$pageNum] = $imageNum;
             $contentObjects[$pageNum] = $contentNum;
 
-            // Calculate position to center image
-            $x = ($pageWidth - $pageData['width']) / 2;
-            $y = ($pageHeight - $pageData['height']) / 2;
+            // Calculate position to center image using display dimensions
+            $x = ($pageWidth - $pageData['display_width']) / 2;
+            $y = ($pageHeight - $pageData['display_height']) / 2;
 
             // Page object
             $objects[$pageNum] = "$pageNum 0 obj\n<< /Type /Page /Parent 2 0 R /Resources << /XObject << /Im$pageNum $imageNum 0 R >> >> /MediaBox [0 0 $pageWidth $pageHeight] /Contents $contentNum 0 R >>\nendobj\n";
 
-            // Image object
-            $objects[$imageNum] = "$imageNum 0 obj\n<< /Type /XObject /Subtype /Image /Width {$pageData['width']} /Height {$pageData['height']} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length {$pageData['size']} >>\nstream\n{$pageData['data']}\nendstream\nendobj\n";
+            // Image object (using DeviceRGB since GD saves grayscale images as RGB JPEGs)
+            // Width/Height should match actual JPEG pixel dimensions, not display dimensions
+            $objects[$imageNum] = "$imageNum 0 obj\n<< /Type /XObject /Subtype /Image /Width {$pageData['jpeg_width']} /Height {$pageData['jpeg_height']} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length {$pageData['size']} >>\nstream\n{$pageData['data']}\nendstream\nendobj\n";
 
             // Content stream
-            $stream = "q\n{$pageData['width']} 0 0 {$pageData['height']} $x $y cm\n/Im$pageNum Do\nQ\n";
+            // In PDF, images are 1x1 unit squares that need to be scaled and positioned
+            // Transformation matrix: a = horizontal scaling (display width), d = vertical scaling (display height)
+            $stream = "q\n{$pageData['display_width']} 0 0 {$pageData['display_height']} $x $y cm\n/Im$pageNum Do\nQ\n";
             $streamLength = strlen($stream);
+
             $objects[$contentNum] = "$contentNum 0 obj\n<< /Length $streamLength >>\nstream\n$stream\nendstream\nendobj\n";
         }
 
         // Now create the Pages object with all page references
         $pagesKids = implode(' ', $pageObjectNumbers);
         $objects[2] = "2 0 obj\n<< /Type /Pages /Kids [$pagesKids] /Count $numPages >>\nendobj\n";
+
+        // Sort objects by key to ensure they're written in numerical order
+        ksort($objects);
 
         // Build cross-reference table
         $xref = "xref\n0 " . ($objNum) . "\n0000000000 65535 f \n";

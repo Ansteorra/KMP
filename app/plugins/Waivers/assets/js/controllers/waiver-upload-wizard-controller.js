@@ -284,7 +284,7 @@ class WaiverUploadWizardController extends Controller {
         files.forEach(file => {
             // Validate file type
             if (!this.isValidImageFile(file)) {
-                this.showError(`Invalid file type: ${file.name}. Please upload JPEG, PNG, or TIFF images.`)
+                this.showError(`Invalid file type: ${file.name}. Please upload raster images only (JPEG, PNG, GIF, BMP, or WEBP). SVG and TIFF files are not supported.`)
                 return
             }
 
@@ -327,7 +327,16 @@ class WaiverUploadWizardController extends Controller {
     }
 
     isValidImageFile(file) {
-        const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/tiff']
+        const validTypes = [
+            'image/jpeg', 
+            'image/jpg', 
+            'image/png', 
+            'image/gif', 
+            'image/bmp',
+            'image/webp',
+            'image/x-ms-bmp', // Alternative MIME type for BMP
+            'image/x-windows-bmp' // Another BMP variant
+        ]
         return validTypes.includes(file.type)
     }
 
