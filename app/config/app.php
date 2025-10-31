@@ -823,19 +823,28 @@ return [
      * managed through the application's asset pipeline.
      *
      * @example Usage in templates: <?= $this->Icon->render('person-fill', ['set' => 'bs']) ?>
-     * @example Custom icons: Add to bootstrap-icons.json or create new icon set
-     */
-    'Icon' => [
-        /** @var array Icon set configurations */
-        'sets' => [
-            /** @var array Bootstrap Icons configuration */
-            'bs' => [
-                /** @var string Icon rendering class */
-                'class' => BootstrapIcon::class,
+* */
+'Icon' => [
+/** @var array Icon set configurations */
+'sets' => [
+/** @var array Bootstrap Icons configuration */
+'bs' => [
+/** @var string Icon rendering class */
+'class' => BootstrapIcon::class,
 
-                /** @var string Path to icon definitions JSON file */
-                'path' => WWW_ROOT . 'assets/bootstrap-icons/font/bootstrap-icons.json',
-            ],
-        ]
-    ]
+/** @var string Path to icon definitions JSON file */
+'path' => WWW_ROOT . 'assets/bootstrap-icons/font/bootstrap-icons.json',
+],
+]
+],
+'Documents' => [
+'storage' => [
+'adapter' => 'local', // or 'azure'
+'path' => ROOT . DS . 'images' . DS . 'uploaded',
+// For Azure:
+// 'connectionString' => env('AZURE_STORAGE_CONNECTION_STRING'),
+// 'container' => 'documents',
+// 'prefix' => '', // Optional prefix for all paths
+],
+],
 ];

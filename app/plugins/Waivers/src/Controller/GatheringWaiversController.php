@@ -496,76 +496,52 @@ class GatheringWaiversController extends AppController
             }
             $errorDetail = !empty($errorMessages) ? implode(', ', $errorMessages) : 'Unknown validation error';
             return new ServiceResult(false, 'Failed to save waiver record: ' . $errorDetail);
-        }        // Now move PDF to permanent storage location
-        $storageBasePath = WWW_ROOT . '../images/uploaded/waivers/';
-        if (!is_dir($storageBasePath)) {
-            if (!mkdir($storageBasePath, 0755, true)) {
-                @unlink($pdfPath);
-                $this->GatheringWaivers->delete($gatheringWaiver);
-                return new ServiceResult(false, 'Failed to create storage directory');
-            }
-        }
-
-        $storedFilename = uniqid('waiver_', true) . '.pdf';
-        $permanentPath = $storageBasePath . $storedFilename;
-
-        if (!rename($pdfPath, $permanentPath)) {
-            @unlink($pdfPath);
-            $this->GatheringWaivers->delete($gatheringWaiver);
-            return new ServiceResult(false, 'Failed to move file to permanent storage');
-        }
-
-        // Calculate checksum
-        $checksum = hash_file('sha256', $permanentPath);
+        }        // Create UploadedFile object from the converted PDF
+        // This allows us to use DocumentService for consistent storage handling (local/Azure)
+        $uploadedPdf = new \Laminas\Diactoros\UploadedFile(
+            $pdfPath,
+            $convertedSize,
+            UPLOAD_ERR_OK,
+            $fileName,
+            'application/pdf'
+        );
 
         // Get current user ID for uploaded_by
         $currentUserId = $this->Authentication->getIdentity()->getIdentifier();
 
-        // Create document record with proper entity_id
-        $Documents = $this->fetchTable('Documents');
-        $document = $Documents->newEntity([
-            'entity_type' => 'GatheringWaiver',
-            'entity_id' => $gatheringWaiver->id, // Now we have the real ID
-            'uploaded_by' => $currentUserId,
-            'original_filename' => $fileName,
-            'stored_filename' => $storedFilename,
-            'file_path' => 'waivers/' . $storedFilename,
-            'mime_type' => 'application/pdf',
-            'file_size' => $convertedSize,
-            'checksum' => $checksum,
-            'storage_adapter' => 'local',
-            'metadata' => json_encode([
+        // Store document using DocumentService (handles local or Azure storage)
+        $documentResult = $this->DocumentService->createDocument(
+            $uploadedPdf,
+            'GatheringWaiver',
+            $gatheringWaiver->id,
+            $currentUserId,
+            [
                 'original_filename' => $fileName,
                 'original_size' => $originalSize,
                 'converted_size' => $convertedSize,
                 'conversion_date' => date('Y-m-d H:i:s'),
                 'compression_ratio' => round((1 - ($convertedSize / $originalSize)) * 100, 2),
                 'source' => 'waiver_upload',
-            ]),
-        ]);
+            ],
+            'waivers', // subdirectory
+            ['pdf']    // allowed extensions
+        );
 
-        if (!$Documents->save($document)) {
-            @unlink($permanentPath);
+        // Clean up temporary PDF file
+        @unlink($pdfPath);
+
+        if (!$documentResult->isSuccess()) {
             $this->GatheringWaivers->delete($gatheringWaiver);
-            $errors = $document->getErrors();
-            Log::error('Failed to save document record', ['errors' => $errors]);
-            $errorMessages = [];
-            foreach ($errors as $field => $fieldErrors) {
-                foreach ($fieldErrors as $error) {
-                    $errorMessages[] = "$field: $error";
-                }
-            }
-            return new ServiceResult(false, 'Failed to save document: ' . implode(', ', $errorMessages));
+            return new ServiceResult(false, 'Failed to save document: ' . $documentResult->getError());
         }
 
-        $documentId = $document->id;
+        $documentId = $documentResult->getData();
 
         // Update GatheringWaiver with the real document_id
         $gatheringWaiver->document_id = $documentId;
         if (!$this->GatheringWaivers->save($gatheringWaiver)) {
-            // Clean up both records if update fails
-            @unlink($permanentPath);
-            $Documents->delete($document);
+            // Clean up document record if update fails
+            $this->DocumentService->deleteDocument($documentId);
             $this->GatheringWaivers->delete($gatheringWaiver);
             return new ServiceResult(false, 'Failed to update waiver with document ID');
         }
@@ -682,45 +658,26 @@ class GatheringWaiversController extends AppController
             return new ServiceResult(false, 'Failed to save waiver record: ' . $errorDetail);
         }
 
-        // Now move PDF to permanent storage location
-        $storageBasePath = WWW_ROOT . '../images/uploaded/waivers/';
-        if (!is_dir($storageBasePath)) {
-            if (!mkdir($storageBasePath, 0755, true)) {
-                @unlink($pdfPath);
-                $this->GatheringWaivers->delete($gatheringWaiver);
-                return new ServiceResult(false, 'Failed to create storage directory');
-            }
-        }
-
-        $storedFilename = uniqid('waiver_', true) . '.pdf';
-        $permanentPath = $storageBasePath . $storedFilename;
-
-        if (!rename($pdfPath, $permanentPath)) {
-            @unlink($pdfPath);
-            $this->GatheringWaivers->delete($gatheringWaiver);
-            return new ServiceResult(false, 'Failed to move file to permanent storage');
-        }
-
-        // Calculate checksum
-        $checksum = hash_file('sha256', $permanentPath);
+        // Create UploadedFile object from the converted PDF
+        // This allows us to use DocumentService for consistent storage handling (local/Azure)
+        $uploadedPdf = new \Laminas\Diactoros\UploadedFile(
+            $pdfPath,
+            $convertedSize,
+            UPLOAD_ERR_OK,
+            $originalFilename,
+            'application/pdf'
+        );
 
         // Get current user ID for uploaded_by
         $currentUserId = $this->Authentication->getIdentity()->getIdentifier();
 
-        // Create document record with proper entity_id
-        $Documents = $this->fetchTable('Documents');
-        $document = $Documents->newEntity([
-            'entity_type' => 'GatheringWaiver',
-            'entity_id' => $gatheringWaiver->id, // Now we have the real ID
-            'uploaded_by' => $currentUserId,
-            'original_filename' => $originalFilename,
-            'stored_filename' => $storedFilename,
-            'file_path' => 'waivers/' . $storedFilename,
-            'mime_type' => 'application/pdf',
-            'file_size' => $convertedSize,
-            'checksum' => $checksum,
-            'storage_adapter' => 'local',
-            'metadata' => json_encode([
+        // Store document using DocumentService (handles local or Azure storage)
+        $documentResult = $this->DocumentService->createDocument(
+            $uploadedPdf,
+            'GatheringWaiver',
+            $gatheringWaiver->id,
+            $currentUserId,
+            [
                 'original_filename' => $originalFilename,
                 'original_size' => $totalOriginalSize,
                 'converted_size' => $convertedSize,
@@ -729,31 +686,26 @@ class GatheringWaiversController extends AppController
                 'source' => 'waiver_upload',
                 'page_count' => count($uploadedFiles),
                 'is_multipage' => true,
-            ]),
-        ]);
+            ],
+            'waivers', // subdirectory
+            ['pdf']    // allowed extensions
+        );
 
-        if (!$Documents->save($document)) {
-            @unlink($permanentPath);
+        // Clean up temporary PDF file
+        @unlink($pdfPath);
+
+        if (!$documentResult->isSuccess()) {
             $this->GatheringWaivers->delete($gatheringWaiver);
-            $errors = $document->getErrors();
-            Log::error('Failed to save document record', ['errors' => $errors]);
-            $errorMessages = [];
-            foreach ($errors as $field => $fieldErrors) {
-                foreach ($fieldErrors as $error) {
-                    $errorMessages[] = "$field: $error";
-                }
-            }
-            return new ServiceResult(false, 'Failed to save document: ' . implode(', ', $errorMessages));
+            return new ServiceResult(false, 'Failed to save document: ' . $documentResult->getError());
         }
 
-        $documentId = $document->id;
+        $documentId = $documentResult->getData();
 
         // Update GatheringWaiver with the real document_id
         $gatheringWaiver->document_id = $documentId;
         if (!$this->GatheringWaivers->save($gatheringWaiver)) {
-            // Clean up both records if update fails
-            @unlink($permanentPath);
-            $Documents->delete($document);
+            // Clean up document record if update fails
+            $this->DocumentService->deleteDocument($documentId);
             $this->GatheringWaivers->delete($gatheringWaiver);
             return new ServiceResult(false, 'Failed to update waiver with document ID');
         }
