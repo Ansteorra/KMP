@@ -77,7 +77,7 @@ class GatheringTypesTable extends Table
             ->notEmptyString('color')
             ->add('color', 'validHexColor', [
                 'rule' => function ($value) {
-                    return preg_match('/^#[0-9A-Fa-f]{6}$/', $value);
+                    return (bool)preg_match('/^#[0-9A-Fa-f]{6}$/', $value);
                 },
                 'message' => 'Color must be a valid hex color code (e.g., #0d6efd)'
             ]);
