@@ -110,4 +110,14 @@ return [
             'url' => env('EMAIL_TRANSPORT_DEFAULT_URL', null),
         ],
     ],
+    'Documents' => [
+        'storage' => [
+            'adapter' => 'local', //azure to use azure and set the connection string.
+            'azure' => [
+                'connectionString' => env('AZURE_STORAGE_CONNECTION_STRING'),
+                'container' => 'documents',
+                'prefix' => '',
+            ],
+        ],
+    ],
 ];

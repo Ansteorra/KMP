@@ -6,13 +6,13 @@ namespace Waivers\Controller;
 
 use App\KMP\StaticHelpers;
 use App\Services\DocumentService;
+use App\Services\ImageToPdfConversionService;
+use App\Services\RetentionPolicyService;
 use App\Services\ServiceResult;
 use Cake\Http\Exception\BadRequestException;
 use Cake\Http\Exception\NotFoundException;
 use Cake\I18n\Date;
 use Cake\Log\Log;
-use Waivers\Services\ImageToPdfConversionService;
-use Waivers\Services\RetentionPolicyService;
 
 /**
  * GatheringWaivers Controller
@@ -34,14 +34,14 @@ class GatheringWaiversController extends AppController
     /**
      * Image to PDF conversion service instance
      *
-     * @var \Waivers\Services\ImageToPdfConversionService
+     * @var \App\Services\ImageToPdfConversionService
      */
     private ImageToPdfConversionService $ImageToPdfConversionService;
 
     /**
      * Retention policy service instance
      *
-     * @var \Waivers\Services\RetentionPolicyService
+     * @var \App\Services\RetentionPolicyService
      */
     private RetentionPolicyService $RetentionPolicyService;
 
@@ -97,7 +97,7 @@ class GatheringWaiversController extends AppController
             $query = $this->GatheringWaivers->find()
                 ->where(['gathering_id' => $gatheringId])
                 ->contain(['WaiverTypes', 'Documents'])
-                ->order(['GatheringWaivers.created' => 'DESC']);
+                ->orderBy(['GatheringWaivers.created' => 'DESC']);
 
             $gatheringWaivers = $this->paginate($query);
 
@@ -109,7 +109,7 @@ class GatheringWaiversController extends AppController
                 })
                 ->contain(['WaiverTypes'])
                 ->where(['GatheringActivityWaivers.deleted IS' => null])
-                ->group(['GatheringActivityWaivers.waiver_type_id'])
+                ->groupBy(['GatheringActivityWaivers.waiver_type_id'])
                 ->all();
 
             // Calculate waiver counts per type (excluding declined waivers)
@@ -123,7 +123,7 @@ class GatheringWaiversController extends AppController
                     'waiver_type_id',
                     'count' => $query->func()->count('*'),
                 ])
-                ->group('waiver_type_id')
+                ->groupBy('waiver_type_id')
                 ->toArray();
 
             // Format counts for easy lookup
@@ -199,14 +199,14 @@ class GatheringWaiversController extends AppController
                 'WaiverTypes',
                 'Documents',
             ])
-                ->order(['GatheringWaivers.created' => 'DESC']);
+                ->orderBy(['GatheringWaivers.created' => 'DESC']);
 
             $gatheringWaivers = $this->paginate($query);
 
             // Get list of branches for filter dropdown
             $branches = $Branches->find('list')
                 ->where(['Branches.id IN' => $branchIds])
-                ->order(['Branches.name' => 'ASC'])
+                ->orderBy(['Branches.name' => 'ASC'])
                 ->toArray();
 
             $this->set(compact('gatheringWaivers', 'branches'));
@@ -237,7 +237,7 @@ class GatheringWaiversController extends AppController
         $this->Authorization->authorize($gatheringWaiver);
 
         // Load all waiver types and gathering activities for the change type/activities modal
-        $waiverTypes = $this->GatheringWaivers->WaiverTypes->find('list')->order(['name' => 'ASC'])->toArray();
+        $waiverTypes = $this->GatheringWaivers->WaiverTypes->find('list')->orderBy(['name' => 'ASC'])->toArray();
         $gatheringActivities = $gatheringWaiver->gathering->gathering_activities ?? [];
 
         $this->set(compact('gatheringWaiver', 'waiverTypes', 'gatheringActivities'));
@@ -496,76 +496,52 @@ class GatheringWaiversController extends AppController
             }
             $errorDetail = !empty($errorMessages) ? implode(', ', $errorMessages) : 'Unknown validation error';
             return new ServiceResult(false, 'Failed to save waiver record: ' . $errorDetail);
-        }        // Now move PDF to permanent storage location
-        $storageBasePath = WWW_ROOT . '../images/uploaded/waivers/';
-        if (!is_dir($storageBasePath)) {
-            if (!mkdir($storageBasePath, 0755, true)) {
-                @unlink($pdfPath);
-                $this->GatheringWaivers->delete($gatheringWaiver);
-                return new ServiceResult(false, 'Failed to create storage directory');
-            }
-        }
-
-        $storedFilename = uniqid('waiver_', true) . '.pdf';
-        $permanentPath = $storageBasePath . $storedFilename;
-
-        if (!rename($pdfPath, $permanentPath)) {
-            @unlink($pdfPath);
-            $this->GatheringWaivers->delete($gatheringWaiver);
-            return new ServiceResult(false, 'Failed to move file to permanent storage');
-        }
-
-        // Calculate checksum
-        $checksum = hash_file('sha256', $permanentPath);
+        }        // Create UploadedFile object from the converted PDF
+        // This allows us to use DocumentService for consistent storage handling (local/Azure)
+        $uploadedPdf = new \Laminas\Diactoros\UploadedFile(
+            $pdfPath,
+            $convertedSize,
+            UPLOAD_ERR_OK,
+            $fileName,
+            'application/pdf'
+        );
 
         // Get current user ID for uploaded_by
         $currentUserId = $this->Authentication->getIdentity()->getIdentifier();
 
-        // Create document record with proper entity_id
-        $Documents = $this->fetchTable('Documents');
-        $document = $Documents->newEntity([
-            'entity_type' => 'GatheringWaiver',
-            'entity_id' => $gatheringWaiver->id, // Now we have the real ID
-            'uploaded_by' => $currentUserId,
-            'original_filename' => $fileName,
-            'stored_filename' => $storedFilename,
-            'file_path' => 'waivers/' . $storedFilename,
-            'mime_type' => 'application/pdf',
-            'file_size' => $convertedSize,
-            'checksum' => $checksum,
-            'storage_adapter' => 'local',
-            'metadata' => json_encode([
+        // Store document using DocumentService (handles local or Azure storage)
+        $documentResult = $this->DocumentService->createDocument(
+            $uploadedPdf,
+            'GatheringWaiver',
+            $gatheringWaiver->id,
+            $currentUserId,
+            [
                 'original_filename' => $fileName,
                 'original_size' => $originalSize,
                 'converted_size' => $convertedSize,
                 'conversion_date' => date('Y-m-d H:i:s'),
                 'compression_ratio' => round((1 - ($convertedSize / $originalSize)) * 100, 2),
                 'source' => 'waiver_upload',
-            ]),
-        ]);
+            ],
+            'waivers', // subdirectory
+            ['pdf']    // allowed extensions
+        );
 
-        if (!$Documents->save($document)) {
-            @unlink($permanentPath);
+        // Clean up temporary PDF file
+        @unlink($pdfPath);
+
+        if (!$documentResult->isSuccess()) {
             $this->GatheringWaivers->delete($gatheringWaiver);
-            $errors = $document->getErrors();
-            Log::error('Failed to save document record', ['errors' => $errors]);
-            $errorMessages = [];
-            foreach ($errors as $field => $fieldErrors) {
-                foreach ($fieldErrors as $error) {
-                    $errorMessages[] = "$field: $error";
-                }
-            }
-            return new ServiceResult(false, 'Failed to save document: ' . implode(', ', $errorMessages));
+            return new ServiceResult(false, 'Failed to save document: ' . $documentResult->getError());
         }
 
-        $documentId = $document->id;
+        $documentId = $documentResult->getData();
 
         // Update GatheringWaiver with the real document_id
         $gatheringWaiver->document_id = $documentId;
         if (!$this->GatheringWaivers->save($gatheringWaiver)) {
-            // Clean up both records if update fails
-            @unlink($permanentPath);
-            $Documents->delete($document);
+            // Clean up document record if update fails
+            $this->DocumentService->deleteDocument($documentId);
             $this->GatheringWaivers->delete($gatheringWaiver);
             return new ServiceResult(false, 'Failed to update waiver with document ID');
         }
@@ -682,45 +658,26 @@ class GatheringWaiversController extends AppController
             return new ServiceResult(false, 'Failed to save waiver record: ' . $errorDetail);
         }
 
-        // Now move PDF to permanent storage location
-        $storageBasePath = WWW_ROOT . '../images/uploaded/waivers/';
-        if (!is_dir($storageBasePath)) {
-            if (!mkdir($storageBasePath, 0755, true)) {
-                @unlink($pdfPath);
-                $this->GatheringWaivers->delete($gatheringWaiver);
-                return new ServiceResult(false, 'Failed to create storage directory');
-            }
-        }
-
-        $storedFilename = uniqid('waiver_', true) . '.pdf';
-        $permanentPath = $storageBasePath . $storedFilename;
-
-        if (!rename($pdfPath, $permanentPath)) {
-            @unlink($pdfPath);
-            $this->GatheringWaivers->delete($gatheringWaiver);
-            return new ServiceResult(false, 'Failed to move file to permanent storage');
-        }
-
-        // Calculate checksum
-        $checksum = hash_file('sha256', $permanentPath);
+        // Create UploadedFile object from the converted PDF
+        // This allows us to use DocumentService for consistent storage handling (local/Azure)
+        $uploadedPdf = new \Laminas\Diactoros\UploadedFile(
+            $pdfPath,
+            $convertedSize,
+            UPLOAD_ERR_OK,
+            $originalFilename,
+            'application/pdf'
+        );
 
         // Get current user ID for uploaded_by
         $currentUserId = $this->Authentication->getIdentity()->getIdentifier();
 
-        // Create document record with proper entity_id
-        $Documents = $this->fetchTable('Documents');
-        $document = $Documents->newEntity([
-            'entity_type' => 'GatheringWaiver',
-            'entity_id' => $gatheringWaiver->id, // Now we have the real ID
-            'uploaded_by' => $currentUserId,
-            'original_filename' => $originalFilename,
-            'stored_filename' => $storedFilename,
-            'file_path' => 'waivers/' . $storedFilename,
-            'mime_type' => 'application/pdf',
-            'file_size' => $convertedSize,
-            'checksum' => $checksum,
-            'storage_adapter' => 'local',
-            'metadata' => json_encode([
+        // Store document using DocumentService (handles local or Azure storage)
+        $documentResult = $this->DocumentService->createDocument(
+            $uploadedPdf,
+            'GatheringWaiver',
+            $gatheringWaiver->id,
+            $currentUserId,
+            [
                 'original_filename' => $originalFilename,
                 'original_size' => $totalOriginalSize,
                 'converted_size' => $convertedSize,
@@ -729,31 +686,26 @@ class GatheringWaiversController extends AppController
                 'source' => 'waiver_upload',
                 'page_count' => count($uploadedFiles),
                 'is_multipage' => true,
-            ]),
-        ]);
+            ],
+            'waivers', // subdirectory
+            ['pdf']    // allowed extensions
+        );
 
-        if (!$Documents->save($document)) {
-            @unlink($permanentPath);
+        // Clean up temporary PDF file
+        @unlink($pdfPath);
+
+        if (!$documentResult->isSuccess()) {
             $this->GatheringWaivers->delete($gatheringWaiver);
-            $errors = $document->getErrors();
-            Log::error('Failed to save document record', ['errors' => $errors]);
-            $errorMessages = [];
-            foreach ($errors as $field => $fieldErrors) {
-                foreach ($fieldErrors as $error) {
-                    $errorMessages[] = "$field: $error";
-                }
-            }
-            return new ServiceResult(false, 'Failed to save document: ' . implode(', ', $errorMessages));
+            return new ServiceResult(false, 'Failed to save document: ' . $documentResult->getError());
         }
 
-        $documentId = $document->id;
+        $documentId = $documentResult->getData();
 
         // Update GatheringWaiver with the real document_id
         $gatheringWaiver->document_id = $documentId;
         if (!$this->GatheringWaivers->save($gatheringWaiver)) {
-            // Clean up both records if update fails
-            @unlink($permanentPath);
-            $Documents->delete($document);
+            // Clean up document record if update fails
+            $this->DocumentService->deleteDocument($documentId);
             $this->GatheringWaivers->delete($gatheringWaiver);
             return new ServiceResult(false, 'Failed to update waiver with document ID');
         }
@@ -1237,7 +1189,7 @@ class GatheringWaiversController extends AppController
                     return $q->select(['id', 'name']);
                 },
             ])
-            ->order(['Gatherings.start_date' => 'ASC', 'Gatherings.name' => 'ASC']);
+            ->orderBy(['Gatherings.start_date' => 'ASC', 'Gatherings.name' => 'ASC']);
 
         $allGatherings = $query->all();
 
@@ -1289,7 +1241,7 @@ class GatheringWaiversController extends AppController
                 $WaiverTypes = $this->fetchTable('Waivers.WaiverTypes');
                 $missingWaiverNames = $WaiverTypes->find()
                     ->where(['id IN' => $missingWaiverTypes])
-                    ->order(['name' => 'ASC'])
+                    ->orderBy(['name' => 'ASC'])
                     ->all()
                     ->extract('name')
                     ->toArray();
@@ -1422,7 +1374,7 @@ class GatheringWaiversController extends AppController
                     return $q->select(['id', 'sca_name', 'first_name', 'last_name']);
                 },
             ])
-            ->order(['GatheringWaivers.created' => 'DESC'])
+            ->orderBy(['GatheringWaivers.created' => 'DESC'])
             ->limit(50);
 
         return $query->all()->toArray();
@@ -1554,7 +1506,7 @@ class GatheringWaiversController extends AppController
                     return $q->select(['id', 'name']);
                 },
             ])
-            ->order(['Gatherings.start_date' => 'ASC']);
+            ->orderBy(['Gatherings.start_date' => 'ASC']);
 
         $allGatherings = $query->all();
         $gatheringsMissing = []; // Past events (>48hrs after end)
@@ -1602,7 +1554,7 @@ class GatheringWaiversController extends AppController
                 $WaiverTypes = $this->fetchTable('Waivers.WaiverTypes');
                 $missingWaiverNames = $WaiverTypes->find()
                     ->where(['id IN' => $missingWaiverTypes])
-                    ->order(['name' => 'ASC'])
+                    ->orderBy(['name' => 'ASC'])
                     ->all()
                     ->extract('name')
                     ->toArray();
@@ -1709,7 +1661,7 @@ class GatheringWaiversController extends AppController
                     return $q->select(['id', 'sca_name']);
                 },
             ])
-            ->order(['GatheringWaivers.created' => 'DESC'])
+            ->orderBy(['GatheringWaivers.created' => 'DESC'])
             ->limit(20);
 
         return $query->all()->toArray();

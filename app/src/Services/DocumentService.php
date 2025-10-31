@@ -6,25 +6,49 @@ namespace App\Services;
 
 use App\Model\Entity\Document;
 use App\Model\Table\DocumentsTable;
+use AzureOss\FlysystemAzureBlobStorage\AzureBlobStorageAdapter;
+use AzureOss\Storage\Blob\BlobServiceClient;
+use Cake\Core\Configure;
 use Cake\Http\Response;
 use Cake\Log\Log;
 use Cake\ORM\Locator\LocatorAwareTrait;
+use Exception;
 use Laminas\Diactoros\UploadedFile;
+use League\Flysystem\Filesystem as FlysystemFilesystem;
+use League\Flysystem\Local\LocalFilesystemAdapter;
+use RuntimeException;
 
 /**
  * Document Service
  *
  * Centralized service for document management including file uploads, storage, and retrieval.
- * This service encapsulates all document-related operations to ensure consistency across the
- * application and provide a single point of change for storage strategy modifications.
+ * This service uses Flysystem to abstract storage operations and supports multiple backends
+ * including local filesystem and Azure Blob Storage.
  *
  * ## Key Responsibilities
  *
  * - **File Upload Processing**: Validates and processes uploaded files
  * - **Document Creation**: Creates document records with metadata
- * - **File Storage**: Handles physical file storage (local/S3/etc)
+ * - **File Storage**: Handles physical file storage using Flysystem (local/Azure/etc)
  * - **File Retrieval**: Provides file download responses
- * - **Storage Abstraction**: Isolates storage implementation from consumers
+ * - **Storage Abstraction**: Uses Flysystem for consistent API across storage backends
+ *
+ * ## Configuration
+ *
+ * Set storage configuration in `config/app_local.php`:
+ *
+ * ```php
+ * 'Documents' => [
+ *     'storage' => [
+ *         'adapter' => 'local', // or 'azure'
+ *         'path' => ROOT . DS . 'images' . DS . 'uploaded',
+ *         // For Azure:
+ *         // 'connectionString' => env('AZURE_STORAGE_CONNECTION_STRING'),
+ *         // 'container' => 'documents',
+ *         // 'prefix' => '', // Optional prefix for all paths
+ *     ],
+ * ],
+ * ```
  *
  * ## Usage in Controllers
  *
@@ -56,21 +80,45 @@ use Laminas\Diactoros\UploadedFile;
  *
  * ## Storage Strategy
  *
- * Currently uses local filesystem storage in `/images/uploaded/`.
- * Can be extended to support S3, Azure Blob Storage, etc. by modifying
- * the storage adapter logic in this service.
+ * Uses Flysystem to abstract storage operations. Supports:
+ * - Local filesystem storage (default)
+ * - Azure Blob Storage
+ *
+ * Storage adapter is selected based on configuration.
  *
  * @see \App\Model\Table\DocumentsTable
  * @see \App\Model\Entity\Document
+ * @see \League\Flysystem\Filesystem
  */
 class DocumentService
 {
     use LocatorAwareTrait;
 
     /**
-     * Base storage path for uploaded documents
+     * Base storage path for uploaded documents (for local adapter)
      */
     private const STORAGE_BASE_PATH = 'images/uploaded/';
+
+    /**
+     * Flysystem filesystem instance
+     *
+     * @var \League\Flysystem\Filesystem
+     */
+    private FlysystemFilesystem $filesystem;
+
+    /**
+     * Storage adapter type ('local' or 'azure')
+     *
+     * @var string
+     */
+    private string $adapter;
+
+    /**
+     * Base path for local storage
+     *
+     * @var string|null
+     */
+    private ?string $localBasePath = null;
 
     /**
      * Documents table instance
@@ -80,11 +128,182 @@ class DocumentService
     private DocumentsTable $Documents;
 
     /**
-     * Constructor
+     * Constructor - initializes Flysystem with configured adapter
      */
     public function __construct()
     {
         $this->Documents = $this->fetchTable('Documents');
+        $this->initializeFilesystem();
+    }
+
+    /**
+     * Initialize Flysystem with the configured storage adapter
+     *
+     * @return void
+     */
+    private function initializeFilesystem(): void
+    {
+        $config = Configure::read('Documents.storage', []);
+        $this->adapter = $config['adapter'] ?? 'local';
+
+        if ($this->adapter === 'azure') {
+            // Azure Blob Storage configuration
+            $azureConfig = $config['azure'] ?? [];
+            $connectionString = $azureConfig['connectionString'] ?? null;
+            $container = $azureConfig['container'] ?? 'documents';
+            $prefix = $azureConfig['prefix'] ?? '';
+
+            if (empty($connectionString)) {
+                Log::error(
+                    'Azure storage connection string not configured. ' .
+                        'Set AZURE_STORAGE_CONNECTION_STRING environment variable or configure ' .
+                        'Documents.storage.azure.connectionString in app.php/app_local.php. ' .
+                        'See docs/azure-blob-storage-configuration.md for setup instructions. ' .
+                        'Falling back to local storage.',
+                );
+                $this->adapter = 'local';
+                $this->initializeLocalAdapter();
+
+                return;
+            }
+
+            try {
+                $blobServiceClient = BlobServiceClient::fromConnectionString($connectionString);
+                $containerClient = $blobServiceClient->getContainerClient($container);
+                $adapter = new AzureBlobStorageAdapter($containerClient, $prefix);
+                $this->filesystem = new FlysystemFilesystem($adapter);
+                Log::info('Initialized Azure Blob Storage adapter', [
+                    'container' => $container,
+                    'prefix' => $prefix,
+                ]);
+            } catch (Exception $e) {
+                Log::error('Failed to initialize Azure Blob Storage: ' . $e->getMessage());
+                $this->adapter = 'local';
+                $this->initializeLocalAdapter();
+            }
+        } else {
+            // Local filesystem adapter (default)
+            $this->initializeLocalAdapter();
+        }
+    }
+
+    /**
+     * Initialize local filesystem adapter
+     *
+     * @return void
+     * @throws \RuntimeException If storage directory cannot be created or is not writable
+     */
+    private function initializeLocalAdapter(): void
+    {
+        $config = Configure::read('Documents.storage', []);
+        $localConfig = $config['local'] ?? [];
+        $this->localBasePath = $localConfig['path'] ?? WWW_ROOT . '../' . self::STORAGE_BASE_PATH;
+
+        // Ensure directory exists
+        if (!is_dir($this->localBasePath)) {
+            if (!mkdir($this->localBasePath, 0755, true)) {
+                throw new RuntimeException(
+                    sprintf('Failed to create storage directory: %s', $this->localBasePath)
+                );
+            }
+        }
+
+        // Verify directory is writable
+        if (!is_writable($this->localBasePath)) {
+            // Attempt to fix permissions
+            if (!@chmod($this->localBasePath, 0755)) {
+                Log::warning('Failed to set permissions on storage directory', [
+                    'path' => $this->localBasePath,
+                ]);
+            }
+
+            // Re-check writability after attempting to fix permissions
+            if (!is_writable($this->localBasePath)) {
+                throw new RuntimeException(
+                    sprintf(
+                        'Storage directory is not writable: %s. Please check directory permissions.',
+                        $this->localBasePath
+                    )
+                );
+            }
+        }
+
+        $adapter = new LocalFilesystemAdapter($this->localBasePath);
+        $this->filesystem = new FlysystemFilesystem($adapter);
+        Log::info('Initialized local filesystem adapter', [
+            'path' => $this->localBasePath,
+        ]);
+    }
+
+    /**
+     * Get a filesystem instance for a specific storage adapter
+     *
+     * This method creates a Flysystem instance configured for the specified adapter type.
+     * Used when retrieving files that may have been stored with a different adapter
+     * than the currently configured one.
+     *
+     * @param string $adapterType The storage adapter type ('local' or 'azure')
+     * @return \League\Flysystem\Filesystem|null Filesystem instance or null on error
+     */
+    private function getFilesystemForAdapter(string $adapterType): ?FlysystemFilesystem
+    {
+        if ($adapterType === 'azure') {
+            $config = Configure::read('Documents.storage', []);
+            $azureConfig = $config['azure'] ?? [];
+            $connectionString = $azureConfig['connectionString'] ?? null;
+            $container = $azureConfig['container'] ?? 'documents';
+            $prefix = $azureConfig['prefix'] ?? '';
+
+            if (empty($connectionString)) {
+                Log::error('Azure storage connection string not configured for document retrieval');
+                return null;
+            }
+
+            try {
+                $blobServiceClient = BlobServiceClient::fromConnectionString($connectionString);
+                $containerClient = $blobServiceClient->getContainerClient($container);
+                $adapter = new AzureBlobStorageAdapter($containerClient, $prefix);
+                return new FlysystemFilesystem($adapter);
+            } catch (Exception $e) {
+                Log::error('Failed to initialize Azure filesystem for retrieval: ' . $e->getMessage());
+                return null;
+            }
+        } elseif ($adapterType === 'local') {
+            $config = Configure::read('Documents.storage', []);
+            $localConfig = $config['local'] ?? [];
+            $basePath = $localConfig['path'] ?? WWW_ROOT . '../' . self::STORAGE_BASE_PATH;
+
+            if (!is_dir($basePath)) {
+                Log::error('Local storage path does not exist: ' . $basePath);
+                return null;
+            }
+
+            $adapter = new LocalFilesystemAdapter($basePath);
+            return new FlysystemFilesystem($adapter);
+        }
+
+        Log::error('Unknown storage adapter type: ' . $adapterType);
+        return null;
+    }
+
+    /**
+     * Sanitize file path to prevent directory traversal attacks
+     *
+     * @param string $path The path to sanitize
+     * @return string Sanitized path
+     */
+    private function sanitizePath(string $path): string
+    {
+        // Remove any directory traversal attempts
+        $path = str_replace(['../', '..\\', '\\'], '', $path);
+
+        // Remove leading slashes
+        $path = ltrim($path, '/\\');
+
+        // Normalize path separators to forward slashes
+        $path = str_replace('\\', '/', $path);
+
+        return $path;
     }
 
     /**
@@ -113,7 +332,7 @@ class DocumentService
         int $uploadedBy,
         array $metadata = [],
         string $subDirectory = '',
-        array $allowedExtensions = ['pdf']
+        array $allowedExtensions = ['pdf'],
     ): ServiceResult {
         // Validate file upload
         if ($file->getSize() === 0 || $file->getError() !== UPLOAD_ERR_OK) {
@@ -127,47 +346,108 @@ class DocumentService
         // Validate file extension
         if (!in_array($extension, $allowedExtensions)) {
             $allowed = implode(', ', $allowedExtensions);
+
             return new ServiceResult(
                 false,
-                __('Invalid file type. Allowed types: {0}', $allowed)
+                __('Invalid file type. Allowed types: {0}', $allowed),
             );
         }
 
         // Generate storage path
         $storedFilename = $this->generateUniqueFilename($extension);
-        $relativePath = $subDirectory ? $subDirectory . '/' . $storedFilename : $storedFilename;
-        $fullStoragePath = WWW_ROOT . '../' . self::STORAGE_BASE_PATH;
+        $relativePath = $this->sanitizePath($subDirectory ? $subDirectory . '/' . $storedFilename : $storedFilename);
 
-        if ($subDirectory) {
-            $fullStoragePath .= $subDirectory . '/';
+        // Get file stream for efficient processing
+        try {
+            $fileStream = $file->getStream();
+        } catch (Exception $e) {
+            Log::error('Failed to read uploaded file stream');
+
+            return new ServiceResult(
+                false,
+                __('Failed to read uploaded file'),
+            );
         }
 
-        // Create storage directory if it doesn't exist
-        if (!is_dir($fullStoragePath)) {
-            if (!mkdir($fullStoragePath, 0755, true)) {
-                Log::error('Failed to create storage directory: ' . $fullStoragePath);
-                return new ServiceResult(
-                    false,
-                    __('Failed to create storage directory.')
-                );
+        // Validate file size before loading into memory to prevent memory exhaustion
+        $fileSize = null;
+
+        // Try to get size from stream first
+        try {
+            $fileSize = $fileStream->getSize();
+        } catch (Exception $e) {
+            // Fall back to uploaded file info if stream size fails
+            $fileSize = $file->getSize();
+        }
+
+        // If we still don't have a size, try metadata/fstat
+        if ($fileSize === null) {
+            try {
+                $resource = $fileStream->detach();
+                if (is_resource($resource)) {
+                    $stats = fstat($resource);
+                    $fileSize = $stats['size'] ?? null;
+                    // Reattach the resource to the stream
+                    $fileStream = new \Laminas\Diactoros\Stream($resource);
+                }
+            } catch (Exception $e) {
+                Log::warning('Could not determine file size for validation', [
+                    'filename' => $originalName,
+                ]);
             }
         }
 
-        $fullFilePath = $fullStoragePath . $storedFilename;
+        // Get maximum file size from configuration (default: 50 MB)
+        $maxFileSize = Configure::read('Documents.maxFileSize', 50 * 1024 * 1024);
 
-        // Move uploaded file to storage
-        try {
-            $file->moveTo($fullFilePath);
-        } catch (\Exception $e) {
-            Log::error('Failed to move uploaded file: ' . $e->getMessage());
+        // Check against maximum allowed size
+        if ($fileSize !== null && $fileSize > $maxFileSize) {
+            $maxSizeMB = round($maxFileSize / (1024 * 1024), 2);
+            $fileSizeMB = round($fileSize / (1024 * 1024), 2);
+
+            Log::warning('File size exceeds maximum allowed size', [
+                'filename' => $originalName,
+                'file_size_mb' => $fileSizeMB,
+                'max_size_mb' => $maxSizeMB,
+            ]);
+
             return new ServiceResult(
                 false,
-                __('Failed to upload file: {0}', $e->getMessage())
+                __('File size ({0} MB) exceeds maximum allowed size of {1} MB', $fileSizeMB, $maxSizeMB),
+            );
+        }
+
+        // Read contents for checksum calculation and storage
+        // Note: File size has been validated to be within acceptable limits.
+        // The entire file is loaded into memory for checksum calculation and storage.
+        // PHP memory limit and Azure SDK buffer the content anyway, so this approach
+        // is optimal for the expected use case.
+        try {
+            $fileStream->rewind();
+            $fileContents = $fileStream->getContents();
+        } catch (Exception $e) {
+            Log::error('Failed to read file contents');
+
+            return new ServiceResult(
+                false,
+                __('Failed to read file contents'),
             );
         }
 
         // Calculate file checksum
-        $checksum = hash_file('sha256', $fullFilePath);
+        $checksum = hash('sha256', $fileContents);
+
+        // Store file using Flysystem
+        try {
+            $this->filesystem->write($relativePath, $fileContents);
+        } catch (Exception $e) {
+            Log::error('Failed to store file');
+
+            return new ServiceResult(
+                false,
+                __('Failed to store file: {0}', $e->getMessage()),
+            );
+        }
 
         // Create document record
         $document = $this->Documents->newEntity([
@@ -180,24 +460,27 @@ class DocumentService
             'mime_type' => $file->getClientMediaType() ?: 'application/octet-stream',
             'file_size' => $file->getSize(),
             'checksum' => $checksum,
-            'storage_adapter' => 'local',
+            'storage_adapter' => $this->adapter,
             'metadata' => json_encode(array_merge(
                 ['source' => 'web_upload'],
-                $metadata
-            ))
+                $metadata,
+            )),
         ]);
 
         if (!$this->Documents->save($document)) {
             // Delete the uploaded file if document save failed
-            if (file_exists($fullFilePath)) {
-                unlink($fullFilePath);
+            try {
+                $this->filesystem->delete($relativePath);
+            } catch (Exception $e) {
+                Log::warning('Failed to delete file after document save failure: ' . $e->getMessage());
             }
             Log::error('Failed to save document record', [
-                'errors' => $document->getErrors()
+                'errors' => $document->getErrors(),
             ]);
+
             return new ServiceResult(
                 false,
-                __('Failed to save document record.')
+                __('Failed to save document record.'),
             );
         }
 
@@ -205,7 +488,7 @@ class DocumentService
             'document_id' => $document->id,
             'entity_type' => $entityType,
             'entity_id' => $entityId,
-            'filename' => $originalName
+            'filename' => $originalName,
         ]);
 
         return new ServiceResult(true, null, $document->id);
@@ -215,7 +498,9 @@ class DocumentService
      * Get a download response for a document
      *
      * This method handles file retrieval and response generation for downloading documents.
-     * It supports both local filesystem and can be extended for remote storage (S3, etc).
+     * It supports both local filesystem and remote storage (Azure Blob Storage, etc) via Flysystem.
+     * The method uses the storage_adapter field from the document record to determine which
+     * storage backend to use, allowing documents stored with different adapters to coexist.
      *
      * @param \App\Model\Entity\Document $document The document entity
      * @param string|null $downloadName Optional custom filename for download
@@ -223,21 +508,38 @@ class DocumentService
      */
     public function getDocumentDownloadResponse(
         Document $document,
-        ?string $downloadName = null
+        ?string $downloadName = null,
     ): ?Response {
-        // Construct full file path
-        $fullPath = WWW_ROOT . '../' . self::STORAGE_BASE_PATH . $document->file_path;
+        // Get the filesystem instance for the adapter that was used to store this document
+        $documentAdapter = $document->storage_adapter ?? 'local';
+        $filesystem = $this->getFilesystemForAdapter($documentAdapter);
 
-        // Resolve to absolute path to avoid security issues with '..'
-        $resolvedPath = realpath($fullPath);
+        if ($filesystem === null) {
+            Log::error('Failed to initialize filesystem for document retrieval', [
+                'document_id' => $document->id,
+                'storage_adapter' => $documentAdapter,
+            ]);
+            return null;
+        }
 
         // Check if file exists
-        if ($resolvedPath === false || !file_exists($resolvedPath)) {
-            Log::error('Document file not found', [
+        try {
+            if (!$filesystem->fileExists($document->file_path)) {
+                Log::error('Document file not found', [
+                    'document_id' => $document->id,
+                    'file_path' => $document->file_path,
+                    'adapter' => $documentAdapter,
+                ]);
+
+                return null;
+            }
+        } catch (Exception $e) {
+            Log::error('Error checking file existence: ' . $e->getMessage(), [
                 'document_id' => $document->id,
-                'expected_path' => $fullPath,
-                'resolved_path' => $resolvedPath
+                'file_path' => $document->file_path,
+                'adapter' => $documentAdapter,
             ]);
+
             return null;
         }
 
@@ -246,15 +548,54 @@ class DocumentService
             $downloadName = $document->original_filename;
         }
 
-        // Create response with file
-        $response = new Response();
-        return $response->withFile(
-            $resolvedPath,
-            [
-                'download' => true,
-                'name' => $downloadName
-            ]
-        );
+        // For local adapter, we can use the direct file path for better performance
+        if ($documentAdapter === 'local') {
+            $config = Configure::read('Documents.storage', []);
+            $localConfig = $config['local'] ?? [];
+            $basePath = $localConfig['path'] ?? WWW_ROOT . '../' . self::STORAGE_BASE_PATH;
+
+            // Sanitize the file path before processing
+            $sanitizedPath = $this->sanitizePath($document->file_path);
+            $relativePath = str_replace('/', DIRECTORY_SEPARATOR, $sanitizedPath);
+            $fullPath = $basePath . DIRECTORY_SEPARATOR . $relativePath;
+            $resolvedPath = realpath($fullPath);
+
+            // Security: Ensure resolved path is within the base path (prevent directory traversal)
+            if (
+                $resolvedPath !== false && file_exists($resolvedPath) &&
+                strpos($resolvedPath, realpath($basePath)) === 0
+            ) {
+                $response = new Response();
+
+                return $response->withFile(
+                    $resolvedPath,
+                    [
+                        'download' => true,
+                        'name' => $downloadName,
+                    ],
+                );
+            }
+        }
+
+        // For remote storage (or if local file path failed), read through Flysystem
+        try {
+            $fileContents = $filesystem->read($document->file_path);
+
+            $response = new Response();
+            $response = $response->withStringBody($fileContents);
+            $response = $response->withType($document->mime_type);
+            $response = $response->withDownload($downloadName);
+
+            return $response;
+        } catch (Exception $e) {
+            Log::error('Failed to read document file: ' . $e->getMessage(), [
+                'document_id' => $document->id,
+                'file_path' => $document->file_path,
+                'adapter' => $documentAdapter,
+            ]);
+
+            return null;
+        }
     }
 
     /**
@@ -279,23 +620,28 @@ class DocumentService
 
             return new ServiceResult(
                 false,
-                __('Failed to update document entity reference.')
+                __('Failed to update document entity reference.'),
             );
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Error updating document entity_id', [
                 'document_id' => $documentId,
                 'entity_id' => $entityId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
+
             return new ServiceResult(
                 false,
-                __('Error updating document reference.')
+                __('Error updating document reference.'),
             );
         }
     }
 
     /**
      * Delete a document and its associated file
+     *
+     * This method deletes both the physical file and the database record.
+     * It uses the storage_adapter field from the document record to determine
+     * which storage backend to use for file deletion.
      *
      * @param int $documentId The document ID to delete
      * @return \App\Services\ServiceResult Success or failure
@@ -305,37 +651,56 @@ class DocumentService
         try {
             $document = $this->Documents->get($documentId);
 
-            // Delete physical file first
-            $fullPath = WWW_ROOT . '../' . self::STORAGE_BASE_PATH . $document->file_path;
-            $resolvedPath = realpath($fullPath);
+            // Get the filesystem instance for the adapter that was used to store this document
+            $documentAdapter = $document->storage_adapter ?? 'local';
+            $filesystem = $this->getFilesystemForAdapter($documentAdapter);
 
-            if ($resolvedPath && file_exists($resolvedPath)) {
-                if (!unlink($resolvedPath)) {
+            // Delete physical file first using the appropriate filesystem
+            if ($filesystem !== null) {
+                try {
+                    if ($filesystem->fileExists($document->file_path)) {
+                        $filesystem->delete($document->file_path);
+                        Log::info('Document file deleted', [
+                            'document_id' => $documentId,
+                            'file_path' => $document->file_path,
+                            'adapter' => $documentAdapter,
+                        ]);
+                    }
+                } catch (Exception $e) {
                     Log::warning('Failed to delete physical file', [
                         'document_id' => $documentId,
-                        'path' => $resolvedPath
+                        'file_path' => $document->file_path,
+                        'adapter' => $documentAdapter,
+                        'error' => $e->getMessage(),
                     ]);
                 }
+            } else {
+                Log::warning('Could not initialize filesystem for document deletion', [
+                    'document_id' => $documentId,
+                    'adapter' => $documentAdapter,
+                ]);
             }
 
             // Delete document record
             if ($this->Documents->delete($document)) {
-                Log::info('Document deleted', ['document_id' => $documentId]);
+                Log::info('Document record deleted', ['document_id' => $documentId]);
+
                 return new ServiceResult(true);
             }
 
             return new ServiceResult(
                 false,
-                __('Failed to delete document record.')
+                __('Failed to delete document record.'),
             );
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Error deleting document', [
                 'document_id' => $documentId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
+
             return new ServiceResult(
                 false,
-                __('Error deleting document.')
+                __('Error deleting document.'),
             );
         }
     }
