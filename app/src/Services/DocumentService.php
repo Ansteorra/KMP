@@ -192,13 +192,33 @@ class DocumentService
         // Ensure directory exists
         if (!is_dir($this->localBasePath)) {
             if (!mkdir($this->localBasePath, 0755, true)) {
-                throw new RuntimeException('Failed to create storage directory: ' . $this->localBasePath);
+                throw new RuntimeException('Failed to create storage directory');
             }
         }
 
         $adapter = new LocalFilesystemAdapter($this->localBasePath);
         $this->filesystem = new FlysystemFilesystem($adapter);
-        Log::info('Initialized local filesystem adapter', ['path' => $this->localBasePath]);
+        Log::info('Initialized local filesystem adapter');
+    }
+
+    /**
+     * Sanitize file path to prevent directory traversal attacks
+     *
+     * @param string $path The path to sanitize
+     * @return string Sanitized path
+     */
+    private function sanitizePath(string $path): string
+    {
+        // Remove any directory traversal attempts
+        $path = str_replace(['../', '..\\', '\\'], '', $path);
+
+        // Remove leading slashes
+        $path = ltrim($path, '/\\');
+
+        // Normalize path separators to forward slashes
+        $path = str_replace('\\', '/', $path);
+
+        return $path;
     }
 
     /**
@@ -250,29 +270,34 @@ class DocumentService
 
         // Generate storage path
         $storedFilename = $this->generateUniqueFilename($extension);
-        $relativePath = $subDirectory ? $subDirectory . '/' . $storedFilename : $storedFilename;
+        $relativePath = $this->sanitizePath($subDirectory ? $subDirectory . '/' . $storedFilename : $storedFilename);
 
-        // Read file contents
+        // Get file stream for efficient processing
         try {
             $fileStream = $file->getStream();
-            $fileContents = $fileStream->getContents();
         } catch (Exception $e) {
-            Log::error('Failed to read uploaded file: ' . $e->getMessage());
+            Log::error('Failed to read uploaded file stream');
 
             return new ServiceResult(
                 false,
-                __('Failed to read uploaded file: {0}', $e->getMessage()),
+                __('Failed to read uploaded file'),
             );
         }
 
-        // Calculate file checksum before writing
-        $checksum = hash('sha256', $fileContents);
+        // Calculate file checksum using stream
+        $hashContext = hash_init('sha256');
+        $fileStream->rewind();
+        while (!$fileStream->eof()) {
+            hash_update($hashContext, $fileStream->read(8192));
+        }
+        $checksum = hash_final($hashContext);
 
-        // Store file using Flysystem
+        // Store file using Flysystem with stream
         try {
-            $this->filesystem->write($relativePath, $fileContents);
+            $fileStream->rewind();
+            $this->filesystem->writeStream($relativePath, $fileStream->detach());
         } catch (Exception $e) {
-            Log::error('Failed to store file: ' . $e->getMessage());
+            Log::error('Failed to store file');
 
             return new ServiceResult(
                 false,
@@ -370,7 +395,11 @@ class DocumentService
             $fullPath = $this->localBasePath . DIRECTORY_SEPARATOR . $relativePath;
             $resolvedPath = realpath($fullPath);
 
-            if ($resolvedPath !== false && file_exists($resolvedPath)) {
+            // Security: Ensure resolved path is within the base path (prevent directory traversal)
+            if (
+                $resolvedPath !== false && file_exists($resolvedPath) &&
+                strpos($resolvedPath, realpath($this->localBasePath)) === 0
+            ) {
                 $response = new Response();
 
                 return $response->withFile(
