@@ -199,7 +199,7 @@ class GatheringWaiversController extends AppController
                 'WaiverTypes',
                 'Documents',
             ])
-                ->By(['GatheringWaivers.created' => 'DESC']);
+                ->orderBy(['GatheringWaivers.created' => 'DESC']);
 
             $gatheringWaivers = $this->paginate($query);
 

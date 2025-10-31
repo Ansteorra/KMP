@@ -87,18 +87,14 @@ class RetentionPolicyService
     private const VALID_ANCHORS = ['gathering_end_date', 'upload_date', 'permanent'];
 
     /**
-     * Far future date for permanent retention (100 years from now)
-     */
-    private const PERMANENT_RETENTION_YEARS = 100;
-
-    /**
      * Calculate retention date based on policy and anchor date
      *
      * @param string $policyJson JSON-encoded retention policy
      * @param \Cake\I18n\Date|null $gatheringEndDate Gathering end date (required for gathering_end_date anchor)
      * @param \Cake\I18n\Date|null $uploadDate Upload date (required for upload_date anchor, defaults to today)
-     * @return \App\Services\ServiceResult Success with Date object, or failure with error message
+     * @return \App\Services\ServiceResult Success with Date object (or null for permanent retention), or failure with error message
      */
+
     public function calculateRetentionDate(
         string $policyJson,
         ?Date $gatheringEndDate = null,
