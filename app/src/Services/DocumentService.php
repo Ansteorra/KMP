@@ -152,7 +152,13 @@ class DocumentService
             $prefix = $config['prefix'] ?? '';
 
             if (empty($connectionString)) {
-                Log::error('Azure storage connection string not configured, falling back to local storage');
+                Log::error(
+                    'Azure storage connection string not configured. ' .
+                    'Set AZURE_STORAGE_CONNECTION_STRING environment variable or configure ' .
+                    'Documents.storage.connectionString in app_local.php. ' .
+                    'See docs/azure-blob-storage-configuration.md for setup instructions. ' .
+                    'Falling back to local storage.',
+                );
                 $this->adapter = 'local';
                 $this->initializeLocalAdapter();
 
@@ -285,7 +291,10 @@ class DocumentService
         }
 
         // Read contents for checksum calculation and storage
-        // Note: For very large files, consider using a temp file and stream processing
+        // Note: This loads the entire file into memory, which is acceptable for typical document
+        // sizes (PDFs, images up to ~50MB). For very large files (>100MB), consider implementing
+        // streaming upload with chunk-based checksum calculation. PHP memory limit and Azure
+        // SDK buffer the content anyway, so this approach is optimal for the expected use case.
         try {
             $fileStream->rewind();
             $fileContents = $fileStream->getContents();
@@ -399,7 +408,9 @@ class DocumentService
 
         // For local adapter, we can use the direct file path for better performance
         if ($this->adapter === 'local' && $this->localBasePath !== null) {
-            $relativePath = str_replace('/', DIRECTORY_SEPARATOR, $document->file_path);
+            // Sanitize the file path before processing
+            $sanitizedPath = $this->sanitizePath($document->file_path);
+            $relativePath = str_replace('/', DIRECTORY_SEPARATOR, $sanitizedPath);
             $fullPath = $this->localBasePath . DIRECTORY_SEPARATOR . $relativePath;
             $resolvedPath = realpath($fullPath);
 
