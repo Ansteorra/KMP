@@ -20,8 +20,7 @@ $this->KMP->endBlock();
         'data-action' => 'submit->gathering-type-form#validateForm'
     ]) ?>
     <fieldset>
-        <legend><a href="#" onclick="window.history.back(); return false;" class="bi bi-arrow-left-circle"></a>
-            <?= __('Add Gathering Type') ?></legend>
+        <legend><?= $this->element('backButton') ?> <?= __('Add Gathering Type') ?></legend>
         <div class="mb-3">
             <?= $this->Form->control('name', [
                 'required' => true,

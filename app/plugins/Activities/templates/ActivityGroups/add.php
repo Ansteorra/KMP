@@ -14,8 +14,7 @@ $this->KMP->endBlock(); ?>
 <div class="activityGroup form content">
     <?= $this->Form->create($authorizationGroup) ?>
     <fieldset>
-        <legend><a href="#" onclick="window.history.back(); return false;" class="bi bi-arrow-left-circle"></a>
-            <?= __("Add Activity Group") ?></legend>
+        <legend><?= $this->element('backButton') ?> <?= __("Add Activity Group") ?></legend>
         <?php echo $this->Form->control("name"); ?>
     </fieldset>
     <div class='text-end'><?= $this->Form->button(__("Submit"), [

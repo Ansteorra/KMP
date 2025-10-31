@@ -15,8 +15,7 @@ $this->KMP->endBlock(); ?>
 <div class="branches form content">
         <?= $this->Form->create($branch, ['data-controller' => 'branch-links']) ?>
         <fieldset>
-                <legend><a href="#" onclick="window.history.back(); return false;" class="bi bi-arrow-left-circle"></a>
-                        <?= __("Add Branch") ?></legend>
+                <legend><?= $this->element('backButton') ?> <?= __("Add Branch") ?></legend>
                 <?php
                 echo $this->Form->control("name");
                 echo $this->Form->control("type", [

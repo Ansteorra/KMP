@@ -18,8 +18,7 @@ $this->KMP->endBlock(); ?>
 
 <div class="row align-items-start mb-3">
     <div class="col">
-        <h3><a href="#" onclick="window.history.back(); return false;" class="bi bi-arrow-left-circle"></a>
-            Add Waiver Type</h3>
+        <h3><?= $this->element('backButton') ?> Add Waiver Type</h3>
     </div>
 </div>
 

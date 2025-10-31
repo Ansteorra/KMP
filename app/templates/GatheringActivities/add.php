@@ -17,8 +17,7 @@ $this->KMP->endBlock();
 <div class="gatheringActivities form content">
     <?= $this->Form->create($gatheringActivity) ?>
     <fieldset>
-        <legend><a href="#" onclick="window.history.back(); return false;" class="bi bi-arrow-left-circle"></a>
-            <?= __('Add Gathering Activity') ?></legend>
+        <legend><?= $this->element('backButton') ?> <?= __('Add Gathering Activity') ?></legend>
         <?php
         echo $this->Form->control('name', ['required' => true]);
         echo $this->Form->control('description', ['type' => 'textarea', 'rows' => 3]);

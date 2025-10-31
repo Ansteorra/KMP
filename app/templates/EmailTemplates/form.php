@@ -21,7 +21,7 @@ $this->KMP->endBlock(); ?>
     ]) ?>
     <fieldset>
         <legend>
-            <a href="#" onclick="window.history.back(); return false;" class="bi bi-arrow-left-circle"></a>
+            <?= $this->element('backButton') ?>
             <?= $emailTemplate->isNew() ? __('Add Email Template') : __('Edit Email Template') ?>
         </legend>
 
