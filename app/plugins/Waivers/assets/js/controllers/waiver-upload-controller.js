@@ -39,7 +39,8 @@ class WaiverUploadController extends Controller {
      * Allowed MIME types for image uploads
      */
     static ALLOWED_TYPES = [
-        'image/jpeg', 
+        'image/jpeg',
+        'image/jpg',      // Some browsers/systems report JPEG as image/jpg
         'image/png', 
         'image/gif',
         'image/bmp',

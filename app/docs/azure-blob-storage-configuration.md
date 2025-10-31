@@ -18,7 +18,9 @@ Storage configuration is done in `config/app_local.php`. If this file doesn't ex
 'Documents' => [
     'storage' => [
         'adapter' => 'local',
-        'path' => ROOT . DS . 'images' . DS . 'uploaded',
+        'local' => [
+            'path' => ROOT . DS . 'images' . DS . 'uploaded',
+        ],
     ],
 ],
 ```
@@ -29,9 +31,11 @@ Storage configuration is done in `config/app_local.php`. If this file doesn't ex
 'Documents' => [
     'storage' => [
         'adapter' => 'azure',
-        'connectionString' => env('AZURE_STORAGE_CONNECTION_STRING'),
-        'container' => 'documents',
-        'prefix' => '', // Optional: prefix all paths (e.g., 'kmp/documents/')
+        'azure' => [
+            'connectionString' => env('AZURE_STORAGE_CONNECTION_STRING'),
+            'container' => 'documents',
+            'prefix' => '', // Optional: prefix all paths (e.g., 'kmp/documents/')
+        ],
     ],
 ],
 ```
@@ -93,8 +97,10 @@ You can set it directly in `config/app_local.php`, but this is less secure:
 'Documents' => [
     'storage' => [
         'adapter' => 'azure',
-        'connectionString' => 'DefaultEndpointsProtocol=https;AccountName=...',
-        'container' => 'documents',
+        'azure' => [
+            'connectionString' => 'DefaultEndpointsProtocol=https;AccountName=...',
+            'container' => 'documents',
+        ],
     ],
 ],
 ```
@@ -110,9 +116,11 @@ return [
     'Documents' => [
         'storage' => [
             'adapter' => 'azure',
-            'connectionString' => env('AZURE_STORAGE_CONNECTION_STRING'),
-            'container' => 'documents',
-            'prefix' => '', // Optional prefix
+            'azure' => [
+                'connectionString' => env('AZURE_STORAGE_CONNECTION_STRING'),
+                'container' => 'documents',
+                'prefix' => '', // Optional prefix
+            ],
         ],
     ],
 ];

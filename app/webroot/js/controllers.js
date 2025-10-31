@@ -51940,7 +51940,9 @@ class WaiverUploadController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE
   /**
    * Allowed MIME types for image uploads
    */
-  static ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/bmp', 'image/webp', 'image/x-ms-bmp',
+  static ALLOWED_TYPES = ['image/jpeg', 'image/jpg',
+  // Some browsers/systems report JPEG as image/jpg
+  'image/png', 'image/gif', 'image/bmp', 'image/webp', 'image/x-ms-bmp',
   // Alternative MIME type for BMP
   'image/x-windows-bmp' // Another BMP variant
   ];
