@@ -2,22 +2,21 @@
 
 declare(strict_types=1);
 
-namespace Waivers\Services;
+namespace App\Services;
 
-use App\Services\ServiceResult;
 use Cake\I18n\Date;
 use Cake\Log\Log;
 
 /**
  * Retention Policy Service
  *
- * Calculates waiver retention dates based on JSON retention policy definitions.
- * Interprets retention rules stored in WaiverTypes and applies them to specific
- * gatherings and upload dates to determine when waivers should be expired/purged.
+ * Calculates document retention dates based on JSON retention policy definitions.
+ * Interprets retention rules and applies them to specific entities and dates
+ * to determine when documents should be expired/purged.
  * 
  * ## Retention Policy Structure
  * 
- * Policies are stored as JSON in the waiver_types.retention_periods column:
+ * Policies are stored as JSON with the following format:
  * 
  * ```json
  * {

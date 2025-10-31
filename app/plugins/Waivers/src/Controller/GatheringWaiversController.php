@@ -6,13 +6,13 @@ namespace Waivers\Controller;
 
 use App\KMP\StaticHelpers;
 use App\Services\DocumentService;
+use App\Services\ImageToPdfConversionService;
+use App\Services\RetentionPolicyService;
 use App\Services\ServiceResult;
 use Cake\Http\Exception\BadRequestException;
 use Cake\Http\Exception\NotFoundException;
 use Cake\I18n\Date;
 use Cake\Log\Log;
-use Waivers\Services\ImageToPdfConversionService;
-use Waivers\Services\RetentionPolicyService;
 
 /**
  * GatheringWaivers Controller
@@ -34,14 +34,14 @@ class GatheringWaiversController extends AppController
     /**
      * Image to PDF conversion service instance
      *
-     * @var \Waivers\Services\ImageToPdfConversionService
+     * @var \App\Services\ImageToPdfConversionService
      */
     private ImageToPdfConversionService $ImageToPdfConversionService;
 
     /**
      * Retention policy service instance
      *
-     * @var \Waivers\Services\RetentionPolicyService
+     * @var \App\Services\RetentionPolicyService
      */
     private RetentionPolicyService $RetentionPolicyService;
 
@@ -97,7 +97,7 @@ class GatheringWaiversController extends AppController
             $query = $this->GatheringWaivers->find()
                 ->where(['gathering_id' => $gatheringId])
                 ->contain(['WaiverTypes', 'Documents'])
-                ->order(['GatheringWaivers.created' => 'DESC']);
+                ->orderBy(['GatheringWaivers.created' => 'DESC']);
 
             $gatheringWaivers = $this->paginate($query);
 
@@ -109,7 +109,7 @@ class GatheringWaiversController extends AppController
                 })
                 ->contain(['WaiverTypes'])
                 ->where(['GatheringActivityWaivers.deleted IS' => null])
-                ->group(['GatheringActivityWaivers.waiver_type_id'])
+                ->groupBy(['GatheringActivityWaivers.waiver_type_id'])
                 ->all();
 
             // Calculate waiver counts per type (excluding declined waivers)
@@ -123,7 +123,7 @@ class GatheringWaiversController extends AppController
                     'waiver_type_id',
                     'count' => $query->func()->count('*'),
                 ])
-                ->group('waiver_type_id')
+                ->groupBy('waiver_type_id')
                 ->toArray();
 
             // Format counts for easy lookup
@@ -199,14 +199,14 @@ class GatheringWaiversController extends AppController
                 'WaiverTypes',
                 'Documents',
             ])
-                ->order(['GatheringWaivers.created' => 'DESC']);
+                ->By(['GatheringWaivers.created' => 'DESC']);
 
             $gatheringWaivers = $this->paginate($query);
 
             // Get list of branches for filter dropdown
             $branches = $Branches->find('list')
                 ->where(['Branches.id IN' => $branchIds])
-                ->order(['Branches.name' => 'ASC'])
+                ->orderBy(['Branches.name' => 'ASC'])
                 ->toArray();
 
             $this->set(compact('gatheringWaivers', 'branches'));
@@ -237,7 +237,7 @@ class GatheringWaiversController extends AppController
         $this->Authorization->authorize($gatheringWaiver);
 
         // Load all waiver types and gathering activities for the change type/activities modal
-        $waiverTypes = $this->GatheringWaivers->WaiverTypes->find('list')->order(['name' => 'ASC'])->toArray();
+        $waiverTypes = $this->GatheringWaivers->WaiverTypes->find('list')->orderBy(['name' => 'ASC'])->toArray();
         $gatheringActivities = $gatheringWaiver->gathering->gathering_activities ?? [];
 
         $this->set(compact('gatheringWaiver', 'waiverTypes', 'gatheringActivities'));
@@ -1189,7 +1189,7 @@ class GatheringWaiversController extends AppController
                     return $q->select(['id', 'name']);
                 },
             ])
-            ->order(['Gatherings.start_date' => 'ASC', 'Gatherings.name' => 'ASC']);
+            ->orderBy(['Gatherings.start_date' => 'ASC', 'Gatherings.name' => 'ASC']);
 
         $allGatherings = $query->all();
 
@@ -1241,7 +1241,7 @@ class GatheringWaiversController extends AppController
                 $WaiverTypes = $this->fetchTable('Waivers.WaiverTypes');
                 $missingWaiverNames = $WaiverTypes->find()
                     ->where(['id IN' => $missingWaiverTypes])
-                    ->order(['name' => 'ASC'])
+                    ->orderBy(['name' => 'ASC'])
                     ->all()
                     ->extract('name')
                     ->toArray();
@@ -1374,7 +1374,7 @@ class GatheringWaiversController extends AppController
                     return $q->select(['id', 'sca_name', 'first_name', 'last_name']);
                 },
             ])
-            ->order(['GatheringWaivers.created' => 'DESC'])
+            ->orderBy(['GatheringWaivers.created' => 'DESC'])
             ->limit(50);
 
         return $query->all()->toArray();
@@ -1506,7 +1506,7 @@ class GatheringWaiversController extends AppController
                     return $q->select(['id', 'name']);
                 },
             ])
-            ->order(['Gatherings.start_date' => 'ASC']);
+            ->orderBy(['Gatherings.start_date' => 'ASC']);
 
         $allGatherings = $query->all();
         $gatheringsMissing = []; // Past events (>48hrs after end)
@@ -1554,7 +1554,7 @@ class GatheringWaiversController extends AppController
                 $WaiverTypes = $this->fetchTable('Waivers.WaiverTypes');
                 $missingWaiverNames = $WaiverTypes->find()
                     ->where(['id IN' => $missingWaiverTypes])
-                    ->order(['name' => 'ASC'])
+                    ->orderBy(['name' => 'ASC'])
                     ->all()
                     ->extract('name')
                     ->toArray();
@@ -1661,7 +1661,7 @@ class GatheringWaiversController extends AppController
                     return $q->select(['id', 'sca_name']);
                 },
             ])
-            ->order(['GatheringWaivers.created' => 'DESC'])
+            ->orderBy(['GatheringWaivers.created' => 'DESC'])
             ->limit(20);
 
         return $query->all()->toArray();

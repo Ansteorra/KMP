@@ -2,26 +2,26 @@
 
 declare(strict_types=1);
 
-namespace Waivers\Services;
+namespace App\Services;
 
-use App\Services\ServiceResult;
 use Cake\Core\Configure;
 use Cake\Log\Log;
 
 /**
  * Image to PDF Conversion Service
  *
- * Converts uploaded image files (JPEG, PNG, GIF) to PDF format for waiver storage.
- * Uses GD extension for image processing and FPDF for PDF generation. This ensures
- * all waivers are stored in a consistent format regardless of upload type.
+ * Converts uploaded image files to PDF format for consistent document storage.
+ * Uses GD extension for image processing and generates PDFs directly. This ensures
+ * all images are stored in a consistent format regardless of upload type.
  * 
  * ## Features
  * 
- * - **Multiple Image Formats**: Supports JPEG, PNG, GIF input
+ * - **Multiple Image Formats**: Supports JPEG, PNG, GIF, BMP, WEBP, and WBMP
  * - **Automatic Sizing**: Fits images to standard page sizes (Letter, A4)
  * - **Quality Control**: Maintains image quality during conversion
  * - **Memory Efficient**: Processes images without excessive memory usage
  * - **Error Handling**: Returns ServiceResult for consistent error reporting
+ * - **Debug Support**: Saves failed files for troubleshooting
  * 
  * ## Usage Example
  * 
@@ -49,8 +49,10 @@ class ImageToPdfConversionService
 {
     /**
      * Supported image formats
+     * 
+     * Note: WEBP support depends on GD library compilation options
      */
-    private const SUPPORTED_FORMATS = ['jpg', 'jpeg', 'png', 'gif'];
+    private const SUPPORTED_FORMATS = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'wbmp'];
 
     /**
      * Standard page size (US Letter in mm)
@@ -68,28 +70,20 @@ class ImageToPdfConversionService
      */
     public function convertImageToPdf(string $imagePath, string $outputPath, string $pageSize = 'letter'): ServiceResult
     {
-        // Validate input file exists
-        if (!file_exists($imagePath)) {
-            return new ServiceResult(false, 'Source image file not found');
-        }
-
         // Check if GD extension is available
         if (!extension_loaded('gd')) {
             return new ServiceResult(false, 'GD extension is not available for image processing');
         }
 
-        // Get image info
-        $imageInfo = @getimagesize($imagePath);
-        if ($imageInfo === false) {
-            return new ServiceResult(false, 'Unable to read image file information');
+        // Validate and get image info
+        $imageInfo = $this->validateAndGetImageInfo($imagePath, false);
+        if (!$imageInfo['success']) {
+            return new ServiceResult(false, $imageInfo['error']);
         }
 
-        [$width, $height, $type] = $imageInfo;
-
-        // Validate image type
-        if (!in_array($type, [IMAGETYPE_JPEG, IMAGETYPE_PNG, IMAGETYPE_GIF])) {
-            return new ServiceResult(false, 'Unsupported image format. Only JPEG, PNG, and GIF are supported');
-        }
+        $width = $imageInfo['width'];
+        $height = $imageInfo['height'];
+        $type = $imageInfo['type'];
 
         // Load the image based on type
         $image = $this->loadImage($imagePath, $type);
@@ -135,23 +129,12 @@ class ImageToPdfConversionService
         try {
             // Process each image
             foreach ($imagePaths as $imagePath) {
-                // Validate input file exists
-                if (!file_exists($imagePath)) {
-                    throw new \Exception("Image file not found: $imagePath");
-                }
+                // Validate and get image info (throws exception on failure)
+                $imageInfo = $this->validateAndGetImageInfo($imagePath, true);
 
-                // Get image info
-                $imageInfo = @getimagesize($imagePath);
-                if ($imageInfo === false) {
-                    throw new \Exception("Unable to read image file: $imagePath");
-                }
-
-                [$width, $height, $type] = $imageInfo;
-
-                // Validate image type
-                if (!in_array($type, [IMAGETYPE_JPEG, IMAGETYPE_PNG, IMAGETYPE_GIF])) {
-                    throw new \Exception("Unsupported image format: $imagePath");
-                }
+                $width = $imageInfo['width'];
+                $height = $imageInfo['height'];
+                $type = $imageInfo['type'];
 
                 // Load the image
                 $image = $this->loadImage($imagePath, $type);
@@ -201,7 +184,98 @@ class ImageToPdfConversionService
     }
 
     /**
-     * Load image resource based on type
+     * Validate and get information about an image file
+     * 
+     * Performs comprehensive validation including:
+     * - File existence check
+     * - Image format detection
+     * - Format support verification
+     * - Debug file saving on failure
+     * 
+     * @param string $imagePath Path to image file
+     * @param bool $throwException If true, throws exception on failure; if false, returns error in array
+     * @return array{success: bool, width?: int, height?: int, type?: int, error?: string}
+     * @throws \Exception if validation fails and $throwException is true
+     */
+    private function validateAndGetImageInfo(string $imagePath, bool $throwException = false): array
+    {
+        // Validate input file exists
+        if (!file_exists($imagePath)) {
+            $error = "Image file not found: $imagePath";
+            if ($throwException) {
+                throw new \Exception($error);
+            }
+            return ['success' => false, 'error' => $error];
+        }
+
+        // Get image info
+        $imageInfo = @getimagesize($imagePath);
+        if ($imageInfo === false) {
+            // Save the failing file for debugging
+            $debugPath = TMP . 'failed_image_' . date('Y-m-d_His') . '_' . basename($imagePath);
+            copy($imagePath, $debugPath);
+
+            // Try to determine if it's an SVG or other unsupported format
+            $fileContent = file_get_contents($imagePath, false, null, 0, 1024);
+            $fileHeader = bin2hex(substr($fileContent, 0, 16));
+
+            // Log detailed debug info
+            Log::error('Failed to read image file', [
+                'path' => $imagePath,
+                'saved_to' => $debugPath,
+                'file_size' => filesize($imagePath),
+                'file_header_hex' => $fileHeader,
+                'file_header_text' => substr($fileContent, 0, 64),
+                'mime_type' => mime_content_type($imagePath),
+            ]);
+
+            if (strpos($fileContent, '<svg') !== false || strpos($fileContent, '<?xml') !== false) {
+                $error = 'SVG files are not supported. Please upload raster images only (JPEG, PNG, GIF, BMP, WEBP, WBMP)';
+            } else {
+                $error = 'Unable to read image file. Supported formats: JPEG, PNG, GIF, BMP, WEBP, WBMP (raster images only). Debug file saved to: ' . $debugPath;
+            }
+
+            if ($throwException) {
+                throw new \Exception($error);
+            }
+            return ['success' => false, 'error' => $error];
+        }
+
+        [$width, $height, $type] = $imageInfo;
+
+        // Build list of supported IMAGETYPE constants
+        $supportedTypes = [
+            IMAGETYPE_JPEG,
+            IMAGETYPE_PNG,
+            IMAGETYPE_GIF,
+            IMAGETYPE_BMP,
+            IMAGETYPE_WBMP,
+        ];
+
+        // Add optional formats if available in this PHP build
+        if (defined('IMAGETYPE_WEBP')) {
+            $supportedTypes[] = IMAGETYPE_WEBP;
+        }
+
+        // Validate image type
+        if (!in_array($type, $supportedTypes)) {
+            $error = 'Unsupported image format. Supported formats: JPEG, PNG, GIF, BMP, WEBP, WBMP';
+            if ($throwException) {
+                throw new \Exception($error);
+            }
+            return ['success' => false, 'error' => $error];
+        }
+
+        return [
+            'success' => true,
+            'width' => $width,
+            'height' => $height,
+            'type' => $type,
+        ];
+    }
+
+    /**
+     * Load an image from file based on its type
      *
      * @param string $path Path to image
      * @param int $type Image type constant
@@ -209,12 +283,27 @@ class ImageToPdfConversionService
      */
     private function loadImage(string $path, int $type): \GdImage|false
     {
-        return match ($type) {
+        // Handle basic formats with match
+        $image = match ($type) {
             IMAGETYPE_JPEG => @imagecreatefromjpeg($path),
             IMAGETYPE_PNG => @imagecreatefrompng($path),
             IMAGETYPE_GIF => @imagecreatefromgif($path),
+            IMAGETYPE_BMP => @imagecreatefrombmp($path),
+            IMAGETYPE_WBMP => @imagecreatefromwbmp($path),
             default => false,
         };
+
+        // Return if we got an image from the match
+        if ($image !== false) {
+            return $image;
+        }
+
+        // Handle optional formats that may not be defined in all PHP builds
+        if (defined('IMAGETYPE_WEBP') && $type === IMAGETYPE_WEBP) {
+            return @imagecreatefromwebp($path);
+        }
+
+        return false;
     }
 
     /**

@@ -148,15 +148,16 @@ class DocumentService
 
         if ($this->adapter === 'azure') {
             // Azure Blob Storage configuration
-            $connectionString = $config['connectionString'] ?? null;
-            $container = $config['container'] ?? 'documents';
-            $prefix = $config['prefix'] ?? '';
+            $azureConfig = $config['azure'] ?? [];
+            $connectionString = $azureConfig['connectionString'] ?? null;
+            $container = $azureConfig['container'] ?? 'documents';
+            $prefix = $azureConfig['prefix'] ?? '';
 
             if (empty($connectionString)) {
                 Log::error(
                     'Azure storage connection string not configured. ' .
                         'Set AZURE_STORAGE_CONNECTION_STRING environment variable or configure ' .
-                        'Documents.storage.connectionString in app_local.php. ' .
+                        'Documents.storage.azure.connectionString in app.php/app_local.php. ' .
                         'See docs/azure-blob-storage-configuration.md for setup instructions. ' .
                         'Falling back to local storage.',
                 );
@@ -190,22 +191,48 @@ class DocumentService
      * Initialize local filesystem adapter
      *
      * @return void
+     * @throws \RuntimeException If storage directory cannot be created or is not writable
      */
     private function initializeLocalAdapter(): void
     {
         $config = Configure::read('Documents.storage', []);
-        $this->localBasePath = $config['path'] ?? WWW_ROOT . '../' . self::STORAGE_BASE_PATH;
+        $localConfig = $config['local'] ?? [];
+        $this->localBasePath = $localConfig['path'] ?? WWW_ROOT . '../' . self::STORAGE_BASE_PATH;
 
         // Ensure directory exists
         if (!is_dir($this->localBasePath)) {
             if (!mkdir($this->localBasePath, 0755, true)) {
-                throw new RuntimeException('Failed to create storage directory');
+                throw new RuntimeException(
+                    sprintf('Failed to create storage directory: %s', $this->localBasePath)
+                );
+            }
+        }
+
+        // Verify directory is writable
+        if (!is_writable($this->localBasePath)) {
+            // Attempt to fix permissions
+            if (!@chmod($this->localBasePath, 0755)) {
+                Log::warning('Failed to set permissions on storage directory', [
+                    'path' => $this->localBasePath,
+                ]);
+            }
+
+            // Re-check writability after attempting to fix permissions
+            if (!is_writable($this->localBasePath)) {
+                throw new RuntimeException(
+                    sprintf(
+                        'Storage directory is not writable: %s. Please check directory permissions.',
+                        $this->localBasePath
+                    )
+                );
             }
         }
 
         $adapter = new LocalFilesystemAdapter($this->localBasePath);
         $this->filesystem = new FlysystemFilesystem($adapter);
-        Log::info('Initialized local filesystem adapter');
+        Log::info('Initialized local filesystem adapter', [
+            'path' => $this->localBasePath,
+        ]);
     }
 
     /**
@@ -222,9 +249,10 @@ class DocumentService
     {
         if ($adapterType === 'azure') {
             $config = Configure::read('Documents.storage', []);
-            $connectionString = $config['connectionString'] ?? null;
-            $container = $config['container'] ?? 'documents';
-            $prefix = $config['prefix'] ?? '';
+            $azureConfig = $config['azure'] ?? [];
+            $connectionString = $azureConfig['connectionString'] ?? null;
+            $container = $azureConfig['container'] ?? 'documents';
+            $prefix = $azureConfig['prefix'] ?? '';
 
             if (empty($connectionString)) {
                 Log::error('Azure storage connection string not configured for document retrieval');
@@ -242,7 +270,8 @@ class DocumentService
             }
         } elseif ($adapterType === 'local') {
             $config = Configure::read('Documents.storage', []);
-            $basePath = $config['path'] ?? WWW_ROOT . '../' . self::STORAGE_BASE_PATH;
+            $localConfig = $config['local'] ?? [];
+            $basePath = $localConfig['path'] ?? WWW_ROOT . '../' . self::STORAGE_BASE_PATH;
 
             if (!is_dir($basePath)) {
                 Log::error('Local storage path does not exist: ' . $basePath);
@@ -340,11 +369,59 @@ class DocumentService
             );
         }
 
+        // Validate file size before loading into memory to prevent memory exhaustion
+        $fileSize = null;
+
+        // Try to get size from stream first
+        try {
+            $fileSize = $fileStream->getSize();
+        } catch (Exception $e) {
+            // Fall back to uploaded file info if stream size fails
+            $fileSize = $file->getSize();
+        }
+
+        // If we still don't have a size, try metadata/fstat
+        if ($fileSize === null) {
+            try {
+                $resource = $fileStream->detach();
+                if (is_resource($resource)) {
+                    $stats = fstat($resource);
+                    $fileSize = $stats['size'] ?? null;
+                    // Reattach the resource to the stream
+                    $fileStream = new \Laminas\Diactoros\Stream($resource);
+                }
+            } catch (Exception $e) {
+                Log::warning('Could not determine file size for validation', [
+                    'filename' => $originalName,
+                ]);
+            }
+        }
+
+        // Get maximum file size from configuration (default: 50 MB)
+        $maxFileSize = Configure::read('Documents.maxFileSize', 50 * 1024 * 1024);
+
+        // Check against maximum allowed size
+        if ($fileSize !== null && $fileSize > $maxFileSize) {
+            $maxSizeMB = round($maxFileSize / (1024 * 1024), 2);
+            $fileSizeMB = round($fileSize / (1024 * 1024), 2);
+
+            Log::warning('File size exceeds maximum allowed size', [
+                'filename' => $originalName,
+                'file_size_mb' => $fileSizeMB,
+                'max_size_mb' => $maxSizeMB,
+            ]);
+
+            return new ServiceResult(
+                false,
+                __('File size ({0} MB) exceeds maximum allowed size of {1} MB', $fileSizeMB, $maxSizeMB),
+            );
+        }
+
         // Read contents for checksum calculation and storage
-        // Note: This loads the entire file into memory, which is acceptable for typical document
-        // sizes (PDFs, images up to ~50MB). For very large files (>100MB), consider implementing
-        // streaming upload with chunk-based checksum calculation. PHP memory limit and Azure
-        // SDK buffer the content anyway, so this approach is optimal for the expected use case.
+        // Note: File size has been validated to be within acceptable limits.
+        // The entire file is loaded into memory for checksum calculation and storage.
+        // PHP memory limit and Azure SDK buffer the content anyway, so this approach
+        // is optimal for the expected use case.
         try {
             $fileStream->rewind();
             $fileContents = $fileStream->getContents();
@@ -474,7 +551,8 @@ class DocumentService
         // For local adapter, we can use the direct file path for better performance
         if ($documentAdapter === 'local') {
             $config = Configure::read('Documents.storage', []);
-            $basePath = $config['path'] ?? WWW_ROOT . '../' . self::STORAGE_BASE_PATH;
+            $localConfig = $config['local'] ?? [];
+            $basePath = $localConfig['path'] ?? WWW_ROOT . '../' . self::STORAGE_BASE_PATH;
 
             // Sanitize the file path before processing
             $sanitizedPath = $this->sanitizePath($document->file_path);

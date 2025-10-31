@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Waivers\Test\TestCase\Services;
+namespace App\Test\TestCase\Services;
 
 use App\Services\ImageToPdfConversionService;
 use Cake\Core\Configure;
@@ -231,10 +231,14 @@ class ImageToPdfConversionServiceTest extends TestCase
      */
     public function testValidationErrorMessages(): void
     {
-        $result = $this->ImageToPdfConversionService->validateImage('/nonexistent/file.jpg');
+        // Test validation through convertImageToPdf with a non-existent file
+        $result = $this->ImageToPdfConversionService->convertImageToPdf(
+            '/nonexistent/file.jpg',
+            TMP . 'test_output.pdf'
+        );
 
         $this->assertFalse($result->isSuccess());
-        $this->assertNotEmpty($result->getErrors());
+        $this->assertStringContainsString('not found', $result->getError());
     }
 
     /**

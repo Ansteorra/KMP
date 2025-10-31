@@ -835,16 +835,92 @@ return [
 /** @var string Path to icon definitions JSON file */
 'path' => WWW_ROOT . 'assets/bootstrap-icons/font/bootstrap-icons.json',
 ],
-]
 ],
+],
+/**
+* Document Management Configuration
+*
+* Controls document storage, upload limits, and file handling behavior.
+*/
 'Documents' => [
+/**
+* Storage Configuration
+*
+* Select the storage adapter and configure adapter-specific settings.
+* Each adapter has its own configuration block with only the relevant options.
+*/
 'storage' => [
-'adapter' => 'local', // or 'azure'
+/**
+* Active Storage Adapter
+*
+* Options: 'local' or 'azure'
+* - local: Stores files in the local filesystem
+* - azure: Stores files in Azure Blob Storage
+*/
+'adapter' => 'local',
+
+/**
+* Local Filesystem Adapter Configuration
+*
+* Used when adapter is set to 'local'.
+*/
+'local' => [
+/**
+* Base path for storing uploaded documents
+*
+* Default: ROOT/images/uploaded
+*/
 'path' => ROOT . DS . 'images' . DS . 'uploaded',
-// For Azure:
-// 'connectionString' => env('AZURE_STORAGE_CONNECTION_STRING'),
-// 'container' => 'documents',
-// 'prefix' => '', // Optional prefix for all paths
 ],
+
+/**
+* Azure Blob Storage Adapter Configuration
+*
+* Used when adapter is set to 'azure'.
+*/
+'azure' => [
+/**
+* Azure Storage Connection String
+*
+* Format: DefaultEndpointsProtocol=https;AccountName=...;AccountKey=...;EndpointSuffix=core.windows.net
+* Should be set via environment variable AZURE_STORAGE_CONNECTION_STRING
+*/
+'connectionString' => env('AZURE_STORAGE_CONNECTION_STRING'),
+
+/**
+* Azure Blob Container Name
+*
+* The name of the container where documents will be stored.
+* Default: 'documents'
+*/
+'container' => 'documents',
+
+/**
+* Path Prefix (optional)
+*
+* Optional prefix to prepend to all file paths within the container.
+* Useful for organizing files or supporting multiple environments in one container.
+* Default: '' (no prefix)
+*/
+'prefix' => '',
+],
+],
+
+/**
+* Maximum File Size (bytes)
+*
+* Files larger than this limit will be rejected during upload to prevent
+* memory exhaustion. The entire file is loaded into memory for checksum
+* calculation and storage operations.
+*
+* Common values:
+* - 10 MB: 10 * 1024 * 1024
+* - 50 MB: 50 * 1024 * 1024 (default)
+* - 100 MB: 100 * 1024 * 1024
+*
+* Note: Also ensure PHP's upload_max_filesize and post_max_size are set
+* appropriately in php.ini to handle files of this size.
+*/
+'maxFileSize' => 50 * 1024 * 1024, // 50 MB
 ],
 ];

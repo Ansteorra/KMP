@@ -137,7 +137,7 @@
 
                 <!-- Hidden file input with camera capture -->
                 <input type="file"
-                    accept="image/jpeg,image/jpg,image/png,image/tiff"
+                    accept="image/jpeg,image/jpg,image/png,image/gif,image/bmp,image/webp"
                     multiple
                     capture="environment"
                     class="d-none"
