@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Services;
@@ -12,9 +11,11 @@ use Cake\Core\Configure;
 use Cake\Http\Response;
 use Cake\Log\Log;
 use Cake\ORM\Locator\LocatorAwareTrait;
+use Exception;
 use Laminas\Diactoros\UploadedFile;
 use League\Flysystem\Filesystem as FlysystemFilesystem;
 use League\Flysystem\Local\LocalFilesystemAdapter;
+use RuntimeException;
 
 /**
  * Document Service
@@ -154,6 +155,7 @@ class DocumentService
                 Log::error('Azure storage connection string not configured, falling back to local storage');
                 $this->adapter = 'local';
                 $this->initializeLocalAdapter();
+
                 return;
             }
 
@@ -164,9 +166,9 @@ class DocumentService
                 $this->filesystem = new FlysystemFilesystem($adapter);
                 Log::info('Initialized Azure Blob Storage adapter', [
                     'container' => $container,
-                    'prefix' => $prefix
+                    'prefix' => $prefix,
                 ]);
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 Log::error('Failed to initialize Azure Blob Storage: ' . $e->getMessage());
                 $this->adapter = 'local';
                 $this->initializeLocalAdapter();
@@ -190,7 +192,7 @@ class DocumentService
         // Ensure directory exists
         if (!is_dir($this->localBasePath)) {
             if (!mkdir($this->localBasePath, 0755, true)) {
-                throw new \RuntimeException('Failed to create storage directory: ' . $this->localBasePath);
+                throw new RuntimeException('Failed to create storage directory: ' . $this->localBasePath);
             }
         }
 
@@ -225,7 +227,7 @@ class DocumentService
         int $uploadedBy,
         array $metadata = [],
         string $subDirectory = '',
-        array $allowedExtensions = ['pdf']
+        array $allowedExtensions = ['pdf'],
     ): ServiceResult {
         // Validate file upload
         if ($file->getSize() === 0 || $file->getError() !== UPLOAD_ERR_OK) {
@@ -239,9 +241,10 @@ class DocumentService
         // Validate file extension
         if (!in_array($extension, $allowedExtensions)) {
             $allowed = implode(', ', $allowedExtensions);
+
             return new ServiceResult(
                 false,
-                __('Invalid file type. Allowed types: {0}', $allowed)
+                __('Invalid file type. Allowed types: {0}', $allowed),
             );
         }
 
@@ -253,11 +256,12 @@ class DocumentService
         try {
             $fileStream = $file->getStream();
             $fileContents = $fileStream->getContents();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Failed to read uploaded file: ' . $e->getMessage());
+
             return new ServiceResult(
                 false,
-                __('Failed to read uploaded file: {0}', $e->getMessage())
+                __('Failed to read uploaded file: {0}', $e->getMessage()),
             );
         }
 
@@ -267,11 +271,12 @@ class DocumentService
         // Store file using Flysystem
         try {
             $this->filesystem->write($relativePath, $fileContents);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Failed to store file: ' . $e->getMessage());
+
             return new ServiceResult(
                 false,
-                __('Failed to store file: {0}', $e->getMessage())
+                __('Failed to store file: {0}', $e->getMessage()),
             );
         }
 
@@ -289,23 +294,24 @@ class DocumentService
             'storage_adapter' => $this->adapter,
             'metadata' => json_encode(array_merge(
                 ['source' => 'web_upload'],
-                $metadata
-            ))
+                $metadata,
+            )),
         ]);
 
         if (!$this->Documents->save($document)) {
             // Delete the uploaded file if document save failed
             try {
                 $this->filesystem->delete($relativePath);
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 Log::warning('Failed to delete file after document save failure: ' . $e->getMessage());
             }
             Log::error('Failed to save document record', [
-                'errors' => $document->getErrors()
+                'errors' => $document->getErrors(),
             ]);
+
             return new ServiceResult(
                 false,
-                __('Failed to save document record.')
+                __('Failed to save document record.'),
             );
         }
 
@@ -313,7 +319,7 @@ class DocumentService
             'document_id' => $document->id,
             'entity_type' => $entityType,
             'entity_id' => $entityId,
-            'filename' => $originalName
+            'filename' => $originalName,
         ]);
 
         return new ServiceResult(true, null, $document->id);
@@ -331,7 +337,7 @@ class DocumentService
      */
     public function getDocumentDownloadResponse(
         Document $document,
-        ?string $downloadName = null
+        ?string $downloadName = null,
     ): ?Response {
         // Check if file exists
         try {
@@ -339,15 +345,17 @@ class DocumentService
                 Log::error('Document file not found', [
                     'document_id' => $document->id,
                     'file_path' => $document->file_path,
-                    'adapter' => $this->adapter
+                    'adapter' => $this->adapter,
                 ]);
+
                 return null;
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Error checking file existence: ' . $e->getMessage(), [
                 'document_id' => $document->id,
-                'file_path' => $document->file_path
+                'file_path' => $document->file_path,
             ]);
+
             return null;
         }
 
@@ -358,17 +366,19 @@ class DocumentService
 
         // For local adapter, we can use the direct file path for better performance
         if ($this->adapter === 'local' && $this->localBasePath !== null) {
-            $fullPath = $this->localBasePath . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $document->file_path);
+            $relativePath = str_replace('/', DIRECTORY_SEPARATOR, $document->file_path);
+            $fullPath = $this->localBasePath . DIRECTORY_SEPARATOR . $relativePath;
             $resolvedPath = realpath($fullPath);
 
             if ($resolvedPath !== false && file_exists($resolvedPath)) {
                 $response = new Response();
+
                 return $response->withFile(
                     $resolvedPath,
                     [
                         'download' => true,
-                        'name' => $downloadName
-                    ]
+                        'name' => $downloadName,
+                    ],
                 );
             }
         }
@@ -376,18 +386,19 @@ class DocumentService
         // For remote storage (or if local file path failed), read through Flysystem
         try {
             $fileContents = $this->filesystem->read($document->file_path);
-            
+
             $response = new Response();
             $response = $response->withStringBody($fileContents);
             $response = $response->withType($document->mime_type);
             $response = $response->withDownload($downloadName);
-            
+
             return $response;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Failed to read document file: ' . $e->getMessage(), [
                 'document_id' => $document->id,
-                'file_path' => $document->file_path
+                'file_path' => $document->file_path,
             ]);
+
             return null;
         }
     }
@@ -414,17 +425,18 @@ class DocumentService
 
             return new ServiceResult(
                 false,
-                __('Failed to update document entity reference.')
+                __('Failed to update document entity reference.'),
             );
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Error updating document entity_id', [
                 'document_id' => $documentId,
                 'entity_id' => $entityId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
+
             return new ServiceResult(
                 false,
-                __('Error updating document reference.')
+                __('Error updating document reference.'),
             );
         }
     }
@@ -445,32 +457,34 @@ class DocumentService
                 if ($this->filesystem->fileExists($document->file_path)) {
                     $this->filesystem->delete($document->file_path);
                 }
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 Log::warning('Failed to delete physical file', [
                     'document_id' => $documentId,
                     'file_path' => $document->file_path,
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
                 ]);
             }
 
             // Delete document record
             if ($this->Documents->delete($document)) {
                 Log::info('Document deleted', ['document_id' => $documentId]);
+
                 return new ServiceResult(true);
             }
 
             return new ServiceResult(
                 false,
-                __('Failed to delete document record.')
+                __('Failed to delete document record.'),
             );
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Error deleting document', [
                 'document_id' => $documentId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
+
             return new ServiceResult(
                 false,
-                __('Error deleting document.')
+                __('Error deleting document.'),
             );
         }
     }
