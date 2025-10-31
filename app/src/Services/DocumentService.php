@@ -284,18 +284,26 @@ class DocumentService
             );
         }
 
-        // Calculate file checksum using stream
-        $hashContext = hash_init('sha256');
-        $fileStream->rewind();
-        while (!$fileStream->eof()) {
-            hash_update($hashContext, $fileStream->read(8192));
-        }
-        $checksum = hash_final($hashContext);
-
-        // Store file using Flysystem with stream
+        // Read contents for checksum calculation and storage
+        // Note: For very large files, consider using a temp file and stream processing
         try {
             $fileStream->rewind();
-            $this->filesystem->writeStream($relativePath, $fileStream->detach());
+            $fileContents = $fileStream->getContents();
+        } catch (Exception $e) {
+            Log::error('Failed to read file contents');
+
+            return new ServiceResult(
+                false,
+                __('Failed to read file contents'),
+            );
+        }
+
+        // Calculate file checksum
+        $checksum = hash('sha256', $fileContents);
+
+        // Store file using Flysystem
+        try {
+            $this->filesystem->write($relativePath, $fileContents);
         } catch (Exception $e) {
             Log::error('Failed to store file');
 
