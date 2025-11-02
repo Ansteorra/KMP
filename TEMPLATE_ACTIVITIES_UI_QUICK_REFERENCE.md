@@ -26,9 +26,8 @@
 
 - **Automatic Addition**: When you create a new gathering with a gathering type, all template activities are automatically added to that gathering
 - **Not Removable Flag**: If a template activity is marked "Not Removable", it will be locked on the gathering and cannot be removed
-- **Existing Gatherings**: When you add a template activity to a type, it is automatically added to all existing gatherings of that type
+- **Existing Gatherings**: Existing gatherings are not backfilled. Template activities are added only when a new gathering is created or when a gathering's type changes.
 - **Remove from Type**: Removing a template activity from the type does NOT remove it from existing gatherings
-
 ## Developer Guide
 
 ### Controller Actions
