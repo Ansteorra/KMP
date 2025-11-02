@@ -297,9 +297,10 @@ class GatheringsTable extends Table
                 $newActivity = $gatheringsGatheringActivitiesTable->newEntity([
                     'gathering_id' => $gathering->id,
                     'gathering_activity_id' => $activityId,
-                    'sort_order' => $maxSortOrder,
-                    'not_removable' => $templateActivity->not_removable,
+                    'sort_order' => $maxSortOrder
                 ]);
+
+                $newActivity->not_removable = $templateActivity->not_removable;
                 $gatheringsGatheringActivitiesTable->save($newActivity);
             } else {
                 // Activity exists, update not_removable if template says it should be
