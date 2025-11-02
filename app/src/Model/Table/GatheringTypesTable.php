@@ -12,6 +12,7 @@ use Cake\ORM\RulesChecker;
  * GatheringTypes Model
  *
  * @property \App\Model\Table\GatheringsTable&\Cake\ORM\Association\HasMany $Gatherings
+ * @property \App\Model\Table\GatheringActivitiesTable&\Cake\ORM\Association\BelongsToMany $GatheringActivities
  *
  * @method \App\Model\Entity\GatheringType newEmptyEntity()
  * @method \App\Model\Entity\GatheringType newEntity(array $data, array $options = [])
@@ -45,6 +46,14 @@ class GatheringTypesTable extends Table
 
         $this->hasMany('Gatherings', [
             'foreignKey' => 'gathering_type_id',
+        ]);
+
+        // Many-to-many relationship with GatheringActivities for template activities
+        $this->belongsToMany('GatheringActivities', [
+            'foreignKey' => 'gathering_type_id',
+            'targetForeignKey' => 'gathering_activity_id',
+            'joinTable' => 'gathering_type_gathering_activities',
+            'through' => 'GatheringTypeGatheringActivities',
         ]);
     }
 

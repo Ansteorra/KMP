@@ -180,9 +180,18 @@ $canAttend = $gathering->end_date >= $today; // Can only register if gathering h
                 </thead>
                 <tbody>
                     <?php foreach ($gathering->gathering_activities as $activity) : ?>
+                        <?php
+                        // Check if this activity is not removable based on gathering type template
+                        $isNotRemovable = $activity->_joinData && $activity->_joinData->not_removable;
+                        ?>
                         <tr>
                             <td>
                                 <?= h($activity->name) ?>
+                                <?php if ($isNotRemovable): ?>
+                                    <span class="badge bg-warning text-dark ms-2" title="<?= __('This activity is required by the gathering type and cannot be removed') ?>">
+                                        <i class="bi bi-lock-fill"></i> <?= __('Required') ?>
+                                    </span>
+                                <?php endif; ?>
                             </td>
                             <td>
                                 <?php
@@ -208,16 +217,23 @@ $canAttend = $gathering->end_date >= $today; // Can only register if gathering h
                                         title="<?= __('Edit Description') ?>">
                                         <i class="bi bi-pencil-fill"></i>
                                     </button>
-                                    <?= $this->Form->postLink(
-                                        '<i class="bi bi-x-circle-fill"></i>',
-                                        ['action' => 'remove-activity', $gathering->id, $activity->id],
-                                        [
-                                            'confirm' => __('Remove "{0}" from this gathering?', $activity->name),
-                                            'escape' => false,
-                                            'title' => __('Remove'),
-                                            'class' => 'btn btn-sm btn-danger',
-                                        ],
-                                    ) ?>
+                                    <?php if ($isNotRemovable): ?>
+                                        <button type="button" class="btn btn-sm btn-secondary" disabled
+                                            title="<?= __('This activity is required by the gathering type and cannot be removed') ?>">
+                                            <i class="bi bi-lock-fill"></i>
+                                        </button>
+                                    <?php else: ?>
+                                        <?= $this->Form->postLink(
+                                            '<i class="bi bi-x-circle-fill"></i>',
+                                            ['action' => 'remove-activity', $gathering->id, $activity->id],
+                                            [
+                                                'confirm' => __('Remove "{0}" from this gathering?', $activity->name),
+                                                'escape' => false,
+                                                'title' => __('Remove'),
+                                                'class' => 'btn btn-sm btn-danger',
+                                            ],
+                                        ) ?>
+                                    <?php endif; ?>
                                 <?php endif; ?>
                             </td>
                         </tr>

@@ -48,11 +48,15 @@ class GatheringTypesController extends AppController
     {
         $gatheringType = $this->GatheringTypes->get($id, contain: [
             'Gatherings' => ['Branches'],
+            'GatheringActivities',
         ]);
 
         $this->Authorization->authorize($gatheringType);
 
-        $this->set(compact('gatheringType'));
+        // Get all available activities for the add activity modal
+        $availableActivities = $this->GatheringTypes->GatheringActivities->find('list', order: ['name' => 'ASC'])->all();
+
+        $this->set(compact('gatheringType', 'availableActivities'));
     }
 
     /**
@@ -73,7 +77,7 @@ class GatheringTypesController extends AppController
                     $gatheringType->name
                 ));
 
-                return $this->redirect(['action' => 'index']);
+                return $this->redirect(['action' => 'view', $gatheringType->id]);
             }
 
             $errors = $gatheringType->getErrors();
@@ -92,6 +96,7 @@ class GatheringTypesController extends AppController
                 $this->Flash->error(__('The gathering type could not be saved. Please, try again.'));
             }
         }
+
         $this->set(compact('gatheringType'));
     }
 
@@ -134,6 +139,7 @@ class GatheringTypesController extends AppController
                 $this->Flash->error(__('The gathering type could not be saved. Please, try again.'));
             }
         }
+
         $this->set(compact('gatheringType'));
     }
 
@@ -178,5 +184,95 @@ class GatheringTypesController extends AppController
         }
 
         return $this->redirect(['action' => 'index']);
+    }
+
+    /**
+     * Add Activity method
+     *
+     * Adds a template activity to a gathering type.
+     *
+     * @param string|null $id Gathering Type id.
+     * @return \Cake\Http\Response|null Redirects to view.
+     * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
+     */
+    public function addActivity($id = null)
+    {
+        $this->request->allowMethod(['post']);
+        $gatheringType = $this->GatheringTypes->get($id, contain: ['GatheringActivities']);
+        $this->Authorization->authorize($gatheringType, "edit");
+
+        $activityId = $this->request->getData('activity_id');
+        $notRemovable = (bool)$this->request->getData('not_removable', false);
+
+        if (empty($activityId)) {
+            $this->Flash->error(__('Please select an activity to add.'));
+            return $this->redirect(['action' => 'view', $id]);
+        }
+
+        // Get existing activity IDs
+        $existingIds = array_column($gatheringType->gathering_activities, 'id');
+
+        // Check if activity is already linked
+        if (in_array($activityId, $existingIds)) {
+            $this->Flash->warning(__('This activity is already part of this gathering type.'));
+            return $this->redirect(['action' => 'view', $id]);
+        }
+
+        // Link the new activity
+        $GatheringTypeGatheringActivities = $this->fetchTable('GatheringTypeGatheringActivities');
+
+        $linkData = [
+            'gathering_type_id' => $id,
+            'gathering_activity_id' => $activityId,
+            'not_removable' => $notRemovable,
+        ];
+
+        $link = $GatheringTypeGatheringActivities->newEntity($linkData);
+
+        if ($GatheringTypeGatheringActivities->save($link)) {
+            $this->Flash->success(__('Template activity added successfully.'));
+        } else {
+            $this->Flash->error(__('Unable to add template activity. Please try again.'));
+        }
+
+        return $this->redirect(['action' => 'view', $id]);
+    }
+
+    /**
+     * Remove Activity method
+     *
+     * Removes a template activity from a gathering type.
+     *
+     * @param string|null $gatheringTypeId Gathering Type id.
+     * @param string|null $activityId Activity id.
+     * @return \Cake\Http\Response|null Redirects to view.
+     * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
+     */
+    public function removeActivity($gatheringTypeId = null, $activityId = null)
+    {
+        $this->request->allowMethod(['post']);
+        $gatheringType = $this->GatheringTypes->get($gatheringTypeId);
+        $this->Authorization->authorize($gatheringType, "edit");
+
+        $GatheringTypeGatheringActivities = $this->fetchTable('GatheringTypeGatheringActivities');
+        $link = $GatheringTypeGatheringActivities->find()
+            ->where([
+                'gathering_type_id' => $gatheringTypeId,
+                'gathering_activity_id' => $activityId
+            ])
+            ->first();
+
+        if (!$link) {
+            $this->Flash->error(__('Template activity link not found.'));
+            return $this->redirect(['action' => 'view', $gatheringTypeId]);
+        }
+
+        if ($GatheringTypeGatheringActivities->delete($link)) {
+            $this->Flash->success(__('Template activity removed successfully.'));
+        } else {
+            $this->Flash->error(__('Unable to remove template activity. Please try again.'));
+        }
+
+        return $this->redirect(['action' => 'view', $gatheringTypeId]);
     }
 }

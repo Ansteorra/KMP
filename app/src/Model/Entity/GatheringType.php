@@ -21,6 +21,7 @@ use Cake\ORM\Entity;
  * @property \Cake\I18n\DateTime $modified
  *
  * @property \App\Model\Entity\Gathering[] $gatherings
+ * @property \App\Model\Entity\GatheringActivity[] $gathering_activities
  */
 class GatheringType extends BaseEntity
 {
@@ -37,5 +38,6 @@ class GatheringType extends BaseEntity
         'created' => true,
         'modified' => true,
         'gatherings' => true,
+        'gathering_activities' => true,
     ];
 }
