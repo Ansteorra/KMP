@@ -79,7 +79,8 @@ class GatheringsGatheringActivitiesTable extends Table
 
         $validator
             ->boolean('not_removable')
-            ->notEmptyString('not_removable');
+            ->requirePresence('not_removable', true)
+            ->allowEmptyString('not_removable', null, false);
 
         $validator
             ->scalar('custom_description')

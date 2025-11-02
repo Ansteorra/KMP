@@ -267,6 +267,12 @@ class GatheringTypesController extends AppController
             return $this->redirect(['action' => 'view', $gatheringTypeId]);
         }
 
+        // Check if the activity is marked as not removable
+        if ($link->not_removable) {
+            $this->Flash->error(__('This template activity cannot be removed.'));
+            return $this->redirect(['action' => 'view', $gatheringTypeId]);
+        }
+
         if ($GatheringTypeGatheringActivities->delete($link)) {
             $this->Flash->success(__('Template activity removed successfully.'));
         } else {

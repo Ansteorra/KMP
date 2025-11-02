@@ -56,9 +56,10 @@ class Gathering extends BaseEntity
         'branch' => true,
         'gathering_type' => true,
         'creator' => true,
-        'gathering_activities' => true,
-        'gathering_attendances' => true,
-        'gathering_waivers' => true,
+        // Guard association; manage via controller actions
+        'gathering_activities' => false,
+        'gathering_attendances' => false,
+        'gathering_waivers' => false,
     ];
 
     /**

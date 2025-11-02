@@ -36,7 +36,7 @@ class GatheringsGatheringActivity extends BaseEntity
         'gathering_id' => true,
         'gathering_activity_id' => true,
         'sort_order' => true,
-        'not_removable' => true,
+        'not_removable' => false,
         'custom_description' => true,
         'created' => true,
         'modified' => true,

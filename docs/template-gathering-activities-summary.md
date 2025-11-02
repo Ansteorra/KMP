@@ -75,12 +75,9 @@ November 2, 2025
 
 #### Updated Templates
 
-**GatheringTypes/add.php** and **edit.php**:
-- Added "Template Activities" fieldset
-- Activity selection with checkboxes
-- "Not Removable" flag per activity
-- JavaScript to enable/disable flags based on selection
-- Proper sort order handling
+**GatheringTypes/view.php**:
+- Dedicated "Template Activities" tab with Add/Remove (modal) and badges.
+- Note: Add/Edit forms no longer manage template activities.
 
 **GatheringTypes/view.php**:
 - Added "Template Activities" tab (now first tab)
