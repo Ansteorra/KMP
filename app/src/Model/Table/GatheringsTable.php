@@ -7,6 +7,9 @@ namespace App\Model\Table;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
 use Cake\ORM\RulesChecker;
+use Cake\Event\EventInterface;
+use Cake\Datasource\EntityInterface;
+use Cake\ORM\TableRegistry;
 
 /**
  * Gatherings Model
@@ -223,5 +226,89 @@ class GatheringsTable extends Table
         }
 
         return $query;
+    }
+
+    /**
+     * After save callback
+     *
+     * Syncs template activities from the gathering type when:
+     * 1. A new gathering is created
+     * 2. The gathering type is changed
+     *
+     * @param \Cake\Event\EventInterface $event The event object
+     * @param \Cake\Datasource\EntityInterface $entity The saved entity
+     * @param \ArrayObject $options Options passed to save
+     * @return void
+     */
+    public function afterSave(EventInterface $event, EntityInterface $entity, \ArrayObject $options): void
+    {
+        // Only sync if gathering_type_id is present and the entity is new or gathering_type_id changed
+        if ($entity->has('gathering_type_id') && ($entity->isNew() || $entity->isDirty('gathering_type_id'))) {
+            $this->syncTemplateActivities($entity);
+        }
+    }
+
+    /**
+     * Sync template activities from the gathering type to the gathering
+     *
+     * This method:
+     * 1. Fetches all template activities for the gathering type
+     * 2. Adds any missing activities to the gathering
+     * 3. Sets the not_removable flag based on the template
+     *
+     * @param \Cake\Datasource\EntityInterface $gathering The gathering entity
+     * @return void
+     */
+    protected function syncTemplateActivities(EntityInterface $gathering): void
+    {
+        $gatheringTypeGatheringActivitiesTable = TableRegistry::getTableLocator()->get('GatheringTypeGatheringActivities');
+        $gatheringsGatheringActivitiesTable = TableRegistry::getTableLocator()->get('GatheringsGatheringActivities');
+
+        // Get template activities for this gathering type
+        $templateActivities = $gatheringTypeGatheringActivitiesTable->find()
+            ->where(['gathering_type_id' => $gathering->gathering_type_id])
+            ->contain(['GatheringActivities'])
+            ->all();
+
+        if ($templateActivities->isEmpty()) {
+            return;
+        }
+
+        // Get existing activities for this gathering
+        $existingActivities = $gatheringsGatheringActivitiesTable->find()
+            ->where(['gathering_id' => $gathering->id])
+            ->all()
+            ->indexBy('gathering_activity_id')
+            ->toArray();
+
+        // Find the max sort order to append new activities
+        $maxSortOrder = 0;
+        if (!empty($existingActivities)) {
+            $maxSortOrder = max(array_column($existingActivities, 'sort_order'));
+        }
+
+        // Add missing template activities
+        foreach ($templateActivities as $templateActivity) {
+            $activityId = $templateActivity->gathering_activity_id;
+
+            if (!isset($existingActivities[$activityId])) {
+                // Activity doesn't exist, add it
+                $maxSortOrder++;
+                $newActivity = $gatheringsGatheringActivitiesTable->newEntity([
+                    'gathering_id' => $gathering->id,
+                    'gathering_activity_id' => $activityId,
+                    'sort_order' => $maxSortOrder,
+                    'not_removable' => $templateActivity->not_removable,
+                ]);
+                $gatheringsGatheringActivitiesTable->save($newActivity);
+            } else {
+                // Activity exists, update not_removable if template says it should be
+                if ($templateActivity->not_removable && !$existingActivities[$activityId]->not_removable) {
+                    $existingActivity = $existingActivities[$activityId];
+                    $existingActivity->not_removable = true;
+                    $gatheringsGatheringActivitiesTable->save($existingActivity);
+                }
+            }
+        }
     }
 }

@@ -25,8 +25,7 @@ $this->KMP->endBlock(); ?>
         'data-awards-rec-add-gatherings-url-value' => $this->URL->build(['controller' => 'Recommendations', 'action' => 'gatheringsForAward', 'plugin' => 'Awards'])
     ]) ?>
     <fieldset>
-        <legend><a href="#" onclick="window.history.back(); return false;" class="bi bi-arrow-left-circle"></a>
-            <?= __('Submit Award Recommendation') ?></legend>
+        <legend><?= $this->element('backButton') ?> <?= __('Submit Award Recommendation') ?></legend>
         <?php
         $url = $this->Url->build([
             'controller' => 'Members',

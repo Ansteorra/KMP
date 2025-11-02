@@ -21,21 +21,21 @@ $this->KMP->endBlock(); ?>
     ]) ?>
     <fieldset>
         <legend>
-            <a href="#" onclick="window.history.back(); return false;" class="bi bi-arrow-left-circle"></a>
+            <?= $this->element('backButton') ?>
             <?= $emailTemplate->isNew() ? __('Add Email Template') : __('Edit Email Template') ?>
         </legend>
 
         <div class="row">
             <div class="col-md-6">
                 <?php if ($emailTemplate->isNew()): ?>
-                    <?php
+                <?php
                     // Build options array from allMailers
                     $mailerOptions = [];
                     foreach ($allMailers as $mailer) {
                         $mailerOptions[$mailer['class']] = $mailer['shortName'];
                     }
                     ?>
-                    <?= $this->Form->control('mailer_class', [
+                <?= $this->Form->control('mailer_class', [
                         'label' => 'Mailer Class',
                         'id' => 'mailer-class-select',
                         'options' => $mailerOptions,
@@ -43,28 +43,28 @@ $this->KMP->endBlock(); ?>
                         'data-action' => 'email-template-form#mailerChanged',
                     ]) ?>
                 <?php else: ?>
-                    <div class="mb-3">
-                        <label class="form-label">Mailer Class</label>
-                        <div class="form-control-plaintext"><code><?= h($emailTemplate->mailer_class) ?></code></div>
-                        <?= $this->Form->hidden('mailer_class') ?>
-                    </div>
+                <div class="mb-3">
+                    <label class="form-label">Mailer Class</label>
+                    <div class="form-control-plaintext"><code><?= h($emailTemplate->mailer_class) ?></code></div>
+                    <?= $this->Form->hidden('mailer_class') ?>
+                </div>
                 <?php endif; ?>
             </div>
 
             <div class="col-md-6">
                 <?php if ($emailTemplate->isNew()): ?>
-                    <?= $this->Form->control('action_method', [
+                <?= $this->Form->control('action_method', [
                         'label' => 'Action Method',
                         'id' => 'action-method-select',
                         'data-email-template-form-target' => 'actionSelect',
                         'data-action' => 'email-template-form#actionChanged',
                     ]) ?>
                 <?php else: ?>
-                    <div class="mb-3">
-                        <label class="form-label">Action Method</label>
-                        <div class="form-control-plaintext"><code><?= h($emailTemplate->action_method) ?></code></div>
-                        <?= $this->Form->hidden('action_method') ?>
-                    </div>
+                <div class="mb-3">
+                    <label class="form-label">Action Method</label>
+                    <div class="form-control-plaintext"><code><?= h($emailTemplate->action_method) ?></code></div>
+                    <?= $this->Form->hidden('action_method') ?>
+                </div>
                 <?php endif; ?>
             </div>
         </div>
@@ -78,18 +78,18 @@ $this->KMP->endBlock(); ?>
             ]) ?>
 
             <?php if (!empty($emailTemplate->available_vars)): ?>
-                <div class="mb-3">
-                    <small class="text-muted d-block mb-1">Quick insert:</small>
-                    <div class="btn-group flex-wrap" role="group">
-                        <?php foreach ($emailTemplate->available_vars as $var): ?>
-                            <button type="button" class="btn btn-sm btn-outline-secondary" data-action="variable-insert#insert"
-                                data-variable-insert-variable-param="<?= h($var['name']) ?>"
-                                title="<?= h($var['description'] ?? $var['name']) ?>">
-                                {{<?= h($var['name']) ?>}}
-                            </button>
-                        <?php endforeach; ?>
-                    </div>
+            <div class="mb-3">
+                <small class="text-muted d-block mb-1">Quick insert:</small>
+                <div class="btn-group flex-wrap" role="group">
+                    <?php foreach ($emailTemplate->available_vars as $var): ?>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-action="variable-insert#insert"
+                        data-variable-insert-variable-param="<?= h($var['name']) ?>"
+                        title="<?= h($var['description'] ?? $var['name']) ?>">
+                        {{<?= h($var['name']) ?>}}
+                    </button>
+                    <?php endforeach; ?>
                 </div>
+            </div>
             <?php endif; ?>
         </div>
 
@@ -184,19 +184,19 @@ $this->KMP->endBlock(); ?>
                     ]) ?>
 
                     <?php if (!empty($emailTemplate->available_vars)): ?>
-                        <div class="mt-2">
-                            <div class="mb-2"><strong>Available Variables:</strong> Click to insert</div>
-                            <div class="btn-group flex-wrap mb-2" role="group">
-                                <?php foreach ($emailTemplate->available_vars as $var): ?>
-                                    <button type="button" class="btn btn-sm btn-outline-primary"
-                                        data-action="variable-insert#insert"
-                                        data-variable-insert-variable-param="<?= h($var['name']) ?>"
-                                        title="<?= h($var['description'] ?? $var['name']) ?>">
-                                        {{<?= h($var['name']) ?>}}
-                                    </button>
-                                <?php endforeach; ?>
-                            </div>
+                    <div class="mt-2">
+                        <div class="mb-2"><strong>Available Variables:</strong> Click to insert</div>
+                        <div class="btn-group flex-wrap mb-2" role="group">
+                            <?php foreach ($emailTemplate->available_vars as $var): ?>
+                            <button type="button" class="btn btn-sm btn-outline-primary"
+                                data-action="variable-insert#insert"
+                                data-variable-insert-variable-param="<?= h($var['name']) ?>"
+                                title="<?= h($var['description'] ?? $var['name']) ?>">
+                                {{<?= h($var['name']) ?>}}
+                            </button>
+                            <?php endforeach; ?>
                         </div>
+                    </div>
                     <?php endif; ?>
                 </div>
             </div>
@@ -213,7 +213,4 @@ $this->KMP->endBlock(); ?>
         <?= $this->Html->link(__('Cancel'), ['action' => 'index'], ['class' => 'btn btn-secondary']) ?>
     </div>
     <?= $this->Form->end() ?>
-</div>
-
-<?= $this->Form->end() ?>
 </div>

@@ -23,17 +23,8 @@ $this->KMP->endBlock();
 <div class="row align-items-start">
     <div class="col">
         <h3>
-            <?php
-            // Smart back button using pageStack (same as view_record layout)
-            $historyCount = count($pageStack);
-            if ($historyCount < 2) {
-                echo '<a href="#" onclick="window.history.back(); return false;" class="bi bi-arrow-left-circle"></a>';
-            } else {
-                echo '<a href="' . $pageStack[$historyCount - 2] . '" class="bi bi-arrow-left-circle"></a>';
-            }
-            ?>
             <?php if ($gathering): ?>
-            <?= __('Waivers for {0}', h($gathering->name)) ?>
+            <?= $this->element('backButton') ?><?= __('Waivers for {0}', h($gathering->name)) ?>
             <?php else: ?>
             <?= __('All Waivers') ?>
             <?php endif; ?>

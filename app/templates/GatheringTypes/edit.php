@@ -20,8 +20,7 @@ $this->KMP->endBlock();
         'data-action' => 'submit->gathering-type-form#validateForm'
     ]) ?>
     <fieldset>
-        <legend><a href="#" onclick="window.history.back(); return false;" class="bi bi-arrow-left-circle"></a>
-            <?= __('Edit Gathering Type') ?></legend>
+        <legend><?= $this->element('backButton') ?> <?= __('Edit Gathering Type') ?></legend>
         <div class="mb-3">
             <?= $this->Form->control('name', [
                 'required' => true,
@@ -63,6 +62,7 @@ $this->KMP->endBlock();
         ]);
         ?>
     </fieldset>
+
     <div class="form-group">
         <?= $this->Form->button(__('Submit'), [
             'class' => 'btn btn-primary',

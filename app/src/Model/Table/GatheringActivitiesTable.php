@@ -15,6 +15,7 @@ use Cake\ORM\RulesChecker;
  * (e.g., "Armored Combat", "Archery"). They can be reused across many gatherings.
  *
  * @property \App\Model\Table\GatheringsTable&\Cake\ORM\Association\BelongsToMany $Gatherings
+ * @property \App\Model\Table\GatheringTypesTable&\Cake\ORM\Association\BelongsToMany $GatheringTypes
  * @property \Waivers\Model\Table\GatheringActivityWaiversTable&\Cake\ORM\Association\HasMany $GatheringActivityWaivers
  * @property \Waivers\Model\Table\GatheringWaiverActivitiesTable&\Cake\ORM\Association\HasMany $GatheringWaiverActivities
  *
@@ -55,6 +56,14 @@ class GatheringActivitiesTable extends Table
             'joinTable' => 'gatherings_gathering_activities',
             'through' => 'GatheringsGatheringActivities',
             'sort' => ['GatheringsGatheringActivities.sort_order' => 'ASC'],
+        ]);
+
+        // Many-to-many relationship with GatheringTypes for template activities
+        $this->belongsToMany('GatheringTypes', [
+            'foreignKey' => 'gathering_activity_id',
+            'targetForeignKey' => 'gathering_type_id',
+            'joinTable' => 'gathering_type_gathering_activities',
+            'through' => 'GatheringTypeGatheringActivities',
         ]);
     }
 

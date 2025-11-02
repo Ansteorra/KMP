@@ -134,9 +134,9 @@ $url = $fullBaseUrl . '/keepalive';
                     $css = $parts[1];
                 }
             ?>
-                <li class="nav-item text-nowrap mx-1">
-                    <a class="btn btn-outline-secondary <?= $css ?>" href="<?= $url ?>"><?= $key ?></a>
-                </li>
+            <li class="nav-item text-nowrap mx-1">
+                <a class="btn btn-outline-secondary <?= $css ?>" href="<?= $url ?>"><?= $key ?></a>
+            </li>
             <?php endforeach; ?>
             <li class="nav-item text-nowrap mx-1">
                 <?= $this->Html->link(
@@ -175,14 +175,7 @@ $url = $fullBaseUrl . '/keepalive';
                 <div class="row align-items-start">
                     <div class="col">
                         <h3>
-                            <?php
-                            $historyCount = count($pageStack);
-                            if ($historyCount < 2) {
-                                echo '<a href="#" onclick="window.history.back();" class="bi "></a>';
-                            } else {
-                                echo '<a href="' . $pageStack[$historyCount - 2] . '" class="bi bi-arrow-left-circle"></a>';
-                            }
-                            ?>
+                            <?= $this->element('backButton') ?>
                             <?php echo $this->fetch('pageTitle') ?>
                         </h3>
                     </div>

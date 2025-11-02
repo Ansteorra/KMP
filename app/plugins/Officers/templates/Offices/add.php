@@ -19,8 +19,7 @@ $this->KMP->endBlock();
 <div class="officer form content">
     <?= $this->Form->create($office, ['data-controller' => 'office-form',]) ?>
     <fieldset>
-        <legend><a href="#" onclick="window.history.back(); return false;" class="bi bi-arrow-left-circle"></a>
-            <?= __("Add Office") ?></legend>
+        <legend><?= $this->element('backButton') ?> <?= __("Add Office") ?></legend>
         <?php
         echo $this->Form->control("name");
         echo $this->Form->control("department_id", [

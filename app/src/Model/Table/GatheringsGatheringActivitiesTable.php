@@ -78,6 +78,11 @@ class GatheringsGatheringActivitiesTable extends Table
             ->notEmptyString('sort_order');
 
         $validator
+            ->boolean('not_removable')
+            ->requirePresence('not_removable', true)
+            ->allowEmptyString('not_removable', null, false);
+
+        $validator
             ->scalar('custom_description')
             ->allowEmptyString('custom_description')
             ->maxLength('custom_description', 65535); // TEXT field max length

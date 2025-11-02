@@ -19,8 +19,7 @@ $this->KMP->endBlock(); ?>
         ]
     ) ?>
     <fieldset>
-        <legend><a href="#" onclick="window.history.back(); return false;" class="bi bi-arrow-left-circle"></a>
-            <?= __('Add Award') ?></legend>
+        <legend><?= $this->element('backButton') ?> <?= __('Add Award') ?></legend>
         <?php
         echo $this->Form->control('name');
         echo $this->Form->control('abbreviation');
