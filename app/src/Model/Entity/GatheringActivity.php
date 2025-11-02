@@ -32,11 +32,9 @@ class GatheringActivity extends BaseEntity
      * @var array<string, bool>
      */
     protected array $_accessible = [
-        'gathering_id' => true,
         'name' => true,
         'description' => true,
         'created' => true,
         'modified' => true,
-        'gathering' => true,
     ];
 }
