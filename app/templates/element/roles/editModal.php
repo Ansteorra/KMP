@@ -17,7 +17,7 @@ echo $this->Modal->create("Edit", [
 echo $this->Modal->end([
     $this->Form->button("Submit", [
         "class" => "btn btn-primary",
-        "id" => "edit_entity__submit"
+        "id" => "role-edit-submit"
     ]),
     $this->Form->button("Close", [
         "data-bs-dismiss" => "modal",

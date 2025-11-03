@@ -12,6 +12,7 @@
         <?php
         echo $this->Form->control("id", [
             "type" => "hidden",
+            "id" => "revoke-auth-id",
             "data-revoke-form-target" => "id",
         ]);
         echo $this->Form->control("revoked_reason", [

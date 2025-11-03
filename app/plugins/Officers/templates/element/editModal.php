@@ -21,6 +21,7 @@ echo $this->Modal->create("Edit Officer", [
     <?php
     echo $this->Form->control("id", [
         "type" => "hidden",
+        "id" => "edit-officer-id",
         "data-officers-edit-officer-target" => "id",
     ]); ?>
     <div class="mb-3 form-group text" data-officers-edit-officer-target="deputyDescBlock">

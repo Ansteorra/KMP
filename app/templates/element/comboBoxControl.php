@@ -134,8 +134,13 @@
  */
 
 $attrs = '';
+$idPrefix = '';
 if ($additionalAttrs) {
     foreach ($additionalAttrs as $key => $value) {
+        if ($key === 'idPrefix') {
+            $idPrefix = $value . '-';
+            continue;
+        }
         $attrs .= $key . "='" . \App\KMP\StaticHelpers::makeSafeForHtmlAttribute($value) . "' ";
     }
 }
@@ -160,6 +165,7 @@ $textEntry = $Form->control($inputField . '-Disp', [
     'required' => $required,
     'type' => 'text',
     'label' => $label,
+    'id' => $idPrefix . $inputField . '-disp',
     'data-ac-target' => 'input',
     'container' => ['style' => 'margin:0 !important;'],
     'append' => ['clearBtn'],
@@ -185,11 +191,13 @@ $textEntry = str_replace(
 
     <?= $Form->control($resultField, [
         'type' => 'hidden',
+        'id' => $idPrefix . str_replace('_', '-', $resultField),
         'data-ac-target' => 'hidden',
     ]) ?>
 
     <?= $Form->control($inputField, [
         'type' => 'hidden',
+        'id' => $idPrefix . str_replace('_', '-', $inputField),
         'data-ac-target' => 'hiddenText',
     ]) ?>
 

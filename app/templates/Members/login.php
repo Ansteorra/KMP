@@ -28,6 +28,7 @@ $this->KMP->endBlock(); ?>
             ]) ?>
             <?= $this->Form->control("password", [
                 "type" => "password",
+                "autocomplete" => "current-password",
                 "label" => ["floating" => true],
                 "container" => ["class" => "form-group"],
             ]) ?>
@@ -40,7 +41,7 @@ $this->KMP->endBlock(); ?>
                 ["class" => "btn btn-sm btn-link"],
             ) ?>
             <? if ($allowRegistration == strtolower("yes")) : ?>
-            <?= $this->html->link(
+                <?= $this->html->link(
                     __("New User? Register Here"),
                     ["action" => "register"],
                     ["class" => "btn btn-sm btn-link"],

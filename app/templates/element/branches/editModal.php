@@ -68,7 +68,7 @@ echo $this->Modal->create("Edit Branch", [
 <?php echo $this->Modal->end([
     $this->Form->button("Submit", [
         "class" => "btn btn-primary",
-        "id" => "edit_entity__submit"
+        "id" => "branch-edit-submit"
     ]),
     $this->Form->button("Close", [
         "data-bs-dismiss" => "modal",

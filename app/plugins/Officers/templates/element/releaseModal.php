@@ -12,6 +12,7 @@ echo $this->Modal->create("Release Office", [
     <?php
     echo $this->Form->control("id", [
         "type" => "hidden",
+        "id" => "release-office-id",
         "data-revoke-form-target" => "id",
     ]);
     echo $this->Form->control("revoked_reason", [
