@@ -405,12 +405,12 @@ class AwardsRecommendationAddForm extends Controller {
     loadScaMemberInfo(event) {
         //reset member metadata area
         this.externalLinksTarget.innerHTML = "";
-        let memberId = Number(event.target.value.replace(/_/g, ""));
-        if (memberId > 0) {
+        let memberPublicId = event.target.value.replace(/_/g, "");
+        if (memberPublicId && memberPublicId.length > 0) {
             this.notFoundTarget.checked = false;
             this.branchTarget.hidden = true;
             this.branchTarget.disabled = true;
-            this.loadMember(memberId);
+            this.loadMember(memberPublicId);
         } else {
             this.notFoundTarget.checked = true;
             this.branchTarget.hidden = false;
@@ -426,11 +426,11 @@ class AwardsRecommendationAddForm extends Controller {
      * Fetches member profile information and displays external links
      * for member context and validation support.
      * 
-     * @param {number} memberId - The member ID to load
+     * @param {string} memberPublicId - The member public ID to load
      * @returns {void}
      */
-    loadMember(memberId) {
-        let url = this.publicProfileUrlValue + "/" + memberId;
+    loadMember(memberPublicId) {
+        let url = this.publicProfileUrlValue + "/" + memberPublicId;
         fetch(url, this.optionsForFetch())
             .then(response => response.json())
             .then(data => {

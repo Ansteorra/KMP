@@ -39,7 +39,7 @@ $today = new DateTime();
                                     <h5 class="mb-1">
                                         <?= $this->Html->link(
                                             h($gathering->name),
-                                            ['action' => 'view', $gathering->id],
+                                            ['action' => 'view', $gathering->public_id],
                                             ['class' => 'text-decoration-none']
                                         ) ?>
                                         <?php if ($isAttending): ?>
@@ -107,7 +107,7 @@ $today = new DateTime();
                                 <div class="btn-group-vertical" role="group">
                                     <?= $this->Html->link(
                                         '<i class="bi bi-eye"></i> View Details',
-                                        ['action' => 'view', $gathering->id],
+                                        ['action' => 'view', $gathering->public_id],
                                         ['class' => 'btn btn-sm btn-outline-primary', 'escape' => false]
                                     ) ?>
 

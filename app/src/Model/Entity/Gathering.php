@@ -22,6 +22,7 @@ use Cake\ORM\Entity;
  * @property string|null $location
  * @property float|null $latitude
  * @property float|null $longitude
+ * @property bool $public_page_enabled
  * @property int $created_by
  * @property \Cake\I18n\DateTime $created
  * @property \Cake\I18n\DateTime $modified
@@ -31,6 +32,8 @@ use Cake\ORM\Entity;
  * @property \App\Model\Entity\Member $creator
  * @property \App\Model\Entity\GatheringActivity[] $gathering_activities
  * @property \App\Model\Entity\GatheringAttendance[] $gathering_attendances
+ * @property \App\Model\Entity\GatheringScheduledActivity[] $gathering_scheduled_activities
+ * @property \App\Model\Entity\GatheringStaff[] $gathering_staff
  * @property \Waivers\Model\Entity\GatheringWaiver[] $gathering_waivers
  */
 class Gathering extends BaseEntity
@@ -50,6 +53,7 @@ class Gathering extends BaseEntity
         'location' => true,
         'latitude' => true,
         'longitude' => true,
+        'public_page_enabled' => true,
         'created_by' => true,
         'created' => true,
         'modified' => true,
@@ -59,6 +63,8 @@ class Gathering extends BaseEntity
         // Guard association; manage via controller actions
         'gathering_activities' => false,
         'gathering_attendances' => false,
+        'gathering_scheduled_activities' => false,
+        'gathering_staff' => false,
         'gathering_waivers' => false,
     ];
 

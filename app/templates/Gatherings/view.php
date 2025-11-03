@@ -23,7 +23,56 @@ use Cake\I18n\Date;
 
 $today = Date::now();
 $canAttend = $gathering->end_date >= $today; // Can only register if gathering hasn't ended
+// Build public landing URL using dashed route format
+$publicLandingUrl = $this->Url->build([
+    'controller' => 'Gatherings',
+    'action' => 'public-landing',
+    $gathering->public_id
+], ['fullBase' => true]);
 ?>
+<!-- Share Public Landing Page -->
+<div class="btn-group" role="group">
+    <button type="button" class="btn btn-outline-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown"
+        aria-expanded="false" <?= !$gathering->public_page_enabled ? 'disabled' : '' ?>>
+        <i class="bi bi-share"></i> Share Event
+    </button>
+    <?php if ($gathering->public_page_enabled): ?>
+        <ul class="dropdown-menu">
+            <li>
+                <a class="dropdown-item" href="<?= $publicLandingUrl ?>" target="_blank">
+                    <i class="bi bi-box-arrow-up-right"></i> View Public Page
+                </a>
+            </li>
+            <li>
+                <a class="dropdown-item" href="#"
+                    onclick="navigator.clipboard.writeText('<?= h($publicLandingUrl) ?>'); alert('Link copied to clipboard!'); return false;">
+                    <i class="bi bi-clipboard"></i> Copy Link
+                </a>
+            </li>
+            <li>
+                <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#qrCodeModal">
+                    <i class="bi bi-qr-code"></i> Show QR Code
+                </a>
+            </li>
+            <li>
+                <hr class="dropdown-divider">
+            </li>
+            <li class="px-3 py-2">
+                <small class="text-muted">Share this link with potential attendees</small>
+            </li>
+        </ul>
+    <?php else: ?>
+        <ul class="dropdown-menu">
+            <li class="px-3 py-2">
+                <small class="text-muted">
+                    <i class="bi bi-info-circle"></i> Public landing page is disabled for this gathering.
+                    Enable it in the Edit form to share this event.
+                </small>
+            </li>
+        </ul>
+    <?php endif; ?>
+</div>
+
 <?php if ($canAttend): ?>
     <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#attendGatheringModal">
         <i class="bi bi-calendar-check"></i>
@@ -48,7 +97,6 @@ $canAttend = $gathering->end_date >= $today; // Can only register if gathering h
         ],
     ) ?>
 <?php endif; ?>
-<?= $this->Html->link(__('List Gatherings'), ['action' => 'index'], ['class' => 'btn btn-secondary btn-sm']) ?>
 <?php $this->KMP->endBlock() ?>
 
 <?php $this->KMP->startBlock('recordDetails') ?>
@@ -100,6 +148,20 @@ $canAttend = $gathering->end_date >= $today; // Can only register if gathering h
     </tr>
 <?php endif; ?>
 <tr scope="row">
+    <th class="col"><?= __('Public Landing Page') ?></th>
+    <td class="col-10">
+        <?php if ($gathering->public_page_enabled): ?>
+            <span class="badge bg-success"><i class="bi bi-check-circle"></i> Enabled</span>
+            <a href="<?= $publicLandingUrl ?>" target="_blank" class="ms-2">
+                <i class="bi bi-box-arrow-up-right"></i> View Public Page
+            </a>
+        <?php else: ?>
+            <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Disabled</span>
+            <small class="text-muted ms-2">Public cannot access this event page</small>
+        <?php endif; ?>
+    </td>
+</tr>
+<tr scope="row">
     <th class="col"><?= __('Created') ?></th>
     <td class="col-10"><?= h($gathering->created->format('F j, Y g:i A')) ?></td>
 </tr>
@@ -112,6 +174,8 @@ $canAttend = $gathering->end_date >= $today; // Can only register if gathering h
 <?php $this->KMP->startBlock('tabButtons') ?>
 <!-- Gatherings view tabs with ordering:
      Order 1: Description tab (first - markdown content)
+     Order 3: Staff tab (new - stewards and other staff)
+     Order 4: Schedule tab (new - before activities)
      Order 5: Activities tab (primary)
      Order 6: Location tab
      Order 7: Attendance tab
@@ -124,6 +188,18 @@ $canAttend = $gathering->end_date >= $today; // Can only register if gathering h
         <i class="bi bi-file-text"></i> <?= __('Description') ?>
     </button>
 <?php endif; ?>
+<button class="nav-link" id="nav-staff-tab" data-bs-toggle="tab" data-bs-target="#nav-staff" type="button" role="tab"
+    aria-controls="nav-staff" aria-selected="false" data-detail-tabs-target='tabBtn' data-tab-order="3"
+    style="order: 3;">
+    <i class="bi bi-person-badge"></i> <?= __('Staff') ?>
+    <span class="badge bg-secondary"><?= count($gathering->gathering_staff) ?></span>
+</button>
+<button class="nav-link" id="nav-schedule-tab" data-bs-toggle="tab" data-bs-target="#nav-schedule" type="button"
+    role="tab" aria-controls="nav-schedule" aria-selected="false" data-detail-tabs-target='tabBtn' data-tab-order="4"
+    style="order: 4;">
+    <i class="bi bi-calendar-event"></i> <?= __('Schedule') ?>
+    <span class="badge bg-secondary"><?= count($gathering->gathering_scheduled_activities) ?></span>
+</button>
 <button class="nav-link" id="nav-activities-tab" data-bs-toggle="tab" data-bs-target="#nav-activities" type="button"
     role="tab" aria-controls="nav-activities" aria-selected="false" data-detail-tabs-target='tabBtn' data-tab-order="5"
     style="order: 5;">
@@ -157,6 +233,19 @@ $canAttend = $gathering->end_date >= $today; // Can only register if gathering h
         </div>
     </div>
 <?php endif; ?>
+
+<!-- Staff Tab -->
+<?= $this->element('gatherings/staffTab', [
+    'gathering' => $gathering,
+    'user' => $user,
+]) ?>
+
+<!-- Schedule Tab -->
+<?= $this->element('gatherings/scheduleTab', [
+    'gathering' => $gathering,
+    'user' => $user,
+]) ?>
+
 <div class="related tab-pane fade m-3" id="nav-activities" role="tabpanel" aria-labelledby="nav-activities-tab"
     data-detail-tabs-target="tabContent" data-tab-order="5" style="order: 5;">
 
@@ -188,7 +277,8 @@ $canAttend = $gathering->end_date >= $today; // Can only register if gathering h
                             <td>
                                 <?= h($activity->name) ?>
                                 <?php if ($isNotRemovable): ?>
-                                    <span class="badge bg-warning text-dark ms-2" title="<?= __('This activity is required by the gathering type and cannot be removed') ?>">
+                                    <span class="badge bg-warning text-dark ms-2"
+                                        title="<?= __('This activity is required by the gathering type and cannot be removed') ?>">
                                         <i class="bi bi-lock-fill"></i> <?= __('Required') ?>
                                     </span>
                                 <?php endif; ?>
@@ -275,6 +365,8 @@ $canAttend = $gathering->end_date >= $today; // Can only register if gathering h
 <?php
 echo $this->KMP->startBlock('modals');
 
+// Schedule modals are now rendered inside scheduleTab.php for Stimulus scope
+
 // Add Activity Modal
 if ($user->checkCan('edit', $gathering) && !$hasWaivers) {
     echo $this->element('gatherings/addActivityModal', [
@@ -306,6 +398,48 @@ if ($canAttend) {
         'user' => $user,
     ]);
 }
+
+// QR Code Modal for Public Landing Page - only show if public page is enabled
+if ($gathering->public_page_enabled):
+?>
+    <!-- QR Code Modal -->
+    <div class="modal fade" id="qrCodeModal" tabindex="-1" aria-labelledby="qrCodeModalLabel" aria-hidden="true"
+        data-controller="qrcode" data-qrcode-url-value="<?= h($publicLandingUrl) ?>"
+        data-qrcode-modal-id-value="qrCodeModal">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="qrCodeModalLabel">
+                        <i class="bi bi-qr-code"></i> Share Event QR Code
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <p class="mb-3">Scan this QR code to view the event landing page</p>
+                    <div data-qrcode-target="canvas" class="d-inline-block p-3 bg-white border rounded"></div>
+                    <div class="mt-3">
+                        <small class="text-muted d-block mb-2">Or copy the link:</small>
+                        <div class="input-group">
+                            <input type="text" class="form-control" value="<?= h($publicLandingUrl) ?>" readonly
+                                id="publicLandingUrlInput">
+                            <button class="btn btn-outline-secondary" type="button"
+                                onclick="navigator.clipboard.writeText('<?= h($publicLandingUrl) ?>'); this.innerHTML='<i class=\'bi bi-check\'></i> Copied!'; setTimeout(() => this.innerHTML='<i class=\'bi bi-clipboard\'></i> Copy', 2000)">
+                                <i class="bi bi-clipboard"></i> Copy
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <a href="<?= $publicLandingUrl ?>" target="_blank" class="btn btn-primary">
+                        <i class="bi bi-box-arrow-up-right"></i> Open Public Page
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+<?php
+endif;
 
 $this->KMP->endBlock();
 ?>

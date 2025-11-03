@@ -1281,11 +1281,10 @@ class MembersController extends AppController
         $this->viewBuilder()->setTemplate('view_card_json');
     }
 
-    public function publicProfile($id = null)
+    public function publicProfile($publicId = null)
     {
         $member = $this->Members
-            ->find()
-            ->where(['Members.id' => $id])
+            ->find('byPublicId', [$publicId])
             ->first();
         if (!$member) {
             throw new NotFoundException();
@@ -1324,7 +1323,7 @@ class MembersController extends AppController
                 'status <>' => Member::STATUS_DEACTIVATED,
                 'OR' => [['sca_name LIKE' => "%$q%"], ['sca_name LIKE' => "%$nq%"], ['sca_name LIKE' => "%$uq%"]],
             ])
-            ->select(['id', 'sca_name'])
+            ->select(['id', 'public_id', 'sca_name'])
             ->limit(50);
         $this->set(compact('query', 'q', 'nq', 'uq'));
     }

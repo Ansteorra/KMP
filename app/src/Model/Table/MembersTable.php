@@ -275,6 +275,7 @@ class MembersTable extends BaseTable
         $this->addBehavior('Muffin/Footprint.Footprint');
         $this->addBehavior('Muffin/Trash.Trash');
         $this->addBehavior('JsonField');
+        $this->addBehavior('PublicId');
     }
 
     /**

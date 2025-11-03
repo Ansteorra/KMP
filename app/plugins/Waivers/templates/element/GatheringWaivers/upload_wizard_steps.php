@@ -17,33 +17,33 @@
     <p class="lead"><?= __('Which activities is this waiver for?') ?></p>
 
     <?php if (!empty($activitiesData)): ?>
-    <div class="activities-grid">
-        <?php foreach ($activitiesData as $activity): ?>
-        <div class="card mb-3">
-            <div class="card-body">
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" value="<?= $activity['id'] ?>"
-                        id="activity-<?= $activity['id'] ?>" data-name="<?= h($activity['name']) ?>"
-                        data-waiver-types="<?= h(json_encode($activity['waiver_types'])) ?>"
-                        data-waiver-upload-wizard-target="activityCheckbox"
-                        data-action="change->waiver-upload-wizard#toggleActivity">
-                    <label class="form-check-label" for="activity-<?= $activity['id'] ?>">
-                        <strong><?= h($activity['name']) ?></strong>
-                        <?php if (!empty($activity['description'])): ?>
-                        <br>
-                        <small class="text-muted"><?= h($activity['description']) ?></small>
-                        <?php endif; ?>
-                    </label>
+        <div class="activities-grid">
+            <?php foreach ($activitiesData as $activity): ?>
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="<?= $activity['id'] ?>"
+                                id="activity-<?= $activity['id'] ?>" data-name="<?= h($activity['name']) ?>"
+                                data-waiver-types="<?= h(json_encode($activity['waiver_types'])) ?>"
+                                data-waiver-upload-wizard-target="activityCheckbox"
+                                data-action="change->waiver-upload-wizard#toggleActivity">
+                            <label class="form-check-label" for="activity-<?= $activity['id'] ?>">
+                                <strong><?= h($activity['name']) ?></strong>
+                                <?php if (!empty($activity['description'])): ?>
+                                    <br>
+                                    <small class="text-muted"><?= h($activity['description']) ?></small>
+                                <?php endif; ?>
+                            </label>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            <?php endforeach; ?>
         </div>
-        <?php endforeach; ?>
-    </div>
     <?php else: ?>
-    <div class="alert alert-warning">
-        <i class="bi bi-exclamation-triangle"></i>
-        <?= __('No activities found for this gathering. Please add activities before uploading waivers.') ?>
-    </div>
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle"></i>
+            <?= __('No activities found for this gathering. Please add activities before uploading waivers.') ?>
+        </div>
     <?php endif; ?>
 </div>
 
@@ -57,32 +57,32 @@
     <p class="lead"><?= __('What type of waiver are you uploading?') ?></p>
 
     <?php if (!empty($waiverTypesData)): ?>
-    <div data-waiver-upload-wizard-target="waiverTypeSelect">
-        <?php foreach ($waiverTypesData as $waiverType): ?>
-        <div class="card mb-3" data-waiver-upload-wizard-target="waiverTypeOption"
-            data-waiver-type-id="<?= $waiverType['id'] ?>">
-            <div class="card-body">
-                <div class="form-check">
-                    <input class="form-check-input" type="radio" name="waiver_type" value="<?= $waiverType['id'] ?>"
-                        id="waiver-type-<?= $waiverType['id'] ?>" data-name="<?= h($waiverType['name']) ?>"
-                        data-action="change->waiver-upload-wizard#selectWaiverType">
-                    <label class="form-check-label w-100" for="waiver-type-<?= $waiverType['id'] ?>">
-                        <strong><?= h($waiverType['name']) ?></strong>
-                        <?php if (!empty($waiverType['description'])): ?>
-                        <br>
-                        <small class="text-muted"><?= h($waiverType['description']) ?></small>
-                        <?php endif; ?>
-                    </label>
+        <div data-waiver-upload-wizard-target="waiverTypeSelect">
+            <?php foreach ($waiverTypesData as $waiverType): ?>
+                <div class="card mb-3" data-waiver-upload-wizard-target="waiverTypeOption"
+                    data-waiver-type-id="<?= $waiverType['id'] ?>">
+                    <div class="card-body">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="waiver_type" value="<?= $waiverType['id'] ?>"
+                                id="waiver-type-<?= $waiverType['id'] ?>" data-name="<?= h($waiverType['name']) ?>"
+                                data-action="change->waiver-upload-wizard#selectWaiverType">
+                            <label class="form-check-label w-100" for="waiver-type-<?= $waiverType['id'] ?>">
+                                <strong><?= h($waiverType['name']) ?></strong>
+                                <?php if (!empty($waiverType['description'])): ?>
+                                    <br>
+                                    <small class="text-muted"><?= h($waiverType['description']) ?></small>
+                                <?php endif; ?>
+                            </label>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            <?php endforeach; ?>
         </div>
-        <?php endforeach; ?>
-    </div>
     <?php else: ?>
-    <div class="alert alert-info">
-        <i class="bi bi-info-circle"></i>
-        <?= __('Waiver types will be filtered based on your activity selection in Step 1.') ?>
-    </div>
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i>
+            <?= __('Waiver types will be filtered based on your activity selection in Step 1.') ?>
+        </div>
     <?php endif; ?>
 </div>
 
@@ -202,7 +202,7 @@
     <div>
         <?= $this->Html->link(
             __('Cancel'),
-            ['plugin' => false, 'controller' => 'Gatherings', 'action' => 'view', $gathering->id],
+            ['plugin' => false, 'controller' => 'Gatherings', 'action' => 'view', $gathering->public_id],
             ['class' => 'btn btn-outline-danger me-2']
         ) ?>
         <button type="button" class="btn btn-primary" data-waiver-upload-wizard-target="nextButton"

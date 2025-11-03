@@ -1,0 +1,92 @@
+/**
+ * OpenStreetMap Location Autocomplete Styles
+ * 
+ * Styles for the OSM location autocomplete dropdown
+ */
+
+.osm-autocomplete-dropdown {
+    position: absolute;
+    z-index: 1000;
+    background: white;
+    border: 1px solid #ced4da;
+    border-top: none;
+    border-radius: 0 0 0.25rem 0.25rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    max-height: 300px;
+    overflow-y: auto;
+    width: 100%;
+    margin-top: -1px;
+}
+
+.osm-autocomplete-item {
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    color: #333;
+    transition: background-color 0.15s ease;
+}
+
+.osm-autocomplete-item:last-child {
+    border-bottom: none;
+}
+
+.osm-autocomplete-item:hover,
+.osm-autocomplete-item.highlighted {
+    background-color: #f8f9fa;
+    color: #000;
+}
+
+.osm-autocomplete-item:active {
+    background-color: #e9ecef;
+}
+
+/* Container positioning */
+[data-controller*="osm-location-autocomplete"] {
+    position: relative;
+}
+
+/* Input field styling when dropdown is visible */
+[data-controller*="osm-location-autocomplete"] input:focus {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+/* Loading state (optional) */
+.osm-autocomplete-loading {
+    padding: 1rem;
+    text-align: center;
+    color: #6c757d;
+    font-size: 0.875rem;
+}
+
+/* Empty state */
+.osm-autocomplete-empty {
+    padding: 1rem;
+    text-align: center;
+    color: #6c757d;
+    font-size: 0.875rem;
+}
+
+/* Scrollbar styling for dropdown */
+.osm-autocomplete-dropdown::-webkit-scrollbar {
+    width: 8px;
+}
+
+.osm-autocomplete-dropdown::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 0 0 0.25rem 0;
+}
+
+.osm-autocomplete-dropdown::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+.osm-autocomplete-dropdown::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+
+/*# sourceMappingURL=osm-autocomplete.css.map*/

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 /**
@@ -145,7 +146,7 @@ return function (RouteBuilder $routes): void {
          * @example "/pages/help" → display('help')
          */
         $builder->connect("/pages/*", "Pages::display");
-        
+
         /**
          * Progressive Web App Manifest Route
          * 
@@ -156,6 +157,21 @@ return function (RouteBuilder $routes): void {
          * @contentType application/manifest+json
          */
         $builder->connect("/members/card.webmanifest/*", "Pages::Webmanifest");
+
+        /**
+         * Public Gathering Landing Page Route
+         * 
+         * Provides anonymous access to beautiful event landing pages.
+         * No authentication required - optimized for sharing and mobile viewing.
+         * 
+         * @route "/event/{id}" → GatheringsController::publicLanding($id)
+         * @layout public_event
+         * @authentication Not required
+         */
+        $builder->connect("/event/:id", [
+            "controller" => "Gatherings",
+            "action" => "publicLanding"
+        ])->setPatterns(['id' => '[0-9]+'])->setPass(['id']);
 
         /**
          * RESTful Fallback Routes
@@ -204,7 +220,7 @@ return function (RouteBuilder $routes): void {
      * @example Used by session-extender-controller.js
      */
     $routes->connect('/keepalive', ['controller' => 'Sessions', 'action' => 'keepalive']);
-    
+
     /**
      * Image Processing Scope
      * 
@@ -390,7 +406,7 @@ return function (RouteBuilder $routes): void {
          */
         $routes->connect('/*');
     });
-    
+
     /**
      * Global Extension Configuration
      * 

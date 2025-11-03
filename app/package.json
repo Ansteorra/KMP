@@ -47,7 +47,8 @@
         "bootstrap": "^5.3.6",
         "easymde": "^2.20.0",
         "guifier": "^1.0.32",
-        "popper.js": "^1.16.1"
+        "popper.js": "^1.16.1",
+        "qrcode": "^1.5.4"
     },
     "browserslist": [
         "defaults"

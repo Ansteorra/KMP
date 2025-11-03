@@ -792,7 +792,18 @@ class RecommendationsController extends AppController
             $this->Authorization->authorize($recommendation);
 
             if ($this->request->is('post')) {
-                $recommendation = $this->Recommendations->patchEntity($recommendation, $this->request->getData());
+                $data = $this->request->getData();
+
+                // Convert member_public_id to member_id if provided
+                if (!empty($data['member_public_id'])) {
+                    $member = $this->Recommendations->Members->find('byPublicId', [$data['member_public_id']])->first();
+                    if ($member) {
+                        $data['member_id'] = $member->id;
+                    }
+                    unset($data['member_public_id']);
+                }
+
+                $recommendation = $this->Recommendations->patchEntity($recommendation, $data);
                 $recommendation->requester_id = $user->id;
                 $recommendation->requester_sca_name = $user->sca_name;
                 $recommendation->contact_email = $user->email_address;
@@ -930,7 +941,18 @@ class RecommendationsController extends AppController
             try {
                 $this->Recommendations->getConnection()->begin();
 
-                $recommendation = $this->Recommendations->patchEntity($recommendation, $this->request->getData());
+                $data = $this->request->getData();
+
+                // Convert member_public_id to member_id if provided
+                if (!empty($data['member_public_id'])) {
+                    $member = $this->Recommendations->Members->find('byPublicId', [$data['member_public_id']])->first();
+                    if ($member) {
+                        $data['member_id'] = $member->id;
+                    }
+                    unset($data['member_public_id']);
+                }
+
+                $recommendation = $this->Recommendations->patchEntity($recommendation, $data);
 
                 if ($recommendation->requester_id !== null) {
                     $requester = $this->Recommendations->Requesters->get(
@@ -1273,7 +1295,19 @@ class RecommendationsController extends AppController
 
             if ($this->request->is(['patch', 'post', 'put'])) {
                 $beforeMemberId = $recommendation->member_id;
-                $recommendation = $this->Recommendations->patchEntity($recommendation, $this->request->getData());
+
+                $data = $this->request->getData();
+
+                // Convert member_public_id to member_id if provided
+                if (!empty($data['member_public_id'])) {
+                    $member = $this->Recommendations->Members->find('byPublicId', [$data['member_public_id']])->first();
+                    if ($member) {
+                        $data['member_id'] = $member->id;
+                    }
+                    unset($data['member_public_id']);
+                }
+
+                $recommendation = $this->Recommendations->patchEntity($recommendation, $data);
 
                 if ($recommendation->specialty === 'No specialties available') {
                     $recommendation->specialty = null;
@@ -3200,6 +3234,7 @@ class RecommendationsController extends AppController
      * @param bool $futureOnly When true, include only gatherings with a start date in the future.
      * @param int|null $includeGatheringId If provided, ensure this gathering ID is included in the results even if it would be excluded by the activity or date filters.
      * @return array Associative array mapping gathering ID => formatted display string ("Name in Branch on YYYY-MM-DD - YYYY-MM-DD"); entries with an asterisk indicate the member is attending and sharing with crown.
+     */
     protected function getFilteredGatheringsForAward(int $awardId, ?int $memberId = null, bool $futureOnly = true, ?int $includeGatheringId = null): array
     {
         // Get all gathering activities linked to this award

@@ -31,7 +31,7 @@ $linkTemplate = [
         "label" => "View",
         "controller" => "Gatherings",
         "action" => "view",
-        "id" => "id",
+        "id" => "public_id",
         "options" => [
             "class" => "btn-sm btn btn-secondary"
         ],

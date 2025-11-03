@@ -120,6 +120,22 @@ $this->KMP->endBlock();
                 <?= __('You can use Markdown formatting: **bold**, *italic*, # headings, - lists, [links](url), etc.') ?>
             </small>
         </div>
+
+        <div class="mb-3">
+            <div class="form-check">
+                <?= $this->Form->checkbox('public_page_enabled', [
+                    'checked' => true,
+                    'id' => 'public_page_enabled',
+                    'class' => 'form-check-input'
+                ]) ?>
+                <label class="form-check-label" for="public_page_enabled">
+                    <?= __('Enable Public Landing Page') ?>
+                </label>
+                <small class="form-text text-muted d-block">
+                    <?= __('Allow public access to this gathering\'s event page (includes schedule, activities, and staff information)') ?>
+                </small>
+            </div>
+        </div>
     </fieldset>
 
     <div class="mt-3">

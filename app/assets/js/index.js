@@ -5,6 +5,9 @@ import * as Turbo from "@hotwired/turbo";
 import 'bootstrap';
 import KMP_utils from './KMP_utils.js';
 
+// Import controllers
+import './controllers/qrcode-controller.js';
+
 // Disable Turbo Drive (automatic navigation) but keep Turbo Frames working
 Turbo.session.drive = false;
 

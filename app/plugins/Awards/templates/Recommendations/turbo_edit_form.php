@@ -13,7 +13,7 @@
         echo $this->KMP->autoCompleteControl(
             $this->Form,
             'member_sca_name',
-            'member_id',
+            'member_public_id',
             $url,
             "Recommendation For",
             true,
@@ -22,7 +22,7 @@
             [
                 'data-awards-rec-edit-target' => 'scaMember',
                 'data-action' => 'change->awards-rec-edit#loadScaMemberInfo',
-                'data-ac-init-selection-value' => json_encode(['value' => $recommendation->member_id, 'text' => $recommendation->member_sca_name]),
+                'data-ac-init-selection-value' => json_encode(['value' => $recommendation->member->public_id ?? null, 'text' => $recommendation->member_sca_name]),
             ]
         );
         echo $this->Form->control('not_found', [

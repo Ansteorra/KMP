@@ -68,6 +68,7 @@
 </div>
 
 <div class="mb-3">
+    <h6><?= __('Clone Options') ?></h6>
     <div class="form-check">
         <?= $this->Form->checkbox('clone_activities', [
             'checked' => true,
@@ -77,6 +78,43 @@
         <label class="form-check-label" for="clone_activities">
             <?= __('Include all activities ({0} activities)', count($gathering->gathering_activities)) ?>
         </label>
+        <small class="form-text text-muted d-block ms-4">
+            <?= __('Copies all activities associated with this gathering') ?>
+        </small>
+    </div>
+
+    <div class="form-check mt-2">
+        <?= $this->Form->checkbox('clone_staff', [
+            'checked' => true,
+            'id' => 'clone_staff',
+            'class' => 'form-check-input'
+        ]) ?>
+        <label class="form-check-label" for="clone_staff">
+            <?= __('Include staff ({0} staff members)', count($gathering->gathering_staff)) ?>
+        </label>
+        <small class="form-text text-muted d-block ms-4">
+            <?= __('Copies all staff members including stewards, their roles, and contact information') ?>
+        </small>
+    </div>
+
+    <div class="form-check mt-2">
+        <?= $this->Form->checkbox('clone_schedule', [
+            'checked' => true,
+            'id' => 'clone_schedule',
+            'class' => 'form-check-input'
+        ]) ?>
+        <label class="form-check-label" for="clone_schedule">
+            <?php
+            $scheduledCount = 0;
+            if (isset($gathering->gathering_scheduled_activities)) {
+                $scheduledCount = count($gathering->gathering_scheduled_activities);
+            }
+            ?>
+            <?= __('Include event schedule ({0} scheduled activities)', $scheduledCount) ?>
+        </label>
+        <small class="form-text text-muted d-block ms-4">
+            <?= __('Copies the event schedule with times adjusted to match the new start date') ?>
+        </small>
     </div>
 </div>
 
@@ -95,6 +133,20 @@
 
             <dt class="col-sm-4"><?= __('Activities') ?></dt>
             <dd class="col-sm-8"><?= count($gathering->gathering_activities) ?></dd>
+
+            <dt class="col-sm-4"><?= __('Staff') ?></dt>
+            <dd class="col-sm-8"><?= count($gathering->gathering_staff) ?></dd>
+
+            <dt class="col-sm-4"><?= __('Scheduled Activities') ?></dt>
+            <dd class="col-sm-8">
+                <?php
+                $scheduledCount = 0;
+                if (isset($gathering->gathering_scheduled_activities)) {
+                    $scheduledCount = count($gathering->gathering_scheduled_activities);
+                }
+                echo $scheduledCount;
+                ?>
+            </dd>
         </dl>
     </div>
 </div>
