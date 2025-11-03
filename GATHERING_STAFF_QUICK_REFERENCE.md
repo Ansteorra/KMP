@@ -139,10 +139,13 @@ GET /gathering-staff/get-member-contact-info?member_id=123
 
 Returns:
 ```json
+Returns:
+```json
 {
   "email": "member@example.com",
   "phone": "555-0123"
 }
+```
 ```
 
 ## Best Practices

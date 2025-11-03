@@ -8,7 +8,7 @@ The interactive Leaflet map on the public gathering landing page was not loading
 - Blank section where interactive map should be
 - Google Maps embed loading normally below it
 - Console errors:
-  ```
+  ```text
   Loading the stylesheet 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' violates the following Content Security Policy...
   Loading the script 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js' violates the following Content Security Policy...
   ReferenceError: L is not defined

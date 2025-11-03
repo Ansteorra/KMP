@@ -18,12 +18,12 @@
     data-tab-order="4"
     style="order: 4;"
     data-controller="gathering-schedule"
-    data-gathering-schedule-gathering-id-value="<?= $gathering->id ?>"
+    data-gathering-schedule-gathering-id-value="<?= $gathering->public_id ?>"
     data-gathering-schedule-gathering-start-value="<?= $gathering->start_date->format('Y-m-d') ?>"
     data-gathering-schedule-gathering-end-value="<?= $gathering->end_date->format('Y-m-d') ?>"
-    data-gathering-schedule-add-url-value="<?= $this->Url->build(['action' => 'addScheduledActivity', $gathering->id]) ?>"
-    data-gathering-schedule-edit-url-value="<?= $this->Url->build(['action' => 'editScheduledActivity', $gathering->id, '__ID__']) ?>"
-    data-gathering-schedule-delete-url-value="<?= $this->Url->build(['action' => 'deleteScheduledActivity', $gathering->id, '__ID__']) ?>">
+    data-gathering-schedule-add-url-value="<?= $this->Url->build(['action' => 'addScheduledActivity', $gathering->public_id]) ?>"
+    data-gathering-schedule-edit-url-value="<?= $this->Url->build(['action' => 'editScheduledActivity', $gathering->public_id, '__ID__']) ?>"
+    data-gathering-schedule-delete-url-value="<?= $this->Url->build(['action' => 'deleteScheduledActivity', $gathering->public_id, '__ID__']) ?>">
 
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h4><?= __('Event Schedule') ?></h4>

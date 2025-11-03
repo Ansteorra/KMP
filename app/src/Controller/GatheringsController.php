@@ -1199,19 +1199,19 @@ class GatheringsController extends AppController
      * @param string|null $id Gathering id
      * @return \Cake\Http\Response|null JSON response
      */
-    public function addScheduledActivity($id = null)
+    public function addScheduledActivity($publicId = null)
     {
         $this->request->allowMethod(['post']);
         $this->viewBuilder()->setClassName('Json');
 
-        $gathering = $this->Gatherings->get($id);
+        $gathering = $this->Gatherings->find('byPublicId', [$publicId])->firstOrFail();
         $this->Authorization->authorize($gathering, 'edit');
 
         $scheduledActivitiesTable = $this->fetchTable('GatheringScheduledActivities');
         $scheduledActivity = $scheduledActivitiesTable->newEmptyEntity();
 
         $data = $this->request->getData();
-        $data['gathering_id'] = $id;
+        $data['gathering_id'] = $gathering->id;
         $data['created_by'] = $this->Authentication->getIdentity()->id;
 
         // Handle "other" checkbox
@@ -1256,19 +1256,19 @@ class GatheringsController extends AppController
      * @param string|null $id Scheduled activity id
      * @return \Cake\Http\Response|null JSON response
      */
-    public function editScheduledActivity($gatheringId = null, $id = null)
+    public function editScheduledActivity($gatheringPublicId = null, $id = null)
     {
         $this->request->allowMethod(['post', 'put', 'patch']);
         $this->viewBuilder()->setClassName('Json');
 
-        $gathering = $this->Gatherings->get($gatheringId);
+        $gathering = $this->Gatherings->find('byPublicId', [$gatheringPublicId])->firstOrFail();
         $this->Authorization->authorize($gathering, 'edit');
 
         $scheduledActivitiesTable = $this->fetchTable('GatheringScheduledActivities');
         $scheduledActivity = $scheduledActivitiesTable->get($id);
 
         // Ensure scheduled activity belongs to this gathering
-        if ($scheduledActivity->gathering_id != $gatheringId) {
+        if ($scheduledActivity->gathering_id != $gathering->id) {
             $this->set([
                 'success' => false,
                 'message' => __('Invalid scheduled activity.'),
@@ -1322,20 +1322,20 @@ class GatheringsController extends AppController
      * @param string|null $id Scheduled activity id
      * @return \Cake\Http\Response|null Redirect response
      */
-    public function deleteScheduledActivity($gatheringId = null, $id = null)
+    public function deleteScheduledActivity($gatheringPublicId = null, $id = null)
     {
         $this->request->allowMethod(['post', 'delete']);
 
-        $gathering = $this->Gatherings->get($gatheringId);
+        $gathering = $this->Gatherings->find('byPublicId', [$gatheringPublicId])->firstOrFail();
         $this->Authorization->authorize($gathering, 'edit');
 
         $scheduledActivitiesTable = $this->fetchTable('GatheringScheduledActivities');
         $scheduledActivity = $scheduledActivitiesTable->get($id);
 
         // Ensure scheduled activity belongs to this gathering
-        if ($scheduledActivity->gathering_id != $gatheringId) {
+        if ($scheduledActivity->gathering_id != $gathering->id) {
             $this->Flash->error(__('Invalid scheduled activity.'));
-            return $this->redirect(['action' => 'view', $gatheringId]);
+            return $this->redirect(['action' => 'view', $gathering->public_id]);
         }
 
         if ($scheduledActivitiesTable->delete($scheduledActivity)) {
@@ -1344,7 +1344,7 @@ class GatheringsController extends AppController
             $this->Flash->error(__('Could not delete scheduled activity. Please try again.'));
         }
 
-        return $this->redirect(['action' => 'view', $gatheringId]);
+        return $this->redirect(['action' => 'view', $gathering->public_id]);
     }
 
     /**

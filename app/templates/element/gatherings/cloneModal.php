@@ -90,7 +90,13 @@
             'class' => 'form-check-input'
         ]) ?>
         <label class="form-check-label" for="clone_staff">
-            <?= __('Include staff ({0} staff members)', count($gathering->gathering_staff)) ?>
+            <?php
+            $staffCount = 0;
+            if (isset($gathering->gathering_staff)) {
+                $staffCount = count($gathering->gathering_staff);
+            }
+            ?>
+            <?= __('Include staff ({0} staff members)', $staffCount) ?>
         </label>
         <small class="form-text text-muted d-block ms-4">
             <?= __('Copies all staff members including stewards, their roles, and contact information') ?>

@@ -33,12 +33,19 @@ class QrcodeController extends Controller {
         errorCorrectionLevel: { type: String, default: 'H' } // L, M, Q, H
     }
     
+    // Initialize the generated flag
+    generated = false;
+    
     connect() {
+        this.generated = false;
+        
         // If modal ID is provided, wait for modal to show
         if (this.hasModalIdValue) {
             const modal = document.getElementById(this.modalIdValue);
             if (modal) {
-                modal.addEventListener('shown.bs.modal', () => this.generate());
+                // Store the listener as an instance property
+                this._onModalShown = () => this.generate();
+                modal.addEventListener('shown.bs.modal', this._onModalShown);
             }
         } else {
             // Generate immediately if no modal
@@ -47,27 +54,32 @@ class QrcodeController extends Controller {
     }
     
     disconnect() {
-        // Cleanup if needed
+        // Remove event listener to prevent memory leak
+        if (this.hasModalIdValue && this._onModalShown) {
+            const modal = document.getElementById(this.modalIdValue);
+            if (modal) {
+                modal.removeEventListener('shown.bs.modal', this._onModalShown);
+            }
+        }
         this.generated = false;
     }
     
     /**
      * Generate the QR code
+     * Returns a Promise that resolves when generation is complete
      */
     generate() {
         // Only generate once
         if (this.generated) {
-            return;
+            return Promise.resolve();
         }
         
         if (!this.hasUrlValue) {
-            console.error('QR Code Controller: URL value is required');
-            return;
+            throw new Error('QR Code: URL value is required');
         }
         
         if (!this.hasCanvasTarget) {
-            console.error('QR Code Controller: Canvas target is required');
-            return;
+            throw new Error('QR Code: Canvas target is required');
         }
         
         // Clear any existing content
@@ -77,22 +89,25 @@ class QrcodeController extends Controller {
         const canvas = document.createElement('canvas');
         this.canvasTarget.appendChild(canvas);
         
-        // Generate QR code
-        QRCode.toCanvas(canvas, this.urlValue, {
-            width: this.sizeValue,
-            margin: 2,
-            color: {
-                dark: this.colorDarkValue,
-                light: this.colorLightValue
-            },
-            errorCorrectionLevel: this.errorCorrectionLevelValue
-        }, (error) => {
-            if (error) {
-                console.error('QR Code generation error:', error);
-                this.canvasTarget.innerHTML = '<p class="text-danger">Error generating QR code</p>';
-            } else {
-                this.generated = true;
-            }
+        // Return a Promise that resolves when QR code generation is complete
+        return new Promise((resolve, reject) => {
+            QRCode.toCanvas(canvas, this.urlValue, {
+                width: this.sizeValue,
+                margin: 2,
+                color: {
+                    dark: this.colorDarkValue,
+                    light: this.colorLightValue
+                },
+                errorCorrectionLevel: this.errorCorrectionLevelValue
+            }, (error) => {
+                if (error) {
+                    this.canvasTarget.innerHTML = '<p class="text-danger">Error generating QR code</p>';
+                    reject(error);
+                } else {
+                    this.generated = true;
+                    resolve();
+                }
+            });
         });
     }
     
@@ -107,44 +122,55 @@ class QrcodeController extends Controller {
     /**
      * Download the QR code as PNG
      */
-    download() {
-        if (!this.generated) {
-            this.generate();
+    async download() {
+        try {
+            // Wait for generation to complete
+            await this.generate();
+            
+            const canvas = this.canvasTarget.querySelector('canvas');
+            if (!canvas) {
+                console.error('QR Code Controller: Canvas not found');
+                return;
+            }
+            
+            // Create download link
+            const link = document.createElement('a');
+            link.download = 'qrcode.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        } catch (error) {
+            console.error('QR Code generation failed:', error);
         }
-        
-        const canvas = this.canvasTarget.querySelector('canvas');
-        if (!canvas) {
-            console.error('QR Code Controller: Canvas not found');
-            return;
-        }
-        
-        // Create download link
-        const link = document.createElement('a');
-        link.download = 'qrcode.png';
-        link.href = canvas.toDataURL('image/png');
-        link.click();
     }
     
     /**
      * Copy QR code to clipboard as image
      */
     async copyToClipboard() {
-        if (!this.generated) {
-            this.generate();
-        }
-        
-        const canvas = this.canvasTarget.querySelector('canvas');
-        if (!canvas) {
-            console.error('QR Code Controller: Canvas not found');
-            return;
-        }
-        
         try {
-            canvas.toBlob(async (blob) => {
-                const item = new ClipboardItem({ 'image/png': blob });
-                await navigator.clipboard.write([item]);
-                console.log('QR Code copied to clipboard');
+            // Wait for generation to complete
+            await this.generate();
+            
+            const canvas = this.canvasTarget.querySelector('canvas');
+            if (!canvas) {
+                console.error('QR Code Controller: Canvas not found');
+                return;
+            }
+            
+            // Convert canvas to blob using Promise
+            const blob = await new Promise((resolve, reject) => {
+                canvas.toBlob(blob => {
+                    if (blob) {
+                        resolve(blob);
+                    } else {
+                        reject(new Error('Failed to create blob from canvas'));
+                    }
+                });
             });
+            
+            // Copy to clipboard
+            const item = new ClipboardItem({ 'image/png': blob });
+            await navigator.clipboard.write([item]);
         } catch (error) {
             console.error('Failed to copy QR code:', error);
         }

@@ -797,9 +797,12 @@ class RecommendationsController extends AppController
                 // Convert member_public_id to member_id if provided
                 if (!empty($data['member_public_id'])) {
                     $member = $this->Recommendations->Members->find('byPublicId', [$data['member_public_id']])->first();
-                    if ($member) {
-                        $data['member_id'] = $member->id;
+                    if (!$member) {
+                        $this->Flash->error(__('Member with provided public_id not found.'));
+                        $this->response = $this->response->withStatus(400);
+                        return $this->response;
                     }
+                    $data['member_id'] = $member->id;
                     unset($data['member_public_id']);
                 }
 
@@ -946,9 +949,13 @@ class RecommendationsController extends AppController
                 // Convert member_public_id to member_id if provided
                 if (!empty($data['member_public_id'])) {
                     $member = $this->Recommendations->Members->find('byPublicId', [$data['member_public_id']])->first();
-                    if ($member) {
-                        $data['member_id'] = $member->id;
+                    if (!$member) {
+                        $this->Flash->error(__('Member with provided public_id not found.'));
+                        $this->response = $this->response->withStatus(400);
+                        $this->Recommendations->getConnection()->rollback();
+                        return $this->response;
                     }
+                    $data['member_id'] = $member->id;
                     unset($data['member_public_id']);
                 }
 
@@ -1301,9 +1308,12 @@ class RecommendationsController extends AppController
                 // Convert member_public_id to member_id if provided
                 if (!empty($data['member_public_id'])) {
                     $member = $this->Recommendations->Members->find('byPublicId', [$data['member_public_id']])->first();
-                    if ($member) {
-                        $data['member_id'] = $member->id;
+                    if (!$member) {
+                        $this->Flash->error(__('Member with provided public_id not found.'));
+                        $this->response = $this->response->withStatus(400);
+                        return $this->response;
                     }
+                    $data['member_id'] = $member->id;
                     unset($data['member_public_id']);
                 }
 
