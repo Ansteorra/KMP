@@ -38,4 +38,9 @@ class GatheringPolicy extends BasePolicy
 
         return $this->_hasPolicy($user, $method, $entity);
     }
+
+    public function canQuickView(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
+    {
+        return true;
+    }
 }

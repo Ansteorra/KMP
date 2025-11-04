@@ -33,7 +33,7 @@
 
 <div class="mb-3">
     <?= $this->Form->control('name', [
-        'value' => $gathering->name . ' (Copy)',
+        'value' => $gathering->name,
         'required' => true,
         'class' => 'form-control',
         'label' => __('New Gathering Name'),
@@ -135,10 +135,12 @@
             <dd class="col-sm-8"><?= h($gathering->gathering_type->name) ?></dd>
 
             <dt class="col-sm-4"><?= __('Original Dates') ?></dt>
-            <dd class="col-sm-8"><?= h($gathering->start_date->format('Y-m-d')) ?> to <?= h($gathering->end_date->format('Y-m-d')) ?></dd>
+            <dd class="col-sm-8"><?= h($gathering->start_date->format('Y-m-d')) ?> to
+                <?= h($gathering->end_date->format('Y-m-d')) ?></dd>
 
             <dt class="col-sm-4"><?= __('Activities') ?></dt>
-            <dd class="col-sm-8"><?= isset($gathering->gathering_activities) ? count($gathering->gathering_activities) : 0 ?></dd>
+            <dd class="col-sm-8">
+                <?= isset($gathering->gathering_activities) ? count($gathering->gathering_activities) : 0 ?></dd>
 
             <dt class="col-sm-4"><?= __('Staff') ?></dt>
             <dd class="col-sm-8"><?= isset($gathering->gathering_staff) ? count($gathering->gathering_staff) : 0 ?></dd>

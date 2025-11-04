@@ -23,6 +23,7 @@ use Cake\I18n\Date;
 
 $today = Date::now();
 $canAttend = $gathering->end_date >= $today; // Can only register if gathering hasn't ended
+$isPastEvent = $gathering->end_date < $today; // Event has ended
 // Build public landing URL using dashed route format
 $publicLandingUrl = $this->Url->build([
     'controller' => 'Gatherings',
@@ -30,6 +31,19 @@ $publicLandingUrl = $this->Url->build([
     $gathering->public_id
 ], ['fullBase' => true]);
 ?>
+<!-- Download Calendar Button (only for current/future events) -->
+<?php if (!$isPastEvent): ?>
+<?= $this->Html->link(
+        '<i class="bi bi-calendar-plus"></i> ' . __('Add to Calendar'),
+        ['action' => 'downloadCalendar', $gathering->public_id],
+        [
+            'class' => 'btn btn-outline-success btn-sm',
+            'escape' => false,
+            'title' => __('Download calendar file (.ics) for Outlook, Google Calendar, iOS, etc.')
+        ]
+    ) ?>
+<?php endif; ?>
+
 <!-- Share Public Landing Page -->
 <div class="btn-group" role="group">
     <button type="button" class="btn btn-outline-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown"
@@ -44,9 +58,9 @@ $publicLandingUrl = $this->Url->build([
             </a>
         </li>
         <li>
-            <a class="dropdown-item" href="#"
+            <a class="dropdown-item bi bi-clipboard" href="#"
                 onclick="navigator.clipboard.writeText(<?= json_encode($publicLandingUrl, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>); alert(<?= json_encode(__('Link copied to clipboard!')) ?>); return false;">
-                <i class="bi bi-clipboard"></i> Copy Link
+                Copy Link
             </a>
         </li>
         <li>
@@ -83,9 +97,11 @@ $publicLandingUrl = $this->Url->build([
 <?= $this->Html->link(__('Edit'), ['action' => 'edit', $gathering->id], ['class' => 'btn btn-primary btn-sm']) ?>
 <?php endif; ?>
 <?php if ($gathering->gathering_type->clonable && $user->checkCan('add', $gathering)) : ?>
+
 <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#cloneGatheringModal">
     <i class="bi bi-files"></i> <?= __('Clone') ?>
 </button>
+
 <?php endif; ?>
 <?php if ($user->checkCan('delete', $gathering)) : ?>
 <?= $this->Form->postLink(
@@ -422,9 +438,9 @@ if ($gathering->public_page_enabled):
                     <div class="input-group">
                         <input type="text" class="form-control" value="<?= h($publicLandingUrl) ?>" readonly
                             id="publicLandingUrlInput">
-                        <button class="btn btn-outline-secondary" type="button"
-                            onclick="navigator.clipboard.writeText(<?= json_encode($publicLandingUrl, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>); this.innerHTML=<?= json_encode('<i class=\'bi bi-check\'></i> Copied!') ?>; setTimeout(() => this.innerHTML=<?= json_encode('<i class=\'bi bi-clipboard\'></i> Copy') ?>, 2000)">
-                            <i class="bi bi-clipboard"></i> Copy
+                        <button class="btn btn-outline-secondary bi bi-clipboard" type="button"
+                            onclick="navigator.clipboard.writeText(<?= json_encode($publicLandingUrl, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>); this.innerHTML=<?= json_encode(' Copied!') ?>; setTimeout(() => this.innerHTML=<?= json_encode(' Copy') ?>, 2000)">
+                            Copy
                         </button>
                     </div>
                 </div>
