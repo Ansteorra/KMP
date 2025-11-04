@@ -364,11 +364,11 @@ class Application extends BaseApplication implements
 
                 // Build CSP policy
                 $csp = "default-src 'self'; " .                                              // Default to same origin
-                    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://maps.googleapis.com; " .  // Allow CDN scripts and Google Maps
-                    "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; " . // Allow Google Fonts
+                    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com https://maps.googleapis.com; " .  // Allow CDN scripts, Leaflet (unpkg), and Google Maps
+                    "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://fonts.googleapis.com; " . // Allow Google Fonts and Leaflet CSS
                     "font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net;" .    // Font sources
                     "img-src 'self' data: https:; " .                                // Allow HTTPS images and data URIs
-                    "connect-src 'self' https://maps.googleapis.com https://places.googleapis.com; " .             // AJAX/fetch restrictions - allow Google Maps and Places API
+                    "connect-src 'self' https://maps.googleapis.com https://places.googleapis.com https://tile.openstreetmap.org https://a.tile.openstreetmap.org https://b.tile.openstreetmap.org https://c.tile.openstreetmap.org; " .             // AJAX/fetch restrictions - allow Google Maps, Places API, and OpenStreetMap tiles
                     "frame-src 'self' https://www.google.com; " .                    // iframe restrictions - allow Google Maps embeds
                     "object-src 'none'; " .                                          // Disable plugins
                     "base-uri 'self'; " .                                            // Prevent base tag attacks

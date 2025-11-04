@@ -21,11 +21,6 @@ class GatheringPolicy extends BasePolicy
         return true;
     }
 
-    public function canView(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
-    {
-        return true;
-    }
-
     /**
      * Check if user can view attendance information for a gathering
      *

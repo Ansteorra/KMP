@@ -37,10 +37,8 @@ echo $this->KMP->getAppSetting('KMP.ShortSiteTitle') . ': Gatherings Calendar';
 $this->KMP->endBlock();
 ?>
 
-<div class="gatherings-calendar"
-    data-controller="gatherings-calendar"
-    data-gatherings-calendar-year-value="<?= h($year) ?>"
-    data-gatherings-calendar-month-value="<?= h($month) ?>"
+<div class="gatherings-calendar" data-controller="gatherings-calendar"
+    data-gatherings-calendar-year-value="<?= h($year) ?>" data-gatherings-calendar-month-value="<?= h($month) ?>"
     data-gatherings-calendar-view-value="<?= h($view) ?>">
 
     <!-- Header with Navigation and View Controls -->
@@ -57,7 +55,7 @@ $this->KMP->endBlock();
             $tempGathering = $gatheringsTable->newEmptyEntity();
             if ($user->checkCan('add', $tempGathering)) :
             ?>
-                <?= $this->Html->link(
+            <?= $this->Html->link(
                     '<i class="bi bi-plus-circle"></i> Add Gathering',
                     ['action' => 'add'],
                     ['class' => 'btn btn-primary btn-sm', 'escape' => false]
@@ -272,8 +270,8 @@ $this->KMP->endBlock();
         <!-- Calendar Display -->
         <div class="col-md-9">
             <?php if ($view === 'month'): ?>
-                <!-- Month View -->
-                <?= $this->element('Gatherings/calendar_month', [
+            <!-- Month View -->
+            <?= $this->element('gatherings/calendar_month', [
                     'gatherings' => $gatherings,
                     'calendarStart' => $calendarStart,
                     'calendarEnd' => $calendarEnd,
@@ -281,14 +279,14 @@ $this->KMP->endBlock();
                     'endDate' => $endDate
                 ]) ?>
             <?php elseif ($view === 'week'): ?>
-                <!-- Week View -->
-                <?= $this->element('Gatherings/calendar_week', [
+            <!-- Week View -->
+            <?= $this->element('gatherings/calendar_week', [
                     'gatherings' => $gatherings,
                     'startDate' => $startDate
                 ]) ?>
             <?php else: ?>
-                <!-- List View -->
-                <?= $this->element('Gatherings/calendar_list', [
+            <!-- List View -->
+            <?= $this->element('gatherings/calendar_list', [
                     'gatherings' => $gatherings
                 ]) ?>
             <?php endif; ?>
@@ -297,76 +295,76 @@ $this->KMP->endBlock();
 </div>
 
 <style>
-    .calendar-grid {
-        display: grid;
-        grid-template-columns: repeat(7, 1fr);
-        gap: 1px;
-        background-color: #dee2e6;
-        border: 1px solid #dee2e6;
-    }
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 1px;
+    background-color: #dee2e6;
+    border: 1px solid #dee2e6;
+}
 
-    .calendar-day-header {
-        background-color: #e9ecef;
-        padding: 0.5rem;
-        text-align: center;
-        font-weight: bold;
-        border: 1px solid #dee2e6;
-    }
+.calendar-day-header {
+    background-color: #e9ecef;
+    padding: 0.5rem;
+    text-align: center;
+    font-weight: bold;
+    border: 1px solid #dee2e6;
+}
 
-    .calendar-day {
-        background-color: #fff;
-        min-height: 120px;
-        padding: 0.5rem;
-        position: relative;
-        border: 1px solid #dee2e6;
-    }
+.calendar-day {
+    background-color: #fff;
+    min-height: 120px;
+    padding: 0.5rem;
+    position: relative;
+    border: 1px solid #dee2e6;
+}
 
-    .calendar-day.other-month {
-        background-color: #f8f9fa;
-        opacity: 0.6;
-    }
+.calendar-day.other-month {
+    background-color: #f8f9fa;
+    opacity: 0.6;
+}
 
-    .calendar-day.today {
-        background-color: #fff3cd;
-    }
+.calendar-day.today {
+    background-color: #fff3cd;
+}
 
-    .calendar-day-number {
-        font-weight: bold;
-        margin-bottom: 0.5rem;
-    }
+.calendar-day-number {
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
 
-    .gathering-item {
-        font-size: 0.75rem;
-        padding: 0.25rem;
-        margin-bottom: 0.25rem;
-        border-radius: 0.25rem;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
+.gathering-item {
+    font-size: 0.75rem;
+    padding: 0.25rem;
+    margin-bottom: 0.25rem;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
 
-    .gathering-item:hover {
-        transform: translateX(2px);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
+.gathering-item:hover {
+    transform: translateX(2px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
 
-    .gathering-item.multi-day {
-        border-left: 3px solid #ffc107;
-    }
+.gathering-item.multi-day {
+    border-left: 3px solid #ffc107;
+}
 
-    .gathering-item.attending {
-        border-right: 3px solid #198754;
-    }
+.gathering-item.attending {
+    border-right: 3px solid #198754;
+}
 
-    .gathering-badges {
-        display: flex;
-        gap: 0.25rem;
-        flex-wrap: wrap;
-        margin-top: 0.25rem;
-    }
+.gathering-badges {
+    display: flex;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+    margin-top: 0.25rem;
+}
 
-    .gathering-badges .badge {
-        font-size: 0.65rem;
-    }
+.gathering-badges .badge {
+    font-size: 0.65rem;
+}
 </style>
 
 <?php
@@ -374,7 +372,8 @@ $this->KMP->endBlock();
 $this->KMP->startBlock("modals");
 ?>
 <!-- Quick View Modal -->
-<div class="modal fade" id="gatheringQuickViewModal" tabindex="-1" aria-labelledby="gatheringQuickViewModalLabel" aria-hidden="true" data-controller="gatherings-calendar">
+<div class="modal fade" id="gatheringQuickViewModal" tabindex="-1" aria-labelledby="gatheringQuickViewModalLabel"
+    aria-hidden="true" data-controller="gatherings-calendar">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">

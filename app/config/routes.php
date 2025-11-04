@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 /**
@@ -145,7 +146,7 @@ return function (RouteBuilder $routes): void {
          * @example "/pages/help" → display('help')
          */
         $builder->connect("/pages/*", "Pages::display");
-        
+
         /**
          * Progressive Web App Manifest Route
          * 
@@ -204,7 +205,7 @@ return function (RouteBuilder $routes): void {
      * @example Used by session-extender-controller.js
      */
     $routes->connect('/keepalive', ['controller' => 'Sessions', 'action' => 'keepalive']);
-    
+
     /**
      * Image Processing Scope
      * 
@@ -390,7 +391,7 @@ return function (RouteBuilder $routes): void {
          */
         $routes->connect('/*');
     });
-    
+
     /**
      * Global Extension Configuration
      * 

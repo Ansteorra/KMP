@@ -632,14 +632,28 @@ class MembersController extends AppController
 
         // Get available gatherings for attendance registration (started or future only)
         $now = new DateTime();
-        $availableGatherings = $this->Members->GatheringAttendances->Gatherings
+
+        // Get IDs of gatherings the member is already registered for
+        $registeredGatheringIds = [];
+        foreach ($member->gathering_attendances as $attendance) {
+            $registeredGatheringIds[] = $attendance->gathering_id;
+        }
+
+        // Build query for available gatherings, excluding already registered ones
+        $query = $this->Members->GatheringAttendances->Gatherings
             ->find('list', keyField: 'id', valueField: function ($entity) {
                 return $entity->name . ' (' . $entity->start_date->format('M d, Y') . ')';
             })
             ->where(['Gatherings.end_date >=' => $now])
             ->contain(['Branches', 'GatheringTypes'])
-            ->orderBy(['Gatherings.start_date' => 'ASC'])
-            ->toArray();
+            ->orderBy(['Gatherings.start_date' => 'ASC']);
+
+        // Exclude gatherings the member is already registered for
+        if (!empty($registeredGatheringIds)) {
+            $query->where(['Gatherings.id NOT IN' => $registeredGatheringIds]);
+        }
+
+        $availableGatherings = $query->toArray();
 
         $this->set(
             compact(
@@ -1281,11 +1295,10 @@ class MembersController extends AppController
         $this->viewBuilder()->setTemplate('view_card_json');
     }
 
-    public function publicProfile($id = null)
+    public function publicProfile($publicId = null)
     {
         $member = $this->Members
-            ->find()
-            ->where(['Members.id' => $id])
+            ->find('byPublicId', [$publicId])
             ->first();
         if (!$member) {
             throw new NotFoundException();
@@ -1324,7 +1337,7 @@ class MembersController extends AppController
                 'status <>' => Member::STATUS_DEACTIVATED,
                 'OR' => [['sca_name LIKE' => "%$q%"], ['sca_name LIKE' => "%$nq%"], ['sca_name LIKE' => "%$uq%"]],
             ])
-            ->select(['id', 'sca_name'])
+            ->select(['id', 'public_id', 'sca_name'])
             ->limit(50);
         $this->set(compact('query', 'q', 'nq', 'uq'));
     }

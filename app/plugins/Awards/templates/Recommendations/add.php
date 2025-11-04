@@ -35,7 +35,7 @@ $this->KMP->endBlock(); ?>
         echo $this->KMP->autoCompleteControl(
             $this->Form,
             'member_sca_name',
-            'member_id',
+            'member_public_id',
             $url,
             "Recommendation For",
             true,

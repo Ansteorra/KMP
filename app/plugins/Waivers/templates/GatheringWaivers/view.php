@@ -76,7 +76,7 @@ echo $this->KMP->startBlock("recordDetails");
                     <dd class="col-sm-9">
                         <?= $this->Html->link(
                             h($gatheringWaiver->gathering->name),
-                            ['plugin' => false, 'controller' => 'Gatherings', 'action' => 'view', $gatheringWaiver->gathering->id]
+                            ['plugin' => false, 'controller' => 'Gatherings', 'action' => 'view', $gatheringWaiver->gathering->public_id]
                         ) ?>
                     </dd>
 
@@ -340,7 +340,7 @@ echo $this->KMP->startBlock("recordDetails");
                 <a href="<?= $this->Url->build(['action' => 'index', '?' => ['gathering_id' => $gatheringWaiver->gathering_id]]) ?>" class="list-group-item list-group-item-action">
                     <i class="bi bi-list-ul"></i> <?= __('View All Waivers for This Gathering') ?>
                 </a>
-                <a href="<?= $this->Url->build(['plugin' => false, 'controller' => 'Gatherings', 'action' => 'view', $gatheringWaiver->gathering_id]) ?>" class="list-group-item list-group-item-action">
+                <a href="<?= $this->Url->build(['plugin' => false, 'controller' => 'Gatherings', 'action' => 'view', $gatheringWaiver->gathering->public_id]) ?>" class="list-group-item list-group-item-action">
                     <i class="bi bi-calendar-event"></i> <?= __('View Gathering Details') ?>
                 </a>
             </div>

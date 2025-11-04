@@ -113,7 +113,7 @@ echo $this->Modal->create("Edit " . $member->sca_name, [
 <?php echo $this->Modal->end([
     $this->Form->button("Submit", [
         "class" => "btn btn-primary",
-        "id" => "edit_entity__submit",
+        "id" => "member-edit-submit",
     ]),
     $this->Form->button("Close", [
         "data-bs-dismiss" => "modal",

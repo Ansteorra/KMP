@@ -48,6 +48,20 @@ class GatheringsController extends AppController
     }
 
     /**
+     * Before filter callback
+     *
+     * @param \Cake\Event\EventInterface $event The beforeFilter event
+     * @return \Cake\Http\Response|null|void
+     */
+    public function beforeFilter(\Cake\Event\EventInterface $event)
+    {
+        parent::beforeFilter($event);
+
+        // Allow public access to landing page
+        $this->Authentication->allowUnauthenticated(['publicLanding']);
+    }
+
+    /**
      * Index method
      *
      * Lists all gatherings with filtering options.
@@ -257,10 +271,10 @@ class GatheringsController extends AppController
      * @return \Cake\Http\Response|null|void Renders quick view partial
      * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
      */
-    public function quickView($id = null)
+    public function quickView($publicId = null)
     {
-        $gathering = $this->Gatherings->get($id, [
-            'contain' => [
+        $gathering = $this->Gatherings->find('byPublicId', [$publicId])
+            ->contain([
                 'Branches' => ['fields' => ['id', 'name']],
                 'GatheringTypes' => ['fields' => ['id', 'name', 'color', 'clonable']],
                 'GatheringActivities',
@@ -274,9 +288,10 @@ class GatheringsController extends AppController
                     ]
                 ],
                 'Creators' => ['fields' => ['id', 'sca_name']]
-            ],
-            'fields' => [
+            ])
+            ->select([
                 'id',
+                'public_id',
                 'name',
                 'description',
                 'start_date',
@@ -288,8 +303,8 @@ class GatheringsController extends AppController
                 'gathering_type_id',
                 'created',
                 'modified'
-            ]
-        ]);
+            ])
+            ->firstOrFail();
 
         // Limit attendances to 10 for the quick view
         if (!empty($gathering->gathering_attendances)) {
@@ -303,7 +318,7 @@ class GatheringsController extends AppController
         $userAttendance = $this->Gatherings->GatheringAttendances
             ->find()
             ->where([
-                'gathering_id' => $id,
+                'gathering_id' => $gathering->id,
                 'member_id' => $currentUser->id
             ])
             ->first();
@@ -420,6 +435,16 @@ class GatheringsController extends AppController
 
         // Build base query with optimized association loading
         $gatheringsQuery = $this->Gatherings->find()
+            ->select([
+                'Gatherings.id',
+                'Gatherings.public_id',
+                'Gatherings.name',
+                'Gatherings.start_date',
+                'Gatherings.end_date',
+                'Gatherings.branch_id',
+                'Gatherings.gathering_type_id',
+                'Gatherings.created',
+            ])
             ->contain([
                 'Branches' => ['fields' => ['id', 'name']],
                 'GatheringTypes' => ['fields' => ['id', 'name']],
@@ -552,25 +577,41 @@ class GatheringsController extends AppController
      * @return \Cake\Http\Response|null|void Renders view
      * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
      */
-    public function view($id = null)
+    public function view($publicId = null)
     {
-        $gathering = $this->Gatherings->get($id, contain: [
-            'Branches',
-            'GatheringTypes' => ['fields' => ['id', 'name', 'clonable']],
-            'GatheringActivities',
-            'Creators' => ['fields' => ['id', 'sca_name']],
-            'GatheringAttendances' => [
-                'Members' => ['fields' => ['id', 'sca_name']],
-                'conditions' => [
-                    'OR' => [
-                        'GatheringAttendances.share_with_hosting_group' => true,
-                        'GatheringAttendances.is_public' => true,
+        $gathering = $this->Gatherings->find('byPublicId', [$publicId])
+            ->contain([
+                'Branches',
+                'GatheringTypes' => ['fields' => ['id', 'name', 'clonable']],
+                'GatheringActivities',
+                'GatheringScheduledActivities' => [
+                    'GatheringActivities',
+                    'Creators' => ['fields' => ['id', 'sca_name']],
+                    'Modifiers' => ['fields' => ['id', 'sca_name']],
+                ],
+                'GatheringStaff' => [
+                    'Members' => ['fields' => ['id', 'sca_name']],
+                    'sort' => [
+                        'GatheringStaff.is_steward' => 'DESC',
+                        'GatheringStaff.sort_order' => 'ASC'
                     ]
-                ]
-            ],
-        ]);
+                ],
+                'Creators' => ['fields' => ['id', 'sca_name']],
+                'GatheringAttendances' => [
+                    'Members' => ['fields' => ['id', 'sca_name']],
+                    'conditions' => [
+                        'OR' => [
+                            'GatheringAttendances.share_with_hosting_group' => true,
+                            'GatheringAttendances.is_public' => true,
+                        ]
+                    ]
+                ],
+            ])
+            ->firstOrFail();
 
-        $this->Authorization->authorize($gathering);
+        $user = $this->Authentication->getIdentity();
+        $canView = $user->can('view', $gathering);
+
 
         //TODO: find a way to do this with out breaking the plugin/core boundry.
         // Check if waivers exist (for activity locking)
@@ -578,7 +619,7 @@ class GatheringsController extends AppController
         $hasWaivers = false;
         if (class_exists('Waivers\Model\Table\GatheringWaiversTable')) {
             $hasWaivers = $this->fetchTable('Waivers.GatheringWaivers')
-                ->find()->where(['gathering_id' => $id])->count() > 0;
+                ->find()->where(['gathering_id' => $gathering->id])->count() > 0;
         }
 
         // Get available activities (not already in this gathering)
@@ -591,7 +632,7 @@ class GatheringsController extends AppController
         // Get total attendance count (all attendance records, including private)
         $totalAttendanceCount = $this->Gatherings->GatheringAttendances
             ->find()
-            ->where(['gathering_id' => $id])
+            ->where(['gathering_id' => $gathering->id])
             ->count();
 
         // Check if current user has an attendance record for this gathering
@@ -599,12 +640,23 @@ class GatheringsController extends AppController
         $userAttendance = $this->Gatherings->GatheringAttendances
             ->find()
             ->where([
-                'gathering_id' => $id,
+                'gathering_id' => $gathering->id,
                 'member_id' => $currentUser->id
             ])
             ->first();
 
         $this->set(compact('gathering', 'hasWaivers', 'availableActivities', 'totalAttendanceCount', 'userAttendance'));
+
+        // Override recordId to use integer ID for plugin cells that expect it
+        // (recordId is auto-set to the URL param which is now public_id)
+        $this->set('recordId', $gathering->id);
+        //if the user can view the gathering use the standard view template
+        if ($canView) {
+            $this->viewBuilder()->setTemplate('view');
+        } else {
+            //if the user can not view the gathering use the limited view template
+            $this->viewBuilder()->setTemplate('view_public');
+        }
     }
 
     /**
@@ -638,7 +690,7 @@ class GatheringsController extends AppController
                     $gathering->name
                 ));
 
-                return $this->redirect(['action' => 'view', $gathering->id]);
+                return $this->redirect(['action' => 'view', $gathering->public_id]);
             }
 
             $errors = $gathering->getErrors();
@@ -698,7 +750,7 @@ class GatheringsController extends AppController
                     $gathering->name
                 ));
 
-                return $this->redirect(['action' => 'view', $id]);
+                return $this->redirect(['action' => 'view', $gathering->public_id]);
             }
 
             $errors = $gathering->getErrors();
@@ -806,14 +858,14 @@ class GatheringsController extends AppController
             $this->Flash->error(__(
                 'Cannot add activities because waivers have been uploaded for this gathering.'
             ));
-            return $this->redirect(['action' => 'view', $id]);
+            return $this->redirect(['action' => 'view', $gathering->public_id]);
         }
 
         $activityId = $this->request->getData('activity_id');
 
         if (empty($activityId)) {
             $this->Flash->error(__('Please select an activity to add.'));
-            return $this->redirect(['action' => 'view', $id]);
+            return $this->redirect(['action' => 'view', $gathering->public_id]);
         }
 
         // Get custom description if provided
@@ -825,7 +877,7 @@ class GatheringsController extends AppController
         // Check if activity is already linked
         if (in_array($activityId, $existingIds)) {
             $this->Flash->warning(__('This activity is already part of this gathering.'));
-            return $this->redirect(['action' => 'view', $id]);
+            return $this->redirect(['action' => 'view', $gathering->public_id]);
         }
 
         // Link the new activity
@@ -850,7 +902,7 @@ class GatheringsController extends AppController
             $this->Flash->error(__('Unable to add activity. Please try again.'));
         }
 
-        return $this->redirect(['action' => 'view', $id]);
+        return $this->redirect(['action' => 'view', $gathering->public_id]);
     }
 
     /**
@@ -879,7 +931,7 @@ class GatheringsController extends AppController
             $this->Flash->error(__(
                 'Cannot remove activities because waivers have been uploaded for this gathering.'
             ));
-            return $this->redirect(['action' => 'view', $gatheringId]);
+            return $this->redirect(['action' => 'view', $gathering->public_id]);
         }
 
         $GatheringsGatheringActivities = $this->fetchTable('GatheringsGatheringActivities');
@@ -892,7 +944,7 @@ class GatheringsController extends AppController
 
         if (!$link) {
             $this->Flash->error(__('Activity link not found.'));
-            return $this->redirect(['action' => 'view', $gatheringId]);
+            return $this->redirect(['action' => 'view', $gathering->public_id]);
         }
 
         if ($GatheringsGatheringActivities->delete($link)) {
@@ -901,7 +953,7 @@ class GatheringsController extends AppController
             $this->Flash->error(__('Unable to remove activity. Please try again.'));
         }
 
-        return $this->redirect(['action' => 'view', $gatheringId]);
+        return $this->redirect(['action' => 'view', $gathering->public_id]);
     }
 
     /**
@@ -929,7 +981,7 @@ class GatheringsController extends AppController
             $this->Flash->error(__(
                 'Cannot edit activity descriptions because waivers have been uploaded for this gathering.'
             ));
-            return $this->redirect(['action' => 'view', $gatheringId]);
+            return $this->redirect(['action' => 'view', $gathering->public_id]);
         }
 
         $activityId = $this->request->getData('activity_id');
@@ -937,7 +989,7 @@ class GatheringsController extends AppController
 
         if (empty($activityId)) {
             $this->Flash->error(__('Activity ID is required.'));
-            return $this->redirect(['action' => 'view', $gatheringId]);
+            return $this->redirect(['action' => 'view', $gathering->public_id]);
         }
 
         $GatheringsGatheringActivities = $this->fetchTable('GatheringsGatheringActivities');
@@ -950,7 +1002,7 @@ class GatheringsController extends AppController
 
         if (!$link) {
             $this->Flash->error(__('Activity link not found.'));
-            return $this->redirect(['action' => 'view', $gatheringId]);
+            return $this->redirect(['action' => 'view', $gathering->public_id]);
         }
 
         // Update the custom description (can be empty to clear it)
@@ -976,7 +1028,7 @@ class GatheringsController extends AppController
             }
         }
 
-        return $this->redirect(['action' => 'view', $gatheringId]);
+        return $this->redirect(['action' => 'view', $gathering->public_id]);
     }
 
     /**
@@ -993,15 +1045,19 @@ class GatheringsController extends AppController
     {
         $this->request->allowMethod(['post']);
 
-        // Get the original gathering with all its activities
-        $originalGathering = $this->Gatherings->get($id, contain: ['GatheringActivities']);
+        // Get the original gathering with all its activities, staff, and schedule
+        $originalGathering = $this->Gatherings->get($id, contain: [
+            'GatheringActivities',
+            'GatheringStaff' => ['Members'],
+            'GatheringScheduledActivities' => ['GatheringActivities']
+        ]);
         $this->Authorization->authorize($originalGathering, 'add');
 
         // Check if the gathering type is clonable
         $gatheringType = $this->Gatherings->GatheringTypes->get($originalGathering->gathering_type_id);
         if (!$gatheringType->clonable) {
             $this->Flash->error(__('This gathering type cannot be cloned.'));
-            return $this->redirect(['action' => 'view', $id]);
+            return $this->redirect(['action' => 'view', $originalGathering->public_id]);
         }
 
         // Create new gathering entity with data from form
@@ -1010,6 +1066,7 @@ class GatheringsController extends AppController
         $data['gathering_type_id'] = $originalGathering->gathering_type_id;
         $data['location'] = $originalGathering->location;
         $data['description'] = $originalGathering->description;
+        $data['public_page_enabled'] = $originalGathering->public_page_enabled;
         $data['created_by'] = $this->Authentication->getIdentity()->id;
 
         // Default end_date to start_date if not provided
@@ -1020,28 +1077,99 @@ class GatheringsController extends AppController
         $newGathering = $this->Gatherings->newEntity($data);
 
         if ($this->Gatherings->save($newGathering)) {
+            $clonedActivities = 0;
+            $clonedStaff = 0;
+            $clonedSchedule = 0;
+
             // Clone activities if requested
             if (!empty($data['clone_activities'])) {
                 $GatheringsGatheringActivities = $this->fetchTable('GatheringsGatheringActivities');
-                $clonedCount = 0;
 
                 foreach ($originalGathering->gathering_activities as $activity) {
                     $link = $GatheringsGatheringActivities->newEntity([
                         'gathering_id' => $newGathering->id,
                         'gathering_activity_id' => $activity->id,
-                        'sort_order' => 999
+                        'sort_order' => $activity->_joinData->sort_order ?? 999,
+                        'description' => $activity->_joinData->custom_description ?? null
                     ]);
 
                     if ($GatheringsGatheringActivities->save($link)) {
-                        $clonedCount++;
+                        $clonedActivities++;
                     }
                 }
+            }
 
+            // Clone staff if requested
+            if (!empty($data['clone_staff'])) {
+                $GatheringStaff = $this->fetchTable('GatheringStaff');
+
+                foreach ($originalGathering->gathering_staff as $staff) {
+                    $newStaff = $GatheringStaff->newEntity([
+                        'gathering_id' => $newGathering->id,
+                        'member_id' => $staff->member_id,
+                        'sca_name' => $staff->sca_name,
+                        'role' => $staff->role,
+                        'is_steward' => $staff->is_steward,
+                        'show_on_public_page' => $staff->show_on_public_page,
+                        'email' => $staff->email,
+                        'phone' => $staff->phone,
+                        'contact_notes' => $staff->contact_notes,
+                        'sort_order' => $staff->sort_order
+                    ]);
+
+                    if ($GatheringStaff->save($newStaff)) {
+                        $clonedStaff++;
+                    }
+                }
+            }
+
+            // Clone schedule if requested
+            if (!empty($data['clone_schedule'])) {
+                $GatheringScheduledActivities = $this->fetchTable('GatheringScheduledActivities');
+
+                // Calculate the date offset between original and new gathering
+                $originalStart = $originalGathering->start_date;
+                $newStart = \Cake\I18n\Date::parse($data['start_date']);
+                $daysDiff = $originalStart->diffInDays($newStart, false);
+
+                foreach ($originalGathering->gathering_scheduled_activities as $scheduledActivity) {
+                    // Adjust the datetime by the difference in start dates
+                    $newStartDateTime = $scheduledActivity->start_datetime->addDays($daysDiff);
+                    $newEndDateTime = $scheduledActivity->end_datetime ?
+                        $scheduledActivity->end_datetime->addDays($daysDiff) : null;
+
+                    $newScheduledActivity = $GatheringScheduledActivities->newEntity([
+                        'gathering_id' => $newGathering->id,
+                        'gathering_activity_id' => $scheduledActivity->gathering_activity_id,
+                        'start_datetime' => $newStartDateTime,
+                        'end_datetime' => $newEndDateTime,
+                        'display_title' => $scheduledActivity->title,
+                        'description' => $scheduledActivity->description
+                    ]);
+
+                    if ($GatheringScheduledActivities->save($newScheduledActivity)) {
+                        $clonedSchedule++;
+                    }
+                }
+            }
+
+            // Build success message
+            $successParts = [];
+            if ($clonedActivities > 0) {
+                $successParts[] = __('{0} {1}', $clonedActivities, __n('activity', 'activities', $clonedActivities));
+            }
+            if ($clonedStaff > 0) {
+                $successParts[] = __('{0} {1}', $clonedStaff, __n('staff member', 'staff members', $clonedStaff));
+            }
+            if ($clonedSchedule > 0) {
+                $successParts[] = __('{0} {1}', $clonedSchedule, __n('scheduled activity', 'scheduled activities', $clonedSchedule));
+            }
+
+            if (!empty($successParts)) {
                 $this->Flash->success(__(
-                    'Gathering "{0}" has been cloned successfully with {1} {2}.',
+                    'Gathering "{0}" has been cloned successfully with {1}.',
                     $newGathering->name,
-                    $clonedCount,
-                    __n('activity', 'activities', $clonedCount)
+                    implode(', ', $successParts)
                 ));
             } else {
                 $this->Flash->success(__(
@@ -1050,7 +1178,7 @@ class GatheringsController extends AppController
                 ));
             }
 
-            return $this->redirect(['action' => 'view', $newGathering->id]);
+            return $this->redirect(['action' => 'view', $newGathering->public_id]);
         }
 
         $errors = $newGathering->getErrors();
@@ -1069,6 +1197,266 @@ class GatheringsController extends AppController
             $this->Flash->error(__('Could not clone gathering. Please try again.'));
         }
 
-        return $this->redirect(['action' => 'view', $id]);
+        return $this->redirect(['action' => 'view', $originalGathering->public_id]);
+    }
+
+    /**
+     * Add scheduled activity
+     *
+     * Creates a new scheduled activity for a gathering via AJAX modal.
+     *
+     * @param string|null $id Gathering id
+     * @return \Cake\Http\Response|null JSON response
+     */
+    public function addScheduledActivity($publicId = null)
+    {
+        $this->request->allowMethod(['post']);
+        $this->viewBuilder()->setClassName('Json');
+
+        $gathering = $this->Gatherings->find('byPublicId', [$publicId])->firstOrFail();
+        $this->Authorization->authorize($gathering, 'edit');
+
+        $scheduledActivitiesTable = $this->fetchTable('GatheringScheduledActivities');
+        $scheduledActivity = $scheduledActivitiesTable->newEmptyEntity();
+
+        $data = $this->request->getData();
+        $data['gathering_id'] = $gathering->id;
+        $data['created_by'] = $this->Authentication->getIdentity()->id;
+
+        // Handle "other" checkbox
+        if (!empty($data['is_other'])) {
+            $data['gathering_activity_id'] = null;
+        }
+
+        // Handle "has_end_time" checkbox - clear end_datetime if unchecked
+        if (empty($data['has_end_time'])) {
+            $data['end_datetime'] = null;
+        }
+
+        $scheduledActivity = $scheduledActivitiesTable->patchEntity($scheduledActivity, $data);
+
+        if ($scheduledActivitiesTable->save($scheduledActivity)) {
+            $this->set([
+                'success' => true,
+                'message' => __('Scheduled activity added successfully.'),
+                'data' => $scheduledActivity,
+            ]);
+        } else {
+            $errors = $scheduledActivity->getErrors();
+            $errorMessages = [];
+            foreach ($errors as $field => $fieldErrors) {
+                foreach ($fieldErrors as $error) {
+                    $errorMessages[] = is_string($error) ? $error : implode(', ', $error);
+                }
+            }
+
+            $this->set([
+                'success' => false,
+                'message' => __('Could not add scheduled activity.'),
+                'errors' => $errorMessages,
+            ]);
+        }
+
+        $this->viewBuilder()->setOption('serialize', ['success', 'message', 'data', 'errors']);
+        return null;
+    }
+
+    /**
+     * Edit scheduled activity
+     *
+     * Updates an existing scheduled activity via AJAX modal.
+     *
+     * @param string|null $gatheringId Gathering id
+     * @param string|null $id Scheduled activity id
+     * @return \Cake\Http\Response|null JSON response
+     */
+    public function editScheduledActivity($gatheringPublicId = null, $id = null)
+    {
+        $this->request->allowMethod(['post', 'put', 'patch']);
+        $this->viewBuilder()->setClassName('Json');
+
+        $gathering = $this->Gatherings->find('byPublicId', [$gatheringPublicId])->firstOrFail();
+        $this->Authorization->authorize($gathering, 'edit');
+
+        $scheduledActivitiesTable = $this->fetchTable('GatheringScheduledActivities');
+        $scheduledActivity = $scheduledActivitiesTable->get($id);
+
+        // Ensure scheduled activity belongs to this gathering
+        if ($scheduledActivity->gathering_id != $gathering->id) {
+            $this->set([
+                'success' => false,
+                'message' => __('Invalid scheduled activity.'),
+            ]);
+            $this->viewBuilder()->setOption('serialize', ['success', 'message']);
+            return null;
+        }
+
+        $data = $this->request->getData();
+        $data['modified_by'] = $this->Authentication->getIdentity()->id;
+
+        // Handle "other" checkbox
+        if (!empty($data['is_other'])) {
+            $data['gathering_activity_id'] = null;
+        }
+
+        // Handle "has_end_time" checkbox - clear end_datetime if unchecked
+        if (empty($data['has_end_time'])) {
+            $data['end_datetime'] = null;
+        }
+
+        $scheduledActivity = $scheduledActivitiesTable->patchEntity($scheduledActivity, $data);
+
+        if ($scheduledActivitiesTable->save($scheduledActivity)) {
+            $this->set([
+                'success' => true,
+                'message' => __('Scheduled activity updated successfully.'),
+                'data' => $scheduledActivity,
+            ]);
+        } else {
+            $errors = $scheduledActivity->getErrors();
+            $errorMessages = [];
+            foreach ($errors as $field => $fieldErrors) {
+                foreach ($fieldErrors as $error) {
+                    $errorMessages[] = is_string($error) ? $error : implode(', ', $error);
+                }
+            }
+
+            $this->set([
+                'success' => false,
+                'message' => __('Could not update scheduled activity.'),
+                'errors' => $errorMessages,
+            ]);
+        }
+
+        $this->viewBuilder()->setOption('serialize', ['success', 'message', 'data', 'errors']);
+        return null;
+    }
+
+    /**
+     * Delete scheduled activity
+     *
+     * Removes a scheduled activity from a gathering.
+     *
+     * @param string|null $gatheringId Gathering id
+     * @param string|null $id Scheduled activity id
+     * @return \Cake\Http\Response|null Redirect response
+     */
+    public function deleteScheduledActivity($gatheringPublicId = null, $id = null)
+    {
+        $this->request->allowMethod(['post', 'delete']);
+
+        $gathering = $this->Gatherings->find('byPublicId', [$gatheringPublicId])->firstOrFail();
+        $this->Authorization->authorize($gathering, 'edit');
+
+        $scheduledActivitiesTable = $this->fetchTable('GatheringScheduledActivities');
+        $scheduledActivity = $scheduledActivitiesTable->get($id);
+
+        // Ensure scheduled activity belongs to this gathering
+        if ($scheduledActivity->gathering_id != $gathering->id) {
+            $this->Flash->error(__('Invalid scheduled activity.'));
+            return $this->redirect(['action' => 'view', $gathering->public_id]);
+        }
+
+        if ($scheduledActivitiesTable->delete($scheduledActivity)) {
+            $this->Flash->success(__('Scheduled activity deleted successfully.'));
+        } else {
+            $this->Flash->error(__('Could not delete scheduled activity. Please try again.'));
+        }
+
+        return $this->redirect(['action' => 'view', $gathering->public_id]);
+    }
+
+    /**
+     * Public landing page for a gathering
+     *
+     * Displays a beautiful, mobile-friendly event landing page that requires no authentication.
+     * This page showcases all gathering information including schedule, activities, location,
+     * and provides a streamlined experience for potential attendees.
+     *
+     * @param string|null $id Gathering id
+     * @return \Cake\Http\Response|null|void Renders view
+     */
+    public function publicLanding($publicId = null)
+    {
+        // Skip authorization for public page
+        $this->Authorization->skipAuthorization();
+
+        // Use a clean layout without authentication
+        $this->viewBuilder()->setLayout('public_event');
+
+        // Load the gathering with all related data
+        $gathering = $this->Gatherings->find('byPublicId', [$publicId])
+            ->contain([
+                'Branches',
+                'GatheringTypes',
+                'Creators' => ['fields' => ['id', 'sca_name']],
+                'GatheringStaff' => [
+                    'Members' => ['fields' => ['id', 'sca_name']],
+                    'conditions' => ['GatheringStaff.show_on_public_page' => true],
+                    'sort' => ['GatheringStaff.is_steward' => 'DESC', 'GatheringStaff.sort_order' => 'ASC']
+                ],
+                'GatheringActivities' => [
+                    'sort' => ['GatheringsGatheringActivities.sort_order' => 'ASC']
+                ],
+                'GatheringScheduledActivities' => [
+                    'GatheringActivities',
+                    'sort' => ['GatheringScheduledActivities.start_datetime' => 'ASC']
+                ]
+            ])
+            ->firstOrFail();
+
+        // Check if public page is enabled for this gathering
+        if (!$gathering->public_page_enabled) {
+            throw new NotFoundException(__('The public page for this gathering is not available.'));
+        }
+
+        // Enrich scheduled activities with custom descriptions from junction table
+        // Create a map of gathering_activity_id => custom_description
+        $customDescriptions = [];
+        foreach ($gathering->gathering_activities as $gatheringActivity) {
+            if (!empty($gatheringActivity->custom_description)) {
+                $customDescriptions[$gatheringActivity->id] = $gatheringActivity->custom_description;
+            }
+        }
+
+        // Apply custom descriptions to scheduled activities
+        foreach ($gathering->gathering_scheduled_activities as $scheduledActivity) {
+            if ($scheduledActivity->gathering_activity_id && isset($customDescriptions[$scheduledActivity->gathering_activity_id])) {
+                $scheduledActivity->gathering_activity->custom_description = $customDescriptions[$scheduledActivity->gathering_activity_id];
+            }
+        }
+
+        // Group scheduled activities by date
+        $scheduleByDate = [];
+        foreach ($gathering->gathering_scheduled_activities as $scheduledActivity) {
+            $date = $scheduledActivity->start_datetime->format('Y-m-d');
+            if (!isset($scheduleByDate[$date])) {
+                $scheduleByDate[$date] = [];
+            }
+            $scheduleByDate[$date][] = $scheduledActivity;
+        }
+
+        // Calculate event duration
+        $durationDays = $gathering->start_date->diffInDays($gathering->end_date) + 1;
+
+        // Check if user is authenticated and load their attendance record
+        $user = null;
+        $userAttendance = null;
+
+        $identity = $this->Authentication->getIdentity();
+        if ($identity) {
+            $user = $this->fetchTable('Members')->get($identity->id);
+
+            // Check if user has an attendance record for this gathering
+            $attendanceTable = $this->fetchTable('GatheringAttendances');
+            $userAttendance = $attendanceTable->find()
+                ->where([
+                    'gathering_id' => $gathering->id,
+                    'member_id' => $user->id
+                ])
+                ->first();
+        }
+
+        $this->set(compact('gathering', 'scheduleByDate', 'durationDays', 'user', 'userAttendance'));
     }
 }

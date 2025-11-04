@@ -13,13 +13,15 @@
 use Cake\I18n\DateTime;
 
 // Calculate current week
-$weekStart = $startDate;
+// Clone to avoid mutating the original $startDate
+$weekStart = clone $startDate;
 $dayOfWeek = (int)$weekStart->format('w');
 if ($dayOfWeek > 0) {
     $weekStart = $weekStart->modify("-{$dayOfWeek} days");
 }
 
-$weekEnd = $weekStart->modify('+6 days');
+// Clone weekStart to create weekEnd
+$weekEnd = (clone $weekStart)->modify('+6 days');
 
 // Group gatherings by date
 $gatheringsByDate = [];
@@ -86,7 +88,7 @@ $today->setTime(0, 0, 0);
                                         <h6 class="mb-1">
                                             <?= $this->Html->link(
                                                 h($gathering->name),
-                                                ['action' => 'view', $gathering->id]
+                                                ['action' => 'view', $gathering->public_id]
                                             ) ?>
                                             <?php if ($isAttending): ?>
                                                 <span class="badge bg-success ms-2">

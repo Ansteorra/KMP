@@ -99,7 +99,7 @@ echo $this->KMP->startBlock('pageTitle');
     </div>
     <?= $this->Html->link(
             __('Back to Gathering'),
-            ['plugin' => false, 'controller' => 'Gatherings', 'action' => 'view', $gathering->id],
+            ['plugin' => false, 'controller' => 'Gatherings', 'action' => 'view', $gathering->public_id],
             ['class' => 'btn btn-secondary']
         ) ?>
     <?php else: ?>
@@ -180,21 +180,4 @@ echo $this->KMP->startBlock('pageTitle');
     </div>
     <?php endif; ?>
 </div>
-<?php $this->KMP->endBlock(); ?><?php
-                                // Pass gathering data to JavaScript for client-side processing
-                                $this->Html->scriptStart(['block' => true]);
-                                echo sprintf(
-                                    'window.gatheringData = %s;',
-                                    json_encode([
-                                        'id' => $gathering->id,
-                                        'name' => $gathering->name,
-                                        'requiredWaiverTypes' => collection($requiredWaiverTypes)->map(function ($type) {
-                                            return [
-                                                'id' => $type->id,
-                                                'name' => $type->name,
-                                            ];
-                                        })->toArray(),
-                                    ])
-                                );
-                                $this->Html->scriptEnd();
-                                ?>
+<?php $this->KMP->endBlock(); ?>

@@ -133,7 +133,7 @@ class AwardsController extends AppController
         $this->set(compact('awards'));
     }
 
-    / **
+    /**
      * Display a single award with its domain, level, branch, and related gathering activities and prepare form data for the management view.
      *
      * Loads the award and its related Domains, Levels, Branches, and GatheringActivities, enforces entity authorization,
@@ -389,16 +389,16 @@ class AwardsController extends AppController
         return $this->response;
     }
 
-    / **
-         * Associate a gathering activity with an award.
-         *
-         * Creates a join record linking the specified award to the provided gathering activity
-         * and redirects back to the award's view page.
-         *
-         * @param string|null $id The award identifier.
-         * @return \Cake\Http\Response|null Redirect response to the award view.
-         * @throws \Cake\Http\Exception\NotFoundException If the award cannot be found.
-         * /
+    /**
+     * Associate a gathering activity with an award.
+     *
+     * Creates a join record linking the specified award to the provided gathering activity
+     * and redirects back to the award's view page.
+     *
+     * @param string|null $id The award identifier.
+     * @return \Cake\Http\Response|null Redirect response to the award view.
+     * @throws \Cake\Http\Exception\NotFoundException If the award cannot be found.
+     */
     public function addActivity($id = null)
     {
         $this->request->allowMethod(['post']);
@@ -607,19 +607,19 @@ class AwardsController extends AppController
     }
 
     /**
-         * Builds a Turbo Stream payload that replaces the flash messages frame and,
-         * if present, replaces the provided turbo-frame with the given content.
-         *
-         * Flash messages (if provided) are rendered as Bootstrap alert markup. The
-         * supplied $frameContent should include a <turbo-frame id="..."> element;
-         * when an id is found that frame will be replaced in the returned payload.
-         *
-         * @param string $frameContent HTML containing a turbo-frame to be inserted/replaced
-         * @param array|null $flashMessages Flash messages grouped by key; each message is an array
-         *                                 with a 'message' string and an optional 'element'
-         *                                 (e.g. 'flash/success') used to determine the alert type
-         * @return string The combined turbo-stream HTML payload
-         */
+     * Builds a Turbo Stream payload that replaces the flash messages frame and,
+     * if present, replaces the provided turbo-frame with the given content.
+     *
+     * Flash messages (if provided) are rendered as Bootstrap alert markup. The
+     * supplied $frameContent should include a <turbo-frame id="..."> element;
+     * when an id is found that frame will be replaced in the returned payload.
+     *
+     * @param string $frameContent HTML containing a turbo-frame to be inserted/replaced
+     * @param array|null $flashMessages Flash messages grouped by key; each message is an array
+     *                                 with a 'message' string and an optional 'element'
+     *                                 (e.g. 'flash/success') used to determine the alert type
+     * @return string The combined turbo-stream HTML payload
+     */
     protected function _buildTurboStreamResponse(string $frameContent, ?array $flashMessages = null): string
     {
         $streams = [];

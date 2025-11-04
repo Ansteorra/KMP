@@ -14,15 +14,18 @@ echo $this->Modal->create("Renew Authorization", [
 
     echo $this->Form->control("id", [
         "type" => "hidden",
+        "id" => "renew-auth-id",
         "data-activities-renew-auth-target" => "id",
     ]);
     echo $this->Form->control("member_id", [
         "type" => "hidden",
+        "id" => "renew-auth-member-id",
         "value" => $id,
         "data-activities-renew-auth-target" => "memberId",
     ]);
     echo $this->Form->control("activity", [
         "type" => "hidden",
+        "id" => "renew-auth-activity",
         "data-activities-renew-auth-target" => "activity",
     ]);
     echo $this->KMP->comboBoxControl(
@@ -34,6 +37,7 @@ echo $this->Modal->create("Renew Authorization", [
         true,
         false,
         [
+            'idPrefix' => 'renew-auth',
             'data-activities-renew-auth-target' => 'approvers',
             'data-action' => 'change->activities-renew-auth#checkReadyToSubmit'
         ]

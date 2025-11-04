@@ -214,6 +214,7 @@ The controller uses this target to toggle between form and success states.
          */
         echo $this->Form->control("title", [
             "label" => "Title",
+            "id" => "github-issue-title",
             "placeholder" => "Enter a title for the issue."
         ]);
 
@@ -231,6 +232,7 @@ The controller uses this target to toggle between form and success states.
         echo $this->Form->control("feedbackType", [
             "label" => "Feedback",
             "type" => "select",
+            "id" => "github-issue-feedback-type",
             "options" => $feedbackTypes
         ]);
 
@@ -248,6 +250,7 @@ The controller uses this target to toggle between form and success states.
         echo $this->Form->control("body", [
             "label" => "Details",
             "type" => "textarea",
+            "id" => "github-issue-body",
             "placeholder" => "Please provide a detailed description of the issue."
         ]);
         ?>

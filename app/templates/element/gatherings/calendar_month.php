@@ -114,7 +114,7 @@ $today->setTime(0, 0, 0);
                             ?>
                             <?= $this->Html->link(
                                 $gatheringContent,
-                                ['action' => 'quick-view', $gathering->id],
+                                ['action' => 'quick-view', $gathering->public_id],
                                 [
                                     'escape' => false,
                                     'class' => implode(' ', $itemClasses),

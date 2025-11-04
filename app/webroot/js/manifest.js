@@ -126,11 +126,12 @@
 /******/ 		var installedChunks = {
 /******/ 			"/js/manifest": 0,
 /******/ 			"css/app": 0,
-/******/ 			"css/waivers": 0,
+/******/ 			"css/gatherings_public": 0,
 /******/ 			"css/dashboard": 0,
 /******/ 			"css/cover": 0,
 /******/ 			"css/signin": 0,
-/******/ 			"css/waiver-upload": 0
+/******/ 			"css/waiver-upload": 0,
+/******/ 			"css/waivers": 0
 /******/ 		};
 /******/ 		
 /******/ 		// no chunk on demand loading

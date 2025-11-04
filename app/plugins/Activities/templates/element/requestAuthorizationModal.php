@@ -13,6 +13,7 @@ echo $this->Modal->create("Request Authorization", [
     <?php
     echo $this->Form->control("member_id", [
         "type" => "hidden",
+        "id" => "request-auth-member-id",
         "value" => $id,
         "data-activities-request-auth-target" => "memberId",
     ]);
@@ -25,6 +26,7 @@ echo $this->Modal->create("Request Authorization", [
         true,
         false,
         [
+            'idPrefix' => 'request-auth',
             'data-activities-request-auth-target' => 'activity',
             'data-action' => 'change->activities-request-auth#getApprovers'
         ]
@@ -38,6 +40,7 @@ echo $this->Modal->create("Request Authorization", [
         true,
         false,
         [
+            'idPrefix' => 'request-auth',
             'data-activities-request-auth-target' => 'approvers',
             'data-action' => 'ready->activities-request-auth#acConnected change->activities-request-auth#checkReadyToSubmit'
         ]

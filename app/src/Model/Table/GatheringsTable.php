@@ -19,6 +19,8 @@ use Cake\ORM\TableRegistry;
  * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $Creators
  * @property \App\Model\Table\GatheringActivitiesTable&\Cake\ORM\Association\BelongsToMany $GatheringActivities
  * @property \App\Model\Table\GatheringAttendancesTable&\Cake\ORM\Association\HasMany $GatheringAttendances
+ * @property \App\Model\Table\GatheringScheduledActivitiesTable&\Cake\ORM\Association\HasMany $GatheringScheduledActivities
+ * @property \App\Model\Table\GatheringStaffTable&\Cake\ORM\Association\HasMany $GatheringStaff
  * @property \Waivers\Model\Table\GatheringWaiversTable&\Cake\ORM\Association\HasMany $GatheringWaivers
  *
  * @method \App\Model\Entity\Gathering newEmptyEntity()
@@ -52,6 +54,7 @@ class GatheringsTable extends Table
         $this->addBehavior('Muffin/Trash.Trash', [
             'field' => 'deleted'
         ]);
+        $this->addBehavior('PublicId');
 
         $this->belongsTo('Branches', [
             'foreignKey' => 'branch_id',
@@ -81,6 +84,20 @@ class GatheringsTable extends Table
         $this->hasMany('GatheringAttendances', [
             'foreignKey' => 'gathering_id',
             'dependent' => true,
+        ]);
+
+        // One-to-many relationship with scheduled activities
+        $this->hasMany('GatheringScheduledActivities', [
+            'foreignKey' => 'gathering_id',
+            'dependent' => true,
+            'sort' => ['GatheringScheduledActivities.start_datetime' => 'ASC'],
+        ]);
+
+        // One-to-many relationship with gathering staff
+        $this->hasMany('GatheringStaff', [
+            'foreignKey' => 'gathering_id',
+            'dependent' => true,
+            'sort' => ['GatheringStaff.is_steward' => 'DESC', 'GatheringStaff.sort_order' => 'ASC'],
         ]);
     }
 

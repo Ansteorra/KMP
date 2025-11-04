@@ -15,10 +15,12 @@
     <?php
     echo $this->Form->control("new_password", [
         "type" => "password",
+        "autocomplete" => "new-password",
         'help' => "Password must have a minimum of 12 characters"
     ]);
     echo $this->Form->control("confirm_password", [
         "type" => "password",
+        "autocomplete" => "new-password",
     ]);
     ?>
 </fieldset>

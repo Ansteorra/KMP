@@ -20,9 +20,4 @@ class GatheringsTablePolicy extends BasePolicy
     {
         return true;
     }
-
-    public function canView(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
-    {
-        return true;
-    }
 }

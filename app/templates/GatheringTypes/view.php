@@ -205,7 +205,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
                             <td><?= h($gathering->start_date) ?></td>
                             <td><?= h($gathering->end_date) ?></td>
                             <td class="actions">
-                                <?= $this->Html->link('<i class="bi bi-binoculars-fill"></i>', ['controller' => 'Gatherings', 'action' => 'view', $gathering->id], ['escape' => false, 'title' => __('View'), 'class' => 'btn btn-sm btn-outline-primary']) ?>
+                                <?= $this->Html->link('<i class="bi bi-binoculars-fill"></i>', ['controller' => 'Gatherings', 'action' => 'view', $gathering->public_id], ['escape' => false, 'title' => __('View'), 'class' => 'btn btn-sm btn-outline-primary']) ?>
                             </td>
                         </tr>
                     <?php endforeach; ?>

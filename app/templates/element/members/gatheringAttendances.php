@@ -86,7 +86,7 @@ $canManage = $canManageOwn || $canManageOthers;
                                     <td>
                                         <?= $this->Html->link(
                                             h($attendance->gathering->name),
-                                            ['controller' => 'Gatherings', 'action' => 'view', $attendance->gathering->id]
+                                            ['controller' => 'Gatherings', 'action' => 'view', $attendance->gathering->public_id]
                                         ) ?>
                                     </td>
                                     <td><?= h($attendance->gathering->branch->name) ?></td>
@@ -168,7 +168,7 @@ $canManage = $canManageOwn || $canManageOthers;
                                     <td>
                                         <?= $this->Html->link(
                                             h($attendance->gathering->name),
-                                            ['controller' => 'Gatherings', 'action' => 'view', $attendance->gathering->id]
+                                            ['controller' => 'Gatherings', 'action' => 'view', $attendance->gathering->public_id]
                                         ) ?>
                                     </td>
                                     <td><?= h($attendance->gathering->branch->name) ?></td>
