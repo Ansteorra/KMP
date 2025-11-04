@@ -312,3 +312,12 @@ when warrants are approaching expiration. Includes:
 
 Fixes #123
 ```
+
+---
+
+## Related Documentation
+
+- **[7.1 Security Best Practices](7.1-security-best-practices.md)** - Security configuration and testing
+- **[7.3 Testing Infrastructure](7.3-testing-infrastructure.md)** - Test fixtures, authentication helpers, and testing best practices
+
+[← Back to Table of Contents](index.md)
