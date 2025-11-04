@@ -42,10 +42,11 @@ layout: default
 | **5.6 [Activities Plugin](5.6-activities-plugin.md)** | Comprehensive authorization management system |
 | **5.7 [Waivers Plugin](5.7-waivers-plugin.md)** | Waiver upload, tracking, and compliance management |
 | **6. [Services](6-services.md)** | Service layer architecture and implementations |
+| **6.2 [Authorization Helpers](6.2-authorization-helpers.md)** | getBranchIdsForAction() and permission helper methods |
 | **7. [Development Workflow](7-development-workflow.md)** | |
 | **7.1 [Security Best Practices](7.1-security-best-practices.md)** | Security configuration, testing, and audit findings |
 | 7.2 Coding Standards | PHP and JavaScript coding standards |
-| 7.3 Testing | PHPUnit testing practices |
+| **7.3 [Testing Infrastructure](7.3-testing-infrastructure.md)** | Test super user fixtures, authentication helpers, and testing best practices |
 | 7.4 Debugging | Debugging tools and techniques |
 | 7.5 Git Workflow | Version control workflow |
 | **8. [Deployment](8-deployment.md)** | |
