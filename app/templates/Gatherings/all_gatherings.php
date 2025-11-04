@@ -27,7 +27,7 @@ $columnTemplate = [
 $linkTemplate = [
     [
         "type" => "link",
-        "verify" => true,
+        "verify" => false,
         "label" => "View",
         "controller" => "Gatherings",
         "action" => "view",
@@ -48,22 +48,6 @@ $linkTemplate = [
         ],
     ],
 ];
-
-// Only show delete button for previous/past gatherings
-if ($state == "previous") {
-    $linkTemplate[] = [
-        "type" => "postLink",
-        "verify" => true,
-        "label" => "Delete",
-        "controller" => "Gatherings",
-        "action" => "delete",
-        "id" => "id",
-        "options" => [
-            "confirm" => "Are you sure you want to delete {{name}}?",
-            "class" => "btn-sm btn btn-danger"
-        ],
-    ];
-}
 
 $columnTemplate["Actions"] = $linkTemplate;
 

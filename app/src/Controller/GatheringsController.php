@@ -609,7 +609,9 @@ class GatheringsController extends AppController
             ])
             ->firstOrFail();
 
-        $this->Authorization->authorize($gathering);
+        $user = $this->Authentication->getIdentity();
+        $canView = $user->can('view', $gathering);
+
 
         //TODO: find a way to do this with out breaking the plugin/core boundry.
         // Check if waivers exist (for activity locking)
@@ -648,6 +650,13 @@ class GatheringsController extends AppController
         // Override recordId to use integer ID for plugin cells that expect it
         // (recordId is auto-set to the URL param which is now public_id)
         $this->set('recordId', $gathering->id);
+        //if the user can view the gathering use the standard view template
+        if ($canView) {
+            $this->viewBuilder()->setTemplate('view');
+        } else {
+            //if the user can not view the gathering use the limited view template
+            $this->viewBuilder()->setTemplate('view_public');
+        }
     }
 
     /**

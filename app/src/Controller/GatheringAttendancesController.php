@@ -26,8 +26,6 @@ class GatheringAttendancesController extends AppController
         $this->request->allowMethod(['post']);
         $gatheringAttendance = $this->GatheringAttendances->newEmptyEntity();
 
-        $this->Authorization->authorize($gatheringAttendance);
-
         if ($this->request->is('post')) {
             $data = $this->request->getData();
 
@@ -46,6 +44,9 @@ class GatheringAttendancesController extends AppController
             $data['created_by'] = $currentUser->id;
 
             $gatheringAttendance = $this->GatheringAttendances->patchEntity($gatheringAttendance, $data);
+
+            // Authorize after patching data so policy can check member_id
+            $this->Authorization->authorize($gatheringAttendance);
 
             if ($this->GatheringAttendances->save($gatheringAttendance)) {
                 $this->Flash->success(__('Your attendance has been registered.'));
