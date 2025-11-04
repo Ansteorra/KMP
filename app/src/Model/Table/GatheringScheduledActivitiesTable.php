@@ -186,7 +186,13 @@ class GatheringScheduledActivitiesTable extends Table
             }
 
             // Get the gathering to check date range
-            $gathering = $this->Gatherings->get($entity->gathering_id, ['fields' => ['id', 'start_date', 'end_date']]);
+            $gathering = $this->Gatherings->find()
+                ->select(['id', 'start_date', 'end_date'])
+                ->where(['id' => $entity->gathering_id])
+                ->first();
+            if ($gathering === null) {
+                return false;
+            }
 
             // Create datetime boundaries for the gathering
             // Convert Date objects to FrozenTime with time boundaries
@@ -213,7 +219,13 @@ class GatheringScheduledActivitiesTable extends Table
                 if (empty($entity->gathering_id)) {
                     return [];
                 }
-                $gathering = $this->Gatherings->get($entity->gathering_id, ['fields' => ['id', 'start_date', 'end_date']]);
+                $gathering = $this->Gatherings->find()
+                    ->select(['start_date', 'end_date'])
+                    ->where(['id' => $entity->gathering_id])
+                    ->first();
+                if ($gathering === null) {
+                    return [];
+                }
                 return [
                     $gathering->start_date->format('M j, Y'),
                     $gathering->end_date->format('M j, Y')
