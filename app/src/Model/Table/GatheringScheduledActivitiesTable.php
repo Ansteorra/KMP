@@ -113,7 +113,7 @@ class GatheringScheduledActivitiesTable extends Table
             ->add('end_datetime', 'requiredIfHasEndTime', [
                 'rule' => function ($value, $context) {
                     // If has_end_time is true, end_datetime must be provided
-                    if (isset($context['data']['has_end_time']) && $context['data']['has_end_time'] === true) {
+                    if (!empty($context['data']['has_end_time'])) {
                         return !empty($value);
                     }
                     return true;
@@ -208,12 +208,23 @@ class GatheringScheduledActivitiesTable extends Table
                 return false;
             }
 
+            // Ensure start_date is present
+            if (empty($gathering->start_date)) {
+                return false;
+            }
+
             // Create datetime boundaries for the gathering
             // Convert Date objects to FrozenTime with time boundaries
             // Start: 12:00 AM on start_date
             $gatheringStart = new FrozenTime($gathering->start_date->format('Y-m-d') . ' 00:00:00');
-            // End: 11:59:59 PM on end_date
-            $gatheringEnd = new FrozenTime($gathering->end_date->format('Y-m-d') . ' 23:59:59');
+            
+            // End: 11:59:59 PM on end_date, or end of start_date if end_date is null
+            if (!empty($gathering->end_date)) {
+                $gatheringEnd = new FrozenTime($gathering->end_date->format('Y-m-d') . ' 23:59:59');
+            } else {
+                // For single-day gatherings or gatherings without end_date, use end of start_date
+                $gatheringEnd = new FrozenTime($gathering->start_date->format('Y-m-d') . ' 23:59:59');
+            }
 
             // Check if scheduled activity start is within range
             if ($entity->start_datetime < $gatheringStart || $entity->start_datetime > $gatheringEnd) {
@@ -242,9 +253,20 @@ class GatheringScheduledActivitiesTable extends Table
                 if ($gathering === null) {
                     return [];
                 }
+                
+                // Guard against null dates
+                if (empty($gathering->start_date)) {
+                    return ['unknown date'];
+                }
+                
+                $startDateStr = $gathering->start_date->format('M j, Y');
+                $endDateStr = !empty($gathering->end_date) 
+                    ? $gathering->end_date->format('M j, Y')
+                    : $gathering->start_date->format('M j, Y');
+                    
                 return [
-                    $gathering->start_date->format('M j, Y'),
-                    $gathering->end_date->format('M j, Y')
+                    $startDateStr,
+                    $endDateStr
                 ];
             }
         ]);

@@ -1143,7 +1143,7 @@ class GatheringsController extends AppController
                         'gathering_activity_id' => $scheduledActivity->gathering_activity_id,
                         'start_datetime' => $newStartDateTime,
                         'end_datetime' => $newEndDateTime,
-                        'title' => $scheduledActivity->title,
+                        'display_title' => $scheduledActivity->title,
                         'description' => $scheduledActivity->description
                     ]);
 

@@ -14,13 +14,13 @@ use Migrations\AbstractMigration;
 class MakeScheduledActivityEndTimeOptional extends AbstractMigration
 {
     /**
-     * Change Method.
+     * Up Method.
      *
-     * More information on this method is available here:
-     * https://book.cakephp.org/phinx/0/en/migrations.html#the-change-method
+     * Make the end_datetime column nullable to support activities with only a start time.
+     * 
      * @return void
      */
-    public function change(): void
+    public function up(): void
     {
         $table = $this->table('gathering_scheduled_activities');
 
@@ -28,6 +28,26 @@ class MakeScheduledActivityEndTimeOptional extends AbstractMigration
             'default' => null,
             'null' => true,
             'comment' => 'When the scheduled activity ends (optional for activities with only start time)'
+        ]);
+
+        $table->update();
+    }
+
+    /**
+     * Down Method.
+     *
+     * Revert the end_datetime column back to not nullable.
+     * 
+     * @return void
+     */
+    public function down(): void
+    {
+        $table = $this->table('gathering_scheduled_activities');
+
+        $table->changeColumn('end_datetime', 'datetime', [
+            'default' => null,
+            'null' => false,
+            'comment' => 'When the scheduled activity ends'
         ]);
 
         $table->update();

@@ -45,7 +45,7 @@ $publicLandingUrl = $this->Url->build([
         </li>
         <li>
             <a class="dropdown-item" href="#"
-                onclick="navigator.clipboard.writeText(<?= json_encode(h($publicLandingUrl)) ?>); alert(<?= json_encode(__('Link copied to clipboard!')) ?>); return false;">
+                onclick="navigator.clipboard.writeText(<?= json_encode($publicLandingUrl, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>); alert(<?= json_encode(__('Link copied to clipboard!')) ?>); return false;">
                 <i class="bi bi-clipboard"></i> Copy Link
             </a>
         </li>
@@ -423,7 +423,7 @@ if ($gathering->public_page_enabled):
                         <input type="text" class="form-control" value="<?= h($publicLandingUrl) ?>" readonly
                             id="publicLandingUrlInput">
                         <button class="btn btn-outline-secondary" type="button"
-                            onclick="navigator.clipboard.writeText(<?= json_encode(h($publicLandingUrl)) ?>); this.innerHTML=<?= json_encode('<i class=\'bi bi-check\'></i> Copied!') ?>; setTimeout(() => this.innerHTML=<?= json_encode('<i class=\'bi bi-clipboard\'></i> Copy') ?>, 2000)">
+                            onclick="navigator.clipboard.writeText(<?= json_encode($publicLandingUrl, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>); this.innerHTML=<?= json_encode('<i class=\'bi bi-check\'></i> Copied!') ?>; setTimeout(() => this.innerHTML=<?= json_encode('<i class=\'bi bi-clipboard\'></i> Copy') ?>, 2000)">
                             <i class="bi bi-clipboard"></i> Copy
                         </button>
                     </div>

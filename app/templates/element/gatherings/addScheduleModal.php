@@ -1,5 +1,7 @@
 <?php
 
+use function Cake\Collection\collection;
+
 /**
  * Add Scheduled Activity Modal
  * 
