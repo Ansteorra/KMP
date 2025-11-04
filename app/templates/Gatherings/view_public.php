@@ -27,57 +27,43 @@ $this->KMP->endBlock();
 
 <style>
     :root {
-        /* Modern Color Palette */
-        --color-primary: #2563eb;
-        --color-primary-dark: #1e40af;
-        --color-secondary: #7c3aed;
-        --color-accent: #f59e0b;
-        --color-success: #10b981;
-        --color-danger: #ef4444;
+        /* Medieval-Inspired Color Palette */
+        --medieval-gold: #D4AF37;
+        --medieval-gold-dark: #B8941F;
+        --medieval-crimson: #8B0000;
+        --medieval-crimson-dark: #660000;
+        --medieval-royal: #4B0082;
+        --medieval-forest: #2C5F2D;
+        --medieval-parchment: #F4E8D0;
+        --medieval-ink: #2B2B2B;
 
         /* Neutrals */
-        --color-dark: #1e293b;
-        --color-gray-900: #0f172a;
-        --color-gray-800: #1e293b;
-        --color-gray-700: #334155;
-        --color-gray-600: #475569;
-        --color-gray-500: #64748b;
-        --color-gray-400: #94a3b8;
-        --color-gray-300: #cbd5e1;
-        --color-gray-200: #e2e8f0;
-        --color-gray-100: #f1f5f9;
-        --color-gray-50: #f8fafc;
-        --color-white: #ffffff;
+        --stone-900: #1C1917;
+        --stone-800: #292524;
+        --stone-700: #44403C;
+        --stone-600: #57534E;
+        --stone-500: #78716C;
+        --stone-400: #A8A29E;
+        --stone-300: #D6D3D1;
+        --stone-200: #E7E5E4;
+        --stone-100: #F5F5F4;
+        --stone-50: #FAFAF9;
 
         /* Typography */
+        --font-serif: 'Playfair Display', Georgia, serif;
         --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        --font-display: 'Playfair Display', Georgia, serif;
 
         /* Spacing */
-        --space-xs: 0.25rem;
-        --space-sm: 0.5rem;
+        --space-xs: 0.375rem;
+        --space-sm: 0.625rem;
         --space-md: 1rem;
         --space-lg: 1.5rem;
         --space-xl: 2rem;
-        --space-2xl: 3rem;
-        --space-3xl: 4rem;
-
-        /* Shadows */
-        --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-        --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-        --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-        --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-
-        /* Border Radius */
-        --radius-sm: 0.375rem;
-        --radius-md: 0.5rem;
-        --radius-lg: 0.75rem;
-        --radius-xl: 1rem;
-        --radius-2xl: 1.5rem;
-        --radius-full: 9999px;
+        --space-2xl: 2.5rem;
+        --space-3xl: 3rem;
     }
 
-    /* Scoped styles for gathering public view - hide the default table styling */
+    /* Scoped styles for gathering public view */
     .table-responsive:has(.gathering-public-content) {
         overflow: visible !important;
     }
@@ -91,386 +77,584 @@ $this->KMP->endBlock();
         display: block !important;
     }
 
-    .gathering-public-content .hero {
+    /* Hero Banner with Medieval Styling */
+    .gathering-public-content .hero-banner {
         position: relative;
-        background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
-        color: var(--color-white);
-        padding: var(--space-3xl) var(--space-lg);
-        min-height: 40vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
-        margin: 0 -15px;
-        border-radius: var(--radius-xl);
+        background: linear-gradient(135deg, var(--medieval-crimson) 0%, var(--medieval-royal) 100%);
+        color: var(--stone-50);
+        padding: var(--space-2xl) var(--space-md);
+        margin: 0 -15px var(--space-xl) -15px;
+        border-bottom: 4px solid var(--medieval-gold);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
 
-    .gathering-public-content .hero::before {
+    .gathering-public-content .hero-banner::before {
         content: '';
         position: absolute;
         top: 0;
         left: 0;
         right: 0;
         bottom: 0;
-        background:
-            radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
-            radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
+        background-image:
+            repeating-linear-gradient(90deg, rgba(212, 175, 55, 0.03) 0px, transparent 1px, transparent 20px),
+            repeating-linear-gradient(0deg, rgba(212, 175, 55, 0.03) 0px, transparent 1px, transparent 20px);
         pointer-events: none;
     }
 
-    .gathering-public-content .hero-content {
+    .gathering-public-content .hero-banner-ornament {
+        position: absolute;
+        font-size: 2.5rem;
+        color: var(--medieval-gold);
+        opacity: 0.4;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .gathering-public-content .hero-banner-ornament-left {
+        top: 1rem;
+        left: 1rem;
+    }
+
+    .gathering-public-content .hero-banner-ornament-right {
+        top: 1rem;
+        right: 1rem;
+    }
+
+    .gathering-public-content .hero-banner-content {
         position: relative;
+        text-align: center;
         max-width: 900px;
-        text-align: center;
-        z-index: 1;
-    }
-
-    .gathering-public-content .event-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: var(--space-sm);
-        background: rgba(255, 255, 255, 0.2);
-        backdrop-filter: blur(10px);
-        padding: var(--space-sm) var(--space-lg);
-        border-radius: var(--radius-full);
-        font-size: 0.875rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        margin-bottom: var(--space-lg);
-    }
-
-    .gathering-public-content .hero h1 {
-        font-family: var(--font-display);
-        font-size: clamp(2rem, 5vw, 3.5rem);
-        font-weight: 800;
-        line-height: 1.1;
-        margin-bottom: var(--space-lg);
-        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-
-    .gathering-public-content .hero-meta {
-        display: flex;
-        flex-wrap: wrap;
-        gap: var(--space-lg);
-        justify-content: center;
-        font-size: 1.125rem;
-        margin-top: var(--space-xl);
-    }
-
-    .gathering-public-content .hero-meta-item {
-        display: flex;
-        align-items: center;
-        gap: var(--space-sm);
-        background: rgba(255, 255, 255, 0.15);
-        backdrop-filter: blur(10px);
-        padding: var(--space-md) var(--space-lg);
-        border-radius: var(--radius-lg);
-    }
-
-    .gathering-public-content .hero-meta-item i {
-        font-size: 1.5rem;
-    }
-
-    .gathering-public-content .container {
-        max-width: 1200px;
         margin: 0 auto;
-        padding: 0 var(--space-lg);
     }
 
-    .gathering-public-content .section {
-        padding: var(--space-3xl) 0;
-    }
-
-    .gathering-public-content .section-header {
-        text-align: center;
-        margin-bottom: var(--space-2xl);
-    }
-
-    .gathering-public-content .section-title {
-        font-family: var(--font-display);
-        font-size: clamp(1.75rem, 4vw, 2.5rem);
+    .gathering-public-content .event-type-badge {
+        display: inline-block;
+        background: rgba(212, 175, 55, 0.2);
+        border: 2px solid var(--medieval-gold);
+        color: var(--medieval-gold);
+        padding: var(--space-xs) var(--space-lg);
+        border-radius: 20px;
+        font-size: 0.75rem;
         font-weight: 700;
-        color: var(--color-gray-900);
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
         margin-bottom: var(--space-md);
     }
 
-    .gathering-public-content .section-subtitle {
-        font-size: 1.125rem;
-        color: var(--color-gray-600);
-        max-width: 600px;
-        margin: 0 auto;
+    .gathering-public-content .event-title {
+        font-family: var(--font-serif);
+        font-size: clamp(1.75rem, 5vw, 2.75rem);
+        font-weight: 800;
+        line-height: 1.2;
+        margin-bottom: var(--space-md);
+        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
     }
 
-    .gathering-public-content .quick-info {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-        gap: var(--space-lg);
-        margin: var(--space-2xl) 0;
-    }
-
-    .gathering-public-content .info-card {
-        background: var(--color-white);
-        border-radius: var(--radius-lg);
-        padding: var(--space-xl);
-        box-shadow: var(--shadow-md);
+    .gathering-public-content .event-quick-meta {
         display: flex;
-        gap: var(--space-lg);
-        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: var(--space-md);
+        justify-content: center;
+        font-size: 0.875rem;
+        font-weight: 500;
     }
 
-    .gathering-public-content .info-icon {
-        flex-shrink: 0;
-        width: 48px;
-        height: 48px;
-        background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
-        color: var(--color-white);
-        border-radius: var(--radius-md);
+    .gathering-public-content .meta-item {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-xs);
+        background: rgba(255, 255, 255, 0.1);
+        padding: var(--space-sm) var(--space-md);
+        border-radius: 8px;
+        backdrop-filter: blur(10px);
+    }
+
+    .gathering-public-content .meta-item i {
+        font-size: 1rem;
+        color: var(--medieval-gold);
+    }
+
+    /* Container */
+    .gathering-public-content .event-container {
+        max-width: 1100px;
+        margin: 0 auto var(--space-xl) auto;
+        padding: 0 var(--space-md);
+    }
+
+    /* Info Cards - Medieval Style */
+    .gathering-public-content .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: var(--space-md);
+        margin-bottom: var(--space-lg);
+    }
+
+    .gathering-public-content .info-card-medieval {
+        background: linear-gradient(to bottom, var(--stone-50) 0%, var(--stone-100) 100%);
+        border: 2px solid var(--stone-300);
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .gathering-public-content .info-card-medieval:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .gathering-public-content .card-header-medieval {
+        background: linear-gradient(135deg, var(--medieval-crimson) 0%, var(--medieval-crimson-dark) 100%);
+        color: var(--stone-50);
+        padding: var(--space-sm) var(--space-md);
+        font-weight: 700;
+        font-size: 0.813rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
         display: flex;
         align-items: center;
-        justify-content: center;
-        font-size: 1.5rem;
+        gap: var(--space-xs);
+        border-bottom: 2px solid var(--medieval-gold);
     }
 
-    .gathering-public-content .info-content h3 {
+    .gathering-public-content .card-header-medieval i {
+        font-size: 1rem;
+        color: var(--medieval-gold);
+    }
+
+    .gathering-public-content .card-body-medieval {
+        padding: var(--space-md);
+        color: var(--stone-800);
         font-size: 0.875rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: var(--color-gray-600);
-        margin-bottom: var(--space-xs);
-    }
-
-    .gathering-public-content .info-content p {
-        font-size: 1.125rem;
-        font-weight: 600;
-        color: var(--color-gray-900);
-    }
-
-    .gathering-public-content .schedule-day {
-        margin-bottom: var(--space-2xl);
-    }
-
-    .gathering-public-content .schedule-day-header {
-        font-family: var(--font-display);
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: var(--color-gray-900);
-        margin-bottom: var(--space-lg);
-        padding-bottom: var(--space-md);
-        border-bottom: 3px solid var(--color-primary);
-    }
-
-    .gathering-public-content .schedule-timeline {
-        position: relative;
-        padding-left: var(--space-2xl);
-    }
-
-    .gathering-public-content .schedule-timeline::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 0;
-        bottom: 0;
-        width: 2px;
-        background: var(--color-gray-300);
-    }
-
-    .gathering-public-content .schedule-item {
-        position: relative;
-        margin-bottom: var(--space-xl);
-        padding-left: var(--space-lg);
-    }
-
-    .gathering-public-content .schedule-item::before {
-        content: '';
-        position: absolute;
-        left: calc(-1 * var(--space-2xl) - 6px);
-        top: 8px;
-        width: 14px;
-        height: 14px;
-        background: var(--color-primary);
-        border: 3px solid var(--color-white);
-        border-radius: var(--radius-full);
-        box-shadow: 0 0 0 2px var(--color-primary);
-    }
-
-    .gathering-public-content .schedule-time {
-        font-size: 0.875rem;
-        font-weight: 700;
-        color: var(--color-primary);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        margin-bottom: var(--space-xs);
-    }
-
-    .gathering-public-content .schedule-title {
-        font-size: 1.125rem;
-        font-weight: 600;
-        color: var(--color-gray-900);
-        margin-bottom: var(--space-xs);
-    }
-
-    .gathering-public-content .schedule-description {
-        color: var(--color-gray-600);
         line-height: 1.6;
     }
 
-    .gathering-public-content .schedule-activity-tag {
-        display: inline-block;
-        background: var(--color-gray-100);
-        color: var(--color-gray-700);
-        padding: var(--space-xs) var(--space-md);
-        border-radius: var(--radius-full);
-        font-size: 0.75rem;
-        font-weight: 600;
-        margin-top: var(--space-sm);
-    }
-
-    .gathering-public-content .activities-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-        gap: var(--space-lg);
-    }
-
-    .gathering-public-content .activity-card {
-        background: var(--color-white);
-        border-radius: var(--radius-lg);
-        padding: var(--space-lg);
-        box-shadow: var(--shadow-sm);
-        border-left: 4px solid var(--color-primary);
-        transition: all 0.2s;
-    }
-
-    .gathering-public-content .activity-card:hover {
-        box-shadow: var(--shadow-md);
-        transform: translateX(4px);
-    }
-
-    .gathering-public-content .activity-name {
-        font-weight: 600;
-        color: var(--color-gray-900);
-        margin-bottom: var(--space-xs);
-    }
-
-    .gathering-public-content .activity-description {
-        font-size: 0.875rem;
-        color: var(--color-gray-600);
-    }
-
-    .gathering-public-content .location-address {
-        background: var(--color-white);
-        padding: var(--space-xl);
-        border-radius: var(--radius-lg);
-        box-shadow: var(--shadow-md);
-        margin-top: var(--space-lg);
-        text-align: center;
-    }
-
-    .gathering-public-content .location-address i {
-        font-size: 2rem;
-        color: var(--color-primary);
+    .gathering-public-content .steward-entry,
+    .gathering-public-content .staff-entry {
         margin-bottom: var(--space-md);
     }
 
-    .gathering-public-content .location-address p {
-        font-size: 1.125rem;
-        color: var(--color-gray-800);
-        line-height: 1.8;
+    .gathering-public-content .steward-entry:last-child,
+    .gathering-public-content .staff-entry:last-child {
+        margin-bottom: 0;
     }
 
-    .gathering-public-content .cta-section {
-        background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
-        color: var(--color-white);
-        padding: var(--space-3xl) var(--space-lg);
+    .gathering-public-content .contact-detail {
+        display: flex;
+        align-items: center;
+        gap: var(--space-xs);
+        margin-top: var(--space-xs);
+        font-size: 0.813rem;
+        color: var(--stone-600);
+    }
+
+    .gathering-public-content .contact-detail i {
+        color: var(--medieval-crimson);
+    }
+
+    .gathering-public-content .contact-detail a {
+        color: var(--medieval-crimson);
+        text-decoration: none;
+    }
+
+    .gathering-public-content .contact-detail a:hover {
+        text-decoration: underline;
+    }
+
+    .gathering-public-content .contact-note {
+        margin-top: var(--space-xs);
+        font-size: 0.75rem;
+        font-style: italic;
+        color: var(--stone-600);
+    }
+
+    .gathering-public-content .staff-contacts {
+        display: inline-flex;
+        gap: var(--space-sm);
+        margin-left: var(--space-sm);
+    }
+
+    .gathering-public-content .staff-contacts a {
+        color: var(--medieval-crimson);
+        font-size: 0.875rem;
+    }
+
+    /* Status Cards */
+    .gathering-public-content .status-happening .card-header-medieval {
+        background: linear-gradient(135deg, var(--medieval-forest) 0%, #1e4620 100%);
+    }
+
+    .gathering-public-content .status-badge-active {
+        background: var(--medieval-forest);
+        color: white;
+        padding: var(--space-sm) var(--space-md);
+        border-radius: 6px;
+        font-weight: 700;
         text-align: center;
-        border-radius: var(--radius-2xl);
-        margin: var(--space-2xl) 0;
     }
 
-    .gathering-public-content .cta-section h2 {
-        font-family: var(--font-display);
-        font-size: clamp(1.75rem, 4vw, 2.5rem);
+    .gathering-public-content .countdown-display {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--medieval-crimson);
+        text-align: center;
+    }
+
+    .gathering-public-content .activity-count {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--medieval-crimson);
+        text-align: center;
+    }
+
+    /* Section Titles */
+    .gathering-public-content .section-medieval {
+        background: linear-gradient(to bottom, var(--stone-50) 0%, white 100%);
+        border: 2px solid var(--stone-300);
+        border-radius: 8px;
+        padding: var(--space-xl) var(--space-lg);
+        margin-bottom: var(--space-xl);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .gathering-public-content .section-title-medieval {
+        font-family: var(--font-serif);
+        font-size: clamp(1.5rem, 3vw, 2rem);
+        font-weight: 700;
+        color: var(--medieval-crimson);
+        text-align: center;
+        margin-bottom: var(--space-lg);
+        padding-bottom: var(--space-md);
+        border-bottom: 3px solid var(--medieval-gold);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: var(--space-md);
+    }
+
+    .gathering-public-content .title-ornament {
+        color: var(--medieval-gold);
+        font-size: 1rem;
+    }
+
+    /* Content Scroll */
+    .gathering-public-content .content-scroll {
+        max-height: 500px;
+        overflow-y: auto;
+        padding-right: var(--space-sm);
+        line-height: 1.8;
+        color: var(--stone-700);
+    }
+
+    .gathering-public-content .content-scroll::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .gathering-public-content .content-scroll::-webkit-scrollbar-track {
+        background: var(--stone-200);
+        border-radius: 4px;
+    }
+
+    .gathering-public-content .content-scroll::-webkit-scrollbar-thumb {
+        background: var(--medieval-gold);
+        border-radius: 4px;
+    }
+
+    /* Schedule */
+    .gathering-public-content .schedule-day-medieval {
+        margin-bottom: var(--space-xl);
+    }
+
+    .gathering-public-content .schedule-day-header {
+        font-family: var(--font-serif);
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--medieval-crimson);
+        margin-bottom: var(--space-md);
+        padding-bottom: var(--space-sm);
+        border-bottom: 2px solid var(--medieval-gold);
+    }
+
+    .gathering-public-content .schedule-events {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-md);
+    }
+
+    .gathering-public-content .schedule-event-item {
+        display: flex;
+        gap: var(--space-md);
+        background: white;
+        border-left: 4px solid var(--medieval-gold);
+        padding: var(--space-md);
+        border-radius: 6px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .gathering-public-content .schedule-time-badge {
+        flex-shrink: 0;
+        background: var(--medieval-crimson);
+        color: white;
+        padding: var(--space-sm) var(--space-md);
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-align: center;
+        min-width: 100px;
+        height: fit-content;
+    }
+
+    .gathering-public-content .schedule-time-badge i {
+        display: block;
+        margin-bottom: 0.25rem;
+    }
+
+    .gathering-public-content .schedule-event-content h4 {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--stone-800);
+        margin-bottom: var(--space-xs);
+    }
+
+    .gathering-public-content .schedule-event-desc {
+        font-size: 0.875rem;
+        color: var(--stone-600);
+        line-height: 1.6;
+        margin-bottom: var(--space-xs);
+    }
+
+    .gathering-public-content .activity-tag {
+        display: inline-block;
+        background: var(--stone-200);
+        color: var(--stone-700);
+        padding: 0.25rem 0.625rem;
+        border-radius: 12px;
+        font-size: 0.688rem;
+        font-weight: 600;
+    }
+
+    .gathering-public-content .activity-tag i {
+        font-size: 0.625rem;
+    }
+
+    /* Activities Compact */
+    .gathering-public-content .activities-compact {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-md);
+    }
+
+    .gathering-public-content .activity-item-compact {
+        display: flex;
+        gap: var(--space-md);
+        background: white;
+        border-left: 4px solid var(--medieval-gold);
+        padding: var(--space-md);
+        border-radius: 6px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .gathering-public-content .activity-icon-compact {
+        flex-shrink: 0;
+        font-size: 1.5rem;
+        color: var(--medieval-gold);
+    }
+
+    .gathering-public-content .activity-details-compact h4 {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--stone-800);
+        margin-bottom: var(--space-xs);
+    }
+
+    .gathering-public-content .activity-details-compact p {
+        font-size: 0.875rem;
+        color: var(--stone-600);
+        line-height: 1.6;
+        margin: 0;
+    }
+
+    /* Location */
+    .gathering-public-content .location-display {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--space-md);
+        background: white;
+        padding: var(--space-lg);
+        border-radius: 8px;
+        margin-bottom: var(--space-lg);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .gathering-public-content .location-icon {
+        width: 60px;
+        height: 60px;
+        background: linear-gradient(135deg, var(--medieval-crimson) 0%, var(--medieval-crimson-dark) 100%);
+        color: var(--medieval-gold);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.75rem;
+    }
+
+    .gathering-public-content .location-address {
+        text-align: center;
+        font-size: 1rem;
+        color: var(--stone-700);
+        line-height: 1.8;
+        margin: 0;
+    }
+
+    .gathering-public-content .location-actions {
+        display: flex;
+        gap: var(--space-md);
+        flex-wrap: wrap;
+        justify-content: center;
+        margin-bottom: var(--space-lg);
+    }
+
+    .gathering-public-content .map-container {
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Medieval Buttons */
+    .gathering-public-content .btn-medieval {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-sm);
+        padding: var(--space-sm) var(--space-lg);
+        border-radius: 6px;
+        font-weight: 700;
+        font-size: 0.875rem;
+        text-decoration: none;
+        transition: all 0.2s;
+        cursor: pointer;
+        border: 2px solid transparent;
+        text-transform: uppercase;
+        letter-spacing: 0.025em;
+    }
+
+    .gathering-public-content .btn-medieval-primary {
+        background: linear-gradient(135deg, var(--medieval-crimson) 0%, var(--medieval-crimson-dark) 100%);
+        color: white;
+        border-color: var(--medieval-gold);
+    }
+
+    .gathering-public-content .btn-medieval-primary:hover {
+        background: linear-gradient(135deg, var(--medieval-crimson-dark) 0%, var(--medieval-crimson) 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .gathering-public-content .btn-medieval-secondary {
+        background: var(--stone-200);
+        color: var(--stone-800);
+        border-color: var(--stone-400);
+    }
+
+    .gathering-public-content .btn-medieval-secondary:hover {
+        background: var(--stone-300);
+    }
+
+    .gathering-public-content .btn-medieval-outline {
+        background: transparent;
+        color: var(--stone-50);
+        border-color: rgba(255, 255, 255, 0.5);
+    }
+
+    .gathering-public-content .btn-medieval-outline:hover {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: white;
+    }
+
+    .gathering-public-content .btn-medieval-cta {
+        background: linear-gradient(135deg, var(--medieval-gold) 0%, var(--medieval-gold-dark) 100%);
+        color: var(--medieval-ink);
+        border-color: white;
+        font-size: 1rem;
+        padding: var(--space-md) var(--space-xl);
+    }
+
+    .gathering-public-content .btn-medieval-cta:hover {
+        background: linear-gradient(135deg, var(--medieval-gold-dark) 0%, var(--medieval-gold) 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Dropdown Menu */
+    .gathering-public-content .dropdown-menu-medieval {
+        background: var(--stone-50);
+        border: 2px solid var(--stone-300);
+        border-radius: 6px;
+        padding: 0.5rem 0;
+    }
+
+    .gathering-public-content .dropdown-menu-medieval .dropdown-item {
+        color: var(--stone-800);
+        padding: 0.5rem 1rem;
+    }
+
+    .gathering-public-content .dropdown-menu-medieval .dropdown-item:hover {
+        background: var(--stone-200);
+        color: var(--medieval-crimson);
+    }
+
+    /* CTA Section */
+    .gathering-public-content .cta-medieval {
+        background: linear-gradient(135deg, var(--medieval-crimson) 0%, var(--medieval-royal) 100%);
+        color: var(--stone-50);
+        padding: var(--space-2xl) var(--space-lg);
+        border-radius: 8px;
+        text-align: center;
+        position: relative;
+        border: 3px solid var(--medieval-gold);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .gathering-public-content .cta-ornament-top,
+    .gathering-public-content .cta-ornament-bottom {
+        color: var(--medieval-gold);
+        font-size: 1.25rem;
+        letter-spacing: 0.5rem;
+        opacity: 0.6;
+    }
+
+    .gathering-public-content .cta-ornament-top {
+        margin-bottom: var(--space-md);
+    }
+
+    .gathering-public-content .cta-ornament-bottom {
+        margin-top: var(--space-md);
+    }
+
+    .gathering-public-content .cta-medieval h2 {
+        font-family: var(--font-serif);
+        font-size: clamp(1.5rem, 3vw, 2rem);
         font-weight: 700;
         margin-bottom: var(--space-md);
     }
 
-    .gathering-public-content .cta-section p {
-        font-size: 1.125rem;
-        margin-bottom: var(--space-xl);
+    .gathering-public-content .cta-medieval p {
+        font-size: 1rem;
+        margin-bottom: var(--space-lg);
         opacity: 0.95;
     }
 
-    .gathering-public-content .btn {
-        display: inline-flex;
-        align-items: center;
-        gap: var(--space-sm);
-        padding: var(--space-md) var(--space-2xl);
-        border-radius: var(--radius-full);
-        font-weight: 600;
-        text-decoration: none;
-        transition: all 0.2s;
-        cursor: pointer;
-        border: none;
-        font-size: 1rem;
+    .gathering-public-content .cta-buttons {
+        display: flex;
+        gap: var(--space-md);
+        justify-content: center;
+        flex-wrap: wrap;
     }
 
-    .gathering-public-content .btn-primary {
-        background: var(--color-white);
-        color: var(--color-primary);
-        box-shadow: var(--shadow-lg);
-    }
-
-    .gathering-public-content .btn-primary:hover {
-        transform: translateY(-2px);
-        box-shadow: var(--shadow-xl);
-    }
-
-    .gathering-public-content .btn-outline {
-        background: transparent;
-        color: var(--color-white);
-        border: 2px solid rgba(255, 255, 255, 0.5);
-    }
-
-    .gathering-public-content .btn-outline:hover {
-        background: rgba(255, 255, 255, 0.1);
-        border-color: var(--color-white);
-    }
-
-    .gathering-public-content .footer {
-        background: var(--color-gray-900);
-        color: var(--color-gray-400);
-        padding: var(--space-2xl) var(--space-lg);
-        text-align: center;
-        border-radius: var(--radius-lg);
-        margin-top: var(--space-2xl);
-    }
-
-    .gathering-public-content .footer p {
-        font-size: 0.875rem;
-    }
-
-    .gathering-public-content .description-content {
-        background: var(--color-white);
-        padding: var(--space-2xl);
-        border-radius: var(--radius-xl);
-        box-shadow: var(--shadow-md);
-        line-height: 1.8;
-        color: var(--color-gray-700);
-    }
-
-    .gathering-public-content .description-content p {
-        margin-bottom: var(--space-md);
-    }
-
-    .gathering-public-content .description-content p:last-child {
-        margin-bottom: 0;
-    }
-
+    /* Animations */
     @keyframes fadeIn {
         from {
             opacity: 0;
-            transform: translateY(20px);
+            transform: translateY(15px);
         }
 
         to {
@@ -480,42 +664,60 @@ $this->KMP->endBlock();
     }
 
     .gathering-public-content .fade-in {
-        animation: fadeIn 0.6s ease-out;
+        animation: fadeIn 0.5s ease-out;
     }
 
+    /* Responsive Design */
     @media (max-width: 768px) {
-        .gathering-public-content .hero {
-            min-height: 35vh;
-            padding: var(--space-2xl) var(--space-md);
+        .gathering-public-content .hero-banner {
+            padding: var(--space-xl) var(--space-md);
         }
 
-        .gathering-public-content .hero-meta {
+        .gathering-public-content .hero-banner-ornament {
+            font-size: 1.5rem;
+        }
+
+        .gathering-public-content .event-quick-meta {
             flex-direction: column;
-            gap: var(--space-md);
+            gap: var(--space-sm);
         }
 
-        .gathering-public-content .section {
-            padding: var(--space-xl) 0;
-        }
-
-        .gathering-public-content .quick-info {
+        .gathering-public-content .info-grid {
             grid-template-columns: 1fr;
         }
 
-        .gathering-public-content .activities-grid {
-            grid-template-columns: 1fr;
-        }
-
-        .gathering-public-content .schedule-timeline {
-            padding-left: var(--space-lg);
-        }
-
-        .gathering-public-content .info-card {
+        .gathering-public-content .schedule-event-item {
             flex-direction: column;
-            text-align: center;
+        }
+
+        .gathering-public-content .schedule-time-badge {
+            width: 100%;
+        }
+
+        .gathering-public-content .location-actions {
+            flex-direction: column;
+        }
+
+        .gathering-public-content .btn-medieval {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .gathering-public-content .cta-buttons {
+            flex-direction: column;
         }
     }
 </style>
+align-items: center;
+justify-content: center;
+overflow: hidden;
+margin: 0 -15px;
+border-radius: var(--radius-xl);
+}
+
+.gathering-public-content .hero::before {
+content: '';
+position: absolute;
 
 <?php
 

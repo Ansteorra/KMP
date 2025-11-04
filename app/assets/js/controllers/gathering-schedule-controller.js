@@ -23,7 +23,11 @@ class GatheringScheduleController extends Controller {
         "startDatetime",
         "endDatetime",
         "editStartDatetime",
-        "editEndDatetime"
+        "editEndDatetime",
+        "hasEndTimeCheckbox",
+        "editHasEndTimeCheckbox",
+        "endTimeContainer",
+        "editEndTimeContainer"
     ]
 
     static values = {
@@ -47,6 +51,15 @@ class GatheringScheduleController extends Controller {
      * Setup min/max limits on datetime inputs based on gathering dates
      */
     setupDateTimeLimits() {
+        // Validate that gathering dates are present and in correct format (YYYY-MM-DD)
+        const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+        if (!this.gatheringStartValue || !this.gatheringEndValue || 
+            !datePattern.test(this.gatheringStartValue) || 
+            !datePattern.test(this.gatheringEndValue)) {
+            console.warn('Invalid gathering dates - skipping datetime limits setup');
+            return;
+        }
+
         // Calculate min/max datetime strings
         const minDatetime = `${this.gatheringStartValue}T00:00`;
         const maxDatetime = `${this.gatheringEndValue}T23:59`;
@@ -66,10 +79,7 @@ class GatheringScheduleController extends Controller {
             this.endDatetimeTarget.min = minDatetime;
             this.endDatetimeTarget.max = maxDatetime;
             
-            // Set default to start of gathering at 10:00 AM (1 hour after start) if empty
-            if (!this.endDatetimeTarget.value) {
-                this.endDatetimeTarget.value = `${this.gatheringStartValue}T10:00`;
-            }
+            // Don't set a default value - end time is optional
         }
 
         // Set limits on edit form inputs
@@ -88,6 +98,15 @@ class GatheringScheduleController extends Controller {
      * Reset add form when modal is opened
      */
     resetAddForm(event) {
+        // Validate that gathering dates are present and in correct format (YYYY-MM-DD)
+        const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+        if (!this.gatheringStartValue || !this.gatheringEndValue || 
+            !datePattern.test(this.gatheringStartValue) || 
+            !datePattern.test(this.gatheringEndValue)) {
+            console.warn('Invalid gathering dates - skipping form reset defaults');
+            return;
+        }
+
         // Reset to defaults
         const minDatetime = `${this.gatheringStartValue}T00:00`;
         const maxDatetime = `${this.gatheringEndValue}T23:59`;
@@ -97,7 +116,8 @@ class GatheringScheduleController extends Controller {
         }
         
         if (this.hasEndDatetimeTarget) {
-            this.endDatetimeTarget.value = `${this.gatheringStartValue}T10:00`;
+            // Don't set a default value - end time is optional
+            this.endDatetimeTarget.value = '';
         }
     }
 
@@ -140,6 +160,62 @@ class GatheringScheduleController extends Controller {
     }
 
     /**
+     * Toggle end time field visibility for add form
+     */
+    toggleEndTime(event) {
+        const hasEndTime = event.target.checked;
+        
+        if (this.hasEndTimeContainerTarget) {
+            this.endTimeContainerTarget.style.display = hasEndTime ? 'block' : 'none';
+        }
+        
+        // Clear end time if unchecking
+        if (!hasEndTime && this.hasEndDatetimeTarget) {
+            this.endDatetimeTarget.value = '';
+        } else {
+            // If checking, set default end time to one hour after start time
+            if (this.hasStartDatetimeTarget && this.startDatetimeTarget.value) {
+                const startDate = new Date(this.startDatetimeTarget.value);
+                startDate.setHours(startDate.getHours() + 1);
+                const year = startDate.getFullYear();
+                const month = String(startDate.getMonth() + 1).padStart(2, '0');
+                const day = String(startDate.getDate()).padStart(2, '0');
+                const hours = String(startDate.getHours()).padStart(2, '0');
+                const minutes = String(startDate.getMinutes()).padStart(2, '0');
+                this.endDatetimeTarget.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+            }
+        }
+    }
+
+    /**
+     * Toggle end time field visibility for edit form
+     */
+    toggleEditEndTime(event) {
+        const hasEndTime = event.target.checked;
+        
+        if (this.hasEditEndTimeContainerTarget) {
+            this.editEndTimeContainerTarget.style.display = hasEndTime ? 'block' : 'none';
+        }
+        
+        // Clear end time if unchecking
+        if (!hasEndTime && this.hasEditEndDatetimeTarget) {
+            this.editEndDatetimeTarget.value = '';
+        } else {
+            // If checking, set default end time to one hour after start time
+            if (this.hasEditStartDatetimeTarget && this.editStartDatetimeTarget.value) {
+                const startDate = new Date(this.editStartDatetimeTarget.value);
+                startDate.setHours(startDate.getHours() + 1);
+                const year = startDate.getFullYear();
+                const month = String(startDate.getMonth() + 1).padStart(2, '0');
+                const day = String(startDate.getDate()).padStart(2, '0');
+                const hours = String(startDate.getHours()).padStart(2, '0');
+                const minutes = String(startDate.getMinutes()).padStart(2, '0');
+                this.editEndDatetimeTarget.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+            }
+        }
+    }
+
+    /**
      * Open edit modal and populate with activity data
      */
     openEditModal(event) {
@@ -156,6 +232,7 @@ class GatheringScheduleController extends Controller {
         const description = button.dataset.description;
         const preRegister = button.dataset.preRegister === 'true';
         const isOther = button.dataset.isOther === 'true';
+        const hasEndTime = button.dataset.hasEndTime === 'true';
         
         // Populate form fields
         const form = this.editFormTarget;
@@ -163,16 +240,24 @@ class GatheringScheduleController extends Controller {
         
         form.querySelector('[name="gathering_activity_id"]').value = gatheringActivityId || '';
         form.querySelector('[name="start_datetime"]').value = startDatetime;
-        form.querySelector('[name="end_datetime"]').value = endDatetime;
+        form.querySelector('[name="end_datetime"]').value = endDatetime || '';
         form.querySelector('[name="display_title"]').value = displayTitle;
         form.querySelector('[name="description"]').value = description || '';
-        form.querySelector('[name="pre_register"]').checked = preRegister;
-        form.querySelector('[name="is_other"]').checked = isOther;
+        
+        // Use getElementById for checkboxes to avoid hidden input conflicts
+        document.getElementById('edit-pre-register').checked = preRegister;
+        document.getElementById('edit-is-other').checked = isOther;
+        document.getElementById('edit-has-end-time').checked = hasEndTime;
         
         // Handle activity select state based on is_other
         const activitySelect = this.editActivitySelectTarget;
         activitySelect.disabled = isOther;
         activitySelect.required = !isOther;
+        
+        // Handle end time container visibility
+        if (this.hasEditEndTimeContainerTarget) {
+            this.editEndTimeContainerTarget.style.display = hasEndTime ? 'block' : 'none';
+        }
         
         // Show the modal
         const modal = new bootstrap.Modal(this.editModalTarget);
@@ -217,6 +302,45 @@ class GatheringScheduleController extends Controller {
     }
 
     /**
+     * Normalize error response into a readable string
+     * Handles errors that may be an array, object, string, or missing
+     */
+    normalizeErrors(result) {
+        if (!result.errors) {
+            return result.message || 'An error occurred';
+        }
+
+        // If errors is already an array, join it
+        if (Array.isArray(result.errors)) {
+            return result.errors.join(', ');
+        }
+
+        // If errors is a string, use it directly
+        if (typeof result.errors === 'string') {
+            return result.errors;
+        }
+
+        // If errors is an object, try to extract values
+        if (typeof result.errors === 'object') {
+            try {
+                // Try to flatten nested arrays and join
+                const errorValues = Object.values(result.errors).flat();
+                if (errorValues.length > 0) {
+                    return errorValues.join(', ');
+                }
+                // Fall back to JSON stringify for complex objects
+                return JSON.stringify(result.errors);
+            } catch (e) {
+                console.error('Error parsing errors object:', e);
+                return result.message || 'An error occurred';
+            }
+        }
+
+        // Final fallback
+        return result.message || 'An error occurred';
+    }
+
+    /**
      * Submit add form via AJAX
      */
     async submitAddForm(event) {
@@ -249,7 +373,7 @@ class GatheringScheduleController extends Controller {
                 window.location.reload();
             } else {
                 // Show error message
-                const errorMsg = result.errors ? result.errors.join(', ') : result.message;
+                const errorMsg = this.normalizeErrors(result);
                 this.showFlashMessage('error', errorMsg);
             }
         } catch (error) {
@@ -288,7 +412,7 @@ class GatheringScheduleController extends Controller {
                 window.location.reload();
             } else {
                 // Show error message
-                const errorMsg = result.errors ? result.errors.join(', ') : result.message;
+                const errorMsg = this.normalizeErrors(result);
                 this.showFlashMessage('error', errorMsg);
             }
         } catch (error) {

@@ -57,13 +57,15 @@
                         <tr>
                             <td class="text-nowrap">
                                 <strong><?= $scheduledActivity->start_datetime->format('D, M j') ?></strong><br>
-                                <?= $scheduledActivity->start_datetime->format('g:i A') ?> -
-                                <?= $scheduledActivity->end_datetime->format('g:i A') ?>
-                                <br>
-                                <small class="text-muted">
-                                    (<?= number_format($scheduledActivity->duration_hours, 1) ?>
-                                    <?= __n('hour', 'hours', $scheduledActivity->duration_hours) ?>)
-                                </small>
+                                <?= $scheduledActivity->start_datetime->format('g:i A') ?>
+                                <?php if ($scheduledActivity->end_datetime): ?>
+                                    - <?= $scheduledActivity->end_datetime->format('g:i A') ?>
+                                    <br>
+                                    <small class="text-muted">
+                                        (<?= number_format($scheduledActivity->duration_hours, 1) ?>
+                                        <?= __n('hour', 'hours', $scheduledActivity->duration_hours) ?>)
+                                    </small>
+                                <?php endif; ?>
                             </td>
                             <td>
                                 <?php if ($scheduledActivity->is_other): ?>
@@ -97,11 +99,12 @@
                                         data-activity-id="<?= $scheduledActivity->id ?>"
                                         data-gathering-activity-id="<?= $scheduledActivity->gathering_activity_id ?>"
                                         data-start-datetime="<?= $scheduledActivity->start_datetime->format('Y-m-d\TH:i') ?>"
-                                        data-end-datetime="<?= $scheduledActivity->end_datetime->format('Y-m-d\TH:i') ?>"
+                                        data-end-datetime="<?= $scheduledActivity->end_datetime ? $scheduledActivity->end_datetime->format('Y-m-d\TH:i') : '' ?>"
                                         data-display-title="<?= h($scheduledActivity->display_title) ?>"
                                         data-description="<?= h($scheduledActivity->description) ?>"
                                         data-pre-register="<?= $scheduledActivity->pre_register ? 'true' : 'false' ?>"
                                         data-is-other="<?= $scheduledActivity->is_other ? 'true' : 'false' ?>"
+                                        data-has-end-time="<?= $scheduledActivity->has_end_time ? 'true' : 'false' ?>"
                                         title="<?= __('Edit') ?>">
                                         <i class="bi bi-pencil-fill"></i>
                                     </button>

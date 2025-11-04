@@ -37,48 +37,47 @@ if (!isset($scheduleByDate)) {
 }
 ?>
 
-<!-- Hero Section -->
-<div class="hero fade-in">
-    <div class="hero-content">
-        <div class="event-badge">
-            <i class="bi bi-calendar-event"></i>
+<!-- Hero Banner with Medieval Aesthetic -->
+<div class="hero-banner fade-in">
+    <div class="hero-banner-ornament hero-banner-ornament-left" aria-hidden="true">⚜</div>
+    <div class="hero-banner-ornament hero-banner-ornament-right" aria-hidden="true">⚜</div>
+
+    <div class="hero-banner-content">
+        <div class="event-type-badge">
             <?= h($gathering->gathering_type->name) ?>
         </div>
 
-        <h1><?= h($gathering->name) ?></h1>
+        <h1 class="event-title"><?= h($gathering->name) ?></h1>
 
-        <div class="hero-meta">
-            <div class="hero-meta-item">
+        <div class="event-quick-meta">
+            <span class="meta-item">
                 <i class="bi bi-calendar3"></i>
-                <div>
-                    <?php if ($gathering->is_multi_day): ?>
-                    <div><?= $gathering->start_date->format('M d') ?> - <?= $gathering->end_date->format('M d, Y') ?>
-                    </div>
-                    <small style="opacity: 0.9;"><?= $durationDays ?> days</small>
-                    <?php else: ?>
-                    <?= $gathering->start_date->format('F d, Y') ?>
-                    <?php endif; ?>
-                </div>
-            </div>
+                <?php if ($gathering->is_multi_day): ?>
+                    <?= $gathering->start_date->format('M d') ?> - <?= $gathering->end_date->format('M d, Y') ?>
+                <?php else: ?>
+                    <?= $gathering->start_date->format('M d, Y') ?>
+                <?php endif; ?>
+            </span>
 
             <?php if ($gathering->location): ?>
-            <div class="hero-meta-item">
-                <i class="bi bi-geo-alt"></i>
-                <div><?= h($gathering->location) ?></div>
-            </div>
+                <span class="meta-item">
+                    <i class="bi bi-geo-alt"></i>
+                    <?= h($gathering->location) ?>
+                </span>
             <?php endif; ?>
 
-            <div class="hero-meta-item">
+            <span class="meta-item">
                 <i class="bi bi-building"></i>
-                <div><?= h($gathering->branch->name) ?></div>
-            </div>
+                <?= h($gathering->branch->name) ?>
+            </span>
         </div>
     </div>
 </div>
 
-<!-- Quick Info Section -->
-<div class="container">
-    <div class="quick-info fade-in" style="animation-delay: 0.1s;">
+
+<!-- Event Information Cards -->
+<div class="event-container">
+    <div class="info-grid fade-in" style="animation-delay: 0.1s;">
         <?php
         // Separate stewards from other staff (only those marked to show on public page)
         $stewards = [];
@@ -111,367 +110,377 @@ if (!isset($scheduleByDate)) {
         // Display stewards first
         if (!empty($stewards)):
         ?>
-        <div class="info-card">
-            <div class="info-icon">
-                <i class="bi bi-person-badge"></i>
+            <div class="info-card-medieval">
+                <div class="card-header-medieval">
+                    <i class="bi bi-person-badge-fill"></i>
+                    <span><?= count($stewards) > 1 ? __('Event Stewards') : __('Event Steward') ?></span>
+                </div>
+                <div class="card-body-medieval">
+                    <?php foreach ($stewards as $steward): ?>
+                        <div class="steward-entry">
+                            <strong><?= h($steward->display_name) ?></strong>
+                            <?php if (!empty($steward->email)): ?>
+                                <div class="contact-detail">
+                                    <i class="bi bi-envelope"></i>
+                                    <a href="#" class="email-link" data-email="<?= base64_encode($steward->email) ?>"><?= __('Email') ?></a>
+                                </div>
+                            <?php endif; ?>
+                            <?php if (!empty($steward->phone)): ?>
+                                <div class="contact-detail">
+                                    <i class="bi bi-telephone"></i>
+                                    <a href="tel:<?= h($steward->phone) ?>"><?= h($steward->phone) ?></a>
+                                </div>
+                            <?php endif; ?>
+                            <?php if (!empty($steward->contact_notes)): ?>
+                                <div class="contact-note"><?= h($steward->contact_notes) ?></div>
+                            <?php endif; ?>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
             </div>
-            <div class="info-content">
-                <h3><?= count($stewards) > 1 ? __('Event Stewards') : __('Event Steward') ?></h3>
-                <?php foreach ($stewards as $steward): ?>
-                <p>
-                    <strong><?= h($steward->display_name) ?></strong>
-                    <?php if (!empty($steward->email)): ?>
-                    <br><small><i class="bi bi-envelope"></i> <a href="#" class="email-link"
-                            data-email="<?= base64_encode($steward->email) ?>"><?= __('Email') ?></a></small>
-                    <?php endif; ?>
-                    <?php if (!empty($steward->phone)): ?>
-                    <br><small><i class="bi bi-telephone"></i> <a
-                            href="tel:<?= h($steward->phone) ?>"><?= h($steward->phone) ?></a></small>
-                    <?php endif; ?>
-                    <?php if (!empty($steward->contact_notes)): ?>
-                    <br><small><i class="bi bi-info-circle"></i> <?= h($steward->contact_notes) ?></small>
-                    <?php endif; ?>
-                </p>
-                <?php endforeach; ?>
-            </div>
-        </div>
         <?php endif; ?>
 
         <?php
         // Display other staff if any
         if (!empty($otherStaff)):
         ?>
-        <div class="info-card">
-            <div class="info-icon">
-                <i class="bi bi-people"></i>
+            <div class="info-card-medieval">
+                <div class="card-header-medieval">
+                    <i class="bi bi-people-fill"></i>
+                    <span><?= __('Event Staff') ?></span>
+                </div>
+                <div class="card-body-medieval">
+                    <?php foreach ($otherStaff as $staff): ?>
+                        <div class="staff-entry">
+                            <strong><?= h($staff->role) ?>:</strong> <?= h($staff->display_name) ?>
+                            <?php if (!empty($staff->email) || !empty($staff->phone)): ?>
+                                <div class="staff-contacts">
+                                    <?php if (!empty($staff->email)): ?>
+                                        <a href="#" class="email-link" data-email="<?= base64_encode($staff->email) ?>">
+                                            <i class="bi bi-envelope"></i>
+                                        </a>
+                                    <?php endif; ?>
+                                    <?php if (!empty($staff->phone)): ?>
+                                        <a href="tel:<?= h($staff->phone) ?>">
+                                            <i class="bi bi-telephone"></i>
+                                        </a>
+                                    <?php endif; ?>
+                                </div>
+                            <?php endif; ?>
+                            <?php if (!empty($staff->contact_notes)): ?>
+                                <div class="contact-note"><?= h($staff->contact_notes) ?></div>
+                            <?php endif; ?>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
             </div>
-            <div class="info-content">
-                <h3><?= __('Event Staff') ?></h3>
-                <?php foreach ($otherStaff as $staff): ?>
-                <p>
-                    <strong><?= h($staff->role) ?>:</strong> <?= h($staff->display_name) ?>
-                    <?php if (!empty($staff->email)): ?>
-                    <br><small><i class="bi bi-envelope"></i> <a href="#" class="email-link"
-                            data-email="<?= base64_encode($staff->email) ?>"><?= __('Email') ?></a></small>
-                    <?php endif; ?>
-                    <?php if (!empty($staff->phone)): ?>
-                    <br><small><i class="bi bi-telephone"></i> <a
-                            href="tel:<?= h($staff->phone) ?>"><?= h($staff->phone) ?></a></small>
-                    <?php endif; ?>
-                    <?php if (!empty($staff->contact_notes)): ?>
-                    <br><small><i class="bi bi-info-circle"></i> <?= h($staff->contact_notes) ?></small>
-                    <?php endif; ?>
-                </p>
-                <?php endforeach; ?>
-            </div>
-        </div>
         <?php endif; ?>
 
         <?php
         // Fallback: If no staff configured, show creator
         if (!$hasStaff && $gathering->creator):
         ?>
-        <div class="info-card">
-            <div class="info-icon">
-                <i class="bi bi-person-badge"></i>
+            <div class="info-card-medieval">
+                <div class="card-header-medieval">
+                    <i class="bi bi-person-badge-fill"></i>
+                    <span><?= __('Gathering Creator') ?></span>
+                </div>
+                <div class="card-body-medieval">
+                    <p><?= h($gathering->creator->sca_name) ?></p>
+                </div>
             </div>
-            <div class="info-content">
-                <h3><?= __('Gathering Creator') ?></h3>
-                <p><?= h($gathering->creator->sca_name) ?></p>
-            </div>
-        </div>
         <?php endif; ?>
 
+        <!-- Event Status Card -->
         <?php if ($isOngoing): ?>
-        <div class="info-card" style="border-left: 4px solid var(--color-success);">
-            <div class="info-icon" style="background: linear-gradient(135deg, var(--color-success), #059669);">
-                <i class="bi bi-broadcast"></i>
+            <div class="info-card-medieval status-happening">
+                <div class="card-header-medieval">
+                    <i class="bi bi-broadcast"></i>
+                    <span><?= __('Event Status') ?></span>
+                </div>
+                <div class="card-body-medieval">
+                    <div class="status-badge-active"><?= __('Happening Now!') ?></div>
+                </div>
             </div>
-            <div class="info-content">
-                <h3>Event Status</h3>
-                <p style="color: var(--color-success);">Happening Now!</p>
-            </div>
-        </div>
         <?php elseif ($isPast): ?>
-        <div class="info-card">
-            <div class="info-icon"
-                style="background: linear-gradient(135deg, var(--color-gray-500), var(--color-gray-600));">
-                <i class="bi bi-check-circle"></i>
+            <div class="info-card-medieval status-past">
+                <div class="card-header-medieval">
+                    <i class="bi bi-check-circle-fill"></i>
+                    <span><?= __('Event Status') ?></span>
+                </div>
+                <div class="card-body-medieval">
+                    <p><?= __('Event Completed') ?></p>
+                </div>
             </div>
-            <div class="info-content">
-                <h3>Event Status</h3>
-                <p>Event Completed</p>
-            </div>
-        </div>
         <?php else: ?>
-        <?php
+            <?php
             $daysUntil = \Cake\I18n\Date::now()->diffInDays($gathering->start_date, false);
             if ($daysUntil >= 0):
             ?>
-        <div class="info-card">
-            <div class="info-icon">
-                <i class="bi bi-hourglass-split"></i>
-            </div>
-            <div class="info-content">
-                <h3>Starts In</h3>
-                <p>
-                    <?php if ($daysUntil == 0): ?>
-                    Today!
-                    <?php elseif ($daysUntil == 1): ?>
-                    Tomorrow
-                    <?php else: ?>
-                    <?= $daysUntil ?> days
-                    <?php endif; ?>
-                </p>
-            </div>
-        </div>
-        <?php endif; ?>
+                <div class="info-card-medieval status-upcoming">
+                    <div class="card-header-medieval">
+                        <i class="bi bi-hourglass-split"></i>
+                        <span><?= __('Starts In') ?></span>
+                    </div>
+                    <div class="card-body-medieval">
+                        <div class="countdown-display">
+                            <?php if ($daysUntil == 0): ?>
+                                <?= __('Today!') ?>
+                            <?php elseif ($daysUntil == 1): ?>
+                                <?= __('Tomorrow') ?>
+                            <?php else: ?>
+                                <?= $daysUntil ?> <?= __('days') ?>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+            <?php endif; ?>
         <?php endif; ?>
 
         <?php if (!empty($gathering->gathering_activities)): ?>
-        <div class="info-card">
-            <div class="info-icon">
-                <i class="bi bi-list-check"></i>
+            <div class="info-card-medieval">
+                <div class="card-header-medieval">
+                    <i class="bi bi-list-check"></i>
+                    <span><?= __('Activities Planned') ?></span>
+                </div>
+                <div class="card-body-medieval">
+                    <div class="activity-count"><?= count($gathering->gathering_activities) ?></div>
+                </div>
             </div>
-            <div class="info-content">
-                <h3>Activities</h3>
-                <p><?= count($gathering->gathering_activities) ?> Planned</p>
-            </div>
-        </div>
         <?php endif; ?>
     </div>
 </div>
 
-<!-- Description Section -->
+
+<!-- Event Description -->
 <?php if ($gathering->description): ?>
-<section class="section">
-    <div class="container">
-        <div class="section-header fade-in">
-            <h2 class="section-title">About This Event</h2>
-        </div>
-        <div class="description-content fade-in" style="animation-delay: 0.1s;">
-            <?= $this->Markdown->toHtml($gathering->description) ?>
+    <div class="event-container">
+        <div class="section-medieval fade-in">
+            <h2 class="section-title-medieval">
+                <span class="title-ornament">❖</span>
+                <?= __('About This Event') ?>
+                <span class="title-ornament">❖</span>
+            </h2>
+            <div class="content-scroll">
+                <?= $this->Markdown->toHtml($gathering->description) ?>
+            </div>
         </div>
     </div>
-</section>
 <?php endif; ?>
 
-<!-- Schedule Section -->
+<!-- Event Schedule -->
 <?php if (!empty($scheduleByDate)): ?>
-<section class="section" style="background: var(--color-white);">
-    <div class="container">
-        <div class="section-header fade-in">
-            <h2 class="section-title">Event Schedule</h2>
-            <p class="section-subtitle">Check out what's happening and when</p>
-        </div>
+    <div class="event-container">
+        <div class="section-medieval fade-in" style="animation-delay: 0.15s;">
+            <h2 class="section-title-medieval">
+                <span class="title-ornament">❖</span>
+                <?= __('Event Schedule') ?>
+                <span class="title-ornament">❖</span>
+            </h2>
 
-        <?php foreach ($scheduleByDate as $date => $activities): ?>
-        <div class="schedule-day fade-in"
-            style="animation-delay: <?= array_search($date, array_keys($scheduleByDate)) * 0.1 ?>s;">
-            <div class="schedule-day-header">
-                <?php
+            <?php foreach ($scheduleByDate as $date => $activities): ?>
+                <div class="schedule-day-medieval">
+                    <div class="schedule-day-header">
+                        <?php
                         $dateObj = \Cake\I18n\DateTime::parse($date);
                         echo $dateObj->format('l, F j, Y');
                         ?>
-            </div>
+                    </div>
 
-            <div class="schedule-timeline">
-                <?php foreach ($activities as $activity): ?>
-                <div class="schedule-item">
-                    <div class="schedule-time">
-                        <?= $activity->start_datetime->format('g:i A') ?>
-                        <?php if ($activity->end_datetime): ?>
-                        - <?= $activity->end_datetime->format('g:i A') ?>
-                        <?php endif; ?>
+                    <div class="schedule-events">
+                        <?php foreach ($activities as $activity): ?>
+                            <div class="schedule-event-item">
+                                <div class="schedule-time-badge">
+                                    <i class="bi bi-clock"></i>
+                                    <?= $activity->start_datetime->format('g:i A') ?>
+                                    <?php if ($activity->end_datetime): ?>
+                                        - <?= $activity->end_datetime->format('g:i A') ?>
+                                    <?php endif; ?>
+                                </div>
+                                <div class="schedule-event-content">
+                                    <h4><?= h($activity->display_title) ?></h4>
+                                    <?php if ($activity->display_description): ?>
+                                        <div class="schedule-event-desc">
+                                            <?= $this->Markdown->toHtml($activity->display_description) ?>
+                                        </div>
+                                    <?php endif; ?>
+                                    <?php if ($activity->gathering_activity): ?>
+                                        <span class="activity-tag">
+                                            <i class="bi bi-tag-fill"></i> <?= h($activity->gathering_activity->name) ?>
+                                        </span>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
                     </div>
-                    <div class="schedule-title">
-                        <?= h($activity->display_title) ?>
-                    </div>
-                    <?php if ($activity->display_description): ?>
-                    <div class="schedule-description">
-                        <?= $this->Markdown->toHtml($activity->display_description) ?>
-                    </div>
-                    <?php endif; ?>
-                    <?php if ($activity->gathering_activity): ?>
-                    <div class="schedule-activity-tag">
-                        <i class="bi bi-tag-fill"></i> <?= h($activity->gathering_activity->name) ?>
-                    </div>
-                    <?php endif; ?>
                 </div>
-                <?php endforeach; ?>
-            </div>
-        </div>
-        <?php endforeach; ?>
-    </div>
-</section>
-<?php elseif (!empty($gathering->gathering_activities)): ?>
-<!-- Activities Section (shown when no schedule exists) -->
-<section class="section" style="background: var(--color-white);">
-    <div class="container">
-        <div class="section-header fade-in">
-            <h2 class="section-title">Planned Activities</h2>
-            <p class="section-subtitle">Discover what you can participate in</p>
-        </div>
-
-        <div class="activities-grid">
-            <?php foreach ($gathering->gathering_activities as $i => $activity): ?>
-            <div class="activity-card fade-in" style="animation-delay: <?= $i * 0.05 ?>s;">
-                <div class="activity-name">
-                    <i class="bi bi-check-circle-fill"
-                        style="color: var(--color-success); margin-right: var(--space-xs);"></i>
-                    <?= h($activity->name) ?>
-                </div>
-                <?php
-                        // Show custom description if available, otherwise show default description
-                        $displayDescription = !empty($activity->_joinData->custom_description)
-                            ? $activity->_joinData->custom_description
-                            : $activity->description;
-                        if ($displayDescription):
-                        ?>
-                <div class="activity-description">
-                    <?= nl2br(h($displayDescription)) ?>
-                </div>
-                <?php endif; ?>
-            </div>
             <?php endforeach; ?>
         </div>
     </div>
-</section>
+<?php elseif (!empty($gathering->gathering_activities)): ?>
+    <!-- Activities List (when no schedule exists) -->
+    <div class="event-container">
+        <div class="section-medieval fade-in" style="animation-delay: 0.15s;">
+            <h2 class="section-title-medieval">
+                <span class="title-ornament">❖</span>
+                <?= __('Planned Activities') ?>
+                <span class="title-ornament">❖</span>
+            </h2>
+
+            <div class="activities-compact">
+                <?php foreach ($gathering->gathering_activities as $i => $activity): ?>
+                    <div class="activity-item-compact">
+                        <i class="bi bi-shield-check activity-icon-compact"></i>
+                        <div class="activity-details-compact">
+                            <h4><?= h($activity->name) ?></h4>
+                            <?php
+                            // Show custom description if available, otherwise show default description
+                            $displayDescription = !empty($activity->_joinData->custom_description)
+                                ? $activity->_joinData->custom_description
+                                : $activity->description;
+                            if ($displayDescription):
+                            ?>
+                                <p><?= nl2br(h($displayDescription)) ?></p>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    </div>
 <?php endif; ?>
 
-<!-- Location Section -->
+<!-- Location & Directions -->
 <?php if ($gathering->location): ?>
-<section class="section" style="background: var(--color-white);">
-    <div class="container">
-        <div class="section-header fade-in">
-            <h2 class="section-title">Location & Directions</h2>
-            <p class="section-subtitle">Find your way to the event</p>
-        </div>
+    <div class="event-container">
+        <div class="section-medieval fade-in" style="animation-delay: 0.2s;">
+            <h2 class="section-title-medieval">
+                <span class="title-ornament">❖</span>
+                <?= __('Location & Directions') ?>
+                <span class="title-ornament">❖</span>
+            </h2>
 
-        <div class="location-address fade-in" style="animation-delay: 0.1s;">
-            <i class="bi bi-geo-alt-fill"></i>
-            <p><?= nl2br(h($gathering->location)) ?></p>
-
-            <?php if ($gathering->latitude && $gathering->longitude): ?>
-            <?php
-                    // Use precise coordinates for navigation
-                    $mapQuery = $gathering->latitude . ',' . $gathering->longitude;
-                    $mapQueryEncoded = urlencode($mapQuery);
-                    $locationEncoded = urlencode($gathering->location);
-                    ?>
-
-            <!-- Navigation Buttons -->
-            <div
-                style="margin-top: var(--space-xl); display: flex; gap: var(--space-md); flex-wrap: wrap; justify-content: center;">
-                <a href="https://www.google.com/maps/dir/?api=1&destination=<?= $mapQuery ?>" target="_blank"
-                    class="btn btn-primary" style="font-size: 1.125rem;">
-                    <i class="bi bi-signpost-2-fill"></i>
-                    Get Directions
-                </a>
-
-                <div class="btn-group" role="group">
-                    <button type="button" class="btn btn-outline" data-bs-toggle="dropdown" aria-expanded="false"
-                        style="background: rgba(255, 255, 255, 0.1); border: 2px solid var(--color-gray-400); color: var(--color-gray-800);">
-                        <i class="bi bi-box-arrow-up-right"></i> Open In...
-                    </button>
-                    <ul class="dropdown-menu">
-                        <li>
-                            <a class="dropdown-item"
-                                href="https://www.google.com/maps/search/?api=1&query=<?= $mapQuery ?>" target="_blank">
-                                <i class="bi bi-google text-primary"></i> Google Maps
-                            </a>
-                        </li>
-                        <li>
-                            <a class="dropdown-item"
-                                href="https://maps.apple.com/?ll=<?= $mapQuery ?>&q=<?= $locationEncoded ?>"
-                                target="_blank">
-                                <i class="bi bi-apple text-dark"></i> Apple Maps
-                            </a>
-                        </li>
-                        <li>
-                            <a class="dropdown-item" href="https://www.waze.com/ul?ll=<?= $mapQuery ?>&navigate=yes"
-                                target="_blank">
-                                <i class="bi bi-geo-alt-fill text-info"></i> Waze
-                            </a>
-                        </li>
-                    </ul>
+            <div class="location-display">
+                <div class="location-icon">
+                    <i class="bi bi-geo-alt-fill"></i>
                 </div>
+                <p class="location-address"><?= nl2br(h($gathering->location)) ?></p>
             </div>
+
+            <?php if ($gathering->latitude !== null && $gathering->longitude !== null): ?>
+                <?php
+                // Use precise coordinates for navigation
+                $mapQuery = $gathering->latitude . ',' . $gathering->longitude;
+                $mapQueryEncoded = urlencode($mapQuery);
+                $locationEncoded = urlencode($gathering->location);
+                ?>
+
+                <!-- Navigation Buttons -->
+                <div class="location-actions">
+                    <a href="https://www.google.com/maps/dir/?api=1&destination=<?= $mapQuery ?>" target="_blank"
+                        class="btn-medieval btn-medieval-primary">
+                        <i class="bi bi-signpost-2-fill"></i>
+                        <?= __('Get Directions') ?>
+                    </a>
+
+                    <div class="dropdown">
+                        <button type="button" class="btn-medieval btn-medieval-secondary" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-box-arrow-up-right"></i> <?= __('Open In...') ?>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-medieval">
+                            <li>
+                                <a class="dropdown-item" href="https://www.google.com/maps/search/?api=1&query=<?= $mapQuery ?>" target="_blank">
+                                    <i class="bi bi-google"></i> Google Maps
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="https://maps.apple.com/?ll=<?= $mapQuery ?>&q=<?= $locationEncoded ?>" target="_blank">
+                                    <i class="bi bi-apple"></i> Apple Maps
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="https://www.waze.com/ul?ll=<?= $mapQuery ?>&navigate=yes" target="_blank">
+                                    <i class="bi bi-geo-alt-fill"></i> Waze
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Google Maps Embed -->
+                <div class="map-container">
+                    <iframe width="100%" height="350"
+                        style="border:0; border-radius: 0.5rem;" loading="lazy"
+                        allowfullscreen referrerpolicy="no-referrer-when-downgrade"
+                        src="https://www.google.com/maps/embed/v1/place?key=<?= h($this->KMP->getAppSetting('GoogleMaps.ApiKey', '')) ?>&q=<?= urlencode($gathering->location) ?>&center=<?= h($gathering->latitude) ?>,<?= h($gathering->longitude) ?>&zoom=15">
+                    </iframe>
+                </div>
             <?php else: ?>
-            <!-- Fallback for locations without coordinates -->
-            <div style="margin-top: var(--space-lg);">
-                <a href="https://www.google.com/maps/search/?api=1&query=<?= urlencode($gathering->location) ?>"
-                    target="_blank" class="btn btn-primary">
-                    <i class="bi bi-map"></i>
-                    Search in Google Maps
-                </a>
-            </div>
+                <!-- Fallback for locations without coordinates -->
+                <div class="location-actions">
+                    <a href="https://www.google.com/maps/search/?api=1&query=<?= urlencode($gathering->location) ?>"
+                        target="_blank" class="btn-medieval btn-medieval-primary">
+                        <i class="bi bi-map"></i>
+                        <?= __('Search in Google Maps') ?>
+                    </a>
+                </div>
             <?php endif; ?>
         </div>
-
-        <?php if ($gathering->latitude && $gathering->longitude): ?>
-        <!-- Google Maps Embed -->
-        <div class="fade-in" style="animation-delay: 0.2s; margin-top: var(--space-lg);">
-            <iframe width="100%" height="450"
-                style="border:0; border-radius: var(--radius-xl); box-shadow: var(--shadow-lg);" loading="lazy"
-                allowfullscreen referrerpolicy="no-referrer-when-downgrade"
-                src="https://www.google.com/maps/embed/v1/place?key=<?= h($this->KMP->getAppSetting('GoogleMaps.ApiKey', '')) ?>&q=<?= urlencode($gathering->location) ?>&center=<?= h($gathering->latitude) ?>,<?= h($gathering->longitude) ?>&zoom=15">
-            </iframe>
-        </div>
-        <?php endif; ?>
     </div>
-</section>
 <?php endif; ?>
 
-<!-- CTA Section -->
+
+<!-- Call to Action -->
 <?php if (!$isPast): ?>
-<section class="section">
-    <div class="container">
-        <div class="cta-section fade-in">
-            <h2>Ready to Join Us?</h2>
+    <div class="event-container">
+        <div class="cta-medieval fade-in" style="animation-delay: 0.25s;">
+            <div class="cta-ornament-top">⚔ ⚔ ⚔</div>
+
+            <h2><?= __('Ready to Join Us?') ?></h2>
             <p>
                 <?php if ($isOngoing): ?>
-                This event is happening now! Come join the festivities.
+                    <?= __('This event is happening now! Come join the festivities.') ?>
                 <?php else: ?>
-                Mark your calendar and prepare for an amazing experience!
+                    <?= __('Mark your calendar and prepare for an amazing experience!') ?>
                 <?php endif; ?>
             </p>
-            <div style="display: flex; gap: var(--space-md); justify-content: center; flex-wrap: wrap;">
+
+            <div class="cta-buttons">
                 <?php if ($isAuthenticated && $canAttend): ?>
-                <!-- Authenticated user - show Attend/Update button -->
-                <button type="button" class="btn btn-primary" data-bs-toggle="modal"
-                    data-bs-target="#attendGatheringModal">
-                    <i class="bi bi-calendar-check"></i>
-                    <?= $userAttendance ? __('Update Attendance') : __('Attend This Gathering') ?>
-                </button>
+                    <!-- Authenticated user - show Attend/Update button -->
+                    <button type="button" class="btn-medieval btn-medieval-cta" data-bs-toggle="modal"
+                        data-bs-target="#attendGatheringModal">
+                        <i class="bi bi-calendar-check"></i>
+                        <?= $userAttendance ? __('Update Attendance') : __('Attend This Gathering') ?>
+                    </button>
                 <?php elseif (!$isAuthenticated): ?>
-                <!-- Non-authenticated user - show login link -->
-                <a href="<?= $this->Url->build(['controller' => 'Gatherings', 'action' => 'view', $gathering->public_id]) ?>"
-                    class="btn btn-primary">
-                    <i class="bi bi-box-arrow-in-right"></i>
-                    Login to AMP to RSVP if you want to.
-                </a>
+                    <!-- Non-authenticated user - show login link -->
+                    <a href="<?= $this->Url->build(['controller' => 'Gatherings', 'action' => 'view', $gathering->public_id]) ?>"
+                        class="btn-medieval btn-medieval-cta">
+                        <i class="bi bi-box-arrow-in-right"></i>
+                        <?= __('Login to AMP to RSVP') ?>
+                    </a>
                 <?php endif; ?>
-                <?php if ($gathering->latitude && $gathering->longitude): ?>
-                <a href="https://www.google.com/maps/dir/?api=1&destination=<?= $gathering->latitude ?>,<?= $gathering->longitude ?>"
-                    target="_blank" class="btn btn-outline">
-                    <i class="bi bi-signpost-2-fill"></i>
-                    Get Directions
-                </a>
+
+                <?php if ($gathering->latitude !== null && $gathering->longitude !== null): ?>
+                    <a href="https://www.google.com/maps/dir/?api=1&destination=<?= $gathering->latitude ?>,<?= $gathering->longitude ?>"
+                        target="_blank" class="btn-medieval btn-medieval-outline">
+                        <i class="bi bi-signpost-2-fill"></i>
+                        <?= __('Get Directions') ?>
+                    </a>
                 <?php elseif ($gathering->location): ?>
-                <a href="https://www.google.com/maps/search/?api=1&query=<?= urlencode($gathering->location) ?>"
-                    target="_blank" class="btn btn-outline">
-                    <i class="bi bi-map"></i>
-                    Find Location
-                </a>
+                    <a href="https://www.google.com/maps/search/?api=1&query=<?= urlencode($gathering->location) ?>"
+                        target="_blank" class="btn-medieval btn-medieval-outline">
+                        <i class="bi bi-map"></i>
+                        <?= __('Find Location') ?>
+                    </a>
                 <?php endif; ?>
             </div>
+
+            <div class="cta-ornament-bottom">⚔ ⚔ ⚔</div>
         </div>
     </div>
-</section>
 <?php endif; ?>
-
-<!-- Footer -->
 
 <?php
 // Include Attend Gathering Modal for authenticated users
@@ -487,23 +496,23 @@ endif;
 
 <!-- Email obfuscation script -->
 <script>
-(function() {
-    // Decode and activate email links to prevent bot scraping
-    document.addEventListener('DOMContentLoaded', function() {
-        const emailLinks = document.querySelectorAll('.email-link');
-        emailLinks.forEach(function(link) {
-            const encodedEmail = link.getAttribute('data-email');
-            if (encodedEmail) {
-                // Decode the base64 encoded email
-                const email = atob(encodedEmail);
-                // Set the mailto href
-                link.href = 'mailto:' + email;
-                // Display the email address
-                link.textContent = email;
-                // Remove the data attribute to further obfuscate
-                link.removeAttribute('data-email');
-            }
+    (function() {
+        // Decode and activate email links to prevent bot scraping
+        document.addEventListener('DOMContentLoaded', function() {
+            const emailLinks = document.querySelectorAll('.email-link');
+            emailLinks.forEach(function(link) {
+                const encodedEmail = link.getAttribute('data-email');
+                if (encodedEmail) {
+                    // Decode the base64 encoded email
+                    const email = atob(encodedEmail);
+                    // Set the mailto href
+                    link.href = 'mailto:' + email;
+                    // Display the email address
+                    link.textContent = email;
+                    // Remove the data attribute to further obfuscate
+                    link.removeAttribute('data-email');
+                }
+            });
         });
-    });
-})();
+    })();
 </script>

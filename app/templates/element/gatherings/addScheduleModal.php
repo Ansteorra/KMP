@@ -9,20 +9,16 @@
  * @var \App\Model\Entity\Gathering $gathering
  */
 ?>
-<div class="modal fade"
-    id="addScheduleModal"
-    tabindex="-1"
-    aria-labelledby="addScheduleModalLabel"
-    aria-hidden="true"
-    data-gathering-schedule-target="addModal"
-    data-action="shown.bs.modal->gathering-schedule#resetAddForm">
+<div class="modal fade" id="addScheduleModal" tabindex="-1" aria-labelledby="addScheduleModalLabel" aria-hidden="true"
+    data-gathering-schedule-target="addModal" data-action="shown.bs.modal->gathering-schedule#resetAddForm">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="addScheduleModalLabel">
                     <i class="bi bi-calendar-plus"></i> <?= __('Add Scheduled Activity') ?>
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?= __('Close') ?>"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                    aria-label="<?= __('Close') ?>"></button>
             </div>
             <?= $this->Form->create(null, [
                 'id' => 'addScheduleForm',
@@ -52,15 +48,31 @@
                         ]) ?>
                     </div>
                     <div class="col-md-6">
-                        <?= $this->Form->control('end_datetime', [
-                            'type' => 'datetime-local',
-                            'label' => __('End Date & Time'),
-                            'required' => true,
-                            'class' => 'form-control',
-                            'id' => 'add-end-datetime',
-                            'data-gathering-schedule-target' => 'endDatetime',
-                            'data-action' => 'change->gathering-schedule#validateDatetimeRange',
-                        ]) ?>
+                        <div class="mb-1">
+                            <div class="form-check">
+                                <?= $this->Form->checkbox('has_end_time', [
+                                    'id' => 'add-has-end-time',
+                                    'class' => 'form-check-input',
+                                    'value' => '1',
+                                    'data-gathering-schedule-target' => 'hasEndTimeCheckbox',
+                                    'data-action' => 'change->gathering-schedule#toggleEndTime',
+                                ]) ?>
+                                <label class="form-check-label" for="add-has-end-time">
+                                    <?= __('End Date & Time') ?>
+                                </label>
+                            </div>
+                        </div>
+                        <div data-gathering-schedule-target="endTimeContainer" style="display: none;">
+                            <?= $this->Form->control('end_datetime', [
+                                'type' => 'datetime-local',
+                                'required' => false,
+                                'label' => false,
+                                'class' => 'form-control',
+                                'id' => 'add-end-datetime',
+                                'data-gathering-schedule-target' => 'endDatetime',
+                                'data-action' => 'change->gathering-schedule#validateDatetimeRange',
+                            ]) ?>
+                        </div>
                     </div>
                 </div>
 

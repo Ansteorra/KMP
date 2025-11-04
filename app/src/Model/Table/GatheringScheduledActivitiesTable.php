@@ -99,17 +99,31 @@ class GatheringScheduledActivitiesTable extends Table
 
         $validator
             ->dateTime('end_datetime')
-            ->requirePresence('end_datetime', 'create')
-            ->notEmptyDateTime('end_datetime', 'End date and time is required')
+            ->allowEmptyDateTime('end_datetime')
             ->add('end_datetime', 'afterStart', [
                 'rule' => function ($value, $context) {
+                    // Only validate if end_datetime is provided
                     if (isset($context['data']['start_datetime']) && $value && $context['data']['start_datetime']) {
                         return $value > $context['data']['start_datetime'];
                     }
                     return true;
                 },
                 'message' => 'End date/time must be after start date/time',
+            ])
+            ->add('end_datetime', 'requiredIfHasEndTime', [
+                'rule' => function ($value, $context) {
+                    // If has_end_time is true, end_datetime must be provided
+                    if (isset($context['data']['has_end_time']) && $context['data']['has_end_time'] === true) {
+                        return !empty($value);
+                    }
+                    return true;
+                },
+                'message' => 'End date/time is required when "Has End Time" is checked',
             ]);
+
+        $validator
+            ->boolean('has_end_time')
+            ->notEmptyString('has_end_time');
 
         $validator
             ->scalar('display_title')
@@ -181,7 +195,7 @@ class GatheringScheduledActivitiesTable extends Table
 
         // Validate that scheduled activity falls within gathering date range
         $rules->add(function ($entity, $options) {
-            if (empty($entity->gathering_id) || empty($entity->start_datetime) || empty($entity->end_datetime)) {
+            if (empty($entity->gathering_id) || empty($entity->start_datetime)) {
                 return true; // Let other validators handle missing required fields
             }
 
@@ -206,9 +220,11 @@ class GatheringScheduledActivitiesTable extends Table
                 return false;
             }
 
-            // Check if scheduled activity end is within range
-            if ($entity->end_datetime < $gatheringStart || $entity->end_datetime > $gatheringEnd) {
-                return false;
+            // Check if scheduled activity end is within range (only if end_datetime is provided)
+            if (!empty($entity->end_datetime)) {
+                if ($entity->end_datetime < $gatheringStart || $entity->end_datetime > $gatheringEnd) {
+                    return false;
+                }
             }
 
             return true;

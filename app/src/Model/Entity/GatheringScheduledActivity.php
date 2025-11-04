@@ -15,7 +15,8 @@ use Cake\ORM\Entity;
  * @property int $gathering_id
  * @property int|null $gathering_activity_id
  * @property \Cake\I18n\DateTime $start_datetime
- * @property \Cake\I18n\DateTime $end_datetime
+ * @property \Cake\I18n\DateTime|null $end_datetime
+ * @property bool $has_end_time
  * @property string $display_title
  * @property string|null $description
  * @property bool $pre_register
@@ -46,6 +47,7 @@ class GatheringScheduledActivity extends Entity
         'gathering_activity_id' => true,
         'start_datetime' => true,
         'end_datetime' => true,
+        'has_end_time' => true,
         'display_title' => true,
         'description' => true,
         'pre_register' => true,
@@ -67,8 +69,17 @@ class GatheringScheduledActivity extends Entity
      */
     protected function _getDateRange(): string
     {
-        if (empty($this->start_datetime) || empty($this->end_datetime)) {
+        if (empty($this->start_datetime)) {
             return '';
+        }
+
+        // If no end time, just show the start time
+        if (empty($this->end_datetime)) {
+            return sprintf(
+                '%s - %s',
+                $this->start_datetime->format('l, M j'),
+                $this->start_datetime->format('g:i A')
+            );
         }
 
         $start = $this->start_datetime;
@@ -120,5 +131,41 @@ class GatheringScheduledActivity extends Entity
         }
 
         return $this->start_datetime->diffInHours($this->end_datetime, true);
+    }
+
+    /**
+     * Virtual field to get display description with fallback logic
+     * 
+     * Priority:
+     * 1. Scheduled activity's description (if set)
+     * 2. Gathering activity's custom description from junction table (if exists)
+     * 3. Default gathering activity description (if exists)
+     *
+     * @return string|null
+     */
+    protected function _getDisplayDescription(): ?string
+    {
+        // First priority: scheduled activity's own description
+        if (!empty($this->description)) {
+            return $this->description;
+        }
+
+        // If no gathering_activity, return null
+        if (empty($this->gathering_activity)) {
+            return null;
+        }
+
+        // Second priority: check for custom_description in the gathering activity
+        // This would be set if we load it through the gathering's activities relationship
+        if (isset($this->gathering_activity->custom_description) && !empty($this->gathering_activity->custom_description)) {
+            return $this->gathering_activity->custom_description;
+        }
+
+        // Third priority: default gathering activity description
+        if (!empty($this->gathering_activity->description)) {
+            return $this->gathering_activity->description;
+        }
+
+        return null;
     }
 }

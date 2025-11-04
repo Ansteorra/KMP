@@ -1090,7 +1090,7 @@ class GatheringsController extends AppController
                         'gathering_id' => $newGathering->id,
                         'gathering_activity_id' => $activity->id,
                         'sort_order' => $activity->_joinData->sort_order ?? 999,
-                        'description' => $activity->_joinData->description ?? null
+                        'description' => $activity->_joinData->custom_description ?? null
                     ]);
 
                     if ($GatheringsGatheringActivities->save($link)) {
@@ -1228,6 +1228,11 @@ class GatheringsController extends AppController
             $data['gathering_activity_id'] = null;
         }
 
+        // Handle "has_end_time" checkbox - clear end_datetime if unchecked
+        if (empty($data['has_end_time'])) {
+            $data['end_datetime'] = null;
+        }
+
         $scheduledActivity = $scheduledActivitiesTable->patchEntity($scheduledActivity, $data);
 
         if ($scheduledActivitiesTable->save($scheduledActivity)) {
@@ -1292,6 +1297,11 @@ class GatheringsController extends AppController
         // Handle "other" checkbox
         if (!empty($data['is_other'])) {
             $data['gathering_activity_id'] = null;
+        }
+
+        // Handle "has_end_time" checkbox - clear end_datetime if unchecked
+        if (empty($data['has_end_time'])) {
+            $data['end_datetime'] = null;
         }
 
         $scheduledActivity = $scheduledActivitiesTable->patchEntity($scheduledActivity, $data);
@@ -1400,6 +1410,22 @@ class GatheringsController extends AppController
             throw new NotFoundException(__('The public page for this gathering is not available.'));
         }
 
+        // Enrich scheduled activities with custom descriptions from junction table
+        // Create a map of gathering_activity_id => custom_description
+        $customDescriptions = [];
+        foreach ($gathering->gathering_activities as $gatheringActivity) {
+            if (!empty($gatheringActivity->custom_description)) {
+                $customDescriptions[$gatheringActivity->id] = $gatheringActivity->custom_description;
+            }
+        }
+
+        // Apply custom descriptions to scheduled activities
+        foreach ($gathering->gathering_scheduled_activities as $scheduledActivity) {
+            if ($scheduledActivity->gathering_activity_id && isset($customDescriptions[$scheduledActivity->gathering_activity_id])) {
+                $scheduledActivity->gathering_activity->custom_description = $customDescriptions[$scheduledActivity->gathering_activity_id];
+            }
+        }
+
         // Group scheduled activities by date
         $scheduleByDate = [];
         foreach ($gathering->gathering_scheduled_activities as $scheduledActivity) {
@@ -1413,6 +1439,24 @@ class GatheringsController extends AppController
         // Calculate event duration
         $durationDays = $gathering->start_date->diffInDays($gathering->end_date) + 1;
 
-        $this->set(compact('gathering', 'scheduleByDate', 'durationDays'));
+        // Check if user is authenticated and load their attendance record
+        $user = null;
+        $userAttendance = null;
+
+        $identity = $this->Authentication->getIdentity();
+        if ($identity) {
+            $user = $this->fetchTable('Members')->get($identity->id);
+
+            // Check if user has an attendance record for this gathering
+            $attendanceTable = $this->fetchTable('GatheringAttendances');
+            $userAttendance = $attendanceTable->find()
+                ->where([
+                    'gathering_id' => $gathering->id,
+                    'member_id' => $user->id
+                ])
+                ->first();
+        }
+
+        $this->set(compact('gathering', 'scheduleByDate', 'durationDays', 'user', 'userAttendance'));
     }
 }
