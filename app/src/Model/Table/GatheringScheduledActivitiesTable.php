@@ -217,7 +217,7 @@ class GatheringScheduledActivitiesTable extends Table
             // Convert Date objects to FrozenTime with time boundaries
             // Start: 12:00 AM on start_date
             $gatheringStart = new FrozenTime($gathering->start_date->format('Y-m-d') . ' 00:00:00');
-            
+
             // End: 11:59:59 PM on end_date, or end of start_date if end_date is null
             if (!empty($gathering->end_date)) {
                 $gatheringEnd = new FrozenTime($gathering->end_date->format('Y-m-d') . ' 23:59:59');
@@ -253,17 +253,17 @@ class GatheringScheduledActivitiesTable extends Table
                 if ($gathering === null) {
                     return [];
                 }
-                
+
                 // Guard against null dates
                 if (empty($gathering->start_date)) {
                     return ['unknown date'];
                 }
-                
+
                 $startDateStr = $gathering->start_date->format('M j, Y');
-                $endDateStr = !empty($gathering->end_date) 
+                $endDateStr = !empty($gathering->end_date)
                     ? $gathering->end_date->format('M j, Y')
                     : $gathering->start_date->format('M j, Y');
-                    
+
                 return [
                     $startDateStr,
                     $endDateStr
