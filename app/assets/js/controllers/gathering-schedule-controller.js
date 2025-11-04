@@ -308,10 +308,18 @@ class GatheringScheduleController extends Controller {
         const flashDiv = document.createElement('div');
         flashDiv.className = `alert ${alertClass} alert-dismissible fade show`;
         flashDiv.role = 'alert';
-        flashDiv.innerHTML = `
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        `;
+        
+        // Safely add message text using textContent (prevents XSS)
+        const messageText = document.createTextNode(message);
+        flashDiv.appendChild(messageText);
+        
+        // Create close button separately with proper attributes
+        const closeButton = document.createElement('button');
+        closeButton.type = 'button';
+        closeButton.className = 'btn-close';
+        closeButton.setAttribute('data-bs-dismiss', 'alert');
+        closeButton.setAttribute('aria-label', 'Close');
+        flashDiv.appendChild(closeButton);
         
         flashContainer.appendChild(flashDiv);
         

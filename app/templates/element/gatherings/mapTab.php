@@ -104,8 +104,8 @@ $apiKey = $this->KMP->getAppSetting('GoogleMaps.ApiKey', '');
 
                     <button type="button"
                         class="btn btn-outline-secondary"
-                        onclick="navigator.clipboard.writeText('<?= h($gathering->location) ?>').then(() => alert('<?= __('Address copied to clipboard!') ?>'))"
-                        title="<?= __('Copy address to clipboard') ?>">
+                        onclick="navigator.clipboard.writeText(<?= json_encode(h($gathering->location)) ?>).then(() => alert(<?= json_encode(__('Address copied to clipboard!')) ?>))"
+                        title="<?= h(__('Copy address to clipboard')) ?>">
                         <i class="bi bi-clipboard"></i> <?= __('Copy Address') ?>
                     </button>
                 </div>

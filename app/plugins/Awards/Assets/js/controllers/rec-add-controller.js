@@ -405,7 +405,7 @@ class AwardsRecommendationAddForm extends Controller {
     loadScaMemberInfo(event) {
         //reset member metadata area
         this.externalLinksTarget.innerHTML = "";
-        let memberPublicId = event.target.value.replace(/_/g, "");
+        let memberPublicId = event.target.value;
         if (memberPublicId && memberPublicId.length > 0) {
             this.notFoundTarget.checked = false;
             this.branchTarget.hidden = true;
@@ -507,7 +507,7 @@ class AwardsRecommendationAddForm extends Controller {
         this.notFoundTarget.checked = false;
         this.notFoundTarget.disabled = true;
         this.reasonTarget.value = "";
-        this.personToNotifyTarget.value = "";
+        //this.personToNotifyTarget.value = "";
         if (this.hasGatheringsTarget) {
            this.gatheringsTarget.value = "";            
            this.gatheringsTarget.disabled = true;

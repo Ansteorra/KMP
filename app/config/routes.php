@@ -159,21 +159,6 @@ return function (RouteBuilder $routes): void {
         $builder->connect("/members/card.webmanifest/*", "Pages::Webmanifest");
 
         /**
-         * Public Gathering Landing Page Route
-         * 
-         * Provides anonymous access to beautiful event landing pages.
-         * No authentication required - optimized for sharing and mobile viewing.
-         * 
-         * @route "/event/{id}" → GatheringsController::publicLanding($id)
-         * @layout public_event
-         * @authentication Not required
-         */
-        $builder->connect("/event/:id", [
-            "controller" => "Gatherings",
-            "action" => "publicLanding"
-        ])->setPatterns(['id' => '[0-9]+'])->setPass(['id']);
-
-        /**
          * RESTful Fallback Routes
          * 
          * Provides automatic routing for all controllers using RESTful conventions.

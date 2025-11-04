@@ -107,7 +107,7 @@
                                     </button>
                                     <?= $this->Form->postLink(
                                         '<i class="bi bi-trash-fill"></i>',
-                                        ['action' => 'deleteScheduledActivity', $gathering->id, $scheduledActivity->id],
+                                        ['action' => 'deleteScheduledActivity', $gathering->public_id, $scheduledActivity->id],
                                         [
                                             'confirm' => __('Are you sure you want to delete "{0}"?', $scheduledActivity->display_title),
                                             'escape' => false,

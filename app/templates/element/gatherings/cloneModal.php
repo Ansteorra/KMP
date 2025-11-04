@@ -76,7 +76,7 @@
             'class' => 'form-check-input'
         ]) ?>
         <label class="form-check-label" for="clone_activities">
-            <?= __('Include all activities ({0} activities)', count($gathering->gathering_activities)) ?>
+            <?= __('Include all activities ({0} activities)', isset($gathering->gathering_activities) ? count($gathering->gathering_activities) : 0) ?>
         </label>
         <small class="form-text text-muted d-block ms-4">
             <?= __('Copies all activities associated with this gathering') ?>
@@ -138,10 +138,10 @@
             <dd class="col-sm-8"><?= h($gathering->start_date->format('Y-m-d')) ?> to <?= h($gathering->end_date->format('Y-m-d')) ?></dd>
 
             <dt class="col-sm-4"><?= __('Activities') ?></dt>
-            <dd class="col-sm-8"><?= count($gathering->gathering_activities) ?></dd>
+            <dd class="col-sm-8"><?= isset($gathering->gathering_activities) ? count($gathering->gathering_activities) : 0 ?></dd>
 
             <dt class="col-sm-4"><?= __('Staff') ?></dt>
-            <dd class="col-sm-8"><?= count($gathering->gathering_staff) ?></dd>
+            <dd class="col-sm-8"><?= isset($gathering->gathering_staff) ? count($gathering->gathering_staff) : 0 ?></dd>
 
             <dt class="col-sm-4"><?= __('Scheduled Activities') ?></dt>
             <dd class="col-sm-8">

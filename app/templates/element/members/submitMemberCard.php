@@ -48,7 +48,8 @@ echo $this->Modal->create("Submit your SCA Card ", [
                     <small class="text-muted d-block mt-1">Max size: <?= h($uploadLimits['formatted']) ?></small>
                 </div>
             </div>
-        <?php endif ?>
+        </div>
+    <?php endif ?>
 </fieldset>
 
 <?php echo $this->Modal->end([
@@ -63,5 +64,5 @@ echo $this->Modal->create("Submit your SCA Card ", [
 ]); ?>
 <?= $this->Form->end() ?>
 <?php if ($memberForm->getErrors()) : ?>
-    <div data-controller="modal-opener" data-modal-opener-modal-btn-value="editModalBtn"></div>
+    <div data-controller="modal-opener" data-modal-opener-modal-btn-value="scaCardUploadBtn"></div>
 <?php endif; ?>

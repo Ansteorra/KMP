@@ -58,7 +58,7 @@ class GatheringsController extends AppController
         parent::beforeFilter($event);
 
         // Allow public access to landing page
-        $this->Authentication->addUnauthenticatedActions(['publicLanding']);
+        $this->Authentication->allowUnauthenticated(['publicLanding']);
     }
 
     /**
