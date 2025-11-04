@@ -60,6 +60,7 @@ use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 use App\Services\ActiveWindowManager\DefaultActiveWindowManager;
 use App\Services\AuthorizationService as KmpAuthorizationService;
 use App\Services\CsvExportService;
+use App\Services\ICalendarService;
 use App\Services\WarrantManager\DefaultWarrantManager;
 use App\Services\WarrantManager\WarrantManagerInterface;
 use Authentication\AuthenticationService;
@@ -518,6 +519,9 @@ class Application extends BaseApplication implements
         // No dependencies required - provides standalone export capabilities
         $container->add(
             CsvExportService::class,               // Concrete class (no interface needed)
+        );
+        $container->add(
+            ICalendarService::class,               // Concrete class (no interface needed)
         );
     }
 

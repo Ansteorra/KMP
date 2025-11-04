@@ -193,11 +193,11 @@ class CoreNavigationProvider
             [
                 'type' => 'link',
                 'mergePath' => ['Gatherings'],
-                'label' => 'All Gatherings',
+                'label' => 'Calendar',
                 'order' => 0,
                 'url' => [
                     'controller' => 'Gatherings',
-                    'action' => 'index',
+                    'action' => 'calendar',
                 ],
                 'icon' => 'bi-calendar-event',
                 'activePaths' => [
