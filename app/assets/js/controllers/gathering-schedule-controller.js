@@ -335,7 +335,8 @@ class GatheringScheduleController extends Controller {
     createFlashContainer() {
         const container = document.createElement('div');
         container.className = 'flash-messages container mt-3';
-        document.querySelector('main').prepend(container);
+        const main = document.querySelector('main') || document.body;
+        main.prepend(container);
         return container;
     }
 }
