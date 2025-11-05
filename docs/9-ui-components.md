@@ -349,3 +349,199 @@ echo $this->AssetMix->css('app', ['version' => true]);
 ```
 
 The asset compilation process is defined in `webpack.mix.js` in the application root.
+
+## 9.6 Mobile Card Menu System
+
+### Overview
+
+The Mobile Card Menu System extends the PWA mobile card with a plugin-based Floating Action Button (FAB) menu. This allows plugins to register mobile-optimized features and actions accessible directly from a member's mobile card.
+
+### Architecture
+
+**Components:**
+1. **ViewCellRegistry** - Registers mobile menu items via `PLUGIN_TYPE_MOBILE_MENU` constant
+2. **member-mobile-card-menu-controller.js** - Stimulus controller managing the FAB menu
+3. **view_mobile_card.php** - Template with menu container and styling
+4. **Plugin ViewCellProviders** - Register menu items in plugin view cell providers
+
+**Flow:**
+```
+Plugin ViewCellProvider
+    ↓
+ViewCellRegistry (PLUGIN_TYPE_MOBILE_MENU)
+    ↓
+MembersController (viewMobileCard action)
+    ↓
+view_mobile_card.php template
+    ↓
+member-mobile-card-menu-controller (Stimulus)
+    ↓
+Rendered FAB Menu
+```
+
+### Plugin Integration
+
+**Registering a Mobile Menu Item:**
+
+```php
+// In your plugin's ViewCellProvider
+public static function getViewCells(array $urlParams, $user = null): array
+{
+    if (!StaticHelpers::pluginEnabled('YourPlugin')) {
+        return [];
+    }
+
+    $cells = [];
+
+    $cells[] = [
+        'type' => ViewCellRegistry::PLUGIN_TYPE_MOBILE_MENU,
+        'label' => 'Submit Waiver',              // Button text
+        'icon' => 'bi-file-earmark-text',        // Bootstrap icon class
+        'url' => '/waivers/mobile-submit',       // Target URL
+        'order' => 10,                           // Display order (lower = higher)
+        'color' => 'primary',                    // Bootstrap button color
+        'badge' => null,                         // Optional: notification count
+        'validRoutes' => [
+            ['controller' => 'Members', 'action' => 'viewMobileCard', 'plugin' => null],
+        ]
+    ];
+
+    return $cells;
+}
+```
+
+**Menu Item Properties:**
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `type` | string | ✅ | Must be `ViewCellRegistry::PLUGIN_TYPE_MOBILE_MENU` |
+| `label` | string | ✅ | Display text for the menu item |
+| `icon` | string | ✅ | Bootstrap icon class (e.g., `bi-file-earmark-text`) |
+| `url` | string | ✅ | Destination URL when menu item is clicked |
+| `order` | int | ✅ | Sort order (lower numbers appear first) |
+| `color` | string | ✅ | Bootstrap button color variant |
+| `badge` | int\|null | ❌ | Optional notification badge count |
+| `validRoutes` | array | ✅ | Routes where this menu item should appear |
+
+**Available Bootstrap Colors:**
+- `primary` (Blue), `secondary` (Gray), `success` (Green), `danger` (Red)
+- `warning` (Yellow/Orange), `info` (Light blue), `light` (White), `dark` (Black)
+
+**Common Bootstrap Icons:**
+- `bi-file-earmark-text` - Document/waiver submission
+- `bi-file-earmark-check` - Authorization/approval
+- `bi-check-circle` - Approve/confirm
+- `bi-plus-circle` - Add/create
+- `bi-calendar-event` - Events/calendar
+
+Full icon list: https://icons.getbootstrap.com/
+
+### Examples
+
+**Simple Action Button:**
+```php
+$cells[] = [
+    'type' => ViewCellRegistry::PLUGIN_TYPE_MOBILE_MENU,
+    'label' => 'My Profile',
+    'icon' => 'bi-person-circle',
+    'url' => '/members/mobile-profile',
+    'order' => 5,
+    'color' => 'secondary',
+    'badge' => null,
+    'validRoutes' => [
+        ['controller' => 'Members', 'action' => 'viewMobileCard', 'plugin' => null],
+    ]
+];
+```
+
+**Action with Notification Badge:**
+```php
+$cells[] = [
+    'type' => ViewCellRegistry::PLUGIN_TYPE_MOBILE_MENU,
+    'label' => 'Approve Authorizations',
+    'icon' => 'bi-check-circle',
+    'url' => '/activities/mobile-approve-authorizations',
+    'order' => 20,
+    'color' => 'warning',
+    'badge' => 5, // Shows "5" badge on button
+    'validRoutes' => [
+        ['controller' => 'Members', 'action' => 'viewMobileCard', 'plugin' => null],
+    ]
+];
+```
+
+### UI/UX Features
+
+**Floating Action Button (FAB):**
+- Fixed position at bottom-right of screen
+- 56x56px circular button
+- Rotates 90° when menu is open
+- Smooth hover and click animations
+- Accessible with ARIA labels
+
+**Menu Panel:**
+- Slides up from bottom with animation
+- Full-width buttons with icons and labels
+- Notification badges on right side
+- Auto-closes when item clicked
+- Can be closed by clicking FAB again
+- Responsive on all mobile devices
+
+**Styling:**
+- Large touch targets (min 44x44px)
+- Clear visual hierarchy
+- Smooth animations (300ms)
+- High contrast for readability
+- Shadow effects for depth
+- Respects Bootstrap theme colors
+
+### Menu Display Order Guidelines
+
+**Suggested order ranges by category:**
+- **1-10**: Primary profile actions (view profile, edit profile)
+- **10-20**: Authorization/approval actions
+- **20-30**: Waiver/document actions
+- **30-40**: Event/calendar actions
+- **40-50**: Administrative actions
+- **50+**: Settings and help
+
+### Creating Mobile-Optimized Target Pages
+
+**Guidelines for target pages:**
+1. Use mobile-first layout (consider `mobile` layout or `ajax` for minimal layout)
+2. Large touch targets (at least 44x44px for all interactive elements)
+3. Simple forms with minimal input fields
+4. Use native HTML5 input types (date, email, tel, etc.)
+5. Show clear validation messages
+6. Use large submit buttons
+
+**Controller Example:**
+```php
+// In your controller action
+$this->viewBuilder()->setLayout('mobile'); // Or 'ajax' for minimal layout
+```
+
+### Troubleshooting
+
+**Menu Not Appearing:**
+1. Check plugin is enabled: `StaticHelpers::pluginEnabled('YourPlugin')`
+2. Verify route matches: `['controller' => 'Members', 'action' => 'viewMobileCard', 'plugin' => null]`
+3. Check ViewCellProvider is registered in plugin bootstrap
+4. Verify menu items JSON is valid in browser console
+
+**Menu Items Not Rendering:**
+1. Check JavaScript console for parsing errors
+2. Verify all required properties are present
+3. Ensure `order` is a number, not string
+4. Check icon class is valid Bootstrap icon
+
+**Testing Checklist:**
+- [ ] FAB button appears on mobile card
+- [ ] FAB rotates when clicked
+- [ ] Menu slides in smoothly
+- [ ] All menu items display correctly
+- [ ] Icons render properly
+- [ ] Badges show when present
+- [ ] Links navigate correctly
+- [ ] Menu closes after item click
+- [ ] Responsive on various screen sizes
