@@ -411,17 +411,25 @@ const KMP_Timezone = {
                 // Convert to UTC
                 const utcValue = this.toUTC(input.value, timezone);
                 
-                // Create hidden input with UTC value
-                const hiddenInput = document.createElement('input');
-                hiddenInput.type = 'hidden';
-                hiddenInput.name = input.name;
-                hiddenInput.value = utcValue;
-                
-                // Disable original input so it doesn't submit
-                input.disabled = true;
-                
-                // Add hidden input to form
-                form.appendChild(hiddenInput);
+                // Only proceed if conversion was successful
+                if (utcValue) {
+                    // Create hidden input with UTC value
+                    const hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = input.name;
+                    hiddenInput.value = utcValue;
+                    
+                    // Disable original input so it doesn't submit
+                    input.disabled = true;
+                    
+                    // Add hidden input to form
+                    form.appendChild(hiddenInput);
+                } else {
+                    // Conversion failed - preserve original value and flag error
+                    console.error('Failed to convert datetime to UTC:', input.value);
+                    input.dataset.conversionError = 'true';
+                    // Original input remains enabled with user's value
+                }
             }
         });
     }
