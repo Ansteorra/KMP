@@ -498,11 +498,11 @@ class TimezoneHelper
     /**
      * Get timezone abbreviation (e.g., CDT, EST, PST)
      *
-     * @param \Cake\I18n\DateTime $datetime Datetime in the timezone
+     * @param \Cake\I18n\DateTime|string $datetime Datetime in the timezone or string to convert
      * @param string $timezone Timezone identifier
      * @return string Timezone abbreviation
      */
-    public static function getTimezoneAbbreviation($datetime, string $timezone): string
+    public static function getTimezoneAbbreviation(DateTime|string $datetime, string $timezone): string
     {
         if (is_string($datetime)) {
             $datetime = new DateTime($datetime);
