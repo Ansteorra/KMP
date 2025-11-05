@@ -26,6 +26,7 @@
  * @var array $branches
  * @var array $gatheringTypes
  * @var array $gatheringActivities
+ * @var \App\Model\Entity\Branch|null $selectedBranch
  */
 
 use Cake\I18n\DateTime;

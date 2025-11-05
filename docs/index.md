@@ -43,6 +43,7 @@ layout: default
 | **5.7 [Waivers Plugin](5.7-waivers-plugin.md)** | Waiver upload, tracking, and compliance management |
 | **6. [Services](6-services.md)** | Service layer architecture and implementations |
 | **6.2 [Authorization Helpers](6.2-authorization-helpers.md)** | getBranchIdsForAction() and permission helper methods |
+| **6.3 [Email Template Management](6.3-email-template-management.md)** | Database-driven email template system with WYSIWYG editor |
 | **7. [Development Workflow](7-development-workflow.md)** | |
 | **7.1 [Security Best Practices](7.1-security-best-practices.md)** | Security configuration, testing, and audit findings |
 | 7.2 Coding Standards | PHP and JavaScript coding standards |
@@ -67,6 +68,8 @@ layout: default
 | 11.3 Creating UI Components | Extending the UI with custom cells |
 | 11.4 Database Models | Adding custom database models to plugins |
 | 11.5 Best Practices | Guidelines for effective plugin development |
+| 11.6 Managing Plugin Configuration | Using AppSettings for plugin configuration |
+| 11.7 Adding Public IDs to Plugin Tables | Implementing secure public identifiers in plugins |
 | **[Appendices](appendices.md)** | |
 | A. Troubleshooting | Common issues and solutions |
 | B. Glossary | Terms specific to KMP and SCA |

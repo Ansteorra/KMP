@@ -53,7 +53,7 @@ class GatheringsController extends AppController
         parent::beforeFilter($event);
 
         // Allow public access to landing page and calendar download
-        $this->Authentication->allowUnauthenticated(['publicLanding']);
+        $this->Authentication->allowUnauthenticated(['publicLanding', 'downloadCalendar']);
     }
 
     /**
@@ -1459,8 +1459,9 @@ class GatheringsController extends AppController
      * Generates an iCalendar (.ics) file that can be imported into
      * calendar applications (Google Calendar, Outlook, iOS Calendar, etc.)
      *
-     * This action is accessible to both authenticated and unauthenticated users
-     * for public gatherings.
+     * Security logic:
+     * - If gathering has public_page_enabled = true: accessible to anyone (authenticated or not)
+     * - If gathering has public_page_enabled = false: requires authentication (but no policy check)
      *
      * @param \App\Services\ICalendarService $iCalendarService iCalendar service
      * @param string|null $publicId Gathering public ID (for public access)
@@ -1470,10 +1471,8 @@ class GatheringsController extends AppController
      */
     public function downloadCalendar(ICalendarService $iCalendarService, string $publicId = null)
     {
-        // Determine which identifier to use
-        $isPublicAccess = !empty($publicId);
 
-        if (!$isPublicAccess) {
+        if (!$publicId) {
             throw new NotFoundException(__('Gathering not found.'));
         }
         $gathering = $this->Gatherings->find()
@@ -1488,21 +1487,21 @@ class GatheringsController extends AppController
             ])
             ->firstOrFail();
 
-        // Verify public page is enabled
-        if (!$gathering) {
-            throw new NotFoundException(__('The calendar for this gathering is not publicly available.'));
-        }
-
         // Build public URL
         $baseUrl = $this->request->getAttribute('base');
         $fullBaseUrl = $this->request->scheme() . '://' . $this->request->host() . $baseUrl;
         $eventUrl = $fullBaseUrl . '/gatherings/public-landing/' . $gathering->public_id;
 
+        // Check security based on public_page_enabled setting
         if ($gathering->public_page_enabled === false) {
-            //if the user is anonymous, they cannot download the calendar for a private gathering
-            throw new SecurityError(__('The calendar for this gathering is not publicly available.'));
+            // Private gathering - require authentication but no policy check
+            $identity = $this->Authentication->getIdentity();
+            if (!$identity) {
+                throw new NotFoundException(__('The calendar for this gathering is not publicly available.'));
+            }
         }
-        //we can skip auth if we get this far
+
+        // Skip authorization policy check - authentication (if required) is sufficient
         $this->Authorization->skipAuthorization();
         // Generate iCalendar content
         $icsContent = $iCalendarService->generateICalendar($gathering, $eventUrl);

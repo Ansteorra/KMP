@@ -827,7 +827,7 @@ The `pluginEnabled` helper method checks for a setting with the pattern `Plugin.
 - For main app controllers: use `app/assets/js/controllers/`
 - For plugin controllers: use `plugins/PluginName/assets/js/controllers/`
 
-## 11.5 Adding Public IDs to Plugin Tables
+## 11.7 Adding Public IDs to Plugin Tables
 
 ### Overview
 
@@ -835,14 +835,14 @@ Public IDs provide secure, non-sequential identifiers for client-facing referenc
 
 ### Quick Start Guide
 
-**Step 1: Create Migration**
+#### Step 1: Create Migration
 
 Create a migration in your plugin:
 ```
 plugins/YourPlugin/config/Migrations/YYYYMMDDHHMMSS_AddPublicIdToYourPluginTables.php
 ```
 
-**Step 2: Migration Template**
+#### Step 2: Migration Template
 
 ```php
 <?php
@@ -914,19 +914,19 @@ class AddPublicIdToYourPluginTables extends AbstractMigration
 }
 ```
 
-**Step 3: Run Migration**
+#### Step 3: Run Migration
 
 ```bash
 bin/cake migrations migrate -p YourPlugin
 ```
 
-**Step 4: Generate Public IDs**
+#### Step 4: Generate Public IDs
 
 ```bash
 bin/cake generate_public_ids your_table_1 your_table_2
 ```
 
-**Step 5: Add Behavior to Tables**
+#### Step 5: Add Behavior to Tables
 
 ```php
 // plugins/YourPlugin/src/Model/Table/YourTableTable.php
@@ -940,7 +940,7 @@ class YourTableTable extends Table
 }
 ```
 
-**Step 6: Update Controllers**
+#### Step 6: Update Controllers
 
 ```php
 // Before
@@ -956,7 +956,7 @@ public function view($publicId = null)
 }
 ```
 
-**Step 7: Update Templates**
+#### Step 7: Update Templates
 
 ```php
 // Before
@@ -1001,26 +1001,26 @@ protected const TABLES = [
 
 ### Testing
 
-**Verify Column:**
+#### Verify Column:
 ```sql
 DESC your_table;
 -- Should show public_id column
 ```
 
-**Verify Index:**
+#### Verify Index:
 ```sql
 SHOW INDEXES FROM your_table;
 -- Should show idx_your_table_public_id
 ```
 
-**Verify Generation:**
+#### Verify Generation:
 ```sql
 SELECT id, public_id FROM your_table LIMIT 5;
 -- Should show 8-character alphanumeric IDs
 ```
 
-**Test Controller:**
-```
+#### Test Controller:
+```bash
 Visit: /your-plugin/your-controller/view/a7fK9mP2
 Should work if public_id = 'a7fK9mP2'
 ```
@@ -1039,16 +1039,16 @@ return [
 
 ### Common Issues
 
-**Issue: Migration fails with "Table not found"**
+#### Issue: Migration fails with "Table not found"
 - Solution: Ensure table exists by running plugin's table creation migrations first
 
-**Issue: "Column already exists"**
+#### Issue: "Column already exists"
 - Solution: Migration is idempotent and will skip, this is safe
 
-**Issue: Foreign key constraints**
+#### Issue: Foreign key constraints
 - Solution: Public IDs don't affect foreign keys - those still use internal `id`
 
-**Issue: Existing code breaks**
+#### Issue: Existing code breaks
 - Solution: Add public IDs gradually:
   1. Add column and generate IDs (no breaking change)
   2. Update one controller at a time

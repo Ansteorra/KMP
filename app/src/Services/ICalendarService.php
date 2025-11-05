@@ -57,9 +57,10 @@ class ICalendarService
             $lines[] = 'DTEND;VALUE=DATE:' . $endDate->format('Ymd');
         } else {
             // Single day event - use full date-time format
-            // Set to 9 AM start, 5 PM end as defaults
-            $startDateTime = $gathering->start_date->setTime(9, 0, 0);
-            $endDateTime = $gathering->end_date->setTime(17, 0, 0);
+            // Set to 9 AM start, 9 PM end as defaults
+            // Create DateTime instances from the date values
+            $startDateTime = new DateTime($gathering->start_date->format('Y-m-d') . ' 09:00:00');
+            $endDateTime = new DateTime($gathering->end_date->format('Y-m-d') . ' 21:00:00');
             $lines[] = 'DTSTART:' . $this->formatDateTime($startDateTime);
             $lines[] = 'DTEND:' . $this->formatDateTime($endDateTime);
         }
