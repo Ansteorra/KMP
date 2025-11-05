@@ -386,10 +386,13 @@ class TimezoneHelper
     }
 
     /**
-     * Convert datetime between two specific timezones
+     * Convert datetime between timezones
+     *
+     * Note: DateTime instances retain their original timezone (are cloned and preserved),
+     * while strings are parsed using $fromTimezone.
      *
      * @param \Cake\I18n\DateTime|string $datetime Source datetime
-     * @param string $fromTimezone Source timezone
+     * @param string $fromTimezone Source timezone (only used when $datetime is a string)
      * @param string $toTimezone Target timezone
      * @return \Cake\I18n\DateTime Converted datetime
      * @throws \InvalidArgumentException If timezone is invalid
@@ -404,11 +407,12 @@ class TimezoneHelper
             throw new InvalidArgumentException("Invalid target timezone: {$toTimezone}");
         }
 
-        // Parse datetime in source timezone
+        // Parse datetime - preserve timezone if already a DateTime, use $fromTimezone for strings
         if (is_string($datetime)) {
             $datetime = new DateTime($datetime, new DateTimeZone($fromTimezone));
         } elseif ($datetime instanceof DateTime) {
-            $datetime = new DateTime($datetime->format('Y-m-d H:i:s'), new DateTimeZone($fromTimezone));
+            // Clone to preserve the original DateTime's timezone information
+            $datetime = clone $datetime;
         }
 
         // Convert to target timezone
