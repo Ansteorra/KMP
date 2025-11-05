@@ -73,7 +73,7 @@ echo $this->Modal->create("Edit " . $member->sca_name, [
         echo $this->Form->control("background_check_expires_on", [
             "empty" => true,
         ]);
-        echo $this->Form->control('user_timezone', [
+        echo $this->Form->control('timezone', [
             'type' => 'select',
             'options' => $this->Timezone->getTimezoneOptions(),
             'label' => 'Timezone',
@@ -114,7 +114,7 @@ echo $this->Modal->create("Edit " . $member->sca_name, [
                 'plugin' => null,
             ]),
         ]);
-        echo $this->Form->control('user_timezone', [
+        echo $this->Form->control('timezone', [
             'type' => 'select',
             'options' => $this->Timezone->getTimezoneOptions(),
             'label' => 'Timezone',
