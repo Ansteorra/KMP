@@ -11,6 +11,37 @@ The Kingdom Management Portal is designed to be extensible through plugins. This
 
 Plugins are the primary mechanism for extending KMP. They allow you to add new functionality while keeping your code separate from the core application.
 
+### Quick Start: Use the Template Plugin
+
+**The fastest way to create a new KMP plugin is to copy the Template plugin:**
+
+```bash
+cd plugins
+cp -r Template MyPlugin
+# Then search/replace "Template" with "MyPlugin" throughout
+```
+
+**The Template plugin (`plugins/Template/`) is a fully working, production-ready reference implementation** that demonstrates all KMP plugin patterns correctly:
+
+- ✅ Complete CRUD controller with authorization
+- ✅ Database models (Table and Entity classes)
+- ✅ View templates (Index, View, Add, Edit)
+- ✅ Authorization policies
+- ✅ Navigation integration
+- ✅ Frontend assets (Stimulus.js controller and CSS)
+- ✅ Migrations and seeds
+- ✅ Unit and integration tests
+- ✅ Complete documentation
+
+**Quick customization steps:**
+1. Copy `plugins/Template` to `plugins/MyPlugin`
+2. Search/replace "Template" with "MyPlugin" in all files
+3. Update `composer.json` with your plugin details
+4. Register in `config/plugins.php` with appropriate migration order
+5. Run `composer dump-autoload` and `bin/cake cache clear_all`
+6. Customize controller, models, and views as needed
+
+**Documentation:** See `plugins/Template/README.md` for complete usage guide.
 
 ### Plugin Structure
 
