@@ -51,11 +51,11 @@ if ($state == "previous") {
 
 // Format Date objects for display
 foreach ($authorizations as $authorization) {
-    $authorization->formatted_start_on = $authorization->start_on 
-        ? $this->Timezone->format($authorization->start_on, 'Y-m-d', false) 
+    $authorization->formatted_start_on = $authorization->start_on
+        ? $this->Timezone->format($authorization->start_on, 'Y-m-d', false)
         : '-';
-    $authorization->formatted_expires_on = $authorization->expires_on 
-        ? $this->Timezone->format($authorization->expires_on, 'Y-m-d', false) 
+    $authorization->formatted_expires_on = $authorization->expires_on
+        ? $this->Timezone->format($authorization->expires_on, 'Y-m-d', false)
         : '-';
 }
 
