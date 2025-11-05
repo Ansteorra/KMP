@@ -554,14 +554,14 @@ class TimezoneHelper
         }
 
         // Group by region
-        $grouped = [];
+        $groupedList = [];
         foreach ($identifiers as $identifier) {
             $parts = explode('/', $identifier, 2);
             $region = $parts[0];
-            $grouped[$region][$identifier] = $identifier;
+            $groupedList[$region][$identifier] = $identifier;
         }
 
-        return $grouped;
+        return $groupedList;
     }
 
     /**
