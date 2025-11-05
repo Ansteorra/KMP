@@ -87,11 +87,15 @@ class TimezoneInputController extends Controller {
             this.updateNotice();
         }
 
+        // Cache bound event handlers for proper cleanup
+        this._handleSubmit = this.handleSubmit.bind(this);
+        this._handleReset = this.handleReset.bind(this);
+
         // Attach submit handler
-        this.element.addEventListener('submit', this.handleSubmit.bind(this));
+        this.element.addEventListener('submit', this._handleSubmit);
         
         // Attach reset handler
-        this.element.addEventListener('reset', this.handleReset.bind(this));
+        this.element.addEventListener('reset', this._handleReset);
     }
 
     /**
@@ -210,9 +214,16 @@ class TimezoneInputController extends Controller {
      * Cleanup on disconnect
      */
     disconnect() {
-        // Remove event listeners
-        this.element.removeEventListener('submit', this.handleSubmit.bind(this));
-        this.element.removeEventListener('reset', this.handleReset.bind(this));
+        // Remove event listeners using cached references
+        if (this._handleSubmit) {
+            this.element.removeEventListener('submit', this._handleSubmit);
+            this._handleSubmit = null;
+        }
+        
+        if (this._handleReset) {
+            this.element.removeEventListener('reset', this._handleReset);
+            this._handleReset = null;
+        }
     }
 }
 
