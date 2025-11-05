@@ -98,13 +98,14 @@ $compareDate = new Date($validOn)
                                             $officer->member->warrantable,
                                             $this->Html,
                                             ['data-bs-toggle' => "tooltip", 'data-bs-title' => $reasons],
-                                        ) ?></td>
+                                        ) ?>
                         <?php else : ?>
                             <?= $this->Kmp->bool(
                                             $officer->member->warrantable,
                                             $this->Html,
                                         ) ?>
                         <?php endif; ?>
+                            </td>
                         <td>
 
                             <?= $officer->current_warrant ? $this->Timezone->format($officer->current_warrant->expires_on, null, 'M d, Y') : "No Warrant" ?>
