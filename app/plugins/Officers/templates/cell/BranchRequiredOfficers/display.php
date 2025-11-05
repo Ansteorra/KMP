@@ -13,8 +13,8 @@
                         <?php else: ?>
                             <?= h($officer->member->sca_name) ?>
                         <?php endif; ?>
-                        (<?= h($officer->start_on_to_string) ?> -
-                        <?= h($officer->expires_on_to_string) ?>)
+                        (<?= $this->Timezone->format($officer->start_on, 'Y-m-d', false) ?> -
+                        <?= $this->Timezone->format($officer->expires_on, 'Y-m-d', false) ?>)
                     <?php endforeach; ?>
                 <?php else : ?>
                     <?= __("No officer assigned") ?>

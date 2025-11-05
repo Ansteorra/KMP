@@ -15,8 +15,8 @@ $linkTemplate = [
 ];
 $columnTemplate = [
     "Member" => "member->sca_name",
-    "Start Date" => "start_on_to_string",
-    "End Date" => "expires_on_to_string",
+    "Start Date" => "start_on",
+    "End Date" => "expires_on",
     "Approved By" => "approved_by->sca_name",
     "Granted By" => "granted_by",
     "Scope" => "branch->name",

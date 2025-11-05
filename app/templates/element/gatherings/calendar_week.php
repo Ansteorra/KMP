@@ -61,7 +61,8 @@ $today->setTime(0, 0, 0);
 <div class="card">
     <div class="card-header">
         <h5 class="mb-0">
-            Week of <?= $weekStart->format('F j') ?> - <?= $weekEnd->format('F j, Y') ?>
+            Week of <?= $this->Timezone->format($weekStart, null, 'F j') ?> -
+            <?= $this->Timezone->format($weekEnd, null, 'F j, Y') ?>
         </h5>
     </div>
     <div class="card-body">
@@ -76,7 +77,7 @@ $today->setTime(0, 0, 0);
         ?>
             <div class="mb-4">
                 <h6 class="border-bottom pb-2 <?= $isToday ? 'text-primary fw-bold' : '' ?>">
-                    <?= $current->format('l, F j') ?>
+                    <?= $this->Timezone->format($current, null, 'l, F j') ?>
                     <?php if ($isToday): ?>
                         <span class="badge bg-primary ms-2">Today</span>
                     <?php endif; ?>
@@ -90,8 +91,7 @@ $today->setTime(0, 0, 0);
                             $hasLocation = !empty($gathering->location);
                             $bgColor = $gathering->gathering_type->color ?? '#0d6efd';
                             ?>
-                            <div class="list-group-item"
-                                style="border-left: 4px solid <?= h($bgColor) ?>;">
+                            <div class="list-group-item" style="border-left: 4px solid <?= h($bgColor) ?>;">
                                 <div class="d-flex justify-content-between align-items-start">
                                     <div>
                                         <h6 class="mb-1">

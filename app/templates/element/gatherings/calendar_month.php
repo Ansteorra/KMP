@@ -84,7 +84,7 @@ $today->setTime(0, 0, 0);
             ?>
                 <div class="<?= implode(' ', $dayClasses) ?>">
                     <div class="calendar-day-number">
-                        <?= $current->format('j') ?>
+                        <?= $this->Timezone->format($current, null, 'j') ?>
                     </div>
 
                     <?php if (isset($gatheringsByDate[$dateKey])): ?>

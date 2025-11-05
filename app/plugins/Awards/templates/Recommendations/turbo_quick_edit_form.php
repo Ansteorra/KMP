@@ -1,6 +1,6 @@
 <turbo-frame id="editRecommendation">
     <script type="application/json" data-awards-rec-quick-edit-target="stateRulesBlock" class="d-none">
-    <?= json_encode($rules) ?>
+        <?= json_encode($rules) ?>
     </script>
     <fieldset>
 
@@ -93,9 +93,9 @@
                     $displayName .= ' in ' . h($gathering->branch->name);
                 }
                 if (isset($gathering->start_date)) {
-                    $displayName .= ' on ' . $gathering->start_date->toDateString();
+                    $displayName .= ' on ' . $this->Timezone->format($gathering->start_date, $gathering, 'Y-m-d');
                     if (isset($gathering->end_date)) {
-                        $displayName .= ' - ' . $gathering->end_date->toDateString();
+                        $displayName .= ' - ' . $this->Timezone->format($gathering->end_date, $gathering, 'Y-m-d');
                     }
                 }
 
@@ -147,13 +147,11 @@
         ]);
 
         // Format given date for HTML5 date input (requires Y-m-d format)
+        // If the award was given at a gathering, use that gathering's timezone context
         $givenValue = null;
         if ($recommendation->given) {
-            if (is_object($recommendation->given) && method_exists($recommendation->given, 'format')) {
-                $givenValue = $recommendation->given->format('Y-m-d');
-            } elseif (is_string($recommendation->given)) {
-                $givenValue = date('Y-m-d', strtotime($recommendation->given));
-            }
+            $context = $recommendation->gathering ?? null;
+            $givenValue = $this->Timezone->forInput($recommendation->given, $context);
         }
 
         echo $this->Form->control(

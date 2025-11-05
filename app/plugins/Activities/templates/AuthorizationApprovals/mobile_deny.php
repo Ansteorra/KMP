@@ -28,7 +28,7 @@
                 <dd class="col-7"><strong><?= h($authorizationApproval->authorization->activity->name) ?></strong></dd>
 
                 <dt class="col-5">Requested:</dt>
-                <dd class="col-7"><?= $authorizationApproval->requested_on->format('n/j/Y g:i A') ?></dd>
+                <dd class="col-7"><?= $this->Timezone->format($authorizationApproval->requested_on) ?></dd>
             </dl>
         </div>
 
@@ -48,14 +48,14 @@
                     <dt class="col-5">Member Exp:</dt>
                     <dd class="col-7">
                         <?= $authorizationApproval->authorization->member->membership_expires_on
-                            ? $authorizationApproval->authorization->member->membership_expires_on->format('n/j/Y')
+                            ? $this->Timezone->format($authorizationApproval->authorization->member->membership_expires_on, null, 'n/j/Y')
                             : 'N/A' ?>
                     </dd>
 
                     <dt class="col-5">Bg Check Exp:</dt>
                     <dd class="col-7">
                         <?= $authorizationApproval->authorization->member->background_check_expires_on
-                            ? $authorizationApproval->authorization->member->background_check_expires_on->format('n/j/Y')
+                            ? $this->Timezone->format($authorizationApproval->authorization->member->background_check_expires_on, null, 'n/j/Y')
                             : 'N/A' ?>
                     </dd>
 

@@ -33,46 +33,46 @@ $this->KMP->endBlock();
             <dt>Authorized Members</dt>
             <dd><?= h($distincMemberCount) ?></dd>
             <?php foreach ($memberRollup as $auths) : ?>
-            <dt><?= h($auths->auth) ?></dt>
-            <dd><?= h($auths->count) ?></dd>
+                <dt><?= h($auths->auth) ?></dt>
+                <dd><?= h($auths->count) ?></dd>
             <?php endforeach; ?>
 
             <? if ($memberListQuery) : ?>
-            <?php $currentAuth = -1 ?>
-            <?php foreach ($memberListQuery as $auth) : ?>
-            <?php if ($auth->activity_id != $currentAuth) : ?>
-            <?php if ($currentAuth != -1) : ?>
-            </table>
-            <?php endif; ?>
-            <?php $currentAuth = $auth->activity_id ?>
-            <h3><?= h($auth->activity->name) ?></h3>
-            <table class="table table-striped table-condensed">
-                <tr>
-                    <th>SCA Name</th>
-                    <th>Member Number</th>
-                    <th>Branch</th>
-                    <th>Start On</th>
-                    <th>End Date</th>
-                </tr>
-                <?php endif; ?>
-                <tr>
-                    <td>
-                        <?= $this->Html->link(
+                <?php $currentAuth = -1 ?>
+                <?php foreach ($memberListQuery as $auth) : ?>
+                    <?php if ($auth->activity_id != $currentAuth) : ?>
+                        <?php if ($currentAuth != -1) : ?>
+                            </table>
+                        <?php endif; ?>
+                        <?php $currentAuth = $auth->activity_id ?>
+                        <h3><?= h($auth->activity->name) ?></h3>
+                        <table class="table table-striped table-condensed">
+                            <tr>
+                                <th>SCA Name</th>
+                                <th>Member Number</th>
+                                <th>Branch</th>
+                                <th>Start On</th>
+                                <th>End Date</th>
+                            </tr>
+                        <?php endif; ?>
+                        <tr>
+                            <td>
+                                <?= $this->Html->link(
                                     h($auth->member->sca_name),
                                     ['plugin' => null, 'controller' => 'Members', 'action' => 'view', $auth->member->id]
                                 ) ?>
-                    </td>
-                    <td><?= h($auth->member->membership_number ? $auth->member->membership_number : "Non Member") ?>
-                    </td>
-                    <td><?= h($auth->member->branch->name) ?></td>
-                    <td><?= h($auth->start_on) ?></td>
-                    <td><?= h($auth->expires_on) ?></td>
-                </tr>
-                <?php endforeach; ?>
-                <?php if ($currentAuth != -1) : ?>
-            </table>
-            <?php endif; ?>
-            <? endif; ?>
+                            </td>
+                            <td><?= h($auth->member->membership_number ? $auth->member->membership_number : "Non Member") ?>
+                            </td>
+                            <td><?= h($auth->member->branch->name) ?></td>
+                            <td><?= $auth->start_on ? $this->Timezone->format($auth->start_on, 'Y-m-d', false) : '-' ?></td>
+                            <td><?= $auth->expires_on ? $this->Timezone->format($auth->expires_on, 'Y-m-d', false) : '-' ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                    <?php if ($currentAuth != -1) : ?>
+                        </table>
+                    <?php endif; ?>
+                <? endif; ?>
 
 
 

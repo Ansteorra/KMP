@@ -34,7 +34,7 @@ $this->KMP->endBlock(); ?>
 
     <?= __d('queue', 'Current server time') ?>:
     <br>
-    <?php echo $this->Time->nice(new \Cake\I18n\DateTime()); ?>
+    <?php echo $this->Timezone->format(new \Cake\I18n\DateTime(), 'F j, Y g:i A', true); ?>
 
 </nav>
 <div class="content action-index index large-9 medium-8 columns col-sm-8 col-12">
@@ -78,9 +78,9 @@ $this->KMP->endBlock(); ?>
                         }
                         ?>
                     </td>
-                    <td><?= $this->Time->nice($queuedJob->created) ?></td>
+                    <td><?= $this->Timezone->format($queuedJob->created, 'F j, Y g:i A', true) ?></td>
                     <td>
-                        <?= $this->Time->nice($queuedJob->notbefore) ?>
+                        <?= $queuedJob->notbefore ? $this->Timezone->format($queuedJob->notbefore, 'F j, Y g:i A', true) : '-' ?>
                         <br>
                         <?php echo $this->QueueProgress->timeoutProgressBar($queuedJob, 8); ?>
                         <?php if ($queuedJob->notbefore && $queuedJob->notbefore->isFuture()) {
@@ -90,7 +90,7 @@ $this->KMP->endBlock(); ?>
                         } ?>
                     </td>
                     <td>
-                        <?= $this->Time->nice($queuedJob->fetched) ?>
+                        <?= $queuedJob->fetched ? $this->Timezone->format($queuedJob->fetched, 'F j, Y g:i A', true) : '-' ?>
 
                         <?php if ($queuedJob->fetched) {
                             echo '<div><small>';
@@ -103,7 +103,7 @@ $this->KMP->endBlock(); ?>
                         <?php } ?>
                     </td>
                     <td>
-                        <?= $this->Format->ok($this->Time->nice($queuedJob->completed), (bool)$queuedJob->completed) ?>
+                        <?= $this->Format->ok($queuedJob->completed ? $this->Timezone->format($queuedJob->completed, 'F j, Y g:i A', true) : '-', (bool)$queuedJob->completed) ?>
                         <?php if ($queuedJob->completed) { ?>
                             <div>
                                 <small><?php

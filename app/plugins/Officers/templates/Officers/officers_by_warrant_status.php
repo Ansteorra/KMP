@@ -4,8 +4,8 @@ $columnTemplate = [
     "Member" => "sca_name",
     "Branch" => "branch_name",
     "Office" => "{{office_name}} : {{deputy_description}}",
-    "Start Date" => "start_on_to_string",
-    "End Date" => "expires_on_to_string",
+    "Start Date" => "start_on",
+    "End Date" => "expires_on",
     "Office Status" => "status",
 ];
 

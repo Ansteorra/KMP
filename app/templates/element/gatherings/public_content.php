@@ -319,7 +319,7 @@ if (!isset($scheduleByDate)) {
                     <div class="schedule-day-header">
                         <?php
                         $dateObj = \Cake\I18n\DateTime::parse($date);
-                        echo $dateObj->format('l, F j, Y');
+                        echo $this->Timezone->format($dateObj, $gathering, 'l, F j, Y');
                         ?>
                     </div>
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\WarrantManager;
 
 use App\KMP\StaticHelpers;
+use App\KMP\TimezoneHelper;
 use App\Mailer\QueuedMailerAwareTrait;
 use App\Model\Entity\MemberRole;
 use App\Model\Entity\Warrant;
@@ -196,8 +197,8 @@ class DefaultWarrantManager implements WarrantManagerInterface
                 $vars = [
                     'memberScaName' => $warrant->member->sca_name,
                     'warrantName' => $warrant->name,
-                    'warrantStart' => $warrant->start_on_to_string,
-                    'warrantExpires' => $warrant->expires_on_to_string,
+                    'warrantStart' => TimezoneHelper::formatDate($warrant->start_on),
+                    'warrantExpires' => TimezoneHelper::formatDate($warrant->expires_on),
                 ];
                 $this->queueMail('KMP', 'notifyOfWarrant', $warrant->member->email_address, $vars);
             }

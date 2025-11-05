@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Officers\Services;
 
+use App\KMP\TimezoneHelper;
 use App\Model\Entity\Warrant;
 use Cake\I18n\DateTime;
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
@@ -356,8 +357,8 @@ class DefaultOfficerManager implements OfficerManagerInterface
             "memberScaName" => $member->sca_name,
             "officeName" => $office->name,
             "branchName" => $branch->name,
-            "hireDate" => $newOfficer->start_on_to_string,
-            "endDate" => $newOfficer->expires_on_to_string,
+            "hireDate" => TimezoneHelper::formatDate($newOfficer->start_on),
+            "endDate" => TimezoneHelper::formatDate($newOfficer->expires_on),
             "requiresWarrant" => $office->requires_warrant
         ];
         $this->queueMail("Officers.Officers", "notifyOfHire", $member->email_address, $vars);
@@ -489,7 +490,7 @@ class DefaultOfficerManager implements OfficerManagerInterface
             "officeName" => $office->name,
             "branchName" => $branch->name,
             "reason" => $revokedReason,
-            "releaseDate" => $revokedOn->toDateString(),
+            "releaseDate" => TimezoneHelper::formatDate($revokedOn),
         ];
         $this->queueMail("Officers.Officers", "notifyOfRelease", $member->email_address, $vars);
         return new ServiceResult(true);

@@ -364,6 +364,97 @@ const handleResponse = (data) => {
 let counter = 0;
 ```
 
+## Email and Mailer Best Practices
+
+### Date Formatting in Mailers
+
+All dates and times passed to mailer methods **must be pre-formatted to the kingdom's default timezone** before being sent to email templates. Email templates receive strings and should not perform any timezone conversion themselves.
+
+**Key Principle**: Convert dates to strings in the controller or service layer using `TimezoneHelper`, not in the mailer or email template.
+
+#### Correct Pattern
+
+```php
+use App\KMP\TimezoneHelper;
+
+// In Service or Controller
+$vars = [
+    'memberScaName' => $member->sca_name,
+    'warrantName' => $warrant->name,
+    'warrantStart' => TimezoneHelper::formatDate($warrant->start_on),  // ✅ Format here
+    'warrantExpires' => TimezoneHelper::formatDate($warrant->expires_on), // ✅ Format here
+];
+$this->queueMail('KMP', 'notifyOfWarrant', $member->email_address, $vars);
+
+// In Mailer (just pass through)
+public function notifyOfWarrant(
+    string $to,
+    string $memberScaName,
+    string $warrantName,
+    string $warrantStart,      // Already a formatted string
+    string $warrantExpires,    // Already a formatted string
+): void {
+    $this->setTo($to)
+        ->setSubject("Warrant Issued: $warrantName")
+        ->setViewVars([
+            'warrantStart' => $warrantStart,    // ✅ Just pass through
+            'warrantExpires' => $warrantExpires, // ✅ Just pass through
+        ]);
+}
+```
+
+#### Incorrect Patterns
+
+```php
+// ❌ DON'T use virtual _to_string fields (they don't respect kingdom timezone)
+$vars = [
+    'warrantStart' => $warrant->start_on_to_string,  // ❌ Wrong
+    'warrantExpires' => $warrant->expires_on_to_string, // ❌ Wrong
+];
+
+// ❌ DON'T use CakePHP's format methods directly (they don't respect kingdom timezone)
+$vars = [
+    'releaseDate' => $revokedOn->toDateString(), // ❌ Wrong
+];
+
+// ❌ DON'T pass DateTime objects to mailers
+$vars = [
+    'warrantStart' => $warrant->start_on, // ❌ Wrong - pass formatted string instead
+];
+```
+
+#### Available TimezoneHelper Methods
+
+```php
+// Format date only (e.g., "March 15, 2025")
+TimezoneHelper::formatDate($dateTime)
+
+// Format date and time (e.g., "March 15, 2025 9:00 AM")
+TimezoneHelper::formatDateTime($dateTime)
+
+// Format time only (e.g., "9:00 AM")
+TimezoneHelper::formatTime($dateTime)
+
+// Custom format with user timezone
+TimezoneHelper::formatForDisplay($dateTime, $member, 'Y-m-d H:i:s')
+```
+
+### Email Template Guidelines
+
+Email templates should:
+- Display pre-formatted date strings directly using `<?= h($varName) ?>`
+- **Never** call `->format()` or timezone conversion methods
+- Focus on layout and presentation, not data transformation
+
+```php
+// In email template (text or html)
+Dear <?= h($memberScaName) ?>,
+
+Your warrant for <?= h($warrantName) ?> has been issued.
+Start Date: <?= h($warrantStart) ?>     <!-- ✅ Already formatted -->
+Expires: <?= h($warrantExpires) ?>       <!-- ✅ Already formatted -->
+```
+
 ## Error Handling
 
 ### PHP Exceptions

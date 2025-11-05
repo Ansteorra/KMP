@@ -92,9 +92,9 @@ $canManage = $canManageOwn || $canManageOthers;
                                     <td><?= h($attendance->gathering->branch->name) ?></td>
                                     <td><?= h($attendance->gathering->gathering_type->name) ?></td>
                                     <td>
-                                        <?= $attendance->gathering->start_date->format('M d, Y') ?>
+                                        <?= $this->Timezone->format($attendance->gathering->start_date, $attendance->gathering, 'M d, Y') ?>
                                         <?php if ($attendance->gathering->end_date != $attendance->gathering->start_date): ?>
-                                            - <?= $attendance->gathering->end_date->format('M d, Y') ?>
+                                            - <?= $this->Timezone->format($attendance->gathering->end_date, $attendance->gathering, 'M d, Y') ?>
                                         <?php endif; ?>
                                     </td>
                                     <td><?= h($attendance->public_note) ?></td>
@@ -174,9 +174,9 @@ $canManage = $canManageOwn || $canManageOthers;
                                     <td><?= h($attendance->gathering->branch->name) ?></td>
                                     <td><?= h($attendance->gathering->gathering_type->name) ?></td>
                                     <td>
-                                        <?= $attendance->gathering->start_date->format('M d, Y') ?>
+                                        <?= $this->Timezone->format($attendance->gathering->start_date, $attendance->gathering, 'M d, Y') ?>
                                         <?php if ($attendance->gathering->end_date != $attendance->gathering->start_date): ?>
-                                            - <?= $attendance->gathering->end_date->format('M d, Y') ?>
+                                            - <?= $this->Timezone->format($attendance->gathering->end_date, $attendance->gathering, 'M d, Y') ?>
                                         <?php endif; ?>
                                     </td>
                                     <td><?= h($attendance->public_note) ?></td>

@@ -53,9 +53,9 @@ $formId = 'attendanceModalForm';
     <div class="alert alert-info">
         <strong><?= h($gathering->name) ?></strong><br>
         <small>
-            <?= $gathering->start_date->format('F j, Y') ?>
+            <?= $this->Timezone->format($gathering->start_date, $gathering, 'F j, Y') ?>
             <?php if (!$gathering->start_date->equals($gathering->end_date)): ?>
-                - <?= $gathering->end_date->format('F j, Y') ?>
+                - <?= $this->Timezone->format($gathering->end_date, $gathering, 'F j, Y') ?>
             <?php endif; ?>
         </small>
     </div>

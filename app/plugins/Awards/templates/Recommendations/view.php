@@ -72,7 +72,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
     <td><?= h($recommendation->state) ?>
         <?php
         if ($recommendation->given != null) :
-            $given =  h($recommendation->given->toFormattedDateString());
+            $given = $this->Timezone->format($recommendation->given, 'F j, Y', false);
             echo " at " . h($recommendation->assigned_gathering->name) . "  on " . $given;
         endif;
         if ($recommendation->assigned_gathering && $recommendation->given == null):

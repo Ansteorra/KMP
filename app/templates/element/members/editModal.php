@@ -73,6 +73,13 @@ echo $this->Modal->create("Edit " . $member->sca_name, [
         echo $this->Form->control("background_check_expires_on", [
             "empty" => true,
         ]);
+        echo $this->Form->control('user_timezone', [
+            'type' => 'select',
+            'options' => $this->Timezone->getTimezoneOptions(),
+            'label' => 'Timezone',
+            'empty' => 'Use Kingdom Default',
+            'help' => 'Select the member\'s preferred timezone for displaying dates and times'
+        ]);
         echo $this->Form->control("birth_month");
         echo $this->Form->control("birth_year");
         echo $this->Form->control("status", [
@@ -106,6 +113,13 @@ echo $this->Modal->create("Edit " . $member->sca_name, [
                 'action' => 'emailTaken',
                 'plugin' => null,
             ]),
+        ]);
+        echo $this->Form->control('user_timezone', [
+            'type' => 'select',
+            'options' => $this->Timezone->getTimezoneOptions(),
+            'label' => 'Timezone',
+            'empty' => 'Use Kingdom Default',
+            'help' => 'Select the member\'s preferred timezone for displaying dates and times'
         ]);
     } ?>
 </fieldset>

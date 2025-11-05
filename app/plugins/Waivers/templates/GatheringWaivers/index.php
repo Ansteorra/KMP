@@ -203,9 +203,9 @@ $this->KMP->endBlock();
                                 <br>
                                 <small class="text-muted">
                                     <i class="bi bi-calendar-event"></i>
-                                    <?= h($waiver->gathering->start_date->format('M d, Y')) ?>
+                                    <?= $this->Timezone->format($waiver->gathering->start_date, $waiver->gathering, 'M d, Y') ?>
                                     <?php if ($waiver->gathering->start_date != $waiver->gathering->end_date): ?>
-                                        - <?= h($waiver->gathering->end_date->format('M d, Y')) ?>
+                                        - <?= $this->Timezone->format($waiver->gathering->end_date, $waiver->gathering, 'M d, Y') ?>
                                     <?php endif; ?>
                                 </small>
                             </td>
@@ -228,7 +228,7 @@ $this->KMP->endBlock();
                             <?php endif; ?>
                         </td>
                         <td>
-                            <?= h($waiver->retention_date->format('M d, Y')) ?>
+                            <?= $this->Timezone->format($waiver->retention_date, null, 'M d, Y') ?>
                             <?php
                             $today = new \Cake\I18n\Date();
                             $daysUntilExpiry = $today->diffInDays($waiver->retention_date, false);
@@ -239,9 +239,9 @@ $this->KMP->endBlock();
                             <?php endif; ?>
                         </td>
                         <td>
-                            <?= h($waiver->created->format('M d, Y')) ?>
+                            <?= $this->Timezone->format($waiver->created, null, 'M d, Y') ?>
                             <br>
-                            <small class="text-muted"><?= h($waiver->created->format('g:i A')) ?></small>
+                            <small class="text-muted"><?= $this->Timezone->format($waiver->created, null, 'g:i A') ?></small>
                         </td>
                         <td class="actions text-end">
                             <?= $this->Html->link(

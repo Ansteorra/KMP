@@ -76,13 +76,13 @@ $today = new DateTime('now', new \DateTimeZone($userTimezone));
                                 <p class="mb-1">
                                     <i class="bi bi-calendar-event"></i>
                                     <?php if ($isMultiDay): ?>
-                                        <?= $startInUserTz->format('M j, Y') ?>
-                                        - <?= $endInUserTz->format('M j, Y') ?>
+                                        <?= $this->Timezone->format($startInUserTz, null, 'M j, Y') ?>
+                                        - <?= $this->Timezone->format($endInUserTz, null, 'M j, Y') ?>
                                         <span class="badge bg-warning text-dark ms-2">
                                             <?= $startInUserTz->diffInDays($endInUserTz) + 1 ?> days
                                         </span>
                                     <?php else: ?>
-                                        <?= $startInUserTz->format('l, F j, Y') ?>
+                                        <?= $this->Timezone->format($startInUserTz, null, 'l, F j, Y') ?>
                                     <?php endif; ?>
                                 </p>
 

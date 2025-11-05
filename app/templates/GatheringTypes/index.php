@@ -48,7 +48,7 @@ $this->KMP->endBlock();
                     <td><?= h($gatheringType->description) ?></td>
                     <td><?= $gatheringType->clonable ? '<i class="bi bi-check-circle-fill text-success"></i>' : '<i class="bi bi-x-circle-fill text-muted"></i>' ?>
                     </td>
-                    <td><?= h($gatheringType->created) ?></td>
+                    <td><?= $this->Timezone->format($gatheringType->created, null, null, \IntlDateFormatter::SHORT) ?></td>
                     <td class="actions">
                         <?= $this->Html->link('<i class="bi bi-binoculars-fill"></i>', ['action' => 'view', $gatheringType->id], ['escape' => false, 'title' => __('View'), 'class' => 'btn btn-sm btn-secondary']) ?>
                     </td>

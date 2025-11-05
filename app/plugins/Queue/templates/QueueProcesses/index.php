@@ -55,14 +55,14 @@ $this->KMP->endBlock(); ?>
                         <?php } ?>
                     </td>
                     <td>
-                        <?= $this->Time->nice($queueProcess->created) ?>
+                        <?= $this->Timezone->format($queueProcess->created, null, null, \IntlDateFormatter::SHORT, \IntlDateFormatter::SHORT) ?>
                         <?php if (!$queueProcess->created->addSeconds(Config::workermaxruntime())->isFuture()) {
                             echo $this->Icon->render('exclamation-triangle', ['title' => 'Long running (!)']);
                         } ?>
                     </td>
                     <td>
                         <?php
-                        $modified = $this->Time->nice($queueProcess->modified);
+                        $modified = $this->Timezone->format($queueProcess->modified, null, null, \IntlDateFormatter::SHORT, \IntlDateFormatter::SHORT);
                         if (!$queueProcess->created->addSeconds(Config::defaultworkertimeout())->isFuture()) {
                             $modified = '<span class="disabled" title="Beyond default worker timeout!">' . $modified . '</span>';
                         }

@@ -28,9 +28,9 @@ $this->KMP->endBlock(); ?>
         </li>
 
         <?php if (!$queuedJob->completed) { ?>
-        <li class="nav-item px-1">
-            <?= $this->Html->link(__d('queue', 'Edit Queued Job'), ['action' => 'edit', $queuedJob->id], ["class" => "btn btn-primary btn-sm"]) ?>
-        </li>
+            <li class="nav-item px-1">
+                <?= $this->Html->link(__d('queue', 'Edit Queued Job'), ['action' => 'edit', $queuedJob->id], ["class" => "btn btn-primary btn-sm"]) ?>
+            </li>
         <?php } ?>
         <li class="nav-item px-1">
             <?= $this->Form->postLink(__d('queue', 'Delete Queued Job'), ['action' => 'delete', $queuedJob->id], ['confirm' => __d('queue', 'Are you sure you want to delete # {0}?', $queuedJob->id), "class" => "btn btn-danger btn-sm"]) ?>
@@ -57,41 +57,41 @@ $this->KMP->endBlock(); ?>
         </tr>
         <tr>
             <th><?= __d('queue', 'Created') ?></th>
-            <td><?= $this->Time->nice($queuedJob->created) ?></td>
+            <td><?= $this->Timezone->format($queuedJob->created, 'F j, Y g:i A', true) ?></td>
         </tr>
         <tr>
             <th><?= __d('queue', 'Notbefore') ?></th>
             <td>
-                <?= $this->Time->nice($queuedJob->notbefore) ?>
+                <?= $queuedJob->notbefore ? $this->Timezone->format($queuedJob->notbefore, 'F j, Y g:i A', true) : '-' ?>
                 <br>
                 <?php echo $this->QueueProgress->timeoutProgressBar($queuedJob, 18); ?>
                 <?php if ($queuedJob->notbefore && $queuedJob->notbefore->isFuture()) {
-					echo '<div><small>';
-					echo $this->Time->relLengthOfTime($queuedJob->notbefore);
-					echo '</small></div>';
-				} ?>
+                    echo '<div><small>';
+                    echo $this->Time->relLengthOfTime($queuedJob->notbefore);
+                    echo '</small></div>';
+                } ?>
             </td>
         </tr>
         <tr>
             <th><?= __d('queue', 'Fetched') ?></th>
             <td>
-                <?= $this->Time->nice($queuedJob->fetched) ?>
+                <?= $queuedJob->fetched ? $this->Timezone->format($queuedJob->fetched, 'F j, Y g:i A', true) : '-' ?>
                 <?php if ($queuedJob->fetched) {
-					echo '<div><small>';
-					echo __d('queue', 'Delay') . ': ' . $this->Time->duration($queuedJob->fetched->diff($queuedJob->created));
-					echo '</small></div>';
-				} ?>
+                    echo '<div><small>';
+                    echo __d('queue', 'Delay') . ': ' . $this->Time->duration($queuedJob->fetched->diff($queuedJob->created));
+                    echo '</small></div>';
+                } ?>
             </td>
         </tr>
         <tr>
             <th><?= __d('queue', 'Completed') ?></th>
             <td>
-                <?= $this->Format->ok($this->Time->nice($queuedJob->completed), (bool)$queuedJob->completed) ?>
+                <?= $this->Format->ok($queuedJob->completed ? $this->Timezone->format($queuedJob->completed, 'F j, Y g:i A', true) : '-', (bool)$queuedJob->completed) ?>
                 <?php if ($queuedJob->completed) {
-					echo '<div><small>';
-					echo __d('queue', 'Duration') . ': ' . $this->Time->duration($queuedJob->completed->diff($queuedJob->fetched));
-					echo '</small></div>';
-				} ?>
+                    echo '<div><small>';
+                    echo __d('queue', 'Duration') . ': ' . $this->Time->duration($queuedJob->completed->diff($queuedJob->fetched));
+                    echo '</small></div>';
+                } ?>
             </td>
         </tr>
         <tr>
@@ -102,16 +102,16 @@ $this->KMP->endBlock(); ?>
             <th><?= __d('queue', 'Progress') ?></th>
             <td>
                 <?php if (!$queuedJob->completed && $queuedJob->fetched) { ?>
-                <?php if (!$queuedJob->failure_message) { ?>
-                <?php echo $this->QueueProgress->progress($queuedJob) ?>
-                <br>
-                <?php
-						$textProgressBar = $this->QueueProgress->progressBar($queuedJob, 18);
-						echo $this->QueueProgress->htmlProgressBar($queuedJob, $textProgressBar);
-						?>
-                <?php } else { ?>
-                <i><?php echo $this->Queue->failureStatus($queuedJob); ?></i>
-                <?php } ?>
+                    <?php if (!$queuedJob->failure_message) { ?>
+                        <?php echo $this->QueueProgress->progress($queuedJob) ?>
+                        <br>
+                        <?php
+                        $textProgressBar = $this->QueueProgress->progressBar($queuedJob, 18);
+                        echo $this->QueueProgress->htmlProgressBar($queuedJob, $textProgressBar);
+                        ?>
+                    <?php } else { ?>
+                        <i><?php echo $this->Queue->failureStatus($queuedJob); ?></i>
+                    <?php } ?>
                 <?php } ?>
             </td>
         </tr>
@@ -120,12 +120,12 @@ $this->KMP->endBlock(); ?>
             <td>
                 <?= $queuedJob->attempts ? $this->element('Queue.ok', ['value' => $this->Queue->attempts($queuedJob), 'ok' => $queuedJob->completed || $queuedJob->attempts < 1]) : '' ?>
                 <?php
-				if ($this->Queue->hasFailed($queuedJob)) {
-					echo ' ' . $this->Form->postLink(__d('queue', 'Soft reset'), ['controller' => 'Queue', 'action' => 'resetJob', $queuedJob->id], ['confirm' => 'Sure?', 'class' => 'button button-primary btn margin btn-primary']);
-				} elseif (!$queuedJob->completed && $queuedJob->fetched && $queuedJob->attempts && $queuedJob->failure_message) {
-					echo ' ' . $this->Form->postLink(__d('queue', 'Force reset'), ['controller' => 'Queue', 'action' => 'resetJob', $queuedJob->id], ['confirm' => 'Sure? This job is currently waiting to be re-queued.', 'class' => 'button button-primary btn margin btn-primary']);
-				}
-				?>
+                if ($this->Queue->hasFailed($queuedJob)) {
+                    echo ' ' . $this->Form->postLink(__d('queue', 'Soft reset'), ['controller' => 'Queue', 'action' => 'resetJob', $queuedJob->id], ['confirm' => 'Sure?', 'class' => 'button button-primary btn margin btn-primary']);
+                } elseif (!$queuedJob->completed && $queuedJob->fetched && $queuedJob->attempts && $queuedJob->failure_message) {
+                    echo ' ' . $this->Form->postLink(__d('queue', 'Force reset'), ['controller' => 'Queue', 'action' => 'resetJob', $queuedJob->id], ['confirm' => 'Sure? This job is currently waiting to be re-queued.', 'class' => 'button button-primary btn margin btn-primary']);
+                }
+                ?>
             </td>
         </tr>
         <tr>
@@ -133,7 +133,7 @@ $this->KMP->endBlock(); ?>
             <td>
                 <?= h($queuedJob->workerkey) ?>
                 <?php if ($queuedJob->worker_process) { ?>
-                [<?php echo $this->Html->link($queuedJob->worker_process->server ?: $queuedJob->worker_process->pid, ['controller' => 'QueueProcesses', 'action' => 'view', $queuedJob->worker_process->id]); ?>]
+                    [<?php echo $this->Html->link($queuedJob->worker_process->server ?: $queuedJob->worker_process->pid, ['controller' => 'QueueProcesses', 'action' => 'view', $queuedJob->worker_process->id]); ?>]
                 <?php } ?>
             </td>
         </tr>
@@ -146,14 +146,14 @@ $this->KMP->endBlock(); ?>
         <div class="col-md-12">
             <h3><?= __d('queue', 'Data') ?></h3>
             <?php
-			if ($queuedJob->data) {
-				$data = $queuedJob->data;
-				if ($data && !is_array($data)) {
-					$data = json_decode($queuedJob->data, true);
-				}
-				echo '<pre>' . h(VarExporter::export($data, VarExporter::TRAILING_COMMA_IN_ARRAY)) . '</pre>';
-			}
-			?>
+            if ($queuedJob->data) {
+                $data = $queuedJob->data;
+                if ($data && !is_array($data)) {
+                    $data = json_decode($queuedJob->data, true);
+                }
+                echo '<pre>' . h(VarExporter::export($data, VarExporter::TRAILING_COMMA_IN_ARRAY)) . '</pre>';
+            }
+            ?>
         </div>
     </div>
     <div class="row">

@@ -119,11 +119,11 @@ echo $this->KMP->startBlock("pageTitle") ?>
 </tr>
 <tr>
     <th scope="row"><?= __('Created') ?></th>
-    <td><?= h($waiverType->created->format('Y-m-d H:i:s')) ?></td>
+    <td><?= $this->Timezone->format($waiverType->created, null, null, \IntlDateFormatter::SHORT, \IntlDateFormatter::SHORT) ?></td>
 </tr>
 <tr>
     <th scope="row"><?= __('Modified') ?></th>
-    <td><?= h($waiverType->modified->format('Y-m-d H:i:s')) ?></td>
+    <td><?= $this->Timezone->format($waiverType->modified, null, null, \IntlDateFormatter::SHORT, \IntlDateFormatter::SHORT) ?></td>
 </tr>
 <?php $this->KMP->endBlock() ?>
 

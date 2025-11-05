@@ -88,9 +88,9 @@ echo $this->KMP->startBlock("recordDetails");
 
                     <dt class="col-sm-3"><?= __('Gathering Dates') ?></dt>
                     <dd class="col-sm-9">
-                        <?= h($gatheringWaiver->gathering->start_date->format('M d, Y')) ?>
+                        <?= $this->Timezone->format($gatheringWaiver->gathering->start_date, $gatheringWaiver->gathering, 'M d, Y') ?>
                         to
-                        <?= h($gatheringWaiver->gathering->end_date->format('M d, Y')) ?>
+                        <?= $this->Timezone->format($gatheringWaiver->gathering->end_date, $gatheringWaiver->gathering, 'M d, Y') ?>
                     </dd>
                 </dl>
             </div>
@@ -128,7 +128,7 @@ echo $this->KMP->startBlock("recordDetails");
                     <?php if ($gatheringWaiver->is_declined): ?>
                         <dt class="col-sm-3"><?= __('Declined At') ?></dt>
                         <dd class="col-sm-9">
-                            <?= h($gatheringWaiver->declined_at->format('F d, Y g:i A')) ?>
+                            <?= $this->Timezone->format($gatheringWaiver->declined_at, null, null, \IntlDateFormatter::LONG, \IntlDateFormatter::SHORT) ?>
                         </dd>
 
                         <?php if (!empty($gatheringWaiver->declined_by_member)): ?>
@@ -164,7 +164,7 @@ echo $this->KMP->startBlock("recordDetails");
 
                     <dt class="col-sm-3"><?= __('Uploaded') ?></dt>
                     <dd class="col-sm-9">
-                        <?= h($gatheringWaiver->created->format('F d, Y g:i A')) ?>
+                        <?= $this->Timezone->format($gatheringWaiver->created, null, null, \IntlDateFormatter::LONG, \IntlDateFormatter::SHORT) ?>
                     </dd>
 
                     <?php if ($gatheringWaiver->notes): ?>
@@ -291,7 +291,7 @@ echo $this->KMP->startBlock("recordDetails");
             <div class="card-body">
                 <p class="mb-2">
                     <strong><?= __('Retention Date:') ?></strong><br>
-                    <span class="fs-4"><?= h($gatheringWaiver->retention_date->format('F d, Y')) ?></span>
+                    <span class="fs-4"><?= $this->Timezone->format($gatheringWaiver->retention_date, null, null, \IntlDateFormatter::LONG) ?></span>
                 </p>
 
                 <?php
@@ -415,7 +415,7 @@ if ($user && $user->checkCan('canDecline', $gatheringWaiver) && $gatheringWaiver
                         <p><strong><?= __('Waiver Details:') ?></strong></p>
                         <ul>
                             <li><?= __('Type: {0}', h($gatheringWaiver->waiver_type->name)) ?></li>
-                            <li><?= __('Uploaded: {0}', h($gatheringWaiver->created->format('M d, Y'))) ?></li>
+                            <li><?= __('Uploaded: {0}', $this->Timezone->format($gatheringWaiver->created, null, 'M d, Y')) ?></li>
                             <li><?= __('Gathering: {0}', h($gatheringWaiver->gathering->name)) ?></li>
                         </ul>
                     </div>

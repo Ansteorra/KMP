@@ -7,7 +7,8 @@
 ?>
 <?php
 
-function makePossessive($name) {
+function makePossessive($name)
+{
     // Trim whitespace and ensure proper formatting
     $name = trim($name);
 
@@ -100,7 +101,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
                         <td><?= h(
                                 $request->authorization->member->sca_name,
                             ) ?></td>
-                        <td><?= h($request->requested_on) ?></td>
+                        <td><?= $this->Timezone->format($request->requested_on, null, null, \IntlDateFormatter::SHORT) ?></td>
                         <td><?= h(
                                 $request->authorization->activity
                                     ->name,
@@ -108,12 +109,18 @@ echo $this->KMP->startBlock("pageTitle") ?>
                         <td><?= h(
                                 $request->authorization->member->membership_number,
                             ) ?></td>
-                        <td><?= h(
+                        <td><?= $this->Timezone->format(
                                 $request->authorization->member->membership_expires_on,
+                                null,
+                                null,
+                                \IntlDateFormatter::SHORT
                             ) ?></td>
-                        <td><?= h(
+                        <td><?= $request->authorization->member->background_check_expires_on ? $this->Timezone->format(
                                 $request->authorization->member->background_check_expires_on,
-                            ) ?></td>
+                                null,
+                                null,
+                                \IntlDateFormatter::SHORT
+                            ) : '' ?></td>
                         <td class="actions text-end text-nowrap">
                             <?php if ($hasMoreApprovalsToGo) : ?>
                                 <button type="button" class="btn btn-primary approve-btn" data-bs-toggle="modal"
@@ -167,8 +174,8 @@ echo $this->KMP->startBlock("pageTitle") ?>
                         <td><?= h(
                                 $request->authorization->member->sca_name,
                             ) ?></td>
-                        <td><?= h($request->requested_on) ?></td>
-                        <td><?= h($request->responded_on) ?></td>
+                        <td><?= $this->Timezone->format($request->requested_on, null, null, \IntlDateFormatter::SHORT) ?></td>
+                        <td><?= $this->Timezone->format($request->responded_on, null, null, \IntlDateFormatter::SHORT) ?></td>
                         <td><?= h(
                                 $request->authorization->activity
                                     ->name,
@@ -198,8 +205,8 @@ echo $this->KMP->startBlock("pageTitle") ?>
                         <td><?= h(
                                 $request->authorization->member->sca_name,
                             ) ?></td>
-                        <td><?= h($request->requested_on) ?></td>
-                        <td><?= h($request->responded_on) ?></td>
+                        <td><?= $this->Timezone->format($request->requested_on, null, null, \IntlDateFormatter::SHORT) ?></td>
+                        <td><?= $this->Timezone->format($request->responded_on, null, null, \IntlDateFormatter::SHORT) ?></td>
                         <td><?= h(
                                 $request->authorization->activity
                                     ->name,

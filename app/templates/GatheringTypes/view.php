@@ -56,11 +56,11 @@ echo $this->KMP->startBlock("pageTitle") ?>
 </tr>
 <tr scope="row">
     <th class="col"><?= __('Created') ?></th>
-    <td class="col-10"><?= h($gatheringType->created) ?></td>
+    <td class="col-10"><?= $this->Timezone->format($gatheringType->created, null, null, \IntlDateFormatter::SHORT, \IntlDateFormatter::SHORT) ?></td>
 </tr>
 <tr scope="row">
     <th class="col"><?= __('Modified') ?></th>
-    <td class="col-10"><?= h($gatheringType->modified) ?></td>
+    <td class="col-10"><?= $this->Timezone->format($gatheringType->modified, null, null, \IntlDateFormatter::SHORT, \IntlDateFormatter::SHORT) ?></td>
 </tr>
 <?php $this->KMP->endBlock() ?>
 
