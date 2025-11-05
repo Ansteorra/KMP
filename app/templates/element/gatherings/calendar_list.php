@@ -35,7 +35,7 @@ $today = new DateTime('now', new \DateTimeZone($userTimezone));
                     $endInUserTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->end_date, $currentUser);
 
                     $isAttending = !empty($gathering->gathering_attendances);
-                    $isMultiDay = !$startInUserTz->equals($endInUserTz);
+                    $isMultiDay = $startInUserTz->format('Y-m-d') !== $endInUserTz->format('Y-m-d');
                     $hasLocation = !empty($gathering->location);
                     $isPast = $endInUserTz < $today;
                     $bgColor = $gathering->gathering_type->color ?? '#0d6efd';
