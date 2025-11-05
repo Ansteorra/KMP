@@ -130,13 +130,13 @@ class GatheringsTable extends Table
             ->allowEmptyString('description');
 
         $validator
-            ->date('start_date')
+            ->dateTime('start_date')
             ->requirePresence('start_date', 'create')
-            ->notEmptyDate('start_date');
+            ->notEmptyDateTime('start_date');
 
         $validator
-            ->date('end_date')
-            ->allowEmptyDate('end_date')
+            ->dateTime('end_date')
+            ->allowEmptyDateTime('end_date')
             ->add('end_date', 'validEndDate', [
                 'rule' => function ($value, $context) {
                     // If end_date is empty, validation passes (will be defaulted in controller)
@@ -157,6 +157,27 @@ class GatheringsTable extends Table
             ->scalar('location')
             ->maxLength('location', 255)
             ->allowEmptyString('location');
+
+        $validator
+            ->scalar('timezone')
+            ->maxLength('timezone', 50)
+            ->allowEmptyString('timezone')
+            ->add('timezone', 'validTimezone', [
+                'rule' => function ($value, $context) {
+                    // Allow empty timezone (will fall back to user/app default)
+                    if (empty($value)) {
+                        return true;
+                    }
+                    // Validate using PHP's timezone list
+                    try {
+                        new \DateTimeZone($value);
+                        return true;
+                    } catch (\Exception $e) {
+                        return false;
+                    }
+                },
+                'message' => __('Invalid timezone identifier'),
+            ]);
 
         $validator
             ->decimal('latitude')

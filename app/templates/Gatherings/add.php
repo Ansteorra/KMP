@@ -54,20 +54,25 @@ $this->KMP->endBlock();
         <div class="row">
             <div class="col-md-6 mb-3">
                 <?= $this->Form->control('start_date', [
-                    'type' => 'date',
+                    'type' => 'datetime-local',
                     'required' => true,
                     'class' => 'form-control',
                     'data-gathering-form-target' => 'startDate',
-                    'data-action' => 'change->gathering-form#startDateChanged'
+                    'data-action' => 'change->gathering-form#startDateChanged',
+                    'label' => 'Start Date & Time'
                 ]) ?>
+                <small class="form-text text-muted">
+                    Event start date and time
+                </small>
             </div>
             <div class="col-md-6 mb-3">
                 <?= $this->Form->control('end_date', [
-                    'type' => 'date',
+                    'type' => 'datetime-local',
                     'required' => false,
                     'class' => 'form-control',
                     'data-gathering-form-target' => 'endDate',
-                    'data-action' => 'change->gathering-form#endDateChanged'
+                    'data-action' => 'change->gathering-form#endDateChanged',
+                    'label' => 'End Date & Time'
                 ]) ?>
                 <small class="form-text text-muted">
                     Will default to start date if not specified. For single-day gatherings, leave blank or use the same
@@ -102,6 +107,19 @@ $this->KMP->endBlock();
             </div>
             <small class="form-text text-muted">
                 <?= __('Start typing to see address suggestions powered by Google Maps') ?>
+            </small>
+        </div>
+
+        <div class="mb-3">
+            <?= $this->Form->control('timezone', [
+                'type' => 'select',
+                'options' => $this->Timezone->getTimezoneOptions(),
+                'empty' => sprintf('(Use User Timezone: %s)', $this->Timezone->getUserTimezone()),
+                'class' => 'form-select',
+                'label' => 'Event Timezone'
+            ]) ?>
+            <small class="form-text text-muted">
+                <?= __('Set the timezone for this event based on its location. If not set, times will display in each user\'s timezone.') ?>
             </small>
         </div>
 

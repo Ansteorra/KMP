@@ -44,34 +44,37 @@ class GatheringScheduleController extends Controller {
      */
     connect() {
         console.log('Gathering schedule controller connected');
-        this.setupDateTimeLimits();
+        // Note: setupDateTimeLimits() is called when the modal opens (resetAddForm)
+        // because Stimulus values may not be initialized yet during connect()
     }
 
     /**
      * Setup min/max limits on datetime inputs based on gathering dates
+     * This is called when modals open to ensure values are set
      */
     setupDateTimeLimits() {
-        // Validate that gathering dates are present and in correct format (YYYY-MM-DD)
-        const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+        // Validate that gathering dates are present and in correct format (YYYY-MM-DDTHH:MM)
+        const datetimePattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
         if (!this.gatheringStartValue || !this.gatheringEndValue || 
-            !datePattern.test(this.gatheringStartValue) || 
-            !datePattern.test(this.gatheringEndValue)) {
+            !datetimePattern.test(this.gatheringStartValue) || 
+            !datetimePattern.test(this.gatheringEndValue)) {
             console.warn('Invalid gathering dates - skipping datetime limits setup');
+            console.log('Start:', this.gatheringStartValue, 'End:', this.gatheringEndValue);
             return;
         }
 
-        // Calculate min/max datetime strings
-        const minDatetime = `${this.gatheringStartValue}T00:00`;
-        const maxDatetime = `${this.gatheringEndValue}T23:59`;
+        // Use the gathering start/end times directly (already in gathering timezone)
+        const minDatetime = this.gatheringStartValue;
+        const maxDatetime = this.gatheringEndValue;
 
         // Set limits on add form inputs
         if (this.hasStartDatetimeTarget) {
             this.startDatetimeTarget.min = minDatetime;
             this.startDatetimeTarget.max = maxDatetime;
             
-            // Set default to start of gathering at 9:00 AM if empty
+            // Set default to start of gathering if empty
             if (!this.startDatetimeTarget.value) {
-                this.startDatetimeTarget.value = `${this.gatheringStartValue}T09:00`;
+                this.startDatetimeTarget.value = this.gatheringStartValue;
             }
         }
 
@@ -98,21 +101,21 @@ class GatheringScheduleController extends Controller {
      * Reset add form when modal is opened
      */
     resetAddForm(event) {
-        // Validate that gathering dates are present and in correct format (YYYY-MM-DD)
-        const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+        // Setup datetime limits when modal opens (values are guaranteed to be available now)
+        this.setupDateTimeLimits();
+        
+        // Validate that gathering dates are present and in correct format (YYYY-MM-DDTHH:MM)
+        const datetimePattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
         if (!this.gatheringStartValue || !this.gatheringEndValue || 
-            !datePattern.test(this.gatheringStartValue) || 
-            !datePattern.test(this.gatheringEndValue)) {
+            !datetimePattern.test(this.gatheringStartValue) || 
+            !datetimePattern.test(this.gatheringEndValue)) {
             console.warn('Invalid gathering dates - skipping form reset defaults');
             return;
         }
 
-        // Reset to defaults
-        const minDatetime = `${this.gatheringStartValue}T00:00`;
-        const maxDatetime = `${this.gatheringEndValue}T23:59`;
-        
+        // Reset to defaults - use gathering start time
         if (this.hasStartDatetimeTarget) {
-            this.startDatetimeTarget.value = `${this.gatheringStartValue}T09:00`;
+            this.startDatetimeTarget.value = this.gatheringStartValue;
         }
         
         if (this.hasEndDatetimeTarget) {
@@ -220,6 +223,10 @@ class GatheringScheduleController extends Controller {
      */
     openEditModal(event) {
         event.preventDefault();
+        
+        // Setup datetime limits when modal opens (values are guaranteed to be available now)
+        this.setupDateTimeLimits();
+        
         const button = event.currentTarget;
         
         // Get data attributes from the button

@@ -17,9 +17,10 @@ use Cake\ORM\Entity;
  * @property int $gathering_type_id
  * @property string $name
  * @property string|null $description
- * @property \Cake\I18n\Date $start_date
- * @property \Cake\I18n\Date $end_date
+ * @property \Cake\I18n\DateTime $start_date
+ * @property \Cake\I18n\DateTime $end_date
  * @property string|null $location
+ * @property string|null $timezone
  * @property float|null $latitude
  * @property float|null $longitude
  * @property bool $public_page_enabled
@@ -51,6 +52,7 @@ class Gathering extends BaseEntity
         'start_date' => true,
         'end_date' => true,
         'location' => true,
+        'timezone' => true,
         'latitude' => true,
         'longitude' => true,
         'public_page_enabled' => true,

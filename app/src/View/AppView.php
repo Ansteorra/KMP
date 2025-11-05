@@ -152,6 +152,7 @@ class AppView extends View
             'Tools.Time',          // Time/date formatting utilities  
             'Templating.Icon',     // Icon rendering utilities
             'Templating.IconSnippet', // Icon snippet utilities
+            'Timezone',            // Timezone conversion and formatting
         ];
 
         // Add all utility helpers to the view

@@ -514,6 +514,25 @@ class MembersTable extends BaseTable
             ->dateTime('deleted_date')
             ->allowEmptyDateTime('deleted_date');
 
+        $validator
+            ->scalar('timezone')
+            ->maxLength('timezone', 50)
+            ->allowEmptyString('timezone')
+            ->add('timezone', 'validTimezone', [
+                'rule' => function ($value, $context) {
+                    if (empty($value)) {
+                        return true; // Allow empty - will use app default
+                    }
+                    try {
+                        new \DateTimeZone($value);
+                        return true;
+                    } catch (\Exception $e) {
+                        return false;
+                    }
+                },
+                'message' => 'Please provide a valid timezone identifier (e.g., America/Chicago, UTC)',
+            ]);
+
         return $validator;
     }
 

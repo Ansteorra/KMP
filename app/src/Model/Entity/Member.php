@@ -276,6 +276,7 @@ class Member extends BaseEntity implements
         'title' => true,
         'pronouns' => true,
         'pronunciation' => true,
+        'timezone' => true,
     ];
 
     /**

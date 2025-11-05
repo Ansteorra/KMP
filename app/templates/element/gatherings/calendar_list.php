@@ -11,7 +11,12 @@
 
 use Cake\I18n\DateTime;
 
-$today = new DateTime();
+// Get current user for timezone conversion
+$currentUser = $this->getRequest()->getAttribute('identity');
+$userTimezone = \App\KMP\TimezoneHelper::getUserTimezone($currentUser);
+
+// Get current date in user's timezone
+$today = new DateTime('now', new \DateTimeZone($userTimezone));
 ?>
 
 <div class="card">
@@ -25,10 +30,14 @@ $today = new DateTime();
             <div class="list-group">
                 <?php foreach ($gatherings as $gathering): ?>
                     <?php
+                    // Convert gathering dates to user's timezone for display
+                    $startInUserTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->start_date, $currentUser);
+                    $endInUserTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->end_date, $currentUser);
+
                     $isAttending = !empty($gathering->gathering_attendances);
-                    $isMultiDay = !$gathering->start_date->equals($gathering->end_date);
+                    $isMultiDay = !$startInUserTz->equals($endInUserTz);
                     $hasLocation = !empty($gathering->location);
-                    $isPast = $gathering->end_date < $today;
+                    $isPast = $endInUserTz < $today;
                     $bgColor = $gathering->gathering_type->color ?? '#0d6efd';
                     ?>
                     <div class="list-group-item list-group-item-action"
@@ -67,13 +76,13 @@ $today = new DateTime();
                                 <p class="mb-1">
                                     <i class="bi bi-calendar-event"></i>
                                     <?php if ($isMultiDay): ?>
-                                        <?= $gathering->start_date->format('M j, Y') ?>
-                                        - <?= $gathering->end_date->format('M j, Y') ?>
+                                        <?= $startInUserTz->format('M j, Y') ?>
+                                        - <?= $endInUserTz->format('M j, Y') ?>
                                         <span class="badge bg-warning text-dark ms-2">
-                                            <?= $gathering->start_date->diffInDays($gathering->end_date) + 1 ?> days
+                                            <?= $startInUserTz->diffInDays($endInUserTz) + 1 ?> days
                                         </span>
                                     <?php else: ?>
-                                        <?= $gathering->start_date->format('l, F j, Y') ?>
+                                        <?= $startInUserTz->format('l, F j, Y') ?>
                                     <?php endif; ?>
                                 </p>
 

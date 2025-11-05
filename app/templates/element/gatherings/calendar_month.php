@@ -15,11 +15,19 @@
 
 use Cake\I18n\DateTime;
 
+// Get current user for timezone conversion
+$currentUser = $this->getRequest()->getAttribute('identity');
+
 // Group gatherings by date for efficient lookup
+// Convert gathering dates to user's timezone for proper day assignment
 $gatheringsByDate = [];
 foreach ($gatherings as $gathering) {
-    $start = new DateTime($gathering->start_date->format('Y-m-d'));
-    $end = new DateTime($gathering->end_date->format('Y-m-d'));
+    // Convert UTC dates to user's timezone using the core TimezoneHelper
+    $startInUserTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->start_date, $currentUser);
+    $endInUserTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->end_date, $currentUser);
+
+    $start = new DateTime($startInUserTz->format('Y-m-d'));
+    $end = new DateTime($endInUserTz->format('Y-m-d'));
 
     // Add gathering to each day it spans
     $current = $start;
@@ -36,7 +44,9 @@ foreach ($gatherings as $gathering) {
     }
 }
 
-$today = new DateTime();
+// Get current date in user's timezone
+$userTimezone = \App\KMP\TimezoneHelper::getUserTimezone($currentUser);
+$today = new DateTime('now', new \DateTimeZone($userTimezone));
 $today->setTime(0, 0, 0);
 ?>
 

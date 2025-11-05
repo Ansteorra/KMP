@@ -252,6 +252,239 @@ window.Controllers["qrcode"] = QrcodeController;
 
 /***/ }),
 
+/***/ "./assets/js/controllers/timezone-input-controller.js":
+/*!************************************************************!*\
+  !*** ./assets/js/controllers/timezone-input-controller.js ***!
+  \************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+
+/**
+ * Timezone Input Controller
+ * 
+ * Automatically handles timezone conversion for datetime-local inputs.
+ * Converts UTC values from server to user's local timezone for display/editing,
+ * and converts back to UTC before form submission.
+ * 
+ * ## Usage
+ * 
+ * ### Basic Auto-Conversion
+ * ```html
+ * <form data-controller="timezone-input">
+ *   <input type="datetime-local" 
+ *          name="start_date"
+ *          data-timezone-input-target="datetimeInput"
+ *          data-utc-value="2025-03-15T14:30:00Z">
+ * </form>
+ * ```
+ * 
+ * ### Custom Timezone
+ * ```html
+ * <form data-controller="timezone-input" data-timezone-input-timezone-value="America/New_York">
+ *   <input type="datetime-local" 
+ *          name="start_date"
+ *          data-timezone-input-target="datetimeInput"
+ *          data-utc-value="2025-03-15T14:30:00Z">
+ * </form>
+ * ```
+ * 
+ * ### With Timezone Notice
+ * ```html
+ * <form data-controller="timezone-input">
+ *   <input type="datetime-local" 
+ *          name="start_date"
+ *          data-timezone-input-target="datetimeInput"
+ *          data-utc-value="2025-03-15T14:30:00Z">
+ *   
+ *   <!-- Timezone notice will be auto-populated -->
+ *   <small data-timezone-input-target="notice" class="text-muted"></small>
+ * </form>
+ * ```
+ * 
+ * ## Features
+ * - Automatic timezone detection from browser
+ * - Converts UTC to local time on page load
+ * - Converts local time back to UTC on form submit
+ * - Shows timezone notice to user
+ * - Handles multiple datetime inputs in one form
+ * - Preserves original values for form reset
+ * 
+ * ## Targets
+ * - `datetimeInput` - datetime-local inputs to convert (required)
+ * - `notice` - Elements to populate with timezone info (optional)
+ * 
+ * ## Values
+ * - `timezone` - Override timezone (default: browser detected)
+ * - `showNotice` - Show timezone notice (default: true)
+ * 
+ * ## Actions
+ * - `submit` - Converts all inputs to UTC before form submission
+ * - `reset` - Restores original local values on form reset
+ */
+class TimezoneInputController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static targets = ["datetimeInput", "notice"];
+  static values = {
+    timezone: String,
+    showNotice: {
+      type: Boolean,
+      default: true
+    }
+  };
+
+  /**
+   * Initialize controller and convert UTC values to local time
+   */
+  connect() {
+    // Get or detect timezone
+    this.timezone = this.hasTimezoneValue ? this.timezoneValue : KMP_Timezone.detectTimezone();
+
+    // Convert all UTC values to local time for display
+    this.convertUtcToLocal();
+
+    // Show timezone notice if requested
+    if (this.showNoticeValue && this.hasNoticeTarget) {
+      this.updateNotice();
+    }
+
+    // Attach submit handler
+    this.element.addEventListener('submit', this.handleSubmit.bind(this));
+
+    // Attach reset handler
+    this.element.addEventListener('reset', this.handleReset.bind(this));
+  }
+
+  /**
+   * Convert UTC values to local timezone for input display
+   */
+  convertUtcToLocal() {
+    this.datetimeInputTargets.forEach(input => {
+      const utcValue = input.dataset.utcValue;
+      if (utcValue) {
+        // Convert UTC to local time for input
+        const localValue = KMP_Timezone.toLocalInput(utcValue, this.timezone);
+        input.value = localValue;
+
+        // Store original UTC value for reference
+        input.dataset.originalUtc = utcValue;
+
+        // Store converted local value for reset
+        input.dataset.localValue = localValue;
+      }
+    });
+  }
+
+  /**
+   * Update timezone notice elements
+   */
+  updateNotice() {
+    const abbr = KMP_Timezone.getAbbreviation(this.timezone);
+    const noticeText = `Times shown in ${this.timezone} (${abbr})`;
+    this.noticeTargets.forEach(notice => {
+      notice.innerHTML = `<i class="bi bi-clock"></i> ${noticeText}`;
+    });
+  }
+
+  /**
+   * Handle form submission - convert local times to UTC
+   * 
+   * @param {Event} event - Submit event
+   */
+  handleSubmit(event) {
+    this.datetimeInputTargets.forEach(input => {
+      if (input.value) {
+        // Convert local time to UTC
+        const utcValue = KMP_Timezone.toUTC(input.value, this.timezone);
+
+        // Store original local value for potential reset
+        input.dataset.submittedLocal = input.value;
+
+        // Create hidden input with UTC value
+        const hiddenInput = document.createElement('input');
+        hiddenInput.type = 'hidden';
+        hiddenInput.name = input.name;
+        hiddenInput.value = utcValue;
+        hiddenInput.dataset.timezoneConverted = 'true';
+
+        // Disable original input so it doesn't submit
+        input.disabled = true;
+
+        // Add hidden input to form
+        this.element.appendChild(hiddenInput);
+      }
+    });
+  }
+
+  /**
+   * Handle form reset - restore local values
+   * 
+   * @param {Event} event - Reset event
+   */
+  handleReset(event) {
+    // Remove any hidden UTC inputs
+    const hiddenInputs = this.element.querySelectorAll('input[data-timezone-converted="true"]');
+    hiddenInputs.forEach(input => input.remove());
+
+    // Re-enable and restore datetime inputs
+    this.datetimeInputTargets.forEach(input => {
+      input.disabled = false;
+
+      // Restore to original local value
+      if (input.dataset.localValue) {
+        setTimeout(() => {
+          input.value = input.dataset.localValue;
+        }, 0);
+      }
+    });
+  }
+
+  /**
+   * Manually update timezone (called if timezone changes)
+   * 
+   * @param {string} newTimezone - New IANA timezone identifier
+   */
+  updateTimezone(newTimezone) {
+    this.timezone = newTimezone;
+
+    // Re-convert all values with new timezone
+    this.convertUtcToLocal();
+
+    // Update notice if shown
+    if (this.showNoticeValue && this.hasNoticeTarget) {
+      this.updateNotice();
+    }
+  }
+
+  /**
+   * Get current timezone being used
+   * 
+   * @returns {string} Current timezone identifier
+   */
+  getTimezone() {
+    return this.timezone;
+  }
+
+  /**
+   * Cleanup on disconnect
+   */
+  disconnect() {
+    // Remove event listeners
+    this.element.removeEventListener('submit', this.handleSubmit.bind(this));
+    this.element.removeEventListener('reset', this.handleReset.bind(this));
+  }
+}
+
+// Add to global controllers registry
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["timezone-input"] = TimezoneInputController;
+
+/***/ }),
+
 /***/ "./assets/js/index.js":
 /*!****************************!*\
   !*** ./assets/js/index.js ***!
@@ -264,7 +497,9 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _hotwired_turbo__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @hotwired/turbo */ "./node_modules/@hotwired/turbo/dist/turbo.es2017-esm.js");
 /* harmony import */ var bootstrap__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! bootstrap */ "./node_modules/bootstrap/dist/js/bootstrap.esm.js");
 /* harmony import */ var _KMP_utils_js__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./KMP_utils.js */ "./assets/js/KMP_utils.js");
-/* harmony import */ var _controllers_qrcode_controller_js__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./controllers/qrcode-controller.js */ "./assets/js/controllers/qrcode-controller.js");
+/* harmony import */ var _timezone_utils_js__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./timezone-utils.js */ "./assets/js/timezone-utils.js");
+/* harmony import */ var _controllers_qrcode_controller_js__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./controllers/qrcode-controller.js */ "./assets/js/controllers/qrcode-controller.js");
+/* harmony import */ var _controllers_timezone_input_controller_js__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./controllers/timezone-input-controller.js */ "./assets/js/controllers/timezone-input-controller.js");
 /* provided dependency */ var bootstrap = __webpack_require__(/*! bootstrap */ "./node_modules/bootstrap/dist/js/bootstrap.esm.js");
 // export for others scripts to use
 
@@ -272,7 +507,9 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
+
 // Import controllers
+
 
 
 // Disable Turbo Drive (automatic navigation) but keep Turbo Frames working
@@ -292,6 +529,572 @@ for (const controller in window.Controllers) {
 //activate boostrap tooltips
 const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
 const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
+
+/***/ }),
+
+/***/ "./assets/js/timezone-utils.js":
+/*!*************************************!*\
+  !*** ./assets/js/timezone-utils.js ***!
+  \*************************************/
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _babel_runtime_helpers_objectSpread2__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @babel/runtime/helpers/objectSpread2 */ "./node_modules/@babel/runtime/helpers/esm/objectSpread2.js");
+/* module decorator */ module = __webpack_require__.hmd(module);
+
+/**
+ * KMP Timezone Utilities
+ *
+ * Client-side timezone handling for the KMP application. Provides utilities for
+ * detecting user timezone, formatting dates/times, and converting between timezones
+ * for datetime inputs and displays.
+ *
+ * ## Features
+ * - Automatic timezone detection
+ * - UTC to local timezone conversion for display
+ * - Local to UTC conversion for form submission
+ * - Datetime formatting with timezone awareness
+ * - Integration with HTML5 datetime-local inputs
+ *
+ * ## Usage Examples
+ *
+ * ### Basic Timezone Detection
+ * ```javascript
+ * // Detect user's browser timezone
+ * const userTz = KMP_Timezone.detectTimezone();
+ * console.log(userTz); // "America/Chicago"
+ *
+ * // Get timezone from data attribute or detect
+ * const tz = KMP_Timezone.getTimezone(element);
+ * ```
+ *
+ * ### Formatting Dates for Display
+ * ```javascript
+ * // Format UTC datetime for display in user's timezone
+ * const utcString = "2025-03-15T14:30:00Z";
+ * const displayed = KMP_Timezone.formatDateTime(utcString, "America/Chicago");
+ * // "3/15/2025, 9:30:00 AM"
+ *
+ * // Custom format
+ * const formatted = KMP_Timezone.formatDateTime(utcString, "America/Chicago", {
+ *     dateStyle: 'full',
+ *     timeStyle: 'short'
+ * });
+ * // "Saturday, March 15, 2025 at 9:30 AM"
+ * ```
+ *
+ * ### Form Input Handling
+ * ```javascript
+ * // Convert UTC to local time for datetime-local input
+ * const utcDate = "2025-03-15T14:30:00Z";
+ * const inputValue = KMP_Timezone.toLocalInput(utcDate, "America/Chicago");
+ * // "2025-03-15T09:30"
+ *
+ * // Convert local datetime-local input to UTC for submission
+ * const localInput = "2025-03-15T09:30";
+ * const utcValue = KMP_Timezone.toUTC(localInput, "America/Chicago");
+ * // "2025-03-15T14:30:00.000Z"
+ * ```
+ *
+ * ### Auto-Converting Datetime Inputs
+ * ```html
+ * <!-- Add data attributes to auto-convert inputs -->
+ * <input type="datetime-local" 
+ *        name="start_date"
+ *        data-timezone="America/Chicago"
+ *        data-utc-value="2025-03-15T14:30:00Z"
+ *        data-controller="timezone-input">
+ * ```
+ *
+ * ## Integration with Server
+ *
+ * Server always stores in UTC, client converts for display/input:
+ * 1. Server sends UTC datetime: "2025-03-15T14:30:00Z"
+ * 2. Client converts to local for input: "2025-03-15T09:30" (Chicago time)
+ * 3. User edits: "2025-03-15T10:00"
+ * 4. Client converts back to UTC: "2025-03-15T15:00:00Z"
+ * 5. Server stores UTC value
+ *
+ * @namespace KMP_Timezone
+ */
+const KMP_Timezone = {
+  /**
+   * Detect user's timezone from browser
+   *
+   * Uses Intl.DateTimeFormat to get IANA timezone identifier
+   *
+   * @returns {string} IANA timezone identifier (e.g., "America/Chicago")
+   */
+  detectTimezone() {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone;
+    } catch (e) {
+      console.warn('Could not detect timezone, defaulting to UTC', e);
+      return 'UTC';
+    }
+  },
+  /**
+   * Get timezone from element data attribute or detect from browser
+   *
+   * @param {HTMLElement} element - Element with optional data-timezone attribute
+   * @returns {string} Timezone identifier
+   */
+  getTimezone(element) {
+    if (element && element.dataset && element.dataset.timezone) {
+      return element.dataset.timezone;
+    }
+    return this.detectTimezone();
+  },
+  /**
+   * Convert UTC datetime to user's timezone for display
+   *
+   * @param {string|Date} utcDateTime - UTC datetime string or Date object
+   * @param {string} timezone - Target timezone (default: detected timezone)
+   * @param {object} options - Intl.DateTimeFormat options
+   * @returns {string} Formatted datetime string in local timezone
+   */
+  formatDateTime(utcDateTime, timezone = null, options = null) {
+    if (!utcDateTime) return '';
+    timezone = timezone || this.detectTimezone();
+
+    // Parse the datetime
+    const date = typeof utcDateTime === 'string' ? new Date(utcDateTime) : utcDateTime;
+    if (isNaN(date.getTime())) {
+      console.error('Invalid datetime:', utcDateTime);
+      return '';
+    }
+
+    // Default options
+    const defaultOptions = {
+      timeZone: timezone,
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    };
+    const formatOptions = options ? (0,_babel_runtime_helpers_objectSpread2__WEBPACK_IMPORTED_MODULE_0__["default"])((0,_babel_runtime_helpers_objectSpread2__WEBPACK_IMPORTED_MODULE_0__["default"])({}, defaultOptions), options) : defaultOptions;
+    try {
+      return new Intl.DateTimeFormat('en-US', formatOptions).format(date);
+    } catch (e) {
+      console.error('Error formatting datetime:', e);
+      return date.toLocaleString();
+    }
+  },
+  /**
+   * Format date only (no time)
+   *
+   * @param {string|Date} utcDateTime - UTC datetime string or Date object
+   * @param {string} timezone - Target timezone (default: detected timezone)
+   * @param {object} options - Intl.DateTimeFormat options
+   * @returns {string} Formatted date string
+   */
+  formatDate(utcDateTime, timezone = null, options = null) {
+    if (!utcDateTime) return '';
+    timezone = timezone || this.detectTimezone();
+    const date = typeof utcDateTime === 'string' ? new Date(utcDateTime) : utcDateTime;
+    const defaultOptions = {
+      timeZone: timezone,
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    };
+    const formatOptions = options ? (0,_babel_runtime_helpers_objectSpread2__WEBPACK_IMPORTED_MODULE_0__["default"])((0,_babel_runtime_helpers_objectSpread2__WEBPACK_IMPORTED_MODULE_0__["default"])({}, defaultOptions), options) : defaultOptions;
+    try {
+      return new Intl.DateTimeFormat('en-US', formatOptions).format(date);
+    } catch (e) {
+      console.error('Error formatting date:', e);
+      return date.toLocaleDateString();
+    }
+  },
+  /**
+   * Format time only (no date)
+   *
+   * @param {string|Date} utcDateTime - UTC datetime string or Date object
+   * @param {string} timezone - Target timezone (default: detected timezone)
+   * @param {object} options - Intl.DateTimeFormat options
+   * @returns {string} Formatted time string
+   */
+  formatTime(utcDateTime, timezone = null, options = null) {
+    if (!utcDateTime) return '';
+    timezone = timezone || this.detectTimezone();
+    const date = typeof utcDateTime === 'string' ? new Date(utcDateTime) : utcDateTime;
+    const defaultOptions = {
+      timeZone: timezone,
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    };
+    const formatOptions = options ? (0,_babel_runtime_helpers_objectSpread2__WEBPACK_IMPORTED_MODULE_0__["default"])((0,_babel_runtime_helpers_objectSpread2__WEBPACK_IMPORTED_MODULE_0__["default"])({}, defaultOptions), options) : defaultOptions;
+    try {
+      return new Intl.DateTimeFormat('en-US', formatOptions).format(date);
+    } catch (e) {
+      console.error('Error formatting time:', e);
+      return date.toLocaleTimeString();
+    }
+  },
+  /**
+   * Convert UTC datetime to HTML5 datetime-local format in user's timezone
+   *
+   * For use with datetime-local inputs
+   *
+   * @param {string|Date} utcDateTime - UTC datetime
+   * @param {string} timezone - Target timezone (default: detected timezone)
+   * @returns {string} Datetime in YYYY-MM-DDTHH:mm format (local time)
+   */
+  toLocalInput(utcDateTime, timezone = null) {
+    if (!utcDateTime) return '';
+    timezone = timezone || this.detectTimezone();
+    const date = typeof utcDateTime === 'string' ? new Date(utcDateTime) : utcDateTime;
+    if (isNaN(date.getTime())) {
+      console.error('Invalid datetime for input:', utcDateTime);
+      return '';
+    }
+    try {
+      // Get date parts in the target timezone
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: timezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+      const parts = formatter.formatToParts(date);
+      const dateParts = {};
+      parts.forEach(part => {
+        if (part.type !== 'literal') {
+          dateParts[part.type] = part.value;
+        }
+      });
+
+      // Format as YYYY-MM-DDTHH:mm
+      return `${dateParts.year}-${dateParts.month}-${dateParts.day}T${dateParts.hour}:${dateParts.minute}`;
+    } catch (e) {
+      console.error('Error converting to local input:', e);
+      return '';
+    }
+  },
+  /**
+   * Convert datetime-local input value (local time) to UTC
+   *
+   * For form submission - converts user's local input to UTC for storage
+   *
+   * @param {string} localDateTime - Datetime in YYYY-MM-DDTHH:mm format (local time)
+   * @param {string} timezone - Source timezone (default: detected timezone)
+   * @returns {string} ISO 8601 UTC datetime string
+   */
+  toUTC(localDateTime, timezone = null) {
+    if (!localDateTime) return '';
+    timezone = timezone || this.detectTimezone();
+    try {
+      // Parse the local datetime string
+      // Format: YYYY-MM-DDTHH:mm or YYYY-MM-DD HH:mm:ss
+      const dateStr = localDateTime.replace(' ', 'T');
+
+      // Create a date string with timezone offset
+      // We'll use a hack: create date in target timezone by building ISO string
+      const parts = dateStr.match(/(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/);
+      if (!parts) {
+        console.error('Invalid datetime format:', localDateTime);
+        return '';
+      }
+      const [, year, month, day, hour, minute, second = '00'] = parts;
+
+      // Create a formatter to get timezone offset
+      const tempDate = new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}`);
+
+      // Format in target timezone to get the actual date/time
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: timezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+        timeZoneName: 'short'
+      });
+
+      // Create date assuming it's in the target timezone
+      // This is tricky - we need to find the UTC time that produces this local time
+      const localString = `${year}-${month}-${day}T${hour}:${minute}:${second}`;
+
+      // Use a more reliable method: temporarily set to target timezone
+      const utcDate = new Date(localString + 'Z'); // Treat as UTC first
+      const offset = this.getTimezoneOffset(timezone, utcDate);
+
+      // Adjust by the offset to get the correct UTC time
+      const adjustedDate = new Date(utcDate.getTime() - offset * 60000);
+      return adjustedDate.toISOString();
+    } catch (e) {
+      console.error('Error converting to UTC:', e);
+      return '';
+    }
+  },
+  /**
+   * Get timezone offset in minutes for a specific timezone and date
+   *
+   * @param {string} timezone - IANA timezone identifier
+   * @param {Date} date - Date to calculate offset for (handles DST)
+   * @returns {number} Offset in minutes
+   */
+  getTimezoneOffset(timezone, date = new Date()) {
+    try {
+      // Get UTC time
+      const utcDate = new Date(date.toLocaleString('en-US', {
+        timeZone: 'UTC'
+      }));
+
+      // Get time in target timezone
+      const tzDate = new Date(date.toLocaleString('en-US', {
+        timeZone: timezone
+      }));
+
+      // Calculate difference in minutes
+      return (tzDate.getTime() - utcDate.getTime()) / 60000;
+    } catch (e) {
+      console.error('Error getting timezone offset:', e);
+      return 0;
+    }
+  },
+  /**
+   * Get timezone abbreviation (e.g., CDT, EST, PST)
+   *
+   * @param {string} timezone - IANA timezone identifier
+   * @param {Date} date - Date for DST calculation (default: now)
+   * @returns {string} Timezone abbreviation
+   */
+  getAbbreviation(timezone = null, date = new Date()) {
+    timezone = timezone || this.detectTimezone();
+    try {
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: timezone,
+        timeZoneName: 'short'
+      });
+      const parts = formatter.formatToParts(date);
+      const abbr = parts.find(part => part.type === 'timeZoneName');
+      return abbr ? abbr.value : '';
+    } catch (e) {
+      console.error('Error getting timezone abbreviation:', e);
+      return '';
+    }
+  },
+  /**
+   * Initialize timezone conversion for all datetime inputs on page
+   *
+   * Finds all inputs with data-utc-value and converts them to local time
+   * Call this on page load or after dynamically adding inputs
+   *
+   * @param {HTMLElement} container - Container to search in (default: document)
+   */
+  initializeDatetimeInputs(container = document) {
+    const inputs = container.querySelectorAll('input[type="datetime-local"][data-utc-value]');
+    inputs.forEach(input => {
+      const utcValue = input.dataset.utcValue;
+      const timezone = this.getTimezone(input);
+      if (utcValue) {
+        input.value = this.toLocalInput(utcValue, timezone);
+      }
+    });
+  },
+  /**
+   * Convert all datetime-local inputs to UTC before form submission
+   *
+   * Attach this to form submit event to automatically convert local times to UTC
+   *
+   * @param {HTMLFormElement} form - Form element
+   * @param {string} timezone - Timezone to use for conversion (default: detected)
+   */
+  convertFormDatetimesToUTC(form, timezone = null) {
+    timezone = timezone || this.detectTimezone();
+    const inputs = form.querySelectorAll('input[type="datetime-local"]');
+    inputs.forEach(input => {
+      if (input.value) {
+        // Store original value in case needed
+        input.dataset.originalValue = input.value;
+
+        // Convert to UTC
+        const utcValue = this.toUTC(input.value, timezone);
+
+        // Create hidden input with UTC value
+        const hiddenInput = document.createElement('input');
+        hiddenInput.type = 'hidden';
+        hiddenInput.name = input.name;
+        hiddenInput.value = utcValue;
+
+        // Disable original input so it doesn't submit
+        input.disabled = true;
+
+        // Add hidden input to form
+        form.appendChild(hiddenInput);
+      }
+    });
+  }
+};
+
+// Export for module systems
+if ( true && module.exports) {
+  module.exports = KMP_Timezone;
+}
+
+// Make available globally
+if (typeof window !== 'undefined') {
+  window.KMP_Timezone = KMP_Timezone;
+}
+
+// Auto-initialize on DOM ready
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      KMP_Timezone.initializeDatetimeInputs();
+    });
+  } else {
+    // DOM already loaded
+    KMP_Timezone.initializeDatetimeInputs();
+  }
+}
+
+/***/ }),
+
+/***/ "./node_modules/@babel/runtime/helpers/esm/defineProperty.js":
+/*!*******************************************************************!*\
+  !*** ./node_modules/@babel/runtime/helpers/esm/defineProperty.js ***!
+  \*******************************************************************/
+/***/ (function(__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": function() { return /* binding */ _defineProperty; }
+/* harmony export */ });
+/* harmony import */ var _toPropertyKey_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./toPropertyKey.js */ "./node_modules/@babel/runtime/helpers/esm/toPropertyKey.js");
+
+function _defineProperty(e, r, t) {
+  return (r = (0,_toPropertyKey_js__WEBPACK_IMPORTED_MODULE_0__["default"])(r)) in e ? Object.defineProperty(e, r, {
+    value: t,
+    enumerable: !0,
+    configurable: !0,
+    writable: !0
+  }) : e[r] = t, e;
+}
+
+
+/***/ }),
+
+/***/ "./node_modules/@babel/runtime/helpers/esm/objectSpread2.js":
+/*!******************************************************************!*\
+  !*** ./node_modules/@babel/runtime/helpers/esm/objectSpread2.js ***!
+  \******************************************************************/
+/***/ (function(__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": function() { return /* binding */ _objectSpread2; }
+/* harmony export */ });
+/* harmony import */ var _defineProperty_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./defineProperty.js */ "./node_modules/@babel/runtime/helpers/esm/defineProperty.js");
+
+function ownKeys(e, r) {
+  var t = Object.keys(e);
+  if (Object.getOwnPropertySymbols) {
+    var o = Object.getOwnPropertySymbols(e);
+    r && (o = o.filter(function (r) {
+      return Object.getOwnPropertyDescriptor(e, r).enumerable;
+    })), t.push.apply(t, o);
+  }
+  return t;
+}
+function _objectSpread2(e) {
+  for (var r = 1; r < arguments.length; r++) {
+    var t = null != arguments[r] ? arguments[r] : {};
+    r % 2 ? ownKeys(Object(t), !0).forEach(function (r) {
+      (0,_defineProperty_js__WEBPACK_IMPORTED_MODULE_0__["default"])(e, r, t[r]);
+    }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(t)) : ownKeys(Object(t)).forEach(function (r) {
+      Object.defineProperty(e, r, Object.getOwnPropertyDescriptor(t, r));
+    });
+  }
+  return e;
+}
+
+
+/***/ }),
+
+/***/ "./node_modules/@babel/runtime/helpers/esm/toPrimitive.js":
+/*!****************************************************************!*\
+  !*** ./node_modules/@babel/runtime/helpers/esm/toPrimitive.js ***!
+  \****************************************************************/
+/***/ (function(__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": function() { return /* binding */ toPrimitive; }
+/* harmony export */ });
+/* harmony import */ var _typeof_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./typeof.js */ "./node_modules/@babel/runtime/helpers/esm/typeof.js");
+
+function toPrimitive(t, r) {
+  if ("object" != (0,_typeof_js__WEBPACK_IMPORTED_MODULE_0__["default"])(t) || !t) return t;
+  var e = t[Symbol.toPrimitive];
+  if (void 0 !== e) {
+    var i = e.call(t, r || "default");
+    if ("object" != (0,_typeof_js__WEBPACK_IMPORTED_MODULE_0__["default"])(i)) return i;
+    throw new TypeError("@@toPrimitive must return a primitive value.");
+  }
+  return ("string" === r ? String : Number)(t);
+}
+
+
+/***/ }),
+
+/***/ "./node_modules/@babel/runtime/helpers/esm/toPropertyKey.js":
+/*!******************************************************************!*\
+  !*** ./node_modules/@babel/runtime/helpers/esm/toPropertyKey.js ***!
+  \******************************************************************/
+/***/ (function(__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": function() { return /* binding */ toPropertyKey; }
+/* harmony export */ });
+/* harmony import */ var _typeof_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./typeof.js */ "./node_modules/@babel/runtime/helpers/esm/typeof.js");
+/* harmony import */ var _toPrimitive_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./toPrimitive.js */ "./node_modules/@babel/runtime/helpers/esm/toPrimitive.js");
+
+
+function toPropertyKey(t) {
+  var i = (0,_toPrimitive_js__WEBPACK_IMPORTED_MODULE_1__["default"])(t, "string");
+  return "symbol" == (0,_typeof_js__WEBPACK_IMPORTED_MODULE_0__["default"])(i) ? i : i + "";
+}
+
+
+/***/ }),
+
+/***/ "./node_modules/@babel/runtime/helpers/esm/typeof.js":
+/*!***********************************************************!*\
+  !*** ./node_modules/@babel/runtime/helpers/esm/typeof.js ***!
+  \***********************************************************/
+/***/ (function(__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": function() { return /* binding */ _typeof; }
+/* harmony export */ });
+function _typeof(o) {
+  "@babel/helpers - typeof";
+
+  return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) {
+    return typeof o;
+  } : function (o) {
+    return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o;
+  }, _typeof(o);
+}
+
 
 /***/ }),
 
