@@ -27,14 +27,12 @@ class ConvertGatheringDatesToDatetime extends BaseMigration
         // Change start_date from DATE to DATETIME
         // Existing dates will be converted to datetime with 00:00:00 time
         $table->changeColumn('start_date', 'datetime', [
-            'default' => null,
             'null' => false,
             'comment' => 'Start date and time of the gathering (stored in UTC)'
         ]);
 
         // Change end_date from DATE to DATETIME
         $table->changeColumn('end_date', 'datetime', [
-            'default' => null,
             'null' => false,
             'comment' => 'End date and time of the gathering (stored in UTC)'
         ]);
