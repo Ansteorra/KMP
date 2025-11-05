@@ -9,16 +9,26 @@
 
 use Cake\I18n\DateTime;
 use Cake\I18n\Date;
+use App\KMP\TimezoneHelper;
 
-$today = Date::now(); // Get today's date (without time component)
-
-// Separate upcoming and past gatherings
+// Get today's date in the gathering's timezone for accurate comparison
+// We need to compare dates in the gathering's local timezone, not UTC
 $upcomingAttendances = [];
 $pastAttendances = [];
 
 foreach ($member->gathering_attendances as $attendance) {
-    // A gathering is "upcoming" if its end date is today or in the future
-    if ($attendance->gathering->end_date >= $today) {
+    // Get the gathering's timezone
+    $gatheringTimezone = TimezoneHelper::getGatheringTimezone($attendance->gathering, $member);
+    
+    // Get current date/time in the gathering's timezone
+    $nowInGatheringTz = TimezoneHelper::toUserTimezone(DateTime::now(), null, $gatheringTimezone);
+    
+    // Convert gathering end date to the gathering's timezone for comparison
+    $endDateInGatheringTz = TimezoneHelper::toUserTimezone($attendance->gathering->end_date, null, $gatheringTimezone);
+    
+    // A gathering is "upcoming" if its end date (in gathering's timezone) hasn't passed yet
+    // Compare just the dates to determine if event is today or in the future
+    if ($endDateInGatheringTz->format('Y-m-d') >= $nowInGatheringTz->format('Y-m-d')) {
         $upcomingAttendances[] = $attendance;
     } else {
         $pastAttendances[] = $attendance;
