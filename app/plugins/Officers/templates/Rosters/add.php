@@ -107,13 +107,14 @@ $this->KMP->endBlock();
                                         $officer->member->warrantable,
                                         $this->Html,
                                         ['data-bs-toggle' => "tooltip", 'data-bs-title' => $officer->warrant_message],
-                                    ) ?></td>
+                                    ) ?>
                         <?php else : ?>
                             <?= $this->Kmp->bool(
                                         $officer->member->warrantable,
                                         $this->Html,
                                     ) ?>
                         <?php endif; ?>
+                            </td>
                         <td>
                             <?= $officer->new_warrant_start_date ? $this->Timezone->format($officer->new_warrant_start_date, null, 'Y-m-d') : "N/A" ?>
                             <?php if (count($officer->start_date_message) > 0) : ?>
