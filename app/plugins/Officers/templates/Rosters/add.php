@@ -108,27 +108,27 @@ $this->KMP->endBlock();
                                         $this->Html,
                                         ['data-bs-toggle' => "tooltip", 'data-bs-title' => $officer->warrant_message],
                                     ) ?>
-                        <?php else : ?>
-                            <?= $this->Kmp->bool(
+                                <?php else : ?>
+                                    <?= $this->Kmp->bool(
                                         $officer->member->warrantable,
                                         $this->Html,
                                     ) ?>
-                        <?php endif; ?>
+                                <?php endif; ?>
                             </td>
-                        <td>
-                            <?= $officer->new_warrant_start_date ? $this->Timezone->format($officer->new_warrant_start_date, null, 'Y-m-d') : "N/A" ?>
-                            <?php if (count($officer->start_date_message) > 0) : ?>
-                                <span class="badge rounded-pill text-bg-warning" data-bs-toggle="tooltip"
-                                    data-bs-title="<?= implode(', ', $officer->start_date_message) ?>">!</span>
-                            <?php endif; ?>
-                        </td>
-                        <td>
-                            <?= $officer->new_warrant_exp_date ? $this->Timezone->format($officer->new_warrant_exp_date, null, 'Y-m-d') : "N/A" ?>
-                            <?php if (count($officer->end_date_message) > 0) : ?>
-                                <span class="badge rounded-pill text-bg-warning" data-bs-toggle="tooltip"
-                                    data-bs-title="<?= implode(', ', $officer->end_date_message) ?>">!</span>
-                            <?php endif; ?>
-                        </td>
+                            <td>
+                                <?= $officer->new_warrant_start_date ? $this->Timezone->format($officer->new_warrant_start_date, null, 'Y-m-d') : "N/A" ?>
+                                <?php if (count($officer->start_date_message) > 0) : ?>
+                                    <span class="badge rounded-pill text-bg-warning" data-bs-toggle="tooltip"
+                                        data-bs-title="<?= implode(', ', $officer->start_date_message) ?>">!</span>
+                                <?php endif; ?>
+                            </td>
+                            <td>
+                                <?= $officer->new_warrant_exp_date ? $this->Timezone->format($officer->new_warrant_exp_date, null, 'Y-m-d') : "N/A" ?>
+                                <?php if (count($officer->end_date_message) > 0) : ?>
+                                    <span class="badge rounded-pill text-bg-warning" data-bs-toggle="tooltip"
+                                        data-bs-title="<?= implode(', ', $officer->end_date_message) ?>">!</span>
+                                <?php endif; ?>
+                            </td>
                             </tr>
                         <?php endforeach; ?>
                 </table>
