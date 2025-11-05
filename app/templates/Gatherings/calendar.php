@@ -26,6 +26,7 @@
  * @var array $branches
  * @var array $gatheringTypes
  * @var array $gatheringActivities
+ * @var \App\Model\Entity\Branch|null $selectedBranch
  */
 
 use Cake\I18n\DateTime;
@@ -46,7 +47,11 @@ $this->KMP->endBlock();
         <div class="col-md-6">
             <h3>
                 <i class="bi bi-calendar-event"></i>
-                Kingdom Gatherings Calendar
+                <?php if ($selectedBranch): ?>
+                <?= h($selectedBranch) ?> Calendar
+                <?php else: ?>
+                Kingdom Calendar
+                <?php endif; ?>
             </h3>
         </div>
         <div class="col-md-6 text-end">

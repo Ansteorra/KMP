@@ -384,3 +384,241 @@ The current application version is stored in the `app_settings` table:
 ```php
 StaticHelpers::getAppSetting('App.version');
 ```
+
+## 8.4 Azure Blob Storage Configuration
+
+The `DocumentService` uses Flysystem to abstract storage operations and supports multiple storage backends. By default, files are stored on the local filesystem, but in production environments, Azure Blob Storage is recommended for scalability, reliability, and disaster recovery.
+
+### Storage Adapters
+
+KMP supports two storage adapters:
+
+- **Local Filesystem** (default) - Files stored on the server's local filesystem
+- **Azure Blob Storage** - Files stored in Azure cloud storage
+
+### Local Filesystem Configuration (Default)
+
+Add this configuration to `config/app_local.php`:
+
+```php
+'Documents' => [
+    'storage' => [
+        'adapter' => 'local',
+        'local' => [
+            'path' => ROOT . DS . 'images' . DS . 'uploaded',
+        ],
+    ],
+],
+```
+
+### Azure Blob Storage Configuration
+
+For production deployments, configure Azure Blob Storage in `config/app_local.php`:
+
+```php
+'Documents' => [
+    'storage' => [
+        'adapter' => 'azure',
+        'azure' => [
+            'connectionString' => env('AZURE_STORAGE_CONNECTION_STRING'),
+            'container' => 'documents',
+            'prefix' => '', // Optional: prefix all paths (e.g., 'kmp/documents/')
+        ],
+    ],
+],
+```
+
+### Setting up Azure Blob Storage
+
+#### 1. Create Azure Storage Account
+
+1. Log into [Azure Portal](https://portal.azure.com)
+2. Navigate to **Storage Accounts**
+3. Click **+ Create**
+4. Fill in the required information:
+   - **Subscription**: Your Azure subscription
+   - **Resource Group**: Create new or use existing
+   - **Storage account name**: Must be globally unique (lowercase, numbers only)
+   - **Region**: Choose closest to your application
+   - **Performance**: Standard (or Premium if needed)
+   - **Redundancy**: Choose based on your needs (LRS for cost-effective, GRS for geo-redundancy)
+5. Click **Review + Create** and then **Create**
+
+#### 2. Create Blob Container
+
+1. Open your newly created Storage Account
+2. In the left menu, under **Data storage**, click **Containers**
+3. Click **+ Container**
+4. Enter a name (e.g., `documents`)
+5. Set **Public access level** to **Private (no anonymous access)**
+6. Click **Create**
+
+#### 3. Get Connection String
+
+1. In your Storage Account, go to **Security + networking** > **Access keys**
+2. Click **Show** next to one of the connection strings
+3. Copy the entire connection string
+
+#### 4. Configure Application
+
+Add the connection string to your environment variables:
+
+**Using `.env` file (Development)**
+
+1. Copy `config/.env.example` to `config/.env`
+2. Add the connection string:
+   ```bash
+   export AZURE_STORAGE_CONNECTION_STRING="DefaultEndpointsProtocol=https;AccountName=myaccount;AccountKey=mykey;EndpointSuffix=core.windows.net"
+   ```
+
+**Using System Environment Variables (Production - Recommended)**
+
+Set the environment variable in your hosting environment:
+```bash
+export AZURE_STORAGE_CONNECTION_STRING="DefaultEndpointsProtocol=https;AccountName=myaccount;AccountKey=mykey;EndpointSuffix=core.windows.net"
+```
+
+For systemd services, add to your service file:
+```ini
+[Service]
+Environment="AZURE_STORAGE_CONNECTION_STRING=DefaultEndpointsProtocol=https;AccountName=..."
+```
+
+**Direct Configuration (Not Recommended)**
+
+You can set it directly in `config/app_local.php`, but this is less secure:
+```php
+'Documents' => [
+    'storage' => [
+        'adapter' => 'azure',
+        'azure' => [
+            'connectionString' => 'DefaultEndpointsProtocol=https;AccountName=...',
+            'container' => 'documents',
+        ],
+    ],
+],
+```
+
+#### 5. Update Configuration
+
+Edit `config/app_local.php` and add/update the Documents configuration as shown above.
+
+### Testing the Configuration
+
+After configuring Azure Blob Storage, test it by:
+
+1. Uploading a waiver document through the application
+2. Verifying the file appears in your Azure Blob Storage container
+3. Downloading the document to ensure retrieval works
+
+You can view uploaded files in Azure Portal:
+- Navigate to your Storage Account
+- Click **Containers**
+- Click your container name
+- Files should appear here
+
+### Troubleshooting
+
+#### Connection Errors
+
+**Issue**: "Failed to initialize Azure Blob Storage"
+
+**Solutions**:
+- Verify your connection string is correct
+- Ensure the storage account exists and is accessible
+- Check that the account key hasn't been regenerated
+- Verify network connectivity to Azure
+- Check firewall rules on the storage account allow your application's IP
+
+#### Container Not Found
+
+**Issue**: "Container does not exist"
+
+**Solutions**:
+- Ensure the container name in configuration matches the actual container name (case-sensitive)
+- Verify the container exists in the Storage Account
+- Check that the connection string has access to the container
+
+#### Permission Errors
+
+**Issue**: "Authorization failed"
+
+**Solutions**:
+- Ensure you're using a valid access key
+- Check that the storage account hasn't been deleted or restricted
+- Verify firewall rules on the storage account allow your application's IP
+- Confirm the connection string includes the correct account key
+
+### Performance Considerations
+
+For production deployments:
+- Choose a region close to your application for lower latency
+- Consider using Azure CDN for frequently accessed documents
+- Monitor storage costs and optimize as needed
+- Consider using lifecycle management to archive old documents
+- Use GRS (Geo-Redundant Storage) for critical data requiring disaster recovery
+- Enable Azure Storage encryption at rest (enabled by default)
+
+### Migration from Local to Azure
+
+To migrate existing documents from local filesystem to Azure:
+
+1. **Configure Azure Blob Storage** as documented above
+2. **Keep local configuration** temporarily in `app_local.php`
+3. **Upload new documents** - They will go to Azure based on the active adapter setting
+4. **Manually copy existing files** to Azure using Azure Storage Explorer, Azure CLI, or a migration script:
+
+   ```bash
+   # Using Azure CLI
+   az storage blob upload-batch \
+     --account-name <storage-account-name> \
+     --destination documents \
+     --source /var/www/kmp/images/uploaded
+   ```
+
+5. **Update document records** in the database to reflect new `storage_adapter`:
+
+   ```sql
+   UPDATE documents 
+   SET storage_adapter = 'azure' 
+   WHERE storage_adapter = 'local' OR storage_adapter IS NULL;
+   ```
+
+6. **Verify migration** by testing document downloads
+7. **Remove local configuration** once migration is complete and verified
+
+### Security Best Practices
+
+1. **Never commit connection strings** to version control
+2. **Use environment variables** for sensitive configuration
+3. **Rotate access keys** regularly (Azure supports two keys for zero-downtime rotation)
+4. **Use private containers** (no anonymous access)
+5. **Enable Azure Storage encryption** at rest (enabled by default)
+6. **Monitor access logs** for unusual activity
+7. **Consider using Azure Managed Identity** in production instead of connection strings
+8. **Enable soft delete** for blob containers to protect against accidental deletion
+9. **Configure network rules** to restrict access to specific IP ranges
+10. **Use HTTPS only** (enforced by default in the configuration)
+
+### Monitoring and Logging
+
+The DocumentService logs important events:
+
+- Successful initialization of storage adapters
+- Fallback to local storage when Azure fails
+- File upload/download operations
+- Storage errors and exceptions
+
+Monitor these logs in production:
+
+```bash
+# View document service logs
+tail -f /var/www/kmp/app/logs/error.log | grep -i "document\|storage\|azure"
+```
+
+Azure Storage also provides built-in metrics and logging:
+- **Storage Analytics**: Monitor request metrics, capacity, and availability
+- **Diagnostic Logs**: Track storage operations for auditing and troubleshooting
+- **Azure Monitor**: Set up alerts for storage issues
+
+````

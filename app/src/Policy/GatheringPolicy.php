@@ -38,4 +38,19 @@ class GatheringPolicy extends BasePolicy
 
         return $this->_hasPolicy($user, $method, $entity);
     }
+    /**
+     * Check if user can quick view a gathering
+     *
+     * All authenticated users can quick view any gathering.
+     * This provides basic gathering information without requiring special permissions.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The user
+     * @param \App\Model\Entity\BaseEntity $entity The gathering entity
+     * @param mixed ...$optionalArgs Optional arguments
+     * @return bool Always returns true for authenticated users
+     */
+    public function canQuickView(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
+    {
+        return true;
+    }
 }

@@ -481,3 +481,13 @@ Integrates with the CakePHP Authorization plugin to provide KMP-specific authori
 ### ViewCellRegistry
 
 Manages dynamic view cell registration and rendering for modular UI components.
+
+---
+
+## Related Documentation
+
+- **[6.2 Authorization Helpers](6.2-authorization-helpers.md)** - getBranchIdsForAction() and permission helper methods
+- **[6.3 Email Template Management](6.3-email-template-management.md)** - Database-driven email template system
+- **[4.4 RBAC Security Architecture](4.4-rbac-security-architecture.md)** - Complete authorization system documentation
+
+[← Back to Table of Contents](index.md)

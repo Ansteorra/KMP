@@ -11,6 +11,37 @@ The Kingdom Management Portal is designed to be extensible through plugins. This
 
 Plugins are the primary mechanism for extending KMP. They allow you to add new functionality while keeping your code separate from the core application.
 
+### Quick Start: Use the Template Plugin
+
+**The fastest way to create a new KMP plugin is to copy the Template plugin:**
+
+```bash
+cd plugins
+cp -r Template MyPlugin
+# Then search/replace "Template" with "MyPlugin" throughout
+```
+
+**The Template plugin (`plugins/Template/`) is a fully working, production-ready reference implementation** that demonstrates all KMP plugin patterns correctly:
+
+- ✅ Complete CRUD controller with authorization
+- ✅ Database models (Table and Entity classes)
+- ✅ View templates (Index, View, Add, Edit)
+- ✅ Authorization policies
+- ✅ Navigation integration
+- ✅ Frontend assets (Stimulus.js controller and CSS)
+- ✅ Migrations and seeds
+- ✅ Unit and integration tests
+- ✅ Complete documentation
+
+**Quick customization steps:**
+1. Copy `plugins/Template` to `plugins/MyPlugin`
+2. Search/replace "Template" with "MyPlugin" in all files
+3. Update `composer.json` with your plugin details
+4. Register in `config/plugins.php` with appropriate migration order
+5. Run `composer dump-autoload` and `bin/cake cache clear_all`
+6. Customize controller, models, and views as needed
+
+**Documentation:** See `plugins/Template/README.md` for complete usage guide.
 
 ### Plugin Structure
 
@@ -795,3 +826,230 @@ The `pluginEnabled` helper method checks for a setting with the pattern `Plugin.
 - For plugin JavaScript: use `plugins/PluginName/assets/js/`
 - For main app controllers: use `app/assets/js/controllers/`
 - For plugin controllers: use `plugins/PluginName/assets/js/controllers/`
+
+## 11.7 Adding Public IDs to Plugin Tables
+
+### Overview
+
+Public IDs provide secure, non-sequential identifiers for client-facing references. See [Security Best Practices](7.1-security-best-practices.md#public-id-system) for the complete security rationale.
+
+### Quick Start Guide
+
+#### Step 1: Create Migration
+
+Create a migration in your plugin:
+```
+plugins/YourPlugin/config/Migrations/YYYYMMDDHHMMSS_AddPublicIdToYourPluginTables.php
+```
+
+#### Step 2: Migration Template
+
+```php
+<?php
+declare(strict_types=1);
+
+use Migrations\AbstractMigration;
+
+class AddPublicIdToYourPluginTables extends AbstractMigration
+{
+    protected const TABLES = [
+        'your_table_1',
+        'your_table_2',
+    ];
+
+    public function up(): void
+    {
+        foreach (self::TABLES as $tableName) {
+            if (!$this->hasTable($tableName)) {
+                $this->io()->warning(sprintf('Table %s does not exist, skipping', $tableName));
+                continue;
+            }
+
+            $table = $this->table($tableName);
+            
+            if ($table->hasColumn('public_id')) {
+                $this->io()->warning(sprintf('Table %s already has public_id column, skipping', $tableName));
+                continue;
+            }
+
+            $table->addColumn('public_id', 'string', [
+                'limit' => 8,
+                'null' => true,
+                'default' => null,
+                'after' => 'id',
+                'comment' => 'Non-sequential public identifier safe for client exposure',
+            ]);
+            
+            $table->addIndex(['public_id'], [
+                'unique' => true,
+                'name' => sprintf('idx_%s_public_id', $tableName),
+            ]);
+            
+            $table->update();
+            
+            $this->io()->success(sprintf('Added public_id to %s', $tableName));
+        }
+    }
+
+    public function down(): void
+    {
+        foreach (self::TABLES as $tableName) {
+            if (!$this->hasTable($tableName)) {
+                continue;
+            }
+
+            $table = $this->table($tableName);
+            
+            if (!$table->hasColumn('public_id')) {
+                continue;
+            }
+
+            $table->removeIndexByName(sprintf('idx_%s_public_id', $tableName));
+            $table->removeColumn('public_id');
+            $table->update();
+            
+            $this->io()->success(sprintf('Removed public_id from %s', $tableName));
+        }
+    }
+}
+```
+
+#### Step 3: Run Migration
+
+```bash
+bin/cake migrations migrate -p YourPlugin
+```
+
+#### Step 4: Generate Public IDs
+
+```bash
+bin/cake generate_public_ids your_table_1 your_table_2
+```
+
+#### Step 5: Add Behavior to Tables
+
+```php
+// plugins/YourPlugin/src/Model/Table/YourTableTable.php
+class YourTableTable extends Table
+{
+    public function initialize(array $config): void
+    {
+        parent::initialize($config);
+        $this->addBehavior('PublicId');
+    }
+}
+```
+
+#### Step 6: Update Controllers
+
+```php
+// Before
+public function view($id = null)
+{
+    $record = $this->YourTable->get($id);
+}
+
+// After
+public function view($publicId = null)
+{
+    $record = $this->YourTable->getByPublicId($publicId);
+}
+```
+
+#### Step 7: Update Templates
+
+```php
+// Before
+<?= $this->Html->link('View', ['action' => 'view', $record->id]) ?>
+
+// After
+<?= $this->Html->link('View', ['action' => 'view', $record->public_id]) ?>
+```
+
+### Which Tables Need Public IDs?
+
+**Add public IDs to tables that:**
+- ✅ Have records viewable by end users
+- ✅ Have URLs with IDs (e.g., `/awards/view/123`)
+- ✅ Are used in autocomplete or AJAX calls
+- ✅ Have client-side JavaScript that references records
+
+**Skip tables that:**
+- ❌ Are pure join tables (many-to-many)
+- ❌ Are never referenced from client-side
+- ❌ Are internal-only (e.g., settings, cache)
+- ❌ Are log/audit tables
+
+### Examples by Plugin
+
+**Awards Plugin:**
+```php
+protected const TABLES = [
+    'awards',          // ✅ Has view page, used in autocomplete
+    'recommendations', // ✅ Has view page, used in forms
+    // 'awards_members'   // ❌ Join table only
+];
+```
+
+**Activities Plugin:**
+```php
+protected const TABLES = [
+    'activities',      // ✅ Has view page
+    'activity_types',  // ✅ Used in dropdowns/autocomplete
+];
+```
+
+### Testing
+
+#### Verify Column:
+```sql
+DESC your_table;
+-- Should show public_id column
+```
+
+#### Verify Index:
+```sql
+SHOW INDEXES FROM your_table;
+-- Should show idx_your_table_public_id
+```
+
+#### Verify Generation:
+```sql
+SELECT id, public_id FROM your_table LIMIT 5;
+-- Should show 8-character alphanumeric IDs
+```
+
+#### Test Controller:
+```bash
+Visit: /your-plugin/your-controller/view/a7fK9mP2
+Should work if public_id = 'a7fK9mP2'
+```
+
+### Migration Order
+
+If your plugin depends on core tables with public IDs, ensure migration order in `config/plugins.php`:
+
+```php
+return [
+    'YourPlugin' => [
+        'migrationOrder' => 2, // After core (1)
+    ],
+];
+```
+
+### Common Issues
+
+#### Issue: Migration fails with "Table not found"
+- Solution: Ensure table exists by running plugin's table creation migrations first
+
+#### Issue: "Column already exists"
+- Solution: Migration is idempotent and will skip, this is safe
+
+#### Issue: Foreign key constraints
+- Solution: Public IDs don't affect foreign keys - those still use internal `id`
+
+#### Issue: Existing code breaks
+- Solution: Add public IDs gradually:
+  1. Add column and generate IDs (no breaking change)
+  2. Update one controller at a time
+  3. Keep both `id` and `public_id` working during transition

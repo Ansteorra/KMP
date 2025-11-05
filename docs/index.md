@@ -30,6 +30,8 @@ layout: default
 | **4.4 [RBAC Security Architecture](4.4-rbac-security-architecture.md)** | Complete RBAC system with warrant temporal validation layer |
 | **4.5 [View Patterns](4.5-view-patterns.md)** | Template system, helpers, and UI components |
 | **4.6 [Gatherings System](4.6-gatherings-system.md)** | Event management, calendar views, and attendance tracking |
+| **4.6.1 [Calendar Download Feature](4.6.1-calendar-download-feature.md)** | iCalendar (.ics) file generation for importing events |
+| **4.6.2 [Gathering Staff Management](4.6.2-gathering-staff-management.md)** | Staff and steward management system |
 | **4.7 [Document Management & Retention System](4.7-document-management-system.md)** | File uploads, storage, and retention policies |
 | **5. [Plugins](5-plugins.md)** | |
 | **5.1 [Officers Plugin](5.1-officers-plugin.md)** | Officers management and roster system |
@@ -40,11 +42,14 @@ layout: default
 | **5.6 [Activities Plugin](5.6-activities-plugin.md)** | Comprehensive authorization management system |
 | **5.7 [Waivers Plugin](5.7-waivers-plugin.md)** | Waiver upload, tracking, and compliance management |
 | **6. [Services](6-services.md)** | Service layer architecture and implementations |
+| **6.2 [Authorization Helpers](6.2-authorization-helpers.md)** | getBranchIdsForAction() and permission helper methods |
+| **6.3 [Email Template Management](6.3-email-template-management.md)** | Database-driven email template system with WYSIWYG editor |
 | **7. [Development Workflow](7-development-workflow.md)** | |
-| 7.1 Coding Standards | PHP and JavaScript coding standards |
-| 7.2 Testing | PHPUnit testing practices |
-| 7.3 Debugging | Debugging tools and techniques |
-| 7.4 Git Workflow | Version control workflow |
+| **7.1 [Security Best Practices](7.1-security-best-practices.md)** | Security configuration, testing, and audit findings |
+| 7.2 Coding Standards | PHP and JavaScript coding standards |
+| **7.3 [Testing Infrastructure](7.3-testing-infrastructure.md)** | Test super user fixtures, authentication helpers, and testing best practices |
+| 7.4 Debugging | Debugging tools and techniques |
+| 7.5 Git Workflow | Version control workflow |
 | **8. [Deployment](8-deployment.md)** | |
 | 8.1 Production Setup | Server setup and configuration |
 | 8.2 Migrations | Database migration handling |
@@ -56,12 +61,15 @@ layout: default
 | 9.3 Frontend Libraries | JavaScript and CSS libraries |
 | **10. [JavaScript Development](10-javascript-development.md)** | |
 | **10.1 [JavaScript Framework](10.1-javascript-framework.md)** | Detailed Stimulus.JS framework implementation |
+| **10.2 [QR Code Controller](10.2-qrcode-controller.md)** | QR code generation with Stimulus and npm packages |
 | **11. [Extending KMP](11-extending-kmp.md)** | |
 | 11.1 Creating Plugins | How to create plugins for extending KMP |
 | 11.2 Navigation and Event System | How to add Navigation from a plugin and inject Plugin UI into Core Pages |
 | 11.3 Creating UI Components | Extending the UI with custom cells |
 | 11.4 Database Models | Adding custom database models to plugins |
 | 11.5 Best Practices | Guidelines for effective plugin development |
+| 11.6 Managing Plugin Configuration | Using AppSettings for plugin configuration |
+| 11.7 Adding Public IDs to Plugin Tables | Implementing secure public identifiers in plugins |
 | **[Appendices](appendices.md)** | |
 | A. Troubleshooting | Common issues and solutions |
 | B. Glossary | Terms specific to KMP and SCA |
@@ -81,7 +89,13 @@ For developers new to KMP:
 
 ## Documentation Status
 
-This documentation is actively maintained and reflects the current state of the KMP codebase as of July 2025. Each section has been fact-checked against the actual source code to ensure accuracy.
+This documentation is actively maintained and reflects the current state of the KMP codebase as of November 2025. Each section has been fact-checked against the actual source code to ensure accuracy.
+
+**Recent Updates (November 2025):**
+- ✅ Gatherings system expanded with staff management, calendar downloads, public pages
+- ✅ Security best practices consolidated from penetration testing and configuration audits
+- ✅ QR code controller documented with npm package integration
+- ✅ All new features validated against source code implementation
 
 ## Contributing
 

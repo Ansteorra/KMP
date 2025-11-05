@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Services\CsvExportService;
+use App\Services\ICalendarService;
 use Cake\Http\Exception\NotFoundException;
 use DateTime;
+use Twig\Sandbox\SecurityError;
 
 /**
  * Gatherings Controller
@@ -21,18 +23,11 @@ use DateTime;
 class GatheringsController extends AppController
 {
     /**
-     * CSV export service dependency injection
+     * Service dependency injection configuration
      *
      * @var array<string> Service injection configuration
      */
-    public static array $inject = [CsvExportService::class];
-
-    /**
-     * CSV export service instance
-     *
-     * @var \App\Services\CsvExportService
-     */
-    protected CsvExportService $csvExportService;
+    public static array $inject = [CsvExportService::class, ICalendarService::class];
 
     /**
      * Initialize controller
@@ -57,8 +52,8 @@ class GatheringsController extends AppController
     {
         parent::beforeFilter($event);
 
-        // Allow public access to landing page
-        $this->Authentication->allowUnauthenticated(['publicLanding']);
+        // Allow public access to landing page and calendar download
+        $this->Authentication->allowUnauthenticated(['publicLanding', 'downloadCalendar']);
     }
 
     /**
@@ -136,7 +131,6 @@ class GatheringsController extends AppController
         $this->Authorization->authorize($securityGathering, 'index');
 
         $currentUser = $this->Authentication->getIdentity();
-        $branchIds = $currentUser->getBranchIdsForAction('index', 'Gatherings');
 
         // Get query parameters for date navigation and filters
         $year = (int)$this->request->getQuery('year', date('Y'));
@@ -205,10 +199,6 @@ class GatheringsController extends AppController
             ->orderBy(['Gatherings.start_date' => 'ASC']);
 
         // Apply filters
-        if ($branchIds !== null) {
-            $query->where(['Gatherings.branch_id IN' => $branchIds]);
-        }
-
         if ($branchFilter) {
             $query->where(['Gatherings.branch_id' => $branchFilter]);
         }
@@ -227,10 +217,12 @@ class GatheringsController extends AppController
 
         // Load filter options
         $branchesQuery = $this->Gatherings->Branches->find('list')->orderBy(['name' => 'ASC']);
-        if ($branchIds !== null) {
-            $branchesQuery->where(['Branches.id IN' => $branchIds]);
-        }
         $branches = $branchesQuery;
+        //if branchfilter lets get the current branch and pull it out of the query
+        $selectedBranch = null;
+        if ($branchFilter) {
+            $selectedBranch = $branchesQuery->where(['Branches.id' => $branchFilter])->first();
+        }
 
         $gatheringTypes = $this->Gatherings->GatheringTypes->find('list')->orderBy(['name' => 'ASC']);
         $gatheringActivities = $this->Gatherings->GatheringActivities->find('list')->orderBy(['name' => 'ASC']);
@@ -257,7 +249,8 @@ class GatheringsController extends AppController
             'gatheringActivities',
             'branchFilter',
             'typeFilter',
-            'activityFilter'
+            'activityFilter',
+            'selectedBranch'
         ));
     }
 
@@ -1458,5 +1451,71 @@ class GatheringsController extends AppController
         }
 
         $this->set(compact('gathering', 'scheduleByDate', 'durationDays', 'user', 'userAttendance'));
+    }
+
+    /**
+     * Download calendar file for a gathering
+     *
+     * Generates an iCalendar (.ics) file that can be imported into
+     * calendar applications (Google Calendar, Outlook, iOS Calendar, etc.)
+     *
+     * Security logic:
+     * - If gathering has public_page_enabled = true: accessible to anyone (authenticated or not)
+     * - If gathering has public_page_enabled = false: requires authentication (but no policy check)
+     *
+     * @param \App\Services\ICalendarService $iCalendarService iCalendar service
+     * @param string|null $publicId Gathering public ID (for public access)
+     * @param int|null $id Gathering ID (for authenticated access)
+     * @return \Cake\Http\Response iCalendar file download response
+     * @throws \Cake\Datasource\Exception\RecordNotFoundException When gathering not found
+     */
+    public function downloadCalendar(ICalendarService $iCalendarService, string $publicId = null)
+    {
+
+        if (!$publicId) {
+            throw new NotFoundException(__('Gathering not found.'));
+        }
+        $gathering = $this->Gatherings->find()
+            ->where(['Gatherings.public_id' => $publicId])
+            ->contain([
+                'Branches',
+                'GatheringTypes',
+                'GatheringActivities',
+                'GatheringStaff' => [
+                    'Members' => ['fields' => ['id', 'sca_name']]
+                ]
+            ])
+            ->firstOrFail();
+
+        // Build public URL
+        $baseUrl = $this->request->getAttribute('base');
+        $fullBaseUrl = $this->request->scheme() . '://' . $this->request->host() . $baseUrl;
+        $eventUrl = $fullBaseUrl . '/gatherings/public-landing/' . $gathering->public_id;
+
+        // Check security based on public_page_enabled setting
+        if ($gathering->public_page_enabled === false) {
+            // Private gathering - require authentication but no policy check
+            $identity = $this->Authentication->getIdentity();
+            if (!$identity) {
+                throw new NotFoundException(__('The calendar for this gathering is not publicly available.'));
+            }
+        }
+
+        // Skip authorization policy check - authentication (if required) is sufficient
+        $this->Authorization->skipAuthorization();
+        // Generate iCalendar content
+        $icsContent = $iCalendarService->generateICalendar($gathering, $eventUrl);
+
+        // Generate filename
+        $filename = $iCalendarService->getFilename($gathering) . '.ics';
+
+        // Create response with iCalendar content
+        $response = $this->response
+            ->withType('text/calendar')
+            ->withCharset('UTF-8')
+            ->withDownload($filename)
+            ->withStringBody($icsContent);
+
+        return $response;
     }
 }
