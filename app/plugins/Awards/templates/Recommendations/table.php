@@ -386,7 +386,7 @@ $currentUrl = $this->request->getRequestTarget();
                             </td>
                         <?php endif; ?>
                         <?php if ($columns["Given Date"]): ?>
-                            <td><?= $recommendation->given ? $this->Timezone->format($recommendation->given, 'Y-m-d', false) : "" ?>
+                            <td><?= $recommendation->given ? $recommendation->given->format('Y-m-d') : "" ?>
                             </td>
                         <?php endif; ?>
                         <td class="actions text-end text-nowrap">

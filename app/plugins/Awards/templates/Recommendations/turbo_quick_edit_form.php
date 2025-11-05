@@ -147,11 +147,10 @@
         ]);
 
         // Format given date for HTML5 date input (requires Y-m-d format)
-        // If the award was given at a gathering, use that gathering's timezone context
+        // Since this is a date-only field, format without timezone conversion
         $givenValue = null;
         if ($recommendation->given) {
-            $context = $recommendation->gathering ?? null;
-            $givenValue = $this->Timezone->forInput($recommendation->given, $context);
+            $givenValue = $recommendation->given->format('Y-m-d');
         }
 
         echo $this->Form->control(
