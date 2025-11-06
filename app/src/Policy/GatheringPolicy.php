@@ -53,4 +53,9 @@ class GatheringPolicy extends BasePolicy
     {
         return true;
     }
+
+    public function canCalendar(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
+    {
+        return true;
+    }
 }
