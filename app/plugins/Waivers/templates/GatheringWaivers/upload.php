@@ -68,7 +68,8 @@ echo $this->KMP->startBlock('pageTitle');
 <tr scope="row">
     <th class="col"><?= __('Date Range') ?></th>
     <td class="col-10">
-        <?= $this->Timezone->format($gathering->start_date, $gathering, 'F j, Y') ?> - <?= $this->Timezone->format($gathering->end_date, $gathering, 'F j, Y') ?>
+        <?= $this->Timezone->format($gathering->start_date, $gathering, 'F j, Y') ?> -
+        <?= $this->Timezone->format($gathering->end_date, $gathering, 'F j, Y') ?>
     </td>
 </tr>
 <?php if (!empty($gathering->location)): ?>
@@ -111,9 +112,11 @@ echo $this->KMP->startBlock('pageTitle');
             data-waiver-upload-wizard-total-steps-value="4"
             data-waiver-upload-wizard-max-file-size-value="<?= h($uploadLimits['maxFileSize']) ?>"
             data-waiver-upload-wizard-total-max-size-value="<?= h($uploadLimits['postMaxSize']) ?>"
+            data-waiver-upload-wizard-attest-url-value="<?= $this->Url->build(['plugin' => 'Waivers', 'controller' => 'GatheringWaivers', 'action' => 'attest']) ?>"
+            data-waiver-upload-wizard-gathering-view-url-value="<?= $this->Url->build(['plugin' => false, 'controller' => 'Gatherings', 'action' => 'view', $gathering->public_id, '?' => ['tab' => 'gathering-waivers']]) ?>"
+            data-waiver-upload-wizard-mobile-select-url-value="<?= $this->Url->build(['plugin' => 'Waivers', 'controller' => 'GatheringWaivers', 'action' => 'mobileSelectGathering']) ?>"
             <?php if (!empty($preSelectedActivityId)): ?>
-            data-waiver-upload-wizard-pre-selected-activity-id-value="<?= h($preSelectedActivityId) ?>"
-            <?php endif; ?>
+            data-waiver-upload-wizard-pre-selected-activity-id-value="<?= h($preSelectedActivityId) ?>" <?php endif; ?>
             <?php if (!empty($preSelectedWaiverTypeId)): ?>
             data-waiver-upload-wizard-pre-selected-waiver-type-id-value="<?= h($preSelectedWaiverTypeId) ?>"
             <?php endif; ?>>

@@ -12,13 +12,13 @@ use Migrations\BaseMigration;
  * exemptions to be reviewed/declined like regular waivers.
  * 
  * Changes:
- * - Make document_id nullable (it will be null for exemptions)
  * - Add is_exemption flag
  * - Add exemption_reason field
  * - Drop the separate waivers_gathering_waiver_exemptions table
  * 
- * Note: Exemptions link to activities through the waivers_gathering_waiver_activities
- * join table, just like regular waivers do.
+ * Note: document_id is already nullable (from the original table creation) so exemptions
+ * can have a null document_id. Exemptions link to activities through the 
+ * waivers_gathering_waiver_activities join table, just like regular waivers do.
  */
 class AddExemptionFieldsToGatheringWaivers extends BaseMigration
 {
@@ -54,8 +54,5 @@ class AddExemptionFieldsToGatheringWaivers extends BaseMigration
         ]);
 
         $table->update();
-
-        // Drop the separate exemptions table since we no longer need it
-        $this->table('waivers_gathering_waiver_exemptions')->drop()->save();
     }
 }

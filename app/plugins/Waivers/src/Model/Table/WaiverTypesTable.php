@@ -64,10 +64,6 @@ class WaiverTypesTable extends Table
             'foreignKey' => 'waiver_type_id',
             'className' => 'Waivers.GatheringWaivers',
         ]);
-        $this->hasMany('GatheringWaiverExemptions', [
-            'foreignKey' => 'waiver_type_id',
-            'className' => 'Waivers.GatheringWaiverExemptions',
-        ]);
     }
 
     /**

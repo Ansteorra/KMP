@@ -23,7 +23,10 @@
             data-waiver-upload-wizard-gathering-public-id-value="<?= h($gathering->public_id) ?>"
             data-waiver-upload-wizard-total-steps-value="4"
             data-waiver-upload-wizard-max-file-size-value="<?= h($uploadLimits['maxFileSize']) ?>"
-            data-waiver-upload-wizard-total-max-size-value="<?= h($uploadLimits['postMaxSize']) ?>">
+            data-waiver-upload-wizard-total-max-size-value="<?= h($uploadLimits['postMaxSize']) ?>"
+            data-waiver-upload-wizard-attest-url-value="<?= $this->Url->build(['plugin' => 'Waivers', 'controller' => 'GatheringWaivers', 'action' => 'attest']) ?>"
+            data-waiver-upload-wizard-gathering-view-url-value="<?= $this->Url->build(['plugin' => false, 'controller' => 'Gatherings', 'action' => 'view', $gathering->public_id, '?' => ['tab' => 'gathering-waivers']]) ?>"
+            data-waiver-upload-wizard-mobile-select-url-value="<?= $this->Url->build(['plugin' => 'Waivers', 'controller' => 'GatheringWaivers', 'action' => 'mobileSelectGathering']) ?>">
 
             <!-- Gathering Info Header -->
             <div class="card mb-3 border-info">

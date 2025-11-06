@@ -31,7 +31,6 @@ use App\Model\Entity\BaseEntity;
  * @property \App\Model\Entity\Document|null $document
  * @property \Waivers\Model\Entity\GatheringActivityWaiver[] $gathering_activity_waivers
  * @property \Waivers\Model\Entity\GatheringWaiver[] $gathering_waivers
- * @property \Waivers\Model\Entity\GatheringWaiverExemption[] $gathering_waiver_exemptions
  */
 class WaiverType extends BaseEntity
 {

@@ -53,7 +53,10 @@ class WaiverUploadWizardController extends Controller {
         maxFileSize: Number,           // Maximum single file size in bytes
         totalMaxSize: Number,          // Maximum total upload size in bytes
         preSelectedActivityId: Number, // Pre-selected activity ID from URL
-        preSelectedWaiverTypeId: Number // Pre-selected waiver type ID from URL
+        preSelectedWaiverTypeId: Number, // Pre-selected waiver type ID from URL
+        attestUrl: String,             // URL for attestation endpoint
+        gatheringViewUrl: String,      // URL for gathering view page
+        mobileSelectUrl: String        // URL for mobile select gathering page
     }
 
     connect() {
@@ -382,13 +385,19 @@ class WaiverUploadWizardController extends Controller {
 
         // Build radio buttons
         let html = '<div class="list-group">'
+        let hasMatchingSelection = false
         exemptionReasons.forEach((reason, index) => {
             const id = `attest_reason_${index}`
+            const isSelected = this.attestReason === reason
+            if (isSelected) {
+                hasMatchingSelection = true
+            }
             html += `
                 <label class="list-group-item list-group-item-action">
                     <input class="form-check-input me-2" type="radio" name="attest_reason" 
                            id="${id}" value="${this.escapeHtml(reason)}"
-                           data-action="change->waiver-upload-wizard#selectAttestReason">
+                           data-action="change->waiver-upload-wizard#selectAttestReason"
+                           ${isSelected ? 'checked' : ''}>
                     ${this.escapeHtml(reason)}
                 </label>
             `
@@ -396,6 +405,11 @@ class WaiverUploadWizardController extends Controller {
         html += '</div>'
 
         this.attestReasonListTarget.innerHTML = html
+        
+        // Clear attestReason if the previously selected reason is not available for the current waiver type
+        if (!hasMatchingSelection) {
+            this.attestReason = null
+        }
     }
 
     selectAttestReason(event) {
@@ -818,7 +832,10 @@ class WaiverUploadWizardController extends Controller {
         // Create ONE exemption waiver associated with multiple activities
         const activityIds = this.selectedActivities.map(activity => activity.id)
         
-        const response = await fetch('/waivers/gathering-waivers/attest', {
+        // Use attestUrlValue if provided, otherwise fall back to hard-coded path
+        const attestUrl = this.hasAttestUrlValue ? this.attestUrlValue : '/waivers/gathering-waivers/attest'
+        
+        const response = await fetch(attestUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -846,8 +863,11 @@ class WaiverUploadWizardController extends Controller {
                     if (data.redirectUrl) {
                         window.location.href = data.redirectUrl
                     } else {
-                        // Fallback redirect using public_id
-                        window.location.href = `/gatherings/view/${this.gatheringPublicIdValue}?tab=gathering-waivers`
+                        // Fallback redirect using gatheringViewUrl or construct from public_id
+                        const fallbackUrl = this.hasGatheringViewUrlValue 
+                            ? this.gatheringViewUrlValue 
+                            : `/gatherings/view/${this.gatheringPublicIdValue}?tab=gathering-waivers`
+                        window.location.href = fallbackUrl
                     }
                 }, remainingTime)
             } else {
@@ -927,8 +947,11 @@ class WaiverUploadWizardController extends Controller {
                     console.log('Redirecting to:', data.redirectUrl)
                     window.location.href = data.redirectUrl
                 } else {
-                    // Fallback redirect
-                    window.location.href = `/gatherings/view/${this.gatheringIdValue}`
+                    // Fallback redirect using gatheringViewUrl or construct from gathering ID
+                    const fallbackUrl = this.hasGatheringViewUrlValue 
+                        ? this.gatheringViewUrlValue 
+                        : `/gatherings/view/${this.gatheringIdValue}`
+                    window.location.href = fallbackUrl
                 }
             }, remainingTime)
             
@@ -1017,13 +1040,18 @@ class WaiverUploadWizardController extends Controller {
             const isMobile = window.location.pathname.includes('mobile-upload')
             
             if (isMobile) {
-                // Redirect to mobile card - the URL will be in the user's browser history
-                // We'll redirect to the mobile select gathering page as a safe fallback
-                window.location.href = `/waivers/gathering-waivers/mobile-select-gathering?error=${encodeURIComponent(message)}`
+                // Redirect to mobile card using mobileSelectUrl if available, otherwise construct URL
+                const mobileUrl = this.hasMobileSelectUrlValue 
+                    ? `${this.mobileSelectUrlValue}?error=${encodeURIComponent(message)}`
+                    : `/waivers/gathering-waivers/mobile-select-gathering?error=${encodeURIComponent(message)}`
+                window.location.href = mobileUrl
             } else {
                 // Desktop mode - redirect back to the gathering with a flash message
                 const gatheringPublicId = this.gatheringPublicIdValue
-                window.location.href = `/gatherings/view/${gatheringPublicId}?tab=gathering-waivers&error=${encodeURIComponent(message)}`
+                const desktopUrl = this.hasGatheringViewUrlValue 
+                    ? `${this.gatheringViewUrlValue}&error=${encodeURIComponent(message)}`
+                    : `/gatherings/view/${gatheringPublicId}?tab=gathering-waivers&error=${encodeURIComponent(message)}`
+                window.location.href = desktopUrl
             }
             return
         }
