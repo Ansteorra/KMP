@@ -19,6 +19,7 @@ class WaiverUploadWizardController extends Controller {
         "prevButton",
         "nextButton",
         "submitButton",
+        "submitButtonText",
         "activityCheckbox",
         "waiverTypeOption",
         "waiverTypeSelect",
@@ -30,15 +31,32 @@ class WaiverUploadWizardController extends Controller {
         "reviewPageCount",
         "reviewPagesList",
         "notesField",
-        "progressBar"
+        "progressBar",
+        "uploadSection",
+        "attestSection",
+        "attestReasonList",
+        "attestNotes",
+        "reviewUploadSection",
+        "reviewAttestSection",
+        "reviewAttestReason",
+        "reviewAttestNotes",
+        "reviewAttestNotesSection",
+        "modeToggle",
+        "step3Lead"
     ]
 
     static values = {
         currentStep: { type: Number, default: 1 },
         totalSteps: { type: Number, default: 4 },
         gatheringId: Number,
+        gatheringPublicId: String,
         maxFileSize: Number,           // Maximum single file size in bytes
-        totalMaxSize: Number           // Maximum total upload size in bytes
+        totalMaxSize: Number,          // Maximum total upload size in bytes
+        preSelectedActivityId: Number, // Pre-selected activity ID from URL
+        preSelectedWaiverTypeId: Number, // Pre-selected waiver type ID from URL
+        attestUrl: String,             // URL for attestation endpoint
+        gatheringViewUrl: String,      // URL for gathering view page
+        mobileSelectUrl: String        // URL for mobile select gathering page
     }
 
     connect() {
@@ -47,8 +65,55 @@ class WaiverUploadWizardController extends Controller {
         this.selectedActivities = []
         this.selectedWaiverType = null
         this.notes = ""
+        this.isAttestMode = false  // Track if we're in attestation mode
+        this.attestReason = null
+        this.attestNotes = ""
         
-        this.showStep(1)
+        // Handle pre-selected values (skip to step 3 if both are provided)
+        if (this.hasPreSelectedActivityIdValue && this.hasPreSelectedWaiverTypeIdValue) {
+            // Use setTimeout to ensure DOM is fully ready
+            setTimeout(() => {
+                // Pre-select the activity checkbox
+                const activityCheckbox = this.activityCheckboxTargets.find(
+                    cb => parseInt(cb.value) === this.preSelectedActivityIdValue
+                )
+                if (activityCheckbox) {
+                    activityCheckbox.checked = true
+                    // Manually populate selectedActivities array
+                    this.selectedActivities = [{
+                        id: this.preSelectedActivityIdValue,
+                        name: activityCheckbox.dataset.name,
+                        waiverTypes: JSON.parse(activityCheckbox.dataset.waiverTypes || '[]')
+                    }]
+                }
+                
+                // Pre-select the waiver type
+                // Find the waiver type radio button to get both ID and name
+                const waiverTypeRadio = document.querySelector(
+                    `input[name="waiver_type"][value="${this.preSelectedWaiverTypeIdValue}"]`
+                )
+                if (waiverTypeRadio) {
+                    waiverTypeRadio.checked = true
+                    this.selectedWaiverType = {
+                        id: this.preSelectedWaiverTypeIdValue,
+                        name: waiverTypeRadio.dataset.name
+                    }
+                }
+                
+                // Jump directly to step 3 (file upload)
+                this.currentStepValue = 3
+                this.showStep(3)
+                
+                // Explicitly check attestation availability after showing step 3
+                // (in case onStepChange doesn't fire properly)
+                setTimeout(() => {
+                    this.checkAttestationAvailability()
+                }, 150)
+            }, 100)
+        } else {
+            // Normal flow - start at step 1
+            this.showStep(1)
+        }
     }
 
     // Step Navigation
@@ -146,6 +211,10 @@ class WaiverUploadWizardController extends Controller {
         if (this.hasSubmitButtonTarget) {
             if (stepNumber === this.totalStepsValue) {
                 this.submitButtonTarget.classList.remove('d-none')
+                // Update submit button text based on mode
+                if (this.hasSubmitButtonTextTarget) {
+                    this.submitButtonTextTarget.textContent = this.isAttestMode ? 'Submit Attestation' : 'Submit Waivers'
+                }
             } else {
                 this.submitButtonTarget.classList.add('d-none')
             }
@@ -165,10 +234,193 @@ class WaiverUploadWizardController extends Controller {
             case 2:
                 this.updateWaiverTypeOptions()
                 break
+            case 3:
+                this.checkAttestationAvailability()
+                break
             case 4:
                 this.updateReviewSection()
                 break
         }
+    }
+
+    // Check if attestation is available for selected waiver type
+    checkAttestationAvailability() {
+        console.log("Checking attestation availability, selectedWaiverType:", this.selectedWaiverType)
+        
+        if (!this.selectedWaiverType) {
+            console.log("No waiver type selected yet")
+            return
+        }
+
+        // Find the waiver type to get exemption reasons
+        const waiverTypeRadio = document.querySelector(
+            `input[name="waiver_type"][value="${this.selectedWaiverType.id}"]`
+        )
+        
+        console.log("Found waiver type radio:", waiverTypeRadio)
+        
+        let exemptionReasons = []
+        if (waiverTypeRadio && waiverTypeRadio.dataset.exemptionReasons) {
+            try {
+                exemptionReasons = JSON.parse(waiverTypeRadio.dataset.exemptionReasons)
+                console.log("Parsed exemption reasons:", exemptionReasons)
+            } catch (e) {
+                console.error('Failed to parse exemption reasons:', e)
+            }
+        } else {
+            console.log("No exemption reasons data attribute found")
+        }
+
+        // Show/hide mode toggle and update lead text based on exemption reasons availability
+        if (exemptionReasons.length > 0) {
+            console.log("Exemption reasons available - showing toggle")
+            // Has exemption reasons - show toggle
+            if (this.hasModeToggleTarget) {
+                this.modeToggleTarget.classList.remove('d-none')
+            } else {
+                console.log("WARNING: modeToggleTarget not available")
+            }
+            if (this.hasStep3LeadTarget) {
+                this.step3LeadTarget.textContent = 'Add one or more pages to your waiver document, or attest that a waiver is not needed'
+            } else {
+                console.log("WARNING: step3LeadTarget not available")
+            }
+        } else {
+            console.log("No exemption reasons - hiding toggle, forcing upload mode")
+            // No exemption reasons - hide toggle, force upload mode
+            if (this.hasModeToggleTarget) {
+                this.modeToggleTarget.classList.add('d-none')
+            }
+            if (this.hasStep3LeadTarget) {
+                this.step3LeadTarget.textContent = 'Add one or more pages to your waiver document'
+            }
+            // Force upload mode
+            this.isAttestMode = false
+            const uploadRadio = document.getElementById('mode-upload')
+            if (uploadRadio) {
+                uploadRadio.checked = true
+            }
+            if (this.hasUploadSectionTarget && this.hasAttestSectionTarget) {
+                this.uploadSectionTarget.classList.remove('d-none')
+                this.attestSectionTarget.classList.add('d-none')
+            }
+        }
+
+        // Populate attestation reasons if available
+        if (exemptionReasons.length > 0) {
+            this.populateAttestationReasons()
+        }
+    }
+
+    // Step 3: Mode Toggle (Upload vs Attest)
+    setModeUpload(event) {
+        this.isAttestMode = false
+        if (this.hasUploadSectionTarget && this.hasAttestSectionTarget) {
+            this.uploadSectionTarget.classList.remove('d-none')
+            this.attestSectionTarget.classList.add('d-none')
+        }
+    }
+
+    setModeAttest(event) {
+        // Verify exemption reasons are available before allowing switch
+        if (!this.selectedWaiverType) return
+
+        const waiverTypeRadio = document.querySelector(
+            `input[name="waiver_type"][value="${this.selectedWaiverType.id}"]`
+        )
+        
+        let exemptionReasons = []
+        if (waiverTypeRadio && waiverTypeRadio.dataset.exemptionReasons) {
+            try {
+                exemptionReasons = JSON.parse(waiverTypeRadio.dataset.exemptionReasons)
+            } catch (e) {
+                console.error('Failed to parse exemption reasons:', e)
+            }
+        }
+
+        if (exemptionReasons.length === 0) {
+            // No exemption reasons - prevent switching to attest mode
+            this.showError('Attestation is not available for this waiver type.')
+            const uploadRadio = document.getElementById('mode-upload')
+            if (uploadRadio) {
+                uploadRadio.checked = true
+            }
+            return
+        }
+
+        this.isAttestMode = true
+        if (this.hasUploadSectionTarget && this.hasAttestSectionTarget) {
+            this.uploadSectionTarget.classList.add('d-none')
+            this.attestSectionTarget.classList.remove('d-none')
+        }
+        this.populateAttestationReasons()
+    }
+
+    populateAttestationReasons() {
+        if (!this.hasAttestReasonListTarget || !this.selectedWaiverType) return
+
+        // Find the waiver type to get exemption reasons
+        const waiverTypeRadio = document.querySelector(
+            `input[name="waiver_type"][value="${this.selectedWaiverType.id}"]`
+        )
+        
+        let exemptionReasons = []
+        if (waiverTypeRadio && waiverTypeRadio.dataset.exemptionReasons) {
+            try {
+                exemptionReasons = JSON.parse(waiverTypeRadio.dataset.exemptionReasons)
+            } catch (e) {
+                console.error('Failed to parse exemption reasons:', e)
+            }
+        }
+
+        if (exemptionReasons.length === 0) {
+            this.attestReasonListTarget.innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    No exemption reasons have been configured for this waiver type.
+                </div>
+            `
+            return
+        }
+
+        // Build radio buttons
+        let html = '<div class="list-group">'
+        let hasMatchingSelection = false
+        exemptionReasons.forEach((reason, index) => {
+            const id = `attest_reason_${index}`
+            const isSelected = this.attestReason === reason
+            if (isSelected) {
+                hasMatchingSelection = true
+            }
+            html += `
+                <label class="list-group-item list-group-item-action">
+                    <input class="form-check-input me-2" type="radio" name="attest_reason" 
+                           id="${id}" value="${this.escapeHtml(reason)}"
+                           data-action="change->waiver-upload-wizard#selectAttestReason"
+                           ${isSelected ? 'checked' : ''}>
+                    ${this.escapeHtml(reason)}
+                </label>
+            `
+        })
+        html += '</div>'
+
+        this.attestReasonListTarget.innerHTML = html
+        
+        // Clear attestReason if the previously selected reason is not available for the current waiver type
+        if (!hasMatchingSelection) {
+            this.attestReason = null
+        }
+    }
+
+    selectAttestReason(event) {
+        this.attestReason = event.currentTarget.value
+        console.log("Selected attestation reason:", this.attestReason)
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div')
+        div.textContent = text
+        return div.innerHTML
     }
 
     // Step 1: Activity Selection
@@ -433,11 +685,21 @@ class WaiverUploadWizardController extends Controller {
     }
 
     validateStep3() {
-        if (this.uploadedPages.length === 0) {
-            this.showError("Please add at least one page")
-            return false
+        if (this.isAttestMode) {
+            // Validate attestation mode
+            if (!this.attestReason) {
+                this.showError("Please select a reason for the exemption")
+                return false
+            }
+            return true
+        } else {
+            // Validate upload mode
+            if (this.uploadedPages.length === 0) {
+                this.showError("Please add at least one page")
+                return false
+            }
+            return true
         }
-        return true
     }
 
     // Step 4: Review
@@ -455,32 +717,71 @@ class WaiverUploadWizardController extends Controller {
             this.reviewWaiverTypeTarget.textContent = this.selectedWaiverType.name
         }
 
-        // Page Count
-        if (this.hasReviewPageCountTarget) {
-            this.reviewPageCountTarget.textContent = this.uploadedPages.length
-        }
+        // Show/hide sections based on mode
+        if (this.isAttestMode) {
+            // Attestation Mode
+            if (this.hasReviewUploadSectionTarget) {
+                this.reviewUploadSectionTarget.classList.add('d-none')
+            }
+            if (this.hasReviewAttestSectionTarget) {
+                this.reviewAttestSectionTarget.classList.remove('d-none')
+            }
 
-        // Pages List
-        if (this.hasReviewPagesListTarget) {
-            const html = this.uploadedPages.map(page => `
-                <div class="col-md-3 mb-3">
-                    <div class="card">
-                        <img src="${page.dataUrl}" 
-                             class="card-img-top" 
-                             style="height: 200px; object-fit: cover;"
-                             alt="Page ${page.number}">
-                        <div class="card-body p-2 text-center">
-                            <small>Page ${page.number}</small>
+            // Display attestation reason
+            if (this.hasReviewAttestReasonTarget) {
+                this.reviewAttestReasonTarget.textContent = this.attestReason || 'Not selected'
+            }
+
+            // Get notes from attest section
+            if (this.hasAttestNotesTarget) {
+                this.attestNotes = this.attestNotesTarget.value
+            }
+
+            // Display attestation notes if provided
+            if (this.hasReviewAttestNotesTarget && this.hasReviewAttestNotesSectionTarget) {
+                if (this.attestNotes && this.attestNotes.trim().length > 0) {
+                    this.reviewAttestNotesTarget.textContent = this.attestNotes
+                    this.reviewAttestNotesSectionTarget.classList.remove('d-none')
+                } else {
+                    this.reviewAttestNotesSectionTarget.classList.add('d-none')
+                }
+            }
+        } else {
+            // Upload Mode
+            if (this.hasReviewUploadSectionTarget) {
+                this.reviewUploadSectionTarget.classList.remove('d-none')
+            }
+            if (this.hasReviewAttestSectionTarget) {
+                this.reviewAttestSectionTarget.classList.add('d-none')
+            }
+
+            // Page Count
+            if (this.hasReviewPageCountTarget) {
+                this.reviewPageCountTarget.textContent = this.uploadedPages.length
+            }
+
+            // Pages List
+            if (this.hasReviewPagesListTarget) {
+                const html = this.uploadedPages.map(page => `
+                    <div class="col-md-3 mb-3">
+                        <div class="card">
+                            <img src="${page.dataUrl}" 
+                                 class="card-img-top" 
+                                 style="height: 200px; object-fit: cover;"
+                                 alt="Page ${page.number}">
+                            <div class="card-body p-2 text-center">
+                                <small>Page ${page.number}</small>
+                            </div>
                         </div>
                     </div>
-                </div>
-            `).join('')
-            this.reviewPagesListTarget.innerHTML = html
-        }
+                `).join('')
+                this.reviewPagesListTarget.innerHTML = html
+            }
 
-        // Get notes if available
-        if (this.hasNotesFieldTarget) {
-            this.notes = this.notesFieldTarget.value
+            // Get notes if available
+            if (this.hasNotesFieldTarget) {
+                this.notes = this.notesFieldTarget.value
+            }
         }
     }
 
@@ -498,85 +799,171 @@ class WaiverUploadWizardController extends Controller {
         }
 
         // Disable submit button and show processing page immediately
-        this.submitButtonTarget.disabled = true
+        if (this.hasSubmitButtonTarget) {
+            this.submitButtonTarget.disabled = true
+        }
         this.showProcessingStep()
 
         // Track when we started (for minimum 2-second display)
         const startTime = Date.now()
 
         try {
-            const formData = new FormData()
-            
-            // Add gathering ID
-            formData.append('gathering_id', this.gatheringIdValue)
-
-            // Add waiver type
-            formData.append('waiver_type_id', this.selectedWaiverType.id)
-
-            // Add activity IDs
-            this.selectedActivities.forEach(activity => {
-                formData.append('activity_ids[]', activity.id)
-            })
-
-            // Add notes
-            formData.append('notes', this.notes)
-
-            // Add all page files
-            this.uploadedPages.forEach((page, index) => {
-                formData.append('waiver_images[]', page.file)
-            })
-
-            // Get CSRF token and add to form data (CakePHP expects it in the body)
-            const csrfToken = this.getCsrfToken()
-            if (csrfToken) {
-                formData.append('_csrfToken', csrfToken)
+            if (this.isAttestMode) {
+                // Submit attestation
+                await this.submitAttestation(startTime)
+            } else {
+                // Submit waiver upload
+                await this.submitWaiverUpload(startTime)
             }
-            
-            // Submit via fetch
-            const response = await fetch(window.location.href, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
+        } catch (error) {
+            console.error('Submission error:', error)
+            this.showError('An error occurred during submission. Please try again.')
+            if (this.hasSubmitButtonTarget) {
+                this.submitButtonTarget.disabled = false
+            }
+            if (this.hasSubmitButtonTextTarget) {
+                this.submitButtonTextTarget.textContent = this.isAttestMode ? 'Submit Attestation' : 'Submit Waivers'
+            }
+        }
+    }
 
-            if (response.ok) {
-                // Parse JSON response
-                const data = await response.json().catch((err) => {
-                    console.error('Failed to parse JSON response:', err)
-                    return {}
-                })
-                
-                console.log('Upload response data:', data)
-                
-                // Calculate how long to wait (minimum 2 seconds total)
+    async submitAttestation(startTime) {
+        // Submit attestation for all selected activities at once
+        // Create ONE exemption waiver associated with multiple activities
+        const activityIds = this.selectedActivities.map(activity => activity.id)
+        
+        // Use attestUrlValue if provided, otherwise fall back to hard-coded path
+        const attestUrl = this.hasAttestUrlValue ? this.attestUrlValue : '/waivers/gathering-waivers/attest'
+        
+        const response = await fetch(attestUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-Token': this.getCsrfToken()
+            },
+            body: JSON.stringify({
+                gathering_id: this.gatheringIdValue,
+                gathering_activity_ids: activityIds,  // Send all activity IDs
+                waiver_type_id: this.selectedWaiverType.id,
+                reason: this.attestReason,
+                notes: this.attestNotes
+            })
+        })
+
+        try {
+            const data = await response.json()
+            
+            if (response.ok && data.success) {
+                // Attestation succeeded
                 const elapsed = Date.now() - startTime
                 const remainingTime = Math.max(0, 2000 - elapsed)
                 
-                // Wait for remaining time, then redirect
                 setTimeout(() => {
                     if (data.redirectUrl) {
-                        console.log('Redirecting to:', data.redirectUrl)
                         window.location.href = data.redirectUrl
                     } else {
-                        // Fallback redirect
-                        window.location.href = `/gatherings/view/${this.gatheringIdValue}`
+                        // Fallback redirect using gatheringViewUrl or construct from public_id
+                        const fallbackUrl = this.hasGatheringViewUrlValue 
+                            ? this.gatheringViewUrlValue 
+                            : `/gatherings/view/${this.gatheringPublicIdValue}?tab=gathering-waivers`
+                        window.location.href = fallbackUrl
                     }
                 }, remainingTime)
-                
             } else {
-                const data = await response.json().catch(() => ({}))
-                this.showError(data.message || 'Upload failed. Please try again.')
-                this.submitButtonTarget.disabled = false
-                this.submitButtonTarget.innerHTML = '<i class="bi bi-check-circle"></i> Upload Waiver'
+                // Attestation failed
+                this.showError(data.message || 'Attestation failed. Please try again.')
+                if (this.hasSubmitButtonTarget) {
+                    this.submitButtonTarget.disabled = false
+                }
+                if (this.hasSubmitButtonTextTarget) {
+                    this.submitButtonTextTarget.textContent = 'Submit Attestation'
+                }
             }
-
         } catch (error) {
-            console.error('Upload error:', error)
-            this.showError('An error occurred during upload. Please try again.')
-            this.submitButtonTarget.disabled = false
-            this.submitButtonTarget.innerHTML = '<i class="bi bi-check-circle"></i> Upload Waiver'
+            this.showError('Network error. Please try again.')
+            if (this.hasSubmitButtonTarget) {
+                this.submitButtonTarget.disabled = false
+            }
+            if (this.hasSubmitButtonTextTarget) {
+                this.submitButtonTextTarget.textContent = 'Submit Attestation'
+            }
+        }
+    }
+
+    async submitWaiverUpload(startTime) {
+        const formData = new FormData()
+        
+        // Add gathering ID
+        formData.append('gathering_id', this.gatheringIdValue)
+
+        // Add waiver type
+        formData.append('waiver_type_id', this.selectedWaiverType.id)
+
+        // Add activity IDs
+        this.selectedActivities.forEach(activity => {
+            formData.append('activity_ids[]', activity.id)
+        })
+
+        // Add notes
+        formData.append('notes', this.notes)
+
+        // Add all page files
+        this.uploadedPages.forEach((page, index) => {
+            formData.append('waiver_images[]', page.file)
+        })
+
+        // Get CSRF token and add to form data (CakePHP expects it in the body)
+        const csrfToken = this.getCsrfToken()
+        if (csrfToken) {
+            formData.append('_csrfToken', csrfToken)
+        }
+        
+        // Submit via fetch
+        const response = await fetch(window.location.href, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+
+        if (response.ok) {
+            // Parse JSON response
+            const data = await response.json().catch((err) => {
+                console.error('Failed to parse JSON response:', err)
+                return {}
+            })
+            
+            console.log('Upload response data:', data)
+            
+            // Calculate how long to wait (minimum 2 seconds total)
+            const elapsed = Date.now() - startTime
+            const remainingTime = Math.max(0, 2000 - elapsed)
+            
+            // Wait for remaining time, then redirect
+            setTimeout(() => {
+                if (data.redirectUrl) {
+                    console.log('Redirecting to:', data.redirectUrl)
+                    window.location.href = data.redirectUrl
+                } else {
+                    // Fallback redirect using gatheringViewUrl or construct from gathering ID
+                    const fallbackUrl = this.hasGatheringViewUrlValue 
+                        ? this.gatheringViewUrlValue 
+                        : `/gatherings/view/${this.gatheringIdValue}`
+                    window.location.href = fallbackUrl
+                }
+            }, remainingTime)
+            
+        } else {
+            const data = await response.json().catch(() => ({}))
+            this.showError(data.message || 'Upload failed. Please try again.')
+            if (this.hasSubmitButtonTarget) {
+                this.submitButtonTarget.disabled = false
+            }
+            if (this.hasSubmitButtonTextTarget) {
+                this.submitButtonTextTarget.textContent = 'Submit Waivers'
+            }
         }
     }
 
@@ -584,24 +971,45 @@ class WaiverUploadWizardController extends Controller {
         // Hide all regular steps
         this.stepTargets.forEach(step => step.classList.add('d-none'))
 
-        // Show processing message
-        const processingHtml = `
-            <div class="text-center py-5">
-                <div class="mb-4">
-                    <div class="spinner-border text-primary" role="status" style="width: 5rem; height: 5rem;">
-                        <span class="visually-hidden">Uploading...</span>
+        // Show processing message based on mode
+        let processingHtml
+        if (this.isAttestMode) {
+            processingHtml = `
+                <div class="text-center py-5">
+                    <div class="mb-4">
+                        <div class="spinner-border text-primary" role="status" style="width: 5rem; height: 5rem;">
+                            <span class="visually-hidden">Processing...</span>
+                        </div>
+                    </div>
+                    <h2 class="mb-3">Processing Your Attestation</h2>
+                    <p class="lead text-muted mb-4">
+                        Please wait while we record your attestation...
+                    </p>
+                    <div class="alert alert-info d-inline-block">
+                        <i class="bi bi-shield-check"></i>
+                        Attesting waiver not needed for ${this.selectedActivities.length} activity(s)
                     </div>
                 </div>
-                <h2 class="mb-3">Processing Your Waiver</h2>
-                <p class="lead text-muted mb-4">
-                    Please wait while we upload and process your waiver...
-                </p>
-                <div class="alert alert-info d-inline-block">
-                    <i class="bi bi-info-circle"></i>
-                    Uploading ${this.uploadedPages.length} page(s) for ${this.selectedActivities.length} activity(s)
+            `
+        } else {
+            processingHtml = `
+                <div class="text-center py-5">
+                    <div class="mb-4">
+                        <div class="spinner-border text-primary" role="status" style="width: 5rem; height: 5rem;">
+                            <span class="visually-hidden">Uploading...</span>
+                        </div>
+                    </div>
+                    <h2 class="mb-3">Processing Your Waiver</h2>
+                    <p class="lead text-muted mb-4">
+                        Please wait while we upload and process your waiver...
+                    </p>
+                    <div class="alert alert-info d-inline-block">
+                        <i class="bi bi-info-circle"></i>
+                        Uploading ${this.uploadedPages.length} page(s) for ${this.selectedActivities.length} activity(s)
+                    </div>
                 </div>
-            </div>
-        `
+            `
+        }
 
         const container = this.element.querySelector('.wizard-container') || this.element
         container.innerHTML = processingHtml
@@ -620,6 +1028,34 @@ class WaiverUploadWizardController extends Controller {
 
     // Error Handling
     showError(message) {
+        // Check if we're showing the processing screen (wizard container innerHTML was replaced)
+        const container = this.element.querySelector('.wizard-container') || this.element
+        const isProcessing = container.querySelector('h2') && 
+            (container.querySelector('h2').textContent.includes('Processing Your Attestation') ||
+             container.querySelector('h2').textContent.includes('Processing Your Waiver'))
+        
+        if (isProcessing) {
+            // We're in the processing screen, so we can't show a toast
+            // Check if we're in mobile mode by checking the URL
+            const isMobile = window.location.pathname.includes('mobile-upload')
+            
+            if (isMobile) {
+                // Redirect to mobile card using mobileSelectUrl if available, otherwise construct URL
+                const mobileUrl = this.hasMobileSelectUrlValue 
+                    ? `${this.mobileSelectUrlValue}?error=${encodeURIComponent(message)}`
+                    : `/waivers/gathering-waivers/mobile-select-gathering?error=${encodeURIComponent(message)}`
+                window.location.href = mobileUrl
+            } else {
+                // Desktop mode - redirect back to the gathering with a flash message
+                const gatheringPublicId = this.gatheringPublicIdValue
+                const desktopUrl = this.hasGatheringViewUrlValue 
+                    ? `${this.gatheringViewUrlValue}&error=${encodeURIComponent(message)}`
+                    : `/gatherings/view/${gatheringPublicId}?tab=gathering-waivers&error=${encodeURIComponent(message)}`
+                window.location.href = desktopUrl
+            }
+            return
+        }
+        
         // Create toast notification
         const toastHtml = `
             <div class="toast align-items-center text-white bg-danger border-0" role="alert">
@@ -633,15 +1069,15 @@ class WaiverUploadWizardController extends Controller {
         `
 
         // Add to toast container or create one
-        let container = document.querySelector('.toast-container')
-        if (!container) {
-            container = document.createElement('div')
-            container.className = 'toast-container position-fixed top-0 end-0 p-3'
-            document.body.appendChild(container)
+        let toastContainer = document.querySelector('.toast-container')
+        if (!toastContainer) {
+            toastContainer = document.createElement('div')
+            toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3'
+            document.body.appendChild(toastContainer)
         }
 
-        container.insertAdjacentHTML('beforeend', toastHtml)
-        const toastElement = container.lastElementChild
+        toastContainer.insertAdjacentHTML('beforeend', toastHtml)
+        const toastElement = toastContainer.lastElementChild
         const toast = new bootstrap.Toast(toastElement)
         toast.show()
 

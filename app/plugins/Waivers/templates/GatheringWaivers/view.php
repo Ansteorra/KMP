@@ -15,11 +15,13 @@ $this->KMP->endBlock();
 echo $this->KMP->startBlock("recordActions");
 ?>
 <div class="btn-group" role="group">
+    <?php if (!$gatheringWaiver->is_exemption && $gatheringWaiver->document_id): ?>
     <?= $this->Html->link(
-        '<i class="bi bi-download"></i> ' . __('Download'),
-        ['action' => 'download', $gatheringWaiver->id],
-        ['class' => 'btn btn-success', 'escape' => false]
-    ) ?>
+            '<i class="bi bi-download"></i> ' . __('Download'),
+            ['action' => 'download', $gatheringWaiver->id],
+            ['class' => 'btn btn-success', 'escape' => false]
+        ) ?>
+    <?php endif; ?>
     <?= $this->Html->link(
         '<i class="bi bi-arrow-left"></i> ' . __('Back to List'),
         ['action' => 'index', '?' => ['gathering_id' => $gatheringWaiver->gathering_id]],
@@ -27,26 +29,21 @@ echo $this->KMP->startBlock("recordActions");
     ) ?>
     <?php
     $user = $this->getRequest()->getAttribute('identity');
-    if ($user && $user->checkCan('canChangeWaiverType', $gatheringWaiver)): ?>
-        <button type="button"
-            class="btn btn-warning"
-            data-bs-toggle="modal"
-            data-bs-target="#changeTypeActivitiesModal">
-            <i class="bi bi-pencil-square"></i> <?= __('Change Type/Activities') ?>
-        </button>
+    // Only show change type/activities for actual waivers, not exemptions
+    if (!$gatheringWaiver->is_exemption && $user && $user->checkCan('canChangeWaiverType', $gatheringWaiver)): ?>
+    <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#changeTypeActivitiesModal">
+        <i class="bi bi-pencil-square"></i> <?= __('Change Type/Activities') ?>
+    </button>
     <?php endif; ?>
     <?php
     // Show decline button if user can decline and waiver can be declined
     if ($user && $user->checkCan('canDecline', $gatheringWaiver) && $gatheringWaiver->can_be_declined): ?>
-        <button type="button"
-            class="btn btn-danger"
-            data-bs-toggle="modal"
-            data-bs-target="#declineWaiverModal">
-            <i class="bi bi-x-circle-fill"></i> <?= __('Decline Waiver') ?>
-        </button>
+    <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#declineWaiverModal">
+        <i class="bi bi-x-circle-fill"></i> <?= __('Decline Waiver') ?>
+    </button>
     <?php endif; ?>
     <?php if ($gatheringWaiver->status === 'expired'): ?>
-        <?= $this->Form->postLink(
+    <?= $this->Form->postLink(
             '<i class="bi bi-trash-fill"></i> ' . __('Delete'),
             ['action' => 'delete', $gatheringWaiver->id],
             [
@@ -107,69 +104,91 @@ echo $this->KMP->startBlock("recordDetails");
                     <dd class="col-sm-9">
                         <strong><?= h($gatheringWaiver->waiver_type->name) ?></strong>
                         <?php if ($gatheringWaiver->waiver_type->description): ?>
-                            <br>
-                            <small class="text-muted"><?= h($gatheringWaiver->waiver_type->description) ?></small>
+                        <br>
+                        <small class="text-muted"><?= h($gatheringWaiver->waiver_type->description) ?></small>
                         <?php endif; ?>
                     </dd>
 
                     <dt class="col-sm-3"><?= __('Status') ?></dt>
                     <dd class="col-sm-9">
                         <?php if ($gatheringWaiver->is_declined): ?>
-                            <span class="badge bg-danger"><?= __('Declined') ?></span>
+                        <span class="badge bg-danger"><?= __('Declined') ?></span>
                         <?php elseif ($gatheringWaiver->status === 'active'): ?>
-                            <span class="badge bg-success"><?= __('Active') ?></span>
+                        <span class="badge bg-success"><?= __('Active') ?></span>
                         <?php elseif ($gatheringWaiver->status === 'expired'): ?>
-                            <span class="badge bg-danger"><?= __('Expired') ?></span>
+                        <span class="badge bg-danger"><?= __('Expired') ?></span>
                         <?php else: ?>
-                            <span class="badge bg-secondary"><?= h($gatheringWaiver->status) ?></span>
+                        <span class="badge bg-secondary"><?= h($gatheringWaiver->status) ?></span>
                         <?php endif; ?>
                     </dd>
 
                     <?php if ($gatheringWaiver->is_declined): ?>
-                        <dt class="col-sm-3"><?= __('Declined At') ?></dt>
-                        <dd class="col-sm-9">
-                            <?= $this->Timezone->format($gatheringWaiver->declined_at, null, null, \IntlDateFormatter::LONG, \IntlDateFormatter::SHORT) ?>
-                        </dd>
+                    <dt class="col-sm-3"><?= __('Declined At') ?></dt>
+                    <dd class="col-sm-9">
+                        <?= $this->Timezone->format($gatheringWaiver->declined_at, null, null, \IntlDateFormatter::LONG, \IntlDateFormatter::SHORT) ?>
+                    </dd>
 
-                        <?php if (!empty($gatheringWaiver->declined_by_member)): ?>
-                            <dt class="col-sm-3"><?= __('Declined By') ?></dt>
-                            <dd class="col-sm-9">
-                                <?php
-                                $declinedByName = $gatheringWaiver->declined_by_member->SCA_name
-                                    ?? $gatheringWaiver->declined_by_member->modern_name
+                    <?php if (!empty($gatheringWaiver->declined_by_member)): ?>
+                    <dt class="col-sm-3"><?= __('Declined By') ?></dt>
+                    <dd class="col-sm-9">
+                        <?php
+                                $declinedByName = $gatheringWaiver->declined_by_member->sca_name
                                     ?? 'Unknown';
                                 ?>
-                                <?= $this->Html->link(
+                        <?= $this->Html->link(
                                     h($declinedByName),
                                     ['plugin' => false, 'controller' => 'Members', 'action' => 'view', $gatheringWaiver->declined_by]
                                 ) ?>
-                            </dd>
-                        <?php elseif (!empty($gatheringWaiver->declined_by)): ?>
-                            <dt class="col-sm-3"><?= __('Declined By') ?></dt>
-                            <dd class="col-sm-9">
-                                <?= __('Member ID: {0}', h($gatheringWaiver->declined_by)) ?>
-                            </dd>
-                        <?php endif; ?>
-
-                        <?php if ($gatheringWaiver->decline_reason): ?>
-                            <dt class="col-sm-3"><?= __('Decline Reason') ?></dt>
-                            <dd class="col-sm-9">
-                                <div class="alert alert-danger mb-0">
-                                    <i class="bi bi-exclamation-triangle-fill"></i>
-                                    <?= nl2br(h($gatheringWaiver->decline_reason)) ?>
-                                </div>
-                            </dd>
-                        <?php endif; ?>
+                    </dd>
+                    <?php elseif (!empty($gatheringWaiver->declined_by)): ?>
+                    <dt class="col-sm-3"><?= __('Declined By') ?></dt>
+                    <dd class="col-sm-9">
+                        <?= __('Member ID: {0}', h($gatheringWaiver->declined_by)) ?>
+                    </dd>
                     <?php endif; ?>
 
-                    <dt class="col-sm-3"><?= __('Uploaded') ?></dt>
+                    <?php if ($gatheringWaiver->decline_reason): ?>
+                    <dt class="col-sm-3"><?= __('Decline Reason') ?></dt>
+                    <dd class="col-sm-9">
+                        <div class="alert alert-danger mb-0">
+                            <i class="bi bi-exclamation-triangle-fill"></i>
+                            <?= nl2br(h($gatheringWaiver->decline_reason)) ?>
+                        </div>
+                    </dd>
+                    <?php endif; ?>
+                    <?php endif; ?>
+
+                    <?php if ($gatheringWaiver->is_exemption && $gatheringWaiver->exemption_reason): ?>
+                    <dt class="col-sm-3"><?= __('Exemption Reason') ?></dt>
+                    <dd class="col-sm-9">
+                        <div class="alert alert-info mb-0">
+                            <i class="bi bi-info-circle-fill"></i>
+                            <?= nl2br(h($gatheringWaiver->exemption_reason)) ?>
+                        </div>
+                    </dd>
+                    <?php endif; ?>
+
+                    <dt class="col-sm-3"><?= __('Submitted') ?></dt>
                     <dd class="col-sm-9">
                         <?= $this->Timezone->format($gatheringWaiver->created, null, null, \IntlDateFormatter::LONG, \IntlDateFormatter::SHORT) ?>
+                        <?php if (!empty($gatheringWaiver->created_by_member)): ?>
+                        by
+                        <?php
+                            $createdByName = $gatheringWaiver->created_by_member->sca_name
+                                ?? 'Unknown';
+                            ?>
+                        <?= $this->Html->link(
+                                h($createdByName),
+                                ['plugin' => false, 'controller' => 'Members', 'action' => 'view', $gatheringWaiver->created_by]
+                            ) ?>
+                        <?php elseif (!empty($gatheringWaiver->created_by)): ?>
+                        by <?= __('Member ID: {0}', h($gatheringWaiver->created_by)) ?>
+                        <?php endif; ?>
                     </dd>
 
                     <?php if ($gatheringWaiver->notes): ?>
-                        <dt class="col-sm-3"><?= __('Notes') ?></dt>
-                        <dd class="col-sm-9"><?= h($gatheringWaiver->notes) ?></dd>
+                    <dt class="col-sm-3"><?= __('Notes') ?></dt>
+                    <dd class="col-sm-9"><?= h($gatheringWaiver->notes) ?></dd>
                     <?php endif; ?>
                 </dl>
             </div>
@@ -177,65 +196,65 @@ echo $this->KMP->startBlock("recordDetails");
 
         <!-- Document Information -->
         <?php if ($gatheringWaiver->document): ?>
-            <div class="card mb-3">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="bi bi-file-earmark-pdf"></i> <?= __('Document Information') ?></h5>
-                </div>
-                <div class="card-body">
-                    <dl class="row">
-                        <dt class="col-sm-3"><?= __('File Type') ?></dt>
-                        <dd class="col-sm-9"><?= h($gatheringWaiver->document->mime_type) ?></dd>
-
-                        <dt class="col-sm-3"><?= __('File Size') ?></dt>
-                        <dd class="col-sm-9">
-                            <?= $this->Number->toReadableSize($gatheringWaiver->document->file_size) ?>
-                        </dd>
-
-                        <?php if ($gatheringWaiver->document->metadata): ?>
-                            <?php $metadata = json_decode($gatheringWaiver->document->metadata, true); ?>
-                            <?php if ($metadata && !empty($metadata['is_multipage']) && isset($metadata['page_count'])): ?>
-                                <dt class="col-sm-3"><?= __('Pages') ?></dt>
-                                <dd class="col-sm-9">
-                                    <span class="badge bg-info">
-                                        <i class="bi bi-file-earmark-text"></i> <?= h($metadata['page_count']) ?> <?= __('pages') ?>
-                                    </span>
-                                </dd>
-                            <?php endif; ?>
-                        <?php endif; ?>
-
-                        <dt class="col-sm-3"><?= __('Storage') ?></dt>
-                        <dd class="col-sm-9"><?= h($gatheringWaiver->document->storage_adapter) ?></dd>
-
-                        <?php if ($gatheringWaiver->document->metadata): ?>
-                            <?php $metadata = json_decode($gatheringWaiver->document->metadata, true); ?>
-                            <?php if ($metadata && isset($metadata['original_filename'])): ?>
-                                <dt class="col-sm-3"><?= __('Original Filename') ?></dt>
-                                <dd class="col-sm-9"><?= h($metadata['original_filename']) ?></dd>
-                            <?php endif; ?>
-                            <?php if ($metadata && isset($metadata['original_size'])): ?>
-                                <dt class="col-sm-3"><?= __('Original Size') ?></dt>
-                                <dd class="col-sm-9">
-                                    <?= $this->Number->toReadableSize($metadata['original_size']) ?>
-                                </dd>
-                            <?php endif; ?>
-                            <?php if ($metadata && isset($metadata['compression_ratio'])): ?>
-                                <dt class="col-sm-3"><?= __('Space Saved') ?></dt>
-                                <dd class="col-sm-9">
-                                    <span class="badge bg-success"><?= h($metadata['compression_ratio']) ?>%</span>
-                                    <small class="text-muted">
-                                        <?= __('(through compression)') ?>
-                                    </small>
-                                </dd>
-                            <?php endif; ?>
-                        <?php endif; ?>
-
-                        <dt class="col-sm-3"><?= __('Checksum') ?></dt>
-                        <dd class="col-sm-9">
-                            <code class="small"><?= h(substr($gatheringWaiver->document->checksum, 0, 16)) ?>...</code>
-                        </dd>
-                    </dl>
-                </div>
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-file-earmark-pdf"></i> <?= __('Document Information') ?></h5>
             </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-3"><?= __('File Type') ?></dt>
+                    <dd class="col-sm-9"><?= h($gatheringWaiver->document->mime_type) ?></dd>
+
+                    <dt class="col-sm-3"><?= __('File Size') ?></dt>
+                    <dd class="col-sm-9">
+                        <?= $this->Number->toReadableSize($gatheringWaiver->document->file_size) ?>
+                    </dd>
+
+                    <?php if ($gatheringWaiver->document->metadata): ?>
+                    <?php $metadata = json_decode($gatheringWaiver->document->metadata, true); ?>
+                    <?php if ($metadata && !empty($metadata['is_multipage']) && isset($metadata['page_count'])): ?>
+                    <dt class="col-sm-3"><?= __('Pages') ?></dt>
+                    <dd class="col-sm-9">
+                        <span class="badge bg-info">
+                            <i class="bi bi-file-earmark-text"></i> <?= h($metadata['page_count']) ?> <?= __('pages') ?>
+                        </span>
+                    </dd>
+                    <?php endif; ?>
+                    <?php endif; ?>
+
+                    <dt class="col-sm-3"><?= __('Storage') ?></dt>
+                    <dd class="col-sm-9"><?= h($gatheringWaiver->document->storage_adapter) ?></dd>
+
+                    <?php if ($gatheringWaiver->document->metadata): ?>
+                    <?php $metadata = json_decode($gatheringWaiver->document->metadata, true); ?>
+                    <?php if ($metadata && isset($metadata['original_filename'])): ?>
+                    <dt class="col-sm-3"><?= __('Original Filename') ?></dt>
+                    <dd class="col-sm-9"><?= h($metadata['original_filename']) ?></dd>
+                    <?php endif; ?>
+                    <?php if ($metadata && isset($metadata['original_size'])): ?>
+                    <dt class="col-sm-3"><?= __('Original Size') ?></dt>
+                    <dd class="col-sm-9">
+                        <?= $this->Number->toReadableSize($metadata['original_size']) ?>
+                    </dd>
+                    <?php endif; ?>
+                    <?php if ($metadata && isset($metadata['compression_ratio'])): ?>
+                    <dt class="col-sm-3"><?= __('Space Saved') ?></dt>
+                    <dd class="col-sm-9">
+                        <span class="badge bg-success"><?= h($metadata['compression_ratio']) ?>%</span>
+                        <small class="text-muted">
+                            <?= __('(through compression)') ?>
+                        </small>
+                    </dd>
+                    <?php endif; ?>
+                    <?php endif; ?>
+
+                    <dt class="col-sm-3"><?= __('Checksum') ?></dt>
+                    <dd class="col-sm-9">
+                        <code class="small"><?= h(substr($gatheringWaiver->document->checksum, 0, 16)) ?>...</code>
+                    </dd>
+                </dl>
+            </div>
+        </div>
         <?php endif; ?>
 
         <!-- Activity Associations -->
@@ -244,39 +263,39 @@ echo $this->KMP->startBlock("recordDetails");
                 <h5 class="mb-0">
                     <i class="bi bi-activity"></i> <?= __('Associated Activities') ?>
                     <?php if (!empty($gatheringWaiver->gathering_waiver_activities)): ?>
-                        <span class="badge bg-primary ms-2">
-                            <?= count($gatheringWaiver->gathering_waiver_activities) ?>
-                        </span>
+                    <span class="badge bg-primary ms-2">
+                        <?= count($gatheringWaiver->gathering_waiver_activities) ?>
+                    </span>
                     <?php endif; ?>
                 </h5>
             </div>
             <div class="card-body">
                 <?php if (!empty($gatheringWaiver->gathering_waiver_activities)): ?>
-                    <p class="text-muted mb-3">
-                        <i class="bi bi-info-circle"></i>
-                        <?= __('This waiver applies to the following activities:') ?>
-                    </p>
-                    <ul class="list-group">
-                        <?php foreach ($gatheringWaiver->gathering_waiver_activities as $activityWaiver): ?>
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                <div>
-                                    <strong><?= h($activityWaiver->gathering_activity->name) ?></strong>
-                                    <?php if ($activityWaiver->gathering_activity->description): ?>
-                                        <br>
-                                        <small class="text-muted"><?= h($activityWaiver->gathering_activity->description) ?></small>
-                                    <?php endif; ?>
-                                </div>
-                                <span class="badge bg-success rounded-pill">
-                                    <i class="bi bi-check-circle"></i> <?= __('Covered') ?>
-                                </span>
-                            </li>
-                        <?php endforeach; ?>
-                    </ul>
+                <p class="text-muted mb-3">
+                    <i class="bi bi-info-circle"></i>
+                    <?= __('This waiver applies to the following activities:') ?>
+                </p>
+                <ul class="list-group">
+                    <?php foreach ($gatheringWaiver->gathering_waiver_activities as $activityWaiver): ?>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong><?= h($activityWaiver->gathering_activity->name) ?></strong>
+                            <?php if ($activityWaiver->gathering_activity->description): ?>
+                            <br>
+                            <small class="text-muted"><?= h($activityWaiver->gathering_activity->description) ?></small>
+                            <?php endif; ?>
+                        </div>
+                        <span class="badge bg-success rounded-pill">
+                            <i class="bi bi-check-circle"></i> <?= __('Covered') ?>
+                        </span>
+                    </li>
+                    <?php endforeach; ?>
+                </ul>
                 <?php else: ?>
-                    <div class="alert alert-info mb-0" role="alert">
-                        <i class="bi bi-info-circle"></i>
-                        <?= __('This waiver is not associated with any specific activities. It may apply to the gathering as a whole.') ?>
-                    </div>
+                <div class="alert alert-info mb-0" role="alert">
+                    <i class="bi bi-info-circle"></i>
+                    <?= __('This waiver is not associated with any specific activities. It may apply to the gathering as a whole.') ?>
+                </div>
                 <?php endif; ?>
             </div>
         </div>
@@ -291,7 +310,8 @@ echo $this->KMP->startBlock("recordDetails");
             <div class="card-body">
                 <p class="mb-2">
                     <strong><?= __('Retention Date:') ?></strong><br>
-                    <span class="fs-4"><?= $this->Timezone->format($gatheringWaiver->retention_date, null, null, \IntlDateFormatter::LONG) ?></span>
+                    <span
+                        class="fs-4"><?= $this->Timezone->format($gatheringWaiver->retention_date, null, null, \IntlDateFormatter::LONG) ?></span>
                 </p>
 
                 <?php
@@ -300,23 +320,23 @@ echo $this->KMP->startBlock("recordDetails");
                 ?>
 
                 <?php if ($daysRemaining < 0): ?>
-                    <div class="alert alert-danger mt-3 mb-0" role="alert">
-                        <i class="bi bi-exclamation-triangle-fill"></i>
-                        <strong><?= __('Expired') ?></strong><br>
-                        <?= __('This waiver expired {0} days ago and is eligible for deletion.', abs($daysRemaining)) ?>
-                    </div>
+                <div class="alert alert-danger mt-3 mb-0" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    <strong><?= __('Expired') ?></strong><br>
+                    <?= __('This waiver expired {0} days ago and is eligible for deletion.', abs($daysRemaining)) ?>
+                </div>
                 <?php elseif ($daysRemaining < 90): ?>
-                    <div class="alert alert-warning mt-3 mb-0" role="alert">
-                        <i class="bi bi-clock"></i>
-                        <strong><?= __('Expiring Soon') ?></strong><br>
-                        <?= __('This waiver will expire in {0} days.', $daysRemaining) ?>
-                    </div>
+                <div class="alert alert-warning mt-3 mb-0" role="alert">
+                    <i class="bi bi-clock"></i>
+                    <strong><?= __('Expiring Soon') ?></strong><br>
+                    <?= __('This waiver will expire in {0} days.', $daysRemaining) ?>
+                </div>
                 <?php else: ?>
-                    <div class="alert alert-success mt-3 mb-0" role="alert">
-                        <i class="bi bi-check-circle"></i>
-                        <strong><?= __('Active') ?></strong><br>
-                        <?= __('This waiver will expire in {0} days.', $daysRemaining) ?>
-                    </div>
+                <div class="alert alert-success mt-3 mb-0" role="alert">
+                    <i class="bi bi-check-circle"></i>
+                    <strong><?= __('Active') ?></strong><br>
+                    <?= __('This waiver will expire in {0} days.', $daysRemaining) ?>
+                </div>
                 <?php endif; ?>
 
                 <hr>
@@ -334,42 +354,20 @@ echo $this->KMP->startBlock("recordDetails");
                 <h5 class="mb-0"><?= __('Quick Actions') ?></h5>
             </div>
             <div class="list-group list-group-flush">
-                <a href="<?= $this->Url->build(['action' => 'download', $gatheringWaiver->id]) ?>" class="list-group-item list-group-item-action">
+                <?php if (!$gatheringWaiver->is_exemption && $gatheringWaiver->document_id): ?>
+                <a href="<?= $this->Url->build(['action' => 'download', $gatheringWaiver->id]) ?>"
+                    class="list-group-item list-group-item-action">
                     <i class="bi bi-download"></i> <?= __('Download PDF') ?>
                 </a>
-                <a href="<?= $this->Url->build(['action' => 'index', '?' => ['gathering_id' => $gatheringWaiver->gathering_id]]) ?>" class="list-group-item list-group-item-action">
+                <?php endif; ?>
+                <a href="<?= $this->Url->build(['action' => 'index', '?' => ['gathering_id' => $gatheringWaiver->gathering_id]]) ?>"
+                    class="list-group-item list-group-item-action">
                     <i class="bi bi-list-ul"></i> <?= __('View All Waivers for This Gathering') ?>
                 </a>
-                <a href="<?= $this->Url->build(['plugin' => false, 'controller' => 'Gatherings', 'action' => 'view', $gatheringWaiver->gathering->public_id]) ?>" class="list-group-item list-group-item-action">
+                <a href="<?= $this->Url->build(['plugin' => false, 'controller' => 'Gatherings', 'action' => 'view', $gatheringWaiver->gathering->public_id]) ?>"
+                    class="list-group-item list-group-item-action">
                     <i class="bi bi-calendar-event"></i> <?= __('View Gathering Details') ?>
                 </a>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Audit Notes Section -->
-<div class="row mt-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">
-                    <i class="bi bi-journal-text"></i> <?= __('Audit History & Notes') ?>
-                </h5>
-            </div>
-            <div class="card-body">
-                <?php
-                // Check if user can add notes
-                $user = $this->getRequest()->getAttribute('identity');
-                $canAddNote = $user && $user->checkCan('canChangeWaiverType', $gatheringWaiver);
-
-                echo $this->cell('Notes', [
-                    $gatheringWaiver->id,
-                    'Waivers.GatheringWaivers',
-                    false,  // Don't show private notes
-                    $canAddNote  // Can create notes if has changeWaiverType permission
-                ]);
-                ?>
             </div>
         </div>
     </div>
@@ -390,38 +388,41 @@ if ($user && $user->checkCan('canChangeWaiverType', $gatheringWaiver)) {
 
 // Include the decline waiver modal
 if ($user && $user->checkCan('canDecline', $gatheringWaiver) && $gatheringWaiver->can_be_declined): ?>
-    <!-- Decline Waiver Modal -->
-    <div class="modal fade" id="declineWaiverModal" tabindex="-1" aria-labelledby="declineWaiverModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <?= $this->Form->create(null, [
+<!-- Decline Waiver Modal -->
+<div class="modal fade" id="declineWaiverModal" tabindex="-1" aria-labelledby="declineWaiverModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <?= $this->Form->create(null, [
                     'url' => ['action' => 'decline', $gatheringWaiver->id],
                     'type' => 'post'
                 ]) ?>
-                <div class="modal-header bg-danger text-white">
-                    <h5 class="modal-title" id="declineWaiverModalLabel">
-                        <i class="bi bi-x-circle-fill"></i> <?= __('Decline Waiver') ?>
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="declineWaiverModalLabel">
+                    <i class="bi bi-x-circle-fill"></i> <?= __('Decline Waiver') ?>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    <strong><?= __('Warning:') ?></strong>
+                    <?= __('You are about to decline this waiver. This action cannot be undone.') ?>
                 </div>
-                <div class="modal-body">
-                    <div class="alert alert-warning">
-                        <i class="bi bi-exclamation-triangle-fill"></i>
-                        <strong><?= __('Warning:') ?></strong>
-                        <?= __('You are about to decline this waiver. This action cannot be undone.') ?>
-                    </div>
 
-                    <div class="mb-3">
-                        <p><strong><?= __('Waiver Details:') ?></strong></p>
-                        <ul>
-                            <li><?= __('Type: {0}', h($gatheringWaiver->waiver_type->name)) ?></li>
-                            <li><?= __('Uploaded: {0}', $this->Timezone->format($gatheringWaiver->created, null, 'M d, Y')) ?></li>
-                            <li><?= __('Gathering: {0}', h($gatheringWaiver->gathering->name)) ?></li>
-                        </ul>
-                    </div>
+                <div class="mb-3">
+                    <p><strong><?= __('Waiver Details:') ?></strong></p>
+                    <ul>
+                        <li><?= __('Type: {0}', h($gatheringWaiver->waiver_type->name)) ?></li>
+                        <li><?= __('Uploaded: {0}', $this->Timezone->format($gatheringWaiver->created, null, 'M d, Y')) ?>
+                        </li>
+                        <li><?= __('Gathering: {0}', h($gatheringWaiver->gathering->name)) ?></li>
+                    </ul>
+                </div>
 
-                    <div class="mb-3">
-                        <?= $this->Form->control('decline_reason', [
+                <div class="mb-3">
+                    <?= $this->Form->control('decline_reason', [
                             'label' => __('Reason for Declining (Required)'),
                             'type' => 'textarea',
                             'rows' => 4,
@@ -429,37 +430,37 @@ if ($user && $user->checkCan('canDecline', $gatheringWaiver) && $gatheringWaiver
                             'class' => 'form-control',
                             'placeholder' => __('Please provide a detailed reason why this waiver is being declined...')
                         ]) ?>
-                        <small class="form-text text-muted">
-                            <i class="bi bi-info-circle"></i>
-                            <?= __('This reason will be visible to users who can view this waiver.') ?>
-                        </small>
-                    </div>
+                    <small class="form-text text-muted">
+                        <i class="bi bi-info-circle"></i>
+                        <?= __('This reason will be visible to users who can view this waiver.') ?>
+                    </small>
+                </div>
 
-                    <div class="alert alert-info">
-                        <i class="bi bi-clock"></i>
-                        <strong><?= __('Note:') ?></strong>
-                        <?= __(
+                <div class="alert alert-info">
+                    <i class="bi bi-clock"></i>
+                    <strong><?= __('Note:') ?></strong>
+                    <?= __(
                             'Waivers can only be declined within 30 days of upload. This waiver was uploaded {0}.',
                             $gatheringWaiver->created->timeAgoInWords()
                         ) ?>
-                    </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                        <i class="bi bi-x"></i> <?= __('Cancel') ?>
-                    </button>
-                    <?= $this->Form->button(
-                        '<i class="bi bi-x-circle-fill"></i> ' . __('Decline Waiver'),
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x"></i> <?= __('Cancel') ?>
+                </button>
+                <?= $this->Form->button(
+                        'Decline Waiver',
                         [
                             'type' => 'submit',
-                            'class' => 'btn btn-danger',
+                            'class' => 'btn btn-danger bi bi-x-circle-fill',
                             'escape' => false
                         ]
                     ) ?>
-                </div>
-                <?= $this->Form->end() ?>
             </div>
+            <?= $this->Form->end() ?>
         </div>
     </div>
+</div>
 <?php endif;
 ?>

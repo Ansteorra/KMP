@@ -201,6 +201,50 @@ $this->KMP->endBlock(); ?>
                     </small>
                 </div>
 
+                <!-- Exemption Reasons -->
+                <div class="mb-3" data-controller="exemption-reasons"
+                    data-exemption-reasons-reasons-value='<?= h(json_encode($waiverType->exemption_reasons_parsed ?? [])) ?>'>
+                    <label class="form-label">
+                        Exemption Reasons
+                        <small class="text-muted">(Optional)</small>
+                    </label>
+                    <small class="form-text text-muted d-block mb-2">
+                        Configure reasons that can be selected when attesting that this waiver is not needed for a gathering activity.
+                        Leave empty if exemptions are not allowed for this waiver type.
+                    </small>
+
+                    <div data-exemption-reasons-target="container"></div>
+
+                    <button type="button"
+                        class="btn btn-sm btn-outline-secondary mt-2"
+                        data-action="click->exemption-reasons#addReason">
+                        <i class="bi bi-plus-circle"></i> Add Reason
+                    </button>
+
+                    <!-- Hidden input for JSON data -->
+                    <?= $this->Form->hidden('exemption_reasons', [
+                        'data-exemption-reasons-target' => 'hiddenInput',
+                        'value' => $waiverType->exemption_reasons ?? '[]'
+                    ]) ?>
+
+                    <!-- Template for reason inputs -->
+                    <template data-exemption-reasons-target="template">
+                        <div class="exemption-reason-item input-group mb-2">
+                            <input type="text"
+                                class="form-control"
+                                placeholder="e.g., Pre-approved by legal"
+                                data-exemption-reasons-target="reasonInput"
+                                data-action="input->exemption-reasons#reasonChanged blur->exemption-reasons#reasonBlurred">
+                            <button type="button"
+                                class="btn btn-outline-danger"
+                                data-action="click->exemption-reasons#removeReason"
+                                title="Remove this reason">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+                    </template>
+                </div>
+
                 <?= $this->Form->control('convert_to_pdf', [
                     'label' => 'Convert uploaded images to PDF',
                     'class' => 'form-check-input',

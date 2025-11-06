@@ -10,12 +10,15 @@ use App\Model\Entity\BaseEntity;
 /**
  * GatheringWaiver Entity
  *
- * Represents an uploaded waiver for a gathering.
+ * Represents an uploaded waiver for a gathering OR an exemption (attestation that waiver was not needed).
+ * Exemptions are linked to specific activities through the GatheringWaiverActivities join table.
  *
  * @property int $id
  * @property int $gathering_id
  * @property int $waiver_type_id
- * @property int $document_id
+ * @property int|null $document_id
+ * @property bool $is_exemption
+ * @property string|null $exemption_reason
  * @property string $status
  * @property \Cake\I18n\Date $retention_date
  * @property int $created_by
@@ -27,7 +30,7 @@ use App\Model\Entity\BaseEntity;
  *
  * @property \App\Model\Entity\Gathering $gathering
  * @property \Waivers\Model\Entity\WaiverType $waiver_type
- * @property \App\Model\Entity\Document $document
+ * @property \App\Model\Entity\Document|null $document
  * @property \App\Model\Entity\Member $created_by_member
  * @property \App\Model\Entity\Member $declined_by_member
  * @property \Waivers\Model\Entity\GatheringWaiverActivity[] $gathering_waiver_activities
@@ -43,6 +46,8 @@ class GatheringWaiver extends BaseEntity
         'gathering_id' => true,
         'waiver_type_id' => true,
         'document_id' => true,
+        'is_exemption' => true,
+        'exemption_reason' => true,
         'status' => true,
         'retention_date' => true,
         'created_by' => true,

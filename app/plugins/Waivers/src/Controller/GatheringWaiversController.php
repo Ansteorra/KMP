@@ -231,6 +231,7 @@ class GatheringWaiversController extends AppController
                 'Documents',
                 'GatheringWaiverActivities' => ['GatheringActivities'],
                 'DeclinedByMembers',
+                'CreatedByMembers',
             ],
         ]);
 
@@ -404,7 +405,48 @@ class GatheringWaiversController extends AppController
         // GET request - show upload form
         // (requiredWaiverTypes already calculated above)
 
-        $this->set(compact('gathering', 'requiredWaiverTypes'));
+        // Build activity data for client
+        $activitiesData = [];
+        if (!empty($gathering->gathering_activities)) {
+            foreach ($gathering->gathering_activities as $activity) {
+                $waiverTypeIds = [];
+                if (!empty($activity->gathering_activity_waivers)) {
+                    foreach ($activity->gathering_activity_waivers as $activityWaiver) {
+                        $waiverTypeIds[] = $activityWaiver->waiver_type_id;
+                    }
+
+                    // Only add this activity if it has waivers
+                    $activitiesData[] = [
+                        'id' => $activity->id,
+                        'name' => $activity->name,
+                        'description' => $activity->description ?? '',
+                        'waiver_types' => $waiverTypeIds
+                    ];
+                }
+            }
+        }
+
+        // Build waiver types data with exemption reasons for attestation support
+        $waiverTypesData = [];
+        if (!empty($requiredWaiverTypes)) {
+            foreach ($requiredWaiverTypes as $waiverType) {
+                $waiverTypesData[] = [
+                    'id' => $waiverType->id,
+                    'name' => $waiverType->name,
+                    'description' => $waiverType->description ?? '',
+                    'exemption_reasons' => $waiverType->exemption_reasons_parsed ?? []
+                ];
+            }
+        }
+
+        // Get upload limits for validation
+        $uploadLimits = $this->_getUploadLimits();
+
+        // Get pre-selected values from query parameters (for direct upload links)
+        $preSelectedActivityId = $this->request->getQuery('activity_id');
+        $preSelectedWaiverTypeId = $this->request->getQuery('waiver_type_id');
+
+        $this->set(compact('gathering', 'requiredWaiverTypes', 'activitiesData', 'waiverTypesData', 'uploadLimits', 'preSelectedActivityId', 'preSelectedWaiverTypeId'));
     }
 
     /**
@@ -459,9 +501,11 @@ class GatheringWaiversController extends AppController
         $convertedSize = filesize($pdfPath);
 
         // Calculate retention date first
+        // Convert DateTime to Date for retention calculation
+        $gatheringEndDate = Date::parse($gathering->end_date->format('Y-m-d'));
         $retentionResult = $this->RetentionPolicyService->calculateRetentionDate(
             $waiverType->retention_policy,
-            $gathering->end_date,
+            $gatheringEndDate,
             Date::now()
         );
 
@@ -620,9 +664,11 @@ class GatheringWaiversController extends AppController
         $convertedSize = filesize($pdfPath);
 
         // Calculate retention date first
+        // Convert DateTime to Date for retention calculation
+        $gatheringEndDate = Date::parse($gathering->end_date->format('Y-m-d'));
         $retentionResult = $this->RetentionPolicyService->calculateRetentionDate(
             $waiverType->retention_policy,
-            $gathering->end_date,
+            $gatheringEndDate,
             Date::now()
         );
 
@@ -1992,7 +2038,8 @@ class GatheringWaiversController extends AppController
                 $waiverTypesData[] = [
                     'id' => $waiverType->id,
                     'name' => $waiverType->name,
-                    'description' => $waiverType->description ?? ''
+                    'description' => $waiverType->description ?? '',
+                    'exemption_reasons' => $waiverType->exemption_reasons_parsed ?? []
                 ];
             }
         }
@@ -2000,7 +2047,11 @@ class GatheringWaiversController extends AppController
         // Get upload limits for validation
         $uploadLimits = $this->_getUploadLimits();
 
-        $this->set(compact('gathering', 'requiredWaiverTypes', 'activitiesData', 'waiverTypesData', 'uploadLimits'));
+        // Get pre-selected values from query parameters (for direct upload links)
+        $preSelectedActivityId = $this->request->getQuery('activity_id');
+        $preSelectedWaiverTypeId = $this->request->getQuery('waiver_type_id');
+
+        $this->set(compact('gathering', 'requiredWaiverTypes', 'activitiesData', 'waiverTypesData', 'uploadLimits', 'preSelectedActivityId', 'preSelectedWaiverTypeId'));
 
         // Use mobile app layout
         $this->viewBuilder()->setLayout('mobile_app');
@@ -2077,5 +2128,218 @@ class GatheringWaiversController extends AppController
         }
 
         return round($bytes, $precision) . ' ' . $units[$i];
+    }
+
+    /**
+     * Attest that a waiver is not needed
+     * 
+     * Records an exemption for a specific activity/waiver type combination,
+     * attesting that the waiver requirement does not apply.
+     * 
+     * **Expected POST Data**:
+     * - gathering_activity_id: int
+     * - waiver_type_id: int
+     * - gathering_id: int (for authorization)
+     * - reason: string (from waiver type exemption_reasons)
+     * - notes: string (optional)
+     * 
+     * **Response**:
+     * JSON with success status and message
+     * 
+     * @return \Cake\Http\Response|null JSON response
+     */
+    public function attest()
+    {
+        $this->request->allowMethod(['post']);
+        $this->viewBuilder()->setClassName('Json');
+
+        try {
+            // Get request data
+            $data = $this->request->getData();
+
+            // Support both single activity (old) and multiple activities (new)
+            $gatheringActivityIds = [];
+            if (isset($data['gathering_activity_ids']) && is_array($data['gathering_activity_ids'])) {
+                // New format: multiple activities
+                $gatheringActivityIds = array_map('intval', $data['gathering_activity_ids']);
+            } elseif (isset($data['gathering_activity_id'])) {
+                // Old format: single activity (backward compatibility)
+                $gatheringActivityIds = [(int)$data['gathering_activity_id']];
+            }
+
+            $waiverTypeId = (int)($data['waiver_type_id'] ?? 0);
+            $gatheringId = (int)($data['gathering_id'] ?? 0);
+            $reason = $data['reason'] ?? '';
+            $notes = $data['notes'] ?? null;
+
+            // Validate required fields
+            if (empty($gatheringActivityIds) || !$waiverTypeId || !$gatheringId || empty($reason)) {
+                $this->set('success', false);
+                $this->set('message', __('Missing required fields'));
+                $this->viewBuilder()->setOption('serialize', ['success', 'message']);
+                return;
+            }
+
+            // Load gathering for authorization
+            $Gatherings = $this->fetchTable('Gatherings');
+            $gathering = $Gatherings->get($gatheringId);
+
+            // Check authorization - user must be able to edit the gathering
+            $this->Authorization->authorize($gathering, 'uploadWaivers');
+
+            // Verify all activities are assigned to this gathering
+            $GatheringsGatheringActivities = $this->fetchTable('GatheringsGatheringActivities');
+            $validActivities = $GatheringsGatheringActivities->find()
+                ->where([
+                    'gathering_activity_id IN' => $gatheringActivityIds,
+                    'gathering_id' => $gatheringId
+                ])
+                ->all()
+                ->toArray();
+
+            if (count($validActivities) !== count($gatheringActivityIds)) {
+                $this->set('success', false);
+                $this->set('message', __('One or more activities are not assigned to this gathering'));
+                $this->viewBuilder()->setOption('serialize', ['success', 'message']);
+                return;
+            }
+
+            // Verify the waiver type exists and has valid exemption reasons
+            $WaiverTypes = $this->fetchTable('Waivers.WaiverTypes');
+            $waiverType = $WaiverTypes->get($waiverTypeId);
+
+            // Validate reason is in the waiver type's exemption reasons
+            $validReasons = $waiverType->exemption_reasons_parsed ?? [];
+            if (!in_array($reason, $validReasons)) {
+                $this->set('success', false);
+                $this->set('message', __('Invalid exemption reason'));
+                $this->viewBuilder()->setOption('serialize', ['success', 'message']);
+                return;
+            }
+
+            // Check if exemption already exists for any of these activities with this waiver type
+            // Ignore declined waivers when checking for duplicates
+            $existing = $this->GatheringWaivers->find()
+                ->where([
+                    'GatheringWaivers.waiver_type_id' => $waiverTypeId,
+                    'GatheringWaivers.gathering_id' => $gatheringId,
+                    'GatheringWaivers.is_exemption' => true,
+                    'GatheringWaivers.status !=' => 'declined'
+                ])
+                ->matching('GatheringWaiverActivities', function ($q) use ($gatheringActivityIds) {
+                    return $q->where(['GatheringWaiverActivities.gathering_activity_id IN' => $gatheringActivityIds]);
+                })
+                ->first();
+
+            if ($existing) {
+                // Check if the reason is the same
+                if ($existing->exemption_reason === $reason) {
+                    $this->set('success', false);
+                    $this->set('message', __('An exemption with this reason already exists for one or more of the selected activities and waiver type'));
+                } else {
+                    $this->set('success', false);
+                    $this->set('message', __('An exemption already exists for one or more of the selected activities and waiver type. Please delete the existing exemption before creating a new one with a different reason.'));
+                }
+                $this->viewBuilder()->setOption('serialize', ['success', 'message']);
+                return;
+            }
+
+            // Calculate retention date for the exemption record
+            $gatheringEndDate = Date::parse($gathering->end_date->format('Y-m-d'));
+            $retentionResult = $this->RetentionPolicyService->calculateRetentionDate(
+                $waiverType->retention_policy,
+                $gatheringEndDate,
+                Date::now()
+            );
+
+            if (!$retentionResult->isSuccess()) {
+                $this->set('success', false);
+                $this->set('message', __('Failed to calculate retention date: {0}', $retentionResult->getReason()));
+                $this->viewBuilder()->setOption('serialize', ['success', 'message']);
+                return;
+            }
+
+            $retentionDate = $retentionResult->getData();
+
+            // Create new exemption as a GatheringWaiver record (one exemption for all activities)
+            $exemption = $this->GatheringWaivers->newEntity([
+                'gathering_id' => $gatheringId,
+                'waiver_type_id' => $waiverTypeId,
+                'document_id' => null,
+                'is_exemption' => true,
+                'exemption_reason' => $reason,
+                'notes' => $notes,
+                'status' => 'active',
+                'retention_date' => $retentionDate
+            ]);
+
+            if ($this->GatheringWaivers->save($exemption)) {
+                // Use the GatheringActivityService to associate the exemption with ALL selected activities
+                $GatheringActivityService = new \Waivers\Services\GatheringActivityService();
+                $associationResult = $GatheringActivityService->associateWaiverWithActivities(
+                    $exemption->id,
+                    $gatheringActivityIds  // Pass all activity IDs
+                );
+
+                if (!$associationResult->isSuccess()) {
+                    // Rollback - delete the exemption
+                    $this->GatheringWaivers->delete($exemption);
+                    $this->set('success', false);
+                    $this->set('message', __('Failed to associate exemption with activity: {0}', $associationResult->getReason()));
+                    $this->viewBuilder()->setOption('serialize', ['success', 'message']);
+                    return;
+                }
+
+                // Determine redirect URL based on referer
+                $referer = $this->request->referer();
+                $redirectUrl = null;
+
+                // Check if request came from mobile upload
+                if ($referer && strpos($referer, 'mobile-upload') !== false) {
+                    // Redirect to mobile card
+                    $currentUser = $this->Authentication->getIdentity();
+                    $Members = $this->fetchTable('Members');
+                    $member = $Members->get($currentUser->id, ['fields' => ['id', 'mobile_card_token']]);
+
+                    $redirectUrl = \Cake\Routing\Router::url([
+                        'controller' => 'Members',
+                        'action' => 'viewMobileCard',
+                        'plugin' => null,
+                        $member->mobile_card_token
+                    ], true);
+                } else {
+                    // Default: redirect to gathering view
+                    $redirectUrl = \Cake\Routing\Router::url([
+                        'plugin' => false,
+                        'controller' => 'Gatherings',
+                        'action' => 'view',
+                        $gathering->public_id,
+                        '?' => ['tab' => 'gathering-waivers']
+                    ], true);
+                }
+
+                $this->set('success', true);
+                $this->set('message', __('Exemption recorded successfully'));
+                $this->set('redirectUrl', $redirectUrl);
+                $this->viewBuilder()->setOption('serialize', ['success', 'message', 'redirectUrl']);
+            } else {
+                $errors = $exemption->getErrors();
+                $errorMessages = [];
+                foreach ($errors as $field => $fieldErrors) {
+                    foreach ($fieldErrors as $error) {
+                        $errorMessages[] = $error;
+                    }
+                }
+
+                $this->set('success', false);
+                $this->set('message', __('Failed to save exemption: {0}', implode(', ', $errorMessages)));
+                $this->viewBuilder()->setOption('serialize', ['success', 'message']);
+            }
+        } catch (\Exception $e) {
+            Log::error('Error creating waiver exemption: ' . $e->getMessage());
+            $this->set('success', false);
+            $this->set('message', __('An error occurred: {0}', $e->getMessage()));
+            $this->viewBuilder()->setOption('serialize', ['success', 'message']);
+        }
     }
 }
