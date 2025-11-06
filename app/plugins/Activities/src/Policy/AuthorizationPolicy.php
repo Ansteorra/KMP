@@ -278,6 +278,59 @@ class AuthorizationPolicy extends BasePolicy
     }
 
     /**
+     * Check if the user can retract an authorization request.
+     *
+     * Determines authorization for retracting pending authorization requests, implementing
+     * ownership-based access control to allow members to cancel their own pending requests.
+     *
+     * **Authorization Logic:**
+     * 1. **Self-Service Retraction**: Members can retract their own pending authorization requests
+     * 2. **Status Validation**: Retraction only allowed for pending authorizations
+     * 3. **Ownership Requirement**: Only the requesting member can retract
+     *
+     * **Ownership-Based Access:**
+     * - Direct access when `entity->member_id` matches requesting user's ID
+     * - Enables member autonomy in managing authorization workflow
+     * - No administrative override - retraction is member-only action
+     *
+     * **Use Cases:**
+     * - Request sent to wrong approver
+     * - Request no longer needed
+     * - Stalled request with no response
+     * - Incorrect activity requested
+     *
+     * **Usage Examples:**
+     * ```php
+     * // Member retracting own pending authorization
+     * $this->Authorization->authorize($authorization, 'retract'); // Returns true for own request
+     * 
+     * // Controller validation
+     * if ($this->Authorization->can($user, 'retract', $authorization)) {
+     *     $authorizationManager->retract($authorization->id, $user->id);
+     * }
+     * ```
+     *
+     * **Security Considerations:**
+     * - Retraction is strictly owner-only operation
+     * - Maintains member privacy and control over authorization requests
+     * - Does not require administrative permission validation
+     * - Only applicable to pending requests, not approved authorizations
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The requesting user
+     * @param \Activities\Model\Entity\Authorization $entity The authorization entity
+     * @param mixed ...$optionalArgs Additional arguments for policy evaluation
+     * @return bool True if user can retract the authorization, false otherwise
+     */
+    public function canRetract(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
+    {
+        // Only the member who requested the authorization can retract it
+        if ($entity->member_id == $user->getIdentifier()) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
      * Check if the user can view authorizations for a specific activity.
      *
      * Determines authorization for viewing activity-specific authorization lists and statistics,

@@ -933,5 +933,159 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
         return true;
     }
 
+    /**
+     * Retract Pending Authorization Request
+     * 
+     * Allows a member to retract their own pending authorization request. This provides
+     * member autonomy to cancel requests sent to wrong approvers or no longer needed.
+     * 
+     * **Business Logic**:
+     * - Validates authorization is in pending status
+     * - Ensures requester owns the authorization
+     * - Updates status to retracted
+     * - Maintains audit trail
+     * - Optionally notifies approver of retraction
+     * 
+     * **Validation Rules**:
+     * - Authorization must exist
+     * - Authorization must be in PENDING status
+     * - Requester must match authorization member_id
+     * - Authorization cannot have been approved/denied
+     * 
+     * **Transaction Management**:
+     * Uses database transactions to ensure consistency:
+     * - Status update to RETRACTED
+     * - Optional notification sending
+     * - Rollback on any failure
+     * 
+     * **Success Result Data**:
+     * Returns ServiceResult with:
+     * - success: true
+     * - data: ['authorization' => retracted authorization entity]
+     * 
+     * **Error Scenarios**:
+     * - Authorization not found: "Authorization not found"
+     * - Not pending: "Only pending authorizations can be retracted"
+     * - Wrong owner: "You can only retract your own authorization requests"
+     * - Status update failure: "Failed to update authorization status"
+     * 
+     * @param int $authorizationId Authorization record ID to retract
+     * @param int $requesterId Member ID of person retracting (must be authorization owner)
+     * @return ServiceResult Success/failure result with retraction confirmation
+     */
+    public function retract(
+        int $authorizationId,
+        int $requesterId
+    ): ServiceResult {
+        $table = TableRegistry::getTableLocator()->get("Activities.Authorizations");
+
+        // Get the authorization
+        $authorization = $table->find()
+            ->where(['id' => $authorizationId])
+            ->first();
+
+        if (!$authorization) {
+            return new ServiceResult(false, "Authorization not found");
+        }
+
+        // Validate authorization is pending
+        if ($authorization->status !== Authorization::PENDING_STATUS) {
+            return new ServiceResult(false, "Only pending authorizations can be retracted");
+        }
+
+        // Validate requester owns this authorization
+        if ($authorization->member_id !== $requesterId) {
+            return new ServiceResult(false, "You can only retract your own authorization requests");
+        }
+
+        // Begin transaction
+        $table->getConnection()->begin();
+
+        // Use ActiveWindowManager to stop the authorization (same as revoke)
+        $retractedReason = "Retracted by requester on " . DateTime::now()->format('Y-m-d H:i:s');
+        $awResult = $this->activeWindowManager->stop(
+            "Activities.Authorizations",
+            $authorizationId,
+            $requesterId,
+            Authorization::RETRACTED_STATUS,
+            $retractedReason,
+            DateTime::now()
+        );
+
+        if (!$awResult->success) {
+            $table->getConnection()->rollback();
+            return new ServiceResult(false, "Failed to retract authorization");
+        }
+
+        // Reload the authorization to get updated status
+        $authorization = $table->get($authorizationId);
+
+        // Optional: Send notification to approver that request was retracted
+        // Get the pending approval to find the approver
+        $approvalsTable = TableRegistry::getTableLocator()->get("Activities.AuthorizationApprovals");
+        $pendingApproval = $approvalsTable->find()
+            ->where([
+                'authorization_id' => $authorizationId,
+                'responded_on IS' => null
+            ])
+            ->first();
+
+        if ($pendingApproval && $pendingApproval->approver_id) {
+            // Send notification to approver (non-critical, don't fail if it doesn't send)
+            $this->sendRetractedNotificationToApprover(
+                $authorization->activity_id,
+                $authorization->member_id,
+                $pendingApproval->approver_id
+            );
+        }
+
+        // Commit transaction
+        $table->getConnection()->commit();
+
+        return new ServiceResult(true, null, ['authorization' => $authorization]);
+    }
+
+    /**
+     * Send Retraction Notification to Approver
+     * 
+     * Notifies the approver that an authorization request they were reviewing
+     * has been retracted by the requester.
+     * 
+     * **Notification Context**:
+     * - Activity name
+     * - Requester name
+     * - Retraction timestamp
+     * 
+     * @param int $activityId Activity ID for context
+     * @param int $requesterId Member ID of requester who retracted
+     * @param int $approverId Member ID of approver to notify
+     * @return bool Success/failure of notification sending
+     */
+    private function sendRetractedNotificationToApprover(
+        int $activityId,
+        int $requesterId,
+        int $approverId
+    ): bool {
+        $activitiesTable = TableRegistry::getTableLocator()->get("Activities.Activities");
+        $membersTable = TableRegistry::getTableLocator()->get("Members");
+
+        $activity = $activitiesTable->get($activityId);
+        $requester = $membersTable->get($requesterId);
+        $approver = $membersTable->get($approverId);
+
+        try {
+            $this->getMailer("Activities.Activities")->send("notifyApproverOfRetraction", [
+                $approver->email_address,
+                $activity->name,
+                $approver->sca_name,
+                $requester->sca_name
+            ]);
+            return true;
+        } catch (\Exception $e) {
+            // Log but don't fail on notification errors
+            return false;
+        }
+    }
+
     // endregion
 }

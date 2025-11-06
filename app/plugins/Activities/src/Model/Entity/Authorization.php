@@ -187,6 +187,7 @@ class Authorization extends ActiveWindowBaseEntity
     const DENIED_STATUS = "Denied";
     const REVOKED_STATUS = "Revoked";
     const EXPIRED_STATUS = "Expired";
+    const RETRACTED_STATUS = "Retracted";
 
     public array $typeIdField = ['activity_id', 'member_id'];
     /**
