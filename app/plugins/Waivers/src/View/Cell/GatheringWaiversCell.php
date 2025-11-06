@@ -301,7 +301,7 @@ class GatheringWaiversCell extends Cell
                         'activity' => $activity,
                         'waiver_type' => $requirement->waiver_type,
                         'uploaded_count' => $uploadCount,
-                        'is_complete' => $uploadCount > 0,
+                        'is_complete' => ($uploadCount > 0 || (bool)$exemption),
                         'exemption' => $exemption
                     ];
 

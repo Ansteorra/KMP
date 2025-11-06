@@ -168,7 +168,7 @@ $user = $this->getRequest()->getAttribute('identity');
                         </span>
                         <br>
                         <small class="text-muted">
-                            <?= __('by {0}', h($exemption->created_by_member->sca_name ?? 'Unknown')) ?>
+                            <?= __('by {0}', h($exemption->created_by_member?->sca_name ?? 'Unknown')) ?>
                         </small>
                         <?php elseif ($isComplete): ?>
                         <span class="badge bg-success">
