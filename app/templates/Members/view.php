@@ -140,8 +140,8 @@ $this->KMP->endBlock() ?>
         ];
         $currentTemplate = [
             'Role' => 'role->name',
-            'Start Date' => 'start_on',
-            'End Date' => 'expires_on',
+            'Start Date' => 'start_on_to_string',
+            'End Date' => 'expires_on_to_string',
             'Approved By' => 'approved_by->sca_name',
             'Granted By' => 'entity_type',
             'Scope' => 'branch->name',
@@ -152,8 +152,8 @@ $this->KMP->endBlock() ?>
         ];
         $previousTemplate = [
             'Role' => 'role->name',
-            'Start Date' => 'start_on',
-            'End Date' => 'expires_on',
+            'Start Date' => 'start_on_to_string',
+            'End Date' => 'expires_on_to_string',
             'Approved By' => 'approved_by->sca_name',
             'Granted By' => 'entity_type',
             'Actions' => [
