@@ -36,7 +36,7 @@ $isPastEvent = $endDate < $today; // Event has ended
         <div class="row mb-3">
             <div class="col-md-6">
                 <h6><i class="bi bi-calendar-event"></i> Date & Time</h6>
-                <?php if ($gathering->start_date->equals($gathering->end_date)): ?>
+                <?php if ($gathering->start_date->format('Y-m-d') === $gathering->end_date->format('Y-m-d')): ?>
                     <p>
                         <?= $this->Timezone->format($gathering->start_date, 'l, F j, Y', false, null, $gathering) ?><br>
                         <small class="text-muted">
