@@ -85,7 +85,7 @@ $compareDate = new Date($validOn)
                 <?= h($officer->member->state) ?> <?= h($officer->member->zip) ?> </td>
             <td><?= h($officer->member->membership_number) ?></td>
             <td>
-                <?= $officer->member->membership_expires_on ? $this->Timezone->format($officer->member->membership_expires_on, null, 'M d, Y') : "N/A" ?>
+                <?= $officer->member->membership_expires_on ? $officer->member->membership_expires_on->format('M d, Y') : "N/A" ?>
                 <?php if ($officer->member->membership_expires_on < $compareDate) : ?>
                 <span class="badge rounded-pill text-bg-warning" data-bs-toggle="tooltip"
                     data-bs-title="Member will be expired by this date!">!</span>
