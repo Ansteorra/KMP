@@ -351,4 +351,48 @@ interface AuthorizationManagerInterface
         int $revokerId,
         string $revokedReason
     ): ServiceResult;
+
+    /**
+     * Retract Pending Authorization Request
+     *
+     * Allows a member to retract (cancel) their own pending authorization request. This method
+     * provides members with autonomy to cancel authorization requests that were sent to the
+     * wrong approver or are no longer needed, without requiring administrative intervention.
+     *
+     * ## Retraction Processing Logic
+     *
+     * ### Authorization Validation
+     * - **Status Check**: Validates authorization is in pending status
+     * - **Ownership Check**: Ensures requester is retracting their own request
+     * - **Timing Validation**: Ensures retraction occurs before approval/denial
+     *
+     * ### Retraction Execution
+     * - **Status Update**: Changes authorization status to retracted
+     * - **Approval Cleanup**: Marks associated approval requests as obsolete
+     * - **Audit Trail**: Maintains record of retraction for accountability
+     * - **Timestamp Tracking**: Records when retraction occurred
+     *
+     * ### Notification Integration
+     * - **Approver Notification**: Optionally notifies approver that request was retracted
+     * - **Request Cleanup**: Removes request from approver's queue
+     * - **Audit Trail**: Maintains history of authorization lifecycle
+     *
+     * ## Use Cases
+     * - **Wrong Approver**: Member sent request to incorrect person
+     * - **Changed Mind**: Member no longer needs authorization
+     * - **Stalled Request**: Request has been pending too long with no response
+     * - **Incorrect Activity**: Member requested wrong activity type
+     *
+     * @param int $authorizationId ID of authorization to retract
+     * @param int $requesterId ID of member retracting the authorization
+     * @return ServiceResult Success/failure with retraction confirmation or error details
+     * @throws \InvalidArgumentException When authorization ID or requester ID is invalid
+     * @throws \UnauthorizedException When requester is not the authorization owner
+     * @throws \BusinessRuleException When authorization is not in pending status
+     * @since KMP 1.1
+     */
+    public function retract(
+        int $authorizationId,
+        int $requesterId
+    ): ServiceResult;
 }

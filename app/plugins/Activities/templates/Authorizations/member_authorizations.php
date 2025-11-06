@@ -28,6 +28,18 @@ $revokeButton = [
         "data-outlet-btn-btn-data-value" => '{ "id":{{id}}, "activity": {{activity->id}} }',
     ],
 ];
+$retractButton = [
+    "type" => "postLink",
+    "verify" => true,
+    "label" => "Retract",
+    "controller" => "Authorizations",
+    "action" => "retract",
+    "id" => "id",
+    "options" => [
+        "class" => "btn-sm btn btn-warning retract-btn",
+        "confirm" => "Are you sure you want to retract this authorization request?"
+    ],
+];
 $columnTemplate = [
     "Authorization" => "activity->name",
 ];
@@ -42,6 +54,9 @@ if ($state == "current") {
 if ($state == "pending") {
     $columnTemplate["Requested Date"] = "current_pending_approval->requested_on";
     $columnTemplate["Assigned To"] = "current_pending_approval->approver->sca_name";
+    $columnTemplate["Actions"] = [
+        $retractButton
+    ];
 }
 if ($state == "previous") {
     $columnTemplate["Start Date"] = "formatted_start_on";

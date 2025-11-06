@@ -201,6 +201,54 @@ class AuthorizationsController extends AppController
     }
 
     /**
+     * Retract a pending authorization request
+     *
+     * Allows a member to retract (cancel) their own pending authorization request.
+     * This is useful when a request was sent to the wrong approver or is no longer needed.
+     * Only pending authorizations can be retracted.
+     *
+     * @param \Activities\Services\AuthorizationManagerInterface $maService Authorization management service
+     * @param string|null $id Authorization ID to retract
+     * @return \Cake\Http\Response|null Redirects to referer or mobile card after processing
+     */
+    public function retract(AuthorizationManagerInterface $maService, $id = null)
+    {
+        $this->request->allowMethod(["post"]);
+        if ($id == null) {
+            $id = (int)$this->request->getData("id");
+        } else {
+            $id = (int)$id;
+        }
+
+        $authorization = $this->Authorizations->get($id);
+        if (!$authorization) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+        $this->Authorization->authorize($authorization, 'retract');
+
+        $requesterId = $this->Authentication->getIdentity()->getIdentifier();
+        $maResult = $maService->retract($id, $requesterId);
+        if (!$maResult->success) {
+            $this->Flash->error(
+                __($maResult->reason),
+            );
+
+            return $this->redirect($this->referer());
+        }
+        $this->Flash->success(
+            __("Your authorization request has been retracted."),
+        );
+
+        // Redirect to mobile card if request came from mobile interface
+        $mobileRedirect = $this->redirectIfMobileContext($authorization->member_id);
+        if ($mobileRedirect !== null) {
+            return $mobileRedirect;
+        }
+
+        return $this->redirect($this->referer());
+    }
+
+    /**
      * Handle submission of a new authorization request for a member.
      *
      * Creates an authorization request for the provided member and activity, enforces controller
@@ -528,6 +576,8 @@ class AuthorizationsController extends AppController
             ->then($rejectFragment)
             ->when(['Authorizations.status' => Authorization::REVOKED_STATUS])
             ->then($rejectFragment)
+            ->when(['Authorizations.status' => Authorization::RETRACTED_STATUS])
+            ->then($rejectFragment)
             ->when(['Authorizations.status' => Authorization::EXPIRED_STATUS])
             ->then("Authorization Expired")
             ->else("");
@@ -574,6 +624,8 @@ class AuthorizationsController extends AppController
             ->when(['Authorizations.status' => Authorization::DENIED_STATUS])
             ->then($rejectFragment)
             ->when(['Authorizations.status' => Authorization::REVOKED_STATUS])
+            ->then($rejectFragment)
+            ->when(['Authorizations.status' => Authorization::RETRACTED_STATUS])
             ->then($rejectFragment)
             ->when(['Authorizations.status' => Authorization::EXPIRED_STATUS])
             ->then("Authorization Expired")

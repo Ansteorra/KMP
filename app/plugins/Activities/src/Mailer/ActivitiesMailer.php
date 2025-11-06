@@ -92,4 +92,23 @@ class ActivitiesMailer extends Mailer
                 "siteAdminSignature" => StaticHelpers::getAppSetting("Email.SiteAdminSignature"),
             ]);
     }
+
+    public function notifyApproverOfRetraction(
+        string $to,
+        string $activityName,
+        string $approverScaName,
+        string $requesterScaName
+    ): void {
+        $sendFrom = StaticHelpers::getAppSetting('Email.SystemEmailFromAddress');
+
+        $this->setTo($to)
+            ->setFrom($sendFrom)
+            ->setSubject("Authorization Request Retracted: $activityName")
+            ->setViewVars([
+                'requesterScaName' => $requesterScaName,
+                'activityName' => $activityName,
+                'approverScaName' => $approverScaName,
+                'siteAdminSignature' => StaticHelpers::getAppSetting('Email.SiteAdminSignature'),
+            ]);
+    }
 }
