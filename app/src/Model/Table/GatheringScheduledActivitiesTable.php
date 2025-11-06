@@ -271,7 +271,7 @@ class GatheringScheduledActivitiesTable extends Table
 
                 // Get gathering timezone for proper date display
                 $gatheringTimezone = !empty($gathering->timezone) ? $gathering->timezone :
-                    \App\KMP\TimezoneHelper::getDefaultTimezone();
+                    \App\KMP\TimezoneHelper::getAppTimezone();
 
                 // Convert UTC dates to gathering timezone for display in error message
                 $startInGatheringTz = \App\KMP\TimezoneHelper::toUserTimezone(
