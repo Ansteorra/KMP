@@ -55,7 +55,7 @@ $this->KMP->endBlock(); ?>
                 'plugin' => null,
             ]),
         ]);
-        echo $this->Form->control('user_timezone', [
+        echo $this->Form->control('timezone', [
             'type' => 'select',
             'options' => $this->Timezone->getTimezoneOptions(),
             'label' => 'Timezone',
