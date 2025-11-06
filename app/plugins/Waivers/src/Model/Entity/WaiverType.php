@@ -18,6 +18,7 @@ use App\Model\Entity\BaseEntity;
  * @property int|null $document_id FK to documents table for uploaded templates
  * @property string|null $template_path External URL to template (for SCA.org hosted files)
  * @property string $retention_policy JSON-encoded retention policy
+ * @property string|null $exemption_reasons JSON array of reasons why waiver might not be needed
  * @property bool $convert_to_pdf
  * @property bool $is_active
  * @property \Cake\I18n\DateTime $created
@@ -25,10 +26,12 @@ use App\Model\Entity\BaseEntity;
  * 
  * @property array|null $retention_policy_parsed Virtual field - parsed JSON
  * @property string $retention_description Virtual field - human readable description
+ * @property array|null $exemption_reasons_parsed Virtual field - parsed exemption reasons array
  *
  * @property \App\Model\Entity\Document|null $document
  * @property \Waivers\Model\Entity\GatheringActivityWaiver[] $gathering_activity_waivers
  * @property \Waivers\Model\Entity\GatheringWaiver[] $gathering_waivers
+ * @property \Waivers\Model\Entity\GatheringWaiverExemption[] $gathering_waiver_exemptions
  */
 class WaiverType extends BaseEntity
 {
@@ -43,11 +46,13 @@ class WaiverType extends BaseEntity
         'document_id' => true,
         'template_path' => true,
         'retention_policy' => true,
+        'exemption_reasons' => true,
         'convert_to_pdf' => true,
         'is_active' => true,
         'document' => true,
         'gathering_activity_waivers' => true,
         'gathering_waivers' => true,
+        'gathering_waiver_exemptions' => true,
     ];
 
     /**
@@ -58,6 +63,7 @@ class WaiverType extends BaseEntity
     protected array $_virtual = [
         'retention_policy_parsed',
         'retention_description',
+        'exemption_reasons_parsed',
     ];
 
     /**
@@ -121,5 +127,20 @@ class WaiverType extends BaseEntity
         };
 
         return "Retain for {$durationText} {$anchorText}";
+    }
+
+    /**
+     * Virtual field for parsed exemption reasons
+     *
+     * @return array
+     */
+    protected function _getExemptionReasonsParsed(): array
+    {
+        if (empty($this->exemption_reasons)) {
+            return [];
+        }
+
+        $decoded = json_decode($this->exemption_reasons, true);
+        return is_array($decoded) ? $decoded : [];
     }
 }

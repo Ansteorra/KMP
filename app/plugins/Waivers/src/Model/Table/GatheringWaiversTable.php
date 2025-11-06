@@ -67,7 +67,7 @@ class GatheringWaiversTable extends Table
         ]);
         $this->belongsTo('Documents', [
             'foreignKey' => 'document_id',
-            'joinType' => 'INNER',
+            'joinType' => 'LEFT',
             'className' => 'Documents',
         ]);
         $this->belongsTo('CreatedByMembers', [

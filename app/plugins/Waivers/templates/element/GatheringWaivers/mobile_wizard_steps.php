@@ -82,6 +82,7 @@
                                     value="<?= $waiverType['id'] ?>"
                                     id="waiver-type-<?= $waiverType['id'] ?>"
                                     data-name="<?= h($waiverType['name']) ?>"
+                                    data-exemption-reasons="<?= h(json_encode($waiverType['exemption_reasons'] ?? [])) ?>"
                                     data-action="change->waiver-upload-wizard#selectWaiverType">
                                 <label class="form-check-label w-100" for="waiver-type-<?= $waiverType['id'] ?>">
                                     <strong><?= h($waiverType['name']) ?></strong>
@@ -104,61 +105,102 @@
     </div>
 </div>
 
-<!-- Step 3: Capture/Upload Photos -->
+<!-- Step 3: Capture/Upload Photos or Attest -->
 <div data-waiver-upload-wizard-target="step" data-step-number="3" class="d-none">
     <div class="card">
         <div class="card-header bg-info text-white">
             <h5 class="mb-0">
                 <i class="bi bi-3-circle"></i>
-                <?= __('Add Waiver Photos') ?>
+                <span data-waiver-upload-wizard-target="step3Lead"><?= __('Add Waiver Photos') ?></span>
             </h5>
         </div>
         <div class="card-body">
-            <p class="mb-3"><?= __('Take photos or select images of the waiver pages.') ?></p>
+            <p class="mb-3"><?= __('Take photos or select images of the waiver pages, or attest that a waiver is not needed') ?></p>
 
-            <!-- File size validation wrapper -->
-            <div data-controller="file-size-validator"
-                data-file-size-validator-max-size-value="<?= h($uploadLimits['maxFileSize']) ?>"
-                data-file-size-validator-max-size-formatted-value="<?= h($uploadLimits['formatted']) ?>"
-                data-file-size-validator-total-max-size-value="<?= h($uploadLimits['postMaxSize']) ?>">
+            <!-- Mode Toggle (Upload vs Attest) -->
+            <div class="btn-group d-grid mb-3 d-none" role="group" aria-label="Upload or Attest mode" data-waiver-upload-wizard-target="modeToggle">
+                <input type="radio" class="btn-check" name="upload-mode" id="mode-upload-mobile" value="upload" checked
+                    data-action="change->waiver-upload-wizard#setModeUpload">
+                <label class="btn btn-outline-info" for="mode-upload-mobile">
+                    <i class="bi bi-camera"></i> <?= __('Upload Waiver') ?>
+                </label>
 
-                <!-- Warning message container -->
-                <div data-file-size-validator-target="warning" class="d-none mb-3"></div>
+                <input type="radio" class="btn-check" name="upload-mode" id="mode-attest-mobile" value="attest"
+                    data-action="change->waiver-upload-wizard#setModeAttest">
+                <label class="btn btn-outline-warning" for="mode-attest-mobile">
+                    <i class="bi bi-file-earmark-x"></i> <?= __('Attest Not Needed') ?>
+                </label>
+            </div>
 
-                <!-- Camera/Upload Button -->
-                <div class="d-grid gap-2 mb-3">
-                    <button type="button"
-                        class="btn btn-lg btn-info"
-                        data-action="click->waiver-upload-wizard#triggerFileInput">
-                        <i class="bi bi-camera"></i>
-                        <?= __('Take Photo / Add Image') ?>
-                    </button>
+            <!-- Upload Section -->
+            <div data-waiver-upload-wizard-target="uploadSection">
+                <!-- File size validation wrapper -->
+                <div data-controller="file-size-validator"
+                    data-file-size-validator-max-size-value="<?= h($uploadLimits['maxFileSize']) ?>"
+                    data-file-size-validator-max-size-formatted-value="<?= h($uploadLimits['formatted']) ?>"
+                    data-file-size-validator-total-max-size-value="<?= h($uploadLimits['postMaxSize']) ?>">
+
+                    <!-- Warning message container -->
+                    <div data-file-size-validator-target="warning" class="d-none mb-3"></div>
+
+                    <!-- Camera/Upload Button -->
+                    <div class="d-grid gap-2 mb-3">
+                        <button type="button"
+                            class="btn btn-lg btn-info"
+                            data-action="click->waiver-upload-wizard#triggerFileInput">
+                            <i class="bi bi-camera"></i>
+                            <?= __('Take Photo / Add Image') ?>
+                        </button>
+                    </div>
+
+                    <!-- Hidden file input with camera capture -->
+                    <input type="file"
+                        accept="image/jpeg,image/jpg,image/png,image/gif,image/bmp,image/webp"
+                        multiple
+                        capture="environment"
+                        class="d-none"
+                        data-waiver-upload-wizard-target="fileInput"
+                        data-file-size-validator-target="fileInput"
+                        data-action="change->waiver-upload-wizard#handleFileSelect change->file-size-validator#validateFiles">
+
+                    <div class="alert alert-info small">
+                        <i class="bi bi-info-circle"></i>
+                        <strong><?= __('Tips:') ?></strong>
+                        <ul class="mb-0 mt-2 small">
+                            <li><?= __('Take clear, well-lit photos') ?></li>
+                            <li><?= __('Max size per image: {0}', h($uploadLimits['formatted'])) ?></li>
+                            <li><?= __('Photos will be converted to B&W PDF') ?></li>
+                        </ul>
+                    </div>
                 </div>
 
-                <!-- Hidden file input with camera capture -->
-                <input type="file"
-                    accept="image/jpeg,image/jpg,image/png,image/gif,image/bmp,image/webp"
-                    multiple
-                    capture="environment"
-                    class="d-none"
-                    data-waiver-upload-wizard-target="fileInput"
-                    data-file-size-validator-target="fileInput"
-                    data-action="change->waiver-upload-wizard#handleFileSelect change->file-size-validator#validateFiles">
-
-                <div class="alert alert-info small">
-                    <i class="bi bi-info-circle"></i>
-                    <strong><?= __('Tips:') ?></strong>
-                    <ul class="mb-0 mt-2 small">
-                        <li><?= __('Take clear, well-lit photos') ?></li>
-                        <li><?= __('Max size per image: {0}', h($uploadLimits['formatted'])) ?></li>
-                        <li><?= __('Photos will be converted to B&W PDF') ?></li>
-                    </ul>
+                <!-- Pages Preview -->
+                <div class="row g-2" data-waiver-upload-wizard-target="pagesPreview">
+                    <!-- Dynamically populated by controller -->
                 </div>
             </div>
 
-            <!-- Pages Preview -->
-            <div class="row g-2" data-waiver-upload-wizard-target="pagesPreview">
-                <!-- Dynamically populated by controller -->
+            <!-- Attest Section -->
+            <div class="d-none" data-waiver-upload-wizard-target="attestSection">
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <?= __('You are attesting that a waiver is not needed for this activity. Please provide a reason.') ?>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold"><?= __('Why is this waiver not needed?') ?></label>
+                    <div class="list-group" data-waiver-upload-wizard-target="attestReasonList">
+                        <!-- Populated dynamically by controller based on selected waiver type -->
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold"><?= __('Additional Notes (Optional)') ?></label>
+                    <textarea class="form-control"
+                        rows="3"
+                        placeholder="<?= __('Any additional context or explanation...') ?>"
+                        data-waiver-upload-wizard-target="attestNotes"></textarea>
+                </div>
             </div>
         </div>
     </div>
@@ -196,27 +238,51 @@
                 </p>
             </div>
 
-            <!-- Pages -->
-            <div class="mb-3">
-                <h6 class="text-muted mb-2">
-                    <i class="bi bi-images"></i>
-                    <?= __('Pages') ?>
-                    <span class="badge bg-info ms-2" data-waiver-upload-wizard-target="reviewPageCount"></span>
-                </h6>
-                <div class="row g-2 ps-3" data-waiver-upload-wizard-target="reviewPagesList">
-                    <!-- Populated by controller -->
+            <!-- Upload Section - Pages and Notes -->
+            <div data-waiver-upload-wizard-target="reviewUploadSection">
+                <!-- Pages -->
+                <div class="mb-3">
+                    <h6 class="text-muted mb-2">
+                        <i class="bi bi-images"></i>
+                        <?= __('Pages') ?>
+                        <span class="badge bg-info ms-2" data-waiver-upload-wizard-target="reviewPageCount"></span>
+                    </h6>
+                    <div class="row g-2 ps-3" data-waiver-upload-wizard-target="reviewPagesList">
+                        <!-- Populated by controller -->
+                    </div>
+                </div>
+
+                <!-- Notes -->
+                <div class="mb-3">
+                    <h6 class="text-muted mb-2">
+                        <i class="bi bi-sticky"></i> <?= __('Notes (Optional)') ?>
+                    </h6>
+                    <textarea class="form-control"
+                        rows="3"
+                        placeholder="<?= __('Add any notes about this waiver...') ?>"
+                        data-waiver-upload-wizard-target="notesField"></textarea>
                 </div>
             </div>
 
-            <!-- Notes -->
-            <div class="mb-3">
-                <h6 class="text-muted mb-2">
-                    <i class="bi bi-sticky"></i> <?= __('Notes (Optional)') ?>
-                </h6>
-                <textarea class="form-control"
-                    rows="3"
-                    placeholder="<?= __('Add any notes about this waiver...') ?>"
-                    data-waiver-upload-wizard-target="notesField"></textarea>
+            <!-- Attest Section - Reason and Notes -->
+            <div class="d-none" data-waiver-upload-wizard-target="reviewAttestSection">
+                <div class="mb-3">
+                    <h6 class="text-muted mb-2">
+                        <i class="bi bi-file-earmark-x"></i> <?= __('Attestation: Waiver Not Needed') ?>
+                    </h6>
+                    <div class="ps-3">
+                        <strong><?= __('Reason:') ?></strong>
+                        <p data-waiver-upload-wizard-target="reviewAttestReason"></p>
+                    </div>
+                </div>
+
+                <!-- Notes (if provided) -->
+                <div class="mb-3 d-none" data-waiver-upload-wizard-target="reviewAttestNotesSection">
+                    <h6 class="text-muted mb-2">
+                        <i class="bi bi-sticky"></i> <?= __('Additional Notes') ?>
+                    </h6>
+                    <p class="ps-3" data-waiver-upload-wizard-target="reviewAttestNotes"></p>
+                </div>
             </div>
         </div>
     </div>

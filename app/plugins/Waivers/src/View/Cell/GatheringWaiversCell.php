@@ -110,12 +110,12 @@ class GatheringWaiversCell extends Cell
     /**
      * Display Gathering Waivers Interface
      *
-     * Generates activity-centric waiver display for a gathering, pivoted to show
-     * which activities require which waivers and their upload completion status.
+     * Generates waiver-centric display for a gathering, showing each waiver
+     * requirement as a separate row with its activity and upload status.
      * 
      * **Display Components**:
-     * - Activity-based view of waiver requirements
-     * - Upload completion status per activity
+     * - Individual rows for each activity/waiver combination
+     * - Upload status indicator (checkmark/count) per row
      * - Upload button for authorized users
      * - Summary statistics
      * - Links to waiver management
@@ -125,38 +125,29 @@ class GatheringWaiversCell extends Cell
      * 1. Load gathering with activities
      * 2. Load all waiver requirements for each activity
      * 3. Get uploaded waiver counts by type
-     * 4. Calculate completion status per activity
-     * 5. Prepare activity-centric data structure
+     * 4. Calculate upload status per waiver requirement
+     * 5. Prepare waiver-centric data structure
      * 
-     * **Activity Aggregation Logic**:
-     * Creates an array pivoted by activity where:
-     * - Key: activity_id
-     * - Value: [
-     *     'activity' => GatheringActivity entity,
-     *     'required_waivers' => [array of:
-     *         'waiver_type' => WaiverType entity,
-     *         'uploaded_count' => count of waivers uploaded FOR THIS SPECIFIC ACTIVITY
-     *     ],
-     *     'completion_status' => [
-     *         'complete' => count of waiver types with uploads for this activity,
-     *         'pending' => count of waiver types without uploads for this activity,
-     *         'total' => total required waiver types
-     *     ]
-     *   ]
+     * **Waiver Row Structure**:
+     * Creates an array where each element represents one waiver requirement:
+     * - activity: GatheringActivity entity
+     * - waiver_type: WaiverType entity
+     * - uploaded_count: Number of waivers uploaded for this activity/type combination
+     * - is_complete: Boolean indicating if at least one waiver has been uploaded
      * 
-     * **Important**: Waivers are tracked per activity. If two activities require the same
-     * waiver type, they are tracked separately. A waiver uploaded and associated with
-     * Activity A will NOT count as complete for Activity B, even if both require the
-     * same waiver type.
+     * **Important**: Each activity/waiver combination is tracked separately. If the same
+     * waiver type is required by multiple activities, each gets its own row with its own
+     * upload count. A waiver uploaded for Activity A does NOT count toward Activity B,
+     * even if both require the same waiver type.
      * 
      * **Data Preparation**:
      * Sets template variables:
      * - gathering: Full gathering entity
      * - gatheringId: Gathering identifier
-     * - activitiesWithWaivers: Activity-centric data with activity-specific completion status
+     * - waiverRows: Array of waiver requirement rows
      * - isEmpty: Boolean indicating if gathering has any waiver requirements
      * - hasWaivers: Boolean indicating if any waivers uploaded
-     * - overallStats: Overall completion statistics across all activities
+     * - overallStats: Overall completion statistics across all requirements
      * 
      * Note: User is accessed in the template via $this->getRequest()->getAttribute('identity')
      * 
@@ -176,11 +167,10 @@ class GatheringWaiversCell extends Cell
         if (empty($gathering->gathering_activities)) {
             $this->set('gathering', $gathering);
             $this->set('gatheringId', $gatheringId);
-            $this->set('activitiesWithWaivers', []);
+            $this->set('waiverRows', []);
             $this->set('isEmpty', true);
             $this->set('hasWaivers', false);
             $this->set('overallStats', ['complete' => 0, 'pending' => 0, 'total' => 0]);
-            $this->set('waiverStats', []);
             return;
         }
 
@@ -256,71 +246,89 @@ class GatheringWaiversCell extends Cell
             }
         }
 
-        // Build activity-centric data structure
-        $activitiesWithWaivers = [];
+        // Load exemption records (GatheringWaivers with is_exemption=true)
+        // Exemptions are linked to activities through the join table
+        // Exclude declined exemptions - they should be treated as pending
+        $gatheringWaiversTable = TableRegistry::getTableLocator()->get('Waivers.GatheringWaivers');
+        $exemptions = [];
+        if (!empty($activityIds)) {
+            $exemptionRecords = $gatheringWaiversTable->find()
+                ->where([
+                    'GatheringWaivers.is_exemption' => true,
+                    'GatheringWaivers.gathering_id' => $gathering->id,
+                    'GatheringWaivers.declined_at IS' => null, // Only active exemptions
+                ])
+                ->contain(['CreatedByMembers'])
+                ->matching('GatheringWaiverActivities', function ($q) use ($activityIds) {
+                    return $q->where(['GatheringWaiverActivities.gathering_activity_id IN' => $activityIds]);
+                })
+                ->all();
+
+            // Build a map of [activity_id][waiver_type_id] => exemption entity
+            foreach ($exemptionRecords as $exemption) {
+                // Get the activity ID from the join table
+                if (!empty($exemption->_matchingData['GatheringWaiverActivities'])) {
+                    $activityId = $exemption->_matchingData['GatheringWaiverActivities']->gathering_activity_id;
+                    $key = $activityId . '_' . $exemption->waiver_type_id;
+                    $exemptions[$key] = $exemption;
+                }
+            }
+        }
+
+        // Build waiver-centric data structure (one row per waiver requirement)
+        $waiverRows = [];
         $overallComplete = 0;
         $overallPending = 0;
+        $overallExempted = 0;
         $overallTotal = 0;
 
         foreach ($gathering->gathering_activities as $activity) {
             // Find all waiver requirements for this activity
-            $activityWaivers = [];
             foreach ($waiverRequirements as $requirement) {
                 if ($requirement->gathering_activity_id === $activity->id) {
-                    // Add waiver type with upload count for THIS specific activity
+                    // Get upload count for THIS specific activity/waiver combination
                     $uploadCount = 0;
                     if (isset($activityWaiverStats[$activity->id][$requirement->waiver_type_id])) {
                         $uploadCount = $activityWaiverStats[$activity->id][$requirement->waiver_type_id];
                     }
 
-                    $activityWaivers[] = [
+                    // Check if there's an exemption for this combination
+                    $exemptionKey = $activity->id . '_' . $requirement->waiver_type_id;
+                    $exemption = $exemptions[$exemptionKey] ?? null;
+
+                    // Create a row for this activity/waiver combination
+                    $waiverRows[] = [
+                        'activity' => $activity,
                         'waiver_type' => $requirement->waiver_type,
-                        'uploaded_count' => $uploadCount
+                        'uploaded_count' => $uploadCount,
+                        'is_complete' => $uploadCount > 0,
+                        'exemption' => $exemption
                     ];
-                }
-            }
 
-            // Only include activities that have waiver requirements
-            if (!empty($activityWaivers)) {
-                // Calculate completion status for this activity
-                $complete = 0;
-                $pending = 0;
-
-                foreach ($activityWaivers as $waiverData) {
-                    if ($waiverData['uploaded_count'] > 0) {
-                        $complete++;
+                    // Update overall stats
+                    $overallTotal++;
+                    if ($exemption) {
+                        $overallExempted++;
+                    } elseif ($uploadCount > 0) {
+                        $overallComplete++;
                     } else {
-                        $pending++;
+                        $overallPending++;
                     }
                 }
-
-                $activitiesWithWaivers[$activity->id] = [
-                    'activity' => $activity,
-                    'required_waivers' => $activityWaivers,
-                    'completion_status' => [
-                        'complete' => $complete,
-                        'pending' => $pending,
-                        'total' => count($activityWaivers)
-                    ]
-                ];
-
-                // Update overall stats
-                $overallComplete += $complete;
-                $overallPending += $pending;
-                $overallTotal += count($activityWaivers);
             }
         }
 
         $this->set('gathering', $gathering);
         $this->set('gatheringId', $gatheringId);
-        $this->set('activitiesWithWaivers', $activitiesWithWaivers);
-        $this->set('isEmpty', empty($activitiesWithWaivers));
+        $this->set('waiverRows', $waiverRows);
+        $this->set('isEmpty', empty($waiverRows));
         $this->set('hasWaivers', $hasWaivers);
         $this->set('totalWaiverCount', $totalWaiverCount);
         $this->set('declinedWaiverCount', $declinedWaiverCount);
         $this->set('overallStats', [
             'complete' => $overallComplete,
             'pending' => $overallPending,
+            'exempted' => $overallExempted,
             'total' => $overallTotal
         ]);
     }

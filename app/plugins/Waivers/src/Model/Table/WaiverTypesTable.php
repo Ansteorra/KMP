@@ -64,6 +64,10 @@ class WaiverTypesTable extends Table
             'foreignKey' => 'waiver_type_id',
             'className' => 'Waivers.GatheringWaivers',
         ]);
+        $this->hasMany('GatheringWaiverExemptions', [
+            'foreignKey' => 'waiver_type_id',
+            'className' => 'Waivers.GatheringWaiverExemptions',
+        ]);
     }
 
     /**
@@ -156,6 +160,39 @@ class WaiverTypesTable extends Table
         $validator
             ->boolean('is_active')
             ->notEmptyString('is_active');
+
+        $validator
+            ->scalar('exemption_reasons')
+            ->allowEmptyString('exemption_reasons')
+            ->add('exemption_reasons', 'validJson', [
+                'rule' => function ($value, $context) {
+                    if (empty($value)) {
+                        return true; // Allow empty
+                    }
+
+                    // Parse JSON
+                    $decoded = json_decode($value, true);
+                    if (json_last_error() !== JSON_ERROR_NONE) {
+                        return 'Invalid JSON format: ' . json_last_error_msg();
+                    }
+
+                    // Validate structure is an array
+                    if (!is_array($decoded)) {
+                        return 'Exemption reasons must be a JSON array';
+                    }
+
+                    // Each item must be a non-empty string
+                    foreach ($decoded as $reason) {
+                        if (!is_string($reason) || trim($reason) === '') {
+                            return 'Each exemption reason must be a non-empty string';
+                        }
+                    }
+
+                    return true;
+                },
+                'message' => '{0}', // Use the error message returned from the rule function
+            ]);
+
         $validator
             ->integer('created_by')
             ->allowEmptyString('created_by');
