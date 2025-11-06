@@ -122,7 +122,7 @@ use InvalidArgumentException;
  * ```javascript
  * // Detect user's timezone
  * const userTz = KMP_Timezone.detectTimezone();
- * 
+ *
  * // Format for display
  * KMP_Timezone.formatDateTime(utcString, userTz);
  * ```
@@ -132,8 +132,8 @@ use InvalidArgumentException;
  * ```php
  * // Form creates datetime in user's timezone
  * echo $this->Form->control('start_date', [
- *     'type' => 'datetime-local',
- *     'value' => TimezoneHelper::toUserTimezone($entity->start_date, $currentUser)
+ * 'type' => 'datetime-local',
+ * 'value' => TimezoneHelper::toUserTimezone($entity->start_date, $currentUser)
  * ]);
  * ```
  *
@@ -278,7 +278,7 @@ class TimezoneHelper
      * - Otherwise, use the user's timezone
      *
      * @param \App\Model\Entity\Gathering|array|null $gathering Gathering entity or array
-     * @param \App\Model\Entity\Member|array|null $member Member entity or array  
+     * @param \App\Model\Entity\Member|array|null $member Member entity or array
      * @param string|null $default Default timezone override
      * @return string Valid timezone identifier
      */

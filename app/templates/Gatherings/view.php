@@ -178,7 +178,7 @@ $publicLandingUrl = $this->Url->build([
             $gatheringTz = new \DateTimeZone($gathering->timezone ?? \App\KMP\TimezoneHelper::getAppTimezone());
             $startInGatheringTz = (clone $gathering->start_date)->setTimezone($gatheringTz);
             $endInGatheringTz = (clone $gathering->end_date)->setTimezone($gatheringTz);
-            
+
             $startDate = \Cake\I18n\Date::parse($startInGatheringTz->format('Y-m-d'));
             $endDate = \Cake\I18n\Date::parse($endInGatheringTz->format('Y-m-d'));
             ?>
