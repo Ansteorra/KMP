@@ -138,7 +138,7 @@ $isPastEvent = $endDate < $today; // Event has ended
                     </div>
 
                     <button type="button" class="btn btn-outline-secondary btn-sm bi bi-clipboard"
-                        onclick='navigator.clipboard.writeText(<?= json_encode(h($gathering->location)) ?>).then(() => alert(<?= json_encode(__(" Address copied to clipboard!")) ?>))'
+                        onclick='navigator.clipboard.writeText(<?= json_encode($gathering->location) ?>).then(() => alert(<?= json_encode(__(" Address copied to clipboard!")) ?>))'
                         title="<?= h(__('Copy address to clipboard')) ?>">
                         <?= __(' Copy Address') ?>
                     </button>
