@@ -73,7 +73,7 @@ if (!$isTurboFrame) {
                     <td><?= h($Member->last_name) ?></td>
                     <td><?= h($Member->email_address) ?></td>
                     <td><?= h($Member->status) ?></td>
-                    <td><?= h($Member->last_login) ?></td>
+                    <td><?= $Member->last_login ? $this->Timezone->format($Member->last_login, $Member, null, \IntlDateFormatter::SHORT, \IntlDateFormatter::SHORT) : '' ?></td>
                     <td class="actions text-end text-nowrap" data-turbo='false'>
                         <?= $this->Html->link(
                             __(""),

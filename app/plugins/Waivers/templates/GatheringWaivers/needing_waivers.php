@@ -80,8 +80,8 @@ $this->KMP->endBlock();
                             <td><?= h($gathering->branch->name) ?></td>
                             <td class="text-nowrap">
                                 <?php
-                                $startDateFormatted = $gathering->start_date->format('M d, Y');
-                                $endDateFormatted = $gathering->end_date ? $gathering->end_date->format('M d, Y') : $startDateFormatted;
+                                $startDateFormatted = $this->Timezone->format($gathering->start_date, $gathering, 'M d, Y');
+                                $endDateFormatted = $gathering->end_date ? $this->Timezone->format($gathering->end_date, $gathering, 'M d, Y') : $startDateFormatted;
                                 ?>
                                 <?php if ($startDateFormatted === $endDateFormatted): ?>
                                     <?= h($startDateFormatted) ?>

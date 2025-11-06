@@ -47,7 +47,7 @@ $this->KMP->endBlock(); ?>
         <?php foreach ($authorizationApprovals as $authRollup) : ?>
             <tr>
                 <td><?= h($authRollup->approver_name) ?></td>
-                <td><?= h($authRollup->last_login) ?></td>
+                <td><?= $authRollup->last_login ? $this->Timezone->format($authRollup->last_login, $authRollup->approver, null, \IntlDateFormatter::SHORT, \IntlDateFormatter::SHORT) : '' ?></td>
                 <td><?= h($authRollup->pending_count) ?></td>
                 <td><?= h($authRollup->approved_count) ?></td>
                 <td><?= h($authRollup->denied_count) ?></td>

@@ -19,8 +19,8 @@ $columnTemplate = [
     "Member" => "member->sca_name",
 ];
 if ($state == "current") {
-    $columnTemplate["Start Date"] = "start_on_to_string";
-    $columnTemplate["End Date"] = "expires_on_to_string";
+    $columnTemplate["Start Date"] = "start_on";
+    $columnTemplate["End Date"] = "expires_on";
     $columnTemplate["Actions"] = [
         $revokeButton
     ];
@@ -30,8 +30,8 @@ if ($state == "pending") {
     $columnTemplate["Assigned To"] = "current_pending_approval->approver->sca_name";
 }
 if ($state == "previous") {
-    $columnTemplate["Start Date"] = "start_on_to_string";
-    $columnTemplate["End Date"] = "expires_on_to_string";
+    $columnTemplate["Start Date"] = "start_on";
+    $columnTemplate["End Date"] = "expires_on";
     $columnTemplate["Reason"] = "revoked_reason";
 }
 

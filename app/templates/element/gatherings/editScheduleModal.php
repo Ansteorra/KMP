@@ -30,11 +30,18 @@ use function Cake\Collection\collection;
             <div class="modal-body">
                 <div class="alert alert-info">
                     <i class="bi bi-info-circle"></i>
+                    <?php
+                    $timezone = \App\KMP\TimezoneHelper::getGatheringTimezone($gathering, $this->getRequest()->getAttribute('identity'));
+                    ?>
                     <?= __(
                         'This gathering runs from {0} to {1}. Scheduled activities must fall within these dates.',
-                        $gathering->start_date->format('F j, Y'),
-                        $gathering->end_date->format('F j, Y')
+                        $this->Timezone->format($gathering->start_date, 'F j, Y g:i A', false, null, $gathering),
+                        $this->Timezone->format($gathering->end_date, 'F j, Y g:i A', false, null, $gathering)
                     ) ?>
+                    <br>
+                    <small>
+                        <i class="bi bi-clock"></i> <?= __('All times in {0}', $timezone) ?>
+                    </small>
                 </div>
 
                 <div class="row mb-3">

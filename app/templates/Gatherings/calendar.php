@@ -48,9 +48,9 @@ $this->KMP->endBlock();
             <h3>
                 <i class="bi bi-calendar-event"></i>
                 <?php if ($selectedBranch): ?>
-                <?= h($selectedBranch) ?> Calendar
+                    <?= h($selectedBranch) ?> Calendar
                 <?php else: ?>
-                Kingdom Calendar
+                    Kingdom Calendar
                 <?php endif; ?>
             </h3>
         </div>
@@ -60,7 +60,7 @@ $this->KMP->endBlock();
             $tempGathering = $gatheringsTable->newEmptyEntity();
             if ($user->checkCan('add', $tempGathering)) :
             ?>
-            <?= $this->Html->link(
+                <?= $this->Html->link(
                     '<i class="bi bi-plus-circle"></i> Add Gathering',
                     ['action' => 'add'],
                     ['class' => 'btn btn-primary btn-sm', 'escape' => false]
@@ -99,7 +99,7 @@ $this->KMP->endBlock();
                 <!-- Current Month/Year Display -->
                 <div class="col text-center">
                     <h4 class="mb-0">
-                        <?= $startDate->format('F Y') ?>
+                        <?= $this->Timezone->format($startDate, null, 'F Y') ?>
                     </h4>
                 </div>
 
@@ -275,8 +275,8 @@ $this->KMP->endBlock();
         <!-- Calendar Display -->
         <div class="col-md-9">
             <?php if ($view === 'month'): ?>
-            <!-- Month View -->
-            <?= $this->element('gatherings/calendar_month', [
+                <!-- Month View -->
+                <?= $this->element('gatherings/calendar_month', [
                     'gatherings' => $gatherings,
                     'calendarStart' => $calendarStart,
                     'calendarEnd' => $calendarEnd,
@@ -284,14 +284,14 @@ $this->KMP->endBlock();
                     'endDate' => $endDate
                 ]) ?>
             <?php elseif ($view === 'week'): ?>
-            <!-- Week View -->
-            <?= $this->element('gatherings/calendar_week', [
+                <!-- Week View -->
+                <?= $this->element('gatherings/calendar_week', [
                     'gatherings' => $gatherings,
                     'startDate' => $startDate
                 ]) ?>
             <?php else: ?>
-            <!-- List View -->
-            <?= $this->element('gatherings/calendar_list', [
+                <!-- List View -->
+                <?= $this->element('gatherings/calendar_list', [
                     'gatherings' => $gatherings
                 ]) ?>
             <?php endif; ?>
@@ -300,76 +300,76 @@ $this->KMP->endBlock();
 </div>
 
 <style>
-.calendar-grid {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 1px;
-    background-color: #dee2e6;
-    border: 1px solid #dee2e6;
-}
+    .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 1px;
+        background-color: #dee2e6;
+        border: 1px solid #dee2e6;
+    }
 
-.calendar-day-header {
-    background-color: #e9ecef;
-    padding: 0.5rem;
-    text-align: center;
-    font-weight: bold;
-    border: 1px solid #dee2e6;
-}
+    .calendar-day-header {
+        background-color: #e9ecef;
+        padding: 0.5rem;
+        text-align: center;
+        font-weight: bold;
+        border: 1px solid #dee2e6;
+    }
 
-.calendar-day {
-    background-color: #fff;
-    min-height: 120px;
-    padding: 0.5rem;
-    position: relative;
-    border: 1px solid #dee2e6;
-}
+    .calendar-day {
+        background-color: #fff;
+        min-height: 120px;
+        padding: 0.5rem;
+        position: relative;
+        border: 1px solid #dee2e6;
+    }
 
-.calendar-day.other-month {
-    background-color: #f8f9fa;
-    opacity: 0.6;
-}
+    .calendar-day.other-month {
+        background-color: #f8f9fa;
+        opacity: 0.6;
+    }
 
-.calendar-day.today {
-    background-color: #fff3cd;
-}
+    .calendar-day.today {
+        background-color: #fff3cd;
+    }
 
-.calendar-day-number {
-    font-weight: bold;
-    margin-bottom: 0.5rem;
-}
+    .calendar-day-number {
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
 
-.gathering-item {
-    font-size: 0.75rem;
-    padding: 0.25rem;
-    margin-bottom: 0.25rem;
-    border-radius: 0.25rem;
-    cursor: pointer;
-    transition: all 0.2s;
-}
+    .gathering-item {
+        font-size: 0.75rem;
+        padding: 0.25rem;
+        margin-bottom: 0.25rem;
+        border-radius: 0.25rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
 
-.gathering-item:hover {
-    transform: translateX(2px);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
+    .gathering-item:hover {
+        transform: translateX(2px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
 
-.gathering-item.multi-day {
-    border-left: 3px solid #ffc107;
-}
+    .gathering-item.multi-day {
+        border-left: 3px solid #ffc107;
+    }
 
-.gathering-item.attending {
-    border-right: 3px solid #198754;
-}
+    .gathering-item.attending {
+        border-right: 3px solid #198754;
+    }
 
-.gathering-badges {
-    display: flex;
-    gap: 0.25rem;
-    flex-wrap: wrap;
-    margin-top: 0.25rem;
-}
+    .gathering-badges {
+        display: flex;
+        gap: 0.25rem;
+        flex-wrap: wrap;
+        margin-top: 0.25rem;
+    }
 
-.gathering-badges .badge {
-    font-size: 0.65rem;
-}
+    .gathering-badges .badge {
+        font-size: 0.65rem;
+    }
 </style>
 
 <?php

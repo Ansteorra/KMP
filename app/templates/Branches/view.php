@@ -120,7 +120,7 @@ echo $this->KMP->startBlock('pageTitle') ?>
                             <td><?= h($member->sca_name) ?></td>
                             <td><?= $this->KMP->bool($member->age < 18, $this->Html) ?></td>
                             <td><?= h($member->membership_number) ?></td>
-                            <td><?= h($member->membership_expires_on) ?>
+                            <td><?= $member->membership_expires_on ? $this->Timezone->format($member->membership_expires_on, 'Y-m-d', false) : '-' ?>
                             </td>
                             <td><?= h($member->status) ?></td>
                             <td class="actions text-end text-nowrap">

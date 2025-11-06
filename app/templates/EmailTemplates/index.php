@@ -92,7 +92,7 @@ $this->KMP->endBlock(); ?>
                             <span class="badge bg-warning text-dark">Inactive</span>
                         <?php endif; ?>
                     </td>
-                    <td><?= h($emailTemplate->modified->format('Y-m-d H:i')) ?></td>
+                    <td><?= $emailTemplate->modified ? $this->Timezone->format($emailTemplate->modified, 'Y-m-d H:i', true) : '-' ?></td>
                     <td class="actions text-end text-nowrap">
                         <?= $this->Html->link(
                             '',

@@ -55,6 +55,13 @@ $this->KMP->endBlock(); ?>
                 'plugin' => null,
             ]),
         ]);
+        echo $this->Form->control('timezone', [
+            'type' => 'select',
+            'options' => $this->Timezone->getTimezoneOptions(),
+            'label' => 'Timezone',
+            'empty' => 'Use Kingdom Default',
+            'help' => 'Select the member\'s preferred timezone for displaying dates and times'
+        ]);
         echo $this->Form->control("membership_number");
         echo $this->Form->control("membership_expires_on", ["empty" => true]); ?>
         <div class="mb-3 form-group select required row">

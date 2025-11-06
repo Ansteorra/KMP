@@ -698,7 +698,8 @@ class RecommendationsController extends AppController
                 }
 
                 if ($given) {
-                    $updateFields['given'] = new DateTime($given);
+                    // Create DateTime at midnight UTC to preserve the exact date
+                    $updateFields['given'] = new DateTime($given . ' 00:00:00', new \DateTimeZone('UTC'));
                 }
 
                 if ($close_reason) {
@@ -1365,8 +1366,12 @@ class RecommendationsController extends AppController
                 $recommendation->court_availability = $recommendation->court_availability ?? 'Not Set';
                 $recommendation->person_to_notify = $recommendation->person_to_notify ?? '';
 
+                // Handle given date - treat as midnight UTC to avoid timezone shifts
+                // Since the form input is date-only, we store it as the date at midnight UTC
                 if ($this->request->getData('given') !== null && $this->request->getData('given') !== '') {
-                    $recommendation->given = new DateTime($this->request->getData('given'));
+                    $dateString = $this->request->getData('given');
+                    // Create DateTime at midnight UTC to preserve the exact date
+                    $recommendation->given = new DateTime($dateString . ' 00:00:00', new \DateTimeZone('UTC'));
                 } else {
                     $recommendation->given = null;
                 }

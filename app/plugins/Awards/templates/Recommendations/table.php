@@ -208,7 +208,7 @@ $currentUrl = $this->request->getRequestTarget();
                         <?php endif; ?>
 
                         <?php if ($columns["Submitted"]): ?>
-                            <td><?= h($recommendation->created->toDateString()) ?></td>
+                            <td><?= $recommendation->created ? $this->Timezone->format($recommendation->created, 'Y-m-d', false) : '-' ?></td>
                         <?php endif; ?>
                         <?php if ($columns["For"]): ?>
                             <td><?php
@@ -382,11 +382,11 @@ $currentUrl = $this->request->getRequestTarget();
                             <td><?= h($recommendation->assigned_gathering ? $recommendation->assigned_gathering->name : "") ?></td>
                         <?php endif; ?>
                         <?php if ($columns["State Date"]): ?>
-                            <td><?= $recommendation->state_date ? h($recommendation->state_date->toDateString()) : h($recommendation->created->toDateString()) ?>
+                            <td><?= $recommendation->state_date ? $this->Timezone->format($recommendation->state_date, 'Y-m-d', false) : ($recommendation->created ? $this->Timezone->format($recommendation->created, 'Y-m-d', false) : '-') ?>
                             </td>
                         <?php endif; ?>
                         <?php if ($columns["Given Date"]): ?>
-                            <td><?= $recommendation->given ? h($recommendation->given->toDateString()) : "" ?>
+                            <td><?= $recommendation->given ? $recommendation->given->format('Y-m-d') : "" ?>
                             </td>
                         <?php endif; ?>
                         <td class="actions text-end text-nowrap">
@@ -417,7 +417,7 @@ $currentUrl = $this->request->getRequestTarget();
                                     <div class="card-body">
                                         <ul>
                                             <?php foreach ($recommendation->notes as $note) : ?>
-                                                <li><?= h($note->author->sca_name) ?> - <?= h($note->created->toDateTimeString()) ?>
+                                                <li><?= h($note->author->sca_name) ?> - <?= $note->created ? $this->Timezone->format($note->created, 'F j, Y g:i A', true) : '-' ?>
                                                     :
                                                     <?= $this->Text->autoParagraph($note->body) ?></li>
                                             <?php endforeach; ?>
@@ -439,7 +439,7 @@ $currentUrl = $this->request->getRequestTarget();
                                             <?php if (!empty($recommendation->gatherings)) : ?>
                                                 <?php foreach ($recommendation->gatherings as $gathering) : ?>
                                                     <li style="white-space:nowrap">
-                                                        <?= h($gathering->name) ?><br><?= h($gathering->start_date->toDateString()) ?></li>
+                                                        <?= h($gathering->name) ?><br><?= $this->Timezone->format($gathering->start_date, $gathering, 'Y-m-d') ?></li>
                                                 <?php endforeach; ?>
                                             <?php else : ?>
                                                 <li>No gatherings/events assigned</li>

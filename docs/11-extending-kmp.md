@@ -838,7 +838,7 @@ Public IDs provide secure, non-sequential identifiers for client-facing referenc
 #### Step 1: Create Migration
 
 Create a migration in your plugin:
-```
+```bash
 plugins/YourPlugin/config/Migrations/YYYYMMDDHHMMSS_AddPublicIdToYourPluginTables.php
 ```
 

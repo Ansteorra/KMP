@@ -108,19 +108,19 @@ usort($denied, function ($a, $b) {
 
                                 <dl class="row mb-2">
                                     <dt class="col-5">Requested:</dt>
-                                    <dd class="col-7"><?= $request->requested_on->format('n/j/Y g:i A') ?></dd>
+                                    <dd class="col-7"><?= $this->Timezone->format($request->requested_on) ?></dd>
 
                                     <dt class="col-5">Member #:</dt>
                                     <dd class="col-7"><?= h($request->authorization->member->membership_number ?: 'N/A') ?></dd>
 
                                     <dt class="col-5">Member Exp:</dt>
                                     <dd class="col-7">
-                                        <?= $request->authorization->member->membership_expires_on ? $request->authorization->member->membership_expires_on->format('n/j/Y') : 'N/A' ?>
+                                        <?= $request->authorization->member->membership_expires_on ? $this->Timezone->format($request->authorization->member->membership_expires_on, null, 'n/j/Y') : 'N/A' ?>
                                     </dd>
 
                                     <dt class="col-5">Bg Check Exp:</dt>
                                     <dd class="col-7">
-                                        <?= $request->authorization->member->background_check_expires_on ? $request->authorization->member->background_check_expires_on->format('n/j/Y') : 'N/A' ?>
+                                        <?= $request->authorization->member->background_check_expires_on ? $this->Timezone->format($request->authorization->member->background_check_expires_on, null, 'n/j/Y') : 'N/A' ?>
                                     </dd>
                                 </dl>
 
@@ -161,10 +161,10 @@ usort($denied, function ($a, $b) {
 
                                 <dl class="row mb-0">
                                     <dt class="col-5">Approved:</dt>
-                                    <dd class="col-7"><?= $request->responded_on->format('n/j/Y g:i A') ?></dd>
+                                    <dd class="col-7"><?= $this->Timezone->format($request->responded_on) ?></dd>
 
                                     <dt class="col-5">Requested:</dt>
-                                    <dd class="col-7"><?= $request->requested_on->format('n/j/Y') ?></dd>
+                                    <dd class="col-7"><?= $this->Timezone->format($request->requested_on, null, 'n/j/Y') ?></dd>
                                 </dl>
                             </div>
                         </div>
@@ -191,10 +191,10 @@ usort($denied, function ($a, $b) {
 
                                 <dl class="row mb-0">
                                     <dt class="col-5">Denied:</dt>
-                                    <dd class="col-7"><?= $request->responded_on->format('n/j/Y g:i A') ?></dd>
+                                    <dd class="col-7"><?= $this->Timezone->format($request->responded_on) ?></dd>
 
                                     <dt class="col-5">Requested:</dt>
-                                    <dd class="col-7"><?= $request->requested_on->format('n/j/Y') ?></dd>
+                                    <dd class="col-7"><?= $this->Timezone->format($request->requested_on, null, 'n/j/Y') ?></dd>
 
                                     <?php if ($request->responded_comment): ?>
                                         <dt class="col-5">Reason:</dt>

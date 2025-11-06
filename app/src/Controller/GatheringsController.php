@@ -132,6 +132,10 @@ class GatheringsController extends AppController
 
         $currentUser = $this->Authentication->getIdentity();
 
+        // Get user's timezone for proper date boundary calculations
+        $userTimezone = \App\KMP\TimezoneHelper::getUserTimezone($currentUser);
+        $timezone = new \DateTimeZone($userTimezone);
+
         // Get query parameters for date navigation and filters
         $year = (int)$this->request->getQuery('year', date('Y'));
         $month = (int)$this->request->getQuery('month', date('m'));
@@ -148,8 +152,8 @@ class GatheringsController extends AppController
             $month = (int)date('m');
         }
 
-        // Calculate date ranges
-        $startDate = new DateTime(sprintf("%04d-%02d-01", $year, $month));
+        // Calculate date ranges in user's timezone
+        $startDate = new DateTime(sprintf("%04d-%02d-01", $year, $month), $timezone);
         $endDate = clone $startDate;
         $endDate->modify('last day of this month')->setTime(23, 59, 59);
 
@@ -169,6 +173,10 @@ class GatheringsController extends AppController
             $calendarEnd->modify("+{$daysToAdd} days");
         }
 
+        // Convert boundary dates to UTC for database queries (gatherings are stored in UTC)
+        $calendarStartUtc = \App\KMP\TimezoneHelper::toUtc($calendarStart->format('Y-m-d H:i:s'), $userTimezone);
+        $calendarEndUtc = \App\KMP\TimezoneHelper::toUtc($calendarEnd->format('Y-m-d H:i:s'), $userTimezone);
+
         // Build query for gatherings in the calendar range
         $query = $this->Gatherings->find()
             ->contain([
@@ -183,16 +191,16 @@ class GatheringsController extends AppController
             ->where([
                 'OR' => [
                     [
-                        'Gatherings.start_date >=' => $calendarStart->format('Y-m-d'),
-                        'Gatherings.start_date <=' => $calendarEnd->format('Y-m-d')
+                        'Gatherings.start_date >=' => $calendarStartUtc->format('Y-m-d H:i:s'),
+                        'Gatherings.start_date <=' => $calendarEndUtc->format('Y-m-d H:i:s')
                     ],
                     [
-                        'Gatherings.end_date >=' => $calendarStart->format('Y-m-d'),
-                        'Gatherings.end_date <=' => $calendarEnd->format('Y-m-d')
+                        'Gatherings.end_date >=' => $calendarStartUtc->format('Y-m-d H:i:s'),
+                        'Gatherings.end_date <=' => $calendarEndUtc->format('Y-m-d H:i:s')
                     ],
                     [
-                        'Gatherings.start_date <' => $calendarStart->format('Y-m-d'),
-                        'Gatherings.end_date >' => $calendarEnd->format('Y-m-d')
+                        'Gatherings.start_date <' => $calendarStartUtc->format('Y-m-d H:i:s'),
+                        'Gatherings.end_date >' => $calendarEndUtc->format('Y-m-d H:i:s')
                     ]
                 ]
             ])
@@ -217,11 +225,15 @@ class GatheringsController extends AppController
 
         // Load filter options
         $branchesQuery = $this->Gatherings->Branches->find('list')->orderBy(['name' => 'ASC']);
-        $branches = $branchesQuery;
+        $branches = $branchesQuery->all();
         //if branchfilter lets get the current branch and pull it out of the query
         $selectedBranch = null;
         if ($branchFilter) {
-            $selectedBranch = $branchesQuery->where(['Branches.id' => $branchFilter])->first();
+            $selectedBranch = $this->Gatherings->Branches->find()
+                ->select(['name'])
+                ->where(['Branches.id' => $branchFilter])
+                ->first()
+                ?->name;
         }
 
         $gatheringTypes = $this->Gatherings->GatheringTypes->find('list')->orderBy(['name' => 'ASC']);
@@ -446,21 +458,32 @@ class GatheringsController extends AppController
             ]);
 
         // Apply temporal filtering based on current date and month boundaries
-        $today = new DateTime();
+        // Use user's timezone for accurate month boundary calculations
+        $currentUser = $this->Authentication->getIdentity();
+        $userTimezone = \App\KMP\TimezoneHelper::getUserTimezone($currentUser);
+        $timezone = new \DateTimeZone($userTimezone);
+
+        $today = new DateTime('now', $timezone);
         $today->setTime(0, 0, 0); // Set to start of day for accurate comparisons
 
-        // Calculate month boundaries
-        $thisMonthStart = new DateTime('first day of this month');
+        // Calculate month boundaries in user's timezone
+        $thisMonthStart = new DateTime('first day of this month', $timezone);
         $thisMonthStart->setTime(0, 0, 0);
 
-        $thisMonthEnd = new DateTime('last day of this month');
+        $thisMonthEnd = new DateTime('last day of this month', $timezone);
         $thisMonthEnd->setTime(23, 59, 59);
 
-        $nextMonthStart = new DateTime('first day of next month');
+        $nextMonthStart = new DateTime('first day of next month', $timezone);
         $nextMonthStart->setTime(0, 0, 0);
 
-        $nextMonthEnd = new DateTime('last day of next month');
+        $nextMonthEnd = new DateTime('last day of next month', $timezone);
         $nextMonthEnd->setTime(23, 59, 59);
+
+        // Convert boundaries to UTC for database queries (gatherings are stored in UTC)
+        $thisMonthStartUtc = \App\KMP\TimezoneHelper::toUtc($thisMonthStart->format('Y-m-d H:i:s'), $userTimezone);
+        $thisMonthEndUtc = \App\KMP\TimezoneHelper::toUtc($thisMonthEnd->format('Y-m-d H:i:s'), $userTimezone);
+        $nextMonthStartUtc = \App\KMP\TimezoneHelper::toUtc($nextMonthStart->format('Y-m-d H:i:s'), $userTimezone);
+        $nextMonthEndUtc = \App\KMP\TimezoneHelper::toUtc($nextMonthEnd->format('Y-m-d H:i:s'), $userTimezone);
 
         switch ($state) {
             case 'this_month':
@@ -469,18 +492,18 @@ class GatheringsController extends AppController
                     'OR' => [
                         // Starts this month
                         [
-                            'Gatherings.start_date >=' => $thisMonthStart,
-                            'Gatherings.start_date <=' => $thisMonthEnd
+                            'Gatherings.start_date >=' => $thisMonthStartUtc->format('Y-m-d H:i:s'),
+                            'Gatherings.start_date <=' => $thisMonthEndUtc->format('Y-m-d H:i:s')
                         ],
                         // Ends this month
                         [
-                            'Gatherings.end_date >=' => $thisMonthStart,
-                            'Gatherings.end_date <=' => $thisMonthEnd
+                            'Gatherings.end_date >=' => $thisMonthStartUtc->format('Y-m-d H:i:s'),
+                            'Gatherings.end_date <=' => $thisMonthEndUtc->format('Y-m-d H:i:s')
                         ],
                         // Spans across this month
                         [
-                            'Gatherings.start_date <' => $thisMonthStart,
-                            'Gatherings.end_date >' => $thisMonthEnd
+                            'Gatherings.start_date <' => $thisMonthStartUtc->format('Y-m-d H:i:s'),
+                            'Gatherings.end_date >' => $thisMonthEndUtc->format('Y-m-d H:i:s')
                         ]
                     ]
                 ]);
@@ -491,18 +514,18 @@ class GatheringsController extends AppController
                     'OR' => [
                         // Starts next month
                         [
-                            'Gatherings.start_date >=' => $nextMonthStart,
-                            'Gatherings.start_date <=' => $nextMonthEnd
+                            'Gatherings.start_date >=' => $nextMonthStartUtc->format('Y-m-d H:i:s'),
+                            'Gatherings.start_date <=' => $nextMonthEndUtc->format('Y-m-d H:i:s')
                         ],
                         // Ends next month
                         [
-                            'Gatherings.end_date >=' => $nextMonthStart,
-                            'Gatherings.end_date <=' => $nextMonthEnd
+                            'Gatherings.end_date >=' => $nextMonthStartUtc->format('Y-m-d H:i:s'),
+                            'Gatherings.end_date <=' => $nextMonthEndUtc->format('Y-m-d H:i:s')
                         ],
                         // Spans across next month
                         [
-                            'Gatherings.start_date <' => $nextMonthStart,
-                            'Gatherings.end_date >' => $nextMonthEnd
+                            'Gatherings.start_date <' => $nextMonthStartUtc->format('Y-m-d H:i:s'),
+                            'Gatherings.end_date >' => $nextMonthEndUtc->format('Y-m-d H:i:s')
                         ]
                     ]
                 ]);
@@ -510,13 +533,13 @@ class GatheringsController extends AppController
             case 'future':
                 // Gatherings that start after next month
                 $gatheringsQuery = $gatheringsQuery->where([
-                    'Gatherings.start_date >' => $nextMonthEnd
+                    'Gatherings.start_date >' => $nextMonthEndUtc->format('Y-m-d H:i:s')
                 ]);
                 break;
             case 'previous':
                 // Past gatherings that ended before this month
                 $gatheringsQuery = $gatheringsQuery->where([
-                    'Gatherings.end_date <' => $thisMonthStart
+                    'Gatherings.end_date <' => $thisMonthStartUtc->format('Y-m-d H:i:s')
                 ]);
                 break;
         }
@@ -670,6 +693,19 @@ class GatheringsController extends AppController
             // Set the creator automatically
             $data['created_by'] = $this->Authentication->getIdentity()->id;
 
+            // Convert datetime inputs from user/gathering timezone to UTC for storage
+            if (!empty($data['start_date'])) {
+                $timezone = !empty($data['timezone']) ? $data['timezone'] :
+                    \App\KMP\TimezoneHelper::getUserTimezone($this->Authentication->getIdentity());
+                $data['start_date'] = \App\KMP\TimezoneHelper::toUtc($data['start_date'], $timezone);
+            }
+
+            if (!empty($data['end_date'])) {
+                $timezone = !empty($data['timezone']) ? $data['timezone'] :
+                    \App\KMP\TimezoneHelper::getUserTimezone($this->Authentication->getIdentity());
+                $data['end_date'] = \App\KMP\TimezoneHelper::toUtc($data['end_date'], $timezone);
+            }
+
             // Default end_date to start_date if not provided
             if (empty($data['end_date']) && !empty($data['start_date'])) {
                 $data['end_date'] = $data['start_date'];
@@ -735,7 +771,22 @@ class GatheringsController extends AppController
         $this->Authorization->authorize($gathering);
 
         if ($this->request->is(['patch', 'post', 'put'])) {
-            $gathering = $this->Gatherings->patchEntity($gathering, $this->request->getData());
+            $data = $this->request->getData();
+
+            // Convert datetime inputs from user/gathering timezone to UTC for storage
+            if (!empty($data['start_date'])) {
+                $timezone = !empty($data['timezone']) ? $data['timezone'] :
+                    \App\KMP\TimezoneHelper::getGatheringTimezone($gathering, $this->Authentication->getIdentity());
+                $data['start_date'] = \App\KMP\TimezoneHelper::toUtc($data['start_date'], $timezone);
+            }
+
+            if (!empty($data['end_date'])) {
+                $timezone = !empty($data['timezone']) ? $data['timezone'] :
+                    \App\KMP\TimezoneHelper::getGatheringTimezone($gathering, $this->Authentication->getIdentity());
+                $data['end_date'] = \App\KMP\TimezoneHelper::toUtc($data['end_date'], $timezone);
+            }
+
+            $gathering = $this->Gatherings->patchEntity($gathering, $data);
 
             if ($this->Gatherings->save($gathering)) {
                 $this->Flash->success(__(
@@ -1062,6 +1113,19 @@ class GatheringsController extends AppController
         $data['public_page_enabled'] = $originalGathering->public_page_enabled;
         $data['created_by'] = $this->Authentication->getIdentity()->id;
 
+        // Convert datetime inputs from user/gathering timezone to UTC for storage
+        if (!empty($data['start_date'])) {
+            $timezone = !empty($data['timezone']) ? $data['timezone'] :
+                \App\KMP\TimezoneHelper::getUserTimezone($this->Authentication->getIdentity());
+            $data['start_date'] = \App\KMP\TimezoneHelper::toUtc($data['start_date'], $timezone);
+        }
+
+        if (!empty($data['end_date'])) {
+            $timezone = !empty($data['timezone']) ? $data['timezone'] :
+                \App\KMP\TimezoneHelper::getUserTimezone($this->Authentication->getIdentity());
+            $data['end_date'] = \App\KMP\TimezoneHelper::toUtc($data['end_date'], $timezone);
+        }
+
         // Default end_date to start_date if not provided
         if (empty($data['end_date']) && !empty($data['start_date'])) {
             $data['end_date'] = $data['start_date'];
@@ -1120,28 +1184,43 @@ class GatheringsController extends AppController
             if (!empty($data['clone_schedule'])) {
                 $GatheringScheduledActivities = $this->fetchTable('GatheringScheduledActivities');
 
-                // Calculate the date offset between original and new gathering
+                // Calculate the time offset between original and new gathering
+                // Both dates are now DateTime objects (already converted to UTC)
                 $originalStart = $originalGathering->start_date;
-                $newStart = \Cake\I18n\Date::parse($data['start_date']);
-                $daysDiff = $originalStart->diffInDays($newStart, false);
+                $newStart = $newGathering->start_date;
+
+                // Calculate difference in seconds for precise time offset
+                $timeDiff = $newStart->getTimestamp() - $originalStart->getTimestamp();
 
                 foreach ($originalGathering->gathering_scheduled_activities as $scheduledActivity) {
-                    // Adjust the datetime by the difference in start dates
-                    $newStartDateTime = $scheduledActivity->start_datetime->addDays($daysDiff);
-                    $newEndDateTime = $scheduledActivity->end_datetime ?
-                        $scheduledActivity->end_datetime->addDays($daysDiff) : null;
+                    // Clone the datetime objects to avoid modifying the originals
+                    $newStartDateTime = clone $scheduledActivity->start_datetime;
+                    $newStartDateTime = $newStartDateTime->modify(sprintf('%+d seconds', $timeDiff));
+
+                    $newEndDateTime = null;
+                    if ($scheduledActivity->end_datetime) {
+                        $newEndDateTime = clone $scheduledActivity->end_datetime;
+                        $newEndDateTime = $newEndDateTime->modify(sprintf('%+d seconds', $timeDiff));
+                    }
 
                     $newScheduledActivity = $GatheringScheduledActivities->newEntity([
                         'gathering_id' => $newGathering->id,
                         'gathering_activity_id' => $scheduledActivity->gathering_activity_id,
                         'start_datetime' => $newStartDateTime,
                         'end_datetime' => $newEndDateTime,
-                        'display_title' => $scheduledActivity->title,
-                        'description' => $scheduledActivity->description
+                        'has_end_time' => !empty($scheduledActivity->end_datetime),
+                        'display_title' => $scheduledActivity->display_title,
+                        'description' => $scheduledActivity->description,
+                        'pre_register' => $scheduledActivity->pre_register ?? false,
+                        'is_other' => $scheduledActivity->is_other ?? false,
                     ]);
 
                     if ($GatheringScheduledActivities->save($newScheduledActivity)) {
                         $clonedSchedule++;
+                    } else {
+                        // Log errors for debugging
+                        $errors = $newScheduledActivity->getErrors();
+                        \Cake\Log\Log::error('Failed to clone scheduled activity: ' . json_encode($errors));
                     }
                 }
             }
@@ -1216,6 +1295,15 @@ class GatheringsController extends AppController
         $data['gathering_id'] = $gathering->id;
         $data['created_by'] = $this->Authentication->getIdentity()->id;
 
+        // Convert datetime inputs from gathering/user timezone to UTC for storage
+        $timezone = \App\KMP\TimezoneHelper::getGatheringTimezone($gathering, $this->Authentication->getIdentity());
+        if (!empty($data['start_datetime'])) {
+            $data['start_datetime'] = \App\KMP\TimezoneHelper::toUtc($data['start_datetime'], $timezone);
+        }
+        if (!empty($data['end_datetime'])) {
+            $data['end_datetime'] = \App\KMP\TimezoneHelper::toUtc($data['end_datetime'], $timezone);
+        }
+
         // Handle "other" checkbox
         if (!empty($data['is_other'])) {
             $data['gathering_activity_id'] = null;
@@ -1286,6 +1374,15 @@ class GatheringsController extends AppController
 
         $data = $this->request->getData();
         $data['modified_by'] = $this->Authentication->getIdentity()->id;
+
+        // Convert datetime inputs from gathering/user timezone to UTC for storage
+        $timezone = \App\KMP\TimezoneHelper::getGatheringTimezone($gathering, $this->Authentication->getIdentity());
+        if (!empty($data['start_datetime'])) {
+            $data['start_datetime'] = \App\KMP\TimezoneHelper::toUtc($data['start_datetime'], $timezone);
+        }
+        if (!empty($data['end_datetime'])) {
+            $data['end_datetime'] = \App\KMP\TimezoneHelper::toUtc($data['end_datetime'], $timezone);
+        }
 
         // Handle "other" checkbox
         if (!empty($data['is_other'])) {

@@ -217,7 +217,7 @@ class Application extends BaseApplication implements
         // Version-based application configuration management
         // This system allows automatic updates to application settings when KMP is upgraded
         // Each time the version changes, new default settings are applied
-        $currentConfigVersion = '25.01.11.a'; // Update this with each configuration change
+        $currentConfigVersion = '25.11.05.a'; // Update this with each configuration change
 
         $configVersion = StaticHelpers::getAppSetting('KMP.configVersion', '0.0.0', null, true);
         if ($configVersion != $currentConfigVersion) {
@@ -232,6 +232,7 @@ class Application extends BaseApplication implements
             StaticHelpers::getAppSetting('KMP.BannerLogo', 'badge.png', null, true);                    // Main site logo
             StaticHelpers::getAppSetting('KMP.Login.Graphic', 'populace_badge.png', null, true);        // Login page graphic
             StaticHelpers::getAppSetting('KMP.EnablePublicRegistration', 'yes', null, true);            // Allow public sign-ups
+            StaticHelpers::getAppSetting('KMP.DefaultTimezone', 'America/Chicago', null, true);         // Default timezone for date/time display
             StaticHelpers::getAppSetting('App.version', '0.0.0', null, true);                           // Application version tracking
 
             // Member Card Display Settings - Visual presentation of member information

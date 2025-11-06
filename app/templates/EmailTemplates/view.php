@@ -57,19 +57,11 @@ echo $this->KMP->startBlock('pageTitle') ?>
 </tr>
 <tr scope="row">
     <th class="col"><?= __('Created') ?></th>
-    <td class="col-10"><?= h($emailTemplate->created->format('Y-m-d H:i:s')) ?></td>
+    <td class="col-10"><?= $emailTemplate->created ? $this->Timezone->format($emailTemplate->created, 'F j, Y g:i A', true) : '-' ?></td>
 </tr>
 <tr scope="row">
     <th class="col"><?= __('Modified') ?></th>
-    <td class="col-10"><?= h($emailTemplate->modified->format('Y-m-d H:i:s')) ?></td>
-</tr>
-<tr scope="row">
-    <th class="col"><?= __('Created') ?></th>
-    <td class="col-10"><?= h($emailTemplate->created->format('Y-m-d H:i:s')) ?></td>
-</tr>
-<tr scope="row">
-    <th class="col"><?= __('Modified') ?></th>
-    <td class="col-10"><?= h($emailTemplate->modified->format('Y-m-d H:i:s')) ?></td>
+    <td class="col-10"><?= $emailTemplate->modified ? $this->Timezone->format($emailTemplate->modified, 'F j, Y g:i A', true) : '-' ?></td>
 </tr>
 <?php $this->KMP->endBlock() ?>
 

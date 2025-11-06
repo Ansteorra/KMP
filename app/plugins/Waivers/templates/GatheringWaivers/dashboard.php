@@ -104,8 +104,8 @@ $this->KMP->endBlock();
                                             <td><?= h($gathering->branch->name) ?></td>
                                             <td>
                                                 <?php
-                                                $startFormatted = $gathering->start_date->format('M d, Y');
-                                                $endFormatted = $gathering->end_date ? $gathering->end_date->format('M d, Y') : $startFormatted;
+                                                $startFormatted = $this->Timezone->format($gathering->start_date, $gathering, 'M d, Y');
+                                                $endFormatted = $gathering->end_date ? $this->Timezone->format($gathering->end_date, $gathering, 'M d, Y') : $startFormatted;
                                                 ?>
                                                 <?= h($startFormatted) ?>
                                                 <?php if ($startFormatted !== $endFormatted): ?>
@@ -199,8 +199,8 @@ $this->KMP->endBlock();
                                             <td><?= h($gathering->branch->name) ?></td>
                                             <td>
                                                 <?php
-                                                $startFormatted = $gathering->start_date->format('M d, Y');
-                                                $endFormatted = $gathering->end_date ? $gathering->end_date->format('M d, Y') : $startFormatted;
+                                                $startFormatted = $this->Timezone->format($gathering->start_date, $gathering, 'M d, Y');
+                                                $endFormatted = $gathering->end_date ? $this->Timezone->format($gathering->end_date, $gathering, 'M d, Y') : $startFormatted;
                                                 ?>
                                                 <?= h($startFormatted) ?>
                                                 <?php if ($startFormatted !== $endFormatted): ?>
@@ -326,7 +326,7 @@ $this->KMP->endBlock();
                                 <tbody>
                                     <?php foreach ($recentActivity as $activity): ?>
                                         <tr>
-                                            <td class="text-nowrap"><?= h($activity->created->format('M d, Y')) ?></td>
+                                            <td class="text-nowrap"><?= $this->Timezone->format($activity->created, null, 'M d, Y') ?></td>
                                             <td><?= h($activity->gathering->name) ?></td>
                                             <td><?= h($activity->gathering->branch->name) ?></td>
                                             <td><?= h($activity->waiver_type->name) ?></td>

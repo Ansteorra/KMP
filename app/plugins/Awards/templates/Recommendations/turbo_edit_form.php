@@ -171,13 +171,10 @@
         ]);
 
         // Format given date for HTML5 date input (requires Y-m-d format)
+        // Since this is a date-only field, format without timezone conversion
         $givenValue = null;
         if ($recommendation->given) {
-            if (is_object($recommendation->given) && method_exists($recommendation->given, 'format')) {
-                $givenValue = $recommendation->given->format('Y-m-d');
-            } elseif (is_string($recommendation->given)) {
-                $givenValue = date('Y-m-d', strtotime($recommendation->given));
-            }
+            $givenValue = $recommendation->given->format('Y-m-d');
         }
 
         echo $this->Form->control(

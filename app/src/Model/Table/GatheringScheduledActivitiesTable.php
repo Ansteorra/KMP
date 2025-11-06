@@ -199,9 +199,9 @@ class GatheringScheduledActivitiesTable extends Table
                 return true; // Let other validators handle missing required fields
             }
 
-            // Get the gathering to check date range
+            // Get the gathering to check date range (including timezone)
             $gathering = $this->Gatherings->find()
-                ->select(['id', 'start_date', 'end_date'])
+                ->select(['id', 'start_date', 'end_date', 'timezone'])
                 ->where(['id' => $entity->gathering_id])
                 ->first();
             if ($gathering === null) {
@@ -213,27 +213,41 @@ class GatheringScheduledActivitiesTable extends Table
                 return false;
             }
 
-            // Create datetime boundaries for the gathering
-            // Convert Date objects to FrozenTime with time boundaries
-            // Start: 12:00 AM on start_date
-            $gatheringStart = new FrozenTime($gathering->start_date->format('Y-m-d') . ' 00:00:00');
+            // Get gathering timezone (or default)
+            $gatheringTimezone = !empty($gathering->timezone) ? $gathering->timezone :
+                \App\KMP\TimezoneHelper::getAppTimezone();
 
-            // End: 11:59:59 PM on end_date, or end of start_date if end_date is null
-            if (!empty($gathering->end_date)) {
-                $gatheringEnd = new FrozenTime($gathering->end_date->format('Y-m-d') . ' 23:59:59');
-            } else {
-                // For single-day gatherings or gatherings without end_date, use end of start_date
-                $gatheringEnd = new FrozenTime($gathering->start_date->format('Y-m-d') . ' 23:59:59');
+            // The gathering's start_date and end_date are already DateTime objects in UTC
+            // We just need to ensure they're DateTime objects for comparison
+            $gatheringStart = $gathering->start_date;
+            if (!($gatheringStart instanceof \Cake\I18n\DateTime)) {
+                $gatheringStart = new \Cake\I18n\DateTime($gatheringStart);
             }
 
-            // Check if scheduled activity start is within range
-            if ($entity->start_datetime < $gatheringStart || $entity->start_datetime > $gatheringEnd) {
+            $gatheringEnd = $gathering->end_date;
+            if (!($gatheringEnd instanceof \Cake\I18n\DateTime)) {
+                $gatheringEnd = new \Cake\I18n\DateTime($gatheringEnd);
+            }
+
+            // Ensure we're comparing DateTime objects - convert entity values to DateTime if needed
+            $startDatetime = $entity->start_datetime;
+            if (is_string($startDatetime)) {
+                $startDatetime = new \Cake\I18n\DateTime($startDatetime);
+            }
+
+            $endDatetime = $entity->end_datetime;
+            if (is_string($endDatetime)) {
+                $endDatetime = new \Cake\I18n\DateTime($endDatetime);
+            }
+
+            // Check if scheduled activity start is within range (both are now in UTC)
+            if ($startDatetime < $gatheringStart || $startDatetime > $gatheringEnd) {
                 return false;
             }
 
             // Check if scheduled activity end is within range (only if end_datetime is provided)
-            if (!empty($entity->end_datetime)) {
-                if ($entity->end_datetime < $gatheringStart || $entity->end_datetime > $gatheringEnd) {
+            if (!empty($endDatetime)) {
+                if ($endDatetime < $gatheringStart || $endDatetime > $gatheringEnd) {
                     return false;
                 }
             }
@@ -241,33 +255,46 @@ class GatheringScheduledActivitiesTable extends Table
             return true;
         }, 'withinGatheringDates', [
             'errorField' => 'start_datetime',
-            'message' => 'Scheduled activity must fall within the gathering dates ({0} to {1})',
-            'pass' => function ($entity) {
+            'message' => function ($entity, $options) {
                 if (empty($entity->gathering_id)) {
-                    return [];
+                    return 'Scheduled activity must fall within the gathering dates';
                 }
+
                 $gathering = $this->Gatherings->find()
-                    ->select(['start_date', 'end_date'])
+                    ->select(['start_date', 'end_date', 'timezone'])
                     ->where(['id' => $entity->gathering_id])
                     ->first();
-                if ($gathering === null) {
-                    return [];
+
+                if ($gathering === null || empty($gathering->start_date)) {
+                    return 'Scheduled activity must fall within the gathering dates';
                 }
 
-                // Guard against null dates
-                if (empty($gathering->start_date)) {
-                    return ['unknown date'];
-                }
+                // Get gathering timezone for proper date display
+                $gatheringTimezone = !empty($gathering->timezone) ? $gathering->timezone :
+                    \App\KMP\TimezoneHelper::getAppTimezone();
 
-                $startDateStr = $gathering->start_date->format('M j, Y');
-                $endDateStr = !empty($gathering->end_date)
-                    ? $gathering->end_date->format('M j, Y')
-                    : $gathering->start_date->format('M j, Y');
+                // Convert UTC dates to gathering timezone for display in error message
+                $startInGatheringTz = \App\KMP\TimezoneHelper::toUserTimezone(
+                    $gathering->start_date,
+                    null,
+                    $gatheringTimezone
+                );
+                $endInGatheringTz = \App\KMP\TimezoneHelper::toUserTimezone(
+                    $gathering->end_date,
+                    null,
+                    $gatheringTimezone
+                );
 
-                return [
+                $startDateStr = $startInGatheringTz->format('M j, Y g:i A');
+                $endDateStr = $endInGatheringTz->format('M j, Y g:i A');
+
+                return sprintf(
+                    'Scheduled activity must fall within the gathering dates (%s %s to %s %s)',
                     $startDateStr,
-                    $endDateStr
-                ];
+                    $gatheringTimezone,
+                    $endDateStr,
+                    $gatheringTimezone
+                );
             }
         ]);
 

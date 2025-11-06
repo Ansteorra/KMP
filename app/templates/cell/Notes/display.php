@@ -5,7 +5,7 @@
                 <h2 class="accordion-header">
                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
                         data-bs-target="#note_<?= $note->id ?>" aria-expanded="false" aria-controls="note_<?= $note->id ?>">
-                        <?= h($note->subject) ?> : <?= h(
+                        <?= h($note->subject) ?> : <?= $this->Timezone->format(
                                                         $note->created_on,
                                                     ) ?> - by <?= h($note->author->sca_name) ?>
                         <?= $note->private

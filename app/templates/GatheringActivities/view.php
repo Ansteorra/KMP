@@ -18,10 +18,10 @@ echo $this->KMP->startBlock("pageTitle") ?>
 
 <?= $this->KMP->startBlock("recordActions") ?>
 <?php if ($user->checkCan("edit", $gatheringActivity)) : ?>
-<?= $this->Html->link(__('Edit'), ['action' => 'edit', $gatheringActivity->id], ['class' => 'btn btn-primary btn-sm']) ?>
+    <?= $this->Html->link(__('Edit'), ['action' => 'edit', $gatheringActivity->id], ['class' => 'btn btn-primary btn-sm']) ?>
 <?php endif; ?>
 <?php if ($user->checkCan("delete", $gatheringActivity)) : ?>
-<?= $this->Form->postLink(
+    <?= $this->Form->postLink(
         __('Delete'),
         ['action' => 'delete', $gatheringActivity->id],
         [
@@ -43,11 +43,11 @@ echo $this->KMP->startBlock("pageTitle") ?>
 </tr>
 <tr scope="row">
     <th class="col"><?= __('Created') ?></th>
-    <td class="col-10"><?= h($gatheringActivity->created) ?></td>
+    <td class="col-10"><?= $this->Timezone->format($gatheringActivity->created, null, null, \IntlDateFormatter::SHORT, \IntlDateFormatter::SHORT) ?></td>
 </tr>
 <tr scope="row">
     <th class="col"><?= __('Modified') ?></th>
-    <td class="col-10"><?= h($gatheringActivity->modified) ?></td>
+    <td class="col-10"><?= $this->Timezone->format($gatheringActivity->modified, null, null, \IntlDateFormatter::SHORT, \IntlDateFormatter::SHORT) ?></td>
 </tr>
 <?php $this->KMP->endBlock() ?>
 

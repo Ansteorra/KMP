@@ -43,29 +43,48 @@
 
 <div class="row">
     <div class="col-md-6 mb-3">
+        <?php
+        // Convert gathering start_date to user's timezone for display
+        $currentUser = $this->getRequest()->getAttribute('identity');
+        $startInUserTz = $this->Timezone->forInput($gathering->start_date, 'Y-m-d\TH:i', $currentUser, $gathering);
+        ?>
         <?= $this->Form->control('start_date', [
-            'type' => 'date',
+            'type' => 'datetime-local',
+            'value' => $startInUserTz,
             'required' => true,
             'class' => 'form-control',
-            'label' => __('Start Date'),
+            'label' => __('Start Date & Time'),
             'data-gathering-clone-target' => 'startDate',
             'data-action' => 'change->gathering-clone#startDateChanged'
         ]) ?>
+        <small class="form-text text-muted">
+            <?= __('Time in {0}', $this->Timezone->getUserTimezone($currentUser)) ?>
+        </small>
     </div>
     <div class="col-md-6 mb-3">
+        <?php
+        // Convert gathering end_date to user's timezone for display
+        $endInUserTz = $this->Timezone->forInput($gathering->end_date, 'Y-m-d\TH:i', $currentUser, $gathering);
+        ?>
         <?= $this->Form->control('end_date', [
-            'type' => 'date',
+            'type' => 'datetime-local',
+            'value' => $endInUserTz,
             'required' => false,
             'class' => 'form-control',
-            'label' => __('End Date'),
+            'label' => __('End Date & Time'),
             'data-gathering-clone-target' => 'endDate',
             'data-action' => 'change->gathering-clone#endDateChanged'
         ]) ?>
         <small class="form-text text-muted">
-            <?= __('Will default to start date if not specified. For single-day gatherings, leave blank or use the same date as start date.') ?>
+            <?= __('Will default to start date if not specified') ?>
         </small>
     </div>
 </div>
+
+<!-- Hidden field to store gathering timezone for conversion -->
+<?= $this->Form->hidden('timezone', [
+    'value' => $gathering->timezone ?? \App\KMP\TimezoneHelper::getUserTimezone($currentUser)
+]) ?>
 
 <div class="mb-3">
     <h6><?= __('Clone Options') ?></h6>
@@ -135,8 +154,10 @@
             <dd class="col-sm-8"><?= h($gathering->gathering_type->name) ?></dd>
 
             <dt class="col-sm-4"><?= __('Original Dates') ?></dt>
-            <dd class="col-sm-8"><?= h($gathering->start_date->format('Y-m-d')) ?> to
-                <?= h($gathering->end_date->format('Y-m-d')) ?></dd>
+            <dd class="col-sm-8">
+                <?= $this->Timezone->format($gathering->start_date, 'Y-m-d g:i A', false, $currentUser, $gathering) ?> to
+                <?= $this->Timezone->format($gathering->end_date, 'Y-m-d g:i A', false, $currentUser, $gathering) ?>
+            </dd>
 
             <dt class="col-sm-4"><?= __('Activities') ?></dt>
             <dd class="col-sm-8">

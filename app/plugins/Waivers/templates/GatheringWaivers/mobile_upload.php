@@ -33,15 +33,15 @@
                     </h5>
                     <p class="card-text small mb-1">
                         <i class="bi bi-calendar3"></i>
-                        <?= h($gathering->start_date->format('M j, Y')) ?>
-                        <?php if ($gathering->start_date->format('Y-m-d') !== $gathering->end_date->format('Y-m-d')): ?>
-                        - <?= h($gathering->end_date->format('M j, Y')) ?>
+                        <?= $this->Timezone->format($gathering->start_date, $gathering, 'M j, Y') ?>
+                        <?php if ($this->Timezone->format($gathering->start_date, $gathering, 'Y-m-d') !== $this->Timezone->format($gathering->end_date, $gathering, 'Y-m-d')): ?>
+                            - <?= $this->Timezone->format($gathering->end_date, $gathering, 'M j, Y') ?>
                         <?php endif; ?>
                     </p>
                     <?php if (!empty($gathering->location)): ?>
-                    <p class="card-text text-muted small mb-0">
-                        <i class="bi bi-geo-alt"></i> <?= h($gathering->location) ?>
-                    </p>
+                        <p class="card-text text-muted small mb-0">
+                            <i class="bi bi-geo-alt"></i> <?= h($gathering->location) ?>
+                        </p>
                     <?php endif; ?>
                 </div>
             </div>

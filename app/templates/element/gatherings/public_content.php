@@ -15,20 +15,29 @@
  */
 
 use Cake\I18n\Date;
+use Cake\I18n\DateTime;
 
 // Check if user is authenticated
 $isAuthenticated = isset($user) && $user !== null;
 
-// Check if event is in the past
-$isPast = $gathering->end_date < Date::now();
-$isOngoing = $gathering->start_date <= Date::now() && $gathering->end_date >= Date::now();
+// Get current time in the gathering's timezone for accurate status
+$gatheringTimezone = \App\KMP\TimezoneHelper::getGatheringTimezone($gathering, $this->getRequest()->getAttribute('identity'));
+$nowInGatheringTz = \App\KMP\TimezoneHelper::toUserTimezone(DateTime::now(), null, $gatheringTimezone);
+$startInGatheringTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->start_date, null, $gatheringTimezone);
+$endInGatheringTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->end_date, null, $gatheringTimezone);
+
+// Check if event is in the past or ongoing (using actual datetime with timezone)
+$isPast = $endInGatheringTz < $nowInGatheringTz;
+$isOngoing = $startInGatheringTz <= $nowInGatheringTz && $endInGatheringTz >= $nowInGatheringTz;
 
 // Check if user can attend (gathering hasn't ended)
 $canAttend = !$isPast && $isAuthenticated;
 
-// Calculate duration if not provided
+// Calculate duration if not provided (date-only comparison for day count)
 if (!isset($durationDays)) {
-    $durationDays = $gathering->start_date->diffInDays($gathering->end_date) + 1;
+    $startDate = Date::parse($gathering->start_date->format('Y-m-d'));
+    $endDate = Date::parse($gathering->end_date->format('Y-m-d'));
+    $durationDays = $startDate->diffInDays($endDate) + 1;
 }
 
 // Initialize schedule if not provided
@@ -53,11 +62,24 @@ if (!isset($scheduleByDate)) {
             <span class="meta-item">
                 <i class="bi bi-calendar3"></i>
                 <?php if ($gathering->is_multi_day): ?>
-                    <?= $gathering->start_date->format('M d') ?> - <?= $gathering->end_date->format('M d, Y') ?>
+                    <?= $this->Timezone->format($gathering->start_date, 'M d, Y g:i A', false, null, $gathering) ?>
+                    - <?= $this->Timezone->format($gathering->end_date, 'M d, Y g:i A', false, null, $gathering) ?>
                 <?php else: ?>
-                    <?= $gathering->start_date->format('M d, Y') ?>
+                    <?= $this->Timezone->format($gathering->start_date, 'M d, Y', false, null, $gathering) ?><br>
+                    <small>
+                        <?= $this->Timezone->format($gathering->start_date, 'g:i A', false, null, $gathering) ?>
+                        - <?= $this->Timezone->format($gathering->end_date, 'g:i A', false, null, $gathering) ?>
+                    </small>
                 <?php endif; ?>
             </span>
+
+            <?php if (!empty($gathering->timezone)): ?>
+                <span class="meta-item">
+                    <i class="bi bi-clock"></i>
+                    <?= h($gathering->timezone) ?>
+                    (<?= $this->Timezone->getAbbreviation($gathering->start_date, $gathering->timezone) ?>)
+                </span>
+            <?php endif; ?>
 
             <?php if ($gathering->location): ?>
                 <span class="meta-item">
@@ -230,7 +252,11 @@ if (!isset($scheduleByDate)) {
             </div>
         <?php else: ?>
             <?php
-            $daysUntil = \Cake\I18n\Date::now()->diffInDays($gathering->start_date, false);
+            // Calculate time until event starts (using actual datetime with timezone)
+            $interval = $nowInGatheringTz->diff($startInGatheringTz);
+            $daysUntil = $interval->days;
+            $hoursUntil = $interval->h;
+
             if ($daysUntil >= 0):
             ?>
                 <div class="info-card-medieval status-upcoming">
@@ -240,8 +266,14 @@ if (!isset($scheduleByDate)) {
                     </div>
                     <div class="card-body-medieval">
                         <div class="countdown-display">
-                            <?php if ($daysUntil == 0): ?>
-                                <?= __('Today!') ?>
+                            <?php if ($daysUntil == 0 && $hoursUntil < 24): ?>
+                                <?php if ($hoursUntil == 0): ?>
+                                    <?= __('Starting soon!') ?>
+                                <?php elseif ($hoursUntil == 1): ?>
+                                    <?= __('1 hour') ?>
+                                <?php else: ?>
+                                    <?= $hoursUntil ?> <?= __('hours') ?>
+                                <?php endif; ?>
                             <?php elseif ($daysUntil == 1): ?>
                                 <?= __('Tomorrow') ?>
                             <?php else: ?>
@@ -287,7 +319,7 @@ if (!isset($scheduleByDate)) {
                     <div class="schedule-day-header">
                         <?php
                         $dateObj = \Cake\I18n\DateTime::parse($date);
-                        echo $dateObj->format('l, F j, Y');
+                        echo $this->Timezone->format($dateObj, $gathering, 'l, F j, Y');
                         ?>
                     </div>
 
@@ -296,9 +328,9 @@ if (!isset($scheduleByDate)) {
                             <div class="schedule-event-item">
                                 <div class="schedule-time-badge">
                                     <i class="bi bi-clock"></i>
-                                    <?= $activity->start_datetime->format('g:i A') ?>
+                                    <?= $this->Timezone->format($activity->start_datetime, 'g:i A', false, null, $gathering) ?>
                                     <?php if ($activity->end_datetime): ?>
-                                        - <?= $activity->end_datetime->format('g:i A') ?>
+                                        - <?= $this->Timezone->format($activity->end_datetime, 'g:i A', false, null, $gathering) ?>
                                     <?php endif; ?>
                                 </div>
                                 <div class="schedule-event-content">

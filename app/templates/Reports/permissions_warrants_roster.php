@@ -59,7 +59,7 @@ $compareDate = new Date($validOn)
                             <td><?= h($assignment->street_address) ?>, <?= h($assignment->city) ?>,
                                 <?= h($assignment->state) ?> <?= h($assignment->zip) ?> </td>
                             <td><?= h($assignment->membership_number) ?></td>
-                            <td><?= h($assignment->membership_expires_on) ?></td>
+                            <td><?= $this->Timezone->format($assignment->membership_expires_on, null, null, \IntlDateFormatter::SHORT) ?></td>
                         </tr>
                     <?php endif; ?>
                 <?php endforeach; ?>

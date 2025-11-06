@@ -36,8 +36,8 @@ $this->KMP->endBlock(); ?>
     <tbody>
         <?php foreach ($warrantPeriods as $warrantPeriod) : ?>
             <tr>
-                <td><?= h($warrantPeriod->start_date) ?></td>
-                <td><?= h($warrantPeriod->end_date) ?></td>
+                <td><?= $warrantPeriod->start_date ? $this->Timezone->format($warrantPeriod->start_date, 'Y-m-d', false) : '-' ?></td>
+                <td><?= $warrantPeriod->end_date ? $this->Timezone->format($warrantPeriod->end_date, 'Y-m-d', false) : '-' ?></td>
                 <td class="actions text-end text-nowrap">
                     <?= $this->Form->postLink(
                         __("Delete"),

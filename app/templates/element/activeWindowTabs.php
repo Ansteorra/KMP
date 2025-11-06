@@ -151,9 +151,9 @@ if (!$selected) {
                                                 <td class="align-middle"><?php
 
                                                                             $record = StaticHelpers::getValue($value, $processData);
-                                                                            //if the value is a DateTime then call ->toDateString() on it
+                                                                            //if the value is a DateTime then use Timezone->format() on it
                                                                             if ($record instanceof Cake\I18n\DateTime) {
-                                                                                echo $record->toDateString();
+                                                                                echo $this->Timezone->format($record, null, 'Y-m-d');
                                                                             } elseif (is_string($value) && strpos($value, "{{") !== false) {
                                                                                 echo StaticHelpers::processTemplate($value, $processData);
                                                                             } else {

@@ -72,7 +72,8 @@ echo $this->KMP->startBlock("pageTitle") ?>
     <td><?= h($recommendation->state) ?>
         <?php
         if ($recommendation->given != null) :
-            $given =  h($recommendation->given->toFormattedDateString());
+            // Format as date only (no timezone conversion) since it's stored as midnight UTC
+            $given = $recommendation->given->format('F j, Y');
             echo " at " . h($recommendation->assigned_gathering->name) . "  on " . $given;
         endif;
         if ($recommendation->assigned_gathering && $recommendation->given == null):

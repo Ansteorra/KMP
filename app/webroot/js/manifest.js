@@ -14,13 +14,16 @@
 /******/ 		}
 /******/ 		// Create a new module (and put it into the cache)
 /******/ 		var module = __webpack_module_cache__[moduleId] = {
-/******/ 			// no module.id needed
-/******/ 			// no module.loaded needed
+/******/ 			id: moduleId,
+/******/ 			loaded: false,
 /******/ 			exports: {}
 /******/ 		};
 /******/ 	
 /******/ 		// Execute the module function
 /******/ 		__webpack_modules__[moduleId].call(module.exports, module, module.exports, __webpack_require__);
+/******/ 	
+/******/ 		// Flag the module as loaded
+/******/ 		module.loaded = true;
 /******/ 	
 /******/ 		// Return the exports of the module
 /******/ 		return module.exports;
@@ -100,6 +103,21 @@
 /******/ 		})();
 /******/ 	}();
 /******/ 	
+/******/ 	/* webpack/runtime/harmony module decorator */
+/******/ 	!function() {
+/******/ 		__webpack_require__.hmd = function(module) {
+/******/ 			module = Object.create(module);
+/******/ 			if (!module.children) module.children = [];
+/******/ 			Object.defineProperty(module, 'exports', {
+/******/ 				enumerable: true,
+/******/ 				set: function() {
+/******/ 					throw new Error('ES Modules may not assign module.exports or exports.*, Use ESM export syntax, instead: ' + module.id);
+/******/ 				}
+/******/ 			});
+/******/ 			return module;
+/******/ 		};
+/******/ 	}();
+/******/ 	
 /******/ 	/* webpack/runtime/hasOwnProperty shorthand */
 /******/ 	!function() {
 /******/ 		__webpack_require__.o = function(obj, prop) { return Object.prototype.hasOwnProperty.call(obj, prop); }
@@ -126,12 +144,11 @@
 /******/ 		var installedChunks = {
 /******/ 			"/js/manifest": 0,
 /******/ 			"css/app": 0,
-/******/ 			"css/gatherings_public": 0,
+/******/ 			"css/waivers": 0,
 /******/ 			"css/dashboard": 0,
 /******/ 			"css/cover": 0,
 /******/ 			"css/signin": 0,
-/******/ 			"css/waiver-upload": 0,
-/******/ 			"css/waivers": 0
+/******/ 			"css/waiver-upload": 0
 /******/ 		};
 /******/ 		
 /******/ 		// no chunk on demand loading

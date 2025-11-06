@@ -75,7 +75,7 @@ $compareDate = new Date($validOn)
             <?php if (($officer->member->membership_expires_on < $compareDate  && !$hide) || ($officer->member->membership_expires_on > $compareDate)) : ?>
             <td><?= h($officer->branch->name) ?></td>
             <td><?= h($officer->office->name) ?>
-            <td><?= h($officer->expires_on_to_string)?>
+            <td><?= $this->Timezone->format($officer->expires_on, null, 'M d, Y') ?>
                 <?= $officer->deputy_description != null ? ": " . $officer->deputy_description : "" ?></td>
             <td><?= h($officer->member->sca_name) ?></td>
             <td><?= h($officer->member->first_name) ?> <?= h($officer->member->last_name) ?></td>
@@ -85,7 +85,7 @@ $compareDate = new Date($validOn)
                 <?= h($officer->member->state) ?> <?= h($officer->member->zip) ?> </td>
             <td><?= h($officer->member->membership_number) ?></td>
             <td>
-                <?= $officer->member->membership_expires_on ? h($officer->member->membership_expires_on_to_string) : "N/A" ?>
+                <?= $officer->member->membership_expires_on ? $officer->member->membership_expires_on->format('M d, Y') : "N/A" ?>
                 <?php if ($officer->member->membership_expires_on < $compareDate) : ?>
                 <span class="badge rounded-pill text-bg-warning" data-bs-toggle="tooltip"
                     data-bs-title="Member will be expired by this date!">!</span>
@@ -98,16 +98,17 @@ $compareDate = new Date($validOn)
                                             $officer->member->warrantable,
                                             $this->Html,
                                             ['data-bs-toggle' => "tooltip", 'data-bs-title' => $reasons],
-                                        ) ?></td>
-            <?php else : ?>
-            <?= $this->Kmp->bool(
+                                        ) ?>
+                <?php else : ?>
+                <?= $this->Kmp->bool(
                                             $officer->member->warrantable,
                                             $this->Html,
                                         ) ?>
-            <?php endif; ?>
+                <?php endif; ?>
+            </td>
             <td>
 
-                <?= $officer->current_warrant ? h($officer->current_warrant->expires_on_to_string) : "No Warrant" ?>
+                <?= $officer->current_warrant ? $this->Timezone->format($officer->current_warrant->expires_on, null, 'M d, Y') : "No Warrant" ?>
                 <?php if (($officer->office->requires_warrant && (
                                         !$officer->member->warrantable
                                         || $officer->current_warrant == null
@@ -120,7 +121,7 @@ $compareDate = new Date($validOn)
                                         elseif ($officer->current_warrant->expires_on->toNative() > $officer->member->membership_expires_on->toNative()) :
                                             $message[] = "Membership Expires Before Warrant";
                                         endif;
-                            ?>
+                                ?>
                 <span class="badge rounded-pill text-bg-warning" data-bs-toggle="tooltip"
                     data-bs-title="<?= implode(' ,', $message) ?>">!</span>
                 <?php endif; ?>

@@ -9,16 +9,31 @@
 
 use Cake\I18n\DateTime;
 use Cake\I18n\Date;
+use App\KMP\TimezoneHelper;
 
-$today = Date::now(); // Get today's date (without time component)
-
-// Separate upcoming and past gatherings
+// Get today's date in the gathering's timezone for accurate comparison
+// We need to compare dates in the gathering's local timezone, not UTC
 $upcomingAttendances = [];
 $pastAttendances = [];
 
 foreach ($member->gathering_attendances as $attendance) {
-    // A gathering is "upcoming" if its end date is today or in the future
-    if ($attendance->gathering->end_date >= $today) {
+    // Skip if gathering has no end date
+    if ($attendance->gathering->end_date === null) {
+        continue;
+    }
+
+    // Get the gathering's timezone
+    $gatheringTimezone = TimezoneHelper::getGatheringTimezone($attendance->gathering, $member);
+
+    // Get current date/time in the gathering's timezone
+    $nowInGatheringTz = TimezoneHelper::toUserTimezone(DateTime::now(), null, $gatheringTimezone);
+
+    // Convert gathering end date to the gathering's timezone for comparison
+    $endDateInGatheringTz = TimezoneHelper::toUserTimezone($attendance->gathering->end_date, null, $gatheringTimezone);
+
+    // A gathering is "upcoming" if its end date (in gathering's timezone) hasn't passed yet
+    // Compare just the dates to determine if event is today or in the future
+    if ($endDateInGatheringTz && $endDateInGatheringTz->format('Y-m-d') >= $nowInGatheringTz->format('Y-m-d')) {
         $upcomingAttendances[] = $attendance;
     } else {
         $pastAttendances[] = $attendance;
@@ -32,25 +47,23 @@ $canManage = $canManageOwn || $canManageOthers;
 
 <div class="gathering-attendances">
     <?php if ($canManage): ?>
-        <div class="mb-3">
-            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
-                data-bs-target="#addGatheringAttendanceModal">
-                <i class="bi bi-plus-circle"></i> Register for Gathering
-            </button>
-        </div>
+    <div class="mb-3">
+        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
+            data-bs-target="#addGatheringAttendanceModal">
+            <i class="bi bi-plus-circle"></i> RSVP for Gathering
+        </button>
+    </div>
     <?php endif; ?>
 
     <ul class="nav nav-tabs" id="attendanceTabs" role="tablist">
         <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="upcoming-tab" data-bs-toggle="tab"
-                data-bs-target="#upcoming" type="button" role="tab"
-                aria-controls="upcoming" aria-selected="true">
+            <button class="nav-link active" id="upcoming-tab" data-bs-toggle="tab" data-bs-target="#upcoming"
+                type="button" role="tab" aria-controls="upcoming" aria-selected="true">
                 Upcoming (<?= count($upcomingAttendances) ?>)
             </button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="past-tab" data-bs-toggle="tab"
-                data-bs-target="#past" type="button" role="tab"
+            <button class="nav-link" id="past-tab" data-bs-toggle="tab" data-bs-target="#past" type="button" role="tab"
                 aria-controls="past" aria-selected="false">
                 Past (<?= count($pastAttendances) ?>)
             </button>
@@ -61,46 +74,47 @@ $canManage = $canManageOwn || $canManageOthers;
         <!-- Upcoming Gatherings Tab -->
         <div class="tab-pane fade show active" id="upcoming" role="tabpanel" aria-labelledby="upcoming-tab">
             <?php if (empty($upcomingAttendances)): ?>
-                <div class="alert alert-info mt-3">
-                    No upcoming gatherings registered.
-                </div>
+            <div class="alert alert-info mt-3">
+                No upcoming gatherings registered.
+            </div>
             <?php else: ?>
-                <div class="table-responsive mt-3">
-                    <table class="table table-striped">
-                        <thead>
-                            <tr>
-                                <th>Gathering</th>
-                                <th>Branch</th>
-                                <th>Type</th>
-                                <th>Date</th>
-                                <th>Note</th>
-                                <th>Sharing</th>
-                                <?php if ($canManage): ?>
-                                    <th>Actions</th>
-                                <?php endif; ?>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($upcomingAttendances as $attendance): ?>
-                                <tr>
-                                    <td>
-                                        <?= $this->Html->link(
+            <div class="table-responsive mt-3">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Gathering</th>
+                            <th>Branch</th>
+                            <th>Type</th>
+                            <th>Date</th>
+                            <th>Note</th>
+                            <th>Sharing</th>
+                            <?php if ($canManage): ?>
+                            <th>Actions</th>
+                            <?php endif; ?>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($upcomingAttendances as $attendance): ?>
+                        <tr>
+                            <td>
+                                <?= $this->Html->link(
                                             h($attendance->gathering->name),
                                             ['controller' => 'Gatherings', 'action' => 'view', $attendance->gathering->public_id]
                                         ) ?>
-                                    </td>
-                                    <td><?= h($attendance->gathering->branch->name) ?></td>
-                                    <td><?= h($attendance->gathering->gathering_type->name) ?></td>
-                                    <td>
-                                        <?= $attendance->gathering->start_date->format('M d, Y') ?>
-                                        <?php if ($attendance->gathering->end_date != $attendance->gathering->start_date): ?>
-                                            - <?= $attendance->gathering->end_date->format('M d, Y') ?>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td><?= h($attendance->public_note) ?></td>
-                                    <td>
-                                        <small>
-                                            <?php
+                            </td>
+                            <td><?= h($attendance->gathering->branch->name) ?></td>
+                            <td><?= h($attendance->gathering->gathering_type->name) ?></td>
+                            <td>
+                                <?= $this->Timezone->format($attendance->gathering->start_date, $attendance->gathering, 'M d, Y') ?>
+                                <?php if ($attendance->gathering->end_date != $attendance->gathering->start_date): ?>
+                                -
+                                <?= $this->Timezone->format($attendance->gathering->end_date, $attendance->gathering, 'M d, Y') ?>
+                                <?php endif; ?>
+                            </td>
+                            <td><?= h($attendance->public_note) ?></td>
+                            <td>
+                                <small>
+                                    <?php
                                             $sharing = [];
                                             if ($attendance->share_with_kingdom) $sharing[] = 'Kingdom';
                                             if ($attendance->share_with_hosting_group) $sharing[] = 'Hosting Group';
@@ -108,23 +122,22 @@ $canManage = $canManageOwn || $canManageOthers;
                                             if ($attendance->is_public) $sharing[] = 'Public';
                                             echo !empty($sharing) ? implode(', ', $sharing) : 'Not shared';
                                             ?>
-                                        </small>
-                                    </td>
-                                    <?php if ($canManage): ?>
-                                        <td>
-                                            <button type="button" class="btn btn-sm btn-secondary"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#editGatheringAttendanceModal"
-                                                data-attendance-id="<?= $attendance->id ?>"
-                                                data-gathering-name="<?= h($attendance->gathering->name) ?>"
-                                                data-public-note="<?= h($attendance->public_note) ?>"
-                                                data-share-kingdom="<?= $attendance->share_with_kingdom ? '1' : '0' ?>"
-                                                data-share-hosting="<?= $attendance->share_with_hosting_group ? '1' : '0' ?>"
-                                                data-share-crown="<?= $attendance->share_with_crown ? '1' : '0' ?>"
-                                                data-is-public="<?= $attendance->is_public ? '1' : '0' ?>">
-                                                <i class="bi bi-pencil"></i>
-                                            </button>
-                                            <?= $this->Form->postLink(
+                                </small>
+                            </td>
+                            <?php if ($canManage): ?>
+                            <td>
+                                <button type="button" class="btn btn-sm btn-secondary" data-bs-toggle="modal"
+                                    data-bs-target="#editGatheringAttendanceModal"
+                                    data-attendance-id="<?= $attendance->id ?>"
+                                    data-gathering-name="<?= h($attendance->gathering->name) ?>"
+                                    data-public-note="<?= h($attendance->public_note) ?>"
+                                    data-share-kingdom="<?= $attendance->share_with_kingdom ? '1' : '0' ?>"
+                                    data-share-hosting="<?= $attendance->share_with_hosting_group ? '1' : '0' ?>"
+                                    data-share-crown="<?= $attendance->share_with_crown ? '1' : '0' ?>"
+                                    data-is-public="<?= $attendance->is_public ? '1' : '0' ?>">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <?= $this->Form->postLink(
                                                 '<i class="bi bi-trash"></i>',
                                                 ['controller' => 'GatheringAttendances', 'action' => 'delete', $attendance->id],
                                                 [
@@ -133,56 +146,57 @@ $canManage = $canManageOwn || $canManageOthers;
                                                     'escape' => false
                                                 ]
                                             ) ?>
-                                        </td>
-                                    <?php endif; ?>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
+                            </td>
+                            <?php endif; ?>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
             <?php endif; ?>
         </div>
 
         <!-- Past Gatherings Tab -->
         <div class="tab-pane fade" id="past" role="tabpanel" aria-labelledby="past-tab">
             <?php if (empty($pastAttendances)): ?>
-                <div class="alert alert-info mt-3">
-                    No past gatherings on record.
-                </div>
+            <div class="alert alert-info mt-3">
+                No past gatherings on record.
+            </div>
             <?php else: ?>
-                <div class="table-responsive mt-3">
-                    <table class="table table-striped">
-                        <thead>
-                            <tr>
-                                <th>Gathering</th>
-                                <th>Branch</th>
-                                <th>Type</th>
-                                <th>Date</th>
-                                <th>Note</th>
-                                <th>Sharing</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($pastAttendances as $attendance): ?>
-                                <tr>
-                                    <td>
-                                        <?= $this->Html->link(
+            <div class="table-responsive mt-3">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Gathering</th>
+                            <th>Branch</th>
+                            <th>Type</th>
+                            <th>Date</th>
+                            <th>Note</th>
+                            <th>Sharing</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($pastAttendances as $attendance): ?>
+                        <tr>
+                            <td>
+                                <?= $this->Html->link(
                                             h($attendance->gathering->name),
                                             ['controller' => 'Gatherings', 'action' => 'view', $attendance->gathering->public_id]
                                         ) ?>
-                                    </td>
-                                    <td><?= h($attendance->gathering->branch->name) ?></td>
-                                    <td><?= h($attendance->gathering->gathering_type->name) ?></td>
-                                    <td>
-                                        <?= $attendance->gathering->start_date->format('M d, Y') ?>
-                                        <?php if ($attendance->gathering->end_date != $attendance->gathering->start_date): ?>
-                                            - <?= $attendance->gathering->end_date->format('M d, Y') ?>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td><?= h($attendance->public_note) ?></td>
-                                    <td>
-                                        <small>
-                                            <?php
+                            </td>
+                            <td><?= h($attendance->gathering->branch->name) ?></td>
+                            <td><?= h($attendance->gathering->gathering_type->name) ?></td>
+                            <td>
+                                <?= $this->Timezone->format($attendance->gathering->start_date, $attendance->gathering, 'M d, Y') ?>
+                                <?php if ($attendance->gathering->end_date != $attendance->gathering->start_date): ?>
+                                -
+                                <?= $this->Timezone->format($attendance->gathering->end_date, $attendance->gathering, 'M d, Y') ?>
+                                <?php endif; ?>
+                            </td>
+                            <td><?= h($attendance->public_note) ?></td>
+                            <td>
+                                <small>
+                                    <?php
                                             $sharing = [];
                                             if ($attendance->share_with_kingdom) $sharing[] = 'Kingdom';
                                             if ($attendance->share_with_hosting_group) $sharing[] = 'Hosting Group';
@@ -190,13 +204,13 @@ $canManage = $canManageOwn || $canManageOthers;
                                             if ($attendance->is_public) $sharing[] = 'Public';
                                             echo !empty($sharing) ? implode(', ', $sharing) : 'Not shared';
                                             ?>
-                                        </small>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
+                                </small>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
             <?php endif; ?>
         </div>
     </div>

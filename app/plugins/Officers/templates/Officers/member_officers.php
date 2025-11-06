@@ -57,8 +57,8 @@ $currentAndUpcomingTemplate = [
     "Branch" => "{{branch->name}}",
     "Contact" => "<a href='mailto:{{email_address}}'>{{email_address}}</a>",
     "Warrant Expires" => "warrant_state",
-    "Start Date" => "start_on_to_string",
-    "End Date" => "expires_on_to_string",
+    "Start Date" => "start_on",
+    "End Date" => "expires_on",
     "Reports To" => "reports_to_list",
     "Actions" => [
         $editTemplate,
@@ -69,8 +69,8 @@ $currentAndUpcomingTemplate = [
 $previousTemplate = [
     "Office" => "{{office->name}}{{: (deputy_description) }}",
     "Branch" => "{{branch->name}}",
-    "Start Date" => "start_on_to_string",
-    "End Date" => "expires_on_to_string",
+    "Start Date" => "start_on",
+    "End Date" => "expires_on",
     "Reason" => "revoked_reason",
 ];
 

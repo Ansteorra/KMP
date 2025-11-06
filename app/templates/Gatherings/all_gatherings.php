@@ -67,11 +67,11 @@ $formattedGatherings = [];
 foreach ($gatherings as $gathering) {
     $formattedGathering = $gathering;
 
-    // Format dates for display
+    // Format dates for display in gathering's timezone
     $formattedGathering->start_date_formatted = $gathering->start_date ?
-        $gathering->start_date->format('Y-m-d') : '-';
+        $this->Timezone->format($gathering->start_date, 'Y-m-d', $gathering) : '-';
     $formattedGathering->end_date_formatted = $gathering->end_date ?
-        $gathering->end_date->format('Y-m-d') : '-';
+        $this->Timezone->format($gathering->end_date, 'Y-m-d', $gathering) : '-';
 
     // Calculate activity count
     $formattedGathering->activity_count = !empty($gathering->gathering_activities) ?

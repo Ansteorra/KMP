@@ -32,8 +32,8 @@ $columnTemplate = [
     "Authorization" => "activity->name",
 ];
 if ($state == "current") {
-    $columnTemplate["Start Date"] = "start_on_to_string";
-    $columnTemplate["End Date"] = "expires_on_to_string";
+    $columnTemplate["Start Date"] = "formatted_start_on";
+    $columnTemplate["End Date"] = "formatted_expires_on";
     $columnTemplate["Actions"] = [
         $renewButton,
         $revokeButton
@@ -44,9 +44,19 @@ if ($state == "pending") {
     $columnTemplate["Assigned To"] = "current_pending_approval->approver->sca_name";
 }
 if ($state == "previous") {
-    $columnTemplate["Start Date"] = "start_on_to_string";
-    $columnTemplate["End Date"] = "expires_on_to_string";
+    $columnTemplate["Start Date"] = "formatted_start_on";
+    $columnTemplate["End Date"] = "formatted_expires_on";
     $columnTemplate["Reason"] = "revoked_reason";
+}
+
+// Format Date objects for display
+foreach ($authorizations as $authorization) {
+    $authorization->formatted_start_on = $authorization->start_on
+        ? $this->Timezone->format($authorization->start_on, 'Y-m-d', false)
+        : '-';
+    $authorization->formatted_expires_on = $authorization->expires_on
+        ? $this->Timezone->format($authorization->expires_on, 'Y-m-d', false)
+        : '-';
 }
 
 $tableData = [

@@ -19,8 +19,8 @@
     style="order: 4;"
     data-controller="gathering-schedule"
     data-gathering-schedule-gathering-id-value="<?= $gathering->public_id ?>"
-    data-gathering-schedule-gathering-start-value="<?= $gathering->start_date->format('Y-m-d') ?>"
-    data-gathering-schedule-gathering-end-value="<?= $gathering->end_date->format('Y-m-d') ?>"
+    data-gathering-schedule-gathering-start-value="<?= $this->Timezone->format($gathering->start_date, 'Y-m-d\TH:i', false, null, $gathering) ?>"
+    data-gathering-schedule-gathering-end-value="<?= $this->Timezone->format($gathering->end_date, 'Y-m-d\TH:i', false, null, $gathering) ?>"
     data-gathering-schedule-add-url-value="<?= $this->Url->build(['action' => 'addScheduledActivity', $gathering->public_id]) ?>"
     data-gathering-schedule-edit-url-value="<?= $this->Url->build(['action' => 'editScheduledActivity', $gathering->public_id, '__ID__']) ?>"
     data-gathering-schedule-delete-url-value="<?= $this->Url->build(['action' => 'deleteScheduledActivity', $gathering->public_id, '__ID__']) ?>">
@@ -56,10 +56,10 @@
                     <?php foreach ($gathering->gathering_scheduled_activities as $scheduledActivity): ?>
                         <tr>
                             <td class="text-nowrap">
-                                <strong><?= $scheduledActivity->start_datetime->format('D, M j') ?></strong><br>
-                                <?= $scheduledActivity->start_datetime->format('g:i A') ?>
+                                <strong><?= $this->Timezone->format($scheduledActivity->start_datetime, 'D, M j', false, null, $gathering) ?></strong><br>
+                                <?= $this->Timezone->format($scheduledActivity->start_datetime, 'g:i A', false, null, $gathering) ?>
                                 <?php if ($scheduledActivity->end_datetime): ?>
-                                    - <?= $scheduledActivity->end_datetime->format('g:i A') ?>
+                                    - <?= $this->Timezone->format($scheduledActivity->end_datetime, 'g:i A', false, null, $gathering) ?>
                                     <br>
                                     <small class="text-muted">
                                         (<?= number_format($scheduledActivity->duration_hours, 1) ?>
@@ -98,8 +98,8 @@
                                         data-action="click->gathering-schedule#openEditModal"
                                         data-activity-id="<?= $scheduledActivity->id ?>"
                                         data-gathering-activity-id="<?= $scheduledActivity->gathering_activity_id ?>"
-                                        data-start-datetime="<?= $scheduledActivity->start_datetime->format('Y-m-d\TH:i') ?>"
-                                        data-end-datetime="<?= $scheduledActivity->end_datetime ? $scheduledActivity->end_datetime->format('Y-m-d\TH:i') : '' ?>"
+                                        data-start-datetime="<?= $this->Timezone->forInput($scheduledActivity->start_datetime, 'Y-m-d\TH:i', null, $gathering) ?>"
+                                        data-end-datetime="<?= $scheduledActivity->end_datetime ? $this->Timezone->forInput($scheduledActivity->end_datetime, 'Y-m-d\TH:i', null, $gathering) : '' ?>"
                                         data-display-title="<?= h($scheduledActivity->display_title) ?>"
                                         data-description="<?= h($scheduledActivity->description) ?>"
                                         data-pre-register="<?= $scheduledActivity->pre_register ? 'true' : 'false' ?>"

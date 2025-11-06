@@ -27,7 +27,7 @@
                 <td><?= $warrantRoster->approval_count === null ? '' : $this->Number->format($warrantRoster->approval_count) ?>
                 </td>
                 <td><?= h($warrantRoster->status) ?></td>
-                <td><?= h($warrantRoster->created->toDateString()) ?></td>
+                <td><?= $this->Timezone->format($warrantRoster->created, null, null, \IntlDateFormatter::SHORT) ?></td>
                 <td><?= $warrantRoster->created_by_member === null ? '' : $warrantRoster->created_by_member->sca_name ?>
                 </td>
                 <td class="actions text-end text-nowrap">

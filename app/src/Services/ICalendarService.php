@@ -35,6 +35,15 @@ class ICalendarService
         $lines[] = 'CALSCALE:GREGORIAN';
         $lines[] = 'METHOD:PUBLISH';
 
+        // Determine timezone for the event
+        // Priority: gathering timezone > UTC fallback
+        $timezone = !empty($gathering->timezone) ? $gathering->timezone : 'UTC';
+
+        // Add VTIMEZONE component for non-UTC timezones
+        if ($timezone !== 'UTC') {
+            $lines = array_merge($lines, $this->generateVTimezone($timezone));
+        }
+
         // Begin event
         $lines[] = 'BEGIN:VEVENT';
 
@@ -46,23 +55,18 @@ class ICalendarService
         $now = DateTime::now();
         $lines[] = 'DTSTAMP:' . $this->formatDateTime($now);
 
-        // Event dates
-        // For multi-day events, use DATE format (all-day event)
-        // For single-day events, use DATETIME format
-        if ($gathering->is_multi_day) {
-            // All-day event format (DATE value type)
-            // Note: End date is exclusive in iCalendar, so we add 1 day
-            $endDate = $gathering->end_date->modify('+1 day');
-            $lines[] = 'DTSTART;VALUE=DATE:' . $gathering->start_date->format('Ymd');
-            $lines[] = 'DTEND;VALUE=DATE:' . $endDate->format('Ymd');
+        // Convert UTC stored dates to gathering's timezone for proper display
+        $startInTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->start_date, null, null, $gathering);
+        $endInTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->end_date, null, null, $gathering);
+
+        // Event dates - use full date-time format with timezone
+        if ($timezone !== 'UTC') {
+            $lines[] = 'DTSTART;TZID=' . $timezone . ':' . $startInTz->format('Ymd\THis');
+            $lines[] = 'DTEND;TZID=' . $timezone . ':' . $endInTz->format('Ymd\THis');
         } else {
-            // Single day event - use full date-time format
-            // Set to 9 AM start, 9 PM end as defaults
-            // Create DateTime instances from the date values
-            $startDateTime = new DateTime($gathering->start_date->format('Y-m-d') . ' 09:00:00');
-            $endDateTime = new DateTime($gathering->end_date->format('Y-m-d') . ' 21:00:00');
-            $lines[] = 'DTSTART:' . $this->formatDateTime($startDateTime);
-            $lines[] = 'DTEND:' . $this->formatDateTime($endDateTime);
+            // For UTC, use the Z suffix format
+            $lines[] = 'DTSTART:' . $this->formatDateTime($gathering->start_date);
+            $lines[] = 'DTEND:' . $this->formatDateTime($gathering->end_date);
         }
 
         // Event title
@@ -130,6 +134,17 @@ class ICalendarService
         // Branch
         if (!empty($gathering->branch)) {
             $parts[] = 'Hosted by: ' . $gathering->branch->name;
+        }
+
+        // Show formatted date/time in gathering's timezone
+        if (!empty($gathering->timezone)) {
+            $startInTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->start_date, null, null, $gathering);
+            $endInTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->end_date, null, null, $gathering);
+
+            $parts[] = '';
+            $parts[] = 'Start: ' . $startInTz->format('l, F j, Y g:i A T');
+            $parts[] = 'End: ' . $endInTz->format('l, F j, Y g:i A T');
+            $parts[] = 'Timezone: ' . $gathering->timezone;
         }
 
         // Description
@@ -275,5 +290,131 @@ class ICalendarService
         $name = trim($name, '-');
 
         return strtolower($name) . '-' . $gathering->start_date->format('Y-m-d');
+    }
+
+    /**
+     * Generate VTIMEZONE component for a given timezone
+     *
+     * This creates a simplified VTIMEZONE component for iCalendar files.
+     * Modern calendar applications can usually handle TZID references without
+     * the full VTIMEZONE definition, but including it ensures maximum compatibility.
+     *
+     * @param string $timezoneId IANA timezone identifier (e.g., 'America/Chicago')
+     * @return array Array of iCalendar lines for the VTIMEZONE component
+     */
+    protected function generateVTimezone(string $timezoneId): array
+    {
+        $lines = [];
+
+        try {
+            $tz = new \DateTimeZone($timezoneId);
+
+            // Get transitions for the current year and next year to handle DST properly
+            $now = new \DateTime('now', $tz);
+            $startOfYear = new \DateTime('first day of january this year', $tz);
+            $endOfNextYear = new \DateTime('last day of december next year', $tz);
+
+            $transitions = $tz->getTransitions(
+                $startOfYear->getTimestamp(),
+                $endOfNextYear->getTimestamp()
+            );
+
+            if (empty($transitions)) {
+                // No transitions (no DST), create a simple STANDARD component
+                $offset = $tz->getOffset($now);
+                $offsetStr = $this->formatTimezoneOffset($offset);
+
+                $lines[] = 'BEGIN:VTIMEZONE';
+                $lines[] = 'TZID:' . $timezoneId;
+                $lines[] = 'BEGIN:STANDARD';
+                $lines[] = 'DTSTART:19700101T000000';
+                $lines[] = 'TZOFFSETFROM:' . $offsetStr;
+                $lines[] = 'TZOFFSETTO:' . $offsetStr;
+                $lines[] = 'END:STANDARD';
+                $lines[] = 'END:VTIMEZONE';
+            } else {
+                // Has DST transitions
+                $lines[] = 'BEGIN:VTIMEZONE';
+                $lines[] = 'TZID:' . $timezoneId;
+
+                // Group transitions by DST status
+                $standard = null;
+                $daylight = null;
+
+                foreach ($transitions as $i => $transition) {
+                    if ($i === 0) {
+                        continue; // Skip the first entry (it's a reference point)
+                    }
+
+                    $dt = new \DateTime($transition['time']);
+                    $isDst = $transition['isdst'];
+                    $offset = $transition['offset'];
+                    $prevOffset = $transitions[$i - 1]['offset'];
+
+                    if ($isDst && $daylight === null) {
+                        $daylight = [
+                            'dtstart' => $dt->format('Ymd\THis'),
+                            'offsetfrom' => $this->formatTimezoneOffset($prevOffset),
+                            'offsetto' => $this->formatTimezoneOffset($offset),
+                            'tzname' => $transition['abbr']
+                        ];
+                    } elseif (!$isDst && $standard === null) {
+                        $standard = [
+                            'dtstart' => $dt->format('Ymd\THis'),
+                            'offsetfrom' => $this->formatTimezoneOffset($prevOffset),
+                            'offsetto' => $this->formatTimezoneOffset($offset),
+                            'tzname' => $transition['abbr']
+                        ];
+                    }
+                }
+
+                // Add STANDARD component
+                if ($standard) {
+                    $lines[] = 'BEGIN:STANDARD';
+                    $lines[] = 'DTSTART:' . $standard['dtstart'];
+                    $lines[] = 'TZOFFSETFROM:' . $standard['offsetfrom'];
+                    $lines[] = 'TZOFFSETTO:' . $standard['offsetto'];
+                    $lines[] = 'TZNAME:' . $standard['tzname'];
+                    $lines[] = 'END:STANDARD';
+                }
+
+                // Add DAYLIGHT component
+                if ($daylight) {
+                    $lines[] = 'BEGIN:DAYLIGHT';
+                    $lines[] = 'DTSTART:' . $daylight['dtstart'];
+                    $lines[] = 'TZOFFSETFROM:' . $daylight['offsetfrom'];
+                    $lines[] = 'TZOFFSETTO:' . $daylight['offsetto'];
+                    $lines[] = 'TZNAME:' . $daylight['tzname'];
+                    $lines[] = 'END:DAYLIGHT';
+                }
+
+                $lines[] = 'END:VTIMEZONE';
+            }
+        } catch (\Exception $e) {
+            // If timezone generation fails, return empty array
+            // The calendar will fall back to UTC
+            return [];
+        }
+
+        return $lines;
+    }
+
+    /**
+     * Format timezone offset for iCalendar TZOFFSET* properties
+     *
+     * Converts seconds offset to ±HHMM format
+     *
+     * @param int $offsetSeconds Offset in seconds from UTC
+     * @return string Formatted offset (e.g., '+0500', '-0600')
+     */
+    protected function formatTimezoneOffset(int $offsetSeconds): string
+    {
+        $hours = intdiv($offsetSeconds, 3600);
+        $minutes = abs(intdiv($offsetSeconds % 3600, 60));
+
+        $sign = $offsetSeconds >= 0 ? '+' : '-';
+        $absHours = abs($hours);
+
+        return sprintf('%s%02d%02d', $sign, $absHours, $minutes);
     }
 }

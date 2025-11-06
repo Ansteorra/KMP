@@ -31,8 +31,8 @@ $today = new Date();
     <td lass="col-10">
         <?php if ($member->membership_number != null && strlen($member->membership_number) > 0) { ?>
             <?= h($member->membership_number) ?> Exp:
-            <?= h($member->membership_expires_on) ?>
-            <?php if ($member->membership_expires_on < $today) : ?>
+            <?= $member->membership_expires_on ? $this->Timezone->format($member->membership_expires_on, 'Y-m-d', false) : 'N/A' ?>
+            <?php if ($member->membership_expires_on && $member->membership_expires_on < $today) : ?>
                 <span class="badge text-bg-warning">Expired</span> - <a href="https://sca.app.neoncrm.com/login"> log into SCA
                     portal to renew your membership</a>
             <?php endif; ?>
@@ -89,13 +89,11 @@ $today = new Date();
     </tr>
     <tr scope="row">
         <th class="col"><?= __("Background Exp.") ?></th>
-        <td lass="col-10"><?= h(
-                                $member->background_check_expires_on,
-                            ) ?></td>
+        <td lass="col-10"><?= $member->background_check_expires_on ? $this->Timezone->format($member->background_check_expires_on, 'Y-m-d', false) : '' ?></td>
     </tr>
     <tr scope="row">
         <th class="col"><?= __("Last Login") ?></th>
-        <td lass="col-10"><?= $member->last_login ?></td>
+        <td lass="col-10"><?= $member->last_login ? $this->Timezone->format($member->last_login, 'F j, Y g:i A', true) : 'Never' ?></td>
     </tr>
     <tr scope="row">
         <th class="col"><?= __("Status") ?></th>
