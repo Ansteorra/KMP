@@ -356,7 +356,7 @@ return $datetime->setTimezone(new DateTimeZone($timezone));
 * Used when receiving user input that's in their local timezone
 *
 * @param \Cake\I18n\DateTime|string|null $datetime Datetime in source timezone this field should not be timezone aware
-as it should be a user input.
+* as it should be a user input.
 * @param string|null $sourceTimezone Source timezone (defaults to user timezone)
 * @param \App\Model\Entity\Member|array|null $member Member for timezone resolution
 * @return \Cake\I18n\DateTime|null Datetime converted to UTC or null if input is null
