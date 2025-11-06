@@ -17,6 +17,11 @@ $upcomingAttendances = [];
 $pastAttendances = [];
 
 foreach ($member->gathering_attendances as $attendance) {
+    // Skip if gathering has no end date
+    if ($attendance->gathering->end_date === null) {
+        continue;
+    }
+
     // Get the gathering's timezone
     $gatheringTimezone = TimezoneHelper::getGatheringTimezone($attendance->gathering, $member);
 
@@ -28,7 +33,7 @@ foreach ($member->gathering_attendances as $attendance) {
 
     // A gathering is "upcoming" if its end date (in gathering's timezone) hasn't passed yet
     // Compare just the dates to determine if event is today or in the future
-    if ($endDateInGatheringTz->format('Y-m-d') >= $nowInGatheringTz->format('Y-m-d')) {
+    if ($endDateInGatheringTz && $endDateInGatheringTz->format('Y-m-d') >= $nowInGatheringTz->format('Y-m-d')) {
         $upcomingAttendances[] = $attendance;
     } else {
         $pastAttendances[] = $attendance;
