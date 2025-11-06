@@ -698,7 +698,8 @@ class RecommendationsController extends AppController
                 }
 
                 if ($given) {
-                    $updateFields['given'] = new DateTime($given);
+                    // Create DateTime at midnight UTC to preserve the exact date
+                    $updateFields['given'] = new DateTime($given . ' 00:00:00', new \DateTimeZone('UTC'));
                 }
 
                 if ($close_reason) {
