@@ -50,7 +50,7 @@ $canManage = $canManageOwn || $canManageOthers;
     <div class="mb-3">
         <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
             data-bs-target="#addGatheringAttendanceModal">
-            <i class="bi bi-plus-circle"></i> Register for Gathering
+            <i class="bi bi-plus-circle"></i> RSVP for Gathering
         </button>
     </div>
     <?php endif; ?>
