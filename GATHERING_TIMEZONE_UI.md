@@ -183,12 +183,13 @@ $this->Timezone->format($gathering->start_date, 'F j, Y', false, null, $gatherin
 
 ### Database Storage
 
-All dates remain stored as **DATE** type in UTC in the database. The timezone field only affects display and iCalendar generation, not storage.
+All gathering date/time columns are stored as **DATETIME** type in UTC in the database. The timezone field only affects display and iCalendar generation, not storage. Dates are converted from the gathering's timezone to UTC when saving, and from UTC to the gathering's timezone (or user's timezone as fallback) when displaying.
 
 ### Backward Compatibility
 
 - All changes are fully backward compatible
-- Gatherings without timezone continue to work (use user timezone)
+- Migrations converted date columns to DATETIME while preserving data
+- Gatherings without timezone continue to work (use user timezone as fallback)
 - Existing templates work without modification
 - Optional parameter usage maintains existing behavior
 
