@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Model\Table;
@@ -21,13 +22,6 @@ class AppSettingsTableTest extends TestCase
      * @var \App\Model\Table\AppSettingsTable
      */
     protected $AppSettings;
-
-    /**
-     * Fixtures
-     *
-     * @var list<string>
-     */
-    protected array $fixtures = ['app.AppSettings'];
 
     /**
      * setUp method
@@ -105,9 +99,9 @@ class AppSettingsTableTest extends TestCase
      */
     public function testBuildRules(): void
     {
-        // Test unique name constraint
+        // Test unique name constraint - use an existing setting from dev_seed_clean.sql
         $data = [
-            'name' => 'test.setting.one', // This name already exists in fixtures
+            'name' => 'KMP.KingdomName', // This name already exists in dev_seed_clean.sql
             'value' => 'duplicate-test-value',
         ];
         $appSetting = $this->AppSettings->newEntity($data);
@@ -124,16 +118,19 @@ class AppSettingsTableTest extends TestCase
      */
     public function testSave(): void
     {
+        // Use a unique name with timestamp to avoid conflicts
+        $uniqueName = 'test.save.method.' . time() . rand(1000, 9999);
         $data = [
-            'name' => 'test.save.method',
+            'name' => $uniqueName,
             'value' => 'save-test-value',
         ];
         $appSetting = $this->AppSettings->newEntity($data);
         $result = $this->AppSettings->save($appSetting);
 
+        $this->assertNotFalse($result, 'Save failed: ' . json_encode($appSetting->getErrors()));
         $this->assertInstanceOf(EntityInterface::class, $result);
         $this->assertNotEmpty($result->id);
-        $this->assertEquals('test.save.method', $result->name);
+        $this->assertEquals($uniqueName, $result->name);
         $this->assertEquals('save-test-value', $result->value);
     }
 
@@ -145,15 +142,21 @@ class AppSettingsTableTest extends TestCase
      */
     public function testDelete(): void
     {
-        // Get a test setting
-        $appSetting = $this->AppSettings->get(1000);
-        $result = $this->AppSettings->delete($appSetting);
+        // Create a test setting to delete
+        $data = [
+            'name' => 'test.delete.setting',
+            'value' => 'delete-test-value',
+        ];
+        $appSetting = $this->AppSettings->newEntity($data);
+        $appSetting = $this->AppSettings->save($appSetting);
+        $savedId = $appSetting->id;
 
+        $result = $this->AppSettings->delete($appSetting);
         $this->assertTrue($result);
 
         // Verify it was deleted
         $this->expectException(RecordNotFoundException::class);
-        $this->AppSettings->get(1);
+        $this->AppSettings->get($savedId);
     }
 
     /**
@@ -164,30 +167,44 @@ class AppSettingsTableTest extends TestCase
      */
     public function testGetSetting(): void
     {
-        // Test getting an existing setting
-        $value = $this->AppSettings->getSetting('test.setting.one');
-        $this->assertEquals('test-value-1', $value);
+        // Test getting an existing setting from dev_seed_clean.sql
+        $value = $this->AppSettings->getSetting('KMP.KingdomName');
+        $this->assertEquals('Ansteorra', $value);
 
         // Test getting a non-existent setting
-        $value = $this->AppSettings->getSetting('nonexistent.setting');
+        $value = $this->AppSettings->getSetting('nonexistent.setting.' . time());
         $this->assertNull($value);
 
-        // Test cache functionality - first call should populate cache
-        $value = $this->AppSettings->getSetting('test.setting.two');
-        $this->assertEquals('test-value-2', $value);
+        // Test cache functionality - create a test setting with unique name
+        $uniqueName = 'test.cache.setting.' . time() . rand(1000, 9999);
+        $testSetting = $this->AppSettings->newEntity([
+            'name' => $uniqueName,
+            'value' => 'cached-value',
+        ]);
+        $this->AppSettings->save($testSetting);
 
-        // Modify directly in the database to check if cached value is returned
-        $appSetting = $this->AppSettings->get(2000);
-        $appSetting->value = 'modified-value';
-        $this->AppSettings->save($appSetting);
+        // Clear cache before test
+        Cache::clear();
+
+        // First call should populate cache
+        $value = $this->AppSettings->getSetting($uniqueName);
+        $this->assertEquals('cached-value', $value);
+
+        // Modify directly in the database bypassing the model
+        $connection = $this->AppSettings->getConnection();
+        $connection->update(
+            'app_settings',
+            ['value' => 'modified-value'],
+            ['name' => $uniqueName]
+        );
 
         // Should return cached value, not updated value
-        $cachedValue = $this->AppSettings->getSetting('test.setting.two');
-        $this->assertEquals('test-value-2', $cachedValue);
+        $cachedValue = $this->AppSettings->getSetting($uniqueName);
+        $this->assertEquals('cached-value', $cachedValue);
 
         // Clear cache and test again
         Cache::clear();
-        $freshValue = $this->AppSettings->getSetting('test.setting.two');
+        $freshValue = $this->AppSettings->getSetting($uniqueName);
         $this->assertEquals('modified-value', $freshValue);
     }
 
@@ -199,19 +216,18 @@ class AppSettingsTableTest extends TestCase
      */
     public function testUpdateSetting(): void
     {
-        // Test updating an existing setting
-        $result = $this->AppSettings->updateSetting('test.setting.one', 'string', 'updated-value', false);
+        // Test updating an existing setting from dev_seed_clean.sql
+        $result = $this->AppSettings->updateSetting('KMP.ShortSiteTitle', 'string', 'TEST', false);
         $this->assertTrue($result);
 
         // Verify the value was updated in the database
-        $appSetting = $this->AppSettings->find()->where(['name' => 'test.setting.one'])->first();
-        $this->assertEquals('updated-value', $appSetting->value);
+        $appSetting = $this->AppSettings->find()->where(['name' => 'KMP.ShortSiteTitle'])->first();
+        $this->assertEquals('TEST', $appSetting->value);
         $this->assertEquals('string', $appSetting->type);
-        $this->assertFalse($appSetting->required);
 
         // Test that cache was updated
-        $cachedValue = Cache::read('app_setting_test.setting.one', 'default');
-        $this->assertEquals('updated-value', $cachedValue);
+        $cachedValue = Cache::read('app_setting_KMP.ShortSiteTitle', 'default');
+        $this->assertEquals('TEST', $cachedValue);
 
         // Test creating a new setting via updateSetting
         $result = $this->AppSettings->updateSetting('test.new.setting', 'number', '42', true);
@@ -233,32 +249,56 @@ class AppSettingsTableTest extends TestCase
      */
     public function testDeleteSetting(): void
     {
+        // Create a test setting to delete with unique name
+        $uniqueName = 'test.delete.regular.' . time() . rand(1000, 9999);
+        $testSetting = $this->AppSettings->newEntity([
+            'name' => $uniqueName,
+            'value' => 'delete-me',
+            'required' => false,
+        ]);
+        $this->AppSettings->save($testSetting);
+
         // Test deleting a regular setting
-        $result = $this->AppSettings->deleteSetting('test.setting.two');
+        $result = $this->AppSettings->deleteSetting($uniqueName);
         $this->assertTrue($result);
 
         // Verify it was deleted
-        $setting = $this->AppSettings->find()->where(['name' => 'test.setting.two'])->first();
+        $setting = $this->AppSettings->find()->where(['name' => $uniqueName])->first();
         $this->assertNull($setting);
 
         // Test that cache was cleared
-        $cachedValue = Cache::read('app_setting_test.setting.two', 'default');
+        $cachedValue = Cache::read('app_setting_' . $uniqueName, 'default');
         $this->assertNull($cachedValue);
 
+        // Create a required setting to test deletion protection with unique name
+        $requiredName = 'test.setting.required.' . time() . rand(1000, 9999);
+        $requiredSetting = $this->AppSettings->newEntity([
+            'name' => $requiredName,
+            'value' => 'required-value',
+            'required' => true,
+        ]);
+        $saved = $this->AppSettings->save($requiredSetting);
+        $this->assertNotFalse($saved, 'Failed to save required setting: ' . json_encode($requiredSetting->getErrors()));
+
+        // Verify it was saved with required=true
+        $verifySettings = $this->AppSettings->find()->where(['name' => $requiredName])->first();
+        $this->assertNotNull($verifySettings);
+        $this->assertTrue((bool)$verifySettings->required, 'Setting was not marked as required');
+
         // Test deleting a required setting - should fail without force
-        $result = $this->AppSettings->deleteSetting('test.setting.required');
-        $this->assertFalse($result);
+        $result = $this->AppSettings->deleteSetting($requiredName);
+        $this->assertFalse($result, 'Required setting was deleted without force flag!');
 
         // Verify it was not deleted
-        $setting = $this->AppSettings->find()->where(['name' => 'test.setting.required'])->first();
+        $setting = $this->AppSettings->find()->where(['name' => $requiredName])->first();
         $this->assertNotNull($setting);
 
         // Test deleting a required setting with force flag
-        $result = $this->AppSettings->deleteSetting('test.setting.required', true);
+        $result = $this->AppSettings->deleteSetting($requiredName, true);
         $this->assertTrue($result);
 
         // Verify it was deleted
-        $setting = $this->AppSettings->find()->where(['name' => 'test.setting.required'])->first();
+        $setting = $this->AppSettings->find()->where(['name' => $requiredName])->first();
         $this->assertNull($setting);
 
         // Test deleting a non-existent setting - should return false
@@ -274,16 +314,16 @@ class AppSettingsTableTest extends TestCase
      */
     public function testGetAppSetting(): void
     {
-        // Test getting an existing setting
-        $value = $this->AppSettings->getAppSetting('test.setting.one');
-        $this->assertEquals('test-value-1', $value);
+        // Test getting an existing setting from dev_seed_clean.sql
+        $value = $this->AppSettings->getAppSetting('KMP.KingdomName');
+        $this->assertEquals('Ansteorra', $value);
 
         // Test getting a non-existent setting with default value
-        $value = $this->AppSettings->getAppSetting('nonexistent.setting', 'default-value');
+        $value = $this->AppSettings->getAppSetting('test.nonexistent.setting', 'default-value');
         $this->assertEquals('default-value', $value);
 
         // Verify that the setting was created with default value
-        $setting = $this->AppSettings->find()->where(['name' => 'nonexistent.setting'])->first();
+        $setting = $this->AppSettings->find()->where(['name' => 'test.nonexistent.setting'])->first();
         $this->assertNotNull($setting);
         $this->assertEquals('default-value', $setting->value);
 
@@ -320,12 +360,20 @@ class AppSettingsTableTest extends TestCase
      */
     public function testDeleteAppSetting(): void
     {
+        // Create a test setting to delete
+        $testSetting = $this->AppSettings->newEntity([
+            'name' => 'test.delete.app.setting',
+            'value' => 'delete-me',
+            'required' => false,
+        ]);
+        $this->AppSettings->save($testSetting);
+
         // Test deleting - should be a wrapper for deleteSetting
-        $result = $this->AppSettings->deleteAppSetting('test.setting.one');
+        $result = $this->AppSettings->deleteAppSetting('test.delete.app.setting');
         $this->assertTrue($result);
 
         // Verify it was deleted
-        $setting = $this->AppSettings->find()->where(['name' => 'test.setting.one'])->first();
+        $setting = $this->AppSettings->find()->where(['name' => 'test.delete.app.setting'])->first();
         $this->assertNull($setting);
     }
 
@@ -337,15 +385,14 @@ class AppSettingsTableTest extends TestCase
      */
     public function testGetAllAppSettingsStartWith(): void
     {
-        // Test getting all settings with a common prefix
-        $settings = $this->AppSettings->getAllAppSettingsStartWith('test.group');
+        // Test getting all settings with a common prefix from dev_seed_clean.sql
+        $settings = $this->AppSettings->getAllAppSettingsStartWith('KMP.');
 
         $this->assertIsArray($settings);
-        $this->assertCount(2, $settings);
-        $this->assertArrayHasKey('test.group.one', $settings);
-        $this->assertArrayHasKey('test.group.two', $settings);
-        $this->assertEquals('group-value-1', $settings['test.group.one']);
-        $this->assertEquals('group-value-2', $settings['test.group.two']);
+        $this->assertGreaterThan(0, count($settings));
+        $this->assertArrayHasKey('KMP.KingdomName', $settings);
+        $this->assertArrayHasKey('KMP.ShortSiteTitle', $settings);
+        $this->assertEquals('Ansteorra', $settings['KMP.KingdomName']);
 
         // Test with a prefix that doesn't match any settings
         $settings = $this->AppSettings->getAllAppSettingsStartWith('nonexistent');

@@ -9,35 +9,15 @@ use Cake\TestSuite\IntegrationTestTrait;
 use Cake\TestSuite\TestCase;
 
 /**
- * Example Test Demonstrating Test Super User Fixture Usage
+ * Example Test Demonstrating Test Super User Authentication
  * 
- * This test class shows how to use the TestSuperUser fixtures
+ * This test class shows how to use authentication helpers
  * to solve permission issues in tests.
  */
 class ExampleSuperUserTest extends TestCase
 {
     use IntegrationTestTrait;
     use TestAuthenticationHelper;
-
-    /**
-     * Fixtures
-     *
-     * @var array<string>
-     */
-    protected array $fixtures = [
-        'app.AppSettings',
-        'app.Branches',
-        'app.Permissions',
-        'app.Roles',
-        'app.Members',
-        'app.RolesPermissions',
-        'app.MemberRoles',
-        // Test Super User fixtures
-        'app.TestSuperUser',
-        'app.TestSuperUserRole',
-        'app.TestSuperUserRolePermission',
-        'app.TestSuperUserMemberRole',
-    ];
 
     /**
      * Test using the helper trait method
@@ -69,9 +49,9 @@ class ExampleSuperUserTest extends TestCase
         // Alternative: authenticate directly without helper
         $this->session([
             'Auth' => [
-                'id' => 2,
-                'email_address' => 'testsuper@test.com',
-                'sca_name' => 'Test Super User',
+                'id' => 1,
+                'email_address' => 'admin@amp.ansteorra.org',
+                'sca_name' => 'Admin von Admin',
             ]
         ]);
 
@@ -89,13 +69,13 @@ class ExampleSuperUserTest extends TestCase
     {
         // Start as super user
         $this->authenticateAsSuperUser();
-        $this->assertAuthenticatedAs(2);
+        $this->assertAuthenticatedAs(1);
 
         // Make a request
         $this->get('/members');
         $this->assertResponseOk();
 
-        // Switch to admin
+        // Switch to admin (which is the same user in dev seed data)
         $this->authenticateAsAdmin();
         $this->assertAuthenticatedAs(1);
 

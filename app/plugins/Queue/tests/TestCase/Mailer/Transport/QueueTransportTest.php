@@ -14,12 +14,7 @@ class QueueTransportTest extends TestCase {
 
 	/**
 	 * @var array
-	 */
-	protected array $fixtures = [
-		'plugin.Queue.QueuedJobs',
-	];
-
-	/**
+	 */	/**
 	 * @var \Queue\Mailer\Transport\QueueTransport
 	 */
 	protected $QueueTransport;

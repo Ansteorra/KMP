@@ -16,12 +16,7 @@ class SuperExampleTaskTest extends TestCase {
 
 	/**
 	 * @var array
-	 */
-	protected array $fixtures = [
-		'plugin.Queue.QueuedJobs',
-	];
-
-	/**
+	 */	/**
 	 * @var \Queue\Queue\Task\SuperExampleTask|\PHPUnit\Framework\MockObject\MockObject
 	 */
 	protected $Task;

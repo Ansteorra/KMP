@@ -18,12 +18,7 @@ class JobCommandTest extends TestCase {
 
 	/**
 	 * @var array<string>
-	 */
-	protected array $fixtures = [
-		'plugin.Queue.QueuedJobs',
-	];
-
-	/**
+	 */	/**
 	 * @return void
 	 */
 	public function setUp(): void {

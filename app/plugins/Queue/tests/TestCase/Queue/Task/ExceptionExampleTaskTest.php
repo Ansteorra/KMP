@@ -17,12 +17,7 @@ class ExceptionExampleTaskTest extends TestCase {
 
 	/**
 	 * @var array
-	 */
-	protected array $fixtures = [
-		'plugin.Queue.QueuedJobs',
-	];
-
-	/**
+	 */	/**
 	 * @var \Queue\Queue\Task\ExceptionExampleTask|\PHPUnit\Framework\MockObject\MockObject
 	 */
 	protected $Task;

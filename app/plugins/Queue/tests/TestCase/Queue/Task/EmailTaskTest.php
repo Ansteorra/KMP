@@ -23,12 +23,7 @@ class EmailTaskTest extends TestCase {
 
 	/**
 	 * @var array<string>
-	 */
-	protected array $fixtures = [
-		'plugin.Queue.QueuedJobs',
-	];
-
-	/**
+	 */	/**
 	 * @var \Queue\Queue\Task\EmailTask|\PHPUnit\Framework\MockObject\MockObject
 	 */
 	protected $Task;

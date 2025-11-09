@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 /**
@@ -52,5 +53,5 @@ ConnectionManager::alias('test_debug_kit', 'debug_kit');
 // has been written to.
 session_id('cli');
 
-//load structure from a sql dump
-(new SchemaLoader())->loadSqlFiles('./tests/kmp_sql.sql', 'test');
+//load structure and data from dev_seed_clean.sql
+(new SchemaLoader())->loadSqlFiles('../dev_seed_clean.sql', 'test');

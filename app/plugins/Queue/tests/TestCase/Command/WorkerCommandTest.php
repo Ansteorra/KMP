@@ -15,12 +15,7 @@ class WorkerCommandTest extends TestCase {
 
 	/**
 	 * @var array<string>
-	 */
-	protected array $fixtures = [
-		'plugin.Queue.QueueProcesses',
-	];
-
-	/**
+	 */	/**
 	 * @return void
 	 */
 	public function setUp(): void {

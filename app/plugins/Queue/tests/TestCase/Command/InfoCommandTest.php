@@ -15,13 +15,7 @@ class InfoCommandTest extends TestCase {
 
 	/**
 	 * @var array<string>
-	 */
-	protected array $fixtures = [
-		'plugin.Queue.QueueProcesses',
-		'plugin.Queue.QueuedJobs',
-	];
-
-	/**
+	 */	/**
 	 * @return void
 	 */
 	public function setUp(): void {

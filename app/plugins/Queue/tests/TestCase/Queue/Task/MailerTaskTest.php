@@ -19,12 +19,7 @@ class MailerTaskTest extends TestCase {
 
 	/**
 	 * @var array
-	 */
-	protected array $fixtures = [
-		'plugin.Queue.QueuedJobs',
-	];
-
-	/**
+	 */	/**
 	 * @var \Queue\Queue\Task\MailerTask|\PHPUnit\Framework\MockObject\MockObject
 	 */
 	protected $Task;

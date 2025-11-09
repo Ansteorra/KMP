@@ -16,12 +16,7 @@ class UniqueExampleTaskTest extends TestCase {
 
 	/**
 	 * @var array
-	 */
-	protected array $fixtures = [
-		'plugin.Queue.QueuedJobs',
-	];
-
-	/**
+	 */	/**
 	 * @var \Queue\Queue\Task\UniqueExampleTask|\PHPUnit\Framework\MockObject\MockObject
 	 */
 	protected $Task;

@@ -16,29 +16,7 @@ use Cake\TestSuite\TestCase;
 class WaiverTypesControllerTest extends TestCase
 {
     use IntegrationTestTrait;
-    use SuperUserAuthenticatedTrait;
-
-    /**
-     * Fixtures
-     *
-     * @var list<string>
-     */
-    protected array $fixtures = [
-        'app.Branches',  // Must be loaded first - other fixtures depend on it
-        'app.Permissions',
-        'app.Roles',
-        'app.RolesPermissions',
-        'app.Members',
-        'app.MemberRoles',
-        'app.TestSuperUser',
-        'app.TestSuperUserRole',
-        'app.TestSuperUserRolePermission',
-        'app.TestSuperUserMemberRole',
-        'app.Warrants',
-        'plugin.Waivers.WaiverTypes',
-    ];
-
-    /**
+    use SuperUserAuthenticatedTrait;    /**
      * Test index method
      *
      * @return void

@@ -16,19 +16,7 @@ use Tools\I18n\DateTime as ToolsDateTime;
  */
 class QueueControllerTest extends TestCase {
 
-	use IntegrationTestTrait;
-
-	/**
-	 * Fixtures
-	 *
-	 * @var array
-	 */
-	protected array $fixtures = [
-		'plugin.Queue.QueuedJobs',
-		'plugin.Queue.QueueProcesses',
-	];
-
-	/**
+	use IntegrationTestTrait;	/**
 	 * @return void
 	 */
 	public function setUp(): void {

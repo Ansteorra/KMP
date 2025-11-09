@@ -15,12 +15,7 @@ class QueueProgressHelperTest extends TestCase {
 
 	/**
 	 * @var array
-	 */
-	protected array $fixtures = [
-		'plugin.Queue.QueuedJobs',
-	];
-
-	/**
+	 */	/**
 	 * @var \Queue\View\Helper\QueueProgressHelper
 	 */
 	protected QueueProgressHelper $QueueProgressHelper;

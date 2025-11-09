@@ -17,13 +17,7 @@ class QueueProcessesControllerTest extends TestCase {
 
 	/**
 	 * @var array
-	 */
-	protected array $fixtures = [
-		'plugin.Queue.QueueProcesses',
-		'plugin.Queue.QueuedJobs',
-	];
-
-	/**
+	 */	/**
 	 * @return void
 	 */
 	public function setUp(): void {

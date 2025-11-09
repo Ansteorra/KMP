@@ -36,20 +36,7 @@ use Cake\TestSuite\TestCase;
  */
 class HelloWorldControllerTest extends TestCase
 {
-    use IntegrationTestTrait;
-
-    /**
-     * Fixtures
-     *
-     * @var array<string>
-     */
-    protected array $fixtures = [
-        // 'plugin.Template.HelloWorldItems',
-        // 'app.Members',
-        // 'app.Branches',
-    ];
-
-    /**
+    use IntegrationTestTrait;    /**
      * Test index method
      *
      * @return void

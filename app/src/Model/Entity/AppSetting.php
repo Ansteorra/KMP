@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Model\Entity;
@@ -26,6 +27,7 @@ class AppSetting extends BaseEntity
         'value' => true,
         'type' => true,
         'raw_value' => true,
+        'required' => true,
     ];
 
     protected function _getRawValue()

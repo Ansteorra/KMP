@@ -45,6 +45,7 @@ $routes->scope('/', function (RouteBuilder $builder) {
 - Name tables in plural, lowercase, with underscores
 - Use proper foreign key constraints and indexes
 - Follow CakePHP's naming conventions for relations
+- IMPORTANT: when you want to connect to the database via commandline for testing or debugging, use the `.env` file in the `config/` directory to set your database credentials. Do NOT commit sensitive information to version control.
 
 ## Stimulus.JS Controllers
 

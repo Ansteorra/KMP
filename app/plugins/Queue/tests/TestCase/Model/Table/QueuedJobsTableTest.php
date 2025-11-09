@@ -30,13 +30,7 @@ class QueuedJobsTableTest extends TestCase {
 
 	/**
 	 * @var array<string>
-	 */
-	protected array $fixtures = [
-		'plugin.Queue.QueuedJobs',
-		'plugin.Queue.QueueProcesses',
-	];
-
-	/**
+	 */	/**
 	 * setUp method
 	 *
 	 * @return void
