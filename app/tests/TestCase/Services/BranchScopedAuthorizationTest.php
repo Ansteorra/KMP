@@ -32,7 +32,7 @@ class BranchScopedAuthorizationTest extends BaseTestCase
         parent::setUp();
         $this->Members = $this->getTableLocator()->get('Members');
         $this->Branches = $this->getTableLocator()->get('Branches');
-        
+
         // Create authorization service with policy resolver
         $resolver = new MapResolver();
         $resolver->map(\App\Model\Entity\Member::class, \App\Policy\MemberPolicy::class);
@@ -50,20 +50,22 @@ class BranchScopedAuthorizationTest extends BaseTestCase
     {
         $bryce = $this->Members->get(self::TEST_MEMBER_BRYCE_ID);
         $bryce->getPermissions();
-        
+
         $permissions = $bryce->getPermissions();
         $this->assertNotEmpty($permissions, 'Bryce should have permissions from Regional Officer role');
-        
+
         // Verify at least one permission has Branch and Children scope at Stargate
         $hasBranchAndChildren = false;
         foreach ($permissions as $permission) {
-            if ($permission->scoping_rule === 'Branch and Children' && 
-                in_array(self::TEST_BRANCH_STARGATE_ID, $permission->branch_ids ?? [])) {
+            if (
+                $permission->scoping_rule === 'Branch and Children' &&
+                in_array(self::TEST_BRANCH_STARGATE_ID, $permission->branch_ids ?? [])
+            ) {
                 $hasBranchAndChildren = true;
                 break;
             }
         }
-        
+
         $this->assertTrue($hasBranchAndChildren, 'Bryce should have Branch and Children permissions at Stargate');
     }
 
@@ -77,10 +79,10 @@ class BranchScopedAuthorizationTest extends BaseTestCase
     {
         $devon = $this->Members->get(self::TEST_MEMBER_DEVON_ID);
         $devon->getPermissions();
-        
+
         $permissions = $devon->getPermissions();
         $this->assertNotEmpty($permissions, 'Devon should have permissions from officer roles');
-        
+
         // Verify Devon has permissions scoped to Southern Region
         $branchIds = [];
         foreach ($permissions as $permission) {
@@ -89,9 +91,12 @@ class BranchScopedAuthorizationTest extends BaseTestCase
             }
         }
         $branchIds = array_unique($branchIds);
-        
-        $this->assertContains(self::TEST_BRANCH_SOUTHERN_REGION_ID, $branchIds, 
-            'Devon should have permissions at Southern Region from Regional Officer Management role');
+
+        $this->assertContains(
+            self::TEST_BRANCH_SOUTHERN_REGION_ID,
+            $branchIds,
+            'Devon should have permissions at Southern Region from Regional Officer Management role'
+        );
     }
 
     /**
@@ -103,10 +108,10 @@ class BranchScopedAuthorizationTest extends BaseTestCase
     {
         $bryce = $this->Members->get(self::TEST_MEMBER_BRYCE_ID);
         $bryce->setAuthorization($this->AuthService);
-        
+
         // Get Bryce's own member entity with branch context
         $policies = $bryce->getPolicies();
-        
+
         // Bryce should have policies (Regional Officer Management grants them)
         $this->assertNotEmpty($policies, 'Bryce should have policies from Regional Officer role');
     }
@@ -120,10 +125,10 @@ class BranchScopedAuthorizationTest extends BaseTestCase
     {
         $admin = $this->Members->get(self::ADMIN_MEMBER_ID);
         $admin->getPermissions();
-        
+
         $permissions = $admin->getPermissions();
         $this->assertNotEmpty($permissions, 'Admin should have permissions');
-        
+
         // Admin should have at least one global permission (super user)
         $hasGlobal = false;
         foreach ($permissions as $permission) {
@@ -133,7 +138,7 @@ class BranchScopedAuthorizationTest extends BaseTestCase
                 break;
             }
         }
-        
+
         $this->assertTrue($hasGlobal, 'Admin should have global permissions');
     }
 
@@ -146,18 +151,18 @@ class BranchScopedAuthorizationTest extends BaseTestCase
     {
         $devon = $this->Members->get(self::TEST_MEMBER_DEVON_ID);
         $devon->getPermissions();
-        
+
         // Get policies for Central Region only
         $centralPolicies = $devon->getPolicies([self::TEST_BRANCH_CENTRAL_REGION_ID]);
         $this->assertIsArray($centralPolicies, 'Central policies should be array');
-        
+
         // Get policies for Southern Region only
         $southernPolicies = $devon->getPolicies([self::TEST_BRANCH_SOUTHERN_REGION_ID]);
         $this->assertIsArray($southernPolicies, 'Southern policies should be array');
-        
+
         // Get all policies
         $allPolicies = $devon->getPolicies();
-        
+
         // All policies should have at least as many as any single region
         $this->assertGreaterThanOrEqual(
             count($centralPolicies),
@@ -181,12 +186,12 @@ class BranchScopedAuthorizationTest extends BaseTestCase
     {
         // This test validates the permission scoping logic
         // Branch Only scope should only apply to the specific branch, not descendants
-        
+
         $eirik = $this->Members->get(self::TEST_MEMBER_EIRIK_ID);
         $eirik->getPermissions();
-        
+
         $permissions = $eirik->getPermissions();
-        
+
         // Check if Eirik has any Branch Only scoped permissions
         $hasBranchOnly = false;
         foreach ($permissions as $permission) {
@@ -196,7 +201,7 @@ class BranchScopedAuthorizationTest extends BaseTestCase
                 break;
             }
         }
-        
+
         // Test passes whether or not Eirik has Branch Only permissions
         // This documents the expected behavior of the scope
         $this->assertTrue(true, 'Branch Only scope test completed');
@@ -211,9 +216,9 @@ class BranchScopedAuthorizationTest extends BaseTestCase
     {
         $bryce = $this->Members->get(self::TEST_MEMBER_BRYCE_ID);
         $bryce->getPermissions();
-        
+
         $permissions = $bryce->getPermissions();
-        
+
         // Find a Branch and Children permission
         $branchAndChildrenPerm = null;
         foreach ($permissions as $permission) {
@@ -222,11 +227,13 @@ class BranchScopedAuthorizationTest extends BaseTestCase
                 break;
             }
         }
-        
+
         $this->assertNotNull($branchAndChildrenPerm, 'Bryce should have Branch and Children permissions');
-        $this->assertNotEmpty($branchAndChildrenPerm->branch_ids, 
-            'Branch and Children permission should have branch_ids');
-        
+        $this->assertNotEmpty(
+            $branchAndChildrenPerm->branch_ids,
+            'Branch and Children permission should have branch_ids'
+        );
+
         // The permission should apply to both the branch and its descendants
         // This is handled by PermissionsLoader using getAllDecendentIds
         $this->assertIsArray($branchAndChildrenPerm->branch_ids);
@@ -242,11 +249,11 @@ class BranchScopedAuthorizationTest extends BaseTestCase
         $bryce = $this->Members->get(self::TEST_MEMBER_BRYCE_ID);
         $bryce->getPermissions();
         $this->assertFalse($bryce->isSuperUser(), 'Bryce should not be super user');
-        
+
         $devon = $this->Members->get(self::TEST_MEMBER_DEVON_ID);
         $devon->getPermissions();
         $this->assertFalse($devon->isSuperUser(), 'Devon should not be super user');
-        
+
         $eirik = $this->Members->get(self::TEST_MEMBER_EIRIK_ID);
         $eirik->getPermissions();
         $this->assertFalse($eirik->isSuperUser(), 'Eirik should not be super user');
@@ -262,10 +269,10 @@ class BranchScopedAuthorizationTest extends BaseTestCase
         // Agatha (2871) is basic member with no officer roles
         $agatha = $this->Members->get(self::TEST_MEMBER_AGATHA_ID);
         $agatha->getPermissions();
-        
+
         $permissions = $agatha->getPermissions();
         $this->assertEmpty($permissions, 'Agatha should have no permissions (no officer roles)');
-        
+
         $this->assertFalse($agatha->isSuperUser(), 'Agatha should not be super user');
     }
 }

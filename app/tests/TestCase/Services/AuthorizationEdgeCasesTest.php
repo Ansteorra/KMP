@@ -40,7 +40,7 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
         $this->Members = $this->getTableLocator()->get('Members');
         $this->MemberRoles = $this->getTableLocator()->get('MemberRoles');
         $this->Warrants = $this->getTableLocator()->get('Warrants');
-        
+
         // Create authorization service with policy resolver
         $resolver = new MapResolver();
         $resolver->map(\App\Model\Entity\Member::class, \App\Policy\MemberPolicy::class);
@@ -58,15 +58,15 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
     public function testRevokedRoleDoesNotGrantPermissions(): void
     {
         $eirik = $this->Members->get(self::TEST_MEMBER_EIRIK_ID);
-        
+
         // Load permissions (should filter out revoked roles)
         $permissions = $eirik->getPermissions();
-        
+
         // Check if any permissions are from the revoked role 362
         $revokedRole = $this->MemberRoles->get(362, ['contain' => ['Roles']]);
         $this->assertNotNull($revokedRole->revoker_id, 'Role 362 should be revoked');
         $this->assertNotEmpty($revokedRole->role->name, 'Should have role name');
-        
+
         // Revoked role should not grant permissions
         // This is validated by PermissionsLoader which filters by revoker_id IS NULL
         $this->assertTrue(true, 'Revoked roles are filtered by PermissionsLoader');
@@ -83,19 +83,19 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
     public function testExpiredRoleDoesNotGrantPermissions(): void
     {
         $devon = $this->Members->get(self::TEST_MEMBER_DEVON_ID);
-        
+
         // Load permissions (should filter out expired roles)
         $permissions = $devon->getPermissions();
-        
+
         // Check expired role
         $expiredRole = $this->MemberRoles->get(363, ['contain' => ['Roles']]);
         $this->assertNotNull($expiredRole->expires_on, 'Role 363 should have expiration date');
         $this->assertLessThan(new DateTime(), $expiredRole->expires_on, 'Role should be expired');
-        
+
         // Count Devon's current permissions - should not include expired role
         // Devon should have permissions from active roles only
         $this->assertIsArray($permissions, 'Permissions should be array');
-        
+
         // Expired roles filtered by temporal validation in PermissionsLoader
         $this->assertTrue(true, 'Expired roles are filtered by temporal validation');
     }
@@ -111,7 +111,7 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
     public function testMemberWithoutWarrantLacksWarrantRequiredPermissions(): void
     {
         $agatha = $this->Members->get(self::TEST_MEMBER_AGATHA_ID);
-        
+
         // Agatha has no current warrants (all expired or deactivated)
         $currentWarrants = $this->Warrants->find()
             ->where([
@@ -121,12 +121,12 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
                 'expires_on >=' => new DateTime(),
             ])
             ->count();
-        
+
         $this->assertEquals(0, $currentWarrants, 'Agatha should have no current warrants');
-        
+
         // Load permissions
         $permissions = $agatha->getPermissions();
-        
+
         // Check that no permissions have requires_warrant flag
         foreach ($permissions as $permission) {
             $this->assertFalse(
@@ -147,7 +147,7 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
     public function testExpiredWarrantsDoNotSatisfyWarrantRequirement(): void
     {
         $bryce = $this->Members->get(self::TEST_MEMBER_BRYCE_ID);
-        
+
         // Check Bryce has both expired and current warrants
         $expiredCount = $this->Warrants->find()
             ->where([
@@ -155,9 +155,9 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
                 'status IN' => ['Expired', 'Deactivated'],
             ])
             ->count();
-        
+
         $this->assertGreaterThan(0, $expiredCount, 'Bryce should have expired/deactivated warrants');
-        
+
         $currentCount = $this->Warrants->find()
             ->where([
                 'member_id' => self::TEST_MEMBER_BRYCE_ID,
@@ -166,13 +166,13 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
                 'expires_on >=' => new DateTime(),
             ])
             ->count();
-        
+
         $this->assertGreaterThan(0, $currentCount, 'Bryce should have current warrant(s)');
-        
+
         // Load permissions - should only include warrant-required if warrant is current
         $permissions = $bryce->getPermissions();
         $this->assertIsArray($permissions, 'Permissions should be array');
-        
+
         // Expired warrants are filtered by status and temporal validation in PermissionsLoader
         $this->assertTrue(true, 'Only current warrants satisfy warrant requirements');
     }
@@ -188,22 +188,22 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
     public function testExpiredMembershipLosesActiveRequirementPermissions(): void
     {
         $eirik = $this->Members->get(self::TEST_MEMBER_EIRIK_ID);
-        
+
         // Check membership is expired (2025-09-23 < 2025-11-09)
         $this->assertNotNull($eirik->membership_expires_on);
-        
+
         $today = new DateTime('2025-11-09'); // Test date
         $expirationDate = new DateTime($eirik->membership_expires_on->format('Y-m-d'));
-        
+
         $this->assertLessThan(
             $today,
             $expirationDate,
             'Eirik membership should be expired (2025-09-23 < 2025-11-09)'
         );
-        
+
         // Load permissions
         $permissions = $eirik->getPermissions();
-        
+
         // No permissions should require active membership since his is expired
         foreach ($permissions as $permission) {
             $this->assertFalse(
@@ -224,12 +224,12 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
     public function testNonWarrantableMemberLacksWarrantPermissions(): void
     {
         $eirik = $this->Members->get(self::TEST_MEMBER_EIRIK_ID);
-        
+
         $this->assertFalse($eirik->warrantable, 'Eirik should not be warrantable');
-        
+
         // Load permissions
         $permissions = $eirik->getPermissions();
-        
+
         // Should not have any warrant-required permissions
         foreach ($permissions as $permission) {
             $this->assertFalse(
@@ -252,25 +252,25 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
     {
         $devon = $this->Members->get(self::TEST_MEMBER_DEVON_ID);
         $eirik = $this->Members->get(self::TEST_MEMBER_EIRIK_ID);
-        
+
         // Calculate Devon's age (born 2002-09, now 2025-11)
         $devonAge = 2025 - 2002;
         if (11 < 9) { // Current month < birth month
             $devonAge--;
         }
         $this->assertEquals(23, $devonAge, 'Devon should be 23 years old');
-        
+
         // Calculate Eirik's age (born 2004-12, now 2025-11)
         $eirikAge = 2025 - 2004;
         if (11 < 12) { // Current month < birth month
             $eirikAge--;
         }
         $this->assertEquals(20, $eirikAge, 'Eirik should be 20 years old');
-        
+
         // Load permissions
         $devonPermissions = $devon->getPermissions();
         $eirikPermissions = $eirik->getPermissions();
-        
+
         // Validate age requirements are enforced
         foreach ($devonPermissions as $permission) {
             if (isset($permission->require_min_age) && $permission->require_min_age > 0) {
@@ -281,7 +281,7 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
                 );
             }
         }
-        
+
         foreach ($eirikPermissions as $permission) {
             if (isset($permission->require_min_age) && $permission->require_min_age > 0) {
                 $this->assertLessThanOrEqual(
@@ -308,10 +308,10 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
     {
         $admin = $this->Members->get(self::ADMIN_MEMBER_ID);
         $admin->setAuthorization($this->AuthService);
-        
+
         // Super user should bypass all checks via before() policy
         $this->assertTrue($admin->isSuperUser(), 'Admin should be super user');
-        
+
         // Super user can perform any action regardless of validation requirements
         $otherMember = $this->Members->get(self::TEST_MEMBER_BRYCE_ID);
         $this->assertTrue(
@@ -339,24 +339,24 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
     public function testPermissionCachingConsistency(): void
     {
         $bryce = $this->Members->get(self::TEST_MEMBER_BRYCE_ID);
-        
+
         // Load permissions first time
         $permissions1 = $bryce->getPermissions();
         $permissionIds1 = array_keys($permissions1);
         sort($permissionIds1);
-        
+
         // Load permissions second time (should use cache)
         $permissions2 = $bryce->getPermissions();
         $permissionIds2 = array_keys($permissions2);
         sort($permissionIds2);
-        
+
         // Should return identical permission sets
         $this->assertEquals(
             $permissionIds1,
             $permissionIds2,
             'Cached permissions should match original permissions'
         );
-        
+
         // Verify cache structure is consistent
         $this->assertSame(
             count($permissions1),
@@ -376,23 +376,23 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
     {
         $devon = $this->Members->get(self::TEST_MEMBER_DEVON_ID);
         $devon->getPermissions(); // Load permissions to populate cache
-        
+
         // Get all policies
         $allPolicies = $devon->getPolicies();
-        
+
         // Get filtered policies for Southern Region
         $filteredPolicies = $devon->getPolicies([self::TEST_BRANCH_SOUTHERN_REGION_ID]);
-        
+
         // Get same filtered policies again (should use cache)
         $filteredPolicies2 = $devon->getPolicies([self::TEST_BRANCH_SOUTHERN_REGION_ID]);
-        
+
         // Filtered results should be consistent
         $this->assertEquals(
             count($filteredPolicies),
             count($filteredPolicies2),
             'Filtered policy count should be consistent'
         );
-        
+
         // Filtered policies should be subset of all policies
         $this->assertLessThanOrEqual(
             count($allPolicies),
@@ -419,10 +419,10 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
             ->having('COUNT(CASE WHEN expires_on IS NULL OR expires_on >= NOW() THEN 1 END) > 0')
             ->having('COUNT(CASE WHEN expires_on < NOW() THEN 1 END) > 0')
             ->first();
-        
+
         if ($memberWithMixedRoles) {
             $member = $this->Members->get($memberWithMixedRoles->member_id);
-            
+
             // Get active roles
             $activeRoles = $this->MemberRoles->find()
                 ->where([
@@ -435,9 +435,9 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
                     'revoker_id IS' => null,
                 ])
                 ->count();
-            
+
             $this->assertGreaterThan(0, $activeRoles, 'Member should have active roles');
-            
+
             // Load permissions - should only be from active roles
             $permissions = $member->getPermissions();
             $this->assertIsArray($permissions, 'Permissions should be loaded from active roles only');
@@ -457,14 +457,14 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
     public function testMemberStatusValidation(): void
     {
         $bryce = $this->Members->get(self::TEST_MEMBER_BRYCE_ID);
-        
+
         // Bryce has verified status
         $this->assertEquals('verified', $bryce->status, 'Bryce should have verified status');
-        
+
         // With verified status, Bryce can have permissions requiring active membership
         $permissions = $bryce->getPermissions();
         $this->assertIsArray($permissions, 'Verified member can have permissions');
-        
+
         // Note: PermissionsLoader filters by status IN ('verified_membership', 'verified_minor')
         // for permissions with require_active_membership = true
         $this->assertTrue(true, 'Member status validation is enforced by PermissionsLoader');
@@ -481,10 +481,10 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
     {
         $bryce = $this->Members->get(self::TEST_MEMBER_BRYCE_ID);
         $permissions = $bryce->getPermissions();
-        
+
         $permissionIds = array_keys($permissions);
         $uniqueIds = array_unique($permissionIds);
-        
+
         $this->assertEquals(
             count($permissionIds),
             count($uniqueIds),
@@ -503,7 +503,7 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
     public function testEmptyPermissionSetForMemberWithNoRoles(): void
     {
         $agatha = $this->Members->get(self::TEST_MEMBER_AGATHA_ID);
-        
+
         // Check Agatha has no active roles
         $activeRoles = $this->MemberRoles->find()
             ->where([
@@ -516,12 +516,12 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
                 'revoker_id IS' => null,
             ])
             ->count();
-        
+
         $this->assertEquals(0, $activeRoles, 'Agatha should have no active roles');
-        
+
         // Load permissions
         $permissions = $agatha->getPermissions();
-        
+
         $this->assertEmpty($permissions, 'Member with no active roles should have empty permissions');
         $this->assertFalse($agatha->isSuperUser(), 'Member with no permissions should not be super user');
     }

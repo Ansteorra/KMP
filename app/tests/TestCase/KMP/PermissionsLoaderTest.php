@@ -59,7 +59,7 @@ class PermissionsLoaderTest extends BaseTestCase
         // Bryce has Regional Officer Management role at Barony of Stargate (branch 39)
         // This role includes "Branch and Children" scoped permissions
         $permissions = PermissionsLoader::getPermissions(self::TEST_MEMBER_BRYCE_ID);
-        
+
         $hasHierarchicalPerm = false;
         foreach ($permissions as $perm) {
             if ($perm->scoping_rule === Permission::SCOPE_BRANCH_AND_CHILDREN) {
@@ -76,7 +76,7 @@ class PermissionsLoaderTest extends BaseTestCase
     {
         // Devon has Regional Officer Management in Central (12) and Southern (13) regions
         $permissions = PermissionsLoader::getPermissions(self::TEST_MEMBER_DEVON_ID);
-        
+
         $foundHierarchical = false;
         foreach ($permissions as $perm) {
             if ($perm->scoping_rule === Permission::SCOPE_BRANCH_AND_CHILDREN) {
@@ -94,7 +94,7 @@ class PermissionsLoaderTest extends BaseTestCase
     {
         $adminPerms = PermissionsLoader::getPermissions(self::ADMIN_MEMBER_ID);
         $testMemberPerms = PermissionsLoader::getPermissions(self::TEST_MEMBER_AGATHA_ID);
-        
+
         // Admin should have super user permission
         $adminHasSuperUser = false;
         foreach ($adminPerms as $perm) {
@@ -104,7 +104,7 @@ class PermissionsLoaderTest extends BaseTestCase
             }
         }
         $this->assertTrue($adminHasSuperUser, 'Admin should have super user permission');
-        
+
         // Test member should NOT have super user permission
         $testHasSuperUser = false;
         foreach ($testMemberPerms as $perm) {
@@ -149,7 +149,7 @@ class PermissionsLoaderTest extends BaseTestCase
                 'name' => 'Manage Officers And Deputies Under Me'
             ])
             ->first();
-        
+
         if (!$branchPerm) {
             $this->markTestSkipped('Branch-scoped permission not found');
         }
@@ -160,10 +160,10 @@ class PermissionsLoaderTest extends BaseTestCase
             $branchPerm->id,
             self::TEST_BRANCH_SOUTHERN_REGION_ID
         );
-        
+
         $count = $query->count();
         $this->assertGreaterThan(0, $count, 'Should find members with branch-scoped permission in Southern Region');
-        
+
         // Verify the query structure returns member entities
         $members = $query->limit(5)->all();
         $this->assertNotEmpty($members, 'Query should return member entities');

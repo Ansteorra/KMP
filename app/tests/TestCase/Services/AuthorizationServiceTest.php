@@ -20,7 +20,7 @@ class AuthorizationServiceTest extends BaseTestCase
     {
         parent::setUp();
         $this->Members = $this->getTableLocator()->get('Members');
-        
+
         // Create authorization service with policy resolver and MemberPolicy
         $resolver = new MapResolver();
         $resolver->map(\App\Model\Entity\Member::class, \App\Policy\MemberPolicy::class);
@@ -33,11 +33,11 @@ class AuthorizationServiceTest extends BaseTestCase
         $admin = $this->Members->get(self::ADMIN_MEMBER_ID, [
             'contain' => []
         ]);
-        
+
         // Load permissions to set up identity
         $admin->getPermissions();
         $admin->setAuthorization($this->AuthService);
-        
+
         // Super users should have checkCan return true
         $this->assertTrue($admin->isSuperUser(), 'Admin should be super user');
     }
@@ -47,14 +47,14 @@ class AuthorizationServiceTest extends BaseTestCase
         $admin = $this->Members->get(self::ADMIN_MEMBER_ID);
         $admin->getPermissions();
         $admin->setAuthorization($this->AuthService);
-        
+
         // Verify state is preserved (checkCan sets and unsets internally)
         // This tests the critical security feature that prevents bypass
         $reflectionProperty = new \ReflectionProperty($this->AuthService, 'authorizationChecked');
         $reflectionProperty->setAccessible(true);
-        
+
         $initialState = $reflectionProperty->getValue($this->AuthService);
-        
+
         // After checkCan, state should be restored
         // Note: We can't actually call checkCan without policies registered,
         // but we can verify the method exists and takes right params
@@ -62,7 +62,7 @@ class AuthorizationServiceTest extends BaseTestCase
             method_exists($this->AuthService, 'checkCan'),
             'AuthorizationService should have checkCan method'
         );
-        
+
         $finalState = $reflectionProperty->getValue($this->AuthService);
         $this->assertEquals($initialState, $finalState, 'Authorization state should be preserved');
     }
@@ -72,9 +72,9 @@ class AuthorizationServiceTest extends BaseTestCase
         // Load Bryce - has regional officer role but not super user
         $bryce = $this->Members->get(self::TEST_MEMBER_BRYCE_ID);
         $bryce->getPermissions();
-        
+
         $this->assertFalse($bryce->isSuperUser(), 'Bryce should not be super user');
-        
+
         $permissions = $bryce->getPermissions();
         $this->assertIsArray($permissions, 'Should return array of permissions');
         $this->assertNotEmpty($permissions, 'Bryce should have some permissions from his role');
@@ -84,13 +84,13 @@ class AuthorizationServiceTest extends BaseTestCase
     {
         $devon = $this->Members->get(self::TEST_MEMBER_DEVON_ID);
         $devon->getPermissions();
-        
+
         $permissions = $devon->getPermissions();
         $permissionIds = $devon->getPermissionIDs();
-        
+
         $this->assertIsArray($permissionIds, 'Permission IDs should be array');
         $this->assertCount(count($permissions), $permissionIds, 'Permission ID count should match permission count');
-        
+
         // Verify IDs match
         foreach ($permissions as $id => $perm) {
             $this->assertContains($id, $permissionIds, "Permission ID {$id} should be in ID array");
@@ -101,10 +101,10 @@ class AuthorizationServiceTest extends BaseTestCase
     {
         $bryce = $this->Members->get(self::TEST_MEMBER_BRYCE_ID);
         $bryce->getPermissions();
-        
+
         $policies = $bryce->getPolicies();
         $this->assertIsArray($policies, 'Policies should be an array');
-        
+
         // If policies exist, verify structure
         if (!empty($policies)) {
             foreach ($policies as $policyClass => $methods) {
@@ -118,14 +118,14 @@ class AuthorizationServiceTest extends BaseTestCase
     {
         $devon = $this->Members->get(self::TEST_MEMBER_DEVON_ID);
         $devon->getPermissions();
-        
+
         // Get policies filtered to Central Region
         $filteredPolicies = $devon->getPolicies([self::TEST_BRANCH_CENTRAL_REGION_ID]);
         $this->assertIsArray($filteredPolicies, 'Filtered policies should be array');
-        
+
         // Get all policies
         $allPolicies = $devon->getPolicies();
-        
+
         // Filtered should have <= policies than unfiltered
         $this->assertLessThanOrEqual(
             count($allPolicies),
@@ -137,7 +137,7 @@ class AuthorizationServiceTest extends BaseTestCase
     public function testMemberGetAsMemberReturnsself(): void
     {
         $member = $this->Members->get(self::ADMIN_MEMBER_ID);
-        
+
         $asMember = $member->getAsMember();
         $this->assertSame($member, $asMember, 'getAsMember should return the member entity itself');
         $this->assertInstanceOf(\App\Model\Entity\Member::class, $asMember);
@@ -146,7 +146,7 @@ class AuthorizationServiceTest extends BaseTestCase
     public function testMemberGetIdentifierReturnsId(): void
     {
         $member = $this->Members->get(self::TEST_MEMBER_BRYCE_ID);
-        
+
         $identifier = $member->getIdentifier();
         $this->assertEquals(self::TEST_MEMBER_BRYCE_ID, $identifier, 'Identifier should match member ID');
     }
@@ -154,7 +154,7 @@ class AuthorizationServiceTest extends BaseTestCase
     public function testSetAuthorizationReturnsIdentity(): void
     {
         $member = $this->Members->get(self::TEST_MEMBER_DEVON_ID);
-        
+
         $result = $member->setAuthorization($this->AuthService);
         $this->assertSame($member, $result, 'setAuthorization should return self for chaining');
     }
@@ -168,10 +168,10 @@ class AuthorizationServiceTest extends BaseTestCase
     {
         $admin = $this->Members->get(self::ADMIN_MEMBER_ID);
         $targetMember = $this->Members->get(self::TEST_MEMBER_BRYCE_ID);
-        
+
         $admin->setAuthorization($this->AuthService);
         $result = $admin->checkCan('view', $targetMember);
-        
+
         $this->assertTrue($result);
     }
 
@@ -183,10 +183,10 @@ class AuthorizationServiceTest extends BaseTestCase
     public function testMemberCanViewOwnProfile(): void
     {
         $bryce = $this->Members->get(self::TEST_MEMBER_BRYCE_ID);
-        
+
         $bryce->setAuthorization($this->AuthService);
         $result = $bryce->checkCan('view', $bryce);
-        
+
         $this->assertTrue($result);
     }
 
@@ -199,10 +199,10 @@ class AuthorizationServiceTest extends BaseTestCase
     {
         $bryce = $this->Members->get(self::TEST_MEMBER_BRYCE_ID);
         $devon = $this->Members->get(self::TEST_MEMBER_DEVON_ID);
-        
+
         $bryce->setAuthorization($this->AuthService);
         $result = $bryce->checkCan('view', $devon);
-        
+
         $this->assertFalse($result);
     }
 
@@ -214,10 +214,10 @@ class AuthorizationServiceTest extends BaseTestCase
     public function testMemberCanAlwaysAccessProfileAction(): void
     {
         $bryce = $this->Members->get(self::TEST_MEMBER_BRYCE_ID);
-        
+
         $bryce->setAuthorization($this->AuthService);
         $result = $bryce->checkCan('profile', $bryce);
-        
+
         $this->assertTrue($result);
     }
 
@@ -229,10 +229,10 @@ class AuthorizationServiceTest extends BaseTestCase
     public function testMemberCanPartialEditOwnProfile(): void
     {
         $bryce = $this->Members->get(self::TEST_MEMBER_BRYCE_ID);
-        
+
         $bryce->setAuthorization($this->AuthService);
         $result = $bryce->checkCan('partialEdit', $bryce);
-        
+
         $this->assertTrue($result);
     }
 
@@ -245,10 +245,10 @@ class AuthorizationServiceTest extends BaseTestCase
     {
         $bryce = $this->Members->get(self::TEST_MEMBER_BRYCE_ID);
         $devon = $this->Members->get(self::TEST_MEMBER_DEVON_ID);
-        
+
         $bryce->setAuthorization($this->AuthService);
         $result = $bryce->checkCan('partialEdit', $devon);
-        
+
         $this->assertFalse($result);
     }
 
@@ -260,10 +260,10 @@ class AuthorizationServiceTest extends BaseTestCase
     public function testMemberCanChangeOwnPassword(): void
     {
         $bryce = $this->Members->get(self::TEST_MEMBER_BRYCE_ID);
-        
+
         $bryce->setAuthorization($this->AuthService);
         $result = $bryce->checkCan('changePassword', $bryce);
-        
+
         $this->assertTrue($result);
     }
 
@@ -276,10 +276,10 @@ class AuthorizationServiceTest extends BaseTestCase
     {
         $bryce = $this->Members->get(self::TEST_MEMBER_BRYCE_ID);
         $devon = $this->Members->get(self::TEST_MEMBER_DEVON_ID);
-        
+
         $bryce->setAuthorization($this->AuthService);
         $result = $bryce->checkCan('changePassword', $devon);
-        
+
         $this->assertFalse($result);
     }
 
@@ -292,10 +292,10 @@ class AuthorizationServiceTest extends BaseTestCase
     {
         $bryce = $this->Members->get(self::TEST_MEMBER_BRYCE_ID);
         $targetMember = $this->Members->get(self::TEST_MEMBER_DEVON_ID);
-        
+
         $bryce->setAuthorization($this->AuthService);
         $result = $bryce->checkCan('delete', $targetMember);
-        
+
         $this->assertFalse($result);
     }
 
@@ -307,10 +307,10 @@ class AuthorizationServiceTest extends BaseTestCase
     public function testMemberCanViewOwnCard(): void
     {
         $bryce = $this->Members->get(self::TEST_MEMBER_BRYCE_ID);
-        
+
         $bryce->setAuthorization($this->AuthService);
         $result = $bryce->checkCan('viewCard', $bryce);
-        
+
         $this->assertTrue($result);
     }
 
@@ -322,10 +322,10 @@ class AuthorizationServiceTest extends BaseTestCase
     public function testMemberCanAddNoteToOwnProfile(): void
     {
         $bryce = $this->Members->get(self::TEST_MEMBER_BRYCE_ID);
-        
+
         $bryce->setAuthorization($this->AuthService);
         $result = $bryce->checkCan('addNote', $bryce);
-        
+
         $this->assertTrue($result);
     }
 }
