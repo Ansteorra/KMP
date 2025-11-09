@@ -1,0 +1,593 @@
+---
+layout: default
+---
+[← Back to Development Workflow](7-development-workflow.md)
+
+# 7.3 Testing Infrastructure
+
+**Last Updated:** November 9, 2025  
+**Purpose:** Comprehensive guide to KMP's testing framework, test data approach, and best practices
+
+## Overview
+
+KMP uses PHPUnit for testing with CakePHP's testing framework. Unlike traditional CakePHP applications that use fixtures, KMP loads test data from `dev_seed_clean.sql` and uses database transactions for test isolation. This provides rich, realistic test data while maintaining fast test execution.
+
+## Overview
+
+KMP uses PHPUnit for testing with CakePHP's testing framework. Unlike traditional CakePHP applications that use fixtures, KMP loads test data from `dev_seed_clean.sql` and uses database transactions for test isolation. This provides rich, realistic test data while maintaining fast test execution.
+
+## Test Data Strategy
+
+### SQL Dump Approach
+
+KMP uses a **complete SQL database dump** for test data instead of individual CakePHP fixtures.
+
+**How It Works:**
+
+1. **Bootstrap Load:** `tests/bootstrap.php` loads `dev_seed_clean.sql` into the test database
+2. **Rich Data:** 2,883 members, 54 branches, 1,516 permissions, 76 roles, and complete relationship data
+3. **Transaction Isolation:** Each test runs in a transaction that rolls back automatically
+4. **Fast Tests:** No database reload between tests - transactions are fast
+
+**From `tests/bootstrap.php`:**
+```php
+// Load structure and data from dev_seed_clean.sql
+(new SchemaLoader())->loadSqlFiles('../dev_seed_clean.sql', 'test');
+```
+
+### Test Data Reference
+
+Stable IDs in `dev_seed_clean.sql` are documented in `tests/TestDataReference.md` and available as constants in `BaseTestCase`.
+
+**Key Test Data:**
+
+| Entity | ID | Identifier | Notes |
+|--------|-----|------------|-------|
+| Member | 1 | admin@amp.ansteorra.org | Super user with full permissions |
+| Branch | 1 | Kingdom of Ansteorra | Root of branch tree |
+| Role | 1 | Admin | System administrator role |
+| Permission | 1 | Is Super User | Grants full access |
+
+**Usage:**
+```php
+use App\Test\TestCase\BaseTestCase;
+
+class MyTest extends BaseTestCase
+{
+    public function testSomething(): void
+    {
+        $admin = $this->getTableLocator()
+            ->get('Members')
+            ->get(self::ADMIN_MEMBER_ID);
+    }
+}
+```
+
+## BaseTestCase
+
+All tests should extend `App\Test\TestCase\BaseTestCase` for automatic transaction management and access to test data constants.
+
+### Features
+
+**Automatic Transaction Wrapping:**
+- Begins transaction in `setUp()`
+- Rolls back transaction in `tearDown()`
+- Tests start with clean state from `dev_seed_clean.sql`
+- Tests don't affect each other
+
+**Test Data Constants:**
+- `ADMIN_MEMBER_ID` - Super user member
+- `KINGDOM_BRANCH_ID` - Root branch
+- `ADMIN_ROLE_ID` - Admin role
+- `SUPER_USER_PERMISSION_ID` - Super user permission
+
+**Helper Methods:**
+- `assertRecordExists()` - Assert database record exists
+- `assertRecordNotExists()` - Assert database record doesn't exist
+- `assertRecordCount()` - Assert table has specific count
+
+### Usage Example
+
+```php
+<?php
+declare(strict_types=1);
+
+namespace App\Test\TestCase\Model\Table;
+
+use App\Test\TestCase\BaseTestCase;
+
+class MembersTableTest extends BaseTestCase
+{
+    protected $Members;
+
+    protected function setUp(): void
+    {
+        parent::setUp(); // Starts transaction
+        $this->Members = $this->getTableLocator()->get('Members');
+    }
+
+    public function testFindActive(): void
+    {
+        $active = $this->Members->find('active')->toArray();
+        $this->assertNotEmpty($active);
+        
+        // Transaction automatically rolls back in tearDown()
+    }
+}
+```
+
+### Disabling Transactions
+
+If you need to test transaction behavior itself, disable automatic wrapping:
+
+```php
+protected function setUp(): void
+{
+    parent::setUp();
+    $this->disableTransactions();
+    
+    // Now you can test transaction behavior
+}
+```
+
+## Authentication in Tests
+
+### SuperUserAuthenticatedTrait
+
+For controller tests requiring full system access, use the `SuperUserAuthenticatedTrait`.
+
+**Location:** `tests/TestCase/Controller/SuperUserAuthenticatedTrait.php`
+
+**Usage:**
+```php
+<?php
+declare(strict_types=1);
+
+namespace App\Test\TestCase\Controller;
+
+use App\Test\TestCase\BaseTestCase;
+use App\Test\TestCase\Controller\SuperUserAuthenticatedTrait;
+
+class MembersControllerTest extends BaseTestCase
+{
+    use SuperUserAuthenticatedTrait;
+
+    public function testIndex(): void
+    {
+        // Already authenticated with full permissions
+        $this->get('/members');
+        $this->assertResponseOk();
+    }
+}
+```
+
+**What It Does:**
+1. Enables CSRF and security tokens
+2. Loads admin member (ID 1) from database
+3. Loads super user permission
+4. Sets up session with authenticated member
+
+### AuthenticatedTrait
+
+For tests requiring basic authentication without super user permissions:
+
+```php
+use App\Test\TestCase\Controller\AuthenticatedTrait;
+
+class MyControllerTest extends BaseTestCase
+{
+    use AuthenticatedTrait;
+    
+    // Tests run as authenticated admin user
+}
+```
+
+### TestAuthenticationHelper
+
+For manual control over authentication in tests:
+
+**Location:** `tests/TestCase/TestAuthenticationHelper.php`
+
+**Available Methods:**
+```php
+// Authenticate as different users
+$this->authenticateAsSuperUser();
+$this->authenticateAsAdmin();
+$this->authenticateAsMember($memberId);
+$this->logout();
+
+// Assertions
+$this->assertAuthenticated();
+$this->assertNotAuthenticated();
+$this->assertAuthenticatedAs($memberId);
+```
+
+**Usage:**
+```php
+use App\Test\TestCase\BaseTestCase;
+use App\Test\TestCase\TestAuthenticationHelper;
+use Cake\TestSuite\IntegrationTestTrait;
+
+class MyControllerTest extends BaseTestCase
+{
+    use IntegrationTestTrait;
+    use TestAuthenticationHelper;
+
+    public function testAsAdmin(): void
+    {
+        $this->authenticateAsAdmin();
+        $this->get('/admin/route');
+        $this->assertResponseOk();
+    }
+
+    public function testAsSpecificMember(): void
+    {
+        $this->authenticateAsMember(123);
+        $this->get('/member/profile');
+        $this->assertResponseOk();
+    }
+}
+
+### Background
+
+During Phase 3 testing of the Waiver plugin (User Story 1: Configure Waiver Types), multiple test failures were encountered related to infrastructure issues rather than implementation bugs.
+
+**Initial State:**
+- Total tests: 68
+- Errors: 16
+- Failures: 24
+- Total issues: 40 (59% failure rate)
+
+### Problems Identified
+
+#### 1. ServiceResult API Issues
+
+**Problem:** Tests expected fluent API methods that didn't exist on ServiceResult class.
+
+**Missing Methods:**
+- `isSuccess()` - Check operation success
+- `getData()` - Get data payload
+- `getError()` - Get error message
+
+**Solution:** Added three convenience methods to `ServiceResult` class:
+
+```php
+// File: src/Services/ServiceResult.php
+
+/**
+ * Check if the service operation was successful
+ */
+public function isSuccess(): bool
+{
+    return $this->success;
+}
+
+/**
+ * Get the data payload
+ */
+public function getData()
+{
+    return $this->data;
+}
+
+/**
+ * Get the error message
+ */
+public function getError(): ?string
+{
+    return $this->reason;
+}
+```
+
+**Impact:** All services throughout KMP now have a consistent, fluent API.
+
+#### 2. Database Schema Issues
+
+**Problem:** `WaiverTypesTable` had association to `Documents` table via `document_id` column that doesn't exist yet (future feature). This caused SQL errors when trying to load Documents.
+
+**Solution:** Commented out Documents association with TODO marker:
+
+```php
+// File: plugins/Waivers/src/Model/Table/WaiverTypesTable.php
+
+// TODO: Uncomment when Documents table and document_id column are implemented
+// $this->belongsTo('Documents', [
+//     'className' => 'Documents',
+//     'foreignKey' => 'document_id',
+//     'joinType' => 'LEFT',
+// ]);
+```
+
+Removed Documents from `contain` in controller:
+
+```php
+// File: plugins/Waivers/src/Controller/WaiverTypesController.php
+
+// Before:
+$waiverType = $this->WaiverTypes->get($id, contain: ['Documents']);
+
+// After:
+// TODO: Add back 'Documents' contain when table exists
+$waiverType = $this->WaiverTypes->get($id);
+```
+
+**Impact:** Tests can run without database schema errors.
+
+#### 3. RetentionPolicyService Issues
+
+**Problem:** Service and tests had mismatched expectations for JSON format.
+
+**Issues:**
+- Service expected flat format: `{"anchor":"...","years":2}`
+- Tests used nested format: `{"anchor":"...","duration":{"years":2}}`
+- Permanent retention returned far-future date instead of null
+- Missing `getHumanReadableDescription()` method
+
+**Solutions:**
+
+*Support Both Formats:*
+```php
+// Extract duration - support both nested and flat
+$duration = $policy['duration'] ?? $policy;
+$years = $duration['years'] ?? 0;
+$months = $duration['months'] ?? 0;
+$days = $duration['days'] ?? 0;
+```
+
+*Fix Permanent Retention:*
+```php
+if ($policy['anchor'] === 'permanent') {
+    // Permanent retention returns null (no expiration)
+    return new ServiceResult(true, null, null);
+}
+```
+
+*Add Human-Readable Method:*
+```php
+public function getHumanReadableDescription(string $policyJson): string
+{
+    // ... implementation ...
+    return 'Retain for ' . $durationText . ' after ' . $anchorText;
+}
+```
+
+**Impact:** Service matches test expectations and provides better API.
+
+#### 4. Test Authentication Issues
+
+**Problem:** `WaiverTypesControllerTest` used `AuthenticatedTrait` (regular member with limited permissions) instead of super user trait.
+
+**Solution:** Changed to `SuperUserAuthenticatedTrait` and added proper fixtures:
+
+```php
+// Before:
+use App\Test\TestCase\Controller\AuthenticatedTrait;
+
+class WaiverTypesControllerTest extends TestCase
+{
+    use AuthenticatedTrait;
+
+    protected array $fixtures = [
+        'app.Branches',
+        'app.Members',
+        // ... missing test super user fixtures
+    ];
+}
+
+// After:
+use App\Test\TestCase\Controller\SuperUserAuthenticatedTrait;
+
+class WaiverTypesControllerTest extends TestCase
+{
+    use SuperUserAuthenticatedTrait;
+
+    protected array $fixtures = [
+        'app.Branches',
+        'app.Permissions',  // Order matters!
+        'app.Roles',
+        'app.RolesPermissions',
+        'app.Members',
+        'app.MemberRoles',
+        'app.TestSuperUser',
+        'app.TestSuperUserRole',
+        'app.TestSuperUserRolePermission',
+        'app.TestSuperUserMemberRole',
+        'app.Warrants',
+        'plugin.Waivers.WaiverTypes',
+    ];
+}
+```
+
+**Impact:** Tests run with full permissions, eliminating authorization errors.
+
+### Final Results
+
+**After Fixes:**
+- Total: 51 tests (Phase 3 only)
+- Passing: 37 (73%)
+- Failing: 14 (27%)
+- Errors: 0 (100% reduction)
+- **Overall Improvement:** 65% reduction in failures/errors
+
+**Test Breakdown:**
+- ✅ Model Tests: 18/18 passing (100%)
+- ✅ Service Tests: 16/16 passing (100%)
+- ⚠️ Controller Tests: 3/17 passing (remaining issues are environmental/CSRF-related)
+
+### Lessons Learned
+
+1. **ServiceResult Enhancement:** Fluent API methods improve usability across entire codebase
+2. **Future Features:** Comment out associations for features not yet implemented
+3. **Service Flexibility:** Support multiple input formats when reasonable
+4. **Test Authentication:** Use `SuperUserAuthenticatedTrait` for tests requiring full permissions
+5. **Fixture Loading Order:** Order matters! Dependencies must load first
+
+## Testing Best Practices
+
+### 1. Use Fixtures Appropriately
+
+**Good:**
+```php
+protected array $fixtures = [
+    'app.Branches',        // Required for basic data
+    'app.Members',         // Required for authentication
+    'app.TestSuperUser',   // Required for super user tests
+    'plugin.MyPlugin.MyTable',  // Required for plugin tests
+];
+```
+
+**Bad:**
+```php
+protected array $fixtures = [
+    // Loading everything "just in case"
+    'app.*',
+    'plugin.*',
+];
+```
+
+### 2. Make Seeds Optional When Appropriate
+
+If a seed file might not exist in all environments:
+
+```php
+// In BaseTestFixture or custom fixture
+protected function getData(string $seed, ?string $plugin = null, bool $optional = false): array
+{
+    // ... implementation that handles optional = true gracefully
+}
+```
+
+### 3. Test One Thing at a Time
+
+**Good:**
+```php
+public function testAddCreatesNewRecord(): void
+{
+    $data = ['name' => 'Test'];
+    $this->post('/resource/add', $data);
+    $this->assertResponseSuccess();
+    
+    $record = $this->Table->find()->where(['name' => 'Test'])->first();
+    $this->assertNotNull($record);
+}
+```
+
+**Bad:**
+```php
+public function testEverything(): void
+{
+    // Testing add, edit, delete, view all in one test
+}
+```
+
+### 4. Use Descriptive Test Names
+
+**Good:**
+```php
+public function testAddWithValidDataCreatesRecord(): void
+public function testEditWithInvalidPermissionsReturnsForbidden(): void
+public function testDeleteRemovesRecordFromDatabase(): void
+```
+
+**Bad:**
+```php
+public function testAdd(): void
+public function test1(): void
+public function testStuff(): void
+```
+
+### 5. Clean Up After Tests
+
+**Good:**
+```php
+public function tearDown(): void
+{
+    // Clean up any temp files, connections, etc.
+    parent::tearDown();
+}
+```
+
+### 6. Use Data Providers for Similar Tests
+
+```php
+/**
+ * @dataProvider invalidDataProvider
+ */
+public function testValidationWithInvalidData($data, $expectedError): void
+{
+    $result = $this->service->validate($data);
+    $this->assertFalse($result->isSuccess());
+    $this->assertStringContainsString($expectedError, $result->getError());
+}
+
+public function invalidDataProvider(): array
+{
+    return [
+        'empty name' => [['name' => ''], 'Name cannot be empty'],
+        'invalid email' => [['email' => 'notanemail'], 'Invalid email format'],
+        'negative number' => [['count' => -1], 'Count must be positive'],
+    ];
+}
+```
+
+## Running Tests
+
+### Run All Tests
+```bash
+cd app
+vendor/bin/phpunit
+```
+
+### Run Specific Test File
+```bash
+vendor/bin/phpunit tests/TestCase/Controller/MembersControllerTest.php
+```
+
+### Run Specific Test Method
+```bash
+vendor/bin/phpunit --filter testIndex tests/TestCase/Controller/MembersControllerTest.php
+```
+
+### Run Tests with Coverage
+```bash
+vendor/bin/phpunit --coverage-html coverage/
+```
+
+### Run Plugin Tests
+```bash
+vendor/bin/phpunit plugins/MyPlugin/tests/
+```
+
+## Test Organization
+
+```
+app/tests/
+├── bootstrap.php           # Test bootstrap configuration
+├── Fixture/               # Test fixtures (database seeds)
+│   ├── BaseTestFixture.php
+│   ├── MembersFixture.php
+│   ├── TestSuperUserFixture.php
+│   └── ...
+├── TestCase/              # Test cases
+│   ├── Controller/        # Controller tests
+│   │   ├── AuthenticatedTrait.php
+│   │   ├── SuperUserAuthenticatedTrait.php
+│   │   ├── MembersControllerTest.php
+│   │   └── ...
+│   ├── Model/             # Model tests
+│   │   ├── Table/
+│   │   └── Entity/
+│   ├── Services/          # Service tests
+│   └── TestAuthenticationHelper.php
+└── tmp/                   # Temporary test files
+```
+
+## Additional Resources
+
+- **Full Test Super User Documentation:** See `app/tests/Fixture/` directory for fixture implementations
+- **CakePHP Testing Documentation:** https://book.cakephp.org/4/en/development/testing.html
+- **PHPUnit Documentation:** https://phpunit.de/documentation.html
+
+---
+
+[← Back to Development Workflow](7-development-workflow.md)

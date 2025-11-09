@@ -257,7 +257,7 @@ class Permission extends BaseEntity
         'roles' => true,
     ];
 
-    protected function _setScopeing_rule($value)
+    protected function _setScopingRule($value)
     {
         //the status must be one of the constants defined in this class
         switch ($value) {
