@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Queue\Test\TestCase\Mailer\Transport;
@@ -10,11 +11,10 @@ use Queue\Mailer\Transport\QueueTransport;
 /**
  * Test case
  */
-class QueueTransportTest extends TestCase {
+class QueueTransportTest extends TestCase
+{
 
 	/**
-	 * @var array
-	 */	/**
 	 * @var \Queue\Mailer\Transport\QueueTransport
 	 */
 	protected $QueueTransport;
@@ -24,7 +24,8 @@ class QueueTransportTest extends TestCase {
 	 *
 	 * @return void
 	 */
-	public function setUp(): void {
+	public function setUp(): void
+	{
 		parent::setUp();
 		$this->QueueTransport = new QueueTransport();
 	}
@@ -34,7 +35,8 @@ class QueueTransportTest extends TestCase {
 	 *
 	 * @return void
 	 */
-	public function testSendWithEmail() {
+	public function testSendWithEmail()
+	{
 		$message = new Message();
 		$message->setFrom('noreply@cakephp.org', 'CakePHP Test');
 		$message->setTo('cake@cakephp.org', 'CakePHP');
@@ -53,5 +55,4 @@ class QueueTransportTest extends TestCase {
 		$message = $output['settings'];
 		$this->assertSame('Testing Message', $message->getSubject());
 	}
-
 }

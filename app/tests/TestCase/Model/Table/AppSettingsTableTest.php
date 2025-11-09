@@ -216,18 +216,32 @@ class AppSettingsTableTest extends TestCase
      */
     public function testUpdateSetting(): void
     {
-        // Test updating an existing setting from dev_seed_clean.sql
-        $result = $this->AppSettings->updateSetting('KMP.ShortSiteTitle', 'string', 'TEST', false);
+        // Create a temporary unique setting for testing (don't pollute seeded data)
+        $tempKey = 'KMP.TestShortSiteTitle';
+        $this->AppSettings->newEntity([
+            'name' => $tempKey,
+            'value' => 'ORIGINAL',
+            'type' => 'string',
+            'required' => false,
+        ]);
+        $result = $this->AppSettings->updateSetting($tempKey, 'string', 'ORIGINAL', false);
+        $this->assertTrue($result);
+
+        // Test updating the temporary setting
+        $result = $this->AppSettings->updateSetting($tempKey, 'string', 'TEST', false);
         $this->assertTrue($result);
 
         // Verify the value was updated in the database
-        $appSetting = $this->AppSettings->find()->where(['name' => 'KMP.ShortSiteTitle'])->first();
+        $appSetting = $this->AppSettings->find()->where(['name' => $tempKey])->first();
         $this->assertEquals('TEST', $appSetting->value);
         $this->assertEquals('string', $appSetting->type);
 
         // Test that cache was updated
-        $cachedValue = Cache::read('app_setting_KMP.ShortSiteTitle', 'default');
+        $cachedValue = Cache::read('app_setting_' . $tempKey, 'default');
         $this->assertEquals('TEST', $cachedValue);
+
+        // Clean up: delete the temporary setting
+        $this->AppSettings->deleteSetting($tempKey);
 
         // Test creating a new setting via updateSetting
         $result = $this->AppSettings->updateSetting('test.new.setting', 'number', '42', true);
@@ -239,6 +253,9 @@ class AppSettingsTableTest extends TestCase
         $this->assertEquals('42', $newSetting->value);
         $this->assertEquals('number', $newSetting->type);
         $this->assertTrue($newSetting->required);
+
+        // Clean up: delete the test setting
+        $this->AppSettings->deleteSetting('test.new.setting');
     }
 
     /**

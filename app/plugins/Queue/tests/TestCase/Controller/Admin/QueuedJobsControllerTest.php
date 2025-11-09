@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Queue\Test\TestCase\Controller\Admin;
@@ -12,14 +13,16 @@ use Shim\TestSuite\TestCase;
 /**
  * @uses \Queue\Controller\Admin\QueuedJobsController
  */
-class QueuedJobsControllerTest extends TestCase {
+class QueuedJobsControllerTest extends TestCase
+{
 
 	use IntegrationTestTrait;
 
 	/**
 	 * @return void
 	 */
-	public function setUp(): void {
+	public function setUp(): void
+	{
 		parent::setUp();
 
 		$this->loadPlugins(['Queue']);
@@ -28,13 +31,12 @@ class QueuedJobsControllerTest extends TestCase {
 	}
 
 	/**
-	 * @var array
-	 */	/**
 	 * Test index method
 	 *
 	 * @return void
 	 */
-	public function testIndex() {
+	public function testIndex()
+	{
 		$this->createJob();
 
 		$this->get(['prefix' => 'Admin', 'plugin' => 'Queue', 'controller' => 'QueuedJobs', 'action' => 'index']);
@@ -45,7 +47,8 @@ class QueuedJobsControllerTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testEdit() {
+	public function testEdit()
+	{
 		$job = $this->createJob();
 
 		$this->get(['prefix' => 'Admin', 'plugin' => 'Queue', 'controller' => 'QueuedJobs', 'action' => 'edit', $job->id]);
@@ -56,7 +59,8 @@ class QueuedJobsControllerTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testDelete() {
+	public function testDelete()
+	{
 		$job = $this->createJob();
 
 		$this->post(['prefix' => 'Admin', 'plugin' => 'Queue', 'controller' => 'QueuedJobs', 'action' => 'delete', $job->id]);
@@ -71,7 +75,8 @@ class QueuedJobsControllerTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testEditPost() {
+	public function testEditPost()
+	{
 		$job = $this->createJob();
 
 		$data = [
@@ -90,7 +95,8 @@ class QueuedJobsControllerTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testData() {
+	public function testData()
+	{
 		$job = $this->createJob(['data' => '{"verbose":true,"count":22,"string":"string"}']);
 
 		$this->get(['prefix' => 'Admin', 'plugin' => 'Queue', 'controller' => 'QueuedJobs', 'action' => 'data', $job->id]);
@@ -101,7 +107,8 @@ class QueuedJobsControllerTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testDataPost() {
+	public function testDataPost()
+	{
 		$job = $this->createJob();
 
 		$data = [
@@ -130,7 +137,8 @@ JSON,
 	 *
 	 * @return void
 	 */
-	public function testStats() {
+	public function testStats()
+	{
 		Configure::write('Queue.isStatisticEnabled', true);
 
 		$this->get(['prefix' => 'Admin', 'plugin' => 'Queue', 'controller' => 'QueuedJobs', 'action' => 'stats']);
@@ -143,7 +151,8 @@ JSON,
 	 *
 	 * @return void
 	 */
-	public function testTest() {
+	public function testTest()
+	{
 		$this->get(['prefix' => 'Admin', 'plugin' => 'Queue', 'controller' => 'QueuedJobs', 'action' => 'test']);
 
 		$this->assertResponseCode(200);
@@ -154,7 +163,8 @@ JSON,
 	 *
 	 * @return void
 	 */
-	public function testIndexSearch() {
+	public function testIndexSearch()
+	{
 		$this->createJob();
 
 		$this->get(['prefix' => 'Admin', 'plugin' => 'Queue', 'controller' => 'QueuedJobs', 'action' => 'index', '?' => ['status' => 'completed']]);
@@ -165,7 +175,8 @@ JSON,
 	/**
 	 * @return void
 	 */
-	public function testView() {
+	public function testView()
+	{
 		$queuedJob = $this->createJob();
 
 		$this->get(['prefix' => 'Admin', 'plugin' => 'Queue', 'controller' => 'QueuedJobs', 'action' => 'view', $queuedJob->id]);
@@ -176,7 +187,8 @@ JSON,
 	/**
 	 * @return void
 	 */
-	public function testViewJson() {
+	public function testViewJson()
+	{
 		$queuedJob = $this->createJob();
 
 		$this->requestAsJson();
@@ -194,7 +206,8 @@ JSON,
 	 *
 	 * @return void
 	 */
-	public function testImport() {
+	public function testImport()
+	{
 		$jsonFile = TESTS . 'test_files' . DS . 'queued-job.json';
 
 		$data = [
@@ -218,7 +231,8 @@ JSON,
 	 *
 	 * @return void
 	 */
-	protected function _needsConnection() {
+	protected function _needsConnection()
+	{
 		$config = ConnectionManager::getConfig('test');
 		$skip = strpos($config['driver'], 'Mysql') === false && strpos($config['driver'], 'Postgres') === false;
 		$this->skipIf($skip, 'Only Mysql/Postgres is working yet for this.');
@@ -229,7 +243,8 @@ JSON,
 	 *
 	 * @return \Queue\Model\Entity\QueuedJob
 	 */
-	protected function createJob(array $data = []) {
+	protected function createJob(array $data = [])
+	{
 		$data += [
 			'job_task' => 'foo',
 		];
@@ -240,5 +255,4 @@ JSON,
 
 		return $queuedJob;
 	}
-
 }

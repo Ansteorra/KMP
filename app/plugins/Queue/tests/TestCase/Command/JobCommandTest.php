@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Queue\Test\TestCase\Command;
@@ -12,16 +13,16 @@ use Queue\Model\Entity\QueuedJob;
 /**
  * @uses \Queue\Command\JobCommand
  */
-class JobCommandTest extends TestCase {
+class JobCommandTest extends TestCase
+{
 
 	use ConsoleIntegrationTestTrait;
 
 	/**
-	 * @var array<string>
-	 */	/**
 	 * @return void
 	 */
-	public function setUp(): void {
+	public function setUp(): void
+	{
 		parent::setUp();
 
 		$this->loadPlugins(['Queue']);
@@ -32,7 +33,8 @@ class JobCommandTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function tearDown(): void {
+	public function tearDown(): void
+	{
 		parent::tearDown();
 
 		Configure::delete('Queue.cleanuptimeout');
@@ -41,7 +43,8 @@ class JobCommandTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testExecute(): void {
+	public function testExecute(): void
+	{
 		$this->exec('queue job');
 
 		$output = $this->_out->output();
@@ -52,7 +55,8 @@ class JobCommandTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testExecuteView(): void {
+	public function testExecuteView(): void
+	{
 		$job = $this->createJob();
 		$this->exec('queue job view ' . $job->id);
 
@@ -63,7 +67,8 @@ class JobCommandTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testExecuteRemove(): void {
+	public function testExecuteRemove(): void
+	{
 		$job = $this->createJob();
 		$this->exec('queue job remove ' . $job->id);
 
@@ -74,7 +79,8 @@ class JobCommandTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testExecuteRemoveAll(): void {
+	public function testExecuteRemoveAll(): void
+	{
 		$job = $this->createJob();
 		$this->exec('queue job remove all');
 
@@ -85,7 +91,8 @@ class JobCommandTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testExecuteRerun(): void {
+	public function testExecuteRerun(): void
+	{
 		$job = $this->createJob(['completed' => new DateTime()]);
 		$this->exec('queue job rerun ' . $job->id);
 
@@ -96,7 +103,8 @@ class JobCommandTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testExecuteRerunAll(): void {
+	public function testExecuteRerunAll(): void
+	{
 		$this->createJob(['completed' => new DateTime()]);
 		$this->exec('queue job rerun all');
 
@@ -108,7 +116,8 @@ class JobCommandTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testExecuteClean(): void {
+	public function testExecuteClean(): void
+	{
 		$this->exec('queue job clean');
 
 		$output = $this->_out->output();
@@ -118,7 +127,8 @@ class JobCommandTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testExecuteFlush(): void {
+	public function testExecuteFlush(): void
+	{
 		$this->exec('queue job flush');
 
 		$output = $this->_out->output();
@@ -130,7 +140,8 @@ class JobCommandTest extends TestCase {
 	 *
 	 * @return \Queue\Model\Entity\QueuedJob
 	 */
-	protected function createJob(array $data = []): QueuedJob {
+	protected function createJob(array $data = []): QueuedJob
+	{
 		$data += [
 			'job_task' => 'Example',
 		];
@@ -140,5 +151,4 @@ class JobCommandTest extends TestCase {
 
 		return $job;
 	}
-
 }

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Queue\Test\TestCase\Queue\Task;
@@ -12,13 +13,12 @@ use RuntimeException;
 use Shim\TestSuite\ConsoleOutput;
 use Shim\TestSuite\TestTrait;
 
-class ExecuteTaskTest extends TestCase {
+class ExecuteTaskTest extends TestCase
+{
 
 	use TestTrait;
 
 	/**
-	 * @var array
-	 */	/**
 	 * @var \Queue\Queue\Task\ExecuteTask|\PHPUnit\Framework\MockObject\MockObject
 	 */
 	protected $Task;
@@ -38,7 +38,8 @@ class ExecuteTaskTest extends TestCase {
 	 *
 	 * @return void
 	 */
-	public function setUp(): void {
+	public function setUp(): void
+	{
 		parent::setUp();
 
 		$this->out = new ConsoleOutput();
@@ -51,7 +52,8 @@ class ExecuteTaskTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testRun() {
+	public function testRun()
+	{
 		$this->Task->run(['command' => 'php -v'], 0);
 
 		$this->assertTextContains('PHP ', $this->out->output());
@@ -60,7 +62,8 @@ class ExecuteTaskTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testRunFailureWithRedirect() {
+	public function testRunFailureWithRedirect()
+	{
 		$exception = null;
 		try {
 			$this->Task->run(['command' => 'fooooobbbaraar -eeee'], 0);
@@ -78,7 +81,8 @@ class ExecuteTaskTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testRunFailureWithRedirectAndIgnoreCode() {
+	public function testRunFailureWithRedirectAndIgnoreCode()
+	{
 		$this->Task->run(['command' => 'fooooobbbaraar -eeee', 'accepted' => []], 0);
 
 		$this->assertTextContains('Success (code 127)', $this->out->output());
@@ -88,7 +92,8 @@ class ExecuteTaskTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testRunFailureWithoutRedirect() {
+	public function testRunFailureWithoutRedirect()
+	{
 		$this->skipIf((bool)getenv('TRAVIS'), 'Not redirecting stderr to stdout prints noise to the CLI output in between test runs.');
 
 		$this->expectException(RuntimeException::class);
@@ -96,5 +101,4 @@ class ExecuteTaskTest extends TestCase {
 
 		$this->Task->run(['command' => 'fooooobbbaraar -eeee', 'redirect' => false], 0);
 	}
-
 }

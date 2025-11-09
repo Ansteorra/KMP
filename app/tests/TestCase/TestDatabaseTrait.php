@@ -80,12 +80,23 @@ trait TestDatabaseTrait
      * @param string $table Table name
      * @param array $where Where conditions (optional)
      * @return void
+     * @throws \InvalidArgumentException If table name contains invalid characters
      */
     protected function cleanTable(string $table, array $where = []): void
     {
         $connection = ConnectionManager::get('test');
+
         if (empty($where)) {
-            $connection->execute("TRUNCATE TABLE `{$table}`");
+            // Validate table name to prevent SQL injection
+            if (!preg_match('/^[A-Za-z0-9_]+$/', $table)) {
+                throw new \InvalidArgumentException(
+                    "Invalid table name: '{$table}'. Table names must contain only alphanumeric characters and underscores."
+                );
+            }
+
+            // Use connection's quoteIdentifier for safe identifier quoting
+            $quotedTable = $connection->getDriver()->quoteIdentifier($table);
+            $connection->execute("TRUNCATE TABLE {$quotedTable}");
         } else {
             $connection->delete($table, $where);
         }

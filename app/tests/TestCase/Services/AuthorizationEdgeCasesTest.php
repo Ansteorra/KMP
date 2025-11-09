@@ -62,14 +62,30 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
         // Load permissions (should filter out revoked roles)
         $permissions = $eirik->getPermissions();
 
-        // Check if any permissions are from the revoked role 362
-        $revokedRole = $this->MemberRoles->get(362, ['contain' => ['Roles']]);
+        // Load the revoked role with its associated permissions
+        $revokedRole = $this->MemberRoles->get(362, ['contain' => ['Roles.Permissions']]);
         $this->assertNotNull($revokedRole->revoker_id, 'Role 362 should be revoked');
         $this->assertNotEmpty($revokedRole->role->name, 'Should have role name');
 
-        // Revoked role should not grant permissions
-        // This is validated by PermissionsLoader which filters by revoker_id IS NULL
-        $this->assertTrue(true, 'Revoked roles are filtered by PermissionsLoader');
+        // Extract permission IDs from the revoked role
+        $revokedPermissionIds = [];
+        if (!empty($revokedRole->role->permissions)) {
+            $revokedPermissionIds = array_map(function ($permission) {
+                return $permission->id;
+            }, $revokedRole->role->permissions);
+        }
+
+        // Extract permission IDs from the member's current permissions
+        $currentPermissionIds = array_map(function ($permission) {
+            return $permission->id;
+        }, $permissions);
+
+        // Assert that none of the revoked role's permissions are in the member's current permissions
+        $intersection = array_intersect($revokedPermissionIds, $currentPermissionIds);
+        $this->assertEmpty(
+            $intersection,
+            'Revoked role permissions should not be present in member permissions. Found: ' . implode(', ', $intersection)
+        );
     }
 
     /**
@@ -87,17 +103,30 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
         // Load permissions (should filter out expired roles)
         $permissions = $devon->getPermissions();
 
-        // Check expired role
-        $expiredRole = $this->MemberRoles->get(363, ['contain' => ['Roles']]);
+        // Load the expired role with its associated permissions
+        $expiredRole = $this->MemberRoles->get(363, ['contain' => ['Roles.Permissions']]);
         $this->assertNotNull($expiredRole->expires_on, 'Role 363 should have expiration date');
         $this->assertLessThan(new DateTime(), $expiredRole->expires_on, 'Role should be expired');
 
-        // Count Devon's current permissions - should not include expired role
-        // Devon should have permissions from active roles only
-        $this->assertIsArray($permissions, 'Permissions should be array');
+        // Extract permission IDs from the expired role
+        $expiredPermissionIds = [];
+        if (!empty($expiredRole->role->permissions)) {
+            $expiredPermissionIds = array_map(function ($permission) {
+                return $permission->id;
+            }, $expiredRole->role->permissions);
+        }
 
-        // Expired roles filtered by temporal validation in PermissionsLoader
-        $this->assertTrue(true, 'Expired roles are filtered by temporal validation');
+        // Extract permission IDs from the member's current permissions
+        $currentPermissionIds = array_map(function ($permission) {
+            return $permission->id;
+        }, $permissions);
+
+        // Assert that none of the expired role's permissions are in the member's current permissions
+        $intersection = array_intersect($expiredPermissionIds, $currentPermissionIds);
+        $this->assertEmpty(
+            $intersection,
+            'Expired role permissions should not be present in member permissions. Found: ' . implode(', ', $intersection)
+        );
     }
 
     /**
@@ -173,8 +202,19 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
         $permissions = $bryce->getPermissions();
         $this->assertIsArray($permissions, 'Permissions should be array');
 
-        // Expired warrants are filtered by status and temporal validation in PermissionsLoader
-        $this->assertTrue(true, 'Only current warrants satisfy warrant requirements');
+        // Verify that no warrant-required permissions slip through from expired warrants
+        // Since Bryce has a current warrant, this test focuses on ensuring the system
+        // correctly distinguishes between current and expired warrants
+        foreach ($permissions as $permission) {
+            if ($permission->requires_warrant ?? false) {
+                // If a warrant-required permission is present, verify Bryce has a current warrant
+                $this->assertGreaterThan(
+                    0,
+                    $currentCount,
+                    "Warrant-required permission '{$permission->name}' requires an active warrant"
+                );
+            }
+        }
     }
 
     /**
@@ -275,8 +315,8 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
         foreach ($devonPermissions as $permission) {
             if (isset($permission->require_min_age) && $permission->require_min_age > 0) {
                 $this->assertLessThanOrEqual(
-                    $devonAge,
                     $permission->require_min_age,
+                    $devonAge,
                     "Devon should meet age requirement for: {$permission->name}"
                 );
             }
@@ -285,8 +325,8 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
         foreach ($eirikPermissions as $permission) {
             if (isset($permission->require_min_age) && $permission->require_min_age > 0) {
                 $this->assertLessThanOrEqual(
-                    $eirikAge,
                     $permission->require_min_age,
+                    $eirikAge,
                     "Eirik should meet age requirement for: {$permission->name}"
                 );
             }
@@ -465,9 +505,19 @@ class AuthorizationEdgeCasesTest extends BaseTestCase
         $permissions = $bryce->getPermissions();
         $this->assertIsArray($permissions, 'Verified member can have permissions');
 
-        // Note: PermissionsLoader filters by status IN ('verified_membership', 'verified_minor')
-        // for permissions with require_active_membership = true
-        $this->assertTrue(true, 'Member status validation is enforced by PermissionsLoader');
+        // Verify that permissions requiring active membership are only present for verified members
+        // Allowed statuses for active membership permissions (adjust based on your app's logic)
+        $allowedStatuses = ['verified', 'active'];
+
+        foreach ($permissions as $permission) {
+            if ($permission->require_active_membership ?? false) {
+                $this->assertContains(
+                    $bryce->status,
+                    $allowedStatuses,
+                    "Permission '{$permission->name}' requires active membership but member status is '{$bryce->status}'"
+                );
+            }
+        }
     }
 
     /**

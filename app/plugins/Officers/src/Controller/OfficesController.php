@@ -150,6 +150,7 @@ declare(strict_types=1);
 namespace Officers\Controller;
 
 use App\KMP\StaticHelpers;
+use \Officers\Services\OfficerManagerInterface;
 
 /**
  * Offices Management Controller
@@ -829,7 +830,7 @@ class OfficesController extends AppController
      * }
      * ```
      */
-    public function edit($id = null, \Officers\Services\OfficerManagerInterface $officerManager = null)
+    public function edit($id = null, OfficerManagerInterface $officerManager)
     {
         // Load office with minimal associations for edit performance
         $office = $this->Offices->get($id, contain: []);

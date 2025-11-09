@@ -40,6 +40,17 @@ class AuthorizationServiceTest extends BaseTestCase
 
         // Super users should have checkCan return true
         $this->assertTrue($admin->isSuperUser(), 'Admin should be super user');
+
+        // Load a target member to test authorization against
+        $targetMember = $this->Members->get(self::TEST_MEMBER_BRYCE_ID);
+
+        // Exercise checkCan - super users should be able to view other members
+        $canView = $this->AuthService->checkCan($admin, 'view', $targetMember);
+        $this->assertTrue($canView, 'Super user should be authorized to view other members');
+
+        // Also test edit action
+        $canEdit = $this->AuthService->checkCan($admin, 'edit', $targetMember);
+        $this->assertTrue($canEdit, 'Super user should be authorized to edit other members');
     }
 
     public function testCheckCanPreservesAuthorizationState(): void
@@ -55,16 +66,17 @@ class AuthorizationServiceTest extends BaseTestCase
 
         $initialState = $reflectionProperty->getValue($this->AuthService);
 
-        // After checkCan, state should be restored
-        // Note: We can't actually call checkCan without policies registered,
-        // but we can verify the method exists and takes right params
-        $this->assertTrue(
-            method_exists($this->AuthService, 'checkCan'),
-            'AuthorizationService should have checkCan method'
-        );
+        // Actually exercise checkCan() - wrap in try/catch in case policy throws
+        try {
+            $this->AuthService->checkCan($admin, 'view', $admin);
+        } catch (\Exception $e) {
+            // Ignore exceptions from missing policies or failed checks
+            // We're testing state restoration, not authorization logic
+        }
 
+        // After checkCan, state should be restored to initial value
         $finalState = $reflectionProperty->getValue($this->AuthService);
-        $this->assertEquals($initialState, $finalState, 'Authorization state should be preserved');
+        $this->assertEquals($initialState, $finalState, 'Authorization state should be preserved after checkCan');
     }
 
     public function testNonAdminMemberHasLimitedPermissions(): void

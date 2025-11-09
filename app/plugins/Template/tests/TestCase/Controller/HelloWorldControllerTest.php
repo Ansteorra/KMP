@@ -36,7 +36,9 @@ use Cake\TestSuite\TestCase;
  */
 class HelloWorldControllerTest extends TestCase
 {
-    use IntegrationTestTrait;    /**
+    use IntegrationTestTrait;
+
+    /**
      * Test index method
      *
      * @return void

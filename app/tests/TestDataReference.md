@@ -4,7 +4,7 @@ This document maps the stable IDs in `dev_seed_clean.sql` to semantic names for 
 
 ## Overview
 
-All test data is loaded from `/workspaces/KMP/dev_seed_clean.sql` at test bootstrap. Tests use database transactions for isolation, so the data remains unchanged between tests.
+All test data is loaded from the seed file located at the project root: `dev_seed_clean.sql`. Tests use database transactions for isolation, so the data remains unchanged between tests.
 
 **Important:** These IDs are hardcoded in the seed file. Do not assume sequential IDs beyond those documented here.
 

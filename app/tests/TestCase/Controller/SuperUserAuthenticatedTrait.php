@@ -85,8 +85,8 @@ trait SuperUserAuthenticatedTrait
     protected function getAuthenticatedMemberId(): int
     {
         $membersTable = $this->getTableLocator()->get('Members');
-        $member = $membersTable->findByEmailAddress('admin@amp.ansteorra.org')->first();
-        return $member ? $member->id : 1;
+        $member = $membersTable->findByEmailAddress('admin@amp.ansteorra.org')->firstOrFail();
+        return $member->id;
     }
 
     /**

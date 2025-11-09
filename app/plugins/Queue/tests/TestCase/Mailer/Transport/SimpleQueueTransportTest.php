@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Queue\Test\TestCase\Mailer\Transport;
@@ -10,11 +11,10 @@ use Queue\Mailer\Transport\SimpleQueueTransport;
 /**
  * Test case
  */
-class SimpleQueueTransportTest extends TestCase {
+class SimpleQueueTransportTest extends TestCase
+{
 
 	/**
-	 * @var array
-	 */	/**
 	 * @var \Queue\Mailer\Transport\SimpleQueueTransport
 	 */
 	protected $QueueTransport;
@@ -24,7 +24,8 @@ class SimpleQueueTransportTest extends TestCase {
 	 *
 	 * @return void
 	 */
-	public function setUp(): void {
+	public function setUp(): void
+	{
 		parent::setUp();
 		$this->QueueTransport = new SimpleQueueTransport();
 	}
@@ -32,7 +33,8 @@ class SimpleQueueTransportTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testSendWithEmail() {
+	public function testSendWithEmail()
+	{
 		$config = [
 			'transport' => 'queue',
 			'charset' => 'utf-8',
@@ -78,5 +80,4 @@ class SimpleQueueTransportTest extends TestCase {
 		$this->assertNotEmpty($result['headers']);
 		$this->assertTextContains('Foo Bar Content', $result['message']);
 	}
-
 }
