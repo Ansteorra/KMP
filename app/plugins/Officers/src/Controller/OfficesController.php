@@ -848,11 +848,6 @@ class OfficesController extends AppController
             // Extract submitted data
             $postData = $this->request->getData();
 
-            // Check if officer-impacting fields are changing before patching
-            $checkRecalculation = $office->isDirty('deputy_to_id') ||
-                $office->isDirty('reports_to_id') ||
-                $office->isDirty('grants_role_id');
-
             // Patch entity with submitted form data
             $office = $this->Offices->patchEntity($office, $postData);
 

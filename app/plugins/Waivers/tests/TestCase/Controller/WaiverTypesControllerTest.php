@@ -4,19 +4,21 @@ declare(strict_types=1);
 
 namespace Waivers\Test\TestCase\Controller;
 
+use App\Test\TestCase\BaseTestCase;
 use App\Test\TestCase\Controller\SuperUserAuthenticatedTrait;
 use Cake\TestSuite\IntegrationTestTrait;
-use Cake\TestSuite\TestCase;
 
 /**
  * Waivers\Controller\WaiverTypesController Test Case
  *
  * @uses \Waivers\Controller\WaiverTypesController
  */
-class WaiverTypesControllerTest extends TestCase
+class WaiverTypesControllerTest extends BaseTestCase
 {
     use IntegrationTestTrait;
-    use SuperUserAuthenticatedTrait;    /**
+    use SuperUserAuthenticatedTrait;
+
+    /**
      * Test index method
      *
      * @return void

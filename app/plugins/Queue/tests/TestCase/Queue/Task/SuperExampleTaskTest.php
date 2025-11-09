@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Queue\Test\TestCase\Queue\Task;
@@ -10,13 +11,12 @@ use Queue\Queue\Task\SuperExampleTask;
 use Shim\TestSuite\ConsoleOutput;
 use Shim\TestSuite\TestTrait;
 
-class SuperExampleTaskTest extends TestCase {
+class SuperExampleTaskTest extends TestCase
+{
 
 	use TestTrait;
 
 	/**
-	 * @var array
-	 */	/**
 	 * @var \Queue\Queue\Task\SuperExampleTask|\PHPUnit\Framework\MockObject\MockObject
 	 */
 	protected $Task;
@@ -36,7 +36,8 @@ class SuperExampleTaskTest extends TestCase {
 	 *
 	 * @return void
 	 */
-	public function setUp(): void {
+	public function setUp(): void
+	{
 		parent::setUp();
 
 		$this->out = new ConsoleOutput();
@@ -49,10 +50,10 @@ class SuperExampleTaskTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testRun() {
+	public function testRun()
+	{
 		$this->Task->run([], 0);
 
 		$this->assertTextContains('Success, the SuperExample Job was run', $this->out->output());
 	}
-
 }

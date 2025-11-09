@@ -54,4 +54,4 @@ ConnectionManager::alias('test_debug_kit', 'debug_kit');
 session_id('cli');
 
 //load structure and data from dev_seed_clean.sql
-(new SchemaLoader())->loadSqlFiles('../dev_seed_clean.sql', 'test');
+(new SchemaLoader())->loadSqlFiles('../../dev_seed_clean.sql', 'test');

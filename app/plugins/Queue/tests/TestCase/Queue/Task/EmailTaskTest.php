@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Queue\Test\TestCase\Queue\Task;
@@ -17,13 +18,15 @@ use Shim\TestSuite\ConsoleOutput;
 use Shim\TestSuite\TestTrait;
 use Tools\Mailer\Message as MailerMessage;
 
-class EmailTaskTest extends TestCase {
+class EmailTaskTest extends TestCase
+{
 
 	use TestTrait;
 
 	/**
 	 * @var array<string>
-	 */	/**
+	 */
+	/**
 	 * @var \Queue\Queue\Task\EmailTask|\PHPUnit\Framework\MockObject\MockObject
 	 */
 	protected $Task;
@@ -43,7 +46,8 @@ class EmailTaskTest extends TestCase {
 	 *
 	 * @return void
 	 */
-	public function setUp(): void {
+	public function setUp(): void
+	{
 		parent::setUp();
 
 		$this->out = new ConsoleOutput();
@@ -56,7 +60,8 @@ class EmailTaskTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testAdd() {
+	public function testAdd()
+	{
 		Configure::write('Config.adminEmail', 'test@test.de');
 		$this->Task->add(null);
 
@@ -73,7 +78,8 @@ class EmailTaskTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testAddMessageSerialized() {
+	public function testAddMessageSerialized()
+	{
 		$message = new Message();
 		$message
 			->setSubject('I haz Cake')
@@ -114,7 +120,8 @@ class EmailTaskTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testAddMessagePhpSerialized() {
+	public function testAddMessagePhpSerialized()
+	{
 		$message = new Message();
 		$message
 			->setSubject('I haz Cake')
@@ -150,7 +157,8 @@ class EmailTaskTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testRunArray() {
+	public function testRunArray()
+	{
 		$settings = [
 			'from' => 'test@test.de',
 			'to' => 'test@test.de',
@@ -173,7 +181,8 @@ class EmailTaskTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testRunArrayEmailComplex() {
+	public function testRunArrayEmailComplex()
+	{
 		$settings = [
 			'from' => ['test@test.de', 'My Name'],
 			'to' => ['test@test.de', 'Your Name'],
@@ -206,7 +215,8 @@ class EmailTaskTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testRunToolsEmailMessageClassString() {
+	public function testRunToolsEmailMessageClassString()
+	{
 		$class = MailerMessage::class;
 		$settings = [
 			'from' => 'test@test.de',
@@ -246,10 +256,10 @@ class EmailTaskTest extends TestCase {
 	 *
 	 * @return void
 	 */
-	protected function _skipPostgres() {
+	protected function _skipPostgres()
+	{
 		$config = ConnectionManager::getConfig('test');
 		$skip = strpos($config['driver'], 'Postgres') !== false;
 		$this->skipIf($skip, 'Only non Postgres is working yet for this.');
 	}
-
 }
