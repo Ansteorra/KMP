@@ -829,7 +829,7 @@ class OfficesController extends AppController
      * }
      * ```
      */
-    public function edit($id = null)
+    public function edit($id = null, \Officers\Services\OfficerManagerInterface $officerManager = null)
     {
         // Load office with minimal associations for edit performance
         $office = $this->Offices->get($id, contain: []);
@@ -847,6 +847,11 @@ class OfficesController extends AppController
             // Extract submitted data
             $postData = $this->request->getData();
 
+            // Check if officer-impacting fields are changing before patching
+            $checkRecalculation = $office->isDirty('deputy_to_id') ||
+                $office->isDirty('reports_to_id') ||
+                $office->isDirty('grants_role_id');
+
             // Patch entity with submitted form data
             $office = $this->Offices->patchEntity($office, $postData);
 
@@ -854,15 +859,90 @@ class OfficesController extends AppController
             if (empty($office->branch_types)) {
                 $this->Flash->error(__('At least 1 Branch Type must be selected.'));
             } else {
-                // Attempt to save with comprehensive error handling
-                if ($this->Offices->save($office)) {
-                    // Success: Provide feedback and redirect to view
-                    $this->Flash->success(__('The office has been saved.'));
-                    return $this->redirect(['action' => 'view', $office['id']]);
-                }
+                // Determine if we need to recalculate officers after checking dirty state
+                $needsRecalculation = $office->isDirty('deputy_to_id') ||
+                    $office->isDirty('reports_to_id') ||
+                    $office->isDirty('grants_role_id');
 
-                // Failure: Provide error feedback
-                $this->Flash->error(__('The office could not be saved. Please, try again.'));
+                // Start transaction for atomic office save + officer recalculation
+                $this->Offices->getConnection()->begin();
+
+                try {
+                    // Attempt to save office
+                    if (!$this->Offices->save($office)) {
+                        // Failure: Rollback and provide error feedback
+                        $this->Offices->getConnection()->rollback();
+                        $this->Flash->error(__('The office could not be saved. Please, try again.'));
+                    } else {
+                        // Office saved successfully
+                        $recalcResult = null;
+
+                        if ($needsRecalculation) {
+                            // Recalculate officers for the office configuration change
+                            $currentUser = $this->Authentication->getIdentity();
+                            $recalcResult = $officerManager->recalculateOfficersForOffice(
+                                $office->id,
+                                $currentUser->id
+                            );
+
+                            if (!$recalcResult->success) {
+                                // Recalculation failed: Rollback everything
+                                $this->Offices->getConnection()->rollback();
+                                $this->Flash->error(__('The office could not be saved: {0}', $recalcResult->reason));
+                                return $this->redirect(['action' => 'view', $office['id']]);
+                            }
+                        }
+
+                        // Commit transaction - everything succeeded
+                        $this->Offices->getConnection()->commit();
+
+                        // Log successful recalculation if it occurred
+                        if ($needsRecalculation && $recalcResult) {
+                            \Cake\Log\Log::info('Office configuration changed - officers recalculated', [
+                                'office_id' => $office->id,
+                                'office_name' => $office->name,
+                                'updated_count' => $recalcResult->data['updated_count'],
+                                'current_count' => $recalcResult->data['current_count'],
+                                'upcoming_count' => $recalcResult->data['upcoming_count'],
+                            ]);
+                        }
+
+                        // Success: Provide feedback and redirect to view
+                        if ($needsRecalculation && $recalcResult) {
+                            // Build message showing which officers were updated
+                            $currentCount = $recalcResult->data['current_count'];
+                            $upcomingCount = $recalcResult->data['upcoming_count'];
+                            $messageParts = [];
+
+                            if ($currentCount > 0) {
+                                $messageParts[] = __('{0} current officer(s)', $currentCount);
+                            }
+                            if ($upcomingCount > 0) {
+                                $messageParts[] = __('{0} upcoming officer(s)', $upcomingCount);
+                            }
+
+                            if (!empty($messageParts)) {
+                                $officerMessage = implode(' and ', $messageParts);
+                                $this->Flash->success(__('The office has been saved. {0} have been updated.', $officerMessage));
+                            } else {
+                                $this->Flash->success(__('The office has been saved.'));
+                            }
+                        } else {
+                            $this->Flash->success(__('The office has been saved.'));
+                        }
+
+                        return $this->redirect(['action' => 'view', $office['id']]);
+                    }
+                } catch (\Exception $e) {
+                    // Unexpected error: Rollback and log
+                    $this->Offices->getConnection()->rollback();
+                    \Cake\Log\Log::error('Office save/recalculation failed with exception', [
+                        'office_id' => $id,
+                        'exception' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString(),
+                    ]);
+                    $this->Flash->error(__('An unexpected error occurred. Please try again.'));
+                }
             }
         }
 

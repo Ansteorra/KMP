@@ -324,4 +324,77 @@ interface OfficerManagerInterface
         DateTime $revokedOn,
         ?string $revokedReason
     ): ServiceResult;
+
+    /**
+     * Recalculate Officer Reports-To Relationships for Office Configuration Changes
+     * 
+     * Recalculates and updates reports-to relationships and member role assignments for all current
+     * and upcoming officers when an office's reporting structure or role configuration changes.
+     * This method ensures organizational hierarchy consistency by propagating office relationship
+     * changes to all active officer assignments throughout the branch hierarchy.
+     * 
+     * ## Recalculation Workflow
+     * 
+     * **Current and Upcoming Officer Discovery**: Identifies all current and upcoming officers
+     * assigned to the specified office across all branches, including main offices and deputy
+     * positions, for comprehensive reporting relationship recalculation and hierarchy updates.
+     * 
+     * **Branch Hierarchy Navigation**: Traverses branch hierarchy for each officer to determine
+     * appropriate reports-to branch based on office reporting requirements, parent branch
+     * relationships, and organizational structure constraints for accurate chain of command.
+     * 
+     * **Reports-To Assignment**: Updates officer reports-to relationships based on recalculated
+     * branch compatibility, hierarchical structure, skip-reporting rules, and comprehensive
+     * organizational reporting logic for accurate reporting chain maintenance.
+     * 
+     * **Member Role Synchronization**: Synchronizes member role assignments when office role
+     * configuration changes, ending old office-granted roles and creating new roles as needed
+     * to maintain accurate permission assignments aligned with office requirements.
+     * 
+     * ## Transaction Requirements
+     * 
+     * **External Transaction Management**: Requires calling code to establish database transaction
+     * before method invocation to ensure data consistency, rollback capabilities, and comprehensive
+     * error handling across multi-record updates in single atomic operation.
+     * 
+     * **Atomic Operations**: All officer updates and role synchronizations must occur atomically
+     * within the external transaction to prevent partial updates and maintain organizational
+     * data integrity throughout the recalculation process.
+     * 
+     * ## Error Handling
+     * 
+     * **Fail-Fast Processing**: Stops processing and returns detailed error information on first
+     * officer update failure including specific member identification, failure reasons, and
+     * actionable error messages for immediate issue resolution and transaction rollback.
+     * 
+     * **Specific Error Identification**: Provides detailed error messages identifying which specific
+     * member/office/branch combination failed during recalculation, enabling targeted troubleshooting
+     * and comprehensive error reporting for administrative review and resolution.
+     * 
+     * ## Performance Considerations
+     * 
+     * **Batch Processing**: Processes up to 100 officers per office recalculation with efficient
+     * database operations, optimized queries, and comprehensive update coordination for
+     * scalable performance in production environments with typical organizational structures.
+     * 
+     * **Administrative Scope**: Designed for administrative office configuration changes with
+     * synchronous processing appropriate for infrequent configuration updates and comprehensive
+     * organizational structure maintenance during administrative operations.
+     * 
+     * @param int $officeId The office ID for officers requiring reports-to recalculation
+     * @param int $updaterId The updater ID for audit trail creation and administrative oversight
+     * @return ServiceResult Comprehensive result with success status, update counts, and error details.
+     *                       On success, data contains ['updated_count' => int, 'current_count' => int, 'upcoming_count' => int].
+     *                       On failure, reason contains specific error with member identification.
+     * 
+     * @throws \InvalidArgumentException When office ID is invalid or office does not exist
+     * @throws \RuntimeException When system-level errors prevent recalculation processing
+     * 
+     * @since 1.0.0
+     * @version 2.0.0
+     */
+    public function recalculateOfficersForOffice(
+        int $officeId,
+        int $updaterId
+    ): ServiceResult;
 }
