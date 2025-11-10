@@ -19,30 +19,6 @@ class GatheringActivitiesControllerTest extends TestCase
     use SuperUserAuthenticatedTrait;
 
     /**
-     * Fixtures
-     *
-     * @var list<string>
-     */
-    protected array $fixtures = [
-        'app.Branches',
-        'app.Permissions',
-        'app.Roles',
-        'app.RolesPermissions',
-        'app.Members',
-        'app.MemberRoles',
-        'app.TestSuperUser',
-        'app.TestSuperUserRole',
-        'app.TestSuperUserRolePermission',
-        'app.TestSuperUserMemberRole',
-        'app.Warrants',
-        'app.GatheringTypes',
-        'app.Gatherings',
-        'app.GatheringActivities',
-        'plugin.Waivers.WaiverTypes',
-        'plugin.Waivers.GatheringActivityWaivers',
-    ];
-
-    /**
      * Test index method
      *
      * @return void

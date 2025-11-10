@@ -36,6 +36,7 @@ class MemberRole extends ActiveWindowBaseEntity
         'expires_on' => true,
         'start_on' => true,
         'approver_id' => true,
+        'revoker_id' => true,
         'Member' => true,
         'role' => true,
         'approved_by' => true,

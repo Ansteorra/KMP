@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 /**
@@ -21,7 +22,8 @@ use TestApp\Dto\MyTaskDto;
 /**
  * Queue\Model\Table\QueuedJobsTable Test Case
  */
-class QueuedJobsTableTest extends TestCase {
+class QueuedJobsTableTest extends TestCase
+{
 
 	/**
 	 * @var \Queue\Model\Table\QueuedJobsTable
@@ -29,19 +31,12 @@ class QueuedJobsTableTest extends TestCase {
 	protected $QueuedJobs;
 
 	/**
-	 * @var array<string>
-	 */
-	protected array $fixtures = [
-		'plugin.Queue.QueuedJobs',
-		'plugin.Queue.QueueProcesses',
-	];
-
-	/**
 	 * setUp method
 	 *
 	 * @return void
 	 */
-	public function setUp(): void {
+	public function setUp(): void
+	{
 		parent::setUp();
 
 		$config = TableRegistry::getTableLocator()->exists('QueuedJobs') ? [] : ['className' => QueuedJobsTable::class];
@@ -51,7 +46,8 @@ class QueuedJobsTableTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function tearDown(): void {
+	public function tearDown(): void
+	{
 		parent::tearDown();
 
 		Configure::delete('Queue.skipExistenceCheck');
@@ -62,7 +58,8 @@ class QueuedJobsTableTest extends TestCase {
 	 *
 	 * @return void
 	 */
-	public function testQueueInstance() {
+	public function testQueueInstance()
+	{
 		$this->assertInstanceOf(QueuedJobsTable::class, $this->QueuedJobs);
 	}
 
@@ -71,7 +68,8 @@ class QueuedJobsTableTest extends TestCase {
 	 *
 	 * @return void
 	 */
-	public function testCreateAndCount() {
+	public function testCreateAndCount()
+	{
 		// at first, the queue should contain 0 items.
 		$this->assertSame(0, $this->QueuedJobs->getLength());
 
@@ -110,7 +108,8 @@ class QueuedJobsTableTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testMarkJobDone() {
+	public function testMarkJobDone()
+	{
 		$job = $this->QueuedJobs->createJob('Foo', [
 			'some' => 'random',
 			'test' => 'data',
@@ -121,7 +120,8 @@ class QueuedJobsTableTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testMarkJobFailed() {
+	public function testMarkJobFailed()
+	{
 		$job = $this->QueuedJobs->createJob('Foo', [
 			'some' => 'random',
 			'test' => 'data',
@@ -132,7 +132,8 @@ class QueuedJobsTableTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testFlushFailedJobs() {
+	public function testFlushFailedJobs()
+	{
 		$this->QueuedJobs->createJob('Foo', [
 			'some' => 'random',
 			'test' => 'data',
@@ -145,7 +146,8 @@ class QueuedJobsTableTest extends TestCase {
 	 *
 	 * @return void
 	 */
-	public function testCreateAndFetch() {
+	public function testCreateAndFetch()
+	{
 		//$capabilities is a list of tasks the worker can run.
 		$capabilities = [
 			'Foo' => [
@@ -200,7 +202,8 @@ class QueuedJobsTableTest extends TestCase {
 	 *
 	 * @return void
 	 */
-	public function testCreateWithFqcn() {
+	public function testCreateWithFqcn()
+	{
 		$queuedJob = $this->QueuedJobs->createJob(ExampleTask::class, [
 			'some' => 'random',
 			'test' => 'data',
@@ -214,7 +217,8 @@ class QueuedJobsTableTest extends TestCase {
 	 *
 	 * @return void
 	 */
-	public function testCreateWithSkipExistenceCheck() {
+	public function testCreateWithSkipExistenceCheck()
+	{
 		Configure::write('Queue.skipExistenceCheck', true);
 
 		$queuedJob = $this->QueuedJobs->createJob('FooDoesNotExist', [
@@ -227,7 +231,8 @@ class QueuedJobsTableTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testCreateWithDto() {
+	public function testCreateWithDto()
+	{
 		$array = [
 			'some' => 'random',
 			'test' => 'data',
@@ -242,7 +247,8 @@ class QueuedJobsTableTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testCreateWithObject() {
+	public function testCreateWithObject()
+	{
 		$array = [
 			'some' => 'random',
 			'test' => 'data',
@@ -251,7 +257,8 @@ class QueuedJobsTableTest extends TestCase {
 			/**
 			 * @return string[]
 			 */
-			public function toArray(): array {
+			public function toArray(): array
+			{
 				return [
 					'some' => 'random',
 					'test' => 'data',
@@ -269,7 +276,8 @@ class QueuedJobsTableTest extends TestCase {
 	 *
 	 * @return void
 	 */
-	public function testSequence() {
+	public function testSequence()
+	{
 		//$capabilities is a list of tasks the worker can run.
 		$capabilities = [
 			'Foo' => [
@@ -322,7 +330,8 @@ class QueuedJobsTableTest extends TestCase {
 	 *
 	 * @return null
 	 */
-	public function testNotBefore() {
+	public function testNotBefore()
+	{
 		$this->assertTrue((bool)$this->QueuedJobs->createJob('Foo', null, ['notBefore' => '+ 1 Min']));
 		$this->assertTrue((bool)$this->QueuedJobs->createJob('Foo', null, ['notBefore' => '+ 1 Day']));
 		$this->assertTrue((bool)$this->QueuedJobs->createJob('Foo', null, ['notBefore' => '2009-07-01 12:00:00']));
@@ -338,7 +347,8 @@ class QueuedJobsTableTest extends TestCase {
 	 *
 	 * @return void
 	 */
-	public function testNotBeforeOrder() {
+	public function testNotBeforeOrder()
+	{
 		$this->_needsConnection();
 
 		$capabilities = [
@@ -403,7 +413,8 @@ class QueuedJobsTableTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testFindQueued() {
+	public function testFindQueued()
+	{
 		$queued = $this->QueuedJobs->find('queued')->count();
 		$this->assertSame(0, $queued);
 	}
@@ -414,7 +425,8 @@ class QueuedJobsTableTest extends TestCase {
 	 *
 	 * @return void
 	 */
-	public function testRateLimit() {
+	public function testRateLimit()
+	{
 		$this->_needsConnection();
 
 		$capabilities = [
@@ -509,7 +521,8 @@ class QueuedJobsTableTest extends TestCase {
 	 *
 	 * @return void
 	 */
-	public function _testRequeueAfterTimeout() {
+	public function _testRequeueAfterTimeout()
+	{
 		$capabilities = [
 			'Foo' => [
 				'name' => 'Foo',
@@ -549,7 +562,8 @@ class QueuedJobsTableTest extends TestCase {
 	 *
 	 * @return void
 	 */
-	public function _testRequeueAfterTimeout2() {
+	public function _testRequeueAfterTimeout2()
+	{
 		$capabilities = [
 			'Foo' => [
 				'name' => 'Foo',
@@ -585,7 +599,8 @@ class QueuedJobsTableTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testRequestJob() {
+	public function testRequestJob()
+	{
 		$capabilities = [
 			'Foo' => [
 				'name' => 'Foo',
@@ -606,7 +621,8 @@ class QueuedJobsTableTest extends TestCase {
 	 *
 	 * @return void
 	 */
-	public function testRequestGroup() {
+	public function testRequestGroup()
+	{
 		$capabilities = [
 			'Foo' => [
 				'name' => 'Foo',
@@ -678,7 +694,8 @@ class QueuedJobsTableTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testPriority() {
+	public function testPriority()
+	{
 		$capabilities = [
 			'Foo' => [
 				'name' => 'Foo',
@@ -707,7 +724,8 @@ class QueuedJobsTableTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testIsQueued() {
+	public function testIsQueued()
+	{
 		$result = $this->QueuedJobs->isQueued('foo-bar');
 		$this->assertFalse($result);
 
@@ -731,7 +749,8 @@ class QueuedJobsTableTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testGetStats() {
+	public function testGetStats()
+	{
 		$queuedJob = $this->QueuedJobs->newEntity([
 			'job_task' => 'Foo',
 			'completed' => (new DateTime())->subHours(2),
@@ -756,10 +775,10 @@ class QueuedJobsTableTest extends TestCase {
 	 *
 	 * @return void
 	 */
-	protected function _needsConnection() {
+	protected function _needsConnection()
+	{
 		$config = ConnectionManager::getConfig('test');
 		$skip = strpos($config['driver'], 'Mysql') === false && strpos($config['driver'], 'Postgres') === false;
 		$this->skipIf($skip, 'Only Mysql/Postgres is working yet for this.');
 	}
-
 }

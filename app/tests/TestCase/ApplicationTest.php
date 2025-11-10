@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 /**
@@ -84,9 +85,10 @@ class ApplicationTest extends TestCase
             ErrorHandlerMiddleware::class,
             $middleware->current(),
         );
-        $middleware->seek(1);
-        $this->assertInstanceOf(AssetMiddleware::class, $middleware->current());
+        // Skip the security headers middleware (index 1) as it's a closure
         $middleware->seek(2);
+        $this->assertInstanceOf(AssetMiddleware::class, $middleware->current());
+        $middleware->seek(3);
         $this->assertInstanceOf(
             RoutingMiddleware::class,
             $middleware->current(),

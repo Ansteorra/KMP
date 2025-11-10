@@ -26,7 +26,7 @@ trait AuthenticatedTrait
         $this->enableSecurityToken();
         $membersTable = $this->getTableLocator()->get('Members');
         // Look up by email instead of hardcoded ID to work with auto-increment fixtures
-        $member = $membersTable->findByEmailAddress('admin@test.com')->firstOrFail();
+        $member = $membersTable->findByEmailAddress('admin@amp.ansteorra.org')->firstOrFail();
         $member->warrantableReview();
 
         // For tests, manually load the super user permission to enable authorization

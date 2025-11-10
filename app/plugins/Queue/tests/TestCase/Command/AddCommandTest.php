@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Queue\Test\TestCase\Command;
@@ -9,21 +10,19 @@ use Cake\TestSuite\TestCase;
 /**
  * @uses \Queue\Command\AddCommand
  */
-class AddCommandTest extends TestCase {
+class AddCommandTest extends TestCase
+{
 
 	use ConsoleIntegrationTestTrait;
 
 	/**
 	 * @var array<string>
 	 */
-	protected array $fixtures = [
-		'plugin.Queue.QueuedJobs',
-	];
-
 	/**
 	 * @return void
 	 */
-	public function setUp(): void {
+	public function setUp(): void
+	{
 		parent::setUp();
 
 		//$this->useCommandRunner();
@@ -33,7 +32,8 @@ class AddCommandTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testExecute(): void {
+	public function testExecute(): void
+	{
 		$this->exec('queue add');
 
 		$output = $this->_out->output();
@@ -44,12 +44,12 @@ class AddCommandTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testExecuteAddExample(): void {
+	public function testExecuteAddExample(): void
+	{
 		$this->exec('queue add Queue.Example');
 
 		$output = $this->_out->output();
 		$this->assertStringContainsString('OK, job created, now run the worker', $output);
 		$this->assertExitCode(0);
 	}
-
 }

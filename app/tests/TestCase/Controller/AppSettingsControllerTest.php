@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Controller;
@@ -15,22 +16,6 @@ class AppSettingsControllerTest extends TestCase
 {
     use IntegrationTestTrait;
     use AuthenticatedTrait;
-
-    /**
-     * Fixtures
-     *
-     * @var list<string>
-     */
-    protected array $fixtures = [
-        'app.AppSettings',
-        'app.Members',
-        'app.Roles',
-        'app.Permissions',
-        'app.RolesPermissions',
-        'app.MemberRoles',
-        'app.Warrants',
-        'app.Branches',
-    ];
 
     /**
      * Test index method
@@ -54,9 +39,9 @@ class AppSettingsControllerTest extends TestCase
      */
     public function testAdd(): void
     {
-
+        $uniqueName = 'Test.Setting.' . time();
         $data = [
-            'name' => 'Test.Setting',
+            'name' => $uniqueName,
             'value' => 'Test Value',
         ];
 
@@ -65,7 +50,7 @@ class AppSettingsControllerTest extends TestCase
 
         // Check the record was saved to the database
         $appSettingsTable = $this->getTableLocator()->get('AppSettings');
-        $query = $appSettingsTable->find()->where(['name' => 'Test.Setting']);
+        $query = $appSettingsTable->find()->where(['name' => $uniqueName]);
         $this->assertEquals(1, $query->count());
     }
 
@@ -77,13 +62,13 @@ class AppSettingsControllerTest extends TestCase
      */
     public function testEdit(): void
     {
-
+        // Use an existing setting from dev_seed_clean.sql
         $appSettingsTable = $this->getTableLocator()->get('AppSettings');
-        $appSetting = $appSettingsTable->find()->where(['name' => 'test.setting.one'])->first();
+        $appSetting = $appSettingsTable->find()->where(['name' => 'KMP.ShortSiteTitle'])->first();
 
         $data = [
             'id' => $appSetting->id,
-            'raw_value' => 'Updated Value',
+            'raw_value' => 'EDITED',
         ];
 
         $this->post('/app-settings/edit/' . $appSetting->id, $data);
@@ -91,7 +76,7 @@ class AppSettingsControllerTest extends TestCase
 
         // Check the record was saved to the database
         $appSettingsTable = $this->getTableLocator()->get('AppSettings');
-        $updatedAppSetting = $appSettingsTable->find()->where(['name' => 'test.setting.one'])->first();
+        $updatedAppSetting = $appSettingsTable->find()->where(['name' => 'KMP.ShortSiteTitle'])->first();
         $this->assertEquals($data['raw_value'], $updatedAppSetting->value);
     }
 
@@ -103,15 +88,21 @@ class AppSettingsControllerTest extends TestCase
      */
     public function testDelete(): void
     {
+        // Create a test setting to delete
         $appSettingsTable = $this->getTableLocator()->get('AppSettings');
-        $appSetting = $appSettingsTable->find()->where(['name' => 'test.setting.one'])->first();
+        $testSetting = $appSettingsTable->newEntity([
+            'name' => 'test.delete.controller.' . time(),
+            'value' => 'delete-me',
+            'required' => false,
+        ]);
+        $appSettingsTable->save($testSetting);
 
-        $this->post('/app-settings/delete/' . $appSetting->id);
+        $this->post('/app-settings/delete/' . $testSetting->id);
         $this->assertRedirect(['controller' => 'AppSettings', 'action' => 'index']);
 
-        // Check the record was saved to the database
+        // Check the record was deleted from the database
         $appSettingsTable = $this->getTableLocator()->get('AppSettings');
-        $query = $appSettingsTable->find()->where(['name' => 'test.setting.one']);
+        $query = $appSettingsTable->find()->where(['name' => $testSetting->name]);
         $this->assertEquals(0, $query->count());
     }
 }

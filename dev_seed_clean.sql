@@ -1,9 +1,9 @@
 /*M!999999\- enable the sandbox mode */
--- MariaDB dump 10.19  Distrib 10.11.11-MariaDB, for debian-linux-gnu (aarch64)
+-- MariaDB dump 10.19  Distrib 10.11.14-MariaDB, for debian-linux-gnu (aarch64)
 --
--- Host: localhost    Database: amp-seed
+-- Host: localhost    Database: KMP_DEV
 -- ------------------------------------------------------
--- Server version	10.11.11-MariaDB-0+deb12u1
+-- Server version	10.11.14-MariaDB-0+deb12u2
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */
 ;
@@ -1457,7 +1457,7 @@ CREATE TABLE `app_settings` (
     `required` tinyint(1) NOT NULL DEFAULT 0,
     PRIMARY KEY (`id`),
     UNIQUE KEY `name` (`name`)
-) ENGINE = InnoDB AUTO_INCREMENT = 81 DEFAULT CHARSET = utf8mb3 COLLATE = utf8mb3_unicode_ci;
+) ENGINE = InnoDB AUTO_INCREMENT = 87 DEFAULT CHARSET = utf8mb3 COLLATE = utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */
 ;
 
@@ -1869,8 +1869,8 @@ VALUES (
     (
         37,
         'Activities.NextStatusCheck',
-        '2025-08-31',
-        '2025-08-30 20:59:24',
+        '2025-11-10',
+        '2025-11-09 14:13:15',
         '2024-09-29 15:47:44',
         NULL,
         NULL,
@@ -1880,8 +1880,8 @@ VALUES (
     (
         38,
         'Officer.NextStatusCheck',
-        '2025-08-31',
-        '2025-08-30 20:59:06',
+        '2025-11-10',
+        '2025-11-09 14:13:15',
         '2024-09-29 15:47:44',
         NULL,
         NULL,
@@ -2045,8 +2045,8 @@ VALUES (
     (
         66,
         'KMP.configVersion',
-        '25.01.11.a',
-        '2025-01-12 01:02:18',
+        '25.11.05.a',
+        '2025-11-09 14:13:15',
         '2025-01-12 01:02:18',
         NULL,
         NULL,
@@ -2195,8 +2195,828 @@ VALUES (
         NULL,
         NULL,
         1
+    ),
+    (
+        81,
+        'KMP.DefaultTimezone',
+        'America/Chicago',
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        82,
+        'Waivers.configVersion',
+        '1.0.1',
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        83,
+        'Plugin.Waivers.Active',
+        'yes',
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        84,
+        'Plugin.Waivers.ShowInNavigation',
+        'yes',
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        85,
+        'Plugin.Waivers.HelloWorldMessage',
+        'Hello, World!',
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        86,
+        'Waivers.ComplianceDays',
+        '2',
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL,
+        NULL,
+        1
     );
 /*!40000 ALTER TABLE `app_settings` ENABLE KEYS */
+;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `award_gathering_activities`
+--
+
+DROP TABLE IF EXISTS `award_gathering_activities`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */
+;
+/*!40101 SET character_set_client = utf8mb4 */
+;
+CREATE TABLE `award_gathering_activities` (
+    `id` int(11) NOT NULL AUTO_INCREMENT,
+    `award_id` int(11) NOT NULL COMMENT 'FK to awards table',
+    `gathering_activity_id` int(11) NOT NULL COMMENT 'FK to gathering_activities table',
+    `created` datetime NOT NULL,
+    `modified` datetime DEFAULT NULL,
+    `created_by` int(11) DEFAULT NULL,
+    `modified_by` int(11) DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `idx_awact_unique` (
+        `award_id`,
+        `gathering_activity_id`
+    ),
+    KEY `idx_awact_award` (`award_id`),
+    KEY `idx_awact_activity` (`gathering_activity_id`),
+    CONSTRAINT `fk_awact_activity` FOREIGN KEY (`gathering_activity_id`) REFERENCES `gathering_activities` (`id`) ON DELETE CASCADE ON UPDATE NO ACTION,
+    CONSTRAINT `fk_awact_award` FOREIGN KEY (`award_id`) REFERENCES `awards_awards` (`id`) ON DELETE CASCADE ON UPDATE NO ACTION
+) ENGINE = InnoDB AUTO_INCREMENT = 80 DEFAULT CHARSET = utf8mb3 COLLATE = utf8mb3_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */
+;
+
+--
+-- Dumping data for table `award_gathering_activities`
+--
+
+LOCK TABLES `award_gathering_activities` WRITE;
+/*!40000 ALTER TABLE `award_gathering_activities` DISABLE KEYS */
+;
+INSERT INTO
+    `award_gathering_activities`
+VALUES (
+        1,
+        1,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        2,
+        2,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        3,
+        3,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        4,
+        4,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        5,
+        5,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        6,
+        6,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        7,
+        7,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        8,
+        8,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        9,
+        9,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        10,
+        10,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        11,
+        11,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        12,
+        12,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        13,
+        13,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        14,
+        14,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        15,
+        15,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        16,
+        16,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        17,
+        17,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        18,
+        18,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        19,
+        19,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        20,
+        20,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        21,
+        22,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        22,
+        23,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        23,
+        24,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        24,
+        25,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        25,
+        26,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        26,
+        27,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        27,
+        28,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        28,
+        29,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        29,
+        30,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        30,
+        31,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        31,
+        32,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        32,
+        33,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        33,
+        34,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        34,
+        35,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        35,
+        36,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        36,
+        37,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        37,
+        38,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        38,
+        39,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        39,
+        40,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        40,
+        41,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        41,
+        42,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        42,
+        43,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        43,
+        44,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        44,
+        45,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        45,
+        46,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        46,
+        47,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        47,
+        48,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        48,
+        49,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        49,
+        50,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        50,
+        51,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        51,
+        52,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        52,
+        53,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        53,
+        54,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        54,
+        55,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        55,
+        56,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        56,
+        57,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        57,
+        58,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        58,
+        59,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        59,
+        60,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        60,
+        61,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        61,
+        62,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        62,
+        63,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        63,
+        64,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        64,
+        65,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        65,
+        66,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        66,
+        67,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        67,
+        68,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        68,
+        69,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        69,
+        70,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        70,
+        71,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        71,
+        72,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        72,
+        73,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        73,
+        74,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        74,
+        75,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        75,
+        76,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        76,
+        77,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        77,
+        78,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        78,
+        79,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        79,
+        80,
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    );
+/*!40000 ALTER TABLE `award_gathering_activities` ENABLE KEYS */
 ;
 UNLOCK TABLES;
 
@@ -4720,6 +5540,34 @@ VALUES (
         '2024-10-31 23:13:10',
         '2024-10-31 23:13:10',
         0
+    ),
+    (
+        20251025000000,
+        'CreateAwardGatheringActivities',
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        0
+    ),
+    (
+        20251025214505,
+        'AddGatheringIdToRecommendations',
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        0
+    ),
+    (
+        20251025214511,
+        'AddGatheringIdToRecommendationsEvents',
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        0
+    ),
+    (
+        20251026133257,
+        'RunMigrateAwardEvents',
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        0
     );
 /*!40000 ALTER TABLE `awards_phinxlog` ENABLE KEYS */
 ;
@@ -4752,6 +5600,7 @@ CREATE TABLE `awards_recommendations` (
     `status` varchar(100) NOT NULL DEFAULT 'submitted',
     `state_date` datetime DEFAULT NULL,
     `event_id` int(11) DEFAULT NULL,
+    `gathering_id` int(11) DEFAULT NULL,
     `given` datetime DEFAULT NULL,
     `modified` datetime DEFAULT NULL,
     `created` datetime NOT NULL,
@@ -4769,10 +5618,12 @@ CREATE TABLE `awards_recommendations` (
     KEY `requester_id` (`requester_id`),
     KEY `member_id` (`member_id`),
     KEY `award_id` (`award_id`),
+    KEY `BY_GATHERING_ID` (`gathering_id`),
     CONSTRAINT `awards_recommendations_ibfk_1` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`) ON DELETE CASCADE,
     CONSTRAINT `awards_recommendations_ibfk_2` FOREIGN KEY (`requester_id`) REFERENCES `members` (`id`) ON DELETE CASCADE,
     CONSTRAINT `awards_recommendations_ibfk_3` FOREIGN KEY (`member_id`) REFERENCES `members` (`id`) ON DELETE CASCADE,
-    CONSTRAINT `awards_recommendations_ibfk_4` FOREIGN KEY (`award_id`) REFERENCES `awards_awards` (`id`) ON DELETE CASCADE
+    CONSTRAINT `awards_recommendations_ibfk_4` FOREIGN KEY (`award_id`) REFERENCES `awards_awards` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_recommendations_gathering_id` FOREIGN KEY (`gathering_id`) REFERENCES `gatherings` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE = InnoDB AUTO_INCREMENT = 586 DEFAULT CHARSET = utf8mb3 COLLATE = utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */
 ;
@@ -4804,6 +5655,7 @@ VALUES (
         'Closed',
         '2025-08-29 00:20:33',
         28,
+        27,
         '2025-08-23 00:00:00',
         '2025-08-29 00:20:33',
         '2025-07-02 21:18:49',
@@ -4832,6 +5684,7 @@ VALUES (
         'Not Set',
         'In Progress',
         '2025-07-02 21:19:06',
+        NULL,
         NULL,
         NULL,
         '2025-07-02 21:19:06',
@@ -4863,6 +5716,7 @@ VALUES (
         '2025-07-02 21:19:19',
         NULL,
         NULL,
+        NULL,
         '2025-07-02 21:19:19',
         '2025-07-02 21:19:19',
         1,
@@ -4890,6 +5744,7 @@ VALUES (
         'Not Set',
         'In Progress',
         '2025-07-02 21:20:47',
+        NULL,
         NULL,
         NULL,
         '2025-07-02 21:20:47',
@@ -4921,6 +5776,7 @@ VALUES (
         '2025-07-02 23:05:15',
         NULL,
         NULL,
+        NULL,
         '2025-07-02 23:05:15',
         '2025-07-02 23:05:15',
         1,
@@ -4949,6 +5805,7 @@ VALUES (
         'Closed',
         '2025-07-16 23:45:57',
         39,
+        37,
         NULL,
         '2025-07-16 23:45:57',
         '2025-07-02 23:08:54',
@@ -4977,11 +5834,14 @@ CREATE TABLE `awards_recommendations_events` (
     `id` int(11) NOT NULL AUTO_INCREMENT,
     `recommendation_id` int(11) NOT NULL,
     `event_id` int(11) NOT NULL,
+    `gathering_id` int(11) DEFAULT NULL,
     PRIMARY KEY (`id`),
     KEY `recommendation_id` (`recommendation_id`),
     KEY `event_id` (`event_id`),
+    KEY `BY_GATHERING_ID` (`gathering_id`),
     CONSTRAINT `awards_recommendations_events_ibfk_1` FOREIGN KEY (`recommendation_id`) REFERENCES `awards_recommendations` (`id`),
-    CONSTRAINT `awards_recommendations_events_ibfk_2` FOREIGN KEY (`event_id`) REFERENCES `awards_events` (`id`)
+    CONSTRAINT `awards_recommendations_events_ibfk_2` FOREIGN KEY (`event_id`) REFERENCES `awards_events` (`id`),
+    CONSTRAINT `fk_recommendations_events_gathering_id` FOREIGN KEY (`gathering_id`) REFERENCES `gatherings` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE = InnoDB AUTO_INCREMENT = 2091 DEFAULT CHARSET = utf8mb3 COLLATE = utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */
 ;
@@ -5833,6 +6693,3086 @@ VALUES (
 UNLOCK TABLES;
 
 --
+-- Table structure for table `documents`
+--
+
+DROP TABLE IF EXISTS `documents`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */
+;
+/*!40101 SET character_set_client = utf8mb4 */
+;
+CREATE TABLE `documents` (
+    `id` int(11) NOT NULL AUTO_INCREMENT,
+    `entity_type` varchar(100) NOT NULL COMMENT 'Polymorphic entity type (e.g., Waivers.GatheringWaivers, Members)',
+    `entity_id` int(11) NOT NULL COMMENT 'Polymorphic entity ID',
+    `original_filename` varchar(255) NOT NULL COMMENT 'Original filename from upload',
+    `stored_filename` varchar(255) NOT NULL COMMENT 'Sanitized filename for storage',
+    `file_path` varchar(500) NOT NULL COMMENT 'Full path to file in storage',
+    `mime_type` varchar(100) NOT NULL COMMENT 'File MIME type',
+    `file_size` int(11) NOT NULL COMMENT 'File size in bytes',
+    `checksum` varchar(64) NOT NULL COMMENT 'SHA-256 checksum for integrity verification',
+    `storage_adapter` varchar(50) NOT NULL DEFAULT 'local' COMMENT 'Storage adapter used (local, s3, etc.)',
+    `metadata` text DEFAULT NULL COMMENT 'JSON metadata (conversion info, etc.)',
+    `uploaded_by` int(11) DEFAULT NULL COMMENT 'Member ID who uploaded the file (nullable - NULL if member deleted)',
+    `modified` datetime DEFAULT NULL,
+    `created` datetime NOT NULL,
+    `created_by` int(11) DEFAULT NULL COMMENT 'Member ID who created the record (nullable - may be system process)',
+    `modified_by` int(11) DEFAULT NULL COMMENT 'Member ID who last modified the record (nullable - may be system process)',
+    `deleted` datetime DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `idx_documents_file_path` (`file_path`),
+    KEY `idx_documents_entity` (`entity_type`, `entity_id`),
+    KEY `idx_documents_checksum` (`checksum`),
+    KEY `idx_documents_uploaded_by` (`uploaded_by`),
+    KEY `idx_documents_created` (`created`),
+    KEY `fk_documents_created_by` (`created_by`),
+    KEY `fk_documents_modified_by` (`modified_by`),
+    CONSTRAINT `fk_documents_created_by` FOREIGN KEY (`created_by`) REFERENCES `members` (`id`) ON DELETE SET NULL ON UPDATE NO ACTION,
+    CONSTRAINT `fk_documents_modified_by` FOREIGN KEY (`modified_by`) REFERENCES `members` (`id`) ON DELETE SET NULL ON UPDATE NO ACTION,
+    CONSTRAINT `fk_documents_uploaded_by` FOREIGN KEY (`uploaded_by`) REFERENCES `members` (`id`) ON DELETE SET NULL ON UPDATE NO ACTION
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb3 COLLATE = utf8mb3_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */
+;
+
+--
+-- Dumping data for table `documents`
+--
+
+LOCK TABLES `documents` WRITE;
+/*!40000 ALTER TABLE `documents` DISABLE KEYS */
+;
+/*!40000 ALTER TABLE `documents` ENABLE KEYS */
+;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `email_templates`
+--
+
+DROP TABLE IF EXISTS `email_templates`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */
+;
+/*!40101 SET character_set_client = utf8mb4 */
+;
+CREATE TABLE `email_templates` (
+    `id` int(11) NOT NULL AUTO_INCREMENT,
+    `mailer_class` varchar(255) NOT NULL COMMENT 'Fully qualified class name of the Mailer (e.g., App\\Mailer\\KMPMailer)',
+    `action_method` varchar(255) NOT NULL COMMENT 'Method name in the Mailer class (e.g., resetPassword)',
+    `subject_template` varchar(500) NOT NULL COMMENT 'Email subject line template with variable placeholders',
+    `html_template` text DEFAULT NULL COMMENT 'HTML version of email template',
+    `text_template` text DEFAULT NULL COMMENT 'Plain text version of email template',
+    `available_vars` text DEFAULT NULL COMMENT 'JSON array of available variables for this template',
+    `is_active` tinyint(1) NOT NULL DEFAULT 1 COMMENT 'Whether this template is active and should be used',
+    `created` datetime DEFAULT NULL,
+    `modified` datetime DEFAULT NULL,
+    `created_by` int(11) DEFAULT NULL COMMENT 'Member ID who created this template',
+    `modified_by` int(11) DEFAULT NULL COMMENT 'Member ID who last modified this template',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `idx_mailer_action_unique` (
+        `mailer_class`,
+        `action_method`
+    ),
+    KEY `is_active` (`is_active`),
+    KEY `fk_email_templates_created_by` (`created_by`),
+    KEY `fk_email_templates_modified_by` (`modified_by`),
+    CONSTRAINT `fk_email_templates_created_by` FOREIGN KEY (`created_by`) REFERENCES `members` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT `fk_email_templates_modified_by` FOREIGN KEY (`modified_by`) REFERENCES `members` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb3 COLLATE = utf8mb3_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */
+;
+
+--
+-- Dumping data for table `email_templates`
+--
+
+LOCK TABLES `email_templates` WRITE;
+/*!40000 ALTER TABLE `email_templates` DISABLE KEYS */
+;
+/*!40000 ALTER TABLE `email_templates` ENABLE KEYS */
+;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `gathering_activities`
+--
+
+DROP TABLE IF EXISTS `gathering_activities`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */
+;
+/*!40101 SET character_set_client = utf8mb4 */
+;
+CREATE TABLE `gathering_activities` (
+    `id` int(11) NOT NULL AUTO_INCREMENT,
+    `name` varchar(255) NOT NULL COMMENT 'Name of the activity (e.g., Heavy Combat, Archery, A&S Display)',
+    `description` text DEFAULT NULL COMMENT 'Description of the activity',
+    `modified` datetime DEFAULT NULL,
+    `created` datetime NOT NULL,
+    `created_by` int(11) DEFAULT NULL,
+    `modified_by` int(11) DEFAULT NULL,
+    `deleted` datetime DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `idx_gathering_activities_name` (`name`)
+) ENGINE = InnoDB AUTO_INCREMENT = 2 DEFAULT CHARSET = utf8mb3 COLLATE = utf8mb3_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */
+;
+
+--
+-- Dumping data for table `gathering_activities`
+--
+
+LOCK TABLES `gathering_activities` WRITE;
+/*!40000 ALTER TABLE `gathering_activities` DISABLE KEYS */
+;
+INSERT INTO
+    `gathering_activities`
+VALUES (
+        1,
+        'Kingdom Court',
+        'Official Kingdom Court sessions where awards and recognitions are presented',
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL,
+        NULL
+    ),
+    (
+        2,
+        'Heavy Armored Combat',
+        'Fighting in armor with rattan weapons',
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ),
+    (
+        3,
+        'Rapier Combat',
+        'Lighter combat with period-style fencing weapons',
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ),
+    (
+        4,
+        'Cut and Thrust Combat',
+        'Armored combat with percussive cuts and thrusts',
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ),
+    (
+        5,
+        'Archery',
+        'Target archery and combat archery',
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ),
+    (
+        6,
+        'Thrown Weapons',
+        'Period thrown weapons competition',
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ),
+    (
+        7,
+        'Equestrian Activities',
+        'Mounted activities including games, jousting, and combat',
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ),
+    (
+        8,
+        'Youth Combat',
+        'Combat activities for youth participants (boffer, armored, rapier)',
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ),
+    (
+        9,
+        'Siege Weapons',
+        'Period siege weapon construction and operation',
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ),
+    (
+        10,
+        'Arts and Sciences Display',
+        'Display of period arts, crafts, and sciences',
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ),
+    (
+        11,
+        'Arts and Sciences Competition',
+        'Judged competition for period arts and sciences',
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ),
+    (
+        12,
+        'Classes and Workshops',
+        'Educational sessions on period topics',
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ),
+    (
+        13,
+        'Feast',
+        'Period-style feast and entertainment',
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ),
+    (
+        14,
+        'Bardic Circle',
+        'Period music, poetry, and storytelling',
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ),
+    (
+        15,
+        'Dancing',
+        'Period dancing and dance instruction',
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ),
+    (
+        16,
+        'Merchants',
+        'Vendors selling period goods and supplies',
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ),
+    (
+        17,
+        'Royal Presence',
+        'Royalty in attendance',
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    );
+/*!40000 ALTER TABLE `gathering_activities` ENABLE KEYS */
+;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `gathering_attendances`
+--
+
+DROP TABLE IF EXISTS `gathering_attendances`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */
+;
+/*!40101 SET character_set_client = utf8mb4 */
+;
+CREATE TABLE `gathering_attendances` (
+    `id` int(11) NOT NULL AUTO_INCREMENT,
+    `gathering_id` int(11) NOT NULL COMMENT 'The gathering being attended',
+    `member_id` int(11) NOT NULL COMMENT 'The member attending the gathering',
+    `public_note` text DEFAULT NULL COMMENT 'Public note the member wants to share about their attendance',
+    `share_with_kingdom` tinyint(1) NOT NULL DEFAULT 0 COMMENT 'Share attendance with kingdom officers',
+    `share_with_hosting_group` tinyint(1) NOT NULL DEFAULT 0 COMMENT 'Share attendance with the hosting group',
+    `share_with_crown` tinyint(1) NOT NULL DEFAULT 0 COMMENT 'Share attendance with the crown',
+    `is_public` tinyint(1) NOT NULL DEFAULT 0 COMMENT 'Make attendance public (SCA name only)',
+    `created` datetime NOT NULL,
+    `modified` datetime DEFAULT NULL,
+    `created_by` int(11) DEFAULT NULL,
+    `modified_by` int(11) DEFAULT NULL,
+    `deleted` datetime DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `idx_gathering_attendances_unique` (
+        `gathering_id`,
+        `member_id`,
+        `deleted`
+    ),
+    KEY `idx_gathering_attendances_gathering` (`gathering_id`),
+    KEY `idx_gathering_attendances_member` (`member_id`),
+    KEY `idx_gathering_attendances_created_by` (`created_by`),
+    KEY `fk_gathering_attendances_modified_by` (`modified_by`),
+    CONSTRAINT `fk_gathering_attendances_created_by` FOREIGN KEY (`created_by`) REFERENCES `members` (`id`) ON DELETE SET NULL ON UPDATE NO ACTION,
+    CONSTRAINT `fk_gathering_attendances_gathering` FOREIGN KEY (`gathering_id`) REFERENCES `gatherings` (`id`) ON DELETE CASCADE ON UPDATE NO ACTION,
+    CONSTRAINT `fk_gathering_attendances_member` FOREIGN KEY (`member_id`) REFERENCES `members` (`id`) ON DELETE CASCADE ON UPDATE NO ACTION,
+    CONSTRAINT `fk_gathering_attendances_modified_by` FOREIGN KEY (`modified_by`) REFERENCES `members` (`id`) ON DELETE SET NULL ON UPDATE NO ACTION
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb3 COLLATE = utf8mb3_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */
+;
+
+--
+-- Dumping data for table `gathering_attendances`
+--
+
+LOCK TABLES `gathering_attendances` WRITE;
+/*!40000 ALTER TABLE `gathering_attendances` DISABLE KEYS */
+;
+/*!40000 ALTER TABLE `gathering_attendances` ENABLE KEYS */
+;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `gathering_scheduled_activities`
+--
+
+DROP TABLE IF EXISTS `gathering_scheduled_activities`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */
+;
+/*!40101 SET character_set_client = utf8mb4 */
+;
+CREATE TABLE `gathering_scheduled_activities` (
+    `id` int(11) NOT NULL AUTO_INCREMENT,
+    `gathering_id` int(11) NOT NULL COMMENT 'FK to gatherings table - which gathering this schedule belongs to',
+    `gathering_activity_id` int(11) DEFAULT NULL COMMENT 'FK to gathering_activities table - null for "other" activities',
+    `start_datetime` datetime NOT NULL COMMENT 'When the scheduled activity begins',
+    `end_datetime` datetime DEFAULT NULL COMMENT 'When the scheduled activity ends (optional for activities with only start time)',
+    `has_end_time` tinyint(1) NOT NULL DEFAULT 0 COMMENT 'Whether this scheduled activity has an end time',
+    `display_title` varchar(255) NOT NULL COMMENT 'Custom title for this scheduled activity',
+    `description` text DEFAULT NULL COMMENT 'Custom description for this scheduled activity',
+    `pre_register` tinyint(1) NOT NULL DEFAULT 0 COMMENT 'Whether pre-registration is required/available',
+    `is_other` tinyint(1) NOT NULL DEFAULT 0 COMMENT 'Whether this is an "other" activity (not linked to gathering_activity)',
+    `created` datetime NOT NULL,
+    `modified` datetime DEFAULT NULL,
+    `created_by` int(11) DEFAULT NULL COMMENT 'FK to members table - who created this',
+    `modified_by` int(11) DEFAULT NULL COMMENT 'FK to members table - who last modified this',
+    PRIMARY KEY (`id`),
+    KEY `idx_gathering_scheduled_activities_gathering` (`gathering_id`),
+    KEY `idx_gathering_scheduled_activities_activity` (`gathering_activity_id`),
+    KEY `idx_gathering_scheduled_activities_start` (`start_datetime`),
+    KEY `idx_gathering_scheduled_activities_end` (`end_datetime`),
+    KEY `idx_gathering_scheduled_activities_created_by` (`created_by`),
+    KEY `idx_gathering_scheduled_activities_modified_by` (`modified_by`),
+    CONSTRAINT `fk_gathering_scheduled_activities_activity` FOREIGN KEY (`gathering_activity_id`) REFERENCES `gathering_activities` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT `fk_gathering_scheduled_activities_created_by` FOREIGN KEY (`created_by`) REFERENCES `members` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT `fk_gathering_scheduled_activities_gathering` FOREIGN KEY (`gathering_id`) REFERENCES `gatherings` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT `fk_gathering_scheduled_activities_modified_by` FOREIGN KEY (`modified_by`) REFERENCES `members` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb3 COLLATE = utf8mb3_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */
+;
+
+--
+-- Dumping data for table `gathering_scheduled_activities`
+--
+
+LOCK TABLES `gathering_scheduled_activities` WRITE;
+/*!40000 ALTER TABLE `gathering_scheduled_activities` DISABLE KEYS */
+;
+/*!40000 ALTER TABLE `gathering_scheduled_activities` ENABLE KEYS */
+;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `gathering_staff`
+--
+
+DROP TABLE IF EXISTS `gathering_staff`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */
+;
+/*!40101 SET character_set_client = utf8mb4 */
+;
+CREATE TABLE `gathering_staff` (
+    `id` int(11) NOT NULL AUTO_INCREMENT,
+    `gathering_id` int(11) NOT NULL COMMENT 'The gathering this staff member is associated with',
+    `member_id` int(11) DEFAULT NULL COMMENT 'AMP member account (null for non-AMP staff)',
+    `sca_name` varchar(255) DEFAULT NULL COMMENT 'SCA name for non-AMP staff members',
+    `role` varchar(100) NOT NULL COMMENT 'Role name (e.g., "Steward", "Herald", "List Master")',
+    `is_steward` tinyint(1) NOT NULL DEFAULT 0 COMMENT 'Whether this staff member is a steward',
+    `show_on_public_page` tinyint(1) NOT NULL DEFAULT 0,
+    `email` varchar(255) DEFAULT NULL COMMENT 'Contact email (copied from member for stewards, editable)',
+    `phone` varchar(50) DEFAULT NULL COMMENT 'Contact phone (copied from member for stewards, editable)',
+    `contact_notes` text DEFAULT NULL COMMENT 'Contact preferences (e.g., "text only", "no calls after 9pm")',
+    `sort_order` int(11) NOT NULL DEFAULT 0 COMMENT 'Display order (stewards first, then others)',
+    `created` datetime NOT NULL,
+    `modified` datetime DEFAULT NULL,
+    `created_by` int(11) DEFAULT NULL,
+    `modified_by` int(11) DEFAULT NULL,
+    `deleted` datetime DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    KEY `gathering_id` (`gathering_id`),
+    KEY `member_id` (`member_id`),
+    KEY `is_steward` (`is_steward`),
+    KEY `sort_order` (`sort_order`),
+    KEY `deleted` (`deleted`),
+    CONSTRAINT `gathering_staff_ibfk_1` FOREIGN KEY (`gathering_id`) REFERENCES `gatherings` (`id`) ON DELETE CASCADE ON UPDATE NO ACTION,
+    CONSTRAINT `gathering_staff_ibfk_2` FOREIGN KEY (`member_id`) REFERENCES `members` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb3 COLLATE = utf8mb3_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */
+;
+
+--
+-- Dumping data for table `gathering_staff`
+--
+
+LOCK TABLES `gathering_staff` WRITE;
+/*!40000 ALTER TABLE `gathering_staff` DISABLE KEYS */
+;
+/*!40000 ALTER TABLE `gathering_staff` ENABLE KEYS */
+;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `gathering_type_gathering_activities`
+--
+
+DROP TABLE IF EXISTS `gathering_type_gathering_activities`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */
+;
+/*!40101 SET character_set_client = utf8mb4 */
+;
+CREATE TABLE `gathering_type_gathering_activities` (
+    `id` int(11) NOT NULL AUTO_INCREMENT,
+    `gathering_type_id` int(11) NOT NULL COMMENT 'FK to gathering_types table',
+    `gathering_activity_id` int(11) NOT NULL COMMENT 'FK to gathering_activities table',
+    `not_removable` tinyint(1) NOT NULL DEFAULT 0 COMMENT 'If true, this activity cannot be removed from gatherings of this type',
+    `created` datetime NOT NULL,
+    `modified` datetime DEFAULT NULL,
+    `created_by` int(11) DEFAULT NULL,
+    `modified_by` int(11) DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `idx_gtgact_unique` (
+        `gathering_type_id`,
+        `gathering_activity_id`
+    ),
+    KEY `idx_gtgact_type` (`gathering_type_id`),
+    KEY `idx_gtgact_activity` (`gathering_activity_id`),
+    KEY `idx_gtgact_not_removable` (`not_removable`),
+    CONSTRAINT `fk_gtgact_activity` FOREIGN KEY (`gathering_activity_id`) REFERENCES `gathering_activities` (`id`) ON DELETE CASCADE ON UPDATE NO ACTION,
+    CONSTRAINT `fk_gtgact_type` FOREIGN KEY (`gathering_type_id`) REFERENCES `gathering_types` (`id`) ON DELETE CASCADE ON UPDATE NO ACTION
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb3 COLLATE = utf8mb3_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */
+;
+
+--
+-- Dumping data for table `gathering_type_gathering_activities`
+--
+
+LOCK TABLES `gathering_type_gathering_activities` WRITE;
+/*!40000 ALTER TABLE `gathering_type_gathering_activities` DISABLE KEYS */
+;
+INSERT INTO
+    `gathering_type_gathering_activities`
+VALUES
+    -- Crown Tournament (id=2) activities
+    (
+        1,
+        2,
+        2,
+        1,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Heavy Combat (required)
+    (
+        2,
+        2,
+        1,
+        1,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Court (required)
+    (
+        3,
+        2,
+        17,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Royal Presence
+    (
+        4,
+        2,
+        10,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- A&S Display
+    (
+        5,
+        2,
+        16,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Merchants
+    -- Coronation (id=3) activities
+    (
+        6,
+        3,
+        1,
+        1,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Court (required)
+    (
+        7,
+        3,
+        17,
+        1,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Royal Presence (required)
+    (
+        8,
+        3,
+        13,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Feast
+    (
+        9,
+        3,
+        14,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Bardic
+    -- Kingdom War (id=4) activities
+    (
+        10,
+        4,
+        2,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Heavy Combat
+    (
+        11,
+        4,
+        3,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Rapier
+    (
+        12,
+        4,
+        4,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Cut & Thrust
+    (
+        13,
+        4,
+        5,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Archery
+    (
+        14,
+        4,
+        6,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Thrown Weapons
+    (
+        15,
+        4,
+        8,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Youth Combat
+    (
+        16,
+        4,
+        9,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Siege
+    (
+        17,
+        4,
+        10,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- A&S Display
+    (
+        18,
+        4,
+        12,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Classes
+    (
+        19,
+        4,
+        13,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Feast
+    (
+        20,
+        4,
+        16,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Merchants
+    (
+        21,
+        4,
+        1,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Court
+    -- Baronial War (id=5) activities
+    (
+        22,
+        5,
+        2,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Heavy Combat
+    (
+        23,
+        5,
+        3,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Rapier
+    (
+        24,
+        5,
+        5,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Archery
+    (
+        25,
+        5,
+        8,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Youth Combat
+    (
+        26,
+        5,
+        10,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- A&S Display
+    (
+        27,
+        5,
+        16,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Merchants
+    -- Tournament (id=6) activities
+    (
+        28,
+        6,
+        2,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Heavy Combat
+    (
+        29,
+        6,
+        3,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Rapier
+    (
+        30,
+        6,
+        4,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Cut & Thrust
+    (
+        31,
+        6,
+        10,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- A&S Display
+    (
+        32,
+        6,
+        16,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Merchants
+    -- Collegium (id=7) activities
+    (
+        33,
+        7,
+        12,
+        1,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Classes (required)
+    (
+        34,
+        7,
+        10,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- A&S Display
+    (
+        35,
+        7,
+        11,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- A&S Competition
+    (
+        36,
+        7,
+        13,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Feast
+    -- A&S Event (id=8) activities
+    (
+        37,
+        8,
+        11,
+        1,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- A&S Competition (required)
+    (
+        38,
+        8,
+        10,
+        1,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- A&S Display (required)
+    (
+        39,
+        8,
+        12,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Classes
+    (
+        40,
+        8,
+        16,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Merchants
+    -- Practice (id=9) activities
+    (
+        41,
+        9,
+        2,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Heavy Combat
+    (
+        42,
+        9,
+        3,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Rapier
+    (
+        43,
+        9,
+        5,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Archery
+    (
+        44,
+        9,
+        6,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Thrown Weapons
+    -- Archery Tournament (id=12) activities
+    (
+        45,
+        12,
+        5,
+        1,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Archery (required)
+    (
+        46,
+        12,
+        6,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Thrown Weapons
+    (
+        47,
+        12,
+        16,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Merchants
+    -- Equestrian Event (id=13) activities
+    (
+        48,
+        13,
+        7,
+        1,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Equestrian (required)
+    (
+        49,
+        13,
+        10,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- A&S Display
+    -- Youth Event (id=14) activities
+    (
+        50,
+        14,
+        8,
+        1,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Youth Combat (required)
+    (
+        51,
+        14,
+        12,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Classes
+    (
+        52,
+        14,
+        10,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- A&S Display
+    -- Feast (id=10) activities
+    (
+        53,
+        10,
+        13,
+        1,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Feast (required)
+    (
+        54,
+        10,
+        14,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Bardic
+    (
+        55,
+        10,
+        15,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Dancing
+    -- Revel (id=11) activities
+    (
+        56,
+        11,
+        14,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Bardic
+    (
+        57,
+        11,
+        15,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Dancing
+    (
+        58,
+        11,
+        10,
+        0,
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    );
+-- A&S Display
+/*!40000 ALTER TABLE `gathering_type_gathering_activities` ENABLE KEYS */
+;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `gathering_types`
+--
+
+DROP TABLE IF EXISTS `gathering_types`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */
+;
+/*!40101 SET character_set_client = utf8mb4 */
+;
+CREATE TABLE `gathering_types` (
+    `id` int(11) NOT NULL AUTO_INCREMENT,
+    `name` varchar(255) NOT NULL COMMENT 'Name of the gathering type (e.g., Tournament, Practice, Feast)',
+    `description` text DEFAULT NULL COMMENT 'Description of this gathering type',
+    `color` varchar(7) NOT NULL DEFAULT '#0d6efd' COMMENT 'Hex color code for calendar display',
+    `clonable` tinyint(1) NOT NULL DEFAULT 1 COMMENT 'Whether this type can be used as a template for new gatherings',
+    `modified` datetime DEFAULT NULL,
+    `created` datetime NOT NULL,
+    `created_by` int(11) DEFAULT NULL,
+    `modified_by` int(11) DEFAULT NULL,
+    `deleted` datetime DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `idx_gathering_types_name` (`name`)
+) ENGINE = InnoDB AUTO_INCREMENT = 2 DEFAULT CHARSET = utf8mb3 COLLATE = utf8mb3_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */
+;
+
+--
+-- Dumping data for table `gathering_types`
+--
+
+LOCK TABLES `gathering_types` WRITE;
+/*!40000 ALTER TABLE `gathering_types` DISABLE KEYS */
+;
+INSERT INTO
+    `gathering_types`
+VALUES (
+        1,
+        'Kingdom Calendar Event',
+        'Official Kingdom calendar events',
+        '#0d6efd',
+        1,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL,
+        NULL
+    ),
+    (
+        2,
+        'Crown Tournament',
+        'Tournament to select the next Crown Prince/Princess',
+        '#FFD700',
+        1,
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ),
+    (
+        3,
+        'Coronation',
+        'Coronation ceremony for incoming Royalty',
+        '#9400D3',
+        1,
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ),
+    (
+        4,
+        'Kingdom War',
+        'Multi-day war event with combat and activities',
+        '#DC143C',
+        1,
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ),
+    (
+        5,
+        'Baronial War',
+        'War event hosted by a Barony',
+        '#8B0000',
+        1,
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ),
+    (
+        6,
+        'Tournament',
+        'Combat tournament event',
+        '#FF6347',
+        1,
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ),
+    (
+        7,
+        'Collegium',
+        'Educational event with classes and workshops',
+        '#4169E1',
+        1,
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ),
+    (
+        8,
+        'Arts and Sciences Event',
+        'Event focused on period arts, crafts, and sciences',
+        '#9370DB',
+        1,
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ),
+    (
+        9,
+        'Practice',
+        'Regular practice session for combat or other activities',
+        '#228B22',
+        1,
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ),
+    (
+        10,
+        'Feast',
+        'Formal feast event',
+        '#DAA520',
+        1,
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ),
+    (
+        11,
+        'Revel',
+        'Social gathering with entertainment',
+        '#FF69B4',
+        1,
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ),
+    (
+        12,
+        'Archery Tournament',
+        'Tournament focused on archery',
+        '#8B4513',
+        1,
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ),
+    (
+        13,
+        'Equestrian Event',
+        'Event focused on mounted activities',
+        '#CD853F',
+        1,
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ),
+    (
+        14,
+        'Youth Event',
+        'Event specifically for youth participants',
+        '#FF8C00',
+        1,
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ),
+    (
+        15,
+        'Business Meeting',
+        'Official branch or kingdom business meeting',
+        '#708090',
+        1,
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    );
+/*!40000 ALTER TABLE `gathering_types` ENABLE KEYS */
+;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `gatherings`
+--
+
+DROP TABLE IF EXISTS `gatherings`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */
+;
+/*!40101 SET character_set_client = utf8mb4 */
+;
+CREATE TABLE `gatherings` (
+    `id` int(11) NOT NULL AUTO_INCREMENT,
+    `public_id` varchar(8) NOT NULL COMMENT 'Non-sequential public identifier safe for client exposure',
+    `branch_id` int(11) NOT NULL COMMENT 'Branch hosting this gathering',
+    `gathering_type_id` int(11) NOT NULL COMMENT 'Type of gathering',
+    `name` varchar(255) NOT NULL COMMENT 'Name of the gathering',
+    `description` text DEFAULT NULL COMMENT 'Description of the gathering',
+    `start_date` datetime NOT NULL COMMENT 'Start date and time of the gathering (stored in UTC)',
+    `end_date` datetime NOT NULL COMMENT 'End date and time of the gathering (stored in UTC)',
+    `location` varchar(255) DEFAULT NULL COMMENT 'Location of the gathering',
+    `timezone` varchar(50) DEFAULT NULL COMMENT 'IANA timezone identifier for the event location (e.g., America/Chicago)',
+    `modified` datetime DEFAULT NULL,
+    `created` datetime NOT NULL,
+    `created_by` int(11) DEFAULT NULL,
+    `modified_by` int(11) DEFAULT NULL,
+    `deleted` datetime DEFAULT NULL,
+    `latitude` decimal(10, 8) DEFAULT NULL COMMENT 'Latitude coordinate from Google Maps geocoding',
+    `longitude` decimal(11, 8) DEFAULT NULL COMMENT 'Longitude coordinate from Google Maps geocoding',
+    `public_page_enabled` tinyint(1) NOT NULL DEFAULT 1 COMMENT 'Whether the public landing page is enabled for this gathering',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `idx_gatherings_public_id` (`public_id`),
+    KEY `idx_gatherings_branch` (`branch_id`),
+    KEY `idx_gatherings_type` (`gathering_type_id`),
+    KEY `idx_gatherings_created_by` (`created_by`),
+    KEY `idx_gatherings_start_date` (`start_date`),
+    KEY `idx_gatherings_end_date` (`end_date`),
+    CONSTRAINT `fk_gatherings_branch` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+    CONSTRAINT `fk_gatherings_created_by` FOREIGN KEY (`created_by`) REFERENCES `members` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+    CONSTRAINT `fk_gatherings_type` FOREIGN KEY (`gathering_type_id`) REFERENCES `gathering_types` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE = InnoDB AUTO_INCREMENT = 50 DEFAULT CHARSET = utf8mb3 COLLATE = utf8mb3_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */
+;
+
+--
+-- Dumping data for table `gatherings`
+--
+
+LOCK TABLES `gatherings` WRITE;
+/*!40000 ALTER TABLE `gatherings` DISABLE KEYS */
+;
+INSERT INTO
+    `gatherings`
+VALUES (
+        1,
+        'Aw537qRh',
+        18,
+        1,
+        'Namron Protectorate and Kingdom Coronation',
+        'https://ansteorra.org/namron/protectorate-xlviii/',
+        '2024-10-04 00:00:00',
+        '2024-10-06 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        2,
+        'W6ppHzqh',
+        41,
+        1,
+        'Bjornsborg\'s Fall Event - Dance Macabre',
+        'https://ansteorra.org/bjornsborg/danse-macabre/',
+        '2024-10-18 00:00:00',
+        '2024-10-20 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        3,
+        'AKEtL7uP',
+        10,
+        1,
+        'Diamond Wars',
+        'https://gleannabhann.net/event/diamond-wars/',
+        '2024-10-18 00:00:00',
+        '2024-10-20 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        4,
+        'acqW6gg9',
+        17,
+        1,
+        'Eldern Hills - Samhain',
+        'https://ansteorra.org/eldern-hills/events/',
+        '2024-10-25 00:00:00',
+        '2024-10-27 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        5,
+        'ev5ZqNFk',
+        37,
+        1,
+        'Seawind\'s Defender',
+        'https://ansteorra.org/seawinds/',
+        '2024-10-25 00:00:00',
+        '2024-10-27 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        6,
+        'KZK2Gb5X',
+        2,
+        1,
+        'Vindheim Missile Academy II',
+        ' https://sites.google.com/u/5/d/1QToqHTcjWDrReUs_OJp_wvDdQln3hduf/preview',
+        '2024-11-01 00:00:00',
+        '2024-11-03 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        7,
+        'UT6xCQ92',
+        35,
+        1,
+        'A Toast to Absent Friends: A Dia de Los Muertos Event',
+        'https://ansteorra.org/shadowlands',
+        '2024-11-01 00:00:00',
+        '2024-11-03 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        8,
+        'xSFRmphw',
+        20,
+        1,
+        'Queen\'s Champion',
+        'https://ansteorra.org/events',
+        '2024-11-09 00:00:00',
+        '2024-11-09 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        9,
+        'Unbn835a',
+        33,
+        1,
+        'Bryn Gwlad Fall Baronial',
+        'https://ansteorra.org/bryn-gwlad/bryn-gwlad-fall-baronial-2024/',
+        '2024-11-15 00:00:00',
+        '2024-11-17 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        10,
+        'LTph9uup',
+        34,
+        1,
+        'Bordermarch War of the Rams',
+        'https://ansteorra.org/bordermarch',
+        '2024-11-21 00:00:00',
+        '2024-11-24 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        11,
+        's8d7iuxx',
+        29,
+        1,
+        'Winter Crown Tournament',
+        'https://ansteorra.org/events',
+        '2024-12-07 00:00:00',
+        '2024-12-07 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        12,
+        'oDT7b7oo',
+        23,
+        1,
+        'Vindheim Winter Coronet',
+        'https://ansteorra.org/events',
+        '2024-12-14 00:00:00',
+        '2024-12-14 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        13,
+        'SgXXBttn',
+        39,
+        1,
+        'Stargate Yule',
+        'https://ansteorra.org/events',
+        '2024-12-14 00:00:00',
+        '2024-12-14 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        14,
+        '8gt9mrB5',
+        20,
+        1,
+        'Wiesenfeuer Yule',
+        'https://ansteorra.org/wiesenfeuer',
+        '2024-12-21 00:00:00',
+        '2024-12-21 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        15,
+        'EtnuRkxa',
+        27,
+        1,
+        'Steppes 12th Night',
+        'https://ansteorra.org/steppes',
+        '2025-01-04 00:00:00',
+        '2025-01-04 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        16,
+        'sdSkSfH4',
+        29,
+        1,
+        'Elfsea\'s Yule',
+        'https://ansteorra.org/elfsea',
+        '2025-01-11 00:00:00',
+        '2025-01-11 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        17,
+        '4QnW8Gaf',
+        19,
+        1,
+        'Marata Midwinter Melees',
+        'https://ansteorra.org/events',
+        '2025-01-25 00:00:00',
+        '2025-01-25 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        18,
+        'GSsAv2Ps',
+        25,
+        1,
+        'Winterkingdom',
+        ' https://ansteorra.org/northkeep/activities/events/winterkingdom/winterkingdom-collegium-when-in-rome/',
+        '2025-02-01 00:00:00',
+        '2025-02-01 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        19,
+        'WkZoKGg5',
+        33,
+        1,
+        'Bryn Gwlad Candlemas',
+        'https://ansteorra.org/bryn-gwlad',
+        '2025-02-01 00:00:00',
+        '2025-02-01 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        20,
+        'TyjbM4kk',
+        2,
+        1,
+        'Laurel\'s Prize Tournament',
+        'https://ansteorra.org/events',
+        '2025-02-08 00:00:00',
+        '2025-02-08 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        21,
+        'MHtW6K7Q',
+        31,
+        1,
+        'Battle of the Pines',
+        'https://ansteorra.org/graywood',
+        '2025-02-15 00:00:00',
+        '2025-02-15 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        22,
+        'UNYpT3mR',
+        10,
+        1,
+        'Gulf Wars XXXIII',
+        'https://gulfwars.org',
+        '2025-03-08 00:00:00',
+        '2025-03-16 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        23,
+        'rpUvXR7b',
+        38,
+        1,
+        'Commander\'s Crucible Anniversary',
+        'https://ansteorra.org/hellsgate',
+        '2025-03-28 00:00:00',
+        '2025-03-30 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        24,
+        'sqynHppp',
+        29,
+        1,
+        'Elfsea\'s Defender',
+        'https://ansteorra.org/elfsea',
+        '2025-04-04 00:00:00',
+        '2025-04-06 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        25,
+        'uiTUo6Rr',
+        2,
+        1,
+        'Coronation',
+        'https://ansteorra.org/events',
+        '2025-04-12 00:00:00',
+        '2025-04-12 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        26,
+        'zWogmUUx',
+        39,
+        1,
+        'Stargate\'s Baronial',
+        'https://ansteorra.org/stargate',
+        '2025-04-18 00:00:00',
+        '2025-04-20 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        27,
+        'KpsE99ZU',
+        20,
+        1,
+        'Wiesenfeuer\'s Baronial',
+        'https://ansteorra.org/wiesenfeuer',
+        '2025-04-18 00:00:00',
+        '2025-04-20 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        28,
+        'F245WtpN',
+        28,
+        1,
+        'Glaslyn\'s Defender on the Flame',
+        'https://ansteorra.org/glaslyn',
+        '2025-04-25 00:00:00',
+        '2025-04-27 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        29,
+        'dTj8HhUE',
+        36,
+        1,
+        'Loch Soilleir\'s Baronial',
+        'https://ansteorra.org/loch-soilleir',
+        '2025-05-02 00:00:00',
+        '2025-05-04 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        30,
+        '46eYJBt2',
+        2,
+        1,
+        'Queen\'s Champion',
+        'https://ansteorra.org/events',
+        '2025-05-10 00:00:00',
+        '2025-05-10 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        31,
+        'ExkW8uzR',
+        25,
+        1,
+        'Northkeep\'s Castellan',
+        'https://ansteorra.org/northkeep',
+        '2025-05-16 00:00:00',
+        '2025-05-18 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        32,
+        'yDBw77if',
+        27,
+        1,
+        'Steppes Warlord',
+        'https://ansteorra.org/steppes',
+        '2025-05-23 00:00:00',
+        '2025-05-25 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        33,
+        'fTqXDA9J',
+        2,
+        1,
+        'Summer Crown Tournament',
+        'https://ansteorra.org/events',
+        '2025-06-07 00:00:00',
+        '2025-06-07 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        34,
+        'muPQ5G6a',
+        2,
+        1,
+        'Vindheim Summer Coronet',
+        'https://ansteorra.or/events',
+        '2025-06-21 00:00:00',
+        '2025-06-21 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        35,
+        '37MuoZtV',
+        2,
+        1,
+        'Kingdom Collegium',
+        'https://ansteorra.org/events',
+        '2025-07-12 00:00:00',
+        '2025-07-12 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        36,
+        'iE6TAN3B',
+        10,
+        1,
+        'Pennsic',
+        'https://pennsic.org',
+        '2025-07-25 00:00:00',
+        '2025-08-10 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        37,
+        'v3gTkwT8',
+        27,
+        1,
+        'Steppes Artisan',
+        'https://ansteorra.org/steppes',
+        '2025-08-16 00:00:00',
+        '2025-08-16 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        38,
+        'YAoMz4UK',
+        36,
+        1,
+        'Serpent\'s Symposium VII',
+        'https://ansteorra.org/loch-soilleir',
+        '2025-08-23 00:00:00',
+        '2025-08-23 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        39,
+        'bWsU9TLV',
+        30,
+        1,
+        'Bonwicke\'s War of Legends',
+        'https://ansteorra.org/bonwicke',
+        '2025-08-29 00:00:00',
+        '2025-08-31 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        40,
+        'BVHHtN7F',
+        29,
+        1,
+        'Elfsea Baronial College',
+        'https://ansteorra.org/elfsea',
+        '2025-09-07 00:00:00',
+        '2025-09-07 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        41,
+        '5UpbmHH3',
+        2,
+        1,
+        'Kingdom Arts and Sciences',
+        'https://ansteorra.org/events',
+        '2025-09-13 00:00:00',
+        '2025-09-13 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        42,
+        'JEQFViMx',
+        22,
+        1,
+        'Mooneschadowe\'s Triumphe of the Eclipse',
+        'https://ansteorra.org/mooneschadowe',
+        '2025-09-19 00:00:00',
+        '2025-09-21 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        43,
+        'RQNDudFV',
+        40,
+        1,
+        'Raven\'s Fort Defender of the Fort',
+        'https://ansteorra.org/ravensfort',
+        '2025-09-19 00:00:00',
+        '2025-09-21 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        44,
+        '2eEgm69H',
+        32,
+        1,
+        'Rosenfeld Champions and Three Things',
+        'https://ansteorra.org/rosenfeld',
+        '2025-09-26 00:00:00',
+        '2025-09-28 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        45,
+        'WfZx6LX8',
+        42,
+        1,
+        'Ffynnon Gath\'s War of Ages',
+        'https://ansteorra.org/ffynnon-gath',
+        '2025-09-26 00:00:00',
+        '2025-09-28 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        46,
+        'e2fzNsDy',
+        41,
+        1,
+        'Bjornsborg Spring Event',
+        'Bjornsborg\'s Spring Event',
+        '2025-04-25 00:00:00',
+        '2025-04-27 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        47,
+        'cUu6aUSk',
+        40,
+        1,
+        'A Day in the...',
+        'Ravens Fort Spring event',
+        '2025-02-21 00:00:00',
+        '2025-03-23 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        48,
+        '4xyu2886',
+        40,
+        1,
+        'Enchanted Conflict (Raven\'s Fort)',
+        'Raven\'s Fort\'s Spring Event',
+        '2025-02-21 00:00:00',
+        '2025-02-23 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        49,
+        '6iPEvjmi',
+        34,
+        1,
+        'Bordermarch Baronials',
+        'Spring Baronial Event',
+        '2025-03-29 00:00:00',
+        '2025-03-30 00:00:00',
+        NULL,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        1,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        1
+    ),
+    (
+        50,
+        'TEST5FUT',
+        39,
+        9,
+        'Stargate Weekly Practice (Future)',
+        'Regular weekly fighter practice - always scheduled 5 days in the future for testing',
+        DATE_ADD(CURDATE(), INTERVAL 5 DAY),
+        DATE_ADD(CURDATE(), INTERVAL 5 DAY),
+        'Stargate Fighter Practice Grounds, 123 Practice Lane, Houston, TX',
+        'America/Chicago',
+        '2025-11-09 17:00:00',
+        '2025-11-09 17:00:00',
+        1,
+        NULL,
+        NULL,
+        29.76045100,
+        -95.36980300,
+        1
+    ),
+    (
+        51,
+        'TEST5PST',
+        39,
+        9,
+        'Stargate Weekly Practice (Past)',
+        'Regular weekly fighter practice - always scheduled 5 days in the past for testing',
+        DATE_SUB(CURDATE(), INTERVAL 5 DAY),
+        DATE_SUB(CURDATE(), INTERVAL 5 DAY),
+        'Stargate Fighter Practice Grounds, 123 Practice Lane, Houston, TX',
+        'America/Chicago',
+        '2025-11-09 17:00:00',
+        '2025-11-09 17:00:00',
+        1,
+        NULL,
+        NULL,
+        29.76045100,
+        -95.36980300,
+        1
+    );
+/*!40000 ALTER TABLE `gatherings` ENABLE KEYS */
+;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `gatherings_gathering_activities`
+--
+
+DROP TABLE IF EXISTS `gatherings_gathering_activities`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */
+;
+/*!40101 SET character_set_client = utf8mb4 */
+;
+CREATE TABLE `gatherings_gathering_activities` (
+    `id` int(11) NOT NULL AUTO_INCREMENT,
+    `gathering_id` int(11) NOT NULL COMMENT 'FK to gatherings table',
+    `gathering_activity_id` int(11) NOT NULL COMMENT 'FK to gathering_activities table',
+    `sort_order` int(11) NOT NULL DEFAULT 0 COMMENT 'Display order of activities within a gathering',
+    `not_removable` tinyint(1) NOT NULL DEFAULT 0 COMMENT 'If true, this activity cannot be removed from this gathering',
+    `custom_description` text DEFAULT NULL COMMENT 'Optional custom description that overrides the default activity description for this specific gathering',
+    `created` datetime NOT NULL,
+    `modified` datetime DEFAULT NULL,
+    `created_by` int(11) DEFAULT NULL,
+    `modified_by` int(11) DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `idx_ggact_unique` (
+        `gathering_id`,
+        `gathering_activity_id`
+    ),
+    KEY `idx_ggact_gathering` (`gathering_id`),
+    KEY `idx_ggact_activity` (`gathering_activity_id`),
+    KEY `idx_ggact_sort` (`sort_order`),
+    KEY `fk_ggact_created_by` (`created_by`),
+    KEY `idx_ggact_not_removable` (`not_removable`),
+    CONSTRAINT `fk_ggact_activity` FOREIGN KEY (`gathering_activity_id`) REFERENCES `gathering_activities` (`id`) ON DELETE CASCADE ON UPDATE NO ACTION,
+    CONSTRAINT `fk_ggact_created_by` FOREIGN KEY (`created_by`) REFERENCES `members` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+    CONSTRAINT `fk_ggact_gathering` FOREIGN KEY (`gathering_id`) REFERENCES `gatherings` (`id`) ON DELETE CASCADE ON UPDATE NO ACTION
+) ENGINE = InnoDB AUTO_INCREMENT = 50 DEFAULT CHARSET = utf8mb3 COLLATE = utf8mb3_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */
+;
+
+--
+-- Dumping data for table `gatherings_gathering_activities`
+--
+
+LOCK TABLES `gatherings_gathering_activities` WRITE;
+/*!40000 ALTER TABLE `gatherings_gathering_activities` DISABLE KEYS */
+;
+INSERT INTO
+    `gatherings_gathering_activities`
+VALUES (
+        1,
+        1,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        2,
+        2,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        3,
+        3,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        4,
+        4,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        5,
+        5,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        6,
+        6,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        7,
+        7,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        8,
+        8,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        9,
+        9,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        10,
+        10,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        11,
+        11,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        12,
+        12,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        13,
+        13,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        14,
+        14,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        15,
+        15,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        16,
+        16,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        17,
+        17,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        18,
+        18,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        19,
+        19,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        20,
+        20,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        21,
+        21,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        22,
+        22,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        23,
+        23,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        24,
+        24,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        25,
+        25,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        26,
+        26,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        27,
+        27,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        28,
+        28,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        29,
+        29,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        30,
+        30,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        31,
+        31,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        32,
+        32,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        33,
+        33,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        34,
+        34,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        35,
+        35,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        36,
+        36,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        37,
+        37,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        38,
+        38,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        39,
+        39,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        40,
+        40,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        41,
+        41,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        42,
+        42,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        43,
+        43,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        44,
+        44,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        45,
+        45,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        46,
+        46,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        47,
+        47,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        48,
+        48,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    (
+        49,
+        49,
+        1,
+        0,
+        0,
+        NULL,
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        NULL,
+        NULL
+    ),
+    -- Future Practice: Heavy Combat + Archery (multiple waivers for testing)
+    (
+        50,
+        50,
+        2,
+        1,
+        0,
+        NULL,
+        '2025-11-09 17:00:00',
+        '2025-11-09 17:00:00',
+        NULL,
+        NULL
+    ),
+    (
+        51,
+        50,
+        5,
+        2,
+        0,
+        NULL,
+        '2025-11-09 17:00:00',
+        '2025-11-09 17:00:00',
+        NULL,
+        NULL
+    ),
+    -- Past Practice: Heavy Combat + Archery (multiple waivers for testing)
+    (
+        52,
+        51,
+        2,
+        1,
+        0,
+        NULL,
+        '2025-11-09 17:00:00',
+        '2025-11-09 17:00:00',
+        NULL,
+        NULL
+    ),
+    (
+        53,
+        51,
+        5,
+        2,
+        0,
+        NULL,
+        '2025-11-09 17:00:00',
+        '2025-11-09 17:00:00',
+        NULL,
+        NULL
+    );
+/*!40000 ALTER TABLE `gatherings_gathering_activities` ENABLE KEYS */
+;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `member_roles`
 --
 
@@ -6185,6 +10125,7 @@ DROP TABLE IF EXISTS `members`;
 ;
 CREATE TABLE `members` (
     `id` int(11) NOT NULL AUTO_INCREMENT,
+    `public_id` varchar(8) NOT NULL COMMENT 'Non-sequential public identifier safe for client exposure',
     `password` varchar(512) NOT NULL,
     `sca_name` varchar(50) NOT NULL,
     `first_name` varchar(30) NOT NULL,
@@ -6196,6 +10137,7 @@ CREATE TABLE `members` (
     `zip` varchar(5) DEFAULT NULL,
     `phone_number` varchar(15) DEFAULT NULL,
     `email_address` varchar(50) NOT NULL,
+    `timezone` varchar(50) DEFAULT NULL COMMENT 'User preferred timezone (IANA identifier, e.g., America/Chicago)',
     `membership_number` varchar(50) DEFAULT NULL,
     `membership_expires_on` date DEFAULT NULL,
     `branch_id` int(11) DEFAULT NULL,
@@ -6225,6 +10167,7 @@ CREATE TABLE `members` (
     `warrantable` tinyint(1) NOT NULL DEFAULT 0,
     PRIMARY KEY (`id`),
     UNIQUE KEY `email_address` (`email_address`),
+    UNIQUE KEY `idx_members_public_id` (`public_id`),
     KEY `deleted` (`deleted`),
     KEY `branch_id` (`branch_id`),
     CONSTRAINT `members_ibfk_1` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`)
@@ -6243,7 +10186,8 @@ INSERT INTO
     `members`
 VALUES (
         1,
-        '',
+        '8cSg3pCj',
+        '$2y$10$4j4HiinG6JILGRt/yVsjL.EHksUzxNGPsjo5lHCzQGUSawXxe5UKS',
         'Admin von Admin',
         'Addy',
         '',
@@ -6254,6 +10198,7 @@ VALUES (
         '00000',
         '555-555-5555',
         'admin@amp.ansteorra.org',
+        NULL,
         'AdminAccount',
         '2100-01-01',
         24,
@@ -6272,10 +10217,10 @@ VALUES (
         1977,
         '{\"CallIntoCourt\": \"Never\", \"CourtAvailability\": \"None\", \"OrderOfPrecedence_Id\": \"-1000\", \"PersonToGiveNoticeTo\": \"No one this is a system account\"}',
         NULL,
-        '2025-04-10 19:43:14',
+        '2025-11-09 14:13:16',
         '2024-09-29 15:47:03',
         NULL,
-        1,
+        NULL,
         NULL,
         NULL,
         NULL,
@@ -6284,7 +10229,8 @@ VALUES (
     ),
     (
         2871,
-        '',
+        'Zqzw7nxs',
+        '$2y$10$ir8x3bE8ScVavoUuJlCQJuqwwN1ZroGAnvLbFhDzf4e2hUpxicZb2',
         'Agatha Local MoAS Demoer',
         'Agatha',
         '',
@@ -6295,6 +10241,7 @@ VALUES (
         '11111',
         '111-111-1111',
         'agatha@ampdemo.com',
+        NULL,
         '1111111',
         '2029-07-25',
         17,
@@ -6313,10 +10260,10 @@ VALUES (
         1987,
         '{\"CallIntoCourt\": \"With Notice\", \"CourtAvailability\": \"Evening\", \"PersonToGiveNoticeTo\": \"Bryce Demoer\"}',
         NULL,
-        '2025-08-30 21:24:24',
+        '2025-11-09 14:13:16',
         '2025-06-22 18:38:03',
         NULL,
-        1073,
+        NULL,
         NULL,
         '',
         '',
@@ -6325,7 +10272,8 @@ VALUES (
     ),
     (
         2872,
-        '',
+        '5zeRQffg',
+        '$2y$10$4dMldUtywJLzeFdLIYg6xeaVJHo3MaLmYzsa8DXSnMP5dEIJ2EpEu',
         'Bryce Local Seneschal Demoer',
         'Bryce',
         '',
@@ -6336,6 +10284,7 @@ VALUES (
         '22222',
         '222-222-2222',
         'bryce@ampdemo.com',
+        NULL,
         '222222222',
         '2029-07-25',
         22,
@@ -6354,10 +10303,10 @@ VALUES (
         1982,
         '{}',
         NULL,
-        '2025-08-30 21:08:24',
+        '2025-11-09 14:13:16',
         '2025-06-22 18:51:53',
         NULL,
-        1073,
+        NULL,
         NULL,
         '',
         '',
@@ -6366,7 +10315,8 @@ VALUES (
     ),
     (
         2873,
-        '',
+        '6wbFMe7u',
+        '$2y$10$xaAxo5FUccJsmoLQbGEOO.kHc2R3mqH07lJFmvOMrfI0RRGuiKFlS',
         'Caroline Regional Seneschal Demoer',
         'Caroline',
         '',
@@ -6377,6 +10327,7 @@ VALUES (
         '33333',
         '333-333-3333',
         'caroline@ampdemo.com',
+        NULL,
         '333333333',
         '2028-07-22',
         33,
@@ -6395,10 +10346,10 @@ VALUES (
         1965,
         '{}',
         NULL,
-        '2025-08-30 21:09:31',
+        '2025-11-09 14:13:16',
         '2025-06-22 19:29:32',
         NULL,
-        1073,
+        NULL,
         NULL,
         '',
         '',
@@ -6407,7 +10358,8 @@ VALUES (
     ),
     (
         2874,
-        '',
+        'q6LtQVAP',
+        '$2y$10$jMcwHMvOVSqcz8IVKTWW/eyk1l2ri/YgSIhmLweLft1KFnIMxVqaK',
         'Devon Regional Armored Demoer',
         'Devon',
         '',
@@ -6418,6 +10370,7 @@ VALUES (
         '44444',
         '444-444-4444',
         'devon@ampdemo.com',
+        NULL,
         '44444444',
         '2025-12-30',
         27,
@@ -6436,10 +10389,10 @@ VALUES (
         2002,
         '{}',
         NULL,
-        '2025-08-30 21:10:27',
+        '2025-11-09 14:13:16',
         '2025-06-22 19:32:33',
         NULL,
-        1073,
+        NULL,
         NULL,
         '',
         '',
@@ -6448,7 +10401,8 @@ VALUES (
     ),
     (
         2875,
-        '',
+        'wPQM6g9E',
+        '$2y$10$39ZFogBReTFK3qFYbPvGBOqLb0C5NrnJuOfNOft8C74GP7KLIY/x.',
         'Eirik Kingdom Seneschal Demoer',
         'Eirik',
         '',
@@ -6459,6 +10413,7 @@ VALUES (
         '55555',
         '555-555-5555',
         'eirik@ampdemo.com',
+        NULL,
         '555555555',
         '2025-09-23',
         36,
@@ -6477,19 +10432,20 @@ VALUES (
         2004,
         '{}',
         NULL,
-        '2025-08-30 21:11:19',
+        '2025-11-09 14:13:16',
         '2025-06-22 19:34:27',
         NULL,
-        1073,
+        NULL,
         NULL,
         '',
         '',
         '',
-        1
+        0
     ),
     (
         2876,
-        '',
+        'pvcXQKBK',
+        '$2y$10$Lnf0f5A91KByDCq.poTT..75r1FongC.ZD188OsZx8bocrifN7sJG',
         'Garun Kingdom Rapier Deputy Demoer',
         'Garun',
         '',
@@ -6500,6 +10456,7 @@ VALUES (
         '77777',
         '777-777-7777',
         'garun@ampdemo.com',
+        NULL,
         '777777777',
         '2029-11-24',
         38,
@@ -6518,10 +10475,10 @@ VALUES (
         1989,
         '{}',
         NULL,
-        '2025-08-30 21:12:26',
+        '2025-11-09 14:13:16',
         '2025-06-25 02:05:31',
         NULL,
-        1073,
+        NULL,
         NULL,
         '',
         '',
@@ -6530,7 +10487,8 @@ VALUES (
     ),
     (
         2877,
-        '',
+        'b377LVr5',
+        '$2y$10$NtlmlZ.6Jy67dWTWWTQIh.giUuog2PiGwiprV5JD94T3qgS5NzX9e',
         'Haylee Kingdom MoAS Deputy Demoer',
         'Haylee',
         '',
@@ -6541,6 +10499,7 @@ VALUES (
         '88888',
         '888-888-8888',
         'haylee@ampdemo.com',
+        NULL,
         '88888888',
         '2030-11-24',
         38,
@@ -6559,10 +10518,10 @@ VALUES (
         2006,
         '{}',
         NULL,
-        '2025-08-30 21:12:55',
+        '2025-11-09 14:13:16',
         '2025-06-25 02:30:06',
         NULL,
-        1073,
+        NULL,
         NULL,
         '',
         '',
@@ -6571,7 +10530,8 @@ VALUES (
     ),
     (
         2878,
-        '',
+        '2eiocKPz',
+        '$2y$10$Dp0YwFueP7aECc7xZdkEGuUPQInusccKrP2MA6vfdJZah3aZaRJMG',
         'Iris Basic User Demoer',
         'Iris',
         '',
@@ -6582,6 +10542,7 @@ VALUES (
         '99999',
         '9999999999',
         'iris@ampdemo.com',
+        NULL,
         '',
         NULL,
         30,
@@ -6600,10 +10561,10 @@ VALUES (
         1988,
         '{}',
         NULL,
-        '2025-08-30 21:13:19',
+        '2025-11-09 14:13:16',
         '2025-07-02 21:10:45',
         NULL,
-        1073,
+        NULL,
         NULL,
         '',
         '',
@@ -6612,7 +10573,8 @@ VALUES (
     ),
     (
         2879,
-        '',
+        'qGaH3WYF',
+        '$2y$10$XGYiaw2nZ1g8pjoJOGAEKOEviwQ74vXF6e3NOJR4G.qKTF77HVe0i',
         'Jael Principality Coronet Demoer',
         'Jael',
         '',
@@ -6623,6 +10585,7 @@ VALUES (
         '10101',
         '1010101010',
         'jael@ampdemo.com',
+        NULL,
         '12121',
         '2029-11-21',
         36,
@@ -6641,10 +10604,10 @@ VALUES (
         1948,
         '{}',
         NULL,
-        '2025-08-30 21:13:47',
+        '2025-11-09 14:13:16',
         '2025-07-02 21:13:19',
         NULL,
-        1073,
+        NULL,
         NULL,
         '',
         '',
@@ -6653,7 +10616,8 @@ VALUES (
     ),
     (
         2880,
-        '',
+        'pxXeBpCT',
+        '$2y$10$bCLKTVzhMrseV3cH8phM9uSPNJ8fRow5.B37l6EXJXrrbhs0cfhja',
         'Kal Local Landed w Canton Demoer',
         'Kal',
         '',
@@ -6664,6 +10628,7 @@ VALUES (
         '11011',
         '1111111112',
         'kal@ampdemo.com',
+        NULL,
         'asdfasdf',
         '2029-11-23',
         19,
@@ -6682,10 +10647,10 @@ VALUES (
         2006,
         '{}',
         NULL,
-        '2025-08-30 21:14:17',
+        '2025-11-09 14:13:16',
         '2025-07-02 21:14:50',
         NULL,
-        1073,
+        NULL,
         NULL,
         '',
         '',
@@ -6694,7 +10659,8 @@ VALUES (
     ),
     (
         2881,
-        '',
+        'UYFaN6pA',
+        '$2y$10$S7/YSH0.uq9CgpUJAmWLK.lSZYn8NBKaQiqpMynxAe1eTmsUsyxZG',
         'Forest Crown Demoer',
         'Forest',
         '',
@@ -6705,6 +10671,7 @@ VALUES (
         '66666',
         '6666666666',
         'forest@ampdemo.com',
+        NULL,
         '66666666',
         '2029-01-09',
         33,
@@ -6723,10 +10690,10 @@ VALUES (
         1987,
         '{}',
         NULL,
-        '2025-08-30 21:11:36',
+        '2025-11-09 14:13:16',
         '2025-07-02 21:27:27',
         NULL,
-        1073,
+        NULL,
         NULL,
         '',
         '',
@@ -6735,7 +10702,8 @@ VALUES (
     ),
     (
         2882,
-        '',
+        'fmiM9m2L',
+        '$2y$10$7MK2jDz272AA1vTIcego5O6w72XNA4MoqCiMUf5IENan0DPPQF9ZO',
         'Leonard Landed with Stronghold Demoer',
         'Leonard',
         '',
@@ -6746,6 +10714,7 @@ VALUES (
         '12000',
         '1212121212',
         'leonard@ampdemo.com',
+        NULL,
         '120000',
         '2029-07-18',
         22,
@@ -6764,10 +10733,10 @@ VALUES (
         1982,
         '{}',
         NULL,
-        '2025-08-30 21:16:04',
+        '2025-11-09 14:13:16',
         '2025-08-07 21:05:57',
         NULL,
-        1073,
+        NULL,
         NULL,
         '',
         '',
@@ -6776,7 +10745,8 @@ VALUES (
     ),
     (
         2883,
-        '',
+        'CBiTbh8H',
+        '$2y$10$Vx7lCRG2f/cCOQSAUbwXJek02FWo9qlQOJQlGrr2auAg.xOg0gYui',
         'Mel Local Exch and Kingdom Social Demoer',
         'Mel',
         '',
@@ -6787,6 +10757,7 @@ VALUES (
         '13131',
         '111-333-0000',
         'mel@ampdemo.com',
+        NULL,
         '13',
         '2028-11-22',
         24,
@@ -6805,10 +10776,10 @@ VALUES (
         1995,
         '{}',
         NULL,
-        '2025-08-30 21:30:56',
+        '2025-11-09 14:13:16',
         '2025-08-30 21:27:38',
         NULL,
-        1073,
+        NULL,
         NULL,
         NULL,
         NULL,
@@ -15392,6 +19363,160 @@ VALUES (
         '2025-04-21 14:17:19',
         '2025-04-21 14:17:19',
         0
+    ),
+    (
+        20251021000001,
+        'CreateGatheringTypes',
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        0
+    ),
+    (
+        20251021000002,
+        'CreateGatheringActivities',
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        0
+    ),
+    (
+        20251021164755,
+        'CreateDocuments',
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        0
+    ),
+    (
+        20251021165329,
+        'CreateGatherings',
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        0
+    ),
+    (
+        20251023000000,
+        'CreateGatheringsGatheringActivities',
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        0
+    ),
+    (
+        20251024000000,
+        'AddCustomDescriptionToGatheringsGatheringActivities',
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        0
+    ),
+    (
+        20251027000001,
+        'CreateGatheringAttendances',
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        0
+    ),
+    (
+        20251029230939,
+        'CreateEmailTemplates',
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        0
+    ),
+    (
+        20251030000001,
+        'AddColorToGatheringTypes',
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        0
+    ),
+    (
+        20251030140457,
+        'AddLatLongToGatherings',
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        0
+    ),
+    (
+        20251102000001,
+        'CreateGatheringTypeGatheringActivities',
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        0
+    ),
+    (
+        20251102000002,
+        'AddNotRemovableToGatheringsGatheringActivities',
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        0
+    ),
+    (
+        20251103000000,
+        'CreateGatheringScheduledActivities',
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        0
+    ),
+    (
+        20251103120000,
+        'CreateGatheringStaff',
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        0
+    ),
+    (
+        20251103140000,
+        'AddPublicIdToMembersAndGatherings',
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        0
+    ),
+    (
+        20251103205723,
+        'AddShowOnPublicPageToGatheringStaff',
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        0
+    ),
+    (
+        20251103215023,
+        'AddPublicPageEnabledToGatherings',
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        0
+    ),
+    (
+        20251104000000,
+        'MakeScheduledActivityEndTimeOptional',
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        0
+    ),
+    (
+        20251104010000,
+        'AddHasEndTimeToScheduledActivities',
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        0
+    ),
+    (
+        20251105000000,
+        'AddTimezoneToMembers',
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        0
+    ),
+    (
+        20251105000001,
+        'AddTimezoneToGatherings',
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        0
+    ),
+    (
+        20251105000002,
+        'ConvertGatheringDatesToDatetime',
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        0
     );
 /*!40000 ALTER TABLE `phinxlog` ENABLE KEYS */
 ;
@@ -15464,7 +19589,7 @@ CREATE TABLE `queue_processes` (
     PRIMARY KEY (`id`),
     UNIQUE KEY `workerkey` (`workerkey`),
     UNIQUE KEY `pid` (`pid`, `server`)
-) ENGINE = InnoDB AUTO_INCREMENT = 44641 DEFAULT CHARSET = utf8mb3 COLLATE = utf8mb3_unicode_ci;
+) ENGINE = InnoDB AUTO_INCREMENT = 44648 DEFAULT CHARSET = utf8mb3 COLLATE = utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */
 ;
 
@@ -15478,13 +19603,13 @@ LOCK TABLES `queue_processes` WRITE;
 INSERT INTO
     `queue_processes`
 VALUES (
-        44640,
-        '2978278',
-        '2025-08-31 14:56:01',
-        '2025-08-31 14:56:31',
+        44647,
+        '5463',
+        '2025-11-09 14:26:01',
+        '2025-11-09 14:27:11',
         0,
-        'iad1-shared-b8-16',
-        'd04075728ec829f4fce72fbb246bf520e908ce00'
+        '084892f2b1d1',
+        '1b3e13a964b9e73877bc954ad776c45af99885ac'
     );
 /*!40000 ALTER TABLE `queue_processes` ENABLE KEYS */
 ;
@@ -18045,6 +22170,535 @@ VALUES (
 UNLOCK TABLES;
 
 --
+-- Table structure for table `waivers_gathering_activity_waivers`
+--
+
+DROP TABLE IF EXISTS `waivers_gathering_activity_waivers`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */
+;
+/*!40101 SET character_set_client = utf8mb4 */
+;
+CREATE TABLE `waivers_gathering_activity_waivers` (
+    `id` int(11) NOT NULL AUTO_INCREMENT,
+    `gathering_activity_id` int(11) NOT NULL COMMENT 'Gathering activity this waiver requirement applies to',
+    `waiver_type_id` int(11) NOT NULL COMMENT 'Type of waiver required for this activity',
+    `modified` datetime DEFAULT NULL,
+    `created` datetime NOT NULL,
+    `created_by` int(11) DEFAULT NULL,
+    `modified_by` int(11) DEFAULT NULL,
+    `deleted` datetime DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `idx_gathering_activity_waivers_unique` (
+        `gathering_activity_id`,
+        `waiver_type_id`,
+        `deleted`
+    ),
+    KEY `idx_gathering_activity_waivers_activity` (`gathering_activity_id`),
+    KEY `idx_gathering_activity_waivers_type` (`waiver_type_id`),
+    CONSTRAINT `fk_gathering_activity_waivers_activity` FOREIGN KEY (`gathering_activity_id`) REFERENCES `gathering_activities` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+    CONSTRAINT `fk_gathering_activity_waivers_type` FOREIGN KEY (`waiver_type_id`) REFERENCES `waivers_waiver_types` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb3 COLLATE = utf8mb3_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */
+;
+
+--
+-- Dumping data for table `waivers_gathering_activity_waivers`
+--
+
+LOCK TABLES `waivers_gathering_activity_waivers` WRITE;
+/*!40000 ALTER TABLE `waivers_gathering_activity_waivers` DISABLE KEYS */
+;
+INSERT INTO
+    `waivers_gathering_activity_waivers`
+VALUES (
+        1,
+        2,
+        1,
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Heavy Armored Combat requires Adult Waiver
+    (
+        2,
+        3,
+        1,
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Rapier Combat requires Adult Waiver
+    (
+        3,
+        4,
+        1,
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Cut and Thrust requires Adult Waiver
+    (
+        4,
+        5,
+        1,
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Archery requires Adult Waiver
+    (
+        5,
+        5,
+        4,
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Archery requires Archery Range Waiver
+    (
+        6,
+        6,
+        1,
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Thrown Weapons requires Adult Waiver
+    (
+        7,
+        6,
+        5,
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Thrown Weapons requires Thrown Weapons Waiver
+    (
+        8,
+        7,
+        1,
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Equestrian requires Adult Waiver
+    (
+        9,
+        7,
+        3,
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Equestrian requires Equestrian Waiver
+    (
+        10,
+        8,
+        2,
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Youth Combat requires Minor Waiver
+    (
+        11,
+        8,
+        6,
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    ), -- Youth Combat requires Youth Combat Waiver
+    (
+        12,
+        9,
+        1,
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL
+    );
+-- Siege Weapons requires Adult Waiver
+/*!40000 ALTER TABLE `waivers_gathering_activity_waivers` ENABLE KEYS */
+;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `waivers_gathering_waiver_activities`
+--
+
+DROP TABLE IF EXISTS `waivers_gathering_waiver_activities`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */
+;
+/*!40101 SET character_set_client = utf8mb4 */
+;
+CREATE TABLE `waivers_gathering_waiver_activities` (
+    `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'Unique identifier',
+    `gathering_waiver_id` int(11) NOT NULL COMMENT 'FK to gathering_waivers.id - the waiver document',
+    `gathering_activity_id` int(11) NOT NULL COMMENT 'FK to gathering_activities.id - the activity covered',
+    `modified` datetime DEFAULT NULL,
+    `created` datetime NOT NULL,
+    `created_by` int(11) DEFAULT NULL,
+    `modified_by` int(11) DEFAULT NULL,
+    `deleted` datetime DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `idx_gathering_waiver_activities_unique` (
+        `gathering_waiver_id`,
+        `gathering_activity_id`
+    ),
+    KEY `idx_gathering_waiver_activities_waiver` (`gathering_waiver_id`),
+    KEY `idx_gathering_waiver_activities_activity` (`gathering_activity_id`),
+    CONSTRAINT `fk_gathering_waiver_activities_activity` FOREIGN KEY (`gathering_activity_id`) REFERENCES `gathering_activities` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT `fk_gathering_waiver_activities_waiver` FOREIGN KEY (`gathering_waiver_id`) REFERENCES `waivers_gathering_waivers` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb3 COLLATE = utf8mb3_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */
+;
+
+--
+-- Dumping data for table `waivers_gathering_waiver_activities`
+--
+
+LOCK TABLES `waivers_gathering_waiver_activities` WRITE;
+/*!40000 ALTER TABLE `waivers_gathering_waiver_activities` DISABLE KEYS */
+;
+/*!40000 ALTER TABLE `waivers_gathering_waiver_activities` ENABLE KEYS */
+;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `waivers_gathering_waivers`
+--
+
+DROP TABLE IF EXISTS `waivers_gathering_waivers`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */
+;
+/*!40101 SET character_set_client = utf8mb4 */
+;
+CREATE TABLE `waivers_gathering_waivers` (
+    `id` int(11) NOT NULL AUTO_INCREMENT,
+    `gathering_id` int(11) NOT NULL COMMENT 'Gathering this waiver is for',
+    `waiver_type_id` int(11) NOT NULL COMMENT 'Type of waiver (declared at upload time)',
+    `document_id` int(11) DEFAULT NULL COMMENT 'Document entity containing the actual waiver file',
+    `is_exemption` tinyint(1) NOT NULL DEFAULT 0 COMMENT 'True if this is an exemption (attestation waiver not needed)',
+    `exemption_reason` varchar(500) DEFAULT NULL COMMENT 'Reason why waiver was not required (only set for exemptions)',
+    `retention_date` date NOT NULL COMMENT 'Date when this waiver can be deleted (calculated at upload time)',
+    `status` varchar(50) NOT NULL DEFAULT 'active' COMMENT 'Status: active, expired, deleted',
+    `notes` text DEFAULT NULL COMMENT 'Optional notes about this waiver',
+    `declined_at` datetime DEFAULT NULL COMMENT 'Timestamp when waiver was declined/rejected',
+    `declined_by` int(11) DEFAULT NULL COMMENT 'Member ID who declined the waiver',
+    `decline_reason` text DEFAULT NULL COMMENT 'Reason for declining the waiver',
+    `modified` datetime DEFAULT NULL,
+    `created` datetime NOT NULL,
+    `created_by` int(11) DEFAULT NULL,
+    `modified_by` int(11) DEFAULT NULL,
+    `deleted` datetime DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `idx_gathering_waivers_document` (`document_id`),
+    KEY `idx_gathering_waivers_gathering` (`gathering_id`),
+    KEY `idx_gathering_waivers_type` (`waiver_type_id`),
+    KEY `idx_gathering_waivers_retention` (`retention_date`),
+    KEY `idx_gathering_waivers_status` (`status`),
+    KEY `idx_gathering_waivers_created` (`created`),
+    KEY `idx_gathering_waivers_created_by` (`created_by`),
+    KEY `fk_gathering_waivers_modified_by` (`modified_by`),
+    KEY `fk_gathering_waivers_declined_by` (`declined_by`),
+    KEY `idx_gathering_waivers_declined_at` (`declined_at`),
+    KEY `idx_gathering_waivers_is_exemption` (`is_exemption`),
+    CONSTRAINT `fk_gathering_waivers_created_by` FOREIGN KEY (`created_by`) REFERENCES `members` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+    CONSTRAINT `fk_gathering_waivers_declined_by` FOREIGN KEY (`declined_by`) REFERENCES `members` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+    CONSTRAINT `fk_gathering_waivers_document` FOREIGN KEY (`document_id`) REFERENCES `documents` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+    CONSTRAINT `fk_gathering_waivers_gathering` FOREIGN KEY (`gathering_id`) REFERENCES `gatherings` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+    CONSTRAINT `fk_gathering_waivers_modified_by` FOREIGN KEY (`modified_by`) REFERENCES `members` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+    CONSTRAINT `fk_gathering_waivers_type` FOREIGN KEY (`waiver_type_id`) REFERENCES `waivers_waiver_types` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb3 COLLATE = utf8mb3_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */
+;
+
+--
+-- Dumping data for table `waivers_gathering_waivers`
+--
+
+LOCK TABLES `waivers_gathering_waivers` WRITE;
+/*!40000 ALTER TABLE `waivers_gathering_waivers` DISABLE KEYS */
+;
+/*!40000 ALTER TABLE `waivers_gathering_waivers` ENABLE KEYS */
+;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `waivers_phinxlog`
+--
+
+DROP TABLE IF EXISTS `waivers_phinxlog`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */
+;
+/*!40101 SET character_set_client = utf8mb4 */
+;
+CREATE TABLE `waivers_phinxlog` (
+    `version` bigint(20) NOT NULL,
+    `migration_name` varchar(100) DEFAULT NULL,
+    `start_time` timestamp NULL DEFAULT NULL,
+    `end_time` timestamp NULL DEFAULT NULL,
+    `breakpoint` tinyint(1) NOT NULL DEFAULT 0,
+    PRIMARY KEY (`version`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb3 COLLATE = utf8mb3_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */
+;
+
+--
+-- Dumping data for table `waivers_phinxlog`
+--
+
+LOCK TABLES `waivers_phinxlog` WRITE;
+/*!40000 ALTER TABLE `waivers_phinxlog` DISABLE KEYS */
+;
+INSERT INTO
+    `waivers_phinxlog`
+VALUES (
+        20251021180737,
+        'CreateWaiverTypes',
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        0
+    ),
+    (
+        20251021180804,
+        'CreateGatheringActivityWaivers',
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        0
+    ),
+    (
+        20251021180827,
+        'CreateGatheringWaivers',
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        0
+    ),
+    (
+        20251021180858,
+        'CreateGatheringWaiverActivities',
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        0
+    ),
+    (
+        20251022150936,
+        'AddDocumentIdToWaiverTypes',
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        0
+    ),
+    (
+        20251023162456,
+        'AddDeletedToGatheringActivityWaiversUniqueIndex',
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        0
+    ),
+    (
+        20251024012044,
+        'RemoveMemberIdFromGatheringWaivers',
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        0
+    ),
+    (
+        20251026000000,
+        'AddDeclineFieldsToGatheringWaivers',
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        0
+    ),
+    (
+        20251106163803,
+        'AddExemptionReasonsToWaiverTypes',
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        0
+    ),
+    (
+        20251106172020,
+        'AddExemptionFieldsToGatheringWaivers',
+        '2025-11-09 14:13:15',
+        '2025-11-09 14:13:15',
+        0
+    );
+/*!40000 ALTER TABLE `waivers_phinxlog` ENABLE KEYS */
+;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `waivers_waiver_types`
+--
+
+DROP TABLE IF EXISTS `waivers_waiver_types`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */
+;
+/*!40101 SET character_set_client = utf8mb4 */
+;
+CREATE TABLE `waivers_waiver_types` (
+    `id` int(11) NOT NULL AUTO_INCREMENT,
+    `name` varchar(255) NOT NULL COMMENT 'Name of the waiver type (e.g., General Adult Waiver, Minor Waiver, Equestrian Waiver)',
+    `description` text DEFAULT NULL COMMENT 'Description of this waiver type',
+    `document_id` int(11) DEFAULT NULL COMMENT 'FK to documents.id for uploaded template files (null if using external URL)',
+    `template_path` varchar(500) DEFAULT NULL COMMENT 'External URL to template (e.g., SCA.org link). Use document_id for uploaded files.',
+    `retention_policy` text NOT NULL COMMENT 'JSON: {"anchor": "gathering_end_date", "duration": {"years": 7, "months": 6, "days": 0}}',
+    `convert_to_pdf` tinyint(1) NOT NULL DEFAULT 1 COMMENT 'Whether to convert uploaded waivers to PDF format',
+    `is_active` tinyint(1) NOT NULL DEFAULT 1 COMMENT 'Whether this waiver type is currently active',
+    `modified` datetime DEFAULT NULL,
+    `created` datetime NOT NULL,
+    `created_by` int(11) DEFAULT NULL,
+    `modified_by` int(11) DEFAULT NULL,
+    `deleted` datetime DEFAULT NULL,
+    `exemption_reasons` text DEFAULT NULL COMMENT 'JSON array of valid reasons for why a waiver might not be required (e.g., ["No minors present", "Activity cancelled", "Virtual event"])',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `idx_waiver_types_name` (`name`),
+    KEY `idx_waiver_types_active` (`is_active`),
+    KEY `idx_waiver_types_document_id` (`document_id`),
+    CONSTRAINT `waivers_waiver_types_ibfk_1` FOREIGN KEY (`document_id`) REFERENCES `documents` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb3 COLLATE = utf8mb3_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */
+;
+
+--
+-- Dumping data for table `waivers_waiver_types`
+--
+
+LOCK TABLES `waivers_waiver_types` WRITE;
+/*!40000 ALTER TABLE `waivers_waiver_types` DISABLE KEYS */
+;
+INSERT INTO
+    `waivers_waiver_types`
+VALUES (
+        1,
+        'Adult Participation Waiver',
+        'General waiver for adult participants (18 and older) in SCA activities',
+        NULL,
+        'https://www.sca.org/wp-content/uploads/2019/12/AdultWaiver.pdf',
+        '{"anchor": "gathering_end_date", "duration": {"years": 7, "months": 6, "days": 0}}',
+        1,
+        1,
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL,
+        '["Virtual event only", "No physical activities"]'
+    ),
+    (
+        2,
+        'Minor Participation Waiver',
+        'Waiver for minor participants (under 18) signed by parent/guardian',
+        NULL,
+        'https://www.sca.org/wp-content/uploads/2019/12/MinorWaiver.pdf',
+        '{"anchor": "gathering_end_date", "duration": {"years": 7, "months": 6, "days": 0}}',
+        1,
+        1,
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL,
+        '["No minors present", "Virtual event only"]'
+    ),
+    (
+        3,
+        'Equestrian Waiver',
+        'Additional waiver required for all mounted activities',
+        NULL,
+        'https://www.sca.org/resources/document-library/govdocs/miscellaneous/equestrian-authorization-form/',
+        '{"anchor": "gathering_end_date", "duration": {"years": 7, "months": 6, "days": 0}}',
+        1,
+        1,
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL,
+        '["No equestrian activities", "All equestrian activities cancelled"]'
+    ),
+    (
+        4,
+        'Archery Range Waiver',
+        'Specific waiver for archery range participation',
+        NULL,
+        NULL,
+        '{"anchor": "gathering_end_date", "duration": {"years": 1, "months": 0, "days": 0}}',
+        1,
+        1,
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL,
+        '["No archery activities", "Range not operational"]'
+    ),
+    (
+        5,
+        'Thrown Weapons Waiver',
+        'Specific waiver for thrown weapons activities',
+        NULL,
+        NULL,
+        '{"anchor": "gathering_end_date", "duration": {"years": 1, "months": 0, "days": 0}}',
+        1,
+        1,
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL,
+        '["No thrown weapons activities", "Range not operational"]'
+    ),
+    (
+        6,
+        'Youth Combat Waiver',
+        'Additional waiver for youth participating in combat activities (in addition to minor waiver)',
+        NULL,
+        NULL,
+        '{"anchor": "gathering_end_date", "duration": {"years": 2, "months": 0, "days": 0}}',
+        1,
+        1,
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL,
+        '["No youth combat activities", "Youth combat cancelled"]'
+    ),
+    (
+        7,
+        'Medical Authorization Form',
+        'Authorization for emergency medical treatment (typically for minors)',
+        NULL,
+        NULL,
+        '{"anchor": "gathering_end_date", "duration": {"years": 1, "months": 0, "days": 0}}',
+        1,
+        1,
+        '2025-11-09 16:00:00',
+        '2025-11-09 16:00:00',
+        NULL,
+        NULL,
+        NULL,
+        '["Parent/guardian present", "Day trip event"]'
+    );
+/*!40000 ALTER TABLE `waivers_waiver_types` ENABLE KEYS */
+;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `warrant_periods`
 --
 
@@ -18135,6 +22789,48 @@ VALUES (
         1,
         1,
         '2025-01-12 01:02:18'
+    ),
+    (
+        605,
+        411,
+        1,
+        '2025-11-09 16:40:51'
+    ),
+    (
+        606,
+        412,
+        1,
+        '2025-11-09 16:40:57'
+    ),
+    (
+        607,
+        413,
+        1,
+        '2025-11-09 16:41:01'
+    ),
+    (
+        608,
+        414,
+        1,
+        '2025-11-09 16:41:06'
+    ),
+    (
+        609,
+        415,
+        1,
+        '2025-11-09 16:41:11'
+    ),
+    (
+        610,
+        416,
+        1,
+        '2025-11-09 16:41:15'
+    ),
+    (
+        611,
+        417,
+        1,
+        '2025-11-09 16:41:19'
     );
 /*!40000 ALTER TABLE `warrant_roster_approvals` ENABLE KEYS */
 ;
@@ -18298,78 +22994,78 @@ VALUES (
         411,
         'Local Seneschal : Bryce Demoer',
         1,
-        NULL,
-        'Pending',
-        '2025-08-30 21:08:09',
+        1,
+        'Approved',
+        '2025-11-09 16:40:51',
         '2025-08-30 21:08:09',
         1,
-        1073
+        1
     ),
     (
         412,
         'Regional Seneschal : Caroline Demoer',
         1,
-        NULL,
-        'Pending',
-        '2025-08-30 21:09:16',
+        1,
+        'Approved',
+        '2025-11-09 16:40:57',
         '2025-08-30 21:09:16',
         1,
-        1073
+        1
     ),
     (
         413,
         'Regional Armored Marshal : Devon Demoer',
         1,
-        NULL,
-        'Pending',
-        '2025-08-30 21:10:12',
+        1,
+        'Approved',
+        '2025-11-09 16:41:01',
         '2025-08-30 21:10:12',
         1,
-        1073
+        1
     ),
     (
         414,
         'Kingdom Seneschal : Eirik Demoer',
         1,
-        NULL,
-        'Pending',
-        '2025-08-30 21:11:04',
+        1,
+        'Approved',
+        '2025-11-09 16:41:06',
         '2025-08-30 21:11:04',
         1,
-        1073
+        1
     ),
     (
         415,
         'Kingdom Rapier Marshal : Garun Demoer',
         1,
-        NULL,
-        'Pending',
-        '2025-08-30 21:12:12',
+        1,
+        'Approved',
+        '2025-11-09 16:41:11',
         '2025-08-30 21:12:12',
         1,
-        1073
+        1
     ),
     (
         416,
         'Local Treasurer : Mel Local Exch and Kingdom Social Demoer',
         1,
-        NULL,
-        'Pending',
-        '2025-08-30 21:31:13',
+        1,
+        'Approved',
+        '2025-11-09 16:41:15',
         '2025-08-30 21:31:13',
         1,
-        1073
+        1
     ),
     (
         417,
         'Kingdom Social Media Officer : Mel Local Exch and Kingdom Social Demoer',
         1,
-        NULL,
-        'Pending',
-        '2025-08-30 21:31:30',
+        1,
+        'Approved',
+        '2025-11-09 16:41:19',
         '2025-08-30 21:31:30',
         1,
-        1073
+        1
     );
 /*!40000 ALTER TABLE `warrant_rosters` ENABLE KEYS */
 ;
@@ -18720,15 +23416,15 @@ VALUES (
         949,
         374,
         '2026-01-19 00:00:00',
-        '2025-08-30 00:00:00',
+        '2025-11-09 16:40:51',
+        '2025-11-09 16:40:51',
+        'Current',
         NULL,
-        'Pending',
-        '',
         NULL,
-        '2025-08-30 21:08:09',
+        '2025-11-09 16:40:51',
         '2025-08-30 21:08:09',
         1,
-        1073
+        1
     ),
     (
         2506,
@@ -18739,15 +23435,15 @@ VALUES (
         950,
         375,
         '2026-01-19 00:00:00',
-        '2025-08-30 00:00:00',
+        '2025-11-09 16:40:57',
+        '2025-11-09 16:40:57',
+        'Current',
         NULL,
-        'Pending',
-        '',
         NULL,
-        '2025-08-30 21:09:16',
+        '2025-11-09 16:40:57',
         '2025-08-30 21:09:16',
         1,
-        1073
+        1
     ),
     (
         2507,
@@ -18758,15 +23454,15 @@ VALUES (
         951,
         NULL,
         '2026-01-19 00:00:00',
-        '2025-08-30 00:00:00',
+        '2025-11-09 16:41:01',
+        '2025-11-09 16:41:01',
+        'Current',
         NULL,
-        'Pending',
-        '',
         NULL,
-        '2025-08-30 21:10:12',
+        '2025-11-09 16:41:01',
         '2025-08-30 21:10:12',
         1,
-        1073
+        1
     ),
     (
         2508,
@@ -18777,15 +23473,15 @@ VALUES (
         952,
         376,
         '2026-01-19 00:00:00',
-        '2025-08-30 00:00:00',
+        '2025-11-09 16:41:06',
+        '2025-11-09 16:41:06',
+        'Current',
         NULL,
-        'Pending',
-        '',
         NULL,
-        '2025-08-30 21:11:04',
+        '2025-11-09 16:41:06',
         '2025-08-30 21:11:04',
         1,
-        1073
+        1
     ),
     (
         2509,
@@ -18796,15 +23492,15 @@ VALUES (
         953,
         377,
         '2026-01-19 00:00:00',
-        '2025-08-30 00:00:00',
+        '2025-11-09 16:41:11',
+        '2025-11-09 16:41:11',
+        'Current',
         NULL,
-        'Pending',
-        '',
         NULL,
-        '2025-08-30 21:12:12',
+        '2025-11-09 16:41:11',
         '2025-08-30 21:12:12',
         1,
-        1073
+        1
     ),
     (
         2510,
@@ -18815,15 +23511,15 @@ VALUES (
         956,
         NULL,
         '2026-01-19 00:00:00',
-        '2025-08-30 00:00:00',
+        '2025-11-09 16:41:15',
+        '2025-11-09 16:41:15',
+        'Current',
         NULL,
-        'Pending',
-        '',
         NULL,
-        '2025-08-30 21:31:13',
+        '2025-11-09 16:41:15',
         '2025-08-30 21:31:13',
         1,
-        1073
+        1
     ),
     (
         2511,
@@ -18834,23 +23530,19 @@ VALUES (
         957,
         NULL,
         '2026-01-19 00:00:00',
-        '2025-08-30 00:00:00',
+        '2025-11-09 16:41:19',
+        '2025-11-09 16:41:19',
+        'Current',
         NULL,
-        'Pending',
-        '',
         NULL,
-        '2025-08-30 21:31:30',
+        '2025-11-09 16:41:19',
         '2025-08-30 21:31:30',
         1,
-        1073
+        1
     );
 /*!40000 ALTER TABLE `warrants` ENABLE KEYS */
 ;
 UNLOCK TABLES;
-
---
--- Dumping routines for database 'amp-seed'
---
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */
 ;
 
@@ -18869,4 +23561,4 @@ UNLOCK TABLES;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */
 ;
 
--- Dump completed on 2025-08-31 20:51:31
+-- Dump completed on 2025-11-09 14:27:20

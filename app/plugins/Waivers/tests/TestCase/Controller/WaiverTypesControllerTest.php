@@ -4,39 +4,19 @@ declare(strict_types=1);
 
 namespace Waivers\Test\TestCase\Controller;
 
+use App\Test\TestCase\BaseTestCase;
 use App\Test\TestCase\Controller\SuperUserAuthenticatedTrait;
 use Cake\TestSuite\IntegrationTestTrait;
-use Cake\TestSuite\TestCase;
 
 /**
  * Waivers\Controller\WaiverTypesController Test Case
  *
  * @uses \Waivers\Controller\WaiverTypesController
  */
-class WaiverTypesControllerTest extends TestCase
+class WaiverTypesControllerTest extends BaseTestCase
 {
     use IntegrationTestTrait;
     use SuperUserAuthenticatedTrait;
-
-    /**
-     * Fixtures
-     *
-     * @var list<string>
-     */
-    protected array $fixtures = [
-        'app.Branches',  // Must be loaded first - other fixtures depend on it
-        'app.Permissions',
-        'app.Roles',
-        'app.RolesPermissions',
-        'app.Members',
-        'app.MemberRoles',
-        'app.TestSuperUser',
-        'app.TestSuperUserRole',
-        'app.TestSuperUserRolePermission',
-        'app.TestSuperUserMemberRole',
-        'app.Warrants',
-        'plugin.Waivers.WaiverTypes',
-    ];
 
     /**
      * Test index method

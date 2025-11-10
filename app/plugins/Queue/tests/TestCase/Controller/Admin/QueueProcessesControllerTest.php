@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Queue\Test\TestCase\Controller\Admin;
@@ -11,22 +12,16 @@ use Shim\TestSuite\TestCase;
 /**
  * @uses \Queue\Controller\Admin\QueueProcessesController
  */
-class QueueProcessesControllerTest extends TestCase {
+class QueueProcessesControllerTest extends TestCase
+{
 
 	use IntegrationTestTrait;
 
 	/**
-	 * @var array
-	 */
-	protected array $fixtures = [
-		'plugin.Queue.QueueProcesses',
-		'plugin.Queue.QueuedJobs',
-	];
-
-	/**
 	 * @return void
 	 */
-	public function setUp(): void {
+	public function setUp(): void
+	{
 		parent::setUp();
 
 		$this->loadPlugins(['Queue']);
@@ -39,7 +34,8 @@ class QueueProcessesControllerTest extends TestCase {
 	 *
 	 * @return void
 	 */
-	public function testIndex() {
+	public function testIndex()
+	{
 		$this->get(['prefix' => 'Admin', 'plugin' => 'Queue', 'controller' => 'QueueProcesses', 'action' => 'index']);
 
 		$this->assertResponseCode(200);
@@ -50,7 +46,8 @@ class QueueProcessesControllerTest extends TestCase {
 	 *
 	 * @return void
 	 */
-	public function testView() {
+	public function testView()
+	{
 		$this->get(['prefix' => 'Admin', 'plugin' => 'Queue', 'controller' => 'QueueProcesses', 'action' => 'view', 1]);
 
 		$this->assertResponseCode(200);
@@ -61,7 +58,8 @@ class QueueProcessesControllerTest extends TestCase {
 	 *
 	 * @return void
 	 */
-	public function testEdit() {
+	public function testEdit()
+	{
 		$this->get(['prefix' => 'Admin', 'plugin' => 'Queue', 'controller' => 'QueueProcesses', 'action' => 'edit', 1]);
 
 		$this->assertResponseCode(200);
@@ -70,7 +68,8 @@ class QueueProcessesControllerTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testTerminate() {
+	public function testTerminate()
+	{
 		/** @var \Queue\Model\Entity\QueueProcess $queueProcess */
 		$queueProcess = $this->getTableLocator()->get('Queue.QueueProcesses')->find()->firstOrFail();
 		$queueProcess->terminate = false;
@@ -87,7 +86,8 @@ class QueueProcessesControllerTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testDelete() {
+	public function testDelete()
+	{
 		$this->post(['prefix' => 'Admin', 'plugin' => 'Queue', 'controller' => 'QueueProcesses', 'action' => 'delete', 1]);
 
 		$this->assertResponseCode(302);
@@ -99,7 +99,8 @@ class QueueProcessesControllerTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testCleanup() {
+	public function testCleanup()
+	{
 		/** @var \Queue\Model\Entity\QueueProcess $queueProcess */
 		$queueProcess = $this->getTableLocator()->get('Queue.QueueProcesses')->find()->firstOrFail();
 		$queueProcess->modified = new DateTime(time() - 4 * QueuedJobsTable::DAY);
@@ -112,5 +113,4 @@ class QueueProcessesControllerTest extends TestCase {
 		$count = $this->getTableLocator()->get('Queue.QueueProcesses')->find()->count();
 		$this->assertSame(0, $count);
 	}
-
 }

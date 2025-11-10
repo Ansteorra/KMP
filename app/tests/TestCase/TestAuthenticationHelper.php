@@ -25,12 +25,12 @@ trait TestAuthenticationHelper
     {
         $this->session([
             'Auth' => [
-                'id' => 2,
-                'email_address' => 'testsuper@test.com',
-                'sca_name' => 'Test Super User',
-                'first_name' => 'Test',
-                'last_name' => 'User',
-                'membership_number' => 'TestSuperUser001',
+                'id' => 1,
+                'email_address' => 'admin@amp.ansteorra.org',
+                'sca_name' => 'Admin von Admin',
+                'first_name' => 'Admin',
+                'last_name' => 'Admin',
+                'membership_number' => 'Admin001',
                 'branch_id' => 1,
                 'status' => 'verified',
             ]
@@ -49,11 +49,11 @@ trait TestAuthenticationHelper
         $this->session([
             'Auth' => [
                 'id' => 1,
-                'email_address' => 'admin@test.com',
+                'email_address' => 'admin@amp.ansteorra.org',
                 'sca_name' => 'Admin von Admin',
-                'first_name' => 'Addy',
-                'last_name' => 'Min',
-                'membership_number' => 'AdminAccount',
+                'first_name' => 'Admin',
+                'last_name' => 'Admin',
+                'membership_number' => 'Admin001',
                 'branch_id' => 1,
                 'status' => 'verified',
             ]

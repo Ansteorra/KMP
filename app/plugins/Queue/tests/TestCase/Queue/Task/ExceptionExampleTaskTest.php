@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Queue\Test\TestCase\Queue\Task;
@@ -11,16 +12,10 @@ use RuntimeException;
 use Shim\TestSuite\ConsoleOutput;
 use Shim\TestSuite\TestTrait;
 
-class ExceptionExampleTaskTest extends TestCase {
+class ExceptionExampleTaskTest extends TestCase
+{
 
 	use TestTrait;
-
-	/**
-	 * @var array
-	 */
-	protected array $fixtures = [
-		'plugin.Queue.QueuedJobs',
-	];
 
 	/**
 	 * @var \Queue\Queue\Task\ExceptionExampleTask|\PHPUnit\Framework\MockObject\MockObject
@@ -42,7 +37,8 @@ class ExceptionExampleTaskTest extends TestCase {
 	 *
 	 * @return void
 	 */
-	public function setUp(): void {
+	public function setUp(): void
+	{
 		parent::setUp();
 
 		$this->out = new ConsoleOutput();
@@ -55,7 +51,8 @@ class ExceptionExampleTaskTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testAdd() {
+	public function testAdd()
+	{
 		$before = $this->getTableLocator()->get('Queue.QueuedJobs')->find()->count();
 
 		$this->Task->add(null);
@@ -67,10 +64,10 @@ class ExceptionExampleTaskTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testRun() {
+	public function testRun()
+	{
 		$this->expectException(RuntimeException::class);
 
 		$this->Task->run([], 0);
 	}
-
 }

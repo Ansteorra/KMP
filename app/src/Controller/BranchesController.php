@@ -507,6 +507,17 @@ class BranchesController extends AppController
             ->find('list')
             ->orderBy(['name' => 'ASC']);
         $this->set(compact('branch', 'treeList'));
+        // Mirror MembersController pattern: GET edit displays view template with modal
+        if ($this->request->is('get')) {
+            // Provide branch_types for edit modal element
+            $btArray = StaticHelpers::getAppSetting('Branches.Types');
+            $branch_types = [];
+            foreach ($btArray as $branchType) {
+                $branch_types[$branchType] = $branchType;
+            }
+            $this->set(compact('branch_types'));
+            return $this->render('view');
+        }
     }
 
     /**

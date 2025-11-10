@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Queue\Test\TestCase\Queue\Task;
@@ -13,16 +14,10 @@ use Shim\TestSuite\ConsoleOutput;
 use Shim\TestSuite\TestTrait;
 use TestApp\Mailer\TestMailer;
 
-class MailerTaskTest extends TestCase {
+class MailerTaskTest extends TestCase
+{
 
 	use TestTrait;
-
-	/**
-	 * @var array
-	 */
-	protected array $fixtures = [
-		'plugin.Queue.QueuedJobs',
-	];
 
 	/**
 	 * @var \Queue\Queue\Task\MailerTask|\PHPUnit\Framework\MockObject\MockObject
@@ -44,7 +39,8 @@ class MailerTaskTest extends TestCase {
 	 *
 	 * @return void
 	 */
-	public function setUp(): void {
+	public function setUp(): void
+	{
 		parent::setUp();
 
 		$this->out = new ConsoleOutput();
@@ -57,7 +53,8 @@ class MailerTaskTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testRunToolsMailerConfig() {
+	public function testRunToolsMailerConfig()
+	{
 		$this->Task->run([
 			'class' => TestMailer::class,
 			'action' => 'testAction',
@@ -81,7 +78,8 @@ class MailerTaskTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testRunMissingMailerException() {
+	public function testRunMissingMailerException()
+	{
 		$this->expectException(QueueException::class);
 		$this->expectExceptionMessage('Queue Mailer task called without valid `mailer` class.');
 
@@ -91,7 +89,8 @@ class MailerTaskTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testRunMissingActionException() {
+	public function testRunMissingActionException()
+	{
 		$this->expectException(QueueException::class);
 		$this->expectExceptionMessage('Queue Mailer task called without `action` data.');
 
@@ -99,5 +98,4 @@ class MailerTaskTest extends TestCase {
 			'class' => TestMailer::class,
 		], 0);
 	}
-
 }

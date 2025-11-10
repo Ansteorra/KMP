@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Queue\Test\TestCase\Queue\Task;
@@ -10,16 +11,10 @@ use Queue\Queue\Task\ExampleTask;
 use Shim\TestSuite\ConsoleOutput;
 use Shim\TestSuite\TestTrait;
 
-class ExampleTaskTest extends TestCase {
+class ExampleTaskTest extends TestCase
+{
 
 	use TestTrait;
-
-	/**
-	 * @var array
-	 */
-	protected array $fixtures = [
-		'plugin.Queue.QueuedJobs',
-	];
 
 	/**
 	 * @var \Queue\Queue\Task\ExampleTask|\PHPUnit\Framework\MockObject\MockObject
@@ -41,7 +36,8 @@ class ExampleTaskTest extends TestCase {
 	 *
 	 * @return void
 	 */
-	public function setUp(): void {
+	public function setUp(): void
+	{
 		parent::setUp();
 
 		$this->out = new ConsoleOutput();
@@ -54,10 +50,10 @@ class ExampleTaskTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testRun() {
+	public function testRun()
+	{
 		$this->Task->run([], 0);
 
 		$this->assertTextContains('Success, the Example Job was run', $this->out->output());
 	}
-
 }

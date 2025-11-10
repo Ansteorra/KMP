@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Queue\Test\TestCase\Queue;
@@ -14,17 +15,10 @@ use Queue\Queue\Processor;
 use Shim\TestSuite\ConsoleOutput;
 use Shim\TestSuite\TestTrait;
 
-class ProcessorTest extends TestCase {
+class ProcessorTest extends TestCase
+{
 
 	use TestTrait;
-
-	/**
-	 * @var array<string>
-	 */
-	protected array $fixtures = [
-		'plugin.Queue.QueueProcesses',
-		'plugin.Queue.QueuedJobs',
-	];
 
 	/**
 	 * @var \Queue\Queue\Processor
@@ -34,7 +28,8 @@ class ProcessorTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function setUp(): void {
+	public function setUp(): void
+	{
 		parent::setUp();
 
 		Configure::write('Queue', [
@@ -49,7 +44,8 @@ class ProcessorTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testStringToArray() {
+	public function testStringToArray()
+	{
 		$this->Processor = new Processor(new Io(new ConsoleIo()), new NullLogger());
 
 		$string = 'Foo,Bar,';
@@ -65,7 +61,8 @@ class ProcessorTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testTimeNeeded() {
+	public function testTimeNeeded()
+	{
 		$this->Processor = new Processor(new Io(new ConsoleIo()), new NullLogger());
 
 		$result = $this->invokeMethod($this->Processor, 'timeNeeded');
@@ -75,7 +72,8 @@ class ProcessorTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testMemoryUsage() {
+	public function testMemoryUsage()
+	{
 		$this->Processor = new Processor(new Io(new ConsoleIo()), new NullLogger());
 
 		$result = $this->invokeMethod($this->Processor, 'memoryUsage');
@@ -85,7 +83,8 @@ class ProcessorTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testRun() {
+	public function testRun()
+	{
 		$this->_needsConnection();
 
 		$out = new ConsoleOutput();
@@ -105,10 +104,10 @@ class ProcessorTest extends TestCase {
 	 *
 	 * @return void
 	 */
-	protected function _needsConnection() {
+	protected function _needsConnection()
+	{
 		$config = ConnectionManager::getConfig('test');
 		$skip = strpos($config['driver'], 'Mysql') === false && strpos($config['driver'], 'Postgres') === false;
 		$this->skipIf($skip, 'Only Mysql/Postgres is working yet for this.');
 	}
-
 }

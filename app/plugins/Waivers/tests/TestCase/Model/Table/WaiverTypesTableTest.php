@@ -17,18 +17,7 @@ class WaiverTypesTableTest extends TestCase
      *
      * @var \Waivers\Model\Table\WaiverTypesTable
      */
-    protected $WaiverTypes;
-
-    /**
-     * Fixtures
-     *
-     * @var list<string>
-     */
-    protected array $fixtures = [
-        'plugin.Waivers.WaiverTypes',
-    ];
-
-    /**
+    protected $WaiverTypes;    /**
      * setUp method
      *
      * @return void

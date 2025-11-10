@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Queue\Test\TestCase\View\Helper;
@@ -11,14 +12,8 @@ use Queue\Model\Entity\QueuedJob;
 use Queue\View\Helper\QueueProgressHelper;
 use Tools\Utility\Number;
 
-class QueueProgressHelperTest extends TestCase {
-
-	/**
-	 * @var array
-	 */
-	protected array $fixtures = [
-		'plugin.Queue.QueuedJobs',
-	];
+class QueueProgressHelperTest extends TestCase
+{
 
 	/**
 	 * @var \Queue\View\Helper\QueueProgressHelper
@@ -33,7 +28,8 @@ class QueueProgressHelperTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function setUp(): void {
+	public function setUp(): void
+	{
 		parent::setUp();
 
 		$this->locale = ini_get('intl.default_locale');
@@ -46,7 +42,8 @@ class QueueProgressHelperTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function tearDown(): void {
+	public function tearDown(): void
+	{
 		parent::tearDown();
 
 		ini_set('intl.default_locale', $this->locale);
@@ -55,7 +52,8 @@ class QueueProgressHelperTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testProgress() {
+	public function testProgress()
+	{
 		$queuedJob = new QueuedJob([
 			'progress' => 0.9999,
 		]);
@@ -84,7 +82,8 @@ class QueueProgressHelperTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testProgressCalculatedEmpty() {
+	public function testProgressCalculatedEmpty()
+	{
 		$queuedJob = new QueuedJob([
 			'job_task' => 'Queue.Example',
 			'fetched' => (new DateTime())->subMinutes(1),
@@ -96,7 +95,8 @@ class QueueProgressHelperTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testProgressCalculated() {
+	public function testProgressCalculated()
+	{
 		$queuedJob = new QueuedJob([
 			'job_task' => 'Queue.Example',
 			'created' => (new DateTime())->subMinutes(2),
@@ -117,7 +117,8 @@ class QueueProgressHelperTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testProgressBar() {
+	public function testProgressBar()
+	{
 		$queuedJob = new QueuedJob([
 			'progress' => 0.47,
 		]);
@@ -134,7 +135,8 @@ class QueueProgressHelperTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testHtmlProgressBar() {
+	public function testHtmlProgressBar()
+	{
 		$queuedJob = new QueuedJob([
 			'progress' => 0.47,
 		]);
@@ -155,7 +157,8 @@ class QueueProgressHelperTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testProgressBarByStatistics() {
+	public function testProgressBarByStatistics()
+	{
 		$this->_needsConnection();
 
 		/** @var \Queue\Model\Entity\QueuedJob $queuedJob */
@@ -177,7 +180,8 @@ class QueueProgressHelperTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testTimeoutProgressBar() {
+	public function testTimeoutProgressBar()
+	{
 		$queuedJob = new QueuedJob([
 			'created' => (new DateTime())->subHours(1),
 			'notbefore' => (new DateTime())->addHours(1),
@@ -190,7 +194,8 @@ class QueueProgressHelperTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testHtmlTimeoutProgressBar() {
+	public function testHtmlTimeoutProgressBar()
+	{
 		$queuedJob = new QueuedJob([
 			'created' => (new DateTime())->subMinutes(1),
 			'notbefore' => (new DateTime())->addMinutes(1),
@@ -225,10 +230,10 @@ class QueueProgressHelperTest extends TestCase {
 	 *
 	 * @return void
 	 */
-	protected function _needsConnection() {
+	protected function _needsConnection()
+	{
 		$config = ConnectionManager::getConfig('test');
 		$skip = strpos($config['driver'], 'Mysql') === false && strpos($config['driver'], 'Postgres') === false;
 		$this->skipIf($skip, 'Only Mysql/Postgres is working yet for this.');
 	}
-
 }

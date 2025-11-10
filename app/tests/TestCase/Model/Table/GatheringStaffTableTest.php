@@ -20,19 +20,6 @@ class GatheringStaffTableTest extends TestCase
     protected $GatheringStaff;
 
     /**
-     * Fixtures
-     *
-     * @var list<string>
-     */
-    protected array $fixtures = [
-        'app.GatheringStaff',
-        'app.Gatherings',
-        'app.Members',
-        'app.Branches',
-        'app.GatheringTypes',
-    ];
-
-    /**
      * setUp method
      *
      * @return void

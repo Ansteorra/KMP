@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Queue\Test\TestCase\Command;
@@ -11,22 +12,16 @@ use Cake\TestSuite\TestCase;
 /**
  * @uses \Queue\Command\RunCommand
  */
-class RunCommandTest extends TestCase {
+class RunCommandTest extends TestCase
+{
 
 	use ConsoleIntegrationTestTrait;
 
 	/**
-	 * @var array<string>
-	 */
-	protected array $fixtures = [
-		'plugin.Queue.QueueProcesses',
-		'plugin.Queue.QueuedJobs',
-	];
-
-	/**
 	 * @return void
 	 */
-	public function setUp(): void {
+	public function setUp(): void
+	{
 		parent::setUp();
 
 		$this->loadPlugins(['Queue']);
@@ -43,7 +38,8 @@ class RunCommandTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testExecute(): void {
+	public function testExecute(): void
+	{
 		$this->_needsConnection();
 
 		$this->exec('queue run');
@@ -56,7 +52,8 @@ class RunCommandTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testServiceInjection(): void {
+	public function testServiceInjection(): void
+	{
 		$this->_needsConnection();
 
 		$this->exec('queue add Foo');
@@ -74,10 +71,10 @@ class RunCommandTest extends TestCase {
 	 *
 	 * @return void
 	 */
-	protected function _needsConnection() {
+	protected function _needsConnection()
+	{
 		$config = ConnectionManager::getConfig('test');
 		$skip = strpos($config['driver'], 'Mysql') === false && strpos($config['driver'], 'Postgres') === false;
 		$this->skipIf($skip, 'Only Mysql/Postgres is working yet for this.');
 	}
-
 }

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Queue\Test\TestCase\Controller\Admin;
@@ -14,24 +15,16 @@ use Tools\I18n\DateTime as ToolsDateTime;
 /**
  * @uses \Queue\Controller\Admin\QueueController
  */
-class QueueControllerTest extends TestCase {
+class QueueControllerTest extends TestCase
+{
 
 	use IntegrationTestTrait;
 
 	/**
-	 * Fixtures
-	 *
-	 * @var array
-	 */
-	protected array $fixtures = [
-		'plugin.Queue.QueuedJobs',
-		'plugin.Queue.QueueProcesses',
-	];
-
-	/**
 	 * @return void
 	 */
-	public function setUp(): void {
+	public function setUp(): void
+	{
 		parent::setUp();
 
 		$this->loadPlugins(['Queue']);
@@ -42,7 +35,8 @@ class QueueControllerTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testLoadHelpers(): void {
+	public function testLoadHelpers(): void
+	{
 		$controller = new QueueController(new ServerRequest(['url' => 'controller/posts/index']));
 		$this->invokeMethod($controller, 'loadHelpers');
 
@@ -56,7 +50,8 @@ class QueueControllerTest extends TestCase {
 	 *
 	 * @return void
 	 */
-	public function testIndex() {
+	public function testIndex()
+	{
 		$this->get(['prefix' => 'Admin', 'plugin' => 'Queue', 'controller' => 'Queue', 'action' => 'index']);
 
 		$this->assertResponseCode(200);
@@ -65,7 +60,8 @@ class QueueControllerTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testProcesses() {
+	public function testProcesses()
+	{
 		$this->get(['prefix' => 'Admin', 'plugin' => 'Queue', 'controller' => 'Queue', 'action' => 'processes']);
 
 		$this->assertResponseCode(200);
@@ -74,7 +70,8 @@ class QueueControllerTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testProcessesEnd() {
+	public function testProcessesEnd()
+	{
 		$queueProcessesTable = $this->getTableLocator()->get('Queue.QueueProcesses');
 		/** @var \Queue\Model\Entity\QueueProcess $queueProcess */
 		$queueProcess = $queueProcessesTable->newEntity([
@@ -94,7 +91,8 @@ class QueueControllerTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testAddJob() {
+	public function testAddJob()
+	{
 		$jobsTable = $this->getTableLocator()->get('Queue.QueuedJobs');
 
 		$this->post(['prefix' => 'Admin', 'plugin' => 'Queue', 'controller' => 'Queue', 'action' => 'addJob', '?' => ['task' => 'Queue.Example']]);
@@ -109,7 +107,8 @@ class QueueControllerTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testRemoveJob() {
+	public function testRemoveJob()
+	{
 		$jobsTable = $this->getTableLocator()->get('Queue.QueuedJobs');
 		$job = $jobsTable->newEntity([
 			'job_task' => 'foo',
@@ -128,7 +127,8 @@ class QueueControllerTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testResetJob() {
+	public function testResetJob()
+	{
 		$jobsTable = $this->getTableLocator()->get('Queue.QueuedJobs');
 		$job = $jobsTable->newEntity([
 			'job_task' => 'foo',
@@ -148,7 +148,8 @@ class QueueControllerTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testResetJobRedirect() {
+	public function testResetJobRedirect()
+	{
 		$jobsTable = $this->getTableLocator()->get('Queue.QueuedJobs');
 		$job = $jobsTable->newEntity([
 			'job_task' => 'foo',
@@ -170,7 +171,8 @@ class QueueControllerTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testResetJobRedirectInvalid() {
+	public function testResetJobRedirectInvalid()
+	{
 		$jobsTable = $this->getTableLocator()->get('Queue.QueuedJobs');
 		$job = $jobsTable->newEntity([
 			'job_task' => 'foo',
@@ -192,7 +194,8 @@ class QueueControllerTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testResetJobRedirectReferer() {
+	public function testResetJobRedirectReferer()
+	{
 		$jobsTable = $this->getTableLocator()->get('Queue.QueuedJobs');
 		$job = $jobsTable->newEntity([
 			'job_task' => 'foo',
@@ -218,7 +221,8 @@ class QueueControllerTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testReset() {
+	public function testReset()
+	{
 		$jobsTable = $this->getTableLocator()->get('Queue.QueuedJobs');
 		$job = $jobsTable->newEntity([
 			'job_task' => 'foo',
@@ -238,7 +242,8 @@ class QueueControllerTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testFlush() {
+	public function testFlush()
+	{
 		$jobsTable = $this->getTableLocator()->get('Queue.QueuedJobs');
 		$job = $jobsTable->newEntity([
 			'job_task' => 'foo',
@@ -259,7 +264,8 @@ class QueueControllerTest extends TestCase {
 	/**
 	 * @return void
 	 */
-	public function testHardReset() {
+	public function testHardReset()
+	{
 		$jobsTable = $this->getTableLocator()->get('Queue.QueuedJobs');
 		$job = $jobsTable->newEntity([
 			'job_task' => 'foo',
@@ -281,10 +287,10 @@ class QueueControllerTest extends TestCase {
 	 *
 	 * @return void
 	 */
-	protected function _needsConnection() {
+	protected function _needsConnection()
+	{
 		$config = ConnectionManager::getConfig('test');
 		$skip = strpos($config['driver'], 'Mysql') === false && strpos($config['driver'], 'Postgres') === false;
 		$this->skipIf($skip, 'Only Mysql/Postgres is working yet for this.');
 	}
-
 }

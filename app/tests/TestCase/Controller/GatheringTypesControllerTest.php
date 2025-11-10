@@ -19,27 +19,6 @@ class GatheringTypesControllerTest extends TestCase
     use SuperUserAuthenticatedTrait;
 
     /**
-     * Fixtures
-     *
-     * @var list<string>
-     */
-    protected array $fixtures = [
-        'app.Branches',
-        'app.Permissions',
-        'app.Roles',
-        'app.RolesPermissions',
-        'app.Members',
-        'app.MemberRoles',
-        'app.TestSuperUser',
-        'app.TestSuperUserRole',
-        'app.TestSuperUserRolePermission',
-        'app.TestSuperUserMemberRole',
-        'app.Warrants',
-        'app.GatheringTypes',
-        'app.Gatherings',
-    ];
-
-    /**
      * Test index method
      *
      * @return void

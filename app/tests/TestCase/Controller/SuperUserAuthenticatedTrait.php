@@ -21,19 +21,6 @@ use Cake\TestSuite\IntegrationTestTrait;
  * {
  *     use SuperUserAuthenticatedTrait;
  *     
- *     protected array $fixtures = [
- *         'app.Branches',
- *         'app.Permissions',
- *         'app.Roles',
- *         'app.Members',
- *         'app.RolesPermissions',
- *         'app.MemberRoles',
- *         'app.TestSuperUser',
- *         'app.TestSuperUserRole',
- *         'app.TestSuperUserRolePermission',
- *         'app.TestSuperUserMemberRole',
- *     ];
- *     
  *     public function testSomething(): void
  *     {
  *         // Already authenticated as test super user
@@ -68,7 +55,7 @@ trait SuperUserAuthenticatedTrait
         $membersTable = $this->getTableLocator()->get('Members');
 
         // Look up test super user by email (works with auto-increment fixtures)
-        $member = $membersTable->findByEmailAddress('testsuper@test.com')->firstOrFail();
+        $member = $membersTable->findByEmailAddress('admin@amp.ansteorra.org')->firstOrFail();
         $member->warrantableReview();
 
         // Load the super user permission to enable authorization
@@ -93,11 +80,13 @@ trait SuperUserAuthenticatedTrait
     /**
      * Get the authenticated member ID (helper method)
      *
-     * @return int Test super user ID (2)
+     * @return int Test super user ID
      */
     protected function getAuthenticatedMemberId(): int
     {
-        return 2; // Test super user ID
+        $membersTable = $this->getTableLocator()->get('Members');
+        $member = $membersTable->findByEmailAddress('admin@amp.ansteorra.org')->firstOrFail();
+        return $member->id;
     }
 
     /**
@@ -107,6 +96,6 @@ trait SuperUserAuthenticatedTrait
      */
     protected function getAuthenticatedMemberEmail(): string
     {
-        return 'testsuper@test.com';
+        return 'admin@amp.ansteorra.org';
     }
 }
