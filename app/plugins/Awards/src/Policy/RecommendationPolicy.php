@@ -372,6 +372,32 @@ class RecommendationPolicy extends BasePolicy
     }
 
     /**
+     * Check if user can view recommendations for a specific gathering
+     *
+     * This method authorizes access to gathering-specific recommendations, supporting event
+     * coordination, gathering management, and administrative oversight of recommendation processing
+     * for specific gatherings and events.
+     *
+     * ## Gathering-Based Authorization
+     *
+     * Authorization supports gathering management and event coordination:
+     * - **Gathering Access**: Access controlled through gathering-specific permissions and administrative authority
+     * - **Event Coordination**: Authorization supports gathering planning and coordination
+     * - **Administrative Management**: Gathering recommendation management through appropriate permissions
+     * - **Temporal Validation**: Access may be controlled through gathering timing and administrative requirements
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The authenticated user requesting access
+     * @param \App\Model\Entity\BaseEntity $entity The recommendation entity being accessed
+     * @param mixed ...$args Additional arguments for authorization context (typically the gathering entity)
+     * @return bool True if user is authorized to view gathering recommendations
+     */
+    public function canViewGatheringRecommendations(KmpIdentityInterface $user, BaseEntity $entity, ...$args): bool
+    {
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
+    }
+
+    /**
      * Check if user can export recommendation data
      *
      * This method authorizes recommendation data export operations, supporting administrative
