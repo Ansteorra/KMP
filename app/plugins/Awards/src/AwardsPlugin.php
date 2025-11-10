@@ -161,11 +161,58 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
             }
         );
 
-        $currentConfigVersion = "25.01.11.a"; // update this each time you change the config
+        $currentConfigVersion = "25.01.11.b"; // update this each time you change the config
 
         $configVersion = StaticHelpers::getAppSetting("Awards.configVersion", "0.0.0", null, true);
         if ($configVersion != $currentConfigVersion) {
             StaticHelpers::setAppSetting("Awards.configVersion", $currentConfigVersion, null, true);
+
+            // Migrate existing view configs: replace Event/Events with Gathering/Gatherings
+            $viewConfigs = [
+                'Awards.ViewConfig.Default',
+                'Awards.ViewConfig.In Progress',
+                'Awards.ViewConfig.Scheduling',
+                'Awards.ViewConfig.To Give',
+                'Awards.ViewConfig.Closed',
+                'Awards.ViewConfig.Event',
+                'Awards.ViewConfig.SubmittedByMember',
+                'Awards.ViewConfig.SubmittedForMember',
+            ];
+
+            foreach ($viewConfigs as $configKey) {
+                $config = StaticHelpers::getAppSetting($configKey, null, 'yaml');
+                if ($config !== null && is_array($config)) {
+                    // Update column names in table columns
+                    if (isset($config['table']['columns'])) {
+                        $config['table']['columns'] = $this->migrateColumnNames($config['table']['columns']);
+                    }
+                    // Update column names in export columns
+                    if (isset($config['table']['export'])) {
+                        $config['table']['export'] = $this->migrateColumnNames($config['table']['export']);
+                    }
+                    // Update filter for Event config
+                    if ($configKey === 'Awards.ViewConfig.Event' && isset($config['table']['filter'])) {
+                        $newFilter = [];
+                        foreach ($config['table']['filter'] as $key => $value) {
+                            if ($key === 'Recommendations->event_id') {
+                                $newFilter['Recommendations->gathering_id'] = str_replace('-event_id-', '-gathering_id-', $value);
+                            } else {
+                                $newFilter[$key] = $value;
+                            }
+                        }
+                        $config['table']['filter'] = $newFilter;
+                    }
+                    // Update permission for Event config
+                    if ($configKey === 'Awards.ViewConfig.Event' && isset($config['table']['optionalPermission'])) {
+                        if ($config['table']['optionalPermission'] === 'ViewEventRecommendations') {
+                            $config['table']['optionalPermission'] = 'ViewGatheringRecommendations';
+                        }
+                    }
+                    // Save updated config
+                    StaticHelpers::setAppSetting($configKey, yaml_emit($config), 'yaml', true);
+                }
+            }
+
             StaticHelpers::getAppSetting("Awards.RecButtonClass", "btn-warning", null, true);
             StaticHelpers::getAppSetting("Member.AdditionalInfo.CallIntoCourt", "select:Never,With Notice,Without Notice|user|public", null, true);
             StaticHelpers::getAppSetting("Member.AdditionalInfo.CourtAvailability", "select:None,Morning,Evening,Any|user|public", null, true);
@@ -293,12 +340,12 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
                         'Domain' => true,
                         'Award' => true,
                         'Reason' => true,
-                        'Events' => true,
+                        'Gatherings' => true,
                         'Notes' => true,
                         'Status' => true,
                         'State' => true,
                         'Close Reason' => true,
-                        'Event' => true,
+                        'Gathering' => true,
                         'State Date' => false,
                         'Given Date' => false,
                     ],
@@ -320,12 +367,12 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
                         'Domain' => true,
                         'Award' => true,
                         'Reason' => true,
-                        'Events' => true,
+                        'Gatherings' => true,
                         'Notes' => true,
                         'Status' => true,
                         'State' => true,
                         'Close Reason' => true,
-                        'Event' => true,
+                        'Gathering' => true,
                         'State Date' => true,
                         'Given Date' => true,
                     ]
@@ -360,12 +407,12 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
                         'Domain' => true,
                         'Award' => true,
                         'Reason' => true,
-                        'Events' => false,
+                        'Gatherings' => false,
                         'Notes' => true,
                         'Status' => false,
                         'State' => true,
                         'Close Reason' => false,
-                        'Event' => false,
+                        'Gathering' => false,
                         'State Date' => false,
                         'Given Date' => false,
                     ],
@@ -387,12 +434,12 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
                         'Domain' => true,
                         'Award' => true,
                         'Reason' => true,
-                        'Events' => true,
+                        'Gatherings' => true,
                         'Notes' => true,
                         'Status' => true,
                         'State' => true,
                         'Close Reason' => false,
-                        'Event' => false,
+                        'Gathering' => false,
                         'State Date' => true,
                         'Given Date' => false,
                     ]
@@ -441,12 +488,12 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
                         'Domain' => false,
                         'Award' => true,
                         'Reason' => false,
-                        'Events' => true,
+                        'Gatherings' => true,
                         'Notes' => true,
                         'Status' => false,
                         'State' => true,
                         'Close Reason' => false,
-                        'Event' => true,
+                        'Gathering' => true,
                         'State Date' => false,
                         'Given Date' => false,
                     ],
@@ -468,12 +515,12 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
                         'Domain' => false,
                         'Award' => true,
                         'Reason' => true,
-                        'Events' => true,
+                        'Gatherings' => true,
                         'Notes' => true,
                         'Status' => false,
                         'State' => true,
                         'Close Reason' => false,
-                        'Event' => true,
+                        'Gathering' => true,
                         'State Date' => false,
                         'Given Date' => false,
                     ]
@@ -514,12 +561,12 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
                         'Domain' => false,
                         'Award' => true,
                         'Reason' => true,
-                        'Events' => false,
+                        'Gatherings' => false,
                         'Notes' => true,
                         'Status' => false,
                         'State' => true,
                         'Close Reason' => false,
-                        'Event' => true,
+                        'Gathering' => true,
                         'State Date' => false,
                         'Given Date' => false,
                     ],
@@ -541,12 +588,12 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
                         'Domain' => false,
                         'Award' => true,
                         'Reason' => true,
-                        'Events' => false,
+                        'Gatherings' => false,
                         'Notes' => true,
                         'Status' => false,
                         'State' => true,
                         'Close Reason' => false,
-                        'Event' => true,
+                        'Gathering' => true,
                         'State Date' => false,
                         'Given Date' => false,
                     ]
@@ -588,12 +635,12 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
                         'Domain' => false,
                         'Award' => true,
                         'Reason' => true,
-                        'Events' => false,
+                        'Gatherings' => false,
                         'Notes' => true,
                         'Status' => false,
                         'State' => true,
                         'Close Reason' => true,
-                        'Event' => true,
+                        'Gathering' => true,
                         'State Date' => true,
                         'Given Date' => true,
                     ],
@@ -615,12 +662,12 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
                         'Domain' => false,
                         'Award' => true,
                         'Reason' => true,
-                        'Events' => false,
+                        'Gatherings' => false,
                         'Notes' => true,
                         'Status' => false,
                         'State' => true,
                         'Close Reason' => true,
-                        'Event' => true,
+                        'Gathering' => true,
                         'State Date' => true,
                         'Given Date' => true,
                     ]
@@ -636,8 +683,8 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
             ]), 'yaml', true);
             StaticHelpers::getAppSetting("Awards.ViewConfig.Event", yaml_emit([
                 'table' => [
-                    'filter' => ['Recommendations->event_id' => '-event_id-'],
-                    'optionalPermission' => 'ViewEventRecommendations',
+                    'filter' => ['Recommendations->gathering_id' => '-gathering_id-'],
+                    'optionalPermission' => 'ViewGatheringRecommendations',
                     'use' => true,
                     'enableExport' => true,
                     'columns' => [
@@ -658,12 +705,12 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
                         'Domain' => false,
                         'Award' => true,
                         'Reason' => true,
-                        'Events' => false,
+                        'Gatherings' => false,
                         'Notes' => false,
                         'Status' => false,
                         'State' => true,
                         'Close Reason' => false,
-                        'Event' => false,
+                        'Gathering' => false,
                         'State Date' => false,
                         'Given Date' => false,
                     ],
@@ -685,12 +732,12 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
                         'Domain' => false,
                         'Award' => true,
                         'Reason' => true,
-                        'Events' => false,
+                        'Gatherings' => false,
                         'Notes' => false,
                         'Status' => false,
                         'State' => true,
                         'Close Reason' => false,
-                        'Event' => true,
+                        'Gathering' => true,
                         'State Date' => false,
                         'Given Date' => false,
                     ]
@@ -726,12 +773,12 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
                         'Domain' => false,
                         'Award' => true,
                         'Reason' => true,
-                        'Events' => true,
+                        'Gatherings' => true,
                         'Notes' => false,
                         'Status' => false,
                         'State' => false,
                         'Close Reason' => false,
-                        'Event' => false,
+                        'Gathering' => false,
                         'State Date' => false,
                         'Given Date' => false,
                     ],
@@ -753,12 +800,12 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
                         'Domain' => false,
                         'Award' => true,
                         'Reason' => true,
-                        'Events' => true,
+                        'Gatherings' => true,
                         'Notes' => false,
                         'Status' => false,
                         'State' => false,
                         'Close Reason' => false,
-                        'Event' => false,
+                        'Gathering' => false,
                         'State Date' => false,
                         'Given Date' => false,
                     ]
@@ -794,12 +841,12 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
                         'Domain' => false,
                         'Award' => true,
                         'Reason' => true,
-                        'Events' => true,
+                        'Gatherings' => true,
                         'Notes' => false,
                         'Status' => false,
                         'State' => true,
                         'Close Reason' => true,
-                        'Event' => true,
+                        'Gathering' => true,
                         'State Date' => false,
                         'Given Date' => true,
                     ],
@@ -821,12 +868,12 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
                         'Domain' => false,
                         'Award' => true,
                         'Reason' => true,
-                        'Events' => true,
+                        'Gatherings' => true,
                         'Notes' => false,
                         'Status' => false,
                         'State' => true,
                         'Close Reason' => true,
-                        'Event' => true,
+                        'Gathering' => true,
                         'State Date' => false,
                         'Given Date' => true,
                     ]
@@ -838,6 +885,31 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
                 ]
             ]), 'yaml', true);
         }
+    }
+
+    /**
+     * Migrate column names from Event/Events to Gathering/Gatherings
+     * 
+     * Helper method to update view configuration column arrays during config migration.
+     * Replaces 'Event' and 'Events' keys with 'Gathering' and 'Gatherings' while
+     * preserving all values and other keys.
+     * 
+     * @param array $columns Column configuration array
+     * @return array Updated column configuration with migrated names
+     */
+    private function migrateColumnNames(array $columns): array
+    {
+        $migrated = [];
+        foreach ($columns as $key => $value) {
+            if ($key === 'Event') {
+                $migrated['Gathering'] = $value;
+            } elseif ($key === 'Events') {
+                $migrated['Gatherings'] = $value;
+            } else {
+                $migrated[$key] = $value;
+            }
+        }
+        return $migrated;
     }
 
     /**

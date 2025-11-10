@@ -8,7 +8,7 @@ use Cake\Datasource\ConnectionManager;
 use Cake\Http\ServerRequest;
 use Cake\I18n\DateTime;
 use Cake\TestSuite\IntegrationTestTrait;
-use Queue\Controller\Admin\QueueController;
+use Queue\Controller\QueueController;
 use Shim\TestSuite\TestCase;
 use Tools\I18n\DateTime as ToolsDateTime;
 

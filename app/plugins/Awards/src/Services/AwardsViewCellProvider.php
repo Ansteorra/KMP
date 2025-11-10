@@ -216,6 +216,43 @@ class AwardsViewCellProvider
             }
         }
 
+        // Handle Gatherings controller views
+        if ($urlParams["controller"] == 'Gatherings' && $urlParams['action'] == 'view') {
+            // Gathering Awards Cell - shows award recommendations associated with this gathering
+            // Load the gathering to check permissions
+            // NOTE: GatheringsController overrides $recordId to use integer ID, not public_id
+            $gatheringsTable = TableRegistry::getTableLocator()->get('Gatherings');
+            try {
+                // Get public_id from URL parameters
+                $publicId = $urlParams['pass'][0] ?? null;
+                if ($publicId) {
+                    // Look up gathering by public_id to get integer ID and check permissions
+                    $gathering = $gatheringsTable->find()
+                        ->where(['public_id' => $publicId])
+                        ->firstOrFail();
+
+                    // Only show if user has ViewGatheringRecommendations permission
+                    if ($user->can('ViewGatheringRecommendations', 'Awards.Recommendations', $gathering)) {
+                        $cells[] = [
+                            'type' => ViewCellRegistry::PLUGIN_TYPE_TAB,
+                            'label' => 'Award Recommendations',
+                            'id' => 'gathering-awards',
+                            'order' => 8,
+                            'tabBtnBadge' => null,
+                            'cell' => 'Awards.GatheringAwards',
+                            'validRoutes' => [
+                                ['controller' => 'Gatherings', 'action' => 'view', 'plugin' => null],
+                            ]
+                        ];
+                    }
+                }
+            } catch (\Exception $e) {
+                // If gathering not found or error, just don't add the cell
+                \Cake\Log\Log::error('Awards: Failed to add gathering awards cell: ' . $e->getMessage());
+                \Cake\Log\Log::error('Awards: Exception trace: ' . $e->getTraceAsString());
+            }
+        }
+
         return $cells;
     }
 }
