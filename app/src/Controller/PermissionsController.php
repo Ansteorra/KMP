@@ -288,6 +288,9 @@ class PermissionsController extends AppController
 
         // Load available application policies for policy assignment interface
         $appPolicies = PermissionsLoader::getApplicationPolicies();
+        
+        // Sort policies alphabetically by class name for easier navigation
+        ksort($appPolicies);
 
         $this->set(compact('permission', 'roles', 'appPolicies'));
     }

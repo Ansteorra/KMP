@@ -9,6 +9,7 @@ import './timezone-utils.js';
 // Import controllers
 import './controllers/qrcode-controller.js';
 import './controllers/timezone-input-controller.js';
+import './controllers/security-debug-controller.js';
 
 // Disable Turbo Drive (automatic navigation) but keep Turbo Frames working
 Turbo.session.drive = false;

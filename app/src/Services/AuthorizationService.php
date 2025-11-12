@@ -67,6 +67,13 @@ use Authorization\AuthorizationServiceInterface;
 class AuthorizationService extends rootAuthorizationService implements AuthorizationServiceInterface
 {
     /**
+     * Authorization check log for debugging (only populated in debug mode)
+     * 
+     * @var array
+     */
+    protected static array $authCheckLog = [];
+
+    /**
      * Enhanced authorization check with KMP identity support
      * 
      * Performs authorization checking while properly managing the authorization state
@@ -114,6 +121,83 @@ class AuthorizationService extends rootAuthorizationService implements Authoriza
             $this->authorizationChecked = false;
         }
 
-        return is_bool($result) ? $result : $result->getStatus();
+        $resultBool = is_bool($result) ? $result : $result->getStatus();
+
+        // Only log in debug mode
+        if (\Cake\Core\Configure::read('debug')) {
+            $this->logAuthCheck($user, $action, $resource, $resultBool, $optionalArgs);
+        }
+
+        return $resultBool;
+    }
+
+    /**
+     * Log an authorization check for debugging purposes
+     * 
+     * @param KmpIdentityInterface|null $user The user performing the check
+     * @param string $action The action being checked
+     * @param mixed $resource The resource being accessed
+     * @param bool $result The result of the check
+     * @param array $optionalArgs Optional arguments
+     * @return void
+     */
+    protected function logAuthCheck(?KmpIdentityInterface $user, string $action, $resource, bool $result, array $optionalArgs): void
+    {
+        $resourceInfo = $this->getResourceInfo($resource);
+
+        self::$authCheckLog[] = [
+            'timestamp' => microtime(true),
+            'user_id' => $user ? $user->getIdentifier() : null,
+            'action' => $action,
+            'resource' => $resourceInfo,
+            'result' => $result,
+            'additional_args' => !empty($optionalArgs) ? count($optionalArgs) : 0,
+        ];
+    }
+
+    /**
+     * Get readable resource information for logging
+     * 
+     * @param mixed $resource The resource
+     * @return string
+     */
+    protected function getResourceInfo($resource): string
+    {
+        if (is_string($resource)) {
+            return $resource;
+        }
+
+        if (is_object($resource)) {
+            $class = get_class($resource);
+            $shortClass = substr($class, strrpos($class, '\\') + 1);
+
+            if (method_exists($resource, 'id') && isset($resource->id)) {
+                return $shortClass . ' #' . $resource->id;
+            }
+
+            return $shortClass;
+        }
+
+        return gettype($resource);
+    }
+
+    /**
+     * Get the authorization check log (only available in debug mode)
+     * 
+     * @return array
+     */
+    public static function getAuthCheckLog(): array
+    {
+        return self::$authCheckLog;
+    }
+
+    /**
+     * Clear the authorization check log
+     * 
+     * @return void
+     */
+    public static function clearAuthCheckLog(): void
+    {
+        self::$authCheckLog = [];
     }
 }
