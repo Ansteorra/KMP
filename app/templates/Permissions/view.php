@@ -147,95 +147,117 @@ echo $this->KMP->startBlock("pageTitle") ?>
 </div>
 <div class="related tab-pane fade m-3" id="nav-policies" role="tabpanel" aria-labelledby="nav-policies-tab"
     data-detail-tabs-target="tabContent" data-detail-tabs-target="tabContent">
-    <ul class="list-group" data-controller="permission-manage-policies"
+    <div data-controller="permission-manage-policies"
         data-permission-manage-policies-url-value="<?= $this->Url->build([
                                                         "controller" => "Permissions",
                                                         "action" => "updatePolicy"
                                                     ], ["fullBase" => true]) ?>">
         <?php
-        $currentClass = '';
-        foreach ($appPolicies as $class => $methods) :
-            $className = str_replace('\\', '-', $class);
-            $isNewClass = $currentClass !== $className;
-            $currentClass = $className;
-            //the last part of the class name
-            $shortName = substr($class, strrpos($class, '\\') + 1);
+        // Group policies by namespace
+        $policiesByNamespace = [];
+        foreach ($appPolicies as $class => $methods) {
+            $namespace = substr($class, 0, strrpos($class, '\\'));
+            if (!isset($policiesByNamespace[$namespace])) {
+                $policiesByNamespace[$namespace] = [];
+            }
+            $policiesByNamespace[$namespace][$class] = $methods;
+        }
+
+        // Display policies grouped by namespace
+        foreach ($policiesByNamespace as $namespace => $policies) :
+            $namespaceId = str_replace('\\', '-', $namespace);
         ?>
-            <li class="list-group-item">
-                <div class="d-flex align-items-center">
-                    <span class="policy-toggle policy-class pe-2" data-bs-toggle="collapse"
-                        data-bs-target=".row_<?= $className ?>" aria-expanded="false" aria-controls="row_<?= $className ?>">
-                        <?= $shortName ?>
-                    </span>
-                    <?= $this->Form->control($class, [
-                        "type" => "checkbox",
-                        "switch" => true,
-                        'label' => "",
-                        "data-permission-manage-policies-target" => "policyClass",
-                        "data-class-name" => $className,
-                        "data-permission-id" => $permission->id
-                    ]) ?>
+            <div class="mb-3">
+                <div class="d-flex align-items-center bg-light p-2 border rounded">
+                    <i class="bi bi-caret-right-fill collapse-icon me-2" data-namespace="<?= $namespaceId ?>"></i>
+                    <strong class="policy-toggle namespace-toggle" style="cursor: pointer;"
+                        data-bs-toggle="collapse"
+                        data-bs-target=".namespace_<?= $namespaceId ?>"
+                        aria-expanded="false">
+                        <?= h($namespace) ?> (<?= count($policies) ?> policies)
+                    </strong>
                 </div>
-                <ul class="list-group collapse row_<?= $className ?> mt-2">
-                    <?php foreach ($methods as $method) : ?>
+                <ul class="list-group collapse namespace_<?= $namespaceId ?> mt-2">
+                    <?php foreach ($policies as $class => $methods) :
+                        $className = str_replace('\\', '-', $class);
+                        $shortName = substr($class, strrpos($class, '\\') + 1);
+                    ?>
                         <li class="list-group-item">
-                            <?php
-                            $isAssigned = false;
-                            foreach ($permission->permission_policies as $policy) {
-                                if ($policy->policy_class == $class) {
-                                    if ($policy->policy_method == $method) {
-                                        $isAssigned = true;
-                                        break;
-                                    }
-                                }
-                            }
-                            echo $this->Form->control($class . "-" . $method, [
-                                "type" => "checkbox",
-                                "checked" => $isAssigned,
-                                "switch" => true,
-                                'label' => $method,
-                                "data-permission-manage-policies-target" => "policyMethod",
-                                "data-class-name" => $className,
-                                "data-method-name" => $method,
-                                "data-permission-id" => $permission->id
-                            ])
-                            ?>
+                            <div class="d-flex align-items-center">
+                                <span class="policy-toggle policy-class pe-2" data-bs-toggle="collapse"
+                                    data-bs-target=".row_<?= $className ?>" aria-expanded="false" aria-controls="row_<?= $className ?>">
+                                    <?= $shortName ?>
+                                </span>
+                                <?= $this->Form->control($class, [
+                                    "type" => "checkbox",
+                                    "switch" => true,
+                                    'label' => "",
+                                    "data-permission-manage-policies-target" => "policyClass",
+                                    "data-class-name" => $className,
+                                    "data-permission-id" => $permission->id
+                                ]) ?>
+                            </div>
+                            <ul class="list-group collapse row_<?= $className ?> mt-2">
+                                <?php foreach ($methods as $method) : ?>
+                                    <li class="list-group-item">
+                                        <?php
+                                        $isAssigned = false;
+                                        foreach ($permission->permission_policies as $policy) {
+                                            if ($policy->policy_class == $class) {
+                                                if ($policy->policy_method == $method) {
+                                                    $isAssigned = true;
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                        echo $this->Form->control($class . "-" . $method, [
+                                            "type" => "checkbox",
+                                            "checked" => $isAssigned,
+                                            "switch" => true,
+                                            'label' => $method,
+                                            "data-permission-manage-policies-target" => "policyMethod",
+                                            "data-class-name" => $className,
+                                            "data-method-name" => $method,
+                                            "data-permission-id" => $permission->id
+                                        ])
+                                        ?>
+                                    </li>
+                                <?php endforeach; ?>
+                            </ul>
                         </li>
                     <?php endforeach; ?>
                 </ul>
-            </li>
+            </div>
         <?php endforeach; ?>
-    </ul>
+    </div>
 </div>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        document.querySelectorAll('.policy-toggle').forEach(function(btn) {
+        // Handle namespace toggle
+        document.querySelectorAll('.namespace-toggle').forEach(function(btn) {
             btn.addEventListener('click', function() {
-                var icon = btn.querySelector('.collapse-icon');
-                var className = icon.getAttribute('data-class');
-                var target = document.querySelector('.row_' + className);
-                if (target.classList.contains('show')) {
-                    icon.classList.remove('bi-caret-down-fill');
-                    icon.classList.add('bi-caret-right-fill');
-                } else {
-                    icon.classList.remove('bi-caret-right-fill');
-                    icon.classList.add('bi-caret-down-fill');
+                var icon = btn.previousElementSibling;
+                if (icon && icon.classList.contains('collapse-icon')) {
+                    var namespace = icon.getAttribute('data-namespace');
+                    var targets = document.querySelectorAll('.namespace_' + namespace);
+                    var isExpanded = targets[0] && targets[0].classList.contains('show');
+
+                    if (isExpanded) {
+                        icon.classList.remove('bi-caret-down-fill');
+                        icon.classList.add('bi-caret-right-fill');
+                    } else {
+                        icon.classList.remove('bi-caret-right-fill');
+                        icon.classList.add('bi-caret-down-fill');
+                    }
                 }
             });
         });
-        // Set initial state for open/closed icons
-        document.querySelectorAll('.collapse.row_').forEach(function(el) {
-            var className = el.className.match(/row_([\w-]+)/);
-            if (className) {
-                var icon = document.querySelector('.collapse-icon[data-class="' + className[1] + '"]');
-                if (el.classList.contains('show')) {
-                    icon.classList.remove('bi-caret-right-fill');
-                    icon.classList.add('bi-caret-down-fill');
-                } else {
-                    icon.classList.remove('bi-caret-down-fill');
-                    icon.classList.add('bi-caret-right-fill');
-                }
-            }
+
+        // Handle policy class toggle (existing functionality)
+        document.querySelectorAll('.policy-toggle:not(.namespace-toggle)').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                // Toggle functionality handled by Bootstrap collapse
+            });
         });
     });
 </script>

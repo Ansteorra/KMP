@@ -153,6 +153,7 @@ class AppView extends View
             'Templating.Icon',     // Icon rendering utilities
             'Templating.IconSnippet', // Icon snippet utilities
             'Timezone',            // Timezone conversion and formatting
+            'SecurityDebug',       // Security debugging helper (only active in debug mode)
         ];
 
         // Add all utility helpers to the view
