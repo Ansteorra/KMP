@@ -189,6 +189,18 @@ class WaiversViewCellProvider
                 if (!$gatheringId) {
                     return false;
                 }
+                if (!is_numeric($gatheringId)) {
+                    // get the gathering by public_id
+                    $gatheringsTable = \Cake\ORM\TableRegistry::getTableLocator()->get('Gatherings');
+                    $gathering = $gatheringsTable->find()
+                        ->where(['public_id' => $gatheringId])
+                        ->select(['id'])
+                        ->first();
+                    if (!$gathering) {
+                        return false;
+                    }
+                    $gatheringId = $gathering->id;
+                }
 
                 // Create an empty GatheringWaiver entity with gathering context
                 // This allows the policy to use getBranchId() to determine the hosting branch
