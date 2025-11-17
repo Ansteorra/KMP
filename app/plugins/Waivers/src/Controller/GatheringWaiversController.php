@@ -298,8 +298,10 @@ class GatheringWaiversController extends AppController
             $this->Flash->error(__('This gathering is not configured to collect waivers.'));
             return $this->redirect(['plugin' => false, 'controller' => 'Gatherings', 'action' => 'view', $gatheringId]);
         }
-
-        $this->Authorization->authorize($gathering, 'uploadWaivers');
+        // need an empty gathering waiver to check authorization
+        $gatheringWaiver = $this->GatheringWaivers->newEmptyEntity();
+        $gatheringWaiver->gathering = $gathering;
+        $this->Authorization->authorize($gatheringWaiver, 'uploadWaivers');
 
         // Handle POST - process uploads
         if ($this->request->is('post')) {
@@ -344,13 +346,20 @@ class GatheringWaiversController extends AppController
                     } elseif ($referer && strpos($referer, 'viewMobileCard') !== false) {
                         $redirectUrl = $referer;
                     } else {
-                        // Default to waiver index for this gathering
-                        $redirectUrl = \Cake\Routing\Router::url([
-                            'plugin' => 'Waivers',
-                            'controller' => 'GatheringWaivers',
-                            'action' => 'index',
-                            '?' => ['gathering_id' => $gatheringId]
-                        ], true); // true = full base URL
+                        // default back to the last page the user was on based on our managed back stack
+                        $pageStack = $this->request->getSession()->read('pageStack') ?? [];
+                        $historyCount = count($pageStack);
+                        if ($historyCount >= 2) {
+                            $redirectUrl = $pageStack[$historyCount - 2];
+                        } else {
+                            // Default to waiver index for this gathering
+                            $redirectUrl = \Cake\Routing\Router::url([
+                                'plugin' => 'Waivers',
+                                'controller' => 'GatheringWaivers',
+                                'action' => 'index',
+                                '?' => ['gathering_id' => $gatheringId]
+                            ], true); // true = full base URL
+                        }
                     }
 
                     // Set Flash message (will show on redirect page)
@@ -1184,7 +1193,7 @@ class GatheringWaiversController extends AppController
     public function needingWaivers()
     {
         // Authorize access to this action
-        $this->Authorization->authorize($this->request);
+        $this->authorizeCurrentUrl();
 
         $currentUser = $this->Authentication->getIdentity();
 
