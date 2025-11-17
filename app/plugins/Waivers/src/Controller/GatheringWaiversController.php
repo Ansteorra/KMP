@@ -2193,7 +2193,7 @@ class GatheringWaiversController extends AppController
             $Gatherings = $this->fetchTable('Gatherings');
             $gathering = $Gatherings->get($gatheringId);
 
-            // Check authorization - user must be able to edit the gathering
+            // Check authorization - user must be able upload waivers for this gathering to attest
             $gatheringWaiver = $this->GatheringWaivers->newEmptyEntity();
             $gatheringWaiver->gathering = $gathering;
             $this->Authorization->authorize($gatheringWaiver, 'uploadWaivers');
