@@ -2194,7 +2194,9 @@ class GatheringWaiversController extends AppController
             $gathering = $Gatherings->get($gatheringId);
 
             // Check authorization - user must be able to edit the gathering
-            $this->Authorization->authorize($gathering, 'uploadWaivers');
+            $gatheringWaiver = $this->GatheringWaivers->newEmptyEntity();
+            $gatheringWaiver->gathering = $gathering;
+            $this->Authorization->authorize($gatheringWaiver, 'uploadWaivers');
 
             // Verify all activities are assigned to this gathering
             $GatheringsGatheringActivities = $this->fetchTable('GatheringsGatheringActivities');
