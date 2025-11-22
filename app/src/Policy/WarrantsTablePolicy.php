@@ -39,4 +39,19 @@ class WarrantsTablePolicy extends BasePolicy
 
         return $this->_hasPolicy($user, $method, $entity, ...$optionalArgs);
     }
+
+    /**
+     * Check if user can export warrant data to CSV
+     *
+     * @param \App\KMP\KmpIdentityInterface $user User
+     * @param \App\Model\Entity\BaseEntity|Cake\ORM\Table $entity Entity
+     * @param mixed ...$optionalArgs Optional arguments
+     * @return bool
+     */
+    public function canExport(KmpIdentityInterface $user, BaseEntity|Table $entity, mixed ...$optionalArgs): bool
+    {
+        $method = __FUNCTION__;
+
+        return $this->_hasPolicy($user, $method, $entity, ...$optionalArgs);
+    }
 }

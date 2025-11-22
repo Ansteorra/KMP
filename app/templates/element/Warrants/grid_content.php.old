@@ -1,0 +1,39 @@
+<?php
+
+/**
+ * Warrants grid turbo-frame content for Dataverse POC
+ *
+ * @var \App\View\AppView $this
+ * @var \Cake\Datasource\ResultSetInterface|\App\Model\Entity\Warrant[] $warrants
+ * @var array $gridState
+ */
+?>
+<turbo-frame id="warrants-grid">
+    <!-- Complete Grid State - Single Source of Truth -->
+    <script type="application/json" id="warrants-grid-state">
+        <?= json_encode($gridState, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?>
+    </script>
+
+    <div class="frame-state" data-grid-view-target="gridState">
+        <?= $this->element('dataverse_table', [
+            'columns' => $gridState['columns']['all'],
+            'visibleColumns' => $gridState['columns']['visible'],
+            'data' => $warrants,
+            'currentSort' => $gridState['sort'],
+            'controllerName' => 'grid-view',
+            'primaryKey' => $gridState['config']['primaryKey'],
+            'gridKey' => $gridState['config']['gridKey'],
+        ]) ?>
+
+        <div class="paginator">
+            <ul class="pagination">
+                <?= $this->Paginator->first('<< ' . __('first')) ?>
+                <?= $this->Paginator->prev('< ' . __('previous')) ?>
+                <?= $this->Paginator->numbers() ?>
+                <?= $this->Paginator->next(__('next') . ' >') ?>
+                <?= $this->Paginator->last(__('last') . ' >>') ?>
+            </ul>
+            <p><?= $this->Paginator->counter(__('Page {{page}} of {{pages}}, showing {{current}} record(s) out of {{count}} total')) ?></p>
+        </div>
+    </div>
+</turbo-frame>

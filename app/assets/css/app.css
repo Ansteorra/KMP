@@ -5,6 +5,31 @@
 @import '~easymde/dist/easymde.min.css';
 @import '~@fortawesome/fontawesome-free/css/all.min.css';
 
+/* Drag and Drop Sortable Styles */
+.list-group-item[draggable="true"] {
+    cursor: move;
+    transition: all 0.2s ease;
+}
+
+.list-group-item.dragging {
+    opacity: 0.5;
+    background-color: #e9ecef;
+}
+
+.list-group-item.drag-over {
+    border-top: 3px solid #0d6efd;
+    padding-top: calc(0.75rem - 3px);
+}
+
+.drag-handle {
+    color: #6c757d;
+    font-size: 1.2rem;
+}
+
+.drag-handle:hover {
+    color: #495057;
+}
+
 .sublink.nav-link {
     padding-bottom: 0;
 
@@ -448,4 +473,97 @@ input:checked+.slider:before {
     background-color: #e7f3ff;
     border-left: 3px solid #0d6efd;
     padding-left: 0.5rem;
+}
+
+/* Grid view tab hover fix - split button styling */
+.nav-tabs .split-tab-left {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    border-right: 0;
+}
+
+.nav-tabs .split-tab-right {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    border-left: 0;
+    min-width: 32px;
+    /* Ensure dropdown caret button is visible */
+}
+
+/* Make the dropdown caret more visible */
+.nav-tabs .split-tab-right::after {
+    margin-left: 0 !important;
+    vertical-align: 0.15em;
+}
+
+/* Ensure all borders change on hover for split button tabs */
+.nav-tabs .btn-group .nav-link:hover,
+.nav-tabs .btn-group .nav-link:focus {
+    border-top-color: var(--bs-secondary-bg) !important;
+    border-bottom-color: var(--bs-border-color) !important;
+    border-left-color: var(--bs-secondary-bg) !important;
+}
+
+/* Keep the right border hidden on hover for left button */
+.nav-tabs .split-tab-left:hover,
+.nav-tabs .split-tab-left:focus {
+    border-right: 0 !important;
+}
+
+/* Keep the left border hidden on hover for right button */
+.nav-tabs .split-tab-right:hover,
+.nav-tabs .split-tab-right:focus {
+    border-left: 0 !important;
+}
+
+/* Prevent bottom border on caret button in all states */
+.nav-tabs .split-tab-right,
+.nav-tabs .split-tab-right:hover,
+.nav-tabs .split-tab-right:focus,
+.nav-tabs .split-tab-right:active,
+.nav-tabs .split-tab-right:visited,
+.nav-tabs .split-tab-right.active,
+.nav-tabs .btn-group:has(.split-tab-left.active) .split-tab-right {
+    border-bottom-color: var(--bs-body-bg) !important;
+}
+
+/* Prevent bottom border on active tab hover */
+.nav-tabs .nav-link.active:hover,
+.nav-tabs .nav-item.show .nav-link:hover {
+    border-bottom-color: var(--bs-body-bg) !important;
+}
+
+/* Sub-row expansion styles for grid view */
+.sub-row {
+    background-color: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+}
+
+.sub-row-content {
+    padding: 0 !important;
+    background-color: #f8f9fa;
+}
+
+.sub-row .warrant-reasons {
+    background-color: #ffffff;
+    border-left: 3px solid #0d6efd;
+    border-radius: 4px;
+    margin: 0.5rem;
+}
+
+.sub-row-error .sub-row-content {
+    background-color: #f8d7da;
+}
+
+tr.row-expanded {
+    border-bottom: 2px solid #0d6efd;
+}
+
+.toggle-icon {
+    transition: transform 0.2s ease;
+    color: #6c757d;
+}
+
+tr.row-expanded .toggle-icon.bi-chevron-down {
+    transform: rotate(0deg);
 }

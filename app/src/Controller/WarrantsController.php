@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\KMP\GridColumns\WarrantsGridColumns;
 use App\Model\Entity\Warrant;
 use App\Services\CsvExportService;
+use App\Services\GridViewService;
 use App\Services\WarrantManager\WarrantManagerInterface;
 use Cake\Http\Exception\NotFoundException;
+use Cake\I18n\FrozenDate;
 use Cake\I18n\DateTime;
 
 /**
@@ -329,6 +332,8 @@ use Cake\I18n\DateTime;
  */
 class WarrantsController extends AppController
 {
+    use DataverseGridTrait;
+
     /**
      * CSV export service dependency injection
      *
@@ -399,6 +404,89 @@ class WarrantsController extends AppController
      * @return \Cake\Http\Response|null|void Renders warrant management dashboard
      */
     public function index() {}
+
+    /**
+     * Index DV - Dataverse-style warrant grid with nested turbo-frames
+     *
+     * Main page for warrant dataverse grid. Renders outer turbo-frame with toolbar
+     * and delegates data loading to gridData() method.
+     *
+     * @return void
+     */
+    public function indexDv(): void
+    {
+        // Authorization check (reuse index permission)
+        $securityWarrant = $this->Warrants->newEmptyEntity();
+        $this->Authorization->authorize($securityWarrant, 'index');
+
+        $systemViews = $this->getWarrantSystemViews();
+        $queryCallback = $this->buildSystemViewQueryCallback(FrozenDate::today());
+
+        // Use unified trait for grid processing (system views mode)
+        $result = $this->processDataverseGrid([
+            'gridKey' => 'Warrants.index.main',
+            'gridColumnsClass' => \App\KMP\GridColumns\WarrantsGridColumns::class,
+            'baseQuery' => $this->Warrants->find(),
+            'tableName' => 'Warrants',
+            'defaultSort' => ['Warrants.start_on' => 'ASC', 'Members.sca_name' => 'ASC'],
+            'defaultPageSize' => 25,
+            'systemViews' => $systemViews,
+            'defaultSystemView' => 'sys-warrants-current',
+            'queryCallback' => $queryCallback,
+            'showAllTab' => false,
+            'canAddViews' => true,
+            'canFilter' => true,
+        ]);
+
+        $this->set('gridState', $result['gridState']);
+        $this->set('warrants', $result['data']);
+    }
+
+    /**
+     * Grid Data - Returns inner turbo-frame with warrant table data
+     *
+     * Handles all grid state changes (view selection, filters, search, sort, pagination)
+     * and returns the inner turbo-frame with updated table content.
+     * Also supports CSV export when export=csv query parameter is present.
+     *
+     * @return \Cake\Http\Response|void
+     */
+    public function gridData(CsvExportService $csvExportService)
+    {
+        // Authorization check
+        $securityWarrant = $this->Warrants->newEmptyEntity();
+        $this->Authorization->authorize($securityWarrant, 'index');
+
+        $systemViews = $this->getWarrantSystemViews();
+        $queryCallback = $this->buildSystemViewQueryCallback(FrozenDate::today());
+
+        // Use unified trait for grid processing (system views mode)
+        $result = $this->processDataverseGrid([
+            'gridKey' => 'Warrants.index.main',
+            'gridColumnsClass' => \App\KMP\GridColumns\WarrantsGridColumns::class,
+            'baseQuery' => $this->Warrants->find(),
+            'tableName' => 'Warrants',
+            'defaultSort' => ['Warrants.start_on' => 'ASC', 'Members.sca_name' => 'ASC'],
+            'defaultPageSize' => 25,
+            'systemViews' => $systemViews,
+            'defaultSystemView' => 'sys-warrants-current',
+            'queryCallback' => $queryCallback,
+            'showAllTab' => false,
+            'canAddViews' => true,
+            'canFilter' => true,
+        ]);
+
+        // Handle CSV export
+        if (!empty($result['isCsvExport'])) {
+            return $this->handleCsvExport($result, $csvExportService, 'warrants');
+        }
+
+        $this->set('gridState', $result['gridState']);
+        $this->set('warrants', $result['data']);
+
+        // Render the inner turbo-frame template
+        $this->viewBuilder()->setTemplate('grid_data');
+    }
 
     /**
      * All warrants method - Filtered warrant listing with export capability
@@ -520,6 +608,114 @@ class WarrantsController extends AppController
         // Paginated results for web interface
         $warrants = $this->paginate($warrantsQuery);
         $this->set(compact('warrants', 'state'));
+    }
+
+    /**
+     * Build system views configuration for warrant dataverse grid
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    protected function getWarrantSystemViews(): array
+    {
+        $today = FrozenDate::today();
+        $todayString = $today->format('Y-m-d');
+        $tomorrowString = $today->addDays(1)->format('Y-m-d');
+        $yesterdayString = $today->subDays(1)->format('Y-m-d');
+
+        return [
+            'sys-warrants-current' => [
+                'id' => 'sys-warrants-current',
+                'name' => __('Current'),
+                'description' => __('Active warrants providing RBAC validation'),
+                'canManage' => false,
+                'config' => [
+                    'filters' => [
+                        ['field' => 'status', 'operator' => 'eq', 'value' => Warrant::CURRENT_STATUS],
+                        ['field' => 'start_on', 'operator' => 'dateRange', 'value' => [null, $todayString]],
+                        ['field' => 'expires_on', 'operator' => 'dateRange', 'value' => [$todayString, null]],
+                    ],
+                ],
+            ],
+            'sys-warrants-pending' => [
+                'id' => 'sys-warrants-pending',
+                'name' => __('Pending'),
+                'description' => __('Warrants awaiting approval through roster system'),
+                'canManage' => false,
+                'config' => [
+                    'filters' => [
+                        ['field' => 'status', 'operator' => 'eq', 'value' => Warrant::PENDING_STATUS]
+                    ],
+                ],
+            ],
+            'sys-warrants-upcoming' => [
+                'id' => 'sys-warrants-upcoming',
+                'name' => __('Upcoming'),
+                'description' => __('Warrants scheduled to start in the future'),
+                'canManage' => false,
+                'config' => [
+                    'filters' => [
+                        ['field' => 'status', 'operator' => 'eq', 'value' => Warrant::CURRENT_STATUS],
+                        ['field' => 'start_on', 'operator' => 'dateRange', 'value' => [$tomorrowString, null]],
+                    ],
+                ],
+            ],
+            'sys-warrants-previous' => [
+                'id' => 'sys-warrants-previous',
+                'name' => __('Previous'),
+                'description' => __('Expired or deactivated warrants'),
+                'canManage' => false,
+                'config' => [
+                    // Expression tree handles OR logic: (expires_on < today) OR (status IN [Deactivated, Expired])
+                    'expression' => [
+                        'type' => 'OR',
+                        'conditions' => [
+                            ['field' => 'expires_on', 'operator' => 'lt', 'value' => $todayString],
+                            ['field' => 'status', 'operator' => 'in', 'value' => [
+                                Warrant::DEACTIVATED_STATUS,
+                                Warrant::EXPIRED_STATUS,
+                            ]],
+                        ],
+                    ],
+                    // Keep filter UI seeds for display pills (but don't apply to query)
+                    'filters' => [
+                        ['field' => 'status', 'operator' => 'in', 'value' => [
+                            Warrant::DEACTIVATED_STATUS,
+                            Warrant::EXPIRED_STATUS,
+                        ]],
+                        ['field' => 'expires_on', 'operator' => 'dateRange', 'value' => [null, $yesterdayString]],
+                    ],
+                    'skipFilterColumns' => ['status', 'expires_on'],
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * Build query callback for system view processing
+     *
+     * This callback now only applies base conditions (field selection, associations).
+     * Complex OR/AND logic should be handled via expression trees in system view configs.
+     *
+     * Keep this callback for:
+     * - Base field selection and optimization (addConditions)
+     * - Truly exceptional edge cases that can't be expressed declaratively
+     * - Future views that may need custom query manipulation
+     *
+     * @param \Cake\I18n\FrozenDate $today Reference date for temporal filtering
+     * @return callable
+     */
+    protected function buildSystemViewQueryCallback(FrozenDate $today): callable
+    {
+        return function ($query, $selectedSystemView) use ($today) {
+            // Always apply base conditions (field selection, associations)
+            $query = $this->addConditions($query);
+
+            // Note: OR logic for Previous view now handled by expression tree in config
+            // If you need exceptional custom logic that can't be expressed declaratively,
+            // add it here with appropriate view ID checks
+
+            return $query;
+        };
     }
 
     /**

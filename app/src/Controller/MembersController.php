@@ -8,6 +8,7 @@ use App\Form\ResetPasswordForm;
 use App\KMP\StaticHelpers;
 use App\Mailer\QueuedMailerAwareTrait;
 use App\Model\Entity\Member;
+use App\Services\CsvExportService;
 use Cake\Event\EventInterface;
 use Cake\Http\Exception\NotFoundException;
 use Cake\I18n\DateTime;
@@ -180,6 +181,21 @@ class MembersController extends AppController
 {
     use QueuedMailerAwareTrait;
     use MailerAwareTrait;
+    use DataverseGridTrait;
+
+    /**
+     * CSV export service dependency injection
+     *
+     * @var array<string> Service injection configuration
+     */
+    public static array $inject = [CsvExportService::class];
+
+    /**
+     * CSV export service instance
+     *
+     * @var \App\Services\CsvExportService
+     */
+    protected CsvExportService $csvExportService;
 
     /**
      * Configure authorization and authentication filters
@@ -225,7 +241,7 @@ class MembersController extends AppController
     public function beforeFilter(EventInterface $event)
     {
         parent::beforeFilter($event);
-        $this->Authorization->authorizeModel('index', 'verifyQueue');
+        $this->Authorization->authorizeModel('index', 'verifyQueue', 'gridData');
         $this->Authentication->allowUnauthenticated([
             'login',
             'approversList',
@@ -242,6 +258,97 @@ class MembersController extends AppController
     }
 
     #region general use calls
+
+    /**
+     * Dataverse-style member grid with saved views, filters, sorting, and column picker
+     *
+     * Modern grid interface using the Dataverse grid system with comprehensive
+     * view management, advanced filtering, multi-column sorting, and dynamic column selection.
+     *
+     * ## Features
+     * - **Saved Views**: Create, save, update, and delete custom views
+     * - **User Defaults**: Set personal default views per grid
+     * - **System Defaults**: Administrators can set organization-wide defaults
+     * - **Column Picker**: Show/hide columns dynamically
+     * - **Advanced Filters**: Multi-condition filtering with 13 operators
+     * - **Multi-column Sorting**: Sort by multiple fields with direction control
+     * - **Pagination**: Configurable page sizes (10-100 records)
+     *
+     * @return \Cake\Http\Response|null|void
+     */
+    public function indexDv()
+    {
+        // Simple index page - just renders the dv_grid element
+        // The dv_grid element will lazy-load the actual data via gridData action
+    }
+
+    /**
+     * Dataverse grid data - Returns grid content with toolbar and table
+     * 
+     * This action is called by turbo-frame to load the complete grid or just the table.
+     * Handles both outer frame (toolbar + table frame) and inner frame (table only) requests.
+     * Also supports CSV export when export=csv query parameter is present.
+     *
+     * @param \App\Services\CsvExportService $csvExportService CSV export service
+     * @return \Cake\Http\Response|null|void
+     */
+    public function gridData(CsvExportService $csvExportService)
+    {
+        // Use unified trait for grid processing (saved views mode)
+        $result = $this->processDataverseGrid([
+            'gridKey' => 'Members.index.main',
+            'gridColumnsClass' => \App\KMP\GridColumns\MembersGridColumns::class,
+            'baseQuery' => $this->Members->find()->contain(['Branches', 'Parents']),
+            'tableName' => 'Members',
+            'defaultSort' => ['Members.sca_name' => 'asc'],
+            'defaultPageSize' => 25,
+            'showAllTab' => true,
+            'canAddViews' => true,
+            'canFilter' => true,
+            'canExportCsv' => true,
+        ]);
+
+        // Handle CSV export
+        if (!empty($result['isCsvExport'])) {
+            return $this->handleCsvExport($result, $csvExportService, 'members');
+        }
+
+        // Set view variables
+        $this->set([
+            'members' => $result['data'],
+            'gridState' => $result['gridState'],
+            // Legacy variables (kept for backward compatibility during migration)
+            'columns' => $result['columnsMetadata'],
+            'visibleColumns' => $result['visibleColumns'],
+            'searchableColumns' => \App\KMP\GridColumns\MembersGridColumns::getSearchableColumns(),
+            'dropdownFilterColumns' => $result['dropdownFilterColumns'],
+            'filterOptions' => $result['filterOptions'],
+            'currentFilters' => $result['currentFilters'],
+            'currentSearch' => $result['currentSearch'],
+            'currentView' => $result['currentView'],
+            'availableViews' => $result['availableViews'],
+            'gridKey' => $result['gridKey'],
+            'currentSort' => $result['currentSort'],
+            'currentMember' => $result['currentMember'],
+        ]);
+
+        // Determine which template to render based on Turbo-Frame header
+        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
+
+        if ($turboFrame === 'members-grid-table') {
+            // Inner frame request - render table data only
+            $this->set('data', $result['data']);
+            $this->set('tableFrameId', 'members-grid-table');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplate('../element/dv_grid_table');
+        } else {
+            // Outer frame request (or no frame) - render toolbar + table frame
+            $this->set('data', $result['data']);
+            $this->set('frameId', 'members-grid');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplate('../element/dv_grid_content');
+        }
+    }
 
     /**
      * Display paginated member listing with search and filtering capabilities
@@ -300,12 +407,33 @@ class MembersController extends AppController
      * GET /members?search=aiden&sort=last_login&direction=desc
      * ```
      */
-    public function index()
+    public function subRow(?string $id = null, ?string $type = null)
     {
-        $search = $this->request->getQuery('search');
-        $search = $search ? trim($search) : null;
-        // get sort and direction from query string
-        $sort = $this->request->getQuery('sort');
+        // This endpoint returns HTML fragments for sub-row content
+        $this->viewBuilder()->disableAutoLayout();
+
+        if (!$id || !$type) {
+            throw new NotFoundException(__('Invalid request'));
+        }
+
+        // Load the member
+        $member = $this->Members->get($id);
+
+        // Render different content based on type
+        switch ($type) {
+            case 'warrantreasons':
+                $reasons = $member->getNonWarrantableReasons();
+                $this->set('reasons', $reasons);
+                $this->render('/element/sub_rows/warrant_reasons');
+                break;
+
+            default:
+                throw new NotFoundException(__('Unknown sub-row type: {0}', $type));
+        }
+    }
+
+    /**
+     * Display paginated member listing with search and filtering capabilities
         $direction = $this->request->getQuery('direction');
 
         $query = $this->Members

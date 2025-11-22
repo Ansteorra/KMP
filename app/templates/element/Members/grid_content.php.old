@@ -1,0 +1,44 @@
+<?php
+
+/**
+ * Members Dataverse Grid Content (Turbo Frame Partial)
+ * 
+ * This is loaded inside a turbo-frame for fast grid updates.
+ * Contains the complete grid state as a single data attribute.
+ * 
+ * @var \App\View\AppView $this
+ * @var iterable<\App\Model\Entity\Member> $members
+ * @var array $gridState Complete grid state object
+ */
+?>
+<turbo-frame id="members-grid">
+    <!-- Complete Grid State - Single Source of Truth -->
+    <script type="application/json" id="members-grid-state">
+        <?= json_encode($gridState, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?>
+    </script>
+
+    <div class="frame-state" data-grid-view-target="gridState">
+        <!-- Dataverse Table -->
+        <?= $this->element('dataverse_table', [
+            'columns' => $gridState['columns']['all'],
+            'visibleColumns' => $gridState['columns']['visible'],
+            'data' => $members,
+            'currentSort' => $gridState['sort'],
+            'controllerName' => 'grid-view',
+            'primaryKey' => $gridState['config']['primaryKey'],
+            'gridKey' => $gridState['config']['gridKey'],
+        ]) ?>
+
+        <!-- Pagination -->
+        <div class="paginator">
+            <ul class="pagination">
+                <?= $this->Paginator->first('<< ' . __('first')) ?>
+                <?= $this->Paginator->prev('< ' . __('previous')) ?>
+                <?= $this->Paginator->numbers() ?>
+                <?= $this->Paginator->next(__('next') . ' >') ?>
+                <?= $this->Paginator->last(__('last') . ' >>') ?>
+            </ul>
+            <p><?= $this->Paginator->counter(__('Page {{page}} of {{pages}}, showing {{current}} record(s) out of {{count}} total')) ?></p>
+        </div>
+    </div>
+</turbo-frame>
