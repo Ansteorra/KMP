@@ -276,7 +276,7 @@ class MembersController extends AppController
      *
      * @return \Cake\Http\Response|null|void
      */
-    public function indexDv()
+    public function index()
     {
         // Simple index page - just renders the dv_grid element
         // The dv_grid element will lazy-load the actual data via gridData action
@@ -302,8 +302,8 @@ class MembersController extends AppController
             'tableName' => 'Members',
             'defaultSort' => ['Members.sca_name' => 'asc'],
             'defaultPageSize' => 25,
-            'showAllTab' => true,
-            'canAddViews' => true,
+            'showAllTab' => false,
+            'canAddViews' => false,
             'canFilter' => true,
             'canExportCsv' => true,
         ]);
@@ -348,6 +348,244 @@ class MembersController extends AppController
             $this->viewBuilder()->disableAutoLayout();
             $this->viewBuilder()->setTemplate('../element/dv_grid_content');
         }
+    }
+
+    /**
+     * Member Roles Grid Data - Returns grid content for member roles tab
+     * 
+     * Provides grid view for displaying member roles with system views for
+     * active, upcoming, and previous roles. Used in the Roles tab of member profile.
+     *
+     * @param int $memberId The member ID
+     * @return \Cake\Http\Response|null|void
+     */
+    public function rolesGridData(int $memberId)
+    {
+        // Authorization check
+        $member = $this->Members->get($memberId);
+        $this->Authorization->authorize($member, 'view');
+
+        // Get system views configuration
+        $systemViews = $this->getMemberRolesSystemViews();
+
+        // Debug: Log the base query
+        $baseQuery = $this->fetchTable('MemberRoles')
+            ->find()
+            ->where(['MemberRoles.member_id' => $memberId])
+            ->contain(['Roles', 'ApprovedBy', 'Branches']);
+
+        \Cake\Log\Log::debug('Member Roles Base Query SQL: ' . $baseQuery->sql());
+        \Cake\Log\Log::debug('Member Roles Base Query Params: ' . json_encode($baseQuery->getValueBinder()->bindings()));
+
+        // Use unified trait for grid processing (system views mode)
+        $result = $this->processDataverseGrid([
+            'gridKey' => "Members.roles.{$memberId}",
+            'gridColumnsClass' => \App\KMP\GridColumns\MemberRolesGridColumns::class,
+            'baseQuery' => $baseQuery,
+            'tableName' => 'MemberRoles',
+            'defaultSort' => ['MemberRoles.start_on' => 'DESC'],
+            'defaultPageSize' => 25,
+            'systemViews' => $systemViews,
+            'defaultSystemView' => 'sys-roles-active',
+            'showAllTab' => false,
+            'canAddViews' => false,
+            'canFilter' => true,
+            'canExportCsv' => false,
+        ]);
+
+        \Cake\Log\Log::debug('Member Roles Result Count: ' . count($result['data']));
+
+        // Set view variables
+        $this->set([
+            'memberRoles' => $result['data'],
+            'gridState' => $result['gridState'],
+            'member' => $member,
+        ]);
+
+        // Build URLs for grid
+        $queryParams = $this->request->getQueryParams();
+        $dataUrl = Router::url(['action' => 'rolesGridData', $memberId]);
+        $tableDataUrl = $dataUrl;
+        if (!empty($queryParams)) {
+            $tableDataUrl .= '?' . http_build_query($queryParams);
+        }
+
+        // Determine which template to render based on Turbo-Frame header
+        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
+        $frameId = "member-roles-grid-{$memberId}";
+
+        if ($turboFrame === "{$frameId}-table") {
+            // Inner frame request - render table data only
+            $this->set('data', $result['data']);
+            $this->set('tableFrameId', "{$frameId}-table");
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplate('../element/dv_grid_table');
+        } else {
+            // Outer frame request - render toolbar + table frame
+            $this->set('data', $result['data']);
+            $this->set('frameId', $frameId);
+            $this->set('dataUrl', $dataUrl);
+            $this->set('tableDataUrl', $tableDataUrl);
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplate('../element/dv_grid_content');
+        }
+    }
+
+    /**
+     * Gathering Attendances Grid Data - Returns grid content for gatherings tab
+     * 
+     * Provides grid view for displaying gathering attendances with system views for
+     * upcoming and past gatherings. Used in the Gatherings tab of member profile.
+     *
+     * @param int $memberId The member ID
+     * @return \Cake\Http\Response|null|void
+     */
+    public function gatheringsGridData(int $memberId)
+    {
+        // Authorization check
+        $member = $this->Members->get($memberId);
+        $this->Authorization->authorize($member, 'view');
+
+        // Get system views configuration
+        $systemViews = $this->getGatheringAttendancesSystemViews();
+
+        // Use unified trait for grid processing (system views mode)
+        $result = $this->processDataverseGrid([
+            'gridKey' => "Members.gatherings.{$memberId}",
+            'gridColumnsClass' => \App\KMP\GridColumns\GatheringAttendancesGridColumns::class,
+            'baseQuery' => $this->fetchTable('GatheringAttendances')
+                ->find()
+                ->where(['GatheringAttendances.member_id' => $memberId])
+                ->contain([
+                    'Gatherings' => ['Branches', 'GatheringTypes']
+                ]),
+            'tableName' => 'GatheringAttendances',
+            'defaultSort' => ['Gatherings.start_date' => 'DESC'],
+            'defaultPageSize' => 25,
+            'systemViews' => $systemViews,
+            'defaultSystemView' => 'sys-gatherings-upcoming',
+            'showAllTab' => false,
+            'canAddViews' => false,
+            'canFilter' => true,
+            'canExportCsv' => false,
+        ]);
+
+        // Set view variables
+        $this->set([
+            'gatheringAttendances' => $result['data'],
+            'gridState' => $result['gridState'],
+            'member' => $member,
+        ]);
+
+        // Build URLs for grid
+        $queryParams = $this->request->getQueryParams();
+        $dataUrl = Router::url(['action' => 'gatheringsGridData', $memberId]);
+        $tableDataUrl = $dataUrl;
+        if (!empty($queryParams)) {
+            $tableDataUrl .= '?' . http_build_query($queryParams);
+        }
+
+        // Determine which template to render based on Turbo-Frame header
+        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
+        $frameId = "member-gatherings-grid-{$memberId}";
+
+        if ($turboFrame === "{$frameId}-table") {
+            // Inner frame request - render table data only
+            $this->set('data', $result['data']);
+            $this->set('tableFrameId', "{$frameId}-table");
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplate('../element/dv_grid_table');
+        } else {
+            // Outer frame request - render toolbar + table frame
+            $this->set('data', $result['data']);
+            $this->set('frameId', $frameId);
+            $this->set('dataUrl', $dataUrl);
+            $this->set('tableDataUrl', $tableDataUrl);
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplate('../element/dv_grid_content');
+        }
+    }
+
+    /**
+     * Get system views configuration for member roles grid
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    protected function getMemberRolesSystemViews(): array
+    {
+        $today = date('Y-m-d');
+
+        return [
+            'sys-roles-active' => [
+                'id' => 'sys-roles-active',
+                'name' => __('Active'),
+                'description' => __('Currently active roles'),
+                'canManage' => false,
+                'config' => [
+                    'filters' => [
+                        ['field' => 'MemberRoles.start_on', 'operator' => 'dateRange', 'value' => [null, $today]],
+                        ['field' => 'MemberRoles.expires_on', 'operator' => 'dateRange', 'value' => [$today, null]],
+                    ],
+                ],
+            ],
+            'sys-roles-upcoming' => [
+                'id' => 'sys-roles-upcoming',
+                'name' => __('Upcoming'),
+                'description' => __('Roles scheduled to start in the future'),
+                'canManage' => false,
+                'config' => [
+                    'filters' => [
+                        ['field' => 'MemberRoles.start_on', 'operator' => 'dateRange', 'value' => [date('Y-m-d', strtotime('+1 day')), null]],
+                    ],
+                ],
+            ],
+            'sys-roles-previous' => [
+                'id' => 'sys-roles-previous',
+                'name' => __('Previous'),
+                'description' => __('Expired or past roles'),
+                'canManage' => false,
+                'config' => [
+                    'filters' => [
+                        ['field' => 'MemberRoles.expires_on', 'operator' => 'dateRange', 'value' => [null, date('Y-m-d', strtotime('-1 day'))]],
+                    ],
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * Get system views configuration for gathering attendances grid
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    protected function getGatheringAttendancesSystemViews(): array
+    {
+        $today = date('Y-m-d');
+
+        return [
+            'sys-gatherings-upcoming' => [
+                'id' => 'sys-gatherings-upcoming',
+                'name' => __('Upcoming'),
+                'description' => __('Gatherings scheduled in the future'),
+                'canManage' => false,
+                'config' => [
+                    'filters' => [
+                        ['field' => 'Gatherings.start_date', 'operator' => 'dateRange', 'value' => [$today, null]],
+                    ],
+                ],
+            ],
+            'sys-gatherings-past' => [
+                'id' => 'sys-gatherings-past',
+                'name' => __('Past'),
+                'description' => __('Past gatherings'),
+                'canManage' => false,
+                'config' => [
+                    'filters' => [
+                        ['field' => 'Gatherings.end_date', 'operator' => 'dateRange', 'value' => [null, date('Y-m-d', strtotime('-1 day'))]],
+                    ],
+                ],
+            ],
+        ];
     }
 
     /**

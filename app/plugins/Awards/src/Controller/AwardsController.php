@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Awards\Controller;
 
+use App\Controller\DataverseGridTrait;
 use Awards\Controller\AppController;
 
 /**
@@ -48,6 +49,7 @@ use Awards\Controller\AppController;
  */
 class AwardsController extends AppController
 {
+    use DataverseGridTrait;
     /**
      * Initialize Awards Controller - Authorization and security configuration
      * 
@@ -74,7 +76,7 @@ class AwardsController extends AppController
     public function initialize(): void
     {
         parent::initialize();
-        $this->Authorization->authorizeModel("index", "add");
+        $this->Authorization->authorizeModel("index", "add", "gridData");
 
         $this->Authentication->allowUnauthenticated([
             "awardsByDomain"
@@ -112,9 +114,24 @@ class AwardsController extends AppController
      * @see \Awards\Model\Table\AwardsTable::find() For award query construction
      * @see \Authorization\Controller\Component\AuthorizationComponent::applyScope() For access control
      */
-    public function index()
+    public function index(): void
     {
-        $query = $this->Awards->find()
+        $this->set('user', $this->request->getAttribute('identity'));
+    }
+
+    /**
+     * Provide grid data for Awards listing.
+     *
+     * This method serves data for the Dataverse grid component via Turbo Frame requests.
+     * Handles filtering, sorting, pagination, and CSV export.
+     *
+     * @param \App\Services\CsvExportService $csvExportService Injected CSV export service
+     * @return \Cake\Http\Response|null|void Renders view or returns CSV response
+     */
+    public function gridData(\App\Services\CsvExportService $csvExportService)
+    {
+        // Build base query with domain, level, and branch info
+        $baseQuery = $this->Awards->find()
             ->contain([
                 'Domains' => function ($q) {
                     return $q->select(['id', 'name']);
@@ -125,12 +142,66 @@ class AwardsController extends AppController
                 'Branches' => function ($q) {
                     return $q->select(['id', 'name']);
                 }
-            ])
-            ->select(['id', 'name', 'description', 'domain_id', 'level_id', 'branch_id', "Domains.name", "Levels.name", "Branches.name"]);
-        $query = $this->Authorization->applyScope($query, "index");
-        $awards = $this->paginate($query);
+            ]);
 
-        $this->set(compact('awards'));
+        // Use unified trait for grid processing
+        $result = $this->processDataverseGrid([
+            'gridKey' => 'Awards.Awards.index.main',
+            'gridColumnsClass' => \App\KMP\GridColumns\AwardsGridColumns::class,
+            'baseQuery' => $baseQuery,
+            'tableName' => 'Awards',
+            'defaultSort' => ['Awards.name' => 'asc'],
+            'defaultPageSize' => 25,
+            'showAllTab' => false,
+            'canAddViews' => false,
+            'canFilter' => true,
+            'canExportCsv' => true,
+        ]);
+
+        // Handle CSV export
+        if (!empty($result['isCsvExport'])) {
+            return $this->handleCsvExport($result, $csvExportService, 'awards');
+        }
+
+        // Set view variables
+        $this->set([
+            'awards' => $result['data'],
+            'gridState' => $result['gridState'],
+            'columns' => $result['columnsMetadata'],
+            'visibleColumns' => $result['visibleColumns'],
+            'searchableColumns' => \App\KMP\GridColumns\AwardsGridColumns::getSearchableColumns(),
+            'dropdownFilterColumns' => $result['dropdownFilterColumns'],
+            'filterOptions' => $result['filterOptions'],
+            'currentFilters' => $result['currentFilters'],
+            'currentSearch' => $result['currentSearch'],
+            'currentView' => $result['currentView'],
+            'availableViews' => $result['availableViews'],
+            'gridKey' => $result['gridKey'],
+            'currentSort' => $result['currentSort'],
+            'currentMember' => $result['currentMember'],
+        ]);
+
+        // Determine which template to render based on Turbo-Frame header
+        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
+
+        // Use main app's element templates (not plugin templates)
+        $this->viewBuilder()->setPlugin(null);
+
+        if ($turboFrame === 'awards-grid-table') {
+            // Inner frame request - render table data only
+            $this->set('data', $result['data']);
+            $this->set('tableFrameId', 'awards-grid-table');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplatePath('element');
+            $this->viewBuilder()->setTemplate('dv_grid_table');
+        } else {
+            // Outer frame request (or no frame) - render toolbar + table frame
+            $this->set('data', $result['data']);
+            $this->set('frameId', 'awards-grid');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplatePath('element');
+            $this->viewBuilder()->setTemplate('dv_grid_content');
+        }
     }
 
     /**

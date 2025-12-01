@@ -283,4 +283,18 @@ class WarrantRoster extends BaseEntity
     {
         return $this->approval_count >= $this->approvals_required;
     }
+
+    /**
+     * Virtual property to get the created_by_member's SCA name for grid display
+     *
+     * @return string|null The SCA name of the member who created this roster
+     */
+    protected function _getCreatedByMemberScaName(): ?string
+    {
+        if ($this->created_by_member !== null) {
+            return $this->created_by_member->sca_name;
+        }
+
+        return null;
+    }
 }

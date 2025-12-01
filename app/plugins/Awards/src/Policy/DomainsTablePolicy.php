@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Awards\Policy;
 
+use App\KMP\KmpIdentityInterface;
 use App\Policy\BasePolicy;
 
 /**
@@ -209,4 +210,18 @@ use App\Policy\BasePolicy;
  * @method bool canIndex(\App\KMP\KmpIdentityInterface $user, \Cake\ORM\Table $table, mixed ...$optionalArgs)
  * @method bool canExport(\App\KMP\KmpIdentityInterface $user, \Cake\ORM\Table $table, mixed ...$optionalArgs)
  */
-class DomainsTablePolicy extends BasePolicy {}
+class DomainsTablePolicy extends BasePolicy
+{
+    /**
+     * Check if user can access gridData scope (Dataverse grid data endpoint)
+     * Uses the same authorization scope as the standard index action
+     *
+     * @param \App\KMP\KmpIdentityInterface $user User
+     * @param mixed $query Query
+     * @return mixed
+     */
+    public function scopeGridData(KmpIdentityInterface $user, mixed $query): mixed
+    {
+        return $this->scopeIndex($user, $query);
+    }
+}

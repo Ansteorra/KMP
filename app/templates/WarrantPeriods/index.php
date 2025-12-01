@@ -1,72 +1,47 @@
 <?php
 
 /**
+ * Warrant Periods Dataverse Grid Index Template
+ * 
+ * Modern grid interface with saved views, column picker, filtering, and sorting.
+ * Uses lazy-loading turbo-frame architecture for consistent data flow.
+ * 
  * @var \App\View\AppView $this
- * @var \Cake\Datasource\EntityInterface[]|\Cake\Collection\CollectionInterface $warrantPeriods
+ * @var \App\Model\Entity\WarrantPeriod $emptyWarrantPeriod
  */
-?>
-<?php $this->extend("/layout/TwitterBootstrap/dashboard");
+
+$this->extend("/layout/TwitterBootstrap/dashboard");
 
 echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Warrants';
-$this->KMP->endBlock(); ?>
-<div class="row align-items-start">
-    <div class="col">
-        <h3>
-            Warrant Periods
-        </h3>
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Warrant Periods';
+$this->KMP->endBlock();
+
+$this->assign('title', __('Warrant Periods'));
+?>
+
+<div class="warrant-periods index content">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3><?= __('Warrant Periods') ?></h3>
+        <div>
+            <?php if ($user->checkCan("add", "WarrantPeriods")) : ?>
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal"
+                    data-bs-target="#addModal">
+                    <i class="bi bi-plus-circle me-1"></i><?= __('Add Warrant Period') ?>
+                </button>
+            <?php endif; ?>
+        </div>
     </div>
-    <div class="col text-end">
-        <?php
-        if ($user->checkCan("add", "WarrantPeriods")) :
-        ?>
-            <button type="button" class="btn btn-primary btn-sm bi bi-plus-circle" data-bs-toggle="modal"
-                data-bs-target="#addModal"> Add Warrant Period</button>
-        <?php endif; ?>
-    </div>
+
+    <!-- Dataverse Grid with Lazy Loading -->
+    <?= $this->element('dv_grid', [
+        'gridKey' => 'WarrantPeriods.index.main',
+        'frameId' => 'warrant-periods-grid',
+        'dataUrl' => $this->Url->build(['action' => 'gridData']),
+    ]) ?>
 </div>
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th scope="col"><?= $this->Paginator->sort('start_date') ?></th>
-            <th scope="col"><?= $this->Paginator->sort('end_date') ?></th>
-            <th scope="col" class="actions"></th>
-        </tr>
-    </thead>
-    <tbody>
-        <?php foreach ($warrantPeriods as $warrantPeriod) : ?>
-            <tr>
-                <td><?= $warrantPeriod->start_date ? $this->Timezone->format($warrantPeriod->start_date, 'Y-m-d', false) : '-' ?></td>
-                <td><?= $warrantPeriod->end_date ? $this->Timezone->format($warrantPeriod->end_date, 'Y-m-d', false) : '-' ?></td>
-                <td class="actions text-end text-nowrap">
-                    <?= $this->Form->postLink(
-                        __("Delete"),
-                        ["action" => "delete", $warrantPeriod->id],
-                        [
-                            "confirm" => __(
-                                "Are you sure you want to delete This Warrant period?",
-                            ),
-                            "title" => __("Delete"),
-                            "class" => "btn btn-danger",
-                        ],
-                    ) ?>
-                </td>
-            </tr>
-        <?php endforeach; ?>
-    </tbody>
-</table>
-<div class="paginator">
-    <ul class="pagination">
-        <?= $this->Paginator->first('«', ['label' => __('First')]) ?>
-        <?= $this->Paginator->prev('‹', ['label' => __('Previous')]) ?>
-        <?= $this->Paginator->numbers() ?>
-        <?= $this->Paginator->next('›', ['label' => __('Next')]) ?>
-        <?= $this->Paginator->last('»', ['label' => __('Last')]) ?>
-    </ul>
-    <p><?= $this->Paginator->counter(__('Page {{page}} of {{pages}}, showing {{current}} record(s) out of {{count}} total')) ?>
-    </p>
-</div>
+
 <?php
+// Add modal for creating new warrant periods
 echo $this->KMP->startBlock("modals");
 echo $this->Form->create($emptyWarrantPeriod, [
     "url" => ["action" => "add"],
@@ -100,8 +75,5 @@ echo $this->Modal->create("Add Warrant Period", [
     ]),
 ]);
 echo $this->Form->end();
-
+$this->KMP->endBlock();
 ?>
-
-<?php //finish writing to modal block in layout
-$this->KMP->endBlock(); ?>

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Services\CsvExportService;
+
 /**
  * GatheringActivities Controller
  *
@@ -12,6 +14,8 @@ namespace App\Controller;
  */
 class GatheringActivitiesController extends AppController
 {
+    use DataverseGridTrait;
+
     /**
      * Initialize controller
      *
@@ -22,22 +26,81 @@ class GatheringActivitiesController extends AppController
         parent::initialize();
 
         // Authorize model-level operations
-        $this->Authorization->authorizeModel('index', 'add');
+        $this->Authorization->authorizeModel('index', 'add', 'gridData');
     }
 
     /**
-     * Index method
+     * Index method - Display Dataverse grid for gathering activities
      *
      * @return \Cake\Http\Response|null|void Renders view
      */
     public function index()
     {
-        $query = $this->GatheringActivities->find()
-            ->order(['GatheringActivities.name' => 'ASC']);
+        // Simple index page - just renders the dv_grid element
+        // The dv_grid element will lazy-load the actual data via gridData action
+    }
 
-        $gatheringActivities = $this->paginate($query);
+    /**
+     * Grid Data method - Provides Dataverse grid data for gathering activities
+     *
+     * @param \App\Services\CsvExportService $csvExportService Injected CSV export service
+     * @return \Cake\Http\Response|null|void Renders view or returns CSV response
+     */
+    public function gridData(CsvExportService $csvExportService)
+    {
+        // Use unified trait for grid processing
+        $result = $this->processDataverseGrid([
+            'gridKey' => 'GatheringActivities.index.main',
+            'gridColumnsClass' => \App\KMP\GridColumns\GatheringActivitiesGridColumns::class,
+            'baseQuery' => $this->GatheringActivities->find(),
+            'tableName' => 'GatheringActivities',
+            'defaultSort' => ['GatheringActivities.name' => 'asc'],
+            'defaultPageSize' => 25,
+            'showAllTab' => false,
+            'canAddViews' => false,
+            'canFilter' => true,
+            'canExportCsv' => true,
+        ]);
 
-        $this->set(compact('gatheringActivities'));
+        // Handle CSV export
+        if (!empty($result['isCsvExport'])) {
+            return $this->handleCsvExport($result, $csvExportService, 'gathering-activities');
+        }
+
+        // Set view variables
+        $this->set([
+            'gatheringActivities' => $result['data'],
+            'gridState' => $result['gridState'],
+            'columns' => $result['columnsMetadata'],
+            'visibleColumns' => $result['visibleColumns'],
+            'searchableColumns' => \App\KMP\GridColumns\GatheringActivitiesGridColumns::getSearchableColumns(),
+            'dropdownFilterColumns' => $result['dropdownFilterColumns'],
+            'filterOptions' => $result['filterOptions'],
+            'currentFilters' => $result['currentFilters'],
+            'currentSearch' => $result['currentSearch'],
+            'currentView' => $result['currentView'],
+            'availableViews' => $result['availableViews'],
+            'gridKey' => $result['gridKey'],
+            'currentSort' => $result['currentSort'],
+            'currentMember' => $result['currentMember'],
+        ]);
+
+        // Determine which template to render based on Turbo-Frame header
+        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
+
+        if ($turboFrame === 'gathering-activities-grid-table') {
+            // Inner frame request - render table data only
+            $this->set('data', $result['data']);
+            $this->set('tableFrameId', 'gathering-activities-grid-table');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplate('../element/dv_grid_table');
+        } else {
+            // Outer frame request (or no frame) - render toolbar + table frame
+            $this->set('data', $result['data']);
+            $this->set('frameId', 'gathering-activities-grid');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplate('../element/dv_grid_content');
+        }
     }
 
     /**

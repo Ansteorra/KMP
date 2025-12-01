@@ -4,17 +4,18 @@ declare(strict_types=1);
 
 namespace Officers\Controller;
 
+use App\Controller\DataverseGridTrait;
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
+use App\Services\CsvExportService;
 use Officers\Services\OfficerManagerInterface;
 use App\Services\WarrantManager\WarrantManagerInterface;
 use App\Services\ServiceResult;
 use App\Services\WarrantManager\WarrantRequest;
 use App\Model\Entity\Warrant;
 use Cake\I18n\DateTime;
+use Cake\I18n\Date;
 use Officers\Model\Entity\Officer;
 use App\Model\Entity\Member;
-
-use Cake\I18n\Date;
 
 /**
  * Officers Controller - Comprehensive Officer Lifecycle Management
@@ -130,6 +131,8 @@ use Cake\I18n\Date;
  */
 class OfficersController extends AppController
 {
+    use DataverseGridTrait;
+
     /**
      * Initialize Officer Controller
      * 
@@ -161,6 +164,7 @@ class OfficersController extends AppController
     {
         parent::initialize();
         $this->Authentication->addUnauthenticatedActions(['api']);
+        $this->Authorization->authorizeModel('index', 'gridData');
     }
 
     /**
@@ -934,6 +938,327 @@ class OfficersController extends AppController
     public function index()
     {
         $this->Authorization->skipAuthorization();
+    }
+
+    /**
+     * Grid Data for Officers Listing
+     *
+     * Provides Dataverse grid data for officer assignments with support for
+     * multiple contexts (index, member officers, branch officers) and system views
+     * for temporal filtering (current, upcoming, previous).
+     *
+     * ## Supported Contexts
+     * - **Index**: All officers filtered by warrant status (via system views)
+     * - **Member Officers**: Officers for a specific member (`member_id` parameter)
+     * - **Branch Officers**: Officers for a specific branch (`branch_id` parameter)
+     *
+     * ## Query Parameters
+     * - `member_id`: Filter to officers for a specific member
+     * - `branch_id`: Filter to officers for a specific branch
+     * - `search`: Search across member name, office name, department name
+     * - `view_id`: System view ID (sys-officers-current, sys-officers-upcoming, etc.)
+     *
+     * @param CsvExportService $csvExportService Injected CSV export service
+     * @return \Cake\Http\Response|null|void Renders view or returns CSV response
+     */
+    public function gridData(CsvExportService $csvExportService)
+    {
+        // Determine context from query parameters
+        $memberId = $this->request->getQuery('member_id');
+        $branchId = $this->request->getQuery('branch_id');
+        $search = $this->request->getQuery('search');
+
+        // Authorization: check context-specific permissions
+        $newOfficer = $this->Officers->newEmptyEntity();
+        $context = null;
+        if ($memberId) {
+            $newOfficer->member_id = (int)$memberId;
+            $this->Authorization->authorize($newOfficer, 'memberOfficers');
+            $context = 'member';
+        } elseif ($branchId) {
+            $newOfficer->branch_id = (int)$branchId;
+            $this->Authorization->authorize($newOfficer, 'branchOfficers');
+            $context = 'branch';
+        } else {
+            $this->Authorization->skipAuthorization();
+        }
+
+        // Get system views for temporal/warrant filtering with context-specific columns
+        $systemViews = $this->getOfficerSystemViews($context);
+
+        // Build base query with required associations
+        $baseQuery = $this->Officers->find()
+            ->contain([
+                'Members' => function ($q) {
+                    return $q->select(['id', 'sca_name']);
+                },
+                'Offices' => function ($q) {
+                    return $q->select(['id', 'name', 'requires_warrant', 'deputy_to_id']);
+                },
+                'Offices.Departments' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+                'Branches' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+                'CurrentWarrants' => function ($q) {
+                    return $q->select(['id', 'start_on', 'expires_on', 'entity_id']);
+                },
+                'PendingWarrants' => function ($q) {
+                    return $q->select(['id', 'start_on', 'expires_on', 'entity_id']);
+                },
+                'RevokedBy' => function ($q) {
+                    return $q->select(['id', 'sca_name']);
+                },
+            ]);
+
+        // Apply context filters
+        if ($memberId) {
+            $baseQuery->where(['Officers.member_id' => (int)$memberId]);
+        }
+        if ($branchId) {
+            $baseQuery->where(['Officers.branch_id' => (int)$branchId]);
+        }
+
+        // Apply special character search (Þ/th handling for SCA names)
+        if (!empty($search)) {
+            $nsearch = str_replace("Þ", "th", $search);
+            $nsearch = str_replace("þ", "th", $nsearch);
+            $usearch = str_replace("th", "Þ", $search);
+            $usearch = str_replace("TH", "Þ", $usearch);
+            $usearch = str_replace("Th", "Þ", $usearch);
+
+            $baseQuery->where([
+                'OR' => [
+                    ['Members.sca_name LIKE' => '%' . $search . '%'],
+                    ['Members.sca_name LIKE' => '%' . $nsearch . '%'],
+                    ['Members.sca_name LIKE' => '%' . $usearch . '%'],
+                    ['Offices.name LIKE' => '%' . $search . '%'],
+                    ['Offices.name LIKE' => '%' . $nsearch . '%'],
+                    ['Offices.name LIKE' => '%' . $usearch . '%'],
+                    ['Departments.name LIKE' => '%' . $search . '%'],
+                    ['Departments.name LIKE' => '%' . $nsearch . '%'],
+                    ['Departments.name LIKE' => '%' . $usearch . '%'],
+                ],
+            ]);
+        }
+
+        // Build query callback for system view processing
+        $queryCallback = $this->buildOfficerQueryCallback();
+
+        // Determine frame ID based on context
+        $frameId = 'officers-grid';
+        if ($memberId) {
+            $frameId = 'member-officers-grid';
+        } elseif ($branchId) {
+            $frameId = 'branch-officers-grid';
+        }
+
+        // Process using DataverseGridTrait
+        $result = $this->processDataverseGrid([
+            'gridKey' => 'Officers.Officers.index.main',
+            'gridColumnsClass' => \App\KMP\GridColumns\OfficersGridColumns::class,
+            'baseQuery' => $baseQuery,
+            'tableName' => 'Officers',
+            'defaultSort' => ['Officers.start_on' => 'DESC'],
+            'defaultPageSize' => 25,
+            'systemViews' => $systemViews,
+            'defaultSystemView' => 'sys-officers-current',
+            'queryCallback' => $queryCallback,
+            'showAllTab' => false,
+            'canAddViews' => false,
+            'canFilter' => true,
+            'canExportCsv' => true,
+        ]);
+
+        // Handle CSV export
+        if (!empty($result['isCsvExport'])) {
+            return $this->handleCsvExport($result, $csvExportService, 'officers');
+        }
+
+        // Get row actions from grid columns
+        $rowActions = \App\KMP\GridColumns\OfficersGridColumns::getRowActions();
+
+        // Set view variables
+        $this->set([
+            'officers' => $result['data'],
+            'gridState' => $result['gridState'],
+            'columns' => $result['columnsMetadata'],
+            'visibleColumns' => $result['visibleColumns'],
+            'searchableColumns' => \App\KMP\GridColumns\OfficersGridColumns::getSearchableColumns(),
+            'dropdownFilterColumns' => $result['dropdownFilterColumns'],
+            'filterOptions' => $result['filterOptions'],
+            'currentFilters' => $result['currentFilters'],
+            'currentSearch' => $result['currentSearch'],
+            'currentView' => $result['currentView'],
+            'availableViews' => $result['availableViews'],
+            'gridKey' => $result['gridKey'],
+            'currentSort' => $result['currentSort'],
+            'currentMember' => $result['currentMember'],
+            'memberId' => $memberId,
+            'branchId' => $branchId,
+            'rowActions' => $rowActions,
+        ]);
+
+        // Determine which template to render based on Turbo-Frame header
+        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
+
+        // Use main app's element templates (not plugin templates)
+        $this->viewBuilder()->setPlugin(null);
+
+        if ($turboFrame === $frameId . '-table') {
+            // Inner frame request - render table data only
+            $this->set('data', $result['data']);
+            $this->set('tableFrameId', $frameId . '-table');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplatePath('element');
+            $this->viewBuilder()->setTemplate('dv_grid_table');
+        } else {
+            // Outer frame request (or no frame) - render toolbar + table frame
+            $this->set('data', $result['data']);
+            $this->set('frameId', $frameId);
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplatePath('element');
+            $this->viewBuilder()->setTemplate('dv_grid_content');
+        }
+    }
+
+    /**
+     * Get system views for officer temporal filtering
+     *
+     * Provides predefined views for filtering officers by temporal status:
+     * - Current: Officers with active assignments
+     * - Upcoming: Officers with future start dates
+     * - Previous: Officers with past/expired assignments
+     *
+     * Column configuration varies by context:
+     * - Member context: Hides member_sca_name (redundant), shows reports_to_list
+     * - Branch context: Hides branch_name (redundant), shows reports_to_list
+     * - Index context: Shows all relevant columns
+     *
+     * @param string|null $context 'member', 'branch', or null for index
+     * @return array<string, array<string, mixed>>
+     */
+    protected function getOfficerSystemViews(?string $context = null): array
+    {
+        $today = Date::today();
+        $todayString = $today->format('Y-m-d');
+
+        // Define column configurations based on context
+        // Current/Upcoming: Office, Branch, Contact, Warrant, Start Date, End Date, Reports To
+        // Previous: Office, Branch, Start Date, End Date, Reason
+        $currentUpcomingColumns = match ($context) {
+            'member' => ['office_name', 'branch_name', 'email_address', 'warrant_state', 'start_on', 'expires_on', 'reports_to_list'],
+            'branch' => ['member_sca_name', 'office_name', 'email_address', 'warrant_state', 'start_on', 'expires_on', 'reports_to_list'],
+            default => ['member_sca_name', 'office_name', 'branch_name', 'email_address', 'warrant_state', 'start_on', 'expires_on', 'status'],
+        };
+
+        $previousColumns = match ($context) {
+            'member' => ['office_name', 'branch_name', 'start_on', 'expires_on', 'revoked_reason'],
+            'branch' => ['member_sca_name', 'office_name', 'start_on', 'expires_on', 'revoked_reason'],
+            default => ['member_sca_name', 'office_name', 'branch_name', 'start_on', 'expires_on', 'revoked_reason', 'status'],
+        };
+
+        return [
+            'sys-officers-current' => [
+                'id' => 'sys-officers-current',
+                'name' => __('Current'),
+                'description' => __('Active officer assignments'),
+                'canManage' => false,
+                'config' => [
+                    'filters' => [
+                        ['field' => 'status', 'operator' => 'eq', 'value' => Officer::CURRENT_STATUS],
+                    ],
+                    'columns' => $currentUpcomingColumns,
+                ],
+            ],
+            'sys-officers-upcoming' => [
+                'id' => 'sys-officers-upcoming',
+                'name' => __('Upcoming'),
+                'description' => __('Future officer assignments'),
+                'canManage' => false,
+                'config' => [
+                    'filters' => [
+                        ['field' => 'status', 'operator' => 'eq', 'value' => Officer::UPCOMING_STATUS],
+                    ],
+                    'columns' => $currentUpcomingColumns,
+                ],
+            ],
+            'sys-officers-previous' => [
+                'id' => 'sys-officers-previous',
+                'name' => __('Previous'),
+                'description' => __('Past officer assignments'),
+                'canManage' => false,
+                'config' => [
+                    'filters' => [
+                        ['field' => 'status', 'operator' => 'in', 'value' => [
+                            Officer::EXPIRED_STATUS,
+                            Officer::DEACTIVATED_STATUS,
+                            Officer::RELEASED_STATUS,
+                            Officer::REPLACED_STATUS,
+                        ]],
+                    ],
+                    'columns' => $previousColumns,
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * Build query callback for officer system view processing
+     *
+     * Adds the necessary containments and display conditions based on the
+     * selected system view. Reuses the existing addDisplayConditionsAndFields
+     * pattern from the Officers table.
+     *
+     * @return callable
+     */
+    protected function buildOfficerQueryCallback(): callable
+    {
+        return function ($query, $selectedSystemView) {
+            // Determine the display type based on the selected view
+            $viewId = $selectedSystemView['id'] ?? 'sys-officers-current';
+
+            if ($viewId === 'sys-officers-previous') {
+                $type = 'previous';
+            } elseif ($viewId === 'sys-officers-upcoming') {
+                $type = 'upcoming';
+            } else {
+                $type = 'current';
+            }
+
+            // Add reporting relationships for current/upcoming views
+            if ($type === 'current' || $type === 'upcoming') {
+                $query->contain([
+                    'ReportsToCurrently' => function ($q) {
+                        return $q
+                            ->contain([
+                                'Members' => function ($q) {
+                                    return $q->select(['id', 'sca_name']);
+                                },
+                                'Offices' => function ($q) {
+                                    return $q->select(['id', 'name']);
+                                },
+                            ])
+                            ->select(['id', 'office_id', 'branch_id', 'member_id', 'email_address']);
+                    },
+                    'DeputyToCurrently' => function ($q) {
+                        return $q
+                            ->contain([
+                                'Members' => function ($q) {
+                                    return $q->select(['id', 'sca_name']);
+                                },
+                                'Offices' => function ($q) {
+                                    return $q->select(['id', 'name']);
+                                },
+                            ])
+                            ->select(['id', 'office_id', 'branch_id', 'member_id', 'email_address']);
+                    },
+                ]);
+            }
+
+            return $query;
+        };
     }
 
     /**

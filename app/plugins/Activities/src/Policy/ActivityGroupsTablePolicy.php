@@ -195,4 +195,18 @@ use App\Policy\BasePolicy;
  * @see \Activities\Controller\ActivityGroupsController For group management interface authorization
  * @see \App\KMP\PermissionsLoader For core permission validation and warrant checking
  */
-class ActivityGroupsTablePolicy extends BasePolicy {}
+class ActivityGroupsTablePolicy extends BasePolicy
+{
+    /**
+     * Check if user can access gridData scope (Dataverse grid data endpoint)
+     * Uses the same authorization scope as the standard index action
+     *
+     * @param \App\KMP\KmpIdentityInterface $user User
+     * @param mixed $query Query
+     * @return mixed
+     */
+    public function scopeGridData(KmpIdentityInterface $user, mixed $query): mixed
+    {
+        return $this->scopeIndex($user, $query);
+    }
+}

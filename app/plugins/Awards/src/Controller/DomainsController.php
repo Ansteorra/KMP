@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Awards\Controller;
 
+use App\Controller\DataverseGridTrait;
+
 /**
  * Award Domains Management Controller
  *
@@ -65,6 +67,7 @@ namespace Awards\Controller;
  */
 class DomainsController extends AppController
 {
+    use DataverseGridTrait;
     /**
      * Initialize Controller Components and Authorization
      *
@@ -98,7 +101,7 @@ class DomainsController extends AppController
     public function initialize(): void
     {
         parent::initialize();
-        $this->Authorization->authorizeModel("index", "add");
+        $this->Authorization->authorizeModel("index", "add", "gridData");
     }
 
     /**
@@ -139,16 +142,83 @@ class DomainsController extends AppController
      * @see \Awards\Policy\DomainsTablePolicy::canIndex()
      * @since 4.3.0
      */
-    public function index()
+    public function index(): void
     {
-        $query = $this->Domains->find();
-        $domains = $this->paginate($query, [
-            'order' => [
-                'name' => 'asc',
-            ]
+        $this->set('user', $this->request->getAttribute('identity'));
+    }
+
+    /**
+     * Provide grid data for Domains listing.
+     *
+     * This method serves data for the Dataverse grid component via Turbo Frame requests.
+     * Handles filtering, sorting, pagination, and CSV export.
+     *
+     * @param \App\Services\CsvExportService $csvExportService Injected CSV export service
+     * @return \Cake\Http\Response|null|void Renders view or returns CSV response
+     */
+    public function gridData(\App\Services\CsvExportService $csvExportService)
+    {
+        // Build base query
+        $baseQuery = $this->Domains->find();
+
+        // Use unified trait for grid processing
+        $result = $this->processDataverseGrid([
+            'gridKey' => 'Awards.Domains.index.main',
+            'gridColumnsClass' => \App\KMP\GridColumns\DomainsGridColumns::class,
+            'baseQuery' => $baseQuery,
+            'tableName' => 'Domains',
+            'defaultSort' => ['Domains.name' => 'asc'],
+            'defaultPageSize' => 25,
+            'showAllTab' => false,
+            'canAddViews' => false,
+            'canFilter' => true,
+            'canExportCsv' => true,
         ]);
 
-        $this->set(compact("domains"));
+        // Handle CSV export
+        if (!empty($result['isCsvExport'])) {
+            return $this->handleCsvExport($result, $csvExportService, 'award-domains');
+        }
+
+        // Set view variables
+        $this->set([
+            'domains' => $result['data'],
+            'gridState' => $result['gridState'],
+            'columns' => $result['columnsMetadata'],
+            'visibleColumns' => $result['visibleColumns'],
+            'searchableColumns' => \App\KMP\GridColumns\DomainsGridColumns::getSearchableColumns(),
+            'dropdownFilterColumns' => $result['dropdownFilterColumns'],
+            'filterOptions' => $result['filterOptions'],
+            'currentFilters' => $result['currentFilters'],
+            'currentSearch' => $result['currentSearch'],
+            'currentView' => $result['currentView'],
+            'availableViews' => $result['availableViews'],
+            'gridKey' => $result['gridKey'],
+            'currentSort' => $result['currentSort'],
+            'currentMember' => $result['currentMember'],
+        ]);
+
+        // Determine which template to render based on Turbo-Frame header
+        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
+
+        // Use main app's element templates (not plugin templates)
+        $this->viewBuilder()->setPlugin(null);
+
+        if ($turboFrame === 'domains-grid-table') {
+            // Inner frame request - render table data only
+            $this->set('data', $result['data']);
+            $this->set('tableFrameId', 'domains-grid-table');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplatePath('element');
+            $this->viewBuilder()->setTemplate('dv_grid_table');
+        } else {
+            // Outer frame request (or no frame) - render toolbar + table frame
+            $this->set('data', $result['data']);
+            $this->set('frameId', 'domains-grid');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplatePath('element');
+            $this->viewBuilder()->setTemplate('dv_grid_content');
+        }
     }
 
     /**

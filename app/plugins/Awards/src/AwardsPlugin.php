@@ -161,7 +161,7 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
             }
         );
 
-        $currentConfigVersion = "25.01.11.b"; // update this each time you change the config
+        $currentConfigVersion = "25.11.30.a"; // DVGrid migration - retiring Kanban board
 
         $configVersion = StaticHelpers::getAppSetting("Awards.configVersion", "0.0.0", null, true);
         if ($configVersion != $currentConfigVersion) {
@@ -257,7 +257,6 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
                     ],
                 ],
                 "Scheduled" => [
-                    "Kanban Popup" => "selectEvent",
                     "Required" => [
                         "planToGiveEventTarget"
                     ],
@@ -274,7 +273,6 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
                     ],
                 ],
                 "Given" => [
-                    "Kanban Popup" => "selectGivenDate",
                     "Required" => [
                         "planToGiveEventTarget",
                         "givenDateTarget"

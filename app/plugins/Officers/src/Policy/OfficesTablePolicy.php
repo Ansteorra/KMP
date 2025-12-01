@@ -8,6 +8,8 @@ use App\Model\Entity\DepartmentsTable;
 use App\KMP\KmpIdentityInterface;
 use App\Policy\BasePolicy;
 
+use Cake\ORM\Query\SelectQuery;
+
 /**
  * Offices Table Authorization Policy
  * 
@@ -175,4 +177,18 @@ use App\Policy\BasePolicy;
  * @version 2.0.0
  * @since 1.0.0
  */
-class OfficesTablePolicy extends BasePolicy {}
+class OfficesTablePolicy extends BasePolicy
+{
+    /**
+     * Apply authorization scope to grid data queries
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The current user
+     * @param \Cake\ORM\Query\SelectQuery $query The query to scope
+     * @return \Cake\ORM\Query\SelectQuery
+     */
+    public function scopeGridData(KmpIdentityInterface $user, SelectQuery $query): SelectQuery
+    {
+        // For offices, we can delegate to the index scope
+        return $this->scopeIndex($user, $query);
+    }
+}

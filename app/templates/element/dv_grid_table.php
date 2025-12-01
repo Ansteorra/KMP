@@ -10,7 +10,10 @@
  * @var iterable $data The data to display (e.g., $members, $warrants)
  * @var array $gridState Complete grid state object
  * @var string $tableFrameId Table turbo frame ID (e.g., 'members-grid-table')
+ * @var array $rowActions Row action configurations (optional)
  */
+
+$rowActions = $rowActions ?? [];
 ?>
 <turbo-frame id="<?= h($tableFrameId) ?>">
     <!-- Grid State (JSON) - Read by grid-view-controller on load -->
@@ -28,6 +31,7 @@
         'controllerName' => 'grid-view',
         'primaryKey' => $gridState['config']['primaryKey'],
         'gridKey' => $gridState['config']['gridKey'],
+        'rowActions' => $rowActions,
     ]) ?>
 
     <!-- Pagination -->

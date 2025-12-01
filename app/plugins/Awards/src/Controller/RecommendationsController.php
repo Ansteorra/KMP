@@ -6,8 +6,10 @@ namespace Awards\Controller;
 
 use Awards\Controller\AppController;
 use Awards\Model\Entity\Recommendation;
+use Awards\KMP\GridColumns\RecommendationsGridColumns;
 use Cake\I18n\DateTime;
 use App\KMP\StaticHelpers;
+use App\Controller\DataverseGridTrait;
 use Authorization\Exception\ForbiddenException;
 use Cake\Log\Log;
 use Cake\ORM\TableRegistry;
@@ -124,6 +126,8 @@ use Cake\Error\Debugger;
  */
 class RecommendationsController extends AppController
 {
+    use DataverseGridTrait;
+
     /**
      * Configure authentication requirements before action execution
      * 
@@ -243,41 +247,724 @@ class RecommendationsController extends AppController
      * @return \Cake\Http\Response|null|void Renders view template or redirects on error
      * 
      * @see table() For tabular data display implementation
-     * @see board() For kanban board visualization
+     * @see board() For kanban board visualization (deprecated)
+     * @see gridData() For the new Dataverse grid data endpoint
      * @see \App\KMP\StaticHelpers::getAppSetting() For configuration loading
      */
     public function index(): ?\Cake\Http\Response
     {
-        $view = $this->request->getQuery('view') ?? 'Index';
-        $status = $this->request->getQuery('status') ?? 'All';
-
         $emptyRecommendation = $this->Recommendations->newEmptyEntity();
-        $queryArgs = $this->request->getQuery();
         $user = $this->request->getAttribute('identity');
-        $user->authorizeWithArgs($emptyRecommendation, 'index', $view, $status, $queryArgs);
+        $this->Authorization->authorize($emptyRecommendation, 'index');
 
-        try {
-            if ($view && $view !== 'Index') {
-                try {
-                    $pageConfig = StaticHelpers::getAppSetting("Awards.ViewConfig." . $view);
-                } catch (\Exception $e) {
-                    Log::debug('View config not found for ' . $view . ': ' . $e->getMessage());
-                    $pageConfig = StaticHelpers::getAppSetting("Awards.ViewConfig.Default");
+        // The new index uses dv_grid with lazy loading - no need for complex config
+        // Just render the page, the grid will load data via gridData() action
+        return null;
+    }
+
+    /**
+     * Grid Data method - provides data for the Dataverse grid
+     *
+     * This method handles the AJAX requests from the dv_grid element, providing
+     * recommendation data with proper filtering, sorting, pagination, and authorization.
+     * It supports status-based system views and permission-based state filtering.
+     *
+     * @param CsvExportService $csvExportService Injected CSV export service
+     * @return \Cake\Http\Response|null|void Renders view or returns CSV response
+     */
+    public function gridData(CsvExportService $csvExportService)
+    {
+        $emptyRecommendation = $this->Recommendations->newEmptyEntity();
+        $this->Authorization->authorize($emptyRecommendation, 'index');
+
+        // Check if user can view hidden states
+        $user = $this->request->getAttribute('identity');
+        $canViewHidden = $user->checkCan('ViewHidden', $emptyRecommendation);
+
+        // Build base query with containments
+        $baseQuery = $this->Recommendations->find()
+            ->contain([
+                'Requesters' => function ($q) {
+                    return $q->select(['id', 'sca_name']);
+                },
+                'Members' => function ($q) {
+                    return $q->select(['id', 'sca_name', 'title', 'pronouns', 'pronunciation']);
+                },
+                'Branches' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+                'Awards' => function ($q) {
+                    return $q->select(['id', 'abbreviation', 'branch_id']);
+                },
+                'Awards.Domains' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+                'Gatherings' => function ($q) {
+                    return $q->select(['id', 'name', 'start_date', 'end_date']);
+                },
+                'Notes' => function ($q) {
+                    return $q->select(['id', 'entity_id', 'subject', 'body', 'created']);
+                },
+                'Notes.Authors' => function ($q) {
+                    return $q->select(['id', 'sca_name']);
+                },
+                'AssignedGathering' => function ($q) {
+                    return $q->select(['id', 'name']);
                 }
-            } else {
-                $pageConfig = StaticHelpers::getAppSetting("Awards.ViewConfig.Default");
-            }
+            ]);
 
-            if ($pageConfig['board']['use']) {
-                $pageConfig['board']['use'] = $user->checkCan('UseBoard', $emptyRecommendation, $status, $view);
+        // Apply hidden state filter if user doesn't have permission
+        if (!$canViewHidden) {
+            $hiddenStates = RecommendationsGridColumns::getHiddenStates();
+            if (!empty($hiddenStates)) {
+                $baseQuery->where(['Recommendations.state NOT IN' => $hiddenStates]);
             }
+        }
 
-            $this->set(compact('view', 'status', 'pageConfig'));
-            return null;
-        } catch (\Exception $e) {
-            Log::error('Error in recommendations index: ' . $e->getMessage());
-            $this->Flash->error(__('An error occurred while loading recommendations.'));
-            return $this->redirect(['controller' => 'Pages', 'action' => 'display', 'home']);
+        // Apply authorization scope
+        $baseQuery = $this->Authorization->applyScope($baseQuery, 'index');
+
+        // Get system views with proper state filter options
+        $systemViews = RecommendationsGridColumns::getSystemViews();
+
+        // Update state column filter options based on permissions
+        $stateFilterOptions = RecommendationsGridColumns::getStateFilterOptions($canViewHidden);
+
+        // Use unified trait for grid processing
+        $result = $this->processDataverseGrid([
+            'gridKey' => 'Awards.Recommendations.index.main',
+            'gridColumnsClass' => RecommendationsGridColumns::class,
+            'baseQuery' => $baseQuery,
+            'tableName' => 'Recommendations',
+            'defaultSort' => ['Recommendations.created' => 'desc'],
+            'defaultPageSize' => 25,
+            'systemViews' => $systemViews,
+            'defaultSystemView' => 'sys-recs-all',
+            'showAllTab' => true,
+            'canAddViews' => false,
+            'canFilter' => true,
+            'canExportCsv' => true,
+        ]);
+
+        // Post-process data to add computed fields for display
+        $recommendations = $result['data'];
+        foreach ($recommendations as $recommendation) {
+            // Build OP links HTML
+            $recommendation->op_links = $this->buildOpLinksHtml($recommendation);
+
+            // Build gatherings HTML (member attendance)
+            $recommendation->gatherings = $this->buildGatheringsHtml($recommendation);
+
+            // Build notes HTML
+            $recommendation->notes = $this->buildNotesHtml($recommendation);
+
+            // Build reason HTML with truncation
+            $recommendation->reason = $this->buildReasonHtml($recommendation);
+        }
+
+        // Handle CSV export
+        if (!empty($result['isCsvExport'])) {
+            return $this->handleRecommendationsCsvExport($result, $csvExportService, $recommendations);
+        }
+
+        // Get row actions from grid columns
+        $rowActions = RecommendationsGridColumns::getRowActions();
+
+        // Merge dynamic state filter options
+        $columns = $result['columnsMetadata'];
+        if (isset($columns['state'])) {
+            $columns['state']['filterOptions'] = $stateFilterOptions;
+        }
+
+        // Set view variables
+        $this->set([
+            'recommendations' => $recommendations,
+            'data' => $recommendations,
+            'rowActions' => $rowActions,
+            'gridState' => $result['gridState'],
+            'columns' => $columns,
+            'visibleColumns' => $result['visibleColumns'],
+            'searchableColumns' => RecommendationsGridColumns::getSearchableColumns(),
+            'dropdownFilterColumns' => $result['dropdownFilterColumns'],
+            'filterOptions' => $result['filterOptions'],
+            'currentFilters' => $result['currentFilters'],
+            'currentSearch' => $result['currentSearch'],
+            'currentView' => $result['currentView'],
+            'availableViews' => $result['availableViews'],
+            'gridKey' => $result['gridKey'],
+            'currentSort' => $result['currentSort'],
+            'currentMember' => $result['currentMember'],
+            'canViewHidden' => $canViewHidden,
+        ]);
+
+        // Determine which template to render based on Turbo-Frame header
+        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
+
+        if ($turboFrame === 'recommendations-grid-table') {
+            // Inner frame request - render table data only
+            $this->set('tableFrameId', 'recommendations-grid-table');
+            $this->viewBuilder()->setPlugin(null);
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplatePath('element');
+            $this->viewBuilder()->setTemplate('dv_grid_table');
+        } else {
+            // Outer frame request (or no frame) - render toolbar + table frame
+            $this->set('frameId', 'recommendations-grid');
+            $this->viewBuilder()->setPlugin(null);
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplatePath('element');
+            $this->viewBuilder()->setTemplate('dv_grid_content');
+        }
+    }
+
+    /**
+     * Build OP (Order of Precedence) links HTML for a recommendation
+     *
+     * @param \Awards\Model\Entity\Recommendation $recommendation The recommendation entity
+     * @return string HTML string with OP links
+     */
+    protected function buildOpLinksHtml($recommendation): string
+    {
+        if (!$recommendation->member) {
+            return '';
+        }
+
+        $links = [];
+        $externalLinks = $recommendation->member->publicLinks();
+        if ($externalLinks) {
+            foreach ($externalLinks as $name => $link) {
+                $links[] = '<a href="' . h($link) . '" target="_blank" title="' . h($name) . '">' .
+                    '<i class="bi bi-box-arrow-up-right"></i></a>';
+            }
+        }
+
+        return implode(' ', $links);
+    }
+
+    /**
+     * Build gatherings HTML showing member attendance as comma-separated list
+     *
+     * Shows up to 3 gatherings, with a "more" link to expand if there are more.
+     *
+     * @param \Awards\Model\Entity\Recommendation $recommendation The recommendation entity
+     * @return string HTML string with gathering information
+     */
+    protected function buildGatheringsHtml($recommendation): string
+    {
+        if (empty($recommendation->gatherings)) {
+            return '';
+        }
+
+        $gatherings = $recommendation->gatherings;
+        $total = count($gatherings);
+        $maxVisible = 3;
+
+        // Build list of gathering names
+        $names = [];
+        foreach ($gatherings as $gathering) {
+            $names[] = h($gathering->name);
+        }
+
+        if ($total <= $maxVisible) {
+            // Show all as comma-separated list
+            return implode(', ', $names);
+        }
+
+        // Show first 3 with expandable "more"
+        $visibleNames = array_slice($names, 0, $maxVisible);
+        $hiddenNames = array_slice($names, $maxVisible);
+        $hiddenCount = count($hiddenNames);
+
+        $uniqueId = 'gatherings-' . $recommendation->id;
+        $html = '<span class="gatherings-list">';
+        $html .= implode(', ', $visibleNames);
+        $html .= '<span id="' . $uniqueId . '-hidden" style="display:none;">, ' . implode(', ', $hiddenNames) . '</span>';
+        $html .= ' <a href="#" class="text-primary small" onclick="';
+        $html .= "var el=document.getElementById('" . $uniqueId . "-hidden');";
+        $html .= "var link=this;";
+        $html .= "if(el.style.display==='none'){el.style.display='inline';link.textContent='less';}";
+        $html .= "else{el.style.display='none';link.textContent='+" . $hiddenCount . " more';}";
+        $html .= 'return false;">+' . $hiddenCount . ' more</a>';
+        $html .= '</span>';
+
+        return $html;
+    }
+
+    /**
+     * Build notes HTML for recommendation with popover showing all notes
+     *
+     * Displays note count with a popover button that shows all notes when clicked.
+     *
+     * @param \Awards\Model\Entity\Recommendation $recommendation The recommendation entity
+     * @return string HTML string with notes count and popover
+     */
+    protected function buildNotesHtml($recommendation): string
+    {
+        if (empty($recommendation->notes)) {
+            return '';
+        }
+
+        $count = count($recommendation->notes);
+        if ($count === 0) {
+            return '';
+        }
+
+        // Build popover title with note count
+        $title = $count === 1 ? '1 Note' : $count . ' Notes';
+
+        // Build popover content with header containing title and close button
+        $popoverContent = '<div class="popover-header-bar d-flex justify-content-between align-items-center border-bottom pb-2 mb-2">';
+        $popoverContent .= '<strong>' . h($title) . '</strong>';
+        $popoverContent .= '<button type="button" class="btn-close popover-close-btn" aria-label="Close"></button>';
+        $popoverContent .= '</div>';
+
+        foreach ($recommendation->notes as $note) {
+            $authorName = $note->author ? $note->author->sca_name : __('Unknown');
+            $noteDate = $note->created ? $note->created->format('M j, Y g:i A') : '';
+            $popoverContent .= '<div class="border-bottom pb-2 mb-2">';
+            $popoverContent .= '<div class="fw-bold">' . htmlspecialchars($authorName, ENT_QUOTES, 'UTF-8') . '</div>';
+            $popoverContent .= '<div class="text-muted small">' . htmlspecialchars($noteDate, ENT_QUOTES, 'UTF-8') . '</div>';
+            $popoverContent .= '<div>' . nl2br(htmlspecialchars($note->body ?? '', ENT_QUOTES, 'UTF-8')) . '</div>';
+            $popoverContent .= '</div>';
+        }
+        // Remove trailing border from last note
+        $popoverContent = preg_replace('/border-bottom pb-2 mb-2([^"]*)">\s*$/', 'pb-0 mb-0$1">', $popoverContent);
+
+        $escapedContent = htmlspecialchars($popoverContent, ENT_QUOTES, 'UTF-8');
+
+        $html = '<button type="button" class="btn btn-link text-primary p-0" ';
+        $html .= 'style="font-size: inherit;" ';
+        $html .= 'data-controller="popover" ';
+        $html .= 'data-bs-toggle="popover" ';
+        $html .= 'data-bs-trigger="click" ';
+        $html .= 'data-bs-placement="auto" ';
+        $html .= 'data-bs-html="true" ';
+        $html .= 'data-bs-custom-class="notes-popover" ';
+        $html .= 'data-bs-content="' . $escapedContent . '" ';
+        $html .= 'data-turbo="false">';
+        $html .= '<span class="badge bg-secondary">' . $count . '</span>';
+        $html .= '</button>';
+
+        return $html;
+    }
+
+    /**
+     * Build reason HTML with popover for full text if it exceeds 50 characters
+     *
+     * Uses Bootstrap popover to show full text without expanding the column.
+     *
+     * @param \Awards\Model\Entity\Recommendation $recommendation The recommendation entity
+     * @return string HTML string with reason, truncated with popover if needed
+     */
+    protected function buildReasonHtml($recommendation): string
+    {
+        $reason = $recommendation->reason ?? '';
+        if ($reason === '') {
+            return '';
+        }
+
+        $maxLength = 50;
+        if (mb_strlen($reason) <= $maxLength) {
+            return h($reason);
+        }
+
+        // Truncate and add popover "more" button
+        // Using a button element to prevent Turbo from intercepting clicks
+        $truncated = mb_substr($reason, 0, $maxLength) . '...';
+
+        // Build popover content with header containing title and close button
+        $popoverContent = '<div class="popover-header-bar d-flex justify-content-between align-items-center border-bottom pb-2 mb-2">';
+        $popoverContent .= '<strong>' . __('Full Reason') . '</strong>';
+        $popoverContent .= '<button type="button" class="btn-close popover-close-btn" aria-label="Close"></button>';
+        $popoverContent .= '</div>';
+        $popoverContent .= '<div>' . htmlspecialchars($reason, ENT_QUOTES, 'UTF-8') . '</div>';
+        $escapedContent = htmlspecialchars($popoverContent, ENT_QUOTES, 'UTF-8');
+
+        $html = '<span class="reason-text">';
+        $html .= h($truncated);
+        $html .= ' <button type="button" class="btn btn-link text-primary small p-0 ms-1 align-baseline" ';
+        $html .= 'style="font-size: inherit; vertical-align: baseline;" ';
+        $html .= 'data-controller="popover" ';
+        $html .= 'data-bs-toggle="popover" ';
+        $html .= 'data-bs-trigger="click" ';
+        $html .= 'data-bs-placement="auto" ';
+        $html .= 'data-bs-html="true" ';
+        $html .= 'data-bs-custom-class="reason-popover" ';
+        $html .= 'data-bs-content="' . $escapedContent . '" ';
+        $html .= 'data-turbo="false" ';
+        $html .= 'tabindex="0">more</button>';
+        $html .= '</span>';
+
+        return $html;
+    }
+
+    /**
+     * Handle CSV export for recommendations with custom formatting
+     *
+     * @param array $result Grid result data
+     * @param CsvExportService $csvExportService CSV export service
+     * @param iterable $recommendations Recommendation entities
+     * @return \Cake\Http\Response CSV download response
+     */
+    protected function handleRecommendationsCsvExport(array $result, CsvExportService $csvExportService, iterable $recommendations): \Cake\Http\Response
+    {
+        $columns = $result['visibleColumns'];
+        $header = [];
+        $data = [];
+
+        // Build header based on visible columns
+        foreach ($columns as $columnKey) {
+            $columnMeta = $result['columnsMetadata'][$columnKey] ?? null;
+            if ($columnMeta && ($columnMeta['exportable'] ?? true) !== false) {
+                $header[] = $columnMeta['label'] ?? $columnKey;
+            }
+        }
+
+        // Build data rows
+        foreach ($recommendations as $rec) {
+            $row = [];
+            foreach ($columns as $columnKey) {
+                $columnMeta = $result['columnsMetadata'][$columnKey] ?? null;
+                if ($columnMeta && ($columnMeta['exportable'] ?? true) !== false) {
+                    $row[] = $this->formatExportColumn($rec, $columnKey);
+                }
+            }
+            $data[] = $row;
+        }
+
+        return $csvExportService->outputCsv(
+            $data,
+            filename: "recommendations.csv",
+            headers: $header
+        );
+    }
+
+    /**
+     * Grid Data for "Submitted By Member" context
+     *
+     * Provides recommendation data for recommendations submitted by a specific member.
+     * Used in the member profile's "Submitted Award Recs" tab.
+     *
+     * @param CsvExportService $csvExportService Injected CSV export service
+     * @param int|null $memberId The member ID whose submissions to show (-1 for current user)
+     * @return \Cake\Http\Response|null|void Renders view or returns CSV response
+     */
+    public function memberSubmittedRecsGridData(CsvExportService $csvExportService, ?int $memberId = null)
+    {
+        // Resolve member ID
+        if ($memberId === null || $memberId === -1) {
+            $memberId = $this->request->getAttribute('identity')->id;
+        }
+
+        $user = $this->request->getAttribute('identity');
+        $emptyRecommendation = $this->Recommendations->newEmptyEntity();
+
+        // Check permission - users can see their own submissions, or need ViewSubmittedByMember permission
+        if ($user->id != $memberId && !$user->checkCan('ViewSubmittedByMember', $emptyRecommendation)) {
+            throw new ForbiddenException(__('You do not have permission to view these recommendations.'));
+        }
+
+        // Build base query filtered by requester
+        $baseQuery = $this->Recommendations->find()
+            ->where(['Recommendations.requester_id' => $memberId])
+            ->contain([
+                'Members' => function ($q) {
+                    return $q->select(['id', 'sca_name']);
+                },
+                'Awards' => function ($q) {
+                    return $q->select(['id', 'abbreviation']);
+                },
+                'Gatherings' => function ($q) {
+                    return $q->select(['id', 'name', 'start_date', 'end_date']);
+                },
+            ]);
+
+        // Get system views for this context
+        $systemViews = RecommendationsGridColumns::getSubmittedByMemberViews();
+
+        // Use unified trait for grid processing
+        $result = $this->processDataverseGrid([
+            'gridKey' => 'Awards.Recommendations.memberSubmitted.' . $memberId,
+            'gridColumnsClass' => RecommendationsGridColumns::class,
+            'baseQuery' => $baseQuery,
+            'tableName' => 'Recommendations',
+            'defaultSort' => ['Recommendations.created' => 'desc'],
+            'defaultPageSize' => 15,
+            'systemViews' => $systemViews,
+            'defaultSystemView' => 'sys-recs-submitted-by',
+            'showAllTab' => false,
+            'canAddViews' => false,
+            'canFilter' => false,
+            'canExportCsv' => true,
+        ]);
+
+        // Post-process data
+        $recommendations = $result['data'];
+        foreach ($recommendations as $recommendation) {
+            $recommendation->gatherings = $this->buildGatheringsHtml($recommendation);
+            $recommendation->reason = $this->buildReasonHtml($recommendation);
+        }
+
+        // Handle CSV export
+        if (!empty($result['isCsvExport'])) {
+            return $this->handleRecommendationsCsvExport($result, $csvExportService, $recommendations);
+        }
+
+        // Set view variables
+        $this->set([
+            'recommendations' => $recommendations,
+            'data' => $recommendations,
+            'rowActions' => [],
+            'gridState' => $result['gridState'],
+            'columns' => $result['columnsMetadata'],
+            'visibleColumns' => $result['visibleColumns'],
+            'searchableColumns' => RecommendationsGridColumns::getSearchableColumns(),
+            'dropdownFilterColumns' => $result['dropdownFilterColumns'],
+            'filterOptions' => $result['filterOptions'],
+            'currentFilters' => $result['currentFilters'],
+            'currentSearch' => $result['currentSearch'],
+            'currentView' => $result['currentView'],
+            'availableViews' => $result['availableViews'],
+            'gridKey' => $result['gridKey'],
+            'currentSort' => $result['currentSort'],
+            'currentMember' => $result['currentMember'],
+        ]);
+
+        // Render grid content
+        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
+        $frameId = 'member-submitted-recs-grid-' . $memberId;
+
+        if ($turboFrame === $frameId . '-table') {
+            $this->set('tableFrameId', $frameId . '-table');
+            $this->viewBuilder()->setPlugin(null);
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplatePath('element');
+            $this->viewBuilder()->setTemplate('dv_grid_table');
+        } else {
+            $this->set('frameId', $frameId);
+            $this->viewBuilder()->setPlugin(null);
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplatePath('element');
+            $this->viewBuilder()->setTemplate('dv_grid_content');
+        }
+    }
+
+    /**
+     * Grid Data for "Recs For Member" context
+     *
+     * Provides recommendation data for recommendations about a specific member.
+     * Used in the member profile's "Recs For Member" tab.
+     *
+     * @param CsvExportService $csvExportService Injected CSV export service
+     * @param int|null $memberId The member ID whose received recommendations to show
+     * @return \Cake\Http\Response|null|void Renders view or returns CSV response
+     */
+    public function recsForMemberGridData(CsvExportService $csvExportService, ?int $memberId = null)
+    {
+        // Resolve member ID
+        if ($memberId === null || $memberId === -1) {
+            $memberId = $this->request->getAttribute('identity')->id;
+        }
+
+        $user = $this->request->getAttribute('identity');
+        $emptyRecommendation = $this->Recommendations->newEmptyEntity();
+
+        // Privacy: users cannot see recommendations about themselves unless they have ViewSubmittedForMember
+        if ($user->id == $memberId && !$user->checkCan('ViewSubmittedForMember', $emptyRecommendation)) {
+            throw new ForbiddenException(__('You do not have permission to view these recommendations.'));
+        }
+
+        // Build base query filtered by member (subject of recommendation)
+        $baseQuery = $this->Recommendations->find()
+            ->where(['Recommendations.member_id' => $memberId])
+            ->contain([
+                'Requesters' => function ($q) {
+                    return $q->select(['id', 'sca_name']);
+                },
+                'Awards' => function ($q) {
+                    return $q->select(['id', 'abbreviation']);
+                },
+                'Gatherings' => function ($q) {
+                    return $q->select(['id', 'name', 'start_date', 'end_date']);
+                },
+                'AssignedGathering' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+            ]);
+
+        // Apply authorization scope
+        $baseQuery = $this->Authorization->applyScope($baseQuery, 'index');
+
+        // Get system views for this context
+        $systemViews = RecommendationsGridColumns::getRecsForMemberViews();
+
+        // Use unified trait for grid processing
+        $result = $this->processDataverseGrid([
+            'gridKey' => 'Awards.Recommendations.forMember.' . $memberId,
+            'gridColumnsClass' => RecommendationsGridColumns::class,
+            'baseQuery' => $baseQuery,
+            'tableName' => 'Recommendations',
+            'defaultSort' => ['Recommendations.created' => 'desc'],
+            'defaultPageSize' => 15,
+            'systemViews' => $systemViews,
+            'defaultSystemView' => 'sys-recs-for-member',
+            'showAllTab' => false,
+            'canAddViews' => false,
+            'canFilter' => false,
+            'canExportCsv' => false,
+        ]);
+
+        // Post-process data
+        $recommendations = $result['data'];
+        foreach ($recommendations as $recommendation) {
+            $recommendation->gatherings = $this->buildGatheringsHtml($recommendation);
+            $recommendation->reason = $this->buildReasonHtml($recommendation);
+        }
+
+        // Set view variables
+        $this->set([
+            'recommendations' => $recommendations,
+            'data' => $recommendations,
+            'rowActions' => [],
+            'gridState' => $result['gridState'],
+            'columns' => $result['columnsMetadata'],
+            'visibleColumns' => $result['visibleColumns'],
+            'searchableColumns' => RecommendationsGridColumns::getSearchableColumns(),
+            'dropdownFilterColumns' => $result['dropdownFilterColumns'],
+            'filterOptions' => $result['filterOptions'],
+            'currentFilters' => $result['currentFilters'],
+            'currentSearch' => $result['currentSearch'],
+            'currentView' => $result['currentView'],
+            'availableViews' => $result['availableViews'],
+            'gridKey' => $result['gridKey'],
+            'currentSort' => $result['currentSort'],
+            'currentMember' => $result['currentMember'],
+        ]);
+
+        // Render grid content
+        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
+        $frameId = 'recs-for-member-grid-' . $memberId;
+
+        if ($turboFrame === $frameId . '-table') {
+            $this->set('tableFrameId', $frameId . '-table');
+            $this->viewBuilder()->setPlugin(null);
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplatePath('element');
+            $this->viewBuilder()->setTemplate('dv_grid_table');
+        } else {
+            $this->set('frameId', $frameId);
+            $this->viewBuilder()->setPlugin(null);
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplatePath('element');
+            $this->viewBuilder()->setTemplate('dv_grid_content');
+        }
+    }
+
+    /**
+     * Grid Data for "Gathering Awards" context
+     *
+     * Provides recommendation data for recommendations scheduled at a specific gathering.
+     * Used in the gathering detail's "Awards" tab.
+     *
+     * @param CsvExportService $csvExportService Injected CSV export service
+     * @param int|null $gatheringId The gathering ID whose scheduled recommendations to show
+     * @return \Cake\Http\Response|null|void Renders view or returns CSV response
+     */
+    public function gatheringAwardsGridData(CsvExportService $csvExportService, ?int $gatheringId = null)
+    {
+        if ($gatheringId === null) {
+            throw new \Cake\Http\Exception\BadRequestException(__('Gathering ID is required.'));
+        }
+
+        $user = $this->request->getAttribute('identity');
+
+        // Load gathering for permission check
+        $gatheringsTable = TableRegistry::getTableLocator()->get('Gatherings');
+        $gathering = $gatheringsTable->get($gatheringId);
+
+        // Check permission to view gathering recommendations
+        if (!$user->can('ViewGatheringRecommendations', 'Awards.Recommendations', $gathering)) {
+            throw new ForbiddenException(__('You do not have permission to view recommendations for this gathering.'));
+        }
+
+        // Build base query filtered by gathering
+        $baseQuery = $this->Recommendations->find()
+            ->where(['Recommendations.gathering_id' => $gatheringId])
+            ->contain([
+                'Members' => function ($q) {
+                    return $q->select(['id', 'sca_name']);
+                },
+                'Branches' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+                'Awards' => function ($q) {
+                    return $q->select(['id', 'abbreviation']);
+                },
+            ]);
+
+        // Get system views for this context
+        $systemViews = RecommendationsGridColumns::getGatheringAwardsViews();
+
+        // Use unified trait for grid processing
+        $result = $this->processDataverseGrid([
+            'gridKey' => 'Awards.Recommendations.gathering.' . $gatheringId,
+            'gridColumnsClass' => RecommendationsGridColumns::class,
+            'baseQuery' => $baseQuery,
+            'tableName' => 'Recommendations',
+            'defaultSort' => ['Recommendations.member_sca_name' => 'asc'],
+            'defaultPageSize' => 25,
+            'systemViews' => $systemViews,
+            'defaultSystemView' => 'sys-recs-gathering',
+            'showAllTab' => false,
+            'canAddViews' => false,
+            'canFilter' => false,
+            'canExportCsv' => true,
+        ]);
+
+        // Post-process data
+        $recommendations = $result['data'];
+
+        // Handle CSV export
+        if (!empty($result['isCsvExport'])) {
+            return $this->handleRecommendationsCsvExport($result, $csvExportService, $recommendations);
+        }
+
+        // Set view variables
+        $this->set([
+            'recommendations' => $recommendations,
+            'data' => $recommendations,
+            'rowActions' => RecommendationsGridColumns::getRowActions(),
+            'gridState' => $result['gridState'],
+            'columns' => $result['columnsMetadata'],
+            'visibleColumns' => $result['visibleColumns'],
+            'searchableColumns' => RecommendationsGridColumns::getSearchableColumns(),
+            'dropdownFilterColumns' => $result['dropdownFilterColumns'],
+            'filterOptions' => $result['filterOptions'],
+            'currentFilters' => $result['currentFilters'],
+            'currentSearch' => $result['currentSearch'],
+            'currentView' => $result['currentView'],
+            'availableViews' => $result['availableViews'],
+            'gridKey' => $result['gridKey'],
+            'currentSort' => $result['currentSort'],
+            'currentMember' => $result['currentMember'],
+        ]);
+
+        // Render grid content
+        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
+        $frameId = 'gathering-awards-grid-' . $gatheringId;
+
+        if ($turboFrame === $frameId . '-table') {
+            $this->set('tableFrameId', $frameId . '-table');
+            $this->viewBuilder()->setPlugin(null);
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplatePath('element');
+            $this->viewBuilder()->setTemplate('dv_grid_table');
+        } else {
+            $this->set('frameId', $frameId);
+            $this->viewBuilder()->setPlugin(null);
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplatePath('element');
+            $this->viewBuilder()->setTemplate('dv_grid_content');
         }
     }
 
@@ -807,7 +1494,9 @@ class RecommendationsController extends AppController
                     unset($data['member_public_id']);
                 }
 
-                $recommendation = $this->Recommendations->patchEntity($recommendation, $data);
+                $recommendation = $this->Recommendations->patchEntity($recommendation, $data, [
+                    'associated' => ['Gatherings']
+                ]);
                 $recommendation->requester_id = $user->id;
                 $recommendation->requester_sca_name = $user->sca_name;
                 $recommendation->contact_email = $user->email_address;
@@ -960,7 +1649,9 @@ class RecommendationsController extends AppController
                     unset($data['member_public_id']);
                 }
 
-                $recommendation = $this->Recommendations->patchEntity($recommendation, $data);
+                $recommendation = $this->Recommendations->patchEntity($recommendation, $data, [
+                    'associated' => ['Gatherings']
+                ]);
 
                 if ($recommendation->requester_id !== null) {
                     $requester = $this->Recommendations->Requesters->get(
@@ -1318,7 +2009,9 @@ class RecommendationsController extends AppController
                     unset($data['member_public_id']);
                 }
 
-                $recommendation = $this->Recommendations->patchEntity($recommendation, $data);
+                $recommendation = $this->Recommendations->patchEntity($recommendation, $data, [
+                    'associated' => ['Gatherings']
+                ]);
 
                 if ($recommendation->specialty === 'No specialties available') {
                     $recommendation->specialty = null;
@@ -3436,17 +4129,23 @@ class RecommendationsController extends AppController
             // Get attendance information for the member if member_id provided
             $attendanceMap = [];
             if ($memberId) {
-                $attendanceTable = $this->fetchTable('GatheringAttendances');
-                $attendances = $attendanceTable->find()
-                    ->where([
-                        'member_id' => $memberId,
-                        'deleted IS' => null
-                    ])
-                    ->select(['gathering_id', 'share_with_crown'])
-                    ->toArray();
+                // member_id is passed as a public_id, so we need to look up the internal ID
+                $membersTable = $this->fetchTable('Members');
+                $member = $membersTable->find('byPublicId', publicId: $memberId)->first();
 
-                foreach ($attendances as $attendance) {
-                    $attendanceMap[$attendance->gathering_id] = $attendance->share_with_crown;
+                if ($member) {
+                    $attendanceTable = $this->fetchTable('GatheringAttendances');
+                    $attendances = $attendanceTable->find()
+                        ->where([
+                            'member_id' => $member->id,
+                            'deleted IS' => null
+                        ])
+                        ->select(['gathering_id', 'share_with_crown'])
+                        ->toArray();
+
+                    foreach ($attendances as $attendance) {
+                        $attendanceMap[$attendance->gathering_id] = $attendance->share_with_crown;
+                    }
                 }
             }
 

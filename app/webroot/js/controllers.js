@@ -4532,21 +4532,30 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
     // State will be loaded when frame loads
     this.state = null;
 
+    // Bind handler once for use in addEventListener/removeEventListener
+    this.boundHandleFrameLoad = this.handleFrameLoad.bind(this);
+
     // Listen for Turbo Frame updates
-    document.addEventListener('turbo:frame-load', this.handleFrameLoad.bind(this));
+    document.addEventListener('turbo:frame-load', this.boundHandleFrameLoad);
   }
 
   /**
    * Cleanup when controller disconnects
    */
   disconnect() {
-    document.removeEventListener('turbo:frame-load', this.handleFrameLoad.bind(this));
+    document.removeEventListener('turbo:frame-load', this.boundHandleFrameLoad);
   }
 
   /**
    * Handle Turbo Frame load - update state from table frame
    */
   handleFrameLoad(event) {
+    // Only handle frames that belong to THIS grid controller
+    // Check if the event target is inside this controller's element
+    if (!this.element.contains(event.target)) {
+      return;
+    }
+
     // Listen for table frame loads (not the outer grid frame)
     if (!event.target.id || !event.target.id.endsWith('-table')) {
       return;
@@ -4591,7 +4600,7 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
    * Update filter pill display
    */
   updateFilterPills() {
-    const container = document.querySelector('[data-filter-pills-container]');
+    const container = this.element.querySelector('[data-filter-pills-container]');
     if (!container) return;
 
     // Clear existing pills
@@ -4787,7 +4796,7 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
    * Update search display
    */
   updateSearchDisplay() {
-    const container = document.querySelector('[data-filter-pills-container]');
+    const container = this.element.querySelector('[data-filter-pills-container]');
     if (!container) return;
 
     // Update search input value
@@ -4839,7 +4848,7 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
    */
   updateFilterCount() {
     // Find the filter button (it has a Filter icon and text)
-    const filterButton = Array.from(document.querySelectorAll('button')).find(btn => btn.textContent.includes('Filter') && btn.querySelector('.bi-funnel'));
+    const filterButton = Array.from(this.element.querySelectorAll('button')).find(btn => btn.textContent.includes('Filter') && btn.querySelector('.bi-funnel'));
     if (!filterButton) return;
 
     // Calculate active filter count (matching PHP logic)
@@ -4884,7 +4893,7 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
     if (!this.state.filters || !this.state.filters.active) return;
 
     // Get all filter checkboxes and sync their state
-    const checkboxes = document.querySelectorAll('[data-filter-column][type="checkbox"]');
+    const checkboxes = this.element.querySelectorAll('[data-filter-column][type="checkbox"]');
     checkboxes.forEach(checkbox => {
       const column = checkbox.dataset.filterColumn;
       const value = checkbox.value;
@@ -4907,11 +4916,11 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
    * Update view tabs from state
    */
   updateViewTabs() {
-    const container = document.querySelector('[data-view-tabs-container]');
+    const container = this.element.querySelector('[data-view-tabs-container]');
     if (!container) return;
 
     // Check if we should show "All" tab (marker present means DON'T show it)
-    const showAllTab = !document.querySelector('[data-no-all-tab]');
+    const showAllTab = !this.element.querySelector('[data-no-all-tab]');
 
     // Find the "Create View" button to preserve it
     const createViewBtn = container.querySelector('[data-action*="saveView"]')?.closest('li');
@@ -5108,7 +5117,7 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
    * Update filter navigation (left side filter tabs)
    */
   updateFilterNavigation() {
-    const container = document.querySelector('[data-filter-nav-container]');
+    const container = this.element.querySelector('[data-filter-nav-container]');
     if (!container) return;
     container.innerHTML = '';
     if (!this.state.filters.available) return;
@@ -5194,7 +5203,7 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
    * Update filter panels (right side filter options)
    */
   updateFilterPanels() {
-    const container = document.querySelector('[data-filter-panels-container]');
+    const container = this.element.querySelector('[data-filter-panels-container]');
     if (!container) return;
     container.innerHTML = '';
     if (!this.state.filters.available) return;
@@ -5366,7 +5375,7 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
    * Update clear filters footer visibility
    */
   updateClearFiltersFooter() {
-    const container = document.querySelector('[data-clear-filters-container]');
+    const container = this.element.querySelector('[data-clear-filters-container]');
     if (!container) return;
     const hasSearch = this.state.search && this.state.search.trim() !== '';
     const hasFilters = this.state.filters.active && Object.keys(this.state.filters.active).length > 0;
@@ -5381,7 +5390,7 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
    * Update column picker modal
    */
   updateColumnPicker() {
-    const container = document.querySelector('[data-column-list-container]');
+    const container = this.element.querySelector('[data-column-list-container]');
     if (!container) return;
     container.innerHTML = '';
     if (!this.state.columns || !this.state.columns.all) return;
@@ -5856,18 +5865,18 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
     const key = event.currentTarget.dataset.filterKey;
 
     // Hide all panels
-    document.querySelectorAll('[data-filter-panel]').forEach(panel => {
+    this.element.querySelectorAll('[data-filter-panel]').forEach(panel => {
       panel.classList.add('d-none');
     });
 
     // Show selected panel
-    const targetPanel = document.querySelector(`[data-filter-panel][data-filter-key="${key}"]`);
+    const targetPanel = this.element.querySelector(`[data-filter-panel][data-filter-key="${key}"]`);
     if (targetPanel) {
       targetPanel.classList.remove('d-none');
     }
 
     // Update nav item active states
-    document.querySelectorAll('[data-filter-nav-item]').forEach(item => {
+    this.element.querySelectorAll('[data-filter-nav-item]').forEach(item => {
       item.classList.remove('active');
     });
     event.currentTarget.classList.add('active');
@@ -5979,7 +5988,7 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
    */
   applyColumnChanges() {
     // Get visible columns from checkboxes in modal
-    const modal = document.querySelector(`#columnPickerModal-${this.state.config.gridKey.replace(/\./g, '\\.')}`);
+    const modal = this.element.querySelector(`#columnPickerModal-${this.state.config.gridKey.replace(/\./g, '\\.')}`);
     if (!modal) return;
     const visibleColumns = [];
 
@@ -6102,17 +6111,44 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
       // Frame navigation - find the table frame and update its src
       const tableFrame = this.element.querySelector('turbo-frame[id$="-table"]');
       if (tableFrame) {
-        // Convert the URL to use gridData action instead of index-dv
-        // Parse the URL
+        // Get the base grid-data URL from the frame's current src
+        // This handles embedded grids with custom endpoints like /members/roles-grid-data/1
+        const currentSrc = tableFrame.getAttribute('src') || tableFrame.src;
+        if (!currentSrc) {
+          console.warn('Table frame has no src attribute');
+          return;
+        }
+
+        // Parse current src to extract base URL and context parameters
+        const currentSrcUrl = new URL(currentSrc, window.location.origin);
+        const baseGridDataUrl = currentSrcUrl.pathname;
+
+        // Context parameters that must be preserved (e.g., member_id, branch_id)
+        // These identify which entity's data we're viewing
+        const contextParams = ['member_id', 'branch_id', 'gathering_id'];
+
+        // Parse the navigation URL to get new query params
         const urlObj = new URL(url, window.location.origin);
-        // Replace the last path segment with 'grid-data'
-        const pathParts = urlObj.pathname.split('/');
-        pathParts[pathParts.length - 1] = 'grid-data';
-        urlObj.pathname = pathParts.join('/');
-        const gridDataUrl = urlObj.pathname + urlObj.search;
+
+        // Build final URL starting with base path
+        const finalUrl = new URL(baseGridDataUrl, window.location.origin);
+
+        // Copy all params from the incoming URL
+        urlObj.searchParams.forEach((value, key) => {
+          finalUrl.searchParams.set(key, value);
+        });
+
+        // Preserve context params from original src if not in new URL
+        contextParams.forEach(param => {
+          if (currentSrcUrl.searchParams.has(param) && !finalUrl.searchParams.has(param)) {
+            finalUrl.searchParams.set(param, currentSrcUrl.searchParams.get(param));
+          }
+        });
+        const gridDataUrl = finalUrl.pathname + finalUrl.search;
 
         // Update browser history with the original URL (for page reload)
         window.history.pushState({}, '', url);
+
         // Navigate the frame by setting src to gridData URL
         tableFrame.src = gridDataUrl;
       } else {
@@ -8962,6 +8998,146 @@ if (!window.Controllers) {
   window.Controllers = {};
 }
 window.Controllers["permission-manage-policies"] = PermissionManagePolicies;
+
+/***/ }),
+
+/***/ "./assets/js/controllers/popover-controller.js":
+/*!*****************************************************!*\
+  !*** ./assets/js/controllers/popover-controller.js ***!
+  \*****************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+/* provided dependency */ var bootstrap = __webpack_require__(/*! bootstrap */ "./node_modules/bootstrap/dist/js/bootstrap.esm.js");
+
+
+/**
+ * Popover Controller
+ * 
+ * A reusable Stimulus controller for Bootstrap popovers with support for:
+ * - HTML content with close buttons
+ * - Custom allowList for sanitizer (allows button elements)
+ * - Auto-initialization on connect
+ * - Proper cleanup on disconnect
+ * 
+ * Usage:
+ * <button type="button" 
+ *     data-controller="popover"
+ *     data-bs-toggle="popover"
+ *     data-bs-trigger="click"
+ *     data-bs-html="true"
+ *     data-bs-content="<div>Content with <button class='btn-close popover-close-btn'></button></div>">
+ *     Open Popover
+ * </button>
+ */
+class PopoverController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static values = {
+    placement: {
+      type: String,
+      default: "auto"
+    },
+    trigger: {
+      type: String,
+      default: "click"
+    },
+    html: {
+      type: Boolean,
+      default: true
+    },
+    customClass: {
+      type: String,
+      default: ""
+    }
+  };
+  connect() {
+    this.initializePopover();
+    this.setupCloseButtonHandler();
+  }
+  disconnect() {
+    this.removeCloseButtonHandler();
+    this.destroyPopover();
+  }
+  initializePopover() {
+    // Custom allowList to permit button elements in popover content
+    const allowList = Object.assign({}, bootstrap.Popover.Default.allowList);
+    allowList.button = ['type', 'class', 'aria-label'];
+
+    // Get options from data attributes or use defaults
+    const options = {
+      allowList: allowList,
+      placement: this.placementValue,
+      trigger: this.triggerValue,
+      html: this.htmlValue
+    };
+    if (this.customClassValue) {
+      options.customClass = this.customClassValue;
+    }
+
+    // Initialize Bootstrap popover
+    this.popover = new bootstrap.Popover(this.element, options);
+  }
+  destroyPopover() {
+    if (this.popover) {
+      this.popover.dispose();
+      this.popover = null;
+    }
+  }
+  setupCloseButtonHandler() {
+    // Use bound method for proper removal later
+    this.handleCloseClick = this.handleCloseClick.bind(this);
+    document.addEventListener('click', this.handleCloseClick);
+  }
+  removeCloseButtonHandler() {
+    document.removeEventListener('click', this.handleCloseClick);
+  }
+  handleCloseClick(event) {
+    const closeBtn = event.target.closest('.popover .btn-close, .popover .popover-close-btn');
+    if (!closeBtn) return;
+    const popoverElement = closeBtn.closest('.popover');
+    if (!popoverElement) return;
+
+    // Check if this popover belongs to this controller's element
+    const popoverId = popoverElement.id;
+    if (this.element.getAttribute('aria-describedby') !== popoverId) return;
+
+    // Hide the popover
+    if (this.popover) {
+      this.popover.hide();
+    }
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  // Action to programmatically show the popover
+  show() {
+    if (this.popover) {
+      this.popover.show();
+    }
+  }
+
+  // Action to programmatically hide the popover
+  hide() {
+    if (this.popover) {
+      this.popover.hide();
+    }
+  }
+
+  // Action to toggle the popover
+  toggle() {
+    if (this.popover) {
+      this.popover.toggle();
+    }
+  }
+}
+
+// Register in global Controllers object
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["popover"] = PopoverController;
+/* harmony default export */ __webpack_exports__["default"] = (PopoverController);
 
 /***/ }),
 
@@ -51912,21 +52088,60 @@ class AwardsRecommendationAddForm extends _hotwired_stimulus__WEBPACK_IMPORTED_M
     }
     fetch(url, this.optionsForFetch()).then(response => response.json()).then(data => {
       if (data.gatherings) {
-        // Clear existing options
-        while (this.gatheringsTarget.options.length > 0) {
-          this.gatheringsTarget.options.remove(0);
+        // Get the container and find the fieldset/form-group within
+        const container = this.gatheringsTarget;
+
+        // Find and preserve the label
+        const label = container.querySelector('label.form-label, legend');
+        const labelText = label ? label.textContent : 'Gatherings/Events They May Attend:';
+
+        // Clear existing content
+        container.innerHTML = '';
+
+        // Rebuild with new checkboxes
+        if (data.gatherings.length > 0) {
+          // Add the label back
+          const newLabel = document.createElement('label');
+          newLabel.className = 'form-label';
+          newLabel.textContent = labelText;
+          container.appendChild(newLabel);
+
+          // Add hidden input for empty submission
+          const hiddenInput = document.createElement('input');
+          hiddenInput.type = 'hidden';
+          hiddenInput.name = 'gatherings[_ids]';
+          hiddenInput.value = '';
+          container.appendChild(hiddenInput);
+
+          // Add checkbox for each gathering
+          data.gatherings.forEach(gathering => {
+            const checkDiv = document.createElement('div');
+            checkDiv.className = 'form-check';
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.className = 'form-check-input';
+            checkbox.name = 'gatherings[_ids][]';
+            checkbox.value = gathering.id;
+            checkbox.id = 'gatherings-ids-' + gathering.id;
+            const checkLabel = document.createElement('label');
+            checkLabel.className = 'form-check-label';
+            checkLabel.htmlFor = 'gatherings-ids-' + gathering.id;
+            checkLabel.textContent = gathering.display;
+            checkDiv.appendChild(checkbox);
+            checkDiv.appendChild(checkLabel);
+            container.appendChild(checkDiv);
+          });
+        } else {
+          // No gatherings available - show message
+          const newLabel = document.createElement('label');
+          newLabel.className = 'form-label';
+          newLabel.textContent = labelText;
+          container.appendChild(newLabel);
+          const noGatherings = document.createElement('p');
+          noGatherings.className = 'text-muted';
+          noGatherings.textContent = 'No gatherings available for this award.';
+          container.appendChild(noGatherings);
         }
-
-        // Add new options
-        data.gatherings.forEach(gathering => {
-          let option = document.createElement('option');
-          option.value = gathering.id;
-          option.text = gathering.display;
-          this.gatheringsTarget.options.add(option);
-        });
-
-        // Enable the gatherings field if there are options
-        this.gatheringsTarget.disabled = data.gatherings.length === 0;
       }
     }).catch(error => {
       console.error('Error fetching gatherings:', error);
@@ -52187,8 +52402,11 @@ class AwardsRecommendationAddForm extends _hotwired_stimulus__WEBPACK_IMPORTED_M
     this.reasonTarget.value = "";
     //this.personToNotifyTarget.value = "";
     if (this.hasGatheringsTarget) {
-      this.gatheringsTarget.value = "";
-      this.gatheringsTarget.disabled = true;
+      // Disable all checkboxes within the gatherings container
+      this.gatheringsTarget.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+        checkbox.checked = false;
+        checkbox.disabled = true;
+      });
     }
   }
 }
@@ -59699,7 +59917,7 @@ window.Controllers["waiver-upload-wizard"] = WaiverUploadWizardController;
 },
 /******/ function(__webpack_require__) { // webpackRuntimeModules
 /******/ var __webpack_exec__ = function(moduleId) { return __webpack_require__(__webpack_require__.s = moduleId); }
-/******/ __webpack_require__.O(0, ["js/core","css/app","css/waivers","css/dashboard","css/cover","css/signin","css/waiver-upload"], function() { return __webpack_exec__("./assets/js/controllers/activity-toggle-controller.js"), __webpack_exec__("./assets/js/controllers/activity-waiver-manager-controller.js"), __webpack_exec__("./assets/js/controllers/add-activity-modal-controller.js"), __webpack_exec__("./assets/js/controllers/app-setting-form-controller.js"), __webpack_exec__("./assets/js/controllers/auto-complete-controller.js"), __webpack_exec__("./assets/js/controllers/base-gathering-form-controller.js"), __webpack_exec__("./assets/js/controllers/branch-links-controller.js"), __webpack_exec__("./assets/js/controllers/csv-download-controller.js"), __webpack_exec__("./assets/js/controllers/delayed-forward-controller.js"), __webpack_exec__("./assets/js/controllers/delete-confirmation-controller.js"), __webpack_exec__("./assets/js/controllers/detail-tabs-controller.js"), __webpack_exec__("./assets/js/controllers/edit-activity-description-controller.js"), __webpack_exec__("./assets/js/controllers/email-template-editor-controller.js"), __webpack_exec__("./assets/js/controllers/email-template-form-controller.js"), __webpack_exec__("./assets/js/controllers/file-size-validator-controller.js"), __webpack_exec__("./assets/js/controllers/filter-grid-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-clone-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-form-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-location-autocomplete-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-map-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-public-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-schedule-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-type-form-controller.js"), __webpack_exec__("./assets/js/controllers/gatherings-calendar-controller.js"), __webpack_exec__("./assets/js/controllers/grid-view-controller.js"), __webpack_exec__("./assets/js/controllers/guifier-controller.js"), __webpack_exec__("./assets/js/controllers/image-preview-controller.js"), __webpack_exec__("./assets/js/controllers/kanban-controller.js"), __webpack_exec__("./assets/js/controllers/markdown-editor-controller.js"), __webpack_exec__("./assets/js/controllers/member-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-menu-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-pwa-controller.js"), __webpack_exec__("./assets/js/controllers/member-unique-email-controller.js"), __webpack_exec__("./assets/js/controllers/member-verify-form-controller.js"), __webpack_exec__("./assets/js/controllers/mobile-hub-controller.js"), __webpack_exec__("./assets/js/controllers/mobile-offline-overlay-controller.js"), __webpack_exec__("./assets/js/controllers/modal-opener-controller.js"), __webpack_exec__("./assets/js/controllers/nav-bar-controller.js"), __webpack_exec__("./assets/js/controllers/outlet-button-controller.js"), __webpack_exec__("./assets/js/controllers/permission-add-role-controller.js"), __webpack_exec__("./assets/js/controllers/permission-manage-policies-controller.js"), __webpack_exec__("./assets/js/controllers/qrcode-controller.js"), __webpack_exec__("./assets/js/controllers/revoke-form-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-member-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-permission-controller.js"), __webpack_exec__("./assets/js/controllers/security-debug-controller.js"), __webpack_exec__("./assets/js/controllers/select-all-switch-list-controller.js"), __webpack_exec__("./assets/js/controllers/session-extender-controller.js"), __webpack_exec__("./assets/js/controllers/sortable-list-controller.js"), __webpack_exec__("./assets/js/controllers/timezone-input-controller.js"), __webpack_exec__("./assets/js/controllers/turbo-modal-controller.js"), __webpack_exec__("./assets/js/controllers/variable-insert-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/gw-sharing-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/mobile-request-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/renew-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/request-auth-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/award-form-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-add-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-bulk-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-quick-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-table-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/recommendation-kanban-controller.js"), __webpack_exec__("./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/assign-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/edit-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/office-form-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-search-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-table-controller.js"), __webpack_exec__("./plugins/Template/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/add-requirement-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/camera-capture-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/exemption-reasons-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/retention-policy-input-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-attestation-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-template-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-wizard-controller.js"), __webpack_exec__("./assets/css/app.css"), __webpack_exec__("./assets/css/signin.css"), __webpack_exec__("./assets/css/cover.css"), __webpack_exec__("./assets/css/dashboard.css"), __webpack_exec__("./plugins/Waivers/assets/css/waivers.css"), __webpack_exec__("./plugins/Waivers/assets/css/waiver-upload.css"); });
+/******/ __webpack_require__.O(0, ["js/core","css/app","css/waivers","css/dashboard","css/cover","css/signin","css/waiver-upload"], function() { return __webpack_exec__("./assets/js/controllers/activity-toggle-controller.js"), __webpack_exec__("./assets/js/controllers/activity-waiver-manager-controller.js"), __webpack_exec__("./assets/js/controllers/add-activity-modal-controller.js"), __webpack_exec__("./assets/js/controllers/app-setting-form-controller.js"), __webpack_exec__("./assets/js/controllers/auto-complete-controller.js"), __webpack_exec__("./assets/js/controllers/base-gathering-form-controller.js"), __webpack_exec__("./assets/js/controllers/branch-links-controller.js"), __webpack_exec__("./assets/js/controllers/csv-download-controller.js"), __webpack_exec__("./assets/js/controllers/delayed-forward-controller.js"), __webpack_exec__("./assets/js/controllers/delete-confirmation-controller.js"), __webpack_exec__("./assets/js/controllers/detail-tabs-controller.js"), __webpack_exec__("./assets/js/controllers/edit-activity-description-controller.js"), __webpack_exec__("./assets/js/controllers/email-template-editor-controller.js"), __webpack_exec__("./assets/js/controllers/email-template-form-controller.js"), __webpack_exec__("./assets/js/controllers/file-size-validator-controller.js"), __webpack_exec__("./assets/js/controllers/filter-grid-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-clone-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-form-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-location-autocomplete-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-map-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-public-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-schedule-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-type-form-controller.js"), __webpack_exec__("./assets/js/controllers/gatherings-calendar-controller.js"), __webpack_exec__("./assets/js/controllers/grid-view-controller.js"), __webpack_exec__("./assets/js/controllers/guifier-controller.js"), __webpack_exec__("./assets/js/controllers/image-preview-controller.js"), __webpack_exec__("./assets/js/controllers/kanban-controller.js"), __webpack_exec__("./assets/js/controllers/markdown-editor-controller.js"), __webpack_exec__("./assets/js/controllers/member-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-menu-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-pwa-controller.js"), __webpack_exec__("./assets/js/controllers/member-unique-email-controller.js"), __webpack_exec__("./assets/js/controllers/member-verify-form-controller.js"), __webpack_exec__("./assets/js/controllers/mobile-hub-controller.js"), __webpack_exec__("./assets/js/controllers/mobile-offline-overlay-controller.js"), __webpack_exec__("./assets/js/controllers/modal-opener-controller.js"), __webpack_exec__("./assets/js/controllers/nav-bar-controller.js"), __webpack_exec__("./assets/js/controllers/outlet-button-controller.js"), __webpack_exec__("./assets/js/controllers/permission-add-role-controller.js"), __webpack_exec__("./assets/js/controllers/permission-manage-policies-controller.js"), __webpack_exec__("./assets/js/controllers/popover-controller.js"), __webpack_exec__("./assets/js/controllers/qrcode-controller.js"), __webpack_exec__("./assets/js/controllers/revoke-form-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-member-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-permission-controller.js"), __webpack_exec__("./assets/js/controllers/security-debug-controller.js"), __webpack_exec__("./assets/js/controllers/select-all-switch-list-controller.js"), __webpack_exec__("./assets/js/controllers/session-extender-controller.js"), __webpack_exec__("./assets/js/controllers/sortable-list-controller.js"), __webpack_exec__("./assets/js/controllers/timezone-input-controller.js"), __webpack_exec__("./assets/js/controllers/turbo-modal-controller.js"), __webpack_exec__("./assets/js/controllers/variable-insert-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/gw-sharing-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/mobile-request-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/renew-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/request-auth-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/award-form-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-add-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-bulk-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-quick-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-table-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/recommendation-kanban-controller.js"), __webpack_exec__("./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/assign-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/edit-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/office-form-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-search-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-table-controller.js"), __webpack_exec__("./plugins/Template/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/add-requirement-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/camera-capture-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/exemption-reasons-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/retention-policy-input-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-attestation-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-template-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-wizard-controller.js"), __webpack_exec__("./assets/css/app.css"), __webpack_exec__("./assets/css/signin.css"), __webpack_exec__("./assets/css/cover.css"), __webpack_exec__("./assets/css/dashboard.css"), __webpack_exec__("./plugins/Waivers/assets/css/waivers.css"), __webpack_exec__("./plugins/Waivers/assets/css/waiver-upload.css"); });
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);

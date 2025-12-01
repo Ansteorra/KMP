@@ -567,3 +567,25 @@ tr.row-expanded {
 tr.row-expanded .toggle-icon.bi-chevron-down {
     transform: rotate(0deg);
 }
+
+/* Reason popover - wider for better readability */
+.reason-popover {
+    --bs-popover-max-width: 400px;
+}
+
+.reason-popover .popover-body {
+    max-height: 300px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+/* Notes popover - wider with scrollable content */
+.notes-popover {
+    --bs-popover-max-width: 450px;
+}
+
+.notes-popover .popover-body {
+    max-height: 350px;
+    overflow-y: auto;
+}

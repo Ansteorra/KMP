@@ -61,23 +61,23 @@ echo $this->KMP->startBlock('pageTitle') ?>
 <?php $this->KMP->endBlock() ?>
 <?= $this->KMP->startBlock('recordActions') ?>
 <?php if ($user->checkCan('verifyMembership', 'Members') && $needVerification) { ?>
-<button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
-    data-bs-target="#verifyMembershipModal">Verify Membership</button>
+    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
+        data-bs-target="#verifyMembershipModal">Verify Membership</button>
 <?php } ?>
 <?php if (
     $user->checkCan('partialEdit', $member) && ($member->membership_card_path == null || strlen($member->membership_card_path) < 1)
 ) { ?>
-<button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#submitMemberCardModal"
-    id='scaCardUploadBtn'>Submit Updated SCA Info</button>
+    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#submitMemberCardModal"
+        id='scaCardUploadBtn'>Submit Updated SCA Info</button>
 <?php }
 if (
     $user->checkCan('edit', $member) ||
     $user->checkCan('partialEdit', $member)
 ) { ?>
-<button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal"
-    id='editModalBtn'>Edit</button>
-<button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#passwordModal"
-    id='passwordModalBtn'>Change Password</button>
+    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal"
+        id='editModalBtn'>Edit</button>
+    <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#passwordModal"
+        id='passwordModalBtn'>Change Password</button>
 <?php } ?>
 <?php $this->KMP->endBlock() ?>
 
@@ -103,101 +103,37 @@ $this->KMP->endBlock() ?>
     style="order: 20;"><?= __('Notes') ?>
 </button>
 <?php if (!empty($aiForm)) : ?>
-<button class="nav-link" id="nav-add-info-tab" data-bs-toggle="tab" data-bs-target="#nav-add-info" type="button"
-    role="tab" aria-controls="nav-add-info" aria-selected="false" data-detail-tabs-target='tabBtn' data-tab-order="30"
-    style="order: 30;">
-    <?= __('Additional Info') ?>
-</button>
+    <button class="nav-link" id="nav-add-info-tab" data-bs-toggle="tab" data-bs-target="#nav-add-info" type="button"
+        role="tab" aria-controls="nav-add-info" aria-selected="false" data-detail-tabs-target='tabBtn' data-tab-order="30"
+        style="order: 30;">
+        <?= __('Additional Info') ?>
+    </button>
 <?php endif; ?>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock('tabContent') ?>
 <!-- Tab content panels with order matching tab buttons for consistent presentation -->
 <div class="related tab-pane fade m-3" id="nav-roles" role="tabpanel" aria-labelledby="nav-roles-tab"
     data-detail-tabs-target="tabContent" data-tab-order="10" style="order: 10;">
-    <?php if (!empty($member->previous_member_roles) || !empty($member->current_member_roles) || !empty($member->upcoming_member_roles)) {
-        $linkTemplate = [
-            'type' => 'link',
-            'verify' => true,
-            'authData' => 'role',
-            'label' => '',
-            'controller' => 'Roles',
-            'action' => 'view',
-            'id' => 'role_id',
-            'options' => ['class' => 'btn-sm btn btn-secondary bi-binoculars-fill'],
-        ];
-        $removeLinkTemplate = [
-            'type' => 'postLink',
-            'verify' => true,
-            'label' => 'Deactivate',
-            'controller' => 'MemberRoles',
-            'action' => 'deactivate',
-            'id' => 'id',
-            'condition' => ['entity_type' => 'Direct Grant'],
-            'options' => [
-                'confirm' => 'Are you sure you want to deactivate for {{member->sca_name}}?',
-                'class' => 'btn-sm btn btn-danger',
-            ],
-        ];
-        $currentTemplate = [
-            'Role' => 'role->name',
-            'Start Date' => 'start_on',
-            'End Date' => 'expires_on',
-            'Approved By' => 'approved_by->sca_name',
-            'Granted By' => 'entity_type',
-            'Scope' => 'branch->name',
-            'Actions' => [
-                $linkTemplate,
-                $removeLinkTemplate,
-            ],
-        ];
-        $previousTemplate = [
-            'Role' => 'role->name',
-            'Start Date' => 'start_on',
-            'End Date' => 'expires_on',
-            'Approved By' => 'approved_by->sca_name',
-            'Granted By' => 'entity_type',
-            'Actions' => [
-                $linkTemplate,
-            ],
-        ];
-
-        echo $this->element('activeWindowTabs', [
-            'user' => $user,
-            'tabGroupName' => 'roleTabs',
-            'tabs' => [
-                'active' => [
-                    'label' => __('Active'),
-                    'id' => 'active-roles',
-                    'selected' => true,
-                    'columns' => $currentTemplate,
-                    'data' => $member->current_member_roles,
-                ],
-                'upcoming' => [
-                    'label' => __('Upcoming'),
-                    'id' => 'upcoming-roles',
-                    'selected' => false,
-                    'columns' => $currentTemplate,
-                    'data' => $member->upcoming_member_roles,
-                ],
-                'previous' => [
-                    'label' => __('Previous'),
-                    'id' => 'previous-roles',
-                    'selected' => false,
-                    'columns' => $previousTemplate,
-                    'data' => $member->previous_member_roles,
-                ],
-            ],
-        ]);
-    } else {
-        echo '<p>No Roles Assigned</p>';
-    } ?>
+    <?= $this->element('dv_grid', [
+        'gridKey' => "Members.roles.{$member->id}",
+        'frameId' => "member-roles-grid-{$member->id}",
+        'dataUrl' => $this->Url->build(['action' => 'rolesGridData', $member->id]),
+    ]) ?>
 </div>
 <div class="related tab-pane fade m-3" id="nav-gatherings" role="tabpanel" aria-labelledby="nav-gatherings-tab"
     data-detail-tabs-target="tabContent" data-tab-order="15" style="order: 15;">
-    <?= $this->element('members/gatheringAttendances', [
-        'user' => $user,
-        'member' => $member,
-        'availableGatherings' => $availableGatherings
+    <?php if ($user->id == $member->id || $user->checkCan('add', 'GatheringAttendances')): ?>
+        <div class="mb-3">
+            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
+                data-bs-target="#addGatheringAttendanceModal">
+                <i class="bi bi-plus-circle"></i> RSVP for Gathering
+            </button>
+        </div>
+    <?php endif; ?>
+    <?= $this->element('dv_grid', [
+        'gridKey' => "Members.gatherings.{$member->id}",
+        'frameId' => "member-gatherings-grid-{$member->id}",
+        'dataUrl' => $this->Url->build(['action' => 'gatheringsGridData', $member->id]),
     ]) ?>
 </div>
 <div class="related tab-pane fade m-3" id="nav-notes" role="tabpanel" aria-labelledby="nav-notes-tab"
@@ -209,9 +145,9 @@ $this->KMP->endBlock() ?>
     ]) ?>
 </div>
 <?php if (!empty($aiForm)) : ?>
-<div class="related tab-pane fade m-3" id="nav-add-info" role="tabpanel" aria-labelledby="nav-add-info-tab"
-    data-detail-tabs-target="tabContent" data-tab-order="30" style="order: 30;">
-    <?php
+    <div class="related tab-pane fade m-3" id="nav-add-info" role="tabpanel" aria-labelledby="nav-add-info-tab"
+        data-detail-tabs-target="tabContent" data-tab-order="30" style="order: 30;">
+        <?php
         $appInfo = $member->additional_info;
         $userEditableOnly = !$user->checkCan('edit', $member);
         if ($user->checkCan('editAdditionalInfo', $member)) {
@@ -313,12 +249,12 @@ $this->KMP->endBlock() ?>
             ]);
             echo $this->form->end();
         } else { ?>
-    <table class='table table-striped'>
-        <?php foreach ($aiForm as $fieldKey => $fieldType) { ?>
-        <tr scope="row">
-            <th class="col"><?= str_replace('_', ' ', $fieldKey) ?></th>
-            <td class="col-10">
-                <?php
+            <table class='table table-striped'>
+                <?php foreach ($aiForm as $fieldKey => $fieldType) { ?>
+                    <tr scope="row">
+                        <th class="col"><?= str_replace('_', ' ', $fieldKey) ?></th>
+                        <td class="col-10">
+                            <?php
                             $pipePos = strpos($fieldType, '|');
                             $managerOnly = false;
                             $userEditable = false;
@@ -354,12 +290,12 @@ $this->KMP->endBlock() ?>
                                     break;
                             }
                             ?>
-            </td>
-        </tr>
+                        </td>
+                    </tr>
+                <?php } ?>
+            </table>
         <?php } ?>
-    </table>
-    <?php } ?>
-</div>
+    </div>
 <?php endif; ?>
 <?php $this->KMP->endBlock() ?>
 <?php

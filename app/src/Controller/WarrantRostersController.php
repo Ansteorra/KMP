@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Model\Entity\WarrantRoster;
+use App\Services\CsvExportService;
 use App\Services\WarrantManager\WarrantManagerInterface;
 use Cake\Http\Exception\NotFoundException;
+use Cake\ORM\TableRegistry;
 
 /**
  * WarrantRosters Controller - Batch Warrant Management and Multi-Level Approval Interface
@@ -79,6 +82,8 @@ use Cake\Http\Exception\NotFoundException;
  */
 class WarrantRostersController extends AppController
 {
+    use DataverseGridTrait;
+
     /**
      * Initialize controller - Configure authorization and component loading
      *
@@ -104,8 +109,8 @@ class WarrantRostersController extends AppController
         // Load authorization component for policy-based access control
         $this->loadComponent('Authorization.Authorization');
 
-        // Enable automatic model authorization for index operations
-        $this->Authorization->authorizeModel('index');
+        // Enable automatic model authorization for index and gridData operations
+        $this->Authorization->authorizeModel('index', 'gridData');
     }
 
     /**
@@ -128,8 +133,143 @@ class WarrantRostersController extends AppController
      */
     public function index()
     {
-        // Template provides navigation and dashboard interface
-        // Actual data loading handled by allRosters() method
+        // Simple index page - just renders the dv_grid element
+        // The dv_grid element will lazy-load the actual data via gridData action
+    }
+
+    /**
+     * Grid Data method - Provides Dataverse grid data for warrant rosters
+     *
+     * Returns grid content with toolbar and table for the warrant rosters grid.
+     * Supports status tabs for filtering by Pending, Approved, or Declined status.
+     * Handles both outer frame (toolbar + table frame) and inner frame
+     * (table only) requests. Also supports CSV export.
+     *
+     * @param \App\Services\CsvExportService $csvExportService Injected CSV export service
+     * @return \Cake\Http\Response|null|void Renders view or returns CSV response
+     */
+    public function gridData(CsvExportService $csvExportService)
+    {
+        // Build query with warrant count subquery and creator info
+        $warrantsTable = TableRegistry::getTableLocator()->get('Warrants');
+        $warrantCountSubquery = $warrantsTable->find()
+            ->select(['count' => $warrantsTable->find()->func()->count('*')])
+            ->where(['Warrants.warrant_roster_id = WarrantRosters.id']);
+
+        $baseQuery = $this->WarrantRosters->find()
+            ->select($this->WarrantRosters)
+            ->select(['warrant_count' => $warrantCountSubquery])
+            ->contain(['CreatedByMember' => function ($q) {
+                return $q->select(['id', 'sca_name']);
+            }]);
+
+        // Apply authorization scoping
+        $baseQuery = $this->Authorization->applyScope($baseQuery);
+
+        // Define system views for status filtering
+        $systemViews = $this->getWarrantRosterSystemViews();
+
+        // Use unified trait for grid processing
+        $result = $this->processDataverseGrid([
+            'gridKey' => 'WarrantRosters.index.main',
+            'gridColumnsClass' => \App\KMP\GridColumns\WarrantRostersGridColumns::class,
+            'baseQuery' => $baseQuery,
+            'tableName' => 'WarrantRosters',
+            'defaultSort' => ['WarrantRosters.created' => 'desc'],
+            'defaultPageSize' => 25,
+            'systemViews' => $systemViews,
+            'defaultSystemView' => 'sys-roster-pending',
+            'showAllTab' => true,
+            'canAddViews' => false,
+            'canFilter' => true,
+            'canExportCsv' => true,
+        ]);
+
+        // Handle CSV export
+        if (!empty($result['isCsvExport'])) {
+            return $this->handleCsvExport($result, $csvExportService, 'warrant-rosters');
+        }
+
+        // Set view variables
+        $this->set([
+            'warrantRosters' => $result['data'],
+            'gridState' => $result['gridState'],
+            'columns' => $result['columnsMetadata'],
+            'visibleColumns' => $result['visibleColumns'],
+            'searchableColumns' => \App\KMP\GridColumns\WarrantRostersGridColumns::getSearchableColumns(),
+            'dropdownFilterColumns' => $result['dropdownFilterColumns'],
+            'filterOptions' => $result['filterOptions'],
+            'currentFilters' => $result['currentFilters'],
+            'currentSearch' => $result['currentSearch'],
+            'currentView' => $result['currentView'],
+            'availableViews' => $result['availableViews'],
+            'gridKey' => $result['gridKey'],
+            'currentSort' => $result['currentSort'],
+            'currentMember' => $result['currentMember'],
+        ]);
+
+        // Determine which template to render based on Turbo-Frame header
+        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
+
+        if ($turboFrame === 'warrant-rosters-grid-table') {
+            // Inner frame request - render table data only
+            $this->set('data', $result['data']);
+            $this->set('tableFrameId', 'warrant-rosters-grid-table');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplate('../element/dv_grid_table');
+        } else {
+            // Outer frame request (or no frame) - render toolbar + table frame
+            $this->set('data', $result['data']);
+            $this->set('frameId', 'warrant-rosters-grid');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplate('../element/dv_grid_content');
+        }
+    }
+
+    /**
+     * Get system views for warrant rosters
+     *
+     * Defines the predefined views (tabs) for filtering warrant rosters by status.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    protected function getWarrantRosterSystemViews(): array
+    {
+        return [
+            'sys-roster-pending' => [
+                'id' => 'sys-roster-pending',
+                'name' => __('Pending'),
+                'description' => __('Rosters awaiting approval'),
+                'canManage' => false,
+                'config' => [
+                    'filters' => [
+                        ['field' => 'status', 'operator' => 'eq', 'value' => WarrantRoster::STATUS_PENDING],
+                    ],
+                ],
+            ],
+            'sys-roster-approved' => [
+                'id' => 'sys-roster-approved',
+                'name' => __('Approved'),
+                'description' => __('Approved rosters'),
+                'canManage' => false,
+                'config' => [
+                    'filters' => [
+                        ['field' => 'status', 'operator' => 'eq', 'value' => WarrantRoster::STATUS_APPROVED],
+                    ],
+                ],
+            ],
+            'sys-roster-declined' => [
+                'id' => 'sys-roster-declined',
+                'name' => __('Declined'),
+                'description' => __('Declined rosters'),
+                'canManage' => false,
+                'config' => [
+                    'filters' => [
+                        ['field' => 'status', 'operator' => 'eq', 'value' => WarrantRoster::STATUS_DECLINED],
+                    ],
+                ],
+            ],
+        ];
     }
 
     /**

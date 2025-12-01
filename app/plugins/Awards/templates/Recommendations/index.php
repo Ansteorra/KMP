@@ -1,68 +1,49 @@
 <?php
 
-use Cake\Utility\Inflector;
-
 /**
+ * Award Recommendations Index - Dataverse Grid View
+ *
  * @var \App\View\AppView $this
- * @var \App\Model\Entity\ActivityGroup[]|\Cake\Collection\CollectionInterface $activityGroup
+ * @var string $view Current view context
+ * @var string $status Current status filter
  */
-$ticks = microtime(true);
-if (!$isTurboFrame) {
-    $this->extend("/layout/TwitterBootstrap/dashboard");
 
-    echo $this->KMP->startBlock("title");
-    echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Award Recommendations';
-    $this->KMP->endBlock();
-}
-$recommendation = [];
+$this->extend("/layout/TwitterBootstrap/dashboard");
+
+echo $this->KMP->startBlock("title");
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Award Recommendations';
+$this->KMP->endBlock();
 ?>
 
-<div class="row align-items-start">
+<div class="row align-items-start mb-3">
     <div class="col">
-        <h3>
-            Award Recommendations
-            <?php if ($status != "Index") : ?>
-                : <?= Inflector::humanize($status) ?>
-            <?php endif; ?>
-        </h3>
+        <h3>Award Recommendations</h3>
     </div>
     <div class="col text-end">
-        <?php
-        if ($user->checkCan("add", "Awards.Recommendations")) :
-        ?>
+        <?php if ($user->checkCan("add", "Awards.Recommendations")): ?>
             <?= $this->Html->link(
-                ' Add Recommendation',
+                '<i class="bi bi-plus-circle"></i> Add Recommendation',
                 ['action' => 'add'],
-                ['class' => 'btn btn-primary btn-sm bi bi-plus-circle', 'data-turbo-frame' => '_top']
+                ['class' => 'btn btn-primary btn-sm', 'escape' => false, 'data-turbo-frame' => '_top']
             ) ?>
         <?php endif; ?>
     </div>
 </div>
-<?php
-$tabs = [];
-if ($pageConfig['table']['use']) {
-    $tabs["table"] = [
-        "label" => __("Table"),
-        "id" => "tableView",
-        "selected" => true,
-        "turboUrl" => $this->URL->build(["controller" => "Recommendations", "action" => "Table", "plugin" => "Awards", $view, $status])
-    ];
-}
-if ($pageConfig['board']['use']) {
-    $tabs["board"] = [
-        "label" => __("Board"),
-        "id" => "boardView",
-        "selected" => false,
-        "turboUrl" => $this->URL->build(["controller" => "Recommendations", "action" => "Board", "plugin" => "Awards", $view])
-    ];
-}
 
-echo $this->element('turboActiveTabs', [
-    'user' => $user,
-    'tabGroupName' => "authorizationTabs",
-    'tabs' => $tabs,
-    'updateUrl' => false,
-]);
-echo $this->KMP->startBlock("modals"); ?>
-<?php //finish writing to modal block in layout
-$this->KMP->endBlock(); ?>
+<!-- Dataverse Grid with lazy loading -->
+<?= $this->element('dv_grid', [
+    'gridKey' => 'Awards.Recommendations.index.main',
+    'frameId' => 'recommendations-grid',
+    'dataUrl' => $this->Url->build([
+        'plugin' => 'Awards',
+        'controller' => 'Recommendations',
+        'action' => 'gridData',
+    ]),
+]) ?>
+
+<?php
+// Edit Recommendation Modal - uses existing element with proper Stimulus controller
+echo $this->KMP->startBlock("modals");
+echo $this->element('recommendationQuickEditModal', ['modalId' => 'editRecommendationModal']);
+$this->KMP->endBlock();
+?>

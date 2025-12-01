@@ -4,7 +4,7 @@
  * Dataverse Table Element
  * 
  * Renders a data table with sortable headers, custom cell renderers,
- * and integration with the grid-view Stimulus controller.
+ * row actions, and integration with the grid-view Stimulus controller.
  * 
  * @var \App\View\AppView $this
  * @var array $columns Column metadata from GridColumns class
@@ -14,12 +14,18 @@
  * @var string $controllerName The Stimulus controller identifier
  * @var string $primaryKey The primary key field for row identification (default: 'id')
  * @var string|null $gridKey Grid key for component uniqueness (optional)
+ * @var array $rowActions Row action configurations (optional)
+ * @var \Authorization\Identity|null $user Current user for permission checks (optional)
  */
+
+use App\KMP\StaticHelpers;
 
 $controllerName = $controllerName ?? 'grid-view';
 $primaryKey = $primaryKey ?? 'id';
 $currentSort = $currentSort ?? [];
 $gridKey = $gridKey ?? 'grid';
+$rowActions = $rowActions ?? [];
+$user = $user ?? $this->request->getAttribute('identity');
 ?>
 
 <div class="table-responsive">
@@ -140,6 +146,14 @@ $gridKey = $gridKey ?? 'grid';
                                             echo $value ? '<i class="bi bi-check-circle-fill text-success"></i>' :
                                                 '<i class="bi bi-x-circle-fill text-danger"></i>';
                                             break;
+                                        case 'badge':
+                                            // Render boolean values as colored badges (typically for status columns)
+                                            if ($value) {
+                                                echo '<span class="badge bg-success">Active</span>';
+                                            } else {
+                                                echo '<span class="badge bg-secondary">Inactive</span>';
+                                            }
+                                            break;
                                         case 'date':
                                             if ($value instanceof \Cake\I18n\DateTime) {
                                                 // Use Timezone helper to apply user's timezone preference
@@ -163,6 +177,14 @@ $gridKey = $gridKey ?? 'grid';
                                         case 'number':
                                         case 'integer':
                                             echo $value !== null ? h($value) : '<span class="text-muted">—</span>';
+                                            break;
+                                        case 'html':
+                                            // Render HTML content without escaping (used for pre-formatted links, etc.)
+                                            if ($value !== null && $value !== '') {
+                                                echo $value;
+                                            } else {
+                                                echo '<span class="text-muted">—</span>';
+                                            }
                                             break;
                                         case 'string':
                                         default:
@@ -191,7 +213,18 @@ $gridKey = $gridKey ?? 'grid';
                                 ?>
                             </td>
                         <?php endforeach; ?>
-                        <td class="text-end"></td>
+                        <td class="text-end text-nowrap">
+                            <?php
+                            // Render row actions
+                            if (!empty($rowActions)) {
+                                echo $this->element('dataverse_table_row_actions', [
+                                    'actions' => $rowActions,
+                                    'row' => $row,
+                                    'user' => $user,
+                                ]);
+                            }
+                            ?>
+                        </td>
                     </tr>
                 <?php endforeach; ?>
             <?php endif; ?>

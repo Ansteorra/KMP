@@ -226,7 +226,7 @@ class AwardsRecommendationAddForm extends Controller {
 
         // Get member_id if available
         let memberId = this.hasScaMemberTarget ? this.scaMemberTarget.value : '';
-        
+
         // Build URL with query params
         let url = this.gatheringsUrlValue + '/' + awardId;
         if (memberId) {
@@ -237,21 +237,64 @@ class AwardsRecommendationAddForm extends Controller {
             .then(response => response.json())
             .then(data => {
                 if (data.gatherings) {
-                    // Clear existing options
-                    while (this.gatheringsTarget.options.length > 0) {
-                        this.gatheringsTarget.options.remove(0);
+                    // Get the container and find the fieldset/form-group within
+                    const container = this.gatheringsTarget;
+
+                    // Find and preserve the label
+                    const label = container.querySelector('label.form-label, legend');
+                    const labelText = label ? label.textContent : 'Gatherings/Events They May Attend:';
+
+                    // Clear existing content
+                    container.innerHTML = '';
+
+                    // Rebuild with new checkboxes
+                    if (data.gatherings.length > 0) {
+                        // Add the label back
+                        const newLabel = document.createElement('label');
+                        newLabel.className = 'form-label';
+                        newLabel.textContent = labelText;
+                        container.appendChild(newLabel);
+
+                        // Add hidden input for empty submission
+                        const hiddenInput = document.createElement('input');
+                        hiddenInput.type = 'hidden';
+                        hiddenInput.name = 'gatherings[_ids]';
+                        hiddenInput.value = '';
+                        container.appendChild(hiddenInput);
+
+                        // Add checkbox for each gathering
+                        data.gatherings.forEach(gathering => {
+                            const checkDiv = document.createElement('div');
+                            checkDiv.className = 'form-check';
+
+                            const checkbox = document.createElement('input');
+                            checkbox.type = 'checkbox';
+                            checkbox.className = 'form-check-input';
+                            checkbox.name = 'gatherings[_ids][]';
+                            checkbox.value = gathering.id;
+                            checkbox.id = 'gatherings-ids-' + gathering.id;
+
+                            const checkLabel = document.createElement('label');
+                            checkLabel.className = 'form-check-label';
+                            checkLabel.htmlFor = 'gatherings-ids-' + gathering.id;
+                            checkLabel.textContent = gathering.display;
+
+                            checkDiv.appendChild(checkbox);
+                            checkDiv.appendChild(checkLabel);
+                            container.appendChild(checkDiv);
+                        });
+                    } else {
+                        // No gatherings available - show message
+                        const newLabel = document.createElement('label');
+                        newLabel.className = 'form-label';
+                        newLabel.textContent = labelText;
+                        container.appendChild(newLabel);
+
+                        const noGatherings = document.createElement('p');
+                        noGatherings.className = 'text-muted';
+                        noGatherings.textContent = 'No gatherings available for this award.';
+                        container.appendChild(noGatherings);
                     }
-
-                    // Add new options
-                    data.gatherings.forEach(gathering => {
-                        let option = document.createElement('option');
-                        option.value = gathering.id;
-                        option.text = gathering.display;
-                        this.gatheringsTarget.options.add(option);
-                    });
-
-                    // Enable the gatherings field if there are options
-                    this.gatheringsTarget.disabled = data.gatherings.length === 0;
                 }
             })
             .catch(error => {
@@ -509,8 +552,11 @@ class AwardsRecommendationAddForm extends Controller {
         this.reasonTarget.value = "";
         //this.personToNotifyTarget.value = "";
         if (this.hasGatheringsTarget) {
-           this.gatheringsTarget.value = "";            
-           this.gatheringsTarget.disabled = true;
+            // Disable all checkboxes within the gatherings container
+            this.gatheringsTarget.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                checkbox.checked = false;
+                checkbox.disabled = true;
+            });
         }
     }
 }

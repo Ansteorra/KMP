@@ -113,4 +113,34 @@ class Award extends BaseEntity
         'branch' => true,
         'gathering_activities' => true,
     ];
+
+    /**
+     * Get the domain name for grid display
+     *
+     * @return string|null
+     */
+    protected function _getDomainName(): ?string
+    {
+        return $this->domain?->name ?? null;
+    }
+
+    /**
+     * Get the level name for grid display
+     *
+     * @return string|null
+     */
+    protected function _getLevelName(): ?string
+    {
+        return $this->level?->name ?? null;
+    }
+
+    /**
+     * Get the branch name for grid display
+     *
+     * @return string|null
+     */
+    protected function _getBranchName(): ?string
+    {
+        return $this->branch?->name ?? null;
+    }
 }

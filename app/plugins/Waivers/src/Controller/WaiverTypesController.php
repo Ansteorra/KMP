@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace Waivers\Controller;
 
+use App\Controller\DataverseGridTrait;
+use App\Services\CsvExportService;
 use App\Services\DocumentService;
 use Cake\Http\Exception\NotFoundException;
 use Cake\Log\Log;
+use Waivers\KMP\GridColumns\WaiverTypesGridColumns;
 
 /**
  * WaiverTypes Controller
@@ -15,6 +18,8 @@ use Cake\Log\Log;
  */
 class WaiverTypesController extends AppController
 {
+    use DataverseGridTrait;
+
     /**
      * Document service instance
      *
@@ -30,7 +35,7 @@ class WaiverTypesController extends AppController
     public function initialize(): void
     {
         parent::initialize();
-        $this->Authorization->authorizeModel('index', 'add');
+        $this->Authorization->authorizeModel('index', 'add', 'gridData');
         $this->DocumentService = new DocumentService();
     }
 
@@ -41,22 +46,96 @@ class WaiverTypesController extends AppController
      */
     public function index()
     {
-        $showInactive = $this->request->getQuery('show_inactive', false);
+        // Just render the page with the dv_grid element
+        // The actual data will be loaded via gridData action
+    }
 
-        $query = $this->WaiverTypes->find();
+    /**
+     * Grid Data method - provides data for the Dataverse grid
+     *
+     * @param CsvExportService $csvExportService Injected CSV export service
+     * @return \Cake\Http\Response|null|void Renders view or returns CSV response
+     */
+    public function gridData(CsvExportService $csvExportService)
+    {
+        // Build base query
+        // Note: Documents association is commented out in the model, so we don't contain it
+        $baseQuery = $this->WaiverTypes->find();
 
-        // Only show active by default
-        if (!$showInactive) {
-            $query = $this->WaiverTypes->find('active');
-        }
+        // Get system views
+        $systemViews = WaiverTypesGridColumns::getSystemViews();
 
-        $waiverTypes = $this->paginate($query, [
-            'order' => [
-                'name' => 'asc',
-            ],
+        // Use unified trait for grid processing
+        $result = $this->processDataverseGrid([
+            'gridKey' => 'Waivers.WaiverTypes.index.main',
+            'gridColumnsClass' => WaiverTypesGridColumns::class,
+            'baseQuery' => $baseQuery,
+            'tableName' => 'WaiverTypes',
+            'defaultSort' => ['WaiverTypes.name' => 'asc'],
+            'defaultPageSize' => 25,
+            'systemViews' => $systemViews,
+            'defaultSystemView' => 'sys-waiver-types-active',
+            'showAllTab' => false,
+            'canAddViews' => false,
+            'canFilter' => true,
+            'canExportCsv' => true,
         ]);
 
-        $this->set(compact('waiverTypes', 'showInactive'));
+        // Post-process data to add computed fields
+        $waiverTypes = $result['data'];
+        foreach ($waiverTypes as $waiverType) {
+            // Add has_template virtual field for grid display
+            $waiverType->has_template = !empty($waiverType->template_path) || !empty($waiverType->document_id);
+        }
+
+        // Handle CSV export
+        if (!empty($result['isCsvExport'])) {
+            return $this->handleCsvExport($result, $csvExportService, 'waiver-types');
+        }
+
+        // Get row actions from grid columns
+        $rowActions = WaiverTypesGridColumns::getRowActions();
+
+        // Set view variables
+        $this->set([
+            'waiverTypes' => $waiverTypes,
+            'rowActions' => $rowActions,
+            'gridState' => $result['gridState'],
+            'columns' => $result['columnsMetadata'],
+            'visibleColumns' => $result['visibleColumns'],
+            'searchableColumns' => WaiverTypesGridColumns::getSearchableColumns(),
+            'dropdownFilterColumns' => $result['dropdownFilterColumns'],
+            'filterOptions' => $result['filterOptions'],
+            'currentFilters' => $result['currentFilters'],
+            'currentSearch' => $result['currentSearch'],
+            'currentView' => $result['currentView'],
+            'availableViews' => $result['availableViews'],
+            'gridKey' => $result['gridKey'],
+            'currentSort' => $result['currentSort'],
+            'currentMember' => $result['currentMember'],
+        ]);
+
+        // Determine which template to render based on Turbo-Frame header
+        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
+
+        // Override data for grid rendering
+        $this->set('data', $waiverTypes);
+
+        if ($turboFrame === 'waiver-types-grid-table') {
+            // Inner frame request - render table data only
+            $this->set('tableFrameId', 'waiver-types-grid-table');
+            $this->viewBuilder()->setPlugin(null);
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplatePath('element');
+            $this->viewBuilder()->setTemplate('dv_grid_table');
+        } else {
+            // Outer frame request (or no frame) - render toolbar + table frame
+            $this->set('frameId', 'waiver-types-grid');
+            $this->viewBuilder()->setPlugin(null);
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplatePath('element');
+            $this->viewBuilder()->setTemplate('dv_grid_content');
+        }
     }
 
     /**

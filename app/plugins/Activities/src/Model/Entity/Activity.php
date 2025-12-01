@@ -224,6 +224,38 @@ class Activity extends BaseEntity
     ];
 
     /**
+     * Virtual property: activity_group_name
+     *
+     * Returns the name of the associated activity group for grid display.
+     *
+     * @return string|null Activity group name or null if not loaded
+     */
+    protected function _getActivityGroupName(): ?string
+    {
+        if (isset($this->activity_group) && $this->activity_group) {
+            return $this->activity_group->name;
+        }
+
+        return null;
+    }
+
+    /**
+     * Virtual property: grants_role_name
+     *
+     * Returns the name of the role granted by this activity, or "None" if no role is granted.
+     *
+     * @return string Role name or "None"
+     */
+    protected function _getGrantsRoleName(): string
+    {
+        if (isset($this->role) && $this->role) {
+            return $this->role->name;
+        }
+
+        return 'None';
+    }
+
+    /**
      * Get Approvers Query for Activity Authorization
      *
      * Returns a query object for finding members who have permission to authorize

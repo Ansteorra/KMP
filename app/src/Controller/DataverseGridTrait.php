@@ -158,38 +158,46 @@ trait DataverseGridTrait
 
         if ($systemViews !== null) {
             // System views mode (Warrants-style) - now supports user views too
-            // Get user preference
-            if ($currentMember instanceof Member) {
-                $preferredViewId = $gridViewService->getUserPreferenceViewId($gridKey, $currentMember);
-            }
 
-            // Determine which view to use
-            if ($viewId !== null) {
-                $requestedViewId = $viewId;
-            } elseif ($preferredViewId !== null) {
-                $requestedViewId = is_int($preferredViewId) ? (string)$preferredViewId : $preferredViewId;
+            // Check if user explicitly wants to show "All" (ignore default view)
+            if ($ignoreDefault) {
+                // Show all records - no system view filters applied
+                $selectedSystemView = null;
+                $requestedViewId = null;
             } else {
-                $requestedViewId = $defaultSystemView;
-            }
+                // Get user preference
+                if ($currentMember instanceof Member) {
+                    $preferredViewId = $gridViewService->getUserPreferenceViewId($gridKey, $currentMember);
+                }
 
-            // Check if this is a user view (numeric ID) or system view (string ID)
-            if (is_numeric($requestedViewId)) {
-                // Try to load as user view
-                $currentView = $gridViewService->getEffectiveView($gridKey, $currentMember, (int)$requestedViewId);
-                if ($currentView) {
-                    // User view found - don't apply system view callback
-                    $selectedSystemView = null;
+                // Determine which view to use
+                if ($viewId !== null) {
+                    $requestedViewId = $viewId;
+                } elseif ($preferredViewId !== null) {
+                    $requestedViewId = is_int($preferredViewId) ? (string)$preferredViewId : $preferredViewId;
                 } else {
-                    // User view not found, fall back to default system view
                     $requestedViewId = $defaultSystemView;
+                }
+
+                // Check if this is a user view (numeric ID) or system view (string ID)
+                if (is_numeric($requestedViewId)) {
+                    // Try to load as user view
+                    $currentView = $gridViewService->getEffectiveView($gridKey, $currentMember, (int)$requestedViewId);
+                    if ($currentView) {
+                        // User view found - don't apply system view callback
+                        $selectedSystemView = null;
+                    } else {
+                        // User view not found, fall back to default system view
+                        $requestedViewId = $defaultSystemView;
+                        $selectedSystemView = $systemViews[$requestedViewId];
+                    }
+                } else {
+                    // System view - validate it exists
+                    if (!isset($systemViews[$requestedViewId])) {
+                        $requestedViewId = $defaultSystemView;
+                    }
                     $selectedSystemView = $systemViews[$requestedViewId];
                 }
-            } else {
-                // System view - validate it exists
-                if (!isset($systemViews[$requestedViewId])) {
-                    $requestedViewId = $defaultSystemView;
-                }
-                $selectedSystemView = $systemViews[$requestedViewId];
             }
 
             // Apply query callback (for both system views and user views)
@@ -346,11 +354,27 @@ trait DataverseGridTrait
                 }
 
                 if (($startDate !== null && $startDate !== '') || ($endDate !== null && $endDate !== '')) {
-                    $qualifiedField = strpos($columnKey, '.') === false ? $tableName . '.' . $columnKey : $columnKey;
+                    // Use queryField from metadata if available, otherwise qualify with table name
+                    $qualifiedField = $columnMeta['queryField'] ??
+                        (strpos($columnKey, '.') === false ? $tableName . '.' . $columnKey : $columnKey);
+
+                    // Check if this column has nullMeansActive flag (for expires_on/end_date fields)
+                    $nullMeansActive = $columnMeta['nullMeansActive'] ?? false;
 
                     if ($startDate !== null && $startDate !== '') {
                         if (!in_array($columnKey, $skipFilterColumns, true)) {
-                            $baseQuery->where([$qualifiedField . ' >=' => $startDate]);
+                            // For lower bound (start >= value), check nullMeansActive flag
+                            // If true, NULL means "never expires" so include it in results
+                            if ($nullMeansActive) {
+                                $baseQuery->where(function ($exp) use ($qualifiedField, $startDate) {
+                                    return $exp->or([
+                                        $qualifiedField . ' >=' => $startDate,
+                                        $qualifiedField . ' IS' => null,
+                                    ]);
+                                });
+                            } else {
+                                $baseQuery->where([$qualifiedField . ' >=' => $startDate]);
+                            }
                         }
                         // Add to current filters for display as pill
                         $currentFilters[$startParam] = $startDate;
@@ -366,7 +390,7 @@ trait DataverseGridTrait
             }
         }
 
-        // Get visible columns from URL or view config or defaults
+        // Get visible columns from URL, system view config, user view config, or defaults
         $columnsParam = $this->request->getQuery('columns');
         if ($columnsParam) {
             $visibleColumns = explode(',', $columnsParam);
@@ -378,6 +402,9 @@ trait DataverseGridTrait
                     }
                 }
             }
+        } elseif ($selectedSystemView && !empty($selectedSystemView['config']['columns'])) {
+            // System view with explicit column configuration
+            $visibleColumns = $selectedSystemView['config']['columns'];
         } elseif ($currentView) {
             $config = new GridViewConfig();
             $viewConfig = $currentView->getConfigArray();
@@ -933,24 +960,30 @@ trait DataverseGridTrait
                     if (is_array($value)) {
                         $start = $value[0] ?? null;
                         $end = $value[1] ?? null;
+                        // Strip table prefix from field name for parameter keys
+                        $fieldKey = strpos($field, '.') !== false ? substr($field, strrpos($field, '.') + 1) : $field;
                         if ($start !== null && $start !== '') {
-                            $defaults['dateRange'][$field . '_start'] = (string)$start;
+                            $defaults['dateRange'][$fieldKey . '_start'] = (string)$start;
                         }
                         if ($end !== null && $end !== '') {
-                            $defaults['dateRange'][$field . '_end'] = (string)$end;
+                            $defaults['dateRange'][$fieldKey . '_end'] = (string)$end;
                         }
                     }
                     break;
                 case 'gte':
                 case 'gt':
                     if ($value !== null && $value !== '') {
-                        $defaults['dateRange'][$field . '_start'] = (string)$value;
+                        // Strip table prefix from field name for parameter keys
+                        $fieldKey = strpos($field, '.') !== false ? substr($field, strrpos($field, '.') + 1) : $field;
+                        $defaults['dateRange'][$fieldKey . '_start'] = (string)$value;
                     }
                     break;
                 case 'lte':
                 case 'lt':
                     if ($value !== null && $value !== '') {
-                        $defaults['dateRange'][$field . '_end'] = (string)$value;
+                        // Strip table prefix from field name for parameter keys
+                        $fieldKey = strpos($field, '.') !== false ? substr($field, strrpos($field, '.') + 1) : $field;
+                        $defaults['dateRange'][$fieldKey . '_end'] = (string)$value;
                     }
                     break;
                 default:

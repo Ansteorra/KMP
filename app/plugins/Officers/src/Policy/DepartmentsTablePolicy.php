@@ -144,4 +144,17 @@ use Authorization\Policy\ResultInterface;
 class DepartmentsTablePolicy extends BasePolicy
 {
     //public const SKIP_BASE = 'true';
+
+    /**
+     * Check if user can access gridData scope (Dataverse grid data endpoint)
+     * Uses the same authorization scope as the standard index action
+     *
+     * @param \App\KMP\KmpIdentityInterface $user User
+     * @param mixed $query Query
+     * @return mixed
+     */
+    public function scopeGridData(KmpIdentityInterface $user, mixed $query): mixed
+    {
+        return $this->scopeIndex($user, $query);
+    }
 }

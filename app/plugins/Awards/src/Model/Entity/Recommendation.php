@@ -140,6 +140,7 @@ class Recommendation extends BaseEntity
         'deleted' => true,
         'member' => true,
         'events' => true,
+        'gatherings' => true,
         'person_to_notify' => true,
         'close_reason' => true,
     ];

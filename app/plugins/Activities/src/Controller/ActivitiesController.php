@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Activities\Controller;
 
+use App\Controller\DataverseGridTrait;
+use App\Services\CsvExportService;
 use Cake\ORM\TableRegistry;
 use Cake\I18n\DateTime;
 use Cake\ORM\Query\SelectQuery;
@@ -275,6 +277,7 @@ use Activities\Model\Entity\Authorization;
  */
 class ActivitiesController extends AppController
 {
+    use DataverseGridTrait;
     /**
      * Controller initialization for Activities management and authorization configuration
      *
@@ -460,7 +463,7 @@ class ActivitiesController extends AppController
     public function initialize(): void
     {
         parent::initialize();
-        $this->Authorization->authorizeModel("index", "add");
+        $this->Authorization->authorizeModel("index", "add", "gridData");
     }
 
     /**
@@ -678,21 +681,91 @@ class ActivitiesController extends AppController
      */
     public function index()
     {
-        $query = $this->Activities->find()->contain([
-            "ActivityGroups" => function ($q) {
-                return $q->select(["id", "name"]);
-            },
-            "Roles" => function ($q) {
-                return $q->select(["id", "name"]);
-            },
-        ]);
-        $activities = $this->paginate($query, [
-            'order' => [
-                'name' => 'asc',
-            ]
+        // Simple index page - just renders the dv_grid element
+        // The dv_grid element will lazy-load the actual data via gridData action
+    }
+
+    /**
+     * Grid Data method - Provides Dataverse grid data for activities
+     *
+     * Returns grid content with toolbar and table for the activities grid.
+     * Handles both outer frame (toolbar + table frame) and inner frame
+     * (table only) requests. Also supports CSV export.
+     *
+     * @param \App\Services\CsvExportService $csvExportService Injected CSV export service
+     * @return \Cake\Http\Response|null|void Renders view or returns CSV response
+     */
+    public function gridData(CsvExportService $csvExportService)
+    {
+        // Build base query with activity group and role info
+        $baseQuery = $this->Activities->find()
+            ->contain([
+                'ActivityGroups' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+                'Roles' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+            ]);
+
+        // Use unified trait for grid processing
+        $result = $this->processDataverseGrid([
+            'gridKey' => 'Activities.Activities.index.main',
+            'gridColumnsClass' => \App\KMP\GridColumns\ActivitiesGridColumns::class,
+            'baseQuery' => $baseQuery,
+            'tableName' => 'Activities',
+            'defaultSort' => ['Activities.name' => 'asc'],
+            'defaultPageSize' => 25,
+            'showAllTab' => false,
+            'canAddViews' => false,
+            'canFilter' => true,
+            'canExportCsv' => true,
         ]);
 
-        $this->set(compact("activities"));
+        // Handle CSV export
+        if (!empty($result['isCsvExport'])) {
+            return $this->handleCsvExport($result, $csvExportService, 'activities');
+        }
+
+        // Set view variables
+        $this->set([
+            'activities' => $result['data'],
+            'gridState' => $result['gridState'],
+            'columns' => $result['columnsMetadata'],
+            'visibleColumns' => $result['visibleColumns'],
+            'searchableColumns' => \App\KMP\GridColumns\ActivitiesGridColumns::getSearchableColumns(),
+            'dropdownFilterColumns' => $result['dropdownFilterColumns'],
+            'filterOptions' => $result['filterOptions'],
+            'currentFilters' => $result['currentFilters'],
+            'currentSearch' => $result['currentSearch'],
+            'currentView' => $result['currentView'],
+            'availableViews' => $result['availableViews'],
+            'gridKey' => $result['gridKey'],
+            'currentSort' => $result['currentSort'],
+            'currentMember' => $result['currentMember'],
+        ]);
+
+        // Determine which template to render based on Turbo-Frame header
+        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
+
+        // Use main app's element templates (not plugin templates)
+        $this->viewBuilder()->setPlugin(null);
+
+        if ($turboFrame === 'activities-grid-table') {
+            // Inner frame request - render table data only
+            $this->set('data', $result['data']);
+            $this->set('tableFrameId', 'activities-grid-table');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplatePath('element');
+            $this->viewBuilder()->setTemplate('dv_grid_table');
+        } else {
+            // Outer frame request (or no frame) - render toolbar + table frame
+            $this->set('data', $result['data']);
+            $this->set('frameId', 'activities-grid');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplatePath('element');
+            $this->viewBuilder()->setTemplate('dv_grid_content');
+        }
     }
 
     /**

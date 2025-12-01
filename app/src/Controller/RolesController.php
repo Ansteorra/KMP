@@ -195,6 +195,8 @@ use Cake\ORM\TableRegistry;
  */
 class RolesController extends AppController
 {
+    use DataverseGridTrait;
+
     /**
      * Initialize method - Configure authorization for role management
      *
@@ -213,47 +215,107 @@ class RolesController extends AppController
             'index',        // Role listing
             'add',          // Role creation
             'searchMembers', // Member search for role assignment
+            'gridData',     // Grid data endpoint
         );
     }
 
     /**
-     * Index method - Display paginated list of roles with CSV export support
+     * Index method - Display Dataverse grid for roles
      *
-     * Provides the main interface for viewing and managing roles in the system.
-     * Includes authorization scoping to ensure users only see roles they're
-     * authorized to access, and supports CSV export for external analysis.
+     * Renders the roles grid page which uses lazy-loading turbo-frame
+     * to load the actual grid data via the gridData action.
+     *
+     * @return \Cake\Http\Response|null|void Renders view
+     */
+    public function index()
+    {
+        // Simple index page - just renders the dv_grid element
+        // The dv_grid element will lazy-load the actual data via gridData action
+    }
+
+    /**
+     * Grid Data method - Provides Dataverse grid data for roles
+     *
+     * Returns grid content with toolbar and table for the roles grid.
+     * Handles both outer frame (toolbar + table frame) and inner frame
+     * (table only) requests. Also supports CSV export.
      *
      * @param \App\Services\CsvExportService $csvExportService Injected CSV export service
      * @return \Cake\Http\Response|null|void Renders view or returns CSV response
      */
-    public function index(CsvExportService $csvExportService)
+    public function gridData(CsvExportService $csvExportService)
     {
-        // Verify user has permission to view role list
-        $this->Authorization->authorizeAction();
+        // Build query with current member count subquery (only active assignments)
+        $memberRolesTable = TableRegistry::getTableLocator()->get('MemberRoles');
+        $now = new \Cake\I18n\DateTime();
+        $memberCountSubquery = $memberRolesTable->find()
+            ->select(['count' => $memberRolesTable->find()->func()->count('*')])
+            ->where([
+                'MemberRoles.role_id = Roles.id',
+                'MemberRoles.start_on <=' => $now,
+                'OR' => [
+                    'MemberRoles.expires_on >=' => $now,
+                    'MemberRoles.expires_on IS' => null,
+                ],
+            ]);
 
-        // Build base query for roles
-        $query = $this->Roles->find();
+        $baseQuery = $this->Roles->find()
+            ->select($this->Roles)
+            ->select(['member_count' => $memberCountSubquery]);
 
-        // Apply authorization scoping to filter roles based on user access
-        // This ensures users only see roles they're authorized to view
-        $query = $this->Authorization->applyScope($query);
-
-        // Handle CSV export requests
-        if ($this->isCsvRequest()) {
-            return $csvExportService->outputCsv(
-                $query->order(['name' => 'asc']),
-                'roles.csv',
-            );
-        }
-
-        // Paginate results with alphabetical sorting for better usability
-        $roles = $this->paginate($query, [
-            'order' => [
-                'name' => 'asc',
-            ],
+        // Use unified trait for grid processing
+        $result = $this->processDataverseGrid([
+            'gridKey' => 'Roles.index.main',
+            'gridColumnsClass' => \App\KMP\GridColumns\RolesGridColumns::class,
+            'baseQuery' => $baseQuery,
+            'tableName' => 'Roles',
+            'defaultSort' => ['Roles.name' => 'asc'],
+            'defaultPageSize' => 25,
+            'showAllTab' => false,
+            'canAddViews' => false,
+            'canFilter' => true,
+            'canExportCsv' => true,
         ]);
 
-        $this->set(compact('roles'));
+        // Handle CSV export
+        if (!empty($result['isCsvExport'])) {
+            return $this->handleCsvExport($result, $csvExportService, 'roles');
+        }
+
+        // Set view variables
+        $this->set([
+            'roles' => $result['data'],
+            'gridState' => $result['gridState'],
+            'columns' => $result['columnsMetadata'],
+            'visibleColumns' => $result['visibleColumns'],
+            'searchableColumns' => \App\KMP\GridColumns\RolesGridColumns::getSearchableColumns(),
+            'dropdownFilterColumns' => $result['dropdownFilterColumns'],
+            'filterOptions' => $result['filterOptions'],
+            'currentFilters' => $result['currentFilters'],
+            'currentSearch' => $result['currentSearch'],
+            'currentView' => $result['currentView'],
+            'availableViews' => $result['availableViews'],
+            'gridKey' => $result['gridKey'],
+            'currentSort' => $result['currentSort'],
+            'currentMember' => $result['currentMember'],
+        ]);
+
+        // Determine which template to render based on Turbo-Frame header
+        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
+
+        if ($turboFrame === 'roles-grid-table') {
+            // Inner frame request - render table data only
+            $this->set('data', $result['data']);
+            $this->set('tableFrameId', 'roles-grid-table');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplate('../element/dv_grid_table');
+        } else {
+            // Outer frame request (or no frame) - render toolbar + table frame
+            $this->set('data', $result['data']);
+            $this->set('frameId', 'roles-grid');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplate('../element/dv_grid_content');
+        }
     }
 
     /**

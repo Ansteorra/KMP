@@ -22,21 +22,30 @@ class GridViewController extends Controller {
         // State will be loaded when frame loads
         this.state = null
 
+        // Bind handler once for use in addEventListener/removeEventListener
+        this.boundHandleFrameLoad = this.handleFrameLoad.bind(this)
+
         // Listen for Turbo Frame updates
-        document.addEventListener('turbo:frame-load', this.handleFrameLoad.bind(this))
+        document.addEventListener('turbo:frame-load', this.boundHandleFrameLoad)
     }
 
     /**
      * Cleanup when controller disconnects
      */
     disconnect() {
-        document.removeEventListener('turbo:frame-load', this.handleFrameLoad.bind(this))
+        document.removeEventListener('turbo:frame-load', this.boundHandleFrameLoad)
     }
 
     /**
      * Handle Turbo Frame load - update state from table frame
      */
     handleFrameLoad(event) {
+        // Only handle frames that belong to THIS grid controller
+        // Check if the event target is inside this controller's element
+        if (!this.element.contains(event.target)) {
+            return
+        }
+
         // Listen for table frame loads (not the outer grid frame)
         if (!event.target.id || !event.target.id.endsWith('-table')) {
             return
@@ -83,7 +92,7 @@ class GridViewController extends Controller {
      * Update filter pill display
      */
     updateFilterPills() {
-        const container = document.querySelector('[data-filter-pills-container]')
+        const container = this.element.querySelector('[data-filter-pills-container]')
         if (!container) return
 
         // Clear existing pills
@@ -278,7 +287,7 @@ class GridViewController extends Controller {
      * Update search display
      */
     updateSearchDisplay() {
-        const container = document.querySelector('[data-filter-pills-container]')
+        const container = this.element.querySelector('[data-filter-pills-container]')
         if (!container) return
 
         // Update search input value
@@ -335,7 +344,7 @@ class GridViewController extends Controller {
      */
     updateFilterCount() {
         // Find the filter button (it has a Filter icon and text)
-        const filterButton = Array.from(document.querySelectorAll('button'))
+        const filterButton = Array.from(this.element.querySelectorAll('button'))
             .find(btn => btn.textContent.includes('Filter') && btn.querySelector('.bi-funnel'))
 
         if (!filterButton) return
@@ -383,7 +392,7 @@ class GridViewController extends Controller {
         if (!this.state.filters || !this.state.filters.active) return
 
         // Get all filter checkboxes and sync their state
-        const checkboxes = document.querySelectorAll('[data-filter-column][type="checkbox"]')
+        const checkboxes = this.element.querySelectorAll('[data-filter-column][type="checkbox"]')
 
         checkboxes.forEach(checkbox => {
             const column = checkbox.dataset.filterColumn
@@ -409,11 +418,11 @@ class GridViewController extends Controller {
      * Update view tabs from state
      */
     updateViewTabs() {
-        const container = document.querySelector('[data-view-tabs-container]')
+        const container = this.element.querySelector('[data-view-tabs-container]')
         if (!container) return
 
         // Check if we should show "All" tab (marker present means DON'T show it)
-        const showAllTab = !document.querySelector('[data-no-all-tab]')
+        const showAllTab = !this.element.querySelector('[data-no-all-tab]')
 
         // Find the "Create View" button to preserve it
         const createViewBtn = container.querySelector('[data-action*="saveView"]')?.closest('li')
@@ -629,7 +638,7 @@ class GridViewController extends Controller {
      * Update filter navigation (left side filter tabs)
      */
     updateFilterNavigation() {
-        const container = document.querySelector('[data-filter-nav-container]')
+        const container = this.element.querySelector('[data-filter-nav-container]')
         if (!container) return
 
         container.innerHTML = ''
@@ -713,7 +722,7 @@ class GridViewController extends Controller {
      * Update filter panels (right side filter options)
      */
     updateFilterPanels() {
-        const container = document.querySelector('[data-filter-panels-container]')
+        const container = this.element.querySelector('[data-filter-panels-container]')
         if (!container) return
 
         container.innerHTML = ''
@@ -905,7 +914,7 @@ class GridViewController extends Controller {
      * Update clear filters footer visibility
      */
     updateClearFiltersFooter() {
-        const container = document.querySelector('[data-clear-filters-container]')
+        const container = this.element.querySelector('[data-clear-filters-container]')
         if (!container) return
 
         const hasSearch = this.state.search && this.state.search.trim() !== ''
@@ -922,7 +931,7 @@ class GridViewController extends Controller {
      * Update column picker modal
      */
     updateColumnPicker() {
-        const container = document.querySelector('[data-column-list-container]')
+        const container = this.element.querySelector('[data-column-list-container]')
         if (!container) return
 
         container.innerHTML = ''
@@ -1416,18 +1425,18 @@ class GridViewController extends Controller {
         const key = event.currentTarget.dataset.filterKey
 
         // Hide all panels
-        document.querySelectorAll('[data-filter-panel]').forEach(panel => {
+        this.element.querySelectorAll('[data-filter-panel]').forEach(panel => {
             panel.classList.add('d-none')
         })
 
         // Show selected panel
-        const targetPanel = document.querySelector(`[data-filter-panel][data-filter-key="${key}"]`)
+        const targetPanel = this.element.querySelector(`[data-filter-panel][data-filter-key="${key}"]`)
         if (targetPanel) {
             targetPanel.classList.remove('d-none')
         }
 
         // Update nav item active states
-        document.querySelectorAll('[data-filter-nav-item]').forEach(item => {
+        this.element.querySelectorAll('[data-filter-nav-item]').forEach(item => {
             item.classList.remove('active')
         })
         event.currentTarget.classList.add('active')
@@ -1543,7 +1552,7 @@ class GridViewController extends Controller {
      */
     applyColumnChanges() {
         // Get visible columns from checkboxes in modal
-        const modal = document.querySelector(`#columnPickerModal-${this.state.config.gridKey.replace(/\./g, '\\.')}`)
+        const modal = this.element.querySelector(`#columnPickerModal-${this.state.config.gridKey.replace(/\./g, '\\.')}`)
         if (!modal) return
 
         const visibleColumns = []
@@ -1670,18 +1679,45 @@ class GridViewController extends Controller {
             // Frame navigation - find the table frame and update its src
             const tableFrame = this.element.querySelector('turbo-frame[id$="-table"]')
             if (tableFrame) {
-                // Convert the URL to use gridData action instead of index-dv
-                // Parse the URL
-                const urlObj = new URL(url, window.location.origin)
-                // Replace the last path segment with 'grid-data'
-                const pathParts = urlObj.pathname.split('/')
-                pathParts[pathParts.length - 1] = 'grid-data'
-                urlObj.pathname = pathParts.join('/')
+                // Get the base grid-data URL from the frame's current src
+                // This handles embedded grids with custom endpoints like /members/roles-grid-data/1
+                const currentSrc = tableFrame.getAttribute('src') || tableFrame.src
+                if (!currentSrc) {
+                    console.warn('Table frame has no src attribute')
+                    return
+                }
 
-                const gridDataUrl = urlObj.pathname + urlObj.search
+                // Parse current src to extract base URL and context parameters
+                const currentSrcUrl = new URL(currentSrc, window.location.origin)
+                const baseGridDataUrl = currentSrcUrl.pathname
+
+                // Context parameters that must be preserved (e.g., member_id, branch_id)
+                // These identify which entity's data we're viewing
+                const contextParams = ['member_id', 'branch_id', 'gathering_id']
+
+                // Parse the navigation URL to get new query params
+                const urlObj = new URL(url, window.location.origin)
+
+                // Build final URL starting with base path
+                const finalUrl = new URL(baseGridDataUrl, window.location.origin)
+
+                // Copy all params from the incoming URL
+                urlObj.searchParams.forEach((value, key) => {
+                    finalUrl.searchParams.set(key, value)
+                })
+
+                // Preserve context params from original src if not in new URL
+                contextParams.forEach(param => {
+                    if (currentSrcUrl.searchParams.has(param) && !finalUrl.searchParams.has(param)) {
+                        finalUrl.searchParams.set(param, currentSrcUrl.searchParams.get(param))
+                    }
+                })
+
+                const gridDataUrl = finalUrl.pathname + finalUrl.search
 
                 // Update browser history with the original URL (for page reload)
                 window.history.pushState({}, '', url)
+
                 // Navigate the frame by setting src to gridData URL
                 tableFrame.src = gridDataUrl
             } else {

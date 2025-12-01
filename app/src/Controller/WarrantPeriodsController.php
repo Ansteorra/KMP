@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Services\CsvExportService;
+
 /**
  * WarrantPeriodsController - Warrant Period Template Management Interface
  *
@@ -99,6 +101,8 @@ namespace App\Controller;
  */
 class WarrantPeriodsController extends AppController
 {
+    use DataverseGridTrait;
+
     /**
      * Initialize controller - Component Setup and Authorization Integration
      *
@@ -133,78 +137,85 @@ class WarrantPeriodsController extends AppController
         parent::initialize();
 
         $this->loadComponent('Authorization.Authorization');
+        $this->Authorization->authorizeModel('index', 'add', 'gridData');
     }
 
     /**
-     * Index method - Period Template Listing and Management Interface
-     *
-     * Provides a comprehensive listing of warrant period templates with administrative
-     * management capabilities. This action serves as the main interface for period
-     * template administration, displaying existing templates and providing access
-     * to creation and management functions.
-     *
-     * **Core Functionality:**
-     * - Lists all available warrant period templates
-     * - Applies organizational authorization scoping
-     * - Provides pagination for large template collections
-     * - Orders templates chronologically by start date (descending)
-     * - Includes empty entity for modal-based creation interface
-     *
-     * **Authorization Integration:**
-     * - Applies authorization scope to query for data isolation
-     * - Ensures users only see period templates they're authorized to access
-     * - Integrates with organizational permission structure
-     * - Enforces administrative access requirements
-     *
-     * **Data Management:**
-     * - Retrieves period templates through WarrantPeriodsTable
-     * - Applies descending chronological ordering for temporal management
-     * - Implements pagination for performance and usability
-     * - Prepares empty entity for inline creation workflows
-     *
-     * **User Interface Integration:**
-     * - Provides data for Bootstrap table-based listing
-     * - Supports sortable columns for flexible data organization
-     * - Integrates with modal-based creation interface
-     * - Enables administrative action buttons and operations
-     *
-     * **Template Management Features:**
-     * - Chronological ordering for temporal template organization
-     * - Pagination support for large period template collections
-     * - Authorization-scoped data access for organizational security
-     * - Integration with creation and deletion workflows
-     *
-     * **Performance Considerations:**
-     * - Pagination prevents loading large datasets
-     * - Authorization scoping optimizes query performance
-     * - Efficient ordering by indexed start_date field
-     * - Minimal data loading for listing requirements
-     *
-     * **Administrative Workflow:**
-     * ```php
-     * // Typical administrative usage
-     * 1. Administrator accesses /warrant-periods
-     * 2. System displays paginated list of period templates
-     * 3. Templates ordered chronologically (newest first)
-     * 4. Administrative actions available for each template
-     * 5. Modal interface available for creating new templates
-     * ```
-     *
-     * **View Variables:**
-     * - `$warrantPeriods`: Paginated collection of period templates
-     * - `$emptyWarrantPeriod`: Empty entity for creation interface
+     * Index method - Display Dataverse grid for warrant periods
      *
      * @return \Cake\Http\Response|null|void Renders view
      */
     public function index()
     {
-        $query = $this->WarrantPeriods->find();
-        $query = $this->Authorization->applyScope($query);
-        $warrantPeriods = $this->paginate($query, [
-            'order' => ['start_date' => 'DESC'],
-        ]);
+        // Simple index page - just renders the dv_grid element
+        // The dv_grid element will lazy-load the actual data via gridData action
+
+        // Keep empty entity for add modal
         $emptyWarrantPeriod = $this->WarrantPeriods->newEmptyEntity();
-        $this->set(compact('warrantPeriods', 'emptyWarrantPeriod'));
+        $this->set(compact('emptyWarrantPeriod'));
+    }
+
+    /**
+     * Grid Data method - Provides Dataverse grid data for warrant periods
+     *
+     * @param \App\Services\CsvExportService $csvExportService Injected CSV export service
+     * @return \Cake\Http\Response|null|void Renders view or returns CSV response
+     */
+    public function gridData(CsvExportService $csvExportService)
+    {
+        // Use unified trait for grid processing
+        $result = $this->processDataverseGrid([
+            'gridKey' => 'WarrantPeriods.index.main',
+            'gridColumnsClass' => \App\KMP\GridColumns\WarrantPeriodsGridColumns::class,
+            'baseQuery' => $this->WarrantPeriods->find(),
+            'tableName' => 'WarrantPeriods',
+            'defaultSort' => ['WarrantPeriods.start_date' => 'desc'],
+            'defaultPageSize' => 25,
+            'showAllTab' => false,
+            'canAddViews' => false,
+            'canFilter' => true,
+            'canExportCsv' => true,
+        ]);
+
+        // Handle CSV export
+        if (!empty($result['isCsvExport'])) {
+            return $this->handleCsvExport($result, $csvExportService, 'warrant-periods');
+        }
+
+        // Set view variables
+        $this->set([
+            'warrantPeriods' => $result['data'],
+            'gridState' => $result['gridState'],
+            'columns' => $result['columnsMetadata'],
+            'visibleColumns' => $result['visibleColumns'],
+            'searchableColumns' => \App\KMP\GridColumns\WarrantPeriodsGridColumns::getSearchableColumns(),
+            'dropdownFilterColumns' => $result['dropdownFilterColumns'],
+            'filterOptions' => $result['filterOptions'],
+            'currentFilters' => $result['currentFilters'],
+            'currentSearch' => $result['currentSearch'],
+            'currentView' => $result['currentView'],
+            'availableViews' => $result['availableViews'],
+            'gridKey' => $result['gridKey'],
+            'currentSort' => $result['currentSort'],
+            'currentMember' => $result['currentMember'],
+        ]);
+
+        // Determine which template to render based on Turbo-Frame header
+        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
+
+        if ($turboFrame === 'warrant-periods-grid-table') {
+            // Inner frame request - render table data only
+            $this->set('data', $result['data']);
+            $this->set('tableFrameId', 'warrant-periods-grid-table');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplate('../element/dv_grid_table');
+        } else {
+            // Outer frame request (or no frame) - render toolbar + table frame
+            $this->set('data', $result['data']);
+            $this->set('frameId', 'warrant-periods-grid');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplate('../element/dv_grid_content');
+        }
     }
 
     /**

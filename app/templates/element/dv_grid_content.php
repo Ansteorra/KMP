@@ -11,13 +11,16 @@
  * @var iterable $data The data to display (e.g., $members, $warrants)
  * @var array $gridState Complete grid state object
  * @var string $frameId Turbo frame ID (e.g., 'members-grid')
+ * @var string|null $tableDataUrl Optional table data URL (defaults to building from current action)
  */
 
-// Build URL for table data with current query params
-$queryParams = $this->getRequest()->getQueryParams();
-$tableDataUrl = $this->Url->build(['action' => 'gridData']);
-if (!empty($queryParams)) {
-    $tableDataUrl .= '?' . http_build_query($queryParams);
+// Build URL for table data with current query params if not provided
+if (!isset($tableDataUrl)) {
+    $queryParams = $this->getRequest()->getQueryParams();
+    $tableDataUrl = $this->Url->build(['action' => 'gridData']);
+    if (!empty($queryParams)) {
+        $tableDataUrl .= '?' . http_build_query($queryParams);
+    }
 }
 ?>
 <turbo-frame id="<?= h($frameId) ?>">

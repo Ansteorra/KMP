@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\KMP\PermissionsLoader;
+use App\Services\CsvExportService;
 use Cake\Http\Exception\BadRequestException;
 use Cake\Http\Exception\NotFoundException;
 
@@ -187,6 +188,8 @@ use Cake\Http\Exception\NotFoundException;
  */
 class PermissionsController extends AppController
 {
+    use DataverseGridTrait;
+
     /**
      * Initialize method - Configure authorization for permission management
      *
@@ -201,38 +204,88 @@ class PermissionsController extends AppController
 
         // Configure model-level authorization for specific actions
         // These actions will have automatic model authorization applied
-        $this->Authorization->authorizeModel('index', 'add', 'matrix');
+        $this->Authorization->authorizeModel('index', 'add', 'matrix', 'gridData');
     }
 
     /**
-     * Index method - Display paginated list of permissions
+     * Index method - Display Dataverse grid for permissions
      *
-     * Provides the main interface for viewing and managing permissions in the system.
-     * Includes authorization scoping to ensure users only see permissions they're
-     * authorized to access, and implements efficient pagination for large datasets.
+     * Renders the permissions grid page which uses lazy-loading turbo-frame
+     * to load the actual grid data via the gridData action.
      *
      * @return \Cake\Http\Response|null|void Renders view
      */
     public function index()
     {
-        // Verify user has permission to view permission list
-        $this->Authorization->authorizeAction();
+        // Simple index page - just renders the dv_grid element
+        // The dv_grid element will lazy-load the actual data via gridData action
+    }
 
-        // Build base query for permissions
-        $query = $this->Permissions->find();
-
-        // Apply authorization scoping to filter permissions based on user access
-        // This ensures users only see permissions they're authorized to view
-        $query = $this->Authorization->applyScope($query);
-
-        // Paginate results with alphabetical sorting for better usability
-        $permissions = $this->paginate($query, [
-            'order' => [
-                'name' => 'asc',
-            ],
+    /**
+     * Grid Data method - Provides Dataverse grid data for permissions
+     *
+     * Returns grid content with toolbar and table for the permissions grid.
+     * Handles both outer frame (toolbar + table frame) and inner frame
+     * (table only) requests. Also supports CSV export.
+     *
+     * @param \App\Services\CsvExportService $csvExportService Injected CSV export service
+     * @return \Cake\Http\Response|null|void Renders view or returns CSV response
+     */
+    public function gridData(CsvExportService $csvExportService)
+    {
+        // Use unified trait for grid processing
+        $result = $this->processDataverseGrid([
+            'gridKey' => 'Permissions.index.main',
+            'gridColumnsClass' => \App\KMP\GridColumns\PermissionsGridColumns::class,
+            'baseQuery' => $this->Permissions->find(),
+            'tableName' => 'Permissions',
+            'defaultSort' => ['Permissions.name' => 'asc'],
+            'defaultPageSize' => 25,
+            'showAllTab' => false,
+            'canAddViews' => false,
+            'canFilter' => true,
+            'canExportCsv' => true,
         ]);
 
-        $this->set(compact('permissions'));
+        // Handle CSV export
+        if (!empty($result['isCsvExport'])) {
+            return $this->handleCsvExport($result, $csvExportService, 'permissions');
+        }
+
+        // Set view variables
+        $this->set([
+            'permissions' => $result['data'],
+            'gridState' => $result['gridState'],
+            'columns' => $result['columnsMetadata'],
+            'visibleColumns' => $result['visibleColumns'],
+            'searchableColumns' => \App\KMP\GridColumns\PermissionsGridColumns::getSearchableColumns(),
+            'dropdownFilterColumns' => $result['dropdownFilterColumns'],
+            'filterOptions' => $result['filterOptions'],
+            'currentFilters' => $result['currentFilters'],
+            'currentSearch' => $result['currentSearch'],
+            'currentView' => $result['currentView'],
+            'availableViews' => $result['availableViews'],
+            'gridKey' => $result['gridKey'],
+            'currentSort' => $result['currentSort'],
+            'currentMember' => $result['currentMember'],
+        ]);
+
+        // Determine which template to render based on Turbo-Frame header
+        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
+
+        if ($turboFrame === 'permissions-grid-table') {
+            // Inner frame request - render table data only
+            $this->set('data', $result['data']);
+            $this->set('tableFrameId', 'permissions-grid-table');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplate('../element/dv_grid_table');
+        } else {
+            // Outer frame request (or no frame) - render toolbar + table frame
+            $this->set('data', $result['data']);
+            $this->set('frameId', 'permissions-grid');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplate('../element/dv_grid_content');
+        }
     }
 
     /**
@@ -288,7 +341,7 @@ class PermissionsController extends AppController
 
         // Load available application policies for policy assignment interface
         $appPolicies = PermissionsLoader::getApplicationPolicies();
-        
+
         // Sort policies alphabetically by class name for easier navigation
         ksort($appPolicies);
 

@@ -313,7 +313,7 @@ class MembersGridColumns extends BaseGridColumns
                 'type' => 'datetime',
                 'sortable' => true,
                 'filterable' => true,
-                'defaultVisible' => false,
+                'defaultVisible' => true,
                 'width' => '150px',
                 'alignment' => 'left',
             ],
@@ -338,59 +338,61 @@ class MembersGridColumns extends BaseGridColumns
         ];
 
         // Add actions column as the last column
-        $columns['actions'] = [
-            'key' => 'actions',
-            'label' => '',
-            'type' => 'actions',
-            'required' => true,
-            'defaultVisible' => true,
-            'sortable' => false,
-            'exportable' => false,
-            'width' => '160px',
-            'alignment' => 'right',
-            'cellRenderer' => function ($value, $row, $view) {
-                $currentMember = $view->get('currentMember');
-                $buttons = [];
-                // Edit button
-                if ($currentMember && $currentMember->can('edit', $row)) {
-                    $buttons[] = $view->Html->link('<i class="bi bi-pencil"></i> Edit', [
-                        'controller' => 'Members',
-                        'action' => 'edit',
-                        $row['id']
-                    ], [
-                        'escape' => false,
-                        'class' => 'btn btn-sm btn-outline-primary me-1',
-                        'data-turbo-frame' => '_top',
-                    ]);
-                }
-                // Authorize button (example)
-                if ($currentMember && $currentMember->can('authorize', $row)) {
-                    $buttons[] = $view->Html->link('<i class="bi bi-shield-check"></i> Authorize', [
-                        'controller' => 'Authorizations',
-                        'action' => 'add',
-                        'member_id' => $row['id']
-                    ], [
-                        'escape' => false,
-                        'class' => 'btn btn-sm btn-outline-success me-1',
-                        'data-turbo-frame' => '_top',
-                    ]);
-                }
-                // Delete button
-                if ($currentMember && $currentMember->can('delete', $row)) {
-                    $buttons[] = $view->Form->postLink('<i class="bi bi-trash"></i> Delete', [
-                        'controller' => 'Members',
-                        'action' => 'delete',
-                        $row['id']
-                    ], [
-                        'escape' => false,
-                        'class' => 'btn btn-sm btn-outline-danger',
-                        'confirm' => 'Are you sure you want to delete this member?',
-                        'data-turbo-frame' => '_top',
-                    ]);
-                }
-                return implode(' ', $buttons);
-            },
-        ];
+        /**
+         *$columns['actions'] = [
+         *    'key' => 'actions',
+         *    'label' => '',
+         *    'type' => 'actions',
+         *    'required' => true,
+         *    'defaultVisible' => true,
+         *    'sortable' => false,
+         *    'exportable' => false,
+         *    'width' => '160px',
+         *    'alignment' => 'right',
+         *    'cellRenderer' => function ($value, $row, $view) {
+         *        $currentMember = $view->get('currentMember');
+         *        $buttons = [];
+         *        // Edit button
+         *        if ($currentMember && $currentMember->can('edit', $row)) {
+         *            $buttons[] = $view->Html->link('<i class="bi bi-pencil"></i> Edit', [
+         *                'controller' => 'Members',
+         *                'action' => 'edit',
+         *                $row['id']
+         *            ], [
+         *                'escape' => false,
+         *                'class' => 'btn btn-sm btn-outline-primary me-1',
+         *                'data-turbo-frame' => '_top',
+         *            ]);
+         *        }
+         *        // Authorize button (example)
+         *        if ($currentMember && $currentMember->can('authorize', $row)) {
+         *            $buttons[] = $view->Html->link('<i class="bi bi-shield-check"></i> Authorize', [
+         *                'controller' => 'Authorizations',
+         *                'action' => 'add',
+         *                'member_id' => $row['id']
+         *            ], [
+         *                'escape' => false,
+         *                'class' => 'btn btn-sm btn-outline-success me-1',
+         *                'data-turbo-frame' => '_top',
+         *            ]);
+         *        }
+         *        // Delete button
+         *        if ($currentMember && $currentMember->can('delete', $row)) {
+         *            $buttons[] = $view->Form->postLink('<i class="bi bi-trash"></i> Delete', [
+         *                'controller' => 'Members',
+         *                'action' => 'delete',
+         *                $row['id']
+         *            ], [
+         *                'escape' => false,
+         *                'class' => 'btn btn-sm btn-outline-danger',
+         *                'confirm' => 'Are you sure you want to delete this member?',
+         *                'data-turbo-frame' => '_top',
+         *            ]);
+         *        }
+         *        return implode(' ', $buttons);
+         *    },
+         *];
+         */
 
         return $columns;
     }

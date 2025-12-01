@@ -295,6 +295,46 @@ class Office extends BaseEntity
     }
 
     /**
+     * Virtual property for department name (for grid display)
+     *
+     * @return string|null The department name or null if no department
+     */
+    protected function _getDepartmentName(): ?string
+    {
+        return $this->department->name ?? null;
+    }
+
+    /**
+     * Virtual property for reports-to office name (for grid display)
+     *
+     * @return string|null The reports-to office name or null if none
+     */
+    protected function _getReportsToName(): ?string
+    {
+        return $this->reports_to->name ?? null;
+    }
+
+    /**
+     * Virtual property for deputy-to office name (for grid display)
+     *
+     * @return string|null The deputy-to office name or null if none
+     */
+    protected function _getDeputyToName(): ?string
+    {
+        return $this->deputy_to->name ?? null;
+    }
+
+    /**
+     * Virtual property for grants role name (for grid display)
+     *
+     * @return string|null The role name or null if none
+     */
+    protected function _getGrantsRoleName(): ?string
+    {
+        return $this->grants_role->name ?? null;
+    }
+
+    /**
      * Branch types setter with serialization handling
      *
      * Converts branch type arrays or strings into the serialized format

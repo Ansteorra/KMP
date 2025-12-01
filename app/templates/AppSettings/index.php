@@ -1,120 +1,58 @@
 <?php
 
 /**
+ * App Settings Dataverse Grid Index Template
+ * 
+ * Modern grid interface with saved views, column picker, filtering, and sorting.
+ * Uses lazy-loading turbo-frame architecture for consistent data flow.
+ * 
  * @var \App\View\AppView $this
- * @var \App\Model\Entity\AppSetting[]|\Cake\Collection\CollectionInterface $appSettings
+ * @var \App\Model\Entity\AppSetting $emptyAppSetting
  */
-?>
-<?php $this->extend("/layout/TwitterBootstrap/dashboard");
+
+$this->extend("/layout/TwitterBootstrap/dashboard");
 
 echo $this->KMP->startBlock("title");
 echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': App Settings';
-$this->KMP->endBlock(); ?>
+$this->KMP->endBlock();
 
-<div class="row align-items-start">
-    <div class="col">
-        <h3>
-            App Settings :
-        </h3>
+$this->assign('title', __('App Settings'));
+?>
+
+<div class="app-settings index content">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3><?= __('App Settings') ?></h3>
+        <div>
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal"
+                data-bs-target="#addModal">
+                <i class="bi bi-plus-circle me-1"></i><?= __('Add') ?>
+            </button>
+            <?php
+            $infoHelpUrl = $this->KMP->getAppSetting("KMP.AppSettings.HelpUrl");
+            if ($infoHelpUrl) :
+            ?>
+                <?= $this->Html->link(
+                    __('App Settings Help'),
+                    $infoHelpUrl,
+                    [
+                        "class" => "btn btn-outline-secondary ms-2",
+                        "target" => "_blank",
+                    ]
+                ) ?>
+            <?php endif; ?>
+        </div>
     </div>
-    <div class="col text-end">
-        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
-            data-bs-target="#addModal">Add</button>
-        <?php
-        $infoHelpUrl = $this->KMP->getAppSetting("KMP.AppSettings.HelpUrl");
-        echo $this->Html->link(
-            "App Settings Help",
-            $infoHelpUrl,
-            [
-                "class" => "btn btn-secondary btn-sm",
-                "target" => "_blank",
-            ],
-        ); ?>
-    </div>
-</div>
-<table class="table table-striped">
-    <thead>
-        <tr scope="row">
-            <th class="col-3"><?= $this->Paginator->sort("name") ?></th>
-            <th class="col-6"><?= $this->Paginator->sort("value") ?></th>
-            <th class="col-3" class="actions"><?= __("Actions") ?></th>
-        </tr>
-    </thead>
-    <tbody>
-        <?php foreach ($appSettings as $appSetting) : ?>
-            <tr data-controller='app-setting-form'>
 
-                <td class='align-middle'><?= h($appSetting->name) ?></td>
-                <td><?= $this->Form->create($appSetting, [
-                        "url" => ["action" => "edit", $appSetting->id],
-                        "data-app-setting-form-target" => "form",
-                    ]) ?>
-                    <?php if ($appSetting->type == "json" || $appSetting->type == "yaml") : ?>
-                        <div data-controller="guifier-control" data-guifier-control-value='<?= $appSetting->raw_value ?>'
-                            data-guifier-control-type-value='<?= $appSetting->type ?>'>
-                            <?= $this->Form->hidden("raw_value", [
-                                "value" => $appSetting->raw_value,
-                                "id" => "raw_value_" . $appSetting->id,
-                                "label" => false,
-                                "spacing" => "inline",
-                                "data-action" => "change->app-setting-form#enableSubmit",
-                                "data-guifier-control-target" => "hidden",
-                            ]) ?>
-                            <div id="guifier_<?= $appSetting->id ?>" data-guifier-control-target="container">
-                            </div>
-                        <?php else : ?>
-                            <?= $this->Form->textarea("raw_value", [
-                                "label" => false,
-                                "spacing" => "inline",
-                                "data-action" => "change->app-setting-form#enableSubmit",
-                            ]) ?>
-                        <?php endif; ?>
-                        <?= $this->Form->end() ?>
-                </td>
-                <td class="actions text-end text-nowrap">
-                    <?= $this->Form->button("Save", [
-                        "class" => "btn btn-secondary",
-                        "disabled" => true,
-                        "data-action" => "click->app-setting-form#submit",
-                        "data-app-setting-form-target" => "submitBtn",
-                    ]) ?>
-                    <?php if (!$appSetting->required) : ?>
-                        <?= $this->Form->postLink(
-                            __("Delete"),
-                            ["action" => "delete", $appSetting->id],
-                            [
-                                "confirm" => __(
-                                    "Are you sure you want to delete {0}?",
-                                    $appSetting->name,
-                                ),
-                                "title" => __("Delete"),
-                                "class" => "btn btn-danger",
-                            ],
-                        ) ?>
-                    <?php endif; ?>
-                </td>
-
-            </tr>
-        <?php endforeach; ?>
-    </tbody>
-</table>
-<div class="paginator">
-    <ul class="pagination">
-        <?= $this->Paginator->first("«", ["label" => __("First")]) ?>
-        <?= $this->Paginator->prev("‹", [
-            "label" => __("Previous"),
-        ]) ?>
-        <?= $this->Paginator->numbers() ?>
-        <?= $this->Paginator->next("›", ["label" => __("Next")]) ?>
-        <?= $this->Paginator->last("»", ["label" => __("Last")]) ?>
-    </ul>
-    <p><?= $this->Paginator->counter(
-            __(
-                "Page {{page}} of {{pages}}, showing {{current}} record(s) out of {{count}} total",
-            ),
-        ) ?></p>
+    <!-- Dataverse Grid with Lazy Loading -->
+    <?= $this->element('dv_grid', [
+        'gridKey' => 'AppSettings.index.main',
+        'frameId' => 'app-settings-grid',
+        'dataUrl' => $this->Url->build(['action' => 'gridData']),
+    ]) ?>
 </div>
+
 <?php
+// Add modal for creating new app settings
 echo $this->KMP->startBlock("modals");
 echo $this->Form->create($emptyAppSetting, [
     "url" => ["action" => "add"],
@@ -142,8 +80,5 @@ echo $this->Modal->create("Add App Setting", [
     ]),
 ]);
 echo $this->Form->end();
-
+$this->KMP->endBlock();
 ?>
-
-<?php //finish writing to modal block in layout
-$this->KMP->endBlock(); ?>

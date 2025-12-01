@@ -151,6 +151,8 @@ namespace Officers\Controller;
 
 use App\KMP\StaticHelpers;
 use \Officers\Services\OfficerManagerInterface;
+use App\Controller\DataverseGridTrait;
+use App\KMP\GridColumns\OfficesGridColumns;
 
 /**
  * Offices Management Controller
@@ -164,6 +166,7 @@ use \Officers\Services\OfficerManagerInterface;
  */
 class OfficesController extends AppController
 {
+    use DataverseGridTrait;
     /**
      * Initialize controller with comprehensive authorization configuration
      * 
@@ -232,8 +235,9 @@ class OfficesController extends AppController
         // Configure model-level authorization for office operations
         // - "index": Authorizes office listing via OfficesTablePolicy
         // - "add": Authorizes office creation via OfficesTablePolicy
+        // - "gridData": Authorizes grid data retrieval via OfficesTablePolicy
         // Entity-level authorization is handled in individual action methods
-        $this->Authorization->authorizeModel("index", "add");
+        $this->Authorization->authorizeModel("index", "add", "gridData");
     }
 
     /**
@@ -354,6 +358,92 @@ class OfficesController extends AppController
 
         // Provide offices with hierarchical data to view
         $this->set(compact('offices'));
+    }
+
+    /**
+     * Grid data endpoint for offices listing
+     *
+     * Provides data for the Dataverse grid component via AJAX requests.
+     * Supports sorting, filtering, searching, and pagination.
+     *
+     * @return \Cake\Http\Response|null|void Renders view or returns JSON response
+     */
+    public function gridData()
+    {
+        // Build the base query with hierarchical relationships
+        $baseQuery = $this->Offices->find()
+            ->contain([
+                'Departments' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+                'GrantsRole' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+                'DeputyTo' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+                'ReportsTo' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+            ]);
+
+        $result = $this->processDataverseGrid([
+            'gridKey' => 'Officers.Offices.index.main',
+            'gridColumnsClass' => OfficesGridColumns::class,
+            'baseQuery' => $baseQuery,
+            'tableName' => 'Offices',
+            'defaultSort' => ['Offices.name' => 'asc'],
+            'defaultPageSize' => 25,
+            'showAllTab' => false,
+            'canAddViews' => false,
+            'canFilter' => true,
+            'canExportCsv' => true,
+        ]);
+
+        // Handle Response objects (CSV export, JSON, etc.)
+        if ($result instanceof \Cake\Http\Response) {
+            return $result;
+        }
+
+        // Set view variables
+        $this->set([
+            'offices' => $result['data'],
+            'gridState' => $result['gridState'],
+            'columns' => $result['columnsMetadata'],
+            'visibleColumns' => $result['visibleColumns'],
+            'searchableColumns' => OfficesGridColumns::getSearchableColumns(),
+            'dropdownFilterColumns' => $result['dropdownFilterColumns'],
+            'filterOptions' => $result['filterOptions'],
+            'currentFilters' => $result['currentFilters'],
+            'currentSearch' => $result['currentSearch'],
+            'currentView' => $result['currentView'],
+            'availableViews' => $result['availableViews'],
+            'gridKey' => $result['gridKey'],
+            'currentSort' => $result['currentSort'],
+            'currentMember' => $result['currentMember'],
+        ]);
+
+        // Determine which template to render based on Turbo-Frame header
+        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
+
+        // Use main app's element templates (not plugin templates)
+        $this->viewBuilder()->setPlugin(null);
+
+        if ($turboFrame === 'offices-grid-table') {
+            // Inner frame request - render table data only
+            $this->set('data', $result['data']);
+            $this->set('tableFrameId', 'offices-grid-table');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplatePath('element');
+            $this->viewBuilder()->setTemplate('dv_grid_table');
+        } else {
+            // Outer frame request (or no frame) - render toolbar + table frame
+            $this->set('data', $result['data']);
+            $this->set('frameId', 'offices-grid');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplatePath('element');
+            $this->viewBuilder()->setTemplate('dv_grid_content');
+        }
     }
 
     /**
