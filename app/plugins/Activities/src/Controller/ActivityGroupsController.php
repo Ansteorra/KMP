@@ -444,7 +444,7 @@ class ActivityGroupsController extends AppController
         // Use unified trait for grid processing
         $result = $this->processDataverseGrid([
             'gridKey' => 'Activities.ActivityGroups.index.main',
-            'gridColumnsClass' => \App\KMP\GridColumns\ActivityGroupsGridColumns::class,
+            'gridColumnsClass' => \Activities\KMP\GridColumns\ActivityGroupsGridColumns::class,
             'baseQuery' => $baseQuery,
             'tableName' => 'ActivityGroups',
             'defaultSort' => ['ActivityGroups.name' => 'asc'],
@@ -466,7 +466,7 @@ class ActivityGroupsController extends AppController
             'gridState' => $result['gridState'],
             'columns' => $result['columnsMetadata'],
             'visibleColumns' => $result['visibleColumns'],
-            'searchableColumns' => \App\KMP\GridColumns\ActivityGroupsGridColumns::getSearchableColumns(),
+            'searchableColumns' => \Activities\KMP\GridColumns\ActivityGroupsGridColumns::getSearchableColumns(),
             'dropdownFilterColumns' => $result['dropdownFilterColumns'],
             'filterOptions' => $result['filterOptions'],
             'currentFilters' => $result['currentFilters'],

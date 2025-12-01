@@ -22,6 +22,7 @@ $result = $this->processDataverseGrid([
     'showFilterPills' => true,        // Show active filter badges/pills
     'canExportCsv' => true,           // Show CSV export button
     'enableColumnPicker' => true,     // Enable column picker modal
+    'lockedFilters' => [],            // Array of filter keys that cannot be removed
     
     // System views mode (optional)
     'systemViews' => null,            // Array of predefined views
@@ -105,7 +106,9 @@ Controls whether users can create custom views.
 ### Filter Features
 
 #### `canFilter` (bool, default: `true`)
-Master switch for all filtering functionality.
+Controls whether users can add, modify, or remove filters via the UI or URL parameters.
+
+**Important:** System view filters are **always applied** regardless of this setting. The `canFilter` flag only affects user-submitted filters.
 
 **When `true`:**
 - Filter dropdown button shown
@@ -113,18 +116,39 @@ Master switch for all filtering functionality.
 - Dropdown filters available (if configured in columns)
 - Date-range filters available (if configured in columns)
 - "Clear all" button shown when filters active
+- Users can submit filter values via URL query parameters
+- Filter dirty flags are respected
 
 **When `false`:**
 - No filter button shown
 - All filter UI hidden
-- Grid can still be filtered via URL parameters
-- Useful for simple display-only grids
+- URL filter parameters are ignored
+- Filter dirty flags are ignored
+- **System view filters still apply** (e.g., date ranges defined in system views)
+- Useful for grids where filtering is controlled by system views only
 
 **Example:**
 ```php
-// Display-only grid (no filtering allowed)
+// System views control filtering - users cannot modify filters
 'canFilter' => false,
+'systemViews' => [
+    'sys-active' => [
+        'name' => 'Active',
+        'config' => [
+            'filters' => [
+                ['field' => 'status', 'value' => 'active'],
+            ],
+        ],
+    ],
+],
 ```
+
+**System Views + canFilter:**
+When using system views with `canFilter => false`:
+- Switching between system views changes which filters are applied
+- Users cannot add additional filters beyond what the system view defines
+- Users cannot remove or modify the system view's filters
+- Provides a "curated view" experience
 
 **Automatic Behavior:**
 - Filter button only shown if at least one filter type available
@@ -213,6 +237,46 @@ Controls whether column picker modal is available.
 ```
 
 **Note:** Required columns (with `'required' => true`) always visible regardless of picker state.
+
+---
+
+### Locked Filters
+
+#### `lockedFilters` (array, default: `[]`)
+Specifies filter column keys that cannot be removed by users. Locked filters display without a remove (×) button and their values cannot be cleared via UI interactions or query string manipulation.
+
+**Use Cases:**
+- **Embedded grids**: When displaying data for a specific entity (e.g., member's recommendations), the context filter (member_id) should be locked
+- **Scoped views**: When the grid should always show a subset of data based on context
+- **Required filters**: When certain filters are mandatory for the grid to function correctly
+
+**Behavior:**
+- Filter pills show a lock icon instead of remove button
+- Filter checkboxes in dropdown are disabled
+- Date range inputs are disabled
+- "Clear all filters" preserves locked filters
+- Direct URL manipulation to remove locked filters is ignored on client side
+
+**Example:**
+```php
+// Embedded grid on member profile - always filter by this member
+'lockedFilters' => ['member_id'],
+
+// Multiple locked filters
+'lockedFilters' => ['branch_id', 'status'],
+
+// Date range filter locked (locks both _start and _end variants)
+'lockedFilters' => ['created_on'],
+```
+
+**Date Range Filter Locking:**
+When you lock a date range filter column (e.g., `expires_on`), both the `_start` and `_end` variants are automatically locked:
+- `expires_on` → locks `expires_on_start` and `expires_on_end`
+
+**Visual Indicators:**
+- Locked filter pills display a small lock icon (🔒) instead of × button
+- Filter dropdown shows "(locked)" label with disabled controls
+- Clear all filters button preserves locked filters
 
 ---
 
@@ -321,6 +385,27 @@ $result = $this->processDataverseGrid([
 ]);
 ```
 
+### Embedded Grid (Context-Locked Filters)
+```php
+// Grid embedded in member profile showing their recommendations
+$result = $this->processDataverseGrid([
+    'gridKey' => 'Awards.Recommendations.member',
+    'gridColumnsClass' => RecommendationsColumns::class,
+    'baseQuery' => $this->Recommendations->find()
+        ->where(['Recommendations.member_id' => $memberId]),
+    'tableName' => 'Recommendations',
+    
+    // Context-locked filter - member_id cannot be removed
+    'lockedFilters' => ['member_id'],
+    
+    // Simplified UI for embedded context
+    'showViewTabs' => false,
+    'canAddViews' => false,
+    'showFilterPills' => true,  // Show pills but member_id has lock icon
+    'canExportCsv' => true,
+]);
+```
+
 ---
 
 ## UI Impact Matrix
@@ -334,10 +419,13 @@ $result = $this->processDataverseGrid([
 | `showFilterPills` | - | - | ✅ | - | - |
 | `canExportCsv` | - | - | - | ✅ | - |
 | `enableColumnPicker` | - | - | - | - | ✅ |
+| `lockedFilters` | - | Disables | Shows 🔒 | - | - |
 
 **Legend:**
 - ✅ = Primary control
 - Adds = Modifies existing element
+- Disables = Disables specific controls
+- Shows 🔒 = Visual lock indicator
 - `-` = No direct impact
 
 ---
@@ -360,6 +448,11 @@ if (config.showFilterPills) {
 
 if (config.enableColumnPicker) {
     // Enable column picker icon
+}
+
+// Check if a filter is locked
+if (config.lockedFilters && config.lockedFilters.includes('member_id')) {
+    // Filter is locked, don't allow removal
 }
 ```
 

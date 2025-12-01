@@ -9,6 +9,51 @@ namespace App\KMP\GridColumns;
  */
 class AppSettingsGridColumns extends BaseGridColumns
 {
+    /**
+     * Get row actions for app settings grid
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    public static function getRowActions(): array
+    {
+        return [
+            'edit' => [
+                'key' => 'edit',
+                'type' => 'modal',
+                'label' => '',
+                'icon' => 'bi-pencil-fill',
+                'class' => 'btn-sm btn btn-primary',
+                'modalTarget' => '#editAppSettingModal',
+                'permission' => 'edit',
+                'dataAttributes' => [
+                    'controller' => 'outlet-btn',
+                    'action' => 'click->outlet-btn#fireNotice',
+                    'outlet-btn-btn-data-value' => [
+                        'id' => 'id',
+                        'name' => 'name',
+                        'type' => 'type',
+                    ],
+                ],
+            ],
+            'delete' => [
+                'key' => 'delete',
+                'type' => 'postLink',
+                'label' => '',
+                'icon' => 'bi-trash-fill',
+                'class' => 'btn-sm btn btn-danger',
+                'permission' => 'delete',
+                'condition' => ['required' => false],
+                'url' => [
+                    'plugin' => null,
+                    'controller' => 'AppSettings',
+                    'action' => 'delete',
+                    'idField' => 'id',
+                ],
+                'confirmMessage' => 'Are you sure you want to delete the setting "{{name}}"?',
+            ],
+        ];
+    }
+
     public static function getColumns(): array
     {
         return [
@@ -43,6 +88,7 @@ class AppSettingsGridColumns extends BaseGridColumns
                 'sortable' => false,
                 'filterable' => false,
                 'searchable' => true,
+                'queryField' => 'AppSettings.value', // Search the actual database column
                 'defaultVisible' => true,
                 'width' => '400px',
                 'alignment' => 'left',
@@ -104,5 +150,25 @@ class AppSettingsGridColumns extends BaseGridColumns
                 'alignment' => 'left',
             ],
         ];
+    }
+
+    /**
+     * Get searchable columns for full-text search
+     *
+     * Overrides base method to use queryField when available,
+     * which allows virtual columns (like value_preview) to map
+     * to actual database columns (like AppSettings.value).
+     *
+     * @return array<string> Searchable column keys or queryFields
+     */
+    public static function getSearchableColumns(): array
+    {
+        $searchable = [];
+        foreach (static::getColumns() as $key => $col) {
+            if (!empty($col['searchable'])) {
+                $searchable[] = $col['queryField'] ?? $key;
+            }
+        }
+        return $searchable;
     }
 }

@@ -34,7 +34,7 @@ class AppSettingsController extends AppController
     public function initialize(): void
     {
         parent::initialize();
-        $this->Authorization->authorizeModel('index', 'add', 'gridData', 'toYaml');
+        $this->Authorization->authorizeModel('index', 'add', 'edit', 'gridData', 'toYaml');
     }
 
     /**
@@ -71,7 +71,7 @@ class AppSettingsController extends AppController
             'showAllTab' => false,
             'canAddViews' => false,
             'canFilter' => true,
-            'canExportCsv' => true,
+            'canExportCsv' => false,
         ]);
 
         // Handle CSV export
@@ -84,6 +84,7 @@ class AppSettingsController extends AppController
             'appSettings' => $result['data'],
             'gridState' => $result['gridState'],
             'emptyAppSetting' => $this->AppSettings->newEmptyEntity(),
+            'rowActions' => \App\KMP\GridColumns\AppSettingsGridColumns::getRowActions(),
         ]);
 
         // Determine which template to render based on Turbo-Frame header
@@ -152,10 +153,16 @@ class AppSettingsController extends AppController
             if ($result) {
                 $this->Flash->success(__('The app setting has been saved.'));
 
+                // Read and clear flash messages before rendering turbo-stream
+                $flashMessages = $this->request->getSession()->read('Flash');
+                $this->request->getSession()->delete('Flash');
+
                 // Return turbo-stream response to close modal and refresh grid
-                $this->viewBuilder()->setLayout(false);
+                $this->response = $this->response->withType('text/vnd.turbo-stream.html');
+                $this->viewBuilder()->disableAutoLayout();
                 $this->viewBuilder()->setTemplate('turbo_close_modal');
                 $this->set('refreshFrame', 'app-settings-grid-table');
+                $this->set('flashMessages', $flashMessages);
                 return;
             }
             $this->Flash->error(
@@ -165,7 +172,7 @@ class AppSettingsController extends AppController
 
         // Render modal form (GET request or validation error)
         $this->set(compact('appSetting'));
-        $this->viewBuilder()->setLayout('modal');
+        $this->viewBuilder()->setLayout('turbo_frame');
     }
 
     /**

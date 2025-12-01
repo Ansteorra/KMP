@@ -374,6 +374,174 @@ window.Controllers["app-setting-form"] = AppSettingForm;
 
 /***/ }),
 
+/***/ "./assets/js/controllers/app-setting-modal-controller.js":
+/*!***************************************************************!*\
+  !*** ./assets/js/controllers/app-setting-modal-controller.js ***!
+  \***************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+
+/**
+ * AppSettingModal Stimulus Controller
+ * 
+ * Manages the edit modal for app settings, handling:
+ * - Loading edit form via turbo-frame when edit button is clicked
+ * - Coordinating with outlet-btn controller for data passing
+ * - Managing modal state and turbo-frame loading
+ * 
+ * Features:
+ * - Dynamic form loading via turbo-frame
+ * - Integration with outlet-btn for row data
+ * - Bootstrap modal coordination
+ * - Loading state management
+ * 
+ * Values:
+ * - editUrl: String - Base URL for edit action
+ * - modalId: String - ID of the modal element (default: editAppSettingModal)
+ * - frameId: String - ID of the turbo-frame element (default: editAppSettingFrame)
+ * 
+ * Note: This controller uses direct DOM queries for the modal and frame elements
+ * because they are rendered in the modals block which is outside the controller's
+ * DOM scope. Stimulus targets only work within the controller's element tree.
+ * 
+ * Usage:
+ * <div data-controller="app-setting-modal"
+ *      data-app-setting-modal-edit-url-value="/app-settings/edit"
+ *      data-app-setting-modal-modal-id-value="editAppSettingModal"
+ *      data-app-setting-modal-frame-id-value="editAppSettingFrame">
+ *   <!-- Grid with edit buttons -->
+ * </div>
+ * <!-- Modal rendered separately in modals block -->
+ * <div id="editAppSettingModal" class="modal">
+ *   <turbo-frame id="editAppSettingFrame">
+ *     <!-- Content loaded here -->
+ *   </turbo-frame>
+ * </div>
+ */
+class AppSettingModalController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static values = {
+    editUrl: String,
+    modalId: {
+      type: String,
+      default: 'editAppSettingModal'
+    },
+    frameId: {
+      type: String,
+      default: 'editAppSettingFrame'
+    }
+  };
+
+  /**
+   * Initialize controller
+   */
+  initialize() {
+    this.modalInstance = null;
+    this.boundHandleOutletClick = this.handleOutletClick.bind(this);
+  }
+
+  /**
+   * Get the modal element by ID
+   * Uses direct DOM query since modal is outside controller scope
+   */
+  get modalElement() {
+    return document.getElementById(this.modalIdValue);
+  }
+
+  /**
+   * Get the frame element by ID
+   * Uses direct DOM query since frame is outside controller scope
+   */
+  get frameElement() {
+    return document.getElementById(this.frameIdValue);
+  }
+
+  /**
+   * Connect - set up event listeners
+   */
+  connect() {
+    console.log('AppSettingModal controller connected');
+
+    // Initialize Bootstrap modal (deferred until first use)
+    // Listen for outlet-btn clicks from the grid
+    document.addEventListener('outlet-btn:outlet-button-clicked', this.boundHandleOutletClick);
+  }
+
+  /**
+   * Disconnect - clean up event listeners
+   */
+  disconnect() {
+    document.removeEventListener('outlet-btn:outlet-button-clicked', this.boundHandleOutletClick);
+  }
+
+  /**
+   * Handle outlet button click event
+   * Loads the edit form for the clicked setting
+   * 
+   * @param {CustomEvent} event - The outlet-button-clicked event
+   */
+  handleOutletClick(event) {
+    const data = event.detail;
+
+    // Check if this is for our modal (the button target is our modal)
+    const clickedButton = event.target;
+    if (!clickedButton) return;
+    const modalTarget = clickedButton.getAttribute('data-bs-target');
+    if (modalTarget !== '#editAppSettingModal') return;
+    console.log('AppSettingModal: Edit clicked for setting:', data);
+    if (data && data.id) {
+      this.loadEditForm(data.id);
+    }
+  }
+
+  /**
+   * Load the edit form into the turbo-frame
+   * 
+   * @param {string|number} id - The app setting ID to edit
+   */
+  loadEditForm(id) {
+    const frameEl = this.frameElement;
+    if (!frameEl) {
+      console.error('AppSettingModal: Frame element not found with ID:', this.frameIdValue);
+      return;
+    }
+
+    // Build the edit URL with the setting ID
+    const editUrl = `${this.editUrlValue}/${id}`;
+    console.log('AppSettingModal: Loading edit form from:', editUrl);
+
+    // Reset frame content to show loading state first
+    frameEl.innerHTML = `
+            <div class="modal-header">
+                <h5 class="modal-title">Edit App Setting</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center p-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Loading setting...</p>
+                </div>
+            </div>
+        `;
+
+    // Set the src to trigger turbo-frame load
+    frameEl.src = editUrl;
+  }
+}
+
+// Add to global controllers registry
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["app-setting-modal"] = AppSettingModalController;
+
+/***/ }),
+
 /***/ "./assets/js/controllers/auto-complete-controller.js":
 /*!***********************************************************!*\
   !*** ./assets/js/controllers/auto-complete-controller.js ***!
@@ -1381,6 +1549,358 @@ if (!window.Controllers) {
   window.Controllers = {};
 }
 window.Controllers["branch-links"] = BrancheLinks;
+
+/***/ }),
+
+/***/ "./assets/js/controllers/code-editor-controller.js":
+/*!*********************************************************!*\
+  !*** ./assets/js/controllers/code-editor-controller.js ***!
+  \*********************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+
+
+/**
+ * Code Editor Controller
+ * 
+ * Provides syntax validation and enhanced editing for YAML and JSON content.
+ * Shows real-time validation errors and line numbers.
+ * 
+ * Usage:
+ * <div data-controller="code-editor"
+ *      data-code-editor-language-value="yaml"
+ *      data-code-editor-validate-on-change-value="true">
+ *   <textarea data-code-editor-target="textarea"></textarea>
+ *   <div data-code-editor-target="errorDisplay"></div>
+ * </div>
+ * 
+ * Values:
+ * - language: 'yaml' or 'json'
+ * - validateOnChange: boolean, whether to validate as user types
+ * - minHeight: minimum height of the editor (default: '300px')
+ */
+class CodeEditorController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static targets = ["textarea", "errorDisplay", "lineNumbers"];
+  static values = {
+    language: {
+      type: String,
+      default: 'yaml'
+    },
+    validateOnChange: {
+      type: Boolean,
+      default: true
+    },
+    minHeight: {
+      type: String,
+      default: '300px'
+    }
+  };
+  connect() {
+    this.setupEditor();
+    this.validateContent();
+    console.log('Code editor connected for:', this.languageValue);
+  }
+  disconnect() {
+    // Cleanup if needed
+  }
+  setupEditor() {
+    if (!this.hasTextareaTarget) return;
+    const textarea = this.textareaTarget;
+
+    // Create wrapper for editor with line numbers
+    const wrapper = document.createElement('div');
+    wrapper.className = 'code-editor-wrapper';
+    wrapper.style.cssText = `
+            display: flex;
+            border: 1px solid #ced4da;
+            border-radius: 0.375rem;
+            overflow: hidden;
+            min-height: ${this.minHeightValue};
+        `;
+
+    // Create line numbers element
+    const lineNumbers = document.createElement('div');
+    lineNumbers.className = 'code-editor-line-numbers';
+    lineNumbers.style.cssText = `
+            background: #f7f7f7;
+            border-right: 1px solid #ddd;
+            padding: 10px 8px;
+            font-family: SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            color: #999;
+            text-align: right;
+            user-select: none;
+            min-width: 40px;
+        `;
+    lineNumbers.setAttribute('data-code-editor-target', 'lineNumbers');
+    this.lineNumbersElement = lineNumbers;
+
+    // Style the textarea
+    textarea.style.cssText = `
+            flex: 1;
+            border: none;
+            padding: 10px;
+            font-family: SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            resize: vertical;
+            outline: none;
+            min-height: ${this.minHeightValue};
+            white-space: pre;
+            overflow-wrap: normal;
+            overflow-x: auto;
+            tab-size: 2;
+        `;
+
+    // Insert wrapper before textarea
+    textarea.parentNode.insertBefore(wrapper, textarea);
+    wrapper.appendChild(lineNumbers);
+    wrapper.appendChild(textarea);
+
+    // Update line numbers on content change
+    textarea.addEventListener('input', () => {
+      this.updateLineNumbers();
+      if (this.validateOnChangeValue) {
+        this.validateContent();
+      }
+    });
+    textarea.addEventListener('scroll', () => {
+      lineNumbers.scrollTop = textarea.scrollTop;
+    });
+    textarea.addEventListener('keydown', e => {
+      this.handleKeydown(e);
+    });
+
+    // Initial line numbers
+    this.updateLineNumbers();
+  }
+  updateLineNumbers() {
+    if (!this.lineNumbersElement || !this.hasTextareaTarget) return;
+    const lines = this.textareaTarget.value.split('\n');
+    const lineNumbers = [];
+    for (let i = 1; i <= lines.length; i++) {
+      lineNumbers.push(i);
+    }
+    this.lineNumbersElement.innerHTML = lineNumbers.join('<br>');
+  }
+  handleKeydown(e) {
+    const textarea = this.textareaTarget;
+
+    // Handle Tab key for indentation
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const spaces = '  '; // 2 spaces for YAML/JSON indentation
+
+      if (e.shiftKey) {
+        // Shift+Tab: Remove indentation
+        const beforeCursor = textarea.value.substring(0, start);
+        const afterCursor = textarea.value.substring(end);
+        const lineStart = beforeCursor.lastIndexOf('\n') + 1;
+        const line = textarea.value.substring(lineStart, start);
+        if (line.startsWith('  ')) {
+          textarea.value = textarea.value.substring(0, lineStart) + line.substring(2) + textarea.value.substring(start);
+          textarea.selectionStart = textarea.selectionEnd = start - 2;
+        }
+      } else {
+        // Tab: Add indentation
+        textarea.value = textarea.value.substring(0, start) + spaces + textarea.value.substring(end);
+        textarea.selectionStart = textarea.selectionEnd = start + spaces.length;
+      }
+      this.updateLineNumbers();
+      if (this.validateOnChangeValue) {
+        this.validateContent();
+      }
+    }
+
+    // Handle Enter key - auto-indent
+    if (e.key === 'Enter') {
+      const start = textarea.selectionStart;
+      const beforeCursor = textarea.value.substring(0, start);
+      const currentLineStart = beforeCursor.lastIndexOf('\n') + 1;
+      const currentLine = beforeCursor.substring(currentLineStart);
+      const indent = currentLine.match(/^\s*/)[0];
+
+      // Don't prevent default, but set up to add indent after
+      setTimeout(() => {
+        const newPos = textarea.selectionStart;
+        textarea.value = textarea.value.substring(0, newPos) + indent + textarea.value.substring(newPos);
+        textarea.selectionStart = textarea.selectionEnd = newPos + indent.length;
+        this.updateLineNumbers();
+      }, 0);
+    }
+  }
+  validateContent() {
+    if (!this.hasTextareaTarget) return;
+    const content = this.textareaTarget.value;
+    let error = null;
+    if (this.languageValue === 'json') {
+      error = this.validateJSON(content);
+    } else if (this.languageValue === 'yaml') {
+      error = this.validateYAML(content);
+    }
+    this.displayError(error);
+    return error === null;
+  }
+  validateJSON(content) {
+    if (!content.trim()) return null;
+    try {
+      JSON.parse(content);
+      return null;
+    } catch (e) {
+      // Extract line number from error message if possible
+      const match = e.message.match(/position (\d+)/);
+      let lineInfo = '';
+      if (match) {
+        const position = parseInt(match[1]);
+        const lines = content.substring(0, position).split('\n');
+        lineInfo = ` (line ${lines.length}, column ${lines[lines.length - 1].length + 1})`;
+      }
+      return `JSON Error${lineInfo}: ${e.message}`;
+    }
+  }
+  validateYAML(content) {
+    if (!content.trim()) return null;
+
+    // Basic YAML validation - check for common issues
+    const lines = content.split('\n');
+    const errors = [];
+    let inMultiline = false;
+    const indentStack = [0];
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const lineNum = i + 1;
+
+      // Skip empty lines and comments
+      if (!line.trim() || line.trim().startsWith('#')) continue;
+
+      // Check for tabs (YAML should use spaces)
+      if (line.includes('\t')) {
+        errors.push(`Line ${lineNum}: Tabs are not allowed in YAML, use spaces`);
+      }
+
+      // Check for inconsistent indentation
+      const indent = line.match(/^(\s*)/)[1].length;
+      if (indent % 2 !== 0 && indent > 0) {
+        // Warning: odd indentation might be intentional in some cases
+      }
+
+      // Check for missing space after colon in key-value pairs
+      const colonMatch = line.match(/^(\s*)([^:]+):([^\s])/);
+      if (colonMatch && !line.includes(': ') && !line.match(/:\s*$/)) {
+        // This might be a string with colon, check if it looks like a key
+        const beforeColon = colonMatch[2].trim();
+        if (!beforeColon.includes(' ') && !beforeColon.startsWith('-')) {
+          errors.push(`Line ${lineNum}: Missing space after colon`);
+        }
+      }
+
+      // Check for duplicate keys at the same level (basic check)
+      // This is a simplified check and won't catch all duplicates
+    }
+
+    // Try to parse as JavaScript object to catch more errors
+    // This is a heuristic check for common YAML patterns
+    try {
+      // Check for basic structure issues
+      if (content.includes('{{') && content.includes('}}')) {
+        // Template syntax, skip strict validation
+        return null;
+      }
+
+      // Check for unquoted special characters that need quoting
+      const specialChars = /[{}\[\]&*#?|>!%@`]/;
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (line.trim().startsWith('-') || line.trim().startsWith('#')) continue;
+        const colonIndex = line.indexOf(':');
+        if (colonIndex > 0) {
+          const value = line.substring(colonIndex + 1).trim();
+          // Check if unquoted value starts with special char
+          if (value && !value.startsWith('"') && !value.startsWith("'")) {
+            if (value[0] && specialChars.test(value[0]) && value[0] !== '>') {
+              errors.push(`Line ${i + 1}: Value may need to be quoted: ${value.substring(0, 20)}...`);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      errors.push(`Parse error: ${e.message}`);
+    }
+    if (errors.length > 0) {
+      return errors.slice(0, 3).join('\n'); // Show first 3 errors
+    }
+    return null;
+  }
+  displayError(error) {
+    if (!this.hasErrorDisplayTarget) {
+      // Create error display if it doesn't exist
+      if (error && this.hasTextareaTarget) {
+        const existingError = this.textareaTarget.parentNode.querySelector('.code-editor-error');
+        if (existingError) {
+          existingError.innerHTML = this.formatError(error);
+          existingError.style.display = 'block';
+        } else {
+          const errorDiv = document.createElement('div');
+          errorDiv.className = 'code-editor-error alert alert-danger mt-2 mb-0 small';
+          errorDiv.innerHTML = this.formatError(error);
+          this.textareaTarget.parentNode.parentNode.insertBefore(errorDiv, this.textareaTarget.parentNode.nextSibling);
+        }
+      } else {
+        const existingError = this.element.querySelector('.code-editor-error');
+        if (existingError) {
+          existingError.style.display = 'none';
+        }
+      }
+      return;
+    }
+    if (error) {
+      this.errorDisplayTarget.innerHTML = this.formatError(error);
+      this.errorDisplayTarget.classList.remove('d-none');
+      this.errorDisplayTarget.classList.add('alert', 'alert-danger', 'mt-2', 'mb-0', 'small');
+    } else {
+      this.errorDisplayTarget.innerHTML = '';
+      this.errorDisplayTarget.classList.add('d-none');
+      this.errorDisplayTarget.classList.remove('alert', 'alert-danger');
+    }
+  }
+  formatError(error) {
+    return `<i class="bi bi-exclamation-triangle me-1"></i><strong>Syntax Error:</strong><br><pre class="mb-0 mt-1" style="white-space: pre-wrap;">${this.escapeHtml(error)}</pre>`;
+  }
+  escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  // Action to manually trigger validation
+  validate(event) {
+    event?.preventDefault();
+    const isValid = this.validateContent();
+    return isValid;
+  }
+
+  // Check validation before form submit
+  beforeSubmit(event) {
+    if (!this.validateContent()) {
+      const proceed = confirm('There are syntax errors in the content. Do you want to save anyway?');
+      if (!proceed) {
+        event.preventDefault();
+      }
+    }
+  }
+}
+
+// Add to global controllers registry
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["code-editor"] = CodeEditorController;
 
 /***/ }),
 
@@ -4616,6 +5136,9 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
     // Get OR grouping information from state
     const orGroups = this.state.filters.grouping?.orGroups || [];
 
+    // Get locked filters from config
+    const lockedFilters = this.state.config?.lockedFilters || [];
+
     // Build map of field -> group index for quick lookup
     const fieldToGroup = new Map();
     orGroups.forEach((group, groupIndex) => {
@@ -4678,7 +5201,8 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
       column,
       value
     }) => {
-      const pill = this.createFilterPill(column, value);
+      const isLocked = this.isFilterLocked(column, lockedFilters);
+      const pill = this.createFilterPill(column, value, isLocked);
       container.appendChild(pill);
     });
 
@@ -4692,7 +5216,8 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
       groupWrapper.style.cssText = 'padding: 2px 6px; border-radius: 6px; background-color: rgba(13, 110, 253, 0.08); border: 1px dashed rgba(13, 110, 253, 0.3);';
       groupWrapper.setAttribute('data-or-group', groupIndex);
       filters.forEach((filterData, index) => {
-        const pill = this.createFilterPill(filterData.column, filterData.value);
+        const isLocked = this.isFilterLocked(filterData.column, lockedFilters);
+        const pill = this.createFilterPill(filterData.column, filterData.value, isLocked);
         groupWrapper.appendChild(pill);
 
         // Add OR indicator between pills (but not after the last one)
@@ -4711,13 +5236,20 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
 
   /**
    * Create a filter pill element
+   * 
+   * @param {string} column - The filter column key
+   * @param {string} value - The filter value
+   * @param {boolean} isLocked - Whether this filter is locked (cannot be removed)
    */
-  createFilterPill(column, value) {
+  createFilterPill(column, value, isLocked = false) {
     // Match the exact styling from grid_view_toolbar.php
     const badge = document.createElement('span');
     badge.className = 'badge d-inline-flex align-items-center gap-1 pe-1';
     badge.style.cssText = 'background-color: #f6f6f7; color: #202223; border: 1px solid #c9cccf; font-weight: 500; font-size: 0.75rem; padding: 0.25rem 0.4rem 0.25rem 0.5rem; border-radius: 0.4rem;';
     badge.setAttribute('data-filter-badge', '');
+    if (isLocked) {
+      badge.setAttribute('data-filter-locked', 'true');
+    }
 
     // Get the label for this value from filters metadata
     const valueLabel = this.getFilterValueLabel(column, value);
@@ -4725,19 +5257,30 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
     const textSpan = document.createElement('span');
     textSpan.innerHTML = `${columnLabel}: <strong>${this.escapeHtml(valueLabel)}</strong>`;
     badge.appendChild(textSpan);
-    const removeBtn = document.createElement('button');
-    removeBtn.type = 'button';
-    removeBtn.className = 'btn btn-link p-0 m-0 text-decoration-none d-flex align-items-center justify-content-center';
-    removeBtn.style.cssText = 'width: 18px; height: 18px; border-radius: 50%; background: rgba(0,0,0,0.1); color: #202223; font-size: 0.7rem; line-height: 1;';
-    removeBtn.setAttribute('aria-label', 'Remove filter');
-    removeBtn.setAttribute('data-action', 'click->grid-view#removeFilter');
-    removeBtn.setAttribute('data-filter-column', column);
-    removeBtn.setAttribute('data-filter-value', value);
-    const icon = document.createElement('i');
-    icon.className = 'bi bi-x';
-    icon.style.cssText = 'font-size: 0.9rem; font-weight: bold;';
-    removeBtn.appendChild(icon);
-    badge.appendChild(removeBtn);
+
+    // Only add remove button if filter is not locked
+    if (!isLocked) {
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'btn btn-link p-0 m-0 text-decoration-none d-flex align-items-center justify-content-center';
+      removeBtn.style.cssText = 'width: 18px; height: 18px; border-radius: 50%; background: rgba(0,0,0,0.1); color: #202223; font-size: 0.7rem; line-height: 1;';
+      removeBtn.setAttribute('aria-label', 'Remove filter');
+      removeBtn.setAttribute('data-action', 'click->grid-view#removeFilter');
+      removeBtn.setAttribute('data-filter-column', column);
+      removeBtn.setAttribute('data-filter-value', value);
+      const icon = document.createElement('i');
+      icon.className = 'bi bi-x';
+      icon.style.cssText = 'font-size: 0.9rem; font-weight: bold;';
+      removeBtn.appendChild(icon);
+      badge.appendChild(removeBtn);
+    } else {
+      // For locked filters, add a lock icon instead
+      const lockIcon = document.createElement('i');
+      lockIcon.className = 'bi bi-lock-fill ms-1';
+      lockIcon.style.cssText = 'font-size: 0.65rem; opacity: 0.5;';
+      lockIcon.setAttribute('title', 'This filter cannot be removed');
+      badge.appendChild(lockIcon);
+    }
     return badge;
   }
 
@@ -5208,6 +5751,9 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
     container.innerHTML = '';
     if (!this.state.filters.available) return;
 
+    // Get locked filters from config
+    const lockedFilters = this.state.config?.lockedFilters || [];
+
     // Group date range filters by base field (same logic as navigation)
     const filterGroups = new Map();
     const standaloneFilters = [];
@@ -5264,10 +5810,20 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
         const startValue = startFilter ? this.state.filters.active[startFilter.key] || '' : '';
         const endValue = endFilter ? this.state.filters.active[endFilter.key] || '' : '';
         const activeCount = (startValue ? 1 : 0) + (endValue ? 1 : 0);
+
+        // Check if this date range filter is locked
+        const isLocked = this.isFilterLocked(item.key, lockedFilters);
         const headerDiv = document.createElement('div');
         headerDiv.className = 'd-flex justify-content-between align-items-center mb-1';
         const title = document.createElement('strong');
         title.textContent = item.label;
+        if (isLocked) {
+          const lockIcon = document.createElement('i');
+          lockIcon.className = 'bi bi-lock-fill ms-2';
+          lockIcon.style.cssText = 'font-size: 0.75rem; opacity: 0.5;';
+          lockIcon.setAttribute('title', 'This filter is locked and cannot be changed');
+          title.appendChild(lockIcon);
+        }
         headerDiv.appendChild(title);
         if (activeCount > 0) {
           const countText = document.createElement('small');
@@ -5278,7 +5834,7 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
         innerDiv.appendChild(headerDiv);
         const helpText = document.createElement('div');
         helpText.className = 'text-muted small mb-3';
-        helpText.textContent = 'Select date range';
+        helpText.textContent = isLocked ? 'This filter is locked' : 'Select date range';
         innerDiv.appendChild(helpText);
 
         // Create row for From/To inputs
@@ -5298,7 +5854,12 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
           fromInput.className = 'form-control';
           fromInput.value = startValue;
           fromInput.setAttribute('data-filter-column', startFilter.key);
-          fromInput.setAttribute('data-action', 'change->grid-view#updateDateRangeFilter');
+          if (isLocked) {
+            fromInput.disabled = true;
+            fromInput.setAttribute('title', 'This filter is locked and cannot be changed');
+          } else {
+            fromInput.setAttribute('data-action', 'change->grid-view#updateDateRangeFilter');
+          }
           fromCol.appendChild(fromInput);
           row.appendChild(fromCol);
         }
@@ -5316,7 +5877,12 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
           toInput.className = 'form-control';
           toInput.value = endValue;
           toInput.setAttribute('data-filter-column', endFilter.key);
-          toInput.setAttribute('data-action', 'change->grid-view#updateDateRangeFilter');
+          if (isLocked) {
+            toInput.disabled = true;
+            toInput.setAttribute('title', 'This filter is locked and cannot be changed');
+          } else {
+            toInput.setAttribute('data-action', 'change->grid-view#updateDateRangeFilter');
+          }
           toCol.appendChild(toInput);
           row.appendChild(toCol);
         }
@@ -5327,10 +5893,20 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
         const activeArray = Array.isArray(activeValues) ? activeValues : [activeValues];
         const activeFiltered = activeArray.filter(v => v !== null && v !== undefined && v !== '');
         const activeCount = activeFiltered.length;
+
+        // Check if this filter is locked
+        const isLocked = this.isFilterLocked(item.key, lockedFilters);
         const headerDiv = document.createElement('div');
         headerDiv.className = 'd-flex justify-content-between align-items-center mb-1';
         const title = document.createElement('strong');
         title.textContent = item.label;
+        if (isLocked) {
+          const lockIcon = document.createElement('i');
+          lockIcon.className = 'bi bi-lock-fill ms-2';
+          lockIcon.style.cssText = 'font-size: 0.75rem; opacity: 0.5;';
+          lockIcon.setAttribute('title', 'This filter is locked and cannot be changed');
+          title.appendChild(lockIcon);
+        }
         headerDiv.appendChild(title);
         if (activeCount > 0) {
           const countText = document.createElement('small');
@@ -5341,7 +5917,7 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
         innerDiv.appendChild(headerDiv);
         const helpText = document.createElement('div');
         helpText.className = 'text-muted small mb-2';
-        helpText.textContent = 'Choose one or more options';
+        helpText.textContent = isLocked ? 'This filter is locked' : 'Choose one or more options';
         innerDiv.appendChild(helpText);
 
         // Add checkboxes for each option
@@ -5356,9 +5932,17 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
           checkbox.value = option.value;
           checkbox.checked = isChecked;
           checkbox.setAttribute('data-filter-column', item.key);
-          checkbox.setAttribute('data-action', 'change->grid-view#toggleFilter');
+          if (isLocked) {
+            checkbox.disabled = true;
+            checkbox.setAttribute('title', 'This filter is locked and cannot be changed');
+          } else {
+            checkbox.setAttribute('data-action', 'change->grid-view#toggleFilter');
+          }
           const label = document.createElement('label');
           label.className = 'form-check-label';
+          if (isLocked) {
+            label.classList.add('text-muted');
+          }
           label.htmlFor = checkbox.id;
           label.textContent = option.label;
           formCheck.appendChild(checkbox);
@@ -5423,6 +6007,8 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
 
     // Create list items
     orderedColumns.forEach(column => {
+      // Skip export-only columns - they shouldn't appear in the column picker
+      if (column.exportOnly) return;
       const isVisible = visibleColumns.includes(column.key);
       const isRequired = column.required || false;
       const label = document.createElement('label');
@@ -5780,6 +6366,15 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
     const column = checkbox.dataset.filterColumn;
     const value = checkbox.value;
 
+    // Check if this filter is locked
+    const lockedFilters = this.state.config?.lockedFilters || [];
+    if (this.isFilterLocked(column, lockedFilters)) {
+      console.warn(`Filter '${column}' is locked and cannot be toggled`);
+      // Restore checkbox to its previous state
+      checkbox.checked = !checkbox.checked;
+      return;
+    }
+
     // Get current filter values for this column
     let currentValues = this.state.filters.active[column] || [];
     if (!Array.isArray(currentValues)) {
@@ -5814,6 +6409,13 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
     const column = event.currentTarget.dataset.filterColumn;
     const value = event.currentTarget.dataset.filterValue;
 
+    // Check if this filter is locked
+    const lockedFilters = this.state.config?.lockedFilters || [];
+    if (this.isFilterLocked(column, lockedFilters)) {
+      console.warn(`Filter '${column}' is locked and cannot be removed`);
+      return;
+    }
+
     // Get current filter values for this column (ensure it's an array)
     let currentValues = this.state.filters.active[column] || [];
     if (!Array.isArray(currentValues)) {
@@ -5842,20 +6444,66 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
   }
 
   /**
-   * Clear all filters and search
+   * Clear all filters and search (preserves locked filters)
    */
   clearAllFilters() {
-    // Clear search and filters
-    const updates = {
-      search: null
-    };
+    const lockedFilters = this.state.config?.lockedFilters || [];
 
-    // If we're on a view, mark filters as dirty instead of removing view
-    if (this.state.view.currentId) {
-      updates['dirty[filters]'] = '1';
+    // Build filter params preserving only locked filters
+    const preservedFilters = {};
+    if (this.state.filters.active && lockedFilters.length > 0) {
+      for (const [column, values] of Object.entries(this.state.filters.active)) {
+        if (this.isFilterLocked(column, lockedFilters)) {
+          preservedFilters[column] = values;
+        }
+      }
     }
-    const url = this.buildUrl(updates);
+
+    // Build URL with only locked filters preserved
+    let url;
+    if (Object.keys(preservedFilters).length > 0) {
+      // Has locked filters - use buildUrlWithFilters to preserve them
+      url = this.buildUrlWithFilters(preservedFilters);
+      const urlObj = new URL(url, window.location.origin);
+      // Clear search
+      urlObj.searchParams.delete('search');
+      // If we're on a view, mark filters as dirty
+      if (this.state.view.currentId) {
+        urlObj.searchParams.set('dirty[filters]', '1');
+      }
+      url = urlObj.pathname + urlObj.search;
+    } else {
+      // No locked filters - simple clear
+      const updates = {
+        search: null
+      };
+      // If we're on a view, mark filters as dirty instead of removing view
+      if (this.state.view.currentId) {
+        updates['dirty[filters]'] = '1';
+      }
+      url = this.buildUrl(updates);
+    }
     this.navigate(url);
+  }
+
+  /**
+   * Check if a filter column is locked
+   * 
+   * @param {string} column - The filter column key
+   * @param {string[]} lockedFilters - Array of locked filter keys
+   * @returns {boolean} True if the filter is locked
+   */
+  isFilterLocked(column, lockedFilters) {
+    // Check exact match
+    if (lockedFilters.includes(column)) {
+      return true;
+    }
+    // Check date range variants (e.g., 'expires_on' locks 'expires_on_start' and 'expires_on_end')
+    const baseField = column.replace(/_(start|end)$/, '');
+    if (baseField !== column && lockedFilters.includes(baseField)) {
+      return true;
+    }
+    return false;
   }
 
   /**
@@ -5888,6 +6536,16 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
   updateDateRangeFilter(event) {
     const columnKey = event.target.dataset.filterColumn;
     const value = event.target.value;
+
+    // Check if this filter is locked
+    const lockedFilters = this.state.config?.lockedFilters || [];
+    if (this.isFilterLocked(columnKey, lockedFilters)) {
+      console.warn(`Filter '${columnKey}' is locked and cannot be changed`);
+      // Restore the input to its previous value
+      const activeValue = this.state.filters.active[columnKey] || '';
+      event.target.value = activeValue;
+      return;
+    }
 
     // Build URL with updated filter
     const filterParams = (0,_babel_runtime_helpers_objectSpread2__WEBPACK_IMPORTED_MODULE_0__["default"])({}, this.state.filters.active);
@@ -6332,26 +6990,31 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
    * Export current grid data to CSV
    * 
    * Triggers a CSV export with current filters, search, sort, and column selection.
-   * Navigates to the grid-data action URL with current parameters and export=csv.
+   * Uses the table frame's src URL as base (handles embedded grids with custom endpoints).
    */
   exportCsv() {
-    // Get current URL and extract parameters
-    const currentUrl = new URL(window.location.href);
-    const searchParams = new URLSearchParams(currentUrl.search);
+    // Find the table frame to get the correct data endpoint
+    const tableFrame = this.element.querySelector('turbo-frame[id$="-table"]');
+    if (!tableFrame) {
+      console.warn('Table frame not found, cannot export');
+      return;
+    }
+
+    // Get the base grid-data URL from the frame's src
+    const currentSrc = tableFrame.getAttribute('src') || tableFrame.src;
+    if (!currentSrc) {
+      console.warn('Table frame has no src attribute');
+      return;
+    }
+
+    // Parse current src to build export URL
+    const srcUrl = new URL(currentSrc, window.location.origin);
 
     // Add export parameter
-    searchParams.set('export', 'csv');
-
-    // Build grid-data URL (replace last path segment with 'grid-data')
-    const pathParts = currentUrl.pathname.split('/');
-    pathParts[pathParts.length - 1] = 'grid-data';
-    const gridDataPath = pathParts.join('/');
-
-    // Construct full grid-data URL with parameters
-    const exportUrl = `${currentUrl.origin}${gridDataPath}?${searchParams.toString()}`;
+    srcUrl.searchParams.set('export', 'csv');
 
     // Navigate to CSV export URL (will trigger download)
-    window.location.href = exportUrl;
+    window.location.href = srcUrl.toString();
   }
 
   /**
@@ -59917,7 +60580,7 @@ window.Controllers["waiver-upload-wizard"] = WaiverUploadWizardController;
 },
 /******/ function(__webpack_require__) { // webpackRuntimeModules
 /******/ var __webpack_exec__ = function(moduleId) { return __webpack_require__(__webpack_require__.s = moduleId); }
-/******/ __webpack_require__.O(0, ["js/core","css/app","css/waivers","css/dashboard","css/cover","css/signin","css/waiver-upload"], function() { return __webpack_exec__("./assets/js/controllers/activity-toggle-controller.js"), __webpack_exec__("./assets/js/controllers/activity-waiver-manager-controller.js"), __webpack_exec__("./assets/js/controllers/add-activity-modal-controller.js"), __webpack_exec__("./assets/js/controllers/app-setting-form-controller.js"), __webpack_exec__("./assets/js/controllers/auto-complete-controller.js"), __webpack_exec__("./assets/js/controllers/base-gathering-form-controller.js"), __webpack_exec__("./assets/js/controllers/branch-links-controller.js"), __webpack_exec__("./assets/js/controllers/csv-download-controller.js"), __webpack_exec__("./assets/js/controllers/delayed-forward-controller.js"), __webpack_exec__("./assets/js/controllers/delete-confirmation-controller.js"), __webpack_exec__("./assets/js/controllers/detail-tabs-controller.js"), __webpack_exec__("./assets/js/controllers/edit-activity-description-controller.js"), __webpack_exec__("./assets/js/controllers/email-template-editor-controller.js"), __webpack_exec__("./assets/js/controllers/email-template-form-controller.js"), __webpack_exec__("./assets/js/controllers/file-size-validator-controller.js"), __webpack_exec__("./assets/js/controllers/filter-grid-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-clone-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-form-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-location-autocomplete-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-map-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-public-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-schedule-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-type-form-controller.js"), __webpack_exec__("./assets/js/controllers/gatherings-calendar-controller.js"), __webpack_exec__("./assets/js/controllers/grid-view-controller.js"), __webpack_exec__("./assets/js/controllers/guifier-controller.js"), __webpack_exec__("./assets/js/controllers/image-preview-controller.js"), __webpack_exec__("./assets/js/controllers/kanban-controller.js"), __webpack_exec__("./assets/js/controllers/markdown-editor-controller.js"), __webpack_exec__("./assets/js/controllers/member-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-menu-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-pwa-controller.js"), __webpack_exec__("./assets/js/controllers/member-unique-email-controller.js"), __webpack_exec__("./assets/js/controllers/member-verify-form-controller.js"), __webpack_exec__("./assets/js/controllers/mobile-hub-controller.js"), __webpack_exec__("./assets/js/controllers/mobile-offline-overlay-controller.js"), __webpack_exec__("./assets/js/controllers/modal-opener-controller.js"), __webpack_exec__("./assets/js/controllers/nav-bar-controller.js"), __webpack_exec__("./assets/js/controllers/outlet-button-controller.js"), __webpack_exec__("./assets/js/controllers/permission-add-role-controller.js"), __webpack_exec__("./assets/js/controllers/permission-manage-policies-controller.js"), __webpack_exec__("./assets/js/controllers/popover-controller.js"), __webpack_exec__("./assets/js/controllers/qrcode-controller.js"), __webpack_exec__("./assets/js/controllers/revoke-form-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-member-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-permission-controller.js"), __webpack_exec__("./assets/js/controllers/security-debug-controller.js"), __webpack_exec__("./assets/js/controllers/select-all-switch-list-controller.js"), __webpack_exec__("./assets/js/controllers/session-extender-controller.js"), __webpack_exec__("./assets/js/controllers/sortable-list-controller.js"), __webpack_exec__("./assets/js/controllers/timezone-input-controller.js"), __webpack_exec__("./assets/js/controllers/turbo-modal-controller.js"), __webpack_exec__("./assets/js/controllers/variable-insert-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/gw-sharing-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/mobile-request-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/renew-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/request-auth-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/award-form-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-add-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-bulk-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-quick-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-table-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/recommendation-kanban-controller.js"), __webpack_exec__("./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/assign-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/edit-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/office-form-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-search-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-table-controller.js"), __webpack_exec__("./plugins/Template/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/add-requirement-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/camera-capture-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/exemption-reasons-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/retention-policy-input-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-attestation-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-template-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-wizard-controller.js"), __webpack_exec__("./assets/css/app.css"), __webpack_exec__("./assets/css/signin.css"), __webpack_exec__("./assets/css/cover.css"), __webpack_exec__("./assets/css/dashboard.css"), __webpack_exec__("./plugins/Waivers/assets/css/waivers.css"), __webpack_exec__("./plugins/Waivers/assets/css/waiver-upload.css"); });
+/******/ __webpack_require__.O(0, ["js/core","css/app","css/waivers","css/dashboard","css/cover","css/signin","css/waiver-upload"], function() { return __webpack_exec__("./assets/js/controllers/activity-toggle-controller.js"), __webpack_exec__("./assets/js/controllers/activity-waiver-manager-controller.js"), __webpack_exec__("./assets/js/controllers/add-activity-modal-controller.js"), __webpack_exec__("./assets/js/controllers/app-setting-form-controller.js"), __webpack_exec__("./assets/js/controllers/app-setting-modal-controller.js"), __webpack_exec__("./assets/js/controllers/auto-complete-controller.js"), __webpack_exec__("./assets/js/controllers/base-gathering-form-controller.js"), __webpack_exec__("./assets/js/controllers/branch-links-controller.js"), __webpack_exec__("./assets/js/controllers/code-editor-controller.js"), __webpack_exec__("./assets/js/controllers/csv-download-controller.js"), __webpack_exec__("./assets/js/controllers/delayed-forward-controller.js"), __webpack_exec__("./assets/js/controllers/delete-confirmation-controller.js"), __webpack_exec__("./assets/js/controllers/detail-tabs-controller.js"), __webpack_exec__("./assets/js/controllers/edit-activity-description-controller.js"), __webpack_exec__("./assets/js/controllers/email-template-editor-controller.js"), __webpack_exec__("./assets/js/controllers/email-template-form-controller.js"), __webpack_exec__("./assets/js/controllers/file-size-validator-controller.js"), __webpack_exec__("./assets/js/controllers/filter-grid-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-clone-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-form-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-location-autocomplete-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-map-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-public-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-schedule-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-type-form-controller.js"), __webpack_exec__("./assets/js/controllers/gatherings-calendar-controller.js"), __webpack_exec__("./assets/js/controllers/grid-view-controller.js"), __webpack_exec__("./assets/js/controllers/guifier-controller.js"), __webpack_exec__("./assets/js/controllers/image-preview-controller.js"), __webpack_exec__("./assets/js/controllers/kanban-controller.js"), __webpack_exec__("./assets/js/controllers/markdown-editor-controller.js"), __webpack_exec__("./assets/js/controllers/member-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-menu-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-pwa-controller.js"), __webpack_exec__("./assets/js/controllers/member-unique-email-controller.js"), __webpack_exec__("./assets/js/controllers/member-verify-form-controller.js"), __webpack_exec__("./assets/js/controllers/mobile-hub-controller.js"), __webpack_exec__("./assets/js/controllers/mobile-offline-overlay-controller.js"), __webpack_exec__("./assets/js/controllers/modal-opener-controller.js"), __webpack_exec__("./assets/js/controllers/nav-bar-controller.js"), __webpack_exec__("./assets/js/controllers/outlet-button-controller.js"), __webpack_exec__("./assets/js/controllers/permission-add-role-controller.js"), __webpack_exec__("./assets/js/controllers/permission-manage-policies-controller.js"), __webpack_exec__("./assets/js/controllers/popover-controller.js"), __webpack_exec__("./assets/js/controllers/qrcode-controller.js"), __webpack_exec__("./assets/js/controllers/revoke-form-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-member-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-permission-controller.js"), __webpack_exec__("./assets/js/controllers/security-debug-controller.js"), __webpack_exec__("./assets/js/controllers/select-all-switch-list-controller.js"), __webpack_exec__("./assets/js/controllers/session-extender-controller.js"), __webpack_exec__("./assets/js/controllers/sortable-list-controller.js"), __webpack_exec__("./assets/js/controllers/timezone-input-controller.js"), __webpack_exec__("./assets/js/controllers/turbo-modal-controller.js"), __webpack_exec__("./assets/js/controllers/variable-insert-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/gw-sharing-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/mobile-request-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/renew-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/request-auth-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/award-form-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-add-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-bulk-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-quick-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-table-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/recommendation-kanban-controller.js"), __webpack_exec__("./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/assign-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/edit-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/office-form-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-search-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-table-controller.js"), __webpack_exec__("./plugins/Template/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/add-requirement-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/camera-capture-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/exemption-reasons-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/retention-policy-input-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-attestation-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-template-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-wizard-controller.js"), __webpack_exec__("./assets/css/app.css"), __webpack_exec__("./assets/css/signin.css"), __webpack_exec__("./assets/css/cover.css"), __webpack_exec__("./assets/css/dashboard.css"), __webpack_exec__("./plugins/Waivers/assets/css/waivers.css"), __webpack_exec__("./plugins/Waivers/assets/css/waiver-upload.css"); });
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);

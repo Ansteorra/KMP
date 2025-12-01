@@ -8,6 +8,7 @@ use Awards\Controller\AppController;
 use Awards\Model\Entity\Recommendation;
 use Awards\KMP\GridColumns\RecommendationsGridColumns;
 use Cake\I18n\DateTime;
+use Cake\Routing\Router;
 use App\KMP\StaticHelpers;
 use App\Controller\DataverseGridTrait;
 use Authorization\Exception\ForbiddenException;
@@ -340,8 +341,8 @@ class RecommendationsController extends AppController
             'defaultPageSize' => 25,
             'systemViews' => $systemViews,
             'defaultSystemView' => 'sys-recs-all',
-            'showAllTab' => true,
-            'canAddViews' => false,
+            'showAllTab' => false,
+            'canAddViews' => true,
             'canFilter' => true,
             'canExportCsv' => true,
         ]);
@@ -362,9 +363,11 @@ class RecommendationsController extends AppController
             $recommendation->reason = $this->buildReasonHtml($recommendation);
         }
 
-        // Handle CSV export
+        // Handle CSV export using trait's unified method with data mode
         if (!empty($result['isCsvExport'])) {
-            return $this->handleRecommendationsCsvExport($result, $csvExportService, $recommendations);
+            // Fetch all data from query (not paginated) and process computed fields
+            $exportData = $this->prepareRecommendationsForExport($result['query']);
+            return $this->handleCsvExport($result, $csvExportService, 'recommendations', 'Awards.Recommendations', $exportData);
         }
 
         // Get row actions from grid columns
@@ -599,8 +602,33 @@ class RecommendationsController extends AppController
     }
 
     /**
+     * Prepare recommendations for CSV export with computed fields
+     *
+     * Fetches all data from the query (not paginated) and populates computed fields
+     * that can't be calculated via SQL (virtual properties, formatted strings, etc.)
+     *
+     * @param \Cake\ORM\Query $query The filtered query from processDataverseGrid
+     * @return \Cake\ORM\ResultSet Recommendations with computed fields populated
+     */
+    protected function prepareRecommendationsForExport($query): iterable
+    {
+        // Execute query to get all matching records (not paginated)
+        $recommendations = $query->all();
+
+        // Process each recommendation to populate computed fields for export
+        foreach ($recommendations as $recommendation) {
+            // Note: For export, we don't need HTML formatting.
+            // The trait will use renderField paths to access nested properties like member.name_for_herald
+            // We just need to ensure the associations are loaded, which they should be from the query
+        }
+
+        return $recommendations;
+    }
+
+    /**
      * Handle CSV export for recommendations with custom formatting
      *
+     * @deprecated Use DataverseGridTrait::handleCsvExport() instead. This method will be removed in a future version.
      * @param array $result Grid result data
      * @param CsvExportService $csvExportService CSV export service
      * @param iterable $recommendations Recommendation entities
@@ -705,9 +733,10 @@ class RecommendationsController extends AppController
             $recommendation->reason = $this->buildReasonHtml($recommendation);
         }
 
-        // Handle CSV export
+        // Handle CSV export using trait's unified method with data mode
         if (!empty($result['isCsvExport'])) {
-            return $this->handleRecommendationsCsvExport($result, $csvExportService, $recommendations);
+            $exportData = $this->prepareRecommendationsForExport($result['query']);
+            return $this->handleCsvExport($result, $csvExportService, 'recommendations-submitted', 'Awards.Recommendations', $exportData);
         }
 
         // Set view variables
@@ -891,15 +920,33 @@ class RecommendationsController extends AppController
         $baseQuery = $this->Recommendations->find()
             ->where(['Recommendations.gathering_id' => $gatheringId])
             ->contain([
-                'Members' => function ($q) {
+                'Requesters' => function ($q) {
                     return $q->select(['id', 'sca_name']);
+                },
+                'Members' => function ($q) {
+                    return $q->select(['id', 'sca_name', 'title', 'pronouns', 'pronunciation']);
                 },
                 'Branches' => function ($q) {
                     return $q->select(['id', 'name']);
                 },
                 'Awards' => function ($q) {
-                    return $q->select(['id', 'abbreviation']);
+                    return $q->select(['id', 'abbreviation', 'branch_id']);
                 },
+                'Awards.Domains' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+                'Gatherings' => function ($q) {
+                    return $q->select(['id', 'name', 'start_date', 'end_date']);
+                },
+                'Notes' => function ($q) {
+                    return $q->select(['id', 'entity_id', 'subject', 'body', 'created']);
+                },
+                'Notes.Authors' => function ($q) {
+                    return $q->select(['id', 'sca_name']);
+                },
+                'AssignedGathering' => function ($q) {
+                    return $q->select(['id', 'name']);
+                }
             ]);
 
         // Get system views for this context
@@ -916,17 +963,32 @@ class RecommendationsController extends AppController
             'systemViews' => $systemViews,
             'defaultSystemView' => 'sys-recs-gathering',
             'showAllTab' => false,
+            'showViewTabs' => false,
             'canAddViews' => false,
             'canFilter' => false,
             'canExportCsv' => true,
         ]);
 
-        // Post-process data
-        $recommendations = $result['data'];
-
-        // Handle CSV export
+        // Handle CSV export using trait's unified method with data mode
         if (!empty($result['isCsvExport'])) {
-            return $this->handleRecommendationsCsvExport($result, $csvExportService, $recommendations);
+            $exportData = $this->prepareRecommendationsForExport($result['query']);
+            return $this->handleCsvExport($result, $csvExportService, 'gathering-awards', 'Awards.Recommendations', $exportData);
+        }
+
+        // Post-process paginated data to add computed fields for display
+        $recommendations = $result['data'];
+        foreach ($recommendations as $recommendation) {
+            // Build OP links HTML
+            $recommendation->op_links = $this->buildOpLinksHtml($recommendation);
+
+            // Build gatherings HTML (member attendance)
+            $recommendation->gatherings = $this->buildGatheringsHtml($recommendation);
+
+            // Build notes HTML
+            $recommendation->notes = $this->buildNotesHtml($recommendation);
+
+            // Build reason HTML with truncation
+            $recommendation->reason = $this->buildReasonHtml($recommendation);
         }
 
         // Set view variables
@@ -953,6 +1015,19 @@ class RecommendationsController extends AppController
         $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
         $frameId = 'gathering-awards-grid-' . $gatheringId;
 
+        // Build URLs for grid
+        $queryParams = $this->request->getQueryParams();
+        $dataUrl = Router::url([
+            'plugin' => 'Awards',
+            'controller' => 'Recommendations',
+            'action' => 'gatheringAwardsGridData',
+            $gatheringId,
+        ]);
+        $tableDataUrl = $dataUrl;
+        if (!empty($queryParams)) {
+            $tableDataUrl .= '?' . http_build_query($queryParams);
+        }
+
         if ($turboFrame === $frameId . '-table') {
             $this->set('tableFrameId', $frameId . '-table');
             $this->viewBuilder()->setPlugin(null);
@@ -961,6 +1036,8 @@ class RecommendationsController extends AppController
             $this->viewBuilder()->setTemplate('dv_grid_table');
         } else {
             $this->set('frameId', $frameId);
+            $this->set('dataUrl', $dataUrl);
+            $this->set('tableDataUrl', $tableDataUrl);
             $this->viewBuilder()->setPlugin(null);
             $this->viewBuilder()->disableAutoLayout();
             $this->viewBuilder()->setTemplatePath('element');
@@ -3252,6 +3329,8 @@ class RecommendationsController extends AppController
     /**
      * Generate comprehensive CSV export of recommendations with advanced formatting and filtering
      * 
+     * @deprecated Use DataverseGridTrait::handleCsvExport() instead. This method will be removed in a future version.
+     * 
      * Implements sophisticated CSV export functionality for recommendation data with
      * comprehensive column configuration, advanced data formatting, authorization-based
      * filtering, and performance optimization for large datasets. This protected method
@@ -3450,6 +3529,9 @@ class RecommendationsController extends AppController
     /**
      * Format individual column values for CSV export with comprehensive data transformation
      * 
+     * @deprecated Use DataverseGridTrait::handleCsvExport() instead which handles column formatting automatically.
+     *             This method will be removed in a future version.
+     * 
      * Implements sophisticated column-specific formatting for CSV export operations,
      * providing standardized data transformation, type-specific formatting, and
      * comprehensive data presentation optimization. This private method serves as
@@ -3604,33 +3686,33 @@ class RecommendationsController extends AppController
     private function formatExportColumn(\Awards\Model\Entity\Recommendation $recommendation, string $columnName): string
     {
         switch ($columnName) {
-            case "Submitted":
+            case "created":
                 return (string)$recommendation->created;
 
-            case "For":
-                return $recommendation->member_sca_name;
+            case "member_sca_name":
+                return $recommendation->member_sca_name ?? '';
 
-            case "For Herald":
+            case "member_for_herald":
                 return $recommendation->member
                     ? $recommendation->member->name_for_herald
-                    : $recommendation->member_sca_name;
+                    : ($recommendation->member_sca_name ?? '');
 
-            case "Title":
+            case "member_title":
                 return $recommendation->member
                     ? (string)$recommendation->member->title
                     : "";
 
-            case "Pronouns":
+            case "member_pronouns":
                 return $recommendation->member
                     ? (string)$recommendation->member->pronouns
                     : "";
 
-            case "Pronunciation":
+            case "member_pronunciation":
                 return $recommendation->member
                     ? (string)$recommendation->member->pronunciation
                     : "";
 
-            case "OP":
+            case "op_links":
                 $links = "";
                 if ($recommendation->member) {
                     $member = $recommendation->member;
@@ -3644,78 +3726,93 @@ class RecommendationsController extends AppController
                 }
                 return $links;
 
-            case "Branch":
-                return $recommendation->branch->name;
+            case "branch_name":
+                return $recommendation->branch->name ?? '';
 
-            case "Call Into Court":
+            case "call_into_court":
                 return (string)$recommendation->call_into_court;
 
-            case "Court Avail":
+            case "court_availability":
                 return (string)$recommendation->court_availability;
 
-            case "Person to Notify":
+            case "person_to_notify":
                 return (string)$recommendation->person_to_notify;
 
-            case "Submitted By":
-                return $recommendation->requester_sca_name;
+            case "requester_sca_name":
+                return $recommendation->requester_sca_name ?? '';
 
-            case "Contact Email":
+            case "contact_email":
                 return (string)$recommendation->contact_email;
 
-            case "Contact Phone":
+            case "contact_phone":
                 return (string)$recommendation->contact_phone;
 
-            case "Domain":
-                return $recommendation->award->domain->name;
+            case "domain_name":
+                return $recommendation->award->domain->name ?? '';
 
-            case "Award":
-                $awardText = $recommendation->award->abbreviation;
+            case "award_abbreviation":
+                $awardText = $recommendation->award->abbreviation ?? '';
                 if ($recommendation->specialty) {
                     $awardText .= " (" . $recommendation->specialty . ")";
                 }
                 return $awardText;
 
-            case "Reason":
+            case "specialty":
+                return (string)$recommendation->specialty;
+
+            case "reason":
                 return (string)$recommendation->reason;
 
-            case "Events":
+            case "gatherings":
                 $events = "";
-                foreach ($recommendation->events as $event) {
-                    $startDate = $event->start_date->toDateString();
-                    $endDate = $event->end_date->toDateString();
-                    $events .= "$event->name : $startDate - $endDate\n\n";
+                if (!empty($recommendation->gatherings)) {
+                    foreach ($recommendation->gatherings as $gathering) {
+                        $startDate = $gathering->start_date ? $gathering->start_date->toDateString() : '';
+                        $endDate = $gathering->end_date ? $gathering->end_date->toDateString() : '';
+                        $events .= "$gathering->name : $startDate - $endDate\n\n";
+                    }
                 }
                 return $events;
 
-            case "Notes":
+            case "notes":
                 $notes = "";
-                foreach ($recommendation->notes as $note) {
-                    $createDate = $note->created->toDateTimeString();
-                    $notes .= "$createDate : $note->body\n\n";
+                if (!empty($recommendation->notes)) {
+                    foreach ($recommendation->notes as $note) {
+                        $createDate = $note->created ? $note->created->toDateTimeString() : '';
+                        $notes .= "$createDate : $note->body\n\n";
+                    }
                 }
                 return $notes;
 
-            case "Status":
-                return $recommendation->status;
+            case "status":
+                return $recommendation->status ?? '';
 
-            case "Event":
-                return $recommendation->assigned_event
-                    ? $recommendation->assigned_event->name
-                    : "";
+            case "gathering_name":
+                return $recommendation->assigned_gathering
+                    ? $recommendation->assigned_gathering->name
+                    : '';
 
-            case "State":
-                return $recommendation->state;
+            case "state":
+                return $recommendation->state ?? '';
 
-            case "Close Reason":
+            case "close_reason":
                 return (string)$recommendation->close_reason;
 
-            case "State Date":
-                return $recommendation->state_date->toDateString();
+            case "state_date":
+                return $recommendation->state_date
+                    ? $recommendation->state_date->toDateString()
+                    : '';
 
-            case "Given Date":
+            case "given":
                 return $recommendation->given
                     ? $recommendation->given->toDateString()
                     : "";
+
+            case "award_level":
+                return $recommendation->award->branch->type_name ?? '';
+
+            case "id":
+                return (string)$recommendation->id;
 
             default:
                 return "";

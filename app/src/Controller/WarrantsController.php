@@ -380,8 +380,8 @@ class WarrantsController extends AppController
         // Load authorization component for warrant management security
         $this->loadComponent('Authorization.Authorization');
 
-        // Authorize model-level access for warrant listing operations
-        $this->Authorization->authorizeModel('index');
+        // Authorize model-level access for warrant listing and grid data operations
+        $this->Authorization->authorizeModel('index', 'gridData');
     }
 
     /**
@@ -436,6 +436,8 @@ class WarrantsController extends AppController
             'showAllTab' => false,
             'canAddViews' => true,
             'canFilter' => true,
+            'lockedFilters' => ['status', 'start_on', 'expires_on'],
+            'showFilterPills' => true,
         ]);
 
         $this->set('gridState', $result['gridState']);
@@ -474,6 +476,9 @@ class WarrantsController extends AppController
             'showAllTab' => false,
             'canAddViews' => true,
             'canFilter' => true,
+            'canExportCsv' => true,
+            'lockedFilters' => ['status', 'start_on', 'expires_on'],
+            'showFilterPills' => true,
         ]);
 
         // Handle CSV export
@@ -481,11 +486,40 @@ class WarrantsController extends AppController
             return $this->handleCsvExport($result, $csvExportService, 'warrants');
         }
 
-        $this->set('gridState', $result['gridState']);
-        $this->set('warrants', $result['data']);
+        // Set view variables
+        $this->set([
+            'warrants' => $result['data'],
+            'gridState' => $result['gridState'],
+            'columns' => $result['columnsMetadata'],
+            'visibleColumns' => $result['visibleColumns'],
+            'searchableColumns' => \App\KMP\GridColumns\WarrantsGridColumns::getSearchableColumns(),
+            'dropdownFilterColumns' => $result['dropdownFilterColumns'],
+            'filterOptions' => $result['filterOptions'],
+            'currentFilters' => $result['currentFilters'],
+            'currentSearch' => $result['currentSearch'],
+            'currentView' => $result['currentView'],
+            'availableViews' => $result['availableViews'],
+            'gridKey' => $result['gridKey'],
+            'currentSort' => $result['currentSort'],
+            'currentMember' => $result['currentMember'],
+        ]);
 
-        // Render the inner turbo-frame template
-        $this->viewBuilder()->setTemplate('grid_data');
+        // Determine which template to render based on Turbo-Frame header
+        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
+
+        if ($turboFrame === 'warrants-grid-table') {
+            // Inner frame request - render table data only
+            $this->set('data', $result['data']);
+            $this->set('tableFrameId', 'warrants-grid-table');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplate('../element/dv_grid_table');
+        } else {
+            // Outer frame request (or no frame) - render toolbar + table frame
+            $this->set('data', $result['data']);
+            $this->set('frameId', 'warrants-grid');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplate('../element/dv_grid_content');
+        }
     }
 
     /**

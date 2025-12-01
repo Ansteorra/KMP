@@ -389,8 +389,10 @@ class MembersController extends AppController
             'defaultSystemView' => 'sys-roles-active',
             'showAllTab' => false,
             'canAddViews' => false,
-            'canFilter' => true,
+            'canFilter' => false,
             'canExportCsv' => false,
+            'lockedFilters' => ['start_on', 'expires_on'],
+            'showFilterPills' => true,
         ]);
 
         \Cake\Log\Log::debug('Member Roles Result Count: ' . count($result['data']));

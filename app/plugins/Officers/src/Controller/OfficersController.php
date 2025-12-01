@@ -1057,7 +1057,7 @@ class OfficersController extends AppController
         // Process using DataverseGridTrait
         $result = $this->processDataverseGrid([
             'gridKey' => 'Officers.Officers.index.main',
-            'gridColumnsClass' => \App\KMP\GridColumns\OfficersGridColumns::class,
+            'gridColumnsClass' => \Officers\KMP\GridColumns\OfficersGridColumns::class,
             'baseQuery' => $baseQuery,
             'tableName' => 'Officers',
             'defaultSort' => ['Officers.start_on' => 'DESC'],
@@ -1077,7 +1077,7 @@ class OfficersController extends AppController
         }
 
         // Get row actions from grid columns
-        $rowActions = \App\KMP\GridColumns\OfficersGridColumns::getRowActions();
+        $rowActions = \Officers\KMP\GridColumns\OfficersGridColumns::getRowActions();
 
         // Set view variables
         $this->set([
@@ -1085,7 +1085,7 @@ class OfficersController extends AppController
             'gridState' => $result['gridState'],
             'columns' => $result['columnsMetadata'],
             'visibleColumns' => $result['visibleColumns'],
-            'searchableColumns' => \App\KMP\GridColumns\OfficersGridColumns::getSearchableColumns(),
+            'searchableColumns' => \Officers\KMP\GridColumns\OfficersGridColumns::getSearchableColumns(),
             'dropdownFilterColumns' => $result['dropdownFilterColumns'],
             'filterOptions' => $result['filterOptions'],
             'currentFilters' => $result['currentFilters'],

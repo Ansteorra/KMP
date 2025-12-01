@@ -182,7 +182,10 @@ class WarrantRostersController extends AppController
             'showAllTab' => true,
             'canAddViews' => false,
             'canFilter' => true,
-            'canExportCsv' => true,
+            'canExportCsv' => false,
+            'canFilter' => true,
+            'lockedFilters' => ['status'],
+            'showFilterPills' => true,
         ]);
 
         // Handle CSV export

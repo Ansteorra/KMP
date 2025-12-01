@@ -19,7 +19,9 @@ $this->KMP->endBlock();
 $this->assign('title', __('App Settings'));
 ?>
 
-<div class="app-settings index content">
+<div class="app-settings index content"
+    data-controller="app-setting-modal"
+    data-app-setting-modal-edit-url-value="<?= $this->Url->build(['action' => 'edit']) ?>">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h3><?= __('App Settings') ?></h3>
         <div>
@@ -80,5 +82,35 @@ echo $this->Modal->create("Add App Setting", [
     ]),
 ]);
 echo $this->Form->end();
+?>
+
+<!-- Edit App Setting Modal -->
+<div class="modal fade"
+    id="editAppSettingModal"
+    tabindex="-1"
+    aria-labelledby="editAppSettingModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <!-- Turbo frame for loading edit form -->
+            <turbo-frame id="editAppSettingFrame">
+                <div class="modal-header">
+                    <h5 class="modal-title"><?= __('Edit App Setting') ?></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center p-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Loading setting...</p>
+                    </div>
+                </div>
+            </turbo-frame>
+        </div>
+    </div>
+</div>
+
+<?php
 $this->KMP->endBlock();
 ?>

@@ -10,6 +10,10 @@ use App\Model\Entity\BaseEntity;
 use Cake\ORM\Table;
 
 /**
+ * @method bool canExport(\App\KMP\KmpIdentityInterface $user, \Cake\ORM\Table $table, mixed ...$optionalArgs)
+ */
+
+/**
  * Recommendations Table Authorization Policy
  * 
  * Provides comprehensive table-level authorization for recommendation workflow management within
@@ -169,5 +173,21 @@ class RecommendationsTablePolicy extends BasePolicy
     public function canAdd(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
     {
         return true;
+    }
+
+    /**
+     * Authorize recommendation export to CSV
+     * 
+     * Users who can index recommendations can also export them to CSV.
+     * This delegates to the canIndex permission check.
+     * 
+     * @param \App\KMP\KmpIdentityInterface $user The user requesting export access
+     * @param \App\Model\Entity\BaseEntity|\Cake\ORM\Table $entity The target entity or table
+     * @param mixed ...$optionalArgs Additional authorization arguments
+     * @return bool True if user has index permission
+     */
+    public function canExport(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
+    {
+        return $this->canIndex($user, $entity, ...$optionalArgs);
     }
 }

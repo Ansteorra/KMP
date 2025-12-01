@@ -2,8 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\KMP\GridColumns;
+namespace Officers\KMP\GridColumns;
 
+use App\KMP\GridColumns\BaseGridColumns;
 use App\Model\Entity\ActiveWindowBaseEntity;
 
 /**

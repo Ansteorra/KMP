@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\KMP\GridColumns;
+namespace Awards\KMP\GridColumns;
+
+use App\KMP\GridColumns\BaseGridColumns;
 
 /**
  * Grid column definitions for the Awards index view

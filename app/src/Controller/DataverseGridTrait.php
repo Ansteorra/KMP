@@ -75,11 +75,17 @@ trait DataverseGridTrait
      *   - queryCallback (callable|null): Optional callback to modify query per system view
      *   - showAllTab (bool): Whether to show "All" tab (default: true for saved views, false for system views)
      *   - canAddViews (bool): Whether users can create custom views (default: true)
-     *   - canFilter (bool): Whether filtering is enabled (default: true)
+     *   - canFilter (bool): Whether user filtering is enabled (default: true). When false,
+     *       users cannot add/remove filters via the UI or query parameters. However, filters
+     *       defined by system views are ALWAYS applied regardless of this setting.
      *   - canExportCsv (bool): Whether CSV export button is shown (default: true)
      *   - showFilterPills (bool): Whether active filter pills/badges are displayed (default: true)
      *   - showViewTabs (bool): Whether view tabs are displayed (default: true)
      *   - enableColumnPicker (bool): Whether column picker is available (default: true)
+     *   - lockedFilters (array): Array of filter column keys that cannot be removed by users.
+     *       Locked filters will not show remove (×) buttons and their values cannot be
+     *       cleared via query string parameters. Useful for embedded grids where context
+     *       filters (e.g., member_id) must always be applied.
      * @return array Result array with keys: data, gridState, columnsMetadata, etc.
      */
     protected function processDataverseGrid(array $config): array
@@ -101,18 +107,18 @@ trait DataverseGridTrait
         $showFilterPills = $config['showFilterPills'] ?? true;
         $showViewTabs = $config['showViewTabs'] ?? true;
         $enableColumnPicker = $config['enableColumnPicker'] ?? true;
+        $lockedFilters = $config['lockedFilters'] ?? [];
 
         // Load column metadata
         $columnsMetadata = $gridColumnsClass::getColumns();
 
         // Get date-range filter columns (needed for filter application)
-        $dateRangeFilterColumns = [];
-        if ($canFilter) {
-            $dateRangeFilterColumns = array_filter(
-                $columnsMetadata,
-                fn($col) => !empty($col['filterable']) && ($col['filterType'] ?? null) === 'date-range'
-            );
-        }
+        // Note: Always populate this regardless of canFilter, since system view filters
+        // need to be applied even when user filtering is disabled
+        $dateRangeFilterColumns = array_filter(
+            $columnsMetadata,
+            fn($col) => !empty($col['filterable']) && ($col['filterType'] ?? null) === 'date-range'
+        );
 
         // Get grid view service
         $gridViewService = new GridViewService(
@@ -124,8 +130,9 @@ trait DataverseGridTrait
         $currentMember = $this->request->getAttribute('identity');
 
         // Get dirty flags (user modified view configuration)
+        // Note: dirty flags for filters are only respected when canFilter is true
         $dirtyFlags = $this->request->getQuery('dirty', []);
-        $dirtyFilters = isset($dirtyFlags['filters']);
+        $dirtyFilters = $canFilter && isset($dirtyFlags['filters']);
         $dirtySearch = isset($dirtyFlags['search']);
         $dirtySort = isset($dirtyFlags['sort']);
         $dirtyColumns = isset($dirtyFlags['columns']);
@@ -255,6 +262,14 @@ trait DataverseGridTrait
             $searchConditions = ['OR' => []];
 
             foreach ($searchableColumns as $columnKey) {
+                // Check if columnKey is a full queryField path (e.g., 'AppSettings.value')
+                // or just a column key (e.g., 'name')
+                if (str_contains($columnKey, '.')) {
+                    // It's a full queryField path - use directly
+                    $searchConditions['OR'][$columnKey . ' LIKE'] = '%' . $searchTerm . '%';
+                    continue;
+                }
+
                 $columnMeta = $columnsMetadata[$columnKey] ?? null;
 
                 if ($columnMeta) {
@@ -276,17 +291,24 @@ trait DataverseGridTrait
             }
         }
 
-        // Apply dropdown filters (if not dirty and enabled)
+        // Apply dropdown filters
+        // Note: System view filters are ALWAYS applied. User-submitted filters only apply when canFilter is true.
         $incomingFilters = $this->request->getQuery('filter', []);
         $currentFilters = is_array($incomingFilters) ? $incomingFilters : [];
         $skipFilterColumns = [];
+        $systemViewFilters = [];
 
         if ($selectedSystemView) {
-            $hasIncomingFilters = !empty($incomingFilters);
+            // When canFilter is false, ignore user-submitted filters entirely
+            $hasIncomingFilters = $canFilter && !empty($incomingFilters);
 
+            // Always use system view filters as the base (unless user explicitly changed them)
             if (!$dirtyFilters && !$hasIncomingFilters) {
                 $currentFilters = $systemViewDefaults['filters'];
             }
+
+            // Store system view filters separately so they're always applied
+            $systemViewFilters = $systemViewDefaults['filters'];
 
             if (!$dirtyFilters && !$hasIncomingFilters && !empty($systemViewDefaults['dateRange'])) {
                 foreach ($systemViewDefaults['dateRange'] as $filterKey => $value) {
@@ -301,8 +323,13 @@ trait DataverseGridTrait
                 : ($systemViewDefaults['skipFilterColumns'] ?? []);
         }
 
-        if (!empty($currentFilters) && is_array($currentFilters) && $canFilter) {
-            foreach ($currentFilters as $columnKey => $filterValue) {
+        // Determine which filters to apply:
+        // - If canFilter is true: apply all currentFilters (system view + user submitted)
+        // - If canFilter is false: only apply system view filters
+        $filtersToApply = $canFilter ? $currentFilters : $systemViewFilters;
+
+        if (!empty($filtersToApply) && is_array($filtersToApply)) {
+            foreach ($filtersToApply as $columnKey => $filterValue) {
                 if ($filterValue === '' || $filterValue === null || (is_array($filterValue) && empty($filterValue))) {
                     continue;
                 }
@@ -334,23 +361,41 @@ trait DataverseGridTrait
             }
         }
 
-        // Apply date range filters (if enabled)
+        // Apply date range filters
+        // Note: System view date ranges are ALWAYS applied. User-submitted date ranges only apply when canFilter is true.
         $dateRangeDefaults = [];
-        if ($selectedSystemView && !$dirtyFilters && $canFilter && empty($incomingFilters)) {
-            $dateRangeDefaults = $systemViewDefaults['dateRange'];
+        $systemDateRangeDefaults = [];
+        if ($selectedSystemView && !$dirtyFilters) {
+            // When canFilter is false, still apply system view date ranges
+            $systemDateRangeDefaults = $systemViewDefaults['dateRange'];
+            // Only use as defaults if canFilter is true and no user-submitted filters
+            if ($canFilter && empty($incomingFilters)) {
+                $dateRangeDefaults = $systemViewDefaults['dateRange'];
+            }
         }
-        if ($canFilter && !empty($dateRangeFilterColumns)) {
+        if (!empty($dateRangeFilterColumns)) {
             foreach ($dateRangeFilterColumns as $columnKey => $columnMeta) {
                 $startParam = $columnKey . '_start';
                 $endParam = $columnKey . '_end';
-                $startDate = $this->request->getQuery($startParam);
-                $endDate = $this->request->getQuery($endParam);
 
-                if (($startDate === null || $startDate === '') && isset($dateRangeDefaults[$startParam])) {
+                // Get user-submitted values only if canFilter is true
+                $startDate = $canFilter ? $this->request->getQuery($startParam) : null;
+                $endDate = $canFilter ? $this->request->getQuery($endParam) : null;
+
+                // Apply user defaults only if canFilter is true
+                if ($canFilter && ($startDate === null || $startDate === '') && isset($dateRangeDefaults[$startParam])) {
                     $startDate = $dateRangeDefaults[$startParam];
                 }
-                if (($endDate === null || $endDate === '') && isset($dateRangeDefaults[$endParam])) {
+                if ($canFilter && ($endDate === null || $endDate === '') && isset($dateRangeDefaults[$endParam])) {
                     $endDate = $dateRangeDefaults[$endParam];
+                }
+
+                // Always apply system view date range defaults (even when canFilter is false)
+                if (($startDate === null || $startDate === '') && isset($systemDateRangeDefaults[$startParam])) {
+                    $startDate = $systemDateRangeDefaults[$startParam];
+                }
+                if (($endDate === null || $endDate === '') && isset($systemDateRangeDefaults[$endParam])) {
+                    $endDate = $systemDateRangeDefaults[$endParam];
                 }
 
                 if (($startDate !== null && $startDate !== '') || ($endDate !== null && $endDate !== '')) {
@@ -524,11 +569,20 @@ trait DataverseGridTrait
 
         // Check for CSV export request
         if ($this->isCsvExportRequest()) {
+            // For CSV export, include exportOnly columns in addition to visible columns
+            $exportColumns = $visibleColumns;
+            foreach ($columnsMetadata as $columnKey => $columnMeta) {
+                // Add exportOnly columns that aren't already in visible columns
+                if (!empty($columnMeta['exportOnly']) && !in_array($columnKey, $exportColumns)) {
+                    $exportColumns[] = $columnKey;
+                }
+            }
+
             // Return query for CSV export (controller will handle the export)
             return [
                 'isCsvExport' => true,
                 'query' => $baseQuery,
-                'visibleColumns' => $visibleColumns,
+                'visibleColumns' => $exportColumns,
                 'columnsMetadata' => $columnsMetadata,
                 'currentView' => $currentView,
                 'gridState' => [
@@ -634,7 +688,8 @@ trait DataverseGridTrait
             canExportCsv: $canExportCsv,
             showFilterPills: $showFilterPills,
             showViewTabs: $showViewTabs,
-            enableColumnPicker: $enableColumnPicker
+            enableColumnPicker: $enableColumnPicker,
+            lockedFilters: $lockedFilters
         );
 
         // Return all results
@@ -681,6 +736,7 @@ trait DataverseGridTrait
      * @param bool $showViewTabs Whether view tabs are displayed
      * @param bool $enableColumnPicker Whether column picker is available
      * @param array $skipFilterColumns Columns with filter UI but not query application
+     * @param array $lockedFilters Filter column keys that cannot be removed by users
      * @return array Complete grid state
      */
     protected function buildDataverseGridState(
@@ -710,7 +766,8 @@ trait DataverseGridTrait
         bool $canExportCsv,
         bool $showFilterPills,
         bool $showViewTabs,
-        bool $enableColumnPicker
+        bool $enableColumnPicker,
+        array $lockedFilters = []
     ): array {
         // Format views based on whether we're using system or saved views
         $formattedViews = [];
@@ -859,6 +916,7 @@ trait DataverseGridTrait
                 'showFilterPills' => $showFilterPills,
                 'showViewTabs' => $showViewTabs,
                 'enableColumnPicker' => $enableColumnPicker,
+                'lockedFilters' => $lockedFilters,
             ],
             'dateRangeFilterColumns' => $dateRangeFilterColumns,
         ];
@@ -1008,28 +1066,132 @@ trait DataverseGridTrait
      * Handle CSV export from grid result
      *
      * Generates a CSV export response from the grid processing result.
-     * Respects visible columns, applies proper headers, and generates view-aware filenames.
+     * Supports two modes:
+     * 
+     * 1. **Query Mode** (default): Uses the query from result to build SQL SELECT statements.
+     *    Best for simple fields that map directly to database columns.
+     * 
+     * 2. **Data Mode**: Pass pre-processed data with computed/virtual fields already populated.
+     *    Best for exports that include calculated fields, virtual properties, or complex
+     *    transformations that can't be done in SQL.
+     *
+     * ## Column Value Resolution (in order of precedence):
+     * 1. `exportValue` callback in column metadata - custom formatting function
+     * 2. `renderField` path (e.g., 'member.name_for_herald') - for nested entity access
+     * 3. `queryField` for relation columns in query mode
+     * 4. Direct column key access on entity/array
      *
      * @param array $result Result from processDataverseGrid() with isCsvExport flag
      * @param \App\Services\CsvExportService $csvExportService CSV export service instance
      * @param string $entityName Base name for the export file (e.g., 'members', 'warrants')
+     * @param string|null $tableName Optional table name for fetchTable (e.g., 'Awards.Recommendations' for plugin tables)
+     *                               If not provided, uses ucfirst($entityName)
+     * @param iterable|null $data Optional pre-processed data. If provided, uses data mode instead of query mode.
+     *                            Data should be an iterable of entities or arrays with all computed fields populated.
      * @return \Cake\Http\Response CSV download response
      * @throws \Authorization\Exception\ForbiddenException If user lacks export permission
      */
-    protected function handleCsvExport(array $result, $csvExportService, string $entityName): \Cake\Http\Response
-    {
+    protected function handleCsvExport(
+        array $result,
+        $csvExportService,
+        string $entityName,
+        ?string $tableName = null,
+        ?iterable $data = null
+    ): \Cake\Http\Response {
+        // Determine table name for fetchTable (supports plugin tables like 'Awards.Recommendations')
+        if ($tableName === null) {
+            $tableName = ucfirst($entityName); // Default: capitalize entity name (e.g., 'members' -> 'Members')
+        }
+
         // Check authorization for export
-        $tableName = ucfirst($entityName); // Capitalize for table name (e.g., 'members' -> 'Members')
         $table = $this->fetchTable($tableName);
         $this->Authorization->authorize($table, 'export');
 
-        $query = $result['query'];
         $visibleColumns = $result['visibleColumns'];
         $columnsMetadata = $result['columnsMetadata'];
 
+        // Determine which mode to use
+        $useDataMode = $data !== null;
+
+        if ($useDataMode) {
+            // Data Mode: Use pre-processed data with computed fields
+            $transformedData = $this->buildExportDataFromEntities($data, $visibleColumns, $columnsMetadata);
+        } else {
+            // Query Mode: Build SQL SELECT and execute query
+            $transformedData = $this->buildExportDataFromQuery($result['query'], $visibleColumns, $columnsMetadata, $tableName);
+        }
+
+        // Generate filename with current view name
+        $filename = $entityName;
+        $currentViewName = $result['gridState']['view']['currentName'] ?? null;
+        if ($currentViewName && $currentViewName !== 'All') {
+            $filename .= '_' . preg_replace('/[^a-z0-9_-]/i', '_', strtolower($currentViewName));
+        }
+        $filename .= '_' . date('Y-m-d') . '.csv';
+
+        // Export to CSV with transformed data
+        return $csvExportService->outputCsv($transformedData, $filename);
+    }
+
+    /**
+     * Build export data from pre-processed entities (Data Mode)
+     *
+     * Extracts values from entities using column metadata configuration.
+     * Supports virtual properties, nested relations via renderField, and custom exportValue callbacks.
+     *
+     * @param iterable $data Pre-processed entities or arrays
+     * @param array $visibleColumns List of visible column keys
+     * @param array $columnsMetadata Column configuration metadata
+     * @return array Transformed data ready for CSV export
+     */
+    protected function buildExportDataFromEntities(iterable $data, array $visibleColumns, array $columnsMetadata): array
+    {
+        $transformedData = [];
+
+        foreach ($data as $entity) {
+            $row = [];
+
+            foreach ($visibleColumns as $columnKey) {
+                $columnMeta = $columnsMetadata[$columnKey] ?? null;
+                if (!$columnMeta) {
+                    continue;
+                }
+
+                // Skip non-exportable columns
+                if (isset($columnMeta['exportable']) && $columnMeta['exportable'] === false) {
+                    continue;
+                }
+
+                $headerLabel = $columnMeta['label'] ?? $columnKey;
+                $value = $this->extractExportValue($entity, $columnKey, $columnMeta);
+                $row[$headerLabel] = $value;
+            }
+
+            $transformedData[] = $row;
+        }
+
+        return $transformedData;
+    }
+
+    /**
+     * Build export data from database query (Query Mode)
+     *
+     * Builds SQL SELECT statements and executes query for simple database fields.
+     * Best for exports that don't require computed fields.
+     *
+     * @param \Cake\ORM\Query $query Database query to execute
+     * @param array $visibleColumns List of visible column keys
+     * @param array $columnsMetadata Column configuration metadata
+     * @param string $tableName Full table name for model alias extraction
+     * @return array Transformed data ready for CSV export
+     */
+    protected function buildExportDataFromQuery($query, array $visibleColumns, array $columnsMetadata, string $tableName): array
+    {
+        // Extract model alias for SQL field references (e.g., 'Awards.Recommendations' -> 'Recommendations')
+        $modelAlias = str_contains($tableName, '.') ? substr($tableName, strrpos($tableName, '.') + 1) : $tableName;
+
         // Select only visible columns for export
         $selectFields = [];
-        $headers = [];
         $fieldMapping = []; // Maps result field names to header labels
 
         foreach ($visibleColumns as $columnKey) {
@@ -1043,6 +1205,11 @@ trait DataverseGridTrait
                 continue;
             }
 
+            // Skip columns that require data mode (have renderField but no queryField, or have exportValue callback)
+            if (!empty($columnMeta['exportValue']) || (!empty($columnMeta['renderField']) && empty($columnMeta['queryField']))) {
+                continue;
+            }
+
             // Build field name, alias, and header
             $headerLabel = $columnMeta['label'] ?? $columnKey;
 
@@ -1052,8 +1219,8 @@ trait DataverseGridTrait
                 $selectFields[$alias] = $columnMeta['queryField'];
                 $fieldMapping[$alias] = $headerLabel;
             } else {
-                // For regular fields, use column key as alias
-                $selectFields[$columnKey] = $tableName . '.' . $columnKey;
+                // For regular fields, use model alias (not plugin prefix) for SQL
+                $selectFields[$columnKey] = $modelAlias . '.' . $columnKey;
                 $fieldMapping[$columnKey] = $headerLabel;
             }
         }
@@ -1073,16 +1240,104 @@ trait DataverseGridTrait
             $transformedData[] = $transformedRow;
         }
 
-        // Generate filename with current view name
-        $filename = $entityName;
-        $currentViewName = $result['gridState']['view']['currentName'] ?? null;
-        if ($currentViewName && $currentViewName !== 'All') {
-            $filename .= '_' . preg_replace('/[^a-z0-9_-]/i', '_', strtolower($currentViewName));
-        }
-        $filename .= '_' . date('Y-m-d') . '.csv';
+        return $transformedData;
+    }
 
-        // Export to CSV with transformed data
-        return $csvExportService->outputCsv($transformedData, $filename);
+    /**
+     * Extract export value from entity using column metadata
+     *
+     * Resolution order:
+     * 1. exportValue callback if defined in column metadata
+     * 2. renderField path for nested entity access (e.g., 'member.name_for_herald')
+     * 3. Direct property access using column key
+     *
+     * @param mixed $entity Entity or array to extract value from
+     * @param string $columnKey Column key identifier
+     * @param array $columnMeta Column metadata configuration
+     * @return string Extracted and formatted value
+     */
+    protected function extractExportValue($entity, string $columnKey, array $columnMeta): string
+    {
+        // 1. Check for custom exportValue callback
+        if (!empty($columnMeta['exportValue']) && is_callable($columnMeta['exportValue'])) {
+            $value = call_user_func($columnMeta['exportValue'], $entity, $columnKey, $columnMeta);
+            return $this->formatExportValue($value);
+        }
+
+        // 2. Check for renderField path (nested entity access)
+        if (!empty($columnMeta['renderField'])) {
+            $value = $this->resolveNestedValue($entity, $columnMeta['renderField']);
+            return $this->formatExportValue($value);
+        }
+
+        // 3. Direct property access
+        if (is_array($entity)) {
+            $value = $entity[$columnKey] ?? null;
+        } elseif (is_object($entity)) {
+            $value = $entity->{$columnKey} ?? null;
+        } else {
+            $value = null;
+        }
+
+        return $this->formatExportValue($value);
+    }
+
+    /**
+     * Resolve nested value from entity using dot notation path
+     *
+     * @param mixed $entity Entity to traverse
+     * @param string $path Dot-notation path (e.g., 'member.name_for_herald')
+     * @return mixed Resolved value or null if path doesn't exist
+     */
+    protected function resolveNestedValue($entity, string $path)
+    {
+        $parts = explode('.', $path);
+        $current = $entity;
+
+        foreach ($parts as $part) {
+            if ($current === null) {
+                return null;
+            }
+
+            if (is_array($current)) {
+                $current = $current[$part] ?? null;
+            } elseif (is_object($current)) {
+                $current = $current->{$part} ?? null;
+            } else {
+                return null;
+            }
+        }
+
+        return $current;
+    }
+
+    /**
+     * Format value for CSV export
+     *
+     * Handles various data types and converts to string representation.
+     *
+     * @param mixed $value Value to format
+     * @return string Formatted string value
+     */
+    protected function formatExportValue($value): string
+    {
+        if ($value === null) {
+            return '';
+        }
+
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format('Y-m-d H:i:s');
+        }
+
+        if (is_bool($value)) {
+            return $value ? 'Yes' : 'No';
+        }
+
+        if (is_array($value)) {
+            return implode(', ', array_map(fn($v) => (string)$v, $value));
+        }
+
+        return (string)$value;
     }
 
     /**

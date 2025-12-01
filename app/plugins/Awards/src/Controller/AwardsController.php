@@ -147,7 +147,7 @@ class AwardsController extends AppController
         // Use unified trait for grid processing
         $result = $this->processDataverseGrid([
             'gridKey' => 'Awards.Awards.index.main',
-            'gridColumnsClass' => \App\KMP\GridColumns\AwardsGridColumns::class,
+            'gridColumnsClass' => \Awards\KMP\GridColumns\AwardsGridColumns::class,
             'baseQuery' => $baseQuery,
             'tableName' => 'Awards',
             'defaultSort' => ['Awards.name' => 'asc'],
@@ -169,7 +169,7 @@ class AwardsController extends AppController
             'gridState' => $result['gridState'],
             'columns' => $result['columnsMetadata'],
             'visibleColumns' => $result['visibleColumns'],
-            'searchableColumns' => \App\KMP\GridColumns\AwardsGridColumns::getSearchableColumns(),
+            'searchableColumns' => \Awards\KMP\GridColumns\AwardsGridColumns::getSearchableColumns(),
             'dropdownFilterColumns' => $result['dropdownFilterColumns'],
             'filterOptions' => $result['filterOptions'],
             'currentFilters' => $result['currentFilters'],

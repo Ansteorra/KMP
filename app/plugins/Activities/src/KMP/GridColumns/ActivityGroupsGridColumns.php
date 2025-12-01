@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\KMP\GridColumns;
+namespace Activities\KMP\GridColumns;
+
+use App\KMP\GridColumns\BaseGridColumns;
 
 /**
  * Activity Groups Grid Column Metadata

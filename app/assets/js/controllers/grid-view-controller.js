@@ -109,6 +109,9 @@ class GridViewController extends Controller {
         // Get OR grouping information from state
         const orGroups = this.state.filters.grouping?.orGroups || []
 
+        // Get locked filters from config
+        const lockedFilters = this.state.config?.lockedFilters || []
+
         // Build map of field -> group index for quick lookup
         const fieldToGroup = new Map()
         orGroups.forEach((group, groupIndex) => {
@@ -160,7 +163,8 @@ class GridViewController extends Controller {
 
         // Render ungrouped filters first
         ungroupedFilters.forEach(({ column, value }) => {
-            const pill = this.createFilterPill(column, value)
+            const isLocked = this.isFilterLocked(column, lockedFilters)
+            const pill = this.createFilterPill(column, value, isLocked)
             container.appendChild(pill)
         })
 
@@ -175,7 +179,8 @@ class GridViewController extends Controller {
             groupWrapper.setAttribute('data-or-group', groupIndex)
 
             filters.forEach((filterData, index) => {
-                const pill = this.createFilterPill(filterData.column, filterData.value)
+                const isLocked = this.isFilterLocked(filterData.column, lockedFilters)
+                const pill = this.createFilterPill(filterData.column, filterData.value, isLocked)
                 groupWrapper.appendChild(pill)
 
                 // Add OR indicator between pills (but not after the last one)
@@ -195,13 +200,21 @@ class GridViewController extends Controller {
 
     /**
      * Create a filter pill element
+     * 
+     * @param {string} column - The filter column key
+     * @param {string} value - The filter value
+     * @param {boolean} isLocked - Whether this filter is locked (cannot be removed)
      */
-    createFilterPill(column, value) {
+    createFilterPill(column, value, isLocked = false) {
         // Match the exact styling from grid_view_toolbar.php
         const badge = document.createElement('span')
         badge.className = 'badge d-inline-flex align-items-center gap-1 pe-1'
         badge.style.cssText = 'background-color: #f6f6f7; color: #202223; border: 1px solid #c9cccf; font-weight: 500; font-size: 0.75rem; padding: 0.25rem 0.4rem 0.25rem 0.5rem; border-radius: 0.4rem;'
         badge.setAttribute('data-filter-badge', '')
+
+        if (isLocked) {
+            badge.setAttribute('data-filter-locked', 'true')
+        }
 
         // Get the label for this value from filters metadata
         const valueLabel = this.getFilterValueLabel(column, value)
@@ -211,21 +224,31 @@ class GridViewController extends Controller {
         textSpan.innerHTML = `${columnLabel}: <strong>${this.escapeHtml(valueLabel)}</strong>`
         badge.appendChild(textSpan)
 
-        const removeBtn = document.createElement('button')
-        removeBtn.type = 'button'
-        removeBtn.className = 'btn btn-link p-0 m-0 text-decoration-none d-flex align-items-center justify-content-center'
-        removeBtn.style.cssText = 'width: 18px; height: 18px; border-radius: 50%; background: rgba(0,0,0,0.1); color: #202223; font-size: 0.7rem; line-height: 1;'
-        removeBtn.setAttribute('aria-label', 'Remove filter')
-        removeBtn.setAttribute('data-action', 'click->grid-view#removeFilter')
-        removeBtn.setAttribute('data-filter-column', column)
-        removeBtn.setAttribute('data-filter-value', value)
+        // Only add remove button if filter is not locked
+        if (!isLocked) {
+            const removeBtn = document.createElement('button')
+            removeBtn.type = 'button'
+            removeBtn.className = 'btn btn-link p-0 m-0 text-decoration-none d-flex align-items-center justify-content-center'
+            removeBtn.style.cssText = 'width: 18px; height: 18px; border-radius: 50%; background: rgba(0,0,0,0.1); color: #202223; font-size: 0.7rem; line-height: 1;'
+            removeBtn.setAttribute('aria-label', 'Remove filter')
+            removeBtn.setAttribute('data-action', 'click->grid-view#removeFilter')
+            removeBtn.setAttribute('data-filter-column', column)
+            removeBtn.setAttribute('data-filter-value', value)
 
-        const icon = document.createElement('i')
-        icon.className = 'bi bi-x'
-        icon.style.cssText = 'font-size: 0.9rem; font-weight: bold;'
-        removeBtn.appendChild(icon)
+            const icon = document.createElement('i')
+            icon.className = 'bi bi-x'
+            icon.style.cssText = 'font-size: 0.9rem; font-weight: bold;'
+            removeBtn.appendChild(icon)
 
-        badge.appendChild(removeBtn)
+            badge.appendChild(removeBtn)
+        } else {
+            // For locked filters, add a lock icon instead
+            const lockIcon = document.createElement('i')
+            lockIcon.className = 'bi bi-lock-fill ms-1'
+            lockIcon.style.cssText = 'font-size: 0.65rem; opacity: 0.5;'
+            lockIcon.setAttribute('title', 'This filter cannot be removed')
+            badge.appendChild(lockIcon)
+        }
 
         return badge
     }
@@ -729,6 +752,9 @@ class GridViewController extends Controller {
 
         if (!this.state.filters.available) return
 
+        // Get locked filters from config
+        const lockedFilters = this.state.config?.lockedFilters || []
+
         // Group date range filters by base field (same logic as navigation)
         const filterGroups = new Map()
         const standaloneFilters = []
@@ -781,11 +807,21 @@ class GridViewController extends Controller {
                 const endValue = endFilter ? (this.state.filters.active[endFilter.key] || '') : ''
                 const activeCount = (startValue ? 1 : 0) + (endValue ? 1 : 0)
 
+                // Check if this date range filter is locked
+                const isLocked = this.isFilterLocked(item.key, lockedFilters)
+
                 const headerDiv = document.createElement('div')
                 headerDiv.className = 'd-flex justify-content-between align-items-center mb-1'
 
                 const title = document.createElement('strong')
                 title.textContent = item.label
+                if (isLocked) {
+                    const lockIcon = document.createElement('i')
+                    lockIcon.className = 'bi bi-lock-fill ms-2'
+                    lockIcon.style.cssText = 'font-size: 0.75rem; opacity: 0.5;'
+                    lockIcon.setAttribute('title', 'This filter is locked and cannot be changed')
+                    title.appendChild(lockIcon)
+                }
                 headerDiv.appendChild(title)
 
                 if (activeCount > 0) {
@@ -799,7 +835,7 @@ class GridViewController extends Controller {
 
                 const helpText = document.createElement('div')
                 helpText.className = 'text-muted small mb-3'
-                helpText.textContent = 'Select date range'
+                helpText.textContent = isLocked ? 'This filter is locked' : 'Select date range'
                 innerDiv.appendChild(helpText)
 
                 // Create row for From/To inputs
@@ -821,7 +857,12 @@ class GridViewController extends Controller {
                     fromInput.className = 'form-control'
                     fromInput.value = startValue
                     fromInput.setAttribute('data-filter-column', startFilter.key)
-                    fromInput.setAttribute('data-action', 'change->grid-view#updateDateRangeFilter')
+                    if (isLocked) {
+                        fromInput.disabled = true
+                        fromInput.setAttribute('title', 'This filter is locked and cannot be changed')
+                    } else {
+                        fromInput.setAttribute('data-action', 'change->grid-view#updateDateRangeFilter')
+                    }
                     fromCol.appendChild(fromInput)
 
                     row.appendChild(fromCol)
@@ -842,7 +883,12 @@ class GridViewController extends Controller {
                     toInput.className = 'form-control'
                     toInput.value = endValue
                     toInput.setAttribute('data-filter-column', endFilter.key)
-                    toInput.setAttribute('data-action', 'change->grid-view#updateDateRangeFilter')
+                    if (isLocked) {
+                        toInput.disabled = true
+                        toInput.setAttribute('title', 'This filter is locked and cannot be changed')
+                    } else {
+                        toInput.setAttribute('data-action', 'change->grid-view#updateDateRangeFilter')
+                    }
                     toCol.appendChild(toInput)
 
                     row.appendChild(toCol)
@@ -857,11 +903,21 @@ class GridViewController extends Controller {
                 const activeFiltered = activeArray.filter(v => v !== null && v !== undefined && v !== '')
                 const activeCount = activeFiltered.length
 
+                // Check if this filter is locked
+                const isLocked = this.isFilterLocked(item.key, lockedFilters)
+
                 const headerDiv = document.createElement('div')
                 headerDiv.className = 'd-flex justify-content-between align-items-center mb-1'
 
                 const title = document.createElement('strong')
                 title.textContent = item.label
+                if (isLocked) {
+                    const lockIcon = document.createElement('i')
+                    lockIcon.className = 'bi bi-lock-fill ms-2'
+                    lockIcon.style.cssText = 'font-size: 0.75rem; opacity: 0.5;'
+                    lockIcon.setAttribute('title', 'This filter is locked and cannot be changed')
+                    title.appendChild(lockIcon)
+                }
                 headerDiv.appendChild(title)
 
                 if (activeCount > 0) {
@@ -875,7 +931,7 @@ class GridViewController extends Controller {
 
                 const helpText = document.createElement('div')
                 helpText.className = 'text-muted small mb-2'
-                helpText.textContent = 'Choose one or more options'
+                helpText.textContent = isLocked ? 'This filter is locked' : 'Choose one or more options'
                 innerDiv.appendChild(helpText)
 
                 // Add checkboxes for each option
@@ -892,10 +948,18 @@ class GridViewController extends Controller {
                     checkbox.value = option.value
                     checkbox.checked = isChecked
                     checkbox.setAttribute('data-filter-column', item.key)
-                    checkbox.setAttribute('data-action', 'change->grid-view#toggleFilter')
+                    if (isLocked) {
+                        checkbox.disabled = true
+                        checkbox.setAttribute('title', 'This filter is locked and cannot be changed')
+                    } else {
+                        checkbox.setAttribute('data-action', 'change->grid-view#toggleFilter')
+                    }
 
                     const label = document.createElement('label')
                     label.className = 'form-check-label'
+                    if (isLocked) {
+                        label.classList.add('text-muted')
+                    }
                     label.htmlFor = checkbox.id
                     label.textContent = option.label
 
@@ -964,6 +1028,9 @@ class GridViewController extends Controller {
 
         // Create list items
         orderedColumns.forEach(column => {
+            // Skip export-only columns - they shouldn't appear in the column picker
+            if (column.exportOnly) return
+
             const isVisible = visibleColumns.includes(column.key)
             const isRequired = column.required || false
 
@@ -1336,6 +1403,15 @@ class GridViewController extends Controller {
         const column = checkbox.dataset.filterColumn
         const value = checkbox.value
 
+        // Check if this filter is locked
+        const lockedFilters = this.state.config?.lockedFilters || []
+        if (this.isFilterLocked(column, lockedFilters)) {
+            console.warn(`Filter '${column}' is locked and cannot be toggled`)
+            // Restore checkbox to its previous state
+            checkbox.checked = !checkbox.checked
+            return
+        }
+
         // Get current filter values for this column
         let currentValues = this.state.filters.active[column] || []
         if (!Array.isArray(currentValues)) {
@@ -1374,6 +1450,13 @@ class GridViewController extends Controller {
         const column = event.currentTarget.dataset.filterColumn
         const value = event.currentTarget.dataset.filterValue
 
+        // Check if this filter is locked
+        const lockedFilters = this.state.config?.lockedFilters || []
+        if (this.isFilterLocked(column, lockedFilters)) {
+            console.warn(`Filter '${column}' is locked and cannot be removed`)
+            return
+        }
+
         // Get current filter values for this column (ensure it's an array)
         let currentValues = this.state.filters.active[column] || []
         if (!Array.isArray(currentValues)) {
@@ -1403,19 +1486,65 @@ class GridViewController extends Controller {
     }
 
     /**
-     * Clear all filters and search
+     * Clear all filters and search (preserves locked filters)
      */
     clearAllFilters() {
-        // Clear search and filters
-        const updates = { search: null }
+        const lockedFilters = this.state.config?.lockedFilters || []
 
-        // If we're on a view, mark filters as dirty instead of removing view
-        if (this.state.view.currentId) {
-            updates['dirty[filters]'] = '1'
+        // Build filter params preserving only locked filters
+        const preservedFilters = {}
+        if (this.state.filters.active && lockedFilters.length > 0) {
+            for (const [column, values] of Object.entries(this.state.filters.active)) {
+                if (this.isFilterLocked(column, lockedFilters)) {
+                    preservedFilters[column] = values
+                }
+            }
         }
 
-        const url = this.buildUrl(updates)
+        // Build URL with only locked filters preserved
+        let url
+        if (Object.keys(preservedFilters).length > 0) {
+            // Has locked filters - use buildUrlWithFilters to preserve them
+            url = this.buildUrlWithFilters(preservedFilters)
+            const urlObj = new URL(url, window.location.origin)
+            // Clear search
+            urlObj.searchParams.delete('search')
+            // If we're on a view, mark filters as dirty
+            if (this.state.view.currentId) {
+                urlObj.searchParams.set('dirty[filters]', '1')
+            }
+            url = urlObj.pathname + urlObj.search
+        } else {
+            // No locked filters - simple clear
+            const updates = { search: null }
+            // If we're on a view, mark filters as dirty instead of removing view
+            if (this.state.view.currentId) {
+                updates['dirty[filters]'] = '1'
+            }
+            url = this.buildUrl(updates)
+        }
+
         this.navigate(url)
+    }
+
+    /**
+     * Check if a filter column is locked
+     * 
+     * @param {string} column - The filter column key
+     * @param {string[]} lockedFilters - Array of locked filter keys
+     * @returns {boolean} True if the filter is locked
+     */
+    isFilterLocked(column, lockedFilters) {
+        // Check exact match
+        if (lockedFilters.includes(column)) {
+            return true
+        }
+        // Check date range variants (e.g., 'expires_on' locks 'expires_on_start' and 'expires_on_end')
+        const baseField = column.replace(/_(start|end)$/, '')
+        if (baseField !== column && lockedFilters.includes(baseField)) {
+            return true
+        }
+        return false
     }
 
     /**
@@ -1448,6 +1577,16 @@ class GridViewController extends Controller {
     updateDateRangeFilter(event) {
         const columnKey = event.target.dataset.filterColumn
         const value = event.target.value
+
+        // Check if this filter is locked
+        const lockedFilters = this.state.config?.lockedFilters || []
+        if (this.isFilterLocked(columnKey, lockedFilters)) {
+            console.warn(`Filter '${columnKey}' is locked and cannot be changed`)
+            // Restore the input to its previous value
+            const activeValue = this.state.filters.active[columnKey] || ''
+            event.target.value = activeValue
+            return
+        }
 
         // Build URL with updated filter
         const filterParams = { ...this.state.filters.active }
@@ -1914,26 +2053,31 @@ class GridViewController extends Controller {
      * Export current grid data to CSV
      * 
      * Triggers a CSV export with current filters, search, sort, and column selection.
-     * Navigates to the grid-data action URL with current parameters and export=csv.
+     * Uses the table frame's src URL as base (handles embedded grids with custom endpoints).
      */
     exportCsv() {
-        // Get current URL and extract parameters
-        const currentUrl = new URL(window.location.href)
-        const searchParams = new URLSearchParams(currentUrl.search)
+        // Find the table frame to get the correct data endpoint
+        const tableFrame = this.element.querySelector('turbo-frame[id$="-table"]')
+        if (!tableFrame) {
+            console.warn('Table frame not found, cannot export')
+            return
+        }
+
+        // Get the base grid-data URL from the frame's src
+        const currentSrc = tableFrame.getAttribute('src') || tableFrame.src
+        if (!currentSrc) {
+            console.warn('Table frame has no src attribute')
+            return
+        }
+
+        // Parse current src to build export URL
+        const srcUrl = new URL(currentSrc, window.location.origin)
 
         // Add export parameter
-        searchParams.set('export', 'csv')
-
-        // Build grid-data URL (replace last path segment with 'grid-data')
-        const pathParts = currentUrl.pathname.split('/')
-        pathParts[pathParts.length - 1] = 'grid-data'
-        const gridDataPath = pathParts.join('/')
-
-        // Construct full grid-data URL with parameters
-        const exportUrl = `${currentUrl.origin}${gridDataPath}?${searchParams.toString()}`
+        srcUrl.searchParams.set('export', 'csv')
 
         // Navigate to CSV export URL (will trigger download)
-        window.location.href = exportUrl
+        window.location.href = srcUrl.toString()
     }
 
     /**
