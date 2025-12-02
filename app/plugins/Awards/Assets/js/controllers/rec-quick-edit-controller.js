@@ -3,176 +3,17 @@
 import { Controller } from "@hotwired/stimulus";
 
 /**
- * Awards Recommendation Quick Edit Controller
- * 
- * Specialized Stimulus controller for rapid recommendation updates with streamlined workflow and 
- * administrative efficiency. Provides simplified form functionality for quick recommendation 
- * modifications with reduced complexity and optimized performance for high-volume administrative tasks.
- * 
- * ## Quick Edit Features
- * 
- * **Streamlined Interface:**
- * - Simplified form layout with essential fields only
- * - Reduced validation complexity for rapid processing
- * - Quick state transitions with minimal confirmation requirements
- * - Automated form closure after successful submission
- * 
- * **Administrative Efficiency:**
- * - Bulk edit preparation with outlet communication
- * - Rapid award and specialty selection with existing data preservation
- * - State-aware field management with simplified rule application
- * - Quick access patterns for high-volume recommendation processing
- * 
- * **Workflow Optimization:**
- * - Streamlined state transition workflow with reduced steps
- * - Essential field validation without comprehensive form checks
- * - Quick save functionality with immediate feedback
- * - Modal integration for non-intrusive editing experience
- * 
- * ## State Management Features
- * 
- * **Simplified Rules:**
- * - Essential state rules only for critical workflow validation
- * - Reduced field dependency complexity for quick updates
- * - Streamlined required field management for efficiency
- * - Quick state transition validation without extensive checks
- * 
- * **Dynamic Field Control:**
- * - Visibility management based on recommendation state
- * - Disabled field control for workflow integrity
- * - Required field enforcement for essential data validation
- * - Quick rule application for rapid form updates
- * 
- * **Data Preservation:**
- * - Existing award and specialty data restoration
- * - Autocomplete integration with current selection values
- * - State-aware form initialization for quick editing
- * - Form value persistence during quick update workflow
- * 
- * ## Administrative Integration
- * 
- * **Turbo Frame Support:**
- * - Quick form loading with recommendation ID context
- * - Outlet communication for coordinated updates
- * - Modal integration for streamlined user experience
- * - Real-time form updates without page navigation
- * 
- * **Bulk Operation Preparation:**
- * - Quick edit as preparation for bulk operations
- * - State standardization for batch processing
- * - Rapid validation for administrative efficiency
- * - Workflow optimization for large recommendation queues
- * 
- * ## Usage Examples
- * 
- * ### Quick Edit Modal Integration
- * ```html
- * <!-- Quick edit modal with streamlined form -->
- * <div class="modal fade" id="quickEditModal">
- *   <div class="modal-dialog">
- *     <div class="modal-content">
- *       <form data-controller="awards-rec-quick-edit" 
- *             data-awards-rec-quick-edit-award-list-url-value="/awards/by-domain"
- *             data-awards-rec-quick-edit-form-url-value="/awards/recommendations/quick-edit"
- *             data-awards-rec-quick-edit-turbo-frame-url-value="/awards/recommendations/turbo-quick-edit">
- * 
- *         <div class="modal-header">
- *           <h5>Quick Edit Recommendation</h5>
- *           <button type="button" class="btn-close" id="recommendation_edit_close" 
- *                   data-bs-dismiss="modal"></button>
- *         </div>
- * 
- *         <div class="modal-body">
- *           <!-- Essential fields only -->
- *           <div class="mb-3">
- *             <label>Award Domain</label>
- *             <select data-awards-rec-quick-edit-target="domain" 
- *                     data-action="change->awards-rec-quick-edit#populateAwardDescriptions" 
- *                     class="form-select">
- *               <option value="">Select Domain</option>
- *             </select>
- *           </div>
- * 
- *           <input type="hidden" data-awards-rec-quick-edit-target="award" name="award_id">
- *           <select data-awards-rec-quick-edit-target="specialty" class="form-select">
- *             <option value="">Select Award First</option>
- *           </select>
- * 
- *           <div class="mb-3">
- *             <label>State</label>
- *             <select data-awards-rec-quick-edit-target="state" 
- *                     data-action="change->awards-rec-quick-edit#setFieldRules" 
- *                     class="form-select">
- *               <option value="Submitted">Submitted</option>
- *               <option value="Approved">Approved</option>
- *               <option value="Given">Given</option>
- *             </select>
- *           </div>
- * 
- *           <!-- State-dependent quick fields -->
- *           <div data-awards-rec-quick-edit-target="planToGiveBlock" style="display: none;">
- *             <select data-awards-rec-quick-edit-target="planToGiveEvent" 
- *                     class="form-select">
- *               <option value="">Select Event</option>
- *             </select>
- *           </div>
- * 
- *           <div data-awards-rec-quick-edit-target="givenBlock" style="display: none;">
- *             <input type="date" data-awards-rec-quick-edit-target="givenDate" 
- *                    class="form-control">
- *           </div>
- *         </div>
- * 
- *         <div class="modal-footer">
- *           <button type="submit" data-action="awards-rec-quick-edit#submit" 
- *                   class="btn btn-primary">Quick Update</button>
- *           <button type="button" class="btn btn-secondary" 
- *                   data-bs-dismiss="modal">Cancel</button>
- *         </div>
- *       </form>
- *     </div>
- *   </div>
- * </div>
- * ```
- * 
- * ### Outlet Communication for Quick Access
- * ```html
- * <!-- Quick edit with outlet button communication -->
- * <div data-controller="awards-rec-quick-edit outlet-btn" 
- *      data-awards-rec-quick-edit-outlet-btn-outlet=".quick-edit-button">
- * 
- *   <turbo-frame id="quick-edit-frame" 
- *                data-awards-rec-quick-edit-target="turboFrame">
- *     <!-- Quick form content -->
- *   </turbo-frame>
- * 
- *   <input type="hidden" data-awards-rec-quick-edit-target="recId" value="">
- * </div>
- * ```
- * 
- * ### Administrative Bulk Preparation
- * ```javascript
- * // Quick edit for bulk operation preparation
- * document.addEventListener('DOMContentLoaded', function() {
- *   const quickEditBtns = document.querySelectorAll('.quick-edit-trigger');
- *   quickEditBtns.forEach(btn => {
- *     btn.addEventListener('click', function() {
- *       const recId = this.dataset.recId;
- *       const quickEditModal = document.getElementById('quickEditModal');
- *       const controller = window.Stimulus.getControllerForElementAndIdentifier(
- *         quickEditModal.querySelector('[data-controller*="awards-rec-quick-edit"]'), 
- *         'awards-rec-quick-edit'
- *       );
- *       if (controller) {
- *         controller.setId({ detail: { id: recId } });
- *       }
- *     });
- *   });
- * });
- * ```
- * 
- * @class AwardsRecommendationQuickEditForm
- * @extends {Controller}
+ * Awards Recommendation Quick Edit Form Controller
+ *
+ * Streamlined modal form for rapid recommendation updates with state-driven
+ * field rules. Simplified version of rec-edit for administrative efficiency.
+ *
+ * Targets: domain, award, reason, gatherings, specialty, state, planToGiveBlock,
+ *          planToGiveGathering, givenBlock, recId, memberId, turboFrame, givenDate,
+ *          closeReason, closeReasonBlock, stateRulesBlock
+ * Values: publicProfileUrl (String), awardListUrl (String), formUrl (String),
+ *         turboFrameUrl (String), gatheringsUrl (String)
+ * Outlets: outlet-btn
  */
 class AwardsRecommendationQuickEditForm extends Controller {
     static targets = [
@@ -202,15 +43,7 @@ class AwardsRecommendationQuickEditForm extends Controller {
     };
     static outlets = ['outlet-btn'];
 
-    /**
-     * Set recommendation ID for quick edit context
-     * 
-     * Updates Turbo Frame source and form action URL based on recommendation ID
-     * from outlet communication for streamlined quick editing workflow.
-     * 
-     * @param {Event} event - Custom event with recommendation ID
-     * @returns {void}
-     */
+    /** Set recommendation ID and update Turbo Frame source and form action. */
     setId(event) {
         if (event.detail.id) {
             this.turboFrameTarget.setAttribute("src", this.turboFrameUrlValue + "/" + event.detail.id);
@@ -218,56 +51,22 @@ class AwardsRecommendationQuickEditForm extends Controller {
         }
     }
 
-    /**
-     * Handle outlet button connection
-     * 
-     * Establishes communication with outlet button controller for
-     * coordinated quick edit operations and recommendation ID management.
-     * 
-     * @param {Object} outlet - Connected outlet controller
-     * @param {Element} element - Outlet DOM element
-     * @returns {void}
-     */
+    /** Register listener when outlet-btn connects. */
     outletBtnOutletConnected(outlet, element) {
         outlet.addListener(this.setId.bind(this));
     }
 
-    /**
-     * Handle outlet button disconnection
-     * 
-     * Removes event listener when outlet button disconnects
-     * for proper cleanup and memory management.
-     * 
-     * @param {Object} outlet - Disconnected outlet controller
-     * @returns {void}
-     */
+    /** Remove listener when outlet-btn disconnects. */
     outletBtnOutletDisconnected(outlet) {
         outlet.removeListener(this.setId.bind(this));
     }
 
-    /**
-     * Submit quick edit form
-     * 
-     * Handles quick form submission and automatically closes the modal
-     * for streamlined administrative workflow efficiency.
-     * 
-     * @param {Event} event - Form submit event
-     * @returns {void}
-     */
+    /** Close modal after form submission. */
     submit(event) {
         document.getElementById("recommendation_edit_close").click();
     }
 
-    /**
-     * Set selected award and populate specialties
-     * 
-     * Handles award selection and triggers specialty population for
-     * quick editing with existing data preservation.
-     * Also updates the gatherings list to show only relevant gatherings.
-     * 
-     * @param {Event} event - Click event from award selection
-     * @returns {void}
-     */
+    /** Handle award selection, populate specialties, and update gatherings. */
     setAward(event) {
         let awardId = event.target.dataset.awardId;
         this.awardTarget.value = awardId;
@@ -277,17 +76,7 @@ class AwardsRecommendationQuickEditForm extends Controller {
         }
     }
 
-    /**
-     * Update gatherings list based on selected award
-     * 
-     * Fetches and updates the gatherings list to show only gatherings
-     * that have activities linked to the selected award. Marks gatherings
-     * where the member has indicated attendance with crown sharing.
-     * If status is "Given", shows all gatherings (past and future).
-     * 
-     * @param {string} awardId - The selected award ID
-     * @returns {void}
-     */
+    /** Fetch gatherings filtered by award and update checkboxes and dropdown. */
     updateGatherings(awardId) {
         if (!awardId) {
             return;
@@ -295,10 +84,10 @@ class AwardsRecommendationQuickEditForm extends Controller {
 
         // Get member_id if available
         let memberId = this.hasMemberIdTarget ? this.memberIdTarget.value : '';
-        
+
         // Get status if available
         let status = this.hasStateTarget ? this.stateTarget.value : '';
-        
+
         // Build URL with query params
         let url = this.gatheringsUrlValue + '/' + awardId;
         let params = new URLSearchParams();
@@ -332,60 +121,60 @@ class AwardsRecommendationQuickEditForm extends Controller {
                         data.gatherings.forEach(gathering => {
                             const div = document.createElement('div');
                             div.className = 'form-check';
-                            
+
                             const input = document.createElement('input');
                             input.type = 'checkbox';
                             input.className = 'form-check-input';
                             input.name = 'gatherings[_ids][]';
                             input.value = gathering.id;
                             input.id = `gathering-${gathering.id}`;
-                            
+
                             // Restore checked state if it was previously selected
                             if (selectedValues.includes(gathering.id.toString())) {
                                 input.checked = true;
                             }
-                            
+
                             const label = document.createElement('label');
                             label.className = 'form-check-label';
                             label.htmlFor = `gathering-${gathering.id}`;
                             label.textContent = gathering.display;
-                            
+
                             div.appendChild(input);
                             div.appendChild(label);
                             gatheringsContainer.appendChild(div);
                         });
                     }
-                    
+
                     // Also update the planToGiveGathering dropdown if it exists
                     if (this.hasPlanToGiveGatheringTarget) {
                         // Try to get current value, fallback to initial value stored on connect
-                        const currentValue = this.planToGiveGatheringTarget.value || 
-                                            this.planToGiveGatheringTarget.dataset.initialValue || 
-                                            '';
-                        
+                        const currentValue = this.planToGiveGatheringTarget.value ||
+                            this.planToGiveGatheringTarget.dataset.initialValue ||
+                            '';
+
                         // Clear existing options
                         this.planToGiveGatheringTarget.innerHTML = '';
-                        
+
                         // Add default option
                         const defaultOption = document.createElement('option');
                         defaultOption.value = '';
                         defaultOption.textContent = 'Select Gathering';
                         this.planToGiveGatheringTarget.appendChild(defaultOption);
-                        
+
                         // Add gathering options
                         data.gatherings.forEach(gathering => {
                             const option = document.createElement('option');
                             option.value = gathering.id;
                             option.textContent = gathering.display;
-                            
+
                             // Restore selected state if it matches current or initial value
                             if (gathering.id.toString() === currentValue) {
                                 option.selected = true;
                             }
-                            
+
                             this.planToGiveGatheringTarget.appendChild(option);
                         });
-                        
+
                         // Update the stored value for next time
                         if (currentValue) {
                             this.planToGiveGatheringTarget.dataset.initialValue = currentValue;
@@ -398,15 +187,7 @@ class AwardsRecommendationQuickEditForm extends Controller {
             });
     }
 
-    /**
-     * Populate award descriptions for quick selection
-     * 
-     * Fetches awards for selected domain and populates quick selection interface
-     * with streamlined award selection for administrative efficiency.
-     * 
-     * @param {Event} event - Change event from domain selection
-     * @returns {void}
-     */
+    /** Fetch awards for domain and populate award selection with autocomplete. */
     populateAwardDescriptions(event) {
         let url = this.awardListUrlValue + "/" + event.target.value;
         fetch(url, this.optionsForFetch())
@@ -442,15 +223,7 @@ class AwardsRecommendationQuickEditForm extends Controller {
             });
     }
 
-    /**
-     * Populate specialties for quick selection
-     * 
-     * Updates specialty dropdown based on award selection with
-     * streamlined interface for rapid administrative updates.
-     * 
-     * @param {Event} event - Award selection event
-     * @returns {void}
-     */
+    /** Update specialty dropdown based on selected award's configuration. */
     populateSpecialties(event) {
         let awardId = this.awardTarget.value;
         let options = this.awardTarget.options;
@@ -476,26 +249,11 @@ class AwardsRecommendationQuickEditForm extends Controller {
         }
     }
 
-    /**
-     * Load SCA member information (simplified)
-     * 
-     * Placeholder method for member information loading in quick edit context.
-     * Simplified for rapid editing workflow without full profile loading.
-     * 
-     * @param {Event} event - Input change event from member field
-     * @returns {void}
-     */
+    /** Placeholder for member info loading (not used in quick edit). */
     loadScaMemberInfo(event) {
     }
 
-    /**
-     * Get fetch options for AJAX requests
-     * 
-     * Provides standardized headers for JSON API communication with proper
-     * AJAX identification and content type specification.
-     * 
-     * @returns {Object} Fetch options object with headers
-     */
+    /** Get standard fetch options with JSON headers. */
     optionsForFetch() {
         return {
             headers: {
@@ -505,27 +263,13 @@ class AwardsRecommendationQuickEditForm extends Controller {
         }
     }
 
-    /**
-     * Handle state target connection for quick edit
-     * 
-     * Initializes simplified field rules when state selector connects
-     * for streamlined quick editing workflow.
-     * 
-     * @returns {void}
-     */
+    /** Apply field rules when state target connects. */
     stateTargetConnected() {
         console.log("status connected");
         this.setFieldRules();
     }
 
-    /**
-     * Apply simplified field rules for quick editing
-     * 
-     * Manages essential form field visibility and requirements based on
-     * state selection with streamlined rules for administrative efficiency.
-     * 
-     * @returns {void}
-     */
+    /** Parse JSON state rules and apply Visible/Required/Disabled field states. */
     setFieldRules() {
         console.log("setting field rules");
         var rulesstring = this.stateRulesBlockTarget.textContent;
@@ -537,12 +281,12 @@ class AwardsRecommendationQuickEditForm extends Controller {
 
         this.planToGiveBlockTarget.style.display = "none";
         this.givenBlockTarget.style.display = "none";
-        
+
         // Store the current givenDate value before potentially clearing it
         if (this.givenDateTarget.value && !this.givenDateTarget.dataset.initialValue) {
             this.givenDateTarget.dataset.initialValue = this.givenDateTarget.value;
         }
-        
+
         // Only clear givenDate if it doesn't have an initial value stored
         if (!this.givenDateTarget.dataset.initialValue) {
             this.givenDateTarget.value = "";
@@ -552,7 +296,7 @@ class AwardsRecommendationQuickEditForm extends Controller {
                 this.givenDateTarget.value = this.givenDateTarget.dataset.initialValue;
             }
         }
-        
+
         this.domainTarget.disabled = false;
         this.awardTarget.disabled = false;
         this.specialtyTarget.disabled = this.specialtyTarget.hidden;
@@ -589,21 +333,14 @@ class AwardsRecommendationQuickEditForm extends Controller {
                 });
             }
         }
-        
+
         // Update gatherings when state changes (e.g., to/from "Given")
         if (this.hasAwardTarget && this.awardTarget.value) {
             this.updateGatherings(this.awardTarget.value);
         }
     }
 
-    /**
-     * Initialize quick edit controller
-     * 
-     * Sets up the quick edit controller for streamlined recommendation
-     * modifications with minimal setup requirements.
-     * 
-     * @returns {void}
-     */
+    /** Store initial gathering value on connect for persistence through updates. */
     connect() {
         // Store the initial gathering_id value so it persists through option updates
         if (this.hasPlanToGiveGatheringTarget && this.planToGiveGatheringTarget.value) {
@@ -611,14 +348,7 @@ class AwardsRecommendationQuickEditForm extends Controller {
         }
     }
 
-    /**
-     * Handle recommendation ID target connection for quick edit
-     * 
-     * Updates form action URL when recommendation ID connects for
-     * proper quick edit form submission routing.
-     * 
-     * @returns {void}
-     */
+    /** Update form action URL when recId target connects. */
     recIdTargetConnected() {
         let recId = this.recIdTarget.value;
         let actionUrl = this.element.getAttribute("action");
@@ -627,30 +357,16 @@ class AwardsRecommendationQuickEditForm extends Controller {
         actionUrl = actionUrl + "/" + recId;
         this.element.setAttribute("action", actionUrl);
     }
-    
-    /**
-     * Handle planToGiveGathering target connection for quick edit
-     * 
-     * Stores the initial gathering_id value when the field connects so it
-     * persists through dynamic option updates.
-     * 
-     * @returns {void}
-     */
+
+    /** Store initial gathering value on target connect. */
     planToGiveGatheringTargetConnected() {
         // Store the initial value from the server-rendered form
         if (this.planToGiveGatheringTarget.value) {
             this.planToGiveGatheringTarget.dataset.initialValue = this.planToGiveGatheringTarget.value;
         }
     }
-    
-    /**
-     * Handle givenDate target connection for quick edit
-     * 
-     * Stores the initial given date value when the field connects so it
-     * persists through field rule updates.
-     * 
-     * @returns {void}
-     */
+
+    /** Store initial given date value on target connect. */
     givenDateTargetConnected() {
         // Store the initial value from the server-rendered form
         if (this.givenDateTarget.value) {

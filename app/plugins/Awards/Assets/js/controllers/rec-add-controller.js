@@ -1,163 +1,14 @@
 import { Controller } from "@hotwired/stimulus";
 
 /**
- * Awards Recommendation Add Controller
- * 
- * Comprehensive Stimulus controller for recommendation submission with member validation and award 
- * selection workflow. Provides interactive form functionality for creating award recommendations 
- * with dynamic award discovery, member context validation, and comprehensive submission processing.
- * 
- * ## Submission Workflow Features
- * 
- * **Member Validation:**
- * - SCA member lookup with autocomplete integration
- * - External member profile loading with public links display
- * - Branch validation for non-SCA members with manual entry support
- * - Real-time member context loading and validation feedback
- * 
- * **Award Discovery:**
- * - Hierarchical award selection through domain/award relationships
- * - Dynamic award description display with tabbed interface
- * - Specialty population based on award configuration
- * - Award eligibility validation and selection workflow
- * 
- * **Form Management:**
- * - Comprehensive form state management with field dependencies
- * - Dynamic field enabling/disabling based on selection context
- * - Form validation with comprehensive business rule enforcement
- * - Submission processing with data integrity validation
- * 
- * ## Member Context Integration
- * 
- * **SCA Member Support:**
- * - Member ID validation with numeric format enforcement
- * - Public profile loading with external links integration
- * - Branch auto-population from member data
- * - Member context preservation throughout form workflow
- * 
- * **Non-SCA Member Support:**
- * - Manual branch entry for external members
- * - "Not Found" checkbox toggle with branch field management
- * - External member validation and data entry support
- * - Branch requirement enforcement for non-SCA submissions
- * 
- * **Profile Integration:**
- * - External links display with target="_blank" navigation
- * - Public profile data loading with JSON API integration
- * - Member metadata display for submission context
- * - Profile validation feedback and error handling
- * 
- * ## Award Selection Workflow
- * 
- * **Hierarchical Selection:**
- * - Domain-based award filtering with dynamic population
- * - Award description display with comprehensive information
- * - Tabbed interface for award selection and description viewing
- * - Award eligibility validation based on member context
- * 
- * **Specialty Management:**
- * - Dynamic specialty population based on award configuration
- * - Specialty field visibility management and validation
- * - Award-specific specialty requirements and options
- * - Specialty selection persistence and form integration
- * 
- * ## Usage Examples
- * 
- * ### Basic Recommendation Submission Form
- * ```html
- * <!-- Recommendation submission with member and award selection -->
- * <form data-controller="awards-rec-add" 
- *       data-awards-rec-add-public-profile-url-value="/members/public-profile"
- *       data-awards-rec-add-award-list-url-value="/awards/by-domain">
- * 
- *   <!-- Member Selection -->
- *   <div class="mb-3">
- *     <label>SCA Member</label>
- *     <input type="text" data-awards-rec-add-target="scaMember" 
- *            data-action="change->awards-rec-add#loadScaMemberInfo" 
- *            class="form-control">
- *     <div class="form-check">
- *       <input type="checkbox" data-awards-rec-add-target="notFound" 
- *              class="form-check-input">
- *       <label class="form-check-label">Member not found in SCA database</label>
- *     </div>
- *     <input type="text" data-awards-rec-add-target="branch" 
- *            placeholder="Branch Name" class="form-control" hidden>
- *   </div>
- * 
- *   <!-- External Links Display -->
- *   <div data-awards-rec-add-target="externalLinks" class="member-links"></div>
- * 
- *   <!-- Award Selection -->
- *   <div class="mb-3">
- *     <label>Award Domain</label>
- *     <select data-action="change->awards-rec-add#populateAwardDescriptions" 
- *             class="form-select">
- *       <option value="">Select Domain</option>
- *       <option value="1">Arts & Sciences</option>
- *       <option value="2">Service</option>
- *       <option value="3">Martial</option>
- *     </select>
- *   </div>
- * 
- *   <div data-awards-rec-add-target="awardDescriptions" class="award-tabs"></div>
- * 
- *   <input type="hidden" data-awards-rec-add-target="award" name="award_id">
- *   <select data-awards-rec-add-target="specialty" name="specialty" class="form-select">
- *     <option value="">Select Award First</option>
- *   </select>
- * 
- *   <textarea data-awards-rec-add-target="reason" name="reason" 
- *             class="form-control" placeholder="Reason for recommendation"></textarea>
- * 
- *   <button type="submit" data-action="awards-rec-add#submit" 
- *           class="btn btn-primary">Submit Recommendation</button>
- * </form>
- * ```
- * 
- * ### Member Validation Workflow
- * ```html
- * <!-- Member lookup with profile integration -->
- * <div data-controller="awards-rec-add" 
- *      data-awards-rec-add-public-profile-url-value="/api/members/profile">
- * 
- *   <div class="member-search">
- *     <input type="text" data-awards-rec-add-target="scaMember" 
- *            data-action="input->awards-rec-add#loadScaMemberInfo"
- *            placeholder="Enter SCA Member ID or Name" class="form-control">
- *     
- *     <!-- Auto-populated external links -->
- *     <div data-awards-rec-add-target="externalLinks" class="mt-3"></div>
- *     
- *     <!-- Branch field for non-SCA members -->
- *     <div class="mt-3">
- *       <input type="checkbox" data-awards-rec-add-target="notFound">
- *       <label>Member not in SCA database</label>
- *       <input type="text" data-awards-rec-add-target="branch" 
- *              placeholder="Branch Name" class="form-control mt-2" hidden>
- *     </div>
- *   </div>
- * </div>
- * ```
- * 
- * ### Award Discovery Integration
- * ```javascript
- * // External integration for automated award population
- * document.addEventListener('DOMContentLoaded', function() {
- *   const recForm = document.querySelector('[data-controller="awards-rec-add"]');
- *   if (recForm) {
- *     // Pre-populate domain selection for specific contexts
- *     const domainSelect = recForm.querySelector('select[data-action*="populateAwardDescriptions"]');
- *     if (domainSelect && window.contextDomain) {
- *       domainSelect.value = window.contextDomain;
- *       domainSelect.dispatchEvent(new Event('change'));
- *     }
- *   }
- * });
- * ```
- * 
- * @class AwardsRecommendationAddForm
- * @extends {Controller}
+ * Awards Recommendation Add Form Controller
+ *
+ * Handles new recommendation submission with member validation, hierarchical award
+ * selection via tabbed interface, and dynamic specialty population.
+ *
+ * Targets: scaMember, notFound, branch, externalLinks, awardDescriptions, award,
+ *          reason, gatherings, specialty
+ * Values: publicProfileUrl (String), awardListUrl (String), gatheringsUrl (String)
  */
 class AwardsRecommendationAddForm extends Controller {
     static targets = [
@@ -177,31 +28,14 @@ class AwardsRecommendationAddForm extends Controller {
         gatheringsUrl: String
     };
 
-    /**
-     * Submit form with field validation
-     * 
-     * Enables all form fields before submission to ensure data integrity
-     * and proper form processing by the backend controller.
-     * 
-     * @param {Event} event - Form submit event
-     * @returns {void}
-     */
+    /** Enable disabled fields before form submission. */
     submit(event) {
         this.notFoundTarget.disabled = false;
         this.scaMemberTarget.disabled = false;
         this.specialtyTarget.disabled = false;
     }
 
-    /**
-     * Set selected award and populate specialties
-     * 
-     * Handles award selection from tabbed interface and triggers specialty
-     * population based on award configuration and requirements.
-     * Also updates the gatherings list to show only relevant gatherings.
-     * 
-     * @param {Event} event - Click event from award selection tab
-     * @returns {void}
-     */
+    /** Handle award tab selection, populate specialties, and update gatherings. */
     setAward(event) {
         let awardId = event.target.dataset.awardId;
         this.awardTarget.value = awardId;
@@ -209,16 +43,7 @@ class AwardsRecommendationAddForm extends Controller {
         this.updateGatherings(awardId);
     }
 
-    /**
-     * Update gatherings list based on selected award
-     * 
-     * Fetches and updates the gatherings list to show only gatherings
-     * that have activities linked to the selected award. Marks gatherings
-     * where the member has indicated attendance with crown sharing.
-     * 
-     * @param {string} awardId - The selected award ID
-     * @returns {void}
-     */
+    /** Fetch gatherings filtered by award and update checkboxes. */
     updateGatherings(awardId) {
         if (!awardId || !this.hasGatheringsTarget) {
             return;
@@ -302,14 +127,7 @@ class AwardsRecommendationAddForm extends Controller {
             });
     }
 
-    /**
-     * Get fetch options for AJAX requests
-     * 
-     * Provides standardized headers for JSON API communication with proper
-     * AJAX identification and content type specification.
-     * 
-     * @returns {Object} Fetch options object with headers
-     */
+    /** Get standard fetch options with JSON headers. */
     optionsForFetch() {
         return {
             headers: {
@@ -319,15 +137,7 @@ class AwardsRecommendationAddForm extends Controller {
         }
     }
 
-    /**
-     * Populate award descriptions based on domain selection
-     * 
-     * Fetches awards for selected domain and creates tabbed interface for award
-     * selection with descriptions and interactive award selection workflow.
-     * 
-     * @param {Event} event - Change event from domain selection
-     * @returns {void}
-     */
+    /** Fetch awards for domain and create tabbed selection interface. */
     populateAwardDescriptions(event) {
         let url = this.awardListUrlValue + "/" + event.target.value;
         fetch(url, this.optionsForFetch())
@@ -406,15 +216,7 @@ class AwardsRecommendationAddForm extends Controller {
                 }
             });
     }
-    /**
-     * Populate specialties based on award selection
-     * 
-     * Updates specialty dropdown based on selected award configuration,
-     * managing field visibility and validation state.
-     * 
-     * @param {Event} event - Award selection event
-     * @returns {void}
-     */
+    /** Update specialty dropdown based on selected award's configuration. */
     populateSpecialties(event) {
         let awardId = this.awardTarget.value;
         let options = this.awardTarget.options;
@@ -436,15 +238,7 @@ class AwardsRecommendationAddForm extends Controller {
         }
     }
 
-    /**
-     * Load SCA member information and context
-     * 
-     * Handles member ID validation, profile loading, and branch field management
-     * based on member discovery and external member support.
-     * 
-     * @param {Event} event - Input change event from member field
-     * @returns {void}
-     */
+    /** Handle member field change, load profile or show branch field if not found. */
     loadScaMemberInfo(event) {
         //reset member metadata area
         this.externalLinksTarget.innerHTML = "";
@@ -463,15 +257,7 @@ class AwardsRecommendationAddForm extends Controller {
 
     }
 
-    /**
-     * Load member profile data from API
-     * 
-     * Fetches member profile information and displays external links
-     * for member context and validation support.
-     * 
-     * @param {string} memberPublicId - The member public ID to load
-     * @returns {void}
-     */
+    /** Fetch and display member profile external links. */
     loadMember(memberPublicId) {
         let url = this.publicProfileUrlValue + "/" + memberPublicId;
         fetch(url, this.optionsForFetch())
@@ -503,15 +289,7 @@ class AwardsRecommendationAddForm extends Controller {
             });
     }
 
-    /**
-     * Handle autocomplete connection events
-     * 
-     * Manages field state and validation when autocomplete components
-     * connect to form elements for member and award selection.
-     * 
-     * @param {Event} event - Autocomplete connection event
-     * @returns {void}
-     */
+    /** Initialize field state when autocomplete connects. */
     acConnected(event) {
         var target = event.detail["awardsRecAddTarget"];
         switch (target) {
@@ -538,14 +316,7 @@ class AwardsRecommendationAddForm extends Controller {
         }
     }
 
-    /**
-     * Initialize form state on connection
-     * 
-     * Sets up initial form state with proper field initialization
-     * and validation state for new recommendation submission.
-     * 
-     * @returns {void}
-     */
+    /** Initialize form state with disabled fields and empty values. */
     connect() {
         this.notFoundTarget.checked = false;
         this.notFoundTarget.disabled = true;

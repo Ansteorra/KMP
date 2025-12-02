@@ -11,78 +11,10 @@ use App\Model\Table\GridViewsTable;
 use Cake\ORM\TableRegistry;
 
 /**
- * GridView Service - Business Logic for Grid View Management
+ * Business logic for managing saved grid views.
  *
- * The GridViewService encapsulates the business logic for managing saved grid views,
- * providing a clean interface for controllers and other components to interact with
- * the grid view system without directly manipulating the database layer.
- *
- * ## Core Responsibilities
- *
- * ### View Resolution
- * - **Priority-Based Loading**: Resolve which view to use based on context and priority
- * - **Fallback Handling**: Graceful degradation when views are not found
- * - **Cache Management**: Efficient caching of frequently accessed views
- *
- * ### View Management
- * - **CRUD Operations**: Create, read, update, delete views with business logic
- * - **Default Management**: Set and clear default views with conflict resolution
- * - **Ownership Validation**: Ensure users can only manage their own views
- *
- * ### Access Control
- * - **Member Validation**: Verify member can access requested views
- * - **System Default Protection**: Prevent unauthorized modification of system defaults
- * - **Scope Enforcement**: Ensure views are properly scoped to grids and members
- *
- * ## View Resolution Priority
- *
- * When determining which view to display:
- * 1. **Explicit View ID**: If user requests a specific view
- * 2. **User Default**: User's marked default for this grid
- * 3. **System Default**: Application-wide default for this grid
- * 4. **Fallback**: Hardcoded application default (handled by caller)
- *
- * ## Usage Examples
- *
- * ### Getting Effective View
- * ```php
- * $service = new GridViewService();
- * $view = $service->getEffectiveView(
- *     'Members.index.main',
- *     $currentMember,
- *     $requestedViewId
- * );
- * ```
- *
- * ### Loading Available Views
- * ```php
- * $views = $service->getViewsForGrid('Members.index.main', $currentMember);
- * // Returns: [system defaults, user's own views]
- * ```
- *
- * ### Creating a New View
- * ```php
- * $view = $service->createView([
- *     'grid_key' => 'Members.index.main',
- *     'member_id' => $currentMember->id,
- *     'name' => 'My Custom View',
- *     'config' => json_encode([...])
- * ], $currentMember);
- * ```
- *
- * ### Setting User Default
- * ```php
- * $success = $service->setUserDefault(
- *     $viewId,
- *     $currentMember->id,
- *     'Members.index.main'
- * );
- * ```
- *
- * ### Deleting a View
- * ```php
- * $success = $service->deleteView($viewId, $currentMember);
- * ```
+ * Handles view resolution (explicit → user default → system default), CRUD operations,
+ * and ownership validation. Used by GridViewsController and DataverseGridTrait.
  */
 class GridViewService
 {

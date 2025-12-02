@@ -350,6 +350,58 @@ class MembersController extends AppController
 }
 ```
 
+### Inline Documentation Standards
+
+Inline documentation should focus on **code maintenance** - what the code does and how to modify it. Usage examples and integration patterns belong in the `/docs` folder.
+
+#### Class Docblocks (Max 20-30 lines)
+- Brief description of purpose (1-2 sentences)
+- Key dependencies and relationships
+- Important behaviors or side effects
+- `@property` annotations for IDE support
+
+```php
+/**
+ * Manages member CRUD operations, authentication, and profile management.
+ * 
+ * Handles login/logout, password reset, registration, and member search.
+ * Uses DataverseGridTrait for index listing with server-side filtering.
+ *
+ * @property \App\Model\Table\MembersTable $Members
+ */
+class MembersController extends AppController
+```
+
+#### Method Docblocks (Max 5-10 lines)
+- One-line description of what the method does
+- `@param` and `@return` type annotations
+- Note any non-obvious side effects
+
+```php
+/**
+ * Display paginated member list with search filtering.
+ *
+ * @return \Cake\Http\Response|null|void
+ */
+public function index(): void
+```
+
+#### What NOT to Include Inline
+- `## Usage Examples` or `## Usage Patterns` sections
+- Code samples showing how to call the method/class
+- Integration examples with other components
+- Workflow narratives or step-by-step explanations
+- ASCII-formatted section headers in docblocks
+
+These belong in `/docs` folder documentation files.
+
+#### What TO Include Inline
+- Type hints and `@param`/`@return` annotations
+- Brief purpose statements
+- Non-obvious business logic explanations (the "why")
+- Maintenance notes (e.g., "Must be called after X")
+- `@throws` annotations for exceptions
+
 ### JavaScript
 
 - Use ES6+ syntax

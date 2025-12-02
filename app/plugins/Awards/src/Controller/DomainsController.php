@@ -9,61 +9,12 @@ use App\Controller\DataverseGridTrait;
 /**
  * Award Domains Management Controller
  *
- * Provides comprehensive domain management functionality for the Awards plugin,
- * handling the organizational categorization of awards within the hierarchical 
- * award system. Domains serve as the top-level organizational structure for
- * awards, enabling logical grouping and administrative management.
+ * CRUD operations for domain management within the award hierarchy.
+ * Domains categorize awards at the top level of organization.
+ * Uses DataverseGridTrait for table-based data display.
  *
- * ## Key Features
- * - **Domain Organization**: Complete CRUD operations for award domain management
- * - **Hierarchical Integration**: Integration with awards, levels, and branch systems
- * - **Administrative Interface**: Full administrative control over domain structure
- * - **Referential Integrity**: Protection against deletion of domains with associated awards
- * - **Security Framework**: Entity-level authorization with policy-based access control
- * - **Audit Trail**: Soft deletion pattern with administrative audit trail
- *
- * ## Domain Structure
- * Domains organize awards into logical categories and provide the foundation
- * for the Awards plugin hierarchical organization:
- * ```
- * Domain (e.g., "Leadership", "Technical", "Community")
- *   └── Awards (multiple awards within domain)
- *       ├── Level (award difficulty/rank)
- *       └── Branch (organizational scope)
- * ```
- *
- * ## Security Architecture
- * - **Model Authorization**: Automatic authorization for index and add operations
- * - **Entity Authorization**: Individual entity authorization for view, edit, delete
- * - **Policy Integration**: Awards plugin authorization policies control access
- * - **Administrative Control**: Permission-based domain management oversight
- *
- * ## Usage Examples
- * ```php
- * // Create new domain
- * $domainsController = new DomainsController();
- * $domain = $domainsController->add(); // Creates domain with validation
- * 
- * // View domain with awards
- * $domain = $domainsController->view($domainId); // Includes associated awards
- * 
- * // Administrative domain management
- * $domains = $domainsController->index(); // Paginated domain listing
- * ```
- *
- * ## Integration Points
- * - **AwardsTable**: Primary relationship for award organization
- * - **Authorization Framework**: Policy-based access control integration
- * - **Administrative Interface**: Full administrative management capabilities
- * - **Audit System**: Soft deletion with audit trail tracking
- * - **Navigation System**: Integration with Awards plugin navigation
- *
- * @property \Awards\Model\Table\DomainsTable $Domains Domain data management
- * @see \Awards\Model\Table\DomainsTable
- * @see \Awards\Policy\DomainPolicy
- * @see \Awards\Policy\DomainsTablePolicy
+ * @property \Awards\Model\Table\DomainsTable $Domains
  * @package Awards\Controller
- * @since 4.3.0
  */
 class DomainsController extends AppController
 {

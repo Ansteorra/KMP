@@ -17,165 +17,13 @@ use Cake\ORM\Query\SelectQuery;
 use Cake\Routing\Router;
 
 /**
- * Members Controller - Complete Member Management and User Experience
+ * Manages member CRUD, authentication, profiles, and member discovery.
  *
- * The MembersController serves as the primary interface for all member-related operations
- * within the KMP system, providing comprehensive functionality for user management,
- * authentication, profile administration, and member discovery. This controller handles
- * both administrative and user-facing operations with sophisticated authorization controls.
+ * Handles login/logout, password reset, registration, member search,
+ * mobile card display, and verification workflows.
+ * Uses DataverseGridTrait for index listing with server-side filtering.
  *
- * ## Core Responsibilities
- *
- * ### User Management Operations
- * - **Member CRUD**: Complete create, read, update, delete operations for member records
- * - **Profile Management**: User profile editing with validation and authorization
- * - **Status Management**: Member status transitions and verification workflows
- * - **Administrative Tools**: Bulk operations and administrative member management
- *
- * ### Authentication & Security
- * - **Login/Logout**: User authentication with failed attempt tracking
- * - **Password Management**: Password changes, resets, and security enforcement
- * - **Registration**: New member registration with validation and verification
- * - **Session Management**: Secure session handling and timeout management
- *
- * ### Member Discovery & Search
- * - **Advanced Search**: Multi-field search with special character handling (Þ/th)
- * - **Public Profiles**: Privacy-controlled public member information
- * - **Auto-completion**: Real-time member name suggestions for forms
- * - **Directory Services**: Filtered member listings with role-based access
- *
- * ### Mobile Integration
- * - **Digital Member Cards**: Mobile-friendly member card display
- * - **Card Generation**: Dynamic member card with QR codes and formatting
- * - **JSON APIs**: Mobile app integration endpoints
- * - **Email Distribution**: Mobile card link distribution via email
- *
- * ### Administrative Features
- * - **Verification Queue**: Member verification workflow management
- * - **Bulk Operations**: Mass member data processing and updates
- * - **Audit Trails**: Member activity tracking and change history
- * - **Reporting**: Member statistics and administrative reporting
- *
- * ## Authorization Architecture
- *
- * ### Access Control Patterns
- * - **Role-Based Authorization**: Uses KMP authorization policies for access control
- * - **Self-Service Access**: Members can manage their own profiles
- * - **Administrative Overrides**: Super users and administrators have broader access
- * - **Public Access**: Limited public information available without authentication
- *
- * ### Public vs. Authenticated Access
- * ```php
- * // Public access (no authentication required)
- * $publicActions = [
- *     'login', 'register', 'forgotPassword', 'resetPassword',
- *     'publicProfile', 'viewMobileCard', 'searchMembers',
- *     'emailTaken', 'autoComplete', 'approversList'
- * ];
- * 
- * // Authenticated access with authorization checks
- * $protectedActions = [
- *     'index', 'view', 'add', 'edit', 'delete',
- *     'profile', 'changePassword', 'verifyQueue'
- * ];
- * ```
- *
- * ## Search and Discovery Features
- *
- * ### Advanced Search Capabilities
- * - **Multi-field Search**: Name, email, membership number, branch
- * - **Special Character Handling**: Automatic Þ (thorn) and 'th' conversion
- * - **Fuzzy Matching**: Flexible search algorithms for name variations
- * - **Performance Optimization**: Efficient queries with selective field loading
- *
- * ### Privacy and Security
- * - **Data Filtering**: Age-based privacy controls for minor members
- * - **Public Data Exposure**: Configurable public information display
- * - **Search Limitations**: Rate limiting and abuse prevention
- * - **Branch Scoping**: Organizational data access controls
- *
- * ## Mobile and API Integration
- *
- * ### Digital Member Cards
- * - **Dynamic Generation**: Real-time card creation with current member data
- * - **QR Code Integration**: Embedded QR codes for event check-in
- * - **Responsive Design**: Mobile-optimized card display
- * - **Security Tokens**: Time-limited access tokens for card viewing
- *
- * ### API Endpoints
- * - **JSON Responses**: Mobile app integration endpoints
- * - **RESTful Design**: Standard REST patterns for data access
- * - **Authentication**: Token-based API authentication support
- * - **Rate Limiting**: API usage controls and abuse prevention
- *
- * ## Business Workflow Integration
- *
- * ### Member Lifecycle Management
- * - **Registration Process**: New member onboarding with verification
- * - **Status Transitions**: Automatic and manual status changes
- * - **Age-Up Processing**: Minor to adult member transitions
- * - **Deactivation Workflows**: Member suspension and reactivation
- *
- * ### Verification and Validation
- * - **Document Verification**: Membership card and document validation
- * - **Identity Verification**: Legal name and contact information verification
- * - **Parent Verification**: Minor member guardian verification process
- * - **Bulk Processing**: Administrative batch verification operations
- *
- * ## Usage Examples
- *
- * ### Basic Member Operations
- * ```php
- * // List members with search and pagination
- * public function index() {
- *     $query = $this->Members->find()
- *         ->contain(['Branches'])
- *         ->where($searchCriteria);
- *     
- *     $this->set('members', $this->paginate($query));
- * }
- * 
- * // View member profile with authorization
- * public function view($id) {
- *     $member = $this->Members->get($id, [
- *         'contain' => ['Roles', 'Branches']
- *     ]);
- *     
- *     $this->Authorization->authorize($member);
- *     $this->set(compact('member'));
- * }
- * ```
- *
- * ### Authentication Workflows
- * ```php
- * // Password reset with token validation
- * public function resetPassword() {
- *     $token = $this->request->getQuery('token');
- *     $member = $this->Members->find()
- *         ->where(['password_token' => $token])
- *         ->first();
- *     
- *     if ($member && !$member->password_token_expires_on->isPast()) {
- *         // Process password reset
- *     }
- * }
- * ```
- *
- * ## Integration Points
- * - **Activities Plugin**: Member authorization management
- * - **Awards Plugin**: Member recognition and achievement tracking
- * - **Officers Plugin**: Leadership role assignments and reporting
- * - **Branch System**: Organizational hierarchy and data scoping
- * - **Role System**: Permission inheritance and access control
- *
- * ## Security Considerations
- * - **Input Validation**: Comprehensive data validation and sanitization
- * - **CSRF Protection**: Cross-site request forgery prevention
- * - **Rate Limiting**: API and search request rate limiting
- * - **Audit Logging**: Member action tracking and security monitoring
- * - **Privacy Controls**: Age-based and configurable privacy settings
- *
- * @property \App\Model\Table\MembersTable $Members Primary Members table
+ * @property \App\Model\Table\MembersTable $Members
  */
 class MembersController extends AppController
 {
@@ -183,60 +31,17 @@ class MembersController extends AppController
     use MailerAwareTrait;
     use DataverseGridTrait;
 
-    /**
-     * CSV export service dependency injection
-     *
-     * @var array<string> Service injection configuration
-     */
+    /** @var array<string> Service injection configuration */
     public static array $inject = [CsvExportService::class];
 
-    /**
-     * CSV export service instance
-     *
-     * @var \App\Services\CsvExportService
-     */
+    /** @var \App\Services\CsvExportService */
     protected CsvExportService $csvExportService;
 
     /**
-     * Configure authorization and authentication filters
-     *
-     * Establishes the authorization and authentication requirements for all member-related
-     * actions. This method configures which actions require authentication and sets up
-     * authorization model checking for administrative functions.
-     *
-     * ## Authorization Configuration
-     * - **Model Authorization**: Enables automatic authorization for 'index' and 'verifyQueue' actions
-     * - **Administrative Protection**: Ensures only authorized users can access member management
-     * - **Inheritance**: Calls parent beforeFilter for base controller functionality
-     *
-     * ## Unauthenticated Access
-     * Allows public access to specific actions without requiring user login:
-     * - **Authentication**: login, register, forgotPassword, resetPassword
-     * - **Public Information**: publicProfile, searchMembers, autoComplete
-     * - **Mobile Access**: viewMobileCard, viewMobileCardJson
-     * - **Utility**: emailTaken, approversList
-     *
-     * ## Security Design
-     * - **Principle of Least Privilege**: Most actions require authentication
-     * - **Public Services**: Carefully selected public endpoints for functionality
-     * - **Mobile Integration**: Supports app access without full authentication
-     * - **Registration Support**: Enables new member registration workflow
+     * Configure authorization and authentication filters.
      *
      * @param \Cake\Event\EventInterface $event The beforeFilter event
      * @return void
-     *
-     * @example
-     * ```php
-     * // Public actions accessible without authentication
-     * $publicActions = [
-     *     'login', 'register', 'forgotPassword', 'resetPassword',
-     *     'publicProfile', 'viewMobileCard', 'searchMembers',
-     *     'emailTaken', 'autoComplete', 'approversList'
-     * ];
-     * 
-     * // All other actions require authentication and authorization
-     * // Administrative actions like 'index' and 'verifyQueue' have model authorization
-     * ```
      */
     public function beforeFilter(EventInterface $event)
     {
@@ -260,19 +65,7 @@ class MembersController extends AppController
     #region general use calls
 
     /**
-     * Dataverse-style member grid with saved views, filters, sorting, and column picker
-     *
-     * Modern grid interface using the Dataverse grid system with comprehensive
-     * view management, advanced filtering, multi-column sorting, and dynamic column selection.
-     *
-     * ## Features
-     * - **Saved Views**: Create, save, update, and delete custom views
-     * - **User Defaults**: Set personal default views per grid
-     * - **System Defaults**: Administrators can set organization-wide defaults
-     * - **Column Picker**: Show/hide columns dynamically
-     * - **Advanced Filters**: Multi-condition filtering with 13 operators
-     * - **Multi-column Sorting**: Sort by multiple fields with direction control
-     * - **Pagination**: Configurable page sizes (10-100 records)
+     * Display member listing with Dataverse grid (saved views, filters, sorting).
      *
      * @return \Cake\Http\Response|null|void
      */
@@ -283,11 +76,8 @@ class MembersController extends AppController
     }
 
     /**
-     * Dataverse grid data - Returns grid content with toolbar and table
-     * 
-     * This action is called by turbo-frame to load the complete grid or just the table.
-     * Handles both outer frame (toolbar + table frame) and inner frame (table only) requests.
-     * Also supports CSV export when export=csv query parameter is present.
+     * Dataverse grid data endpoint for members listing.
+     * Handles toolbar+table frame, table-only frame, and CSV export.
      *
      * @param \App\Services\CsvExportService $csvExportService CSV export service
      * @return \Cake\Http\Response|null|void
@@ -351,10 +141,7 @@ class MembersController extends AppController
     }
 
     /**
-     * Member Roles Grid Data - Returns grid content for member roles tab
-     * 
-     * Provides grid view for displaying member roles with system views for
-     * active, upcoming, and previous roles. Used in the Roles tab of member profile.
+     * Member roles grid data for Roles tab in member profile.
      *
      * @param int $memberId The member ID
      * @return \Cake\Http\Response|null|void
@@ -434,10 +221,7 @@ class MembersController extends AppController
     }
 
     /**
-     * Gathering Attendances Grid Data - Returns grid content for gatherings tab
-     * 
-     * Provides grid view for displaying gathering attendances with system views for
-     * upcoming and past gatherings. Used in the Gatherings tab of member profile.
+     * Gathering attendances grid data for Gatherings tab in member profile.
      *
      * @param int $memberId The member ID
      * @return \Cake\Http\Response|null|void
@@ -591,61 +375,12 @@ class MembersController extends AppController
     }
 
     /**
-     * Display paginated member listing with search and filtering capabilities
+     * Return sub-row content for expandable grid rows.
      *
-     * Provides the main member directory interface with comprehensive search functionality,
-     * sorting options, and authorization-based data scoping. This method implements
-     * advanced search features including special character handling for medieval names.
-     *
-     * ## Search Features
-     * ### Multi-field Search
-     * Searches across multiple member fields simultaneously:
-     * - **Personal Information**: SCA name, first name, last name, email address
-     * - **Organizational**: Branch name, membership number
-     * - **Special Characters**: Automatic Þ (thorn) and 'th' conversion for medieval names
-     *
-     * ### Character Conversion Logic
-     * ```php
-     * // Handles medieval character variations
-     * "thor" → searches for "thor", "Þor", "thor"
-     * "Þorinn" → searches for "Þorinn", "thorinn", "Þorinn"
-     * ```
-     *
-     * ## Authorization and Scoping
-     * - **Authorization Scope**: Applies user-specific data access restrictions
-     * - **Branch Filtering**: Users see only members they're authorized to view
-     * - **Performance**: Selective field loading for improved query performance
-     *
-     * ## Sorting and Pagination
-     * - **Sortable Fields**: Name, email, status, last login, branch
-     * - **Default Sort**: Alphabetical by SCA name
-     * - **Pagination**: Configurable page size with CakePHP pagination
-     * - **URL Parameters**: Maintains search and sort state across pages
-     *
-     * ## Performance Optimizations
-     * - **Selective Loading**: Only loads essential fields for listing view
-     * - **Efficient Queries**: Uses contains() for optimal JOIN operations
-     * - **Index Usage**: Leverages database indexes for search performance
-     *
-     * @return \Cake\Http\Response|null|void Renders member index view
-     *
-     * @example
-     * ```php
-     * // URL examples and their behavior:
-     * 
-     * // Basic listing
-     * GET /members
-     * 
-     * // Search for members with "thor" in any field
-     * GET /members?search=thor
-     * // Searches: "thor", "Þor" variations
-     * 
-     * // Sorted listing
-     * GET /members?sort=email_address&direction=desc
-     * 
-     * // Combined search and sort
-     * GET /members?search=aiden&sort=last_login&direction=desc
-     * ```
+     * @param string|null $id Member ID
+     * @param string|null $type Type of sub-row content (e.g., 'warrantreasons')
+     * @return void
+     * @throws \\Cake\\Http\\Exception\\NotFoundException
      */
     public function subRow(?string $id = null, ?string $type = null)
     {
@@ -673,7 +408,13 @@ class MembersController extends AppController
     }
 
     /**
-     * Display paginated member listing with search and filtering capabilities
+     * Legacy paginated member listing (deprecated, use index with Dataverse grid).
+     * Supports search with Þ/th character conversion for medieval names.
+     */
+    private function legacyIndex()
+    {
+        $search = $this->request->getQuery('search');
+        $sort = $this->request->getQuery('sort');
         $direction = $this->request->getQuery('direction');
 
         $query = $this->Members
@@ -747,57 +488,10 @@ class MembersController extends AppController
     }
 
     /**
-     * Display member verification queue for administrative processing
+     * Display member verification queue for administrative processing.
+     * Shows members needing verification: card validation, age/parent verification.
      *
-     * Provides administrators with a focused view of members requiring verification
-     * review, including membership card validation, age verification, and status
-     * updates. This method supports the KMP member verification workflow.
-     *
-     * ## Verification Queue Scope
-     * Includes members with statuses requiring administrative attention:
-     * - **STATUS_ACTIVE**: Members with uploaded membership cards awaiting verification
-     * - **STATUS_UNVERIFIED_MINOR**: Minor members requiring age and parent verification
-     * - **STATUS_MINOR_MEMBERSHIP_VERIFIED**: Minors with verified membership needing parent verification
-     * - **STATUS_MINOR_PARENT_VERIFIED**: Minors with verified parents needing membership verification
-     *
-     * ## Administrative Features
-     * - **Batch Processing**: View multiple members requiring attention
-     * - **Age Calculation**: Displays calculated age for verification purposes
-     * - **Document Review**: Shows membership card upload status
-     * - **Status Tracking**: Clear indication of verification progress
-     *
-     * ## Data Selection
-     * Optimized query loading only essential verification fields:
-     * - **Identity**: ID, SCA name, legal names
-     * - **Status**: Current member status
-     * - **Verification**: Membership card path, birth information
-     * - **Contact**: Email address for communication
-     * - **Organization**: Branch assignment
-     *
-     * ## Authorization
-     * - **Administrative Access**: Requires authorization to view verification queue
-     * - **Data Scoping**: Applies user-specific access restrictions
-     * - **Audit Trail**: Tracks verification queue access for security
-     *
-     * @return \Cake\Http\Response|null|void Renders verification queue view
-     *
-     * @example
-     * ```php
-     * // Administrative workflow example:
-     * 
-     * // 1. Administrator accesses verification queue
-     * GET /members/verify-queue
-     * 
-     * // 2. Review shows members needing verification:
-     * // - Adult with membership card uploaded
-     * // - Minor needing parent verification
-     * // - Minor with parent verified needing membership check
-     * 
-     * // 3. Administrator processes each member:
-     * // - Verify membership cards
-     * // - Validate parent/guardian information
-     * // - Update member status accordingly
-     * ```
+     * @return \\Cake\\Http\\Response|null|void
      */
     public function verifyQueue()
     {
@@ -848,75 +542,14 @@ class MembersController extends AppController
     }
 
     /**
-     * Display detailed member profile with comprehensive information and management tools
+     * Display detailed member profile with relationships and management tools.
      *
-     * Provides a complete member profile view with extensive relationship data,
-     * role assignments, and administrative tools. This method serves as the central
-     * hub for member information and management within the KMP system.
-     *
-     * ## Data Loading Strategy
-     * Uses sophisticated containment patterns to load related data efficiently:
-     * 
-     * ### Core Relationships
-     * - **Roles**: All assigned roles for permission display
-     * - **Branch**: Organizational membership with selective field loading
-     * - **Parent**: Guardian information for minor members
-     *
-     * ### Temporal Role Assignments
-     * - **CurrentMemberRoles**: Active role assignments with full role details
-     * - **UpcomingMemberRoles**: Future role assignments for planning
-     * - **PreviousMemberRoles**: Historical role assignments for audit trail
-     *
-     * ## Interactive Features
-     * ### Form Integration
-     * - **Edit Modal**: Pre-populated member edit form with session-based error handling
-     * - **Password Reset**: Password change form with validation error display
-     * - **Status Management**: Administrative status change controls
-     *
-     * ### Session-Based Error Handling
-     * - **Form Persistence**: Maintains form data across redirects on validation errors
-     * - **Error Display**: Shows validation errors from previous form submissions
-     * - **User Experience**: Prevents data loss during form validation failures
-     *
-     * ## Administrative Tools
-     * ### Data Management
-     * - **Branch Selection**: Dropdown with membership eligibility validation
-     * - **Status Control**: Administrative status change with business rule enforcement
-     * - **Date Selection**: Month/year dropdowns for birth date management
-     *
-     * ### Privacy and Security
-     * - **Public Data Preview**: Shows privacy-filtered public information
-     * - **Authorization Checks**: Ensures user can view requested member
-     * - **Audit Context**: Tracks member profile access for security
-     *
-     * ## UI Components
-     * ### Helper Data
-     * - **Month List**: Formatted month names for date selection
-     * - **Year Range**: 130-year range for comprehensive age support
-     * - **Branch Tree**: Hierarchical branch selection with membership flags
-     * - **Status Options**: All available member status transitions
+     * Loads roles, branch, parent, current/upcoming/previous role assignments,
+     * and gathering attendances. Handles session-based form error display.
      *
      * @param string|null $id Member ID to display
-     * @return \Cake\Http\Response|null|void Renders member profile view
-     * @throws \Cake\Http\Exception\NotFoundException When member not found
-     *
-     * @example
-     * ```php
-     * // Member profile access patterns:
-     * 
-     * // View specific member (with authorization check)
-     * GET /members/view/123
-     * 
-     * // After failed form submission (shows errors)
-     * // 1. User submits invalid edit form
-     * // 2. Controller stores form data in session
-     * // 3. Redirects to view with error display
-     * 
-     * // Role assignment display:
-     * // - Current: "Officer (2024-01-01 to 2024-12-31)"
-     * // - Upcoming: "Marshal (2025-01-01 to 2025-12-31)"
-     * // - Previous: "Fighter (2023-01-01 to 2023-12-31)"
-     * ```
+     * @return \\Cake\\Http\\Response|null|void
+     * @throws \\Cake\\Http\\Exception\\NotFoundException When member not found
      */
     public function view(?string $id = null)
     {
@@ -1147,89 +780,13 @@ class MembersController extends AppController
     }
 
     /**
-     * Create new member with automated workflow processing
+     * Create new member with age-based status and email notifications.
      *
-     * Handles new member creation with intelligent status assignment, automatic
-     * token generation, and workflow-based email notifications. This method
-     * implements the complete member onboarding process with age-based logic.
+     * Adults get STATUS_ACTIVE with password reset email.
+     * Minors get STATUS_UNVERIFIED_MINOR requiring verification.
+     * Generates mobile card token and sends appropriate notifications.
      *
-     * ## Member Creation Workflow
-     * ### Age-Based Processing
-     * - **Adult Members (18+)**: Assigned STATUS_ACTIVE with password reset capability
-     * - **Minor Members (<18)**: Assigned STATUS_UNVERIFIED_MINOR requiring verification
-     *
-     * ### Automatic Field Generation
-     * - **Password**: Random 16-character temporary password
-     * - **Mobile Card Token**: 16-character token for mobile card access
-     * - **Security**: Cryptographically secure token generation
-     *
-     * ## Validation and Error Handling
-     * ### Form Validation
-     * - **Business Rules**: Comprehensive validation via MembersTable rules
-     * - **Error Display**: User-friendly error messages with field-specific feedback
-     * - **Data Persistence**: Form data maintained on validation errors
-     *
-     * ### Success Processing
-     * - **Database Save**: Transactional save with automatic field processing
-     * - **Email Notifications**: Age-appropriate welcome and notification emails
-     * - **Redirect**: Automatic redirect to member profile view
-     *
-     * ## Email Notification System
-     * ### Adult Member Workflow
-     * - **Password Reset Email**: Secure link for initial password setup
-     * - **Secretary Notification**: Administrative notification of new registration
-     * - **Membership Card Tracking**: Documents uploaded membership card status
-     *
-     * ### Minor Member Workflow
-     * - **Secretary Notification**: Specialized minor member registration notification
-     * - **Parent Verification**: Triggers parent/guardian verification process
-     * - **Compliance**: Ensures minor member protection compliance
-     *
-     * ## Form Data Management
-     * ### UI Components
-     * - **Month/Year Selection**: Birth date selection with full range support
-     * - **Branch Selection**: Hierarchical branch selection with membership validation
-     * - **Validation Feedback**: Real-time form validation and error display
-     *
-     * ### Data Processing
-     * - **Birth Date**: Converts month/year to age calculation
-     * - **Branch Assignment**: Validates branch membership eligibility
-     * - **Contact Information**: Validates email uniqueness and format
-     *
-     * @return \Cake\Http\Response|null|void Redirects on success, renders form on error
-     *
-     * @example
-     * ```php
-     * // Member creation workflow:
-     * 
-     * // 1. Administrator accesses add form
-     * GET /members/add
-     * 
-     * // 2. Form submission with validation
-     * POST /members/add
-     * {
-     *     "sca_name": "Aiden of the North",
-     *     "first_name": "John",
-     *     "last_name": "Doe",
-     *     "email_address": "john@example.com",
-     *     "birth_year": 1990,
-     *     "birth_month": 6,
-     *     "branch_id": 1
-     * }
-     * 
-     * // 3. Automatic processing:
-     * // - Age calculation (34 years old)
-     * // - Status: STATUS_ACTIVE (adult)
-     * // - Password: Random 16-char string
-     * // - Mobile token: Random 16-char string
-     * 
-     * // 4. Email notifications:
-     * // - Welcome email to new member
-     * // - Administrative notification to secretary
-     * 
-     * // 5. Redirect to member profile
-     * REDIRECT /members/view/123
-     * ```
+     * @return \\Cake\\Http\\Response|null|void
      */
     public function add()
     {

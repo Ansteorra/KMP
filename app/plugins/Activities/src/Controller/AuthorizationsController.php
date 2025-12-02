@@ -7,149 +7,12 @@ namespace Activities\Controller;
 /**
  * AuthorizationsController - Member Activity Authorization Management
  *
- * This controller manages the complete lifecycle of member activity authorizations within
- * the Kingdom Management Portal. It provides interfaces for authorization requests, approvals,
- * revocations, and administrative management of member authorizations.
+ * Manages complete lifecycle of member activity authorizations including requests,
+ * approvals, revocations, and administrative management. Integrates with
+ * AuthorizationManagerInterface service for business logic.
  *
- * ## Core Functionality
- *
- * ### Authorization Lifecycle Management
- * - **Request Processing**: Handles new authorization requests from members
- * - **Approval Workflows**: Manages multi-level approval processes
- * - **Revocation Handling**: Administrative revocation of active authorizations
- * - **Status Tracking**: Complete authorization status monitoring and reporting
- *
- * ### Administrative Features
- * - **Bulk Operations**: Administrative tools for managing multiple authorizations
- * - **Reporting Interface**: Authorization status and participation reporting
- * - **Member History**: Complete authorization history for members
- * - **Activity Analytics**: Authorization analytics for activity management
- *
- * ## Security Architecture
- *
- * ### Authorization Integration
- * All controller actions are protected by KMP's RBAC system:
- * - **Policy-Based Access**: Each action requires appropriate permissions
- * - **Entity-Level Authorization**: Individual authorization access control
- * - **Branch Scoping**: Operations respect organizational boundaries
- * - **Audit Trail**: All actions logged with user accountability
- *
- * ### Public API Endpoints
- * Limited public access for specific member services:
- * - **getMemberAuthorizations**: Public endpoint for member authorization lookup
- * - **Authentication Bypass**: Specific endpoints excluded from authentication requirements
- * - **Security Validation**: Public endpoints include additional security measures
- *
- * ## Service Integration
- *
- * ### AuthorizationManagerInterface
- * Primary business logic handled through service layer:
- * - **Transactional Operations**: All authorization changes handled transactionally
- * - **Business Rule Enforcement**: Service layer enforces organizational policies
- * - **Validation Logic**: Comprehensive validation of authorization operations
- * - **Error Handling**: Structured error handling with user feedback
- *
- * ### ActiveWindow Integration
- * Authorization temporal management through ActiveWindow system:
- * - **Expiration Handling**: Automatic authorization expiration processing
- * - **Renewal Workflows**: Authorization renewal and extension management
- * - **Historical Tracking**: Complete authorization history preservation
- *
- * ## Controller Architecture
- *
- * ### Request Processing
- * - **POST-Only Operations**: Sensitive operations require POST methods
- * - **CSRF Protection**: Built-in CSRF protection for form submissions
- * - **Input Validation**: Comprehensive input validation and sanitization
- * - **Error Handling**: Graceful error handling with user feedback
- *
- * ### Response Management
- * - **Flash Messaging**: User feedback through flash message system
- * - **JSON APIs**: RESTful JSON responses for AJAX operations
- * - **Redirect Handling**: Appropriate redirects after operations
- * - **Error Responses**: Structured error responses for failed operations
- *
- * ## Usage Examples
- *
- * ### Authorization Request
- * ```php
- * // Member requests authorization for activity
- * POST /activities/authorizations/request
- * Data: {
- *     'activity_id': 123,
- *     'approver_id': 456,
- *     'notes': 'Request for heavy weapons authorization'
- * }
- * ```
- *
- * ### Authorization Approval
- * ```php
- * // Approver processes authorization request
- * POST /activities/authorizations/approve/789
- * Data: {
- *     'approval_notes': 'Member demonstrates required competency',
- *     'next_approver_id': 101 // Optional for multi-level approval
- * }
- * ```
- *
- * ### Authorization Revocation
- * ```php
- * // Administrator revokes active authorization
- * POST /activities/authorizations/revoke/789
- * Data: {
- *     'revoked_reason': 'Safety violation during event'
- * }
- * ```
- *
- * ### Member Authorization Lookup
- * ```php
- * // Public API for member authorization status
- * GET /activities/authorizations/member/123
- * Response: {
- *     'authorizations': [
- *         {
- *             'activity': 'Heavy Weapons',
- *             'status': 'approved',
- *             'expires_on': '2025-12-31'
- *         }
- *     ]
- * }
- * ```
- *
- * ## Administrative Interfaces
- *
- * ### Authorization Dashboard
- * - **Pending Approvals**: Queue of authorization requests requiring approval
- * - **Status Overview**: Summary of authorization statuses across organization
- * - **Expiration Alerts**: Notifications for upcoming authorization expirations
- * - **Activity Metrics**: Participation statistics and trends
- *
- * ### Member Management
- * - **Authorization History**: Complete authorization timeline for members
- * - **Status Changes**: Detailed log of authorization status changes
- * - **Compliance Tracking**: Member compliance with authorization requirements
- * - **Renewal Management**: Tools for managing authorization renewals
- *
- * ## Error Handling and Validation
- *
- * ### Common Error Scenarios
- * - **Invalid Parameters**: Graceful handling of invalid authorization IDs
- * - **Permission Errors**: Clear messaging for insufficient permissions
- * - **Business Rule Violations**: Detailed feedback for policy violations
- * - **Database Errors**: Proper exception handling and user feedback
- *
- * ### Validation Patterns
- * - **Input Sanitization**: All user input properly validated and sanitized
- * - **Business Logic Validation**: Service layer validates business rules
- * - **Authorization Checks**: Entity-level authorization before operations
- * - **Data Integrity**: Referential integrity maintained across operations
- *
- * @property \Activities\Model\Table\AuthorizationsTable $Authorizations Authorization data access
- * @see \Activities\Services\AuthorizationManagerInterface Primary business logic service
- * @see \Activities\Model\Entity\Authorization Authorization entity
- * @see \App\Controller\AppController Parent controller with common functionality
+ * @property \Activities\Model\Table\AuthorizationsTable $Authorizations
  * @package Activities\Controller
- * @since KMP 1.0
  */
 
 use Activities\Services\AuthorizationManagerInterface;
@@ -201,15 +64,11 @@ class AuthorizationsController extends AppController
     }
 
     /**
-     * Retract a pending authorization request
-     *
-     * Allows a member to retract (cancel) their own pending authorization request.
-     * This is useful when a request was sent to the wrong approver or is no longer needed.
-     * Only pending authorizations can be retracted.
+     * Retract a pending authorization request.
      *
      * @param \Activities\Services\AuthorizationManagerInterface $maService Authorization management service
      * @param string|null $id Authorization ID to retract
-     * @return \Cake\Http\Response|null Redirects to referer or mobile card after processing
+     * @return \Cake\Http\Response|null
      */
     public function retract(AuthorizationManagerInterface $maService, $id = null)
     {
@@ -249,14 +108,10 @@ class AuthorizationsController extends AppController
     }
 
     /**
-     * Handle submission of a new authorization request for a member.
+     * Submit a new authorization request for a member.
      *
-     * Creates an authorization request for the provided member and activity, enforces controller
-     * authorization, submits the request via the authorization manager, sets success or error
-     * flash messages, and redirects back to the referring page. If the request originated from
-     * a mobile context, redirects to the member's mobile card view.
-     *
-     * @return \Cake\Http\Response|null The response produced by a redirect, or null if none.
+     * @param \Activities\Services\AuthorizationManagerInterface $maService Authorization management service
+     * @return \Cake\Http\Response|null
      */
     public function add(AuthorizationManagerInterface $maService)
     {
@@ -301,14 +156,10 @@ class AuthorizationsController extends AppController
     }
 
     /**
-     * Submit a renewal request for a member's authorization.
+     * Submit a renewal request for an existing authorization.
      *
-     * Processes a renewal request from POST data, delegates the request to the AuthorizationManager service,
-     * sets a success or error flash message, and redirects back to the referring page or to the member's
-     * mobile card view when the request originated from the mobile interface.
-     *
-     * @param \Activities\Service\AuthorizationManagerInterface $maService Service used to submit the authorization request.
-     * @return \Cake\Http\Response|null Redirect response to the referrer or member mobile card, or null if no redirect is produced.
+     * @param \Activities\Services\AuthorizationManagerInterface $maService Authorization management service
+     * @return \Cake\Http\Response|null
      */
     public function renew(AuthorizationManagerInterface $maService)
     {
@@ -358,11 +209,9 @@ class AuthorizationsController extends AppController
     }
 
     /**
-     * Display a mobile-optimized form for members to request authorizations.
+     * Display mobile-optimized authorization request form.
      *
-     * Provides the view with the requesting member's ID and available activities, and configures the mobile layout and UI metadata.
-     *
-     * @return \Cake\Http\Response|null|void A redirect Response when unauthenticated users are redirected; otherwise null/void. 
+     * @return \Cake\Http\Response|null|void
      */
     public function mobileRequestAuthorization()
     {
@@ -404,13 +253,9 @@ class AuthorizationsController extends AppController
     /**
      * Display paginated authorizations for a member filtered by state.
      *
-     * Loads authorizations for the specified member in one of the states: "current", "pending", or "previous",
-     * enforces view permission on the member, paginates the results, and exposes `authorizations`, `member`,
-     * and `state` to the view.
-     *
-     * @param string $state The authorization state to display ("current", "pending", or "previous").
-     * @param int $id The member id whose authorizations are being displayed.
-     * @throws \Cake\Http\Exception\NotFoundException If the state is invalid or the member does not exist.
+     * @param string $state Authorization state: "current", "pending", or "previous"
+     * @param int $id Member ID
+     * @throws \Cake\Http\Exception\NotFoundException
      */
     public function memberAuthorizations($state, $id)
     {
@@ -657,13 +502,10 @@ class AuthorizationsController extends AppController
     }
 
     /**
-     * Helper method to redirect to mobile card view if request came from mobile interface
+     * Redirect to mobile card view if request came from mobile interface.
      *
-     * Checks if the referer contains mobile-specific patterns and redirects to the member's
-     * mobile card view if applicable. Returns null if not a mobile context.
-     *
-     * @param int $memberId The member ID to redirect to
-     * @return \Cake\Http\Response|null Redirect response to mobile card or null if not mobile context
+     * @param int $memberId Member ID to redirect to
+     * @return \Cake\Http\Response|null
      */
     private function redirectIfMobileContext(int $memberId): ?\Cake\Http\Response
     {

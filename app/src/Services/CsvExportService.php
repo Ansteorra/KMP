@@ -8,97 +8,15 @@ use Cake\Datasource\QueryInterface;
 use Cake\Http\Response;
 
 /**
- * CSV Export Service
+ * Standardized CSV export for query results, entity collections, and arrays.
  *
- * Provides standardized CSV export functionality for KMP data exports. Handles conversion
- * of query results, entity collections, and arrays into properly formatted CSV responses
- * with appropriate HTTP headers for file downloads. Designed for reusability across
- * controllers and background job processing.
- * 
- * ## Features
- * 
- * - **Multiple Data Sources**: Supports QueryInterface, arrays, and iterables
- * - **Automatic Headers**: Extracts column headers from queries or data structure
- * - **Entity Handling**: Properly converts CakePHP entities to arrays
- * - **Memory Efficient**: Uses temporary streams for large datasets
- * - **HTTP Integration**: Returns proper Response objects with download headers
- * - **Flexible Naming**: Configurable filename with proper escaping
- * 
- * ## Data Source Support
- * 
- * ### Database Queries
- * ```php
- * $query = $this->Members->find()->select(['name', 'email', 'branch']);
- * $response = $csvService->outputCsv($query, 'members.csv');
- * ```
- * 
- * ### Entity Collections
- * ```php
- * $members = $this->Members->find()->all();
- * $response = $csvService->outputCsv($members, 'member_list.csv');
- * ```
- * 
- * ### Array Data
- * ```php
- * $data = [
- *     ['name' => 'John', 'email' => 'john@example.com'],
- *     ['name' => 'Jane', 'email' => 'jane@example.com']
- * ];
- * $response = $csvService->outputCsv($data, 'contacts.csv');
- * ```
- * 
- * ## Performance Considerations
- * 
- * - Uses `php://temp` streams to handle large datasets without excessive memory usage
- * - Processes data iteratively rather than loading everything into memory
- * - Automatic query optimization when working with QueryInterface objects
- * - Configurable headers prevent unnecessary data processing for column detection
- * 
- * ## Security Features
- * 
- * - Filename sanitization to prevent directory traversal
- * - Proper HTTP headers to force download rather than display
- * - Content-Type enforcement for CSV MIME type
- * - Stream handling prevents memory-based attacks on large exports
- * 
- * ## Integration Examples
- * 
- * ### Controller Usage
- * ```php
- * public function export()
- * {
- *     $query = $this->Members->find()->where(['active' => true]);
- *     $csvService = new CsvExportService();
- *     return $csvService->outputCsv($query, 'active_members.csv');
- * }
- * ```
- * 
- * ### Background Job Processing
- * ```php
- * public function execute(array $args): void
- * {
- *     $data = $this->processLargeDataset();
- *     $csvService = new CsvExportService();
- *     $response = $csvService->outputCsv($data, 'report.csv');
- *     // Save or email the CSV content
- * }
- * ```
- * 
- * @see \Cake\Http\Response Response object returned for downloads
- * @see \Cake\Datasource\QueryInterface Supported query objects
+ * Uses php://temp streams for memory efficiency. Returns Response objects
+ * with proper download headers.
  */
 class CsvExportService
 {
     /**
-     * Generate CSV response from data source
-     *
-     * Converts various data sources (queries, arrays, iterables) into a CSV file download
-     * response. Handles header extraction, data normalization, and proper HTTP response
-     * formatting for file downloads.
-     * 
-     * ## Data Processing Flow
-     * 
-     * 1. **Source Detection**: Determines if data is a query, array, or iterable
+     * Generate CSV response from data source.
      * 2. **Header Extraction**: Gets column headers from query fields or first row
      * 3. **Stream Processing**: Uses temporary streams for memory-efficient processing
      * 4. **Entity Conversion**: Converts entities to arrays using toArray() method

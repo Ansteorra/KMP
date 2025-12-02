@@ -14,19 +14,8 @@ use Cake\Core\Configure;
  * Security Debug Helper
  * 
  * Provides debugging information about user permissions, policies, and authorization checks.
- * Only active when debug mode is enabled in the application configuration.
- * 
- * Features:
- * - Display current user's policies with branch scope information
- * - Show authorization check log from the current request
- * - Formatted output for debugging authorization issues
- * - Performance-conscious: only collects data in debug mode
- * 
- * Usage:
- * ```php
- * // In a template (only shows in debug mode)
- * echo $this->SecurityDebug->displaySecurityInfo($currentUser);
- * ```
+ * Only active when debug mode is enabled. Displays policies with branch scope info
+ * and authorization check log from the current request.
  * 
  * @property \Cake\View\Helper\HtmlHelper $Html
  */

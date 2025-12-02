@@ -32,6 +32,8 @@ layout: default
 | **4.6 [Gatherings System](4.6-gatherings-system.md)** | Event management, calendar views, and attendance tracking |
 | **4.6.1 [Calendar Download Feature](4.6.1-calendar-download-feature.md)** | iCalendar (.ics) file generation for importing events |
 | **4.6.2 [Gathering Staff Management](4.6.2-gathering-staff-management.md)** | Staff and steward management system |
+| **4.6.3 [Gathering Schedule System](4.6.3-gathering-schedule-system.md)** | Timetables and scheduled activities for events |
+| **4.6.4 [Waiver Exemption System](4.6.4-waiver-exemption-system.md)** | Attestation system for waiver exemptions |
 | **4.7 [Document Management & Retention System](4.7-document-management-system.md)** | File uploads, storage, and retention policies |
 | **5. [Plugins](5-plugins.md)** | |
 | **5.1 [Officers Plugin](5.1-officers-plugin.md)** | Officers management and roster system |
@@ -48,7 +50,7 @@ layout: default
 | **7.1 [Security Best Practices](7.1-security-best-practices.md)** | Security configuration, testing, and audit findings |
 | 7.2 Coding Standards | PHP and JavaScript coding standards |
 | **7.3 [Testing Infrastructure](7.3-testing-infrastructure.md)** | Test super user fixtures, authentication helpers, and testing best practices |
-| 7.4 Debugging | Debugging tools and techniques |
+| **7.4 [Security Debug Information](7.4-security-debug-information.md)** | Authorization tracking and debug display for development |
 | 7.5 Git Workflow | Version control workflow |
 | **8. [Deployment](8-deployment.md)** | |
 | 8.1 Production Setup | Server setup and configuration |
@@ -56,12 +58,14 @@ layout: default
 | 8.3 Updates | Application update procedures |
 | **8.1 [Development Workflow (Alternative)](8-development-workflow.md)** | Additional development workflow documentation |
 | **9. [UI Components](9-ui-components.md)** | |
-| 9.1 Layouts | Template layouts and structure |
-| 9.2 View Helpers | Custom view helpers |
-| 9.3 Frontend Libraries | JavaScript and CSS libraries |
+| **9.1 [Dataverse Grid System](9.1-dataverse-grid-system.md)** | Modern data table system with views, filters, sorting, and export |
+| 9.2 Layouts | Template layouts and structure |
+| 9.3 View Helpers | Custom view helpers |
+| 9.4 Frontend Libraries | JavaScript and CSS libraries |
 | **10. [JavaScript Development](10-javascript-development.md)** | |
 | **10.1 [JavaScript Framework](10.1-javascript-framework.md)** | Detailed Stimulus.JS framework implementation |
 | **10.2 [QR Code Controller](10.2-qrcode-controller.md)** | QR code generation with Stimulus and npm packages |
+| **10.3 [Timezone Handling](10.3-timezone-handling.md)** | Timezone conversion, display, and storage patterns |
 | **11. [Extending KMP](11-extending-kmp.md)** | |
 | 11.1 Creating Plugins | How to create plugins for extending KMP |
 | 11.2 Navigation and Event System | How to add Navigation from a plugin and inject Plugin UI into Core Pages |
@@ -89,9 +93,11 @@ For developers new to KMP:
 
 ## Documentation Status
 
-This documentation is actively maintained and reflects the current state of the KMP codebase as of November 2025. Each section has been fact-checked against the actual source code to ensure accuracy.
+This documentation is actively maintained and reflects the current state of the KMP codebase as of December 2025. Each section has been fact-checked against the actual source code to ensure accuracy.
 
-**Recent Updates (November 2025):**
+**Recent Updates (December 2025):**
+- ✅ Dataverse Grid System documentation added (9.1)
+- ✅ Documentation cleanup - inline comments trimmed across JS controllers
 - ✅ Gatherings system expanded with staff management, calendar downloads, public pages
 - ✅ Security best practices consolidated from penetration testing and configuration audits
 - ✅ QR code controller documented with npm package integration

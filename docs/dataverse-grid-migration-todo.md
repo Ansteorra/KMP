@@ -1,8 +1,8 @@
 # Dataverse Grid Migration - Work In Progress
 
-**Last Updated:** November 30, 2025  
+**Last Updated:** December 2, 2025  
 **Branch:** DVTables  
-**Status:** Phases 1-5 Complete, Phases 6-10 Pending
+**Status:** Core Complete, Plugin GridColumns Complete, Template Migration Pending
 
 ## Overview
 
@@ -61,8 +61,9 @@ No explicit routes needed - CakePHP's fallback routes handle `gridData` action a
 
 ## Pending Phases
 
-### Phase 6: Activities Plugin
+### Phase 6: Activities Plugin - Template Migration
 **Location:** `plugins/Activities/`
+**Status:** GridColumns classes needed
 
 Controllers to update:
 - `ActivitiesController` - Main activities listing
@@ -76,56 +77,52 @@ Templates to update:
 - `plugins/Activities/templates/Activities/index.php`
 - `plugins/Activities/templates/ActivityGroups/index.php`
 
-### Phase 7: Awards Plugin
+### Phase 7: Awards Plugin - Template Migration ✅ GridColumns Complete
 **Location:** `plugins/Awards/`
+**Status:** GridColumns complete, template migration needed
 
-Controllers to update:
+GridColumns classes exist:
+- ✅ `plugins/Awards/src/KMP/GridColumns/AwardsGridColumns.php`
+- ✅ `plugins/Awards/src/KMP/GridColumns/RecommendationsGridColumns.php`
+
+Controllers to verify/update:
 - `AwardsController` - Award types listing
-- `RecommendationsController` - Recommendations listing (complex - has system views)
-- `AwardsDomainController` - Domain management
-
-Files to create:
-- `plugins/Awards/src/KMP/GridColumns/AwardsGridColumns.php`
-- `plugins/Awards/src/KMP/GridColumns/RecommendationsGridColumns.php`
-- `plugins/Awards/src/KMP/GridColumns/AwardsDomainGridColumns.php`
+- `RecommendationsController` - Already has DataverseGrid work
+- `AwardsDomainController` - Domain management (GridColumns may be needed)
 
 Templates to update:
 - `plugins/Awards/templates/Awards/index.php`
 - `plugins/Awards/templates/Recommendations/index.php`
 - `plugins/Awards/templates/AwardsDomain/index.php`
 
-**Note:** RecommendationsController already has some DataverseGrid work started. Check `RecommendationsGridColumns.php` exists.
-
-### Phase 8: Officers Plugin
+### Phase 8: Officers Plugin - Template Migration ✅ GridColumns Complete
 **Location:** `plugins/Officers/`
+**Status:** OfficersGridColumns complete, template migration needed
 
-Controllers to update:
+GridColumns classes exist:
+- ✅ `plugins/Officers/src/KMP/GridColumns/OfficersGridColumns.php`
+
+Controllers to verify/update:
 - `OfficersController` - Officers listing
-- `OfficesController` - Office types listing
-- `DepartmentsController` - Department management
-
-Files to create:
-- `plugins/Officers/src/KMP/GridColumns/OfficersGridColumns.php`
-- `plugins/Officers/src/KMP/GridColumns/OfficesGridColumns.php`
-- `plugins/Officers/src/KMP/GridColumns/DepartmentsGridColumns.php`
+- `OfficesController` - Office types listing (GridColumns may be needed)
+- `DepartmentsController` - Uses core `DepartmentsGridColumns`
 
 Templates to update:
 - `plugins/Officers/templates/Officers/index.php`
 - `plugins/Officers/templates/Offices/index.php`
-- `plugins/Officers/templates/Departments/index.php`
 
-### Phase 9: Waivers Plugin
+### Phase 9: Waivers Plugin - Template Migration ✅ GridColumns Complete
 **Location:** `plugins/Waivers/`
+**Status:** WaiverTypesGridColumns complete, template migration needed
 
-Controllers to update:
+GridColumns classes exist:
+- ✅ `plugins/Waivers/src/KMP/GridColumns/WaiverTypesGridColumns.php`
+
+Controllers to verify/update:
 - `WaiversController` - Waiver types listing
-- `WaiverTemplatesController` - Template management (if exists)
-
-Files to create:
-- `plugins/Waivers/src/KMP/GridColumns/WaiversGridColumns.php`
 
 Templates to update:
-- `plugins/Waivers/templates/Waivers/index.php`
+- `plugins/Waivers/templates/WaiverTypes/index.php`
 
 ### Phase 10: Tab-Based Grids
 Grids embedded in view pages as tabs (e.g., Member Roles tab, Member Warrants tab).
@@ -133,6 +130,11 @@ Grids embedded in view pages as tabs (e.g., Member Roles tab, Member Warrants ta
 **Already Done:**
 - `MembersController::memberRolesGridData()` - Roles tab on member view
 - `MembersController::memberWarrantsGridData()` - Warrants tab on member view
+
+**Additional Core GridColumns Available:**
+- `MemberRolesGridColumns` - For member roles tab
+- `WarrantRostersGridColumns` - For warrant rosters
+- `GatheringAttendancesGridColumns` - For gathering attendance tabs
 
 **To Investigate:**
 - Check if other view pages have tab-based listings that need migration

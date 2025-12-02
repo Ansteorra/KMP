@@ -9,70 +9,12 @@ use App\Controller\DataverseGridTrait;
 /**
  * Award Levels Management Controller
  *
- * Provides comprehensive level management functionality for the Awards plugin,
- * handling the hierarchical precedence system that defines award difficulty,
- * rank, and progression within the award organizational structure. Levels
- * establish the ranking order and precedence for awards across all domains.
+ * CRUD operations for level management defining award precedence/rank.
+ * Levels use progression_order for hierarchical ranking.
+ * Uses DataverseGridTrait for table-based data display.
  *
- * ## Key Features
- * - **Level Hierarchy**: Complete CRUD operations for award level management
- * - **Precedence System**: Hierarchical ordering with progression_order management
- * - **Administrative Interface**: Full administrative control over level precedence
- * - **Referential Integrity**: Protection against deletion of levels with associated awards
- * - **Security Framework**: Entity-level authorization with policy-based access control
- * - **Audit Trail**: Soft deletion pattern with administrative audit trail
- *
- * ## Level Hierarchy Structure
- * Levels organize awards by difficulty/rank and provide precedence ordering
- * for the Awards plugin hierarchical system:
- * ```
- * Level (with progression_order for ranking)
- *   ├── progression_order: 1 (highest precedence)
- *   ├── progression_order: 2 (medium precedence)
- *   └── progression_order: 3 (lowest precedence)
- *       └── Awards (multiple awards at this level)
- *           ├── Domain (award category)
- *           └── Branch (organizational scope)
- * ```
- *
- * ## Precedence Management
- * - **Progression Order**: Numeric ordering for level precedence and ranking
- * - **Hierarchical Display**: Levels sorted by progression_order for consistency
- * - **Award Ranking**: Provides ranking context for awards within each domain
- * - **Administrative Control**: Precedence modification with validation
- *
- * ## Security Architecture
- * - **Model Authorization**: Automatic authorization for index and add operations
- * - **Entity Authorization**: Individual entity authorization for view, edit, delete
- * - **Policy Integration**: Awards plugin authorization policies control access
- * - **Administrative Control**: Permission-based level management oversight
- *
- * ## Usage Examples
- * ```php
- * // Create new level with precedence
- * $levelsController = new LevelsController();
- * $level = $levelsController->add(); // Creates level with progression_order
- * 
- * // View level with awards
- * $level = $levelsController->view($levelId); // Includes associated awards
- * 
- * // Administrative level management by precedence
- * $levels = $levelsController->index(); // Ordered by progression_order
- * ```
- *
- * ## Integration Points
- * - **AwardsTable**: Primary relationship for award level assignment
- * - **Authorization Framework**: Policy-based access control integration
- * - **Administrative Interface**: Full administrative management capabilities
- * - **Precedence System**: Progression order validation and integrity
- * - **Navigation System**: Integration with Awards plugin navigation
- *
- * @property \Awards\Model\Table\LevelsTable $Levels Level data management with precedence
- * @see \Awards\Model\Table\LevelsTable
- * @see \Awards\Policy\LevelPolicy
- * @see \Awards\Policy\LevelsTablePolicy
+ * @property \Awards\Model\Table\LevelsTable $Levels
  * @package Awards\Controller
- * @since 4.3.0
  */
 class LevelsController extends AppController
 {

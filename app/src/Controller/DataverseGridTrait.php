@@ -11,48 +11,10 @@ use Cake\Log\Log;
 use Cake\ORM\Query;
 
 /**
- * Dataverse Grid Trait
+ * Unified grid processing for dataverse-style grids with saved views, filters, and sorting.
  *
- * Provides unified grid processing logic for dataverse-style grids with saved views,
- * filters, sorting, and column pickers. Supports both saved user views and system views.
- *
- * ## Features
- * - **Saved Views**: Create, save, update, and delete custom views (when enabled)
- * - **System Views**: Pre-defined views with fixed configurations (when enabled)
- * - **User Defaults**: Set personal default views per grid
- * - **System Defaults**: Administrators can set organization-wide defaults
- * - **Column Picker**: Show/hide columns dynamically
- * - **Advanced Filters**: Multi-condition filtering with operators
- * - **Multi-column Sorting**: Sort by multiple fields with direction control
- * - **Search**: Full-text search across searchable columns
- * - **Pagination**: Configurable page sizes
- *
- * ## Usage in Controllers
- * ```php
- * use App\Controller\DataverseGridTrait;
- *
- * class MembersController extends AppController
- * {
- *     use DataverseGridTrait;
- *
- *     public function gridData()
- *     {
- *         $result = $this->processDataverseGrid([
- *             'gridKey' => 'Members.index.main',
- *             'gridColumnsClass' => \App\KMP\GridColumns\MembersGridColumns::class,
- *             'baseQuery' => $this->Members->find()->contain(['Branches', 'Parents']),
- *             'tableName' => 'Members',
- *             'defaultSort' => ['Members.sca_name' => 'ASC'],
- *             'defaultPageSize' => 25,
- *         ]);
- *
- *         $this->set([
- *             'members' => $result['data'],
- *             'gridState' => $result['gridState'],
- *         ]);
- *     }
- * }
- * ```
+ * Features: saved/system views, user defaults, column picker, advanced filters,
+ * multi-column sorting, search, and pagination. See app/docs/dataverse-grid-*.md for usage.
  */
 trait DataverseGridTrait
 {

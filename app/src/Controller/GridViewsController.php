@@ -12,94 +12,11 @@ use Cake\Http\Exception\ForbiddenException;
 use Cake\Http\Exception\NotFoundException;
 
 /**
- * GridViews Controller - AJAX Endpoints for Grid View Management
+ * JSON-based REST endpoints for managing saved grid views.
  *
- * The GridViewsController provides JSON-based REST endpoints for managing saved grid views.
- * All actions return JSON responses and are designed to be called via AJAX from the
- * grid-view Stimulus controller.
- *
- * ## Core Responsibilities
- *
- * ### View Management
- * - **List**: Get all available views for a grid (system + user's own)
- * - **Create**: Create a new user view
- * - **Update**: Modify an existing user view
- * - **Delete**: Remove a user view (soft delete)
- *
- * ### Default Management
- * - **Set Default**: Mark a view as the user's default for a grid
- * - **Clear Default**: Remove default status from a view
- *
- * ### View Resolution
- * - **Get Effective**: Resolve which view should be applied based on priority
- *
- * ## Authorization
- *
- * - All actions require authentication (logged-in user)
- * - Users can only manage their own views
- * - System defaults are read-only for regular users
- * - Admin actions (system defaults) require additional permissions
- *
- * ## Response Format
- *
- * All endpoints return JSON with this structure:
- *
- * ### Success Response
- * ```json
- * {
- *   "success": true,
- *   "data": { ... },
- *   "message": "Optional success message"
- * }
- * ```
- *
- * ### Error Response
- * ```json
- * {
- *   "success": false,
- *   "error": "Error message",
- *   "errors": ["Validation error 1", "Validation error 2"]
- * }
- * ```
- *
- * ## Usage Examples
- *
- * ### Fetch Available Views
- * ```javascript
- * GET /grid-views/list?gridKey=Members.index.main
- * ```
- *
- * ### Create New View
- * ```javascript
- * POST /grid-views/create
- * {
- *   "gridKey": "Members.index.main",
- *   "name": "My Custom View",
- *   "config": {...}
- * }
- * ```
- *
- * ### Update View
- * ```javascript
- * PUT /grid-views/update/123
- * {
- *   "name": "Updated Name",
- *   "config": {...}
- * }
- * ```
- *
- * ### Set as Default
- * ```javascript
- * POST /grid-views/set-default/123
- * {
- *   "gridKey": "Members.index.main"
- * }
- * ```
- *
- * ### Delete View
- * ```javascript
- * DELETE /grid-views/delete/123
- * ```
+ * Provides CRUD operations for user grid views, default management, and view resolution.
+ * All actions return JSON and are called via AJAX from the grid-view Stimulus controller.
+ * Authorization handled via service layer based on member ownership.
  */
 class GridViewsController extends AppController
 {
