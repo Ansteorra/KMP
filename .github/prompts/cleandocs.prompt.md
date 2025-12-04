@@ -1,3 +1,0 @@
-as an expert in technical writing and documentation, your task is move the documentation in this file to the appropriate section of the /docs folder. Creating new sections as needed and removing documentation bloat from this file. Please ensure that the content is clear, concise, and well-structured. Focus on improving grammar, spelling, and overall readability while maintaining the original meaning and technical accuracy. Additionally, organize the information logically, using headings, bullet points, and numbered lists where appropriate to facilitate easy navigation and comprehension.
-
-and above all else documentation must be factual and accurate. If you find any information that is outdated or incorrect, please review the relevant sources to update it accordingly.

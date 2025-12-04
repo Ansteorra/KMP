@@ -273,30 +273,44 @@ Common UI patterns used throughout the application:
 
 #### Data Tables
 
-Tables with sorting, pagination, and filtering:
+KMP features a comprehensive data grid system called **DV Grid** (Dataverse Grid) that provides advanced data table functionality including:
+- Server-side pagination, sorting, and filtering
+- Saved and system views for quick access to commonly used filters
+- CSV export functionality
+- Column picker for showing/hiding columns
+- Role-based access control
+- Lazy loading for performance optimization
+
+For a quick overview, see [9.1 Dataverse Grid System](9.1-dataverse-grid-system.md).
+
+For comprehensive implementation details including column configuration, grid options, custom views, filtering, and the complete API reference, see [9.3 Dataverse Grid Complete Guide](9.3-dataverse-grid-complete-guide.md).
+
+**Basic DV Grid Example:**
+
+```php
+// In your controller - use the DataverseGridTrait
+use App\Controller\DataverseGridTrait;
+
+class MembersController extends AppController
+{
+    use DataverseGridTrait;
+    
+    public function index()
+    {
+        $this->processDataverseGrid([
+            'gridColumns' => \App\KMP\GridColumns\MembersGridColumns::class,
+            'modelClass' => $this->Members,
+        ]);
+    }
+}
+```
 
 ```html
-<div data-controller="data-table">
-    <div class="mb-3">
-        <input type="text" 
-               data-data-table-target="filter" 
-               data-action="input->data-table#filter"
-               placeholder="Filter results...">
-    </div>
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th data-action="click->data-table#sort" data-sort-key="name">Name</th>
-                <th data-action="click->data-table#sort" data-sort-key="date">Date</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody data-data-table-target="body">
-            <!-- Table rows go here -->
-        </tbody>
-    </table>
-    <div data-data-table-target="pagination"></div>
-</div>
+<!-- In your template -->
+<?= $this->element("dv_grid", [
+    "title" => "Members",
+    "options" => ['canFilter' => true, 'canExportCsv' => true]
+]) ?>
 ```
 
 #### Form Handling

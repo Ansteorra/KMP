@@ -61,6 +61,7 @@ layout: default
 | **9. [UI Components](9-ui-components.md)** | |
 | **9.1 [Dataverse Grid System](9.1-dataverse-grid-system.md)** | Modern data table system with views, filters, sorting, and export |
 | **9.2 [Bootstrap Icons](9.2-bootstrap-icons.md)** | **NEW** Bootstrap Icons integration and usage |
+| **9.3 [Dataverse Grid Complete Guide](9.3-dataverse-grid-complete-guide.md)** | **NEW** Comprehensive DV Grid implementation reference |
 | 9.3 Layouts | Template layouts and structure |
 | 9.4 View Helpers | Custom view helpers |
 | 9.5 Frontend Libraries | JavaScript and CSS libraries |
@@ -77,12 +78,24 @@ layout: default
 | 11.5 Best Practices | Guidelines for effective plugin development |
 | 11.6 Managing Plugin Configuration | Using AppSettings for plugin configuration |
 | 11.7 Adding Public IDs to Plugin Tables | Implementing secure public identifiers in plugins |
+
+## API Documentation
+
+| Reference | Description |
+|-----------|-------------|
+| **[API Reference Portal](api/index.md)** | Auto-generated PHP and JavaScript API documentation |
+| **[PHP API Reference](api/php/index.html)** | Controllers, Services, Models, Behaviors, and Plugins |
+| **[JavaScript API Reference](api/js/index.html)** | Stimulus controllers, utilities, and frontend modules |
+
+## Appendices
+
+| Section | Description |
+|---------|-------------|
 | **[Appendices](appendices.md)** | |
 | A. Troubleshooting | Common issues and solutions |
 | B. Glossary | Terms specific to KMP and SCA |
 | C. Resources | Additional resources and references |
-| **[API Reference Portal](api/index.md)** | Auto-generated PHP and JavaScript API documentation |
-| **[For Kids Documentation](for_kids/index.md)** | Child-friendly introduction to KMP concepts |
+
 
 ---
 

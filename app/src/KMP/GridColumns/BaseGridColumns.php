@@ -10,8 +10,7 @@ namespace App\KMP\GridColumns;
  * Provides common helper methods for querying column metadata.
  * Grid-specific classes extend this and implement getColumns().
  *
- * @see /app/docs/dataverse-grid-field-naming.md For field naming conventions
- * @see /app/docs/dataverse-grid-feature-flags.md For grid configuration
+ * @see /docs/9.3-dataverse-grid-complete-guide.md For field naming and grid configuration
  */
 abstract class BaseGridColumns
 {

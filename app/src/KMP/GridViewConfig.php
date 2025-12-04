@@ -11,8 +11,7 @@ namespace App\KMP;
  * Supports both flat filters (legacy AND conditions) and nested expression trees
  * (OR/AND combinations).
  *
- * @see /app/docs/dataverse-grid-expressions.md For expression tree documentation
- * @see /app/docs/dataverse-grid-feature-flags.md For grid configuration options
+ * @see /docs/9.3-dataverse-grid-complete-guide.md For grid configuration options
  */
 class GridViewConfig
 {

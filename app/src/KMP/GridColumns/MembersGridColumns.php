@@ -10,8 +10,7 @@ namespace App\KMP\GridColumns;
  * Defines available columns for the Members data grid including rendering,
  * sorting, filtering, and visibility settings.
  *
- * @see /app/docs/dataverse-grid-field-naming.md For field naming conventions
- * @see /app/docs/dataverse-grid-feature-flags.md For grid configuration
+ * @see /docs/9.3-dataverse-grid-complete-guide.md For field naming and grid configuration
  */
 class MembersGridColumns extends BaseGridColumns
 {
