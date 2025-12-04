@@ -81,6 +81,7 @@ layout: default
 | A. Troubleshooting | Common issues and solutions |
 | B. Glossary | Terms specific to KMP and SCA |
 | C. Resources | Additional resources and references |
+| **[API Reference Portal](api/index.md)** | Auto-generated PHP and JavaScript API documentation |
 | **[For Kids Documentation](for_kids/index.md)** | Child-friendly introduction to KMP concepts |
 
 ---

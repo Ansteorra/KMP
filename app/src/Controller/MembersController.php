@@ -380,7 +380,7 @@ class MembersController extends AppController
      * @param string|null $id Member ID
      * @param string|null $type Type of sub-row content (e.g., 'warrantreasons')
      * @return void
-     * @throws \\Cake\\Http\\Exception\\NotFoundException
+     * @throws \Cake\Http\Exception\NotFoundException
      */
     public function subRow(?string $id = null, ?string $type = null)
     {
@@ -548,8 +548,8 @@ class MembersController extends AppController
      * and gathering attendances. Handles session-based form error display.
      *
      * @param string|null $id Member ID to display
-     * @return \\Cake\\Http\\Response|null|void
-     * @throws \\Cake\\Http\\Exception\\NotFoundException When member not found
+     * @return \Cake\Http\Response|null|void
+     * @throws \Cake\Http\Exception\NotFoundException When member not found
      */
     public function view(?string $id = null)
     {
