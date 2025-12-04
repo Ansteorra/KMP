@@ -14,149 +14,23 @@ use Cake\ORM\TableRegistry;
 use Cake\Validation\Validator;
 
 /**
- * Members Table - User Management and Identity Storage
+ * Members Table - Central repository for user management.
  *
- * The MembersTable class provides data access and business logic for the Member entity,
- * serving as the central repository for user management within the KMP system. This table
- * handles complex member relationships, validation rules, and business workflows essential
- * for organizational member management.
+ * Handles member data, relationships, validation, and automatic workflows.
+ * Triggers ageUpReview() and warrantableReview() on every save operation.
  *
- * ## Core Responsibilities
+ * @see /docs/4.1.1-members-table-reference.md for detailed API documentation
+ * @see /docs/4.1-member-lifecycle.md for status system and workflows
  *
- * ### Member Data Management
- * - **Identity Storage**: Complete user profiles with personal and contact information
- * - **Authentication Data**: Secure password storage and login tracking
- * - **Status Management**: Member status tracking with age-based workflow automation
- * - **Privacy Controls**: Configurable privacy settings and minor protection
- *
- * ### Relationship Management
- * - **Role Assignments**: Through MemberRoles with temporal active window support
- * - **Organizational Hierarchy**: Branch membership for data scoping and security
- * - **Parent-Child Relationships**: Minor member oversight and guardian management
- * - **Authorization History**: Tracking of permission grants and authorization changes
- *
- * ### Validation and Business Rules
- * - **Data Integrity**: Comprehensive validation for all member information fields
- * - **Unique Constraints**: Email uniqueness enforcement across the organization
- * - **Password Security**: Strong password requirements and hashing protocols
- * - **Automatic Processing**: Age-up review and warrant eligibility on data changes
- *
- * ### Advanced Features
- * - **JSON Field Support**: Flexible additional_info field for configurable data
- * - **Soft Deletion**: Trash behavior for data retention and audit requirements
- * - **Footprint Tracking**: Automatic created_by/modified_by auditing
- * - **Branch Scoping**: Inherited from BaseTable for organizational data isolation
- *
- * ## Association Patterns
- *
- * ### Role System Integration
- * ```php
- * // Access current role assignments
- * $member = $this->Members->get($id, [
- *     'contain' => ['CurrentMemberRoles.Roles']
- * ]);
- * 
- * // Query members by role
- * $officerMembers = $this->Members->find()
- *     ->matching('Roles', function ($q) {
- *         return $q->where(['Roles.name' => 'Officer']);
- *     });
- * ```
- *
- * ### Temporal Role Queries
- * ```php
- * // Get upcoming role assignments
- * $upcomingRoles = $this->Members->find()
- *     ->contain(['UpcomingMemberRoles.Roles'])
- *     ->where(['id' => $memberId]);
- * 
- * // Historical role analysis
- * $pastRoles = $this->Members->find()
- *     ->contain(['PreviousMemberRoles.Roles'])
- *     ->where(['id' => $memberId]);
- * ```
- *
- * ## Validation Features
- *
- * ### Security Validation
- * - **Email Uniqueness**: Organization-wide unique email addresses
- * - **Password Strength**: Minimum 12 characters (expandable with complexity rules)
- * - **Data Length Limits**: Appropriate field length constraints for all inputs
- *
- * ### Business Logic Validation
- * - **Required Fields**: Essential information for member creation
- * - **Conditional Requirements**: Context-dependent validation rules
- * - **Format Validation**: Email format, date validity, numeric constraints
- *
- * ## Automatic Processing
- *
- * ### beforeSave Event Handling
- * - **Age-Up Review**: Automatic status changes when minors reach age 18
- * - **Warrant Eligibility**: Real-time eligibility calculation on data changes
- * - **Cache Invalidation**: Inherited cache management from BaseTable
- *
- * ## Usage Examples
- *
- * ### Basic Member Operations
- * ```php
- * // Create new member with validation
- * $member = $this->Members->newEntity([
- *     'sca_name' => 'Aiden of the North',
- *     'first_name' => 'John',
- *     'last_name' => 'Doe',
- *     'email_address' => 'john@example.com',
- *     'password' => 'SecurePassword123!',
- *     'status' => Member::STATUS_ACTIVE
- * ]);
- * 
- * if ($this->Members->save($member)) {
- *     // Member created successfully
- * }
- * ```
- *
- * ### Complex Queries with Relationships
- * ```php
- * // Find members with warrant eligibility
- * $warrantEligible = $this->Members->find()
- *     ->where([
- *         'Members.warrantable' => true,
- *         'Members.status' => Member::STATUS_VERIFIED_MEMBERSHIP
- *     ])
- *     ->contain(['Branches', 'CurrentMemberRoles.Roles']);
- * 
- * // Get validation queue count
- * $pendingValidations = $this->Members->getValidationQueueCount();
- * ```
- *
- * ### Member Status Management
- * ```php
- * // Update member status with automatic processing
- * $member->status = Member::STATUS_VERIFIED_MEMBERSHIP;
- * $this->Members->save($member); // Triggers ageUpReview and warrantableReview
- * ```
- *
- * ## Security Considerations
- * - **Password Hashing**: Automatic secure hashing via Member entity setter
- * - **Sensitive Field Protection**: Hidden fields in entity serialization
- * - **Branch Scoping**: Data access limited by organizational membership
- * - **Soft Deletion**: Preserves audit trail while removing active access
- *
- * ## Integration Points
- * - **Authentication**: Primary identity source for login system
- * - **Authorization**: Role-based permission inheritance
- * - **Activities Plugin**: Member authorization management
- * - **Awards Plugin**: Member recognition and achievement tracking
- * - **Officers Plugin**: Leadership role management and reporting
- *
- * @property \App\Model\Table\MemberRolesTable&\Cake\ORM\Association\HasMany $MemberRoles All role assignments
- * @property \App\Model\Table\MemberRolesTable&\Cake\ORM\Association\HasMany $CurrentMemberRoles Active role assignments
- * @property \App\Model\Table\MemberRolesTable&\Cake\ORM\Association\HasMany $UpcomingMemberRoles Future role assignments
- * @property \App\Model\Table\MemberRolesTable&\Cake\ORM\Association\HasMany $PreviousMemberRoles Historical role assignments
- * @property \App\Model\Table\BranchesTable&\Cake\ORM\Association\BelongsTo $Branches Organizational branch membership
- * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $Parents Parent member for minors
- * @property \App\Model\Table\RolesTable&\Cake\ORM\Association\BelongsToMany $Roles Role assignments through MemberRoles
- * @property \App\Model\Table\PendingAuthorizationsTable&\Cake\ORM\Association\HasMany $PendingAuthorizations Authorization requests
- * @property \App\Model\Table\GatheringAttendancesTable&\Cake\ORM\Association\HasMany $GatheringAttendances Gathering attendance records
+ * @property \App\Model\Table\MemberRolesTable&\Cake\ORM\Association\HasMany $MemberRoles
+ * @property \App\Model\Table\MemberRolesTable&\Cake\ORM\Association\HasMany $CurrentMemberRoles
+ * @property \App\Model\Table\MemberRolesTable&\Cake\ORM\Association\HasMany $UpcomingMemberRoles
+ * @property \App\Model\Table\MemberRolesTable&\Cake\ORM\Association\HasMany $PreviousMemberRoles
+ * @property \App\Model\Table\BranchesTable&\Cake\ORM\Association\BelongsTo $Branches
+ * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $Parents
+ * @property \App\Model\Table\RolesTable&\Cake\ORM\Association\BelongsToMany $Roles
+ * @property \App\Model\Table\PendingAuthorizationsTable&\Cake\ORM\Association\HasMany $PendingAuthorizations
+ * @property \App\Model\Table\GatheringAttendancesTable&\Cake\ORM\Association\HasMany $GatheringAttendances
  *
  * @method \App\Model\Entity\Member newEmptyEntity()
  * @method \App\Model\Entity\Member newEntity(array $data, array $options = [])
@@ -405,46 +279,12 @@ class MembersTable extends BaseTable
     }
 
     /**
-     * Build application-level business rules for data integrity
+     * Build application-level business rules for data integrity.
      *
-     * Defines business rules that are enforced at the ORM level beyond basic
-     * validation. These rules ensure data consistency and business logic
-     * compliance across the application.
-     *
-     * ## Current Rules
-     * - **Email Uniqueness**: Ensures no duplicate email addresses exist in the system
-     *   - Organization-wide constraint for login security
-     *   - Prevents identity conflicts and authentication issues
-     *   - Error reported on 'email_address' field for user feedback
-     *
-     * ## Rule Categories
-     * - **Unique Constraints**: Field uniqueness across the entire table
-     * - **Cross-Entity Rules**: Could include complex relationship validations
-     * - **Business Logic**: High-level organizational policy enforcement
-     *
-     * ## Integration with Validation
-     * Rules complement validation by providing:
-     * - **Database-Level Checks**: Ensures consistency even with concurrent operations
-     * - **Business Logic**: Enforces organizational policies beyond data format
-     * - **User Feedback**: Provides meaningful error messages for rule violations
+     * Enforces email uniqueness across the organization.
      *
      * @param \Cake\ORM\RulesChecker $rules Rules checker instance
-     * @return \Cake\ORM\RulesChecker Configured rules checker with business rules
-     *
-     * @example
-     * ```php
-     * // Email uniqueness rule in action
-     * $member1 = $this->Members->newEntity(['email_address' => 'user@example.com']);
-     * $this->Members->save($member1); // Success
-     * 
-     * $member2 = $this->Members->newEntity(['email_address' => 'user@example.com']);
-     * $result = $this->Members->save($member2); // Fails due to uniqueness rule
-     * 
-     * if (!$result) {
-     *     $errors = $member2->getError('email_address');
-     *     // Contains uniqueness violation message
-     * }
-     * ```
+     * @return \Cake\ORM\RulesChecker Configured rules checker
      */
     public function buildRules(RulesChecker $rules): RulesChecker
     {
@@ -454,57 +294,15 @@ class MembersTable extends BaseTable
     }
 
     /**
-     * Execute automatic member processing before entity save
+     * Execute automatic member processing before entity save.
      *
-     * Performs essential business logic processing automatically before any member
-     * entity is saved to the database. This ensures member data consistency and
-     * triggers important workflow processes without manual intervention.
-     *
-     * ## Automatic Processing Steps
-     *
-     * ### Age-Up Review (`ageUpReview()`)
-     * - **Purpose**: Transitions minor members to adult status when they reach age 18
-     * - **Status Updates**: Changes minor status to appropriate adult equivalents
-     * - **Parent Removal**: Clears parent_id for newly adult members
-     * - **Timing**: Executed on every save to catch age transitions promptly
-     *
-     * ### Warrant Eligibility Review (`warrantableReview()`)
-     * - **Purpose**: Updates warrant eligibility based on current member data
-     * - **Criteria Check**: Validates age, membership status, contact info completeness
-     * - **Flag Updates**: Sets warrantable flag and populates non_warrantable_reasons
-     * - **Real-time**: Ensures eligibility status is always current
-     *
-     * ## Integration Benefits
-     * - **Automatic Workflows**: Reduces manual administrative overhead
-     * - **Data Consistency**: Ensures derived fields are always accurate
-     * - **Business Logic**: Enforces organizational rules consistently
-     * - **Performance**: Batches related operations during save process
-     *
-     * ## Inherited Processing
-     * Additionally benefits from BaseTable::afterSave() for:
-     * - **Cache Invalidation**: Automatic cache clearing for affected data
-     * - **Event Handling**: Integration with the KMP event system
+     * Triggers ageUpReview() for minor-to-adult transitions and
+     * warrantableReview() for warrant eligibility updates.
      *
      * @param \Cake\Event\Event $event The beforeSave event
      * @param \Cake\Datasource\EntityInterface $entity The Member entity being saved
      * @param \ArrayObject $options Save operation options
-     * @return void Processing modifies entity properties directly
-     *
-     * @example
-     * ```php
-     * // Automatic processing during save
-     * $member = $this->Members->get($id);
-     * $member->birth_year = 2006; // Member is now 18
-     * $member->membership_expires_on = new Date('+1 year');
-     * 
-     * $this->Members->save($member);
-     * // Automatically triggers:
-     * // - ageUpReview(): May update status from minor to adult
-     * // - warrantableReview(): Updates warrant eligibility
-     * // - Cache invalidation: Clears related cached data
-     * 
-     * // No manual intervention required for business logic
-     * ```
+     * @return void
      */
     public function beforeSave(Event $event, EntityInterface $entity, ArrayObject $options): void
     {
@@ -513,60 +311,11 @@ class MembersTable extends BaseTable
     }
 
     /**
-     * Get count of members requiring validation processing
+     * Get count of members requiring validation processing.
      *
-     * Calculates the number of members who are pending validation review based on
-     * their current status and membership card information. This method supports
-     * administrative workflows and validation queue management.
-     *
-     * ## Validation Queue Criteria
-     * Members are included in the validation count if they meet ANY of these conditions:
-     *
-     * ### Active Members with Membership Cards
-     * - **Status**: STATUS_ACTIVE (can login and participate)
-     * - **Card Status**: Has membership_card_path (uploaded card image)
-     * - **Purpose**: Verification of uploaded membership documentation
-     *
-     * ### Minor Members Requiring Review
-     * - **Status**: STATUS_UNVERIFIED_MINOR or STATUS_MINOR_MEMBERSHIP_VERIFIED
-     * - **Purpose**: Age verification and guardian consent processing
-     * - **Workflow**: Manual review required for minor member activation
-     *
-     * ## Business Logic
-     * - **Deleted Members**: Excluded from count (soft deletion check)
-     * - **OR Logic**: Members matching ANY criteria are counted once
-     * - **Real-time**: Always current count for administrative dashboards
-     *
-     * ## Administrative Integration
-     * This method supports:
-     * - **Dashboard Displays**: Show pending validation workload
-     * - **Queue Management**: Prioritize validation tasks
-     * - **Workload Planning**: Estimate administrative effort required
-     * - **Reporting**: Track validation processing efficiency
+     * Counts members with membership cards or minor statuses pending review.
      *
      * @return int Number of members requiring validation review
-     *
-     * @example
-     * ```php
-     * // Get current validation queue size
-     * $queueCount = $this->Members->getValidationQueueCount();
-     * 
-     * // Display on admin dashboard
-     * if ($queueCount > 0) {
-     *     echo "Validation Queue: {$queueCount} members pending review";
-     *     
-     *     // Could trigger alerts for high queue sizes
-     *     if ($queueCount > 50) {
-     *         $this->notifyAdministrators("High validation queue: {$queueCount}");
-     *     }
-     * }
-     * 
-     * // Use in batch processing
-     * $batchSize = min($queueCount, 25); // Process up to 25 at once
-     * $membersToValidate = $this->Members->find()
-     *     ->where(['validation criteria here'])
-     *     ->limit($batchSize);
-     * ```
      */
     static function getValidationQueueCount(): int
     {
