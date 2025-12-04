@@ -472,7 +472,44 @@ class NavigationService
 
 ### CsvExportService
 
-Provides CSV export functionality for data tables and reports.
+Provides streaming CSV export functionality for data tables and reports. Uses output buffering to efficiently handle large datasets without loading them entirely into memory.
+
+**Location:** `app/src/Services/CsvExportService.php`
+
+**Core Method:**
+```php
+/**
+ * Stream CSV data directly to the response output
+ *
+ * @param array $data Array of data rows to export
+ * @param array $columns Column definitions for CSV headers
+ * @param resource $output Output stream (typically php://output)
+ * @return void
+ */
+public function outputCsv(array $data, array $columns, $output): void;
+```
+
+**Usage Example:**
+```php
+use App\Services\CsvExportService;
+
+public function export(CsvExportService $csvExportService)
+{
+    $data = $this->MyTable->find()->all()->toArray();
+    $columns = ['id', 'name', 'email', 'created'];
+    
+    $response = $this->response
+        ->withType('csv')
+        ->withHeader('Content-Disposition', 'attachment; filename="export.csv"');
+    
+    $stream = fopen('php://output', 'w');
+    $csvExportService->outputCsv($data, $columns, $stream);
+    
+    return $response;
+}
+```
+
+For integration with the DataverseGrid system, see [9.1 DataverseGrid System](9.1-dataverse-grid-system.md).
 
 ### AuthorizationService
 

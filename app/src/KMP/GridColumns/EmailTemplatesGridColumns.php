@@ -57,8 +57,8 @@ class EmailTemplatesGridColumns extends BaseGridColumns
                 'alignment' => 'left',
             ],
 
-            'subject' => [
-                'key' => 'subject',
+            'subject_template' => [
+                'key' => 'subject_template',
                 'label' => 'Subject',
                 'type' => 'string',
                 'sortable' => true,
@@ -67,30 +67,6 @@ class EmailTemplatesGridColumns extends BaseGridColumns
                 'defaultVisible' => true,
                 'width' => '300px',
                 'alignment' => 'left',
-            ],
-
-            'has_text_template' => [
-                'key' => 'has_text_template',
-                'label' => 'Text',
-                'type' => 'boolean',
-                'sortable' => false,
-                'filterable' => false,
-                'defaultVisible' => true,
-                'width' => '80px',
-                'alignment' => 'center',
-                'exportable' => false,
-            ],
-
-            'has_html_template' => [
-                'key' => 'has_html_template',
-                'label' => 'HTML',
-                'type' => 'boolean',
-                'sortable' => false,
-                'filterable' => false,
-                'defaultVisible' => true,
-                'width' => '80px',
-                'alignment' => 'center',
-                'exportable' => false,
             ],
 
             'is_active' => [

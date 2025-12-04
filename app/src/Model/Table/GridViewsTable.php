@@ -8,103 +8,14 @@ use Cake\ORM\RulesChecker;
 use Cake\Validation\Validator;
 
 /**
- * GridViews Table - Manage Saved Grid View Configurations
+ * GridViewsTable - Manage Saved Grid View Configurations
  *
- * The GridViewsTable provides data access and business logic for managing saved grid
- * view configurations. This enables a Dataverse-style grid system where users can
- * create, save, and manage custom views of data grids throughout the application.
- *
- * ## Core Responsibilities
- *
- * ### View Management
- * - **CRUD Operations**: Create, read, update, delete grid views
- * - **Default Management**: Set and unset default views per user/grid
- * - **System Defaults**: Manage application-wide default views
- * - **Ownership**: Enforce member ownership and access control
- *
- * ### View Resolution
- * - **Priority Resolution**: Explicit → User Default → System Default → Fallback
- * - **Context-Aware Loading**: Load applicable views for a member + grid combination
- * - **Efficient Queries**: Optimized lookups with proper indexing
- *
- * ### Data Integrity
- * - **Unique Constraints**: Enforce one system default per grid
- * - **User Default Limits**: One default per user per grid
- * - **JSON Validation**: Ensure config field contains valid JSON
- * - **Foreign Key Integrity**: Maintain referential integrity with members table
- *
- * ## Association Patterns
- *
- * ### Member Relationships
- * ```php
- * // Load view with owner
- * $view = $this->GridViews->get($id, [
- *     'contain' => ['Members']
- * ]);
- *
- * // Find all views for a member
- * $views = $this->GridViews->find()
- *     ->where(['member_id' => $memberId])
- *     ->all();
- * ```
- *
- * ### Audit Relationships
- * ```php
- * // Load with creator and modifier
- * $view = $this->GridViews->get($id, [
- *     'contain' => ['Creators', 'Modifiers']
- * ]);
- * ```
- *
- * ## Custom Finders
- *
- * ### findByGrid
- * Find all views (system + user) for a specific grid
- *
- * ### findSystemDefault
- * Find the system default view for a grid
- *
- * ### findUserDefault
- * Find a specific user's default view for a grid
- *
- * ### findForMember
- * Find all views available to a member (system defaults + their own)
- *
- * ## Usage Examples
- *
- * ### Loading Views for a Grid
- * ```php
- * $views = $this->GridViews->findByGrid('Members.index.main', $member)
- *     ->all();
- * ```
- *
- * ### Setting a User Default
- * ```php
- * $this->GridViews->setUserDefault($viewId, $memberId, 'Members.index.main');
- * ```
- *
- * ### Getting Effective View
- * ```php
- * $view = $this->GridViews->getEffectiveView(
- *     'Members.index.main',
- *     $member,
- *     $requestedViewId
- * );
- * ```
+ * Provides CRUD for saved grid views with Dataverse-style view management.
+ * Supports system defaults, user defaults, and view priority resolution.
  *
  * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $Members
- * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $Creators
- * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $Modifiers
- *
  * @method \App\Model\Entity\GridView newEmptyEntity()
- * @method \App\Model\Entity\GridView newEntity(array $data, array $options = [])
- * @method array<\App\Model\Entity\GridView> newEntities(array $data, array $options = [])
- * @method \App\Model\Entity\GridView get(mixed $primaryKey, array|string $finder = 'all', \Psr\SimpleCache\CacheInterface|string|null $cache = null, \Closure|string|null $cacheKey = null, mixed ...$args)
- * @method \App\Model\Entity\GridView findOrCreate($search, ?callable $callback = null, array $options = [])
- * @method \App\Model\Entity\GridView patchEntity(\Cake\Datasource\EntityInterface $entity, array $data, array $options = [])
- * @method array<\App\Model\Entity\GridView> patchEntities(iterable $entities, array $data, array $options = [])
- * @method \App\Model\Entity\GridView|false save(\Cake\Datasource\EntityInterface $entity, array $options = [])
- * @method \App\Model\Entity\GridView saveOrFail(\Cake\Datasource\EntityInterface $entity, array $options = [])
+ * @method \App\Model\Entity\GridView get(mixed $primaryKey, array|string $finder = 'all', ...)
  */
 class GridViewsTable extends BaseTable
 {

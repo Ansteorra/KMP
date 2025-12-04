@@ -8,50 +8,10 @@ use Cake\Datasource\ConnectionManager;
 use Cake\TestSuite\TestCase;
 
 /**
- * BaseTestCase
+ * BaseTestCase - Base class for all KMP tests.
  *
- * Base test case class for all KMP tests. Provides:
- * - Automatic database transaction wrapping for test isolation
- * - Centralized test data ID constants from dev_seed_clean.sql
- * - Common helper methods for testing
- *
- * ## Transaction Isolation
- *
- * All tests automatically run within a database transaction that is
- * rolled back after each test completes. This ensures:
- * - Tests start with clean state from dev_seed_clean.sql
- * - Tests don't affect each other
- * - No need to reset database between tests
- * - Fast test execution
- *
- * ## Test Data Constants
- *
- * Use these constants instead of hardcoding IDs in tests.
- * These IDs are stable in dev_seed_clean.sql.
- *
- * Example:
- * ```php
- * $member = $this->Members->get(self::ADMIN_MEMBER_ID);
- * $branch = $this->Branches->get(self::KINGDOM_BRANCH_ID);
- * ```
- *
- * ## Usage
- *
- * ```php
- * use App\Test\TestCase\BaseTestCase;
- *
- * class MembersTableTest extends BaseTestCase
- * {
- *     public function testFindActive(): void
- *     {
- *         $members = $this->getTableLocator()->get('Members');
- *         $active = $members->find('active')->toArray();
- *         $this->assertNotEmpty($active);
- *     }
- * }
- * ```
- *
- * @uses \Cake\TestSuite\TestCase
+ * Provides automatic database transaction wrapping for test isolation and
+ * centralized test data ID constants from dev_seed_clean.sql.
  */
 abstract class BaseTestCase extends TestCase
 {
@@ -198,11 +158,7 @@ abstract class BaseTestCase extends TestCase
     }
 
     /**
-     * Start a database transaction for test isolation
-     *
-     * This wraps all database operations in a transaction that will be
-     * rolled back after the test completes, ensuring tests don't affect
-     * each other.
+     * Start a database transaction for test isolation.
      *
      * @return void
      */
@@ -216,10 +172,7 @@ abstract class BaseTestCase extends TestCase
     }
 
     /**
-     * Rollback the database transaction
-     *
-     * This undoes all database changes made during the test, returning
-     * the database to its initial state from dev_seed_clean.sql.
+     * Rollback the database transaction.
      *
      * @return void
      */
@@ -232,19 +185,7 @@ abstract class BaseTestCase extends TestCase
     }
 
     /**
-     * Disable automatic transaction wrapping for this test
-     *
-     * Call this method in your test's setUp() if you need to test
-     * transaction behavior or need multiple transactions.
-     *
-     * Example:
-     * ```php
-     * protected function setUp(): void
-     * {
-     *     parent::setUp();
-     *     $this->disableTransactions();
-     * }
-     * ```
+     * Disable automatic transaction wrapping for this test.
      *
      * @return void
      */

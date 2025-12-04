@@ -7,119 +7,21 @@ namespace App\Model\Entity;
 use Cake\ORM\Entity;
 
 /**
- * GridView Entity - Represents a saved grid view configuration
+ * GridView Entity - Saved grid view configuration.
  *
- * GridView entities encapsulate user-specific or system-wide grid configurations,
- * including filters, sorting, column visibility, and pagination preferences.
- * These views enable a Dataverse-style user experience where grid states can be
- * saved, shared, and reused across sessions.
- *
- * ## Core Properties
- *
- * ### Identity and Ownership
- * - **id**: Primary key
- * - **grid_key**: Unique identifier for the grid (e.g., 'Members.index.main')
- * - **member_id**: Owner of the view (NULL for system defaults)
- * - **name**: User-friendly display name
- *
- * ### View Behavior
- * - **is_default**: Whether this is the user's preferred default for this grid
- * - **is_system_default**: Whether this is the application-wide default (requires member_id = NULL)
- * - **config**: JSON containing the complete view configuration
- *
- * ### Audit Trail
- * - **created/modified**: Timestamps for tracking changes
- * - **created_by/modified_by**: Member references for audit
- * - **deleted**: Soft delete support via Trash behavior
- *
- * ## Config Structure
- *
- * The `config` property contains a JSON object with the following structure:
- *
- * ```json
- * {
- *   "filters": [
- *     {"field": "status", "operator": "eq", "value": "active"},
- *     {"field": "branch_id", "operator": "in", "value": [1, 2, 3]}
- *   ],
- *   "sort": [
- *     {"field": "last_name", "direction": "asc"}
- *   ],
- *   "columns": [
- *     {"key": "sca_name", "visible": true},
- *     {"key": "email_address", "visible": true},
- *     {"key": "phone", "visible": false}
- *   ],
- *   "pageSize": 50
- * }
- * ```
- *
- * ## Validation Rules
- *
- * - Only one `is_system_default = true` per `grid_key`
- * - System defaults must have `member_id = NULL`
- * - Only one `is_default = true` per (`grid_key`, `member_id`) combination
- * - `config` must be valid JSON matching the expected schema
- *
- * ## Usage Examples
- *
- * ### Creating a User View
- * ```php
- * $view = $gridViewsTable->newEntity([
- *     'grid_key' => 'Members.index.main',
- *     'member_id' => $currentUser->id,
- *     'name' => 'Active Officers',
- *     'is_default' => false,
- *     'config' => json_encode([
- *         'filters' => [
- *             ['field' => 'status', 'operator' => 'eq', 'value' => 'active']
- *         ],
- *         'sort' => [
- *             ['field' => 'last_name', 'direction' => 'asc']
- *         ],
- *         'columns' => [
- *             ['key' => 'sca_name', 'visible' => true],
- *             ['key' => 'email_address', 'visible' => true]
- *         ],
- *         'pageSize' => 25
- *     ])
- * ]);
- * ```
- *
- * ### Creating a System Default
- * ```php
- * $systemDefault = $gridViewsTable->newEntity([
- *     'grid_key' => 'Members.index.main',
- *     'member_id' => null,
- *     'name' => 'System Default',
- *     'is_system_default' => true,
- *     'config' => json_encode([...])
- * ]);
- * ```
- *
- * ### Accessing Config as Array
- * ```php
- * $configArray = $view->getConfigArray();
- * $filters = $configArray['filters'] ?? [];
- * $sort = $configArray['sort'] ?? [];
- * ```
+ * Stores user-specific or system-wide grid configurations including
+ * filters, sorting, column visibility, and pagination.
  *
  * @property int $id
- * @property string $grid_key
- * @property int|null $member_id
- * @property string $name
- * @property bool $is_default
- * @property bool $is_system_default
- * @property string $config
+ * @property string $grid_key Grid identifier (e.g., 'Members.index.main')
+ * @property int|null $member_id Owner (NULL for system defaults)
+ * @property string $name Display name
+ * @property bool $is_default User's preferred default
+ * @property bool $is_system_default Application-wide default
+ * @property string $config JSON configuration
  * @property \Cake\I18n\DateTime $created
  * @property \Cake\I18n\DateTime $modified
- * @property int|null $created_by
- * @property int|null $modified_by
- * @property \Cake\I18n\DateTime|null $deleted
- *
  * @property \App\Model\Entity\Member $member
- * @property \App\Model\Entity\Member $creator
- * @property \App\Model\Entity\Member $modifier
  */
 class GridView extends Entity
 {

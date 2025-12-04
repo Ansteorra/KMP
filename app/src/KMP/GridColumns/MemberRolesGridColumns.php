@@ -122,7 +122,7 @@ class MemberRolesGridColumns extends BaseGridColumns
             'status' => [
                 'key' => 'status',
                 'label' => 'Status',
-                'type' => 'badge',
+                'type' => 'string',
                 'sortable' => true,
                 'filterable' => true,
                 'filterType' => 'dropdown',

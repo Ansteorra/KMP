@@ -1198,7 +1198,7 @@ class GatheringWaiversController extends AppController
         $currentUser = $this->Authentication->getIdentity();
 
         // Get branches user can upload waivers for
-        $branchIds = $currentUser->getBranchIdsForAction('add', 'Waivers.GatheringWaivers');
+        $branchIds = $currentUser->getBranchIdsForAction('upload', 'Waivers.GatheringWaivers');
 
         // If user has no branch permissions, show empty list
         if ($branchIds === null) {

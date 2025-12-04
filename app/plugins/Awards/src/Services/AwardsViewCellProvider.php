@@ -11,102 +11,15 @@ use App\Services\ViewCellRegistry;
 use Cake\ORM\TableRegistry;
 
 /**
- * Awards View Cell Provider
+ * Provides view cell integration for the Awards plugin.
  * 
- * Provides comprehensive view cell integration for the Awards plugin with multi-format support
- * and route-based visibility. This service manages view cell registration, integration contexts,
- * and ViewCellRegistry patterns for award recommendation display across member profiles and
- * administrative interfaces.
+ * Manages view cell registration for member profiles, gathering activities,
+ * and gathering views with route-based visibility and permission checking.
  * 
- * The view cell provider implements the plugin view cell architecture with context-aware
- * registration, route-based visibility, and multi-format support for various display contexts
- * including member profiles, administrative interfaces, and mobile API endpoints.
- * 
- * ## View Cell Architecture
- * 
- * The provider implements structured view cell registration:
- * - **Context-Aware Registration**: Registers view cells based on request context and user permissions
- * - **Route-Based Visibility**: Configures view cells with specific route requirements and visibility rules
- * - **Multi-Format Support**: Provides view cells for web interfaces, mobile APIs, and administrative contexts
- * - **Plugin Integration**: Coordinates with ViewCellRegistry for centralized view cell management
- * 
- * ## View Cell Types
- * 
- * The provider manages multiple view cell categories:
- * - **Member Recommendations**: Display of award recommendations associated with member profiles
- * - **Award Hierarchies**: Visualization of award structure and recommendation relationships
- * - **JSON API Endpoints**: Structured data provision for mobile applications and AJAX interfaces
- * - **Administrative Views**: Specialized view cells for administrative oversight and management
- * 
- * ## Integration Contexts
- * 
- * View cells are configured for multiple integration contexts:
- * - **Member Profiles**: Integration with member profile views for recommendation display
- * - **Award Management**: Administrative interfaces for award and recommendation management
- * - **Mobile API Support**: JSON endpoints for mobile application data consumption
- * - **Dashboard Integration**: Widget support for dashboard and summary displays
- * 
- * ## Performance Considerations
- * 
- * The provider implements performance optimization:
- * - **Plugin Availability Checking**: Early return for disabled plugins to avoid unnecessary processing
- * - **Lazy Loading Patterns**: View cells are registered but not instantiated until needed
- * - **Context Filtering**: Only relevant view cells are registered based on request context
- * - **Route Optimization**: Efficient route matching for view cell visibility determination
- * 
- * ## Usage Examples
- * 
- * ### Basic View Cell Registration
- * ```php
- * // In view cell registration services
- * $user = $this->getCurrentUser();
- * $urlParams = $this->request->getParam();
- * $viewCells = AwardsViewCellProvider::getViewCells($urlParams, $user);
- * 
- * foreach ($viewCells as $cellConfig) {
- *     ViewCellRegistry::register($cellConfig);
- * }
- * ```
- * 
- * ### Plugin Integration
- * ```php
- * // In main application view cell loading
- * if (StaticHelpers::pluginEnabled('Awards')) {
- *     $awardsCells = AwardsViewCellProvider::getViewCells($urlParams, $user);
- *     $this->mergeViewCells($awardsCells);
- * }
- * ```
- * 
- * ### API Endpoint Integration
- * ```php
- * // For mobile API responses
- * $viewCells = AwardsViewCellProvider::getViewCells($urlParams, $user);
- * $jsonData = [];
- * 
- * foreach ($viewCells as $cell) {
- *     if ($cell['type'] === ViewCellRegistry::PLUGIN_TYPE_JSON) {
- *         $jsonData[$cell['id']] = $this->cell($cell['cell']);
- *     }
- * }
- * ```
- * 
- * ### Mobile Application Support
- * ```php
- * // Mobile app integration example
- * $mobileViewCells = array_filter($viewCells, function($cell) {
- *     return isset($cell['mobileSupport']) && $cell['mobileSupport'] === true;
- * });
- * 
- * $mobileResponse = [
- *     'member_recommendations' => $this->cell('Awards.MemberSubmittedRecs'),
- *     'received_recommendations' => $this->cell('Awards.RecsForMember')
- * ];
- * ```
- * 
- * @see \App\Services\ViewCellRegistry Centralized view cell management system
- * @see \App\KMP\StaticHelpers Plugin availability and configuration management
- * @see \Awards\View\Cell\MemberSubmittedRecsCell Member submitted recommendations view cell
- * @see \Awards\View\Cell\RecsForMemberCell Member received recommendations view cell
+ * @see \App\Services\ViewCellRegistry Centralized view cell management
+ * @see \Awards\View\Cell\MemberSubmittedRecsCell Member submitted recommendations
+ * @see \Awards\View\Cell\RecsForMemberCell Member received recommendations
+ * @see /docs/5.2.17-awards-services.md Full documentation
  */
 class AwardsViewCellProvider
 {

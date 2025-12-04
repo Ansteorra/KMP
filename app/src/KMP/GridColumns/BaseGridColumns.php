@@ -5,60 +5,13 @@ declare(strict_types=1);
 namespace App\KMP\GridColumns;
 
 /**
- * Base Grid Columns Class
+ * Base class for grid column metadata definitions.
  *
- * Provides common helper methods for grid column metadata classes.
- * Grid-specific column classes should extend this class and implement
- * the getColumns() method to define their column metadata.
+ * Provides common helper methods for querying column metadata.
+ * Grid-specific classes extend this and implement getColumns().
  *
- * ## Usage
- *
- * ```php
- * class MyGridColumns extends BaseGridColumns
- * {
- *     public static function getColumns(): array
- *     {
- *         return [
- *             'id' => [
- *                 'key' => 'id',
- *                 'label' => 'ID',
- *                 'type' => 'number',
- *                 'sortable' => true,
- *                 'defaultVisible' => true,
- *                 'exportable' => true,  // Optional: false to exclude from CSV export
- *             ],
- *             // ... more columns
- *         ];
- *     }
- * }
- * ```
- *
- * ## Column Configuration
- *
- * ### Required Properties
- * - `key` (string): Unique column identifier
- * - `label` (string): Display label for column header
- * - `type` (string): Column type (string, number, date, boolean, relation, actions, etc.)
- *
- * ### Optional Properties
- * - `sortable` (bool): Whether column can be sorted (default: true)
- * - `filterable` (bool): Whether column can be filtered (default: false)
- * - `searchable` (bool): Whether column is included in text search (default: false)
- * - `defaultVisible` (bool): Whether column is visible by default (default: false)
- * - `exportable` (bool): Whether column is included in CSV export (default: true)
- * - `required` (bool): Whether column cannot be hidden (default: false)
- * - `width` (string): CSS width value (e.g., '100px', '20%')
- * - `alignment` (string): Text alignment (left, center, right)
- *
- * ### Special Properties
- * - `queryField` (string): For SQL queries - uses capitalized table aliases (e.g., 'Members.sca_name', 'Branches.name')
- * - `renderField` (string): For entity property access - uses lowercase association names (e.g., 'member.sca_name', 'branch.name')
- * - `filterType` (string): Type of filter UI (dropdown, date-range)
- * - `filterOptions` (array): Options for dropdown filters
- *
- * ### Field Naming Convention
- * - **queryField**: Used in SQL SELECT, WHERE, and ORDER BY clauses. Must match CakePHP table aliases (capitalized).
- * - **renderField**: Used to access entity properties for display. Uses entity association names (lowercase).
+ * @see /app/docs/dataverse-grid-field-naming.md For field naming conventions
+ * @see /app/docs/dataverse-grid-feature-flags.md For grid configuration
  */
 abstract class BaseGridColumns
 {

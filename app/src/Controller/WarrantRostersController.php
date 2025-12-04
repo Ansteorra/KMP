@@ -41,18 +41,8 @@ class WarrantRostersController extends AppController
     /**
      * Index method - Main warrant roster dashboard
      *
-     * Provides the main warrant roster management interface with navigation to
-     * different roster states and administrative controls. This method serves as
-     * the primary entry point for warrant roster management operations.
-     *
-     * ## Dashboard Features
-     * - **Roster State Navigation**: Links to pending, approved, and declined rosters
-     * - **Administrative Controls**: Access to roster creation and management tools
-     * - **Quick Statistics**: Overview of roster counts and approval status
-     *
-     * ## Authorization
-     * Authorization is handled automatically through the model authorization
-     * configured in initialize(), ensuring proper access control.
+     * Simple index page that renders the dv_grid element.
+     * The grid lazy-loads actual data via the gridData action.
      *
      * @return \Cake\Http\Response|null|void Renders view
      */
@@ -110,7 +100,7 @@ class WarrantRostersController extends AppController
             'canExportCsv' => false,
             'canFilter' => true,
             'lockedFilters' => ['status'],
-            'showFilterPills' => true,
+            'showFilterPills' => false,
         ]);
 
         // Handle CSV export

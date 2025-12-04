@@ -9,100 +9,15 @@ use App\KMP\StaticHelpers;
 use Awards\Model\Entity\Recommendation;
 
 /**
- * Awards Navigation Provider
+ * Provides navigation integration for the Awards plugin.
  * 
- * Provides comprehensive navigation integration for the Awards plugin with dynamic badge support
- * and permission-based visibility. This service generates navigation items for award recommendation
- * workflows, administrative tools, configuration management, and reporting capabilities.
+ * Generates navigation items for award recommendation workflows, administrative tools,
+ * configuration management, and reporting. Creates dynamic status-based navigation
+ * items for each recommendation workflow state.
  * 
- * The navigation provider implements the plugin navigation architecture with workflow integration,
- * dynamic content generation, and plugin state management. It creates hierarchical navigation
- * structures with category organization, real-time badge updates, and Bootstrap Icons integration.
- * 
- * ## Navigation Architecture
- * 
- * The navigation provider implements structured navigation generation:
- * - **Workflow Integration**: Creates navigation items for recommendation workflows and approval processes
- * - **Dynamic Content**: Generates navigation with real-time status information and queue counts
- * - **Plugin State Management**: Checks plugin availability and generates appropriate navigation structure
- * - **Hierarchical Organization**: Creates parent-child navigation relationships with merge path support
- * 
- * ## Navigation Categories
- * 
- * The provider generates navigation for multiple functional areas:
- * - **Recommendation Workflows**: Navigation for recommendation submission, approval, and management
- * - **Administrative Tools**: Access to configuration management, domain/level administration, and awards setup
- * - **Configuration Management**: Navigation for award domains, levels, awards configuration, and event management
- * - **Reporting**: Integration points for recommendation analytics and award reporting
- * 
- * ## Dynamic Badge System
- * 
- * The navigation provider implements real-time badge support:
- * - **Status-Based Navigation**: Creates navigation items for each recommendation status with filtering
- * - **Queue Counts**: Provides integration points for real-time recommendation queue notifications
- * - **Visual Indicators**: Uses Bootstrap Icons for consistent visual navigation representation
- * - **Workflow Visibility**: Displays workflow progress and pending items through navigation badges
- * 
- * ## Usage Examples
- * 
- * ### Basic Navigation Generation
- * ```php
- * // In navigation building services
- * $user = $this->getCurrentUser();
- * $navigationItems = AwardsNavigationProvider::getNavigationItems($user, $requestParams);
- * 
- * foreach ($navigationItems as $item) {
- *     $this->addNavigationItem($item);
- * }
- * ```
- * 
- * ### Plugin Integration
- * ```php
- * // In main application navigation
- * if (StaticHelpers::pluginEnabled('Awards')) {
- *     $awardsNav = AwardsNavigationProvider::getNavigationItems($user);
- *     $this->mergeNavigationItems($awardsNav);
- * }
- * ```
- * 
- * ### Dynamic Badge Display
- * ```php
- * // The provider creates status-based navigation with filtering
- * // Each recommendation status gets its own navigation item with:
- * [
- *     "type" => "link",
- *     "mergePath" => ["Award Recs.", "Recommendations"],
- *     "label" => $statusKey,  // Dynamic status name
- *     "url" => [
- *         "?" => [
- *             "status" => $statusKey,  // Status-based filtering
- *             "view" => $statusKey,
- *         ],
- *     ],
- *     "icon" => "bi-file-earmark-check",
- * ]
- * ```
- * 
- * ### Permission-Based Filtering
- * ```php
- * // Navigation items are automatically filtered based on plugin availability
- * // Additional authorization can be applied at the controller level
- * $filteredNavigation = array_filter($navigationItems, function($item) {
- *     return $this->Authorization->can($user, $item['action'], $item['controller']);
- * });
- * ```
- * 
- * ## Integration Points
- * 
- * - **StaticHelpers**: Plugin availability checking and configuration management
- * - **Recommendation System**: Status-based navigation generation and workflow integration
- * - **Bootstrap Icons**: Consistent icon usage for visual navigation representation
- * - **URL Generation**: CakePHP URL array format for route generation and active path detection
- * 
- * @see \App\KMP\StaticHelpers Plugin availability and configuration management
- * @see \Awards\Model\Entity\Recommendation Recommendation status definitions and workflow states
- * @see \App\Services\NavigationManager Main navigation system integration
- * 
+ * @see \App\KMP\StaticHelpers Plugin availability checking
+ * @see \Awards\Model\Entity\Recommendation Recommendation status definitions
+ * @see /docs/5.2.17-awards-services.md Full documentation
  */
 class AwardsNavigationProvider
 {

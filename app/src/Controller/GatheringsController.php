@@ -390,42 +390,14 @@ class GatheringsController extends AppController
     /**
      * All gatherings method - Filtered gathering listing with export capability
      *
-     * Provides comprehensive gathering listing with temporal filtering, pagination,
-     * and CSV export functionality. This method handles the core gathering management
-     * interface with optimized queries and user-friendly filtering options.
-     *
-     * ### Temporal State Filtering
-     * Supports four distinct gathering states:
-     * - **this_month**: Gatherings occurring in the current calendar month
-     * - **next_month**: Gatherings occurring in the next calendar month
-     * - **future**: Gatherings occurring after next month
-     * - **previous**: Past gatherings that have ended before this month
-     *
-     * ### Query Optimization
-     * Implements efficient database queries with proper association loading
-     * and date-based filtering for performance.
-     *
-     * ### CSV Export Integration
-     * Provides memory-efficient CSV export:
-     * - Streaming export handles large datasets without memory issues
-     * - Optimized fields for performance
-     * - Sorted output by gathering start date for usability
-     * - Security: Same authorization rules apply to export functionality
-     *
-     * ### Authorization and Security
-     * - Entity authorization for permission checking
-     * - State validation for filter parameters
-     * - Access control for gathering management permissions
-     *
-     * ### Error Handling
-     * - Invalid state throws NotFoundException
-     * - Authorization failure handled properly
-     * - Database errors handled gracefully
+     * Provides gathering listing with temporal filtering (this_month, next_month, future, previous),
+     * pagination, and CSV export. Uses user timezone for accurate month boundary calculations.
      *
      * @param \App\Services\CsvExportService $csvExportService CSV export service
      * @param string $state Temporal filter state (this_month|next_month|future|previous)
      * @return \Cake\Http\Response|null|void Renders gathering list or returns CSV export
      * @throws \Cake\Http\Exception\NotFoundException When invalid state provided
+     * @see /docs/4.6-gatherings-system.md For complete gatherings documentation
      */
     public function allGatherings(CsvExportService $csvExportService, $state)
     {

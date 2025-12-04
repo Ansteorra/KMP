@@ -78,7 +78,7 @@ class WaiverTypesController extends AppController
             'showAllTab' => false,
             'canAddViews' => false,
             'canFilter' => true,
-            'canExportCsv' => true,
+            'canExportCsv' => false,
         ]);
 
         // Post-process data to add computed fields

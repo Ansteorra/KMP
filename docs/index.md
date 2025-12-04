@@ -14,7 +14,7 @@ layout: default
 | 1.3 System Requirements | PHP 8.0+, MySQL, etc. |
 | **2. [Getting Started](2-getting-started.md)** | |
 | 2.1 Installation | Setting up development environment |
-| 2.2 Configuration | Configuration files and database setup |
+| **2.2 [Configuration](2-configuration.md)** | **NEW** Application configuration overview |
 | 2.3 CakePHP Basics | Brief overview of CakePHP framework |
 | **3. [Architecture](3-architecture.md)** | |
 | **3.1 [Core Foundation Architecture](3.1-core-foundation-architecture.md)** | Application bootstrap, middleware stack, security architecture |
@@ -46,6 +46,7 @@ layout: default
 | **6. [Services](6-services.md)** | Service layer architecture and implementations |
 | **6.2 [Authorization Helpers](6.2-authorization-helpers.md)** | getBranchIdsForAction() and permission helper methods |
 | **6.3 [Email Template Management](6.3-email-template-management.md)** | Database-driven email template system with WYSIWYG editor |
+| **6.4 [Caching Strategy](6.4-caching-strategy.md)** | **NEW** Multi-tier caching architecture and performance tuning |
 | **7. [Development Workflow](7-development-workflow.md)** | |
 | **7.1 [Security Best Practices](7.1-security-best-practices.md)** | Security configuration, testing, and audit findings |
 | 7.2 Coding Standards | PHP and JavaScript coding standards |
@@ -53,19 +54,21 @@ layout: default
 | **7.4 [Security Debug Information](7.4-security-debug-information.md)** | Authorization tracking and debug display for development |
 | 7.5 Git Workflow | Version control workflow |
 | **8. [Deployment](8-deployment.md)** | |
-| 8.1 Production Setup | Server setup and configuration |
+| **8.1 [Environment Setup](8.1-environment-setup.md)** | **NEW** Environment variables reference and configuration |
 | 8.2 Migrations | Database migration handling |
 | 8.3 Updates | Application update procedures |
-| **8.1 [Development Workflow (Alternative)](8-development-workflow.md)** | Additional development workflow documentation |
+| **8.2 [Development Workflow (Alternative)](8-development-workflow.md)** | Additional development workflow documentation |
 | **9. [UI Components](9-ui-components.md)** | |
 | **9.1 [Dataverse Grid System](9.1-dataverse-grid-system.md)** | Modern data table system with views, filters, sorting, and export |
-| 9.2 Layouts | Template layouts and structure |
-| 9.3 View Helpers | Custom view helpers |
-| 9.4 Frontend Libraries | JavaScript and CSS libraries |
+| **9.2 [Bootstrap Icons](9.2-bootstrap-icons.md)** | **NEW** Bootstrap Icons integration and usage |
+| 9.3 Layouts | Template layouts and structure |
+| 9.4 View Helpers | Custom view helpers |
+| 9.5 Frontend Libraries | JavaScript and CSS libraries |
 | **10. [JavaScript Development](10-javascript-development.md)** | |
 | **10.1 [JavaScript Framework](10.1-javascript-framework.md)** | Detailed Stimulus.JS framework implementation |
 | **10.2 [QR Code Controller](10.2-qrcode-controller.md)** | QR code generation with Stimulus and npm packages |
 | **10.3 [Timezone Handling](10.3-timezone-handling.md)** | Timezone conversion, display, and storage patterns |
+| **10.4 [Asset Management](10.4-asset-management.md)** | **NEW** Asset compilation, versioning, and optimization |
 | **11. [Extending KMP](11-extending-kmp.md)** | |
 | 11.1 Creating Plugins | How to create plugins for extending KMP |
 | 11.2 Navigation and Event System | How to add Navigation from a plugin and inject Plugin UI into Core Pages |
@@ -90,18 +93,36 @@ For developers new to KMP:
 2. **Review [Architecture](3-architecture.md)** to understand the system structure
 3. **Explore [Core Modules](4-core-modules.md)** to learn about the main functionality
 4. **Check [Development Workflow](7-development-workflow.md)** for coding standards and practices
+5. **For configuration questions, see [Configuration](2-configuration.md)** and **[Environment Setup](8.1-environment-setup.md)**
+
+## Recent Documentation Updates
+
+**December 2025 - Configuration Documentation Migration**
+
+The following documentation has been newly created or significantly expanded:
+
+- ✅ **[2-configuration.md](2-configuration.md)** - Comprehensive application configuration guide
+- ✅ **[8.1-environment-setup.md](8.1-environment-setup.md)** - Environment variables reference (complete)
+- ✅ **[6.4-caching-strategy.md](6.4-caching-strategy.md)** - Multi-tier caching strategy and tuning
+- ✅ **[10.4-asset-management.md](10.4-asset-management.md)** - Asset compilation and optimization
+- ✅ **[9.2-bootstrap-icons.md](9.2-bootstrap-icons.md)** - Bootstrap Icons integration
+- ✅ **[7.1-security-best-practices.md](7.1-security-best-practices.md)** - Expanded with session and encryption docs
+- ✅ **[4.7-document-management-system.md](4.7-document-management-system.md)** - Expanded with storage configuration
+- ✅ **[app/config/app.php](../app/config/app.php)** - Cleaned up, reduced documentation bloat by 45%
+
+See **[DOCUMENTATION_MIGRATION_SUMMARY.md](DOCUMENTATION_MIGRATION_SUMMARY.md)** for complete details on the migration.
 
 ## Documentation Status
 
 This documentation is actively maintained and reflects the current state of the KMP codebase as of December 2025. Each section has been fact-checked against the actual source code to ensure accuracy.
 
-**Recent Updates (December 2025):**
-- ✅ Dataverse Grid System documentation added (9.1)
-- ✅ Documentation cleanup - inline comments trimmed across JS controllers
-- ✅ Gatherings system expanded with staff management, calendar downloads, public pages
-- ✅ Security best practices consolidated from penetration testing and configuration audits
-- ✅ QR code controller documented with npm package integration
-- ✅ All new features validated against source code implementation
+**Verified Recent Updates:**
+- ✅ All new documentation validated against actual code configuration
+- ✅ Bootstrap Icons version confirmed: 1.13.1
+- ✅ Cache engine confirmed: APCu
+- ✅ Session timeout confirmed: 30 minutes with secure settings
+- ✅ Database driver confirmed: MySQL/MariaDB
+- ✅ Document storage confirmed: Local and Azure support
 
 ## Contributing
 

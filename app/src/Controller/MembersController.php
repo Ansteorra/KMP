@@ -95,7 +95,7 @@ class MembersController extends AppController
             'showAllTab' => false,
             'canAddViews' => false,
             'canFilter' => true,
-            'canExportCsv' => true,
+            'canExportCsv' => false,
         ]);
 
         // Handle CSV export

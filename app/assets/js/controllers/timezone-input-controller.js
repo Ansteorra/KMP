@@ -2,81 +2,36 @@ import { Controller } from "@hotwired/stimulus";
 
 /**
  * Timezone Input Controller
- * 
- * Automatically handles timezone conversion for datetime-local inputs.
- * Converts UTC values from server to user's local timezone for display/editing,
- * and converts back to UTC before form submission.
- * 
- * ## Usage
- * 
- * ### Basic Auto-Conversion
- * ```html
+ *
+ * Automatically converts datetime-local inputs between user's local timezone
+ * and UTC storage. Converts UTC values to local time on page load, and converts
+ * back to UTC before form submission.
+ *
+ * See /docs/10.3.2-timezone-input-controller.md for complete documentation.
+ *
+ * @example
  * <form data-controller="timezone-input">
- *   <input type="datetime-local" 
+ *   <input type="datetime-local"
  *          name="start_date"
  *          data-timezone-input-target="datetimeInput"
  *          data-utc-value="2025-03-15T14:30:00Z">
  * </form>
- * ```
- * 
- * ### Custom Timezone
- * ```html
- * <form data-controller="timezone-input" data-timezone-input-timezone-value="America/New_York">
- *   <input type="datetime-local" 
- *          name="start_date"
- *          data-timezone-input-target="datetimeInput"
- *          data-utc-value="2025-03-15T14:30:00Z">
- * </form>
- * ```
- * 
- * ### With Timezone Notice
- * ```html
- * <form data-controller="timezone-input">
- *   <input type="datetime-local" 
- *          name="start_date"
- *          data-timezone-input-target="datetimeInput"
- *          data-utc-value="2025-03-15T14:30:00Z">
- *   
- *   <!-- Timezone notice will be auto-populated -->
- *   <small data-timezone-input-target="notice" class="text-muted"></small>
- * </form>
- * ```
- * 
- * ## Features
- * - Automatic timezone detection from browser
- * - Converts UTC to local time on page load
- * - Converts local time back to UTC on form submit
- * - Shows timezone notice to user
- * - Handles multiple datetime inputs in one form
- * - Preserves original values for form reset
- * 
- * ## Targets
- * - `datetimeInput` - datetime-local inputs to convert (required)
- * - `notice` - Elements to populate with timezone info (optional)
- * 
- * ## Values
- * - `timezone` - Override timezone (default: browser detected)
- * - `showNotice` - Show timezone notice (default: true)
- * 
- * ## Actions
- * - `submit` - Converts all inputs to UTC before form submission
- * - `reset` - Restores original local values on form reset
  */
 class TimezoneInputController extends Controller {
     static targets = ["datetimeInput", "notice"]
-    
+
     static values = {
         timezone: String,
         showNotice: { type: Boolean, default: true }
     }
 
     /**
-     * Initialize controller and convert UTC values to local time
+     * Initialize controller - detect timezone and convert UTC to local time
      */
     connect() {
         // Get or detect timezone
-        this.timezone = this.hasTimezoneValue ? 
-            this.timezoneValue : 
+        this.timezone = this.hasTimezoneValue ?
+            this.timezoneValue :
             KMP_Timezone.detectTimezone();
 
         // Convert all UTC values to local time for display
@@ -93,26 +48,27 @@ class TimezoneInputController extends Controller {
 
         // Attach submit handler
         this.element.addEventListener('submit', this._handleSubmit);
-        
+
         // Attach reset handler
         this.element.addEventListener('reset', this._handleReset);
     }
 
     /**
      * Convert UTC values to local timezone for input display
+     * Stores original and local values in data attributes for reset
      */
     convertUtcToLocal() {
         this.datetimeInputTargets.forEach(input => {
             const utcValue = input.dataset.utcValue;
-            
+
             if (utcValue) {
                 // Convert UTC to local time for input
                 const localValue = KMP_Timezone.toLocalInput(utcValue, this.timezone);
                 input.value = localValue;
-                
+
                 // Store original UTC value for reference
                 input.dataset.originalUtc = utcValue;
-                
+
                 // Store converted local value for reset
                 input.dataset.localValue = localValue;
             }
@@ -125,36 +81,35 @@ class TimezoneInputController extends Controller {
     updateNotice() {
         const abbr = KMP_Timezone.getAbbreviation(this.timezone);
         const noticeText = `Times shown in ${this.timezone} (${abbr})`;
-        
+
         this.noticeTargets.forEach(notice => {
             notice.innerHTML = `<i class="bi bi-clock"></i> ${noticeText}`;
         });
     }
 
     /**
-     * Handle form submission - convert local times to UTC
-     * 
-     * @param {Event} event - Submit event
+     * Handle form submission - convert local times to UTC and create hidden inputs
+     * @param {Event} event
      */
     handleSubmit(event) {
         this.datetimeInputTargets.forEach(input => {
             if (input.value) {
                 // Convert local time to UTC
                 const utcValue = KMP_Timezone.toUTC(input.value, this.timezone);
-                
+
                 // Store original local value for potential reset
                 input.dataset.submittedLocal = input.value;
-                
+
                 // Create hidden input with UTC value
                 const hiddenInput = document.createElement('input');
                 hiddenInput.type = 'hidden';
                 hiddenInput.name = input.name;
                 hiddenInput.value = utcValue;
                 hiddenInput.dataset.timezoneConverted = 'true';
-                
+
                 // Disable original input so it doesn't submit
                 input.disabled = true;
-                
+
                 // Add hidden input to form
                 this.element.appendChild(hiddenInput);
             }
@@ -162,9 +117,8 @@ class TimezoneInputController extends Controller {
     }
 
     /**
-     * Handle form reset - restore local values
-     * 
-     * @param {Event} event - Reset event
+     * Handle form reset - remove hidden inputs and restore original local values
+     * @param {Event} event
      */
     handleReset(event) {
         // Remove any hidden UTC inputs
@@ -174,7 +128,7 @@ class TimezoneInputController extends Controller {
         // Re-enable and restore datetime inputs
         this.datetimeInputTargets.forEach(input => {
             input.disabled = false;
-            
+
             // Restore to original local value
             if (input.dataset.localValue) {
                 setTimeout(() => {
@@ -185,16 +139,15 @@ class TimezoneInputController extends Controller {
     }
 
     /**
-     * Manually update timezone (called if timezone changes)
-     * 
-     * @param {string} newTimezone - New IANA timezone identifier
+     * Manually update timezone and re-convert all values
+     * @param {string} newTimezone - IANA timezone identifier
      */
     updateTimezone(newTimezone) {
         this.timezone = newTimezone;
-        
+
         // Re-convert all values with new timezone
         this.convertUtcToLocal();
-        
+
         // Update notice if shown
         if (this.showNoticeValue && this.hasNoticeTarget) {
             this.updateNotice();
@@ -203,15 +156,14 @@ class TimezoneInputController extends Controller {
 
     /**
      * Get current timezone being used
-     * 
-     * @returns {string} Current timezone identifier
+     * @returns {string} Current IANA timezone identifier
      */
     getTimezone() {
         return this.timezone;
     }
 
     /**
-     * Cleanup on disconnect
+     * Cleanup on disconnect - remove event listeners and prevent memory leaks
      */
     disconnect() {
         // Remove event listeners using cached references
@@ -219,7 +171,7 @@ class TimezoneInputController extends Controller {
             this.element.removeEventListener('submit', this._handleSubmit);
             this._handleSubmit = null;
         }
-        
+
         if (this._handleReset) {
             this.element.removeEventListener('reset', this._handleReset);
             this._handleReset = null;

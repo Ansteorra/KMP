@@ -20,62 +20,17 @@ use Awards\Services\AwardsViewCellProvider;
 use App\KMP\StaticHelpers;
 
 /**
- * Awards Plugin - Award Recommendation Management System
- * 
- * This plugin provides comprehensive award recommendation management for the KMP system,
- * including a complex state machine for recommendation workflow, hierarchical award organization,
- * ceremony coordination, and integration with the KMP member and branch management systems.
- * 
- * The Awards plugin implements a sophisticated recommendation lifecycle with configurable
- * status/state dual tracking, multi-level approval workflows, event coordination for award
- * ceremonies, and comprehensive reporting capabilities. It integrates deeply with the KMP
- * RBAC system for permission-based access control and warrant validation.
- * 
- * ## Core Features:
- * - **Award Hierarchy Management**: Domain, Level, and Award organization with branch scoping
- * - **Recommendation State Machine**: Complex status/state workflow with configurable transitions
- * - **Event Coordination**: Award ceremony planning and scheduling integration
- * - **Member Integration**: Deep integration with member profiles and branch hierarchy
- * - **RBAC Integration**: Permission-based access control with warrant validation
- * - **Audit Trail**: Comprehensive state logging and accountability tracking
- * - **Reporting System**: Analytics and export capabilities for award management
- * 
- * ## Architecture:
- * The plugin uses a sophisticated state machine architecture where recommendations have both
- * a "status" (category grouping) and "state" (specific workflow position). This allows for
- * flexible workflow management while maintaining clear categorization for reporting and UI
- * organization. The plugin integrates with the KMP navigation system and view cell registry
- * for seamless UI integration.
- * 
- * ## Configuration Management:
- * The plugin implements version-controlled configuration management with automatic updates
- * for recommendation statuses, state rules, view configurations, and UI customization
- * settings. Configuration changes are tracked through version numbers and automatically
- * applied during plugin bootstrap.
- * 
+ * Awards Plugin - Award recommendation management with state machine workflow.
+ *
  * @package Awards
- * @see AwardsNavigationProvider For navigation integration
- * @see AwardsViewCellProvider For view cell integration
- * @see StaticHelpers For configuration management
+ * @see /docs/5.2-awards-plugin.md For complete documentation
  */
 class AwardsPlugin extends BasePlugin implements KMPPluginInterface
 {
-
-    /**
-     * Plugin migration order for KMP plugin system
-     * 
-     * @var int Migration order priority for database setup
-     */
+    /** @var int Migration order priority for database setup */
     protected int $_migrationOrder = 0;
 
     /**
-     * Get migration order for KMP plugin system
-     * 
-     * Returns the migration order priority for this plugin, which determines
-     * the sequence in which plugin migrations are executed during system setup.
-     * The Awards plugin uses default order (0) as it depends on core KMP tables
-     * but doesn't require special ordering relative to other plugins.
-     * 
      * @return int Migration order priority
      */
     public function getMigrationOrder(): int
@@ -84,12 +39,6 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
     }
 
     /**
-     * Constructor - Initialize Awards plugin with migration configuration
-     * 
-     * Sets up the plugin with proper migration ordering for the KMP plugin system.
-     * The migration order determines when this plugin's database migrations are
-     * executed relative to other plugins during system initialization.
-     * 
      * @param array $config Plugin configuration including migrationOrder
      */
     public function __construct($config = [])
@@ -101,45 +50,10 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
     }
 
     /**
-     * Bootstrap Awards Plugin - Initialize navigation, view cells, and configuration
-     * 
-     * This method performs comprehensive plugin initialization including:
-     * - Navigation system registration with dynamic permission-based items
-     * - View cell registry integration for UI component embedding
-     * - Version-controlled configuration management with automatic updates
-     * - Award recommendation status and state workflow configuration
-     * - UI customization settings and display rules
-     * 
-     * The bootstrap process implements a sophisticated configuration versioning system
-     * that automatically updates plugin settings when the configuration version changes.
-     * This ensures that configuration updates are properly applied during deployments
-     * without requiring manual intervention.
-     * 
-     * ## Navigation Integration:
-     * Registers the Awards plugin with the KMP navigation system using dynamic
-     * navigation providers that generate menu items based on user permissions
-     * and current workflow state. Navigation items include badges for pending
-     * items and permission-based visibility.
-     * 
-     * ## View Cell Integration:
-     * Registers view cells with the ViewCellRegistry for embedding Awards-related
-     * UI components throughout the KMP application. View cells provide contextual
-     * recommendation information and workflow interfaces.
-     * 
-     * ## Configuration Management:
-     * Implements version-controlled configuration with the following settings:
-     * - Recommendation status and state workflow definitions
-     * - State transition rules and validation requirements
-     * - UI display configuration for table and board views
-     * - Member profile integration settings for court protocols
-     * - Plugin activation and feature toggles
-     * 
+     * Initialize navigation, view cells, and version-controlled configuration.
+     *
      * @param \Cake\Core\PluginApplicationInterface $app The host application
      * @return void
-     * 
-     * @see AwardsNavigationProvider::getNavigationItems() For navigation generation
-     * @see AwardsViewCellProvider::getViewCells() For view cell registration
-     * @see StaticHelpers::getAppSetting() For configuration management
      */
     public function bootstrap(PluginApplicationInterface $app): void
     {
@@ -886,12 +800,8 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
     }
 
     /**
-     * Migrate column names from Event/Events to Gathering/Gatherings
-     * 
-     * Helper method to update view configuration column arrays during config migration.
-     * Replaces 'Event' and 'Events' keys with 'Gathering' and 'Gatherings' while
-     * preserving all values and other keys.
-     * 
+     * Migrate column names from Event/Events to Gathering/Gatherings.
+     *
      * @param array $columns Column configuration array
      * @return array Updated column configuration with migrated names
      */
@@ -911,31 +821,10 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
     }
 
     /**
-     * Configure Awards Plugin Routes - RESTful routing with multi-format support
-     * 
-     * Establishes the routing configuration for the Awards plugin with comprehensive
-     * format support for data export and API access. The route configuration supports
-     * JSON for AJAX endpoints, PDF for report generation, and CSV for data export.
-     * 
-     * ## Route Configuration:
-     * - **Base Path**: `/awards` - All Awards plugin routes are scoped under this path
-     * - **Format Support**: JSON, PDF, CSV extensions for flexible data access
-     * - **Fallback Routes**: Automatic RESTful route generation for all controllers
-     * 
-     * ## Supported Formats:
-     * - **JSON**: AJAX endpoints for dynamic UI updates and mobile app integration
-     * - **PDF**: Report generation for award recommendations and ceremony planning
-     * - **CSV**: Data export for external analysis and administrative reporting
-     * 
-     * The routing system integrates with CakePHP's automatic route generation while
-     * providing explicit format support for Awards-specific functionality such as
-     * recommendation reporting, ceremony coordination, and administrative exports.
-     * 
+     * Configure plugin routes with JSON, PDF, and CSV format support.
+     *
      * @param \Cake\Routing\RouteBuilder $routes The route builder to update
      * @return void
-     * 
-     * @see RouteBuilder::fallbacks() For automatic RESTful route generation
-     * @see RouteBuilder::setExtensions() For multi-format support configuration
      */
     public function routes(RouteBuilder $routes): void
     {
@@ -943,7 +832,6 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
             'Awards',
             ['path' => '/awards'],
             function (RouteBuilder $builder) {
-                // Add custom routes here
                 $builder->setExtensions(["json", "pdf", "csv"]);
                 $builder->fallbacks();
             }
@@ -952,77 +840,27 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
     }
 
     /**
-     * Configure Awards Plugin Middleware - Request processing pipeline
-     * 
-     * Configures the middleware pipeline for the Awards plugin. Currently uses
-     * the default middleware configuration without additional middleware layers.
-     * Future middleware additions might include:
-     * 
-     * ## Potential Middleware:
-     * - **Audit Logging**: Track recommendation state changes and administrative actions
-     * - **Rate Limiting**: Prevent abuse of recommendation submission endpoints
-     * - **Caching**: Cache award hierarchy and configuration data for performance
-     * - **Validation**: Additional request validation for complex workflows
-     * 
      * @param \Cake\Http\MiddlewareQueue $middlewareQueue The middleware queue to update
      * @return \Cake\Http\MiddlewareQueue Updated middleware queue
      */
     public function middleware(MiddlewareQueue $middlewareQueue): MiddlewareQueue
     {
-        // Add your middlewares here
-
         return $middlewareQueue;
     }
 
     /**
-     * Register Awards Plugin Console Commands - CLI interface for administrative tasks
-     * 
-     * Registers console commands for the Awards plugin to provide CLI access for
-     * administrative tasks, data maintenance, and batch operations. Currently uses
-     * the default command registration without additional custom commands.
-     * 
-     * ## Potential Commands:
-     * - **Recommendation Cleanup**: Automated cleanup of abandoned recommendations
-     * - **State Migration**: Batch update of recommendation states during workflow changes
-     * - **Report Generation**: Automated generation of periodic award reports
-     * - **Data Validation**: Validation and cleanup of award hierarchy data
-     * - **Event Processing**: Batch processing of ceremony scheduling and notifications
-     * 
      * @param \Cake\Console\CommandCollection $commands The command collection to update
-     * @return \Cake\Console\CommandCollection Updated command collection with Awards commands
+     * @return \Cake\Console\CommandCollection Updated command collection
      */
     public function console(CommandCollection $commands): CommandCollection
     {
-        // Add your commands here
-
         $commands = parent::console($commands);
-
         return $commands;
     }
 
     /**
-     * Register Awards Plugin Services - Dependency injection container configuration
-     * 
-     * Registers services with the dependency injection container for the Awards plugin.
-     * Currently uses default service registration without additional custom services.
-     * 
-     * ## Potential Services:
-     * - **RecommendationWorkflowManager**: Business logic for recommendation state machine
-     * - **CeremonyCoordinator**: Event scheduling and coordination services
-     * - **AwardHierarchyManager**: Award domain/level/branch relationship management
-     * - **NotificationService**: Email and notification management for workflows
-     * - **ReportGenerator**: Report generation and export services
-     * 
-     * The service container integration allows for clean dependency injection and
-     * testable service architecture for complex Awards plugin functionality.
-     * 
      * @param \Cake\Core\ContainerInterface $container The container to update
      * @return void
-     * 
-     * @see https://book.cakephp.org/4/en/development/dependency-injection.html
      */
-    public function services(ContainerInterface $container): void
-    {
-        // Add your services here
-    }
+    public function services(ContainerInterface $container): void {}
 }

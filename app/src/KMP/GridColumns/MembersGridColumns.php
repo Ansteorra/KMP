@@ -7,77 +7,12 @@ namespace App\KMP\GridColumns;
 /**
  * Members Grid Column Metadata
  *
- * Defines all available columns for the Members data grid with comprehensive metadata
- * for rendering, sorting, filtering, and user customization. This configuration drives
- * the Dataverse-style grid system for the Members index.
+ * Defines available columns for the Members data grid including rendering,
+ * sorting, filtering, and visibility settings.
  *
- * ## Column Metadata Structure
- *
- * Each column definition includes:
- * - **key**: Unique identifier and field name
- * - **label**: Display name for column header
- * - **type**: Data type (string, number, date, boolean, badge, etc.)
- * - **sortable**: Whether column can be sorted
- * - **filterable**: Whether column can be filtered
- * - **defaultVisible**: Shown by default or hidden
- * - **required**: Column cannot be hidden (always visible)
- * - **width**: Optional width hint (px or %)
- * - **alignment**: left, center, right
- * - **cellRenderer**: Optional custom cell rendering callable function
- * - **clickAction**: Optional action when cell is clicked
- * - **searchable**: Whether column should be included in text search
- *
- * ## Click Actions
- *
- * The `clickAction` property supports the following formats:
- * - **navigate:<url>** - Navigate to URL (e.g., "navigate:/members/view/:id")
- * - **toggleSubRow:<type>** - Toggle expandable sub-row (e.g., "toggleSubRow:warrantreasons")
- * - **openModal:<type>** - Open modal dialog (e.g., "openModal:authorizations")
- * - **link:<url>** - Simple link without Turbo frame breaking
- * - **callable** - Custom function that receives ($content, $row, $view)
- *
- * URL placeholders like `:id`, `:field_name` are replaced with row values.
- *
- * ### ToggleSubRow Action Details
- *
- * The toggleSubRow action creates an expandable sub-row beneath the main row.
- * When clicked, it:
- * 1. Makes an AJAX request to `/controller/sub-row/{id}/{type}`
- * 2. Inserts returned HTML as a new <tr> beneath the main row
- * 3. Adds visual indicators (chevron icon rotates, row highlight)
- * 4. Clicking again collapses and removes the sub-row
- *
- * **Requirements:**
- * - Controller must have a `subRow($id, $type)` action
- * - Template must exist at `/templates/element/sub_rows/{type}.php`
- * - Route must be configured for the endpoint
- *
- * **Example Implementation:**
- * ```php
- * // In GridColumns class
- * 'warrantable' => [
- *     'key' => 'warrantable',
- *     'label' => 'Warrantable',
- *     'type' => 'boolean',
- *     'clickAction' => 'toggleSubRow:warrantreasons',
- *     // ... other properties
- * ],
- *
- * // In Controller
- * public function subRow(?string $id = null, ?string $type = null) {
- *     $this->viewBuilder()->setLayout(false);
- *     $member = $this->Members->get($id);
- *     
- *     switch ($type) {
- *         case 'warrantreasons':
- *             $this->set('reasons', $member->non_warrantable_reasons);
- *             $this->render('/element/sub_rows/warrant_reasons');
- *             break;
- *     }
- * }
- *
- *
- **/
+ * @see /app/docs/dataverse-grid-field-naming.md For field naming conventions
+ * @see /app/docs/dataverse-grid-feature-flags.md For grid configuration
+ */
 class MembersGridColumns extends BaseGridColumns
 {
 
@@ -161,7 +96,7 @@ class MembersGridColumns extends BaseGridColumns
             'status' => [
                 'key' => 'status',
                 'label' => 'Status',
-                'type' => 'badge',
+                'type' => 'string',
                 'sortable' => true,
                 'filterable' => true,
                 'filterType' => 'dropdown',

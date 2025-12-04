@@ -175,57 +175,10 @@ use Cake\Validation\Validator;
 class MembersTable extends BaseTable
 {
     /**
-     * Initialize table configuration and associations
+     * Initialize table configuration and associations.
      *
-     * Configures the MembersTable with comprehensive associations, behaviors, and
-     * settings necessary for member management within the KMP system. This method
-     * establishes the foundation for all member-related data operations.
-     *
-     * ## Table Configuration
-     * - **Display Field**: Uses 'sca_name' for user-friendly member identification
-     * - **Primary Key**: Standard 'id' field for unique member identification
-     * - **Table Name**: Maps to 'members' database table
-     *
-     * ## Association Setup
-     * ### Role Management Associations
-     * - **Roles**: Many-to-many through MemberRoles for permission inheritance
-     * - **MemberRoles**: Direct access to all role assignment records
-     * - **CurrentMemberRoles**: Active role assignments using 'current' finder
-     * - **UpcomingMemberRoles**: Future role assignments using 'upcoming' finder
-     * - **PreviousMemberRoles**: Historical role assignments using 'previous' finder
-     *
-     * ### Organizational Associations
-     * - **Branches**: Belongs-to association for organizational hierarchy
-     * - **Parents**: Self-referential association for minor member guardianship
-     *
-     * ## Behavior Integration
-     * - **Timestamp**: Automatic created/modified timestamp management
-     * - **Footprint**: Tracks created_by/modified_by for audit trails
-     * - **Trash**: Soft deletion support for data retention requirements
-     * - **JsonField**: Enhanced JSON field handling for additional_info
-     *
-     * @param array<string, mixed> $config The configuration for the Table
+     * @param array<string, mixed> $config Table configuration
      * @return void
-     *
-     * @example
-     * ```php
-     * // The initialize method sets up associations that enable:
-     * 
-     * // Temporal role queries
-     * $member = $this->Members->get($id, [
-     *     'contain' => ['CurrentMemberRoles.Roles']
-     * ]);
-     * 
-     * // Organizational hierarchy queries
-     * $branchMembers = $this->Members->find()
-     *     ->contain(['Branches'])
-     *     ->where(['branch_id' => $branchId]);
-     * 
-     * // Parent-child relationship queries
-     * $minorMembers = $this->Members->find()
-     *     ->contain(['Parents'])
-     *     ->where(['parent_id IS NOT' => null]);
-     * ```
      */
     public function initialize(array $config): void
     {
@@ -279,42 +232,9 @@ class MembersTable extends BaseTable
     }
 
     /**
-     * Configure database schema with JSON field support
+     * Configure schema with JSON field support.
      *
-     * Extends the base schema configuration to properly handle JSON fields,
-     * specifically the additional_info field used for flexible member data storage.
-     * This method ensures proper data type handling and serialization for JSON content.
-     *
-     * ## JSON Field Configuration
-     * - **additional_info**: Configured as JSON type for automatic serialization
-     * - **Database Compatibility**: Ensures proper JSON handling across database systems
-     * - **Type Safety**: Provides type hints for ORM operations
-     *
-     * ## Integration Benefits
-     * - **Flexible Data Storage**: Allows configurable additional member information
-     * - **Schema Validation**: Maintains database schema integrity
-     * - **Performance**: Optimized JSON queries when supported by database
-     *
-     * @return \Cake\Database\Schema\TableSchemaInterface Configured schema with JSON field types
-     *
-     * @example
-     * ```php
-     * // The JSON schema configuration enables:
-     * 
-     * // Structured additional info storage
-     * $member->additional_info = [
-     *     'website' => 'https://example.com',
-     *     'emergency_contact' => 'Jane Doe (555-1234)',
-     *     'dietary_restrictions' => 'Vegetarian'
-     * ];
-     * 
-     * // Automatic JSON serialization on save
-     * $this->Members->save($member);
-     * 
-     * // JSON field querying (database dependent)
-     * $membersWithWebsites = $this->Members->find()
-     *     ->where(['additional_info->"$.website" IS NOT' => null]);
-     * ```
+     * @return \Cake\Database\Schema\TableSchemaInterface Configured schema
      */
     public function getSchema(): TableSchemaInterface
     {
@@ -325,62 +245,10 @@ class MembersTable extends BaseTable
     }
 
     /**
-     * Define comprehensive validation rules for member data
-     *
-     * Establishes extensive validation rules covering all aspects of member data
-     * from basic field requirements to complex business logic validation. These
-     * rules ensure data integrity and support the KMP member management workflows.
-     *
-     * ## Validation Categories
-     *
-     * ### Security Validation
-     * - **Password**: Minimum 12 characters with extensible complexity rules
-     * - **Email**: Format validation with uniqueness constraints
-     * - **Length Limits**: Prevents data overflow and ensures field compatibility
-     *
-     * ### Identity Validation
-     * - **SCA Name**: 3-50 characters, required for community identification
-     * - **Legal Name**: First/last name required for official records
-     * - **Contact Info**: Address and phone validation for communication
-     *
-     * ### Membership Validation
-     * - **Dates**: Proper date format for expiration and background check dates
-     * - **Status**: Handled by entity setter with business rule enforcement
-     * - **Age Info**: Birth month/year for age calculation and minor status
-     *
-     * ## Password Security Features
-     * The validation includes foundation for enhanced password complexity:
-     * - Commented complexity rules ready for activation
-     * - Uppercase, lowercase, number, and special character requirements
-     * - Extensible for organization-specific security policies
-     *
-     * ## Business Logic Integration
-     * - **Required vs. Optional**: Distinguishes creation vs. update requirements
-     * - **Conditional Logic**: Different rules for different member types
-     * - **Extensibility**: Designed for easy addition of new validation rules
+     * Define validation rules for member data.
      *
      * @param \Cake\Validation\Validator $validator Validator instance
-     * @return \Cake\Validation\Validator Configured validator with comprehensive rules
-     *
-     * @example
-     * ```php
-     * // Validation in action during member creation
-     * $member = $this->Members->newEntity([
-     *     'sca_name' => 'A', // Fails: too short (min 3 chars)
-     *     'email_address' => 'invalid-email', // Fails: invalid format
-     *     'password' => 'short', // Fails: under 12 characters
-     *     'first_name' => '', // Fails: required field
-     * ]);
-     * 
-     * if ($member->hasErrors()) {
-     *     foreach ($member->getErrors() as $field => $errors) {
-     *         echo "Field {$field}: " . implode(', ', $errors) . "\n";
-     *     }
-     * }
-     * 
-     * // Enable enhanced password complexity (uncomment rules)
-     * // Requires: uppercase, lowercase, numbers, special characters
-     * ```
+     * @return \Cake\Validation\Validator Configured validator
      */
     public function validationDefault(Validator $validator): Validator
     {

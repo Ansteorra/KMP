@@ -5,93 +5,14 @@ declare(strict_types=1);
 namespace App\KMP;
 
 /**
- * GridViewConfig - Configuration Validator and Normalizer for Grid Views
+ * Configuration validator and normalizer for grid views.
  *
- * This helper class provides validation, normalization, and utility methods for working
- * with grid view configurations. It ensures that view configs follow a consistent schema
- * and provides methods for safely extracting and applying configuration values.
+ * Provides validation, normalization, and utility methods for grid view configs.
+ * Supports both flat filters (legacy AND conditions) and nested expression trees
+ * (OR/AND combinations).
  *
- * ## Config Schema
- *
- * A valid grid view config contains:
- * - **filters**: Array of filter definitions (flat AND conditions - legacy)
- * - **expression**: Nested OR/AND expression tree (preferred for complex logic)
- * - **sort**: Array of sort definitions
- * - **columns**: Array of column visibility/order definitions
- * - **pageSize**: Integer for pagination
- *
- * ### Simple Filters (Flat AND)
- * ```json
- * {
- *   "filters": [
- *     {"field": "status", "operator": "eq", "value": "active"},
- *     {"field": "created", "operator": "gte", "value": "2024-01-01"}
- *   ]
- * }
- * ```
- *
- * ### Complex Expression (Nested OR/AND)
- * ```json
- * {
- *   "expression": {
- *     "type": "OR",
- *     "conditions": [
- *       {"field": "expires_on", "operator": "lt", "value": "2025-11-22"},
- *       {
- *         "type": "AND",
- *         "conditions": [
- *           {"field": "status", "operator": "in", "value": ["Deactivated", "Expired"]},
- *           {"field": "created", "operator": "gte", "value": "2024-01-01"}
- *         ]
- *       }
- *     ]
- *   }
- * }
- * ```
- *
- * ## Supported Filter Operators
- *
- * - **eq**: Equals
- * - **neq**: Not equals
- * - **gt**: Greater than
- * - **gte**: Greater than or equal
- * - **lt**: Less than
- * - **lte**: Less than or equal
- * - **contains**: String contains (LIKE %value%)
- * - **startsWith**: String starts with (LIKE value%)
- * - **endsWith**: String ends with (LIKE %value)
- * - **in**: Value in array
- * - **notIn**: Value not in array
- * - **isNull**: Field is NULL
- * - **isNotNull**: Field is not NULL
- * - **dateRange**: Date range filter with [start, end] array. Either value can be null to create an open-ended range
- *
- * ## Usage Examples
- *
- * ### Normalizing Config
- * ```php
- * $raw = json_decode($view->config, true);
- * $normalized = GridViewConfig::normalize($raw, $availableColumns);
- * ```
- *
- * ### Validating Config
- * ```php
- * $errors = GridViewConfig::validate($config, $availableColumns);
- * if (empty($errors)) {
- *     // Config is valid
- * }
- * ```
- *
- * ### Creating Default Config
- * ```php
- * $defaultConfig = GridViewConfig::createDefault($columnMetadata);
- * ```
- *
- * ### Extracting ORM Conditions
- * ```php
- * $conditions = GridViewConfig::extractFilters($config);
- * // Use in query: $query->where($conditions);
- * ```
+ * @see /app/docs/dataverse-grid-expressions.md For expression tree documentation
+ * @see /app/docs/dataverse-grid-feature-flags.md For grid configuration options
  */
 class GridViewConfig
 {

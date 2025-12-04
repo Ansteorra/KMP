@@ -81,7 +81,7 @@ class BranchesController extends AppController
             'showAllTab' => false,
             'canAddViews' => false,
             'canFilter' => true,
-            'canExportCsv' => true,
+            'canExportCsv' => false,
         ]);
 
         // Post-process data to compute path for each branch
