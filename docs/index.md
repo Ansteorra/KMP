@@ -23,6 +23,7 @@ layout: default
 | **3.4 [Migration Documentation](3.4-migration-documentation.md)** | Database migration history and patterns |
 | **3.5 [ER Diagrams](3.5-er-diagrams.md)** | Entity relationship diagrams |
 | **3.6 [Seed Documentation](3.6-seed-documentation.md)** | Data seeding framework and patterns |
+| **3.7 [Active Window Sync](3.7-active-window-sync.md)** | Scheduled status maintenance for ActiveWindow entities |
 | **4. [Core Modules](4-core-modules.md)** | |
 | **4.1 [Member Lifecycle](4.1-member-lifecycle.md)** | Complete member lifecycle and data flow documentation |
 | **4.2 [Branch Hierarchy](4.2-branch-hierarchy.md)** | Complete organizational structure and tree management documentation |
