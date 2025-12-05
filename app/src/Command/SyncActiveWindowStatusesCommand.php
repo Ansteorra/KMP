@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Command;
@@ -101,7 +102,7 @@ class SyncActiveWindowStatusesCommand extends Command
     /**
      * Discover table aliases whose entities extend ActiveWindowBaseEntity.
      *
-    * @param \Cake\ORM\Locator\TableLocator $tableLocator Table locator instance.
+     * @param \Cake\ORM\Locator\TableLocator $tableLocator Table locator instance.
      * @return array<string>
      */
     protected function discoverActiveWindowTableAliases(TableLocator $tableLocator): array
@@ -126,7 +127,7 @@ class SyncActiveWindowStatusesCommand extends Command
     /**
      * Evaluate alias and append when entity inherits ActiveWindowBaseEntity.
      *
-    * @param \Cake\ORM\Locator\TableLocator $tableLocator Table locator instance.
+     * @param \Cake\ORM\Locator\TableLocator $tableLocator Table locator instance.
      * @param array<string> $aliases Current alias list
      * @param string $alias Alias to evaluate
      * @return array<string>
