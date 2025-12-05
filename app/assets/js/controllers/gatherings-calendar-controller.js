@@ -29,6 +29,7 @@ import { Controller } from "@hotwired/stimulus"
  * ```
  */
 class GatheringsCalendarController extends Controller {
+
     static values = {
         year: Number,
         month: Number,
@@ -67,6 +68,7 @@ class GatheringsCalendarController extends Controller {
         if (!this.turboFrame) {
             console.error('Turbo frame element not found!')
         }
+
     }
     
     /**
@@ -252,16 +254,23 @@ class GatheringsCalendarController extends Controller {
      * @param {Event} event Click event
      */
     async markAttendance(event) {
-        const button = event.currentTarget
-        const gatheringId = button.dataset.gatheringId
-        
+        if (event) {
+            event.preventDefault()
+        }
+
+        const button = event?.currentTarget
+        const gatheringId = button?.dataset.gatheringId
+
         if (!gatheringId) {
             console.error('No gathering ID found')
             return
         }
-        
-        // Navigate to the gathering view page to mark attendance
-        window.location.href = `/gatherings/view/${gatheringId}#attend`
+
+        if (button && !button.dataset.attendanceAction) {
+            button.dataset.attendanceAction = 'add'
+        }
+
+        return this.showAttendanceModal(event)
     }
     
     /**
@@ -270,11 +279,17 @@ class GatheringsCalendarController extends Controller {
      * @param {Event} event Click event
      */
     async updateAttendance(event) {
-        const button = event.currentTarget
-        const gatheringId = button.dataset.gatheringId
-        
-        // Navigate to the gathering view page to update attendance
-        window.location.href = `/gatherings/view/${gatheringId}#attend`
+        if (event) {
+            event.preventDefault()
+        }
+
+        const button = event?.currentTarget
+
+        if (button && !button.dataset.attendanceAction) {
+            button.dataset.attendanceAction = 'edit'
+        }
+
+        return this.showAttendanceModal(event)
     }
     
     /**
@@ -475,6 +490,7 @@ class GatheringsCalendarController extends Controller {
             this.modalInstance.dispose()
         }
     }
+
 }
 
 // Register controller globally

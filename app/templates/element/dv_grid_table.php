@@ -14,6 +14,8 @@
  */
 
 $rowActions = $rowActions ?? [];
+$customElement = $customElement ?? null;
+$customElementOptions = $customElementOptions ?? [];
 ?>
 <turbo-frame
     id="<?= h($tableFrameId) ?>"
@@ -24,28 +26,36 @@ $rowActions = $rowActions ?? [];
         <?= json_encode($gridState, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?>
     </script>
 
-    <!-- Dataverse Table -->
-    <?= $this->element('dataverse_table', [
-        'columns' => $gridState['columns']['all'],
-        'visibleColumns' => $gridState['columns']['visible'],
-        'data' => $data,
-        'currentSort' => $gridState['sort'],
-        'controllerName' => 'grid-view',
-        'primaryKey' => $gridState['config']['primaryKey'],
-        'gridKey' => $gridState['config']['gridKey'],
-        'rowActions' => $rowActions,
-        'enableColumnPicker' => $gridState['config']['enableColumnPicker'] ?? true,
-    ]) ?>
+    <?php if ($customElement): ?>
+        <?= $this->element($customElement, array_merge($customElementOptions, [
+            'data' => $data,
+            'gridState' => $gridState,
+            'tableFrameId' => $tableFrameId,
+        ])) ?>
+    <?php else: ?>
+        <!-- Dataverse Table -->
+        <?= $this->element('dataverse_table', [
+            'columns' => $gridState['columns']['all'],
+            'visibleColumns' => $gridState['columns']['visible'],
+            'data' => $data,
+            'currentSort' => $gridState['sort'],
+            'controllerName' => 'grid-view',
+            'primaryKey' => $gridState['config']['primaryKey'],
+            'gridKey' => $gridState['config']['gridKey'],
+            'rowActions' => $rowActions,
+            'enableColumnPicker' => $gridState['config']['enableColumnPicker'] ?? true,
+        ]) ?>
 
-    <!-- Pagination -->
-    <div class="paginator">
-        <ul class="pagination">
-            <?= $this->Paginator->first('<< ' . __('first')) ?>
-            <?= $this->Paginator->prev('< ' . __('previous')) ?>
-            <?= $this->Paginator->numbers() ?>
-            <?= $this->Paginator->next(__('next') . ' >') ?>
-            <?= $this->Paginator->last(__('last') . ' >>') ?>
-        </ul>
-        <p><?= $this->Paginator->counter(__('Page {{page}} of {{pages}}, showing {{current}} record(s) out of {{count}} total')) ?></p>
-    </div>
+        <!-- Pagination -->
+        <div class="paginator">
+            <ul class="pagination">
+                <?= $this->Paginator->first('<< ' . __('first')) ?>
+                <?= $this->Paginator->prev('< ' . __('previous')) ?>
+                <?= $this->Paginator->numbers() ?>
+                <?= $this->Paginator->next(__('next') . ' >') ?>
+                <?= $this->Paginator->last(__('last') . ' >>') ?>
+            </ul>
+            <p><?= $this->Paginator->counter(__('Page {{page}} of {{pages}}, showing {{current}} record(s) out of {{count}} total')) ?></p>
+        </div>
+    <?php endif; ?>
 </turbo-frame>

@@ -908,6 +908,36 @@ trait DataverseGridTrait
                     $branches
                 );
 
+            case 'gathering-types':
+                $types = $this->fetchTable('GatheringTypes')
+                    ->find('list', [
+                        'keyField' => 'id',
+                        'valueField' => 'name',
+                    ])
+                    ->orderBy(['name' => 'ASC'])
+                    ->toArray();
+
+                return array_map(
+                    fn($id, $name) => ['value' => (string)$id, 'label' => $name],
+                    array_keys($types),
+                    $types
+                );
+
+            case 'gathering-activities':
+                $activities = $this->fetchTable('GatheringActivities')
+                    ->find('list', [
+                        'keyField' => 'id',
+                        'valueField' => 'name',
+                    ])
+                    ->orderBy(['name' => 'ASC'])
+                    ->toArray();
+
+                return array_map(
+                    fn($id, $name) => ['value' => (string)$id, 'label' => $name],
+                    array_keys($activities),
+                    $activities
+                );
+
             default:
                 return [];
         }

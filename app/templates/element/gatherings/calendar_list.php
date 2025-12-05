@@ -117,15 +117,27 @@ $today = new DateTime('now', new \DateTimeZone($userTimezone));
                                     <?= $this->Html->link(
                                         '<i class="bi bi-eye"></i> View Details',
                                         ['action' => 'view', $gathering->public_id],
-                                        ['class' => 'btn btn-sm btn-outline-primary', 'escape' => false]
+                                        [
+                                            'class' => 'btn btn-sm btn-outline-primary',
+                                            'escape' => false,
+                                            'data-turbo-frame' => '_top',
+                                        ]
                                     ) ?>
 
                                     <?php if (!$isPast): ?>
+                                        <?php
+                                        $attendanceRecord = $isAttending
+                                            ? ($gathering->gathering_attendances[0] ?? null)
+                                            : null;
+                                        ?>
                                         <button type="button"
                                             class="btn btn-sm <?= $isAttending ? 'btn-success' : 'btn-outline-success' ?>"
-                                            data-action="click->gatherings-calendar#toggleAttendance"
+                                            data-action="click->gatherings-calendar#showAttendanceModal"
                                             data-gathering-id="<?= $gathering->id ?>"
-                                            data-attending="<?= $isAttending ? 'true' : 'false' ?>">
+                                            data-attendance-action="<?= $isAttending ? 'edit' : 'add' ?>"
+                                            <?php if ($attendanceRecord): ?>
+                                                data-attendance-id="<?= $attendanceRecord->id ?>"
+                                            <?php endif; ?>>
                                             <i class="bi bi-calendar-check"></i>
                                             <?= $isAttending ? 'Update' : 'Mark' ?> Attendance
                                         </button>

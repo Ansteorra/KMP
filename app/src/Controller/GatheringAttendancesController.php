@@ -45,6 +45,11 @@ class GatheringAttendancesController extends AppController
 
             $gatheringAttendance = $this->GatheringAttendances->patchEntity($gatheringAttendance, $data);
 
+            if (!$gatheringAttendance->member_id) {
+                // If member_id is not set, default to current user's member_id
+                $gatheringAttendance->member_id = $currentUser->id;
+            }
+
             // Authorize after patching data so policy can check member_id
             $this->Authorization->authorize($gatheringAttendance);
 

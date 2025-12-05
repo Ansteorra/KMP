@@ -4796,15 +4796,19 @@ class GatheringsCalendarController extends _hotwired_stimulus__WEBPACK_IMPORTED_
    * @param {Event} event Click event
    */
   async markAttendance(event) {
-    const button = event.currentTarget;
-    const gatheringId = button.dataset.gatheringId;
+    if (event) {
+      event.preventDefault();
+    }
+    const button = event?.currentTarget;
+    const gatheringId = button?.dataset.gatheringId;
     if (!gatheringId) {
       console.error('No gathering ID found');
       return;
     }
-
-    // Navigate to the gathering view page to mark attendance
-    window.location.href = `/gatherings/view/${gatheringId}#attend`;
+    if (button && !button.dataset.attendanceAction) {
+      button.dataset.attendanceAction = 'add';
+    }
+    return this.showAttendanceModal(event);
   }
 
   /**
@@ -4813,11 +4817,14 @@ class GatheringsCalendarController extends _hotwired_stimulus__WEBPACK_IMPORTED_
    * @param {Event} event Click event
    */
   async updateAttendance(event) {
-    const button = event.currentTarget;
-    const gatheringId = button.dataset.gatheringId;
-
-    // Navigate to the gathering view page to update attendance
-    window.location.href = `/gatherings/view/${gatheringId}#attend`;
+    if (event) {
+      event.preventDefault();
+    }
+    const button = event?.currentTarget;
+    if (button && !button.dataset.attendanceAction) {
+      button.dataset.attendanceAction = 'edit';
+    }
+    return this.showAttendanceModal(event);
   }
 
   /**
@@ -5042,6 +5049,10 @@ __webpack_require__.r(__webpack_exports__);
  */
 class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__.Controller {
   static targets = ["gridState", "searchInput"];
+  static values = {
+    stickyQuery: String,
+    stickyDefault: Object
+  };
 
   /**
    * Initialize controller
@@ -5051,6 +5062,13 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
 
     // State will be loaded when frame loads
     this.state = null;
+
+    // Initialize sticky query parameter support
+    this.stickyParams = {};
+    if (this.hasStickyDefaultValue && this.stickyDefaultValue) {
+      this.stickyParams = (0,_babel_runtime_helpers_objectSpread2__WEBPACK_IMPORTED_MODULE_0__["default"])({}, this.stickyDefaultValue);
+    }
+    this.captureStickyParamsFromUrl(window.location.href);
 
     // Bind handler once for use in addEventListener/removeEventListener
     this.boundHandleFrameLoad = this.handleFrameLoad.bind(this);
@@ -5085,6 +5103,9 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
 
       // Update toolbar UI based on state
       this.updateToolbar();
+
+      // Capture sticky parameters for inline-rendered frame content
+      this.captureStickyParamsFromFrame(tableFrame);
     } catch (e) {
       console.error('Failed to parse inline grid state:', e);
     }
@@ -5123,6 +5144,9 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
 
         // Update toolbar UI based on new state
         this.updateToolbar();
+
+        // Capture sticky parameters based on the loaded frame
+        this.captureStickyParamsFromFrame(tableFrame);
       } catch (e) {
         console.error('Failed to parse grid state from table frame:', e);
       }
@@ -6706,6 +6730,92 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
   // Helper Methods
   // ============================================================================
 
+  getStickyKeys() {
+    if (!this.hasStickyQueryValue || !this.stickyQueryValue) {
+      return [];
+    }
+    return this.stickyQueryValue.split(',').map(key => key.trim()).filter(Boolean);
+  }
+  captureStickyParamsFromUrl(url) {
+    const stickyKeys = this.getStickyKeys();
+    if (!stickyKeys.length || !url) {
+      return;
+    }
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(url, window.location.origin);
+    } catch (error) {
+      console.warn('Unable to parse URL for sticky parameters:', url, error);
+      return;
+    }
+    stickyKeys.forEach(key => {
+      if (parsedUrl.searchParams.has(key)) {
+        const value = parsedUrl.searchParams.get(key);
+        if (value !== undefined && value !== null) {
+          this.stickyParams[key] = value;
+        }
+      }
+    });
+  }
+  captureStickyParamsFromFrame(frame) {
+    if (!frame) {
+      return;
+    }
+    const src = frame.getAttribute('src') || frame.dataset.gridSrc;
+    if (src) {
+      this.captureStickyParamsFromUrl(src);
+    }
+    this.updateBrowserUrlWithStickyParams();
+  }
+  updateBrowserUrlWithStickyParams() {
+    const stickyKeys = this.getStickyKeys();
+    if (!stickyKeys.length) {
+      return;
+    }
+    const params = new URLSearchParams(window.location.search);
+    let changed = false;
+    stickyKeys.forEach(key => {
+      const value = this.stickyParams[key];
+      if (value !== undefined && value !== null && value !== '') {
+        const stringValue = String(value);
+        if (params.get(key) !== stringValue) {
+          params.set(key, stringValue);
+          changed = true;
+        }
+      }
+    });
+    if (!changed) {
+      return;
+    }
+    const queryString = params.toString();
+    const newUrl = queryString ? `${window.location.pathname}?${queryString}` : window.location.pathname;
+    window.history.replaceState({}, '', newUrl);
+  }
+  applyStickyParamsToParams(params, updates = null) {
+    const stickyKeys = this.getStickyKeys();
+    if (!stickyKeys.length) {
+      return;
+    }
+    stickyKeys.forEach(key => {
+      if (updates && Object.prototype.hasOwnProperty.call(updates, key)) {
+        const updateValue = updates[key];
+        if (updateValue === null || updateValue === undefined || updateValue === '') {
+          params.delete(key);
+          delete this.stickyParams[key];
+        } else {
+          const stringValue = String(updateValue);
+          params.set(key, stringValue);
+          this.stickyParams[key] = stringValue;
+        }
+      } else {
+        const storedValue = this.stickyParams[key];
+        if (storedValue !== undefined && storedValue !== null && storedValue !== '') {
+          params.set(key, String(storedValue));
+        }
+      }
+    });
+  }
+
   /**
    * Build URL with updated parameters
    */
@@ -6725,12 +6835,16 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
       }
     }
 
+    // Ensure sticky parameters persist across navigations
+    this.applyStickyParamsToParams(params, updates);
+
     // Remove filter parameters if not explicitly included
     if (!('filter' in updates)) {
       // Keep existing filters unless we're explicitly clearing them
       // (This is handled by buildUrlWithFilters)
     }
-    return `${window.location.pathname}?${params.toString()}`;
+    const queryString = params.toString();
+    return queryString ? `${window.location.pathname}?${queryString}` : window.location.pathname;
   }
 
   /**
@@ -6783,7 +6897,11 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
 
     // Reset to page 1
     params.delete('page');
-    return url.pathname + url.search;
+
+    // Ensure sticky parameters persist
+    this.applyStickyParamsToParams(params);
+    const queryString = params.toString();
+    return queryString ? `${url.pathname}?${queryString}` : url.pathname;
   }
 
   /**
@@ -6829,6 +6947,9 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
           finalUrl.searchParams.set(key, value);
         });
 
+        // Ensure sticky parameters are carried over for frame requests
+        this.applyStickyParamsToParams(finalUrl.searchParams);
+
         // Preserve context params from original src if not in new URL
         contextParams.forEach(param => {
           if (currentSrcUrl.searchParams.has(param) && !finalUrl.searchParams.has(param)) {
@@ -6839,6 +6960,9 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
 
         // Update browser history with the original URL (for page reload)
         window.history.pushState({}, '', url);
+
+        // Persist sticky parameters based on the navigation URL
+        this.captureStickyParamsFromUrl(finalUrl.toString());
 
         // Navigate the frame by setting src to gridData URL
         tableFrame.src = gridDataUrl;

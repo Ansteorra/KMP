@@ -46,52 +46,8 @@ $this->KMP->endBlock();
     </div>
 </div>
 
-<?php
-// Configure tabs for gatherings with temporal filtering
-echo $this->element('turboActiveTabs', [
-    'user' => $user,
-    'tabGroupName' => "gatheringTabs",
-    'tabs' => [
-        "this_month" => [
-            "label" => __("This Month"),
-            "id" => "this-month-gatherings",
-            "selected" => true,
-            "turboUrl" => $this->URL->build([
-                "controller" => "Gatherings",
-                "action" => "allGatherings",
-                "this_month"
-            ])
-        ],
-        "next_month" => [
-            "label" => __("Next Month"),
-            "id" => "next-month-gatherings",
-            "selected" => false,
-            "turboUrl" => $this->URL->build([
-                "controller" => "Gatherings",
-                "action" => "allGatherings",
-                "next_month"
-            ])
-        ],
-        "future" => [
-            "label" => __("Future"),
-            "id" => "future-gatherings",
-            "selected" => false,
-            "turboUrl" => $this->URL->build([
-                "controller" => "Gatherings",
-                "action" => "allGatherings",
-                "future"
-            ])
-        ],
-        "previous" => [
-            "label" => __("Previous"),
-            "id" => "previous-gatherings",
-            "selected" => false,
-            "turboUrl" => $this->URL->build([
-                "controller" => "Gatherings",
-                "action" => "allGatherings",
-                "previous"
-            ])
-        ]
-    ]
-]);
-?>
+<?= $this->element('dv_grid', [
+    'gridKey' => 'Gatherings.index.main',
+    'frameId' => 'gatherings-grid',
+    'dataUrl' => $this->Url->build(['action' => 'gridData']),
+]) ?>
