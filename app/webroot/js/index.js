@@ -502,65 +502,20 @@ __webpack_require__.r(__webpack_exports__);
 
 /**
  * Timezone Input Controller
- * 
- * Automatically handles timezone conversion for datetime-local inputs.
- * Converts UTC values from server to user's local timezone for display/editing,
- * and converts back to UTC before form submission.
- * 
- * ## Usage
- * 
- * ### Basic Auto-Conversion
- * ```html
+ *
+ * Automatically converts datetime-local inputs between user's local timezone
+ * and UTC storage. Converts UTC values to local time on page load, and converts
+ * back to UTC before form submission.
+ *
+ * See /docs/10.3.2-timezone-input-controller.md for complete documentation.
+ *
+ * @example
  * <form data-controller="timezone-input">
- *   <input type="datetime-local" 
+ *   <input type="datetime-local"
  *          name="start_date"
  *          data-timezone-input-target="datetimeInput"
  *          data-utc-value="2025-03-15T14:30:00Z">
  * </form>
- * ```
- * 
- * ### Custom Timezone
- * ```html
- * <form data-controller="timezone-input" data-timezone-input-timezone-value="America/New_York">
- *   <input type="datetime-local" 
- *          name="start_date"
- *          data-timezone-input-target="datetimeInput"
- *          data-utc-value="2025-03-15T14:30:00Z">
- * </form>
- * ```
- * 
- * ### With Timezone Notice
- * ```html
- * <form data-controller="timezone-input">
- *   <input type="datetime-local" 
- *          name="start_date"
- *          data-timezone-input-target="datetimeInput"
- *          data-utc-value="2025-03-15T14:30:00Z">
- *   
- *   <!-- Timezone notice will be auto-populated -->
- *   <small data-timezone-input-target="notice" class="text-muted"></small>
- * </form>
- * ```
- * 
- * ## Features
- * - Automatic timezone detection from browser
- * - Converts UTC to local time on page load
- * - Converts local time back to UTC on form submit
- * - Shows timezone notice to user
- * - Handles multiple datetime inputs in one form
- * - Preserves original values for form reset
- * 
- * ## Targets
- * - `datetimeInput` - datetime-local inputs to convert (required)
- * - `notice` - Elements to populate with timezone info (optional)
- * 
- * ## Values
- * - `timezone` - Override timezone (default: browser detected)
- * - `showNotice` - Show timezone notice (default: true)
- * 
- * ## Actions
- * - `submit` - Converts all inputs to UTC before form submission
- * - `reset` - Restores original local values on form reset
  */
 class TimezoneInputController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
   static targets = ["datetimeInput", "notice"];
@@ -573,7 +528,7 @@ class TimezoneInputController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODUL
   };
 
   /**
-   * Initialize controller and convert UTC values to local time
+   * Initialize controller - detect timezone and convert UTC to local time
    */
   connect() {
     // Get or detect timezone
@@ -600,6 +555,7 @@ class TimezoneInputController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODUL
 
   /**
    * Convert UTC values to local timezone for input display
+   * Stores original and local values in data attributes for reset
    */
   convertUtcToLocal() {
     this.datetimeInputTargets.forEach(input => {
@@ -630,9 +586,8 @@ class TimezoneInputController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODUL
   }
 
   /**
-   * Handle form submission - convert local times to UTC
-   * 
-   * @param {Event} event - Submit event
+   * Handle form submission - convert local times to UTC and create hidden inputs
+   * @param {Event} event
    */
   handleSubmit(event) {
     this.datetimeInputTargets.forEach(input => {
@@ -660,9 +615,8 @@ class TimezoneInputController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODUL
   }
 
   /**
-   * Handle form reset - restore local values
-   * 
-   * @param {Event} event - Reset event
+   * Handle form reset - remove hidden inputs and restore original local values
+   * @param {Event} event
    */
   handleReset(event) {
     // Remove any hidden UTC inputs
@@ -683,9 +637,8 @@ class TimezoneInputController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODUL
   }
 
   /**
-   * Manually update timezone (called if timezone changes)
-   * 
-   * @param {string} newTimezone - New IANA timezone identifier
+   * Manually update timezone and re-convert all values
+   * @param {string} newTimezone - IANA timezone identifier
    */
   updateTimezone(newTimezone) {
     this.timezone = newTimezone;
@@ -701,15 +654,14 @@ class TimezoneInputController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODUL
 
   /**
    * Get current timezone being used
-   * 
-   * @returns {string} Current timezone identifier
+   * @returns {string} Current IANA timezone identifier
    */
   getTimezone() {
     return this.timezone;
   }
 
   /**
-   * Cleanup on disconnect
+   * Cleanup on disconnect - remove event listeners and prevent memory leaks
    */
   disconnect() {
     // Remove event listeners using cached references
@@ -812,80 +764,13 @@ __webpack_require__.r(__webpack_exports__);
  * detecting user timezone, formatting dates/times, and converting between timezones
  * for datetime inputs and displays.
  *
- * ## Features
- * - Automatic timezone detection
- * - UTC to local timezone conversion for display
- * - Local to UTC conversion for form submission
- * - Datetime formatting with timezone awareness
- * - Integration with HTML5 datetime-local inputs
- *
- * ## Usage Examples
- *
- * ### Basic Timezone Detection
- * ```javascript
- * // Detect user's browser timezone
- * const userTz = KMP_Timezone.detectTimezone();
- * console.log(userTz); // "America/Chicago"
- *
- * // Get timezone from data attribute or detect
- * const tz = KMP_Timezone.getTimezone(element);
- * ```
- *
- * ### Formatting Dates for Display
- * ```javascript
- * // Format UTC datetime for display in user's timezone
- * const utcString = "2025-03-15T14:30:00Z";
- * const displayed = KMP_Timezone.formatDateTime(utcString, "America/Chicago");
- * // "3/15/2025, 9:30:00 AM"
- *
- * // Custom format
- * const formatted = KMP_Timezone.formatDateTime(utcString, "America/Chicago", {
- *     dateStyle: 'full',
- *     timeStyle: 'short'
- * });
- * // "Saturday, March 15, 2025 at 9:30 AM"
- * ```
- *
- * ### Form Input Handling
- * ```javascript
- * // Convert UTC to local time for datetime-local input
- * const utcDate = "2025-03-15T14:30:00Z";
- * const inputValue = KMP_Timezone.toLocalInput(utcDate, "America/Chicago");
- * // "2025-03-15T09:30"
- *
- * // Convert local datetime-local input to UTC for submission
- * const localInput = "2025-03-15T09:30";
- * const utcValue = KMP_Timezone.toUTC(localInput, "America/Chicago");
- * // "2025-03-15T14:30:00.000Z"
- * ```
- *
- * ### Auto-Converting Datetime Inputs
- * ```html
- * <!-- Add data attributes to auto-convert inputs -->
- * <input type="datetime-local" 
- *        name="start_date"
- *        data-timezone="America/Chicago"
- *        data-utc-value="2025-03-15T14:30:00Z"
- *        data-controller="timezone-input">
- * ```
- *
- * ## Integration with Server
- *
- * Server always stores in UTC, client converts for display/input:
- * 1. Server sends UTC datetime: "2025-03-15T14:30:00Z"
- * 2. Client converts to local for input: "2025-03-15T09:30" (Chicago time)
- * 3. User edits: "2025-03-15T10:00"
- * 4. Client converts back to UTC: "2025-03-15T15:00:00Z"
- * 5. Server stores UTC value
+ * See /docs/10.3.1-timezone-utils-api.md for complete API documentation and usage examples.
  *
  * @namespace KMP_Timezone
  */
 const KMP_Timezone = {
   /**
-   * Detect user's timezone from browser
-   *
-   * Uses Intl.DateTimeFormat to get IANA timezone identifier
-   *
+   * Detect user's timezone from browser using Intl.DateTimeFormat
    * @returns {string} IANA timezone identifier (e.g., "America/Chicago")
    */
   detectTimezone() {
@@ -898,7 +783,6 @@ const KMP_Timezone = {
   },
   /**
    * Get timezone from element data attribute or detect from browser
-   *
    * @param {HTMLElement} element - Element with optional data-timezone attribute
    * @returns {string} Timezone identifier
    */
@@ -910,9 +794,8 @@ const KMP_Timezone = {
   },
   /**
    * Convert UTC datetime to user's timezone for display
-   *
    * @param {string|Date} utcDateTime - UTC datetime string or Date object
-   * @param {string} timezone - Target timezone (default: detected timezone)
+   * @param {string} timezone - Target timezone (default: detected)
    * @param {object} options - Intl.DateTimeFormat options
    * @returns {string} Formatted datetime string in local timezone
    */
@@ -947,9 +830,8 @@ const KMP_Timezone = {
   },
   /**
    * Format date only (no time)
-   *
    * @param {string|Date} utcDateTime - UTC datetime string or Date object
-   * @param {string} timezone - Target timezone (default: detected timezone)
+   * @param {string} timezone - Target timezone (default: detected)
    * @param {object} options - Intl.DateTimeFormat options
    * @returns {string} Formatted date string
    */
@@ -973,9 +855,8 @@ const KMP_Timezone = {
   },
   /**
    * Format time only (no date)
-   *
    * @param {string|Date} utcDateTime - UTC datetime string or Date object
-   * @param {string} timezone - Target timezone (default: detected timezone)
+   * @param {string} timezone - Target timezone (default: detected)
    * @param {object} options - Intl.DateTimeFormat options
    * @returns {string} Formatted time string
    */
@@ -999,11 +880,8 @@ const KMP_Timezone = {
   },
   /**
    * Convert UTC datetime to HTML5 datetime-local format in user's timezone
-   *
-   * For use with datetime-local inputs
-   *
    * @param {string|Date} utcDateTime - UTC datetime
-   * @param {string} timezone - Target timezone (default: detected timezone)
+   * @param {string} timezone - Target timezone (default: detected)
    * @returns {string} Datetime in YYYY-MM-DDTHH:mm format (local time)
    */
   toLocalInput(utcDateTime, timezone = null) {
@@ -1041,12 +919,9 @@ const KMP_Timezone = {
     }
   },
   /**
-   * Convert datetime-local input value (local time) to UTC
-   *
-   * For form submission - converts user's local input to UTC for storage
-   *
-   * @param {string} localDateTime - Datetime in YYYY-MM-DDTHH:mm format (local time)
-   * @param {string} timezone - Source timezone (default: detected timezone)
+   * Convert datetime-local input value (local time) to UTC for storage
+   * @param {string} localDateTime - Datetime in YYYY-MM-DDTHH:mm or YYYY-MM-DD HH:mm:ss format
+   * @param {string} timezone - Source timezone (default: detected)
    * @returns {string} ISO 8601 UTC datetime string
    */
   toUTC(localDateTime, timezone = null) {
@@ -1100,7 +975,6 @@ const KMP_Timezone = {
   },
   /**
    * Get timezone offset in minutes for a specific timezone and date
-   *
    * @param {string} timezone - IANA timezone identifier
    * @param {Date} date - Date to calculate offset for (handles DST)
    * @returns {number} Offset in minutes
@@ -1126,7 +1000,6 @@ const KMP_Timezone = {
   },
   /**
    * Get timezone abbreviation (e.g., CDT, EST, PST)
-   *
    * @param {string} timezone - IANA timezone identifier
    * @param {Date} date - Date for DST calculation (default: now)
    * @returns {string} Timezone abbreviation
@@ -1148,10 +1021,7 @@ const KMP_Timezone = {
   },
   /**
    * Initialize timezone conversion for all datetime inputs on page
-   *
-   * Finds all inputs with data-utc-value and converts them to local time
-   * Call this on page load or after dynamically adding inputs
-   *
+   * Finds inputs with data-utc-value and converts to local time
    * @param {HTMLElement} container - Container to search in (default: document)
    */
   initializeDatetimeInputs(container = document) {
@@ -1166,9 +1036,7 @@ const KMP_Timezone = {
   },
   /**
    * Convert all datetime-local inputs to UTC before form submission
-   *
-   * Attach this to form submit event to automatically convert local times to UTC
-   *
+   * Creates hidden inputs with UTC values, disables originals
    * @param {HTMLFormElement} form - Form element
    * @param {string} timezone - Timezone to use for conversion (default: detected)
    */

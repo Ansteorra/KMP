@@ -5057,6 +5057,37 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
 
     // Listen for Turbo Frame updates
     document.addEventListener('turbo:frame-load', this.boundHandleFrameLoad);
+
+    // Check if state is already present (inline rendered content)
+    this.loadInlineState();
+  }
+
+  /**
+   * Load state from inline rendered content (when table frame doesn't have src)
+   * This handles the case where grid content is pre-rendered on initial page load.
+   */
+  loadInlineState() {
+    // Find the table frame within this controller
+    const tableFrame = this.element.querySelector('turbo-frame[id$="-table"]');
+    if (!tableFrame) return;
+
+    // If the frame has a src attribute and no content yet, it will load via turbo:frame-load
+    // Only load inline state if there's no src (content is pre-rendered)
+    if (tableFrame.hasAttribute('src')) return;
+
+    // Look for the state script tag
+    const stateScript = tableFrame.querySelector('script[type="application/json"]');
+    if (!stateScript) return;
+    try {
+      const stateJson = stateScript.textContent;
+      this.state = JSON.parse(stateJson);
+      console.log('Grid state loaded from inline content:', this.state);
+
+      // Update toolbar UI based on state
+      this.updateToolbar();
+    } catch (e) {
+      console.error('Failed to parse inline grid state:', e);
+    }
   }
 
   /**
@@ -5076,27 +5107,29 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
       return;
     }
 
-    // Listen for table frame loads (not the outer grid frame)
-    if (!event.target.id || !event.target.id.endsWith('-table')) {
-      return;
-    }
+    // Check if this is a table frame load (ends with -table)
+    if (event.target.id && event.target.id.endsWith('-table')) {
+      // Direct table frame load - get state from its script tag
+      const tableFrame = event.target;
+      const stateScript = tableFrame.querySelector('script[type="application/json"]');
+      if (!stateScript) {
+        console.warn('No state script found in table frame');
+        return;
+      }
+      try {
+        const stateJson = stateScript.textContent;
+        this.state = JSON.parse(stateJson);
+        console.log('Grid state updated from table frame:', this.state);
 
-    // Get state from the table frame's script tag
-    const tableFrame = event.target;
-    const stateScript = tableFrame.querySelector('script[type="application/json"]');
-    if (!stateScript) {
-      console.warn('No state script found in table frame');
-      return;
-    }
-    try {
-      const stateJson = stateScript.textContent;
-      this.state = JSON.parse(stateJson);
-      console.log('Grid state updated from table frame:', this.state);
-
-      // Update toolbar UI based on new state
-      this.updateToolbar();
-    } catch (e) {
-      console.error('Failed to parse grid state from table frame:', e);
+        // Update toolbar UI based on new state
+        this.updateToolbar();
+      } catch (e) {
+        console.error('Failed to parse grid state from table frame:', e);
+      }
+    } else {
+      // Outer grid frame loaded - check if it contains an inline table frame with state
+      // This happens when dv_grid_content renders with inline data (no nested src)
+      this.loadInlineState();
     }
   }
 
@@ -6771,7 +6804,7 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
       if (tableFrame) {
         // Get the base grid-data URL from the frame's current src
         // This handles embedded grids with custom endpoints like /members/roles-grid-data/1
-        const currentSrc = tableFrame.getAttribute('src') || tableFrame.src;
+        const currentSrc = tableFrame.getAttribute('src') || tableFrame.dataset.gridSrc || tableFrame.src;
         if (!currentSrc) {
           console.warn('Table frame has no src attribute');
           return;
@@ -7001,7 +7034,7 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
     }
 
     // Get the base grid-data URL from the frame's src
-    const currentSrc = tableFrame.getAttribute('src') || tableFrame.src;
+    const currentSrc = tableFrame.getAttribute('src') || tableFrame.dataset.gridSrc || tableFrame.src;
     if (!currentSrc) {
       console.warn('Table frame has no src attribute');
       return;
@@ -10761,65 +10794,20 @@ __webpack_require__.r(__webpack_exports__);
 
 /**
  * Timezone Input Controller
- * 
- * Automatically handles timezone conversion for datetime-local inputs.
- * Converts UTC values from server to user's local timezone for display/editing,
- * and converts back to UTC before form submission.
- * 
- * ## Usage
- * 
- * ### Basic Auto-Conversion
- * ```html
+ *
+ * Automatically converts datetime-local inputs between user's local timezone
+ * and UTC storage. Converts UTC values to local time on page load, and converts
+ * back to UTC before form submission.
+ *
+ * See /docs/10.3.2-timezone-input-controller.md for complete documentation.
+ *
+ * @example
  * <form data-controller="timezone-input">
- *   <input type="datetime-local" 
+ *   <input type="datetime-local"
  *          name="start_date"
  *          data-timezone-input-target="datetimeInput"
  *          data-utc-value="2025-03-15T14:30:00Z">
  * </form>
- * ```
- * 
- * ### Custom Timezone
- * ```html
- * <form data-controller="timezone-input" data-timezone-input-timezone-value="America/New_York">
- *   <input type="datetime-local" 
- *          name="start_date"
- *          data-timezone-input-target="datetimeInput"
- *          data-utc-value="2025-03-15T14:30:00Z">
- * </form>
- * ```
- * 
- * ### With Timezone Notice
- * ```html
- * <form data-controller="timezone-input">
- *   <input type="datetime-local" 
- *          name="start_date"
- *          data-timezone-input-target="datetimeInput"
- *          data-utc-value="2025-03-15T14:30:00Z">
- *   
- *   <!-- Timezone notice will be auto-populated -->
- *   <small data-timezone-input-target="notice" class="text-muted"></small>
- * </form>
- * ```
- * 
- * ## Features
- * - Automatic timezone detection from browser
- * - Converts UTC to local time on page load
- * - Converts local time back to UTC on form submit
- * - Shows timezone notice to user
- * - Handles multiple datetime inputs in one form
- * - Preserves original values for form reset
- * 
- * ## Targets
- * - `datetimeInput` - datetime-local inputs to convert (required)
- * - `notice` - Elements to populate with timezone info (optional)
- * 
- * ## Values
- * - `timezone` - Override timezone (default: browser detected)
- * - `showNotice` - Show timezone notice (default: true)
- * 
- * ## Actions
- * - `submit` - Converts all inputs to UTC before form submission
- * - `reset` - Restores original local values on form reset
  */
 class TimezoneInputController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
   static targets = ["datetimeInput", "notice"];
@@ -10832,7 +10820,7 @@ class TimezoneInputController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODUL
   };
 
   /**
-   * Initialize controller and convert UTC values to local time
+   * Initialize controller - detect timezone and convert UTC to local time
    */
   connect() {
     // Get or detect timezone
@@ -10859,6 +10847,7 @@ class TimezoneInputController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODUL
 
   /**
    * Convert UTC values to local timezone for input display
+   * Stores original and local values in data attributes for reset
    */
   convertUtcToLocal() {
     this.datetimeInputTargets.forEach(input => {
@@ -10889,9 +10878,8 @@ class TimezoneInputController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODUL
   }
 
   /**
-   * Handle form submission - convert local times to UTC
-   * 
-   * @param {Event} event - Submit event
+   * Handle form submission - convert local times to UTC and create hidden inputs
+   * @param {Event} event
    */
   handleSubmit(event) {
     this.datetimeInputTargets.forEach(input => {
@@ -10919,9 +10907,8 @@ class TimezoneInputController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODUL
   }
 
   /**
-   * Handle form reset - restore local values
-   * 
-   * @param {Event} event - Reset event
+   * Handle form reset - remove hidden inputs and restore original local values
+   * @param {Event} event
    */
   handleReset(event) {
     // Remove any hidden UTC inputs
@@ -10942,9 +10929,8 @@ class TimezoneInputController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODUL
   }
 
   /**
-   * Manually update timezone (called if timezone changes)
-   * 
-   * @param {string} newTimezone - New IANA timezone identifier
+   * Manually update timezone and re-convert all values
+   * @param {string} newTimezone - IANA timezone identifier
    */
   updateTimezone(newTimezone) {
     this.timezone = newTimezone;
@@ -10960,15 +10946,14 @@ class TimezoneInputController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODUL
 
   /**
    * Get current timezone being used
-   * 
-   * @returns {string} Current timezone identifier
+   * @returns {string} Current IANA timezone identifier
    */
   getTimezone() {
     return this.timezone;
   }
 
   /**
-   * Cleanup on disconnect
+   * Cleanup on disconnect - remove event listeners and prevent memory leaks
    */
   disconnect() {
     // Remove event listeners using cached references
@@ -51112,107 +51097,12 @@ __webpack_require__.r(__webpack_exports__);
 
 
 /**
- * Activities Approve and Assign Authorization Stimulus Controller
- * 
- * **Purpose**: Provides interactive authorization approval interface with dynamic approver
- * discovery and assignment functionality for Activities plugin approval workflows.
- * 
- * **Core Responsibilities**:
- * - Dynamic Approver Discovery - AJAX-based approver list retrieval
- * - Authorization Approval Interface - Interactive approval form management
- * - Outlet Communication - Integration with outlet button controllers
- * - Form State Management - Submit button and field state control
- * - API Integration - RESTful endpoint communication for approver data
- * 
- * **Architecture**: 
- * This Stimulus controller extends the base Controller to provide authorization
- * approval functionality with dynamic approver discovery through AJAX endpoints.
- * It integrates with outlet button controllers for seamless workflow integration
- * and manages form state based on user selections.
- * 
- * **Controller Configuration**:
- * ```html
- * <div data-controller="activities-approve-and-assign-auth"
- *      data-activities-approve-and-assign-auth-url-value="/activities/approvers-list">
- *   <input data-activities-approve-and-assign-auth-target="id" type="hidden">
- *   <select data-activities-approve-and-assign-auth-target="approvers"
- *           data-action="change->activities-approve-and-assign-auth#checkReadyToSubmit">
- *   </select>
- *   <button data-activities-approve-and-assign-auth-target="submitBtn">Approve</button>
- * </div>
- * ```
- * 
- * **Workflow Integration**:
- * - **Activity Selection**: Receives activity ID through outlet communication
- * - **Approver Discovery**: Fetches available approvers via AJAX endpoint
- * - **Approval Assignment**: Manages approver selection and form submission
- * - **State Management**: Controls form element states based on data availability
- * 
- * **Dynamic Features**:
- * - Real-time approver list population based on activity selection
- * - Form validation with submit button state management
- * - Seamless integration with outlet button pattern
- * - AJAX error handling and user feedback
- * 
- * **API Integration**:
- * - RESTful endpoint communication for approver discovery
- * - JSON response processing and UI population
- * - Proper HTTP headers for AJAX requests
- * - Error handling for network and server issues
- * 
- * **State Management Features**:
- * - Submit button disabled until valid approver selected
- * - Approver dropdown disabled until activity selected
- * - Dynamic option population with value/text pairs
- * - Form reset capabilities for workflow restart
- * 
- * **Security Considerations**:
- * - CSRF token integration through form submission
- * - Proper HTTP headers for AJAX requests
- * - Server-side validation integration
- * - Input sanitization through server endpoints
- * 
- * **Performance Optimization**:
- * - Efficient AJAX requests with minimal data transfer
- * - DOM manipulation optimization for option updates
- * - Event delegation for optimal event handling
- * - Lazy loading of approver data when needed
- * 
- * **Error Handling**:
- * - Network error graceful degradation
- * - Invalid response handling
- * - User feedback for failed operations
- * - Form state restoration on errors
- * 
- * **Integration Points**:
- * - Outlet Button Controllers - Activity selection communication
- * - Activities Controller Endpoints - Approver discovery API
- * - Authorization Approval Forms - Form submission integration
- * - Stimulus Application - Global controller registration
- * 
- * **Usage Examples**:
- * ```html
- * <!-- Authorization approval interface -->
- * <div data-controller="activities-approve-and-assign-auth outlet-btn"
- *      data-activities-approve-and-assign-auth-url-value="/activities/approvers-list"
- *      data-activities-approve-and-assign-auth-outlet-btn-outlet="outlet-btn">
- *   <!-- Activity selection triggers approver discovery -->
- *   <!-- Approver selection enables form submission -->
- *   <!-- Integrated with approval workflow forms -->
- * </div>
- * ```
- * 
- * **Troubleshooting**:
- * - Verify outlet button controller integration
- * - Check AJAX endpoint availability and response format
- * - Validate form target configurations
- * - Monitor network requests for API communication
- * 
- * @see ActivitiesController.approversList() Server endpoint for approver discovery
- * @see OutletButtonController Integration pattern for controller communication
- * @see AuthorizationApproval Authorization approval workflow entities
+ * Approve and Assign Authorization Controller - AJAX-based approver selection
+ *
+ * Targets: approvers, submitBtn, id
+ * Values: url (String), approvalId (Number)
+ * Outlets: outlet-btn
  */
-
 class ActivitiesApproveAndAssignAuthorization extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
   static values = {
     url: String,
@@ -51221,107 +51111,42 @@ class ActivitiesApproveAndAssignAuthorization extends _hotwired_stimulus__WEBPAC
   static targets = ["approvers", "submitBtn", "id"];
   static outlets = ["outlet-btn"];
 
-  /**
-   * Controller Connection Handler
-   * 
-   * Initializes the controller when connected to the DOM. If an approval ID
-   * is provided via data attribute, automatically loads the approvers list.
-   * This supports both the outlet-based workflow and direct page load scenarios.
-   */
+  /** Load approvers on connect if approvalId is pre-set. */
   connect() {
-    // If approval ID is provided as a value, load approvers immediately
     if (this.hasApprovalIdValue && this.approvalIdValue > 0) {
       this.idTarget.value = this.approvalIdValue;
       this.getApprovers();
     }
   }
 
-  /**
-   * Set Activity ID and Trigger Approver Discovery
-   * 
-   * Receives activity ID from outlet button controller and initiates
-   * approver discovery process for authorization approval workflow.
-   * 
-   * **Outlet Communication**:
-   * - Receives activity selection event from outlet button
-   * - Extracts activity ID from event detail
-   * - Updates hidden ID field for form submission
-   * - Triggers approver discovery AJAX request
-   * 
-   * **Workflow Integration**:
-   * Called when user selects activity for approval assignment,
-   * seamlessly integrating with outlet button pattern for
-   * cross-controller communication.
-   * 
-   * @param {CustomEvent} event Outlet button event with activity ID
-   */
+  /** Set activity ID from outlet event and fetch approvers. */
   setId(event) {
     this.idTarget.value = event.detail.id;
     this.getApprovers();
   }
 
-  /**
-   * Register Outlet Button Event Listener
-   * 
-   * Establishes communication channel with outlet button controller
-   * for activity selection events and workflow integration.
-   * 
-   * @param {Controller} outlet Outlet button controller instance
-   * @param {HTMLElement} element Associated DOM element
-   */
+  /** Register setId listener when outlet button connects. */
   outletBtnOutletConnected(outlet, element) {
     outlet.addListener(this.setId.bind(this));
   }
 
-  /**
-   * Unregister Outlet Button Event Listener
-   * 
-   * Cleans up communication channel when outlet button controller
-   * disconnects to prevent memory leaks and orphaned listeners.
-   * 
-   * @param {Controller} outlet Outlet button controller instance
-   */
+  /** Remove setId listener when outlet button disconnects. */
   outletBtnOutletDisconnected(outlet) {
     outlet.removeListener(this.setId.bind(this));
   }
 
-  /**
-   * Fetch Available Approvers via AJAX
-   * 
-   * Retrieves list of available approvers for selected activity through
-   * AJAX endpoint and populates approver dropdown for selection.
-   * 
-   * **AJAX Workflow**:
-   * 1. Constructs endpoint URL with activity ID
-   * 2. Sends AJAX request with proper headers
-   * 3. Processes JSON response data
-   * 4. Populates approver dropdown options
-   * 5. Updates form state for user interaction
-   * 
-   * **Response Processing**:
-   * - Converts server response to option format
-   * - Populates dropdown with value/text pairs
-   * - Enables approver selection interface
-   * - Disables submit button pending selection
-   * 
-   * **Error Handling**:
-   * Network errors and invalid responses are handled gracefully
-   * with user feedback and form state restoration.
-   */
+  /** Fetch approvers from server and populate dropdown. */
   getApprovers() {
     if (this.hasApproversTarget) {
       this.approversTarget.value = "";
       let activityId = this.idTarget.value;
       let url = this.urlValue + "/" + activityId;
       fetch(url, this.optionsForFetch()).then(response => response.json()).then(data => {
-        // Clear existing options except the first one (empty option)
         const emptyOption = this.approversTarget.options[0];
         this.approversTarget.innerHTML = '';
         if (emptyOption) {
           this.approversTarget.appendChild(emptyOption);
         }
-
-        // Add new options
         data.forEach(item => {
           const option = document.createElement('option');
           option.value = item.id;
@@ -51334,18 +51159,7 @@ class ActivitiesApproveAndAssignAuthorization extends _hotwired_stimulus__WEBPAC
     }
   }
 
-  /**
-   * Configure AJAX Request Options
-   * 
-   * Provides standardized AJAX request configuration with proper
-   * headers for Activities plugin API communication.
-   * 
-   * **Header Configuration**:
-   * - X-Requested-With: XMLHttpRequest for AJAX identification
-   * - Accept: application/json for JSON response handling
-   * 
-   * @return {Object} Fetch options object with headers
-   */
+  /** Return AJAX request headers. */
   optionsForFetch() {
     return {
       headers: {
@@ -51355,22 +51169,7 @@ class ActivitiesApproveAndAssignAuthorization extends _hotwired_stimulus__WEBPAC
     };
   }
 
-  /**
-   * Validate Form Submission Readiness
-   * 
-   * Checks approver selection status and enables/disables submit button
-   * based on valid approver selection for authorization approval.
-   * 
-   * **Validation Logic**:
-   * - Parses approver selection value
-   * - Validates positive integer selection
-   * - Enables submit button for valid selection
-   * - Disables submit button for invalid/empty selection
-   * 
-   * **Form State Management**:
-   * Ensures form can only be submitted with valid approver
-   * selection, preventing incomplete authorization requests.
-   */
+  /** Enable submit button when valid approver is selected. */
   checkReadyToSubmit() {
     let approverValue = this.approversTarget.value;
     let approverNum = parseInt(approverValue);
@@ -51381,21 +51180,13 @@ class ActivitiesApproveAndAssignAuthorization extends _hotwired_stimulus__WEBPAC
     }
   }
 
-  /**
-   * Initialize Submit Button State
-   * 
-   * Sets initial disabled state for submit button when target connects
-   * to prevent premature form submission before approver selection.
-   * 
-   * **Initial State**:
-   * Submit button is disabled by default and enabled only after
-   * valid approver selection through checkReadyToSubmit().
-   */
+  /** Disable submit button on initial connection. */
   submitBtnTargetConnected() {
     this.submitBtnTarget.disabled = true;
   }
 }
-// add to window.Controllers with a name of the controller
+
+// Register controller with global registry
 if (!window.Controllers) {
   window.Controllers = {};
 }
@@ -51569,13 +51360,10 @@ __webpack_require__.r(__webpack_exports__);
 
 
 /**
- * Mobile Authorization Request Controller
- * 
- * Handles mobile-optimized authorization request workflow including:
- * - Online/offline detection
- * - Dynamic approver loading based on activity selection
- * - Form validation
- * - Touch-optimized interactions
+ * Mobile Authorization Request Controller - Touch-optimized auth request workflow
+ *
+ * Targets: form, activitySelect, approverSelect, approverHelp, submitBtn, submitText, onlineStatus
+ * Values: approversUrl (String), memberId (Number)
  */
 class MobileRequestAuthController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
   static targets = ["form", "activitySelect", "approverSelect", "approverHelp", "submitBtn", "submitText", "onlineStatus"];
@@ -51584,41 +51372,25 @@ class MobileRequestAuthController extends _hotwired_stimulus__WEBPACK_IMPORTED_M
     memberId: Number
   };
 
-  /**
-   * Initialize controller - cache bound event handlers
-   */
+  /** Cache bound event handlers for proper cleanup. */
   initialize() {
-    // Cache bound handlers for proper cleanup
     this._onOnline = this.checkOnlineStatus.bind(this);
     this._onOffline = this.checkOnlineStatus.bind(this);
     this._onSubmit = this.handleSubmit.bind(this);
   }
 
-  /**
-   * Initialize controller and check online status
-   */
+  /** Setup online/offline listeners and initial validation. */
   connect() {
     console.log("Mobile Request Auth controller connected");
-
-    // Check online status on load
     this.checkOnlineStatus();
-
-    // Listen for online/offline events using cached handlers
     window.addEventListener('online', this._onOnline);
     window.addEventListener('offline', this._onOffline);
-
-    // Prevent form submission if offline using cached handler
     this.formTarget.addEventListener('submit', this._onSubmit);
-
-    // Initial validation state
     this.validateForm();
   }
 
-  /**
-   * Cleanup event listeners
-   */
+  /** Remove event listeners on disconnect. */
   disconnect() {
-    // Remove listeners using same cached handlers
     window.removeEventListener('online', this._onOnline);
     window.removeEventListener('offline', this._onOffline);
     if (this.hasFormTarget) {
@@ -51626,49 +51398,31 @@ class MobileRequestAuthController extends _hotwired_stimulus__WEBPACK_IMPORTED_M
     }
   }
 
-  /**
-   * Check if user is online and update UI accordingly
-   */
+  /** Update UI based on online/offline status. */
   checkOnlineStatus() {
     const isOnline = navigator.onLine;
     if (!isOnline) {
-      // Show offline warning
       this.onlineStatusTarget.hidden = false;
       this.onlineStatusTarget.classList.add('offline');
-
-      // Disable form elements
       this.activitySelectTarget.disabled = true;
       this.approverSelectTarget.disabled = true;
       this.submitBtnTarget.disabled = true;
-
-      // Update help text
       this.approverHelpTarget.textContent = "You must be online to submit requests";
     } else {
-      // Hide offline warning
       this.onlineStatusTarget.hidden = true;
       this.onlineStatusTarget.classList.remove('offline');
-
-      // Re-enable form elements
       this.activitySelectTarget.disabled = false;
       this.approverSelectTarget.disabled = false;
-
-      // Restore previous state
       this.validateForm();
-
-      // Update help text
       if (!this.activitySelectTarget.value) {
         this.approverHelpTarget.textContent = "Select an activity to see available approvers";
       }
     }
   }
 
-  /**
-   * Load approvers when activity is selected
-   */
+  /** Fetch approvers from API when activity is selected. */
   async loadApprovers(event) {
     const activityId = event.target.value;
-
-    // Reset approver dropdown
     this.approverSelectTarget.innerHTML = '<option value="">-- Loading approvers... --</option>';
     this.approverSelectTarget.disabled = true;
     this.approverHelpTarget.textContent = "Loading approvers...";
@@ -51678,15 +51432,12 @@ class MobileRequestAuthController extends _hotwired_stimulus__WEBPACK_IMPORTED_M
       this.approverHelpTarget.textContent = "Select an activity to see available approvers";
       return;
     }
-
-    // Check if online
     if (!navigator.onLine) {
       this.approverSelectTarget.innerHTML = '<option value="">-- You must be online --</option>';
       this.approverHelpTarget.textContent = "You must be online to load approvers";
       return;
     }
     try {
-      // Fetch approvers from API
       const url = `${this.approversUrlValue}/${activityId}/${this.memberIdValue}`;
       const response = await fetch(url, {
         headers: {
@@ -51698,23 +51449,15 @@ class MobileRequestAuthController extends _hotwired_stimulus__WEBPACK_IMPORTED_M
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data = await response.json();
-
-      // Clear loading option
       this.approverSelectTarget.innerHTML = '';
-
-      // Add empty option
       const emptyOption = document.createElement('option');
       emptyOption.value = '';
       emptyOption.textContent = '-- Choose an approver --';
       this.approverSelectTarget.appendChild(emptyOption);
-
-      // Add approver options
-      // API returns array directly, not wrapped in approvers property
       if (data && Array.isArray(data) && data.length > 0) {
         data.forEach(approver => {
           const option = document.createElement('option');
           option.value = approver.id;
-          // API returns sca_name, not name
           option.textContent = approver.sca_name;
           this.approverSelectTarget.appendChild(option);
         });
@@ -51732,43 +51475,31 @@ class MobileRequestAuthController extends _hotwired_stimulus__WEBPACK_IMPORTED_M
       this.approverSelectTarget.innerHTML = '<option value="">-- Error loading approvers --</option>';
       this.approverHelpTarget.textContent = "Failed to load approvers. Please try again.";
     }
-
-    // Revalidate form
     this.validateForm();
   }
 
-  /**
-   * Validate form and enable/disable submit button
-   */
+  /** Enable submit button only when activity and approver are selected and online. */
   validateForm() {
     const activitySelected = this.activitySelectTarget.value !== '';
     const approverSelected = this.approverSelectTarget.value !== '';
     const isOnline = navigator.onLine;
-    const isValid = activitySelected && approverSelected && isOnline;
-    this.submitBtnTarget.disabled = !isValid;
+    this.submitBtnTarget.disabled = !(activitySelected && approverSelected && isOnline);
   }
 
-  /**
-   * Handle form submission
-   */
+  /** Prevent submission if offline, show loading state otherwise. */
   handleSubmit(event) {
-    // Prevent submission if offline
     if (!navigator.onLine) {
       event.preventDefault();
       alert('You must be online to submit authorization requests');
       return false;
     }
-
-    // Show loading state
     this.submitBtnTarget.disabled = true;
     this.submitTextTarget.innerHTML = '<span class="loading-spinner"></span>Submitting...';
-
-    // Form will submit normally to the controller action
     return true;
   }
 }
 
-// Register controller globally
+// Register controller with global registry
 if (!window.Controllers) {
   window.Controllers = {};
 }
@@ -51789,120 +51520,12 @@ __webpack_require__.r(__webpack_exports__);
 
 
 /**
- * Activities Renew Authorization Stimulus Controller
- * 
- * **Purpose**: Provides interactive authorization renewal interface with dynamic approver
- * discovery, member-specific validation, and seamless renewal workflow management for
- * Activities plugin authorization lifecycle.
- * 
- * **Core Responsibilities**:
- * - Authorization Renewal Interface - Member-specific renewal form management
- * - Dynamic Approver Discovery - AJAX-based approver list retrieval with member context
- * - Outlet Communication - Integration with outlet button controllers
- * - Member Context Management - Member-specific renewal validation and processing
- * - Form State Management - Submit button and field state control with renewal logic
- * 
- * **Architecture**: 
- * This Stimulus controller extends the base Controller to provide authorization
- * renewal functionality with member-specific approver discovery through AJAX endpoints.
- * It integrates with outlet button controllers and manages renewal-specific validation
- * including member eligibility and existing authorization requirements.
- * 
- * **Controller Configuration**:
- * ```html
- * <div data-controller="activities-renew-auth"
- *      data-activities-renew-auth-url-value="/activities/renewal-approvers-list">
- *   <input data-activities-renew-auth-target="id" type="hidden">
- *   <input data-activities-renew-auth-target="activity" type="hidden">
- *   <input data-activities-renew-auth-target="memberId" type="hidden">
- *   <select data-activities-renew-auth-target="approvers"
- *           data-action="change->activities-renew-auth#checkReadyToSubmit">
- *   </select>
- *   <button data-activities-renew-auth-target="submitBtn">Renew Authorization</button>
- * </div>
- * ```
- * 
- * **Renewal Workflow Context**:
- * Authorization renewals differ from new requests by requiring:
- * - Existing active or recently expired authorization
- * - Member eligibility validation for renewal
- * - Potentially different approver requirements
- * - Renewal-specific business logic and validation
- * 
- * **Member-Specific Features**:
- * - Member ID integration for personalized renewal workflows
- * - Member-specific approver discovery based on authorization context
- * - Renewal eligibility validation through server endpoints
- * - Member authorization history consideration
- * 
- * **Dynamic Approver Discovery**:
- * - Fetches renewal-appropriate approvers via AJAX
- * - Includes member context in approver discovery requests
- * - Handles member-specific approval authority validation
- * - Processes renewal-specific approver qualification
- * 
- * **Outlet Integration**:
- * - Receives authorization selection events from outlet controllers
- * - Extracts both authorization ID and activity information
- * - Manages cross-controller communication for renewal workflows
- * - Supports complex renewal initiation patterns
- * 
- * **State Management Features**:
- * - Submit button disabled until valid renewal approver selected
- * - Approver dropdown disabled until authorization/activity selected
- * - Dynamic option population with member-context validation
- * - Form reset capabilities for renewal workflow restart
- * 
- * **API Integration**:
- * - RESTful endpoint communication with member and activity context
- * - JSON response processing for renewal-specific data
- * - Proper HTTP headers for AJAX requests
- * - Error handling for renewal validation failures
- * 
- * **Security Considerations**:
- * - CSRF token integration through form submission
- * - Member authorization validation
- * - Renewal eligibility verification
- * - Server-side validation integration
- * 
- * **Performance Optimization**:
- * - Efficient AJAX requests with member/activity context
- * - DOM manipulation optimization for renewal interfaces
- * - Event delegation for optimal event handling
- * - Lazy loading of renewal-specific data
- * 
- * **Integration Points**:
- * - Outlet Button Controllers - Authorization selection communication
- * - Activities Controller Endpoints - Renewal approver discovery API
- * - Authorization Renewal Forms - Form submission integration
- * - Member Management - Member context and validation
- * - Stimulus Application - Global controller registration
- * 
- * **Usage Examples**:
- * ```html
- * <!-- Authorization renewal interface -->
- * <div data-controller="activities-renew-auth outlet-btn"
- *      data-activities-renew-auth-url-value="/activities/renewal-approvers"
- *      data-activities-renew-auth-outlet-btn-outlet="outlet-btn">
- *   <!-- Authorization selection triggers renewal approver discovery -->
- *   <!-- Member context included in renewal validation -->
- *   <!-- Integrated with renewal workflow forms -->
- * </div>
- * ```
- * 
- * **Troubleshooting**:
- * - Verify outlet button controller integration for authorization selection
- * - Check renewal-specific AJAX endpoint availability and response format
- * - Validate member ID and activity context in form targets
- * - Monitor network requests for renewal API communication
- * - Verify renewal eligibility validation on server side
- * 
- * @see ActivitiesController.renewalApproversList() Server endpoint for renewal approver discovery
- * @see OutletButtonController Integration pattern for authorization selection
- * @see AuthorizationRenewal Authorization renewal workflow entities
- * @see Member Member entity with renewal context
+ * Renew Authorization Controller - Authorization renewal with approver selection
+ *
+ * Targets: activity, approvers, submitBtn, memberId, id
+ * Values: url (String)
+ * Outlets: outlet-btn
  */
-
 class ActivitiesRenewAuthorization extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
   static values = {
     url: String
@@ -51910,79 +51533,24 @@ class ActivitiesRenewAuthorization extends _hotwired_stimulus__WEBPACK_IMPORTED_
   static targets = ["activity", "approvers", "submitBtn", "memberId", "id"];
   static outlets = ["outlet-btn"];
 
-  /**
-   * Set Authorization and Activity Context for Renewal
-   * 
-   * Receives authorization selection from outlet button controller and
-   * extracts both authorization ID and activity information for renewal
-   * workflow initialization.
-   * 
-   * **Renewal Context Setup**:
-   * - Extracts authorization ID for renewal processing
-   * - Sets activity ID for approver discovery context
-   * - Initiates member-specific approver discovery
-   * - Prepares form for renewal workflow
-   * 
-   * **Outlet Communication**:
-   * Receives complex event data including both authorization
-   * and activity information needed for renewal processing,
-   * enabling sophisticated renewal workflow integration.
-   * 
-   * @param {CustomEvent} event Outlet button event with authorization and activity data
-   */
+  /** Set authorization and activity IDs from outlet event, then fetch approvers. */
   setId(event) {
     this.idTarget.value = event.detail.id;
     this.activityTarget.value = event.detail.activity;
     this.getApprovers();
   }
 
-  /**
-   * Register Outlet Button Event Listener
-   * 
-   * Establishes communication channel with outlet button controller
-   * for authorization selection events and renewal workflow integration.
-   * 
-   * @param {Controller} outlet Outlet button controller instance
-   * @param {HTMLElement} element Associated DOM element
-   */
+  /** Register setId listener when outlet button connects. */
   outletBtnOutletConnected(outlet, element) {
     outlet.addListener(this.setId.bind(this));
   }
 
-  /**
-   * Unregister Outlet Button Event Listener
-   * 
-   * Cleans up communication channel when outlet button controller
-   * disconnects to prevent memory leaks and orphaned listeners.
-   * 
-   * @param {Controller} outlet Outlet button controller instance
-   */
+  /** Remove setId listener when outlet button disconnects. */
   outletBtnOutletDisconnected(outlet) {
     outlet.removeListener(this.setId.bind(this));
   }
 
-  /**
-   * Fetch Available Approvers for Activity
-   * 
-   * Makes API request to retrieve list of members authorized to approve
-   * renewals for the selected activity, populating the approvers dropdown
-   * with member-specific options.
-   * 
-   * **Member Context Integration**:
-   * - Includes member ID for renewal eligibility validation
-   * - Filters approvers based on activity authorization context
-   * - Handles member-specific renewal constraints
-   * - Updates UI with member-appropriate approver options
-   * 
-   * **Error Handling**:
-   * Provides fallback behavior when approver discovery fails,
-   * ensuring renewal workflow can proceed even without dynamic
-   * approver information.
-   * 
-   * **State Management**:
-   * Updates form submission readiness after approver population
-   * to ensure complete renewal context before form submission.
-   */
+  /** Fetch approvers for selected activity and member, populate dropdown. */
   getApprovers() {
     if (this.hasApproversTarget) {
       this.approversTarget.value = "";
@@ -52003,20 +51571,7 @@ class ActivitiesRenewAuthorization extends _hotwired_stimulus__WEBPACK_IMPORTED_
     }
   }
 
-  /**
-   * Configure AJAX Request Options
-   * 
-   * Provides standard AJAX request configuration for Activities API
-   * communication with proper headers for JSON responses and AJAX
-   * request identification.
-   * 
-   * **Headers Configuration**:
-   * - X-Requested-With for AJAX identification
-   * - Accept header for JSON content type specification
-   * - Enables proper server-side AJAX detection
-   * 
-   * @returns {Object} Fetch options configuration for Activities API requests
-   */
+  /** Return AJAX request headers. */
   optionsForFetch() {
     return {
       headers: {
@@ -52026,22 +51581,7 @@ class ActivitiesRenewAuthorization extends _hotwired_stimulus__WEBPACK_IMPORTED_
     };
   }
 
-  /**
-   * Validate Renewal Form Completion
-   * 
-   * Checks renewal form completeness by validating approver selection
-   * to enable form submission when all renewal requirements are satisfied.
-   * 
-   * **Renewal Validation**:
-   * - Verifies approver selection with numeric validation
-   * - Ensures valid approver ID for renewal processing
-   * - Controls submit button state for user experience
-   * - Provides immediate feedback on form completion status
-   * 
-   * **Form State Management**:
-   * Provides immediate feedback on form completion status
-   * and guides users through renewal workflow requirements.
-   */
+  /** Enable submit button when valid approver is selected. */
   checkReadyToSubmit() {
     let approverValue = this.approversTarget.value;
     let approverNum = parseInt(approverValue);
@@ -52051,11 +51591,14 @@ class ActivitiesRenewAuthorization extends _hotwired_stimulus__WEBPACK_IMPORTED_
       this.submitBtnTarget.disabled = true;
     }
   }
+
+  /** Disable submit button on initial connection. */
   submitBtnTargetConnected() {
     this.submitBtnTarget.disabled = true;
   }
 }
-// add to window.Controllers with a name of the controller
+
+// Register controller with global registry
 if (!window.Controllers) {
   window.Controllers = {};
 }
@@ -52073,82 +51616,10 @@ window.Controllers["activities-renew-auth"] = ActivitiesRenewAuthorization;
 __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
 /**
- * Activities Request Authorization Controller
- * 
- * Stimulus.js controller that manages authorization request workflows within
- * the KMP Activities Plugin. Provides interactive interface for members to
- * request activity authorizations with dynamic approver discovery and
- * member-specific validation.
- * 
- * **Core Functionality**:
- * - Authorization request form management with activity context
- * - Dynamic approver discovery based on activity and member
- * - Real-time form validation for authorization requests
- * - Member-specific authorization request workflows
- * 
- * **Request Context Integration**:
- * - Member ID integration for personalized request workflows
- * - Activity-specific approver discovery for request routing
- * - Request eligibility validation through server endpoints
- * - Member authorization status consideration for duplicate prevention
- * 
- * **Dynamic Approver Discovery**:
- * - Fetches request-appropriate approvers via AJAX
- * - Includes member context in approver discovery requests
- * - Handles member-specific approval authority validation
- * - Processes request-specific approver qualification
- * 
- * **State Management Features**:
- * - Submit button disabled until valid approver selected
- * - Approver dropdown disabled until activity selected
- * - Dynamic option population with member-context validation
- * - Form initialization with proper disabled states
- * 
- * **API Integration**:
- * - RESTful endpoint communication with member and activity context
- * - JSON response processing for request-specific data
- * - Proper HTTP headers for AJAX requests
- * - Error handling for request validation failures
- * 
- * **Security Considerations**:
- * - CSRF token integration through form submission
- * - Member authorization validation
- * - Request eligibility verification
- * - Server-side validation integration
- * 
- * **Performance Optimization**:
- * - Efficient AJAX requests with member/activity context
- * - DOM manipulation optimization for request interfaces
- * - Event delegation for optimal event handling
- * - Lazy loading of request-specific data
- * 
- * **Integration Points**:
- * - Activities Controller Endpoints - Request approver discovery API
- * - Authorization Request Forms - Form submission integration
- * - Member Management - Member context and validation
- * - Stimulus Application - Global controller registration
- * 
- * **Usage Examples**:
- * ```html
- * <!-- Authorization request interface -->
- * <div data-controller="activities-request-auth"
- *      data-activities-request-auth-url-value="/activities/request-approvers">
- *   <!-- Activity selection triggers request approver discovery -->
- *   <!-- Member context included in request validation -->
- *   <!-- Integrated with authorization request forms -->
- * </div>
- * ```
- * 
- * **Troubleshooting**:
- * - Verify request-specific AJAX endpoint availability and response format
- * - Check member ID and activity context in form targets
- * - Monitor network requests for request API communication
- * - Verify request eligibility validation on server side
- * - Ensure proper form initialization for disabled states
- * 
- * @see ActivitiesController.requestApproversList() Server endpoint for request approver discovery
- * @see AuthorizationRequest Authorization request workflow entities
- * @see Member Member entity with request context
+ * Request Authorization Controller - Authorization request with approver selection
+ *
+ * Targets: activity, approvers, submitBtn, memberId
+ * Values: url (String)
  */
 
 
@@ -52158,31 +51629,7 @@ class ActivitiesRequestAuthorization extends _hotwired_stimulus__WEBPACK_IMPORTE
   };
   static targets = ["activity", "approvers", "submitBtn", "memberId"];
 
-  /**
-   * Fetch Available Approvers for Activity Request
-   * 
-   * Makes API request to retrieve list of members authorized to approve
-   * authorization requests for the selected activity, populating the
-   * approvers dropdown with member-specific options.
-   * 
-   * **Member Context Integration**:
-   * - Includes member ID for request eligibility validation
-   * - Filters approvers based on activity authorization context
-   * - Handles member-specific request constraints
-   * - Updates UI with member-appropriate approver options
-   * 
-   * **Request Processing**:
-   * - Clears existing approver selections for fresh requests
-   * - Constructs member and activity specific API endpoints
-   * - Processes approver data for dropdown population
-   * - Manages form state during approver discovery
-   * 
-   * **State Management**:
-   * Resets form state and populates approver options while
-   * maintaining proper disabled states until valid selection.
-   * 
-   * @param {Event} event Activity selection change event
-   */
+  /** Fetch approvers from API for selected activity and member. */
   getApprovers(event) {
     this.approversTarget.value = "";
     let activityId = this.activityTarget.value;
@@ -52201,37 +51648,14 @@ class ActivitiesRequestAuthorization extends _hotwired_stimulus__WEBPACK_IMPORTE
     });
   }
 
-  /**
-   * Initialize Controller State
-   * 
-   * Sets up initial form state with proper disabled controls
-   * to guide user through request workflow sequence.
-   * 
-   * **Initial State Setup**:
-   * - Disables approver dropdown until activity selected
-   * - Ensures consistent form initialization
-   * - Prevents premature form submission
-   */
+  /** Disable approvers dropdown on initial connection. */
   acConnected() {
     if (this.hasApproversTarget) {
       this.approversTarget.disabled = true;
     }
   }
 
-  /**
-   * Configure AJAX Request Options
-   * 
-   * Provides standard AJAX request configuration for Activities API
-   * communication with proper headers for JSON responses and AJAX
-   * request identification.
-   * 
-   * **Headers Configuration**:
-   * - X-Requested-With for AJAX identification
-   * - Accept header for JSON content type specification
-   * - Enables proper server-side AJAX detection
-   * 
-   * @returns {Object} Fetch options configuration for Activities API requests
-   */
+  /** Return AJAX request headers. */
   optionsForFetch() {
     return {
       headers: {
@@ -52241,22 +51665,7 @@ class ActivitiesRequestAuthorization extends _hotwired_stimulus__WEBPACK_IMPORTE
     };
   }
 
-  /**
-   * Validate Request Form Completion
-   * 
-   * Checks request form completeness by validating approver selection
-   * to enable form submission when all request requirements are satisfied.
-   * 
-   * **Request Validation**:
-   * - Verifies approver selection with numeric validation
-   * - Ensures valid approver ID for request processing
-   * - Controls submit button state for user experience
-   * - Provides immediate feedback on form completion status
-   * 
-   * **Form State Management**:
-   * Provides immediate feedback on form completion status
-   * and guides users through request workflow requirements.
-   */
+  /** Enable submit button when valid approver is selected. */
   checkReadyToSubmit() {
     let approverValue = this.approversTarget.value;
     let approverNum = parseInt(approverValue);
@@ -52267,27 +51676,18 @@ class ActivitiesRequestAuthorization extends _hotwired_stimulus__WEBPACK_IMPORTE
     }
   }
 
-  /**
-   * Initialize Submit Button State
-   * 
-   * Ensures submit button starts in disabled state
-   * to prevent premature form submission.
-   */
+  /** Disable submit button on initial connection. */
   submitBtnTargetConnected() {
     this.submitBtnTarget.disabled = true;
   }
 
-  /**
-   * Initialize Approvers Dropdown State
-   * 
-   * Ensures approvers dropdown starts in disabled state
-   * until activity selection triggers approver discovery.
-   */
+  /** Disable approvers dropdown on initial connection. */
   approversTargetConnected() {
     this.approversTarget.disabled = true;
   }
 }
-// add to window.Controllers with a name of the controller
+
+// Register controller with global registry
 if (!window.Controllers) {
   window.Controllers = {};
 }
@@ -52308,124 +51708,21 @@ __webpack_require__.r(__webpack_exports__);
 
 /**
  * Awards Award Form Controller
- * 
- * Comprehensive Stimulus controller for award form management with hierarchical validation and dynamic 
- * list management. Provides interactive form functionality for creating and editing awards with 
- * multi-value field support and administrative interface integration.
- * 
- * ## Form Interface Features
- * 
- * **Dynamic List Management:**
- * - Add/remove functionality for multi-value fields (e.g., specialties, categories)
- * - Real-time list validation with duplicate prevention
- * - Interactive item display with individual remove buttons
- * - JSON serialization for form submission and persistence
- * 
- * **User Interface Integration:**
- * - Bootstrap-styled interactive elements with consistent visual design
- * - Form validation feedback with immediate user response
- * - Administrative workflow integration with KMP utility functions
- * - Responsive design support for mobile and desktop interfaces
- * 
- * **Data Management:**
- * - JSON-based data persistence with form value synchronization
- * - Array-based item tracking with state preservation
- * - Form restoration from persisted data on page load
- * - Input sanitization using KMP utility functions
- * 
- * ## Administrative Workflow Integration
- * 
- * **Award Configuration:**
- * - Multi-value field management for award specialties and categories
- * - Dynamic form validation with real-time feedback
- * - Administrative interface consistency with KMP design patterns
- * - Form state preservation during editing workflows
- * 
- * **Form Processing:**
- * - JSON serialization for complex data structures
- * - Form value synchronization with backend data models
- * - Input validation and sanitization for security
- * - User feedback through visual interface updates
- * 
- * ## Usage Examples
- * 
- * ### Basic Award Form Integration
- * ```html
- * <!-- Award form with dynamic specialty management -->
- * <form data-controller="awards-award-form">
- *   <div class="mb-3">
- *     <label>Add Specialty</label>
- *     <input type="text" data-awards-award-form-target="new" class="form-control">
- *     <button type="button" data-action="click->awards-award-form#add" class="btn btn-primary">
- *       Add Specialty
- *     </button>
- *   </div>
- * 
- *   <input type="hidden" name="specialties" data-awards-award-form-target="formValue">
- *   <div data-awards-award-form-target="displayList" class="specialty-list"></div>
- * </form>
- * ```
- * 
- * ### Administrative Award Management
- * ```html
- * <!-- Award editing with multi-category support -->
- * <div data-controller="awards-award-form" class="award-config-form">
- *   <div class="form-group">
- *     <label for="categories">Award Categories</label>
- *     <div class="input-group">
- *       <input type="text" data-awards-award-form-target="new" 
- *              placeholder="Enter category name" class="form-control">
- *       <button data-action="awards-award-form#add" type="button" 
- *               class="btn btn-outline-primary">Add Category</button>
- *     </div>
- *   </div>
- * 
- *   <input type="hidden" name="award[categories]" 
- *          data-awards-award-form-target="formValue" value='["existing1","existing2"]'>
- *   <div data-awards-award-form-target="displayList" class="categories-display"></div>
- * </div>
- * ```
- * 
- * ### Form Automation Integration
- * ```javascript
- * // External controller integration for automated form management
- * document.addEventListener('DOMContentLoaded', function() {
- *   const awardForm = document.querySelector('[data-controller="awards-award-form"]');
- *   if (awardForm) {
- *     // Pre-populate form with existing data
- *     const controller = window.Stimulus.getControllerForElementAndIdentifier(awardForm, 'awards-award-form');
- *     // Form will automatically restore from hidden field value
- *   }
- * });
- * ```
- * 
- * @class AwardsAwardForm
- * @extends {Controller}
+ *
+ * Manages dynamic multi-value field lists (e.g., specialties) with add/remove
+ * functionality and JSON serialization for form submission.
+ *
+ * Targets: new, formValue, displayList
  */
 class AwardsAwardForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
   static targets = ["new", "formValue", "displayList"];
 
-  /**
-   * Initialize controller state
-   * 
-   * Sets up the internal items array for tracking form values and managing
-   * dynamic list state throughout the controller lifecycle.
-   * 
-   * @returns {void}
-   */
+  /** Initialize empty items array for list tracking. */
   initialize() {
     this.items = [];
   }
 
-  /**
-   * Add new item to the list
-   * 
-   * Validates input, prevents duplicates, and adds new items to the dynamic list
-   * with proper sanitization and form value synchronization.
-   * 
-   * @param {Event} event - Click event from add button
-   * @returns {void}
-   */
+  /** Add new item to list, preventing duplicates and syncing form value. */
   add(event) {
     event.preventDefault();
     if (!this.newTarget.value) {
@@ -52441,15 +51738,7 @@ class AwardsAwardForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Co
     this.newTarget.value = '';
   }
 
-  /**
-   * Remove item from the list
-   * 
-   * Removes selected item from both the visual display and internal array,
-   * updating form values and maintaining data consistency.
-   * 
-   * @param {Event} event - Click event from remove button
-   * @returns {void}
-   */
+  /** Remove item from list and update form value. */
   remove(event) {
     event.preventDefault();
     let id = event.target.getAttribute('data-id');
@@ -52460,14 +51749,7 @@ class AwardsAwardForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Co
     event.target.parentElement.remove();
   }
 
-  /**
-   * Connect controller and restore form state
-   * 
-   * Initializes the controller, restores existing values from form data,
-   * and rebuilds the visual display list on page load.
-   * 
-   * @returns {void}
-   */
+  /** Restore list from form value on connect. */
   connect() {
     if (this.formValueTarget.value && this.formValueTarget.value.length > 0) {
       this.items = JSON.parse(this.formValueTarget.value);
@@ -52475,21 +51757,12 @@ class AwardsAwardForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Co
         this.items = [];
       }
       this.items.forEach(item => {
-        //create a remove button
         this.createListItem(item);
       });
     }
   }
 
-  /**
-   * Create visual list item with remove button
-   * 
-   * Generates Bootstrap-styled display element with remove functionality
-   * for dynamic list management and user interaction.
-   * 
-   * @param {string} item - The item text to display
-   * @returns {void}
-   */
+  /** Create Bootstrap-styled list item with remove button. */
   createListItem(item) {
     let removeButton = document.createElement('button');
     removeButton.innerHTML = 'Remove';
@@ -52497,7 +51770,6 @@ class AwardsAwardForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Co
     removeButton.setAttribute('data-id', item);
     removeButton.setAttribute('class', 'btn btn-danger btn-sm');
     removeButton.setAttribute('type', 'button');
-    //create a list item
     let inputGroup = document.createElement('div');
     inputGroup.setAttribute('class', 'input-group mb-1');
     let span = document.createElement('span');
@@ -52528,163 +51800,14 @@ __webpack_require__.r(__webpack_exports__);
 
 
 /**
- * Awards Recommendation Add Controller
- * 
- * Comprehensive Stimulus controller for recommendation submission with member validation and award 
- * selection workflow. Provides interactive form functionality for creating award recommendations 
- * with dynamic award discovery, member context validation, and comprehensive submission processing.
- * 
- * ## Submission Workflow Features
- * 
- * **Member Validation:**
- * - SCA member lookup with autocomplete integration
- * - External member profile loading with public links display
- * - Branch validation for non-SCA members with manual entry support
- * - Real-time member context loading and validation feedback
- * 
- * **Award Discovery:**
- * - Hierarchical award selection through domain/award relationships
- * - Dynamic award description display with tabbed interface
- * - Specialty population based on award configuration
- * - Award eligibility validation and selection workflow
- * 
- * **Form Management:**
- * - Comprehensive form state management with field dependencies
- * - Dynamic field enabling/disabling based on selection context
- * - Form validation with comprehensive business rule enforcement
- * - Submission processing with data integrity validation
- * 
- * ## Member Context Integration
- * 
- * **SCA Member Support:**
- * - Member ID validation with numeric format enforcement
- * - Public profile loading with external links integration
- * - Branch auto-population from member data
- * - Member context preservation throughout form workflow
- * 
- * **Non-SCA Member Support:**
- * - Manual branch entry for external members
- * - "Not Found" checkbox toggle with branch field management
- * - External member validation and data entry support
- * - Branch requirement enforcement for non-SCA submissions
- * 
- * **Profile Integration:**
- * - External links display with target="_blank" navigation
- * - Public profile data loading with JSON API integration
- * - Member metadata display for submission context
- * - Profile validation feedback and error handling
- * 
- * ## Award Selection Workflow
- * 
- * **Hierarchical Selection:**
- * - Domain-based award filtering with dynamic population
- * - Award description display with comprehensive information
- * - Tabbed interface for award selection and description viewing
- * - Award eligibility validation based on member context
- * 
- * **Specialty Management:**
- * - Dynamic specialty population based on award configuration
- * - Specialty field visibility management and validation
- * - Award-specific specialty requirements and options
- * - Specialty selection persistence and form integration
- * 
- * ## Usage Examples
- * 
- * ### Basic Recommendation Submission Form
- * ```html
- * <!-- Recommendation submission with member and award selection -->
- * <form data-controller="awards-rec-add" 
- *       data-awards-rec-add-public-profile-url-value="/members/public-profile"
- *       data-awards-rec-add-award-list-url-value="/awards/by-domain">
- * 
- *   <!-- Member Selection -->
- *   <div class="mb-3">
- *     <label>SCA Member</label>
- *     <input type="text" data-awards-rec-add-target="scaMember" 
- *            data-action="change->awards-rec-add#loadScaMemberInfo" 
- *            class="form-control">
- *     <div class="form-check">
- *       <input type="checkbox" data-awards-rec-add-target="notFound" 
- *              class="form-check-input">
- *       <label class="form-check-label">Member not found in SCA database</label>
- *     </div>
- *     <input type="text" data-awards-rec-add-target="branch" 
- *            placeholder="Branch Name" class="form-control" hidden>
- *   </div>
- * 
- *   <!-- External Links Display -->
- *   <div data-awards-rec-add-target="externalLinks" class="member-links"></div>
- * 
- *   <!-- Award Selection -->
- *   <div class="mb-3">
- *     <label>Award Domain</label>
- *     <select data-action="change->awards-rec-add#populateAwardDescriptions" 
- *             class="form-select">
- *       <option value="">Select Domain</option>
- *       <option value="1">Arts & Sciences</option>
- *       <option value="2">Service</option>
- *       <option value="3">Martial</option>
- *     </select>
- *   </div>
- * 
- *   <div data-awards-rec-add-target="awardDescriptions" class="award-tabs"></div>
- * 
- *   <input type="hidden" data-awards-rec-add-target="award" name="award_id">
- *   <select data-awards-rec-add-target="specialty" name="specialty" class="form-select">
- *     <option value="">Select Award First</option>
- *   </select>
- * 
- *   <textarea data-awards-rec-add-target="reason" name="reason" 
- *             class="form-control" placeholder="Reason for recommendation"></textarea>
- * 
- *   <button type="submit" data-action="awards-rec-add#submit" 
- *           class="btn btn-primary">Submit Recommendation</button>
- * </form>
- * ```
- * 
- * ### Member Validation Workflow
- * ```html
- * <!-- Member lookup with profile integration -->
- * <div data-controller="awards-rec-add" 
- *      data-awards-rec-add-public-profile-url-value="/api/members/profile">
- * 
- *   <div class="member-search">
- *     <input type="text" data-awards-rec-add-target="scaMember" 
- *            data-action="input->awards-rec-add#loadScaMemberInfo"
- *            placeholder="Enter SCA Member ID or Name" class="form-control">
- *     
- *     <!-- Auto-populated external links -->
- *     <div data-awards-rec-add-target="externalLinks" class="mt-3"></div>
- *     
- *     <!-- Branch field for non-SCA members -->
- *     <div class="mt-3">
- *       <input type="checkbox" data-awards-rec-add-target="notFound">
- *       <label>Member not in SCA database</label>
- *       <input type="text" data-awards-rec-add-target="branch" 
- *              placeholder="Branch Name" class="form-control mt-2" hidden>
- *     </div>
- *   </div>
- * </div>
- * ```
- * 
- * ### Award Discovery Integration
- * ```javascript
- * // External integration for automated award population
- * document.addEventListener('DOMContentLoaded', function() {
- *   const recForm = document.querySelector('[data-controller="awards-rec-add"]');
- *   if (recForm) {
- *     // Pre-populate domain selection for specific contexts
- *     const domainSelect = recForm.querySelector('select[data-action*="populateAwardDescriptions"]');
- *     if (domainSelect && window.contextDomain) {
- *       domainSelect.value = window.contextDomain;
- *       domainSelect.dispatchEvent(new Event('change'));
- *     }
- *   }
- * });
- * ```
- * 
- * @class AwardsRecommendationAddForm
- * @extends {Controller}
+ * Awards Recommendation Add Form Controller
+ *
+ * Handles new recommendation submission with member validation, hierarchical award
+ * selection via tabbed interface, and dynamic specialty population.
+ *
+ * Targets: scaMember, notFound, branch, externalLinks, awardDescriptions, award,
+ *          reason, gatherings, specialty
+ * Values: publicProfileUrl (String), awardListUrl (String), gatheringsUrl (String)
  */
 class AwardsRecommendationAddForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
   static targets = ["scaMember", "notFound", "branch", "externalLinks", "awardDescriptions", "award", "reason", "gatherings", "specialty"];
@@ -52694,31 +51817,14 @@ class AwardsRecommendationAddForm extends _hotwired_stimulus__WEBPACK_IMPORTED_M
     gatheringsUrl: String
   };
 
-  /**
-   * Submit form with field validation
-   * 
-   * Enables all form fields before submission to ensure data integrity
-   * and proper form processing by the backend controller.
-   * 
-   * @param {Event} event - Form submit event
-   * @returns {void}
-   */
+  /** Enable disabled fields before form submission. */
   submit(event) {
     this.notFoundTarget.disabled = false;
     this.scaMemberTarget.disabled = false;
     this.specialtyTarget.disabled = false;
   }
 
-  /**
-   * Set selected award and populate specialties
-   * 
-   * Handles award selection from tabbed interface and triggers specialty
-   * population based on award configuration and requirements.
-   * Also updates the gatherings list to show only relevant gatherings.
-   * 
-   * @param {Event} event - Click event from award selection tab
-   * @returns {void}
-   */
+  /** Handle award tab selection, populate specialties, and update gatherings. */
   setAward(event) {
     let awardId = event.target.dataset.awardId;
     this.awardTarget.value = awardId;
@@ -52726,16 +51832,7 @@ class AwardsRecommendationAddForm extends _hotwired_stimulus__WEBPACK_IMPORTED_M
     this.updateGatherings(awardId);
   }
 
-  /**
-   * Update gatherings list based on selected award
-   * 
-   * Fetches and updates the gatherings list to show only gatherings
-   * that have activities linked to the selected award. Marks gatherings
-   * where the member has indicated attendance with crown sharing.
-   * 
-   * @param {string} awardId - The selected award ID
-   * @returns {void}
-   */
+  /** Fetch gatherings filtered by award and update checkboxes. */
   updateGatherings(awardId) {
     if (!awardId || !this.hasGatheringsTarget) {
       return;
@@ -52811,14 +51908,7 @@ class AwardsRecommendationAddForm extends _hotwired_stimulus__WEBPACK_IMPORTED_M
     });
   }
 
-  /**
-   * Get fetch options for AJAX requests
-   * 
-   * Provides standardized headers for JSON API communication with proper
-   * AJAX identification and content type specification.
-   * 
-   * @returns {Object} Fetch options object with headers
-   */
+  /** Get standard fetch options with JSON headers. */
   optionsForFetch() {
     return {
       headers: {
@@ -52828,15 +51918,7 @@ class AwardsRecommendationAddForm extends _hotwired_stimulus__WEBPACK_IMPORTED_M
     };
   }
 
-  /**
-   * Populate award descriptions based on domain selection
-   * 
-   * Fetches awards for selected domain and creates tabbed interface for award
-   * selection with descriptions and interactive award selection workflow.
-   * 
-   * @param {Event} event - Change event from domain selection
-   * @returns {void}
-   */
+  /** Fetch awards for domain and create tabbed selection interface. */
   populateAwardDescriptions(event) {
     let url = this.awardListUrlValue + "/" + event.target.value;
     fetch(url, this.optionsForFetch()).then(response => response.json()).then(data => {
@@ -52916,15 +51998,7 @@ class AwardsRecommendationAddForm extends _hotwired_stimulus__WEBPACK_IMPORTED_M
       }
     });
   }
-  /**
-   * Populate specialties based on award selection
-   * 
-   * Updates specialty dropdown based on selected award configuration,
-   * managing field visibility and validation state.
-   * 
-   * @param {Event} event - Award selection event
-   * @returns {void}
-   */
+  /** Update specialty dropdown based on selected award's configuration. */
   populateSpecialties(event) {
     let awardId = this.awardTarget.value;
     let options = this.awardTarget.options;
@@ -52952,15 +52026,7 @@ class AwardsRecommendationAddForm extends _hotwired_stimulus__WEBPACK_IMPORTED_M
     }
   }
 
-  /**
-   * Load SCA member information and context
-   * 
-   * Handles member ID validation, profile loading, and branch field management
-   * based on member discovery and external member support.
-   * 
-   * @param {Event} event - Input change event from member field
-   * @returns {void}
-   */
+  /** Handle member field change, load profile or show branch field if not found. */
   loadScaMemberInfo(event) {
     //reset member metadata area
     this.externalLinksTarget.innerHTML = "";
@@ -52978,15 +52044,7 @@ class AwardsRecommendationAddForm extends _hotwired_stimulus__WEBPACK_IMPORTED_M
     }
   }
 
-  /**
-   * Load member profile data from API
-   * 
-   * Fetches member profile information and displays external links
-   * for member context and validation support.
-   * 
-   * @param {string} memberPublicId - The member public ID to load
-   * @returns {void}
-   */
+  /** Fetch and display member profile external links. */
   loadMember(memberPublicId) {
     let url = this.publicProfileUrlValue + "/" + memberPublicId;
     fetch(url, this.optionsForFetch()).then(response => response.json()).then(data => {
@@ -53016,15 +52074,7 @@ class AwardsRecommendationAddForm extends _hotwired_stimulus__WEBPACK_IMPORTED_M
     });
   }
 
-  /**
-   * Handle autocomplete connection events
-   * 
-   * Manages field state and validation when autocomplete components
-   * connect to form elements for member and award selection.
-   * 
-   * @param {Event} event - Autocomplete connection event
-   * @returns {void}
-   */
+  /** Initialize field state when autocomplete connects. */
   acConnected(event) {
     var target = event.detail["awardsRecAddTarget"];
     switch (target) {
@@ -53051,14 +52101,7 @@ class AwardsRecommendationAddForm extends _hotwired_stimulus__WEBPACK_IMPORTED_M
     }
   }
 
-  /**
-   * Initialize form state on connection
-   * 
-   * Sets up initial form state with proper field initialization
-   * and validation state for new recommendation submission.
-   * 
-   * @returns {void}
-   */
+  /** Initialize form state with disabled fields and empty values. */
   connect() {
     this.notFoundTarget.checked = false;
     this.notFoundTarget.disabled = true;
@@ -53094,218 +52137,15 @@ __webpack_require__.r(__webpack_exports__);
 
 /**
  * Awards Recommendation Bulk Edit Controller
- * 
- * Comprehensive Stimulus controller for bulk recommendation management with batch processing and 
- * administrative oversight. Provides efficient form functionality for updating multiple recommendations 
- * simultaneously with state validation, workflow control, and comprehensive administrative operations.
- * 
- * ## Bulk Operations Features
- * 
- * **Multi-Selection Management:**
- * - Bulk recommendation ID collection and validation
- * - Selection state management with outlet communication
- * - Batch operation preparation with data integrity validation
- * - Multi-record form processing with transaction management
- * 
- * **State Transition Control:**
- * - Bulk state changes with unified workflow validation
- * - Business rule enforcement across multiple recommendations
- * - Batch validation with comprehensive error handling
- * - Administrative oversight for bulk state transitions
- * 
- * **Workflow Efficiency:**
- * - Streamlined bulk processing interface for administrative efficiency
- * - Batch operation confirmation with impact assessment
- * - Progress tracking for large bulk operations
- * - Administrative workflow integration with audit trails
- * 
- * ## Administrative Interface Features
- * 
- * **Selection Management:**
- * - Dynamic ID collection from table selection
- * - Outlet communication for coordinated interface updates
- * - Selection validation with business rule enforcement
- * - Bulk operation scope management and confirmation
- * 
- * **Form Processing:**
- * - Automated form closure after successful bulk operation
- * - URL management for bulk operation endpoints
- * - Form validation with multi-record data integrity
- * - Transaction management for batch processing reliability
- * 
- * **State Rules Application:**
- * - Dynamic field management based on target state
- * - Bulk validation rules with comprehensive checks
- * - Required field enforcement for batch operations
- * - Field visibility control for bulk editing interface
- * 
- * ## Batch Processing Integration
- * 
- * **Selection Coordination:**
- * - Table controller integration for ID collection
- * - Outlet communication for selection state management
- * - Dynamic form configuration based on selection
- * - Bulk operation validation with selection verification
- * 
- * **Workflow Management:**
- * - Bulk state transition with validation
- * - Administrative approval for large batch operations
- * - Progress feedback for long-running bulk processes
- * - Error handling with partial success management
- * 
- * **Data Integrity:**
- * - Transaction management for bulk operations
- * - Rollback capability for failed batch processes
- * - Validation across multiple recommendations
- * - Audit trail integration for bulk changes
- * 
- * ## Usage Examples
- * 
- * ### Bulk Edit Modal Integration
- * ```html
- * <!-- Bulk edit modal with selection management -->
- * <div class="modal fade" id="bulkEditModal">
- *   <div class="modal-dialog">
- *     <div class="modal-content">
- *       <form data-controller="awards-rec-bulk-edit" 
- *             data-awards-rec-bulk-edit-form-url-value="/awards/recommendations/bulk-edit"
- *             data-awards-rec-bulk-edit-turbo-frame-url-value="/awards/recommendations/turbo-bulk-edit">
- * 
- *         <div class="modal-header">
- *           <h5>Bulk Edit Recommendations</h5>
- *           <button type="button" class="btn-close" id="recommendation_bulk_edit_close" 
- *                   data-bs-dismiss="modal"></button>
- *         </div>
- * 
- *         <div class="modal-body">
- *           <!-- Hidden field for selected IDs -->
- *           <input type="hidden" data-awards-rec-bulk-edit-target="bulkIds" 
- *                  name="recommendation_ids">
- * 
- *           <!-- State selection for bulk update -->
- *           <div class="mb-3">
- *             <label>New State for Selected Recommendations</label>
- *             <select data-awards-rec-bulk-edit-target="state" 
- *                     data-action="change->awards-rec-bulk-edit#setFieldRules" 
- *                     class="form-select">
- *               <option value="">Select New State</option>
- *               <option value="Under Review">Under Review</option>
- *               <option value="Approved">Approved</option>
- *               <option value="Given">Given</option>
- *               <option value="Closed">Closed</option>
- *             </select>
- *           </div>
- * 
- *           <!-- State-dependent bulk fields -->
- *           <div data-awards-rec-bulk-edit-target="planToGiveBlock" style="display: none;">
- *             <label>Plan to Give at Event (All Selected)</label>
- *             <select data-awards-rec-bulk-edit-target="planToGiveEvent" 
- *                     name="event_id" class="form-select">
- *               <option value="">Select Event</option>
- *             </select>
- *           </div>
- * 
- *           <div data-awards-rec-bulk-edit-target="givenBlock" style="display: none;">
- *             <label>Date Given (All Selected)</label>
- *             <input type="date" data-awards-rec-bulk-edit-target="givenDate" 
- *                    name="given_date" class="form-control">
- *           </div>
- * 
- *           <div data-awards-rec-bulk-edit-target="closeReasonBlock" style="display: none;">
- *             <label>Close Reason (All Selected)</label>
- *             <textarea data-awards-rec-bulk-edit-target="closeReason" 
- *                       name="close_reason" class="form-control"></textarea>
- *           </div>
- * 
- *           <!-- State rules JSON for dynamic field management -->
- *           <script type="application/json" data-awards-rec-bulk-edit-target="stateRulesBlock">
- *             {
- *               "Approved": {
- *                 "Visible": ["planToGiveBlock"],
- *                 "Required": ["planToGiveEvent"]
- *               },
- *               "Given": {
- *                 "Visible": ["givenBlock"],
- *                 "Required": ["givenDate"]
- *               },
- *               "Closed": {
- *                 "Visible": ["closeReasonBlock"],
- *                 "Required": ["closeReason"]
- *               }
- *             }
- *           </script>
- *         </div>
- * 
- *         <div class="modal-footer">
- *           <button type="submit" data-action="awards-rec-bulk-edit#submit" 
- *                   class="btn btn-warning">Update All Selected</button>
- *           <button type="button" class="btn btn-secondary" 
- *                   data-bs-dismiss="modal">Cancel</button>
- *         </div>
- *       </form>
- *     </div>
- *   </div>
- * </div>
- * ```
- * 
- * ### Table Integration with Selection
- * ```html
- * <!-- Table with bulk selection and outlet communication -->
- * <div data-controller="awards-rec-table awards-rec-bulk-edit" 
- *      data-awards-rec-bulk-edit-outlet-btn-outlet="[data-controller*='outlet-btn']">
- * 
- *   <table class="table">
- *     <thead>
- *       <tr>
- *         <th>
- *           <input type="checkbox" data-awards-rec-table-target="CheckAllBox" 
- *                  data-action="change->awards-rec-table#checkAll">
- *         </th>
- *         <th>Member</th>
- *         <th>Award</th>
- *         <th>State</th>
- *       </tr>
- *     </thead>
- *     <tbody>
- *       <tr>
- *         <td>
- *           <input type="checkbox" data-awards-rec-table-target="rowCheckbox" 
- *                  data-action="change->awards-rec-table#checked" value="123">
- *         </td>
- *         <td>John Doe</td>
- *         <td>Award of Arms</td>
- *         <td>Submitted</td>
- *       </tr>
- *     </tbody>
- *   </table>
- * 
- *   <button type="button" class="btn btn-primary" data-bs-toggle="modal" 
- *           data-bs-target="#bulkEditModal">Bulk Edit Selected</button>
- * </div>
- * ```
- * 
- * ### Administrative Bulk Processing
- * ```javascript
- * // Administrative bulk operation with progress tracking
- * document.addEventListener('DOMContentLoaded', function() {
- *   const bulkEditForm = document.querySelector('[data-controller*="awards-rec-bulk-edit"]');
- *   if (bulkEditForm) {
- *     bulkEditForm.addEventListener('submit', function(e) {
- *       const selectedCount = JSON.parse(this.querySelector('[data-awards-rec-bulk-edit-target="bulkIds"]').value || '[]').length;
- *       if (selectedCount > 10) {
- *         const confirmed = confirm(`You are about to update ${selectedCount} recommendations. This may take a moment. Continue?`);
- *         if (!confirmed) {
- *           e.preventDefault();
- *           return false;
- *         }
- *       }
- *     });
- *   }
- * });
- * ```
- * 
- * @class AwardsRecommendationBulkEditForm
- * @extends {Controller}
+ *
+ * Modal form for batch state updates on multiple recommendations with
+ * state-driven field rules and gathering intersection logic.
+ *
+ * Targets: bulkIds, gatherings, state, planToGiveBlock, planToGiveGathering,
+ *          givenBlock, recId, turboFrame, givenDate, closeReason, closeReasonBlock,
+ *          stateRulesBlock
+ * Values: formUrl (String), turboFrameUrl (String), bulkIds (Array), gatheringsUrl (String)
+ * Outlets: outlet-btn
  */
 class AwardsRecommendationBulkEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
   static targets = ["bulkIds", "gatherings", "state", "planToGiveBlock", "planToGiveGathering", "givenBlock", "recId", "turboFrame", "givenDate", "closeReason", "closeReasonBlock", "stateRulesBlock"];
@@ -53317,15 +52157,7 @@ class AwardsRecommendationBulkEditForm extends _hotwired_stimulus__WEBPACK_IMPOR
   };
   static outlets = ['outlet-btn'];
 
-  /**
-   * Set bulk recommendation IDs for batch operation
-   * 
-   * Handles bulk ID collection from table selection and prepares form for
-   * batch processing with proper URL management and selection validation.
-   * 
-   * @param {Event} event - Custom event with selected recommendation IDs
-   * @returns {void}
-   */
+  /** Receive bulk IDs from table selection and update form action URL. */
   setId(event) {
     console.log("setId called", event.detail);
     //debugger;
@@ -53350,14 +52182,7 @@ class AwardsRecommendationBulkEditForm extends _hotwired_stimulus__WEBPACK_IMPOR
     return;
   }
 
-  /**
-   * Update gatherings dropdown based on selected recommendations and status
-   * 
-   * Makes AJAX call to fetch gatherings that can give ALL selected awards
-   * based on the intersection of their gathering activities.
-   * 
-   * @returns {void}
-   */
+  /** Fetch gatherings that can give all selected awards via intersection. */
   async updateGatherings() {
     // Need both IDs and URL to fetch gatherings
     if (!this.bulkIdsValue || this.bulkIdsValue.length === 0 || !this.gatheringsUrlValue) {
@@ -53409,66 +52234,27 @@ class AwardsRecommendationBulkEditForm extends _hotwired_stimulus__WEBPACK_IMPOR
     }
   }
 
-  /**
-   * Handle outlet button connection
-   * 
-   * Establishes communication with outlet button controller for
-   * coordinated bulk operation management and selection updates.
-   * 
-   * @param {Object} outlet - Connected outlet controller
-   * @param {Element} element - Outlet DOM element
-   * @returns {void}
-   */
+  /** Register listener when outlet-btn connects. */
   outletBtnOutletConnected(outlet, element) {
     outlet.addListener(this.setId.bind(this));
   }
 
-  /**
-   * Handle outlet button disconnection
-   * 
-   * Removes event listener when outlet button disconnects
-   * for proper cleanup and memory management.
-   * 
-   * @param {Object} outlet - Disconnected outlet controller
-   * @returns {void}
-   */
+  /** Remove listener when outlet-btn disconnects. */
   outletBtnOutletDisconnected(outlet) {
     outlet.removeListener(this.setId.bind(this));
   }
 
-  /**
-   * Submit bulk edit form
-   * 
-   * Handles bulk form submission and automatically closes the modal
-   * after successful batch operation processing.
-   * 
-   * @param {Event} event - Form submit event
-   * @returns {void}
-   */
+  /** Close modal after form submission. */
   submit(event) {
     document.getElementById("recommendation_bulk_edit_close").click();
   }
 
-  /**
-   * Handle state target connection
-   * 
-   * Initializes field rules when state selector connects to ensure
-   * proper form configuration for bulk operations.
-   * 
-   * @returns {void}
-   */
+  /** Apply field rules when state target connects. */
   stateTargetConnected() {
     this.setFieldRules();
   }
 
-  /**
-   * Apply dynamic field rules based on selected state
-   * 
-   * Manages form field visibility, requirements, and disabled state based on
-   * the selected bulk operation state with comprehensive rule application.
-   * 
-   * @returns {void}
-   */
+  /** Parse JSON state rules and apply Visible/Required/Disabled field states. */
   setFieldRules() {
     var rulesstring = this.stateRulesBlockTarget.textContent;
     var rules = JSON.parse(rulesstring);
@@ -53511,14 +52297,7 @@ class AwardsRecommendationBulkEditForm extends _hotwired_stimulus__WEBPACK_IMPOR
     this.updateGatherings();
   }
 
-  /**
-   * Initialize bulk edit controller
-   * 
-   * Sets up the bulk edit controller for recommendation batch operations
-   * with proper form state and outlet communication.
-   * 
-   * @returns {void}
-   */
+  /** Initialize bulk edit controller. */
   connect() {}
 }
 // add to window.Controllers with a name of the controller
@@ -53541,209 +52320,20 @@ __webpack_require__.r(__webpack_exports__);
 
 
 /**
- * Awards Recommendation Edit Controller
- * 
- * Comprehensive Stimulus controller for recommendation editing with state management and workflow 
- * control. Provides interactive form functionality for modifying existing award recommendations 
- * with dynamic state validation, award selection workflow, and comprehensive administrative management.
- * 
- * ## Edit Workflow Features
- * 
- * **State Management:**
- * - Dynamic state transition validation with business rule enforcement
- * - Field visibility control based on recommendation state and workflow rules
- * - Required field management with state-aware validation
- * - Form state persistence with Turbo Frame integration
- * 
- * **Award Configuration:**
- * - Domain/award hierarchy management with existing data restoration
- * - Specialty population based on award configuration and current selection
- * - Award eligibility validation with existing recommendation context
- * - Dynamic form field management based on award selection
- * 
- * **Member Integration:**
- * - Member profile loading with external links display for context
- * - Branch management for SCA and non-SCA members
- * - Member validation with existing recommendation data preservation
- * - Profile context display for administrative review
- * 
- * ## Administrative Interface Features
- * 
- * **Turbo Frame Integration:**
- * - Dynamic form loading with recommendation ID context
- * - Form URL management with recommendation-specific routing
- * - Real-time form updates without page refresh
- * - Outlet communication for coordinated interface updates
- * 
- * **Workflow Control:**
- * - State-based field rules with dynamic application
- * - Business rule enforcement through state validation
- * - Administrative override capabilities with proper authorization
- * - Form validation with comprehensive error handling
- * 
- * **Data Restoration:**
- * - Existing recommendation data loading and form population
- * - Autocomplete initialization with current selection values
- * - State-aware form configuration on load
- * - Field dependency management with existing data
- * 
- * ## State Transition Management
- * 
- * **Dynamic Rules Application:**
- * - JSON-based state rules parsing and application
- * - Field visibility control based on recommendation state
- * - Required field enforcement with state-specific requirements
- * - Disabled field management for workflow control
- * 
- * **Business Logic Integration:**
- * - Event planning integration with date validation
- * - Award ceremony coordination with event selection
- * - Close reason management for workflow completion
- * - Administrative note integration with state tracking
- * 
- * ## Usage Examples
- * 
- * ### Basic Recommendation Edit Form
- * ```html
- * <!-- Recommendation edit with state management -->
- * <form data-controller="awards-rec-edit" 
- *       data-awards-rec-edit-public-profile-url-value="/members/public-profile"
- *       data-awards-rec-edit-award-list-url-value="/awards/by-domain"
- *       data-awards-rec-edit-form-url-value="/awards/recommendations/edit"
- *       data-awards-rec-edit-turbo-frame-url-value="/awards/recommendations/turbo-edit-form">
- * 
- *   <!-- Hidden state rules for dynamic field management -->
- *   <script type="application/json" data-awards-rec-edit-target="stateRulesBlock">
- *     {
- *       "Approved": {
- *         "Visible": ["planToGiveBlock"],
- *         "Required": ["planToGiveEvent"]
- *       },
- *       "Given": {
- *         "Visible": ["givenBlock"],
- *         "Required": ["givenDate"],
- *         "Disabled": ["domain", "award", "specialty"]
- *       },
- *       "Closed": {
- *         "Visible": ["closeReasonBlock"],
- *         "Required": ["closeReason"],
- *         "Disabled": ["domain", "award", "specialty", "scaMember"]
- *       }
- *     }
- *   </script>
- * 
- *   <!-- Member Information -->
- *   <div class="mb-3">
- *     <label>SCA Member</label>
- *     <input type="text" data-awards-rec-edit-target="scaMember" 
- *            data-action="change->awards-rec-edit#loadScaMemberInfo" 
- *            class="form-control">
- *     <div data-awards-rec-edit-target="externalLinks" class="member-links"></div>
- *     <div class="form-check">
- *       <input type="checkbox" data-awards-rec-edit-target="notFound">
- *       <label>Member not found in SCA database</label>
- *     </div>
- *     <input type="text" data-awards-rec-edit-target="branch" 
- *            placeholder="Branch Name" class="form-control" hidden>
- *   </div>
- * 
- *   <!-- Award Selection -->
- *   <div class="mb-3">
- *     <label>Award Domain</label>
- *     <select data-awards-rec-edit-target="domain" 
- *             data-action="change->awards-rec-edit#populateAwardDescriptions" 
- *             class="form-select">
- *       <option value="">Select Domain</option>
- *     </select>
- *   </div>
- * 
- *   <input type="hidden" data-awards-rec-edit-target="award" name="award_id">
- *   <select data-awards-rec-edit-target="specialty" name="specialty" 
- *           class="form-select">
- *     <option value="">Select Award First</option>
- *   </select>
- * 
- *   <!-- State Management -->
- *   <div class="mb-3">
- *     <label>Recommendation State</label>
- *     <select data-awards-rec-edit-target="state" 
- *             data-action="change->awards-rec-edit#setFieldRules" 
- *             class="form-select">
- *       <option value="Submitted">Submitted</option>
- *       <option value="Under Review">Under Review</option>
- *       <option value="Approved">Approved</option>
- *       <option value="Given">Given</option>
- *       <option value="Closed">Closed</option>
- *     </select>
- *   </div>
- * 
- *   <!-- State-dependent fields -->
- *   <div data-awards-rec-edit-target="planToGiveBlock" style="display: none;">
- *     <label>Plan to Give at Event</label>
- *     <select data-awards-rec-edit-target="planToGiveEvent" name="event_id" 
- *             class="form-select">
- *       <option value="">Select Event</option>
- *     </select>
- *   </div>
- * 
- *   <div data-awards-rec-edit-target="givenBlock" style="display: none;">
- *     <label>Date Given</label>
- *     <input type="date" data-awards-rec-edit-target="givenDate" 
- *            name="given_date" class="form-control">
- *   </div>
- * 
- *   <div data-awards-rec-edit-target="closeReasonBlock" style="display: none;">
- *     <label>Close Reason</label>
- *     <textarea data-awards-rec-edit-target="closeReason" name="close_reason" 
- *               class="form-control"></textarea>
- *   </div>
- * 
- *   <button type="submit" data-action="awards-rec-edit#submit" 
- *           class="btn btn-primary">Update Recommendation</button>
- * </form>
- * ```
- * 
- * ### Turbo Frame Integration
- * ```html
- * <!-- Edit form with outlet communication -->
- * <div data-controller="awards-rec-edit outlet-btn" 
- *      data-awards-rec-edit-outlet-btn-outlet=".edit-button-controller"
- *      data-awards-rec-edit-form-url-value="/awards/recommendations/edit"
- *      data-awards-rec-edit-turbo-frame-url-value="/awards/recommendations/turbo-edit-form">
- * 
- *   <turbo-frame id="recommendation-edit-frame" 
- *                data-awards-rec-edit-target="turboFrame">
- *     <!-- Dynamic form content loaded here -->
- *   </turbo-frame>
- * 
- *   <input type="hidden" data-awards-rec-edit-target="recId" value="">
- * </div>
- * ```
- * 
- * ### State Rules Configuration
- * ```javascript
- * // Example state rules for dynamic field management
- * const stateRules = {
- *   "Submitted": {
- *     "Disabled": [],
- *     "Required": ["award", "reason"],
- *     "Visible": []
- *   },
- *   "Approved": {
- *     "Disabled": ["scaMember"],
- *     "Required": ["award", "reason", "planToGiveEvent"],
- *     "Visible": ["planToGiveBlock"]
- *   },
- *   "Given": {
- *     "Disabled": ["domain", "award", "specialty", "scaMember"],
- *     "Required": ["award", "reason", "givenDate"],
- *     "Visible": ["givenBlock"]
- *   }
- * };
- * ```
- * 
- * @class AwardsRecommendationEditForm
- * @extends {Controller}
+ * Awards Recommendation Edit Form Controller
+ *
+ * Manages edit interface for award recommendations with state-driven form behavior,
+ * dynamic field validation, member discovery, and Turbo Frame integration.
+ *
+ * Targets: scaMember, notFound, branch, externalLinks, domain, award, reason,
+ *          gatherings, specialty, state, planToGiveBlock, planToGiveGathering,
+ *          givenBlock, recId, turboFrame, givenDate, closeReason, closeReasonBlock,
+ *          stateRulesBlock
+ * Values: publicProfileUrl (String), awardListUrl (String), formUrl (String),
+ *         turboFrameUrl (String), gatheringsUrl (String)
+ * Outlets: outlet-btn
+ *
+ * State rules parsed from stateRulesBlock JSON control field Visible/Required/Disabled states.
  */
 class AwardsRecommendationEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
   static targets = ["scaMember", "notFound", "branch", "externalLinks", "domain", "award", "reason", "gatherings", "specialty", "state", "planToGiveBlock", "planToGiveGathering", "givenBlock", "recId", "turboFrame", "givenDate", "closeReason", "closeReasonBlock", "stateRulesBlock"];
@@ -53756,72 +52346,30 @@ class AwardsRecommendationEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_
   };
   static outlets = ['outlet-btn'];
 
-  /**
-   * Set recommendation ID for form context
-   * 
-   * Updates Turbo Frame source and form action URL based on recommendation ID
-   * from outlet communication for coordinated interface updates.
-   * 
-   * @param {Event} event - Custom event with recommendation ID
-   * @returns {void}
-   */
+  /** Set recommendation ID and update Turbo Frame source and form action URL. */
   setId(event) {
     this.turboFrameTarget.setAttribute("src", this.turboFrameUrlValue + "/" + event.detail.id);
     this.element.setAttribute("action", this.formUrlValue + "/" + event.detail.id);
   }
 
-  /**
-   * Handle outlet button connection
-   * 
-   * Establishes communication with outlet button controller for
-   * coordinated form updates and recommendation ID management.
-   * 
-   * @param {Object} outlet - Connected outlet controller
-   * @param {Element} element - Outlet DOM element
-   * @returns {void}
-   */
+  /** Register listener when outlet-btn connects. */
   outletBtnOutletConnected(outlet, element) {
     outlet.addListener(this.setId.bind(this));
   }
 
-  /**
-   * Handle outlet button disconnection
-   * 
-   * Removes event listener when outlet button disconnects
-   * for proper cleanup and memory management.
-   * 
-   * @param {Object} outlet - Disconnected outlet controller
-   * @returns {void}
-   */
+  /** Remove listener when outlet-btn disconnects. */
   outletBtnOutletDisconnected(outlet) {
     outlet.removeListener(this.setId.bind(this));
   }
 
-  /**
-   * Submit form with field validation
-   * 
-   * Enables all form fields before submission to ensure data integrity
-   * and proper form processing by the backend controller.
-   * 
-   * @param {Event} event - Form submit event
-   * @returns {void}
-   */
+  /** Enable disabled fields before form submission. */
   submit(event) {
     this.notFoundTarget.disabled = false;
     this.scaMemberTarget.disabled = false;
     this.specialtyTarget.disabled = false;
   }
 
-  /**
-   * Set selected award and populate specialties
-   * 
-   * Handles award selection and triggers specialty population based on
-   * award configuration with existing data preservation.
-   * Also updates the gatherings list to show only relevant gatherings.
-   * 
-   * @param {Event} event - Click event from award selection
-   * @returns {void}
-   */
+  /** Handle award selection, populate specialties, and update gatherings list. */
   setAward(event) {
     let awardId = event.target.dataset.awardId;
     this.awardTarget.value = awardId;
@@ -53831,17 +52379,7 @@ class AwardsRecommendationEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_
     }
   }
 
-  /**
-   * Update gatherings list based on selected award
-   * 
-   * Fetches and updates the gatherings list to show only gatherings
-   * that have activities linked to the selected award. Marks gatherings
-   * where the member has indicated attendance with crown sharing.
-   * If status is "Given", shows all gatherings (past and future).
-   * 
-   * @param {string} awardId - The selected award ID
-   * @returns {void}
-   */
+  /** Fetch gatherings filtered by award and update checkboxes and dropdown. */
   updateGatherings(awardId) {
     if (!awardId) {
       return;
@@ -53942,15 +52480,7 @@ class AwardsRecommendationEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_
     });
   }
 
-  /**
-   * Populate award descriptions based on domain selection
-   * 
-   * Fetches awards for selected domain and populates award selection interface
-   * with existing data restoration and autocomplete initialization.
-   * 
-   * @param {Event} event - Change event from domain selection
-   * @returns {void}
-   */
+  /** Fetch awards for domain and populate award selection with autocomplete. */
   populateAwardDescriptions(event) {
     let url = this.awardListUrlValue + "/" + event.target.value;
     fetch(url, this.optionsForFetch()).then(response => response.json()).then(data => {
@@ -53998,15 +52528,7 @@ class AwardsRecommendationEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_
     });
   }
 
-  /**
-   * Populate specialties based on award selection
-   * 
-   * Updates specialty dropdown based on selected award configuration with
-   * existing data restoration and autocomplete initialization.
-   * 
-   * @param {Event} event - Award selection event
-   * @returns {void}
-   */
+  /** Update specialty dropdown based on selected award's configuration. */
   populateSpecialties(event) {
     let awardId = this.awardTarget.value;
     let options = this.awardTarget.options;
@@ -54038,15 +52560,7 @@ class AwardsRecommendationEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_
     }
   }
 
-  /**
-   * Load SCA member information and context
-   * 
-   * Handles member ID validation, profile loading, and branch field management
-   * based on member discovery with existing recommendation context.
-   * 
-   * @param {Event} event - Input change event from member field
-   * @returns {void}
-   */
+  /** Handle member field change, load profile or show branch field if not found. */
   loadScaMemberInfo(event) {
     this.externalLinksTarget.innerHTML = "";
     let memberId = Number(event.target.value.replace(/_/g, ""));
@@ -54063,14 +52577,7 @@ class AwardsRecommendationEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_
     }
   }
 
-  /**
-   * Get fetch options for AJAX requests
-   * 
-   * Provides standardized headers for JSON API communication with proper
-   * AJAX identification and content type specification.
-   * 
-   * @returns {Object} Fetch options object with headers
-   */
+  /** Get standard fetch options with JSON headers. */
   optionsForFetch() {
     return {
       headers: {
@@ -54080,15 +52587,7 @@ class AwardsRecommendationEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_
     };
   }
 
-  /**
-   * Load member profile data from API
-   * 
-   * Fetches member profile information and displays external links
-   * for member context and administrative review.
-   * 
-   * @param {number} memberId - The member ID to load
-   * @returns {void}
-   */
+  /** Fetch and display member profile external links. */
   loadMember(memberId) {
     let url = this.publicProfileUrlValue + "/" + memberId;
     fetch(url, this.optionsForFetch()).then(response => response.json()).then(data => {
@@ -54118,14 +52617,7 @@ class AwardsRecommendationEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_
     });
   }
 
-  /**
-   * Handle SCA member target connection
-   * 
-   * Initializes member information loading when member field connects
-   * if existing value is present for data restoration.
-   * 
-   * @returns {void}
-   */
+  /** Load member info when scaMember target connects with existing value. */
   scaMemberTargetConnected() {
     if (this.scaMemberTarget.value != "") {
       this.loadScaMemberInfo({
@@ -54136,27 +52628,13 @@ class AwardsRecommendationEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_
     }
   }
 
-  /**
-   * Handle state target connection
-   * 
-   * Initializes field rules when state selector connects to ensure
-   * proper form configuration for existing recommendations.
-   * 
-   * @returns {void}
-   */
+  /** Apply field rules when state target connects. */
   stateTargetConnected() {
     console.log("status connected");
     this.setFieldRules();
   }
 
-  /**
-   * Apply dynamic field rules based on recommendation state
-   * 
-   * Manages form field visibility, requirements, and disabled state based on
-   * the recommendation state with comprehensive rule application and data preservation.
-   * 
-   * @returns {void}
-   */
+  /** Parse JSON state rules and apply Visible/Required/Disabled field states. */
   setFieldRules() {
     console.log("setting field rules");
     var rulesstring = this.stateRulesBlockTarget.textContent;
@@ -54232,14 +52710,7 @@ class AwardsRecommendationEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_
     }
   }
 
-  /**
-   * Initialize edit controller
-   * 
-   * Sets up the edit controller for recommendation modification
-   * with proper form state and outlet communication.
-   * 
-   * @returns {void}
-   */
+  /** Store initial gathering value on connect for persistence through updates. */
   connect() {
     // Store the initial gathering_id value so it persists through option updates
     if (this.hasPlanToGiveGatheringTarget && this.planToGiveGatheringTarget.value) {
@@ -54247,14 +52718,7 @@ class AwardsRecommendationEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_
     }
   }
 
-  /**
-   * Handle recommendation ID target connection
-   * 
-   * Updates form action URL when recommendation ID connects to ensure
-   * proper form submission routing for specific recommendations.
-   * 
-   * @returns {void}
-   */
+  /** Update form action URL when recId target connects. */
   recIdTargetConnected() {
     let recId = this.recIdTarget.value;
     let actionUrl = this.element.getAttribute("action");
@@ -54264,14 +52728,7 @@ class AwardsRecommendationEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_
     this.element.setAttribute("action", actionUrl);
   }
 
-  /**
-   * Handle planToGiveGathering target connection
-   * 
-   * Stores the initial gathering_id value when the field connects so it
-   * persists through dynamic option updates.
-   * 
-   * @returns {void}
-   */
+  /** Store initial gathering value on target connect. */
   planToGiveGatheringTargetConnected() {
     // Store the initial value from the server-rendered form
     if (this.planToGiveGatheringTarget.value) {
@@ -54279,14 +52736,7 @@ class AwardsRecommendationEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_
     }
   }
 
-  /**
-   * Handle givenDate target connection
-   * 
-   * Stores the initial given date value when the field connects so it
-   * persists through field rule updates.
-   * 
-   * @returns {void}
-   */
+  /** Store initial given date value on target connect. */
   givenDateTargetConnected() {
     // Store the initial value from the server-rendered form
     if (this.givenDateTarget.value) {
@@ -54314,176 +52764,17 @@ __webpack_require__.r(__webpack_exports__);
 
 
 /**
- * Awards Recommendation Quick Edit Controller
- * 
- * Specialized Stimulus controller for rapid recommendation updates with streamlined workflow and 
- * administrative efficiency. Provides simplified form functionality for quick recommendation 
- * modifications with reduced complexity and optimized performance for high-volume administrative tasks.
- * 
- * ## Quick Edit Features
- * 
- * **Streamlined Interface:**
- * - Simplified form layout with essential fields only
- * - Reduced validation complexity for rapid processing
- * - Quick state transitions with minimal confirmation requirements
- * - Automated form closure after successful submission
- * 
- * **Administrative Efficiency:**
- * - Bulk edit preparation with outlet communication
- * - Rapid award and specialty selection with existing data preservation
- * - State-aware field management with simplified rule application
- * - Quick access patterns for high-volume recommendation processing
- * 
- * **Workflow Optimization:**
- * - Streamlined state transition workflow with reduced steps
- * - Essential field validation without comprehensive form checks
- * - Quick save functionality with immediate feedback
- * - Modal integration for non-intrusive editing experience
- * 
- * ## State Management Features
- * 
- * **Simplified Rules:**
- * - Essential state rules only for critical workflow validation
- * - Reduced field dependency complexity for quick updates
- * - Streamlined required field management for efficiency
- * - Quick state transition validation without extensive checks
- * 
- * **Dynamic Field Control:**
- * - Visibility management based on recommendation state
- * - Disabled field control for workflow integrity
- * - Required field enforcement for essential data validation
- * - Quick rule application for rapid form updates
- * 
- * **Data Preservation:**
- * - Existing award and specialty data restoration
- * - Autocomplete integration with current selection values
- * - State-aware form initialization for quick editing
- * - Form value persistence during quick update workflow
- * 
- * ## Administrative Integration
- * 
- * **Turbo Frame Support:**
- * - Quick form loading with recommendation ID context
- * - Outlet communication for coordinated updates
- * - Modal integration for streamlined user experience
- * - Real-time form updates without page navigation
- * 
- * **Bulk Operation Preparation:**
- * - Quick edit as preparation for bulk operations
- * - State standardization for batch processing
- * - Rapid validation for administrative efficiency
- * - Workflow optimization for large recommendation queues
- * 
- * ## Usage Examples
- * 
- * ### Quick Edit Modal Integration
- * ```html
- * <!-- Quick edit modal with streamlined form -->
- * <div class="modal fade" id="quickEditModal">
- *   <div class="modal-dialog">
- *     <div class="modal-content">
- *       <form data-controller="awards-rec-quick-edit" 
- *             data-awards-rec-quick-edit-award-list-url-value="/awards/by-domain"
- *             data-awards-rec-quick-edit-form-url-value="/awards/recommendations/quick-edit"
- *             data-awards-rec-quick-edit-turbo-frame-url-value="/awards/recommendations/turbo-quick-edit">
- * 
- *         <div class="modal-header">
- *           <h5>Quick Edit Recommendation</h5>
- *           <button type="button" class="btn-close" id="recommendation_edit_close" 
- *                   data-bs-dismiss="modal"></button>
- *         </div>
- * 
- *         <div class="modal-body">
- *           <!-- Essential fields only -->
- *           <div class="mb-3">
- *             <label>Award Domain</label>
- *             <select data-awards-rec-quick-edit-target="domain" 
- *                     data-action="change->awards-rec-quick-edit#populateAwardDescriptions" 
- *                     class="form-select">
- *               <option value="">Select Domain</option>
- *             </select>
- *           </div>
- * 
- *           <input type="hidden" data-awards-rec-quick-edit-target="award" name="award_id">
- *           <select data-awards-rec-quick-edit-target="specialty" class="form-select">
- *             <option value="">Select Award First</option>
- *           </select>
- * 
- *           <div class="mb-3">
- *             <label>State</label>
- *             <select data-awards-rec-quick-edit-target="state" 
- *                     data-action="change->awards-rec-quick-edit#setFieldRules" 
- *                     class="form-select">
- *               <option value="Submitted">Submitted</option>
- *               <option value="Approved">Approved</option>
- *               <option value="Given">Given</option>
- *             </select>
- *           </div>
- * 
- *           <!-- State-dependent quick fields -->
- *           <div data-awards-rec-quick-edit-target="planToGiveBlock" style="display: none;">
- *             <select data-awards-rec-quick-edit-target="planToGiveEvent" 
- *                     class="form-select">
- *               <option value="">Select Event</option>
- *             </select>
- *           </div>
- * 
- *           <div data-awards-rec-quick-edit-target="givenBlock" style="display: none;">
- *             <input type="date" data-awards-rec-quick-edit-target="givenDate" 
- *                    class="form-control">
- *           </div>
- *         </div>
- * 
- *         <div class="modal-footer">
- *           <button type="submit" data-action="awards-rec-quick-edit#submit" 
- *                   class="btn btn-primary">Quick Update</button>
- *           <button type="button" class="btn btn-secondary" 
- *                   data-bs-dismiss="modal">Cancel</button>
- *         </div>
- *       </form>
- *     </div>
- *   </div>
- * </div>
- * ```
- * 
- * ### Outlet Communication for Quick Access
- * ```html
- * <!-- Quick edit with outlet button communication -->
- * <div data-controller="awards-rec-quick-edit outlet-btn" 
- *      data-awards-rec-quick-edit-outlet-btn-outlet=".quick-edit-button">
- * 
- *   <turbo-frame id="quick-edit-frame" 
- *                data-awards-rec-quick-edit-target="turboFrame">
- *     <!-- Quick form content -->
- *   </turbo-frame>
- * 
- *   <input type="hidden" data-awards-rec-quick-edit-target="recId" value="">
- * </div>
- * ```
- * 
- * ### Administrative Bulk Preparation
- * ```javascript
- * // Quick edit for bulk operation preparation
- * document.addEventListener('DOMContentLoaded', function() {
- *   const quickEditBtns = document.querySelectorAll('.quick-edit-trigger');
- *   quickEditBtns.forEach(btn => {
- *     btn.addEventListener('click', function() {
- *       const recId = this.dataset.recId;
- *       const quickEditModal = document.getElementById('quickEditModal');
- *       const controller = window.Stimulus.getControllerForElementAndIdentifier(
- *         quickEditModal.querySelector('[data-controller*="awards-rec-quick-edit"]'), 
- *         'awards-rec-quick-edit'
- *       );
- *       if (controller) {
- *         controller.setId({ detail: { id: recId } });
- *       }
- *     });
- *   });
- * });
- * ```
- * 
- * @class AwardsRecommendationQuickEditForm
- * @extends {Controller}
+ * Awards Recommendation Quick Edit Form Controller
+ *
+ * Streamlined modal form for rapid recommendation updates with state-driven
+ * field rules. Simplified version of rec-edit for administrative efficiency.
+ *
+ * Targets: domain, award, reason, gatherings, specialty, state, planToGiveBlock,
+ *          planToGiveGathering, givenBlock, recId, memberId, turboFrame, givenDate,
+ *          closeReason, closeReasonBlock, stateRulesBlock
+ * Values: publicProfileUrl (String), awardListUrl (String), formUrl (String),
+ *         turboFrameUrl (String), gatheringsUrl (String)
+ * Outlets: outlet-btn
  */
 class AwardsRecommendationQuickEditForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
   static targets = ["domain", "award", "reason", "gatherings", "specialty", "state", "planToGiveBlock", "planToGiveGathering", "givenBlock", "recId", "memberId", "turboFrame", "givenDate", "closeReason", "closeReasonBlock", "stateRulesBlock"];
@@ -54496,15 +52787,7 @@ class AwardsRecommendationQuickEditForm extends _hotwired_stimulus__WEBPACK_IMPO
   };
   static outlets = ['outlet-btn'];
 
-  /**
-   * Set recommendation ID for quick edit context
-   * 
-   * Updates Turbo Frame source and form action URL based on recommendation ID
-   * from outlet communication for streamlined quick editing workflow.
-   * 
-   * @param {Event} event - Custom event with recommendation ID
-   * @returns {void}
-   */
+  /** Set recommendation ID and update Turbo Frame source and form action. */
   setId(event) {
     if (event.detail.id) {
       this.turboFrameTarget.setAttribute("src", this.turboFrameUrlValue + "/" + event.detail.id);
@@ -54512,56 +52795,22 @@ class AwardsRecommendationQuickEditForm extends _hotwired_stimulus__WEBPACK_IMPO
     }
   }
 
-  /**
-   * Handle outlet button connection
-   * 
-   * Establishes communication with outlet button controller for
-   * coordinated quick edit operations and recommendation ID management.
-   * 
-   * @param {Object} outlet - Connected outlet controller
-   * @param {Element} element - Outlet DOM element
-   * @returns {void}
-   */
+  /** Register listener when outlet-btn connects. */
   outletBtnOutletConnected(outlet, element) {
     outlet.addListener(this.setId.bind(this));
   }
 
-  /**
-   * Handle outlet button disconnection
-   * 
-   * Removes event listener when outlet button disconnects
-   * for proper cleanup and memory management.
-   * 
-   * @param {Object} outlet - Disconnected outlet controller
-   * @returns {void}
-   */
+  /** Remove listener when outlet-btn disconnects. */
   outletBtnOutletDisconnected(outlet) {
     outlet.removeListener(this.setId.bind(this));
   }
 
-  /**
-   * Submit quick edit form
-   * 
-   * Handles quick form submission and automatically closes the modal
-   * for streamlined administrative workflow efficiency.
-   * 
-   * @param {Event} event - Form submit event
-   * @returns {void}
-   */
+  /** Close modal after form submission. */
   submit(event) {
     document.getElementById("recommendation_edit_close").click();
   }
 
-  /**
-   * Set selected award and populate specialties
-   * 
-   * Handles award selection and triggers specialty population for
-   * quick editing with existing data preservation.
-   * Also updates the gatherings list to show only relevant gatherings.
-   * 
-   * @param {Event} event - Click event from award selection
-   * @returns {void}
-   */
+  /** Handle award selection, populate specialties, and update gatherings. */
   setAward(event) {
     let awardId = event.target.dataset.awardId;
     this.awardTarget.value = awardId;
@@ -54571,17 +52820,7 @@ class AwardsRecommendationQuickEditForm extends _hotwired_stimulus__WEBPACK_IMPO
     }
   }
 
-  /**
-   * Update gatherings list based on selected award
-   * 
-   * Fetches and updates the gatherings list to show only gatherings
-   * that have activities linked to the selected award. Marks gatherings
-   * where the member has indicated attendance with crown sharing.
-   * If status is "Given", shows all gatherings (past and future).
-   * 
-   * @param {string} awardId - The selected award ID
-   * @returns {void}
-   */
+  /** Fetch gatherings filtered by award and update checkboxes and dropdown. */
   updateGatherings(awardId) {
     if (!awardId) {
       return;
@@ -54682,15 +52921,7 @@ class AwardsRecommendationQuickEditForm extends _hotwired_stimulus__WEBPACK_IMPO
     });
   }
 
-  /**
-   * Populate award descriptions for quick selection
-   * 
-   * Fetches awards for selected domain and populates quick selection interface
-   * with streamlined award selection for administrative efficiency.
-   * 
-   * @param {Event} event - Change event from domain selection
-   * @returns {void}
-   */
+  /** Fetch awards for domain and populate award selection with autocomplete. */
   populateAwardDescriptions(event) {
     let url = this.awardListUrlValue + "/" + event.target.value;
     fetch(url, this.optionsForFetch()).then(response => response.json()).then(data => {
@@ -54738,15 +52969,7 @@ class AwardsRecommendationQuickEditForm extends _hotwired_stimulus__WEBPACK_IMPO
     });
   }
 
-  /**
-   * Populate specialties for quick selection
-   * 
-   * Updates specialty dropdown based on award selection with
-   * streamlined interface for rapid administrative updates.
-   * 
-   * @param {Event} event - Award selection event
-   * @returns {void}
-   */
+  /** Update specialty dropdown based on selected award's configuration. */
   populateSpecialties(event) {
     let awardId = this.awardTarget.value;
     let options = this.awardTarget.options;
@@ -54778,25 +53001,10 @@ class AwardsRecommendationQuickEditForm extends _hotwired_stimulus__WEBPACK_IMPO
     }
   }
 
-  /**
-   * Load SCA member information (simplified)
-   * 
-   * Placeholder method for member information loading in quick edit context.
-   * Simplified for rapid editing workflow without full profile loading.
-   * 
-   * @param {Event} event - Input change event from member field
-   * @returns {void}
-   */
+  /** Placeholder for member info loading (not used in quick edit). */
   loadScaMemberInfo(event) {}
 
-  /**
-   * Get fetch options for AJAX requests
-   * 
-   * Provides standardized headers for JSON API communication with proper
-   * AJAX identification and content type specification.
-   * 
-   * @returns {Object} Fetch options object with headers
-   */
+  /** Get standard fetch options with JSON headers. */
   optionsForFetch() {
     return {
       headers: {
@@ -54806,27 +53014,13 @@ class AwardsRecommendationQuickEditForm extends _hotwired_stimulus__WEBPACK_IMPO
     };
   }
 
-  /**
-   * Handle state target connection for quick edit
-   * 
-   * Initializes simplified field rules when state selector connects
-   * for streamlined quick editing workflow.
-   * 
-   * @returns {void}
-   */
+  /** Apply field rules when state target connects. */
   stateTargetConnected() {
     console.log("status connected");
     this.setFieldRules();
   }
 
-  /**
-   * Apply simplified field rules for quick editing
-   * 
-   * Manages essential form field visibility and requirements based on
-   * state selection with streamlined rules for administrative efficiency.
-   * 
-   * @returns {void}
-   */
+  /** Parse JSON state rules and apply Visible/Required/Disabled field states. */
   setFieldRules() {
     console.log("setting field rules");
     var rulesstring = this.stateRulesBlockTarget.textContent;
@@ -54894,14 +53088,7 @@ class AwardsRecommendationQuickEditForm extends _hotwired_stimulus__WEBPACK_IMPO
     }
   }
 
-  /**
-   * Initialize quick edit controller
-   * 
-   * Sets up the quick edit controller for streamlined recommendation
-   * modifications with minimal setup requirements.
-   * 
-   * @returns {void}
-   */
+  /** Store initial gathering value on connect for persistence through updates. */
   connect() {
     // Store the initial gathering_id value so it persists through option updates
     if (this.hasPlanToGiveGatheringTarget && this.planToGiveGatheringTarget.value) {
@@ -54909,14 +53096,7 @@ class AwardsRecommendationQuickEditForm extends _hotwired_stimulus__WEBPACK_IMPO
     }
   }
 
-  /**
-   * Handle recommendation ID target connection for quick edit
-   * 
-   * Updates form action URL when recommendation ID connects for
-   * proper quick edit form submission routing.
-   * 
-   * @returns {void}
-   */
+  /** Update form action URL when recId target connects. */
   recIdTargetConnected() {
     let recId = this.recIdTarget.value;
     let actionUrl = this.element.getAttribute("action");
@@ -54926,14 +53106,7 @@ class AwardsRecommendationQuickEditForm extends _hotwired_stimulus__WEBPACK_IMPO
     this.element.setAttribute("action", actionUrl);
   }
 
-  /**
-   * Handle planToGiveGathering target connection for quick edit
-   * 
-   * Stores the initial gathering_id value when the field connects so it
-   * persists through dynamic option updates.
-   * 
-   * @returns {void}
-   */
+  /** Store initial gathering value on target connect. */
   planToGiveGatheringTargetConnected() {
     // Store the initial value from the server-rendered form
     if (this.planToGiveGatheringTarget.value) {
@@ -54941,14 +53114,7 @@ class AwardsRecommendationQuickEditForm extends _hotwired_stimulus__WEBPACK_IMPO
     }
   }
 
-  /**
-   * Handle givenDate target connection for quick edit
-   * 
-   * Stores the initial given date value when the field connects so it
-   * persists through field rule updates.
-   * 
-   * @returns {void}
-   */
+  /** Store initial given date value on target connect. */
   givenDateTargetConnected() {
     // Store the initial value from the server-rendered form
     if (this.givenDateTarget.value) {
@@ -54977,224 +53143,20 @@ __webpack_require__.r(__webpack_exports__);
 
 /**
  * Awards Recommendation Table Controller
- * 
- * Comprehensive Stimulus controller for recommendation table management with filtering, sorting, and 
- * multi-selection functionality. Provides interactive table interface for recommendation data management 
- * with bulk operation support, outlet communication, and administrative oversight capabilities.
- * 
- * ## Table Management Features
- * 
- * **Multi-Selection Interface:**
- * - Individual row selection with checkbox management
- * - Select all/none functionality for bulk operations
- * - Dynamic selection state tracking with real-time updates
- * - Selection validation with business rule enforcement
- * 
- * **Outlet Communication:**
- * - Button outlet integration for action coordination
- * - Selection data sharing with dependent controllers
- * - Real-time state updates for connected interface elements
- * - Coordinated workflow management across multiple controllers
- * 
- * **Administrative Operations:**
- * - Bulk operation preparation with selection management
- * - Row-level action coordination with table state
- * - Administrative oversight with permission-aware interface
- * - Data integrity validation for table operations
- * 
- * ## Selection Management Features
- * 
- * **Checkbox Control:**
- * - Individual row selection with state persistence
- * - Master checkbox for select all/none functionality
- * - Selection state validation with data integrity checks
- * - Dynamic UI updates based on selection state
- * 
- * **Data Collection:**
- * - Selected ID collection for bulk operations
- * - Selection state management with outlet communication
- * - Data validation for selected recommendations
- * - Bulk operation preparation with ID array management
- * 
- * **User Interface Integration:**
- * - Visual feedback for selection state changes
- * - Button state management based on selection
- * - Bulk operation button enabling/disabling
- * - Administrative interface coordination
- * 
- * ## Workflow Integration Features
- * 
- * **Bulk Operation Support:**
- * - Multi-selection preparation for batch processing
- * - ID collection and validation for bulk operations
- * - Selection state communication with dependent forms
- * - Administrative approval workflow integration
- * 
- * **Table State Management:**
- * - Row selection persistence during table updates
- * - Selection validation with business rule enforcement
- * - State coordination across table refresh operations
- * - Administrative context preservation
- * 
- * **Interface Coordination:**
- * - Button outlet management for action coordination
- * - Selection-dependent interface updates
- * - Administrative workflow integration
- * - Permission-aware functionality control
- * 
- * ## Usage Examples
- * 
- * ### Basic Table with Selection
- * ```html
- * <!-- Recommendation table with multi-selection -->
- * <div data-controller="awards-rec-table" 
- *      data-awards-rec-table-outlet-btn-outlet="[data-controller*='outlet-btn']">
- * 
- *   <table class="table table-striped">
- *     <thead>
- *       <tr>
- *         <th>
- *           <input type="checkbox" data-awards-rec-table-target="CheckAllBox" 
- *                  data-action="change->awards-rec-table#checkAll" 
- *                  class="form-check-input">
- *           <label class="form-check-label">Select All</label>
- *         </th>
- *         <th>Member Name</th>
- *         <th>Award</th>
- *         <th>State</th>
- *         <th>Submitted Date</th>
- *         <th>Actions</th>
- *       </tr>
- *     </thead>
- *     <tbody>
- *       <tr>
- *         <td>
- *           <input type="checkbox" data-awards-rec-table-target="rowCheckbox" 
- *                  data-action="change->awards-rec-table#checked" 
- *                  value="123" class="form-check-input">
- *         </td>
- *         <td>John Doe</td>
- *         <td>Award of Arms</td>
- *         <td><span class="badge bg-warning">Submitted</span></td>
- *         <td>2024-01-15</td>
- *         <td>
- *           <button class="btn btn-sm btn-outline-primary">Edit</button>
- *           <button class="btn btn-sm btn-outline-info">View</button>
- *         </td>
- *       </tr>
- *       <tr>
- *         <td>
- *           <input type="checkbox" data-awards-rec-table-target="rowCheckbox" 
- *                  data-action="change->awards-rec-table#checked" 
- *                  value="124" class="form-check-input">
- *         </td>
- *         <td>Jane Smith</td>
- *         <td>Grant of Arms</td>
- *         <td><span class="badge bg-success">Approved</span></td>
- *         <td>2024-01-14</td>
- *         <td>
- *           <button class="btn btn-sm btn-outline-primary">Edit</button>
- *           <button class="btn btn-sm btn-outline-info">View</button>
- *         </td>
- *       </tr>
- *     </tbody>
- *   </table>
- * 
- *   <!-- Bulk action buttons -->
- *   <div class="mt-3">
- *     <button type="button" class="btn btn-warning" 
- *             data-bs-toggle="modal" data-bs-target="#bulkEditModal">
- *       Bulk Edit Selected
- *     </button>
- *     <button type="button" class="btn btn-info" 
- *             data-bs-toggle="modal" data-bs-target="#bulkExportModal">
- *       Export Selected
- *     </button>
- *   </div>
- * </div>
- * ```
- * 
- * ### Administrative Table with Outlet Integration
- * ```html
- * <!-- Table with outlet button communication for coordinated actions -->
- * <div data-controller="awards-rec-table outlet-btn" 
- *      data-awards-rec-table-outlet-btn-outlet=".bulk-action-controller"
- *      data-outlet-btn-outlet-awards-rec-table-outlet=".table-controller">
- * 
- *   <!-- Table header with administrative controls -->
- *   <div class="d-flex justify-content-between align-items-center mb-3">
- *     <h4>Recommendation Management</h4>
- *     <div class="btn-group">
- *       <button type="button" class="btn btn-primary dropdown-toggle" 
- *               data-bs-toggle="dropdown">
- *         Bulk Actions
- *       </button>
- *       <ul class="dropdown-menu">
- *         <li><a class="dropdown-item" href="#" data-bulk-action="approve">Bulk Approve</a></li>
- *         <li><a class="dropdown-item" href="#" data-bulk-action="review">Send to Review</a></li>
- *         <li><a class="dropdown-item" href="#" data-bulk-action="close">Bulk Close</a></li>
- *       </ul>
- *     </div>
- *   </div>
- * 
- *   <!-- Selection status display -->
- *   <div class="alert alert-info" id="selection-status" style="display: none;">
- *     <span id="selected-count">0</span> recommendations selected
- *   </div>
- * 
- *   <!-- Main recommendation table -->
- *   <table class="table table-hover">
- *     <!-- Table content with selection checkboxes -->
- *   </table>
- * </div>
- * ```
- * 
- * ### Dynamic Selection Management
- * ```javascript
- * // External integration for selection state management
- * document.addEventListener('DOMContentLoaded', function() {
- *   const table = document.querySelector('[data-controller*="awards-rec-table"]');
- *   if (table) {
- *     const controller = window.Stimulus.getControllerForElementAndIdentifier(table, 'awards-rec-table');
- *     
- *     // Monitor selection changes for UI updates
- *     table.addEventListener('change', function(e) {
- *       if (e.target.matches('[data-awards-rec-table-target="rowCheckbox"]')) {
- *         const selectedCount = table.querySelectorAll('[data-awards-rec-table-target="rowCheckbox"]:checked').length;
- *         const statusDiv = document.getElementById('selection-status');
- *         const countSpan = document.getElementById('selected-count');
- *         
- *         if (selectedCount > 0) {
- *           statusDiv.style.display = 'block';
- *           countSpan.textContent = selectedCount;
- *         } else {
- *           statusDiv.style.display = 'none';
- *         }
- *       }
- *     });
- *   }
- * });
- * ```
- * 
- * @class AwardsRecommendationTable
- * @extends {Controller}
+ *
+ * Manages recommendation table with multi-selection checkboxes for bulk operations.
+ * Communicates selected IDs to outlet controllers for coordinated actions.
+ *
+ * Targets: rowCheckbox, CheckAllBox
+ * Outlets: outlet-btn
  */
 class AwardsRecommendationTable extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
   static targets = ["rowCheckbox", "CheckAllBox"];
   static outlets = ["outlet-btn"];
 
-  /**
-   * Handle individual checkbox selection
-   * 
-   * Manages individual row selection state and communicates selection changes
-   * to outlet controllers for coordinated interface updates and bulk operations.
-   * 
-   * @param {Event} event - Change event from checkbox
-   * @returns {void}
-   */
+  /** Collect checked IDs and send to outlet button for bulk operations. */
   checked(event) {
     console.log("Check button checked ", this.element);
-    // debugger;
     let idList = [];
     this.outletBtnOutlet.btnDataValue = {};
     this.rowCheckboxTargets.forEach(input => {
@@ -55209,32 +53171,16 @@ class AwardsRecommendationTable extends _hotwired_stimulus__WEBPACK_IMPORTED_MOD
     }
   }
 
-  /**
-   * Initialize table controller
-   * 
-   * Sets up the table controller for recommendation management
-   * with proper outlet communication and selection state.
-   * 
-   * @returns {void}
-   */
+  /** Initialize table controller. */
   connect() {}
 
-  /**
-   * Handle select all/none functionality
-   * 
-   * Manages master checkbox behavior for bulk selection operations
-   * with outlet communication for coordinated interface updates.
-   * 
-   * @param {Element} ele - Master checkbox element
-   * @returns {void}
-   */
+  /** Toggle all checkboxes and update outlet with selected IDs. */
   checkAll(ele) {
     if (this.CheckAllBoxTarget.checked) {
       console.log("Checking All Checkboxes!", this.element);
-      // debugger;
       let idList = [];
       for (var i = 0; i < this.rowCheckboxTargets.length; i++) {
-        this.rowCheckboxTargets[i].checked = true; // Check all checkboxes
+        this.rowCheckboxTargets[i].checked = true;
         idList.push(this.rowCheckboxTargets[i].value);
       }
       this.outletBtnOutlet.btnDataValue = {
@@ -55242,10 +53188,9 @@ class AwardsRecommendationTable extends _hotwired_stimulus__WEBPACK_IMPORTED_MOD
       };
     } else {
       console.log("Unchecking All Checkboxes!", this.element);
-      //debugger;
       this.outletBtnOutlet.btnDataValue = {};
       for (var i = 0; i < this.rowCheckboxTargets.length; i++) {
-        this.rowCheckboxTargets[i].checked = false; // Uncheck all checkboxes
+        this.rowCheckboxTargets[i].checked = false;
       }
       this.outletBtnOutlet.btnDataValue = {};
     }
@@ -55273,221 +53218,19 @@ __webpack_require__.r(__webpack_exports__);
 
 /**
  * Recommendation Kanban Controller
- * 
- * Comprehensive Stimulus controller for kanban-style recommendation workflow management with 
- * drag-and-drop state transitions and visual workflow representation. Provides interactive 
- * kanban board functionality for recommendation state management with business rule validation 
- * and administrative oversight capabilities.
- * 
- * ## Kanban Interface Features
- * 
- * **Drag-and-Drop Workflow:**
- * - Visual recommendation cards with drag-and-drop state transitions
- * - Column-based state representation with workflow visualization
- * - Real-time state validation during drag operations
- * - Business rule enforcement for state transition validation
- * 
- * **Visual Workflow Management:**
- * - Kanban board layout with state-based columns
- * - Recommendation card display with essential information
- * - Visual indicators for recommendation status and priority
- * - Workflow progress visualization with state progression
- * 
- * **State Transition Control:**
- * - Before-drop validation with business rule checking
- * - State transition authorization with permission validation
- * - Workflow integrity enforcement during drag operations
- * - Administrative oversight for complex state transitions
- * 
- * ## Administrative Integration Features
- * 
- * **Outlet Communication:**
- * - Kanban outlet integration for coordinated board management
- * - Board controller communication for state synchronization
- * - Real-time updates with outlet-based coordination
- * - Administrative interface integration with kanban workflow
- * 
- * **Business Rule Validation:**
- * - Pre-transition rule checking with comprehensive validation
- * - State rules application for workflow integrity
- * - Permission-based transition authorization
- * - Administrative override capabilities with proper authorization
- * 
- * **Workflow Coordination:**
- * - Multi-controller coordination for complex workflows
- * - State synchronization across interface components
- * - Administrative approval integration with kanban operations
- * - Audit trail integration for state transition tracking
- * 
- * ## State Management Features
- * 
- * **Rule-Based Validation:**
- * - JSON-based state rules for transition validation
- * - Dynamic rule application based on recommendation context
- * - Business logic enforcement for workflow integrity
- * - Administrative rule override with proper authorization
- * 
- * **Transition Control:**
- * - Pre-drop validation with comprehensive rule checking
- * - State transition authorization with permission validation
- * - Workflow progression validation with business rule enforcement
- * - Administrative oversight for complex transition scenarios
- * 
- * **Visual Feedback:**
- * - Real-time validation feedback during drag operations
- * - Visual indicators for valid/invalid drop targets
- * - Workflow progress visualization with state representation
- * - Administrative interface integration with kanban display
- * 
- * ## Usage Examples
- * 
- * ### Basic Kanban Board Integration
- * ```html
- * <!-- Kanban board with recommendation workflow management -->
- * <div data-controller="recommendation-kanban" 
- *      data-recommendation-kanban-kanban-outlet=".kanban-board-controller">
- * 
- *   <!-- State rules for transition validation -->
- *   <script type="application/json" data-recommendation-kanban-target="stateRulesBlock">
- *     {
- *       "transitions": {
- *         "Submitted": ["Under Review", "Closed"],
- *         "Under Review": ["Approved", "Closed", "Returned"],
- *         "Approved": ["Given", "Closed"],
- *         "Given": [],
- *         "Closed": []
- *       },
- *       "permissions": {
- *         "Under Review": "canReview",
- *         "Approved": "canApprove",
- *         "Given": "canGiveAwards",
- *         "Closed": "canCloseRecommendations"
- *       }
- *     }
- *   </script>
- * 
- *   <!-- Kanban board columns -->
- *   <div class="kanban-board d-flex gap-3">
- *     <div class="kanban-column" data-state="Submitted">
- *       <h5 class="column-header">Submitted</h5>
- *       <div class="recommendation-cards">
- *         <!-- Recommendation cards populated dynamically -->
- *       </div>
- *     </div>
- * 
- *     <div class="kanban-column" data-state="Under Review">
- *       <h5 class="column-header">Under Review</h5>
- *       <div class="recommendation-cards">
- *         <!-- Recommendation cards -->
- *       </div>
- *     </div>
- * 
- *     <div class="kanban-column" data-state="Approved">
- *       <h5 class="column-header">Approved</h5>
- *       <div class="recommendation-cards">
- *         <!-- Recommendation cards -->
- *       </div>
- *     </div>
- * 
- *     <div class="kanban-column" data-state="Given">
- *       <h5 class="column-header">Given</h5>
- *       <div class="recommendation-cards">
- *         <!-- Recommendation cards -->
- *       </div>
- *     </div>
- *   </div>
- * </div>
- * ```
- * 
- * ### Administrative Kanban with Validation
- * ```html
- * <!-- Administrative kanban board with comprehensive validation -->
- * <div data-controller="recommendation-kanban kanban-board" 
- *      data-recommendation-kanban-kanban-outlet="[data-controller*='kanban-board']"
- *      class="admin-kanban-interface">
- * 
- *   <div class="kanban-header d-flex justify-content-between align-items-center mb-3">
- *     <h3>Recommendation Workflow Management</h3>
- *     <div class="kanban-controls">
- *       <button class="btn btn-outline-primary">Refresh Board</button>
- *       <button class="btn btn-outline-secondary">Export Current View</button>
- *     </div>
- *   </div>
- * 
- *   <!-- Advanced state rules with administrative permissions -->
- *   <script type="application/json" data-recommendation-kanban-target="stateRulesBlock">
- *     {
- *       "transitions": {
- *         "Submitted": {
- *           "allowed": ["Under Review", "Closed"],
- *           "requiresPermission": "canReview"
- *         },
- *         "Under Review": {
- *           "allowed": ["Approved", "Closed", "Returned"],
- *           "requiresPermission": "canApprove"
- *         }
- *       },
- *       "businessRules": {
- *         "maxBatchSize": 50,
- *         "requiresApprovalNotes": ["Approved", "Closed"],
- *         "requiresEventPlanning": ["Approved"]
- *       }
- *     }
- *   </script>
- * 
- *   <!-- Multi-column kanban layout with administrative features -->
- *   <div class="kanban-board-container">
- *     <!-- Kanban columns with drag-drop validation -->
- *   </div>
- * </div>
- * ```
- * 
- * ### Workflow Validation Integration
- * ```javascript
- * // External validation integration for complex business rules
- * document.addEventListener('DOMContentLoaded', function() {
- *   const kanbanController = document.querySelector('[data-controller*="recommendation-kanban"]');
- *   if (kanbanController) {
- *     // Extended validation for administrative workflows
- *     const originalCheckRules = kanbanController.checkRules;
- *     kanbanController.checkRules = function(recId, toCol) {
- *       // Base rule checking
- *       const baseValid = originalCheckRules.call(this, recId, toCol);
- *       
- *       // Additional administrative validation
- *       if (baseValid && toCol === 'Approved') {
- *         // Check for required approval documentation
- *         const approvalNotes = document.querySelector(`[data-rec-id="${recId}"] .approval-notes`);
- *         if (!approvalNotes || !approvalNotes.value.trim()) {
- *           alert('Approval notes are required before moving to Approved status.');
- *           return false;
- *         }
- *       }
- *       
- *       return baseValid;
- *     };
- *   }
- * });
- * ```
- * 
- * @class RecommendationKanbanController
- * @extends {Controller}
+ *
+ * Manages kanban-style workflow for recommendations with drag-and-drop
+ * state transitions and business rule validation.
+ *
+ * Targets: stateRulesBlock
+ * Outlets: kanban
  */
 class RecommendationKanbanController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
   static targets = ["stateRulesBlock"];
   static outlets = ["kanban"];
   board = null;
 
-  /**
-   * Handle kanban outlet connection
-   * 
-   * Establishes communication with kanban board controller and registers
-   * validation callback for drag-and-drop state transitions.
-   * 
-   * @param {Object} outlet - Connected kanban board controller
-   * @param {Element} element - Kanban board DOM element
-   * @returns {void}
-   */
+  /** Register validation callback when kanban outlet connects. */
   kanbanOutletConnected(outlet, element) {
     this.board = outlet;
     var controller = this;
@@ -55496,16 +53239,7 @@ class RecommendationKanbanController extends _hotwired_stimulus__WEBPACK_IMPORTE
     });
   }
 
-  /**
-   * Validate state transition rules
-   * 
-   * Performs business rule validation for recommendation state transitions
-   * during drag-and-drop operations with comprehensive rule checking.
-   * 
-   * @param {string} recId - Recommendation ID being moved
-   * @param {string} toCol - Target column/state for transition
-   * @returns {boolean} Whether the transition is valid
-   */
+  /** Validate state transition rules for drag-and-drop operations. */
   checkRules(recId, toCol) {
     console.log({
       recId: recId,
@@ -55534,224 +53268,12 @@ __webpack_require__.r(__webpack_exports__);
 
 
 /**
- * GitHub Submitter Stimulus Controller - GitHub Issue Submission with AJAX Integration
+ * GitHub Submitter Controller - AJAX feedback submission to GitHub Issues
  *
- * This comprehensive Stimulus controller manages the complete lifecycle of anonymous GitHub
- * issue submission, providing seamless AJAX integration with user feedback, form management,
- * and modal interaction. It handles form data collection, API request processing, response
- * handling, and UI state transitions to deliver a smooth user experience for feedback submission.
- *
- * ## Core Functionality
- *
- * ### Form Submission Management
- * - AJAX-powered form submission without page reload
- * - FormData collection and transmission to GitHub API endpoint
- * - Real-time form validation and user feedback
- * - Automatic form reset after successful submission
- * - Progress indication during API communication
- *
- * ### User Experience Management
- * - Seamless modal integration with Bootstrap components
- * - Dynamic UI state transitions (form → success → reset)
- * - User feedback with success messages and error handling
- * - Responsive design support for mobile and desktop
- * - Accessibility considerations for screen readers and keyboard navigation
- *
- * ### GitHub API Integration
- * - Direct communication with GitHubIssueSubmitter plugin backend
- * - JSON response processing for issue creation confirmation
- * - Error handling for API failures and network issues
- * - Issue URL generation for user confirmation and tracking
- * - Real-time feedback on submission status
- *
- * ## Stimulus Architecture
- *
- * ### Target Elements
- * The controller manages multiple DOM targets for UI state management:
- * - **success**: Success message and issue link display area
- * - **formBlock**: Main form container for submission interface
- * - **submitBtn**: Primary submission button with state management
- * - **issueLink**: Dynamic link to created GitHub issue
- * - **form**: Form element for data collection and reset
- * - **modal**: Bootstrap modal container for interaction management
- *
- * ### Value Configuration
- * - **url**: API endpoint for GitHub issue submission
- * - Configurable through HTML data attributes
- * - Supports different environments and repository configurations
- * - Dynamic URL generation based on plugin settings
- *
- * ## Submission Workflow
- *
- * ### 1. Form Data Collection
- * - Prevents default form submission behavior
- * - Collects all form data using FormData API
- * - Maintains form field validation and user input
- * - Prepares data for AJAX transmission
- *
- * ### 2. AJAX Request Processing
- * - Sends POST request to configured submission endpoint
- * - Handles fetch API with proper error checking
- * - Processes JSON responses from GitHub API
- * - Manages network errors and API failures
- *
- * ### 3. Response Handling
- * - **Success Path**: Display success message with issue link
- * - **Error Path**: Show error message and maintain form state
- * - **Network Errors**: Provide user-friendly error feedback
- * - **API Errors**: Display GitHub API error messages
- *
- * ### 4. UI State Management
- * - Transitions from form view to success view
- * - Resets UI state when modal is closed
- * - Manages button states and visibility
- * - Provides visual feedback throughout the process
- *
- * ## Modal Integration
- *
- * ### Bootstrap Modal Support
- * - Automatic modal event listener management
- * - State reset when modal is hidden
- * - Proper cleanup of event listeners
- * - Support for multiple modal instances
- *
- * ### Event Lifecycle Management
- * - **modalTargetConnected**: Registers modal event listeners
- * - **modalTargetDisconnected**: Cleanup event listeners
- * - **hidden.bs.modal**: Resets form state when modal closes
- * - Prevents memory leaks and event conflicts
- *
- * ## User Feedback System
- *
- * ### Success State Management
- * - Displays success message with created issue information
- * - Provides direct link to GitHub issue for user verification
- * - Shows issue number and URL for tracking
- * - Hides form interface and shows success confirmation
- *
- * ### Error Handling
- * - GitHub API error messages displayed to user
- * - Network error fallback messaging
- * - Form state preserved for error recovery
- * - Console logging for debugging and monitoring
- *
- * ## Integration Examples
- *
- * ### HTML Template Integration
- * ```html
- * <div data-controller="github-submitter" 
- *      data-github-submitter-url-value="/git-hub-issue-submitter/issues/submit">
- *   
- *   <!-- Form Block -->
- *   <div data-github-submitter-target="formBlock">
- *     <form data-github-submitter-target="form" 
- *           data-action="submit->github-submitter#submit">
- *       <input type="text" name="title" required>
- *       <textarea name="body" required></textarea>
- *       <select name="feedbackType">
- *         <option value="bug">Bug Report</option>
- *         <option value="feature">Feature Request</option>
- *         <option value="general">General Feedback</option>
- *       </select>
- *       <button type="submit" data-github-submitter-target="submitBtn">
- *         Submit Feedback
- *       </button>
- *     </form>
- *   </div>
- *   
- *   <!-- Success Block -->
- *   <div data-github-submitter-target="success" style="display: none;">
- *     <h4>Thank you for your feedback!</h4>
- *     <p>Your issue has been created successfully.</p>
- *     <a data-github-submitter-target="issueLink" 
- *        target="_blank" class="btn btn-primary">
- *       View Issue on GitHub
- *     </a>
- *   </div>
- * </div>
- * ```
- *
- * ### Modal Integration
- * ```html
- * <div class="modal fade" data-github-submitter-target="modal">
- *   <div class="modal-dialog">
- *     <div class="modal-content">
- *       <div class="modal-header">
- *         <h5 class="modal-title">Submit Feedback</h5>
- *       </div>
- *       <div class="modal-body">
- *         <!-- GitHub Submitter Controller Content -->
- *       </div>
- *     </div>
- *   </div>
- * </div>
- * ```
- *
- * ### Navigation Integration
- * ```html
- * <button type="button" 
- *         class="btn btn-outline-secondary"
- *         data-bs-toggle="modal"
- *         data-bs-target="#feedbackModal">
- *   <i class="bi bi-chat-dots"></i> Feedback
- * </button>
- * ```
- *
- * ## Error Handling Strategies
- *
- * ### GitHub API Errors
- * - Display specific error messages from GitHub API
- * - Maintain form state for user correction
- * - Provide guidance for common error scenarios
- * - Log errors for administrative monitoring
- *
- * ### Network Connectivity Issues
- * - Generic error messaging for network failures
- * - Retry mechanisms or offline support (future enhancement)
- * - User guidance for connectivity troubleshooting
- * - Graceful degradation when API is unavailable
- *
- * ### Form Validation Errors
- * - Client-side validation before submission
- * - Server-side validation error handling
- * - Field-specific error messaging and highlighting
- * - Progressive enhancement with JavaScript validation
- *
- * ## Performance Considerations
- *
- * ### AJAX Optimization
- * - Fetch API for modern browser compatibility
- * - Efficient FormData serialization
- * - Minimal DOM manipulation for state changes
- * - Event listener cleanup to prevent memory leaks
- *
- * ### UI Responsiveness
- * - Non-blocking AJAX requests
- * - Immediate user feedback during submission
- * - Smooth transitions between UI states
- * - Optimized for mobile and desktop performance
- *
- * ## Security Integration
- *
- * ### CSRF Protection
- * - Integration with CakePHP CSRF tokens
- * - Automatic token inclusion in form submission
- * - Framework-level protection against CSRF attacks
- * - Secure form processing pipeline
- *
- * ### Input Validation
- * - Client-side validation for user experience
- * - Server-side validation for security
- * - XSS prevention through proper data handling
- * - Content sanitization before API submission
- *
- * @class GitHubSubmitter
- * @extends Controller
- * @since 1.0.0
+ * Targets: success, formBlock, submitBtn, issueLink, form, modal
+ * Values: url (String) - API endpoint for issue submission
  */
-
 class GitHubSubmitter extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
-  // Define target elements for DOM manipulation and state management
   static targets = ["success", "formBlock", "submitBtn", "issueLink", "form", "modal"];
 
   // Define configurable values from HTML data attributes
@@ -55760,185 +53282,8 @@ class GitHubSubmitter extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Co
   };
 
   /**
-   * Submit method - Process GitHub issue submission with AJAX integration
-   *
-   * This method handles the complete GitHub issue submission workflow, from form data
-   * collection through API communication to user feedback. It implements comprehensive
-   * error handling, user experience management, and UI state transitions to provide
-   * a seamless feedback submission experience.
-   *
-   * ## Submission Workflow
-   *
-   * ### 1. Form Data Collection and Validation
-   * - Prevents default form submission to enable AJAX processing
-   * - Collects all form data using modern FormData API
-   * - Maintains form validation and user input integrity
-   * - Prepares data for secure API transmission
-   *
-   * ### 2. AJAX Request Processing
-   * - Sends POST request to configured GitHub API endpoint
-   * - Uses fetch API for modern browser compatibility
-   * - Implements proper HTTP status code checking
-   * - Handles network connectivity and timeout issues
-   *
-   * ### 3. API Response Processing
-   * - Parses JSON responses from GitHub Issues API
-   * - Distinguishes between success and error responses
-   * - Handles GitHub API error messages and status codes
-   * - Processes issue creation data (URL, issue number)
-   *
-   * ### 4. User Interface State Management
-   * - Transitions from submission form to success confirmation
-   * - Updates UI elements with issue information
-   * - Manages button states and visibility
-   * - Provides immediate user feedback on submission status
-   *
-   * ## Error Handling Strategies
-   *
-   * ### GitHub API Errors
-   * When the GitHub API returns an error (e.g., authentication, permissions):
-   * - Displays specific error message from API response
-   * - Maintains form state for user correction attempts
-   * - Logs error details for administrative monitoring
-   * - Provides user guidance for error resolution
-   *
-   * ### Network and Connectivity Errors
-   * For network failures, timeouts, or connection issues:
-   * - Shows generic error message to protect system details
-   * - Maintains form data to prevent user data loss
-   * - Logs technical details to console for debugging
-   * - Enables retry functionality without data re-entry
-   *
-   * ### Response Processing Errors
-   * For malformed responses or unexpected data:
-   * - Graceful handling of JSON parsing errors
-   * - Fallback error messaging for unknown response formats
-   * - Preservation of user input for retry attempts
-   * - Detailed logging for development and debugging
-   *
-   * ## UI State Transitions
-   *
-   * ### Success State
-   * When issue creation is successful:
-   * - Hides form interface (`formBlockTarget.style.display = 'none'`)
-   * - Hides submit button (`submitBtnTarget.style.display = 'none'`)
-   * - Shows success message (`successTarget.style.display = 'block'`)
-   * - Updates issue link with GitHub URL (`issueLinkTarget.href = data.url`)
-   * - Resets form for potential future use (`form.reset()`)
-   *
-   * ### Error State
-   * When submission fails:
-   * - Preserves form interface and user input
-   * - Displays error message through alert (or custom UI)
-   * - Maintains submit button availability for retry
-   * - Logs error details for troubleshooting
-   *
-   * ## API Integration Details
-   *
-   * ### Request Format
-   * - HTTP Method: POST
-   * - Content-Type: multipart/form-data (via FormData)
-   * - Body: Form fields (title, body, feedbackType)
-   * - Headers: Automatic CSRF token inclusion (CakePHP framework)
-   *
-   * ### Expected Response Formats
-   *
-   * #### Success Response
-   * ```json
-   * {
-   *   "url": "https://github.com/owner/repo/issues/123",
-   *   "number": 123
-   * }
-   * ```
-   *
-   * #### Error Response
-   * ```json
-   * {
-   *   "message": "API error description"
-   * }
-   * ```
-   *
-   * ## Usage Examples
-   *
-   * ### Basic Form Submission
-   * ```html
-   * <form data-action="submit->github-submitter#submit">
-   *   <input type="text" name="title" required>
-   *   <textarea name="body" required></textarea>
-   *   <button type="submit">Submit</button>
-   * </form>
-   * ```
-   *
-   * ### Advanced Error Handling Integration
-   * ```javascript
-   * // Custom error handling enhancement
-   * submit(event) {
-   *   // ... existing logic ...
-   *   .catch(error => {
-   *     // Enhanced error handling
-   *     this.showCustomError(error.message);
-   *     this.trackErrorEvent(error);
-   *   });
-   * }
-   * ```
-   *
-   * ### Loading State Integration
-   * ```javascript
-   * // Add loading indicators
-   * submit(event) {
-   *   this.setLoadingState(true);
-   *   
-   *   fetch(url, { method: 'POST', body: formData })
-   *     .then(response => {
-   *       this.setLoadingState(false);
-   *       // ... process response ...
-   *     })
-   *     .catch(error => {
-   *       this.setLoadingState(false);
-   *       // ... handle error ...
-   *     });
-   * }
-   * ```
-   *
-   * ## Security Considerations
-   *
-   * ### CSRF Protection
-   * - Automatic CSRF token inclusion through CakePHP framework
-   * - Form-based token validation on server side
-   * - Protection against cross-site request forgery attacks
-   * - Secure form processing pipeline
-   *
-   * ### Data Validation
-   * - Client-side validation for user experience
-   * - Server-side validation for security enforcement
-   * - Input sanitization before API transmission
-   * - XSS prevention through proper data handling
-   *
-   * ### Error Information Security
-   * - Generic error messages to prevent information disclosure
-   * - Detailed errors logged securely for administration
-   * - No sensitive information exposed to client side
-   * - Secure error handling practices
-   *
+   * Handle form submission via AJAX to GitHub Issues API.
    * @param {Event} event - Form submission event
-   * @returns {void}
-   * 
-   * @example Basic Usage
-   * ```html
-   * <div data-controller="github-submitter" 
-   *      data-github-submitter-url-value="/submit-endpoint">
-   *   <form data-action="submit->github-submitter#submit">
-   *     <!-- form fields -->
-   *   </form>
-   * </div>
-   * ```
-   * 
-   * @example Response Processing
-   * ```javascript
-   * // Success: data = { url: "...", number: 123 }
-   * // Error: data = { message: "Error description" }
-   * // Network Error: thrown exception with error message
-   * ```
    */
   submit(event) {
     event.preventDefault();
@@ -55970,58 +53315,7 @@ class GitHubSubmitter extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Co
     });
   }
 
-  /**
-   * Modal target connected - Initialize modal event listeners
-   *
-   * This method is automatically called when a modal target element is connected
-   * to the controller. It sets up event listeners for Bootstrap modal events,
-   * specifically handling the modal hide event to reset the form state when
-   * the user closes the modal.
-   *
-   * ## Event Listener Management
-   *
-   * ### Bootstrap Modal Integration
-   * - Listens for `hidden.bs.modal` event from Bootstrap modal component
-   * - Automatically resets UI state when modal is closed
-   * - Ensures clean state for subsequent modal usage
-   * - Maintains proper user experience flow
-   *
-   * ### UI State Reset
-   * When modal is hidden, the listener:
-   * - Shows form block (`formBlockTarget.style.display = 'block'`)
-   * - Hides success message (`successTarget.style.display = 'none'`)
-   * - Shows submit button (`submitBtnTarget.style.display = 'block'`)
-   * - Prepares interface for next submission
-   *
-   * ## Integration with Stimulus Lifecycle
-   *
-   * ### Automatic Target Management
-   * - Called automatically when modal target is added to DOM
-   * - Part of Stimulus target connection lifecycle
-   * - Ensures event listeners are properly initialized
-   * - Supports dynamic modal creation and removal
-   *
-   * ### Memory Management
-   * - Event listeners are added only when needed
-   * - Proper cleanup handled by disconnection method
-   * - Prevents memory leaks in single-page applications
-   * - Supports multiple modal instances
-   *
-   * @returns {void}
-   * 
-   * @example Modal HTML Structure
-   * ```html
-   * <div class="modal fade" 
-   *      data-github-submitter-target="modal"
-   *      tabindex="-1">
-   *   <div class="modal-dialog">
-   *     <div class="modal-content">
-   *       <!-- Modal content with form -->
-   *     </div>
-   *   </div>
-   * </div>
-   * ```
-   */
+  /** Reset UI state when modal is hidden. */
   modalTargetConnected() {
     this.modalTarget.addEventListener('hidden.bs.modal', () => {
       this.formBlockTarget.style.display = 'block';
@@ -56030,45 +53324,7 @@ class GitHubSubmitter extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Co
     });
   }
 
-  /**
-   * Modal target disconnected - Clean up modal event listeners
-   *
-   * This method is automatically called when a modal target element is disconnected
-   * from the controller. It removes event listeners to prevent memory leaks and
-   * ensures proper cleanup when the modal is removed from the DOM or when the
-   * controller is destroyed.
-   *
-   * ## Memory Management
-   *
-   * ### Event Listener Cleanup
-   * - Removes `hidden.bs.modal` event listeners
-   * - Prevents memory leaks in single-page applications
-   * - Ensures proper garbage collection
-   * - Maintains application performance
-   *
-   * ### Lifecycle Integration
-   * - Part of Stimulus target disconnection lifecycle
-   * - Automatically called when target element is removed
-   * - Supports dynamic modal creation and removal
-   * - Maintains clean controller state
-   *
-   * ## Error Prevention
-   *
-   * ### Stale Reference Prevention
-   * - Removes references to disconnected DOM elements
-   * - Prevents errors from removed event listeners
-   * - Maintains controller stability
-   * - Supports hot module reloading in development
-   *
-   * @returns {void}
-   * 
-   * @example Automatic Cleanup
-   * ```javascript
-   * // Called automatically when modal is removed
-   * document.querySelector('.modal').remove();
-   * // modalTargetDisconnected() is called automatically
-   * ```
-   */
+  /** Clean up modal event listeners. */
   modalTargetDisconnected() {
     this.modalTarget.removeEventListener('hidden.bs.modal', () => {
       this.formBlockTarget.style.display = 'block';
@@ -56077,77 +53333,7 @@ class GitHubSubmitter extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Co
     });
   }
 
-  /**
-   * Connect method - Initialize controller state and UI
-   *
-   * This method is automatically called when the controller is connected to the DOM,
-   * initializing the default UI state for the feedback submission interface. It ensures
-   * that the form is visible and ready for user interaction while hiding success
-   * messages from previous submissions.
-   *
-   * ## Initial State Setup
-   *
-   * ### UI State Initialization
-   * - Shows form interface (`formBlockTarget.style.display = 'block'`)
-   * - Hides success message (`successTarget.style.display = 'none'`)
-   * - Shows submit button (`submitBtnTarget.style.display = 'block'`)
-   * - Prepares interface for user interaction
-   *
-   * ### Controller Lifecycle Integration
-   * - Part of Stimulus controller connection lifecycle
-   * - Called automatically when controller attaches to DOM element
-   * - Ensures consistent initial state across page loads
-   * - Supports dynamic controller instantiation
-   *
-   * ## State Management
-   *
-   * ### Default UI State
-   * The method establishes the baseline interface state:
-   * - Form is visible and ready for input
-   * - Success messages are hidden
-   * - Submit functionality is available
-   * - Interface is prepared for user interaction
-   *
-   * ### Consistency Across Loads
-   * - Ensures predictable initial state
-   * - Handles page refreshes and navigation
-   * - Supports browser back/forward functionality
-   * - Maintains interface consistency
-   *
-   * ## Usage Context
-   *
-   * ### Page Load Initialization
-   * - Called when page loads with controller element
-   * - Ensures proper initial display state
-   * - Prepares form for first-time usage
-   * - Handles server-side rendered content
-   *
-   * ### Dynamic Content Loading
-   * - Called when controller is added via AJAX
-   * - Supports single-page application patterns
-   * - Handles dynamic modal creation
-   * - Maintains state consistency in complex UIs
-   *
-   * @returns {void}
-   * 
-   * @example Automatic Initialization
-   * ```html
-   * <!-- Controller automatically connects and calls connect() -->
-   * <div data-controller="github-submitter">
-   *   <div data-github-submitter-target="formBlock">
-   *     <!-- Form content -->
-   *   </div>
-   * </div>
-   * ```
-   * 
-   * @example Dynamic Initialization
-   * ```javascript
-   * // When dynamically added, connect() is called automatically
-   * const element = document.createElement('div');
-   * element.dataset.controller = 'github-submitter';
-   * document.body.appendChild(element);
-   * ```
-   */
+  /** Initialize UI state on controller connect. */
   connect() {
     this.formBlockTarget.style.display = 'block';
     this.successTarget.style.display = 'none';
@@ -56155,80 +53341,7 @@ class GitHubSubmitter extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Co
   }
 }
 
-/**
- * Controller Registration - Global Stimulus Controller Registry Integration
- *
- * This section registers the GitHubSubmitter controller with the global KMP Stimulus
- * controller registry, making it available for use throughout the application. The
- * registration follows KMP's standard controller registration pattern for consistent
- * plugin integration and controller discovery.
- *
- * ## Global Registry Pattern
- *
- * ### Window.Controllers Registry
- * - Creates global registry if it doesn't exist
- * - Stores all Stimulus controllers for application-wide access
- * - Enables dynamic controller loading and registration
- * - Supports plugin-based controller architecture
- *
- * ### Naming Convention
- * - Controller registered as "github-submitter"
- * - Matches HTML data-controller attribute naming
- * - Follows kebab-case naming convention
- * - Maintains consistency with KMP controller patterns
- *
- * ## Integration with KMP Architecture
- *
- * ### Plugin Controller Loading
- * - Part of KMP's plugin-based Stimulus architecture
- * - Enables modular controller organization
- * - Supports plugin activation/deactivation
- * - Maintains controller isolation and encapsulation
- *
- * ### Dynamic Registration
- * - Controllers can be registered at runtime
- * - Supports lazy loading and code splitting
- * - Enables conditional controller loading
- * - Facilitates plugin development workflow
- *
- * ## Usage Examples
- *
- * ### HTML Controller Activation
- * ```html
- * <!-- Controller automatically discovered via registry -->
- * <div data-controller="github-submitter">
- *   <!-- Controller functionality available -->
- * </div>
- * ```
- *
- * ### Manual Controller Access
- * ```javascript
- * // Access controller class from global registry
- * const GitHubSubmitterClass = window.Controllers["github-submitter"];
- * 
- * // Manual instantiation (rarely needed)
- * const controller = new GitHubSubmitterClass();
- * ```
- *
- * ### Plugin Integration Check
- * ```javascript
- * // Check if controller is available
- * if (window.Controllers && window.Controllers["github-submitter"]) {
- *     // GitHub submission functionality is available
- * }
- * ```
- *
- * @example Controller Registration Pattern
- * ```javascript
- * // Standard KMP controller registration
- * if (!window.Controllers) {
- *     window.Controllers = {};
- * }
- * window.Controllers["controller-name"] = ControllerClass;
- * ```
- */
-
-// Add to window.Controllers with a name of the controller
+// Register controller with global registry
 if (!window.Controllers) {
   window.Controllers = {};
 }
@@ -56246,196 +53359,11 @@ window.Controllers["github-submitter"] = GitHubSubmitter;
 __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
 /**
- * Officer Assignment Stimulus Controller
- * 
- * Provides comprehensive officer assignment interface with member validation, office
- * selection, deputy management, and assignment workflow coordination for seamless
- * officer assignment processing and administrative management within the KMP system.
- * 
- * This Stimulus controller manages the complete officer assignment workflow including
- * member lookup integration, office-specific configuration, deputy relationship
- * management, email address coordination, and comprehensive assignment validation
- * for enhanced user experience and administrative efficiency.
- * 
- * ## Assignment Workflow Architecture
- * 
- * **Member Validation Integration**: Integrates with member autocomplete system
- * for member validation, identity verification, assignment eligibility, and
- * comprehensive member selection with real-time validation and user feedback
- * for accurate assignment processing.
- * 
- * **Office Selection Management**: Manages office selection including office
- * discovery, configuration loading, deputy relationship validation, and
- * comprehensive office coordination for appropriate assignment configuration
- * and workflow management.
- * 
- * **Deputy Relationship Handling**: Handles deputy relationships including
- * deputy designation validation, description management, term configuration, and
- * comprehensive deputy coordination for hierarchical assignment management
- * and organizational structure support.
- * 
- * **Assignment Validation**: Validates assignment requirements including
- * member eligibility, office availability, deputy configuration, and
- * comprehensive validation coordination for accurate assignment processing
- * and administrative oversight.
- * 
- * ## Dynamic Form Management and User Interface
- * 
- * **Conditional Field Display**: Implements conditional field display including
- * deputy description fields, end date configuration, email address management,
- * and comprehensive field coordination for context-appropriate form display
- * and user experience optimization.
- * 
- * **Real-Time Validation**: Provides real-time validation including assignment
- * readiness checking, form validation, submission control, and comprehensive
- * validation feedback for immediate user guidance and error prevention
- * with enhanced user experience.
- * 
- * **Dynamic URL Management**: Manages dynamic URL updates for member search
- * including office-specific member filtering, URL construction, parameter
- * management, and comprehensive URL coordination for appropriate member
- * discovery and assignment validation.
- * 
- * **Form State Management**: Manages form state including field enablement,
- * validation status, submission readiness, and comprehensive state coordination
- * for logical form progression and user interface consistency
- * with proper workflow management.
- * 
- * ## Office Configuration and Context Management
- * 
- * **Office Data Integration**: Integrates office data including deputy status,
- * email configuration, hierarchical relationships, and comprehensive office
- * coordination for appropriate assignment configuration and workflow
- * management with organizational structure support.
- * 
- * **Deputy Configuration**: Manages deputy configuration including deputy
- * status validation, description requirements, term management, and
- * comprehensive deputy coordination for hierarchical assignment support
- * and organizational structure management.
- * 
- * **Email Address Management**: Manages email address configuration including
- * office-specific addresses, contact coordination, communication setup, and
- * comprehensive email management for organizational communication
- * and administrative coordination.
- * 
- * **Context-Aware Display**: Provides context-aware display including
- * office-specific field visibility, deputy requirement indication, email
- * configuration display, and comprehensive context coordination for
- * appropriate user interface adaptation and workflow guidance.
- * 
- * ## Member Search Integration and Validation
- * 
- * **Autocomplete Integration**: Integrates with member autocomplete system
- * including search URL management, office-specific filtering, member validation,
- * and comprehensive autocomplete coordination for efficient member selection
- * and assignment validation with user experience optimization.
- * 
- * **Office-Specific Filtering**: Implements office-specific member filtering
- * including eligibility validation, permission checking, availability
- * assessment, and comprehensive filtering coordination for appropriate
- * member discovery and assignment validation.
- * 
- * **URL Construction**: Constructs search URLs dynamically including office
- * parameter integration, URL path management, parameter coordination, and
- * comprehensive URL building for appropriate member search and
- * assignment validation.
- * 
- * **Search Context Management**: Manages search context including office
- * selection state, member eligibility, search parameters, and comprehensive
- * context coordination for accurate member discovery and
- * assignment validation.
- * 
- * ## Form Validation and Submission Control
- * 
- * **Assignment Readiness Validation**: Validates assignment readiness including
- * member selection verification, office selection validation, required field
- * completion, and comprehensive readiness assessment for accurate assignment
- * processing and administrative coordination.
- * 
- * **Real-Time Feedback**: Provides real-time feedback including validation
- * status indication, error highlighting, submission control, and comprehensive
- * feedback coordination for immediate user guidance and error prevention
- * with enhanced user experience.
- * 
- * **Submission Control**: Controls form submission including readiness
- * validation, button state management, form validation, and comprehensive
- * submission coordination for accurate assignment processing and
- * administrative workflow management.
- * 
- * **Field Dependency Management**: Manages field dependencies including
- * conditional requirements, validation chains, form progression, and
- * comprehensive dependency coordination for logical form workflow
- * and user interface consistency.
- * 
- * ## Target Element Management and DOM Coordination
- * 
- * **Target Element Integration**: Integrates target elements including
- * assignee selection, office selection, deputy fields, email configuration,
- * and comprehensive target coordination for complete form management
- * and user interface control.
- * 
- * **Dynamic Field Control**: Controls field behavior dynamically including
- * enablement state, visibility management, value coordination, and
- * comprehensive field control for context-appropriate form behavior
- * and user experience optimization.
- * 
- * **Element State Synchronization**: Synchronizes element state including
- * field values, validation status, visibility state, and comprehensive
- * synchronization coordination for consistent user interface behavior
- * and form state management.
- * 
- * **Event Coordination**: Coordinates events including change handling,
- * validation triggers, submission events, and comprehensive event
- * coordination for responsive user interface behavior and
- * workflow management.
- * 
- * ## Performance Optimization and User Experience
- * 
- * **Efficient DOM Manipulation**: Implements efficient DOM manipulation
- * including targeted updates, minimal reflows, state caching, and
- * comprehensive optimization coordination for high-performance user
- * interface operation and enhanced user experience.
- * 
- * **Event Handler Optimization**: Optimizes event handling including
- * efficient listeners, event delegation, performance monitoring, and
- * comprehensive handler coordination for responsive user interface
- * behavior and optimal performance.
- * 
- * **State Management Efficiency**: Manages state efficiently including
- * minimal updates, change detection, validation caching, and comprehensive
- * state coordination for optimal performance and user experience
- * with responsive interface behavior.
- * 
- * **User Experience Enhancement**: Enhances user experience including
- * immediate feedback, intuitive interface, clear validation, and
- * comprehensive experience coordination for efficient assignment
- * workflow and administrative usability.
- * 
- * ## Integration Points and Dependencies
- * 
- * **Stimulus Framework Integration**: Integrates with Stimulus framework
- * including controller lifecycle, target management, value coordination, and
- * comprehensive framework integration for consistent application behavior
- * and development patterns.
- * 
- * **Member Search Controller Integration**: Integrates with member search
- * controller through outlet connections including search coordination,
- * validation integration, and comprehensive search management for
- * seamless member selection and assignment workflow.
- * 
- * **Outlet Button Integration**: Integrates with outlet button controller
- * for form submission coordination including state management, validation
- * control, and comprehensive button coordination for proper assignment
- * workflow and user interface management.
- * 
- * **Backend API Integration**: Integrates with backend APIs through URL
- * management, data coordination, and comprehensive API integration for
- * accurate assignment processing and administrative coordination
- * with proper error handling and validation.
- * 
- * @package Officers\Assets\Controllers
- * @since 1.0.0
- * @version 2.0.0
+ * Officer Assignment Controller - Member-to-office assignment interface
+ *
+ * Targets: assignee, submitBtn, deputyDescBlock, deputyDesc, office, endDateBlock, endDate, emailAddress, emailAddressBlock
+ * Values: url (String)
+ * Outlets: outlet-btn, member-serach
  */
 
 
@@ -56446,94 +53374,7 @@ class OfficersAssignOfficer extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_
   static targets = ["assignee", "submitBtn", "deputyDescBlock", "deputyDesc", "office", "endDateBlock", "endDate", "emailAddress", "emailAddressBlock"];
   static outlets = ["outlet-btn", "member-serach"];
 
-  /**
-   * Configure Office-Specific Assignment Questions and Interface
-   * 
-   * Configures office-specific assignment interface including deputy relationship
-   * management, email address coordination, field visibility control, and
-   * comprehensive office configuration for context-appropriate assignment
-   * workflow and user experience optimization.
-   * 
-   * This method manages dynamic form configuration based on office selection
-   * including conditional field display, member search URL updates, deputy
-   * configuration, email address management, and comprehensive interface
-   * adaptation for office-specific assignment requirements and workflow.
-   * 
-   * ## Field Visibility and State Management
-   * 
-   * **Initial Field Reset**: Resets field visibility and state including
-   * deputy description hiding, end date concealment, email address hiding,
-   * field disabling, and comprehensive reset coordination for clean
-   * interface state and consistent user experience.
-   * 
-   * **Dynamic Field Control**: Controls field visibility dynamically including
-   * conditional display logic, state management, user interface adaptation,
-   * and comprehensive field coordination for context-appropriate form
-   * behavior and workflow optimization.
-   * 
-   * **State Synchronization**: Synchronizes field state including enablement
-   * coordination, visibility management, value validation, and comprehensive
-   * state coordination for consistent user interface behavior and
-   * form workflow management.
-   * 
-   * ## Member Search URL Management
-   * 
-   * **Dynamic URL Construction**: Constructs member search URLs dynamically
-   * including office parameter integration, URL path manipulation, parameter
-   * coordination, and comprehensive URL building for office-specific member
-   * filtering and assignment validation.
-   * 
-   * **URL Path Analysis**: Analyzes URL paths including path decomposition,
-   * parameter identification, office ID integration, and comprehensive
-   * path coordination for accurate URL construction and member search
-   * filtering with proper parameter management.
-   * 
-   * **Search Context Integration**: Integrates search context including
-   * office selection state, member eligibility filtering, search parameters,
-   * and comprehensive context coordination for appropriate member discovery
-   * and assignment validation.
-   * 
-   * ## Office Configuration Processing
-   * 
-   * **Office Data Retrieval**: Retrieves office configuration data including
-   * deputy status validation, email address discovery, hierarchical
-   * relationships, and comprehensive office coordination for appropriate
-   * assignment configuration and workflow management.
-   * 
-   * **Deputy Status Validation**: Validates deputy status including deputy
-   * designation checking, hierarchical relationship validation, configuration
-   * requirements, and comprehensive deputy coordination for appropriate
-   * deputy assignment management and organizational structure.
-   * 
-   * **Email Address Configuration**: Configures email addresses including
-   * office-specific addresses, contact coordination, communication setup,
-   * and comprehensive email management for organizational communication
-   * and administrative coordination.
-   * 
-   * ## Conditional Interface Adaptation
-   * 
-   * **Deputy Field Management**: Manages deputy-specific fields including
-   * description field display, end date configuration, term management,
-   * and comprehensive deputy coordination for hierarchical assignment
-   * support and organizational structure management.
-   * 
-   * **Email Field Configuration**: Configures email fields including
-   * address field display, value population, validation setup, and
-   * comprehensive email coordination for communication management
-   * and organizational coordination.
-   * 
-   * **Validation Integration**: Integrates validation logic including
-   * assignment readiness checking, form validation, submission control,
-   * and comprehensive validation coordination for accurate assignment
-   * processing and administrative workflow.
-   * 
-   * @return void Configures office-specific interface elements and updates
-   *              member search URLs for appropriate assignment workflow
-   *              and user experience optimization
-   * @see checkReadyToSubmit() For assignment validation coordination
-   * @since 1.0.0
-   * @version 2.0.0
-   */
+  /** Configure form fields based on selected office (deputy fields, email, etc). */
   setOfficeQuestions() {
     this.deputyDescBlockTarget.classList.add('d-none');
     this.endDateBlockTarget.classList.add('d-none');
@@ -56570,57 +53411,7 @@ class OfficersAssignOfficer extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_
     }
   }
 
-  /**
-   * Validate Assignment Readiness and Control Form Submission
-   * 
-   * Validates assignment readiness including member selection verification,
-   * office selection validation, form completion assessment, and comprehensive
-   * readiness evaluation for accurate assignment processing and submission
-   * control with real-time user feedback and validation coordination.
-   * 
-   * This method implements comprehensive assignment validation including
-   * member eligibility checking, office availability validation, form
-   * state assessment, and submission button control for proper assignment
-   * workflow management and user experience optimization.
-   * 
-   * ## Assignment Validation Logic
-   * 
-   * **Member Selection Validation**: Validates member selection including
-   * member ID verification, selection state checking, eligibility assessment,
-   * and comprehensive member validation for appropriate assignment processing
-   * and administrative coordination.
-   * 
-   * **Office Selection Validation**: Validates office selection including
-   * office ID verification, availability checking, configuration validation,
-   * and comprehensive office validation for appropriate assignment coordination
-   * and workflow management.
-   * 
-   * **Numeric Validation**: Implements numeric validation including ID parsing,
-   * value verification, range checking, and comprehensive numeric validation
-   * for accurate data processing and assignment validation.
-   * 
-   * ## Submission Control Management
-   * 
-   * **Button State Control**: Controls submission button state including
-   * enablement logic, validation feedback, user interface control, and
-   * comprehensive button coordination for proper form submission management
-   * and user experience optimization.
-   * 
-   * **Real-Time Feedback**: Provides real-time validation feedback including
-   * immediate state updates, user guidance, error indication, and comprehensive
-   * feedback coordination for enhanced user experience and error prevention.
-   * 
-   * **Form State Synchronization**: Synchronizes form state including
-   * validation status, submission readiness, user interface updates, and
-   * comprehensive state coordination for consistent form behavior and
-   * workflow management.
-   * 
-   * @return void Updates submission button state based on assignment
-   *              validation status for proper form submission control
-   *              and user experience optimization
-   * @since 1.0.0
-   * @version 2.0.0
-   */
+  /** Enable/disable submit button based on assignee and office selection. */
   checkReadyToSubmit() {
     var assigneeVal = this.assigneeTarget.value;
     var officeVal = this.officeTarget.value;
@@ -56633,100 +53424,30 @@ class OfficersAssignOfficer extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_
     }
   }
 
-  /**
-   * Initialize Submit Button State on Target Connection
-   * 
-   * Initializes submit button state when target element connects including
-   * initial disabling, state coordination, user interface setup, and
-   * comprehensive button initialization for proper form submission control
-   * and user experience optimization.
-   * 
-   * @return void Disables submit button on initial connection for proper
-   *              form validation workflow and submission control
-   * @since 1.0.0
-   * @version 2.0.0
-   */
+  /** Disable submit button on initial connection. */
   submitBtnTargetConnected() {
     this.submitBtnTarget.disabled = true;
   }
 
-  /**
-   * Initialize End Date Field State on Target Connection
-   * 
-   * Initializes end date field state when target element connects including
-   * initial disabling, state coordination, field setup, and comprehensive
-   * field initialization for proper deputy assignment workflow and
-   * user interface management.
-   * 
-   * @return void Disables end date field on initial connection for proper
-   *              deputy assignment workflow and conditional field control
-   * @since 1.0.0
-   * @version 2.0.0
-   */
+  /** Disable end date field on initial connection. */
   endDateTargetConnected() {
     this.endDateTarget.disabled = true;
   }
 
-  /**
-   * Initialize Deputy Description Field State on Target Connection
-   * 
-   * Initializes deputy description field state when target element connects
-   * including initial disabling, state coordination, field setup, and
-   * comprehensive field initialization for proper deputy assignment workflow
-   * and hierarchical assignment management.
-   * 
-   * @return void Disables deputy description field on initial connection
-   *              for proper deputy assignment workflow and conditional
-   *              field control with hierarchical coordination
-   * @since 1.0.0
-   * @version 2.0.0
-   */
+  /** Disable deputy description field on initial connection. */
   deputyDescTargetConnected() {
     this.deputyDescTarget.disabled = true;
   }
 
-  /**
-   * Initialize Controller and Configure Initial Interface State
-   * 
-   * Initializes controller connection including interface state setup,
-   * field visibility configuration, initial state coordination, and
-   * comprehensive controller initialization for proper assignment workflow
-   * and user experience optimization.
-   * 
-   * This method sets up the initial interface state including field hiding,
-   * state coordination, user interface preparation, and comprehensive
-   * initialization for consistent assignment workflow and user experience
-   * management.
-   * 
-   * ## Initial State Configuration
-   * 
-   * **Field Visibility Setup**: Sets up initial field visibility including
-   * deputy field hiding, end date concealment, email address hiding, and
-   * comprehensive visibility coordination for clean initial interface
-   * state and consistent user experience.
-   * 
-   * **Interface State Preparation**: Prepares interface state including
-   * field disabling, form reset, validation setup, and comprehensive
-   * state preparation for proper assignment workflow and user interface
-   * consistency.
-   * 
-   * **Controller Lifecycle Integration**: Integrates with controller lifecycle
-   * including connection handling, state management, event coordination, and
-   * comprehensive lifecycle integration for proper Stimulus controller
-   * behavior and application consistency.
-   * 
-   * @return void Initializes controller with proper initial state for
-   *              assignment workflow and user experience optimization
-   * @since 1.0.0
-   * @version 2.0.0
-   */
+  /** Hide optional field blocks on controller connect. */
   connect() {
     this.deputyDescBlockTarget.classList.add('d-none');
     this.endDateBlockTarget.classList.add('d-none');
     this.emailAddressBlockTarget.classList.add('d-none');
   }
 }
-// add to window.Controllers with a name of the controller
+
+// Register controller with global registry
 if (!window.Controllers) {
   window.Controllers = {};
 }
@@ -56744,174 +53465,10 @@ window.Controllers["officers-assign-officer"] = OfficersAssignOfficer;
 __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
 /**
- * Officer Edit Stimulus Controller
- * 
- * Provides comprehensive officer editing interface with assignment management,
- * deputy relationship handling, email address coordination, and administrative
- * workflow integration for seamless officer modification and assignment
- * management within the KMP system.
- * 
- * This Stimulus controller manages the complete officer editing workflow including
- * officer data population, deputy relationship management, email address
- * coordination, and comprehensive form management for enhanced administrative
- * efficiency and user experience optimization.
- * 
- * ## Officer Edit Workflow Architecture
- * 
- * **Data Population Management**: Manages officer data population including
- * assignment details, deputy information, email addresses, and comprehensive
- * data coordination for accurate form pre-population and edit workflow
- * management with proper state synchronization.
- * 
- * **Deputy Relationship Handling**: Handles deputy relationships including
- * deputy status validation, description management, hierarchical coordination,
- * and comprehensive deputy management for organizational structure support
- * and assignment hierarchy maintenance.
- * 
- * **Email Address Coordination**: Coordinates email address management including
- * contact information, communication setup, address validation, and
- * comprehensive email coordination for organizational communication
- * and administrative coordination.
- * 
- * **Form State Management**: Manages form state including field population,
- * validation coordination, submission preparation, and comprehensive state
- * management for efficient edit workflow and user experience optimization.
- * 
- * ## Dynamic Interface Management and User Experience
- * 
- * **Conditional Field Display**: Implements conditional field display including
- * deputy-specific fields, email address fields, context-sensitive interface,
- * and comprehensive field coordination for appropriate edit interface
- * and user experience optimization.
- * 
- * **Real-Time Interface Updates**: Provides real-time interface updates including
- * field visibility changes, form adaptation, state synchronization, and
- * comprehensive interface coordination for responsive user experience
- * and administrative efficiency.
- * 
- * **Context-Aware Form Adaptation**: Adapts form interface based on officer
- * context including deputy status, email configuration, assignment details,
- * and comprehensive context coordination for appropriate edit workflow
- * and user interface optimization.
- * 
- * **User Experience Enhancement**: Enhances user experience including
- * intuitive interface, immediate feedback, clear presentation, and
- * comprehensive experience coordination for efficient officer editing
- * and administrative usability.
- * 
- * ## Event Handling and Communication
- * 
- * **Event-Driven Data Population**: Implements event-driven data population
- * including external event handling, data extraction, form population, and
- * comprehensive event coordination for seamless integration with other
- * interface components and workflow management.
- * 
- * **Outlet Communication**: Manages outlet communication including outlet
- * connections, event listener coordination, data exchange, and comprehensive
- * communication management for proper integration with other controllers
- * and interface components.
- * 
- * **Data Processing**: Processes officer data including field extraction,
- * value formatting, validation preparation, and comprehensive data
- * coordination for accurate form population and edit workflow
- * management.
- * 
- * **State Synchronization**: Synchronizes state between components including
- * form fields, interface elements, validation status, and comprehensive
- * synchronization coordination for consistent user interface behavior
- * and workflow management.
- * 
- * ## Deputy Management and Hierarchical Support
- * 
- * **Deputy Status Processing**: Processes deputy status including status
- * validation, interface adaptation, field configuration, and comprehensive
- * deputy coordination for hierarchical assignment support and
- * organizational structure management.
- * 
- * **Description Management**: Manages deputy descriptions including text
- * processing, formatting coordination, validation setup, and comprehensive
- * description management for clear deputy assignment documentation
- * and administrative coordination.
- * 
- * **Hierarchical Interface**: Provides hierarchical interface including
- * deputy field display, relationship indication, structure visualization,
- * and comprehensive hierarchical coordination for organizational
- * structure support and assignment management.
- * 
- * **Administrative Coordination**: Coordinates administrative functions
- * including deputy assignment, hierarchical validation, organizational
- * structure, and comprehensive administrative coordination for proper
- * officer management and organizational oversight.
- * 
- * ## Target Element Management and DOM Coordination
- * 
- * **Target Element Integration**: Integrates target elements including
- * deputy fields, email fields, ID fields, and comprehensive target
- * coordination for complete form management and user interface control
- * with proper element state management.
- * 
- * **Dynamic Field Control**: Controls field behavior dynamically including
- * visibility management, value population, validation setup, and
- * comprehensive field control for context-appropriate form behavior
- * and user experience optimization.
- * 
- * **Element State Management**: Manages element state including field
- * values, visibility status, validation state, and comprehensive
- * state management for consistent user interface behavior and
- * form workflow coordination.
- * 
- * **Event Coordination**: Coordinates events including data population,
- * state changes, validation triggers, and comprehensive event
- * coordination for responsive user interface behavior and
- * workflow management.
- * 
- * ## Performance Optimization and Efficiency
- * 
- * **Efficient DOM Updates**: Implements efficient DOM updates including
- * targeted manipulation, minimal reflows, state caching, and comprehensive
- * optimization coordination for high-performance user interface operation
- * and enhanced user experience.
- * 
- * **Event Handler Optimization**: Optimizes event handling including
- * efficient listeners, proper cleanup, performance monitoring, and
- * comprehensive handler coordination for responsive user interface
- * behavior and optimal performance.
- * 
- * **Memory Management**: Manages memory efficiently including proper
- * listener cleanup, state management, resource optimization, and
- * comprehensive memory coordination for optimal performance and
- * system resource utilization.
- * 
- * **User Interface Performance**: Optimizes user interface performance
- * including responsive updates, efficient rendering, state coordination,
- * and comprehensive performance management for enhanced user experience
- * and administrative efficiency.
- * 
- * ## Integration Points and Dependencies
- * 
- * **Stimulus Framework Integration**: Integrates with Stimulus framework
- * including controller lifecycle, target management, outlet coordination, and
- * comprehensive framework integration for consistent application behavior
- * and development patterns.
- * 
- * **Outlet Button Integration**: Integrates with outlet button controller
- * through outlet connections including event handling, data coordination,
- * and comprehensive integration management for seamless component
- * communication and workflow coordination.
- * 
- * **Event System Integration**: Integrates with application event system
- * including event handling, data processing, state management, and
- * comprehensive event coordination for proper component communication
- * and workflow management.
- * 
- * **Form System Integration**: Integrates with form system including
- * field management, validation coordination, submission preparation, and
- * comprehensive form integration for proper edit workflow and
- * administrative coordination.
- * 
- * @package Officers\Assets\Controllers
- * @since 1.0.0
- * @version 2.0.0
+ * Officer Edit Controller - Populates edit form from officer selection events
+ *
+ * Targets: deputyDescBlock, deputyDesc, id, emailAddress, emailAddressBlock
+ * Outlets: outlet-btn
  */
 
 
@@ -56920,76 +53477,8 @@ class EditOfficer extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Contro
   static outlets = ["outlet-btn"];
 
   /**
-   * Process Officer Data and Configure Edit Interface
-   * 
-   * Processes officer data from external events and configures edit interface
-   * including form population, deputy relationship management, email address
-   * coordination, and comprehensive interface adaptation for officer editing
-   * workflow and administrative management.
-   * 
-   * This method handles event-driven data population including officer
-   * information extraction, form field population, conditional interface
-   * configuration, and comprehensive edit setup for seamless officer
-   * modification and administrative coordination.
-   * 
-   * ## Event Data Processing and Form Population
-   * 
-   * **Officer ID Management**: Manages officer ID including ID extraction,
-   * field population, validation setup, and comprehensive ID coordination
-   * for accurate officer identification and edit workflow management
-   * with proper data integrity.
-   * 
-   * **Deputy Information Processing**: Processes deputy information including
-   * description extraction, field population, formatting coordination, and
-   * comprehensive deputy management for hierarchical assignment support
-   * and organizational structure maintenance.
-   * 
-   * **Email Address Coordination**: Coordinates email address management
-   * including address extraction, field population, validation setup, and
-   * comprehensive email coordination for communication management and
-   * organizational coordination.
-   * 
-   * ## Conditional Interface Configuration
-   * 
-   * **Deputy Status Handling**: Handles deputy status including status
-   * validation, interface adaptation, field configuration, and comprehensive
-   * deputy coordination for appropriate edit interface and hierarchical
-   * assignment support with organizational structure management.
-   * 
-   * **Description Field Management**: Manages description fields including
-   * text processing, formatting coordination, field population, and
-   * comprehensive description management for clear deputy assignment
-   * documentation and administrative coordination.
-   * 
-   * **Email Field Configuration**: Configures email fields including
-   * visibility management, value population, validation setup, and
-   * comprehensive email coordination for communication management
-   * and administrative coordination.
-   * 
-   * ## Interface Adaptation and User Experience
-   * 
-   * **Dynamic Field Visibility**: Manages field visibility dynamically
-   * including conditional display, interface adaptation, user experience
-   * optimization, and comprehensive visibility coordination for
-   * context-appropriate edit interface and workflow management.
-   * 
-   * **Form State Synchronization**: Synchronizes form state including
-   * field values, validation status, interface elements, and comprehensive
-   * state coordination for consistent user interface behavior and
-   * edit workflow management.
-   * 
-   * **User Interface Enhancement**: Enhances user interface including
-   * immediate updates, clear presentation, intuitive interaction, and
-   * comprehensive interface coordination for efficient officer editing
-   * and administrative usability.
-   * 
-   * @param {Event} event Event containing officer data for edit interface
-   *                      population including ID, deputy information, and
-   *                      email address for comprehensive form configuration
-   * @return void Populates edit form and configures interface based on
-   *              officer data for proper edit workflow and user experience
-   * @since 1.0.0
-   * @version 2.0.0
+   * Populate edit form with officer data from selection event.
+   * @param {Event} event - Event containing officer data (id, deputy_description, email_address, is_deputy)
    */
   setId(event) {
     this.idTarget.value = event.detail.id;
@@ -56997,7 +53486,6 @@ class EditOfficer extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Contro
     this.emailAddressTarget.value = event.detail.email_address;
     if (event.detail.is_deputy == '1') {
       this.deputyDescBlockTarget.classList.remove('d-none');
-      //remove : from the deputy_description and trim
       this.deputyDescTarget.value = event.detail.deputy_description.replace(/:/g, '').trim();
     } else {
       this.deputyDescBlockTarget.classList.add('d-none');
@@ -57009,42 +53497,18 @@ class EditOfficer extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Contro
     }
   }
 
-  /**
-   * Handle Outlet Button Connection and Event Integration
-   * 
-   * Handles outlet button connection including event listener registration,
-   * communication setup, integration coordination, and comprehensive outlet
-   * management for proper component communication and workflow coordination
-   * with event-driven interface updates.
-   * 
-   * @param {Object} outlet Outlet button controller for event coordination
-   * @param {HTMLElement} element Outlet element for integration management
-   * @return void Registers event listener for officer data population
-   * @since 1.0.0
-   * @version 2.0.0
-   */
+  /** Register setId listener when outlet button connects. */
   outletBtnOutletConnected(outlet, element) {
     outlet.addListener(this.setId.bind(this));
   }
 
-  /**
-   * Handle Outlet Button Disconnection and Cleanup
-   * 
-   * Handles outlet button disconnection including event listener cleanup,
-   * communication termination, resource management, and comprehensive
-   * disconnection coordination for proper memory management and
-   * component lifecycle management.
-   * 
-   * @param {Object} outlet Outlet button controller for cleanup coordination
-   * @return void Removes event listener and cleans up resources
-   * @since 1.0.0
-   * @version 2.0.0
-   */
+  /** Remove setId listener when outlet button disconnects. */
   outletBtnOutletDisconnected(outlet) {
     outlet.removeListener(this.setId.bind(this));
   }
 }
-// add to window.Controllers with a name of the controller
+
+// Register controller with global registry
 if (!window.Controllers) {
   window.Controllers = {};
 }
@@ -57062,250 +53526,17 @@ window.Controllers["officers-edit-officer"] = EditOfficer;
 __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
 /**
- * Office Form Stimulus Controller
- * 
- * Provides comprehensive office form management with hierarchical validation,
- * deputy relationship handling, reporting structure coordination, and
- * administrative interface management for seamless office configuration
- * and organizational structure management within the KMP system.
- * 
- * This Stimulus controller manages the complete office form workflow including
- * hierarchical relationship configuration, deputy designation management,
- * conditional field display, and comprehensive form validation for enhanced
- * administrative efficiency and organizational structure management.
- * 
- * ## Office Form Management Architecture
- * 
- * **Hierarchical Relationship Management**: Manages hierarchical relationships
- * including reporting structure, deputy assignments, organizational hierarchy,
- * and comprehensive relationship coordination for proper office configuration
- * and organizational structure support.
- * 
- * **Deputy Designation Handling**: Handles deputy designation including
- * deputy status validation, relationship configuration, hierarchical
- * assignment, and comprehensive deputy management for organizational
- * structure support and administrative coordination.
- * 
- * **Conditional Form Logic**: Implements conditional form logic including
- * field visibility control, validation management, interface adaptation,
- * and comprehensive form coordination for context-appropriate office
- * configuration and user experience optimization.
- * 
- * **Administrative Interface**: Provides administrative interface including
- * form management, validation coordination, submission preparation, and
- * comprehensive interface management for efficient office administration
- * and organizational management.
- * 
- * ## Dynamic Interface Management and User Experience
- * 
- * **Deputy Toggle Management**: Manages deputy toggle functionality including
- * checkbox state handling, interface adaptation, field coordination, and
- * comprehensive toggle management for dynamic form behavior and
- * hierarchical assignment support.
- * 
- * **Conditional Field Display**: Implements conditional field display including
- * deputy-specific fields, reporting structure fields, context-sensitive
- * interface, and comprehensive field coordination for appropriate form
- * presentation and user experience optimization.
- * 
- * **Real-Time Interface Updates**: Provides real-time interface updates
- * including immediate field changes, form adaptation, state synchronization,
- * and comprehensive interface coordination for responsive user experience
- * and administrative efficiency.
- * 
- * **Form State Management**: Manages form state including field enablement,
- * validation status, submission readiness, and comprehensive state
- * coordination for logical form progression and user interface consistency.
- * 
- * ## Hierarchical Validation and Organizational Structure
- * 
- * **Reporting Structure Validation**: Validates reporting structure including
- * hierarchical relationships, organizational integrity, reporting chains,
- * and comprehensive validation coordination for proper organizational
- * structure and administrative oversight.
- * 
- * **Deputy Relationship Configuration**: Configures deputy relationships
- * including deputy assignment, hierarchical validation, organizational
- * structure, and comprehensive relationship management for proper
- * deputy coordination and organizational hierarchy.
- * 
- * **Organizational Integrity**: Maintains organizational integrity including
- * structure validation, relationship consistency, hierarchical coherence,
- * and comprehensive integrity management for proper organizational
- * structure and administrative coordination.
- * 
- * **Administrative Validation**: Implements administrative validation including
- * form validation, structure checking, relationship verification, and
- * comprehensive validation coordination for accurate office configuration
- * and organizational management.
- * 
- * ## Field Control and Form Logic
- * 
- * **Dynamic Field Enablement**: Controls field enablement dynamically
- * including conditional enabling, validation setup, state management, and
- * comprehensive field control for context-appropriate form behavior
- * and user experience optimization.
- * 
- * **Field Visibility Management**: Manages field visibility including
- * conditional display, interface adaptation, user experience optimization,
- * and comprehensive visibility coordination for appropriate form
- * presentation and workflow management.
- * 
- * **Value Coordination**: Coordinates field values including value clearing,
- * state management, validation setup, and comprehensive value coordination
- * for consistent form behavior and data integrity management.
- * 
- * **State Synchronization**: Synchronizes field state including enablement
- * status, visibility management, validation coordination, and comprehensive
- * state management for consistent user interface behavior and
- * form workflow coordination.
- * 
- * ## Target Element Management and DOM Coordination
- * 
- * **Target Element Integration**: Integrates target elements including
- * reporting structure fields, deputy fields, toggle controls, and
- * comprehensive target coordination for complete form management and
- * user interface control with proper element state management.
- * 
- * **Element State Control**: Controls element state including field
- * enablement, visibility status, value management, and comprehensive
- * state control for context-appropriate form behavior and user
- * experience optimization.
- * 
- * **Event Handling**: Handles form events including toggle changes,
- * state updates, validation triggers, and comprehensive event
- * coordination for responsive user interface behavior and
- * workflow management.
- * 
- * **DOM Manipulation**: Implements DOM manipulation including field
- * visibility changes, state updates, value coordination, and
- * comprehensive DOM management for efficient form operation and
- * user interface performance.
- * 
- * ## Performance Optimization and User Experience
- * 
- * **Efficient Form Updates**: Implements efficient form updates including
- * targeted field changes, minimal DOM manipulation, state caching, and
- * comprehensive optimization coordination for high-performance form
- * operation and enhanced user experience.
- * 
- * **Event Handler Optimization**: Optimizes event handling including
- * efficient listeners, proper delegation, performance monitoring, and
- * comprehensive handler coordination for responsive user interface
- * behavior and optimal performance.
- * 
- * **State Management Efficiency**: Manages state efficiently including
- * minimal updates, change detection, validation coordination, and
- * comprehensive state management for optimal performance and
- * user experience with responsive interface behavior.
- * 
- * **User Experience Enhancement**: Enhances user experience including
- * intuitive interface, immediate feedback, clear presentation, and
- * comprehensive experience coordination for efficient office configuration
- * and administrative usability.
- * 
- * ## Integration Points and Dependencies
- * 
- * **Stimulus Framework Integration**: Integrates with Stimulus framework
- * including controller lifecycle, target management, event coordination, and
- * comprehensive framework integration for consistent application behavior
- * and development patterns.
- * 
- * **Form System Integration**: Integrates with form system including
- * field management, validation coordination, submission preparation, and
- * comprehensive form integration for proper office configuration workflow
- * and administrative coordination.
- * 
- * **Office Management Integration**: Integrates with office management system
- * including hierarchical validation, organizational structure, administrative
- * coordination, and comprehensive management integration for proper
- * office configuration and organizational oversight.
- * 
- * **Administrative Interface Integration**: Integrates with administrative
- * interface including workflow coordination, validation management, form
- * processing, and comprehensive interface integration for efficient
- * office administration and organizational management.
- * 
- * @package Officers\Assets\Controllers
- * @since 1.0.0
- * @version 2.0.0
+ * Office Form Controller - Manages deputy/reporting structure toggle
+ *
+ * Targets: reportsTo, reportsToBlock, deputyTo, deputyToBlock, isDeputy
  */
 
 
 class OfficeFormController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
   static targets = ["reportsTo", "reportsToBlock", "deputyTo", "deputyToBlock", "isDeputy"];
 
-  /**
-   * Toggle Deputy Status and Configure Hierarchical Relationships
-   * 
-   * Toggles deputy status and configures hierarchical relationships including
-   * field visibility management, reporting structure coordination, deputy
-   * assignment handling, and comprehensive relationship configuration for
-   * proper office hierarchy and organizational structure management.
-   * 
-   * This method implements dynamic form behavior based on deputy designation
-   * including conditional field display, hierarchical validation, relationship
-   * configuration, and comprehensive interface adaptation for office
-   * configuration workflow and administrative management.
-   * 
-   * ## Deputy Status Management and Interface Adaptation
-   * 
-   * **Deputy Designation Handling**: Handles deputy designation including
-   * checkbox state validation, deputy status processing, interface adaptation,
-   * and comprehensive designation management for proper deputy assignment
-   * and hierarchical relationship configuration.
-   * 
-   * **Field Visibility Control**: Controls field visibility dynamically
-   * including deputy field display, reporting field hiding, conditional
-   * interface, and comprehensive visibility coordination for context-appropriate
-   * form presentation and user experience optimization.
-   * 
-   * **State Synchronization**: Synchronizes form state including field
-   * enablement, visibility status, value coordination, and comprehensive
-   * state management for consistent user interface behavior and
-   * hierarchical relationship management.
-   * 
-   * ## Hierarchical Relationship Configuration
-   * 
-   * **Deputy Field Management**: Manages deputy-specific fields including
-   * deputy assignment, relationship configuration, hierarchical validation,
-   * and comprehensive deputy coordination for proper organizational
-   * structure and administrative oversight.
-   * 
-   * **Reporting Structure Control**: Controls reporting structure fields
-   * including reporting relationship, hierarchical assignment, organizational
-   * structure, and comprehensive reporting coordination for proper
-   * office hierarchy and administrative management.
-   * 
-   * **Relationship Validation**: Validates hierarchical relationships
-   * including deputy assignment, reporting structure, organizational
-   * integrity, and comprehensive validation coordination for accurate
-   * office configuration and administrative oversight.
-   * 
-   * ## Form Logic and User Experience
-   * 
-   * **Conditional Form Logic**: Implements conditional form logic including
-   * field enablement, visibility management, validation coordination, and
-   * comprehensive form coordination for context-appropriate office
-   * configuration and user experience optimization.
-   * 
-   * **Value Management**: Manages field values including value clearing,
-   * state coordination, validation setup, and comprehensive value
-   * management for consistent form behavior and data integrity
-   * with proper hierarchical coordination.
-   * 
-   * **Interface Adaptation**: Adapts form interface dynamically including
-   * field visibility, state management, user experience optimization, and
-   * comprehensive interface coordination for efficient office configuration
-   * and administrative usability.
-   * 
-   * @return void Configures form fields based on deputy status for proper
-   *              hierarchical relationship management and office configuration
-   * @since 1.0.0
-   * @version 2.0.0
-   */
+  /** Toggle between deputy and reports-to fields based on isDeputy checkbox. */
   toggleIsDeputy() {
-    //if the iSDepuy is checked, show the deputyTo select box
     if (this.isDeputyTarget.checked) {
       this.deputyToBlockTarget.hidden = false;
       this.deputyToTarget.disabled = false;
@@ -57320,25 +53551,14 @@ class OfficeFormController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0
     }
   }
 
-  /**
-   * Initialize Controller and Configure Initial Form State
-   * 
-   * Initializes controller connection including form state setup, deputy
-   * configuration, initial validation, and comprehensive controller
-   * initialization for proper office form workflow and user experience
-   * optimization with hierarchical relationship management.
-   * 
-   * @return void Initializes form with proper deputy configuration and
-   *              hierarchical relationship setup
-   * @since 1.0.0
-   * @version 2.0.0
-   */
+  /** Initialize form state on controller connect. */
   connect() {
     console.log("connected");
     this.toggleIsDeputy();
   }
 }
-// add to window.Controllers with a name of the controller
+
+// Register controller with global registry
 if (!window.Controllers) {
   window.Controllers = {};
 }
@@ -57356,210 +53576,16 @@ window.Controllers["office-form"] = OfficeFormController;
 __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
 /**
- * Officer Roster Search Stimulus Controller
- * 
- * Provides comprehensive officer roster search interface with filtering
- * capabilities, organizational navigation, warrant period coordination, and
- * administrative search functionality for enhanced roster management and
- * organizational oversight within the KMP system.
- * 
- * This Stimulus controller manages the complete officer roster search workflow
- * including warrant period selection, department filtering, search validation,
- * and comprehensive search coordination for enhanced administrative efficiency
- * and organizational roster management.
- * 
- * ## Roster Search Architecture
- * 
- * **Search Parameter Management**: Manages search parameters including
- * warrant period selection, department filtering, search criteria, and
- * comprehensive parameter coordination for accurate roster discovery
- * and organizational navigation.
- * 
- * **Filtering Coordination**: Coordinates filtering functionality including
- * organizational scoping, temporal filtering, administrative search, and
- * comprehensive filtering management for targeted roster search and
- * organizational oversight.
- * 
- * **Validation Management**: Manages search validation including parameter
- * validation, requirement checking, form validation, and comprehensive
- * validation coordination for accurate search processing and
- * administrative coordination.
- * 
- * **Administrative Interface**: Provides administrative interface including
- * search form management, result coordination, navigation support, and
- * comprehensive interface management for efficient roster administration
- * and organizational management.
- * 
- * ## Dynamic Search Control and User Experience
- * 
- * **Real-Time Validation**: Implements real-time validation including
- * parameter checking, form validation, submission control, and comprehensive
- * validation coordination for immediate user feedback and search
- * optimization with enhanced user experience.
- * 
- * **Conditional Button Control**: Controls search button state including
- * enablement logic, validation feedback, user interface control, and
- * comprehensive button coordination for proper search workflow and
- * user experience optimization.
- * 
- * **Form State Management**: Manages form state including field validation,
- * parameter coordination, submission readiness, and comprehensive state
- * management for logical search progression and user interface consistency.
- * 
- * **User Experience Enhancement**: Enhances user experience including
- * intuitive interface, immediate feedback, clear validation, and
- * comprehensive experience coordination for efficient roster search
- * and administrative usability.
- * 
- * ## Warrant Period and Department Integration
- * 
- * **Warrant Period Selection**: Manages warrant period selection including
- * period validation, temporal coordination, search parameter integration,
- * and comprehensive period management for accurate temporal roster
- * search and administrative coordination.
- * 
- * **Department Filtering**: Implements department filtering including
- * organizational scoping, department validation, search coordination, and
- * comprehensive filtering management for targeted roster discovery
- * and organizational navigation.
- * 
- * **Parameter Validation**: Validates search parameters including warrant
- * period verification, department selection validation, parameter checking,
- * and comprehensive validation coordination for accurate search processing
- * and administrative oversight.
- * 
- * **Search Coordination**: Coordinates search functionality including
- * parameter integration, validation management, submission control, and
- * comprehensive search coordination for effective roster discovery
- * and organizational management.
- * 
- * ## Target Element Management and DOM Coordination
- * 
- * **Target Element Integration**: Integrates target elements including
- * warrant period selectors, department filters, search buttons, and
- * comprehensive target coordination for complete search form management
- * and user interface control.
- * 
- * **Element State Management**: Manages element state including field
- * values, validation status, button enablement, and comprehensive
- * state management for consistent user interface behavior and
- * search workflow coordination.
- * 
- * **Event Handling**: Handles search events including parameter changes,
- * validation triggers, submission events, and comprehensive event
- * coordination for responsive user interface behavior and
- * search workflow management.
- * 
- * **Form Interaction**: Manages form interaction including field
- * coordination, validation feedback, state synchronization, and
- * comprehensive interaction management for efficient search
- * operation and user experience.
- * 
- * ## Performance Optimization and Efficiency
- * 
- * **Efficient Validation**: Implements efficient validation including
- * minimal processing, optimized checking, performance monitoring, and
- * comprehensive validation coordination for responsive search interface
- * and optimal performance.
- * 
- * **Event Handler Optimization**: Optimizes event handling including
- * efficient listeners, proper delegation, performance monitoring, and
- * comprehensive handler coordination for responsive user interface
- * behavior and optimal performance.
- * 
- * **State Management Efficiency**: Manages state efficiently including
- * minimal updates, change detection, validation coordination, and
- * comprehensive state management for optimal performance and
- * user experience with responsive interface behavior.
- * 
- * **Search Performance**: Optimizes search performance including
- * parameter coordination, validation efficiency, form management, and
- * comprehensive performance optimization for enhanced user experience
- * and administrative efficiency.
- * 
- * ## Integration Points and Dependencies
- * 
- * **Stimulus Framework Integration**: Integrates with Stimulus framework
- * including controller lifecycle, target management, event coordination, and
- * comprehensive framework integration for consistent application behavior
- * and development patterns.
- * 
- * **Roster Management Integration**: Integrates with roster management system
- * including search coordination, parameter validation, result processing, and
- * comprehensive management integration for proper roster discovery and
- * organizational oversight.
- * 
- * **Administrative Interface Integration**: Integrates with administrative
- * interface including workflow coordination, search management, form
- * processing, and comprehensive interface integration for efficient
- * roster administration and organizational management.
- * 
- * **Search System Integration**: Integrates with search system including
- * parameter coordination, validation management, result processing, and
- * comprehensive search integration for accurate roster discovery and
- * administrative coordination.
- * 
- * @package Officers\Assets\Controllers
- * @since 1.0.0
- * @version 2.0.0
+ * Officer Roster Search Controller - Search form validation
+ *
+ * Targets: warrantPeriods, departments, showBtn
  */
 
 
 class OfficerRosterSearchForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
   static targets = ["warrantPeriods", "departments", "showBtn"];
 
-  /**
-   * Validate Search Parameters and Control Search Button
-   * 
-   * Validates search parameters including warrant period selection and
-   * department filtering to control search button enablement and provide
-   * real-time validation feedback for proper roster search workflow and
-   * user experience optimization.
-   * 
-   * This method implements comprehensive search validation including
-   * parameter verification, form validation, button state control, and
-   * comprehensive validation coordination for accurate search processing
-   * and administrative coordination.
-   * 
-   * ## Search Parameter Validation
-   * 
-   * **Warrant Period Validation**: Validates warrant period selection
-   * including period verification, value checking, selection validation,
-   * and comprehensive period coordination for accurate temporal roster
-   * search and administrative coordination.
-   * 
-   * **Department Selection Validation**: Validates department selection
-   * including department verification, organizational validation, selection
-   * checking, and comprehensive department coordination for targeted
-   * roster discovery and organizational navigation.
-   * 
-   * **Parameter Coordination**: Coordinates search parameters including
-   * combined validation, requirement checking, form coordination, and
-   * comprehensive parameter management for accurate search processing
-   * and administrative oversight.
-   * 
-   * ## Button State Control and User Feedback
-   * 
-   * **Search Button Control**: Controls search button state including
-   * enablement logic, validation feedback, user interface control, and
-   * comprehensive button coordination for proper search workflow and
-   * user experience optimization.
-   * 
-   * **Real-Time Feedback**: Provides real-time validation feedback
-   * including immediate state updates, user guidance, form validation,
-   * and comprehensive feedback coordination for enhanced user experience
-   * and search optimization.
-   * 
-   * **Form State Management**: Manages form state including validation
-   * status, submission readiness, user interface updates, and comprehensive
-   * state coordination for consistent search behavior and workflow
-   * management.
-   * 
-   * @return void Updates search button state based on parameter validation
-   *              for proper search workflow and user experience
-   * @since 1.0.0
-   * @version 2.0.0
-   */
+  /** Enable search button when both warrant period and department are selected. */
   checkEnable() {
     if (this.warrantPeriodsTarget.value > 0 && this.departmentsTarget.value > 0) {
       this.showBtnTarget.disabled = false;
@@ -57567,21 +53593,10 @@ class OfficerRosterSearchForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODUL
       this.showBtnTarget.disabled = true;
     }
   }
-
-  /**
-   * Initialize Officer Roster Search Controller
-   * 
-   * Initializes the officer roster search controller including search validation,
-   * button state initialization, and comprehensive controller setup for proper
-   * search workflow and administrative coordination.
-   * 
-   * @return void Initializes search controller for roster management
-   * @since 1.0.0
-   * @version 2.0.0
-   */
   connect() {}
 }
-// add to window.Controllers with a name of the controller
+
+// Register controller with global registry
 if (!window.Controllers) {
   window.Controllers = {};
 }
@@ -57599,205 +53614,39 @@ window.Controllers["officer-roster-search"] = OfficerRosterSearchForm;
 __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
 /**
- * Officer Roster Table Management Controller
- * 
- * Comprehensive Stimulus controller for managing officer roster table interactions
- * including row selection, checkbox management, outlet coordination, and bulk
- * operation enablement for enhanced roster management and administrative
- * workflow optimization.
- * 
- * This controller implements sophisticated table management including multi-row
- * selection, selection state tracking, outlet button coordination, and
- * comprehensive table interaction management for efficient roster operations
- * and administrative oversight.
- * 
- * ## Core Functionality
- * 
- * **Row Selection Management**: Manages individual row selection including
- * checkbox state tracking, selection validation, state persistence, and
- * comprehensive selection coordination for accurate roster item management
- * and bulk operation preparation.
- * 
- * **Outlet Button Coordination**: Coordinates with outlet button components
- * including submission button enablement, state synchronization, outlet
- * connection management, and comprehensive button coordination for proper
- * bulk operation workflow and user interface consistency.
- * 
- * **Selection State Tracking**: Tracks selection state across table interactions
- * including ID array management, state persistence, checkbox coordination, and
- * comprehensive state management for reliable selection tracking and operation
- * coordination.
- * 
- * ## Technical Architecture
- * 
- * **Stimulus Framework Integration**: Leverages Stimulus framework patterns
- * including target element management, outlet coordination, event handling,
- * and comprehensive framework integration for consistent controller behavior
- * and optimal user experience.
- * 
- * **Target Element Management**: Manages target elements including row
- * checkboxes, selection tracking, element lifecycle, and comprehensive
- * target coordination for proper table interaction and state management.
- * 
- * **Event-Driven State Management**: Implements event-driven state updates
- * including checkbox change handling, outlet communication, state validation,
- * and comprehensive event coordination for responsive table behavior and
- * administrative efficiency.
- * 
- * ## Performance Optimization
- * 
- * **Efficient ID Management**: Maintains efficient ID array management
- * including array filtering, state updates, memory optimization, and
- * comprehensive ID coordination for scalable roster table operations and
- * optimal browser performance.
- * 
- * **Selective Button Updates**: Implements selective button state updates
- * including conditional enablement, state validation, UI optimization, and
- * comprehensive update coordination for responsive user interface and
- * efficient resource utilization.
- * 
- * **State Synchronization**: Maintains state synchronization including
- * checkbox-button coordination, outlet communication, state consistency,
- * and comprehensive synchronization management for reliable table behavior
- * and administrative workflow.
- * 
- * ## Integration Points
- * 
- * **Officers Plugin Integration**: Integrates with Officers plugin architecture
- * including roster management systems, administrative workflows, bulk operations,
- * and comprehensive plugin coordination for cohesive roster management and
- * organizational administration.
- * 
- * **Outlet System Coordination**: Coordinates with outlet button system
- * including button enablement, outlet lifecycle management, communication
- * protocols, and comprehensive outlet integration for proper bulk operation
- * workflow and user interface consistency.
- * 
- * **Table System Integration**: Integrates with table rendering systems
- * including row management, checkbox coordination, selection tracking, and
- * comprehensive table integration for efficient roster display and interaction
- * management.
- * 
- * @class OfficerRosterTableForm
- * @extends Controller
- * @author KMP Development Team
- * @since 1.0.0
- * @version 2.0.0
- * 
- * @property {Array<String>} ids - Selected officer ID array for bulk operations
- * @property {Object|null} submitBtn - Reference to outlet submit button component
- * 
- * @target rowCheckbox - Individual row checkbox elements for selection management
- * @outlet outlet-btn - Submit button outlet for bulk operation coordination
+ * Officer Roster Table Controller - Row selection and bulk operations
+ *
+ * Targets: rowCheckbox
+ * Outlets: outlet-btn
  */
 
 
 class OfficerRosterTableForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
   static targets = ["rowCheckbox"];
+  static outlets = ['outlet-btn'];
   ids = [];
   submitBtn = null;
-  static outlets = ['outlet-btn'];
 
-  /**
-   * Handle Outlet Button Connection
-   * 
-   * Handles outlet button connection including submit button reference
-   * storage, initial state configuration, and comprehensive outlet
-   * coordination for proper bulk operation workflow and administrative
-   * interface management.
-   * 
-   * @param {Object} outlet - Connected outlet button component
-   * @param {Element} element - Outlet button DOM element
-   * @return void Configures outlet button connection for bulk operations
-   * @since 1.0.0
-   * @version 2.0.0
-   */
+  /** Store submit button reference and enable if selections exist. */
   outletBtnOutletConnected(outlet, element) {
     this.submitBtn = outlet;
     if (this.ids.length > 0) {
       this.submitBtn.element.disabled = false;
     }
   }
-  /**
-   * Handle Outlet Button Disconnection
-   * 
-   * Handles outlet button disconnection including reference cleanup,
-   * state management, and comprehensive outlet coordination for proper
-   * component lifecycle and administrative interface management.
-   * 
-   * @param {Object} outlet - Disconnected outlet button component
-   * @return void Cleans up outlet button reference for component lifecycle
-   * @since 1.0.0
-   * @version 2.0.0
-   */
+
+  /** Clear submit button reference on disconnect. */
   outletBtnOutletDisconnected(outlet) {
     this.submitBtn = null;
   }
 
-  /**
-   * Handle Row Checkbox Target Connection
-   * 
-   * Handles row checkbox target connection including ID registration,
-   * selection state initialization, and comprehensive checkbox coordination
-   * for proper table row management and bulk operation preparation.
-   * 
-   * @param {Element} element - Connected checkbox element
-   * @return void Registers checkbox for selection management
-   * @since 1.0.0
-   * @version 2.0.0
-   */
+  /** Register checkbox ID on target connect. */
   rowCheckboxTargetConnected(element) {
     this.ids.push(element.value);
     console.log(this.ids);
   }
 
-  /**
-   * Handle Row Checkbox Selection Change
-   * 
-   * Handles row checkbox selection changes including ID array management,
-   * selection state tracking, submit button enablement, and comprehensive
-   * selection coordination for proper bulk operation workflow and
-   * administrative interface management.
-   * 
-   * This method implements sophisticated selection management including
-   * conditional ID addition/removal, array filtering, button state updates,
-   * and comprehensive selection coordination for accurate bulk operation
-   * preparation and user interface responsiveness.
-   * 
-   * ## Selection State Management
-   * 
-   * **ID Array Management**: Manages selected ID array including conditional
-   * addition for checked states, array filtering for unchecked states,
-   * state persistence, and comprehensive ID coordination for accurate
-   * selection tracking and bulk operation preparation.
-   * 
-   * **Selection Validation**: Validates selection state including checkbox
-   * state verification, ID existence checking, array consistency, and
-   * comprehensive validation coordination for reliable selection management
-   * and operation coordination.
-   * 
-   * **State Synchronization**: Synchronizes selection state including
-   * checkbox-array coordination, UI state updates, button enablement, and
-   * comprehensive synchronization management for consistent user interface
-   * and administrative workflow.
-   * 
-   * ## Button State Control
-   * 
-   * **Submit Button Management**: Controls submit button state including
-   * initial disablement, conditional enablement based on selection count,
-   * state validation, and comprehensive button coordination for proper
-   * bulk operation workflow and user experience optimization.
-   * 
-   * **Conditional Enablement**: Implements conditional button enablement
-   * including selection count validation, state checking, UI updates, and
-   * comprehensive enablement coordination for accurate bulk operation
-   * availability and administrative efficiency.
-   * 
-   * @param {Event} event - Checkbox change event with selection state
-   * @return void Updates selection state and button enablement for bulk operations
-   * @since 1.0.0
-   * @version 2.0.0
-   */
+  /** Update selection array and enable/disable submit button on checkbox change. */
   rowChecked(event) {
     if (event.target.checked) {
       this.ids.push(event.target.value);
@@ -57810,21 +53659,10 @@ class OfficerRosterTableForm extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE
     }
     console.log(this.ids);
   }
-
-  /**
-   * Initialize Officer Roster Table Controller
-   * 
-   * Initializes the officer roster table controller including selection
-   * state setup, outlet coordination, and comprehensive controller
-   * initialization for proper table management and administrative workflow.
-   * 
-   * @return void Initializes table controller for roster management
-   * @since 1.0.0
-   * @version 2.0.0
-   */
   connect() {}
 }
-// add to window.Controllers with a name of the controller
+
+// Register controller with global registry
 if (!window.Controllers) {
   window.Controllers = {};
 }
@@ -58049,55 +53887,12 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
 /**
  * Waivers Add Requirement Controller
- * 
- * Stimulus.js controller that manages waiver requirement workflows for
- * gathering activities in the KMP Waivers Plugin. Provides interactive
- * interface for adding waiver requirements with dynamic waiver type
- * discovery and validation.
- * 
- * **Core Functionality**:
- * - Waiver requirement form management with activity context
- * - Dynamic waiver type discovery (excluding already assigned types)
- * - Real-time form validation for waiver requirements
- * - Activity-specific waiver requirement workflows
- * 
- * **Dynamic Waiver Type Discovery**:
- * - Fetches available waiver types via AJAX
- * - Excludes waiver types already assigned to the activity
- * - Includes only active, non-deleted waiver types
- * - Handles activity-specific waiver type filtering
- * 
- * **State Management Features**:
- * - Submit button disabled until valid waiver type selected
- * - Waiver type dropdown populated on modal open
- * - Dynamic option population with activity context
- * - Form initialization with proper disabled states
- * 
- * **API Integration**:
- * - RESTful endpoint communication with activity context
- * - JSON response processing for waiver type data
- * - Proper HTTP headers for AJAX requests
- * - Error handling for API failures
- * 
- * **Integration Points**:
- * - GatheringActivityWaivers Controller - Available waiver types API
- * - Waiver Requirement Forms - Form submission integration
- * - Stimulus Application - Global controller registration
- * 
- * **Usage Examples**:
- * ```html
- * <!-- Waiver requirement modal -->
- * <div data-controller="waivers-add-requirement"
- *      data-waivers-add-requirement-url-value="/waivers/gathering-activity-waivers/available-waiver-types">
- *   <input type="hidden" data-waivers-add-requirement-target="activityId" value="1">
- *   <select data-waivers-add-requirement-target="waiverType"
- *           data-action="ready->waivers-add-requirement#loadWaiverTypes">
- *   </select>
- * </div>
- * ```
- * 
- * @see GatheringActivityWaiversController.availableWaiverTypes() Server endpoint
- * @see GatheringActivityWaivers Waiver requirement entity
+ *
+ * Manages waiver requirement form with dynamic waiver type discovery
+ * for gathering activities. Fetches available types excluding already assigned.
+ *
+ * Targets: waiverType, submitBtn, activityId
+ * Values: url (String)
  */
 
 
@@ -58107,22 +53902,7 @@ class WaiversAddRequirement extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_
   };
   static targets = ["waiverType", "submitBtn", "activityId"];
 
-  /**
-   * Load Available Waiver Types
-   * 
-   * Fetches list of waiver types that can be added to the activity,
-   * excluding types already assigned and including only active types.
-   * 
-   * **API Request**:
-   * - Includes activity ID for filtering assigned types
-   * - Fetches only active, non-deleted waiver types
-   * - Processes waiver type data for dropdown population
-   * - Manages form state during data loading
-   * 
-   * **State Management**:
-   * Populates waiver type dropdown and enables form submission
-   * once valid selection is made.
-   */
+  /** Fetch available waiver types for activity and populate dropdown. */
   loadWaiverTypes() {
     let activityId = this.activityIdTarget.value;
     let url = this.urlValue + "/" + activityId;
@@ -58144,14 +53924,7 @@ class WaiversAddRequirement extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_
     });
   }
 
-  /**
-   * Configure AJAX Request Options
-   * 
-   * Provides standard AJAX request configuration for Waivers API
-   * communication with proper headers for JSON responses.
-   * 
-   * @returns {Object} Fetch options configuration
-   */
+  /** Get standard fetch options with JSON headers. */
   optionsForFetch() {
     return {
       headers: {
@@ -58161,16 +53934,7 @@ class WaiversAddRequirement extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_
     };
   }
 
-  /**
-   * Validate Form Completion
-   * 
-   * Checks if a valid waiver type is selected to enable submission.
-   * 
-   * **Validation**:
-   * - Verifies waiver type selection with numeric validation
-   * - Controls submit button state for user experience
-   * - Provides immediate feedback on form completion
-   */
+  /** Enable submit button when valid waiver type selected. */
   checkReadyToSubmit() {
     let waiverTypeValue = this.waiverTypeTarget.value;
     let waiverTypeNum = parseInt(waiverTypeValue);
@@ -58181,12 +53945,7 @@ class WaiversAddRequirement extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_
     }
   }
 
-  /**
-   * Initialize Submit Button State
-   * 
-   * Ensures submit button starts disabled to prevent
-   * premature form submission.
-   */
+  /** Disable submit button on connect. */
   submitBtnTargetConnected() {
     if (this.hasSubmitBtnTarget) {
       this.submitBtnTarget.disabled = true;

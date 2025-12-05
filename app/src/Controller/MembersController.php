@@ -180,6 +180,7 @@ class MembersController extends AppController
             'canExportCsv' => false,
             'lockedFilters' => ['start_on', 'expires_on'],
             'showFilterPills' => true,
+            'enableColumnPicker' => false,
         ]);
 
         \Cake\Log\Log::debug('Member Roles Result Count: ' . count($result['data']));
@@ -254,6 +255,8 @@ class MembersController extends AppController
             'canAddViews' => false,
             'canFilter' => true,
             'canExportCsv' => false,
+            'lockedFilters' => ['start_date', 'end_date'],
+            'enableColumnPicker' => false,
         ]);
 
         // Set view variables

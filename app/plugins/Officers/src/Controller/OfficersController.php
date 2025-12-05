@@ -38,7 +38,7 @@ class OfficersController extends AppController
     {
         parent::initialize();
         $this->Authentication->addUnauthenticatedActions(['api']);
-        $this->Authorization->authorizeModel('index', 'gridData');
+        $this->Authorization->authorizeModel('index');
     }
 
     /**
@@ -186,130 +186,6 @@ class OfficersController extends AppController
     }
 
     /**
-     * Display officer assignments for a specific member.
-     *
-     * @param int $id Member ID
-     * @param string $state Assignment state filter (current, upcoming, previous)
-     * @return void
-     */
-    public function memberOfficers($id, $state)
-    {
-        $newOfficer = $this->Officers->newEmptyEntity();
-        $newOfficer->member_id = $id;
-        $this->Authorization->authorize($newOfficer);
-
-        $officersQuery = $this->Officers->find()
-
-            ->contain(['Offices' => ["Departments"], 'Members', 'Branches'])
-            ->orderBY(["Officers.id" => "ASC"]);
-
-
-        switch ($state) {
-            case 'current':
-                $officersQuery = $this->Officers->addDisplayConditionsAndFields($officersQuery->find('current')->where(['Officers.member_id' => $id]), 'current');
-                break;
-            case 'upcoming':
-                $officersQuery = $this->Officers->addDisplayConditionsAndFields($officersQuery->find('upcoming')->where(['Officers.member_id' => $id]), 'upcoming');
-                break;
-            case 'previous':
-                $officersQuery = $this->Officers->addDisplayConditionsAndFields($officersQuery->find('previous')->where(['Officers.member_id' => $id]), 'previous');
-                break;
-        }
-
-        $page = $this->request->getQuery("page");
-        $limit = $this->request->getQuery("limit");
-        $paginate = [];
-        if ($page) {
-            $paginate['page'] = $page;
-        }
-        if ($limit) {
-            $paginate['limit'] = $limit;
-        }
-        //$paginate["limit"] = 5;
-        $officers = $this->paginate($officersQuery, $paginate);
-        $turboFrameId = $state;
-
-        $this->set(compact('officers', 'id', 'state'));
-    }
-
-    /**
-     * Display officer assignments for a specific branch with search capability.
-     *
-     * Supports Þ/th character conversion for SCA name searches.
-     *
-     * @param int $id Branch ID
-     * @param string $state Assignment state filter (current, upcoming, previous)
-     * @return void
-     */
-    public function branchOfficers($id, $state)
-    {
-        $newOfficer = $this->Officers->newEmptyEntity();
-        $this->Authorization->authorize($newOfficer);
-
-        $officersQuery = $this->Officers->find()
-
-            ->contain(['Offices' => ["Departments"], 'Members', 'Branches'])->where(['Branches.id' => $id])
-            ->orderBY(["Officers.id" => "ASC"]);
-
-        $search = $this->request->getQuery("search");
-        $search = $search ? trim($search) : null;
-
-        if ($search) {
-            //detect th and replace with Þ
-            $nsearch = $search;
-            if (preg_match("/th/", $search)) {
-                $nsearch = str_replace("th", "Þ", $search);
-            }
-            //detect Þ and replace with th
-            $usearch = $search;
-            if (preg_match("/Þ/", $search)) {
-                $usearch = str_replace("Þ", "th", $search);
-            }
-            $officersQuery = $officersQuery->where([
-                "OR" => [
-                    ["Members.sca_name LIKE" => "%" . $search . "%"],
-                    ["Members.sca_name LIKE" => "%" . $nsearch . "%"],
-                    ["Members.sca_name LIKE" => "%" . $usearch . "%"],
-                    ["Offices.name LIKE" => "%" . $search . "%"],
-                    ["Offices.name LIKE" => "%" . $nsearch . "%"],
-                    ["Offices.name LIKE" => "%" . $usearch . "%"],
-                    ["Departments.name LIKE" => "%" . $search . "%"],
-                    ["Departments.name LIKE" => "%" . $nsearch . "%"],
-                    ["Departments.name LIKE" => "%" . $usearch . "%"],
-
-                ],
-            ]);
-        }
-
-        switch ($state) {
-            case 'current':
-                $officersQuery = $this->Officers->addDisplayConditionsAndFields($officersQuery->find('current')->where(['Officers.branch_id' => $id]), 'current');
-                break;
-            case 'upcoming':
-                $officersQuery = $this->Officers->addDisplayConditionsAndFields($officersQuery->find('upcoming')->where(['Officers.branch_id' => $id]), 'upcoming');
-                break;
-            case 'previous':
-                $officersQuery = $this->Officers->addDisplayConditionsAndFields($officersQuery->find('previous')->where(['Officers.branch_id' => $id]), 'previous');
-                break;
-        }
-
-        $page = $this->request->getQuery("page");
-        $limit = $this->request->getQuery("limit");
-        $paginate = [];
-        if ($page) {
-            $paginate['page'] = $page;
-        }
-        if ($limit) {
-            $paginate['limit'] = $limit;
-        }
-        //$paginate["limit"] = 5;
-        $officers = $this->paginate($officersQuery, $paginate);
-        $turboFrameId = $state;
-
-        $this->set(compact('officers', 'newOfficer', 'id', 'state'));
-    }
-
-    /**
      * AJAX autocomplete for member search during officer assignment.
      *
      * Supports Þ/th character conversion and excludes deactivated members.
@@ -375,14 +251,14 @@ class OfficersController extends AppController
         $context = null;
         if ($memberId) {
             $newOfficer->member_id = (int)$memberId;
-            $this->Authorization->authorize($newOfficer, 'memberOfficers');
+            $this->Authorization->authorize($newOfficer, 'MemberOfficers');
             $context = 'member';
         } elseif ($branchId) {
             $newOfficer->branch_id = (int)$branchId;
-            $this->Authorization->authorize($newOfficer, 'branchOfficers');
+            $this->Authorization->authorize($newOfficer, 'BranchOfficers');
             $context = 'branch';
         } else {
-            $this->Authorization->skipAuthorization();
+            throw new \Cake\Http\Exception\ForbiddenException();
         }
 
         // Get system views for temporal/warrant filtering with context-specific columns
@@ -455,9 +331,7 @@ class OfficersController extends AppController
         } elseif ($branchId) {
             $frameId = 'branch-officers-grid';
         }
-
-        // Process using DataverseGridTrait
-        $result = $this->processDataverseGrid([
+        $gridConfig = [
             'gridKey' => 'Officers.Officers.index.main',
             'gridColumnsClass' => \Officers\KMP\GridColumns\OfficersGridColumns::class,
             'baseQuery' => $baseQuery,
@@ -471,7 +345,16 @@ class OfficersController extends AppController
             'canAddViews' => false,
             'canFilter' => true,
             'canExportCsv' => true,
-        ]);
+        ];
+        if ($context = 'member') {
+            $gridConfig['canExportCsv'] = false;
+            $gridConfig['canFilter'] = false;
+            $gridConfig['lockedFilters'] = ['status'];
+            $gridConfig['enableColumnPicker'] = false;
+        }
+
+        // Process using DataverseGridTrait
+        $result = $this->processDataverseGrid($gridConfig);
 
         // Handle CSV export
         if (!empty($result['isCsvExport'])) {

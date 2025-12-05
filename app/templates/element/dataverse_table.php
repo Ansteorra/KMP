@@ -26,6 +26,10 @@ $currentSort = $currentSort ?? [];
 $gridKey = $gridKey ?? 'grid';
 $rowActions = $rowActions ?? [];
 $user = $user ?? $this->request->getAttribute('identity');
+$enableColumnPicker = $enableColumnPicker ?? true;
+
+// Show actions column if column picker is enabled OR there are row actions
+$showActionsColumn = $enableColumnPicker || !empty($rowActions);
 ?>
 
 <div class="table-responsive">
@@ -65,20 +69,24 @@ $user = $user ?? $this->request->getAttribute('identity');
                         <?php endif; ?>
                     </th>
                 <?php endforeach; ?>
-                <th scope="col" class="text-end" style="width: 70px;">
-                    <button type="button"
-                        class="btn btn-sm btn-outline-secondary"
-                        data-bs-toggle="modal"
-                        data-bs-target="#columnPickerModal-<?= h($gridKey) ?>">
-                        <i class="bi bi-list-columns"></i>
-                    </button>
-                </th>
+                <?php if ($showActionsColumn): ?>
+                    <th scope="col" class="text-end" style="width: 70px;">
+                        <?php if ($enableColumnPicker): ?>
+                            <button type="button"
+                                class="btn btn-sm btn-outline-secondary"
+                                data-bs-toggle="modal"
+                                data-bs-target="#columnPickerModal-<?= h($gridKey) ?>">
+                                <i class="bi bi-list-columns"></i>
+                            </button>
+                        <?php endif; ?>
+                    </th>
+                <?php endif; ?>
             </tr>
         </thead>
         <tbody>
             <?php if (empty($data)): ?>
                 <tr>
-                    <td colspan="<?= count($visibleColumns) + 1 ?>" class="text-center text-muted py-4">
+                    <td colspan="<?= count($visibleColumns) + ($showActionsColumn ? 1 : 0) ?>" class="text-center text-muted py-4">
                         No records found.
                     </td>
                 </tr>
@@ -213,18 +221,20 @@ $user = $user ?? $this->request->getAttribute('identity');
                                 ?>
                             </td>
                         <?php endforeach; ?>
-                        <td class="text-end text-nowrap">
-                            <?php
-                            // Render row actions
-                            if (!empty($rowActions)) {
-                                echo $this->element('dataverse_table_row_actions', [
-                                    'actions' => $rowActions,
-                                    'row' => $row,
-                                    'user' => $user,
-                                ]);
-                            }
-                            ?>
-                        </td>
+                        <?php if ($showActionsColumn): ?>
+                            <td class="text-end text-nowrap">
+                                <?php
+                                // Render row actions
+                                if (!empty($rowActions)) {
+                                    echo $this->element('dataverse_table_row_actions', [
+                                        'actions' => $rowActions,
+                                        'row' => $row,
+                                        'user' => $user,
+                                    ]);
+                                }
+                                ?>
+                            </td>
+                        <?php endif; ?>
                     </tr>
                 <?php endforeach; ?>
             <?php endif; ?>

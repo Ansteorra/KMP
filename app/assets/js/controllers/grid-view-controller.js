@@ -27,6 +27,38 @@ class GridViewController extends Controller {
 
         // Listen for Turbo Frame updates
         document.addEventListener('turbo:frame-load', this.boundHandleFrameLoad)
+
+        // Check if state is already present (inline rendered content)
+        this.loadInlineState()
+    }
+
+    /**
+     * Load state from inline rendered content (when table frame doesn't have src)
+     * This handles the case where grid content is pre-rendered on initial page load.
+     */
+    loadInlineState() {
+        // Find the table frame within this controller
+        const tableFrame = this.element.querySelector('turbo-frame[id$="-table"]')
+        if (!tableFrame) return
+
+        // If the frame has a src attribute and no content yet, it will load via turbo:frame-load
+        // Only load inline state if there's no src (content is pre-rendered)
+        if (tableFrame.hasAttribute('src')) return
+
+        // Look for the state script tag
+        const stateScript = tableFrame.querySelector('script[type="application/json"]')
+        if (!stateScript) return
+
+        try {
+            const stateJson = stateScript.textContent
+            this.state = JSON.parse(stateJson)
+            console.log('Grid state loaded from inline content:', this.state)
+
+            // Update toolbar UI based on state
+            this.updateToolbar()
+        } catch (e) {
+            console.error('Failed to parse inline grid state:', e)
+        }
     }
 
     /**
@@ -46,29 +78,31 @@ class GridViewController extends Controller {
             return
         }
 
-        // Listen for table frame loads (not the outer grid frame)
-        if (!event.target.id || !event.target.id.endsWith('-table')) {
-            return
-        }
+        // Check if this is a table frame load (ends with -table)
+        if (event.target.id && event.target.id.endsWith('-table')) {
+            // Direct table frame load - get state from its script tag
+            const tableFrame = event.target
+            const stateScript = tableFrame.querySelector('script[type="application/json"]')
 
-        // Get state from the table frame's script tag
-        const tableFrame = event.target
-        const stateScript = tableFrame.querySelector('script[type="application/json"]')
+            if (!stateScript) {
+                console.warn('No state script found in table frame')
+                return
+            }
 
-        if (!stateScript) {
-            console.warn('No state script found in table frame')
-            return
-        }
+            try {
+                const stateJson = stateScript.textContent
+                this.state = JSON.parse(stateJson)
+                console.log('Grid state updated from table frame:', this.state)
 
-        try {
-            const stateJson = stateScript.textContent
-            this.state = JSON.parse(stateJson)
-            console.log('Grid state updated from table frame:', this.state)
-
-            // Update toolbar UI based on new state
-            this.updateToolbar()
-        } catch (e) {
-            console.error('Failed to parse grid state from table frame:', e)
+                // Update toolbar UI based on new state
+                this.updateToolbar()
+            } catch (e) {
+                console.error('Failed to parse grid state from table frame:', e)
+            }
+        } else {
+            // Outer grid frame loaded - check if it contains an inline table frame with state
+            // This happens when dv_grid_content renders with inline data (no nested src)
+            this.loadInlineState()
         }
     }
 
@@ -1820,7 +1854,7 @@ class GridViewController extends Controller {
             if (tableFrame) {
                 // Get the base grid-data URL from the frame's current src
                 // This handles embedded grids with custom endpoints like /members/roles-grid-data/1
-                const currentSrc = tableFrame.getAttribute('src') || tableFrame.src
+                const currentSrc = tableFrame.getAttribute('src') || tableFrame.dataset.gridSrc || tableFrame.src
                 if (!currentSrc) {
                     console.warn('Table frame has no src attribute')
                     return
@@ -2064,7 +2098,7 @@ class GridViewController extends Controller {
         }
 
         // Get the base grid-data URL from the frame's src
-        const currentSrc = tableFrame.getAttribute('src') || tableFrame.src
+        const currentSrc = tableFrame.getAttribute('src') || tableFrame.dataset.gridSrc || tableFrame.src
         if (!currentSrc) {
             console.warn('Table frame has no src attribute')
             return

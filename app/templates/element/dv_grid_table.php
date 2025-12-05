@@ -15,7 +15,9 @@
 
 $rowActions = $rowActions ?? [];
 ?>
-<turbo-frame id="<?= h($tableFrameId) ?>">
+<turbo-frame
+    id="<?= h($tableFrameId) ?>"
+    data-grid-src="<?= h($this->getRequest()->getRequestTarget()) ?>">
     <!-- Grid State (JSON) - Read by grid-view-controller on load -->
     <!-- State is here because it changes with filters/sort/pagination -->
     <script type="application/json" id="<?= h($tableFrameId) ?>-state">
@@ -32,6 +34,7 @@ $rowActions = $rowActions ?? [];
         'primaryKey' => $gridState['config']['primaryKey'],
         'gridKey' => $gridState['config']['gridKey'],
         'rowActions' => $rowActions,
+        'enableColumnPicker' => $gridState['config']['enableColumnPicker'] ?? true,
     ]) ?>
 
     <!-- Pagination -->
