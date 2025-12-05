@@ -114,7 +114,10 @@ $showActionsColumn = $enableColumnPicker || !empty($rowActions);
                                         echo $this->element('dataverse_table_cell_action', [
                                             'content' => $renderedContent,
                                             'clickAction' => $clickAction,
+                                            'clickActionPermission' => $column['clickActionPermission'] ?? null,
+                                            'clickActionPermissionArgs' => $column['clickActionPermissionArgs'] ?? [],
                                             'row' => $row,
+                                            'user' => $user,
                                             'primaryKey' => $primaryKey,
                                             'columnKey' => $columnKey,
                                         ]);
@@ -210,7 +213,10 @@ $showActionsColumn = $enableColumnPicker || !empty($rowActions);
                                         echo $this->element('dataverse_table_cell_action', [
                                             'content' => $renderedContent,
                                             'clickAction' => $clickAction,
+                                            'clickActionPermission' => $column['clickActionPermission'] ?? null,
+                                            'clickActionPermissionArgs' => $column['clickActionPermissionArgs'] ?? [],
                                             'row' => $row,
+                                            'user' => $user,
                                             'primaryKey' => $primaryKey,
                                             'columnKey' => $columnKey,
                                         ]);

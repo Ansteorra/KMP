@@ -9,7 +9,11 @@ use App\KMP\StaticHelpers;
 use App\Mailer\QueuedMailerAwareTrait;
 use App\Model\Entity\Member;
 use App\Services\CsvExportService;
+use App\Services\ImpersonationService;
+use Cake\Datasource\Exception\RecordNotFoundException;
 use Cake\Event\EventInterface;
+use Cake\Http\Exception\BadRequestException;
+use Cake\Http\Exception\ForbiddenException;
 use Cake\Http\Exception\NotFoundException;
 use Cake\I18n\DateTime;
 use Cake\Mailer\MailerAwareTrait;
@@ -63,6 +67,122 @@ class MembersController extends AppController
     }
 
     #region general use calls
+
+    /**
+     * Begin impersonating another member (super user only).
+     *
+     * @param int $memberId Target member ID
+     * @param \App\Services\ImpersonationService $impersonationService Session helper
+     * @return \Cake\Http\Response|null
+     * @throws \Cake\Http\Exception\ForbiddenException When current user is not super user
+     * @throws \Cake\Http\Exception\BadRequestException When impersonation already active or invalid target
+     */
+    public function impersonate(int $memberId, ImpersonationService $impersonationService)
+    {
+        $this->request->allowMethod(['post']);
+        $this->Authorization->skipAuthorization();
+
+        $currentUser = $this->request->getAttribute('identity');
+        if (!$currentUser || !$currentUser->isSuperUser()) {
+            throw new ForbiddenException(__('Only super users may impersonate other members.'));
+        }
+
+        $session = $this->request->getSession();
+        if ($impersonationService->isActive($session)) {
+            throw new BadRequestException(__('You are already impersonating another member. Stop impersonating before starting a new session.'));
+        }
+
+        if ((int)$currentUser->id === $memberId) {
+            throw new BadRequestException(__('You cannot impersonate your own account.'));
+        }
+
+        $member = $this->Members->find()
+            ->where(['Members.id' => $memberId])
+            ->first();
+
+        if ($member === null) {
+            throw new NotFoundException(__('Member not found.'));
+        }
+
+        $impersonationService->start($session, $currentUser, $member);
+
+        $this->Authentication->setIdentity($member);
+        $this->request = $this->request->withAttribute('identity', $member);
+
+        $displayName = $member->sca_name ?: ($member->first_name ?? $member->email_address ?? (string)$member->id);
+        $this->Flash->success(
+            __('You are now impersonating {0}. All actions will use their permissions until you stop impersonating.', $displayName),
+        );
+
+        return $this->redirect(
+            $this->referer(
+                [
+                    'controller' => 'Members',
+                    'action' => 'view',
+                    $member->id,
+                ],
+                true,
+            ),
+        );
+    }
+
+    /**
+     * Stop impersonating and restore original super user identity.
+     *
+     * @param \App\Services\ImpersonationService $impersonationService Session helper
+     * @return \Cake\Http\Response|null
+     */
+    public function stopImpersonating(ImpersonationService $impersonationService)
+    {
+        $this->request->allowMethod(['post']);
+        $this->Authorization->skipAuthorization();
+
+        $session = $this->request->getSession();
+        $state = $impersonationService->getState($session);
+        if ($state === null) {
+            $this->Flash->info(__('You are not impersonating another member.'));
+
+            return $this->redirect(
+                $this->referer(
+                    [
+                        'controller' => 'Members',
+                        'action' => 'index',
+                    ],
+                    true,
+                ),
+            );
+        }
+
+        $impersonationService->stop($session);
+
+        try {
+            $admin = $this->Members->get((int)$state['impersonator_id']);
+        } catch (RecordNotFoundException $exception) {
+            $this->Authentication->logout();
+            $this->Flash->warning(__('Your original account could not be restored. Please log in again.'));
+
+            return $this->redirect(['controller' => 'Members', 'action' => 'login']);
+        }
+
+        $this->Authentication->setIdentity($admin);
+        $this->request = $this->request->withAttribute('identity', $admin);
+
+        $adminDisplay = $admin->sca_name ?: ($admin->first_name ?? $admin->email_address ?? (string)$admin->id);
+        $this->Flash->success(
+            __('Impersonation ended. You are signed back in as {0}.', $adminDisplay),
+        );
+
+        return $this->redirect(
+            $this->referer(
+                [
+                    'controller' => 'Members',
+                    'action' => 'view',
+                    $admin->id,
+                ],
+                true,
+            ),
+        );
+    }
 
     /**
      * Display member listing with Dataverse grid (saved views, filters, sorting).

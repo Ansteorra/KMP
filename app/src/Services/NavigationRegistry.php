@@ -94,8 +94,14 @@ class NavigationRegistry
         $allItems = [];
         // Check for cached items in session for performance
         if (isset($_SESSION['navigation_items']) && is_array($_SESSION['navigation_items'])) {
-            $allItems = $_SESSION['navigation_items'];
-            return $allItems;
+            $cached = $_SESSION['navigation_items'];
+            if (
+                isset($cached['user_id'], $cached['items'])
+                && (int)$cached['user_id'] === (int)$user->id
+                && is_array($cached['items'])
+            ) {
+                return $cached['items'];
+            }
         }
 
         // Process all registered sources
@@ -114,7 +120,10 @@ class NavigationRegistry
         }
 
         // Cache processed items in session for performance
-        $_SESSION['navigation_items'] = $allItems;
+        $_SESSION['navigation_items'] = [
+            'user_id' => (int)$user->id,
+            'items' => $allItems,
+        ];
         return $allItems;
     }
 
@@ -142,9 +151,7 @@ class NavigationRegistry
     {
         unset(self::$navigationItems[$source]);
         // Clear session cache since navigation has changed
-        if (isset($_SESSION['navigation_items'])) {
-            unset($_SESSION['navigation_items']);
-        }
+        unset($_SESSION['navigation_items']);
     }
 
     /**

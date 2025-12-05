@@ -18,10 +18,10 @@ echo $this->KMP->startBlock("pageTitle") ?>
 <?php $this->KMP->endBlock() ?>
 <?= $this->KMP->startBlock("recordActions") ?>
 <?php if ($user->checkCan('edit', $recommendation)) : ?>
-    <button type="button" class="btn btn-primary btn-sm edit-rec" data-bs-toggle="modal" data-bs-target="#editModal"
-        data-controller="outlet-btn" data-action="click->outlet-btn#fireNotice"
-        data-outlet-btn-btn-data-value='{ "id":<?= $recommendation->id ?>}'>Edit</button>
-    <?php
+<button type="button" class="btn btn-primary btn-sm edit-rec" data-bs-toggle="modal" data-bs-target="#editModal"
+    data-controller="outlet-btn" data-action="click->outlet-btn#fireNotice"
+    data-outlet-btn-btn-data-value='{ "id":<?= $recommendation->id ?>}'>Edit</button>
+<?php
     echo $this->Form->postLink(
         __("Delete"),
         ["action" => "delete", $recommendation->id],
@@ -49,7 +49,11 @@ echo $this->KMP->startBlock("pageTitle") ?>
         if ($recommendation->member_id == null) {
             echo h($recommendation->member_sca_name);
         } else {
-            echo $this->Html->link($recommendation->member->sca_name, ['plugin' => null, 'controller' => 'Members', 'action' => 'view', $recommendation->member_id]);
+            if ($user->checkCan('view', $recommendation->member)) {
+                echo $this->Html->link($recommendation->member->sca_name, ['plugin' => null, 'controller' => 'Members', 'action' => 'view', $recommendation->member_id]);
+            } else {
+                echo h($recommendation->member->sca_name);
+            }
         } ?>
     </td>
 </tr>
@@ -87,7 +91,11 @@ echo $this->KMP->startBlock("pageTitle") ?>
         if ($recommendation->requester_id == null) {
             echo h($recommendation->requester_sca_name);
         } else {
-            echo $this->Html->link($recommendation->requester->sca_name, ['plugin' => null, 'controller' => 'Members', 'action' => 'view', $recommendation->requester_id]);
+            if ($user->checkCan('view', $recommendation->requester)) {
+                echo $this->Html->link($recommendation->requester->sca_name, ['plugin' => null, 'controller' => 'Members', 'action' => 'view', $recommendation->requester_id]);
+            } else {
+                echo h($recommendation->requester->sca_name);
+            }
         } ?>
     </td>
 </tr>
@@ -104,11 +112,11 @@ echo $this->KMP->startBlock("pageTitle") ?>
     <td>
         <ul>
             <?php foreach ($recommendation->gatherings as $gathering) : ?>
-                <li><?= $this->Html->link($gathering->name, ['controller' => 'Gatherings', 'action' => 'view', $gathering->public_id, 'plugin' => null]) ?>
-                    <?php if ($recommendation->gathering_id == $gathering->id) {
+            <li><?= $this->Html->link($gathering->name, ['controller' => 'Gatherings', 'action' => 'view', $gathering->public_id, 'plugin' => null]) ?>
+                <?php if ($recommendation->gathering_id == $gathering->id) {
                         echo " (Plan to Give)";
                     } ?>
-                </li>
+            </li>
             <?php endforeach; ?>
         </ul>
     </td>

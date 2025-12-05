@@ -41,6 +41,7 @@ class MembersGridColumns extends BaseGridColumns
                 'width' => '200px',
                 'alignment' => 'left',
                 'clickAction' => 'navigate:/members/view/:id',
+                'clickActionPermission' => 'view',
             ],
 
             'membership_number' => [

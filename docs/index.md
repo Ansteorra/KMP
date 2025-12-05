@@ -55,6 +55,7 @@ layout: default
 | **7.3 [Testing Infrastructure](7.3-testing-infrastructure.md)** | Test super user fixtures, authentication helpers, and testing best practices |
 | **7.4 [Security Debug Information](7.4-security-debug-information.md)** | Authorization tracking and debug display for development |
 | 7.5 Git Workflow | Version control workflow |
+| **7.6 [Testing Suite Overview](7.6-testing-suite.md)** | PHPUnit suite structure, seed management, and run commands |
 | **8. [Deployment](8-deployment.md)** | |
 | **8.1 [Environment Setup](8.1-environment-setup.md)** | **NEW** Environment variables reference and configuration |
 | 8.2 Migrations | Database migration handling |

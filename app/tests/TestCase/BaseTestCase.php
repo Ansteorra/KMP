@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Test\TestCase;
 
+use App\Test\TestCase\Support\SeedManager;
 use Cake\Datasource\ConnectionManager;
 use Cake\TestSuite\TestCase;
 
@@ -194,6 +195,17 @@ abstract class BaseTestCase extends TestCase
         if ($this->transactionStarted) {
             $this->rollbackTransaction();
         }
+    }
+
+    /**
+     * Force a dev seed reload for scenarios that mutate lots of data.
+     *
+     * @return void
+     */
+    protected function reseedDatabase(): void
+    {
+        SeedManager::reset('test');
+        $this->transactionStarted = false;
     }
 
     // ==================================================

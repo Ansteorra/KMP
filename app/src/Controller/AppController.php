@@ -16,6 +16,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\KMP\StaticHelpers;
+use App\Services\ImpersonationService;
 use App\Services\ViewCellRegistry;
 use Cake\Controller\Controller;
 use Cake\Core\Configure;
@@ -171,6 +172,8 @@ class AppController extends Controller
         ];
 
         $currentUser = $this->request->getAttribute('identity');
+        $impersonationService = new ImpersonationService();
+        $impersonationState = $impersonationService->getState($session);
         $this->pluginViewCells = ViewCellRegistry::getViewCells($urlParams, $currentUser);
         $this->set('pluginViewCells', $this->pluginViewCells);
 
@@ -185,6 +188,7 @@ class AppController extends Controller
 
         // Set view context variables
         $this->set('user', $this->request->getAttribute('identity'));
+        $this->set('impersonationState', $impersonationState);
 
         $recordId = $this->request->getParam('pass');
         if (is_array($recordId) && count($recordId) > 0) {

@@ -71,6 +71,7 @@
  */
 
 use Cake\Core\Configure;
+use Cake\I18n\FrozenTime;
 
 /**
  * Default `html` block.
@@ -191,6 +192,41 @@ $this->KMP->endBlock();
 <?php
 echo $this->fetch("tb_body_start");
 echo $this->fetch("tb_flash");
+if (!empty($impersonationState)) {
+    $startedAgo = null;
+    if (!empty($impersonationState['started_at'])) {
+        try {
+            $startedAgo = FrozenTime::parse($impersonationState['started_at'])->timeAgoInWords();
+        } catch (\Throwable $exception) {
+            $startedAgo = null;
+        }
+    }
+?>
+    <div
+        class="alert alert-warning impersonation-banner d-flex flex-column flex-md-row align-items-md-center justify-content-md-between gap-3 mb-3">
+        <div>
+            <strong><?= __('Impersonation active') ?>:</strong>
+            <?= __('You are acting as {0}.', h($impersonationState['impersonated_member_name'] ?? '#')) ?>
+            <?php if ($startedAgo): ?>
+                <span class="ms-2 text-muted"><?= __('Started {0}', h($startedAgo)) ?></span>
+            <?php endif; ?>
+            <div class="small text-muted mb-0">
+                <?= __('Original admin: {0}. All changes are being logged.', h($impersonationState['impersonator_name'] ?? '')) ?>
+            </div>
+        </div>
+        <div>
+            <?= $this->Form->postLink(
+                __('Return to admin account'),
+                ['controller' => 'Members', 'action' => 'stopImpersonating', 'plugin' => null],
+                [
+                    'class' => 'btn btn-sm btn-outline-dark',
+                    'confirm' => __('Stop impersonating and return to your admin account?'),
+                ],
+            ) ?>
+        </div>
+    </div>
+<?php
+}
 echo $this->fetch("content");
 echo $this->fetch("tb_footer");
 echo $this->fetch("modals");

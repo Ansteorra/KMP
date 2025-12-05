@@ -79,6 +79,18 @@ if (
     <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#passwordModal"
         id='passwordModalBtn'>Change Password</button>
 <?php } ?>
+<?php if (!empty($user) && method_exists($user, 'isSuperUser') && $user->isSuperUser() && empty($impersonationState) && $user->id !== $member->id) : ?>
+    <?= $this->Form->postLink(
+        __('Impersonate Member'),
+        ['action' => 'impersonate', $member->id],
+        [
+            'class' => 'btn btn-warning btn-sm',
+            'confirm' => __('Impersonate {0}? You will assume their permissions until you stop.', h($member->sca_name)),
+            'data-bs-toggle' => 'tooltip',
+            'title' => __('Operate as this member'),
+        ],
+    ); ?>
+<?php endif; ?>
 <?php $this->KMP->endBlock() ?>
 
 <?php echo $this->KMP->startBlock('recordDetails');

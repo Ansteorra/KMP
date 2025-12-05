@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Test\TestCase;
 
+use App\Test\TestCase\Support\SeedManager;
 use Cake\Datasource\ConnectionManager;
-use Cake\TestSuite\Fixture\SchemaLoader;
 
 /**
  * TestDatabaseTrait
@@ -57,8 +57,7 @@ trait TestDatabaseTrait
      */
     protected function resetTestDatabase(): void
     {
-        $loader = new SchemaLoader();
-        $loader->loadSqlFiles('../dev_seed_clean.sql', 'test');
+        SeedManager::reset('test');
     }
 
     /**

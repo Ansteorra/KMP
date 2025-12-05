@@ -60,6 +60,7 @@ use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 use App\Services\ActiveWindowManager\DefaultActiveWindowManager;
 use App\Services\AuthorizationService as KmpAuthorizationService;
 use App\Services\CsvExportService;
+use App\Services\ImpersonationService;
 use App\Services\ICalendarService;
 use App\Services\WarrantManager\DefaultWarrantManager;
 use App\Services\WarrantManager\WarrantManagerInterface;
@@ -523,6 +524,9 @@ class Application extends BaseApplication implements
         );
         $container->add(
             ICalendarService::class,               // Concrete class (no interface needed)
+        );
+        $container->add(
+            ImpersonationService::class,
         );
     }
 
