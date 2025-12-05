@@ -127,10 +127,10 @@ $canAddGathering = $identity && $identity->checkCan('add', $tempGathering);
                 <i class="bi bi-list"></i> <?= __('List View') ?>
             </a>
             <?php if ($canAddGathering): ?>
-            <a class="btn btn-primary btn-sm" href="<?= $this->Url->build(['action' => 'add']) ?>"
-                data-turbo-frame="_top">
-                <i class="bi bi-plus-circle"></i> <?= __('Add Gathering') ?>
-            </a>
+                <a class="btn btn-primary btn-sm" href="<?= $this->Url->build(['action' => 'add']) ?>"
+                    data-turbo-frame="_top">
+                    <i class="bi bi-plus-circle"></i> <?= __('Add Gathering') ?>
+                </a>
             <?php endif; ?>
         </div>
     </div>
@@ -140,7 +140,7 @@ $canAddGathering = $identity && $identity->checkCan('add', $tempGathering);
             <div class="row align-items-center g-2">
                 <div class="col-auto">
                     <?php if ($prevUrl): ?>
-                    <?= $this->Html->link('<i class="bi bi-chevron-left"></i>', $prevUrl, [
+                        <?= $this->Html->link('<i class="bi bi-chevron-left"></i>', $prevUrl, [
                             'escape' => false,
                             'class' => 'btn btn-outline-primary',
                             'title' => $viewMode === 'week' ? __('Previous Week') : __('Previous Month'),
@@ -155,7 +155,7 @@ $canAddGathering = $identity && $identity->checkCan('add', $tempGathering);
                 </div>
                 <div class="col-auto">
                     <?php if ($nextUrl): ?>
-                    <?= $this->Html->link('<i class="bi bi-chevron-right"></i>', $nextUrl, [
+                        <?= $this->Html->link('<i class="bi bi-chevron-right"></i>', $nextUrl, [
                             'escape' => false,
                             'class' => 'btn btn-outline-primary',
                             'title' => $viewMode === 'week' ? __('Next Week') : __('Next Month'),
@@ -205,7 +205,7 @@ $canAddGathering = $identity && $identity->checkCan('add', $tempGathering);
     <div class="row g-3">
         <div class="col-12">
             <?php if ($viewMode === 'month'): ?>
-            <?= $this->element('gatherings/calendar_month', [
+                <?= $this->element('gatherings/calendar_month', [
                     'gatherings' => $data,
                     'calendarStart' => $calendarStart,
                     'calendarEnd' => $calendarEnd,
@@ -213,12 +213,12 @@ $canAddGathering = $identity && $identity->checkCan('add', $tempGathering);
                     'endDate' => $endDate,
                 ]) ?>
             <?php elseif ($viewMode === 'week'): ?>
-            <?= $this->element('gatherings/calendar_week', [
+                <?= $this->element('gatherings/calendar_week', [
                     'gatherings' => $data,
                     'startDate' => $startDate,
                 ]) ?>
             <?php else: ?>
-            <?= $this->element('gatherings/calendar_list', [
+                <?= $this->element('gatherings/calendar_list', [
                     'gatherings' => $data,
                 ]) ?>
             <?php endif; ?>

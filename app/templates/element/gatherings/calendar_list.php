@@ -136,7 +136,7 @@ $today = new DateTime('now', new \DateTimeZone($userTimezone));
                                             data-gathering-id="<?= $gathering->id ?>"
                                             data-attendance-action="<?= $isAttending ? 'edit' : 'add' ?>"
                                             <?php if ($attendanceRecord): ?>
-                                                data-attendance-id="<?= $attendanceRecord->id ?>"
+                                            data-attendance-id="<?= $attendanceRecord->id ?>"
                                             <?php endif; ?>>
                                             <i class="bi bi-calendar-check"></i>
                                             <?= $isAttending ? 'Update' : 'Mark' ?> Attendance
