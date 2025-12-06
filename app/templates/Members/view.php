@@ -62,26 +62,26 @@ echo $this->KMP->startBlock('pageTitle') ?>
 <?php $this->KMP->endBlock() ?>
 <?= $this->KMP->startBlock('recordActions') ?>
 <?php if ($user->checkCan('verifyMembership', 'Members') && $needVerification) { ?>
-    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
-        data-bs-target="#verifyMembershipModal">Verify Membership</button>
+<button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
+    data-bs-target="#verifyMembershipModal">Verify Membership</button>
 <?php } ?>
 <?php if (
     $user->checkCan('partialEdit', $member) && ($member->membership_card_path == null || strlen($member->membership_card_path) < 1)
 ) { ?>
-    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#submitMemberCardModal"
-        id='scaCardUploadBtn'>Submit Updated SCA Info</button>
+<button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#submitMemberCardModal"
+    id='scaCardUploadBtn'>Submit Updated SCA Info</button>
 <?php }
 if (
     $user->checkCan('edit', $member) ||
     $user->checkCan('partialEdit', $member)
 ) { ?>
-    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal"
-        id='editModalBtn'>Edit</button>
-    <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#passwordModal"
-        id='passwordModalBtn'>Change Password</button>
+<button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal"
+    id='editModalBtn'>Edit</button>
+<button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#passwordModal"
+    id='passwordModalBtn'>Change Password</button>
 <?php } ?>
 <?php if (!empty($user) && method_exists($user, 'isSuperUser') && $user->isSuperUser() && empty($impersonationState) && $user->id !== $member->id) : ?>
-    <?= $this->Form->postLink(
+<?= $this->Form->postLink(
         __('Impersonate Member'),
         ['action' => 'impersonate', $member->id],
         [
@@ -116,11 +116,11 @@ $this->KMP->endBlock() ?>
     style="order: 20;"><?= __('Notes') ?>
 </button>
 <?php if (!empty($aiForm) && $canViewAdditionalInformation) : ?>
-    <button class="nav-link" id="nav-add-info-tab" data-bs-toggle="tab" data-bs-target="#nav-add-info" type="button"
-        role="tab" aria-controls="nav-add-info" aria-selected="false" data-detail-tabs-target='tabBtn' data-tab-order="30"
-        style="order: 30;">
-        <?= __('Additional Info') ?>
-    </button>
+<button class="nav-link" id="nav-add-info-tab" data-bs-toggle="tab" data-bs-target="#nav-add-info" type="button"
+    role="tab" aria-controls="nav-add-info" aria-selected="false" data-detail-tabs-target='tabBtn' data-tab-order="30"
+    style="order: 30;">
+    <?= __('Additional Info') ?>
+</button>
 <?php endif; ?>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock('tabContent') ?>
@@ -136,12 +136,12 @@ $this->KMP->endBlock() ?>
 <div class="related tab-pane fade m-3" id="nav-gatherings" role="tabpanel" aria-labelledby="nav-gatherings-tab"
     data-detail-tabs-target="tabContent" data-tab-order="15" style="order: 15;">
     <?php if ($user->id == $member->id || $user->checkCan('add', 'GatheringAttendances')): ?>
-        <div class="mb-3">
-            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
-                data-bs-target="#addGatheringAttendanceModal">
-                <i class="bi bi-plus-circle"></i> RSVP for Gathering
-            </button>
-        </div>
+    <div class="mb-3">
+        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
+            data-bs-target="#addGatheringAttendanceModal">
+            <i class="bi bi-plus-circle"></i> RSVP for Gathering
+        </button>
+    </div>
     <?php endif; ?>
     <?= $this->element('dv_grid', [
         'gridKey' => "Members.gatherings.{$member->id}",
@@ -158,9 +158,9 @@ $this->KMP->endBlock() ?>
     ]) ?>
 </div>
 <?php if (!empty($aiForm) && $canViewAdditionalInformation) : ?>
-    <div class="related tab-pane fade m-3" id="nav-add-info" role="tabpanel" aria-labelledby="nav-add-info-tab"
-        data-detail-tabs-target="tabContent" data-tab-order="30" style="order: 30;">
-        <?php
+<div class="related tab-pane fade m-3" id="nav-add-info" role="tabpanel" aria-labelledby="nav-add-info-tab"
+    data-detail-tabs-target="tabContent" data-tab-order="30" style="order: 30;">
+    <?php
         $appInfo = $member->additional_info;
         $userEditableOnly = !$user->checkCan('edit', $member);
         if ($user->checkCan('editAdditionalInfo', $member)) {
@@ -262,12 +262,12 @@ $this->KMP->endBlock() ?>
             ]);
             echo $this->form->end();
         } else { ?>
-            <table class='table table-striped'>
-                <?php foreach ($aiForm as $fieldKey => $fieldType) { ?>
-                    <tr scope="row">
-                        <th class="col"><?= str_replace('_', ' ', $fieldKey) ?></th>
-                        <td class="col-10">
-                            <?php
+    <table class='table table-striped'>
+        <?php foreach ($aiForm as $fieldKey => $fieldType) { ?>
+        <tr scope="row">
+            <th class="col"><?= str_replace('_', ' ', $fieldKey) ?></th>
+            <td class="col-10">
+                <?php
                             $pipePos = strpos($fieldType, '|');
                             $managerOnly = false;
                             $userEditable = false;
@@ -303,12 +303,12 @@ $this->KMP->endBlock() ?>
                                     break;
                             }
                             ?>
-                        </td>
-                    </tr>
-                <?php } ?>
-            </table>
+            </td>
+        </tr>
         <?php } ?>
-    </div>
+    </table>
+    <?php } ?>
+</div>
 <?php endif; ?>
 <?php $this->KMP->endBlock() ?>
 <?php
