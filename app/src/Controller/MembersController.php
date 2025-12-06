@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Form\ResetPasswordForm;
+use App\KMP\GridColumns\MembersGridColumns;
 use App\KMP\StaticHelpers;
 use App\Mailer\QueuedMailerAwareTrait;
 use App\Model\Entity\Member;
@@ -204,59 +205,67 @@ class MembersController extends AppController
      */
     public function gridData(CsvExportService $csvExportService)
     {
-        // Use unified trait for grid processing (saved views mode)
-        $result = $this->processDataverseGrid([
-            'gridKey' => 'Members.index.main',
-            'gridColumnsClass' => \App\KMP\GridColumns\MembersGridColumns::class,
-            'baseQuery' => $this->Members->find()->contain(['Branches', 'Parents']),
-            'tableName' => 'Members',
-            'defaultSort' => ['Members.sca_name' => 'asc'],
-            'defaultPageSize' => 25,
-            'showAllTab' => false,
-            'canAddViews' => false,
-            'canFilter' => true,
-            'canExportCsv' => false,
-        ]);
+        $identity = $this->request->getAttribute('identity');
+        $canViewPii = $identity ? $identity->checkCan('viewPii', $this->Members->newEmptyEntity()) : false;
+        $previousPiiSetting = MembersGridColumns::setIncludePii($canViewPii);
 
-        // Handle CSV export
-        if (!empty($result['isCsvExport'])) {
-            return $this->handleCsvExport($result, $csvExportService, 'members');
-        }
+        try {
+            // Use unified trait for grid processing (saved views mode)
+            $result = $this->processDataverseGrid([
+                'gridKey' => 'Members.index.main',
+                'gridColumnsClass' => MembersGridColumns::class,
+                'baseQuery' => $this->Members->find()->contain(['Branches', 'Parents']),
+                'tableName' => 'Members',
+                'defaultSort' => ['Members.sca_name' => 'asc'],
+                'defaultPageSize' => 25,
+                'showAllTab' => false,
+                'canAddViews' => false,
+                'canFilter' => true,
+                'canExportCsv' => false,
+            ]);
 
-        // Set view variables
-        $this->set([
-            'members' => $result['data'],
-            'gridState' => $result['gridState'],
-            // Legacy variables (kept for backward compatibility during migration)
-            'columns' => $result['columnsMetadata'],
-            'visibleColumns' => $result['visibleColumns'],
-            'searchableColumns' => \App\KMP\GridColumns\MembersGridColumns::getSearchableColumns(),
-            'dropdownFilterColumns' => $result['dropdownFilterColumns'],
-            'filterOptions' => $result['filterOptions'],
-            'currentFilters' => $result['currentFilters'],
-            'currentSearch' => $result['currentSearch'],
-            'currentView' => $result['currentView'],
-            'availableViews' => $result['availableViews'],
-            'gridKey' => $result['gridKey'],
-            'currentSort' => $result['currentSort'],
-            'currentMember' => $result['currentMember'],
-        ]);
+            // Handle CSV export
+            if (!empty($result['isCsvExport'])) {
+                return $this->handleCsvExport($result, $csvExportService, 'members');
+            }
 
-        // Determine which template to render based on Turbo-Frame header
-        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
+            // Set view variables
+            $this->set([
+                'members' => $result['data'],
+                'gridState' => $result['gridState'],
+                // Legacy variables (kept for backward compatibility during migration)
+                'columns' => $result['columnsMetadata'],
+                'visibleColumns' => $result['visibleColumns'],
+                'searchableColumns' => MembersGridColumns::getSearchableColumns(),
+                'dropdownFilterColumns' => $result['dropdownFilterColumns'],
+                'filterOptions' => $result['filterOptions'],
+                'currentFilters' => $result['currentFilters'],
+                'currentSearch' => $result['currentSearch'],
+                'currentView' => $result['currentView'],
+                'availableViews' => $result['availableViews'],
+                'gridKey' => $result['gridKey'],
+                'currentSort' => $result['currentSort'],
+                'currentMember' => $result['currentMember'],
+            ]);
 
-        if ($turboFrame === 'members-grid-table') {
-            // Inner frame request - render table data only
-            $this->set('data', $result['data']);
-            $this->set('tableFrameId', 'members-grid-table');
-            $this->viewBuilder()->disableAutoLayout();
-            $this->viewBuilder()->setTemplate('../element/dv_grid_table');
-        } else {
-            // Outer frame request (or no frame) - render toolbar + table frame
-            $this->set('data', $result['data']);
-            $this->set('frameId', 'members-grid');
-            $this->viewBuilder()->disableAutoLayout();
-            $this->viewBuilder()->setTemplate('../element/dv_grid_content');
+            // Determine which template to render based on Turbo-Frame header
+            $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
+
+            if ($turboFrame === 'members-grid-table') {
+                // Inner frame request - render table data only
+                $this->set('data', $result['data']);
+                $this->set('tableFrameId', 'members-grid-table');
+                $this->viewBuilder()->disableAutoLayout();
+                $this->viewBuilder()->setTemplate('../element/dv_grid_table');
+            } else {
+                // Outer frame request (or no frame) - render toolbar + table frame
+                $this->set('data', $result['data']);
+                $this->set('frameId', 'members-grid');
+                $this->viewBuilder()->disableAutoLayout();
+                $this->viewBuilder()->setTemplate('../element/dv_grid_content');
+            }
+        } finally {
+            MembersGridColumns::setIncludePii($previousPiiSetting);
         }
     }
 
@@ -743,6 +752,8 @@ class MembersController extends AppController
         $referer = $this->request->referer(true);
         $backUrl = [];
         $user =  $this->Authentication->getIdentity();
+        $canViewPii = $user ? $user->checkCan('viewPii', $member) : false;
+        $canViewAdditionalInformation = $user ? $user->checkCan('viewAdditionalInformation', $member) : false;
         $statusList = [
             Member::STATUS_ACTIVE => Member::STATUS_ACTIVE,
             Member::STATUS_DEACTIVATED => Member::STATUS_DEACTIVATED,
@@ -791,6 +802,8 @@ class MembersController extends AppController
                 'statusList',
                 'publicInfo',
                 'availableGatherings',
+                'canViewPii',
+                'canViewAdditionalInformation',
             ),
         );
         $this->viewBuilder()->setTemplate('view');

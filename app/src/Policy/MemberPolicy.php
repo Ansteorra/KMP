@@ -31,6 +31,25 @@ class MemberPolicy extends BasePolicy
     }
 
     /**
+     * Check if $user can view PII for a Member
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The user.
+     * @param \App\Model\Entity\BaseEntity|Table $entity
+     * @param mixed ...$optionalArgs Optional arguments
+     * @return bool
+     */
+    public function canViewPii(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
+    {
+        if ($entity instanceof BaseEntity && $entity->id == $user->getIdentifier()) {
+            return true;
+        }
+
+        $method = __FUNCTION__;
+
+        return $this->_hasPolicy($user, $method, $entity);
+    }
+
+    /**
      * Check if $user can view their own profile
      *
      * @param \App\KMP\KmpIdentityInterface $user The user.
@@ -120,6 +139,25 @@ class MemberPolicy extends BasePolicy
         if ($entity->id == $user->getIdentifier()) {
             return true;
         }
+        $method = __FUNCTION__;
+
+        return $this->_hasPolicy($user, $method, $entity);
+    }
+
+    /**
+     * Check if $user can view additional information for a Member
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The user.
+     * @param \App\Model\Entity\BaseEntity|Table $entity
+     * @param mixed ...$optionalArgs Optional arguments
+     * @return bool
+     */
+    public function canViewAdditionalInformation(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
+    {
+        if ($entity instanceof BaseEntity && $entity->id == $user->getIdentifier()) {
+            return true;
+        }
+
         $method = __FUNCTION__;
 
         return $this->_hasPolicy($user, $method, $entity);

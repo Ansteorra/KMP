@@ -15,6 +15,23 @@ namespace App\KMP\GridColumns;
 class MembersGridColumns extends BaseGridColumns
 {
 
+    /** @var bool Whether PII columns should be included */
+    protected static bool $includePii = true;
+
+    /**
+     * Control inclusion of PII columns for the current request.
+     *
+     * @param bool $includePii Include PII columns when true
+     * @return bool Previous include state
+     */
+    public static function setIncludePii(bool $includePii): bool
+    {
+        $previous = static::$includePii;
+        static::$includePii = $includePii;
+
+        return $previous;
+    }
+
     public static function getColumns(): array
     {
         $columns = [
@@ -272,6 +289,12 @@ class MembersGridColumns extends BaseGridColumns
             ],
         ];
 
+        if (!static::$includePii) {
+            foreach (static::getPiiColumnKeys() as $piiKey) {
+                unset($columns[$piiKey]);
+            }
+        }
+
         // Add actions column as the last column
         /**
          *$columns['actions'] = [
@@ -330,5 +353,28 @@ class MembersGridColumns extends BaseGridColumns
          */
 
         return $columns;
+    }
+
+    /**
+     * List of PII-related column keys.
+     *
+     * @return array<string>
+     */
+    protected static function getPiiColumnKeys(): array
+    {
+        return [
+            'membership_number',
+            'first_name',
+            'last_name',
+            'email_address',
+            'phone',
+            'address',
+            'city',
+            'state_province',
+            'zip_postal_code',
+            'country',
+            'parent_id',
+            'is_minor',
+        ];
     }
 }

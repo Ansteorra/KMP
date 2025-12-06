@@ -24,6 +24,7 @@ if (!empty($aiFormConfig)) {
         $aiForm[$shortKey] = $value;
     }
 }
+$canViewAdditionalInformation = $canViewAdditionalInformation ?? ($user->checkCan('viewAdditionalInformation', $member));
 switch ($member->status) {
     case Member::STATUS_ACTIVE:
         $needVerification = true;
@@ -114,7 +115,7 @@ $this->KMP->endBlock() ?>
     aria-controls="nav-notes" aria-selected="false" data-detail-tabs-target='tabBtn' data-tab-order="20"
     style="order: 20;"><?= __('Notes') ?>
 </button>
-<?php if (!empty($aiForm)) : ?>
+<?php if (!empty($aiForm) && $canViewAdditionalInformation) : ?>
     <button class="nav-link" id="nav-add-info-tab" data-bs-toggle="tab" data-bs-target="#nav-add-info" type="button"
         role="tab" aria-controls="nav-add-info" aria-selected="false" data-detail-tabs-target='tabBtn' data-tab-order="30"
         style="order: 30;">
@@ -156,7 +157,7 @@ $this->KMP->endBlock() ?>
         'viewPrivate' => $user->checkCan('viewPrivateNotes', 'Members'),
     ]) ?>
 </div>
-<?php if (!empty($aiForm)) : ?>
+<?php if (!empty($aiForm) && $canViewAdditionalInformation) : ?>
     <div class="related tab-pane fade m-3" id="nav-add-info" role="tabpanel" aria-labelledby="nav-add-info-tab"
         data-detail-tabs-target="tabContent" data-tab-order="30" style="order: 30;">
         <?php
