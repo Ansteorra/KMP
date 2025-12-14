@@ -111,16 +111,16 @@ class TimezoneInputController extends Controller {
                 if (utcValue) {
                     delete input.dataset.timezoneConversionFailed;
 
+                    // If the original input is already disabled from a previous submit, skip
+                    if (input.disabled) {
+                        return;
+                    }
+
                     // Remove any prior hidden UTC inputs for this field
                     const existingHidden = this.element.querySelectorAll(
                         `input[name="${CSS.escape(input.name)}"][data-timezone-converted="true"]`
                     );
                     existingHidden.forEach(el => el.remove());
-
-                    // If the original input is already disabled from a previous submit, skip
-                    if (input.disabled) {
-                        return;
-                    }
 
                     // Create hidden input with UTC value
                     const hiddenInput = document.createElement('input');

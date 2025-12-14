@@ -1795,8 +1795,6 @@ class CodeEditorController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0
     // Basic YAML validation - check for common issues
     const lines = content.split('\n');
     const errors = [];
-    let inMultiline = false;
-    const indentStack = [0];
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const lineNum = i + 1;
@@ -1809,12 +1807,6 @@ class CodeEditorController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0
         errors.push(`Line ${lineNum}: Tabs are not allowed in YAML, use spaces`);
       }
 
-      // Check for inconsistent indentation
-      const indent = line.match(/^(\s*)/)[1].length;
-      if (indent % 2 !== 0 && indent > 0) {
-        // Warning: odd indentation might be intentional in some cases
-      }
-
       // Check for missing space after colon in key-value pairs
       const colonMatch = line.match(/^(\s*)([^:]+):([^\s])/);
       if (colonMatch && !line.includes(': ') && !line.match(/:\s*$/)) {
@@ -1824,9 +1816,6 @@ class CodeEditorController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0
           errors.push(`Line ${lineNum}: Missing space after colon`);
         }
       }
-
-      // Check for duplicate keys at the same level (basic check)
-      // This is a simplified check and won't catch all duplicates
     }
 
     // Try to parse as JavaScript object to catch more errors
@@ -1863,36 +1852,42 @@ class CodeEditorController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0
     return null;
   }
   displayError(error) {
-    if (!this.hasErrorDisplayTarget) {
-      // Create error display if it doesn't exist
-      if (error && this.hasTextareaTarget) {
-        const existingError = this.textareaTarget.parentNode.querySelector('.code-editor-error');
-        if (existingError) {
-          existingError.innerHTML = this.formatError(error);
-          existingError.style.display = 'block';
-        } else {
-          const errorDiv = document.createElement('div');
-          errorDiv.className = 'code-editor-error alert alert-danger mt-2 mb-0 small';
-          errorDiv.innerHTML = this.formatError(error);
-          this.textareaTarget.parentNode.parentNode.insertBefore(errorDiv, this.textareaTarget.parentNode.nextSibling);
-        }
+    const applyContent = container => {
+      if (error) {
+        container.innerHTML = this.formatError(error);
+        container.classList.remove('d-none');
+        container.classList.add('alert', 'alert-danger', 'mt-2', 'mb-0', 'small');
       } else {
-        const existingError = this.element.querySelector('.code-editor-error');
-        if (existingError) {
-          existingError.style.display = 'none';
-        }
+        container.innerHTML = '';
+        container.classList.add('d-none');
+        container.classList.remove('alert', 'alert-danger');
       }
+    };
+    if (this.hasErrorDisplayTarget) {
+      applyContent(this.errorDisplayTarget);
       return;
     }
-    if (error) {
-      this.errorDisplayTarget.innerHTML = this.formatError(error);
-      this.errorDisplayTarget.classList.remove('d-none');
-      this.errorDisplayTarget.classList.add('alert', 'alert-danger', 'mt-2', 'mb-0', 'small');
-    } else {
-      this.errorDisplayTarget.innerHTML = '';
-      this.errorDisplayTarget.classList.add('d-none');
-      this.errorDisplayTarget.classList.remove('alert', 'alert-danger');
+    const container = this._resolveErrorContainer();
+    if (!container) return;
+
+    // Find or create the error element within the container
+    let errorEl = container.querySelector('.code-editor-error');
+    if (!errorEl) {
+      errorEl = document.createElement('div');
+      errorEl.className = 'code-editor-error d-none';
+      container.appendChild(errorEl);
     }
+    applyContent(errorEl);
+  }
+  _resolveErrorContainer() {
+    if (this.hasErrorDisplayTarget) {
+      return this.errorDisplayTarget;
+    }
+    if (this.hasTextareaTarget) {
+      const group = this.textareaTarget.closest('.form-group');
+      if (group) return group;
+    }
+    return this.element;
   }
   formatError(error) {
     return `<i class="bi bi-exclamation-triangle me-1"></i><strong>Syntax Error:</strong><br><pre class="mb-0 mt-1" style="white-space: pre-wrap;">${this.escapeHtml(error)}</pre>`;
@@ -11133,14 +11128,14 @@ class TimezoneInputController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODUL
         if (utcValue) {
           delete input.dataset.timezoneConversionFailed;
 
-          // Remove any prior hidden UTC inputs for this field
-          const existingHidden = this.element.querySelectorAll(`input[name="${CSS.escape(input.name)}"][data-timezone-converted="true"]`);
-          existingHidden.forEach(el => el.remove());
-
           // If the original input is already disabled from a previous submit, skip
           if (input.disabled) {
             return;
           }
+
+          // Remove any prior hidden UTC inputs for this field
+          const existingHidden = this.element.querySelectorAll(`input[name="${CSS.escape(input.name)}"][data-timezone-converted="true"]`);
+          existingHidden.forEach(el => el.remove());
 
           // Create hidden input with UTC value
           const hiddenInput = document.createElement('input');

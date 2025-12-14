@@ -607,14 +607,14 @@ class TimezoneInputController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODUL
         if (utcValue) {
           delete input.dataset.timezoneConversionFailed;
 
-          // Remove any prior hidden UTC inputs for this field
-          const existingHidden = this.element.querySelectorAll(`input[name="${CSS.escape(input.name)}"][data-timezone-converted="true"]`);
-          existingHidden.forEach(el => el.remove());
-
           // If the original input is already disabled from a previous submit, skip
           if (input.disabled) {
             return;
           }
+
+          // Remove any prior hidden UTC inputs for this field
+          const existingHidden = this.element.querySelectorAll(`input[name="${CSS.escape(input.name)}"][data-timezone-converted="true"]`);
+          existingHidden.forEach(el => el.remove());
 
           // Create hidden input with UTC value
           const hiddenInput = document.createElement('input');
