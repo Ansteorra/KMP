@@ -19,7 +19,7 @@ $this->KMP->endBlock();
 $this->extend("/layout/TwitterBootstrap/view_record");
 
 echo $this->KMP->startBlock("pageTitle") ?>
-<?= $this->Kmp->makePossessive($queueFor) ?> Auth Request Queue
+<?= $this->KMP->makePossessive($queueFor) ?> Auth Request Queue
 <?php $this->KMP->endBlock() ?>
 
 <?= $this->KMP->startBlock("recordActions") ?>
