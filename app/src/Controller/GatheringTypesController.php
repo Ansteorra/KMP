@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Services\CsvExportService;
+
 /**
  * GatheringTypes Controller
  *
@@ -12,6 +14,8 @@ namespace App\Controller;
  */
 class GatheringTypesController extends AppController
 {
+    use DataverseGridTrait;
+
     /**
      * Initialize controller
      *
@@ -22,19 +26,81 @@ class GatheringTypesController extends AppController
         parent::initialize();
 
         // Authorize model-level operations
-        $this->Authorization->authorizeModel('index', 'add');
+        $this->Authorization->authorizeModel('index', 'add', 'gridData');
     }
 
     /**
-     * Index method
+     * Index method - Display Dataverse grid for gathering types
      *
      * @return \Cake\Http\Response|null|void Renders view
      */
     public function index()
     {
-        $gatheringTypes = $this->paginate($this->GatheringTypes);
+        // Simple index page - just renders the dv_grid element
+        // The dv_grid element will lazy-load the actual data via gridData action
+    }
 
-        $this->set(compact('gatheringTypes'));
+    /**
+     * Grid Data method - Provides Dataverse grid data for gathering types
+     *
+     * @param \App\Services\CsvExportService $csvExportService Injected CSV export service
+     * @return \Cake\Http\Response|null|void Renders view or returns CSV response
+     */
+    public function gridData(CsvExportService $csvExportService)
+    {
+        // Use unified trait for grid processing
+        $result = $this->processDataverseGrid([
+            'gridKey' => 'GatheringTypes.index.main',
+            'gridColumnsClass' => \App\KMP\GridColumns\GatheringTypesGridColumns::class,
+            'baseQuery' => $this->GatheringTypes->find(),
+            'tableName' => 'GatheringTypes',
+            'defaultSort' => ['GatheringTypes.name' => 'asc'],
+            'defaultPageSize' => 25,
+            'showAllTab' => false,
+            'canAddViews' => false,
+            'canFilter' => true,
+            'canExportCsv' => false,
+        ]);
+
+        // Handle CSV export
+        if (!empty($result['isCsvExport'])) {
+            return $this->handleCsvExport($result, $csvExportService, 'gathering-types');
+        }
+
+        // Set view variables
+        $this->set([
+            'gatheringTypes' => $result['data'],
+            'gridState' => $result['gridState'],
+            'columns' => $result['columnsMetadata'],
+            'visibleColumns' => $result['visibleColumns'],
+            'searchableColumns' => \App\KMP\GridColumns\GatheringTypesGridColumns::getSearchableColumns(),
+            'dropdownFilterColumns' => $result['dropdownFilterColumns'],
+            'filterOptions' => $result['filterOptions'],
+            'currentFilters' => $result['currentFilters'],
+            'currentSearch' => $result['currentSearch'],
+            'currentView' => $result['currentView'],
+            'availableViews' => $result['availableViews'],
+            'gridKey' => $result['gridKey'],
+            'currentSort' => $result['currentSort'],
+            'currentMember' => $result['currentMember'],
+        ]);
+
+        // Determine which template to render based on Turbo-Frame header
+        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
+
+        if ($turboFrame === 'gathering-types-grid-table') {
+            // Inner frame request - render table data only
+            $this->set('data', $result['data']);
+            $this->set('tableFrameId', 'gathering-types-grid-table');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplate('../element/dv_grid_table');
+        } else {
+            // Outer frame request (or no frame) - render toolbar + table frame
+            $this->set('data', $result['data']);
+            $this->set('frameId', 'gathering-types-grid');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplate('../element/dv_grid_content');
+        }
     }
 
     /**

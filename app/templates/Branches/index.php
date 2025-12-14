@@ -1,86 +1,42 @@
 <?php
 
 /**
+ * Branches Dataverse Grid Index Template
+ * 
+ * Modern grid interface with saved views, column picker, filtering, and sorting.
+ * Uses lazy-loading turbo-frame architecture for consistent data flow.
+ * Shows hierarchy through computed path column.
+ * 
  * @var \App\View\AppView $this
- * @var \App\Model\Entity\Branch[]|\Cake\Collection\CollectionInterface $branches
  */
-?>
-<?php
+
 $this->extend("/layout/TwitterBootstrap/dashboard");
 
 echo $this->KMP->startBlock("title");
 echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Branches';
 $this->KMP->endBlock();
-if (!function_exists('branchHierachyTable')) {
-    function branchHierachyTable($branches, $me, $parent_string = "")
-    {
-?>
-        <?php foreach ($branches as $branch) {
-            $name = $parent_string . "/" . $branch->name; ?>
-            <tr>
-                <td><?= h($name) ?></td>
-                <td><?= h($branch->type) ?></td>
-                <td><?= h($branch->location) ?></td>
-                <td class="actions text-end text-nowrap">
-                    <?= $me->Html->link(
-                        __(""),
-                        ["action" => "view", $branch->id],
-                        ["title" => __("View"), "class" => "btn-sm btn btn-secondary bi bi-binoculars-fill", "data-turbo-frame" => "_top"],
-                    ) ?>
-                </td>
-            </tr>
-            <?php if (!empty($branch->children)) { ?>
-                <?php branchHierachyTable($branch->children, $me, $name); ?>
-        <?php }
-        } ?>
-<?php
-    }
-}
-?>
-<div class="row align-items-start">
-    <div class="col">
-        <h3>
-            Branches
-        </h3>
-    </div>
-    <div class="col text-end">
-        <?php
-        if ($user->checkCan("add", "Branches")) :
-        ?>
-            <?= $this->Html->link(
-                __(" Add Branch"),
-                ["action" => "add"],
-                ["class" => "btn btn-primary btn-sm bi bi-plus-circle ", "data-turbo-frame" => "_top"],
-            )
-            ?>
-        <?php endif; ?>
-    </div>
-</div>
-<turbo-frame id="branchesList" data-turbo='true'>
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <td colspan="2">
-                <td colspan="2" class="text-end">
-                    <form class="form-inline">
 
-                        <div class="input-group">
-                            <div class="input-group-text" id="btnSearch"><span class='bi bi-search'></span></div>
-                            <input type="text" name="search" class="form-control" placeholder="Search..."
-                                value="<?= $search ?>" aria-describedby="btnSearch" aria-label="Search">
-                        </div>
-                    </form>
-                </td>
-            </tr>
-            <tr>
-                <th scope="col"><?= h("Branch") ?></th>
-                <th scope="col"><?= h("Type") ?></th>
-                <th scope="col"><?= h("Location") ?></th>
-                <th scope="col" class="actions"></th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php branchHierachyTable($branches, $this, "", true); ?>
-        </tbody>
-    </table>
-</turbo-frame>
+$this->assign('title', __('Branches'));
+?>
+
+<div class="branches index content">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3><?= __('Branches') ?></h3>
+        <div>
+            <?php if ($user->checkCan("add", "Branches")) : ?>
+                <?= $this->Html->link(
+                    __(' Add Branch'),
+                    ['action' => 'add'],
+                    ['class' => 'btn btn-primary bi bi-plus-circle']
+                ) ?>
+            <?php endif; ?>
+        </div>
+    </div>
+
+    <!-- Dataverse Grid with Lazy Loading -->
+    <?= $this->element('dv_grid', [
+        'gridKey' => 'Branches.index.main',
+        'frameId' => 'branches-grid',
+        'dataUrl' => $this->Url->build(['action' => 'gridData']),
+    ]) ?>
+</div>

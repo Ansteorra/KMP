@@ -5,23 +5,16 @@ declare(strict_types=1);
 /**
  * KMP Application Configuration
  *
- * This file contains the core configuration settings for the Kingdom Management Portal (KMP).
- * It defines application-wide settings for:
- * - Application metadata and paths
- * - Security and encryption
- * - Caching strategies
- * - Database connections
- * - Email transport and delivery
- * - Error handling and debugging
- * - Logging configuration
- * - Session management
- * - UI components (Bootstrap Icons)
+ * This file contains the core CakePHP framework configuration.
+ * For detailed documentation on each section, see the docs/ folder:
  *
- * Environment-specific overrides should be placed in app_local.php or use environment variables.
- * This configuration follows CakePHP 5.x conventions and KMP-specific requirements.
+ * @see docs/2-configuration.md For application configuration overview
+ * @see docs/8.1-environment-setup.md For environment variables
+ * @see docs/7.1-security-best-practices.md For security configuration
+ * @see docs/6.4-caching-strategy.md For caching strategy
+ * @see docs/8-deployment.md For deployment configuration
  *
- * @see config/app_local.php For environment-specific overrides
- * @see config/app_queue.php For queue-specific configuration
+ * Environment-specific overrides should be in app_local.php or .env
  */
 
 use Cake\Cache\Engine\ApcuEngine;
@@ -33,55 +26,10 @@ use Cake\Mailer\Transport\MailTransport;
 use Templating\View\Icon\BootstrapIcon;
 
 return [
-    /**
-     * Debug Level Configuration
-     *
-     * Controls error reporting and debugging features throughout the application.
-     * 
-     * Production Mode (false):
-     * - No error messages, errors, or warnings shown to users
-     * - Optimized performance with disabled debugging features
-     * - Security-focused with minimal information disclosure
-     *
-     * Development Mode (true):
-     * - Detailed error messages and warnings displayed
-     * - Debug toolbar and profiling enabled
-     * - Enhanced logging and stack traces
-     * 
-     * Environment Variable: DEBUG (boolean)
-     * Default: false (production-safe)
-     * 
-     * @example Set DEBUG=true in .env for development
-     * @example Set DEBUG=false in production environments
-     */
+    /** @var bool Enable debug mode - set via DEBUG environment variable */
     "debug" => filter_var(env("DEBUG", false), FILTER_VALIDATE_BOOLEAN),
 
-    /**
-     * Application Configuration
-     *
-     * Core application settings that define the KMP's identity, structure, and behavior.
-     * These settings control:
-     * - Application namespace and identity
-     * - Internationalization and localization
-     * - Directory structure and file paths
-     * - Asset organization and URLs
-     * - Version management
-     *
-     * Key KMP-specific settings:
-     * - title: Display name for the application (AMS - Activity Management System)
-     * - appGraphic: Logo/badge file for branding
-     * - version: Automatically loaded from version.txt file
-     *
-     * Environment Variables:
-     * - APP_ENCODING: Character encoding (default: UTF-8)
-     * - APP_DEFAULT_LOCALE: Locale for i18n (default: en_US)
-     * - APP_DEFAULT_TIMEZONE: Timezone for date operations (default: UTC)
-     * - BASE_SUB: Base subdirectory if app is not in document root
-     * - SCRIPT_NAME: For non-mod_rewrite configurations
-     *
-     * @example For subdirectory installation: BASE_SUB=/kmp
-     * @example For different locale: APP_DEFAULT_LOCALE=en_GB
-     */
+    /** @see docs/2-configuration.md#application-settings */
     "App" => [
         /** @var string Application namespace for autoloading */
         "namespace" => "App",
@@ -144,50 +92,13 @@ return [
         "version" => file_get_contents(CONFIG . "version.txt"),
     ],
 
-    /**
-     * Security and Encryption Configuration
-     *
-     * Critical security settings that protect the application and user data.
-     * The security salt is used for:
-     * - Password hashing and verification
-     * - Session security and CSRF protection
-     * - Encryption of sensitive data
-     * - Security token generation
-     *
-     * SECURITY REQUIREMENTS:
-     * - Salt must be at least 32 characters long
-     * - Salt should be cryptographically random
-     * - Salt must be kept secret and never committed to version control
-     * - Salt should be different for each environment
-     *
-     * Environment Variable: SECURITY_SALT (required)
-     * 
-     * @example Generate with: bin/cake security generate_salt
-     * @example Store in .env: SECURITY_SALT=your-very-long-random-string-here
-     * @security Critical - Treat as extremely sensitive data
-     */
+    /** @see docs/7.1-security-best-practices.md#encryption-and-cryptographic-salt */
     "Security" => [
-        /** @var string Cryptographic salt for security operations */
+        /** @var string Cryptographic salt - must be 32+ characters, keep secret */
         "salt" => env("SECURITY_SALT"),
     ],
 
-    /**
-     * Asset Management Configuration
-     *
-     * Controls how static assets (CSS, JavaScript, images) are served and cached.
-     * Asset timestamping helps with browser cache busting when files change.
-     *
-     * Options:
-     * - timestamp: true = apply timestamps when debug is true
-     * - timestamp: 'force' = always apply timestamps regardless of debug
-     * - cacheTime: how long browsers should cache assets
-     *
-     * KMP uses Laravel Mix for asset compilation, which handles versioning
-     * in production builds through webpack.mix.js configuration.
-     *
-     * @example timestamp: true for development cache busting
-     * @example cacheTime: '+1 year' for production optimization
-     */
+    /** @see docs/10.4-asset-management.md */
     "Asset" => [
         /** @var bool|string Asset timestamping for cache busting */
         //'timestamp' => true,
@@ -196,34 +107,7 @@ return [
         // 'cacheTime' => '+1 year'
     ],
 
-    /**
-     * Cache Configuration
-     *
-     * KMP uses a multi-tier caching strategy with ApcuEngine for high performance.
-     * Cache configurations are optimized for both development and production environments.
-     *
-     * Cache Tiers:
-     * 1. Application cache (default) - General application data
-     * 2. Security caches - Permission and authorization data
-     * 3. Framework caches - CakePHP internal optimizations
-     *
-     * KMP-Specific Cache Stores:
-     * - member_permissions: User permission data (30 min TTL, security group)
-     * - permissions_structure: Role/permission hierarchy (long TTL, rarely changes)
-     * - branch_structure: Organizational hierarchy (long TTL, rarely changes)
-     *
-     * Cache Groups:
-     * - 'security': All security-related caches (can be cleared together)
-     * - 'member_security': Member-specific security data
-     *
-     * Performance Notes:
-     * - ApcuEngine provides memory-based caching for optimal performance
-     * - Cache duration is automatically reduced to 2 minutes when debug=true
-     * - Use cache groups for efficient bulk invalidation
-     *
-     * @example Clear security caches: Cache::clearGroup('security')
-     * @example Clear member perms: Cache::clearGroup('member_security')
-     */
+    /** @see docs/6.4-caching-strategy.md */
     "Cache" => [
         /** @var array Default cache configuration for general application data */
         "default" => [
@@ -289,37 +173,7 @@ return [
         ],
     ],
 
-    /**
-     * Error and Exception Handling Configuration
-     *
-     * Controls how errors and exceptions are handled, logged, and displayed.
-     * Configuration adapts based on debug mode for security and development needs.
-     *
-     * Production Behavior (debug = false):
-     * - Errors logged but not displayed to users
-     * - Generic HTTP error pages shown
-     * - Framework errors converted to standard HTTP responses
-     *
-     * Development Behavior (debug = true):
-     * - Detailed error pages with stack traces
-     * - Framework errors like "Missing Controller" displayed
-     * - Enhanced debugging information available
-     *
-     * Error Levels:
-     * - E_ALL: All errors and warnings
-     * - ~E_USER_DEPRECATED: Excludes user deprecation notices
-     *
-     * KMP-Specific Configuration:
-     * - ignoredDeprecationPaths: Suppresses known framework deprecations
-     * - Custom error renderer can be implemented in src/Error/
-     *
-     * Environment Variables:
-     * - ERROR_LEVEL: Custom error reporting level
-     * - SKIP_LOG: Comma-separated exception classes to skip logging
-     *
-     * @example Custom renderer: src/Error/KmpErrorRenderer.php
-     * @example Skip logging: SKIP_LOG=NotFoundException,UnauthorizedException
-     */
+    /** @see docs/7.1-security-best-practices.md */
     "Error" => [
         /** @var int PHP error reporting level */
         "errorLevel" => E_ALL & ~E_USER_DEPRECATED,
@@ -337,58 +191,13 @@ return [
         "ignoredDeprecationPaths" => ['vendor/cakephp/cakephp/src/Event/EventManager.php'],
     ],
 
-    /**
-     * Debugger Configuration
-     *
-     * Development-specific debugging tools and IDE integration.
-     * Controls the CakePHP debugger behavior and editor integration.
-     *
-     * Editor Integration:
-     * Supports deep-linking from error pages and debug output directly to IDE.
-     * Pre-configured editors: atom, emacs, macvim, phpstorm, sublime, textmate, vscode
-     * 
-     * Custom editors can be added using Debugger::addEditor() in bootstrap.
-     *
-     * Output Masking:
-     * Can mask sensitive data in debug output and logs.
-     * Useful for hiding passwords, API keys, or other sensitive information.
-     *
-     * @example Custom editor: Debugger::addEditor('myide', 'myide://open?file={file}&line={line}')
-     * @example Output masking: 'outputMask' => ['password' => '***']
-     */
+    /** @see docs/7.1-security-best-practices.md */
     "Debugger" => [
         /** @var string IDE for deep-linking from debug output */
         "editor" => "phpstorm",
     ],
 
-    /**
-     * Email Transport Configuration
-     *
-     * Defines how emails are sent from the KMP application.
-     * Supports multiple transport methods for different environments.
-     *
-     * Transport Types:
-     * - Mail: PHP's built-in mail() function (simple but limited)
-     * - Smtp: SMTP server connection (recommended for production)
-     * - Debug: Development mode - captures emails without sending
-     *
-     * Security Considerations:
-     * - Use TLS encryption for production SMTP
-     * - Store credentials in environment variables
-     * - Consider using authenticated SMTP services
-     *
-     * Environment Variables:
-     * - EMAIL_TRANSPORT_DEFAULT_URL: Complete transport configuration URL
-     * - SMTP_HOST, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD: Individual settings
-     *
-     * KMP Usage:
-     * - Member notifications and communications
-     * - System alerts and reports
-     * - Password reset and verification emails
-     *
-     * @example Production SMTP: EMAIL_TRANSPORT_DEFAULT_URL=smtp://user:pass@smtp.gmail.com:587?tls=true
-     * @example Development: Use Debug transport to capture emails without sending
-     */
+    /** @see docs/8.1-environment-setup.md#email-configuration */
     "EmailTransport" => [
         /** @var array Default email transport configuration */
         "default" => [
@@ -420,31 +229,7 @@ return [
         ],
     ],
 
-    /**
-     * Email Delivery Profiles
-     *
-     * Delivery profiles combine transport configuration with message defaults.
-     * This separation allows reusing transports across different message types.
-     *
-     * Profile Configuration:
-     * - transport: Which transport configuration to use
-     * - from: Default sender address and name
-     * - charset: Character encoding for email content
-     * - headerCharset: Character encoding for email headers
-     *
-     * KMP Email Usage:
-     * - System notifications (activity approvals, awards, etc.)
-     * - Member communications
-     * - Administrative alerts
-     * - Automated reports
-     *
-     * Environment Variables:
-     * - EMAIL_FROM_ADDRESS: Default sender email address
-     * - EMAIL_FROM_NAME: Default sender display name
-     *
-     * @example Set sender: EMAIL_FROM_ADDRESS=noreply@kingdom.example.com
-     * @example Multiple profiles for different message types
-     */
+    /** @see docs/8.1-environment-setup.md#email-configuration */
     "Email" => [
         /** @var array Default email delivery profile */
         "default" => [
@@ -462,42 +247,7 @@ return [
         ],
     ],
 
-    /**
-     * Database Connection Configuration
-     *
-     * Defines how the application connects to database systems.
-     * KMP uses MySQL/MariaDB for primary data storage with optimized settings.
-     *
-     * Connection Strategy:
-     * - Non-persistent connections for better resource management
-     * - UTC timezone for consistent date/time handling
-     * - Full UTF-8 support with utf8mb4 encoding
-     * - Metadata caching for improved ORM performance
-     *
-     * Environment-Specific Configuration:
-     * - Production settings in app_local.php override these defaults
-     * - Environment variables provide flexible deployment options
-     * - Test connection uses separate database for isolation
-     *
-     * Performance Optimizations:
-     * - Metadata caching reduces schema lookups
-     * - Query logging disabled by default (enable for debugging)
-     * - Connection pooling through non-persistent connections
-     *
-     * Security Features:
-     * - Identifier quoting available for reserved words
-     * - PDO flags for secure connection options
-     * - Timezone set to UTC prevents time zone attacks
-     *
-     * Environment Variables:
-     * - DATABASE_URL: Complete connection string
-     * - DB_HOST, DB_NAME, DB_USERNAME, DB_PASSWORD: Individual components
-     * - DB_ENCODING: Character set (default: utf8mb4)
-     * - DB_TIMEZONE: Database timezone (default: UTC)
-     *
-     * @example Production URL: DATABASE_URL=mysql://user:pass@localhost/kmp_production?encoding=utf8mb4
-     * @example Enable query logging: 'log' => true (development only)
-     */
+    /** @see docs/2-configuration.md#database-configuration and docs/8.1-environment-setup.md#database-configuration */
     "Datasources" => [
         /**
          * Default Database Connection
@@ -578,41 +328,7 @@ return [
         ],
     ],
 
-    /**
-     * Logging Configuration
-     *
-     * Multi-channel logging system for comprehensive application monitoring.
-     * Separates different types of logs for easier analysis and debugging.
-     *
-     * Log Channels:
-     * 1. debug: Development information, notices, and debug messages
-     * 2. error: Production errors, warnings, and critical issues
-     * 3. queries: Database query logging (when enabled)
-     *
-     * Log Levels (in order of severity):
-     * - emergency: System unusable
-     * - alert: Immediate action required
-     * - critical: Critical conditions
-     * - error: Error conditions
-     * - warning: Warning conditions
-     * - notice: Normal but significant
-     * - info: Informational messages
-     * - debug: Debug-level messages
-     *
-     * KMP Logging Strategy:
-     * - Separate files prevent log mixing and simplify analysis
-     * - File rotation handled by system or deployment tools
-     * - Query logging available for performance debugging
-     * - Environment-specific URLs allow external log aggregation
-     *
-     * Environment Variables:
-     * - LOG_DEBUG_URL: External service for debug logs
-     * - LOG_ERROR_URL: External service for error logs
-     * - LOG_QUERIES_URL: External service for query logs
-     *
-     * @example Enable query logging in datasource: 'log' => true
-     * @example External logging: LOG_ERROR_URL=syslog://localhost:514
-     */
+    /** @see docs/8.1-environment-setup.md#logging-configuration */
     "Log" => [
         /**
          * Debug Log Channel
@@ -695,82 +411,9 @@ return [
 
     /*
      * Session configuration.
-     *
-     * Contains an array of settings to use for session configuration. The
-     * `defaults` key is used to define a default preset to use for sessions, any
-     * settings declared here will override the settings of the default config.
-     *
-     * ## Options
-     *
-     * - `cookie` - The name of the cookie to use. Defaults to value set for `session.name` php.ini config.
-     *    Avoid using `.` in cookie names, as PHP will drop sessions from cookies with `.` in the name.
-     * - `cookiePath` - The url path for which session cookie is set. Maps to the
-     *   `session.cookie_path` php.ini config. Defaults to base path of app.
-     * - `timeout` - The time in minutes the session should be valid for.
-     *    Pass 0 to disable checking timeout.
-     *    Please note that php.ini's session.gc_maxlifetime must be equal to or greater
-     *    than the largest Session['timeout'] in all served websites for it to have the
-     *    desired effect.
-     * - `defaults` - The default configuration set to use as a basis for your session.
-     *    There are four built-in options: php, cake, cache, database.
-     * - `handler` - Can be used to enable a custom session handler. Expects an
-     *    array with at least the `engine` key, being the name of the Session engine
-     *    class to use for managing the session. CakePHP bundles the `CacheSession`
-     *    and `DatabaseSession` engines.
-     * - `ini` - An associative array of additional 'session.*` ini values to set.
-     *
-     * The built-in `defaults` options are:
-     *
-     * - 'php' - Uses settings defined in your php.ini.
-     * - 'cake' - Saves session files in CakePHP's /tmp directory.
-     * - 'database' - Uses CakePHP's database sessions.
-     * - 'cache' - Use the Cache class to save sessions.
-     *
-     * To define a custom session handler, save it at src/Http/Session/<name>.php.
-     * Make sure the class implements PHP's `SessionHandlerInterface` and set
-     * Session.handler to <name>
-     *
-    /**
-     * Session Configuration
-     *
-     * Secure session management configuration for user authentication and state.
-     * Implements security best practices to protect against session attacks.
-     *
-     * Security Features:
-     * - HTTP-only cookies prevent JavaScript access
-     * - Secure cookies require HTTPS connections
-     * - SameSite=Strict prevents CSRF attacks
-     * - Strict mode validates session IDs
-     *
-     * Session Handlers:
-     * - php: Uses PHP's default session handling (files)
-     * - cake: CakePHP file-based sessions in tmp/sessions/
-     * - database: Database-backed sessions (requires sessions table)
-     * - cache: Cache-backed sessions using configured cache
-     *
-     * KMP Session Strategy:
-     * - 30-minute timeout balances security and usability
-     * - Secure settings protect sensitive member data
-     * - PHP default handler for simplicity and performance
-     *
-     * Database Sessions:
-     * To use database sessions:
-     * 1. Load SQL schema: config/schema/sessions.sql
-     * 2. Set defaults to 'database'
-     * 3. Configure database connection
-     *
-     * Custom Session Handlers:
-     * Implement SessionHandlerInterface in src/Http/Session/
-     * 
-     * Environment Variables:
-     * - SESSION_TIMEOUT: Session duration in minutes
-     * - SESSION_SECURE: Force secure cookies (boolean)
-     * - SESSION_NAME: Custom session cookie name
-     *
-     * @example Database sessions: 'defaults' => 'database'
-     * @example Cache sessions: 'defaults' => 'cache'
-     * @example Custom timeout: SESSION_TIMEOUT=60
+     * @see docs/7.1-security-best-practices.md#session-security-configuration
      */
+    /** @see docs/7.1-security-best-practices.md#session-security-configuration */
     "Session" => [
         /** @var string Session handler type */
         "defaults" => "php",
@@ -797,130 +440,102 @@ return [
         ],
     ],
 
+    'Icon' => [
+        /** @see docs/9.2-bootstrap-icons.md */
+        'sets' => [
+            /** @var array Bootstrap Icons configuration */
+            'bs' => [
+                /** @var string Icon rendering class */
+                'class' => BootstrapIcon::class,
+
+                /** @var string Path to icon definitions JSON file */
+                'path' => WWW_ROOT . 'assets/bootstrap-icons/font/bootstrap-icons.json',
+            ],
+        ],
+    ],
     /**
-     * Icon Configuration
-     *
-     * Bootstrap Icons integration for the KMP user interface.
-     * Provides scalable vector icons for consistent visual design.
-     *
-     * Icon Set Configuration:
-     * - 'bs': Bootstrap Icons set identifier
-     * - class: Icon rendering class from Templating plugin
-     * - path: JSON file containing icon definitions and metadata
-     *
-     * KMP Icon Usage:
-     * - Navigation elements and menus
-     * - Action buttons and form controls
-     * - Status indicators and badges
-     * - Data visualization elements
-     *
-     * Icon Integration:
-     * Icons are rendered through the Templating plugin's BootstrapIcon class.
-     * The JSON file contains icon names, SVG paths, and metadata for rendering.
-     * 
-     * Asset Management:
-     * Bootstrap Icons are included in the webroot/assets/ directory and
-     * managed through the application's asset pipeline.
-     *
-     * @example Usage in templates: <?= $this->Icon->render('person-fill', ['set' => 'bs']) ?>
-* */
-'Icon' => [
-/** @var array Icon set configurations */
-'sets' => [
-/** @var array Bootstrap Icons configuration */
-'bs' => [
-/** @var string Icon rendering class */
-'class' => BootstrapIcon::class,
+     * Document Management Configuration
+     * @see docs/4.7-document-management-system.md#storage-configuration
+     */
+    'Documents' => [
+        /**
+         * Storage Configuration
+         *
+         * Select the storage adapter and configure adapter-specific settings.
+         * Each adapter has its own configuration block with only the relevant options.
+         */
+        'storage' => [
+            /**
+             * Active Storage Adapter
+             *
+             * Options: 'local' or 'azure'
+             * - local: Stores files in the local filesystem
+             * - azure: Stores files in Azure Blob Storage
+             */
+            'adapter' => 'local',
 
-/** @var string Path to icon definitions JSON file */
-'path' => WWW_ROOT . 'assets/bootstrap-icons/font/bootstrap-icons.json',
-],
-],
-],
-/**
-* Document Management Configuration
-*
-* Controls document storage, upload limits, and file handling behavior.
-*/
-'Documents' => [
-/**
-* Storage Configuration
-*
-* Select the storage adapter and configure adapter-specific settings.
-* Each adapter has its own configuration block with only the relevant options.
-*/
-'storage' => [
-/**
-* Active Storage Adapter
-*
-* Options: 'local' or 'azure'
-* - local: Stores files in the local filesystem
-* - azure: Stores files in Azure Blob Storage
-*/
-'adapter' => 'local',
+            /**
+             * Local Filesystem Adapter Configuration
+             *
+             * Used when adapter is set to 'local'.
+             */
+            'local' => [
+                /**
+                 * Base path for storing uploaded documents
+                 *
+                 * Default: ROOT/images/uploaded
+                 */
+                'path' => ROOT . DS . 'images' . DS . 'uploaded',
+            ],
 
-/**
-* Local Filesystem Adapter Configuration
-*
-* Used when adapter is set to 'local'.
-*/
-'local' => [
-/**
-* Base path for storing uploaded documents
-*
-* Default: ROOT/images/uploaded
-*/
-'path' => ROOT . DS . 'images' . DS . 'uploaded',
-],
+            /**
+             * Azure Blob Storage Adapter Configuration
+             *
+             * Used when adapter is set to 'azure'.
+             */
+            'azure' => [
+                /**
+                 * Azure Storage Connection String
+                 *
+                 * Format: DefaultEndpointsProtocol=https;AccountName=...;AccountKey=...;EndpointSuffix=core.windows.net
+                 * Should be set via environment variable AZURE_STORAGE_CONNECTION_STRING
+                 */
+                'connectionString' => env('AZURE_STORAGE_CONNECTION_STRING'),
 
-/**
-* Azure Blob Storage Adapter Configuration
-*
-* Used when adapter is set to 'azure'.
-*/
-'azure' => [
-/**
-* Azure Storage Connection String
-*
-* Format: DefaultEndpointsProtocol=https;AccountName=...;AccountKey=...;EndpointSuffix=core.windows.net
-* Should be set via environment variable AZURE_STORAGE_CONNECTION_STRING
-*/
-'connectionString' => env('AZURE_STORAGE_CONNECTION_STRING'),
+                /**
+                 * Azure Blob Container Name
+                 *
+                 * The name of the container where documents will be stored.
+                 * Default: 'documents'
+                 */
+                'container' => 'documents',
 
-/**
-* Azure Blob Container Name
-*
-* The name of the container where documents will be stored.
-* Default: 'documents'
-*/
-'container' => 'documents',
+                /**
+                 * Path Prefix (optional)
+                 *
+                 * Optional prefix to prepend to all file paths within the container.
+                 * Useful for organizing files or supporting multiple environments in one container.
+                 * Default: '' (no prefix)
+                 */
+                'prefix' => '',
+            ],
+        ],
 
-/**
-* Path Prefix (optional)
-*
-* Optional prefix to prepend to all file paths within the container.
-* Useful for organizing files or supporting multiple environments in one container.
-* Default: '' (no prefix)
-*/
-'prefix' => '',
-],
-],
-
-/**
-* Maximum File Size (bytes)
-*
-* Files larger than this limit will be rejected during upload to prevent
-* memory exhaustion. The entire file is loaded into memory for checksum
-* calculation and storage operations.
-*
-* Common values:
-* - 10 MB: 10 * 1024 * 1024
-* - 50 MB: 50 * 1024 * 1024 (default)
-* - 100 MB: 100 * 1024 * 1024
-*
-* Note: Also ensure PHP's upload_max_filesize and post_max_size are set
-* appropriately in php.ini to handle files of this size.
-*/
-'maxFileSize' => 50 * 1024 * 1024, // 50 MB
-],
+        /**
+         * Maximum File Size (bytes)
+         *
+         * Files larger than this limit will be rejected during upload to prevent
+         * memory exhaustion. The entire file is loaded into memory for checksum
+         * calculation and storage operations.
+         *
+         * Common values:
+         * - 10 MB: 10 * 1024 * 1024
+         * - 50 MB: 50 * 1024 * 1024 (default)
+         * - 100 MB: 100 * 1024 * 1024
+         *
+         * Note: Also ensure PHP's upload_max_filesize and post_max_size are set
+         * appropriately in php.ini to handle files of this size.
+         */
+        'maxFileSize' => 50 * 1024 * 1024, // 50 MB
+    ],
 ];

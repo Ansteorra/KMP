@@ -15,118 +15,13 @@ use IntlDateFormatter;
 use Locale;
 
 /**
- * Timezone View Helper
+ * Timezone View Helper for template-friendly datetime formatting.
  *
- * Provides template-friendly wrappers for timezone conversion and formatting.
- * This helper integrates with the TimezoneHelper service class to provide
- * easy-to-use methods for displaying dates and times in the user's timezone.
+ * Provides wrappers for timezone conversion and display methods:
+ * format(), date(), time(), forInput(), range(), smartRange(),
+ * getUserTimezone(), getAbbreviation().
  *
- * ## Usage in Templates
- *
- * ### Basic Display
- * ```php
- * <!-- Display datetime in user's timezone -->
- * <?= $this->Timezone->format($gathering->start_date) ?>
- * // Output: "March 15, 2025 9:00 AM"
- *
- *
-<!-- With timezone abbreviation -->
- * <?= $this->Timezone->format($gathering->start_date, null, true) ?>
- * // Output: "March 15, 2025 9:00 AM CDT"
- * ```
- *
- * ### Custom Formats
- * ```php
- *
-<!-- Custom format string -->
- * <?= $this->Timezone->format($gathering->start_date, 'l, F j, Y') ?>
- * // Output: "Saturday, March 15, 2025"
- *
- *
-<!-- Date only -->
- * <?= $this->Timezone->date($gathering->start_date) ?>
- * // Output: "March 15, 2025"
- *
- *
-<!-- Time only -->
- * <?= $this->Timezone->time($gathering->start_date) ?>
- * // Output: "9:00 AM"
- * ```
- *
- * ### Form Inputs
- * ```php
- *
-<!-- Convert UTC to user timezone for datetime input -->
- * <?= $this->Form->control('start_date', [
- *     'type' => 'datetime-local',
- *     'value' => $this->Timezone->forInput($entity->start_date)
- * ]) ?>
- *
- *
-<!-- With custom format for input -->
- * <?= $this->Form->control('start_date', [
- *     'type' => 'text',
- *     'value' => $this->Timezone->forInput($entity->start_date, 'Y-m-d\TH:i')
- * ]) ?>
- * ```
- *
- * ### Displaying Ranges
- * ```php
- *
-<!-- Date range -->
- * <?= $this->Timezone->range($gathering->start_date, $gathering->end_date) ?>
- * // Output: "March 15, 2025 9:00 AM - March 17, 2025 5:00 PM"
- *
- *
-<!-- Smart range (same day shows time range only) -->
- * <?= $this->Timezone->smartRange($activity->start_datetime, $activity->end_datetime) ?>
- * // Output: "March 15, 2025 9:00 AM - 5:00 PM" (same day)
- * // Output: "March 15, 2025 - March 16, 2025" (different days, date only)
- * ```
- *
- * ### Timezone Information
- * ```php
- *
-<!-- Show user's current timezone -->
- * <p>Times shown in: <?= $this->Timezone->getUserTimezone() ?></p>
- * // Output: "Times shown in: America/Chicago"
- *
- *
-<!-- Show timezone abbreviation -->
- * <p>Times shown in <?= $this->Timezone->getAbbreviation() ?></p>
- * // Output: "Times shown in CDT"
- * ```
- *
- * ## Integration with Current User
- *
- * The helper automatically uses the current authenticated user's timezone
- * preference from the session/identity. You can override this:
- *
- * ```php
- *
-<!-- Use specific member's timezone -->
- * <?= $this->Timezone->format($gathering->start_date, null, false, $otherMember) ?>
- * ```
- *
- * ## Form Helper Integration
- *
- * When users submit forms with datetime values, convert back to UTC:
- * ```php
- * // In controller, before save:
- * use App\KMP\TimezoneHelper;
- *
- * if ($this->request->is(['post', 'put'])) {
- * $data = $this->request->getData();
- *
- * // Convert user's timezone input to UTC for storage
- * $data['start_date'] = TimezoneHelper::toUtc(
- * $data['start_date'],
- * TimezoneHelper::getUserTimezone($this->Authentication->getIdentity())
- * );
- *
- * $gathering = $this->Gatherings->patchEntity($gathering, $data);
- * }
- * ```
+ * Integrates with \App\KMP\TimezoneHelper service for actual conversions.
  *
  * @property \Cake\View\Helper\FormHelper $Form
  * @see \App\KMP\TimezoneHelper Core timezone conversion logic

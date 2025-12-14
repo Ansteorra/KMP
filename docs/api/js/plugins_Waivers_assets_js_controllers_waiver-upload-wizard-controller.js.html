@@ -1,0 +1,1167 @@
+<!DOCTYPE html><html lang="en" style="font-size:16px"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Source: plugins/Waivers/assets/js/controllers/waiver-upload-wizard-controller.js</title><!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]--><script src="scripts/third-party/hljs.js" defer="defer"></script><script src="scripts/third-party/hljs-line-num.js" defer="defer"></script><script src="scripts/third-party/popper.js" defer="defer"></script><script src="scripts/third-party/tippy.js" defer="defer"></script><script src="scripts/third-party/tocbot.min.js"></script><script>var baseURL="/",locationPathname="";baseURL=(locationPathname=document.location.pathname).substr(0,locationPathname.lastIndexOf("/")+1)</script><link rel="stylesheet" href="styles/clean-jsdoc-theme.min.css"><svg aria-hidden="true" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="display:none"><defs><symbol id="copy-icon" viewbox="0 0 488.3 488.3"><g><path d="M314.25,85.4h-227c-21.3,0-38.6,17.3-38.6,38.6v325.7c0,21.3,17.3,38.6,38.6,38.6h227c21.3,0,38.6-17.3,38.6-38.6V124    C352.75,102.7,335.45,85.4,314.25,85.4z M325.75,449.6c0,6.4-5.2,11.6-11.6,11.6h-227c-6.4,0-11.6-5.2-11.6-11.6V124    c0-6.4,5.2-11.6,11.6-11.6h227c6.4,0,11.6,5.2,11.6,11.6V449.6z"/><path d="M401.05,0h-227c-21.3,0-38.6,17.3-38.6,38.6c0,7.5,6,13.5,13.5,13.5s13.5-6,13.5-13.5c0-6.4,5.2-11.6,11.6-11.6h227    c6.4,0,11.6,5.2,11.6,11.6v325.7c0,6.4-5.2,11.6-11.6,11.6c-7.5,0-13.5,6-13.5,13.5s6,13.5,13.5,13.5c21.3,0,38.6-17.3,38.6-38.6    V38.6C439.65,17.3,422.35,0,401.05,0z"/></g></symbol><symbol id="search-icon" viewBox="0 0 512 512"><g><g><path d="M225.474,0C101.151,0,0,101.151,0,225.474c0,124.33,101.151,225.474,225.474,225.474    c124.33,0,225.474-101.144,225.474-225.474C450.948,101.151,349.804,0,225.474,0z M225.474,409.323    c-101.373,0-183.848-82.475-183.848-183.848S124.101,41.626,225.474,41.626s183.848,82.475,183.848,183.848    S326.847,409.323,225.474,409.323z"/></g></g><g><g><path d="M505.902,476.472L386.574,357.144c-8.131-8.131-21.299-8.131-29.43,0c-8.131,8.124-8.131,21.306,0,29.43l119.328,119.328    c4.065,4.065,9.387,6.098,14.715,6.098c5.321,0,10.649-2.033,14.715-6.098C514.033,497.778,514.033,484.596,505.902,476.472z"/></g></g></symbol><symbol id="font-size-icon" viewBox="0 0 24 24"><path fill="none" d="M0 0h24v24H0z"/><path d="M11.246 15H4.754l-2 5H.6L7 4h2l6.4 16h-2.154l-2-5zm-.8-2L8 6.885 5.554 13h4.892zM21 12.535V12h2v8h-2v-.535a4 4 0 1 1 0-6.93zM19 18a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/></symbol><symbol id="add-icon" viewBox="0 0 24 24"><path fill="none" d="M0 0h24v24H0z"/><path d="M11 11V5h2v6h6v2h-6v6h-2v-6H5v-2z"/></symbol><symbol id="minus-icon" viewBox="0 0 24 24"><path fill="none" d="M0 0h24v24H0z"/><path d="M5 11h14v2H5z"/></symbol><symbol id="dark-theme-icon" viewBox="0 0 24 24"><path fill="none" d="M0 0h24v24H0z"/><path d="M10 7a7 7 0 0 0 12 4.9v.1c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2h.1A6.979 6.979 0 0 0 10 7zm-6 5a8 8 0 0 0 15.062 3.762A9 9 0 0 1 8.238 4.938 7.999 7.999 0 0 0 4 12z"/></symbol><symbol id="light-theme-icon" viewBox="0 0 24 24"><path fill="none" d="M0 0h24v24H0z"/><path d="M12 18a6 6 0 1 1 0-12 6 6 0 0 1 0 12zm0-2a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM11 1h2v3h-2V1zm0 19h2v3h-2v-3zM3.515 4.929l1.414-1.414L7.05 5.636 5.636 7.05 3.515 4.93zM16.95 18.364l1.414-1.414 2.121 2.121-1.414 1.414-2.121-2.121zm2.121-14.85l1.414 1.415-2.121 2.121-1.414-1.414 2.121-2.121zM5.636 16.95l1.414 1.414-2.121 2.121-1.414-1.414 2.121-2.121zM23 11v2h-3v-2h3zM4 11v2H1v-2h3z"/></symbol><symbol id="reset-icon" viewBox="0 0 24 24"><path fill="none" d="M0 0h24v24H0z"/><path d="M18.537 19.567A9.961 9.961 0 0 1 12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10c0 2.136-.67 4.116-1.81 5.74L17 12h3a8 8 0 1 0-2.46 5.772l.997 1.795z"/></symbol><symbol id="down-icon" viewBox="0 0 16 16"><path fill-rule="evenodd" clip-rule="evenodd" d="M12.7803 6.21967C13.0732 6.51256 13.0732 6.98744 12.7803 7.28033L8.53033 11.5303C8.23744 11.8232 7.76256 11.8232 7.46967 11.5303L3.21967 7.28033C2.92678 6.98744 2.92678 6.51256 3.21967 6.21967C3.51256 5.92678 3.98744 5.92678 4.28033 6.21967L8 9.93934L11.7197 6.21967C12.0126 5.92678 12.4874 5.92678 12.7803 6.21967Z"></path></symbol><symbol id="codepen-icon" viewBox="0 0 24 24"><path fill="none" d="M0 0h24v24H0z"/><path d="M16.5 13.202L13 15.535v3.596L19.197 15 16.5 13.202zM14.697 12L12 10.202 9.303 12 12 13.798 14.697 12zM20 10.869L18.303 12 20 13.131V10.87zM19.197 9L13 4.869v3.596l3.5 2.333L19.197 9zM7.5 10.798L11 8.465V4.869L4.803 9 7.5 10.798zM4.803 15L11 19.131v-3.596l-3.5-2.333L4.803 15zM4 13.131L5.697 12 4 10.869v2.262zM2 9a1 1 0 0 1 .445-.832l9-6a1 1 0 0 1 1.11 0l9 6A1 1 0 0 1 22 9v6a1 1 0 0 1-.445.832l-9 6a1 1 0 0 1-1.11 0l-9-6A1 1 0 0 1 2 15V9z"/></symbol><symbol id="close-icon" viewBox="0 0 24 24"><path fill="none" d="M0 0h24v24H0z"/><path d="M12 10.586l4.95-4.95 1.414 1.414-4.95 4.95 4.95 4.95-1.414 1.414-4.95-4.95-4.95 4.95-1.414-1.414 4.95-4.95-4.95-4.95L7.05 5.636z"/></symbol><symbol id="menu-icon" viewBox="0 0 24 24"><path fill="none" d="M0 0h24v24H0z"/><path d="M3 4h18v2H3V4zm0 7h18v2H3v-2zm0 7h18v2H3v-2z"/></symbol></defs></svg></head><body data-theme="dark"><div class="sidebar-container"><div class="sidebar" id="sidebar"><a href="/" class="sidebar-title sidebar-title-anchor">KMP JavaScript API</a><div class="sidebar-items-container"><div class="sidebar-section-title with-arrow" data-isopen="false" id="sidebar-classes"><div>Classes</div><svg><use xlink:href="#down-icon"></use></svg></div><div class="sidebar-section-children-container"><div class="sidebar-section-children"><a href="ActivitiesApproveAndAssignAuthorization.html">ActivitiesApproveAndAssignAuthorization</a></div><div class="sidebar-section-children"><a href="ActivitiesRenewAuthorization.html">ActivitiesRenewAuthorization</a></div><div class="sidebar-section-children"><a href="ActivityToggleController.html">ActivityToggleController</a></div><div class="sidebar-section-children"><a href="ActivityWaiverManagerController.html">ActivityWaiverManagerController</a></div><div class="sidebar-section-children"><a href="AddActivityModalController.html">AddActivityModalController</a></div><div class="sidebar-section-children"><a href="AppSettingForm.html">AppSettingForm</a></div><div class="sidebar-section-children"><a href="AppSettingModalController.html">AppSettingModalController</a></div><div class="sidebar-section-children"><a href="AutoComplete.html">AutoComplete</a></div><div class="sidebar-section-children"><a href="AwardsAwardForm.html">AwardsAwardForm</a></div><div class="sidebar-section-children"><a href="AwardsRecommendationAddForm.html">AwardsRecommendationAddForm</a></div><div class="sidebar-section-children"><a href="AwardsRecommendationBulkEditForm.html">AwardsRecommendationBulkEditForm</a></div><div class="sidebar-section-children"><a href="AwardsRecommendationEditForm.html">AwardsRecommendationEditForm</a></div><div class="sidebar-section-children"><a href="AwardsRecommendationQuickEditForm.html">AwardsRecommendationQuickEditForm</a></div><div class="sidebar-section-children"><a href="AwardsRecommendationTable.html">AwardsRecommendationTable</a></div><div class="sidebar-section-children"><a href="BaseGatheringFormController.html">BaseGatheringFormController</a></div><div class="sidebar-section-children"><a href="BrancheLinks.html">BrancheLinks</a></div><div class="sidebar-section-children"><a href="CameraCaptureController.html">CameraCaptureController</a></div><div class="sidebar-section-children"><a href="CodeEditorController.html">CodeEditorController</a></div><div class="sidebar-section-children"><a href="CsvDownloadController.html">CsvDownloadController</a></div><div class="sidebar-section-children"><a href="DelayForwardController.html">DelayForwardController</a></div><div class="sidebar-section-children"><a href="DeleteConfirmationController.html">DeleteConfirmationController</a></div><div class="sidebar-section-children"><a href="DetailTabsController.html">DetailTabsController</a></div><div class="sidebar-section-children"><a href="EditActivityDescriptionController.html">EditActivityDescriptionController</a></div><div class="sidebar-section-children"><a href="EmailTemplateEditorController.html">EmailTemplateEditorController</a></div><div class="sidebar-section-children"><a href="EmailTemplateFormController.html">EmailTemplateFormController</a></div><div class="sidebar-section-children"><a href="ExemptionReasonsController.html">ExemptionReasonsController</a></div><div class="sidebar-section-children"><a href="FileSizeValidatorController.html">FileSizeValidatorController</a></div><div class="sidebar-section-children"><a href="FilterGrid.html">FilterGrid</a></div><div class="sidebar-section-children"><a href="GWSharingController.html">GWSharingController</a></div><div class="sidebar-section-children"><a href="GatheringCloneController.html">GatheringCloneController</a></div><div class="sidebar-section-children"><a href="GatheringFormController.html">GatheringFormController</a></div><div class="sidebar-section-children"><a href="GatheringLocationAutocompleteController.html">GatheringLocationAutocompleteController</a></div><div class="sidebar-section-children"><a href="GatheringMapController.html">GatheringMapController</a></div><div class="sidebar-section-children"><a href="GatheringScheduleController.html">GatheringScheduleController</a></div><div class="sidebar-section-children"><a href="GatheringTypeFormController.html">GatheringTypeFormController</a></div><div class="sidebar-section-children"><a href="GatheringsCalendarController.html">GatheringsCalendarController</a></div><div class="sidebar-section-children"><a href="GitHubSubmitter.html">GitHubSubmitter</a></div><div class="sidebar-section-children"><a href="GridViewController.html">GridViewController</a></div><div class="sidebar-section-children"><a href="GuifierController.html">GuifierController</a></div><div class="sidebar-section-children"><a href="HelloWorldController.html">HelloWorldController</a></div><div class="sidebar-section-children"><a href="HelloWorldController.html">HelloWorldController</a></div><div class="sidebar-section-children"><a href="ImagePreview.html">ImagePreview</a></div><div class="sidebar-section-children"><a href="Kanban.html">Kanban</a></div><div class="sidebar-section-children"><a href="MarkdownEditorController.html">MarkdownEditorController</a></div><div class="sidebar-section-children"><a href="MemberCardProfile.html">MemberCardProfile</a></div><div class="sidebar-section-children"><a href="MemberMobileCardMenu.html">MemberMobileCardMenu</a></div><div class="sidebar-section-children"><a href="MemberMobileCardPWA.html">MemberMobileCardPWA</a></div><div class="sidebar-section-children"><a href="MemberMobileCardProfile.html">MemberMobileCardProfile</a></div><div class="sidebar-section-children"><a href="MemberUniqueEmail.html">MemberUniqueEmail</a></div><div class="sidebar-section-children"><a href="MemberVerifyForm.html">MemberVerifyForm</a></div><div class="sidebar-section-children"><a href="MobileOfflineOverlayController.html">MobileOfflineOverlayController</a></div><div class="sidebar-section-children"><a href="MobileRequestAuthController.html">MobileRequestAuthController</a></div><div class="sidebar-section-children"><a href="ModalOpener.html">ModalOpener</a></div><div class="sidebar-section-children"><a href="NavBarController.html">NavBarController</a></div><div class="sidebar-section-children"><a href="OutletButton.html">OutletButton</a></div><div class="sidebar-section-children"><a href="PermissionAddRole.html">PermissionAddRole</a></div><div class="sidebar-section-children"><a href="PermissionManagePolicies.html">PermissionManagePolicies</a></div><div class="sidebar-section-children"><a href="PopoverController.html">PopoverController</a></div><div class="sidebar-section-children"><a href="QrcodeController.html">QrcodeController</a></div><div class="sidebar-section-children"><a href="RecommendationKanbanController.html">RecommendationKanbanController</a></div><div class="sidebar-section-children"><a href="RetentionPolicyInputController.html">RetentionPolicyInputController</a></div><div class="sidebar-section-children"><a href="RevokeForm.html">RevokeForm</a></div><div class="sidebar-section-children"><a href="RoleAddMember.html">RoleAddMember</a></div><div class="sidebar-section-children"><a href="RoleAddPermission.html">RoleAddPermission</a></div><div class="sidebar-section-children"><a href="SecurityDebugController.html">SecurityDebugController</a></div><div class="sidebar-section-children"><a href="SelectAllListController.html">SelectAllListController</a></div><div class="sidebar-section-children"><a href="SessionExtender.html">SessionExtender</a></div><div class="sidebar-section-children"><a href="SortableListController.html">SortableListController</a></div><div class="sidebar-section-children"><a href="TimezoneInputController.html">TimezoneInputController</a></div><div class="sidebar-section-children"><a href="TurboModal.html">TurboModal</a></div><div class="sidebar-section-children"><a href="VariableInsertController.html">VariableInsertController</a></div><div class="sidebar-section-children"><a href="WaiverAttestationController.html">WaiverAttestationController</a></div><div class="sidebar-section-children"><a href="WaiverTemplateController.html">WaiverTemplateController</a></div><div class="sidebar-section-children"><a href="WaiverUploadController.html">WaiverUploadController</a></div><div class="sidebar-section-children"><a href="WaiverUploadWizardController.html">WaiverUploadWizardController</a></div></div><div class="sidebar-section-title with-arrow" data-isopen="false" id="sidebar-namespaces"><div>Namespaces</div><svg><use xlink:href="#down-icon"></use></svg></div><div class="sidebar-section-children-container"><div class="sidebar-section-children"><a href="KMP_Timezone.html">KMP_Timezone</a></div></div></div></div></div><div class="navbar-container" id="VuAckcnZhf"><nav class="navbar"><div class="navbar-left-items"><div class="navbar-item"><a id="" href="../php/index.html" target="">PHP API</a></div><div class="navbar-item"><a id="" href="../../index.html" target="">Docs Home</a></div></div><div class="navbar-right-items"><div class="navbar-right-item"><button class="icon-button search-button" aria-label="open-search"><svg><use xlink:href="#search-icon"></use></svg></button></div><div class="navbar-right-item"><button class="icon-button theme-toggle" aria-label="toggle-theme"><svg><use class="theme-svg-use" xlink:href="#light-theme-icon"></use></svg></button></div><div class="navbar-right-item"><button class="icon-button font-size" aria-label="change-font-size"><svg><use xlink:href="#font-size-icon"></use></svg></button></div></div><nav></nav></nav></div><div class="toc-container"><div class="toc-content"><span class="bold">On this page</span><div id="eed4d2a0bfd64539bb9df78095dec881"></div></div></div><div class="body-wrapper"><div class="main-content"><div class="main-wrapper"><section id="source-page" class="source-page"><header><h1 id="title" class="has-anchor">plugins_Waivers_assets_js_controllers_waiver-upload-wizard-controller.js</h1></header><article><pre class="prettyprint source lang-js"><code>import { Controller } from "@hotwired/stimulus"
+
+/**
+ * Waiver Upload Wizard Controller
+ * 
+ * Manages a multi-step wizard for uploading waivers:
+ * Step 1: Select activities
+ * Step 2: Select waiver type (filtered by selected activities)
+ * Step 3: Add waiver pages/images
+ * Step 4: Review details
+ * Step 5: Confirmation
+ * 
+ * All data is held client-side until final submission.
+ */
+class WaiverUploadWizardController extends Controller {
+    static targets = [
+        "step",
+        "stepIndicator",
+        "prevButton",
+        "nextButton",
+        "submitButton",
+        "submitButtonText",
+        "activityCheckbox",
+        "waiverTypeOption",
+        "waiverTypeSelect",
+        "pagesList",
+        "pagesPreview",
+        "fileInput",
+        "reviewActivities",
+        "reviewWaiverType",
+        "reviewPageCount",
+        "reviewPagesList",
+        "notesField",
+        "progressBar",
+        "uploadSection",
+        "attestSection",
+        "attestReasonList",
+        "attestNotes",
+        "reviewUploadSection",
+        "reviewAttestSection",
+        "reviewAttestReason",
+        "reviewAttestNotes",
+        "reviewAttestNotesSection",
+        "modeToggle",
+        "step3Lead"
+    ]
+
+    static values = {
+        currentStep: { type: Number, default: 1 },
+        totalSteps: { type: Number, default: 4 },
+        gatheringId: Number,
+        gatheringPublicId: String,
+        maxFileSize: Number,           // Maximum single file size in bytes
+        totalMaxSize: Number,          // Maximum total upload size in bytes
+        preSelectedActivityId: Number, // Pre-selected activity ID from URL
+        preSelectedWaiverTypeId: Number, // Pre-selected waiver type ID from URL
+        attestUrl: String,             // URL for attestation endpoint
+        gatheringViewUrl: String,      // URL for gathering view page
+        mobileSelectUrl: String        // URL for mobile select gathering page
+    }
+
+    connect() {
+        console.log("Waiver Upload Wizard connected")
+        this.uploadedPages = []
+        this.selectedActivities = []
+        this.selectedWaiverType = null
+        this.notes = ""
+        this.isAttestMode = false  // Track if we're in attestation mode
+        this.attestReason = null
+        this.attestNotes = ""
+        
+        // Handle pre-selected values (skip to step 3 if both are provided)
+        if (this.hasPreSelectedActivityIdValue &amp;&amp; this.hasPreSelectedWaiverTypeIdValue) {
+            // Use setTimeout to ensure DOM is fully ready
+            setTimeout(() => {
+                // Pre-select the activity checkbox
+                const activityCheckbox = this.activityCheckboxTargets.find(
+                    cb => parseInt(cb.value) === this.preSelectedActivityIdValue
+                )
+                if (activityCheckbox) {
+                    activityCheckbox.checked = true
+                    // Manually populate selectedActivities array
+                    this.selectedActivities = [{
+                        id: this.preSelectedActivityIdValue,
+                        name: activityCheckbox.dataset.name,
+                        waiverTypes: JSON.parse(activityCheckbox.dataset.waiverTypes || '[]')
+                    }]
+                }
+                
+                // Pre-select the waiver type
+                // Find the waiver type radio button to get both ID and name
+                const waiverTypeRadio = document.querySelector(
+                    `input[name="waiver_type"][value="${this.preSelectedWaiverTypeIdValue}"]`
+                )
+                if (waiverTypeRadio) {
+                    waiverTypeRadio.checked = true
+                    this.selectedWaiverType = {
+                        id: this.preSelectedWaiverTypeIdValue,
+                        name: waiverTypeRadio.dataset.name
+                    }
+                }
+                
+                // Jump directly to step 3 (file upload)
+                this.currentStepValue = 3
+                this.showStep(3)
+                
+                // Explicitly check attestation availability after showing step 3
+                // (in case onStepChange doesn't fire properly)
+                setTimeout(() => {
+                    this.checkAttestationAvailability()
+                }, 150)
+            }, 100)
+        } else {
+            // Normal flow - start at step 1
+            this.showStep(1)
+        }
+    }
+
+    // Step Navigation
+    nextStep() {
+        if (this.validateCurrentStep()) {
+            if (this.currentStepValue &lt; this.totalStepsValue) {
+                this.currentStepValue++
+                this.showStep(this.currentStepValue)
+            }
+        }
+    }
+
+    prevStep() {
+        if (this.currentStepValue > 1) {
+            this.currentStepValue--
+            this.showStep(this.currentStepValue)
+        }
+    }
+
+    goToStep(event) {
+        const step = parseInt(event.currentTarget.dataset.step)
+        if (step &lt; this.currentStepValue) {
+            this.currentStepValue = step
+            this.showStep(this.currentStepValue)
+        }
+    }
+
+    showStep(stepNumber) {
+        // Hide all steps
+        this.stepTargets.forEach(step => {
+            step.classList.add('d-none')
+        })
+
+        // Show current step
+        const currentStep = this.stepTargets.find(step => 
+            parseInt(step.dataset.stepNumber) === stepNumber
+        )
+        if (currentStep) {
+            currentStep.classList.remove('d-none')
+        }
+
+        // Update step indicators
+        this.updateStepIndicators(stepNumber)
+
+        // Update navigation buttons
+        this.updateNavigationButtons(stepNumber)
+
+        // Update progress bar
+        this.updateProgressBar(stepNumber)
+
+        // Perform step-specific actions
+        this.onStepChange(stepNumber)
+    }
+
+    updateStepIndicators(currentStep) {
+        this.stepIndicatorTargets.forEach(indicator => {
+            const step = parseInt(indicator.dataset.step)
+            indicator.classList.remove('active', 'completed')
+            
+            if (step === currentStep) {
+                indicator.classList.add('active')
+            } else if (step &lt; currentStep) {
+                indicator.classList.add('completed')
+            }
+        })
+    }
+
+    updateNavigationButtons(stepNumber) {
+        // Previous button
+        if (this.hasPrevButtonTarget) {
+            if (stepNumber === 1) {
+                this.prevButtonTarget.classList.add('d-none')
+            } else {
+                this.prevButtonTarget.classList.remove('d-none')
+            }
+        }
+
+        // Next button
+        if (this.hasNextButtonTarget) {
+            if (stepNumber === this.totalStepsValue) {
+                this.nextButtonTarget.classList.add('d-none')
+            } else {
+                this.nextButtonTarget.classList.remove('d-none')
+                
+                // Update button text based on step
+                if (stepNumber === 3) {
+                    this.nextButtonTarget.innerHTML = '&lt;i class="bi bi-arrow-right">&lt;/i> Review'
+                } else {
+                    this.nextButtonTarget.innerHTML = '&lt;i class="bi bi-arrow-right">&lt;/i> Next'
+                }
+            }
+        }
+
+        // Submit button
+        if (this.hasSubmitButtonTarget) {
+            if (stepNumber === this.totalStepsValue) {
+                this.submitButtonTarget.classList.remove('d-none')
+                // Update submit button text based on mode
+                if (this.hasSubmitButtonTextTarget) {
+                    this.submitButtonTextTarget.textContent = this.isAttestMode ? 'Submit Attestation' : 'Submit Waivers'
+                }
+            } else {
+                this.submitButtonTarget.classList.add('d-none')
+            }
+        }
+    }
+
+    updateProgressBar(stepNumber) {
+        if (this.hasProgressBarTarget) {
+            const progress = (stepNumber / this.totalStepsValue) * 100
+            this.progressBarTarget.style.width = `${progress}%`
+            this.progressBarTarget.setAttribute('aria-valuenow', progress)
+        }
+    }
+
+    onStepChange(stepNumber) {
+        switch(stepNumber) {
+            case 2:
+                this.updateWaiverTypeOptions()
+                break
+            case 3:
+                this.checkAttestationAvailability()
+                break
+            case 4:
+                this.updateReviewSection()
+                break
+        }
+    }
+
+    // Check if attestation is available for selected waiver type
+    checkAttestationAvailability() {
+        console.log("Checking attestation availability, selectedWaiverType:", this.selectedWaiverType)
+        
+        if (!this.selectedWaiverType) {
+            console.log("No waiver type selected yet")
+            return
+        }
+
+        // Find the waiver type to get exemption reasons
+        const waiverTypeRadio = document.querySelector(
+            `input[name="waiver_type"][value="${this.selectedWaiverType.id}"]`
+        )
+        
+        console.log("Found waiver type radio:", waiverTypeRadio)
+        
+        let exemptionReasons = []
+        if (waiverTypeRadio &amp;&amp; waiverTypeRadio.dataset.exemptionReasons) {
+            try {
+                exemptionReasons = JSON.parse(waiverTypeRadio.dataset.exemptionReasons)
+                console.log("Parsed exemption reasons:", exemptionReasons)
+            } catch (e) {
+                console.error('Failed to parse exemption reasons:', e)
+            }
+        } else {
+            console.log("No exemption reasons data attribute found")
+        }
+
+        // Show/hide mode toggle and update lead text based on exemption reasons availability
+        if (exemptionReasons.length > 0) {
+            console.log("Exemption reasons available - showing toggle")
+            // Has exemption reasons - show toggle
+            if (this.hasModeToggleTarget) {
+                this.modeToggleTarget.classList.remove('d-none')
+            } else {
+                console.log("WARNING: modeToggleTarget not available")
+            }
+            if (this.hasStep3LeadTarget) {
+                this.step3LeadTarget.textContent = 'Add one or more pages to your waiver document, or attest that a waiver is not needed'
+            } else {
+                console.log("WARNING: step3LeadTarget not available")
+            }
+        } else {
+            console.log("No exemption reasons - hiding toggle, forcing upload mode")
+            // No exemption reasons - hide toggle, force upload mode
+            if (this.hasModeToggleTarget) {
+                this.modeToggleTarget.classList.add('d-none')
+            }
+            if (this.hasStep3LeadTarget) {
+                this.step3LeadTarget.textContent = 'Add one or more pages to your waiver document'
+            }
+            // Force upload mode
+            this.isAttestMode = false
+            const uploadRadio = document.getElementById('mode-upload')
+            if (uploadRadio) {
+                uploadRadio.checked = true
+            }
+            if (this.hasUploadSectionTarget &amp;&amp; this.hasAttestSectionTarget) {
+                this.uploadSectionTarget.classList.remove('d-none')
+                this.attestSectionTarget.classList.add('d-none')
+            }
+        }
+
+        // Populate attestation reasons if available
+        if (exemptionReasons.length > 0) {
+            this.populateAttestationReasons()
+        }
+    }
+
+    // Step 3: Mode Toggle (Upload vs Attest)
+    setModeUpload(event) {
+        this.isAttestMode = false
+        if (this.hasUploadSectionTarget &amp;&amp; this.hasAttestSectionTarget) {
+            this.uploadSectionTarget.classList.remove('d-none')
+            this.attestSectionTarget.classList.add('d-none')
+        }
+    }
+
+    setModeAttest(event) {
+        // Verify exemption reasons are available before allowing switch
+        if (!this.selectedWaiverType) return
+
+        const waiverTypeRadio = document.querySelector(
+            `input[name="waiver_type"][value="${this.selectedWaiverType.id}"]`
+        )
+        
+        let exemptionReasons = []
+        if (waiverTypeRadio &amp;&amp; waiverTypeRadio.dataset.exemptionReasons) {
+            try {
+                exemptionReasons = JSON.parse(waiverTypeRadio.dataset.exemptionReasons)
+            } catch (e) {
+                console.error('Failed to parse exemption reasons:', e)
+            }
+        }
+
+        if (exemptionReasons.length === 0) {
+            // No exemption reasons - prevent switching to attest mode
+            this.showError('Attestation is not available for this waiver type.')
+            const uploadRadio = document.getElementById('mode-upload')
+            if (uploadRadio) {
+                uploadRadio.checked = true
+            }
+            return
+        }
+
+        this.isAttestMode = true
+        if (this.hasUploadSectionTarget &amp;&amp; this.hasAttestSectionTarget) {
+            this.uploadSectionTarget.classList.add('d-none')
+            this.attestSectionTarget.classList.remove('d-none')
+        }
+        this.populateAttestationReasons()
+    }
+
+    populateAttestationReasons() {
+        if (!this.hasAttestReasonListTarget || !this.selectedWaiverType) return
+
+        // Find the waiver type to get exemption reasons
+        const waiverTypeRadio = document.querySelector(
+            `input[name="waiver_type"][value="${this.selectedWaiverType.id}"]`
+        )
+        
+        let exemptionReasons = []
+        if (waiverTypeRadio &amp;&amp; waiverTypeRadio.dataset.exemptionReasons) {
+            try {
+                exemptionReasons = JSON.parse(waiverTypeRadio.dataset.exemptionReasons)
+            } catch (e) {
+                console.error('Failed to parse exemption reasons:', e)
+            }
+        }
+
+        if (exemptionReasons.length === 0) {
+            this.attestReasonListTarget.innerHTML = `
+                &lt;div class="alert alert-warning">
+                    &lt;i class="bi bi-exclamation-triangle">&lt;/i>
+                    No exemption reasons have been configured for this waiver type.
+                &lt;/div>
+            `
+            return
+        }
+
+        // Build radio buttons
+        let html = '&lt;div class="list-group">'
+        let hasMatchingSelection = false
+        exemptionReasons.forEach((reason, index) => {
+            const id = `attest_reason_${index}`
+            const isSelected = this.attestReason === reason
+            if (isSelected) {
+                hasMatchingSelection = true
+            }
+            html += `
+                &lt;label class="list-group-item list-group-item-action">
+                    &lt;input class="form-check-input me-2" type="radio" name="attest_reason" 
+                           id="${id}" value="${this.escapeHtml(reason)}"
+                           data-action="change->waiver-upload-wizard#selectAttestReason"
+                           ${isSelected ? 'checked' : ''}>
+                    ${this.escapeHtml(reason)}
+                &lt;/label>
+            `
+        })
+        html += '&lt;/div>'
+
+        this.attestReasonListTarget.innerHTML = html
+        
+        // Clear attestReason if the previously selected reason is not available for the current waiver type
+        if (!hasMatchingSelection) {
+            this.attestReason = null
+        }
+    }
+
+    selectAttestReason(event) {
+        this.attestReason = event.currentTarget.value
+        console.log("Selected attestation reason:", this.attestReason)
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div')
+        div.textContent = text
+        return div.innerHTML
+    }
+
+    // Step 1: Activity Selection
+    toggleActivity(event) {
+        const checkbox = event.currentTarget
+        const activityId = parseInt(checkbox.value)
+        const activityName = checkbox.dataset.name
+
+        if (checkbox.checked) {
+            if (!this.selectedActivities.find(a => a.id === activityId)) {
+                this.selectedActivities.push({
+                    id: activityId,
+                    name: activityName,
+                    waiverTypes: JSON.parse(checkbox.dataset.waiverTypes || '[]')
+                })
+            }
+        } else {
+            this.selectedActivities = this.selectedActivities.filter(a => a.id !== activityId)
+        }
+
+        console.log("Selected activities:", this.selectedActivities)
+    }
+
+    validateStep1() {
+        if (this.selectedActivities.length === 0) {
+            this.showError("Please select at least one activity")
+            return false
+        }
+        return true
+    }
+
+    // Step 2: Waiver Type Selection
+    updateWaiverTypeOptions() {
+        if (!this.hasWaiverTypeSelectTarget) return
+
+        // Get waiver types that are common to all selected activities
+        const commonWaiverTypes = this.getCommonWaiverTypes()
+
+        console.log("Common waiver types:", commonWaiverTypes)
+
+        // Show/hide waiver type options (card divs)
+        this.waiverTypeOptionTargets.forEach(optionCard => {
+            const waiverTypeId = parseInt(optionCard.dataset.waiverTypeId)
+            console.log("Checking waiver type:", waiverTypeId, "in common:", commonWaiverTypes)
+            
+            if (commonWaiverTypes.includes(waiverTypeId)) {
+                optionCard.classList.remove('d-none')
+            } else {
+                optionCard.classList.add('d-none')
+                // Deselect radio button if hidden
+                const radioInput = optionCard.querySelector('input[type="radio"]')
+                if (radioInput &amp;&amp; radioInput.checked) {
+                    radioInput.checked = false
+                }
+            }
+        })
+
+        // If no common waiver types, show warning
+        if (commonWaiverTypes.length === 0) {
+            this.showError("No waiver types are required by all selected activities. Please adjust your activity selection.")
+        }
+    }
+
+    getCommonWaiverTypes() {
+        if (this.selectedActivities.length === 0) return []
+
+        // Start with waiver types from first activity
+        let common = [...this.selectedActivities[0].waiverTypes]
+
+        // Find intersection with other activities
+        for (let i = 1; i &lt; this.selectedActivities.length; i++) {
+            const activityTypes = this.selectedActivities[i].waiverTypes
+            common = common.filter(typeId => activityTypes.includes(typeId))
+        }
+
+        return common
+    }
+
+    selectWaiverType(event) {
+        const option = event.currentTarget
+        this.selectedWaiverType = {
+            id: parseInt(option.value),
+            name: option.dataset.name
+        }
+        console.log("Selected waiver type:", this.selectedWaiverType)
+    }
+
+    validateStep2() {
+        if (!this.selectedWaiverType) {
+            this.showError("Please select a waiver type")
+            return false
+        }
+        return true
+    }
+
+    // Step 3: Add Pages
+    triggerFileInput() {
+        if (this.hasFileInputTarget) {
+            this.fileInputTarget.click()
+        }
+    }
+
+    handleFileSelect(event) {
+        const files = Array.from(event.target.files)
+        
+        // Get max file size (use configured value or fallback to 5MB)
+        const maxFileSize = this.hasMaxFileSizeValue ? this.maxFileSizeValue : (5 * 1024 * 1024)
+        const totalMaxSize = this.hasTotalMaxSizeValue ? this.totalMaxSizeValue : maxFileSize
+        
+        // Calculate current total size
+        const currentTotalSize = this.uploadedPages.reduce((sum, page) => sum + page.size, 0)
+        
+        files.forEach(file => {
+            // Validate file type
+            if (!this.isValidImageFile(file)) {
+                this.showError(`Invalid file type: ${file.name}. Please upload raster images only (JPEG, PNG, GIF, BMP, or WEBP). SVG and TIFF files are not supported.`)
+                return
+            }
+
+            // Validate individual file size
+            if (file.size > maxFileSize) {
+                const maxFormatted = this.formatBytes(maxFileSize)
+                const fileFormatted = this.formatBytes(file.size)
+                this.showError(`File too large: ${file.name} (${fileFormatted}). Maximum size per file is ${maxFormatted}.`)
+                return
+            }
+
+            // Check if adding this file would exceed total size limit
+            const newTotalSize = currentTotalSize + file.size
+            if (newTotalSize > totalMaxSize) {
+                const totalFormatted = this.formatBytes(newTotalSize)
+                const maxFormatted = this.formatBytes(totalMaxSize)
+                const currentFormatted = this.formatBytes(currentTotalSize)
+                const fileFormatted = this.formatBytes(file.size)
+                
+                this.showError(
+                    `Cannot add ${file.name} (${fileFormatted}). ` +
+                    `Current total: ${currentFormatted}. ` +
+                    `Adding this file would exceed the maximum total upload size of ${maxFormatted} ` +
+                    `(would be ${totalFormatted}).`
+                )
+                return
+            }
+
+            // Add to uploaded pages
+            this.addPage(file)
+        })
+
+        // Clear input so same file can be selected again
+        event.target.value = ''
+        
+        // Show total size info if we have files
+        if (this.uploadedPages.length > 0) {
+            this.updateTotalSizeDisplay()
+        }
+    }
+
+    isValidImageFile(file) {
+        const validTypes = [
+            'image/jpeg', 
+            'image/jpg', 
+            'image/png', 
+            'image/gif', 
+            'image/bmp',
+            'image/webp',
+            'image/x-ms-bmp', // Alternative MIME type for BMP
+            'image/x-windows-bmp' // Another BMP variant
+        ]
+        return validTypes.includes(file.type)
+    }
+
+    addPage(file) {
+        const pageNumber = this.uploadedPages.length + 1
+        const reader = new FileReader()
+
+        reader.onload = (e) => {
+            const page = {
+                file: file,
+                dataUrl: e.target.result,
+                number: pageNumber,
+                name: file.name,
+                size: file.size
+            }
+
+            this.uploadedPages.push(page)
+            this.renderPages()
+        }
+
+        reader.readAsDataURL(file)
+    }
+
+    removePage(event) {
+        const index = parseInt(event.currentTarget.dataset.index)
+        this.uploadedPages.splice(index, 1)
+        
+        // Renumber pages
+        this.uploadedPages.forEach((page, idx) => {
+            page.number = idx + 1
+        })
+
+        this.renderPages()
+        
+        // Update total size display after removal
+        if (this.uploadedPages.length > 0) {
+            this.updateTotalSizeDisplay()
+        }
+    }
+
+    renderPages() {
+        if (!this.hasPagesPreviewTarget) return
+
+        if (this.uploadedPages.length === 0) {
+            this.pagesPreviewTarget.innerHTML = `
+                &lt;div class="text-center text-muted py-5">
+                    &lt;i class="bi bi-file-earmark-image" style="font-size: 3rem;">&lt;/i>
+                    &lt;p class="mt-3">No pages added yet&lt;/p>
+                    &lt;p class="small">Click "Add Page" to select images&lt;/p>
+                &lt;/div>
+            `
+            return
+        }
+
+        const html = this.uploadedPages.map((page, index) => `
+            &lt;div class="col-md-4 mb-3">
+                &lt;div class="card">
+                    &lt;div class="card-body p-2">
+                        &lt;div class="d-flex align-items-start">
+                            &lt;div class="flex-shrink-0">
+                                &lt;img src="${page.dataUrl}" 
+                                     class="img-thumbnail" 
+                                     style="width: 100px; height: 130px; object-fit: cover;"
+                                     alt="Page ${page.number}">
+                            &lt;/div>
+                            &lt;div class="flex-grow-1 ms-3">
+                                &lt;div class="d-flex justify-content-between align-items-start">
+                                    &lt;div>
+                                        &lt;strong>Page ${page.number}&lt;/strong>&lt;br>
+                                        &lt;small class="text-muted">${page.name}&lt;/small>&lt;br>
+                                        &lt;small class="text-muted">${this.formatFileSize(page.size)}&lt;/small>
+                                    &lt;/div>
+                                    &lt;button type="button" 
+                                            class="btn btn-sm btn-outline-danger"
+                                            data-index="${index}"
+                                            data-action="click->waiver-upload-wizard#removePage">
+                                        &lt;i class="bi bi-trash">&lt;/i>
+                                    &lt;/button>
+                                &lt;/div>
+                            &lt;/div>
+                        &lt;/div>
+                    &lt;/div>
+                &lt;/div>
+            &lt;/div>
+        `).join('')
+
+        this.pagesPreviewTarget.innerHTML = html
+    }
+
+    formatFileSize(bytes) {
+        if (bytes &lt; 1024) return bytes + ' B'
+        if (bytes &lt; 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+    }
+
+    validateStep3() {
+        if (this.isAttestMode) {
+            // Validate attestation mode
+            if (!this.attestReason) {
+                this.showError("Please select a reason for the exemption")
+                return false
+            }
+            return true
+        } else {
+            // Validate upload mode
+            if (this.uploadedPages.length === 0) {
+                this.showError("Please add at least one page")
+                return false
+            }
+            return true
+        }
+    }
+
+    // Step 4: Review
+    updateReviewSection() {
+        // Activities
+        if (this.hasReviewActivitiesTarget) {
+            const html = this.selectedActivities.map(activity => 
+                `&lt;li>${activity.name}&lt;/li>`
+            ).join('')
+            this.reviewActivitiesTarget.innerHTML = html
+        }
+
+        // Waiver Type
+        if (this.hasReviewWaiverTypeTarget &amp;&amp; this.selectedWaiverType) {
+            this.reviewWaiverTypeTarget.textContent = this.selectedWaiverType.name
+        }
+
+        // Show/hide sections based on mode
+        if (this.isAttestMode) {
+            // Attestation Mode
+            if (this.hasReviewUploadSectionTarget) {
+                this.reviewUploadSectionTarget.classList.add('d-none')
+            }
+            if (this.hasReviewAttestSectionTarget) {
+                this.reviewAttestSectionTarget.classList.remove('d-none')
+            }
+
+            // Display attestation reason
+            if (this.hasReviewAttestReasonTarget) {
+                this.reviewAttestReasonTarget.textContent = this.attestReason || 'Not selected'
+            }
+
+            // Get notes from attest section
+            if (this.hasAttestNotesTarget) {
+                this.attestNotes = this.attestNotesTarget.value
+            }
+
+            // Display attestation notes if provided
+            if (this.hasReviewAttestNotesTarget &amp;&amp; this.hasReviewAttestNotesSectionTarget) {
+                if (this.attestNotes &amp;&amp; this.attestNotes.trim().length > 0) {
+                    this.reviewAttestNotesTarget.textContent = this.attestNotes
+                    this.reviewAttestNotesSectionTarget.classList.remove('d-none')
+                } else {
+                    this.reviewAttestNotesSectionTarget.classList.add('d-none')
+                }
+            }
+        } else {
+            // Upload Mode
+            if (this.hasReviewUploadSectionTarget) {
+                this.reviewUploadSectionTarget.classList.remove('d-none')
+            }
+            if (this.hasReviewAttestSectionTarget) {
+                this.reviewAttestSectionTarget.classList.add('d-none')
+            }
+
+            // Page Count
+            if (this.hasReviewPageCountTarget) {
+                this.reviewPageCountTarget.textContent = this.uploadedPages.length
+            }
+
+            // Pages List
+            if (this.hasReviewPagesListTarget) {
+                const html = this.uploadedPages.map(page => `
+                    &lt;div class="col-md-3 mb-3">
+                        &lt;div class="card">
+                            &lt;img src="${page.dataUrl}" 
+                                 class="card-img-top" 
+                                 style="height: 200px; object-fit: cover;"
+                                 alt="Page ${page.number}">
+                            &lt;div class="card-body p-2 text-center">
+                                &lt;small>Page ${page.number}&lt;/small>
+                            &lt;/div>
+                        &lt;/div>
+                    &lt;/div>
+                `).join('')
+                this.reviewPagesListTarget.innerHTML = html
+            }
+
+            // Get notes if available
+            if (this.hasNotesFieldTarget) {
+                this.notes = this.notesFieldTarget.value
+            }
+        }
+    }
+
+    validateStep4() {
+        // Final validation before submission
+        return this.validateStep1() &amp;&amp; this.validateStep2() &amp;&amp; this.validateStep3()
+    }
+
+    // Form Submission
+    async submitForm(event) {
+        event.preventDefault()
+
+        if (!this.validateStep4()) {
+            return
+        }
+
+        // Disable submit button and show processing page immediately
+        if (this.hasSubmitButtonTarget) {
+            this.submitButtonTarget.disabled = true
+        }
+        this.showProcessingStep()
+
+        // Track when we started (for minimum 2-second display)
+        const startTime = Date.now()
+
+        try {
+            if (this.isAttestMode) {
+                // Submit attestation
+                await this.submitAttestation(startTime)
+            } else {
+                // Submit waiver upload
+                await this.submitWaiverUpload(startTime)
+            }
+        } catch (error) {
+            console.error('Submission error:', error)
+            this.showError('An error occurred during submission. Please try again.')
+            if (this.hasSubmitButtonTarget) {
+                this.submitButtonTarget.disabled = false
+            }
+            if (this.hasSubmitButtonTextTarget) {
+                this.submitButtonTextTarget.textContent = this.isAttestMode ? 'Submit Attestation' : 'Submit Waivers'
+            }
+        }
+    }
+
+    async submitAttestation(startTime) {
+        // Submit attestation for all selected activities at once
+        // Create ONE exemption waiver associated with multiple activities
+        const activityIds = this.selectedActivities.map(activity => activity.id)
+        
+        // Use attestUrlValue if provided, otherwise fall back to hard-coded path
+        const attestUrl = this.hasAttestUrlValue ? this.attestUrlValue : '/waivers/gathering-waivers/attest'
+        
+        const response = await fetch(attestUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-Token': this.getCsrfToken()
+            },
+            body: JSON.stringify({
+                gathering_id: this.gatheringIdValue,
+                gathering_activity_ids: activityIds,  // Send all activity IDs
+                waiver_type_id: this.selectedWaiverType.id,
+                reason: this.attestReason,
+                notes: this.attestNotes
+            })
+        })
+
+        try {
+            const data = await response.json()
+            
+            if (response.ok &amp;&amp; data.success) {
+                // Attestation succeeded
+                const elapsed = Date.now() - startTime
+                const remainingTime = Math.max(0, 2000 - elapsed)
+                
+                setTimeout(() => {
+                    if (data.redirectUrl) {
+                        window.location.href = data.redirectUrl
+                    } else {
+                        // Fallback redirect using gatheringViewUrl or construct from public_id
+                        const fallbackUrl = this.hasGatheringViewUrlValue 
+                            ? this.gatheringViewUrlValue 
+                            : `/gatherings/view/${this.gatheringPublicIdValue}?tab=gathering-waivers`
+                        window.location.href = fallbackUrl
+                    }
+                }, remainingTime)
+            } else {
+                // Attestation failed
+                this.showError(data.message || 'Attestation failed. Please try again.')
+                if (this.hasSubmitButtonTarget) {
+                    this.submitButtonTarget.disabled = false
+                }
+                if (this.hasSubmitButtonTextTarget) {
+                    this.submitButtonTextTarget.textContent = 'Submit Attestation'
+                }
+            }
+        } catch (error) {
+            this.showError('Network error. Please try again.')
+            if (this.hasSubmitButtonTarget) {
+                this.submitButtonTarget.disabled = false
+            }
+            if (this.hasSubmitButtonTextTarget) {
+                this.submitButtonTextTarget.textContent = 'Submit Attestation'
+            }
+        }
+    }
+
+    async submitWaiverUpload(startTime) {
+        const formData = new FormData()
+        
+        // Add gathering ID
+        formData.append('gathering_id', this.gatheringIdValue)
+
+        // Add waiver type
+        formData.append('waiver_type_id', this.selectedWaiverType.id)
+
+        // Add activity IDs
+        this.selectedActivities.forEach(activity => {
+            formData.append('activity_ids[]', activity.id)
+        })
+
+        // Add notes
+        formData.append('notes', this.notes)
+
+        // Add all page files
+        this.uploadedPages.forEach((page, index) => {
+            formData.append('waiver_images[]', page.file)
+        })
+
+        // Get CSRF token and add to form data (CakePHP expects it in the body)
+        const csrfToken = this.getCsrfToken()
+        if (csrfToken) {
+            formData.append('_csrfToken', csrfToken)
+        }
+        
+        // Submit via fetch
+        const response = await fetch(window.location.href, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+
+        if (response.ok) {
+            // Parse JSON response
+            const data = await response.json().catch((err) => {
+                console.error('Failed to parse JSON response:', err)
+                return {}
+            })
+            
+            console.log('Upload response data:', data)
+            
+            // Calculate how long to wait (minimum 2 seconds total)
+            const elapsed = Date.now() - startTime
+            const remainingTime = Math.max(0, 2000 - elapsed)
+            
+            // Wait for remaining time, then redirect
+            setTimeout(() => {
+                if (data.redirectUrl) {
+                    console.log('Redirecting to:', data.redirectUrl)
+                    window.location.href = data.redirectUrl
+                } else {
+                    // Fallback redirect using gatheringViewUrl or construct from gathering ID
+                    const fallbackUrl = this.hasGatheringViewUrlValue 
+                        ? this.gatheringViewUrlValue 
+                        : `/gatherings/view/${this.gatheringIdValue}`
+                    window.location.href = fallbackUrl
+                }
+            }, remainingTime)
+            
+        } else {
+            const data = await response.json().catch(() => ({}))
+            this.showError(data.message || 'Upload failed. Please try again.')
+            if (this.hasSubmitButtonTarget) {
+                this.submitButtonTarget.disabled = false
+            }
+            if (this.hasSubmitButtonTextTarget) {
+                this.submitButtonTextTarget.textContent = 'Submit Waivers'
+            }
+        }
+    }
+
+    showProcessingStep() {
+        // Hide all regular steps
+        this.stepTargets.forEach(step => step.classList.add('d-none'))
+
+        // Show processing message based on mode
+        let processingHtml
+        if (this.isAttestMode) {
+            processingHtml = `
+                &lt;div class="text-center py-5">
+                    &lt;div class="mb-4">
+                        &lt;div class="spinner-border text-primary" role="status" style="width: 5rem; height: 5rem;">
+                            &lt;span class="visually-hidden">Processing...&lt;/span>
+                        &lt;/div>
+                    &lt;/div>
+                    &lt;h2 class="mb-3">Processing Your Attestation&lt;/h2>
+                    &lt;p class="lead text-muted mb-4">
+                        Please wait while we record your attestation...
+                    &lt;/p>
+                    &lt;div class="alert alert-info d-inline-block">
+                        &lt;i class="bi bi-shield-check">&lt;/i>
+                        Attesting waiver not needed for ${this.selectedActivities.length} activity(s)
+                    &lt;/div>
+                &lt;/div>
+            `
+        } else {
+            processingHtml = `
+                &lt;div class="text-center py-5">
+                    &lt;div class="mb-4">
+                        &lt;div class="spinner-border text-primary" role="status" style="width: 5rem; height: 5rem;">
+                            &lt;span class="visually-hidden">Uploading...&lt;/span>
+                        &lt;/div>
+                    &lt;/div>
+                    &lt;h2 class="mb-3">Processing Your Waiver&lt;/h2>
+                    &lt;p class="lead text-muted mb-4">
+                        Please wait while we upload and process your waiver...
+                    &lt;/p>
+                    &lt;div class="alert alert-info d-inline-block">
+                        &lt;i class="bi bi-info-circle">&lt;/i>
+                        Uploading ${this.uploadedPages.length} page(s) for ${this.selectedActivities.length} activity(s)
+                    &lt;/div>
+                &lt;/div>
+            `
+        }
+
+        const container = this.element.querySelector('.wizard-container') || this.element
+        container.innerHTML = processingHtml
+    }
+
+    // Validation
+    validateCurrentStep() {
+        switch(this.currentStepValue) {
+            case 1: return this.validateStep1()
+            case 2: return this.validateStep2()
+            case 3: return this.validateStep3()
+            case 4: return this.validateStep4()
+            default: return true
+        }
+    }
+
+    // Error Handling
+    showError(message) {
+        // Check if we're showing the processing screen (wizard container innerHTML was replaced)
+        const container = this.element.querySelector('.wizard-container') || this.element
+        const isProcessing = container.querySelector('h2') &amp;&amp; 
+            (container.querySelector('h2').textContent.includes('Processing Your Attestation') ||
+             container.querySelector('h2').textContent.includes('Processing Your Waiver'))
+        
+        if (isProcessing) {
+            // We're in the processing screen, so we can't show a toast
+            // Check if we're in mobile mode by checking the URL
+            const isMobile = window.location.pathname.includes('mobile-upload')
+            
+            if (isMobile) {
+                // Redirect to mobile card using mobileSelectUrl if available, otherwise construct URL
+                const mobileUrl = this.hasMobileSelectUrlValue 
+                    ? `${this.mobileSelectUrlValue}?error=${encodeURIComponent(message)}`
+                    : `/waivers/gathering-waivers/mobile-select-gathering?error=${encodeURIComponent(message)}`
+                window.location.href = mobileUrl
+            } else {
+                // Desktop mode - redirect back to the gathering with a flash message
+                const gatheringPublicId = this.gatheringPublicIdValue
+                const desktopUrl = this.hasGatheringViewUrlValue 
+                    ? `${this.gatheringViewUrlValue}&amp;error=${encodeURIComponent(message)}`
+                    : `/gatherings/view/${gatheringPublicId}?tab=gathering-waivers&amp;error=${encodeURIComponent(message)}`
+                window.location.href = desktopUrl
+            }
+            return
+        }
+        
+        // Create toast notification
+        const toastHtml = `
+            &lt;div class="toast align-items-center text-white bg-danger border-0" role="alert">
+                &lt;div class="d-flex">
+                    &lt;div class="toast-body">
+                        &lt;i class="bi bi-exclamation-triangle me-2">&lt;/i>${message}
+                    &lt;/div>
+                    &lt;button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast">&lt;/button>
+                &lt;/div>
+            &lt;/div>
+        `
+
+        // Add to toast container or create one
+        let toastContainer = document.querySelector('.toast-container')
+        if (!toastContainer) {
+            toastContainer = document.createElement('div')
+            toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3'
+            document.body.appendChild(toastContainer)
+        }
+
+        toastContainer.insertAdjacentHTML('beforeend', toastHtml)
+        const toastElement = toastContainer.lastElementChild
+        const toast = new bootstrap.Toast(toastElement)
+        toast.show()
+
+        // Remove after hidden
+        toastElement.addEventListener('hidden.bs.toast', () => {
+            toastElement.remove()
+        })
+    }
+
+    getCsrfToken() {
+        // Try to get from meta tag first (CakePHP default)
+        const metaTag = document.querySelector('meta[name="csrfToken"]')
+        if (metaTag) {
+            return metaTag.content
+        }
+
+        // Try to get from cookie as fallback
+        const match = document.cookie.match(/csrfToken=([^;]+)/)
+        if (match) {
+            return match[1]
+        }
+
+        // Try to get from hidden input in any form
+        const hiddenInput = document.querySelector('input[name="_csrfToken"]')
+        if (hiddenInput) {
+            return hiddenInput.value
+        }
+
+        console.error('CSRF token not found')
+        return ''
+    }
+    
+    /**
+     * Format bytes to human-readable string
+     * 
+     * @param {number} bytes - Size in bytes
+     * @param {number} decimals - Number of decimal places
+     * @returns {string} Formatted size string
+     */
+    formatBytes(bytes, decimals = 2) {
+        if (bytes === 0) return '0 Bytes'
+        
+        const k = 1024
+        const dm = decimals &lt; 0 ? 0 : decimals
+        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB']
+        
+        const i = Math.floor(Math.log(bytes) / Math.log(k))
+        
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i]
+    }
+    
+    /**
+     * Update the display to show current total size
+     */
+    updateTotalSizeDisplay() {
+        const totalSize = this.uploadedPages.reduce((sum, page) => sum + page.size, 0)
+        const totalFormatted = this.formatBytes(totalSize)
+        
+        // If we're getting close to the limit, show a warning
+        if (this.hasTotalMaxSizeValue) {
+            const percentUsed = (totalSize / this.totalMaxSizeValue) * 100
+            
+            if (percentUsed > 80 &amp;&amp; percentUsed &lt;= 100) {
+                // Show warning when using 80-100% of limit
+                const remaining = this.totalMaxSizeValue - totalSize
+                const remainingFormatted = this.formatBytes(remaining)
+                const maxFormatted = this.formatBytes(this.totalMaxSizeValue)
+                
+                console.warn(
+                    `Upload size warning: ${totalFormatted} of ${maxFormatted} used. ` +
+                    `${remainingFormatted} remaining.`
+                )
+            }
+        }
+    }
+}
+
+// Register controller
+if (!window.Controllers) {
+    window.Controllers = {}
+}
+window.Controllers["waiver-upload-wizard"] = WaiverUploadWizardController
+
+export default WaiverUploadWizardController
+</code></pre></article></section></div></div></div><div class="search-container" id="PkfLWpAbet" style="display:none"><div class="wrapper" id="iCxFxjkHbP"><button class="icon-button search-close-button" id="VjLlGakifb" aria-label="close search"><svg><use xlink:href="#close-icon"></use></svg></button><div class="search-box-c"><svg><use xlink:href="#search-icon"></use></svg> <input type="text" id="vpcKVYIppa" class="search-input" placeholder="Search..." autofocus></div><div class="search-result-c" id="fWwVHRuDuN"><span class="search-result-c-text">Type anything to view search result</span></div></div></div><div class="mobile-menu-icon-container"><button class="icon-button" id="mobile-menu" data-isopen="false" aria-label="menu"><svg><use xlink:href="#menu-icon"></use></svg></button></div><div id="mobile-sidebar" class="mobile-sidebar-container"><div class="mobile-sidebar-wrapper"><a href="/" class="sidebar-title sidebar-title-anchor">KMP JavaScript API</a><div class="mobile-nav-links"><div class="navbar-item"><a id="" href="../php/index.html" target="">PHP API</a></div><div class="navbar-item"><a id="" href="../../index.html" target="">Docs Home</a></div></div><div class="mobile-sidebar-items-c"><div class="sidebar-section-title with-arrow" data-isopen="false" id="sidebar-classes"><div>Classes</div><svg><use xlink:href="#down-icon"></use></svg></div><div class="sidebar-section-children-container"><div class="sidebar-section-children"><a href="ActivitiesApproveAndAssignAuthorization.html">ActivitiesApproveAndAssignAuthorization</a></div><div class="sidebar-section-children"><a href="ActivitiesRenewAuthorization.html">ActivitiesRenewAuthorization</a></div><div class="sidebar-section-children"><a href="ActivityToggleController.html">ActivityToggleController</a></div><div class="sidebar-section-children"><a href="ActivityWaiverManagerController.html">ActivityWaiverManagerController</a></div><div class="sidebar-section-children"><a href="AddActivityModalController.html">AddActivityModalController</a></div><div class="sidebar-section-children"><a href="AppSettingForm.html">AppSettingForm</a></div><div class="sidebar-section-children"><a href="AppSettingModalController.html">AppSettingModalController</a></div><div class="sidebar-section-children"><a href="AutoComplete.html">AutoComplete</a></div><div class="sidebar-section-children"><a href="AwardsAwardForm.html">AwardsAwardForm</a></div><div class="sidebar-section-children"><a href="AwardsRecommendationAddForm.html">AwardsRecommendationAddForm</a></div><div class="sidebar-section-children"><a href="AwardsRecommendationBulkEditForm.html">AwardsRecommendationBulkEditForm</a></div><div class="sidebar-section-children"><a href="AwardsRecommendationEditForm.html">AwardsRecommendationEditForm</a></div><div class="sidebar-section-children"><a href="AwardsRecommendationQuickEditForm.html">AwardsRecommendationQuickEditForm</a></div><div class="sidebar-section-children"><a href="AwardsRecommendationTable.html">AwardsRecommendationTable</a></div><div class="sidebar-section-children"><a href="BaseGatheringFormController.html">BaseGatheringFormController</a></div><div class="sidebar-section-children"><a href="BrancheLinks.html">BrancheLinks</a></div><div class="sidebar-section-children"><a href="CameraCaptureController.html">CameraCaptureController</a></div><div class="sidebar-section-children"><a href="CodeEditorController.html">CodeEditorController</a></div><div class="sidebar-section-children"><a href="CsvDownloadController.html">CsvDownloadController</a></div><div class="sidebar-section-children"><a href="DelayForwardController.html">DelayForwardController</a></div><div class="sidebar-section-children"><a href="DeleteConfirmationController.html">DeleteConfirmationController</a></div><div class="sidebar-section-children"><a href="DetailTabsController.html">DetailTabsController</a></div><div class="sidebar-section-children"><a href="EditActivityDescriptionController.html">EditActivityDescriptionController</a></div><div class="sidebar-section-children"><a href="EmailTemplateEditorController.html">EmailTemplateEditorController</a></div><div class="sidebar-section-children"><a href="EmailTemplateFormController.html">EmailTemplateFormController</a></div><div class="sidebar-section-children"><a href="ExemptionReasonsController.html">ExemptionReasonsController</a></div><div class="sidebar-section-children"><a href="FileSizeValidatorController.html">FileSizeValidatorController</a></div><div class="sidebar-section-children"><a href="FilterGrid.html">FilterGrid</a></div><div class="sidebar-section-children"><a href="GWSharingController.html">GWSharingController</a></div><div class="sidebar-section-children"><a href="GatheringCloneController.html">GatheringCloneController</a></div><div class="sidebar-section-children"><a href="GatheringFormController.html">GatheringFormController</a></div><div class="sidebar-section-children"><a href="GatheringLocationAutocompleteController.html">GatheringLocationAutocompleteController</a></div><div class="sidebar-section-children"><a href="GatheringMapController.html">GatheringMapController</a></div><div class="sidebar-section-children"><a href="GatheringScheduleController.html">GatheringScheduleController</a></div><div class="sidebar-section-children"><a href="GatheringTypeFormController.html">GatheringTypeFormController</a></div><div class="sidebar-section-children"><a href="GatheringsCalendarController.html">GatheringsCalendarController</a></div><div class="sidebar-section-children"><a href="GitHubSubmitter.html">GitHubSubmitter</a></div><div class="sidebar-section-children"><a href="GridViewController.html">GridViewController</a></div><div class="sidebar-section-children"><a href="GuifierController.html">GuifierController</a></div><div class="sidebar-section-children"><a href="HelloWorldController.html">HelloWorldController</a></div><div class="sidebar-section-children"><a href="HelloWorldController.html">HelloWorldController</a></div><div class="sidebar-section-children"><a href="ImagePreview.html">ImagePreview</a></div><div class="sidebar-section-children"><a href="Kanban.html">Kanban</a></div><div class="sidebar-section-children"><a href="MarkdownEditorController.html">MarkdownEditorController</a></div><div class="sidebar-section-children"><a href="MemberCardProfile.html">MemberCardProfile</a></div><div class="sidebar-section-children"><a href="MemberMobileCardMenu.html">MemberMobileCardMenu</a></div><div class="sidebar-section-children"><a href="MemberMobileCardPWA.html">MemberMobileCardPWA</a></div><div class="sidebar-section-children"><a href="MemberMobileCardProfile.html">MemberMobileCardProfile</a></div><div class="sidebar-section-children"><a href="MemberUniqueEmail.html">MemberUniqueEmail</a></div><div class="sidebar-section-children"><a href="MemberVerifyForm.html">MemberVerifyForm</a></div><div class="sidebar-section-children"><a href="MobileOfflineOverlayController.html">MobileOfflineOverlayController</a></div><div class="sidebar-section-children"><a href="MobileRequestAuthController.html">MobileRequestAuthController</a></div><div class="sidebar-section-children"><a href="ModalOpener.html">ModalOpener</a></div><div class="sidebar-section-children"><a href="NavBarController.html">NavBarController</a></div><div class="sidebar-section-children"><a href="OutletButton.html">OutletButton</a></div><div class="sidebar-section-children"><a href="PermissionAddRole.html">PermissionAddRole</a></div><div class="sidebar-section-children"><a href="PermissionManagePolicies.html">PermissionManagePolicies</a></div><div class="sidebar-section-children"><a href="PopoverController.html">PopoverController</a></div><div class="sidebar-section-children"><a href="QrcodeController.html">QrcodeController</a></div><div class="sidebar-section-children"><a href="RecommendationKanbanController.html">RecommendationKanbanController</a></div><div class="sidebar-section-children"><a href="RetentionPolicyInputController.html">RetentionPolicyInputController</a></div><div class="sidebar-section-children"><a href="RevokeForm.html">RevokeForm</a></div><div class="sidebar-section-children"><a href="RoleAddMember.html">RoleAddMember</a></div><div class="sidebar-section-children"><a href="RoleAddPermission.html">RoleAddPermission</a></div><div class="sidebar-section-children"><a href="SecurityDebugController.html">SecurityDebugController</a></div><div class="sidebar-section-children"><a href="SelectAllListController.html">SelectAllListController</a></div><div class="sidebar-section-children"><a href="SessionExtender.html">SessionExtender</a></div><div class="sidebar-section-children"><a href="SortableListController.html">SortableListController</a></div><div class="sidebar-section-children"><a href="TimezoneInputController.html">TimezoneInputController</a></div><div class="sidebar-section-children"><a href="TurboModal.html">TurboModal</a></div><div class="sidebar-section-children"><a href="VariableInsertController.html">VariableInsertController</a></div><div class="sidebar-section-children"><a href="WaiverAttestationController.html">WaiverAttestationController</a></div><div class="sidebar-section-children"><a href="WaiverTemplateController.html">WaiverTemplateController</a></div><div class="sidebar-section-children"><a href="WaiverUploadController.html">WaiverUploadController</a></div><div class="sidebar-section-children"><a href="WaiverUploadWizardController.html">WaiverUploadWizardController</a></div></div><div class="sidebar-section-title with-arrow" data-isopen="false" id="sidebar-namespaces"><div>Namespaces</div><svg><use xlink:href="#down-icon"></use></svg></div><div class="sidebar-section-children-container"><div class="sidebar-section-children"><a href="KMP_Timezone.html">KMP_Timezone</a></div></div></div><div class="mobile-navbar-actions"><div class="navbar-right-item"><button class="icon-button search-button" aria-label="open-search"><svg><use xlink:href="#search-icon"></use></svg></button></div><div class="navbar-right-item"><button class="icon-button theme-toggle" aria-label="toggle-theme"><svg><use class="theme-svg-use" xlink:href="#light-theme-icon"></use></svg></button></div><div class="navbar-right-item"><button class="icon-button font-size" aria-label="change-font-size"><svg><use xlink:href="#font-size-icon"></use></svg></button></div></div></div></div><script type="text/javascript" src="scripts/core.min.js"></script><script src="scripts/search.min.js" defer="defer"></script><script src="scripts/third-party/fuse.js" defer="defer"></script><script type="text/javascript">var tocbotInstance=tocbot.init({tocSelector:"#eed4d2a0bfd64539bb9df78095dec881",contentSelector:".main-content",headingSelector:"h1, h2, h3",hasInnerContainers:!0,scrollContainer:".main-content",headingsOffset:130,onClick:bringLinkToView})</script></body></html>

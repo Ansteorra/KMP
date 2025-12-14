@@ -14,62 +14,8 @@ use Cake\Log\Log;
  * Manages business logic for gathering activities and their relationship to
  * waiver requirements. Handles associating waiver types with activities,
  * checking waiver coverage, and determining compliance status.
- * 
- * ## Features
- * 
- * - **Waiver Requirements**: Associate waiver types with specific activities
- * - **Coverage Checking**: Determine if uploaded waivers cover required activities
- * - **Compliance Status**: Calculate overall waiver compliance for gatherings
- * - **Bulk Operations**: Handle multiple activities or requirements at once
- * - **Error Handling**: Returns ServiceResult for consistent error reporting
- * 
- * ## Waiver Requirements Flow
- * 
- * 1. **Setup**: Admin defines which waiver types are required for each activity type
- *    (Heavy Combat requires Adult Waiver + Combat Waiver)
- * 
- * 2. **Gathering Creation**: Activities are added to gathering with inherited requirements
- * 
- * 3. **Waiver Upload**: Waivers are uploaded and associated with specific activities
- * 
- * 4. **Coverage Check**: Service verifies all required waiver types are present
- * 
- * ## Usage Examples
- * 
- * ```php
- * $service = new GatheringActivityService();
- * 
- * // Add waiver requirement to activity
- * $result = $service->addWaiverRequirement($activityId, $waiverTypeId);
- * if ($result->success) {
- *     // Requirement added
- * }
- * 
- * // Get required waiver types for activity
- * $result = $service->getRequiredWaiverTypes($activityId);
- * $requiredTypes = $result->data; // Array of WaiverType entities
- * 
- * // Check if waiver covers activity
- * $result = $service->checkWaiverCoverage($waiverId, $activityId);
- * if ($result->success && $result->data === true) {
- *     // Waiver properly covers this activity
- * }
- * 
- * // Get compliance status for gathering
- * $result = $service->getGatheringComplianceStatus($gatheringId);
- * $status = $result->data; // ['compliant' => true, 'missing' => [], ...]
- * ```
- * 
- * ## Database Relationships
- * 
- * - **gathering_activity_waivers**: Maps activity → required waiver types
- * - **gathering_waiver_activities**: Maps uploaded waiver → covered activities
- * - **gathering_waivers**: Individual uploaded waivers
- * - **gathering_activities**: Activities at a specific gathering
- * 
- * @see \Waivers\Model\Table\GatheringActivityWaiversTable Requirement mapping
- * @see \Waivers\Model\Table\GatheringWaiverActivitiesTable Coverage mapping
- * @see \App\Services\ServiceResult Standard service result pattern
+ *
+ * @see /docs/5.7-waivers-plugin.md
  */
 class GatheringActivityService
 {

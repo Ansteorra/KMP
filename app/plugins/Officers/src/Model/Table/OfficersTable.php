@@ -16,163 +16,36 @@ use Officers\Model\Entity\Officer;
 use App\Model\Table\BaseTable;
 
 /**
- * Officers Table - Officer lifecycle management and ActiveWindow integration
+ * Officers Table - Officer assignment lifecycle management
  *
- * The OfficersTable provides comprehensive data management operations for officer
- * assignments within the Officers plugin. It handles complex temporal assignment
- * workflows, warrant integration, hierarchical relationship management, and
- * automated status transitions through ActiveWindow behavior integration. This
- * table serves as the core of the officer assignment system with deep integration
- * into KMP's authorization and organizational management frameworks.
+ * Manages officer assignments with ActiveWindow temporal behavior, warrant integration,
+ * and hierarchical reporting relationships. Performs daily status checks for automatic
+ * UPCOMING → CURRENT → EXPIRED transitions.
  *
- * ## Key Features
- * - **ActiveWindow Integration**: Temporal assignment management with automatic status transitions
- * - **Warrant Lifecycle**: Complete warrant workflow integration with status tracking
- * - **Hierarchical Relationships**: Deputy and reporting relationship management
- * - **Assignment Management**: Officer assignment lifecycle with approval workflows
- * - **Status Automation**: Automated status updates based on temporal conditions
- * - **Branch Integration**: Branch-specific assignment scoping and management
- * - **Audit Trail**: Comprehensive assignment history and approval tracking
- * - **Permission Integration**: Deep integration with KMP authorization framework
- *
- * ## Database Structure
- * - **Table**: `officers_officers`
- * - **Primary Key**: `id` (auto-increment)
- * - **Display Field**: `status` (current assignment status)
- * - **Temporal Fields**: `start_on`, `expires_on` for ActiveWindow integration
- * - **Status Management**: Automated status transitions via ActiveWindow behavior
- *
- * ## Association Architecture
- * The table implements a comprehensive association structure supporting the complete
- * officer assignment ecosystem:
- *
- * ### Core Assignment Relationships
- * - **belongsTo Members**: Officer assignment to specific members
- * - **belongsTo Branches**: Branch context for assignment scoping
- * - **belongsTo Offices**: Office position being filled by assignment
- *
- * ### Approval and Revocation Tracking
- * - **belongsTo ApprovedBy**: Member who approved the assignment
- * - **belongsTo RevokedBy**: Member who revoked the assignment (optional)
- * - **Audit Integration**: Complete approval workflow tracking
- *
- * ### Hierarchical Relationship Management
- * - **belongsTo ReportsToOffices**: Office this assignment reports to
- * - **belongsTo ReportsToBranches**: Branch this assignment reports to
- * - **belongsTo DeputyToOffices**: Office this assignment serves as deputy
- * - **belongsTo DeputyToBranches**: Branch this assignment serves as deputy
- *
- * ### Current Relationship Tracking
- * - **hasMany ReportsToCurrently**: Current officers reporting to this assignment
- * - **hasMany DeputyToCurrently**: Current officers serving as deputies to this assignment
- * - **Temporal Awareness**: Automatically filters to current assignments
- *
- * ### Warrant Integration
- * - **hasOne CurrentWarrants**: Active warrant for this assignment
- * - **hasMany PendingWarrants**: Pending warrants awaiting approval
- * - **hasMany Warrants**: Complete warrant history for this assignment
- * - **Status Synchronization**: Warrant status integration with assignment status
- *
- * ## Behavior Integration
- * - **Timestamp**: Automatic created/modified timestamp management
- * - **Footprint**: User tracking for created_by/modified_by fields
- * - **ActiveWindow**: Temporal assignment management with automatic status transitions
- * - **BaseTable**: Inherits KMP table functionality including cache management
- *
- * ## ActiveWindow Configuration
- * The table leverages ActiveWindow behavior for sophisticated temporal management:
- * - **Automatic Status Updates**: Daily status checks and transitions
- * - **Temporal Queries**: Built-in support for current, upcoming, and previous finders
- * - **Status Synchronization**: Coordinated status updates across assignment lifecycle
- * - **Expiration Management**: Automatic handling of assignment expiration
- *
- * ## Validation Framework
- * The table implements comprehensive validation including:
- * - Member assignment validation with referential integrity
- * - Branch assignment validation for organizational consistency
- * - Office assignment validation with hierarchical constraints
- * - Temporal validation for assignment dates and durations
- * - Status validation for assignment lifecycle management
- * - Revocation validation for administrative oversight
- *
- * ## Automated Status Management
- * The table includes sophisticated status automation:
- * - **Daily Status Checks**: Automatic expiration and activation processing
- * - **Status Transitions**: Automated UPCOMING → CURRENT → EXPIRED transitions
- * - **Application Setting Integration**: Tracks last check date for optimization
- * - **Bulk Status Updates**: Efficient batch processing for status changes
- *
- * ## Query Enhancement
- * The table provides specialized query enhancement through `addDisplayConditionsAndFields()`:
- * - **Type-Specific Fields**: Dynamic field selection based on officer type
- * - **Complex Expressions**: Case expressions for status-dependent display
- * - **Association Loading**: Optimized containment for hierarchical data
- * - **Display Optimization**: Specialized formatting for different officer contexts
- *
- * ## Usage Patterns
- * ```php
- * // Standard officer operations
- * $officersTable = TableRegistry::getTableLocator()->get('Officers.Officers');
- * 
- * // Create new officer assignment
- * $officer = $officersTable->newEntity([
- *     'member_id' => $memberId,
- *     'office_id' => $officeId,
- *     'branch_id' => $branchId,
- *     'start_on' => '2025-01-01',
- *     'expires_on' => '2026-01-01',
- *     'status' => Officer::UPCOMING_STATUS
- * ]);
- * $officersTable->save($officer);
- * 
- * // Query current officers with relationships
- * $currentOfficers = $officersTable->find('current')
- *     ->contain(['Members', 'Offices', 'Branches', 'CurrentWarrants']);
- * ```
- *
- * ## Integration Points
- * - **Member Management**: Direct relationship with member assignment workflows
- * - **Office Management**: Integration with office hierarchy and role assignment
- * - **Branch Management**: Branch-specific assignment scoping and management
- * - **Warrant System**: Complete warrant lifecycle integration and synchronization
- * - **Authorization Framework**: Permission-based assignment access control
- * - **Reporting System**: Assignment analytics and organizational reporting
- * - **Administrative Interfaces**: Assignment management and approval workflows
- * - **Notification System**: Assignment lifecycle notification integration
- *
- * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $Members Member assignment relationship
- * @property \App\Model\Table\BranchesTable&\Cake\ORM\Association\BelongsTo $Branches Branch context relationship
- * @property \Officers\Model\Table\OfficesTable&\Cake\ORM\Association\BelongsTo $Offices Office position relationship
- * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $ApprovedBy Assignment approver relationship
- * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $RevokedBy Assignment revoker relationship
- * @property \Officers\Model\Table\OfficesTable&\Cake\ORM\Association\BelongsTo $ReportsToOffices Reporting office relationship
- * @property \App\Model\Table\BranchesTable&\Cake\ORM\Association\BelongsTo $ReportsToBranches Reporting branch relationship
- * @property \Officers\Model\Table\OfficesTable&\Cake\ORM\Association\BelongsTo $DeputyToOffices Deputy office relationship
- * @property \App\Model\Table\BranchesTable&\Cake\ORM\Association\BelongsTo $DeputyToBranches Deputy branch relationship
- * @property \App\Model\Table\WarrantsTable&\Cake\ORM\Association\HasOne $CurrentWarrants Active warrant relationship
- * @property \App\Model\Table\WarrantsTable&\Cake\ORM\Association\HasMany $PendingWarrants Pending warrants relationship
- * @property \App\Model\Table\WarrantsTable&\Cake\ORM\Association\HasMany $Warrants Complete warrant history
- * @property \Officers\Model\Table\OfficersTable&\Cake\ORM\Association\HasMany $ReportsToCurrently Current direct reports
- * @property \Officers\Model\Table\OfficersTable&\Cake\ORM\Association\HasMany $DeputyToCurrently Current deputy assignments
+ * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $Members
+ * @property \App\Model\Table\BranchesTable&\Cake\ORM\Association\BelongsTo $Branches
+ * @property \Officers\Model\Table\OfficesTable&\Cake\ORM\Association\BelongsTo $Offices
+ * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $ApprovedBy
+ * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $RevokedBy
+ * @property \Officers\Model\Table\OfficesTable&\Cake\ORM\Association\BelongsTo $ReportsToOffices
+ * @property \App\Model\Table\BranchesTable&\Cake\ORM\Association\BelongsTo $ReportsToBranches
+ * @property \Officers\Model\Table\OfficesTable&\Cake\ORM\Association\BelongsTo $DeputyToOffices
+ * @property \App\Model\Table\BranchesTable&\Cake\ORM\Association\BelongsTo $DeputyToBranches
+ * @property \App\Model\Table\WarrantsTable&\Cake\ORM\Association\HasOne $CurrentWarrants
+ * @property \App\Model\Table\WarrantsTable&\Cake\ORM\Association\HasMany $PendingWarrants
+ * @property \App\Model\Table\WarrantsTable&\Cake\ORM\Association\HasMany $Warrants
+ * @property \Officers\Model\Table\OfficersTable&\Cake\ORM\Association\HasMany $ReportsToCurrently
+ * @property \Officers\Model\Table\OfficersTable&\Cake\ORM\Association\HasMany $DeputyToCurrently
  *
  * @method \Officers\Model\Entity\Officer newEmptyEntity()
  * @method \Officers\Model\Entity\Officer newEntity(array $data, array $options = [])
- * @method array<\Officers\Model\Entity\Officer> newEntities(array $data, array $options = [])
  * @method \Officers\Model\Entity\Officer get(mixed $primaryKey, array|string $finder = 'all', \Psr\SimpleCache\CacheInterface|string|null $cache = null, \Closure|string|null $cacheKey = null, mixed ...$args)
  * @method \Officers\Model\Entity\Officer findOrCreate($search, ?callable $callback = null, array $options = [])
  * @method \Officers\Model\Entity\Officer patchEntity(\Cake\Datasource\EntityInterface $entity, array $data, array $options = [])
- * @method array<\Officers\Model\Entity\Officer> patchEntities(iterable $entities, array $data, array $options = [])
  * @method \Officers\Model\Entity\Officer|false save(\Cake\Datasource\EntityInterface $entity, array $options = [])
  * @method \Officers\Model\Entity\Officer saveOrFail(\Cake\Datasource\EntityInterface $entity, array $options = [])
- * @method iterable<\Officers\Model\Entity\Officer>|\Cake\Datasource\ResultSetInterface<\Officers\Model\Entity\Officer>|false saveMany(iterable $entities, array $options = [])
- * @method iterable<\Officers\Model\Entity\Officer>|\Cake\Datasource\ResultSetInterface<\Officers\Model\Entity\Officer> saveManyOrFail(iterable $entities, array $options = [])
- * @method iterable<\Officers\Model\Entity\Officer>|\Cake\Datasource\ResultSetInterface<\Officers\Model\Entity\Officer>|false deleteMany(iterable $entities, array $options = [])
- * @method iterable<\Officers\Model\Entity\Officer>|\Cake\Datasource\ResultSetInterface<\Officers\Model\Entity\Officer> deleteManyOrFail(iterable $entities, array $options = [])
  *
- * @see \Officers\Model\Entity\Officer For officer entity documentation
- * @see \Officers\Model\Table\OfficesTable For office management operations
- * @see \App\Model\Table\BaseTable For inherited table functionality
- * @see \App\Behavior\ActiveWindowBehavior For temporal assignment management
+ * @see /docs/5.1-officers-plugin.md
  */
 class OfficersTable extends BaseTable
 {

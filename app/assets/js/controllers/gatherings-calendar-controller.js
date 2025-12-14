@@ -29,12 +29,13 @@ import { Controller } from "@hotwired/stimulus"
  * ```
  */
 class GatheringsCalendarController extends Controller {
+
     static values = {
         year: Number,
         month: Number,
         view: String
     }
-    
+
     /**
      * Initialize the calendar controller
      */
@@ -43,32 +44,33 @@ class GatheringsCalendarController extends Controller {
         this.modalInstance = null
         this.turboFrame = null
     }
-    
+
     /**
      * Connect event - setup Bootstrap modal
      */
     connect() {
         console.log('Gatherings Calendar Controller connected')
-        
+
         // Find the modal and turbo-frame elements
         this.modalElement = document.getElementById('gatheringQuickViewModal')
         this.turboFrame = document.getElementById('gatheringQuickView')
-        
+
         console.log('Modal element:', this.modalElement)
         console.log('Turbo frame:', this.turboFrame)
-        
+
         if (this.modalElement) {
             this.modalInstance = new bootstrap.Modal(this.modalElement)
             console.log('Modal instance created')
         } else {
             console.error('Modal element not found!')
         }
-        
+
         if (!this.turboFrame) {
             console.error('Turbo frame element not found!')
         }
+
     }
-    
+
     /**
      * Show quick view modal for a gathering
      * 
@@ -76,13 +78,13 @@ class GatheringsCalendarController extends Controller {
      */
     async showQuickView(event) {
         event.preventDefault() // Prevent normal navigation
-        
+
         console.log('showQuickView called - opening modal')
-        
+
         // Get the gathering URL from the link
         const url = event.currentTarget.getAttribute('href')
         console.log('Loading gathering from:', url)
-        
+
         // Show the modal first
         if (this.modalInstance) {
             this.modalInstance.show()
@@ -91,7 +93,7 @@ class GatheringsCalendarController extends Controller {
             console.error('Modal instance not found')
             return
         }
-        
+
         // Fetch and load content into turbo-frame
         if (this.turboFrame) {
             try {
@@ -102,41 +104,46 @@ class GatheringsCalendarController extends Controller {
                         'Turbo-Frame': 'gatheringQuickView'
                     }
                 })
-                
+
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`)
                 }
-                
+
                 const html = await response.text()
                 console.log('Received HTML, length:', html.length)
-                
+
                 // Parse the HTML to extract just the turbo-frame content
                 const parser = new DOMParser()
                 const doc = parser.parseFromString(html, 'text/html')
                 const turboFrameContent = doc.querySelector('turbo-frame#gatheringQuickView')
-                
+
                 if (turboFrameContent) {
                     // Clear existing content
                     while (this.turboFrame.firstChild) {
                         this.turboFrame.removeChild(this.turboFrame.firstChild)
                     }
-                    
+
                     // Move child nodes from parsed content to our turbo-frame
                     // This preserves attributes without HTML encoding
                     while (turboFrameContent.firstChild) {
                         this.turboFrame.appendChild(turboFrameContent.firstChild)
                     }
-                    
+
                     console.log('Content loaded into turbo-frame')
-                    
+
                     // Fix close button - Bootstrap's event delegation doesn't work on dynamically loaded content
                     const closeButton = this.modalElement.querySelector('.btn-close')
+                    // Remove previous listener if exists to avoid accumulating handlers
+                    if (this._closeButtonHandler && closeButton) {
+                        closeButton.removeEventListener('click', this._closeButtonHandler)
+                    }
                     if (closeButton) {
-                        closeButton.addEventListener('click', () => {
+                        this._closeButtonHandler = () => {
                             if (this.modalInstance) {
                                 this.modalInstance.hide()
                             }
-                        })
+                        }
+                        closeButton.addEventListener('click', this._closeButtonHandler)
                     }
                 } else {
                     console.error('Could not find turbo-frame in response')
@@ -151,7 +158,7 @@ class GatheringsCalendarController extends Controller {
             console.error('Turbo frame not found')
         }
     }
-    
+
     /**
      * Show attendance modal with prepopulated data
      * 
@@ -168,20 +175,20 @@ class GatheringsCalendarController extends Controller {
         const action = button.dataset.attendanceAction || 'add'
         const gatheringId = button.dataset.gatheringId
         const attendanceId = button.dataset.attendanceId || ''
-        
+
         // Get the attendance modal
         const attendanceModal = document.getElementById('attendanceModal')
         if (!attendanceModal) {
             console.error('Attendance modal not found')
             return
         }
-        
+
         const modalContent = document.getElementById('attendanceModalContent')
         if (!modalContent) {
             console.error('Attendance modal content container not found')
             return
         }
-        
+
         try {
             // Show loading state
             modalContent.innerHTML = `
@@ -195,11 +202,11 @@ class GatheringsCalendarController extends Controller {
                     </div>
                 </div>
             `
-            
+
             // Show modal
             const bsModal = new bootstrap.Modal(attendanceModal)
             bsModal.show()
-            
+
             // Fetch the modal content from server
             let url
             if (action === 'edit' && attendanceId) {
@@ -207,27 +214,31 @@ class GatheringsCalendarController extends Controller {
             } else {
                 url = `/gatherings/attendance-modal/${gatheringId}`
             }
-            
+
             const response = await fetch(url)
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`)
             }
-            
+
             const html = await response.text()
             modalContent.innerHTML = html
-            
+
             // Manually attach click handler to close button since Bootstrap's event delegation
-            // doesn't work on dynamically inserted content
+            // doesn't work on dynamically inserted content. Remove previous listener first.
             const closeButton = modalContent.querySelector('.btn-close')
+            if (this._attendanceCloseHandler && closeButton) {
+                closeButton.removeEventListener('click', this._attendanceCloseHandler)
+            }
             if (closeButton) {
-                closeButton.addEventListener('click', () => {
+                this._attendanceCloseHandler = () => {
                     const bsModal = bootstrap.Modal.getInstance(attendanceModal)
                     if (bsModal) {
                         bsModal.hide()
                     }
-                })
+                }
+                closeButton.addEventListener('click', this._attendanceCloseHandler)
             }
-            
+
         } catch (error) {
             console.error('Error loading attendance modal:', error)
             modalContent.innerHTML = `
@@ -252,31 +263,44 @@ class GatheringsCalendarController extends Controller {
      * @param {Event} event Click event
      */
     async markAttendance(event) {
-        const button = event.currentTarget
-        const gatheringId = button.dataset.gatheringId
-        
+        if (event) {
+            event.preventDefault()
+        }
+
+        const button = event?.currentTarget
+        const gatheringId = button?.dataset.gatheringId
+
         if (!gatheringId) {
             console.error('No gathering ID found')
             return
         }
-        
-        // Navigate to the gathering view page to mark attendance
-        window.location.href = `/gatherings/view/${gatheringId}#attend`
+
+        if (button && !button.dataset.attendanceAction) {
+            button.dataset.attendanceAction = 'add'
+        }
+
+        return this.showAttendanceModal(event)
     }
-    
+
     /**
      * Update attendance for a gathering from quick view
      * 
      * @param {Event} event Click event
      */
     async updateAttendance(event) {
-        const button = event.currentTarget
-        const gatheringId = button.dataset.gatheringId
-        
-        // Navigate to the gathering view page to update attendance
-        window.location.href = `/gatherings/view/${gatheringId}#attend`
+        if (event) {
+            event.preventDefault()
+        }
+
+        const button = event?.currentTarget
+
+        if (button && !button.dataset.attendanceAction) {
+            button.dataset.attendanceAction = 'edit'
+        }
+
+        return this.showAttendanceModal(event)
     }
-    
+
     /**
      * Toggle attendance for a gathering (legacy method for list view)
      * 
@@ -287,20 +311,20 @@ class GatheringsCalendarController extends Controller {
         const gatheringId = button.dataset.gatheringId
         const attendanceId = button.dataset.attendanceId
         const isCurrentlyAttending = button.dataset.attending === 'true'
-        
+
         if (!gatheringId) {
             console.error('No gathering ID found')
             return
         }
-        
+
         // Disable button during request
         const originalContent = button.innerHTML
         button.disabled = true
         button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Processing...'
-        
+
         try {
             let url, method, body
-            
+
             if (isCurrentlyAttending) {
                 // Remove attendance - use DELETE request
                 if (!attendanceId) {
@@ -317,7 +341,7 @@ class GatheringsCalendarController extends Controller {
                 body.append('gathering_id', gatheringId)
                 body.append('status', 'attending')
             }
-            
+
             const fetchOptions = {
                 method: method,
                 headers: {
@@ -325,20 +349,20 @@ class GatheringsCalendarController extends Controller {
                     'X-CSRF-Token': this.getCsrfToken()
                 }
             }
-            
+
             // Add body only for POST requests
             if (body) {
                 fetchOptions.body = body
             }
-            
+
             const response = await fetch(url, fetchOptions)
-            
+
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`)
             }
-            
+
             const data = await response.json()
-            
+
             // Update UI based on action
             if (data.success) {
                 if (isCurrentlyAttending) {
@@ -348,7 +372,7 @@ class GatheringsCalendarController extends Controller {
                     button.classList.remove('btn-success')
                     button.classList.add('btn-outline-success')
                     button.innerHTML = '<i class="bi bi-calendar-check"></i> Attend'
-                    
+
                     // Show success message
                     this.showToast('Success!', 'Your attendance has been removed.', 'success')
                 } else {
@@ -360,11 +384,11 @@ class GatheringsCalendarController extends Controller {
                     button.classList.remove('btn-outline-success')
                     button.classList.add('btn-success')
                     button.innerHTML = '<i class="bi bi-check-circle"></i> Attending'
-                    
+
                     // Show success message
                     this.showToast('Success!', 'Your attendance has been recorded.', 'success')
                 }
-                
+
                 // Reload page to update calendar display
                 setTimeout(() => {
                     window.location.reload()
@@ -372,17 +396,17 @@ class GatheringsCalendarController extends Controller {
             } else {
                 throw new Error(data.message || 'Failed to update attendance')
             }
-            
+
         } catch (error) {
             console.error('Error toggling attendance:', error)
             this.showToast('Error', 'Failed to update attendance. Please try again.', 'danger')
-            
+
             // Restore button
             button.disabled = false
             button.innerHTML = originalContent
         }
     }
-    
+
     /**
      * Show location map for a gathering
      * 
@@ -390,16 +414,16 @@ class GatheringsCalendarController extends Controller {
      */
     showLocation(event) {
         const gatheringId = event.currentTarget.dataset.gatheringId
-        
+
         if (!gatheringId) {
             console.error('No gathering ID found')
             return
         }
-        
+
         // Navigate to gathering view with location tab active
         window.location.href = `/gatherings/view/${gatheringId}#nav-location-tab`
     }
-    
+
     /**
      * Get CSRF token from meta tag or form
      * 
@@ -410,15 +434,15 @@ class GatheringsCalendarController extends Controller {
         if (meta) {
             return meta.getAttribute('content')
         }
-        
+
         const input = document.querySelector('input[name="_csrfToken"]')
         if (input) {
             return input.value
         }
-        
+
         return ''
     }
-    
+
     /**
      * Show toast notification
      * 
@@ -436,7 +460,7 @@ class GatheringsCalendarController extends Controller {
             container.style.zIndex = '9999'
             document.body.appendChild(container)
         }
-        
+
         // Create toast element
         const toastId = `toast-${Date.now()}`
         const toastHtml = `
@@ -450,9 +474,9 @@ class GatheringsCalendarController extends Controller {
                 </div>
             </div>
         `
-        
+
         container.insertAdjacentHTML('beforeend', toastHtml)
-        
+
         // Show toast
         const toastElement = document.getElementById(toastId)
         const toast = new bootstrap.Toast(toastElement, {
@@ -460,21 +484,44 @@ class GatheringsCalendarController extends Controller {
             delay: 3000
         })
         toast.show()
-        
+
         // Remove from DOM after hidden
         toastElement.addEventListener('hidden.bs.toast', () => {
             toastElement.remove()
         })
     }
-    
+
     /**
      * Disconnect event - cleanup
      */
     disconnect() {
-        if (this.modalInstance) {
-            this.modalInstance.dispose()
+        // Remove event listeners attached to dynamically loaded modal content
+        try {
+            if (this.modalElement) {
+                const closeButton = this.modalElement.querySelector('.btn-close')
+                if (closeButton && this._closeButtonHandler) {
+                    closeButton.removeEventListener('click', this._closeButtonHandler)
+                    this._closeButtonHandler = null
+                }
+            }
+
+            if (this.turboFrame) {
+                // If attendance modal content was rendered into a separate container, try to clean it
+                const attendanceClose = document.querySelector('#attendanceModalContent .btn-close')
+                if (attendanceClose && this._attendanceCloseHandler) {
+                    attendanceClose.removeEventListener('click', this._attendanceCloseHandler)
+                    this._attendanceCloseHandler = null
+                }
+            }
+
+            if (this.modalInstance) {
+                this.modalInstance.dispose()
+            }
+        } catch (e) {
+            console.warn('Error during disconnect cleanup:', e)
         }
     }
+
 }
 
 // Register controller globally

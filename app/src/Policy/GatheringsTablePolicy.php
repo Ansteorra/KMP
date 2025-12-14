@@ -20,4 +20,19 @@ class GatheringsTablePolicy extends BasePolicy
     {
         return true;
     }
+
+    public function canCalendar(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
+    {
+        return true;
+    }
+
+    public function canCalendarGridData(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
+    {
+        return $this->canCalendar($user, $entity, ...$optionalArgs);
+    }
+
+    public function canGridData(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
+    {
+        return $this->canIndex($user, $entity, ...$optionalArgs);
+    }
 }

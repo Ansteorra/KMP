@@ -1,75 +1,44 @@
 <?php
+
+/**
+ * Branch Officers Cell Display Template
+ * 
+ * Uses the Dataverse Grid pattern with lazy-loading turbo-frame architecture.
+ * The grid loads from the Officers/gridData endpoint with branch_id context.
+ * Includes the Assign Officer button for authorized users.
+ * 
+ * @var \App\View\AppView $this
+ * @var int $id Branch ID
+ * @var array $offices Office tree for assignment modal
+ * @var \Officers\Model\Entity\Officer $newOfficer Empty officer entity for forms
+ */
+
 $user = $this->request->getAttribute("identity");
-$search = $this->request->getQuery("search");
-$search = $search ? trim($search) : null;
 ?>
 
+<!-- Header with Assign Officer button -->
+<?php if ($user->checkCan("assign", "Officers.Officers", $id) && count($offices) > 0): ?>
+    <div class="mb-3">
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal"
+            data-bs-target="#assignOfficerModal">
+            <i class="bi bi-plus-lg"></i> Assign Officer
+        </button>
+    </div>
+<?php endif; ?>
 
-
-
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <td colspan="4">
-                <?php if (
-                    $user->checkCan("assign", "Officers.Officers", $id)
-                    && count($offices) > 0
-                ): ?>
-                <button type="button" class="btn btn-primary" data-bs-toggle="modal"
-                    data-bs-target="#assignOfficerModal">Assign Officer</button>
-                <?php endif; ?>
-            </td>
-            <td colspan="2" class="text-end">
-                <form class="form-inline">
-
-                    <div class="input-group">
-                        <div class="input-group-text" id="btnSearch"><span class='bi bi-search'></span></div>
-                        <input type="text" name="search" class="form-control" placeholder="Search..."
-                            value="<?= $search ?>" aria-describedby="btnSearch" aria-label="Search">
-                    </div>
-                </form>
-            </td>
-        </tr>
-    </thead>
-</table>
-
-
+<!-- Dataverse Grid with Branch Context -->
+<?= $this->element('dv_grid', [
+    'gridKey' => 'Officers.Officers.branch.main',
+    'frameId' => 'branch-officers-grid',
+    'dataUrl' => $this->Url->build([
+        'plugin' => 'Officers',
+        'controller' => 'Officers',
+        'action' => 'gridData',
+        '?' => ['branch_id' => $id]
+    ]),
+]) ?>
 
 <?php
-
-
-
-echo $this->element('turboActiveTabs', [
-    'user' => $user,
-    'tabGroupName' => "authorizationTabs",
-    'tabs' => [
-        "active" => [
-            "label" => __("Active"),
-            "id" => "current-officers",
-            "selected" => true,
-            "turboUrl" => $this->URL->build(["controller" => "Officers", "action" => "BranchOfficers", "plugin" =>
-            "Officers", $id, "current", '?' => ['search' => $search]])
-        ],
-        "upcoming" => [
-            "label" => __("Incoming"),
-            "id" => "upcoming-officers",
-            "selected" => false,
-            "turboUrl" => $this->URL->build(["controller" => "Officers", "action" => "BranchOfficers", "plugin" =>
-            "Officers", $id, "upcoming", '?' => ['search' => $search]])
-        ],
-        "previous" => [
-            "label" => __("Previous"),
-            "id" => "previous-officers",
-            "selected" => false,
-            "turboUrl" => $this->URL->build(["controller" => "Officers", "action" => "BranchOfficers", "plugin" =>
-            "Officers", $id, "previous", '?' => ['search' => $search]])
-        ]
-    ]
-]);
-?>
-
-<?php
-
 echo $this->KMP->startBlock("modals");
 
 echo $this->element('releaseModal', [
@@ -83,4 +52,5 @@ echo $this->element('assignModal', [
 echo $this->element('editModal', [
     'user' => $user,
 ]);
-$this->KMP->endBlock(); ?>
+$this->KMP->endBlock();
+?>

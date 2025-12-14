@@ -16,6 +16,9 @@ use Cake\I18n\Date;
 $today = Date::now();
 $endDate = Date::parse($gathering->end_date->format('Y-m-d'));
 $isPastEvent = $endDate < $today; // Event has ended
+$showAttendanceControls = isset($canAttend)
+    ? (bool)$canAttend
+    : !$isPastEvent;
 ?>
 
 <turbo-frame id="gatheringQuickView">
@@ -193,35 +196,38 @@ $isPastEvent = $endDate < $today; // Event has ended
         <?php endif; ?>
 
         <!-- User Attendance Status & Actions -->
-        <?php if (isset($canAttend) && $canAttend): ?>
-            <div class="mb-3">
-                <?php if ($userAttendance): ?>
-                    <div class="alert alert-success d-flex align-items-center" role="alert">
-                        <i class="bi bi-check-circle-fill me-2"></i>
-                        <div class="flex-grow-1">
-                            <strong>You're attending this gathering!</strong>
-                            <?php if (!empty($userAttendance->notes)): ?>
-                                <br><small><?= h($userAttendance->notes) ?></small>
-                            <?php endif; ?>
-                        </div>
-                        <button type="button" class="btn btn-sm btn-outline-success ms-2"
-                            data-action="click->gatherings-calendar#showAttendanceModal"
-                            data-attendance-id="<?= $userAttendance->id ?>" data-gathering-id="<?= $gathering->id ?>"
-                            data-attendance-action="edit" data-attendance-notes="<?= h($userAttendance->notes ?? '') ?>"
-                            data-attendance-is-public="<?= $userAttendance->is_public ? '1' : '0' ?>"
-                            data-attendance-share-kingdom="<?= $userAttendance->share_with_kingdom ? '1' : '0' ?>">
-                            <i class="bi bi-pencil"></i> Edit
-                        </button>
+        <div class="mb-3">
+            <?php if ($isPastEvent): ?>
+                <div class="alert alert-secondary" role="alert">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <?= __('This gathering has already ended.') ?>
+                </div>
+            <?php elseif ($userAttendance): ?>
+                <div class="alert alert-success d-flex align-items-center" role="alert">
+                    <i class="bi bi-check-circle-fill me-2"></i>
+                    <div class="flex-grow-1">
+                        <strong><?= __('You\'re attending this gathering!') ?></strong>
+                        <?php if (!empty($userAttendance->notes)): ?>
+                            <br><small><?= h($userAttendance->notes) ?></small>
+                        <?php endif; ?>
                     </div>
-                <?php else: ?>
-                    <button type="button" class="btn btn-success w-100"
-                        data-action="click->gatherings-calendar#showAttendanceModal" data-gathering-id="<?= $gathering->id ?>"
-                        data-attendance-action="add">
-                        <i class="bi bi-calendar-check"></i> Mark Your Attendance
+                    <button type="button" class="btn btn-sm btn-outline-success ms-2"
+                        data-action="click->gatherings-calendar#showAttendanceModal"
+                        data-attendance-id="<?= $userAttendance->id ?>" data-gathering-id="<?= $gathering->id ?>"
+                        data-attendance-action="edit" data-attendance-notes="<?= h($userAttendance->notes ?? '') ?>"
+                        data-attendance-is-public="<?= $userAttendance->is_public ? '1' : '0' ?>"
+                        data-attendance-share-kingdom="<?= $userAttendance->share_with_kingdom ? '1' : '0' ?>">
+                        <i class="bi bi-pencil"></i> <?= __('Edit') ?>
                     </button>
-                <?php endif; ?>
-            </div>
-        <?php endif; ?>
+                </div>
+            <?php else: ?>
+                <button type="button" class="btn btn-success w-100"
+                    data-action="click->gatherings-calendar#showAttendanceModal" data-gathering-id="<?= $gathering->id ?>"
+                    data-attendance-action="add">
+                    <i class="bi bi-calendar-check"></i> <?= __('Mark Your Attendance') ?>
+                </button>
+            <?php endif; ?>
+        </div>
 
         <!-- Action Buttons -->
         <div class="d-grid gap-2 d-md-flex justify-content-md-start mt-4 pt-3 border-top">

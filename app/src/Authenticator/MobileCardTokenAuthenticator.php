@@ -12,38 +12,11 @@ use Cake\ORM\TableRegistry;
 use Psr\Http\Message\ServerRequestInterface;
 
 /**
- * Mobile Card Token Authenticator
- *
  * Authenticates users via their unique mobile card token passed as a URL parameter.
- * This allows passwordless authentication for mobile PWA access while maintaining
- * security through long, random, single-use tokens.
+ * Enables passwordless authentication for mobile PWA access using cryptographically
+ * secure tokens. Tokens are stored per-member and can be regenerated if compromised.
  *
- * ## Security Considerations
- *
- * - Tokens are 16+ character random strings, cryptographically secure
- * - Tokens are unique per member and stored in database
- * - Tokens can be regenerated if compromised
- * - Limited to specific mobile card routes
- * - Does not provide session persistence (token required on each request)
- *
- * ## Usage
- *
- * Configured in Application::getAuthenticationService():
- * ```php
- * $service->loadAuthenticator('MobileCardToken', [
- *     'tokenParam' => 'token',           // URL parameter name
- *     'fields' => [
- *         'mobile_card_token' => 'token' // Database field => URL param
- *     ]
- * ]);
- * ```
- *
- * URL Example:
- * ```
- * /members/view-mobile-card/abc123def456ghi7
- * ```
- *
- * @see Application::getAuthenticationService()
+ * @see Application::getAuthenticationService() For configuration
  */
 class MobileCardTokenAuthenticator extends AbstractAuthenticator
 {

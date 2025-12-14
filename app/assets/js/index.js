@@ -10,6 +10,7 @@ import './timezone-utils.js';
 import './controllers/qrcode-controller.js';
 import './controllers/timezone-input-controller.js';
 import './controllers/security-debug-controller.js';
+import './controllers/popover-controller.js';
 
 // Disable Turbo Drive (automatic navigation) but keep Turbo Frames working
 Turbo.session.drive = false;
@@ -28,3 +29,14 @@ for (const controller in window.Controllers) {
 //activate boostrap tooltips
 const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
 const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
+
+// Re-initialize tooltips after Turbo renders (for dynamically loaded content)
+// Note: Popovers are handled by the popover Stimulus controller
+document.addEventListener('turbo:render', () => {
+    // Initialize new tooltips
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+        if (!bootstrap.Tooltip.getInstance(el)) {
+            new bootstrap.Tooltip(el);
+        }
+    });
+});

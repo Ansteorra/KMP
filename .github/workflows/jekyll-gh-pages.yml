@@ -28,13 +28,50 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # --- PHP API Docs ---
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, xml, ctype, iconv, intl, dom
+          tools: composer:v2
+
+      - name: Download phpDocumentor
+        run: |
+          mkdir -p app/.phpdoc
+          curl -Ls https://phpdoc.org/phpDocumentor.phar -o app/.phpdoc/phpDocumentor.phar
+          chmod +x app/.phpdoc/phpDocumentor.phar
+
+      - name: Generate PHP API docs
+        run: php app/.phpdoc/phpDocumentor.phar run -c app/phpdoc.dist.xml
+
+      # --- JavaScript API Docs ---
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install JS dependencies
+        working-directory: app
+        run: npm ci --ignore-scripts
+
+      - name: Generate JS API docs
+        working-directory: app
+        run: npm run docs:js
+
+      # --- Jekyll Build ---
       - name: Setup Pages
         uses: actions/configure-pages@v5
+
       - name: Build with Jekyll
         uses: actions/jekyll-build-pages@v1
         with:
           source: ./docs
           destination: ./_site
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
 

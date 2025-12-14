@@ -149,17 +149,6 @@ class CoreNavigationProvider
             [
                 'type' => 'link',
                 'mergePath' => ['Members', 'Members'],
-                'label' => 'Verification Queues',
-                'order' => 20,
-                'url' => [
-                    'controller' => 'Members',
-                    'action' => 'verifyQueue',
-                ],
-                'icon' => 'bi-fingerprint',
-            ],
-            [
-                'type' => 'link',
-                'mergePath' => ['Members', 'Members'],
                 'label' => 'Import Exp. Dates',
                 'order' => 30,
                 'url' => [

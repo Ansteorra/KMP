@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Waivers\Controller;
 
+use App\Controller\DataverseGridTrait;
 use App\KMP\StaticHelpers;
+use App\Services\CsvExportService;
 use App\Services\DocumentService;
 use App\Services\ImageToPdfConversionService;
 use App\Services\RetentionPolicyService;
@@ -13,6 +15,7 @@ use Cake\Http\Exception\BadRequestException;
 use Cake\Http\Exception\NotFoundException;
 use Cake\I18n\Date;
 use Cake\Log\Log;
+use Waivers\KMP\GridColumns\GatheringWaiversGridColumns;
 
 /**
  * GatheringWaivers Controller
@@ -24,6 +27,7 @@ use Cake\Log\Log;
  */
 class GatheringWaiversController extends AppController
 {
+    use DataverseGridTrait;
     /**
      * Document service instance
      *
@@ -65,14 +69,14 @@ class GatheringWaiversController extends AppController
         $this->RetentionPolicyService = new RetentionPolicyService();
 
         // Authorize typical CRUD actions
-        $this->Authorization->authorizeModel('index');
+        $this->Authorization->authorizeModel('index', 'gridData');
     }
 
     /**
      * Index method - List waivers
      * 
      * If gathering_id is provided, shows waivers for that specific gathering.
-     * Otherwise, shows all waivers for gatherings the user has permission to view.
+     * Otherwise, shows all waivers using the dv_grid interface.
      *
      * @return \Cake\Http\Response|null|void Renders view
      */
@@ -133,85 +137,172 @@ class GatheringWaiversController extends AppController
             }
 
             $this->set(compact('gathering', 'gatheringWaivers', 'countsMap', 'requiredWaiverTypes'));
+            $this->render('index_gathering');
         } else {
-            // Show all waivers for accessible gatherings
-            $branchIds = $currentUser->getBranchIdsForAction('view', 'Waivers.GatheringWaivers');
+            // Show all waivers using dv_grid
+            // The actual data will be loaded via gridData action
+            $this->set('gathering', null);
+        }
+    }
 
-            // If user has no permissions, show empty list
-            if (is_array($branchIds) && empty($branchIds)) {
-                $this->Flash->error(__('You do not have permission to view waivers.'));
-                return $this->redirect(['controller' => 'Pages', 'action' => 'display', 'home']);
-            }
+    /**
+     * Grid Data method - provides data for the Dataverse grid (All Waivers view)
+     *
+     * @param CsvExportService $csvExportService Injected CSV export service
+     * @return \Cake\Http\Response|null|void Renders view or returns CSV response
+     */
+    public function gridData(CsvExportService $csvExportService)
+    {
+        $currentUser = $this->Authentication->getIdentity();
 
-            // Get all branches or filtered by permission
-            $Branches = $this->fetchTable('Branches');
-            if ($branchIds === null) {
-                // Global permission - all branches
-                $branchIds = $Branches->find()->select(['id'])->all()->extract('id')->toArray();
-            }
+        // Get branches user can view waivers for
+        $branchIds = $currentUser->getBranchIdsForAction('view', 'Waivers.GatheringWaivers');
 
-            // Build base query
-            $query = $this->GatheringWaivers->find()
-                ->where(['GatheringWaivers.deleted IS' => null])
-                ->innerJoinWith('Gatherings', function ($q) use ($branchIds) {
-                    return $q->where([
-                        'Gatherings.branch_id IN' => $branchIds,
-                        'Gatherings.deleted IS' => null,
-                    ]);
-                });
+        // If user has no permissions, show empty grid
+        if (is_array($branchIds) && empty($branchIds)) {
+            $this->set([
+                'gatheringWaivers' => [],
+                'gridState' => [],
+                'columns' => GatheringWaiversGridColumns::getColumns(),
+                'visibleColumns' => array_keys(GatheringWaiversGridColumns::getDefaultVisibleColumns()),
+                'searchableColumns' => GatheringWaiversGridColumns::getSearchableColumns(),
+                'dropdownFilterColumns' => [],
+                'filterOptions' => [],
+                'currentFilters' => [],
+                'currentSearch' => '',
+                'currentView' => 'sys-gathering-waivers-active',
+                'availableViews' => [],
+                'gridKey' => 'Waivers.GatheringWaivers.index.main',
+                'currentSort' => [],
+                'currentMember' => $currentUser,
+            ]);
 
-            // Apply search filters
-            $searchTerm = $this->request->getQuery('search');
-            $branchId = $this->request->getQuery('branch_id');
-            $startDate = $this->request->getQuery('start_date');
-            $endDate = $this->request->getQuery('end_date');
+            $this->viewBuilder()->setTemplate('grid_data');
+            return;
+        }
 
-            if (!empty($searchTerm)) {
-                $query->where([
-                    'OR' => [
-                        'Gatherings.name LIKE' => '%' . $searchTerm . '%',
-                    ],
+        // Get all branches or filtered by permission
+        $Branches = $this->fetchTable('Branches');
+        if ($branchIds === null) {
+            // Global permission - all branches
+            $branchIds = $Branches->find()->select(['id'])->all()->extract('id')->toArray();
+        }
+
+        // Build base query
+        $baseQuery = $this->GatheringWaivers->find()
+            ->where(['GatheringWaivers.deleted IS' => null])
+            ->innerJoinWith('Gatherings', function ($q) use ($branchIds) {
+                return $q->where([
+                    'Gatherings.branch_id IN' => $branchIds,
+                    'Gatherings.deleted IS' => null,
                 ]);
-            }
-
-            if (!empty($branchId)) {
-                $query->where(['Gatherings.branch_id' => $branchId]);
-            }
-
-            if (!empty($startDate)) {
-                $query->where(['GatheringWaivers.created >=' => $startDate]);
-            }
-
-            if (!empty($endDate)) {
-                // Add one day to include the end date fully
-                $endDateTime = new \Cake\I18n\Date($endDate);
-                $endDateTime = $endDateTime->addDay();
-                $query->where(['GatheringWaivers.created <' => $endDateTime]);
-            }
-
-            $query->contain([
+            })
+            ->contain([
                 'Gatherings' => function ($q) {
                     return $q->select(['id', 'name', 'start_date', 'end_date', 'branch_id']);
                 },
                 'Gatherings.Branches' => function ($q) {
                     return $q->select(['id', 'name']);
                 },
-                'WaiverTypes',
+                'WaiverTypes' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+                'GatheringWaiverActivities' => function ($q) {
+                    return $q->contain(['GatheringActivities' => function ($q2) {
+                        return $q2->select(['id', 'name']);
+                    }]);
+                },
                 'Documents',
-            ])
-                ->orderBy(['GatheringWaivers.created' => 'DESC']);
+            ]);
 
-            $gatheringWaivers = $this->paginate($query);
+        // Build branch filter options
+        $branchOptions = $Branches->find('list')
+            ->where(['Branches.id IN' => $branchIds])
+            ->orderBy(['Branches.name' => 'ASC'])
+            ->toArray();
+        $branchFilterOptions = [];
+        foreach ($branchOptions as $id => $name) {
+            $branchFilterOptions[] = ['value' => (string)$id, 'label' => $name];
+        }
 
-            // Get list of branches for filter dropdown
-            $branches = $Branches->find('list')
-                ->where(['Branches.id IN' => $branchIds])
-                ->orderBy(['Branches.name' => 'ASC'])
-                ->toArray();
+        // Build waiver type filter options
+        $WaiverTypes = $this->fetchTable('Waivers.WaiverTypes');
+        $waiverTypeOptions = $WaiverTypes->find('list')
+            ->where(['is_active' => true])
+            ->orderBy(['name' => 'ASC'])
+            ->toArray();
+        $waiverTypeFilterOptions = [];
+        foreach ($waiverTypeOptions as $id => $name) {
+            $waiverTypeFilterOptions[] = ['value' => (string)$id, 'label' => $name];
+        }
 
-            $this->set(compact('gatheringWaivers', 'branches'));
-            $this->set('gathering', null); // No specific gathering
-            $this->set('countsMap', []); // No counts when viewing all
+        // Get system views
+
+        // Use unified trait for grid processing
+        $result = $this->processDataverseGrid([
+            'gridKey' => 'Waivers.GatheringWaivers.index.main',
+            'gridColumnsClass' => GatheringWaiversGridColumns::class,
+            'baseQuery' => $baseQuery,
+            'tableName' => 'GatheringWaivers',
+            'defaultSort' => ['GatheringWaivers.created' => 'desc'],
+            'defaultPageSize' => 25,
+            'showAllTab' => true,
+            'canAddViews' => true,
+            'canFilter' => true,
+            'canExportCsv' => true,
+            'additionalFilterOptions' => [
+                'branch_id' => $branchFilterOptions,
+                'waiver_type_id' => $waiverTypeFilterOptions,
+            ],
+        ]);
+
+        // Handle CSV export
+        if (!empty($result['isCsvExport'])) {
+            return $this->handleCsvExport($result, $csvExportService, 'gathering-waivers');
+        }
+
+        // Get row actions from grid columns
+        $rowActions = GatheringWaiversGridColumns::getRowActions();
+
+        // Set view variables
+        $this->set([
+            'gatheringWaivers' => $result['data'],
+            'rowActions' => $rowActions,
+            'gridState' => $result['gridState'],
+            'columns' => $result['columnsMetadata'],
+            'visibleColumns' => $result['visibleColumns'],
+            'searchableColumns' => GatheringWaiversGridColumns::getSearchableColumns(),
+            'dropdownFilterColumns' => $result['dropdownFilterColumns'],
+            'filterOptions' => $result['filterOptions'],
+            'currentFilters' => $result['currentFilters'],
+            'currentSearch' => $result['currentSearch'],
+            'currentView' => $result['currentView'],
+            'availableViews' => $result['availableViews'],
+            'gridKey' => $result['gridKey'],
+            'currentSort' => $result['currentSort'],
+            'currentMember' => $result['currentMember'],
+        ]);
+
+        // Determine which template to render based on Turbo-Frame header
+        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
+
+        // Override data for grid rendering
+        $this->set('data', $result['data']);
+
+        if ($turboFrame === 'gathering-waivers-grid-table') {
+            // Inner frame request - render table data only
+            $this->set('tableFrameId', 'gathering-waivers-grid-table');
+            $this->viewBuilder()->setPlugin(null);
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplatePath('element');
+            $this->viewBuilder()->setTemplate('dv_grid_table');
+        } else {
+            // Outer frame request (or no frame) - render toolbar + table frame
+            $this->set('frameId', 'gathering-waivers-grid');
+            $this->viewBuilder()->setPlugin(null);
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplatePath('element');
+            $this->viewBuilder()->setTemplate('dv_grid_content');
         }
     }
 
@@ -306,6 +397,15 @@ class GatheringWaiversController extends AppController
         // Handle POST - process uploads
         if ($this->request->is('post')) {
             $data = $this->request->getData();
+            Log::debug('Waiver upload POST data received', [
+                'keys' => array_keys($data),
+                'waiver_type_id' => $data['waiver_type_id'] ?? null,
+                'activity_ids' => $data['activity_ids'] ?? 'NOT SET',
+                'activity_ids_type' => isset($data['activity_ids']) ? gettype($data['activity_ids']) : 'NOT SET',
+                'notes' => $data['notes'] ?? '',
+                'waiver_images_count' => isset($data['waiver_images']) ? count($data['waiver_images']) : 0,
+            ]);
+
             $uploadedFiles = $data['waiver_images'] ?? [];
             $waiverTypeId = $data['waiver_type_id'] ?? null;
             $notes = $data['notes'] ?? '';
@@ -640,6 +740,16 @@ class GatheringWaiversController extends AppController
         string $notes,
         array $activityIds
     ): ServiceResult {
+        // Debug: Log what we received
+        Log::debug('_processMultipleWaiverImages called', [
+            'uploadedFiles_count' => count($uploadedFiles),
+            'gathering_id' => $gathering->id,
+            'waiverType_id' => $waiverType->id,
+            'notes_length' => strlen($notes),
+            'activityIds' => $activityIds,
+            'activityIds_count' => count($activityIds),
+        ]);
+
         // Extract temp paths from uploaded files
         $tempPaths = [];
         $originalFilename = '';
@@ -681,7 +791,7 @@ class GatheringWaiversController extends AppController
             Date::now()
         );
 
-        if (!$retentionResult->isSuccess()) {
+        if (!$retentionResult->success) {
             @unlink($pdfPath);
             return $retentionResult;
         }
@@ -749,7 +859,7 @@ class GatheringWaiversController extends AppController
         // Clean up temporary PDF file
         @unlink($pdfPath);
 
-        if (!$documentResult->isSuccess()) {
+        if (!$documentResult->success) {
             $this->GatheringWaivers->delete($gatheringWaiver);
             return new ServiceResult(false, 'Failed to save document: ' . $documentResult->getError());
         }
@@ -766,22 +876,62 @@ class GatheringWaiversController extends AppController
         }
 
         // Create GatheringWaiverActivities associations (join table linking waivers to activities)
+        Log::debug('Creating waiver-activity associations', [
+            'gathering_waiver_id' => $gatheringWaiver->id,
+            'activityIds' => $activityIds,
+            'activityIds_count' => count($activityIds),
+            'activityIds_type' => gettype($activityIds),
+        ]);
+
+        if (empty($activityIds)) {
+            Log::warning('No activity IDs provided for waiver-activity associations', [
+                'gathering_waiver_id' => $gatheringWaiver->id,
+            ]);
+        }
+
         $GatheringWaiverActivities = $this->fetchTable('Waivers.GatheringWaiverActivities');
+        $savedActivities = 0;
         foreach ($activityIds as $activityId) {
+            Log::debug('Processing activity association', [
+                'activityId' => $activityId,
+                'activityId_type' => gettype($activityId),
+            ]);
+
             $waiverActivity = $GatheringWaiverActivities->newEntity([
                 'gathering_waiver_id' => $gatheringWaiver->id,
                 'gathering_activity_id' => (int)$activityId,
             ]);
 
+            // Check for validation errors on the entity
+            if ($waiverActivity->hasErrors()) {
+                Log::error('Validation errors on waiver-activity entity', [
+                    'errors' => $waiverActivity->getErrors(),
+                    'data' => $waiverActivity->toArray(),
+                ]);
+            }
+
             if (!$GatheringWaiverActivities->save($waiverActivity)) {
                 Log::error('Failed to save waiver-activity association', [
                     'gathering_waiver_id' => $gatheringWaiver->id,
                     'gathering_activity_id' => $activityId,
-                    'errors' => $waiverActivity->getErrors()
+                    'errors' => $waiverActivity->getErrors(),
+                    'entity_data' => $waiverActivity->toArray(),
                 ]);
                 // Don't fail the whole upload, just log the error
+            } else {
+                $savedActivities++;
+                Log::debug('Saved waiver-activity association', [
+                    'id' => $waiverActivity->id,
+                    'gathering_waiver_id' => $gatheringWaiver->id,
+                    'gathering_activity_id' => $activityId,
+                ]);
             }
         }
+
+        Log::debug('Finished creating waiver-activity associations', [
+            'total_requested' => count($activityIds),
+            'total_saved' => $savedActivities,
+        ]);
 
         return new ServiceResult(true, null, [
             'waiver_id' => $gatheringWaiver->id,
@@ -789,9 +939,6 @@ class GatheringWaiversController extends AppController
             'page_count' => count($uploadedFiles),
         ]);
     }
-
-    /**
-     * Get required waiver types for upload view
 
     /**
      * Get required waiver types for a gathering based on selected activities
@@ -1198,7 +1345,7 @@ class GatheringWaiversController extends AppController
         $currentUser = $this->Authentication->getIdentity();
 
         // Get branches user can upload waivers for
-        $branchIds = $currentUser->getBranchIdsForAction('add', 'Waivers.GatheringWaivers');
+        $branchIds = $currentUser->getBranchIdsForAction('upload', 'Waivers.GatheringWaivers');
 
         // If user has no branch permissions, show empty list
         if ($branchIds === null) {
@@ -1324,8 +1471,8 @@ class GatheringWaiversController extends AppController
      */
     public function dashboard()
     {
-        // Authorize access to dashboard
-        $this->Authorization->authorize($this->request);
+        // Authorize access to dashboard using URL-based authorization
+        $this->authorizeCurrentUrl();
 
         $currentUser = $this->Authentication->getIdentity();
         $branchIds = $currentUser->getBranchIdsForAction('add', 'Waivers.GatheringWaivers');
@@ -2193,7 +2340,7 @@ class GatheringWaiversController extends AppController
             $Gatherings = $this->fetchTable('Gatherings');
             $gathering = $Gatherings->get($gatheringId);
 
-            // Check authorization - user must be able to edit the gathering
+            // Check authorization - user must be able upload waivers for this gathering to attest
             $gatheringWaiver = $this->GatheringWaivers->newEmptyEntity();
             $gatheringWaiver->gathering = $gathering;
             $this->Authorization->authorize($gatheringWaiver, 'uploadWaivers');

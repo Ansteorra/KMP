@@ -11,9 +11,9 @@
         <h1><?= __('Hello World') ?></h1>
         <div>
             <?= $this->Html->link(
-                '<i class="bi bi-plus-circle me-1"></i>' . __('Add New'),
+                __(' Add New'),
                 ['action' => 'add'],
-                ['class' => 'btn btn-primary', 'escape' => false]
+                ['class' => 'btn btn-primary  bi bi-plus-circle', 'escape' => false]
             ) ?>
         </div>
     </div>

@@ -10,250 +10,133 @@ use Cake\Http\Exception\NotFoundException;
 use Cake\ORM\TableRegistry;
 
 /**
- * RolesController - KMP RBAC Role Management Interface
+ * Manages RBAC roles: CRUD, permission assignment, and member management.
  *
- * The RolesController provides the web interface for managing roles within the KMP Role-Based
- * Access Control (RBAC) system. It handles role creation, editing, permission assignment,
- * member management, and provides comprehensive role administration capabilities with proper
- * security controls and authorization checks.
- *
- * ## Core Role Management Features
- *
- * ### Role CRUD Operations
- * - **Create Roles**: Add new roles with validation and security controls
- * - **View Roles**: Display detailed role information including members and permissions
- * - **Edit Roles**: Modify role settings with system role protection
- * - **Delete Roles**: Soft delete roles with member assignment verification
- *
- * ### Permission Management
- * - **Permission Assignment**: Add permissions to roles with validation
- * - **Permission Removal**: Remove permissions from roles with safety checks
- * - **Permission Filtering**: Display available permissions for assignment
- * - **Scoping Analysis**: Detect and handle branch-scoped permission requirements
- *
- * ### Member Assignment Interface
- * - **Current Members**: Display active role assignments with temporal information
- * - **Assignment Counts**: Track current, upcoming, and previous assignments
- * - **Branch Requirements**: Handle branch-scoped role assignments
- * - **Member Search**: AJAX-based member search for role assignment
- *
- * ## Role Management Workflows
- *
- * ### Standard Role Lifecycle
- * 1. **Creation**: Administrator creates role with basic information
- * 2. **Permission Assignment**: Relevant permissions are assigned to the role
- * 3. **Member Assignment**: Members are assigned to the role through MemberRole entities
- * 4. **Monitoring**: Track role usage and member assignments
- * 5. **Maintenance**: Regular review and updates of role permissions
- * 6. **Deactivation**: Role is soft deleted when no longer needed
- *
- * ### System Role Protection
- * - System roles have special protection against modification
- * - Critical roles cannot be deleted to maintain system integrity
- * - System role names cannot be changed to preserve functionality
- * - Special authorization requirements for system role access
- *
- * ## Advanced Features
- *
- * ### Branch-Scoped Role Management
- * - **Scope Detection**: Automatically detects if role requires branch assignment
- * - **Branch Interface**: Provides branch selection for scoped roles
- * - **Hierarchy Support**: Works with organizational branch hierarchy
- * - **Permission Validation**: Ensures branch requirements are met
- *
- * ### Temporal Assignment Tracking
- * - **Current Assignments**: Active role assignments within date range
- * - **Upcoming Assignments**: Future role assignments not yet active
- * - **Historical Assignments**: Past assignments for audit trail
- * - **Assignment Analytics**: Track role usage patterns over time
- *
- * ### Export and Reporting
- * - **CSV Export**: Export role lists for external analysis
- * - **Assignment Reports**: Generate member assignment reports
- * - **Permission Audits**: Track permission distribution across roles
- * - **Usage Analytics**: Monitor role utilization patterns
- *
- * ## Security Architecture
- *
- * ### Authorization Controls
- * - **Action Authorization**: Each action requires appropriate permissions
- * - **Entity Authorization**: Role-specific authorization checks
- * - **Scope Application**: Automatic filtering based on user access
- * - **System Role Protection**: Enhanced security for critical roles
- *
- * ### Data Protection
- * - **Input Validation**: Comprehensive validation of role data
- * - **CSRF Protection**: All state-changing operations protected
- * - **SQL Injection Prevention**: Parameterized queries throughout
- * - **XSS Prevention**: Output encoding and validation
- *
- * ### Audit and Compliance
- * - **Change Tracking**: Complete audit trail of role modifications
- * - **User Attribution**: Track who made role changes
- * - **Timestamp Management**: Automatic tracking of creation and modification
- * - **Soft Deletion**: Preserve role history for compliance
- *
- * ## Integration Points
- *
- * ### RBAC System Integration
- * - **Permission Management**: Direct integration with PermissionsController
- * - **Member Management**: Integration with member assignment workflows
- * - **Authorization Service**: Real-time permission evaluation
- * - **Policy Framework**: Support for custom authorization policies
- *
- * ### Organizational Hierarchy
- * - **Branch Integration**: Works with branch hierarchy for scoped roles
- * - **Tree Operations**: Leverages branch tree operations for assignment
- * - **Descendant Queries**: Efficient queries for hierarchical permissions
- * - **Scope Validation**: Ensures assignments match permission scopes
- *
- * ### Member Management System
- * - **Member Search**: Integration with member search functionality
- * - **Assignment Workflows**: Support for time-bounded assignments
- * - **Approval Processes**: Integration with approval workflows
- * - **Notification System**: Role assignment notifications
- *
- * ## User Interface Features
- *
- * ### Role List Interface
- * - **Paginated Listing**: Efficient display of large role sets
- * - **Search and Filtering**: Find roles by name and attributes
- * - **Sort Options**: Multiple sorting criteria available
- * - **Export Options**: CSV export for external processing
- *
- * ### Role Detail Views
- * - **Comprehensive Information**: Complete role details and statistics
- * - **Permission Listing**: All assigned permissions with details
- * - **Member Assignments**: Current, upcoming, and historical assignments
- * - **Quick Actions**: Common operations accessible from detail view
- *
- * ### Administrative Tools
- * - **Bulk Operations**: Efficient management of multiple roles
- * - **Permission Matrix**: Visual permission assignment interface
- * - **Assignment Analytics**: Role usage and member statistics
- * - **System Monitoring**: Track role system health and usage
- *
- * ## Performance Optimizations
- *
- * ### Efficient Data Loading
- * - **Strategic Contains**: Optimized association loading
- * - **Pagination**: Efficient handling of large datasets
- * - **Query Optimization**: Efficient SQL generation for complex queries
- * - **Cache Integration**: Leverages system caching for performance
- *
- * ### AJAX Operations
- * - **Partial Updates**: Update specific sections without full page refresh
- * - **Progressive Loading**: Load data as needed for better responsiveness
- * - **Client-side Validation**: Reduce server load with client validation
- * - **Optimistic Updates**: Immediate UI feedback for better user experience
- *
- * ## Usage Examples
- *
- * ### Basic Role Management
- * ```php
- * // Creating a new role
- * $role = $rolesTable->newEntity([
- *     'name' => 'Event Steward'
- * ]);
- * $rolesTable->save($role);
- *
- * // Adding permissions to role
- * $role->permissions = [$manageEventsPermission, $viewMembersPermission];
- * $rolesTable->save($role);
- * ```
- *
- * ### Member Assignment Workflows
- * ```php
- * // Assign member to role with time bounds
- * $memberRole = $memberRolesTable->newEntity([
- *     'Member_id' => $member->id,
- *     'role_id' => $role->id,
- *     'start_on' => new Date('2024-01-01'),
- *     'expires_on' => new Date('2024-12-31'),
- *     'branch_id' => $branch->id  // For scoped roles
- * ]);
- * ```
- *
- * ### Advanced Role Queries
- * ```php
- * // Find roles with specific permissions
- * $roles = $rolesTable->find()
- *     ->matching('Permissions', function($q) use ($permissionName) {
- *         return $q->where(['Permissions.name' => $permissionName]);
- *     })
- *     ->contain(['CurrentMemberRoles'])
- *     ->toArray();
- * ```
- *
- * @see \App\Model\Entity\Role For role entity documentation
- * @see \App\Model\Table\RolesTable For role data access
- * @see \App\Model\Entity\MemberRole For member role assignments
- * @see \App\Controller\PermissionsController For permission management
- * @see \App\Controller\MembersController For member management
+ * Handles branch-scoped roles, temporal assignments (current/upcoming/previous),
+ * and provides member search for role assignment. System roles are protected.
  *
  * @property \App\Model\Table\RolesTable $Roles
  */
 class RolesController extends AppController
 {
+    use DataverseGridTrait;
+
     /**
-     * Initialize method - Configure authorization for role management
-     *
-     * Sets up the authorization requirements for the roles controller,
-     * specifying which actions require model-level authorization checking.
+     * Configure authorization for role management actions.
      *
      * @return void
      */
     public function initialize(): void
     {
         parent::initialize();
-
-        // Configure model-level authorization for specific actions
-        // These actions will have automatic model authorization applied
         $this->Authorization->authorizeModel(
-            'index',        // Role listing
-            'add',          // Role creation
-            'searchMembers', // Member search for role assignment
+            'index',
+            'add',
+            'searchMembers',
+            'gridData',
         );
     }
 
     /**
-     * Index method - Display paginated list of roles with CSV export support
+     * Index method - Display Dataverse grid for roles
      *
-     * Provides the main interface for viewing and managing roles in the system.
-     * Includes authorization scoping to ensure users only see roles they're
-     * authorized to access, and supports CSV export for external analysis.
+     * Renders the roles grid page which uses lazy-loading turbo-frame
+     * to load the actual grid data via the gridData action.
+     *
+     * @return \Cake\Http\Response|null|void Renders view
+     */
+    public function index()
+    {
+        // Simple index page - just renders the dv_grid element
+        // The dv_grid element will lazy-load the actual data via gridData action
+    }
+
+    /**
+     * Grid Data method - Provides Dataverse grid data for roles
+     *
+     * Returns grid content with toolbar and table for the roles grid.
+     * Handles both outer frame (toolbar + table frame) and inner frame
+     * (table only) requests. Also supports CSV export.
      *
      * @param \App\Services\CsvExportService $csvExportService Injected CSV export service
      * @return \Cake\Http\Response|null|void Renders view or returns CSV response
      */
-    public function index(CsvExportService $csvExportService)
+    public function gridData(CsvExportService $csvExportService)
     {
-        // Verify user has permission to view role list
-        $this->Authorization->authorizeAction();
+        // Build query with current member count subquery (only active assignments)
+        $memberRolesTable = TableRegistry::getTableLocator()->get('MemberRoles');
+        $now = new \Cake\I18n\DateTime();
+        $memberCountSubquery = $memberRolesTable->find()
+            ->select(['count' => $memberRolesTable->find()->func()->count('*')])
+            ->where([
+                'MemberRoles.role_id = Roles.id',
+                'MemberRoles.start_on <=' => $now,
+                'OR' => [
+                    'MemberRoles.expires_on >=' => $now,
+                    'MemberRoles.expires_on IS' => null,
+                ],
+            ]);
 
-        // Build base query for roles
-        $query = $this->Roles->find();
+        $baseQuery = $this->Roles->find()
+            ->select($this->Roles)
+            ->select(['member_count' => $memberCountSubquery]);
 
-        // Apply authorization scoping to filter roles based on user access
-        // This ensures users only see roles they're authorized to view
-        $query = $this->Authorization->applyScope($query);
+        // Get system views from GridColumns
+        $systemViews = \App\KMP\GridColumns\RolesGridColumns::getSystemViews([]);
 
-        // Handle CSV export requests
-        if ($this->isCsvRequest()) {
-            return $csvExportService->outputCsv(
-                $query->order(['name' => 'asc']),
-                'roles.csv',
-            );
-        }
-
-        // Paginate results with alphabetical sorting for better usability
-        $roles = $this->paginate($query, [
-            'order' => [
-                'name' => 'asc',
-            ],
+        // Use unified trait for grid processing
+        $result = $this->processDataverseGrid([
+            'gridKey' => 'Roles.index.main',
+            'gridColumnsClass' => \App\KMP\GridColumns\RolesGridColumns::class,
+            'baseQuery' => $baseQuery,
+            'tableName' => 'Roles',
+            'defaultSort' => ['Roles.name' => 'asc'],
+            'defaultPageSize' => 25,
+            'showAllTab' => true,
+            'canAddViews' => false,
+            'canFilter' => true,
+            'canExportCsv' => false,
         ]);
 
-        $this->set(compact('roles'));
+        // Handle CSV export
+        if (!empty($result['isCsvExport'])) {
+            return $this->handleCsvExport($result, $csvExportService, 'roles');
+        }
+
+        // Set view variables
+        $this->set([
+            'roles' => $result['data'],
+            'gridState' => $result['gridState'],
+            'columns' => $result['columnsMetadata'],
+            'visibleColumns' => $result['visibleColumns'],
+            'searchableColumns' => \App\KMP\GridColumns\RolesGridColumns::getSearchableColumns(),
+            'dropdownFilterColumns' => $result['dropdownFilterColumns'],
+            'filterOptions' => $result['filterOptions'],
+            'currentFilters' => $result['currentFilters'],
+            'currentSearch' => $result['currentSearch'],
+            'currentView' => $result['currentView'],
+            'availableViews' => $result['availableViews'],
+            'gridKey' => $result['gridKey'],
+            'currentSort' => $result['currentSort'],
+            'currentMember' => $result['currentMember'],
+        ]);
+
+        // Determine which template to render based on Turbo-Frame header
+        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
+
+        if ($turboFrame === 'roles-grid-table') {
+            // Inner frame request - render table data only
+            $this->set('data', $result['data']);
+            $this->set('tableFrameId', 'roles-grid-table');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplate('../element/dv_grid_table');
+        } else {
+            // Outer frame request (or no frame) - render toolbar + table frame
+            $this->set('data', $result['data']);
+            $this->set('frameId', 'roles-grid');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplate('../element/dv_grid_content');
+        }
     }
 
     /**

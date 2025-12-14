@@ -85,6 +85,85 @@ class MembersControllerTest extends BaseTestCase
     }
 
     /**
+     * Ensure impersonation button appears for super users on member profile.
+     *
+     * @return void
+     */
+    public function testViewShowsImpersonateButtonForSuperUsers(): void
+    {
+        $membersTable = $this->getTableLocator()->get('Members');
+        $target = $membersTable->find()
+            ->where(['Members.id !=' => self::ADMIN_MEMBER_ID])
+            ->select(['id'])
+            ->firstOrFail();
+
+        $this->get('/members/view/' . $target->id);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('Impersonate Member');
+    }
+
+    /**
+     * Verify POST /members/impersonate/:id starts impersonation session.
+     *
+     * @return void
+     */
+    public function testImpersonateActionStartsSession(): void
+    {
+        $membersTable = $this->getTableLocator()->get('Members');
+        $target = $membersTable->find()
+            ->where(['Members.id !=' => self::ADMIN_MEMBER_ID])
+            ->select(['id'])
+            ->firstOrFail();
+
+        $this->configRequest(['headers' => ['Referer' => '/members/view/' . $target->id]]);
+        $this->post('/members/impersonate/' . $target->id);
+
+        $this->assertRedirectContains('/members/view/' . $target->id);
+        $this->assertSession($target->id, 'Impersonation.impersonated_member_id');
+        $this->assertSession(self::ADMIN_MEMBER_ID, 'Impersonation.impersonator_id');
+
+        $sessionLogs = $this->getTableLocator()->get('ImpersonationSessionLogs');
+        $count = $sessionLogs->find()->where([
+            'impersonator_id' => self::ADMIN_MEMBER_ID,
+            'impersonated_member_id' => $target->id,
+            'event' => 'start',
+        ])->count();
+        $this->assertGreaterThanOrEqual(1, $count);
+    }
+
+    /**
+     * Ensure stop impersonating restores admin context and clears session state.
+     *
+     * @return void
+     */
+    public function testStopImpersonatingRestoresAdmin(): void
+    {
+        $membersTable = $this->getTableLocator()->get('Members');
+        $target = $membersTable->find()
+            ->where(['Members.id !=' => self::ADMIN_MEMBER_ID])
+            ->select(['id'])
+            ->firstOrFail();
+
+        $this->configRequest(['headers' => ['Referer' => '/members/view/' . $target->id]]);
+        $this->post('/members/impersonate/' . $target->id);
+
+        $this->configRequest(['headers' => ['Referer' => '/members/view/' . self::ADMIN_MEMBER_ID]]);
+        $this->post('/members/stop-impersonating');
+
+        $this->assertRedirectContains('/members/view/' . self::ADMIN_MEMBER_ID);
+        $this->assertSession(null, 'Impersonation.impersonated_member_id');
+
+        $sessionLogs = $this->getTableLocator()->get('ImpersonationSessionLogs');
+        $count = $sessionLogs->find()->where([
+            'impersonator_id' => self::ADMIN_MEMBER_ID,
+            'impersonated_member_id' => $target->id,
+            'event' => 'stop',
+        ])->count();
+        $this->assertGreaterThanOrEqual(1, $count);
+    }
+
+    /**
      * Test view with invalid member ID returns not found
      *
      * @return void

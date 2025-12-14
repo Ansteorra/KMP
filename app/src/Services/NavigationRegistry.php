@@ -8,66 +8,12 @@ use App\Model\Entity\Member;
 use Cake\Core\StaticConfigTrait;
 
 /**
- * Navigation Registry Service
- * 
- * Centralized registry for managing application navigation items from core and plugin sources.
- * Replaces the event-based navigation system with a more performant and maintainable
- * static registration approach. Handles dynamic navigation generation, caching, and
- * user-specific filtering of navigation items.
- * 
- * ## Architecture Overview
- * 
- * The navigation system uses a registry pattern where:
- * - **Core Application**: Registers base navigation items via CoreNavigationProvider
- * - **Plugins**: Register their navigation items during plugin initialization
- * - **Dynamic Generation**: Callbacks can generate context-specific navigation items
- * - **Session Caching**: Navigation items are cached in session for performance
- * - **Authorization Integration**: Items are filtered based on user permissions
- * 
- * ## Navigation Item Structure
- * 
- * Navigation items follow a standardized format:
- * ```php
- * [
- *     'type' => 'item|parent|child|separator',
- *     'label' => 'Human readable label',
- *     'url' => ['controller' => 'Members', 'action' => 'index'],
- *     'icon' => 'bi-people',
- *     'order' => 10,
- *     'id' => 'unique_nav_id',
- *     'parent' => 'parent_nav_id',
- *     'badge' => ['class' => 'ClassName', 'method' => 'methodName'],
- *     'linkTypeClass' => 'nav-link',
- *     'otherClasses' => 'additional-css-classes'
- * ]
- * ```
- * 
- * ## Performance Optimizations
- * 
- * - **Session Caching**: Navigation items cached in $_SESSION to avoid regeneration
- * - **Lazy Initialization**: Registry only initialized when first accessed
- * - **Static Registry**: Avoids repeated database queries or file system access
- * - **Callback Pattern**: Dynamic items only generated when needed
- * 
- * ## Plugin Integration
- * 
- * Plugins register navigation during bootstrap:
- * ```php
- * // In Plugin::bootstrap()
- * NavigationRegistry::register('Awards', [
- *     ['type' => 'item', 'label' => 'Awards', 'url' => ['plugin' => 'Awards']]
- * ], [$this, 'getDynamicNavItems']);
- * ```
- * 
- * ## Security Considerations
- * 
- * - Navigation items are filtered through Member::canAccessUrl() authorization
- * - Session storage requires proper session security configuration  
- * - Dynamic callbacks should validate user permissions before returning items
- * - Badge value callbacks must sanitize inputs to prevent code injection
- * 
+ * Centralized registry for application navigation items from core and plugins.
+ *
+ * Uses static registration pattern instead of events. Plugins register navigation
+ * during bootstrap. Items are session-cached and filtered via Member::canAccessUrl().
+ *
  * @see \App\Services\NavigationService Business logic service layer
- * @see \App\Services\CoreNavigationProvider Core application navigation items
  * @see \App\View\Cell\AppNavCell View cell that renders navigation
  */
 class NavigationRegistry
@@ -75,50 +21,22 @@ class NavigationRegistry
     use StaticConfigTrait;
 
     /**
-     * Registry of navigation items organized by source
-     * 
-     * Structure: [source => ['items' => [...], 'callback' => callable|null]]
-     * 
-     * @var array
+     * @var array [source => ['items' => [...], 'callback' => callable|null]]
      */
     private static array $navigationItems = [];
 
     /**
-     * Flag indicating if the registry has been initialized
-     * 
      * @var bool
      */
     private static bool $initialized = false;
 
     /**
-     * Register navigation items from a source
-     * 
-     * Registers static navigation items and an optional callback for dynamic item generation.
-     * Sources should be unique identifiers (e.g., 'core', plugin names) to avoid conflicts.
-     * 
-     * Static items are always included, while callback items are generated on-demand based
-     * on current user context and request parameters. This allows for flexible navigation
-     * that can respond to user permissions, data counts, or application state.
-     * 
-     * @param string $source Unique source identifier (e.g., 'core', 'Awards', 'Officers')
-     * @param array $items Static navigation items following KMP navigation structure
-     * @param callable|null $callback Optional function for dynamic item generation
-     *                               Signature: function(Member $user, array $params): array
-     * 
+     * Register navigation items from a source.
+     *
+     * @param string $source Unique source identifier (e.g., 'core', 'Awards')
+     * @param array $items Static navigation items
+     * @param callable|null $callback Optional dynamic item generator: fn(Member, array): array
      * @return void
-     * 
-     * @example
-     * ```php
-     * // Register static items only
-     * NavigationRegistry::register('Reports', [
-     *     ['type' => 'parent', 'label' => 'Reports', 'icon' => 'bi-graph-up']
-     * ]);
-     * 
-     * // Register with dynamic callback
-     * NavigationRegistry::register('Awards', $staticItems, function($user, $params) {
-     *     if ($user->hasRole('Awards Officer')) {
-     *         return [['type' => 'item', 'label' => 'Manage Awards', 'url' => ['action' => 'manage']]];
-     *     }
      *     return [];
      * });
      * ```
@@ -176,8 +94,14 @@ class NavigationRegistry
         $allItems = [];
         // Check for cached items in session for performance
         if (isset($_SESSION['navigation_items']) && is_array($_SESSION['navigation_items'])) {
-            $allItems = $_SESSION['navigation_items'];
-            return $allItems;
+            $cached = $_SESSION['navigation_items'];
+            if (
+                isset($cached['user_id'], $cached['items'])
+                && (int)$cached['user_id'] === (int)$user->id
+                && is_array($cached['items'])
+            ) {
+                return $cached['items'];
+            }
         }
 
         // Process all registered sources
@@ -196,7 +120,10 @@ class NavigationRegistry
         }
 
         // Cache processed items in session for performance
-        $_SESSION['navigation_items'] = $allItems;
+        $_SESSION['navigation_items'] = [
+            'user_id' => (int)$user->id,
+            'items' => $allItems,
+        ];
         return $allItems;
     }
 
@@ -224,9 +151,7 @@ class NavigationRegistry
     {
         unset(self::$navigationItems[$source]);
         // Clear session cache since navigation has changed
-        if (isset($_SESSION['navigation_items'])) {
-            unset($_SESSION['navigation_items']);
-        }
+        unset($_SESSION['navigation_items']);
     }
 
     /**

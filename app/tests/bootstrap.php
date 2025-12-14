@@ -16,9 +16,9 @@ declare(strict_types=1);
  * @license   https://opensource.org/licenses/mit-license.php MIT License
  */
 
+use App\Test\TestCase\Support\SeedManager;
 use Cake\Core\Configure;
 use Cake\Datasource\ConnectionManager;
-use Cake\TestSuite\Fixture\SchemaLoader;
 
 /**
  * Test runner bootstrap.
@@ -53,5 +53,5 @@ ConnectionManager::alias('test_debug_kit', 'debug_kit');
 // has been written to.
 session_id('cli');
 
-//load structure and data from dev_seed_clean.sql
-(new SchemaLoader())->loadSqlFiles('../../dev_seed_clean.sql', 'test');
+// Ensure the test schema is seeded with the shared dev dataset
+SeedManager::bootstrap('test');

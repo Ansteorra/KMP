@@ -159,6 +159,38 @@ return function (RouteBuilder $routes): void {
         $builder->connect("/members/card.webmanifest/*", "Pages::Webmanifest");
 
         /**
+         * Grid View Sub-Row Route
+         * 
+         * AJAX endpoint for loading expandable sub-row content in grid views.
+         * Returns HTML fragments for additional row details on demand.
+         * 
+         * @route "/members/sub-row/{id}/{type}" → MembersController::subRow($id, $type)
+         * @example "/members/sub-row/123/warrantreasons" → Warrant eligibility details
+         * @contentType text/html
+         */
+        $builder->connect('/members/sub-row/:id/:type', [
+            'controller' => 'Members',
+            'action' => 'subRow'
+        ])
+            ->setPass(['id', 'type'])
+            ->setPatterns(['id' => '[0-9]+', 'type' => '[a-z]+']);
+
+        /**
+         * Warrants Dataverse Grid Routes
+         * 
+         * Main grid view and data endpoint for nested turbo-frame architecture.
+         */
+        $builder->connect('/warrants/index-dv', [
+            'controller' => 'Warrants',
+            'action' => 'indexDv'
+        ]);
+
+        $builder->connect('/warrants/grid-data', [
+            'controller' => 'Warrants',
+            'action' => 'gridData'
+        ]);
+
+        /**
          * RESTful Fallback Routes
          * 
          * Provides automatic routing for all controllers using RESTful conventions.

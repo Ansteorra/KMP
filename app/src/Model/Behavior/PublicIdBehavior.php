@@ -13,57 +13,11 @@ use Cake\ORM\Query\SelectQuery;
 
 /**
  * PublicId Behavior
- * 
- * Provides non-sequential, unpredictable public identifiers for entities.
- * 
- * ## Why Public IDs?
- * 
- * Exposing internal database IDs to clients is a security anti-pattern:
- * - Sequential IDs leak information (user count, creation order, etc.)
- * - Enable enumeration attacks
- * - May violate privacy by revealing usage patterns
- * 
- * Public IDs solve this by providing:
- * - Non-sequential identifiers safe for client exposure
- * - No information leakage
- * - Prevention of enumeration attacks
- * - Identical functionality to IDs for lookups
- * 
- * ## Usage
- * 
- * ```php
- * // In your Table class
- * public function initialize(array $config): void
- * {
- *     parent::initialize($config);
- *     $this->addBehavior('PublicId');
- * }
- * ```
- * 
- * ## Configuration
- * 
- * ```php
- * $this->addBehavior('PublicId', [
- *     'field' => 'public_id',      // Column name (default: 'public_id')
- *     'length' => 8,                // ID length (default: 8)
- *     'regenerate' => false,        // Regenerate on save (default: false)
- * ]);
- * ```
- * 
- * ## Features
- * 
- * - Automatic generation on entity creation
- * - Finder methods: `findByPublicId()`, `getByPublicId()`
- * - Custom finder: `find('publicId', ['publicId' => 'abc123'])`
- * - Validation rules
- * - Unique constraint enforcement
- * 
- * ## Format
- * 
- * - Character set: Base62 (a-z, A-Z, 0-9)
- * - Length: 8 characters (configurable)
- * - Uniqueness: 62^8 = 218 trillion combinations
- * - Collision probability: Negligible for normal usage
+ *
+ * Generates non-sequential, secure public identifiers for entities.
+ * Prevents ID enumeration attacks by using Base62 random strings.
+ *
+ * @see /docs/7.1-security-best-practices.md PublicIdBehavior documentation
  */
 class PublicIdBehavior extends Behavior
 {

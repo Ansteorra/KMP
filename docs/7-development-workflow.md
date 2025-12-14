@@ -313,6 +313,45 @@ when warrants are approaching expiration. Includes:
 Fixes #123
 ```
 
+## 7.5 API Documentation Generation
+
+KMP publishes explorable API references for both PHP services and JavaScript Stimulus controllers. The docs are generated from source annotations and shipped with the main documentation site so GitHub Pages can host them directly.
+
+### Toolchain Overview
+
+- **PHP**: [`phpDocumentor`](https://www.phpdoc.org/) builds HTML docs from `app/src` and plugin PHP classes.
+- **JavaScript**: [`JSDoc`](https://jsdoc.app/) parses `assets/js` along with plugin JS controllers and utilities.
+
+### Regenerating Docs Locally
+
+```bash
+# From repository root
+./generate_api_docs.sh
+
+# Equivalent manual steps
+cd app
+composer docs:php
+npm run docs:js
+```
+
+- Output lives in `docs/api/php` and `docs/api/js` and should be committed when interfaces change.
+- Run the script before publishing documentation so GitHub Pages serves the latest references.
+
+### Previewing Documentation in a Browser
+
+Use the repository helper script to spin up a Jekyll server with live reload:
+
+```bash
+./serve_docs.sh
+
+# Customize host/port if needed
+JEKYLL_HOST=0.0.0.0 JEKYLL_PORT=4100 ./serve_docs.sh
+```
+
+- First invocation installs Ruby gems into `docs/vendor/` (ignored by git).
+- Visit `http://127.0.0.1:4000/` (or your chosen host/port) to explore the docs, including the generated API references.
+- Set `JEKYLL_LIVERELOAD=false` if your environment cannot expose the livereload websocket.
+
 ---
 
 ## Related Documentation

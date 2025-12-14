@@ -9,52 +9,13 @@ use Cake\ORM\TableRegistry;
 use Cake\Log\Log;
 
 /**
- * Activity Awards View Cell
+ * Displays awards that can be given during a specific gathering activity.
  * 
- * Provides view cell functionality for displaying awards that can be given out during
- * a specific gathering activity. This view cell implements the reverse relationship of
- * the Activities tab on Award views, showing which awards are associated with a particular
- * gathering activity.
+ * Shows the reverse relationship of the Activities tab on Award views,
+ * allowing administrators to see and manage award-activity associations.
  * 
- * The view cell integrates with the Awards plugin to display award associations for
- * gathering activities, allowing administrators to see and manage which awards can be
- * given out during specific types of activities (e.g., Armored Combat, Archery).
- * 
- * ## Display Features
- * 
- * The view cell provides comprehensive award display functionality:
- * - **Associated Awards**: List of awards that can be given during this activity
- * - **Award Details**: Display of award names, descriptions, and hierarchical information
- * - **Management Actions**: Add/remove functionality for authorized users
- * - **Empty State**: Clear messaging when no awards are associated
- * 
- * ## Permission Integration
- * 
- * The view cell implements permission-based feature access:
- * - **View Access**: Users with view permissions can see associated awards
- * - **Edit Access**: Users with edit permissions can add/remove award associations
- * - **Administrative Control**: Proper authorization checks for management operations
- * 
- * ## Usage Examples
- * 
- * ### Gathering Activity Profile Integration
- * ```php
- * // In gathering activity view template
- * echo $this->cell('Awards.ActivityAwards', [$gatheringActivity->id]);
- * ```
- * 
- * ### Tab Integration through ViewCellProvider
- * ```php
- * // Registered automatically via AwardsViewCellProvider
- * $tabs[] = [
- *     'label' => 'Awards',
- *     'content' => $this->cell('Awards.ActivityAwards', [$activityId])
- * ];
- * ```
- * 
- * @see \Awards\Controller\AwardsController Award management and association operations
- * @see \Awards\Services\AwardsViewCellProvider View cell registration and configuration
- * @see \Awards\Model\Table\AwardsTable Award data management
+ * @see \Awards\Services\AwardsViewCellProvider View cell registration
+ * @see /docs/5.2.17-awards-services.md Full documentation
  */
 class ActivityAwardsCell extends Cell
 {

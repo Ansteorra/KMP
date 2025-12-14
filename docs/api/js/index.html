@@ -1,0 +1,563 @@
+<!DOCTYPE html><html lang="en" style="font-size:16px"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>KMP JavaScript API Reference</title><!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]--><script src="scripts/third-party/hljs.js" defer="defer"></script><script src="scripts/third-party/hljs-line-num.js" defer="defer"></script><script src="scripts/third-party/popper.js" defer="defer"></script><script src="scripts/third-party/tippy.js" defer="defer"></script><script src="scripts/third-party/tocbot.min.js"></script><script>var baseURL="/",locationPathname="";baseURL=(locationPathname=document.location.pathname).substr(0,locationPathname.lastIndexOf("/")+1)</script><link rel="stylesheet" href="styles/clean-jsdoc-theme.min.css"><svg aria-hidden="true" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="display:none"><defs><symbol id="copy-icon" viewbox="0 0 488.3 488.3"><g><path d="M314.25,85.4h-227c-21.3,0-38.6,17.3-38.6,38.6v325.7c0,21.3,17.3,38.6,38.6,38.6h227c21.3,0,38.6-17.3,38.6-38.6V124    C352.75,102.7,335.45,85.4,314.25,85.4z M325.75,449.6c0,6.4-5.2,11.6-11.6,11.6h-227c-6.4,0-11.6-5.2-11.6-11.6V124    c0-6.4,5.2-11.6,11.6-11.6h227c6.4,0,11.6,5.2,11.6,11.6V449.6z"/><path d="M401.05,0h-227c-21.3,0-38.6,17.3-38.6,38.6c0,7.5,6,13.5,13.5,13.5s13.5-6,13.5-13.5c0-6.4,5.2-11.6,11.6-11.6h227    c6.4,0,11.6,5.2,11.6,11.6v325.7c0,6.4-5.2,11.6-11.6,11.6c-7.5,0-13.5,6-13.5,13.5s6,13.5,13.5,13.5c21.3,0,38.6-17.3,38.6-38.6    V38.6C439.65,17.3,422.35,0,401.05,0z"/></g></symbol><symbol id="search-icon" viewBox="0 0 512 512"><g><g><path d="M225.474,0C101.151,0,0,101.151,0,225.474c0,124.33,101.151,225.474,225.474,225.474    c124.33,0,225.474-101.144,225.474-225.474C450.948,101.151,349.804,0,225.474,0z M225.474,409.323    c-101.373,0-183.848-82.475-183.848-183.848S124.101,41.626,225.474,41.626s183.848,82.475,183.848,183.848    S326.847,409.323,225.474,409.323z"/></g></g><g><g><path d="M505.902,476.472L386.574,357.144c-8.131-8.131-21.299-8.131-29.43,0c-8.131,8.124-8.131,21.306,0,29.43l119.328,119.328    c4.065,4.065,9.387,6.098,14.715,6.098c5.321,0,10.649-2.033,14.715-6.098C514.033,497.778,514.033,484.596,505.902,476.472z"/></g></g></symbol><symbol id="font-size-icon" viewBox="0 0 24 24"><path fill="none" d="M0 0h24v24H0z"/><path d="M11.246 15H4.754l-2 5H.6L7 4h2l6.4 16h-2.154l-2-5zm-.8-2L8 6.885 5.554 13h4.892zM21 12.535V12h2v8h-2v-.535a4 4 0 1 1 0-6.93zM19 18a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/></symbol><symbol id="add-icon" viewBox="0 0 24 24"><path fill="none" d="M0 0h24v24H0z"/><path d="M11 11V5h2v6h6v2h-6v6h-2v-6H5v-2z"/></symbol><symbol id="minus-icon" viewBox="0 0 24 24"><path fill="none" d="M0 0h24v24H0z"/><path d="M5 11h14v2H5z"/></symbol><symbol id="dark-theme-icon" viewBox="0 0 24 24"><path fill="none" d="M0 0h24v24H0z"/><path d="M10 7a7 7 0 0 0 12 4.9v.1c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2h.1A6.979 6.979 0 0 0 10 7zm-6 5a8 8 0 0 0 15.062 3.762A9 9 0 0 1 8.238 4.938 7.999 7.999 0 0 0 4 12z"/></symbol><symbol id="light-theme-icon" viewBox="0 0 24 24"><path fill="none" d="M0 0h24v24H0z"/><path d="M12 18a6 6 0 1 1 0-12 6 6 0 0 1 0 12zm0-2a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM11 1h2v3h-2V1zm0 19h2v3h-2v-3zM3.515 4.929l1.414-1.414L7.05 5.636 5.636 7.05 3.515 4.93zM16.95 18.364l1.414-1.414 2.121 2.121-1.414 1.414-2.121-2.121zm2.121-14.85l1.414 1.415-2.121 2.121-1.414-1.414 2.121-2.121zM5.636 16.95l1.414 1.414-2.121 2.121-1.414-1.414 2.121-2.121zM23 11v2h-3v-2h3zM4 11v2H1v-2h3z"/></symbol><symbol id="reset-icon" viewBox="0 0 24 24"><path fill="none" d="M0 0h24v24H0z"/><path d="M18.537 19.567A9.961 9.961 0 0 1 12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10c0 2.136-.67 4.116-1.81 5.74L17 12h3a8 8 0 1 0-2.46 5.772l.997 1.795z"/></symbol><symbol id="down-icon" viewBox="0 0 16 16"><path fill-rule="evenodd" clip-rule="evenodd" d="M12.7803 6.21967C13.0732 6.51256 13.0732 6.98744 12.7803 7.28033L8.53033 11.5303C8.23744 11.8232 7.76256 11.8232 7.46967 11.5303L3.21967 7.28033C2.92678 6.98744 2.92678 6.51256 3.21967 6.21967C3.51256 5.92678 3.98744 5.92678 4.28033 6.21967L8 9.93934L11.7197 6.21967C12.0126 5.92678 12.4874 5.92678 12.7803 6.21967Z"></path></symbol><symbol id="codepen-icon" viewBox="0 0 24 24"><path fill="none" d="M0 0h24v24H0z"/><path d="M16.5 13.202L13 15.535v3.596L19.197 15 16.5 13.202zM14.697 12L12 10.202 9.303 12 12 13.798 14.697 12zM20 10.869L18.303 12 20 13.131V10.87zM19.197 9L13 4.869v3.596l3.5 2.333L19.197 9zM7.5 10.798L11 8.465V4.869L4.803 9 7.5 10.798zM4.803 15L11 19.131v-3.596l-3.5-2.333L4.803 15zM4 13.131L5.697 12 4 10.869v2.262zM2 9a1 1 0 0 1 .445-.832l9-6a1 1 0 0 1 1.11 0l9 6A1 1 0 0 1 22 9v6a1 1 0 0 1-.445.832l-9 6a1 1 0 0 1-1.11 0l-9-6A1 1 0 0 1 2 15V9z"/></symbol><symbol id="close-icon" viewBox="0 0 24 24"><path fill="none" d="M0 0h24v24H0z"/><path d="M12 10.586l4.95-4.95 1.414 1.414-4.95 4.95 4.95 4.95-1.414 1.414-4.95-4.95-4.95 4.95-1.414-1.414 4.95-4.95-4.95-4.95L7.05 5.636z"/></symbol><symbol id="menu-icon" viewBox="0 0 24 24"><path fill="none" d="M0 0h24v24H0z"/><path d="M3 4h18v2H3V4zm0 7h18v2H3v-2zm0 7h18v2H3v-2z"/></symbol></defs></svg></head><body data-theme="dark"><div class="sidebar-container"><div class="sidebar" id="sidebar"><a href="/" class="sidebar-title sidebar-title-anchor">KMP JavaScript API</a><div class="sidebar-items-container"><div class="sidebar-section-title with-arrow" data-isopen="false" id="sidebar-classes"><div>Classes</div><svg><use xlink:href="#down-icon"></use></svg></div><div class="sidebar-section-children-container"><div class="sidebar-section-children"><a href="ActivitiesApproveAndAssignAuthorization.html">ActivitiesApproveAndAssignAuthorization</a></div><div class="sidebar-section-children"><a href="ActivitiesRenewAuthorization.html">ActivitiesRenewAuthorization</a></div><div class="sidebar-section-children"><a href="ActivityToggleController.html">ActivityToggleController</a></div><div class="sidebar-section-children"><a href="ActivityWaiverManagerController.html">ActivityWaiverManagerController</a></div><div class="sidebar-section-children"><a href="AddActivityModalController.html">AddActivityModalController</a></div><div class="sidebar-section-children"><a href="AppSettingForm.html">AppSettingForm</a></div><div class="sidebar-section-children"><a href="AppSettingModalController.html">AppSettingModalController</a></div><div class="sidebar-section-children"><a href="AutoComplete.html">AutoComplete</a></div><div class="sidebar-section-children"><a href="AwardsAwardForm.html">AwardsAwardForm</a></div><div class="sidebar-section-children"><a href="AwardsRecommendationAddForm.html">AwardsRecommendationAddForm</a></div><div class="sidebar-section-children"><a href="AwardsRecommendationBulkEditForm.html">AwardsRecommendationBulkEditForm</a></div><div class="sidebar-section-children"><a href="AwardsRecommendationEditForm.html">AwardsRecommendationEditForm</a></div><div class="sidebar-section-children"><a href="AwardsRecommendationQuickEditForm.html">AwardsRecommendationQuickEditForm</a></div><div class="sidebar-section-children"><a href="AwardsRecommendationTable.html">AwardsRecommendationTable</a></div><div class="sidebar-section-children"><a href="BaseGatheringFormController.html">BaseGatheringFormController</a></div><div class="sidebar-section-children"><a href="BrancheLinks.html">BrancheLinks</a></div><div class="sidebar-section-children"><a href="CameraCaptureController.html">CameraCaptureController</a></div><div class="sidebar-section-children"><a href="CodeEditorController.html">CodeEditorController</a></div><div class="sidebar-section-children"><a href="CsvDownloadController.html">CsvDownloadController</a></div><div class="sidebar-section-children"><a href="DelayForwardController.html">DelayForwardController</a></div><div class="sidebar-section-children"><a href="DeleteConfirmationController.html">DeleteConfirmationController</a></div><div class="sidebar-section-children"><a href="DetailTabsController.html">DetailTabsController</a></div><div class="sidebar-section-children"><a href="EditActivityDescriptionController.html">EditActivityDescriptionController</a></div><div class="sidebar-section-children"><a href="EmailTemplateEditorController.html">EmailTemplateEditorController</a></div><div class="sidebar-section-children"><a href="EmailTemplateFormController.html">EmailTemplateFormController</a></div><div class="sidebar-section-children"><a href="ExemptionReasonsController.html">ExemptionReasonsController</a></div><div class="sidebar-section-children"><a href="FileSizeValidatorController.html">FileSizeValidatorController</a></div><div class="sidebar-section-children"><a href="FilterGrid.html">FilterGrid</a></div><div class="sidebar-section-children"><a href="GWSharingController.html">GWSharingController</a></div><div class="sidebar-section-children"><a href="GatheringCloneController.html">GatheringCloneController</a></div><div class="sidebar-section-children"><a href="GatheringFormController.html">GatheringFormController</a></div><div class="sidebar-section-children"><a href="GatheringLocationAutocompleteController.html">GatheringLocationAutocompleteController</a></div><div class="sidebar-section-children"><a href="GatheringMapController.html">GatheringMapController</a></div><div class="sidebar-section-children"><a href="GatheringScheduleController.html">GatheringScheduleController</a></div><div class="sidebar-section-children"><a href="GatheringTypeFormController.html">GatheringTypeFormController</a></div><div class="sidebar-section-children"><a href="GatheringsCalendarController.html">GatheringsCalendarController</a></div><div class="sidebar-section-children"><a href="GitHubSubmitter.html">GitHubSubmitter</a></div><div class="sidebar-section-children"><a href="GridViewController.html">GridViewController</a></div><div class="sidebar-section-children"><a href="GuifierController.html">GuifierController</a></div><div class="sidebar-section-children"><a href="HelloWorldController.html">HelloWorldController</a></div><div class="sidebar-section-children"><a href="HelloWorldController.html">HelloWorldController</a></div><div class="sidebar-section-children"><a href="ImagePreview.html">ImagePreview</a></div><div class="sidebar-section-children"><a href="Kanban.html">Kanban</a></div><div class="sidebar-section-children"><a href="MarkdownEditorController.html">MarkdownEditorController</a></div><div class="sidebar-section-children"><a href="MemberCardProfile.html">MemberCardProfile</a></div><div class="sidebar-section-children"><a href="MemberMobileCardMenu.html">MemberMobileCardMenu</a></div><div class="sidebar-section-children"><a href="MemberMobileCardPWA.html">MemberMobileCardPWA</a></div><div class="sidebar-section-children"><a href="MemberMobileCardProfile.html">MemberMobileCardProfile</a></div><div class="sidebar-section-children"><a href="MemberUniqueEmail.html">MemberUniqueEmail</a></div><div class="sidebar-section-children"><a href="MemberVerifyForm.html">MemberVerifyForm</a></div><div class="sidebar-section-children"><a href="MobileOfflineOverlayController.html">MobileOfflineOverlayController</a></div><div class="sidebar-section-children"><a href="MobileRequestAuthController.html">MobileRequestAuthController</a></div><div class="sidebar-section-children"><a href="ModalOpener.html">ModalOpener</a></div><div class="sidebar-section-children"><a href="NavBarController.html">NavBarController</a></div><div class="sidebar-section-children"><a href="OutletButton.html">OutletButton</a></div><div class="sidebar-section-children"><a href="PermissionAddRole.html">PermissionAddRole</a></div><div class="sidebar-section-children"><a href="PermissionManagePolicies.html">PermissionManagePolicies</a></div><div class="sidebar-section-children"><a href="PopoverController.html">PopoverController</a></div><div class="sidebar-section-children"><a href="QrcodeController.html">QrcodeController</a></div><div class="sidebar-section-children"><a href="RecommendationKanbanController.html">RecommendationKanbanController</a></div><div class="sidebar-section-children"><a href="RetentionPolicyInputController.html">RetentionPolicyInputController</a></div><div class="sidebar-section-children"><a href="RevokeForm.html">RevokeForm</a></div><div class="sidebar-section-children"><a href="RoleAddMember.html">RoleAddMember</a></div><div class="sidebar-section-children"><a href="RoleAddPermission.html">RoleAddPermission</a></div><div class="sidebar-section-children"><a href="SecurityDebugController.html">SecurityDebugController</a></div><div class="sidebar-section-children"><a href="SelectAllListController.html">SelectAllListController</a></div><div class="sidebar-section-children"><a href="SessionExtender.html">SessionExtender</a></div><div class="sidebar-section-children"><a href="SortableListController.html">SortableListController</a></div><div class="sidebar-section-children"><a href="TimezoneInputController.html">TimezoneInputController</a></div><div class="sidebar-section-children"><a href="TurboModal.html">TurboModal</a></div><div class="sidebar-section-children"><a href="VariableInsertController.html">VariableInsertController</a></div><div class="sidebar-section-children"><a href="WaiverAttestationController.html">WaiverAttestationController</a></div><div class="sidebar-section-children"><a href="WaiverTemplateController.html">WaiverTemplateController</a></div><div class="sidebar-section-children"><a href="WaiverUploadController.html">WaiverUploadController</a></div><div class="sidebar-section-children"><a href="WaiverUploadWizardController.html">WaiverUploadWizardController</a></div></div><div class="sidebar-section-title with-arrow" data-isopen="false" id="sidebar-namespaces"><div>Namespaces</div><svg><use xlink:href="#down-icon"></use></svg></div><div class="sidebar-section-children-container"><div class="sidebar-section-children"><a href="KMP_Timezone.html">KMP_Timezone</a></div></div></div></div></div><div class="navbar-container" id="VuAckcnZhf"><nav class="navbar"><div class="navbar-left-items"><div class="navbar-item"><a id="" href="../php/index.html" target="">PHP API</a></div><div class="navbar-item"><a id="" href="../../index.html" target="">Docs Home</a></div></div><div class="navbar-right-items"><div class="navbar-right-item"><button class="icon-button search-button" aria-label="open-search"><svg><use xlink:href="#search-icon"></use></svg></button></div><div class="navbar-right-item"><button class="icon-button theme-toggle" aria-label="toggle-theme"><svg><use class="theme-svg-use" xlink:href="#light-theme-icon"></use></svg></button></div><div class="navbar-right-item"><button class="icon-button font-size" aria-label="change-font-size"><svg><use xlink:href="#font-size-icon"></use></svg></button></div></div><nav></nav></nav></div><div class="toc-container"><div class="toc-content"><span class="bold">On this page</span><div id="eed4d2a0bfd64539bb9df78095dec881"></div></div></div><div class="body-wrapper"><div class="main-content"><div class="main-wrapper"><section class="readme"><article><hr><h2 id="layout%3A-default">layout: default</h2><p><a href="index.md">← Back to Table of Contents</a></p><h1 id="10.-javascript-development-with-stimulus">10. JavaScript Development with Stimulus</h1><h2 id="10.1-introduction-to-stimulus">10.1 Introduction to Stimulus</h2><p>KMP uses the Stimulus JavaScript framework to enhance the user interface with dynamic behavior. Stimulus is a modest framework designed to augment your HTML with just enough JavaScript to make it interactive.</p><p>Stimulus works by automatically connecting DOM elements to JavaScript objects. When you add <code>data-controller</code> attributes to your HTML, Stimulus automatically instantiates the corresponding controller class and keeps it connected to the element.</p><h2 id="10.2-controller-organization">10.2 Controller Organization</h2><p>In KMP, all Stimulus controllers for the main application should be stored in the <code>app/assets/js/controllers</code> directory with filenames that follow the pattern <code>{name}-controller.js</code>. For example:</p><ul><li><code>app/assets/js/controllers/nav-bar-controller.js</code></li><li><code>app/assets/js/controllers/member-card-profile-controller.js</code></li><li><code>app/assets/js/controllers/auto-complete-controller.js</code></li></ul><p>For plugin-specific controllers, use:</p><ul><li><code>plugins/PluginName/assets/js/controllers/{name}-controller.js</code></li></ul><p>Each controller follows the Stimulus naming convention, where the filename corresponds to the controller identifier used in the HTML. This ensures consistency and automatic registration in the build process.</p><p>Here's an example of a typical Stimulus controller:</p><pre class="prettyprint source lang-javascript"><code>// app/assets/js/controllers/example-controller.js
+import { Controller } from &quot;@hotwired/stimulus&quot;
+
+export default class extends Controller {
+  static targets = [&quot;output&quot;]
+
+  connect() {
+    console.log(&quot;Controller connected to element&quot;)
+  }
+
+  greet() {
+    this.outputTarget.textContent = &quot;Hello, Stimulus!&quot;
+  }
+}
+</code></pre><p>In your HTML, you would connect this controller like this:</p><pre class="prettyprint source lang-html"><code>&lt;div data-controller=&quot;example&quot;>
+  &lt;button data-action=&quot;click->example#greet&quot;>Greet&lt;/button>
+  &lt;span data-example-target=&quot;output&quot;>&lt;/span>
+&lt;/div>
+</code></pre><h2 id="10.3-development-workflow">10.3 Development Workflow</h2><p>KMP uses Laravel Mix (based on webpack) to compile JavaScript and CSS assets. The workflow for developing JavaScript in KMP is as follows:</p><ol><li>Make sure you have Node.js installed and run <code>npm install</code> in the <code>app</code> directory to install dependencies</li><li>Start the development server using <code>npm run watch</code></li><li>Make changes to your JavaScript files in the <code>app/assets/js</code> directory</li><li>The watch process will automatically detect changes, recompile assets, and refresh your browser</li></ol><p>The <code>npm run watch</code> command keeps running and watches for changes in your JavaScript and CSS files. It will automatically recompile and update your browser when you save changes to any asset file.</p><pre class="prettyprint source lang-bash"><code># Navigate to app directory
+cd app
+
+# Install dependencies (if not already installed)
+npm install
+
+# Start the watch process
+npm run watch
+</code></pre><h2 id="10.4-asset-management">10.4 Asset Management</h2><p>KMP uses Laravel Mix and webpack to manage frontend assets. All source JavaScript and CSS files should be stored in the following directories:</p><ul><li>JavaScript: <code>app/assets/js/</code></li><li>CSS: <code>app/assets/css/</code></li></ul><p>These files are then compiled and output to the public directory for deployment:</p><ul><li>JavaScript: compiled to <code>app/webroot/js/</code></li><li>CSS: compiled to <code>app/webroot/css/</code></li></ul><p>Webpack automatically bundles your JavaScript modules and their dependencies into optimized packages. The build process is configured in <code>app/webpack.mix.js</code>.</p><h3 id="adding-a-new-stimulus-controller">Adding a New Stimulus Controller</h3><p>To add a new Stimulus controller:</p><ol><li>For the main app, create a new file in <code>app/assets/js/controllers/</code> named <code>your-feature-controller.js</code>.</li><li>For a plugin, create it in <code>plugins/PluginName/assets/js/controllers/</code>.</li><li>Implement your controller using the Stimulus pattern.</li><li>The controller will be automatically included in the build process.</li></ol><p>The webpack configuration automatically detects all files ending with <code>-controller.js</code> in the appropriate controllers directory and includes them in the build.</p><h3 id="main-javascript-entry-points">Main JavaScript Entry Points</h3><p>The main JavaScript entry points are:</p><ul><li><code>app/assets/js/index.js</code>: The main application JavaScript</li><li><code>app/assets/js/controllers/*-controller.js</code>: Individual Stimulus controllers</li></ul><p>These files are compiled into the final JavaScript bundles that are loaded by the application.</p><h2 id="10.5-core-stimulus-controllers">10.5 Core Stimulus Controllers</h2><p>KMP includes several Stimulus controllers that provide essential functionality across the application. These controllers are organized by functionality and serve as both working components and examples of Stimulus patterns.</p><h3 id="10.5.1-form-management-controllers">10.5.1 Form Management Controllers</h3><h4 id="app-setting-form-controller-(app-setting-form-controller.js)">App Setting Form Controller (<code>app-setting-form-controller.js</code>)</h4><p><strong>Purpose:</strong> Manages application settings forms with validation and submission handling.</p><p><strong>Features:</strong></p><ul><li>Form submission control with preventDefault</li><li>Submit button state management</li><li>Form validation integration</li></ul><p><strong>Targets:</strong></p><ul><li><code>submitBtn</code>: The submit button element</li><li><code>form</code>: The form element to submit</li></ul><p><strong>Usage Example:</strong></p><pre class="prettyprint source lang-html"><code>&lt;form data-controller=&quot;app-setting-form&quot; data-app-setting-form-target=&quot;form&quot;>
+    &lt;!-- form fields -->
+    &lt;button type=&quot;button&quot; 
+            data-app-setting-form-target=&quot;submitBtn&quot; 
+            data-action=&quot;click->app-setting-form#submit&quot;
+            disabled>
+        Save Settings
+    &lt;/button>
+&lt;/form>
+</code></pre><p><strong>Key Methods:</strong></p><ul><li><code>submit(event)</code>: Handles form submission with proper event handling</li><li><code>enableSubmit()</code>: Enables and focuses the submit button</li></ul><p><strong>Note:</strong> This controller uses CommonJS require syntax rather than ES6 imports.</p><h4 id="branch-links-controller-(branch-links-controller.js)">Branch Links Controller (<code>branch-links-controller.js</code>)</h4><p><strong>Purpose:</strong> Manages dynamic collection of branch links with URL validation and type categorization.</p><p><strong>Features:</strong></p><ul><li>Dynamic link addition and removal</li><li>URL sanitization using KMP_utils</li><li>Link type management with Bootstrap icons</li><li>Duplicate prevention</li><li>JSON form field integration</li></ul><p><strong>Targets:</strong></p><ul><li><code>new</code>: Input field for new URLs</li><li><code>formValue</code>: Hidden field containing JSON data</li><li><code>displayList</code>: Container for displaying current links</li><li><code>linkType</code>: Element showing current link type</li></ul><p><strong>Usage Example:</strong></p><pre class="prettyprint source lang-html"><code>&lt;div data-controller=&quot;branch-links&quot;>
+    &lt;div class=&quot;input-group mb-3&quot;>
+        &lt;input type=&quot;url&quot; data-branch-links-target=&quot;new&quot; placeholder=&quot;Enter URL&quot; class=&quot;form-control&quot;>
+        &lt;button type=&quot;button&quot; data-action=&quot;click->branch-links#add&quot; class=&quot;btn btn-primary&quot;>
+            Add Link
+        &lt;/button>
+    &lt;/div>
+    &lt;div data-branch-links-target=&quot;displayList&quot;>&lt;/div>
+    &lt;input type=&quot;hidden&quot; name=&quot;branch_links&quot; data-branch-links-target=&quot;formValue&quot;>
+&lt;/div>
+</code></pre><p><strong>Key Methods:</strong></p><ul><li><code>add(event)</code>: Adds new link with validation and sanitization</li><li><code>remove(event)</code>: Removes link from collection</li><li><code>setLinkType(event)</code>: Changes link type with icon update</li><li><code>createListItem(item)</code>: Creates DOM elements for link display</li></ul><h3 id="10.5.2-data-input-controllers">10.5.2 Data Input Controllers</h3><h4 id="auto-complete-controller-(auto-complete-controller.js)">Auto Complete Controller (<code>auto-complete-controller.js</code>)</h4><p><strong>Purpose:</strong> Advanced autocomplete functionality with AJAX search, keyboard navigation, and dynamic options.</p><p><strong>Features:</strong></p><ul><li>Remote data loading via AJAX</li><li>Local data filtering from datalist</li><li>Keyboard navigation (arrow keys, enter, escape)</li><li>Custom value support with <code>allowOther</code> option</li><li>Hidden field integration for form submission</li><li>Debounced search to prevent excessive requests</li><li>Accessibility features with ARIA attributes</li></ul><p><strong>Targets:</strong></p><ul><li><code>input</code>: The visible input field</li><li><code>hidden</code>: Hidden field for form submission value</li><li><code>hiddenText</code>: Hidden field for display text</li><li><code>results</code>: Container for autocomplete results</li><li><code>dataList</code>: Optional local data source</li><li><code>clearBtn</code>: Button to clear selection</li></ul><p><strong>Values:</strong></p><ul><li><code>url</code>: AJAX endpoint for remote data</li><li><code>minLength</code>: Minimum characters before search (default: 1)</li><li><code>delay</code>: Debounce delay in milliseconds (default: 300)</li><li><code>allowOther</code>: Allow custom values not in list</li><li><code>submitOnEnter</code>: Submit form on Enter key</li><li><code>queryParam</code>: Query parameter name (default: &quot;q&quot;)</li></ul><p><strong>Usage Example:</strong></p><pre class="prettyprint source lang-html"><code>&lt;div data-controller=&quot;ac&quot; 
+     data-ac-url-value=&quot;/api/members/search&quot;
+     data-ac-min-length-value=&quot;2&quot;
+     data-ac-allow-other-value=&quot;false&quot;>
+    &lt;input type=&quot;text&quot; 
+           data-ac-target=&quot;input&quot; 
+           placeholder=&quot;Search members...&quot;
+           class=&quot;form-control&quot;>
+    &lt;input type=&quot;hidden&quot; name=&quot;member_id&quot; data-ac-target=&quot;hidden&quot;>
+    &lt;input type=&quot;hidden&quot; data-ac-target=&quot;hiddenText&quot;>
+    &lt;ul data-ac-target=&quot;results&quot; class=&quot;list-group&quot; hidden>&lt;/ul>
+    &lt;button type=&quot;button&quot; data-ac-target=&quot;clearBtn&quot; class=&quot;btn btn-sm&quot;>Clear&lt;/button>
+&lt;/div>
+</code></pre><p><strong>Key Methods:</strong></p><ul><li><code>fetchResults(query)</code>: Handles AJAX or local search</li><li><code>commit(selected)</code>: Processes selection and updates form fields</li><li><code>clear()</code>: Resets the autocomplete to empty state</li><li>Keyboard handlers: <code>onArrowDownKeydown</code>, <code>onArrowUpKeydown</code>, <code>onEnterKeydown</code>, <code>onEscapeKeydown</code></li></ul><p><strong>Events:</strong></p><ul><li><code>autocomplete.change</code>: Fired when selection changes</li><li><code>ready</code>: Fired when controller is initialized</li><li><code>loadstart/load/loadend</code>: AJAX loading events</li></ul><h3 id="10.5.3-file-management-controllers">10.5.3 File Management Controllers</h3><h4 id="csv-download-controller-(csv-download-controller.js)">CSV Download Controller (<code>csv-download-controller.js</code>)</h4><p><strong>Purpose:</strong> Handles CSV file downloads with AJAX fetch and browser download management.</p><p><strong>Features:</strong></p><ul><li>AJAX file retrieval to avoid page navigation</li><li>Blob processing for client-side download</li><li>Custom filename support</li><li>Error handling with user feedback</li><li>Automatic cleanup of temporary URLs</li></ul><p><strong>Values:</strong></p><ul><li><code>url</code>: Download endpoint URL</li><li><code>filename</code>: Custom filename for download</li></ul><p><strong>Targets:</strong></p><ul><li><code>button</code>: Optional specific button target</li></ul><p><strong>Usage Example:</strong></p><pre class="prettyprint source lang-html"><code>&lt;!-- Method 1: Using href attribute -->
+&lt;a href=&quot;/export/members.csv&quot; 
+   data-controller=&quot;csv-download&quot;
+   data-csv-download-filename-value=&quot;members_export.csv&quot;
+   class=&quot;btn btn-primary&quot;>
+    Download CSV
+&lt;/a>
+
+&lt;!-- Method 2: Using data attributes -->
+&lt;button data-controller=&quot;csv-download&quot;
+        data-csv-download-url-value=&quot;/api/export/branches&quot;
+        data-csv-download-filename-value=&quot;branches.csv&quot;
+        data-action=&quot;click->csv-download#download&quot;
+        class=&quot;btn btn-success&quot;>
+    Export Branches
+&lt;/button>
+</code></pre><p><strong>Key Methods:</strong></p><ul><li><code>download(event)</code>: Handles the complete download workflow</li><li>Error handling with user-friendly alert messages</li><li>Automatic DOM cleanup after download</li></ul><h4 id="image-preview-controller-(image-preview-controller.js)">Image Preview Controller (<code>image-preview-controller.js</code>)</h4><p><strong>Purpose:</strong> Provides image preview functionality for file uploads.</p><p><strong>Features:</strong></p><ul><li>Real-time image preview on file selection</li><li>Object URL management for blob display</li><li>Loading state management</li><li>Automatic cleanup of temporary URLs</li></ul><p><strong>Targets:</strong></p><ul><li><code>file</code>: File input element</li><li><code>preview</code>: Image element for preview display</li><li><code>loading</code>: Loading indicator element</li></ul><p><strong>Usage Example:</strong></p><pre class="prettyprint source lang-html"><code>&lt;div data-controller=&quot;image-preview&quot;>
+    &lt;input type=&quot;file&quot; 
+           accept=&quot;image/*&quot;
+           data-image-preview-target=&quot;file&quot;
+           data-action=&quot;change->image-preview#preview&quot;
+           class=&quot;form-control&quot;>
+    &lt;div data-image-preview-target=&quot;loading&quot; class=&quot;spinner-border&quot;>
+        Loading...
+    &lt;/div>
+    &lt;img data-image-preview-target=&quot;preview&quot; 
+         class=&quot;preview-image&quot; 
+         alt=&quot;Preview&quot;
+         hidden>
+&lt;/div>
+</code></pre><p><strong>Key Methods:</strong></p><ul><li><code>preview(event)</code>: Handles file selection and creates preview using Object URLs</li></ul><h4 id="kanban-controller-(kanban-controller.js)">Kanban Controller (<code>kanban-controller.js</code>)</h4><p><strong>Purpose:</strong> Implements drag-and-drop Kanban board functionality with server synchronization.</p><p><strong>Features:</strong></p><ul><li>Drag-and-drop card movement between columns</li><li>Server-side position updates via AJAX</li><li>Visual feedback during drag operations</li><li>Position restoration on failed moves</li><li>CSRF token integration</li><li>Custom validation callbacks</li></ul><p><strong>Targets:</strong></p><ul><li><code>card</code>: Draggable card elements</li><li><code>column</code>: Sortable column containers</li></ul><p><strong>Values:</strong></p><ul><li><code>csrfToken</code>: CSRF token for secure AJAX requests</li><li><code>url</code>: API endpoint for position updates</li></ul><p><strong>Usage Example:</strong></p><pre class="prettyprint source lang-html"><code>&lt;div data-controller=&quot;kanban&quot; 
+     data-kanban-url-value=&quot;/api/kanban/update&quot;
+     data-kanban-csrf-token-value=&quot;&lt;%= $this->request->getAttribute('csrfToken') %>&quot;>
+    &lt;div class=&quot;kanban-column sortable&quot; data-col=&quot;todo&quot; data-kanban-target=&quot;column&quot;>
+        &lt;div class=&quot;card&quot; 
+             data-kanban-target=&quot;card&quot;
+             data-rec-id=&quot;1&quot;
+             data-stack-rank=&quot;100&quot;
+             draggable=&quot;true&quot;
+             data-action=&quot;dragstart->kanban#grabCard dragend->kanban#dropCard&quot;>
+            &lt;div class=&quot;card-body&quot;>Task 1&lt;/div>
+        &lt;/div>
+    &lt;/div>
+    &lt;div class=&quot;kanban-column sortable&quot; data-col=&quot;in-progress&quot; data-kanban-target=&quot;column&quot;>
+        &lt;!-- More cards -->
+    &lt;/div>
+&lt;/div>
+</code></pre><p><strong>Key Methods:</strong></p><ul><li><code>grabCard(event)</code>: Initiates drag operation and stores original position</li><li><code>dropCard(event)</code>: Completes drag operation and syncs with server</li><li><code>processDrag(event, isDrop)</code>: Handles drag logic and position calculations</li><li><code>restoreOriginalPosition()</code>: Restores card to original position on failure</li><li><code>registerBeforeDrop(callback)</code>: Allows custom validation before drop operations</li></ul><h3 id="10.5.4-interface-controllers">10.5.4 Interface Controllers</h3><h3 id="10.5.4-interface-controllers-1">10.5.4 Interface Controllers</h3><h4 id="filter-grid-controller-(filter-grid-controller.js)">Filter Grid Controller (<code>filter-grid-controller.js</code>)</h4><p><strong>Purpose:</strong> Manages grid filtering with automatic form submission.</p><p><strong>Features:</strong></p><ul><li>Automatic form submission on filter changes</li><li>Integration with CakePHP pagination</li><li>Grid refresh without page reload</li></ul><p><strong>Usage Example:</strong></p><pre class="prettyprint source lang-html"><code>&lt;form data-controller=&quot;filter-grid&quot; method=&quot;get&quot;>
+    &lt;input type=&quot;text&quot; name=&quot;search&quot; placeholder=&quot;Filter results...&quot;>
+    &lt;select name=&quot;status&quot; data-action=&quot;change->filter-grid#submitForm&quot;>
+        &lt;option value=&quot;&quot;>All&lt;/option>
+        &lt;option value=&quot;active&quot;>Active&lt;/option>
+        &lt;option value=&quot;inactive&quot;>Inactive&lt;/option>
+    &lt;/select>
+&lt;/form>
+</code></pre><p><strong>Key Methods:</strong></p><ul><li><code>submitForm(event)</code>: Submits the form to refresh grid data</li></ul><h4 id="modal-opener-controller-(modal-opener-controller.js)">Modal Opener Controller (<code>modal-opener-controller.js</code>)</h4><p><strong>Purpose:</strong> Programmatically opens Bootstrap modals based on value changes.</p><p><strong>Features:</strong></p><ul><li>Automatic modal triggering via value changes</li><li>Integration with Bootstrap modal system</li><li>Event-driven modal activation</li></ul><p><strong>Values:</strong></p><ul><li><code>modalBtn</code>: ID of modal button element to trigger</li></ul><p><strong>Usage Example:</strong></p><pre class="prettyprint source lang-html"><code>&lt;!-- Modal trigger controller -->
+&lt;div data-controller=&quot;modal-opener&quot; 
+     data-modal-opener-modal-btn-value=&quot;&quot;>
+    &lt;!-- This controller watches for modalBtn value changes -->
+&lt;/div>
+
+&lt;!-- Hidden modal trigger button -->
+&lt;button id=&quot;hidden-modal-trigger&quot; 
+        data-bs-toggle=&quot;modal&quot; 
+        data-bs-target=&quot;#confirmModal&quot; 
+        style=&quot;display: none;&quot;>
+&lt;/button>
+
+&lt;!-- Modal -->
+&lt;div class=&quot;modal fade&quot; id=&quot;confirmModal&quot;>
+    &lt;div class=&quot;modal-dialog&quot;>
+        &lt;!-- Modal content -->
+    &lt;/div>
+&lt;/div>
+
+&lt;script>
+// Trigger modal programmatically
+const controller = document.querySelector('[data-controller=&quot;modal-opener&quot;]');
+controller.setAttribute('data-modal-opener-modal-btn-value', 'hidden-modal-trigger');
+&lt;/script>
+</code></pre><p><strong>Key Methods:</strong></p><ul><li><code>modalBtnValueChanged()</code>: Automatically triggered when modalBtn value changes, clicks the specified modal button</li></ul><h4 id="navigation-bar-controller-(nav-bar-controller.js)">Navigation Bar Controller (<code>nav-bar-controller.js</code>)</h4><p><strong>Purpose:</strong> Manages navigation bar interactions with expand/collapse state tracking.</p><p><strong>Features:</strong></p><ul><li>Navigation item expand/collapse state tracking</li><li>AJAX requests for state persistence</li><li>Automatic event listener management</li><li>Server-side state synchronization</li></ul><p><strong>Targets:</strong></p><ul><li><code>navHeader</code>: Navigation header elements with expand/collapse functionality</li></ul><p><strong>Usage Example:</strong></p><pre class="prettyprint source lang-html"><code>&lt;nav data-controller=&quot;nav-bar&quot;>
+    &lt;button class=&quot;nav-link&quot; 
+            data-nav-bar-target=&quot;navHeader&quot;
+            data-expand-url=&quot;/nav/expand/123&quot;
+            data-collapse-url=&quot;/nav/collapse/123&quot;
+            aria-expanded=&quot;false&quot;
+            data-bs-toggle=&quot;collapse&quot;
+            data-bs-target=&quot;#navSection123&quot;>
+        Section Header
+    &lt;/button>
+    &lt;div id=&quot;navSection123&quot; class=&quot;collapse&quot;>
+        &lt;!-- Navigation content -->
+    &lt;/div>
+&lt;/nav>
+</code></pre><p><strong>Key Methods:</strong></p><ul><li><code>navHeaderClicked(event)</code>: Handles navigation header clicks and sends state to server</li><li><code>navHeaderTargetConnected(event)</code>: Sets up event listeners for header elements</li><li><code>navHeaderTargetDisconnected(event)</code>: Cleanup event listeners</li></ul><h4 id="detail-tabs-controller-(detail-tabs-controller.js)">Detail Tabs Controller (<code>detail-tabs-controller.js</code>)</h4><p><strong>Purpose:</strong> Manages tabbed interfaces for detailed views with URL state management.</p><p><strong>Features:</strong></p><ul><li>URL-based tab state management</li><li>Browser history integration</li><li>Automatic first tab selection</li><li>Turbo frame reload integration</li><li>Scroll position management</li></ul><p><strong>Targets:</strong></p><ul><li><code>tabBtn</code>: Tab button elements</li><li><code>tabContent</code>: Tab content areas</li></ul><p><strong>Values:</strong></p><ul><li><code>updateUrl</code>: Whether to update URL on tab changes (default: true)</li></ul><p><strong>Usage Example:</strong></p><pre class="prettyprint source lang-html"><code>&lt;div data-controller=&quot;detail-tabs&quot; data-detail-tabs-update-url-value=&quot;true&quot;>
+    &lt;ul class=&quot;nav nav-tabs&quot;>
+        &lt;li class=&quot;nav-item&quot;>
+            &lt;button class=&quot;nav-link&quot; 
+                    id=&quot;nav-profile-tab&quot;
+                    data-detail-tabs-target=&quot;tabBtn&quot;>
+                Profile
+            &lt;/button>
+        &lt;/li>
+        &lt;li class=&quot;nav-item&quot;>
+            &lt;button class=&quot;nav-link&quot; 
+                    id=&quot;nav-history-tab&quot;
+                    data-detail-tabs-target=&quot;tabBtn&quot;>
+                History
+            &lt;/button>
+        &lt;/li>
+    &lt;/ul>
+    &lt;!-- Tab content areas -->
+    &lt;div class=&quot;tab-content&quot;>
+        &lt;turbo-frame id=&quot;profile-frame&quot; data-detail-tabs-target=&quot;tabContent&quot;>
+            &lt;!-- Profile content -->
+        &lt;/turbo-frame>
+        &lt;turbo-frame id=&quot;history-frame&quot; data-detail-tabs-target=&quot;tabContent&quot;>
+            &lt;!-- History content -->
+        &lt;/turbo-frame>
+    &lt;/div>
+&lt;/div>
+</code></pre><p><strong>Key Methods:</strong></p><ul><li><code>tabBtnTargetConnected(event)</code>: Sets up tab button and handles URL-based tab selection</li><li><code>tabBtnClicked(event)</code>: Handles tab clicks and updates URL state</li><li><code>tabBtnTargetDisconnected(event)</code>: Cleanup event listeners</li></ul><h4 id="modal-opener-controller-(modal-opener-controller.js)-1">Modal Opener Controller (<code>modal-opener-controller.js</code>)</h4><p><strong>Purpose:</strong> Manages Bootstrap modal dialogs with dynamic content loading.</p><p><em>[This controller would need to be analyzed for full documentation]</em></p><h4 id="detail-tabs-controller-(detail-tabs-controller.js)-1">Detail Tabs Controller (<code>detail-tabs-controller.js</code>)</h4><p><strong>Purpose:</strong> Manages tabbed interfaces for detailed views with URL state management.</p><p><strong>Features:</strong></p><ul><li>URL-based tab state management</li><li>Browser history integration</li><li>Automatic first tab selection</li><li>Turbo frame reload integration</li><li>Scroll position management</li></ul><p><strong>Targets:</strong></p><ul><li><code>tabBtn</code>: Tab button elements</li><li><code>tabContent</code>: Tab content areas</li></ul><p><strong>Values:</strong></p><ul><li><code>updateUrl</code>: Whether to update URL on tab changes (default: true)</li></ul><p><strong>Usage Example:</strong></p><pre class="prettyprint source lang-html"><code>&lt;div data-controller=&quot;detail-tabs&quot; data-detail-tabs-update-url-value=&quot;true&quot;>
+    &lt;ul class=&quot;nav nav-tabs&quot;>
+        &lt;li class=&quot;nav-item&quot;>
+            &lt;button class=&quot;nav-link&quot; 
+                    id=&quot;nav-profile-tab&quot;
+                    data-detail-tabs-target=&quot;tabBtn&quot;>
+                Profile
+            &lt;/button>
+        &lt;/li>
+        &lt;li class=&quot;nav-item&quot;>
+            &lt;button class=&quot;nav-link&quot; 
+                    id=&quot;nav-history-tab&quot;
+                    data-detail-tabs-target=&quot;tabBtn&quot;>
+                History
+            &lt;/button>
+        &lt;/li>
+    &lt;/ul>
+    &lt;!-- Tab content areas -->
+    &lt;div class=&quot;tab-content&quot;>
+        &lt;turbo-frame id=&quot;profile-frame&quot; data-detail-tabs-target=&quot;tabContent&quot;>
+            &lt;!-- Profile content -->
+        &lt;/turbo-frame>
+        &lt;turbo-frame id=&quot;history-frame&quot; data-detail-tabs-target=&quot;tabContent&quot;>
+            &lt;!-- History content -->
+        &lt;/turbo-frame>
+    &lt;/div>
+&lt;/div>
+</code></pre><p><strong>Key Methods:</strong></p><ul><li><code>tabBtnTargetConnected(event)</code>: Sets up tab button and handles URL-based tab selection</li><li><code>tabBtnClicked(event)</code>: Handles tab clicks and updates URL state</li><li><code>tabBtnTargetDisconnected(event)</code>: Cleanup event listeners</li></ul><h4 id="guifier-controller-(guifier-controller.js)">Guifier Controller (<code>guifier-controller.js</code>)</h4><p><strong>Purpose:</strong> Integrates the Guifier library for dynamic form generation and JSON data editing.</p><p><strong>Features:</strong></p><ul><li>Dynamic form generation from JSON schema</li><li>Real-time data updates</li><li>Fullscreen editing interface</li><li>Automatic container collapse</li><li>Change event propagation</li></ul><p><strong>Targets:</strong></p><ul><li><code>hidden</code>: Hidden input field containing JSON data</li><li><code>container</code>: Container element for Guifier interface</li></ul><p><strong>Values:</strong></p><ul><li><code>type</code>: Data type for Guifier (e.g., &quot;json&quot;, &quot;yaml&quot;)</li></ul><p><strong>Usage Example:</strong></p><pre class="prettyprint source lang-html"><code>&lt;div data-controller=&quot;guifier-control&quot; 
+     data-guifier-control-type-value=&quot;json&quot;>
+    &lt;div data-guifier-control-target=&quot;container&quot; id=&quot;guifier-container&quot;>&lt;/div>
+    &lt;input type=&quot;hidden&quot; 
+           name=&quot;settings_data&quot; 
+           data-guifier-control-target=&quot;hidden&quot;
+           value='{&quot;key&quot;: &quot;value&quot;}'>
+&lt;/div>
+</code></pre><p><strong>Key Methods:</strong></p><ul><li><code>connect()</code>: Initializes Guifier instance with configuration and change handlers</li></ul><h3 id="10.5.5-member-management-controllers">10.5.5 Member Management Controllers</h3><h3 id="10.5.5-member-management-controllers-1">10.5.5 Member Management Controllers</h3><h4 id="member-card-profile-controller-(member-card-profile-controller.js)">Member Card Profile Controller (<code>member-card-profile-controller.js</code>)</h4><p><strong>Purpose:</strong> Manages dynamic member profile card generation with multi-card layout support.</p><p><strong>Features:</strong></p><ul><li>AJAX data loading for member profile information</li><li>Multi-card layout with automatic overflow handling</li><li>Dynamic content organization by plugin sections</li><li>Card height management and space calculation</li><li>Real-time membership and background check status</li></ul><p><strong>Targets:</strong></p><ul><li><code>cardSet</code>: Container for all profile cards</li><li><code>firstCard</code>: Primary card template</li><li><code>name</code>, <code>scaName</code>, <code>branchName</code>: Member identification fields</li><li><code>membershipInfo</code>, <code>backgroundCheck</code>: Status information fields</li><li><code>lastUpdate</code>: Timestamp field</li><li><code>loading</code>: Loading indicator</li><li><code>memberDetails</code>: Main details container</li></ul><p><strong>Values:</strong></p><ul><li><code>url</code>: API endpoint for member data</li></ul><p><strong>Usage Example:</strong></p><pre class="prettyprint source lang-html"><code>&lt;div data-controller=&quot;member-card-profile&quot; 
+     data-member-card-profile-url-value=&quot;/api/members/123/card-data&quot;>
+    &lt;div data-member-card-profile-target=&quot;loading&quot; class=&quot;spinner-border&quot;>
+        Loading...
+    &lt;/div>
+    &lt;div data-member-card-profile-target=&quot;memberDetails&quot; class=&quot;member-profile&quot; hidden>
+        &lt;div data-member-card-profile-target=&quot;cardSet&quot; class=&quot;card-set&quot;>
+            &lt;div data-member-card-profile-target=&quot;firstCard&quot; class=&quot;auth_card&quot;>
+                &lt;div class=&quot;cardbox&quot;>
+                    &lt;h2 data-member-card-profile-target=&quot;name&quot;>&lt;/h2>
+                    &lt;h3 data-member-card-profile-target=&quot;scaName&quot;>&lt;/h3>
+                    &lt;p data-member-card-profile-target=&quot;branchName&quot;>&lt;/p>
+                    &lt;div data-member-card-profile-target=&quot;membershipInfo&quot;>&lt;/div>
+                    &lt;div data-member-card-profile-target=&quot;backgroundCheck&quot;>&lt;/div>
+                    &lt;div data-member-card-profile-target=&quot;lastUpdate&quot;>&lt;/div>
+                &lt;/div>
+            &lt;/div>
+        &lt;/div>
+    &lt;/div>
+&lt;/div>
+</code></pre><p><strong>Key Methods:</strong></p><ul><li><code>loadCard()</code>: Initiates AJAX request and populates member data</li><li><code>startCard()</code>: Creates new card when current card is full</li><li><code>appendToCard(element, minSpace)</code>: Adds content with overflow management</li><li><code>usedSpaceInCard()</code>: Calculates current card space usage</li></ul><h4 id="member-mobile-card-profile-controller-(member-mobile-card-profile-controller.js)">Member Mobile Card Profile Controller (<code>member-mobile-card-profile-controller.js</code>)</h4><p><strong>Purpose:</strong> Specialized mobile interface for member profile cards with PWA integration.</p><p><strong>Features:</strong></p><ul><li>Mobile-optimized card layout with Bootstrap styling</li><li>PWA readiness integration</li><li>Responsive table layout for member data</li><li>Dynamic card generation for plugin sections</li><li>Automatic data formatting and organization</li></ul><p><strong>Targets:</strong></p><ul><li><code>cardSet</code>: Container for mobile cards</li><li><code>name</code>, <code>scaName</code>, <code>branchName</code>: Member identification</li><li><code>membershipInfo</code>, <code>backgroundCheck</code>: Status fields</li><li><code>lastUpdate</code>: Update timestamp</li><li><code>loading</code>: Loading state indicator</li><li><code>memberDetails</code>: Main content container</li></ul><p><strong>Values:</strong></p><ul><li><code>url</code>: API endpoint for member data</li><li><code>pwaReady</code>: PWA readiness flag</li></ul><p><strong>Usage Example:</strong></p><pre class="prettyprint source lang-html"><code>&lt;div data-controller=&quot;member-mobile-card-profile&quot; 
+     data-member-mobile-card-profile-url-value=&quot;/api/members/123/mobile&quot;
+     data-member-mobile-card-profile-pwa-ready-value=&quot;false&quot;>
+    &lt;div data-member-mobile-card-profile-target=&quot;loading&quot; class=&quot;text-center&quot;>
+        &lt;div class=&quot;spinner-border&quot;>&lt;/div>
+    &lt;/div>
+    &lt;div data-member-mobile-card-profile-target=&quot;memberDetails&quot; hidden>
+        &lt;div class=&quot;text-center mb-3&quot;>
+            &lt;h1 data-member-mobile-card-profile-target=&quot;name&quot;>&lt;/h1>
+            &lt;h2 data-member-mobile-card-profile-target=&quot;scaName&quot;>&lt;/h2>
+            &lt;h3 data-member-mobile-card-profile-target=&quot;branchName&quot;>&lt;/h3>
+            &lt;p data-member-mobile-card-profile-target=&quot;membershipInfo&quot;>&lt;/p>
+            &lt;p data-member-mobile-card-profile-target=&quot;backgroundCheck&quot;>&lt;/p>
+            &lt;small data-member-mobile-card-profile-target=&quot;lastUpdate&quot;>&lt;/small>
+        &lt;/div>
+        &lt;div data-member-mobile-card-profile-target=&quot;cardSet&quot;>&lt;/div>
+    &lt;/div>
+&lt;/div>
+</code></pre><p><strong>Key Methods:</strong></p><ul><li><code>loadCard()</code>: Loads and formats member data for mobile display</li><li><code>startCard(title)</code>: Creates new mobile-optimized card sections</li><li><code>pwaReadyValueChanged()</code>: Responds to PWA state changes</li></ul><h4 id="member-mobile-card-pwa-controller-(member-mobile-card-pwa-controller.js)">Member Mobile Card PWA Controller (<code>member-mobile-card-pwa-controller.js</code>)</h4><p><strong>Purpose:</strong> Manages Progressive Web App functionality for offline member card access.</p><p><strong>Features:</strong></p><ul><li>Service Worker registration and management</li><li>Offline/online status monitoring</li><li>URL caching for offline access</li><li>Automatic refresh when online</li><li>Status indicator management</li></ul><p><strong>Targets:</strong></p><ul><li><code>urlCache</code>: Cache configuration data</li><li><code>status</code>: Online/offline status indicator</li><li><code>refreshBtn</code>: Manual refresh button</li></ul><p><strong>Values:</strong></p><ul><li><code>swUrl</code>: Service Worker script URL</li></ul><p><strong>Usage Example:</strong></p><pre class="prettyprint source lang-html"><code>&lt;div data-controller=&quot;member-mobile-card-pwa&quot; 
+     data-member-mobile-card-pwa-sw-url-value=&quot;/service-worker.js&quot;>
+    &lt;script type=&quot;application/json&quot; data-member-mobile-card-pwa-target=&quot;urlCache&quot;>
+        [&quot;/api/members/profile&quot;, &quot;/offline-assets/&quot;]
+    &lt;/script>
+    &lt;div class=&quot;d-flex align-items-center mb-3&quot;>
+        &lt;span class=&quot;badge me-2&quot; data-member-mobile-card-pwa-target=&quot;status&quot;>Checking...&lt;/span>
+        &lt;button class=&quot;btn btn-sm btn-outline-primary&quot; 
+                data-member-mobile-card-pwa-target=&quot;refreshBtn&quot; 
+                data-action=&quot;click->member-mobile-card-pwa#refreshPageIfOnline&quot;>
+            Refresh
+        &lt;/button>
+    &lt;/div>
+&lt;/div>
+</code></pre><p><strong>Key Methods:</strong></p><ul><li><code>manageOnlineStatus()</code>: Sets up online/offline monitoring and Service Worker</li><li><code>updateOnlineStatus()</code>: Updates UI based on connection status</li><li><code>refreshPageIfOnline()</code>: Refreshes page when connection is available</li></ul><h4 id="member-unique-email-controller-(member-unique-email-controller.js)">Member Unique Email Controller (<code>member-unique-email-controller.js</code>)</h4><p><strong>Purpose:</strong> Validates email uniqueness during member registration/editing with real-time feedback.</p><p><strong>Features:</strong></p><ul><li>Real-time email uniqueness validation</li><li>AJAX validation against server endpoint</li><li>Visual feedback with Bootstrap validation classes</li><li>Original email comparison for edits</li><li>Custom validity messaging</li></ul><p><strong>Values:</strong></p><ul><li><code>url</code>: Email validation endpoint</li></ul><p><strong>Usage Example:</strong></p><pre class="prettyprint source lang-html"><code>&lt;input type=&quot;email&quot; 
+       name=&quot;email&quot;
+       class=&quot;form-control&quot;
+       data-controller=&quot;member-unique-email&quot;
+       data-member-unique-email-url-value=&quot;/api/members/check-email&quot;
+       data-original-value=&quot;current@email.com&quot;
+       required>
+&lt;div class=&quot;invalid-feedback&quot;>
+    This email address is already taken.
+&lt;/div>
+&lt;div class=&quot;valid-feedback&quot;>
+    Email address is available.
+&lt;/div>
+</code></pre><p><strong>Key Methods:</strong></p><ul><li><code>checkEmail(event)</code>: Validates email uniqueness via AJAX</li><li>Automatic Bootstrap validation class management</li><li>Custom validity message setting</li></ul><h4 id="member-verify-form-controller-(member-verify-form-controller.js)">Member Verify Form Controller (<code>member-verify-form-controller.js</code>)</h4><p><strong>Purpose:</strong> Handles member verification form workflows with conditional field management.</p><p><strong>Features:</strong></p><ul><li>Conditional field enabling/disabling</li><li>Parent member verification toggle</li><li>Membership information toggle</li><li>Form field state management</li></ul><p><strong>Targets:</strong></p><ul><li><code>scaMember</code>: SCA member checkbox field</li><li><code>membershipNumber</code>: Membership number field</li><li><code>membershipExpDate</code>: Membership expiration field</li></ul><p><strong>Usage Example:</strong></p><pre class="prettyprint source lang-html"><code>&lt;form data-controller=&quot;member-verify-form&quot;>
+    &lt;div class=&quot;form-check&quot;>
+        &lt;input type=&quot;checkbox&quot; 
+               data-action=&quot;change->member-verify-form#toggleParent&quot;
+               class=&quot;form-check-input&quot;>
+        &lt;label class=&quot;form-check-label&quot;>Has Parent/Guardian&lt;/label>
+    &lt;/div>
+    &lt;input type=&quot;text&quot; 
+           data-member-verify-form-target=&quot;scaMember&quot;
+           placeholder=&quot;Parent/Guardian Name&quot;
+           class=&quot;form-control&quot;>
+    
+    &lt;div class=&quot;form-check&quot;>
+        &lt;input type=&quot;checkbox&quot; 
+               data-action=&quot;change->member-verify-form#toggleMembership&quot;
+               class=&quot;form-check-input&quot;>
+        &lt;label class=&quot;form-check-label&quot;>Has Membership&lt;/label>
+    &lt;/div>
+    &lt;input type=&quot;text&quot; 
+           data-member-verify-form-target=&quot;membershipNumber&quot;
+           placeholder=&quot;Membership Number&quot;
+           class=&quot;form-control&quot;>
+    &lt;input type=&quot;date&quot; 
+           data-member-verify-form-target=&quot;membershipExpDate&quot;
+           class=&quot;form-control&quot;>
+&lt;/form>
+</code></pre><p><strong>Key Methods:</strong></p><ul><li><code>toggleParent(event)</code>: Enables/disables parent/guardian field</li><li><code>toggleMembership(event)</code>: Enables/disables membership fields</li></ul><h4 id="modal-opener-controller-(modal-opener-controller.js)-2">Modal Opener Controller (<code>modal-opener-controller.js</code>)</h4><p><strong>Purpose:</strong> Programmatically opens Bootstrap modals based on value changes.</p><p><strong>Features:</strong></p><ul><li>Automatic modal triggering via value changes</li><li>Integration with Bootstrap modal system</li><li>Event-driven modal activation</li></ul><p><strong>Values:</strong></p><ul><li><code>modalBtn</code>: ID of modal button element to trigger</li></ul><p><strong>Usage Example:</strong></p><pre class="prettyprint source lang-html"><code>&lt;!-- Modal trigger controller -->
+&lt;div data-controller=&quot;modal-opener&quot; 
+     data-modal-opener-modal-btn-value=&quot;&quot;>
+    &lt;!-- This controller watches for modalBtn value changes -->
+&lt;/div>
+
+&lt;!-- Hidden modal trigger button -->
+&lt;button id=&quot;hidden-modal-trigger&quot; 
+        data-bs-toggle=&quot;modal&quot; 
+        data-bs-target=&quot;#confirmModal&quot; 
+        style=&quot;display: none;&quot;>
+&lt;/button>
+
+&lt;!-- Modal -->
+&lt;div class=&quot;modal fade&quot; id=&quot;confirmModal&quot;>
+    &lt;div class=&quot;modal-dialog&quot;>
+        &lt;!-- Modal content -->
+    &lt;/div>
+&lt;/div>
+
+&lt;script>
+// Trigger modal programmatically
+const controller = document.querySelector('[data-controller=&quot;modal-opener&quot;]');
+controller.setAttribute('data-modal-opener-modal-btn-value', 'hidden-modal-trigger');
+&lt;/script>
+</code></pre><p><strong>Key Methods:</strong></p><ul><li><code>modalBtnValueChanged()</code>: Automatically triggered when modalBtn value changes, clicks the specified modal button</li></ul><h3 id="10.5.6-administrative-controllers">10.5.6 Administrative Controllers</h3><h4 id="permission-add-role-controller-(permission-add-role-controller.js)">Permission Add Role Controller (<code>permission-add-role-controller.js</code>)</h4><p><strong>Purpose:</strong> Manages adding roles to permissions with form validation.</p><p><strong>Features:</strong></p><ul><li>Role selection validation</li><li>Submit button state management</li><li>Automatic focus management</li></ul><p><strong>Targets:</strong></p><ul><li><code>role</code>: Role selection element</li><li><code>form</code>: Form element</li><li><code>submitBtn</code>: Submit button</li></ul><p><strong>Usage Example:</strong></p><pre class="prettyprint source lang-html"><code>&lt;form data-controller=&quot;permission-add-role&quot; data-permission-add-role-target=&quot;form&quot;>
+    &lt;select data-permission-add-role-target=&quot;role&quot; 
+            data-action=&quot;change->permission-add-role#checkSubmitEnable&quot;
+            name=&quot;role_id&quot;>
+        &lt;option value=&quot;&quot;>Select a role...&lt;/option>
+        &lt;option value=&quot;role_1&quot;>Administrator&lt;/option>
+        &lt;option value=&quot;role_2&quot;>Member&lt;/option>
+    &lt;/select>
+    &lt;button type=&quot;submit&quot; 
+            data-permission-add-role-target=&quot;submitBtn&quot; 
+            disabled>
+        Add Role
+    &lt;/button>
+&lt;/form>
+</code></pre><p><strong>Key Methods:</strong></p><ul><li><code>checkSubmitEnable()</code>: Validates role selection and enables/disables submit button</li></ul><h4 id="permission-manage-policies-controller-(permission-manage-policies-controller.js)">Permission Manage Policies Controller (<code>permission-manage-policies-controller.js</code>)</h4><p><strong>Purpose:</strong> Manages comprehensive permission policy matrix with class/method granular control.</p><p><strong>Features:</strong></p><ul><li>Batch checkbox processing for performance</li><li>Class-level and method-level permission management</li><li>Indeterminate state handling for partial selections</li><li>Loading overlay for large policy matrices</li><li>AJAX persistence for permission changes</li></ul><p><strong>Targets:</strong></p><ul><li><code>policyClass</code>: Class-level permission checkboxes</li><li><code>policyMethod</code>: Method-level permission checkboxes</li></ul><p><strong>Values:</strong></p><ul><li><code>url</code>: API endpoint for permission updates</li></ul><p><strong>Usage Example:</strong></p><pre class="prettyprint source lang-html"><code>&lt;div data-controller=&quot;permission-manage-policies&quot; 
+     data-permission-manage-policies-url-value=&quot;/api/permissions/update&quot;
+     class=&quot;permissions-matrix&quot;>
+    &lt;!-- Class-level checkbox -->
+    &lt;input type=&quot;checkbox&quot; 
+           data-permission-manage-policies-target=&quot;policyClass&quot;
+           data-class-name=&quot;MemberPolicy&quot;
+           data-permission-id=&quot;123&quot;
+           class=&quot;form-check-input&quot;>
+    
+    &lt;!-- Method-level checkboxes -->
+    &lt;input type=&quot;checkbox&quot; 
+           data-permission-manage-policies-target=&quot;policyMethod&quot;
+           data-class-name=&quot;MemberPolicy&quot;
+           data-permission-id=&quot;123&quot;
+           data-method-name=&quot;view&quot;
+           class=&quot;form-check-input&quot;>
+    &lt;input type=&quot;checkbox&quot; 
+           data-permission-manage-policies-target=&quot;policyMethod&quot;
+           data-class-name=&quot;MemberPolicy&quot;
+           data-permission-id=&quot;123&quot;
+           data-method-name=&quot;edit&quot;
+           class=&quot;form-check-input&quot;>
+&lt;/div>
+</code></pre><p><strong>Key Methods:</strong></p><ul><li><code>connect()</code>: Initializes batch processing with loading overlay</li><li><code>classClicked(event)</code>: Handles class-level permission toggle</li><li><code>methodClicked(event)</code>: Handles method-level permission changes</li><li><code>checkClass(className, permissionId)</code>: Updates class checkbox based on method states</li></ul><h4 id="role-add-member-controller-(role-add-member-controller.js)">Role Add Member Controller (<code>role-add-member-controller.js</code>)</h4><p><strong>Purpose:</strong> Manages adding members to roles with member validation and branch requirements.</p><p><strong>Features:</strong></p><ul><li>Member selection validation with ID parsing</li><li>Optional branch requirement validation</li><li>Submit button state management</li><li>Automatic focus handling</li></ul><p><strong>Targets:</strong></p><ul><li><code>scaMember</code>: Member selection element</li><li><code>form</code>: Form element</li><li><code>submitBtn</code>: Submit button</li><li><code>branch</code>: Optional branch selection</li></ul><p><strong>Usage Example:</strong></p><pre class="prettyprint source lang-html"><code>&lt;form data-controller=&quot;role-add-member&quot; data-role-add-member-target=&quot;form&quot;>
+    &lt;select data-role-add-member-target=&quot;scaMember&quot; 
+            data-action=&quot;change->role-add-member#checkSubmitEnable&quot;
+            name=&quot;member_id&quot;>
+        &lt;option value=&quot;&quot;>Select a member...&lt;/option>
+        &lt;option value=&quot;member_123&quot;>John Doe&lt;/option>
+        &lt;option value=&quot;member_456&quot;>Jane Smith&lt;/option>
+    &lt;/select>
+    
+    &lt;!-- Optional branch selection -->
+    &lt;select data-role-add-member-target=&quot;branch&quot; 
+            data-action=&quot;change->role-add-member#checkSubmitEnable&quot;
+            name=&quot;branch_id&quot;>
+        &lt;option value=&quot;&quot;>Select branch...&lt;/option>
+        &lt;option value=&quot;1&quot;>Local Branch&lt;/option>
+    &lt;/select>
+    
+    &lt;button type=&quot;submit&quot; 
+            data-role-add-member-target=&quot;submitBtn&quot; 
+            disabled>
+        Add Member
+    &lt;/button>
+&lt;/form>
+</code></pre><p><strong>Key Methods:</strong></p><ul><li><code>checkSubmitEnable()</code>: Validates member selection and optional branch requirement</li></ul><h4 id="role-add-permission-controller-(role-add-permission-controller.js)">Role Add Permission Controller (<code>role-add-permission-controller.js</code>)</h4><p><strong>Purpose:</strong> Manages adding permissions to roles with permission validation.</p><p><strong>Features:</strong></p><ul><li>Permission selection validation with ID parsing</li><li>Submit button state management</li><li>Automatic focus handling</li><li>Form validation integration</li></ul><p><strong>Targets:</strong></p><ul><li><code>permission</code>: Permission selection element</li><li><code>form</code>: Form element</li><li><code>submitBtn</code>: Submit button</li></ul><p><strong>Usage Example:</strong></p><pre class="prettyprint source lang-html"><code>&lt;form data-controller=&quot;role-add-permission&quot; data-role-add-permission-target=&quot;form&quot;>
+    &lt;select data-role-add-permission-target=&quot;permission&quot; 
+            data-action=&quot;change->role-add-permission#checkSubmitEnable&quot;
+            name=&quot;permission_id&quot;>
+        &lt;option value=&quot;&quot;>Select a permission...&lt;/option>
+        &lt;option value=&quot;permission_1&quot;>View Members&lt;/option>
+        &lt;option value=&quot;permission_2&quot;>Edit Members&lt;/option>
+    &lt;/select>
+    &lt;button type=&quot;submit&quot; 
+            data-role-add-permission-target=&quot;submitBtn&quot; 
+            disabled>
+        Add Permission
+    &lt;/button>
+&lt;/form>
+</code></pre><p><strong>Key Methods:</strong></p><ul><li><code>checkSubmitEnable()</code>: Validates permission selection and enables/disables submit button</li></ul><h4 id="revoke-form-controller-(revoke-form-controller.js)">Revoke Form Controller (<code>revoke-form-controller.js</code>)</h4><p><strong>Purpose:</strong> Manages revocation forms with reason validation and outlet communication.</p><p><strong>Features:</strong></p><ul><li>Outlet-based communication with other controllers</li><li>Reason validation for revocation actions</li><li>Form state management</li><li>ID value management through outlets</li></ul><p><strong>Targets:</strong></p><ul><li><code>submitBtn</code>: Submit button</li><li><code>reason</code>: Reason text field</li><li><code>id</code>: Hidden ID field</li></ul><p><strong>Values:</strong></p><ul><li><code>url</code>: Revocation endpoint</li></ul><p><strong>Outlets:</strong></p><ul><li><code>outlet-btn</code>: Communication with outlet button controllers</li></ul><p><strong>Usage Example:</strong></p><pre class="prettyprint source lang-html"><code>&lt;form data-controller=&quot;revoke-form&quot; 
+      data-revoke-form-url-value=&quot;/api/revoke&quot;
+      data-revoke-form-outlet-btn-outlet=&quot;#revoke-buttons&quot;>
+    &lt;input type=&quot;hidden&quot; data-revoke-form-target=&quot;id&quot; name=&quot;record_id&quot;>
+    
+    &lt;textarea data-revoke-form-target=&quot;reason&quot; 
+              data-action=&quot;input->revoke-form#checkReadyToSubmit&quot;
+              placeholder=&quot;Enter reason for revocation...&quot;
+              class=&quot;form-control&quot; 
+              required>&lt;/textarea>
+    
+    &lt;button type=&quot;submit&quot; 
+            data-revoke-form-target=&quot;submitBtn&quot; 
+            class=&quot;btn btn-danger&quot; 
+            disabled>
+        Revoke
+    &lt;/button>
+&lt;/form>
+
+&lt;!-- Outlet buttons container -->
+&lt;div id=&quot;revoke-buttons&quot;>
+    &lt;button data-controller=&quot;outlet-btn&quot; 
+            data-outlet-btn-btn-data-value='{&quot;id&quot;: &quot;123&quot;}'
+            data-action=&quot;click->outlet-btn#fireNotice&quot;>
+        Revoke Item 123
+    &lt;/button>
+&lt;/div>
+</code></pre><p><strong>Key Methods:</strong></p><ul><li><code>setId(event)</code>: Receives ID from outlet button communications</li><li><code>checkReadyToSubmit()</code>: Validates reason field and enables/disables submit</li><li><code>outletBtnOutletConnected/Disconnected()</code>: Manages outlet communication lifecycle</li></ul><p><strong>Note:</strong> This controller demonstrates the outlet pattern for inter-controller communication.</p><h4 id="outlet-button-controller-(outlet-button-controller.js)">Outlet Button Controller (<code>outlet-button-controller.js</code>)</h4><p><strong>Purpose:</strong> Provides inter-controller communication through Stimulus outlets with data passing.</p><p><strong>Features:</strong></p><ul><li>Data validation and requirement checking</li><li>Event dispatching for controller communication</li><li>Dynamic button state management</li><li>Custom event listener management</li></ul><p><strong>Values:</strong></p><ul><li><code>btnData</code>: Object containing button-specific data</li><li><code>requireData</code>: Whether data is required for button functionality</li></ul><p><strong>Usage Example:</strong></p><pre class="prettyprint source lang-html"><code>&lt;button data-controller=&quot;outlet-btn&quot;
+        data-outlet-btn-btn-data-value='{&quot;id&quot;: &quot;123&quot;, &quot;type&quot;: &quot;member&quot;}'
+        data-outlet-btn-require-data-value=&quot;true&quot;
+        data-action=&quot;click->outlet-btn#fireNotice&quot;
+        class=&quot;btn btn-primary&quot;>
+    Process Member 123
+&lt;/button>
+
+&lt;script>
+// Listening controller setup
+const form = document.querySelector('[data-controller=&quot;revoke-form&quot;]');
+form.addEventListener('outlet-btn:outlet-button-clicked', (event) => {
+    console.log('Received data:', event.detail);
+});
+&lt;/script>
+</code></pre><p><strong>Key Methods:</strong></p><ul><li><code>btnDataValueChanged()</code>: Updates button state based on data availability</li><li><code>addBtnData(data)</code>: Programmatically sets button data</li><li><code>fireNotice(event)</code>: Dispatches custom event with button data</li><li><code>addListener(callback)</code> / <code>removeListener(callback)</code>: Manages event listeners</li></ul><h3 id="10.5.7-session-management-controllers">10.5.7 Session Management Controllers</h3><h4 id="session-extender-controller-(session-extender-controller.js)">Session Extender Controller (<code>session-extender-controller.js</code>)</h4><p><strong>Purpose:</strong> Extends user sessions to prevent timeout during active use.</p><p><strong>Features:</strong></p><ul><li>Automatic session extension alerts</li><li>Configurable timeout intervals (25 minutes default)</li><li>AJAX session refresh</li><li>Timer management and cleanup</li></ul><p><strong>Values:</strong></p><ul><li><code>url</code>: Session extension endpoint</li></ul><p><strong>Usage Example:</strong></p><pre class="prettyprint source lang-html"><code>&lt;div data-controller=&quot;session-extender&quot; 
+     data-session-extender-url-value=&quot;/auth/extend-session&quot;>
+    &lt;!-- This controller runs in background -->
+&lt;/div>
+</code></pre><p><strong>Key Methods:</strong></p><ul><li><code>urlValueChanged()</code>: Sets up timer and handles session extension workflow</li><li>Timer automatically shows alert at 25-minute intervals</li><li>Fetches session extension endpoint after user confirmation</li></ul><h3 id="10.5.8-utility-controllers">10.5.8 Utility Controllers</h3><h4 id="select-all-switch-list-controller-(select-all-switch-list-controller.js)">Select All Switch List Controller (<code>select-all-switch-list-controller.js</code>)</h4><p><strong>Purpose:</strong> Provides &quot;select all&quot; functionality for checkbox lists with Bootstrap switches.</p><p><strong>Features:</strong></p><ul><li>Automatic &quot;Select All&quot; checkbox generation</li><li>Bidirectional checkbox synchronization</li><li>Bootstrap form-switch styling integration</li><li>Dynamic state management</li></ul><p><strong>Usage Example:</strong></p><pre class="prettyprint source lang-html"><code>&lt;div data-controller=&quot;select-all-switch&quot;>
+    &lt;div class=&quot;form-check form-switch&quot;>
+        &lt;input class=&quot;form-check-input&quot; type=&quot;checkbox&quot; name=&quot;items[]&quot; value=&quot;1&quot;>
+        &lt;label class=&quot;form-check-label&quot;>Item 1&lt;/label>
+    &lt;/div>
+    &lt;div class=&quot;form-check form-switch&quot;>
+        &lt;input class=&quot;form-check-input&quot; type=&quot;checkbox&quot; name=&quot;items[]&quot; value=&quot;2&quot;>
+        &lt;label class=&quot;form-check-label&quot;>Item 2&lt;/label>
+    &lt;/div>
+    &lt;div class=&quot;form-check form-switch&quot;>
+        &lt;input class=&quot;form-check-input&quot; type=&quot;checkbox&quot; name=&quot;items[]&quot; value=&quot;3&quot;>
+        &lt;label class=&quot;form-check-label&quot;>Item 3&lt;/label>
+    &lt;/div>
+    &lt;!-- Select All checkbox will be automatically inserted here -->
+&lt;/div>
+</code></pre><p><strong>Key Methods:</strong></p><ul><li><code>connect()</code>: Creates &quot;Select All&quot; checkbox and sets up event listeners</li><li><code>updateSelectAll(event)</code>: Synchronizes individual checkboxes with &quot;Select All&quot; state</li></ul><h2 id="10.6-controller-development-patterns">10.6 Controller Development Patterns</h2><h3 id="standard-controller-structure">Standard Controller Structure</h3><p>All KMP Stimulus controllers follow this standard pattern:</p><pre class="prettyprint source lang-javascript"><code>import { Controller } from &quot;@hotwired/stimulus&quot;
+
+class YourController extends Controller {
+    // Define targets - elements your controller interacts with
+    static targets = [&quot;input&quot;, &quot;output&quot;]
+    
+    // Define values - properties that can be set from HTML
+    static values = {
+        url: String,
+        delay: { type: Number, default: 300 }
+    }
+    
+    // Define outlets - connections to other controllers
+    static outlets = [&quot;other-controller&quot;]
+    
+    // Initialize function (optional)
+    initialize() {
+        // Setup code here
+    }
+    
+    // Connect function - runs when controller connects to DOM
+    connect() {
+        // Connection code here
+    }
+    
+    // Event handler methods
+    handleEvent(event) {
+        // Handle events
+    }
+    
+    // Disconnect function - cleanup when controller disconnects
+    disconnect() {
+        // Cleanup code here
+    }
+}
+
+// Register with global controllers registry
+if (!window.Controllers) {
+    window.Controllers = {};
+}
+window.Controllers[&quot;your-controller&quot;] = YourController;
+</code></pre><h3 id="import%2Frequire-inconsistencies">Import/Require Inconsistencies</h3><p><strong>Note:</strong> Some controllers in the codebase use CommonJS <code>require</code> syntax instead of ES6 <code>import</code> statements. This inconsistency should be addressed:</p><ul><li><strong>ES6 Import (Recommended):</strong> <code>import { Controller } from &quot;@hotwired/stimulus&quot;</code></li><li><strong>CommonJS Require:</strong> <code>const { Controller } = require(&quot;@hotwired/stimulus&quot;)</code></li></ul><p>Controllers currently using <code>require</code> include:</p><ul><li><code>app-setting-form-controller.js</code></li><li><code>session-extender-controller.js</code></li></ul><p>These should be updated to use ES6 imports for consistency.</p><h3 id="security-considerations">Security Considerations</h3><p>When developing controllers that handle user input:</p><ol><li><strong>Always sanitize URLs</strong> using <code>KMP_utils.sanitizeUrl()</code></li><li><strong>Validate input</strong> before processing using native HTML5 validation or custom logic</li><li><strong>Use CSRF tokens</strong> for state-changing AJAX requests</li><li><strong>Sanitize strings</strong> using <code>KMP_utils.sanitizeString()</code> for display</li><li><strong>Handle errors gracefully</strong> with user-friendly feedback</li></ol><h3 id="performance-best-practices">Performance Best Practices</h3><ol><li><strong>Debounce expensive operations</strong> like AJAX calls (see auto-complete example)</li><li><strong>Clean up event listeners</strong> in the <code>disconnect()</code> method</li><li><strong>Use efficient DOM operations</strong> - batch updates when possible</li><li><strong>Implement lazy loading</strong> for data-heavy components</li></ol><h3 id="code-quality-notes">Code Quality Notes</h3><p><strong>Issues Found in Current Codebase:</strong></p><ul><li>Some controllers have incomplete <code>disconnect()</code> methods (e.g., <code>csv-download-controller.js</code>)</li><li>The <code>auto-complete-controller.js</code> has duplicate getter methods that may cause issues</li><li>Import statement inconsistency across controllers (mix of ES6 and CommonJS)</li></ul><p>These issues should be addressed to improve code reliability and maintainability.</p><h2 id="10.7-examples-from-the-codebase">10.7 Examples from the Codebase</h2><p>KMP includes several Stimulus controllers that serve as good examples:</p><ul><li><code>app-setting-form-controller.js</code>: Simple form management</li><li><code>auto-complete-controller.js</code>: Complex AJAX interactions with accessibility</li><li><code>branch-links-controller.js</code>: Dynamic list management with validation</li><li><code>csv-download-controller.js</code>: File handling and download management</li><li><code>member-card-profile-controller.js</code>: Component state management</li></ul><p>Examining these controllers can provide insight into how to implement common patterns in Stimulus.</p><p>For more best practices and coding standards, see the <a href="../.github/copilot-instructions.md">KMP CakePHP &amp; Stimulus.JS Best Practices</a>.</p><hr><h2 id="10.8-asset-management">10.8 Asset Management</h2><p>KMP uses Laravel Mix (based on webpack) to manage frontend assets with sophisticated build optimization and automated controller discovery.</p><h3 id="10.8.1-build-system-architecture">10.8.1 Build System Architecture</h3><p>The asset compilation system is configured in <code>webpack.mix.js</code> and provides:</p><ul><li><strong>Automatic Controller Discovery</strong>: Recursively finds all <code>-controller.js</code> files</li><li><strong>Code Splitting</strong>: Separates vendor libraries from application code</li><li><strong>Asset Versioning</strong>: Cache-busting for production deployments</li><li><strong>Source Maps</strong>: Development debugging support</li><li><strong>CSS Processing</strong>: SASS compilation and optimization</li></ul><h3 id="10.8.2-webpack-configuration">10.8.2 Webpack Configuration</h3><p>The build system automatically discovers Stimulus controllers across the application:</p><pre class="prettyprint source lang-javascript"><code>// webpack.mix.js - Controller Discovery
+function getJsFilesFromDir(startPath, skiplist, filter, callback) {
+    // Recursively scans directories for controller files
+    // Skips node_modules and webroot directories
+    // Finds all files matching '-controller.js' pattern
+}
+
+// Scans main app and plugins for controllers
+getJsFilesFromDir('./assets/js', skipList, '-controller.js', callback);
+getJsFilesFromDir('./plugins', skipList, '-controller.js', callback);
+</code></pre><p><strong>Build Outputs:</strong></p><ul><li><code>webroot/js/controllers.js</code> - All Stimulus controllers bundled together</li><li><code>webroot/js/index.js</code> - Main application JavaScript entry point</li><li><code>webroot/js/core.js</code> - Vendor libraries (Bootstrap, Turbo, Stimulus)</li><li><code>webroot/css/*.css</code> - Compiled CSS files</li></ul><h3 id="10.8.3-npm-scripts">10.8.3 NPM Scripts</h3><p>The <code>package.json</code> defines comprehensive build and test workflows:</p><p><strong>Development Scripts:</strong></p><pre class="prettyprint source lang-bash"><code>npm run dev          # Development build
+npm run watch        # Watch files and rebuild on changes
+npm run watch-poll   # Watch with polling (for Docker/VM)
+npm run hot          # Hot module reloading
+</code></pre><p><strong>Production Scripts:</strong></p><pre class="prettyprint source lang-bash"><code>npm run prod         # Production build with optimization
+npm run production   # Alias for prod
+</code></pre><p><strong>Testing Scripts:</strong></p><pre class="prettyprint source lang-bash"><code>npm run test         # Run all tests (JS + UI)
+npm run test:js      # Jest JavaScript tests
+npm run test:ui      # Playwright end-to-end tests
+npm run test:security # Security vulnerability checks
+</code></pre><h3 id="10.8.4-dependencies-management">10.8.4 Dependencies Management</h3><p><strong>Core Framework Dependencies:</strong></p><ul><li><code>@hotwired/stimulus</code> - Stimulus JavaScript framework</li><li><code>@hotwired/turbo</code> - Turbo navigation and caching</li><li><code>bootstrap</code> - UI framework and components</li><li><code>guifier</code> - Dynamic form generation library</li></ul><p><strong>Development Dependencies:</strong></p><ul><li><code>laravel-mix</code> - Asset compilation wrapper for webpack</li><li><code>jest</code> - JavaScript testing framework</li><li><code>@playwright/test</code> - End-to-end testing framework</li><li><code>playwright-bdd</code> - Behavior-driven development for Playwright</li></ul><h3 id="10.8.5-asset-organization">10.8.5 Asset Organization</h3><p><strong>JavaScript Structure:</strong></p><pre class="prettyprint source"><code>app/assets/js/
+├── index.js                    # Main entry point
+├── KMP_utils.js               # Global utilities
+└── controllers/               # Stimulus controllers
+    ├── app-setting-form-controller.js
+    ├── auto-complete-controller.js
+    └── ...                    # All other controllers
+
+plugins/*/assets/js/controllers/  # Plugin-specific controllers
+</code></pre><p><strong>CSS Structure:</strong></p><pre class="prettyprint source"><code>app/assets/css/
+├── app.css          # Main application styles
+├── signin.css       # Authentication page styles
+├── cover.css        # Landing page styles
+└── dashboard.css    # Dashboard-specific styles
+</code></pre><h3 id="10.8.6-build-process-optimization">10.8.6 Build Process Optimization</h3><p><strong>Code Splitting Strategy:</strong></p><ol><li><strong>Vendor Bundle</strong> (<code>core.js</code>): Bootstrap, Turbo, Stimulus, and other vendor libraries</li><li><strong>Controllers Bundle</strong> (<code>controllers.js</code>): All Stimulus controllers from app and plugins</li><li><strong>Application Bundle</strong> (<code>index.js</code>): Main application logic and utilities</li></ol><p><strong>Benefits:</strong></p><ul><li>Vendor libraries cached separately from application code</li><li>Controllers can be updated without affecting vendor cache</li><li>Smaller incremental updates for better performance</li></ul><h3 id="10.8.7-development-workflow">10.8.7 Development Workflow</h3><p><strong>Setting Up Development Environment:</strong></p><pre class="prettyprint source lang-bash"><code>cd app
+npm install                    # Install dependencies
+npm run watch                  # Start development with file watching
+</code></pre><p><strong>Adding New Assets:</strong></p><ol><li><strong>Stimulus Controllers</strong>: Place in <code>assets/js/controllers/</code> with <code>-controller.js</code> suffix</li><li><strong>CSS Files</strong>: Add to <code>assets/css/</code> and reference in <code>webpack.mix.js</code></li><li><strong>JavaScript Modules</strong>: Import into <code>index.js</code> or controller files as needed</li></ol><p><strong>Automatic Discovery:</strong></p><ul><li>Controllers are automatically discovered and bundled</li><li>No manual webpack entry configuration required</li><li>Plugin controllers automatically included in build</li></ul><h3 id="10.8.8-production-deployment">10.8.8 Production Deployment</h3><p><strong>Production Build Process:</strong></p><pre class="prettyprint source lang-bash"><code>npm run production
+</code></pre><p><strong>Production Optimizations:</strong></p><ul><li><strong>Minification</strong>: JavaScript and CSS are minified</li><li><strong>Tree Shaking</strong>: Unused code is removed</li><li><strong>Asset Versioning</strong>: Files include content hashes for cache busting</li><li><strong>Source Maps</strong>: Available for production debugging if needed</li></ul><p><strong>Output Files:</strong></p><pre class="prettyprint source"><code>webroot/js/
+├── controllers.js              # All Stimulus controllers
+├── index.js                   # Main application code
+├── core.js                    # Vendor libraries
+├── manifest.json              # Laravel Mix manifest for versioning
+└── runtime.js                 # Webpack runtime
+
+webroot/css/
+├── app.css                    # Main styles
+├── signin.css                 # Authentication styles
+└── ...                       # Other CSS files
+</code></pre><h3 id="10.8.9-browser-support">10.8.9 Browser Support</h3><p>The build system targets modern browsers with the following browserlist configuration:</p><pre class="prettyprint source lang-json"><code>&quot;browserslist&quot;: [&quot;defaults&quot;]
+</code></pre><p>This provides support for:</p><ul><li><strong>Chrome</strong>: Last 2 versions</li><li><strong>Firefox</strong>: Last 2 versions</li><li><strong>Safari</strong>: Last 2 versions</li><li><strong>Edge</strong>: Last 2 versions</li><li>Covers &gt;95% of global browser usage</li></ul><h3 id="10.8.10-performance-considerations">10.8.10 Performance Considerations</h3><p><strong>Bundle Size Optimization:</strong></p><ul><li>Vendor libraries extracted to separate bundle for better caching</li><li>Controllers bundled together for optimal loading</li><li>Source maps available for development debugging</li></ul><p><strong>Loading Strategy:</strong></p><ul><li>Core vendor libraries loaded first</li><li>Controllers loaded separately to allow for independent updates</li><li>CSS loaded asynchronously to prevent render blocking</li></ul><h3 id="10.8.11-troubleshooting">10.8.11 Troubleshooting</h3><p><strong>Common Build Issues:</strong></p><ol><li><strong>Controller Not Loading</strong>: Ensure filename ends with <code>-controller.js</code></li><li><strong>Build Errors</strong>: Check for syntax errors in controller files</li><li><strong>Asset Not Found</strong>: Verify file paths in <code>webpack.mix.js</code></li><li><strong>Memory Issues</strong>: Use <code>--max-old-space-size=4096</code> for large projects</li></ol><p><strong>Debug Commands:</strong></p><pre class="prettyprint source lang-bash"><code>npm run dev                    # Development build with detailed output
+npm run watch                  # Watch mode shows file changes
+npm run test:js                # Run JavaScript tests
+</code></pre><p><strong>File Watching Issues:</strong></p><ul><li>Use <code>npm run watch-poll</code> for Docker/VM environments</li><li>Ensure file permissions allow webpack to watch files</li><li>Check that <code>skipList</code> in webpack.mix.js doesn't exclude your files</li></ul></article></section></div></div></div><div class="search-container" id="PkfLWpAbet" style="display:none"><div class="wrapper" id="iCxFxjkHbP"><button class="icon-button search-close-button" id="VjLlGakifb" aria-label="close search"><svg><use xlink:href="#close-icon"></use></svg></button><div class="search-box-c"><svg><use xlink:href="#search-icon"></use></svg> <input type="text" id="vpcKVYIppa" class="search-input" placeholder="Search..." autofocus></div><div class="search-result-c" id="fWwVHRuDuN"><span class="search-result-c-text">Type anything to view search result</span></div></div></div><div class="mobile-menu-icon-container"><button class="icon-button" id="mobile-menu" data-isopen="false" aria-label="menu"><svg><use xlink:href="#menu-icon"></use></svg></button></div><div id="mobile-sidebar" class="mobile-sidebar-container"><div class="mobile-sidebar-wrapper"><a href="/" class="sidebar-title sidebar-title-anchor">KMP JavaScript API</a><div class="mobile-nav-links"><div class="navbar-item"><a id="" href="../php/index.html" target="">PHP API</a></div><div class="navbar-item"><a id="" href="../../index.html" target="">Docs Home</a></div></div><div class="mobile-sidebar-items-c"><div class="sidebar-section-title with-arrow" data-isopen="false" id="sidebar-classes"><div>Classes</div><svg><use xlink:href="#down-icon"></use></svg></div><div class="sidebar-section-children-container"><div class="sidebar-section-children"><a href="ActivitiesApproveAndAssignAuthorization.html">ActivitiesApproveAndAssignAuthorization</a></div><div class="sidebar-section-children"><a href="ActivitiesRenewAuthorization.html">ActivitiesRenewAuthorization</a></div><div class="sidebar-section-children"><a href="ActivityToggleController.html">ActivityToggleController</a></div><div class="sidebar-section-children"><a href="ActivityWaiverManagerController.html">ActivityWaiverManagerController</a></div><div class="sidebar-section-children"><a href="AddActivityModalController.html">AddActivityModalController</a></div><div class="sidebar-section-children"><a href="AppSettingForm.html">AppSettingForm</a></div><div class="sidebar-section-children"><a href="AppSettingModalController.html">AppSettingModalController</a></div><div class="sidebar-section-children"><a href="AutoComplete.html">AutoComplete</a></div><div class="sidebar-section-children"><a href="AwardsAwardForm.html">AwardsAwardForm</a></div><div class="sidebar-section-children"><a href="AwardsRecommendationAddForm.html">AwardsRecommendationAddForm</a></div><div class="sidebar-section-children"><a href="AwardsRecommendationBulkEditForm.html">AwardsRecommendationBulkEditForm</a></div><div class="sidebar-section-children"><a href="AwardsRecommendationEditForm.html">AwardsRecommendationEditForm</a></div><div class="sidebar-section-children"><a href="AwardsRecommendationQuickEditForm.html">AwardsRecommendationQuickEditForm</a></div><div class="sidebar-section-children"><a href="AwardsRecommendationTable.html">AwardsRecommendationTable</a></div><div class="sidebar-section-children"><a href="BaseGatheringFormController.html">BaseGatheringFormController</a></div><div class="sidebar-section-children"><a href="BrancheLinks.html">BrancheLinks</a></div><div class="sidebar-section-children"><a href="CameraCaptureController.html">CameraCaptureController</a></div><div class="sidebar-section-children"><a href="CodeEditorController.html">CodeEditorController</a></div><div class="sidebar-section-children"><a href="CsvDownloadController.html">CsvDownloadController</a></div><div class="sidebar-section-children"><a href="DelayForwardController.html">DelayForwardController</a></div><div class="sidebar-section-children"><a href="DeleteConfirmationController.html">DeleteConfirmationController</a></div><div class="sidebar-section-children"><a href="DetailTabsController.html">DetailTabsController</a></div><div class="sidebar-section-children"><a href="EditActivityDescriptionController.html">EditActivityDescriptionController</a></div><div class="sidebar-section-children"><a href="EmailTemplateEditorController.html">EmailTemplateEditorController</a></div><div class="sidebar-section-children"><a href="EmailTemplateFormController.html">EmailTemplateFormController</a></div><div class="sidebar-section-children"><a href="ExemptionReasonsController.html">ExemptionReasonsController</a></div><div class="sidebar-section-children"><a href="FileSizeValidatorController.html">FileSizeValidatorController</a></div><div class="sidebar-section-children"><a href="FilterGrid.html">FilterGrid</a></div><div class="sidebar-section-children"><a href="GWSharingController.html">GWSharingController</a></div><div class="sidebar-section-children"><a href="GatheringCloneController.html">GatheringCloneController</a></div><div class="sidebar-section-children"><a href="GatheringFormController.html">GatheringFormController</a></div><div class="sidebar-section-children"><a href="GatheringLocationAutocompleteController.html">GatheringLocationAutocompleteController</a></div><div class="sidebar-section-children"><a href="GatheringMapController.html">GatheringMapController</a></div><div class="sidebar-section-children"><a href="GatheringScheduleController.html">GatheringScheduleController</a></div><div class="sidebar-section-children"><a href="GatheringTypeFormController.html">GatheringTypeFormController</a></div><div class="sidebar-section-children"><a href="GatheringsCalendarController.html">GatheringsCalendarController</a></div><div class="sidebar-section-children"><a href="GitHubSubmitter.html">GitHubSubmitter</a></div><div class="sidebar-section-children"><a href="GridViewController.html">GridViewController</a></div><div class="sidebar-section-children"><a href="GuifierController.html">GuifierController</a></div><div class="sidebar-section-children"><a href="HelloWorldController.html">HelloWorldController</a></div><div class="sidebar-section-children"><a href="HelloWorldController.html">HelloWorldController</a></div><div class="sidebar-section-children"><a href="ImagePreview.html">ImagePreview</a></div><div class="sidebar-section-children"><a href="Kanban.html">Kanban</a></div><div class="sidebar-section-children"><a href="MarkdownEditorController.html">MarkdownEditorController</a></div><div class="sidebar-section-children"><a href="MemberCardProfile.html">MemberCardProfile</a></div><div class="sidebar-section-children"><a href="MemberMobileCardMenu.html">MemberMobileCardMenu</a></div><div class="sidebar-section-children"><a href="MemberMobileCardPWA.html">MemberMobileCardPWA</a></div><div class="sidebar-section-children"><a href="MemberMobileCardProfile.html">MemberMobileCardProfile</a></div><div class="sidebar-section-children"><a href="MemberUniqueEmail.html">MemberUniqueEmail</a></div><div class="sidebar-section-children"><a href="MemberVerifyForm.html">MemberVerifyForm</a></div><div class="sidebar-section-children"><a href="MobileOfflineOverlayController.html">MobileOfflineOverlayController</a></div><div class="sidebar-section-children"><a href="MobileRequestAuthController.html">MobileRequestAuthController</a></div><div class="sidebar-section-children"><a href="ModalOpener.html">ModalOpener</a></div><div class="sidebar-section-children"><a href="NavBarController.html">NavBarController</a></div><div class="sidebar-section-children"><a href="OutletButton.html">OutletButton</a></div><div class="sidebar-section-children"><a href="PermissionAddRole.html">PermissionAddRole</a></div><div class="sidebar-section-children"><a href="PermissionManagePolicies.html">PermissionManagePolicies</a></div><div class="sidebar-section-children"><a href="PopoverController.html">PopoverController</a></div><div class="sidebar-section-children"><a href="QrcodeController.html">QrcodeController</a></div><div class="sidebar-section-children"><a href="RecommendationKanbanController.html">RecommendationKanbanController</a></div><div class="sidebar-section-children"><a href="RetentionPolicyInputController.html">RetentionPolicyInputController</a></div><div class="sidebar-section-children"><a href="RevokeForm.html">RevokeForm</a></div><div class="sidebar-section-children"><a href="RoleAddMember.html">RoleAddMember</a></div><div class="sidebar-section-children"><a href="RoleAddPermission.html">RoleAddPermission</a></div><div class="sidebar-section-children"><a href="SecurityDebugController.html">SecurityDebugController</a></div><div class="sidebar-section-children"><a href="SelectAllListController.html">SelectAllListController</a></div><div class="sidebar-section-children"><a href="SessionExtender.html">SessionExtender</a></div><div class="sidebar-section-children"><a href="SortableListController.html">SortableListController</a></div><div class="sidebar-section-children"><a href="TimezoneInputController.html">TimezoneInputController</a></div><div class="sidebar-section-children"><a href="TurboModal.html">TurboModal</a></div><div class="sidebar-section-children"><a href="VariableInsertController.html">VariableInsertController</a></div><div class="sidebar-section-children"><a href="WaiverAttestationController.html">WaiverAttestationController</a></div><div class="sidebar-section-children"><a href="WaiverTemplateController.html">WaiverTemplateController</a></div><div class="sidebar-section-children"><a href="WaiverUploadController.html">WaiverUploadController</a></div><div class="sidebar-section-children"><a href="WaiverUploadWizardController.html">WaiverUploadWizardController</a></div></div><div class="sidebar-section-title with-arrow" data-isopen="false" id="sidebar-namespaces"><div>Namespaces</div><svg><use xlink:href="#down-icon"></use></svg></div><div class="sidebar-section-children-container"><div class="sidebar-section-children"><a href="KMP_Timezone.html">KMP_Timezone</a></div></div></div><div class="mobile-navbar-actions"><div class="navbar-right-item"><button class="icon-button search-button" aria-label="open-search"><svg><use xlink:href="#search-icon"></use></svg></button></div><div class="navbar-right-item"><button class="icon-button theme-toggle" aria-label="toggle-theme"><svg><use class="theme-svg-use" xlink:href="#light-theme-icon"></use></svg></button></div><div class="navbar-right-item"><button class="icon-button font-size" aria-label="change-font-size"><svg><use xlink:href="#font-size-icon"></use></svg></button></div></div></div></div><script type="text/javascript" src="scripts/core.min.js"></script><script src="scripts/search.min.js" defer="defer"></script><script src="scripts/third-party/fuse.js" defer="defer"></script><script type="text/javascript">var tocbotInstance=tocbot.init({tocSelector:"#eed4d2a0bfd64539bb9df78095dec881",contentSelector:".main-content",headingSelector:"h1, h2, h3",hasInnerContainers:!0,scrollContainer:".main-content",headingsOffset:130,onClick:bringLinkToView})</script></body></html>
