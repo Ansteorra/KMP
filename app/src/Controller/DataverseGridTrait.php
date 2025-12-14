@@ -950,11 +950,11 @@ trait DataverseGridTrait
         if (is_array($source) && !empty($source['appSetting'])) {
             $settingKey = $source['appSetting'];
             $values = \App\KMP\StaticHelpers::getAppSetting($settingKey);
-            
+
             if (!is_array($values)) {
                 return [];
             }
-            
+
             return array_map(
                 fn($value) => ['value' => (string)$value, 'label' => (string)$value],
                 $values
