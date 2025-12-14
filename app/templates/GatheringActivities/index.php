@@ -24,9 +24,9 @@ $this->assign('title', __('Gathering Activities'));
         <div>
             <?php if ($user->checkCan("add", "GatheringActivities")) : ?>
                 <?= $this->Html->link(
-                    __('Add Gathering Activity'),
+                    __(' Add Gathering Activity'),
                     ['action' => 'add'],
-                    ['class' => 'btn btn-primary']
+                    ['class' => 'btn btn-primary bi bi-plus-circle']
                 ) ?>
             <?php endif; ?>
         </div>

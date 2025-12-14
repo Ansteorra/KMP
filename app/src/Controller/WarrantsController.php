@@ -72,7 +72,7 @@ class WarrantsController extends AppController
         $securityWarrant = $this->Warrants->newEmptyEntity();
         $this->Authorization->authorize($securityWarrant, 'index');
 
-        $systemViews = $this->getWarrantSystemViews();
+        $systemViews = WarrantsGridColumns::getSystemViews([]);
         $queryCallback = $this->buildSystemViewQueryCallback(FrozenDate::today());
 
         // Use unified trait for grid processing (system views mode)
@@ -112,7 +112,7 @@ class WarrantsController extends AppController
         $securityWarrant = $this->Warrants->newEmptyEntity();
         $this->Authorization->authorize($securityWarrant, 'index');
 
-        $systemViews = $this->getWarrantSystemViews();
+        $systemViews = WarrantsGridColumns::getSystemViews([]);
         $queryCallback = $this->buildSystemViewQueryCallback(FrozenDate::today());
 
         // Use unified trait for grid processing (system views mode)
@@ -250,86 +250,6 @@ class WarrantsController extends AppController
         // Paginated results for web interface
         $warrants = $this->paginate($warrantsQuery);
         $this->set(compact('warrants', 'state'));
-    }
-
-    /**
-     * Build system views configuration for warrant dataverse grid
-     *
-     * @return array<string, array<string, mixed>>
-     */
-    protected function getWarrantSystemViews(): array
-    {
-        $today = FrozenDate::today();
-        $todayString = $today->format('Y-m-d');
-        $tomorrowString = $today->addDays(1)->format('Y-m-d');
-        $yesterdayString = $today->subDays(1)->format('Y-m-d');
-
-        return [
-            'sys-warrants-current' => [
-                'id' => 'sys-warrants-current',
-                'name' => __('Current'),
-                'description' => __('Active warrants providing RBAC validation'),
-                'canManage' => false,
-                'config' => [
-                    'filters' => [
-                        ['field' => 'status', 'operator' => 'eq', 'value' => Warrant::CURRENT_STATUS],
-                        ['field' => 'start_on', 'operator' => 'dateRange', 'value' => [null, $todayString]],
-                        ['field' => 'expires_on', 'operator' => 'dateRange', 'value' => [$todayString, null]],
-                    ],
-                ],
-            ],
-            'sys-warrants-pending' => [
-                'id' => 'sys-warrants-pending',
-                'name' => __('Pending'),
-                'description' => __('Warrants awaiting approval through roster system'),
-                'canManage' => false,
-                'config' => [
-                    'filters' => [
-                        ['field' => 'status', 'operator' => 'eq', 'value' => Warrant::PENDING_STATUS]
-                    ],
-                ],
-            ],
-            'sys-warrants-upcoming' => [
-                'id' => 'sys-warrants-upcoming',
-                'name' => __('Upcoming'),
-                'description' => __('Warrants scheduled to start in the future'),
-                'canManage' => false,
-                'config' => [
-                    'filters' => [
-                        ['field' => 'status', 'operator' => 'eq', 'value' => Warrant::CURRENT_STATUS],
-                        ['field' => 'start_on', 'operator' => 'dateRange', 'value' => [$tomorrowString, null]],
-                    ],
-                ],
-            ],
-            'sys-warrants-previous' => [
-                'id' => 'sys-warrants-previous',
-                'name' => __('Previous'),
-                'description' => __('Expired or deactivated warrants'),
-                'canManage' => false,
-                'config' => [
-                    // Expression tree handles OR logic: (expires_on < today) OR (status IN [Deactivated, Expired])
-                    'expression' => [
-                        'type' => 'OR',
-                        'conditions' => [
-                            ['field' => 'expires_on', 'operator' => 'lt', 'value' => $todayString],
-                            ['field' => 'status', 'operator' => 'in', 'value' => [
-                                Warrant::DEACTIVATED_STATUS,
-                                Warrant::EXPIRED_STATUS,
-                            ]],
-                        ],
-                    ],
-                    // Keep filter UI seeds for display pills (but don't apply to query)
-                    'filters' => [
-                        ['field' => 'status', 'operator' => 'in', 'value' => [
-                            Warrant::DEACTIVATED_STATUS,
-                            Warrant::EXPIRED_STATUS,
-                        ]],
-                        ['field' => 'expires_on', 'operator' => 'dateRange', 'value' => [null, $yesterdayString]],
-                    ],
-                    'skipFilterColumns' => ['status', 'expires_on'],
-                ],
-            ],
-        ];
     }
 
     /**

@@ -69,6 +69,8 @@ class BranchesController extends AppController
         $baseQuery = $this->Branches->find()
             ->contain(['Parent']);
 
+        // Get system views from GridColumns
+
         // Use unified trait for grid processing
         // Sort by 'lft' (left value) to maintain hierarchical tree order
         $result = $this->processDataverseGrid([

@@ -15,6 +15,54 @@ use App\Model\Entity\Permission;
 class PermissionsGridColumns extends BaseGridColumns
 {
     /**
+     * Get available system views for the Permissions grid.
+     *
+     * @param array<string, mixed> $options Optional context (unused)
+     * @return array<string, array<string, mixed>>
+     */
+    public static function getSystemViews(array $options = []): array
+    {
+        return [
+            'sys-permissions-system' => [
+                'id' => 'sys-permissions-system',
+                'name' => __('System'),
+                'description' => __('System-defined permissions'),
+                'canManage' => false,
+                'config' => [
+                    'columns' => ['name', 'scoping_rule', 'require_active_membership', 'require_active_background_check', 'is_super_user'],
+                    'filters' => [
+                        ['field' => 'is_system', 'operator' => 'eq', 'value' => '1'],
+                    ],
+                ],
+            ],
+            'sys-permissions-custom' => [
+                'id' => 'sys-permissions-custom',
+                'name' => __('Custom'),
+                'description' => __('User-defined permissions'),
+                'canManage' => false,
+                'config' => [
+                    'columns' => ['name', 'scoping_rule', 'require_active_membership', 'require_active_background_check', 'requires_warrant'],
+                    'filters' => [
+                        ['field' => 'is_system', 'operator' => 'eq', 'value' => '0'],
+                    ],
+                ],
+            ],
+            'sys-permissions-warrant-required' => [
+                'id' => 'sys-permissions-warrant-required',
+                'name' => __('Warrant Required'),
+                'description' => __('Permissions requiring a warrant'),
+                'canManage' => false,
+                'config' => [
+                    'columns' => ['name', 'scoping_rule', 'require_active_membership', 'require_active_background_check', 'is_system'],
+                    'filters' => [
+                        ['field' => 'requires_warrant', 'operator' => 'eq', 'value' => '1'],
+                    ],
+                ],
+            ],
+        ];
+    }
+
+    /**
      * Get column metadata for permissions grid
      *
      * @return array<string, array<string, mixed>>

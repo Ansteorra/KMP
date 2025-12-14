@@ -42,29 +42,6 @@ class AwardsNavigationProvider
         $listLinks = [];
         $order = 0;
 
-        foreach ($statuses as $statusKey => $statusKey) {
-            $listLinks[] = [
-                "type" => "link",
-                "mergePath" => ["Award Recs.", "Recommendations"],
-                "label" => $statusKey,
-                "order" => $order++,
-                "url" => [
-                    "controller" => "Recommendations",
-                    "plugin" => "Awards",
-                    "action" => "index",
-                    "model" => "Awards.Recommendations",
-                    "?" => [
-                        "status" => $statusKey,
-                        "view" => $statusKey,
-                    ],
-                ],
-                "icon" => "bi-file-earmark-check",
-                "activePaths" => [
-                    "awards/Recommendations/view/*",
-                ]
-            ];
-        }
-
         $appNav = [
             [
                 "type" => "parent",

@@ -199,40 +199,8 @@ class WaiverTypesGridColumns extends BaseGridColumns
      *
      * @return array<string, array<string, mixed>>
      */
-    public static function getSystemViews(): array
+    public static function getSystemViews(array $options = []): array
     {
-        return [
-            'sys-waiver-types-active' => [
-                'id' => 'sys-waiver-types-active',
-                'name' => __('Active'),
-                'description' => __('Active waiver types'),
-                'canManage' => false,
-                'config' => [
-                    'filters' => [
-                        ['field' => 'is_active', 'operator' => 'eq', 'value' => '1'],
-                    ],
-                ],
-            ],
-            'sys-waiver-types-inactive' => [
-                'id' => 'sys-waiver-types-inactive',
-                'name' => __('Inactive'),
-                'description' => __('Inactive waiver types'),
-                'canManage' => false,
-                'config' => [
-                    'filters' => [
-                        ['field' => 'is_active', 'operator' => 'eq', 'value' => '0'],
-                    ],
-                ],
-            ],
-            'sys-waiver-types-all' => [
-                'id' => 'sys-waiver-types-all',
-                'name' => __('All'),
-                'description' => __('All waiver types'),
-                'canManage' => false,
-                'config' => [
-                    'filters' => [],
-                ],
-            ],
-        ];
+        return [];
     }
 }

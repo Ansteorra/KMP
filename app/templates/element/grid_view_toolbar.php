@@ -34,6 +34,18 @@ $showFilterPills = $gridState['config']['showFilterPills'] ?? true;
 $showViewTabs = $gridState['config']['showViewTabs'] ?? true;
 $enableColumnPicker = $gridState['config']['enableColumnPicker'] ?? true;
 $dateRangeFilterColumns = $gridState['dateRangeFilterColumns'] ?? [];
+
+// Build searchable columns description from column metadata
+$allColumns = $gridState['columns']['all'] ?? [];
+$searchableLabels = [];
+foreach ($allColumns as $columnKey => $columnMeta) {
+    if (!empty($columnMeta['searchable'])) {
+        $searchableLabels[] = $columnMeta['label'] ?? $columnKey;
+    }
+}
+$searchDescription = !empty($searchableLabels)
+    ? __('Search across {0}', implode(', ', $searchableLabels))
+    : __('Search');
 ?>
 
 <div class="grid-view-toolbar mb-3" data-toolbar-container>
@@ -110,12 +122,12 @@ $dateRangeFilterColumns = $gridState['dateRangeFilterColumns'] ?? [];
                                     <div class="px-3 py-2">
                                         <div class="input-group input-group-sm">
                                             <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
-                                            <input type="text" class="form-control" placeholder="Search members..."
+                                            <input type="text" class="form-control" placeholder="Search..."
                                                 data-<?= h($controllerName) ?>-target="searchInput"
                                                 data-action="keyup-><?= h($controllerName) ?>#handleSearchKeyup keydown.enter-><?= h($controllerName) ?>#performSearch">
                                         </div>
                                         <small class="text-muted d-block mt-1">
-                                            Search across name, email, and membership number
+                                            <?= h($searchDescription) ?>
                                         </small>
                                     </div>
                                 </div>

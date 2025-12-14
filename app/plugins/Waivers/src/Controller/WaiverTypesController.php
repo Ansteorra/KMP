@@ -62,8 +62,6 @@ class WaiverTypesController extends AppController
         // Note: Documents association is commented out in the model, so we don't contain it
         $baseQuery = $this->WaiverTypes->find();
 
-        // Get system views
-        $systemViews = WaiverTypesGridColumns::getSystemViews();
 
         // Use unified trait for grid processing
         $result = $this->processDataverseGrid([
@@ -73,8 +71,6 @@ class WaiverTypesController extends AppController
             'tableName' => 'WaiverTypes',
             'defaultSort' => ['WaiverTypes.name' => 'asc'],
             'defaultPageSize' => 25,
-            'systemViews' => $systemViews,
-            'defaultSystemView' => 'sys-waiver-types-active',
             'showAllTab' => false,
             'canAddViews' => false,
             'canFilter' => true,

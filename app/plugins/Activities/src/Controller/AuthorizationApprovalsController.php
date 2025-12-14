@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace Activities\Controller;
 
 use Activities\Services\AuthorizationManagerInterface;
+use Activities\KMP\GridColumns\AuthorizationApprovalsGridColumns;
+use Activities\KMP\GridColumns\AuthorizationApproverRollupGridColumns;
+use App\Controller\DataverseGridTrait;
+use App\Services\CsvExportService;
 use Cake\Mailer\MailerAwareTrait;
 use Cake\Event\EventInterface;
 use App\KMP\StaticHelpers;
@@ -21,6 +25,7 @@ use App\KMP\StaticHelpers;
 class AuthorizationApprovalsController extends AppController
 {
     use MailerAwareTrait;
+    use DataverseGridTrait;
 
     /**
      * Configure authorization and component setup.
@@ -31,89 +36,84 @@ class AuthorizationApprovalsController extends AppController
     public function beforeFilter(EventInterface $event)
     {
         parent::beforeFilter($event);
-        $this->Authorization->authorizeModel('index', 'myQueue', 'view');
+        $this->Authorization->authorizeModel('index', 'gridData', 'myQueue', 'view', 'myQueueGridData', 'viewGridData');
     }
     /**
      * Display approval queue analytics and approver management dashboard.
      *
      * @return \Cake\Http\Response|null|void
      */
-    public function index()
+    public function index(): void
     {
-        $search = $this->request->getQuery("search");
+        // Grid content loads asynchronously via gridData()
+    }
 
-        $search = $search ? trim($search) : null;
-
-        $query = $this->AuthorizationApprovals
+    /**
+     * Provides Dataverse grid data for authorization approver rollup listing.
+     *
+     * @param \App\Services\CsvExportService $csvExportService Injected CSV export service
+     * @return \Cake\Http\Response|null|void Renders grid view or CSV response
+     */
+    public function gridData(CsvExportService $csvExportService)
+    {
+        $baseQuery = $this->AuthorizationApprovals
             ->find()
-            ->contain(["Approvers" => function ($q) {
-                return $q->select(["Approvers.id", "Approvers.sca_name", "Approvers.last_login"]);
-            }])
-            ->innerJoinWith("Approvers");
-        // group by approver and count pending, approved, and denied
-        $query
-            ->select([
-                "approver_id",
-                "Approvers.id",
-                "approver_name" => "Approvers.sca_name",
-                "last_login" => "Approvers.last_login",
-                "pending_count" => $query
-                    ->func()
-                    ->count(
-                        "CASE WHEN AuthorizationApprovals.responded_on IS NULL THEN 1 END",
-                    ),
-                "approved_count" => $query
-                    ->func()
-                    ->count(
-                        "CASE WHEN AuthorizationApprovals.approved = 1 THEN 1 END",
-                    ),
-                "denied_count" => $query
-                    ->func()
-                    ->count(
-                        "CASE WHEN AuthorizationApprovals.approved = 0  && AuthorizationApprovals.responded_on IS NOT NULL THEN 1 END",
-                    ),
-            ])
-            ->group("Approvers.id");
+            ->innerJoinWith('Approvers');
 
-        if ($search) {
-            //detect th and replace with Þ
-            $nsearch = $search;
-            if (preg_match("/th/", $search)) {
-                $nsearch = str_replace("th", "Þ", $search);
-            }
-            //detect Þ and replace with th
-            $usearch = $search;
-            if (preg_match("/Þ/", $search)) {
-                $usearch = str_replace("Þ", "th", $search);
-            }
-            $query = $query->where([
-                "OR" => [
-                    ["Approvers.sca_name LIKE" => "%" . $search . "%"],
-                    ["Approvers.sca_name LIKE" => "%" . $nsearch . "%"],
-                    ["Approvers.sca_name LIKE" => "%" . $usearch . "%"],
-                    ["Approvers.email_address LIKE" => "%" . $search . "%"],
-                    ["Approvers.email_address LIKE" => "%" . $nsearch . "%"],
-                    ["Approvers.email_address LIKE" => "%" . $usearch . "%"],
-                ],
-            ]);
+        $func = $baseQuery->func();
+
+        $baseQuery->select([
+            'id' => 'Approvers.id',
+            'approver_name' => 'Approvers.sca_name',
+            'last_login' => 'Approvers.last_login',
+            'pending_count' => $func->count('CASE WHEN AuthorizationApprovals.responded_on IS NULL THEN 1 END'),
+            'approved_count' => $func->count('CASE WHEN AuthorizationApprovals.approved = 1 THEN 1 END'),
+            'denied_count' => $func->count('CASE WHEN AuthorizationApprovals.approved = 0  && AuthorizationApprovals.responded_on IS NOT NULL THEN 1 END'),
+        ])
+            ->group(['Approvers.id', 'Approvers.sca_name', 'Approvers.last_login'])
+            ->enableAutoFields(false);
+
+        $result = $this->processDataverseGrid([
+            'gridKey' => 'Activities.AuthorizationApprovals.index.main',
+            'gridColumnsClass' => AuthorizationApproverRollupGridColumns::class,
+            'baseQuery' => $baseQuery,
+            'tableName' => 'AuthorizationApprovals',
+            'defaultSort' => ['Approvers.sca_name' => 'ASC'],
+            'defaultPageSize' => 25,
+            'showAllTab' => false,
+            'canAddViews' => false,
+            'canFilter' => true,
+            'canExportCsv' => false,
+            'showFilterPills' => true,
+            'enableColumnPicker' => false,
+        ]);
+
+        if (!empty($result['isCsvExport'])) {
+            return $this->handleCsvExport($result, $csvExportService, 'authorization-approvers');
         }
 
-        $this->Authorization->applyScope($query);
-        $this->paginate = [
-            'sortableFields' => [
-                'approver_name',
-                'last_login',
-                'pending_count',
-                'approved_count',
-                'denied_count'
-            ],
-        ];
-        $authorizationApprovals = $this->paginate($query, [
-            'order' => [
-                'approver_name' => 'asc',
-            ]
+        $this->set([
+            'authorizationApprovalRollup' => $result['data'],
+            'gridState' => $result['gridState'],
+            'rowActions' => AuthorizationApproverRollupGridColumns::getRowActions(),
         ]);
-        $this->set(compact("authorizationApprovals", "search"));
+        $this->set('data', $result['data']);
+
+        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
+
+        $this->viewBuilder()->setPlugin(null);
+
+        if ($turboFrame === 'authorization-approvals-grid-table') {
+            $this->set('tableFrameId', 'authorization-approvals-grid-table');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplatePath('element');
+            $this->viewBuilder()->setTemplate('dv_grid_table');
+        } else {
+            $this->set('frameId', 'authorization-approvals-grid');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplatePath('element');
+            $this->viewBuilder()->setTemplate('dv_grid_content');
+        }
     }
 
     /**
@@ -129,16 +129,95 @@ class AuthorizationApprovalsController extends AppController
     public function myQueue($token = null)
     {
         $member_id = $this->Authentication->getIdentity()->getIdentifier();
-        $query = $this->getAuthorizationApprovalsQuery($member_id);
-        if ($token) {
-            $query = $query->where(["authorization_token" => $token]);
-        }
-        $this->Authorization->applyScope($query);
-        $authorizationApprovals = $query->all();
         $queueFor = $this->Authentication->getIdentity()->sca_name;
         $isMyQueue = true;
-        $this->set(compact("queueFor", "isMyQueue", "authorizationApprovals"));
-        $this->render('view');
+        $this->set(compact("queueFor", "isMyQueue", "member_id", "token"));
+    }
+
+    /**
+     * Provides Dataverse grid data for my-queue with system views for pending/approved/denied.
+     *
+     * @param \App\Services\CsvExportService $csvExportService Injected CSV export service
+     * @return \Cake\Http\Response|null|void
+     */
+    public function myQueueGridData(CsvExportService $csvExportService)
+    {
+        $member_id = $this->Authentication->getIdentity()->getIdentifier();
+        $token = $this->request->getQuery('token');
+
+        // Build base query
+        $baseQuery = $this->getAuthorizationApprovalsQuery($member_id);
+
+        if ($token) {
+            $baseQuery = $baseQuery->where(["authorization_token" => $token]);
+        }
+
+        // Define system views for pending/approved/denied tabs
+        $systemViews = AuthorizationApprovalsGridColumns::getSystemViews([]);
+
+        // Calculate counts for system view badges
+        $systemViewCounts = $this->getQueueSystemViewCounts($member_id, $token);
+
+        // Use unified trait for grid processing
+        $result = $this->processDataverseGrid([
+            'gridKey' => 'Activities.AuthorizationApprovals.myQueue',
+            'gridColumnsClass' => AuthorizationApprovalsGridColumns::class,
+            'baseQuery' => $baseQuery,
+            'tableName' => 'AuthorizationApprovals',
+            'defaultSort' => ['AuthorizationApprovals.requested_on' => 'asc'],
+            'defaultPageSize' => 25,
+            'systemViews' => $systemViews,
+            'defaultSystemView' => 'pending',
+            'showAllTab' => false,
+            'canAddViews' => false,
+            'canFilter' => true,
+            'canExportCsv' => false,
+            'lockedFilters' => ['responded_on', 'approved'],
+            'showFilterPills' => true,
+        ]);
+
+        // Add system view counts to gridState for badge display
+        if (!empty($result['gridState']['view']['available'])) {
+            foreach ($result['gridState']['view']['available'] as &$view) {
+                if (!empty($systemViewCounts[$view['id']])) {
+                    $view['count'] = $systemViewCounts[$view['id']];
+                }
+            }
+        }
+
+        // Handle CSV export
+        if (!empty($result['isCsvExport'])) {
+            return $this->handleCsvExport($result, $csvExportService, 'my-authorization-queue', 'Activities.AuthorizationApprovals');
+        }
+
+        // Set view variables
+        $this->set([
+            'authorizationApprovals' => $result['data'],
+            'gridState' => $result['gridState'],
+            'isMyQueue' => true,
+        ]);
+        $this->set('data', $result['data']);
+        $this->set('customElement', 'Activities.authorization_approvals_table');
+
+        // Determine which template to render based on Turbo-Frame header
+        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
+
+        // Use main app's element templates (not plugin templates)
+        $this->viewBuilder()->setPlugin(null);
+
+        if ($turboFrame === 'my-queue-grid-table') {
+            // Inner frame request - render table data only
+            $this->set('tableFrameId', 'my-queue-grid-table');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplatePath('element');
+            $this->viewBuilder()->setTemplate('dv_grid_table');
+        } else {
+            // Outer frame request (or no frame) - render toolbar + table frame
+            $this->set('frameId', 'my-queue-grid');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplatePath('element');
+            $this->viewBuilder()->setTemplate('dv_grid_content');
+        }
     }
 
     /**
@@ -343,15 +422,97 @@ class AuthorizationApprovalsController extends AppController
      */
     public function view($id = null)
     {
-        $query = $this->getAuthorizationApprovalsQuery($id);
-        $this->Authorization->applyScope($query);
-        $authorizationApprovals = $query->all();
         $queueFor = $this->AuthorizationApprovals->Approvers->find()
             ->select(['sca_name'])
             ->where(['id' => $id])
             ->first()->sca_name;
         $isMyQueue = false;
-        $this->set(compact("queueFor", "isMyQueue", "authorizationApprovals"));
+        $this->set(compact("queueFor", "isMyQueue", "id"));
+    }
+
+    /**
+     * Provides Dataverse grid data for view queue with system views for pending/approved/denied.
+     *
+     * @param \App\Services\CsvExportService $csvExportService Injected CSV export service
+     * @param string|null $id Approver member ID
+     * @return \Cake\Http\Response|null|void
+     */
+    public function viewGridData(CsvExportService $csvExportService, $id = null)
+    {
+        if ($id === null) {
+            $id = $this->request->getQuery('approver_id');
+        }
+
+        // Build base query
+        $baseQuery = $this->getAuthorizationApprovalsQuery($id);
+
+        // Define system views for pending/approved/denied tabs
+        $systemViews = AuthorizationApprovalsGridColumns::getSystemViews([]);
+
+        // Calculate counts for system view badges
+        $systemViewCounts = $this->getQueueSystemViewCounts((int)$id, null);
+
+        // Use unified trait for grid processing
+        $result = $this->processDataverseGrid([
+            'gridKey' => 'Activities.AuthorizationApprovals.view',
+            'gridColumnsClass' => AuthorizationApprovalsGridColumns::class,
+            'baseQuery' => $baseQuery,
+            'tableName' => 'AuthorizationApprovals',
+            'defaultSort' => ['AuthorizationApprovals.requested_on' => 'asc'],
+            'defaultPageSize' => 25,
+            'systemViews' => $systemViews,
+            'defaultSystemView' => 'pending',
+            'showAllTab' => false,
+            'canAddViews' => false,
+            'canFilter' => true,
+            'canExportCsv' => false,
+            'lockedFilters' => ['responded_on', 'approved'],
+            'showFilterPills' => true,
+        ]);
+
+        // Add system view counts to gridState for badge display
+        if (!empty($result['gridState']['view']['available'])) {
+            foreach ($result['gridState']['view']['available'] as &$view) {
+                if (!empty($systemViewCounts[$view['id']])) {
+                    $view['count'] = $systemViewCounts[$view['id']];
+                }
+            }
+        }
+
+        // Handle CSV export
+        if (!empty($result['isCsvExport'])) {
+            return $this->handleCsvExport($result, $csvExportService, 'authorization-queue', 'Activities.AuthorizationApprovals');
+        }
+
+        // Set view variables
+        $this->set([
+            'authorizationApprovals' => $result['data'],
+            'gridState' => $result['gridState'],
+            'isMyQueue' => false,
+            'approver_id' => $id,
+        ]);
+        $this->set('data', $result['data']);
+        $this->set('customElement', 'Activities.authorization_approvals_table');
+
+        // Determine which template to render based on Turbo-Frame header
+        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
+
+        // Use main app's element templates (not plugin templates)
+        $this->viewBuilder()->setPlugin(null);
+
+        if ($turboFrame === 'view-queue-grid-table') {
+            // Inner frame request - render table data only
+            $this->set('tableFrameId', 'view-queue-grid-table');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplatePath('element');
+            $this->viewBuilder()->setTemplate('dv_grid_table');
+        } else {
+            // Outer frame request (or no frame) - render toolbar + table frame
+            $this->set('frameId', 'view-queue-grid');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplatePath('element');
+            $this->viewBuilder()->setTemplate('dv_grid_content');
+        }
     }
 
     /**
@@ -545,5 +706,50 @@ class AuthorizationApprovalsController extends AppController
         }
 
         return $this->redirect($this->referer());
+    }
+
+    /**
+     * Get counts for authorization approval queue system views
+     *
+     * @param int $approverId Approver member ID to get counts for
+     * @param string|null $token Optional token to filter by
+     * @return array<string, int> System view ID => count mapping
+     */
+    protected function getQueueSystemViewCounts(int $approverId, ?string $token = null): array
+    {
+        $counts = [];
+
+        // Base query for this approver
+        $baseQuery = $this->getAuthorizationApprovalsQuery($approverId);
+        if ($token) {
+            $baseQuery = clone $baseQuery;
+            $baseQuery = $baseQuery->where(["authorization_token" => $token]);
+        }
+
+        // Pending: Requests awaiting approval
+        $pendingQuery = clone $baseQuery;
+        $counts['pending'] = $pendingQuery
+            ->where(['AuthorizationApprovals.responded_on IS' => null])
+            ->count();
+
+        // Approved: Previously approved requests
+        $approvedQuery = clone $baseQuery;
+        $counts['approved'] = $approvedQuery
+            ->where([
+                'AuthorizationApprovals.responded_on IS NOT' => null,
+                'AuthorizationApprovals.approved' => true,
+            ])
+            ->count();
+
+        // Denied: Previously denied requests
+        $deniedQuery = clone $baseQuery;
+        $counts['denied'] = $deniedQuery
+            ->where([
+                'AuthorizationApprovals.responded_on IS NOT' => null,
+                'AuthorizationApprovals.approved' => false,
+            ])
+            ->count();
+
+        return $counts;
     }
 }

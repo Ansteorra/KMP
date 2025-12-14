@@ -15,6 +15,17 @@ use App\KMP\GridColumns\BaseGridColumns;
 class ActivitiesGridColumns extends BaseGridColumns
 {
     /**
+     * Get available system views for the Activities grid.
+     *
+     * @param array<string, mixed> $options May contain 'activityGroups' for dropdown filtering
+     * @return array<string, array<string, mixed>>
+     */
+    public static function getSystemViews(array $options = []): array
+    {
+        return [];
+    }
+
+    /**
      * Get column metadata for activities grid
      *
      * @return array<string, array<string, mixed>>

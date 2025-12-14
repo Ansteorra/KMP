@@ -20,10 +20,10 @@ $this->KMP->endBlock();
     </div>
     <div class="col text-end">
         <?php if ($user->checkCan("add", "Awards.Awards")): ?>
-            <?= $this->Html->link(
+        <?= $this->Html->link(
                 ' Add Award',
                 ['action' => 'add'],
-                ['class' => 'btn btn-primary btn-sm bi bi-plus-circle', 'data-turbo-frame' => '_top']
+                ['class' => 'btn btn-primary bi bi-plus-circle', 'data-turbo-frame' => '_top']
             ) ?>
         <?php endif; ?>
     </div>

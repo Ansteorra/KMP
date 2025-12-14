@@ -523,7 +523,8 @@ class GridViewController extends Controller {
                 const isActive = (this.state.view.currentId == view.id)
                 const isPreferred = view.isPreferred || view.isUserDefault || false
                 const canManage = view.canManage !== false
-                const viewTab = this.createViewTab(view.name, view.id, isActive, isPreferred, canManage)
+                const count = view.count || null
+                const viewTab = this.createViewTab(view.name, view.id, isActive, isPreferred, canManage, count)
                 container.insertBefore(viewTab, createViewBtn)
             })
         }
@@ -531,8 +532,14 @@ class GridViewController extends Controller {
 
     /**
      * Create a view tab element
+     * @param {string} name Tab name
+     * @param {string|null} viewId View ID (null for 'All' tab)
+     * @param {boolean} isActive Is this the active tab
+     * @param {boolean} isPreferred Is this the preferred (default) view
+     * @param {boolean} canManage Can this view be managed
+     * @param {number|null} count Optional count for badge display
      */
-    createViewTab(name, viewId, isActive, isPreferred, canManage) {
+    createViewTab(name, viewId, isActive, isPreferred, canManage, count = null) {
         const li = document.createElement('li')
         li.className = 'nav-item'
         li.setAttribute('role', 'presentation')
@@ -558,6 +565,13 @@ class GridViewController extends Controller {
             }
 
             mainBtn.textContent = name
+            if (count !== null) {
+                mainBtn.appendChild(document.createTextNode(' '))
+                const badge = document.createElement('span')
+                badge.className = 'badge bg-secondary ms-1'
+                badge.textContent = count
+                mainBtn.appendChild(badge)
+            }
             if (isPreferred) {
                 const star = document.createElement('i')
                 star.className = 'bi bi-star-fill text-warning'
@@ -639,6 +653,14 @@ class GridViewController extends Controller {
             mainBtn.setAttribute('aria-selected', 'true')
             mainBtn.textContent = name
 
+            if (count !== null) {
+                mainBtn.appendChild(document.createTextNode(' '))
+                const badge = document.createElement('span')
+                badge.className = 'badge bg-secondary ms-1'
+                badge.textContent = count
+                mainBtn.appendChild(badge)
+            }
+
             if (isPreferred) {
                 const star = document.createElement('i')
                 star.className = 'bi bi-star-fill text-warning'
@@ -694,6 +716,13 @@ class GridViewController extends Controller {
             }
 
             btn.textContent = name
+            if (count !== null) {
+                btn.appendChild(document.createTextNode(' '))
+                const badge = document.createElement('span')
+                badge.className = 'badge bg-secondary ms-1'
+                badge.textContent = count
+                btn.appendChild(badge)
+            }
             if (isPreferred) {
                 const star = document.createElement('i')
                 star.className = 'bi bi-star-fill text-warning'

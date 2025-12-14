@@ -21,9 +21,9 @@ $this->KMP->endBlock();
     <div class="col text-end">
         <?php if ($user->checkCan("add", "Waivers.WaiverTypes")): ?>
             <?= $this->Html->link(
-                '<i class="bi bi-plus-circle"></i> Add Waiver Type',
+                ' Add Waiver Type',
                 ['action' => 'add'],
-                ['class' => 'btn btn-primary btn-sm', 'escape' => false]
+                ['class' => 'btn btn-primary  bi bi-plus-circle', 'escape' => false]
             ) ?>
         <?php endif; ?>
     </div>

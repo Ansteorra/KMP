@@ -9,6 +9,42 @@ namespace App\KMP\GridColumns;
  */
 class RolesGridColumns extends BaseGridColumns
 {
+    /**
+     * Get available system views for the Roles grid.
+     *
+     * @param array<string, mixed> $options Optional context (unused)
+     * @return array<string, array<string, mixed>>
+     */
+    public static function getSystemViews(array $options = []): array
+    {
+        return [
+            'sys-roles-system' => [
+                'id' => 'sys-roles-system',
+                'name' => __('System Roles'),
+                'description' => __('System-defined roles'),
+                'canManage' => false,
+                'config' => [
+                    'columns' => ['name', 'is_system', 'member_count'],
+                    'filters' => [
+                        ['field' => 'is_system', 'operator' => 'eq', 'value' => '1'],
+                    ],
+                ],
+            ],
+            'sys-roles-custom' => [
+                'id' => 'sys-roles-custom',
+                'name' => __('Custom Roles'),
+                'description' => __('User-defined roles'),
+                'canManage' => false,
+                'config' => [
+                    'columns' => ['name', 'is_system', 'member_count'],
+                    'filters' => [
+                        ['field' => 'is_system', 'operator' => 'eq', 'value' => '0'],
+                    ],
+                ],
+            ],
+        ];
+    }
+
     public static function getColumns(): array
     {
         return [

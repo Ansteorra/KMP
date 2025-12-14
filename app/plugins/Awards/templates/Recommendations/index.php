@@ -22,9 +22,9 @@ $this->KMP->endBlock();
     <div class="col text-end">
         <?php if ($user->checkCan("add", "Awards.Recommendations")): ?>
             <?= $this->Html->link(
-                '<i class="bi bi-plus-circle"></i> Add Recommendation',
+                ' Add Recommendation',
                 ['action' => 'add'],
-                ['class' => 'btn btn-primary btn-sm', 'escape' => false, 'data-turbo-frame' => '_top']
+                ['class' => 'btn btn-primary bi bi-plus-circle', 'escape' => false, 'data-turbo-frame' => '_top']
             ) ?>
         <?php endif; ?>
     </div>

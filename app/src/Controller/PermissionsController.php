@@ -61,6 +61,9 @@ class PermissionsController extends AppController
      */
     public function gridData(CsvExportService $csvExportService)
     {
+        // Get system views from GridColumns
+        $systemViews = \App\KMP\GridColumns\PermissionsGridColumns::getSystemViews([]);
+
         // Use unified trait for grid processing
         $result = $this->processDataverseGrid([
             'gridKey' => 'Permissions.index.main',
@@ -69,7 +72,7 @@ class PermissionsController extends AppController
             'tableName' => 'Permissions',
             'defaultSort' => ['Permissions.name' => 'asc'],
             'defaultPageSize' => 25,
-            'showAllTab' => false,
+            'showAllTab' => true,
             'canAddViews' => false,
             'canFilter' => true,
             'canExportCsv' => false,

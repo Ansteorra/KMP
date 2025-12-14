@@ -25,9 +25,9 @@ $this->assign('title', __('Branches'));
         <div>
             <?php if ($user->checkCan("add", "Branches")) : ?>
                 <?= $this->Html->link(
-                    __('Add Branch'),
+                    __(' Add Branch'),
                     ['action' => 'add'],
-                    ['class' => 'btn btn-primary']
+                    ['class' => 'btn btn-primary bi bi-plus-circle']
                 ) ?>
             <?php endif; ?>
         </div>

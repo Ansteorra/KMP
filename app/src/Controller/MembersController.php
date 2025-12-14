@@ -6,6 +6,7 @@ namespace App\Controller;
 
 use App\Form\ResetPasswordForm;
 use App\KMP\GridColumns\MembersGridColumns;
+use App\KMP\GridColumns\VerifyQueueGridColumns;
 use App\KMP\StaticHelpers;
 use App\Mailer\QueuedMailerAwareTrait;
 use App\Model\Entity\Member;
@@ -51,7 +52,7 @@ class MembersController extends AppController
     public function beforeFilter(EventInterface $event)
     {
         parent::beforeFilter($event);
-        $this->Authorization->authorizeModel('index', 'verifyQueue', 'gridData');
+        $this->Authorization->authorizeModel('index', 'verifyQueue', 'gridData', 'verifyQueueGridData');
         $this->Authentication->allowUnauthenticated([
             'login',
             'approversList',
@@ -210,6 +211,7 @@ class MembersController extends AppController
         $previousPiiSetting = MembersGridColumns::setIncludePii($canViewPii);
 
         try {
+
             // Use unified trait for grid processing (saved views mode)
             $result = $this->processDataverseGrid([
                 'gridKey' => 'Members.index.main',
@@ -218,8 +220,8 @@ class MembersController extends AppController
                 'tableName' => 'Members',
                 'defaultSort' => ['Members.sca_name' => 'asc'],
                 'defaultPageSize' => 25,
-                'showAllTab' => false,
-                'canAddViews' => false,
+                'showAllTab' => true,
+                'canAddViews' => true,
                 'canFilter' => true,
                 'canExportCsv' => false,
             ]);
@@ -282,7 +284,7 @@ class MembersController extends AppController
         $this->Authorization->authorize($member, 'view');
 
         // Get system views configuration
-        $systemViews = $this->getMemberRolesSystemViews();
+        $systemViews = \App\KMP\GridColumns\MemberRolesGridColumns::getSystemViews([]);
 
         // Debug: Log the base query
         $baseQuery = $this->fetchTable('MemberRoles')
@@ -363,7 +365,7 @@ class MembersController extends AppController
         $this->Authorization->authorize($member, 'view');
 
         // Get system views configuration
-        $systemViews = $this->getGatheringAttendancesSystemViews();
+        $systemViews = \App\KMP\GridColumns\GatheringAttendancesGridColumns::getSystemViews([]);
 
         // Use unified trait for grid processing (system views mode)
         $result = $this->processDataverseGrid([
@@ -422,88 +424,6 @@ class MembersController extends AppController
             $this->viewBuilder()->disableAutoLayout();
             $this->viewBuilder()->setTemplate('../element/dv_grid_content');
         }
-    }
-
-    /**
-     * Get system views configuration for member roles grid
-     *
-     * @return array<string, array<string, mixed>>
-     */
-    protected function getMemberRolesSystemViews(): array
-    {
-        $today = date('Y-m-d');
-
-        return [
-            'sys-roles-active' => [
-                'id' => 'sys-roles-active',
-                'name' => __('Active'),
-                'description' => __('Currently active roles'),
-                'canManage' => false,
-                'config' => [
-                    'filters' => [
-                        ['field' => 'MemberRoles.start_on', 'operator' => 'dateRange', 'value' => [null, $today]],
-                        ['field' => 'MemberRoles.expires_on', 'operator' => 'dateRange', 'value' => [$today, null]],
-                    ],
-                ],
-            ],
-            'sys-roles-upcoming' => [
-                'id' => 'sys-roles-upcoming',
-                'name' => __('Upcoming'),
-                'description' => __('Roles scheduled to start in the future'),
-                'canManage' => false,
-                'config' => [
-                    'filters' => [
-                        ['field' => 'MemberRoles.start_on', 'operator' => 'dateRange', 'value' => [date('Y-m-d', strtotime('+1 day')), null]],
-                    ],
-                ],
-            ],
-            'sys-roles-previous' => [
-                'id' => 'sys-roles-previous',
-                'name' => __('Previous'),
-                'description' => __('Expired or past roles'),
-                'canManage' => false,
-                'config' => [
-                    'filters' => [
-                        ['field' => 'MemberRoles.expires_on', 'operator' => 'dateRange', 'value' => [null, date('Y-m-d', strtotime('-1 day'))]],
-                    ],
-                ],
-            ],
-        ];
-    }
-
-    /**
-     * Get system views configuration for gathering attendances grid
-     *
-     * @return array<string, array<string, mixed>>
-     */
-    protected function getGatheringAttendancesSystemViews(): array
-    {
-        $today = date('Y-m-d');
-
-        return [
-            'sys-gatherings-upcoming' => [
-                'id' => 'sys-gatherings-upcoming',
-                'name' => __('Upcoming'),
-                'description' => __('Gatherings scheduled in the future'),
-                'canManage' => false,
-                'config' => [
-                    'filters' => [
-                        ['field' => 'Gatherings.start_date', 'operator' => 'dateRange', 'value' => [$today, null]],
-                    ],
-                ],
-            ],
-            'sys-gatherings-past' => [
-                'id' => 'sys-gatherings-past',
-                'name' => __('Past'),
-                'description' => __('Past gatherings'),
-                'canManage' => false,
-                'config' => [
-                    'filters' => [
-                        ['field' => 'Gatherings.end_date', 'operator' => 'dateRange', 'value' => [null, date('Y-m-d', strtotime('-1 day'))]],
-                    ],
-                ],
-            ],
-        ];
     }
 
     /**
@@ -623,54 +543,147 @@ class MembersController extends AppController
      * Display member verification queue for administrative processing.
      * Shows members needing verification: card validation, age/parent verification.
      *
-     * @return \\Cake\\Http\\Response|null|void
+     * @return \Cake\Http\Response|null|void
      */
     public function verifyQueue()
     {
-        $activeTab = $this->request->getQuery('activeTab');
-        $activeTab = $activeTab ? trim($activeTab) : null;
-        // get sort and direction from query string
-        $sort = $this->request->getQuery('sort');
-        $direction = $this->request->getQuery('direction');
+        // Simple index page - just renders the dv_grid element
+        // The dv_grid element will lazy-load the actual data via verifyQueueGridData action
+    }
 
-        $query = $this->Members
+    /**
+     * Dataverse grid data endpoint for verification queue.
+     * Handles toolbar+table frame, table-only frame for members needing verification.
+     *
+     * @return \Cake\Http\Response|null|void
+     */
+    public function verifyQueueGridData()
+    {
+        // Get system views configuration
+        $systemViews = VerifyQueueGridColumns::getSystemViews([]);
+
+        // Calculate counts for system views
+        $systemViewCounts = $this->getVerifyQueueSystemViewCounts();
+
+        // Append counts to system view tab names (JS reads the name string)
+        foreach ($systemViews as $viewId => $view) {
+            if (isset($systemViewCounts[$viewId])) {
+                $systemViews[$viewId]['name'] = sprintf('%s (%d)', $view['name'], $systemViewCounts[$viewId]);
+            }
+        }
+
+        // Build base query for members requiring verification
+        $baseQuery = $this->Members
             ->find()
-            ->contain(['Branches'])
-            ->select([
-                'Members.id',
-                'Members.sca_name',
-                'Members.first_name',
-                'Members.last_name',
-                'Branches.name',
-                'Members.status',
-                'Members.email_address',
-                'Members.membership_card_path',
-                'Members.birth_year',
-                'Members.birth_month',
-            ]);
-        $query = $query->where([
-            'OR' => [
+            ->contain(['Branches']);
+
+        // Use unified trait for grid processing (system views mode)
+        // Note: System view filters are automatically applied by the trait
+        // based on the filters defined in getSystemViews()
+        $result = $this->processDataverseGrid([
+            'gridKey' => 'Members.verifyQueue.main',
+            'gridColumnsClass' => VerifyQueueGridColumns::class,
+            'baseQuery' => $baseQuery,
+            'tableName' => 'Members',
+            'defaultSort' => ['Members.sca_name' => 'asc'],
+            'defaultPageSize' => 25,
+            'systemViews' => $systemViews,
+            'defaultSystemView' => 'sys-verify-youth',
+            'showAllTab' => false,
+            'canAddViews' => false,
+            'canFilter' => true,
+            'canExportCsv' => false,
+            'enableColumnPicker' => false,
+            'showFilterPills' => true,
+        ]);
+
+        // Set view variables
+        $this->set([
+            'data' => $result['data'],
+            'members' => $result['data'],
+            'gridState' => $result['gridState'],
+        ]);
+
+        // Determine which template to render based on Turbo-Frame header
+        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
+        $frameId = 'verify-queue-grid';
+
+        if ($turboFrame === $frameId . '-table') {
+            // Inner frame request - render table data only
+            $this->set('tableFrameId', $frameId . '-table');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplate('../element/dv_grid_table');
+        } else {
+            // Outer frame request (or no frame) - render toolbar + table frame
+            $this->set('frameId', $frameId);
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplate('../element/dv_grid_content');
+        }
+    }
+
+    /**
+     * Get record counts for each verify queue system view.
+     *
+     * @return array<string, int>
+     */
+    protected function getVerifyQueueSystemViewCounts(): array
+    {
+        $counts = [];
+
+        // Youth: minors requiring verification
+        $counts['sys-verify-youth'] = $this->Members
+            ->find()
+            ->where([
                 'Members.status IN' => [
-                    Member::STATUS_ACTIVE,
                     Member::STATUS_UNVERIFIED_MINOR,
                     Member::STATUS_MINOR_MEMBERSHIP_VERIFIED,
-                    Member::STATUS_MINOR_PARENT_VERIFIED,
                 ],
-                'OR' => [
-                    [
-                        'Members.membership_card_path IS NOT' => null,
-                        'Members.status IN' => [
-                            Member::STATUS_VERIFIED_MEMBERSHIP,
-                        ]
-                    ]
-                ]
-            ],
-        ]);
-        #is
-        $query = $this->Authorization->applyScope($query);
-        $Members = $query->all();
+            ])
+            ->count();
 
-        $this->set(compact('Members'));
+        // Card Uploaded: active members with uploaded card
+        $counts['sys-verify-with-card'] = $this->Members
+            ->find()
+            ->where([
+                'Members.status' => Member::STATUS_ACTIVE,
+                'Members.membership_card_path IS NOT' => null,
+                'Members.membership_card_path !=' => '',
+            ])
+            ->count();
+
+        // Without Card: active members without membership card
+        $counts['sys-verify-without-card'] = $this->Members
+            ->find()
+            ->where([
+                'Members.status' => Member::STATUS_ACTIVE,
+            ])
+            ->andWhere(function ($exp) {
+                return $exp->or([
+                    'Members.membership_card_path IS' => null,
+                    'Members.membership_card_path' => '',
+                ]);
+            })
+            ->count();
+
+        return $counts;
+    }
+
+    /**
+     * Apply base filter for verification queue (all items needing verification)
+     *
+     * @param \Cake\ORM\Query\SelectQuery $query Base query to filter
+     * @return \Cake\ORM\Query\SelectQuery Filtered query
+     */
+    protected function applyVerifyQueueBaseFilter($query)
+    {
+        return $query->where([
+            'Members.status IN' => [
+                Member::STATUS_ACTIVE,
+                Member::STATUS_UNVERIFIED_MINOR,
+                Member::STATUS_MINOR_MEMBERSHIP_VERIFIED,
+                Member::STATUS_MINOR_PARENT_VERIFIED,
+            ]
+        ]);
     }
 
     /**

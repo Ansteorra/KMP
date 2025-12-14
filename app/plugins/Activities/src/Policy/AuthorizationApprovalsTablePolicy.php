@@ -39,6 +39,32 @@ class AuthorizationApprovalsTablePolicy extends BasePolicy
     }
 
     /**
+     * Check if user can access their personal approval queue grid data.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The requesting user
+     * @param \App\Model\Entity\BaseEntity|\Cake\ORM\Table $entity The table entity
+     * @param mixed ...$optionalArgs Additional arguments
+     * @return bool True if user has approval authority for any activity
+     */
+    public function canMyQueueGridData(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
+    {
+        return $this->canMyQueue($user, $entity, ...$optionalArgs);
+    }
+
+    /**
+     * Check if user can view approval queue data for a specific approver.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The requesting user
+     * @param \App\Model\Entity\BaseEntity|\Cake\ORM\Table $entity The table entity
+     * @param mixed ...$optionalArgs Additional arguments
+     * @return bool True if user has all queues access
+     */
+    public function canViewGridData(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
+    {
+        return $this->canAllQueues($user, $entity, ...$optionalArgs);
+    }
+
+    /**
      * Check if user has administrative access to all approval queues.
      *
      * @param \App\KMP\KmpIdentityInterface $user The requesting user
@@ -80,6 +106,30 @@ class AuthorizationApprovalsTablePolicy extends BasePolicy
     public function scopeMyQueue(KmpIdentityInterface $user, $query)
     {
         return $query->where(["approver_id" => $user->getIdentifier()]);
+    }
+
+    /**
+     * Scope personal approval queue grid data to user's assigned items.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The requesting user
+     * @param \Cake\ORM\Query $query The base query
+     * @return \Cake\ORM\Query Query filtered to user's approver_id
+     */
+    public function scopeMyQueueGridData(KmpIdentityInterface $user, $query)
+    {
+        return $this->scopeMyQueue($user, $query);
+    }
+
+    /**
+     * Scope view grid data - admins see all, approvers see own.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The requesting user
+     * @param \Cake\ORM\Query $query The base query
+     * @return \Cake\ORM\Query Scoped query
+     */
+    public function scopeViewGridData(KmpIdentityInterface $user, $query)
+    {
+        return $this->scopeView($user, $query);
     }
 
     /**

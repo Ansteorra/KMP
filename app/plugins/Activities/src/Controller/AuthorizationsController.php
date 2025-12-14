@@ -16,6 +16,9 @@ namespace Activities\Controller;
  */
 
 use Activities\Services\AuthorizationManagerInterface;
+use Activities\KMP\GridColumns\MemberAuthorizationsGridColumns;
+use App\Controller\DataverseGridTrait;
+use App\Services\CsvExportService;
 use Cake\ORM\Query\SelectQuery;
 use Activities\Model\Entity\Authorization;
 use App\KMP\StaticHelpers;
@@ -23,6 +26,7 @@ use Cake\ORM\TableRegistry;
 
 class AuthorizationsController extends AppController
 {
+    use DataverseGridTrait;
 
     public function beforeFilter(\Cake\Event\EventInterface $event)
     {
@@ -259,7 +263,7 @@ class AuthorizationsController extends AppController
      */
     public function memberAuthorizations($state, $id)
     {
-        if ($state != 'current' && $state == 'pending' && $state == 'previous') {
+        if ($state != 'current' && $state != 'pending' && $state != 'previous') {
             throw new \Cake\Http\Exception\NotFoundException();
         }
         $member = $this->Authorizations->Members->find()
@@ -283,6 +287,142 @@ class AuthorizationsController extends AppController
         }
         $authorizations = $this->paginate($auths);
         $this->set(compact('authorizations', 'member', 'state'));
+    }
+
+    /**
+     * Provides Dataverse grid data for member authorizations with system views.
+     *
+     * @param \App\Services\CsvExportService $csvExportService Injected CSV export service
+     * @param int $id Member ID
+     * @return \Cake\Http\Response|null|void
+     */
+    public function memberAuthorizationsGridData(CsvExportService $csvExportService, $id = null)
+    {
+        if ($id === null) {
+            $id = $this->request->getQuery('member_id');
+        }
+
+        $member = $this->Authorizations->Members->find()
+            ->where(["id" => $id])
+            ->select("id")->first();
+        if (!$member) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+        $this->Authorization->authorize($member, 'view');
+
+        // Build base query
+        $baseQuery = $this->Authorizations->find()
+            ->where(['member_id' => $id])
+            ->contain([
+                "CurrentPendingApprovals" => function (SelectQuery $q) {
+                    return $q->select(["Approvers.sca_name", "requested_on"])
+                        ->contain("Approvers");
+                },
+                "Activities" => function (SelectQuery $q) {
+                    return $q->select(["Activities.name", "Activities.id"]);
+                },
+                "RevokedBy" => function (SelectQuery $q) {
+                    return $q->select(["RevokedBy.sca_name"]);
+                }
+            ]);
+
+        // Define system views for current/pending/previous tabs
+        $systemViews = MemberAuthorizationsGridColumns::getSystemViews([]);
+
+        // Calculate counts for system view badges
+        $systemViewCounts = $this->getMemberAuthorizationSystemViewCounts((int)$id);
+
+        // Use unified trait for grid processing
+        $result = $this->processDataverseGrid([
+            'gridKey' => 'Activities.Authorizations.member',
+            'gridColumnsClass' => MemberAuthorizationsGridColumns::class,
+            'baseQuery' => $baseQuery,
+            'tableName' => 'Authorizations',
+            'defaultSort' => ['Authorizations.expires_on' => 'desc'],
+            'defaultPageSize' => 25,
+            'systemViews' => $systemViews,
+            'defaultSystemView' => 'current',
+            'showAllTab' => false,
+            'canAddViews' => false,
+            'canFilter' => true,
+            'canExportCsv' => false,
+            'lockedFilters' => ['status'],
+            'showFilterPills' => true,
+            'showViewTabs' => true,
+            'enableColumnPicker' => false,
+        ]);
+
+        // Add system view counts to gridState for badge display
+        if (!empty($result['gridState']['view']['available'])) {
+            foreach ($result['gridState']['view']['available'] as &$view) {
+                if (!empty($systemViewCounts[$view['id']])) {
+                    $view['count'] = $systemViewCounts[$view['id']];
+                }
+            }
+        }
+
+        // Handle CSV export
+        if (!empty($result['isCsvExport'])) {
+            return $this->handleCsvExport($result, $csvExportService, 'member-authorizations', 'Activities.Authorizations');
+        }
+
+        // Set view variables
+        $this->set([
+            'authorizations' => $result['data'],
+            'gridState' => $result['gridState'],
+            'member_id' => $id,
+        ]);
+        $this->set('data', $result['data']);
+        $this->set('customElement', 'Activities.member_authorizations_table');
+        $this->set('customElementOptions', ['member_id' => $id]);
+
+        // Determine which template to render based on Turbo-Frame header
+        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
+
+        // Use main app's element templates (not plugin templates)
+        $this->viewBuilder()->setPlugin(null);
+
+        if ($turboFrame === 'member-auth-grid-table') {
+            // Inner frame request - render table data only
+            $this->set('tableFrameId', 'member-auth-grid-table');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplatePath('element');
+            $this->viewBuilder()->setTemplate('dv_grid_table');
+        } else {
+            // Outer frame request (or no frame) - render toolbar + table frame
+            $this->set('frameId', 'member-auth-grid');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplatePath('element');
+            $this->viewBuilder()->setTemplate('dv_grid_content');
+        }
+    }
+
+    /**
+     * Get counts for member authorization system views
+     *
+     * @param int $memberId Member ID to get counts for
+     * @return array<string, int> System view ID => count mapping
+     */
+    protected function getMemberAuthorizationSystemViewCounts(int $memberId): array
+    {
+        $counts = [];
+
+        // Current: Active authorizations
+        $counts['current'] = $this->Authorizations->find('current')
+            ->where(['member_id' => $memberId])
+            ->count();
+
+        // Pending: Authorization requests awaiting approval
+        $counts['pending'] = $this->Authorizations->find('pending')
+            ->where(['member_id' => $memberId])
+            ->count();
+
+        // Previous: Expired, revoked, or denied authorizations
+        $counts['previous'] = $this->Authorizations->find('previous')
+            ->where(['member_id' => $memberId])
+            ->count();
+
+        return $counts;
     }
 
     public function activityAuthorizations($state, $id)

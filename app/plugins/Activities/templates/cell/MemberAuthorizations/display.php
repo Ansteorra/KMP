@@ -1,4 +1,18 @@
 <?php
+
+/**
+ * Member Authorizations Cell Display Template
+ * 
+ * Displays authorization status for a member using the dv_grid system
+ * with integrated system views for current/pending/previous states.
+ *
+ * @var \App\View\AppView $this
+ * @var int $id Member ID
+ * @var int $pendingAuthCount Count of pending authorizations
+ * @var bool $isEmpty Whether member has any authorizations
+ * @var \Cake\ORM\ResultSet $activities Available activities for requesting
+ */
+
 $user = $this->request->getAttribute("identity");
 ?>
 <button type="button" class="btn btn-primary btn-sm mb-3" data-bs-toggle="modal"
@@ -9,37 +23,23 @@ $user = $this->request->getAttribute("identity");
     ["class" => "btn btn-sm mb-3 btn-secondary"],
 ) ?>
 
-<?php
-if (!$isEmpty) :
-    echo $this->element('turboActiveTabs', [
-        'user' => $user,
-        'tabGroupName' => "authorizationTabs",
-        'tabs' => [
-            "active" => [
-                "label" => __("Active"),
-                "id" => "current-authorization",
-                "selected" => true,
-                "turboUrl" => $this->URL->build(["controller" => "Authorizations", "action" => "MemberAuthorizations", "plugin" => "Activities", "current", $id])
-            ],
-            "pending" => [
-                "label" => __("Pending"),
-                "id" => "pending-authorization",
-                "badge" => $pendingAuthCount,
-                "badgeClass" => "bg-danger",
-                "selected" => false,
-                "turboUrl" => $this->URL->build(["controller" => "Authorizations", "action" => "MemberAuthorizations", "plugin" => "Activities", "pending", $id])
-            ],
-            "previous" => [
-                "label" => __("Previous"),
-                "id" => "previous-authorization",
-                "selected" => false,
-                "turboUrl" => $this->URL->build(["controller" => "Authorizations", "action" => "MemberAuthorizations", "plugin" => "Activities", "previous", $id])
-            ]
-        ]
-    ]);
-else :
-    echo "<p>No Authorizations</p>";
-endif; ?>
+<?php if (!$isEmpty): ?>
+    <?= $this->element('dv_grid', [
+        'gridKey' => 'Activities.Authorizations.member',
+        'frameId' => 'member-auth-grid',
+        'dataUrl' => $this->Url->build([
+            'plugin' => 'Activities',
+            'controller' => 'Authorizations',
+            'action' => 'memberAuthorizationsGridData',
+            '?' => ['member_id' => $id, 'system_view' => 'current']
+        ]),
+        'title' => null,
+        'lazyLoad' => true,
+    ]) ?>
+<?php else: ?>
+    <p>No Authorizations</p>
+<?php endif; ?>
+
 <?php
 echo $this->KMP->startBlock("modals");
 echo $this->element('requestAuthorizationModal', [

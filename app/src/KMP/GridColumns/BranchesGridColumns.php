@@ -9,6 +9,17 @@ namespace App\KMP\GridColumns;
  */
 class BranchesGridColumns extends BaseGridColumns
 {
+    /**
+     * Get available system views for the Branches grid.
+     *
+     * @param array<string, mixed> $options Optional context (unused)
+     * @return array<string, array<string, mixed>>
+     */
+    public static function getSystemViews(array $options = []): array
+    {
+        return [];
+    }
+
     public static function getColumns(): array
     {
         return [
@@ -72,7 +83,9 @@ class BranchesGridColumns extends BaseGridColumns
                 'defaultVisible' => true,
                 'width' => '120px',
                 'alignment' => 'left',
-                'filterOptionsSource' => 'branchTypes',
+                'filterOptionsSource' => [
+                    'appSetting' => 'Branches.Types',
+                ],
             ],
 
             'location' => [

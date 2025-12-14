@@ -17,7 +17,7 @@ namespace Officers\Controller;
 use App\KMP\StaticHelpers;
 use \Officers\Services\OfficerManagerInterface;
 use App\Controller\DataverseGridTrait;
-use App\KMP\GridColumns\OfficesGridColumns;
+use Officers\KMP\GridColumns\OfficesGridColumns;
 
 class OfficesController extends AppController
 {
@@ -102,6 +102,9 @@ class OfficesController extends AppController
                     return $q->select(['id', 'name']);
                 },
             ]);
+
+        // Get system views from GridColumns
+        $systemViews = OfficesGridColumns::getSystemViews([]);
 
         $result = $this->processDataverseGrid([
             'gridKey' => 'Officers.Offices.index.main',

@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace App\KMP\GridColumns;
 
+use App\KMP\TimezoneHelper;
+use DateTime;
+use DateTimeZone;
+
 /**
  * Gatherings Grid Column Metadata
  *
@@ -11,6 +15,41 @@ namespace App\KMP\GridColumns;
  */
 class GatheringsGridColumns extends BaseGridColumns
 {
+
+    /**
+     * Compute key month boundaries in both local and UTC timezones.
+     *
+     * @return array<string, string>
+     */
+    public static function getSystemViewDateBoundaries(string $userTimezone): array
+    {
+        $timezone = new DateTimeZone($userTimezone);
+
+        $thisMonthStart = new DateTime('first day of this month 00:00:00', $timezone);
+        $thisMonthEnd = new DateTime('last day of this month 23:59:59', $timezone);
+        $nextMonthStart = (clone $thisMonthStart)->modify('first day of next month');
+        $nextMonthEnd = (clone $thisMonthEnd)->modify('last day of next month')->setTime(23, 59, 59);
+        $previousCutoff = (clone $thisMonthStart)->setTime(0, 0, 0);
+
+        $thisMonthStartUtc = TimezoneHelper::toUtc($thisMonthStart->format('Y-m-d H:i:s'), $userTimezone);
+        $thisMonthEndUtc = TimezoneHelper::toUtc($thisMonthEnd->format('Y-m-d H:i:s'), $userTimezone);
+        $nextMonthStartUtc = TimezoneHelper::toUtc($nextMonthStart->format('Y-m-d H:i:s'), $userTimezone);
+        $nextMonthEndUtc = TimezoneHelper::toUtc($nextMonthEnd->format('Y-m-d H:i:s'), $userTimezone);
+        $previousCutoffUtc = TimezoneHelper::toUtc($previousCutoff->format('Y-m-d H:i:s'), $userTimezone);
+
+        return [
+            'thisMonthStartUtc' => $thisMonthStartUtc->format('Y-m-d H:i:s'),
+            'thisMonthEndUtc' => $thisMonthEndUtc->format('Y-m-d H:i:s'),
+            'nextMonthStartUtc' => $nextMonthStartUtc->format('Y-m-d H:i:s'),
+            'nextMonthEndUtc' => $nextMonthEndUtc->format('Y-m-d H:i:s'),
+            'previousCutoffUtc' => $previousCutoffUtc->format('Y-m-d H:i:s'),
+            'thisMonthStartLocal' => $thisMonthStart->format('Y-m-d'),
+            'thisMonthEndLocal' => $thisMonthEnd->format('Y-m-d'),
+            'nextMonthStartLocal' => $nextMonthStart->format('Y-m-d'),
+            'nextMonthEndLocal' => $nextMonthEnd->format('Y-m-d'),
+        ];
+    }
+
     /**
      * Get row actions for gatherings grid listings
      *
@@ -99,7 +138,7 @@ class GatheringsGridColumns extends BaseGridColumns
                 'sortable' => true,
                 'filterable' => true,
                 'filterType' => 'dropdown',
-                'filterOptionsSource' => 'branches',
+                'filterOptionsSource' => 'Branches',
                 'defaultVisible' => true,
                 'width' => '220px',
                 'alignment' => 'left',
@@ -114,7 +153,7 @@ class GatheringsGridColumns extends BaseGridColumns
                 'sortable' => true,
                 'filterable' => true,
                 'filterType' => 'dropdown',
-                'filterOptionsSource' => 'gathering-types',
+                'filterOptionsSource' => 'GatheringTypes',
                 'defaultVisible' => true,
                 'width' => '180px',
                 'alignment' => 'left',
@@ -165,7 +204,7 @@ class GatheringsGridColumns extends BaseGridColumns
                 'sortable' => false,
                 'filterable' => true,
                 'filterType' => 'dropdown',
-                'filterOptionsSource' => 'gathering-activities',
+                'filterOptionsSource' => 'GatheringActivities',
                 'defaultVisible' => false,
                 'alignment' => 'left',
                 'queryField' => 'GatheringActivities.id',
@@ -214,5 +253,68 @@ class GatheringsGridColumns extends BaseGridColumns
     public static function getSearchableColumns(): array
     {
         return ['name', 'location'];
+    }
+
+    /**
+     * System views for gatherings dv_grid.
+     *
+     * @param array<string, mixed> $options
+     * @return array<string, array<string, mixed>>
+     */
+    public static function getSystemViews(array $options = []): array
+    {
+        $userTimezone = (string)($options['timezone'] ?? 'UTC');
+        $boundaries = self::getSystemViewDateBoundaries($userTimezone);
+
+        return [
+            'sys-gatherings-this-month' => [
+                'id' => 'sys-gatherings-this-month',
+                'name' => __('This Month'),
+                'description' => __('Gatherings overlapping the current calendar month'),
+                'canManage' => false,
+                'config' => [
+                    'filters' => [
+                        ['field' => 'start_date', 'operator' => 'dateRange', 'value' => [$boundaries['thisMonthStartLocal'], $boundaries['thisMonthEndLocal']]],
+                    ],
+                    'skipFilterColumns' => ['start_date', 'end_date'],
+                ],
+            ],
+            'sys-gatherings-next-month' => [
+                'id' => 'sys-gatherings-next-month',
+                'name' => __('Next Month'),
+                'description' => __('Gatherings scheduled for the next calendar month'),
+                'canManage' => false,
+                'config' => [
+                    'filters' => [
+                        ['field' => 'start_date', 'operator' => 'dateRange', 'value' => [$boundaries['nextMonthStartLocal'], $boundaries['nextMonthEndLocal']]],
+                    ],
+                    'skipFilterColumns' => ['start_date', 'end_date'],
+                ],
+            ],
+            'sys-gatherings-future' => [
+                'id' => 'sys-gatherings-future',
+                'name' => __('Future'),
+                'description' => __('Gatherings starting after next month'),
+                'canManage' => false,
+                'config' => [
+                    'filters' => [
+                        ['field' => 'start_date', 'operator' => 'gte', 'value' => $boundaries['nextMonthEndLocal']],
+                    ],
+                    'skipFilterColumns' => ['start_date'],
+                ],
+            ],
+            'sys-gatherings-previous' => [
+                'id' => 'sys-gatherings-previous',
+                'name' => __('Previous'),
+                'description' => __('Gatherings that ended before this month'),
+                'canManage' => false,
+                'config' => [
+                    'filters' => [
+                        ['field' => 'end_date', 'operator' => 'lt', 'value' => $boundaries['thisMonthStartLocal']],
+                    ],
+                    'skipFilterColumns' => ['end_date'],
+                ],
+            ],
+        ];
     }
 }

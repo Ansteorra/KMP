@@ -24,9 +24,9 @@ $this->assign('title', __('Permissions'));
         <div>
             <?php if ($user->checkCan("add", "Permissions")) : ?>
                 <?= $this->Html->link(
-                    __('Add Permission'),
+                    __(' Add Permission'),
                     ['action' => 'add'],
-                    ['class' => 'btn btn-primary']
+                    ['class' => 'btn btn-primary bi bi-plus-circle']
                 ) ?>
             <?php endif; ?>
         </div>

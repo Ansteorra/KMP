@@ -11,23 +11,29 @@ echo $this->KMP->startBlock("title");
 echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Offices';
 $this->KMP->endBlock(); ?>
 
-<?php
-$addLink = null;
-if ($user->checkCan("add", "Officers.Offices")) {
-    $addLink = $this->Html->link(
-        ' Add Office',
-        ['action' => 'add'],
-        ['class' => 'btn btn-primary btn-sm bi bi-plus-circle', 'data-turbo-frame' => '_top']
-    );
-}
-?>
+
+
+
+<div class="row align-items-start mb-3">
+    <div class="col">
+        <h3>Offices</h3>
+    </div>
+    <div class="col text-end">
+        <?php if ($user->checkCan("add", "Officers.Offices")): ?>
+        <?= $this->Html->link(
+                ' Add Office',
+                ['action' => 'add'],
+                ['class' => 'btn btn-primary bi bi-plus-circle', 'data-turbo-frame' => '_top']
+            ) ?>
+        <?php endif; ?>
+    </div>
+</div>
 
 <turbo-frame id="offices-grid" data-turbo-action="advance">
     <?= $this->element('dv_grid', [
         'frameId' => 'offices-grid',
         'tableFrameId' => 'offices-grid-table',
         'title' => __('Offices'),
-        'addLink' => $addLink,
         'dataUrl' => $this->Url->build(['action' => 'gridData']),
     ]) ?>
 </turbo-frame>

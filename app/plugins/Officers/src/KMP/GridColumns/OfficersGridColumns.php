@@ -6,6 +6,8 @@ namespace Officers\KMP\GridColumns;
 
 use App\KMP\GridColumns\BaseGridColumns;
 use App\Model\Entity\ActiveWindowBaseEntity;
+use Cake\I18n\Date;
+use Officers\Model\Entity\Officer;
 
 /**
  * Officers Grid Column Metadata
@@ -281,6 +283,76 @@ class OfficersGridColumns extends BaseGridColumns
                 'width' => '200px',
                 'alignment' => 'left',
                 'description' => 'Reason for assignment revocation/release',
+            ],
+        ];
+    }
+
+    /**
+     * System views for officers dv_grid.
+     *
+     * @param array<string, mixed> $options
+     * @return array<string, array<string, mixed>>
+     */
+    public static function getSystemViews(array $options = []): array
+    {
+        $context = $options['context'] ?? null;
+
+        $today = Date::today();
+        $todayString = $today->format('Y-m-d');
+
+        $currentUpcomingColumns = match ($context) {
+            'member' => ['office_name', 'branch_name', 'email_address', 'warrant_state', 'start_on', 'expires_on', 'reports_to_list'],
+            'branch' => ['member_sca_name', 'office_name', 'email_address', 'warrant_state', 'start_on', 'expires_on', 'reports_to_list'],
+            default => ['member_sca_name', 'office_name', 'branch_name', 'email_address', 'warrant_state', 'start_on', 'expires_on', 'status'],
+        };
+
+        $previousColumns = match ($context) {
+            'member' => ['office_name', 'branch_name', 'start_on', 'expires_on', 'revoked_reason'],
+            'branch' => ['member_sca_name', 'office_name', 'start_on', 'expires_on', 'revoked_reason'],
+            default => ['member_sca_name', 'office_name', 'branch_name', 'start_on', 'expires_on', 'revoked_reason', 'status'],
+        };
+
+        return [
+            'sys-officers-current' => [
+                'id' => 'sys-officers-current',
+                'name' => __('Current'),
+                'description' => __('Active officer assignments'),
+                'canManage' => false,
+                'config' => [
+                    'filters' => [
+                        ['field' => 'status', 'operator' => 'eq', 'value' => Officer::CURRENT_STATUS],
+                    ],
+                    'columns' => $currentUpcomingColumns,
+                ],
+            ],
+            'sys-officers-upcoming' => [
+                'id' => 'sys-officers-upcoming',
+                'name' => __('Upcoming'),
+                'description' => __('Future officer assignments'),
+                'canManage' => false,
+                'config' => [
+                    'filters' => [
+                        ['field' => 'status', 'operator' => 'eq', 'value' => Officer::UPCOMING_STATUS],
+                    ],
+                    'columns' => $currentUpcomingColumns,
+                ],
+            ],
+            'sys-officers-previous' => [
+                'id' => 'sys-officers-previous',
+                'name' => __('Previous'),
+                'description' => __('Past officer assignments'),
+                'canManage' => false,
+                'config' => [
+                    'filters' => [
+                        ['field' => 'status', 'operator' => 'in', 'value' => [
+                            Officer::EXPIRED_STATUS,
+                            Officer::DEACTIVATED_STATUS,
+                            Officer::RELEASED_STATUS,
+                            Officer::REPLACED_STATUS,
+                        ]],
+                    ],
+                    'columns' => $previousColumns,
+                ],
             ],
         ];
     }

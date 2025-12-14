@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\KMP\GridColumns;
 
 use App\Model\Entity\ActiveWindowBaseEntity;
+use Cake\I18n\FrozenDate;
 
 /**
  * Member Roles Grid Column Metadata
@@ -190,5 +191,56 @@ class MemberRolesGridColumns extends BaseGridColumns
             }
         }
         return $searchable;
+    }
+
+    /**
+     * System views for member roles dv_grid.
+     *
+     * @param array<string, mixed> $options
+     * @return array<string, array<string, mixed>>
+     */
+    public static function getSystemViews(array $options = []): array
+    {
+        $today = FrozenDate::today();
+        $todayString = $today->format('Y-m-d');
+        $tomorrowString = $today->addDays(1)->format('Y-m-d');
+        $yesterdayString = $today->subDays(1)->format('Y-m-d');
+
+        return [
+            'sys-roles-active' => [
+                'id' => 'sys-roles-active',
+                'name' => __('Active'),
+                'description' => __('Currently active roles'),
+                'canManage' => false,
+                'config' => [
+                    'filters' => [
+                        ['field' => 'start_on', 'operator' => 'dateRange', 'value' => [null, $todayString]],
+                        ['field' => 'expires_on', 'operator' => 'dateRange', 'value' => [$todayString, null]],
+                    ],
+                ],
+            ],
+            'sys-roles-upcoming' => [
+                'id' => 'sys-roles-upcoming',
+                'name' => __('Upcoming'),
+                'description' => __('Roles scheduled to start in the future'),
+                'canManage' => false,
+                'config' => [
+                    'filters' => [
+                        ['field' => 'start_on', 'operator' => 'dateRange', 'value' => [$tomorrowString, null]],
+                    ],
+                ],
+            ],
+            'sys-roles-previous' => [
+                'id' => 'sys-roles-previous',
+                'name' => __('Previous'),
+                'description' => __('Expired or past roles'),
+                'canManage' => false,
+                'config' => [
+                    'filters' => [
+                        ['field' => 'expires_on', 'operator' => 'dateRange', 'value' => [null, $yesterdayString]],
+                    ],
+                ],
+            ],
+        ];
     }
 }

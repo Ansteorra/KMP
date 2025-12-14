@@ -81,6 +81,9 @@ class RolesController extends AppController
             ->select($this->Roles)
             ->select(['member_count' => $memberCountSubquery]);
 
+        // Get system views from GridColumns
+        $systemViews = \App\KMP\GridColumns\RolesGridColumns::getSystemViews([]);
+
         // Use unified trait for grid processing
         $result = $this->processDataverseGrid([
             'gridKey' => 'Roles.index.main',
@@ -89,7 +92,7 @@ class RolesController extends AppController
             'tableName' => 'Roles',
             'defaultSort' => ['Roles.name' => 'asc'],
             'defaultPageSize' => 25,
-            'showAllTab' => false,
+            'showAllTab' => true,
             'canAddViews' => false,
             'canFilter' => true,
             'canExportCsv' => false,

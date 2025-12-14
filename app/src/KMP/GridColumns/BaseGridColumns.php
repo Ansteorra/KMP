@@ -13,6 +13,7 @@ namespace App\KMP\GridColumns;
  * @see /docs/9.3-dataverse-grid-complete-guide.md For field naming and grid configuration
  */
 abstract class BaseGridColumns
+implements SystemViewsProviderInterface
 {
     /**
      * Get all available columns for the grid
@@ -22,6 +23,19 @@ abstract class BaseGridColumns
      * @return array<string, array<string, mixed>>
      */
     abstract public static function getColumns(): array;
+
+    /**
+     * Return system views for a grid.
+     *
+     * Override in child classes to provide system-defined dv_grid views.
+     *
+     * @param array<string, mixed> $options Runtime context (timezone, scope, etc.)
+     * @return array<string, array<string, mixed>>
+     */
+    public static function getSystemViews(array $options = []): array
+    {
+        return [];
+    }
 
     /**
      * Get column by key
@@ -91,7 +105,8 @@ abstract class BaseGridColumns
     /**
      * Get columns with dropdown filters
      *
-     * Returns array of column metadata for columns that have dropdown filter type
+     * Returns array of column metadata for columns that have dropdown filter type or other UI-based filters
+     * (e.g., 'dropdown', 'is-populated')
      *
      * @return array<string, array<string, mixed>> Column metadata indexed by key
      */
@@ -99,8 +114,12 @@ abstract class BaseGridColumns
     {
         $dropdown = [];
         foreach (static::getColumns() as $key => $column) {
-            if (!empty($column['filterable']) && ($column['filterType'] ?? '') === 'dropdown') {
-                $dropdown[$key] = $column;
+            if (!empty($column['filterable'])) {
+                $filterType = $column['filterType'] ?? '';
+                // Include dropdown and is-populated filter types
+                if ($filterType === 'dropdown' || $filterType === 'is-populated') {
+                    $dropdown[$key] = $column;
+                }
             }
         }
         return $dropdown;

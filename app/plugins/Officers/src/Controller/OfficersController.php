@@ -262,7 +262,7 @@ class OfficersController extends AppController
         }
 
         // Get system views for temporal/warrant filtering with context-specific columns
-        $systemViews = $this->getOfficerSystemViews($context);
+        $systemViews = \Officers\KMP\GridColumns\OfficersGridColumns::getSystemViews(['context' => $context]);
 
         // Build base query with required associations
         $baseQuery = $this->Officers->find()
@@ -406,77 +406,6 @@ class OfficersController extends AppController
             $this->viewBuilder()->setTemplatePath('element');
             $this->viewBuilder()->setTemplate('dv_grid_content');
         }
-    }
-
-    /**
-     * Get system views for officer temporal filtering.
-     *
-     * @param string|null $context Context type ('member', 'branch', or null)
-     * @return array<string, array<string, mixed>>
-     */
-    protected function getOfficerSystemViews(?string $context = null): array
-    {
-        $today = Date::today();
-        $todayString = $today->format('Y-m-d');
-
-        // Define column configurations based on context
-        // Current/Upcoming: Office, Branch, Contact, Warrant, Start Date, End Date, Reports To
-        // Previous: Office, Branch, Start Date, End Date, Reason
-        $currentUpcomingColumns = match ($context) {
-            'member' => ['office_name', 'branch_name', 'email_address', 'warrant_state', 'start_on', 'expires_on', 'reports_to_list'],
-            'branch' => ['member_sca_name', 'office_name', 'email_address', 'warrant_state', 'start_on', 'expires_on', 'reports_to_list'],
-            default => ['member_sca_name', 'office_name', 'branch_name', 'email_address', 'warrant_state', 'start_on', 'expires_on', 'status'],
-        };
-
-        $previousColumns = match ($context) {
-            'member' => ['office_name', 'branch_name', 'start_on', 'expires_on', 'revoked_reason'],
-            'branch' => ['member_sca_name', 'office_name', 'start_on', 'expires_on', 'revoked_reason'],
-            default => ['member_sca_name', 'office_name', 'branch_name', 'start_on', 'expires_on', 'revoked_reason', 'status'],
-        };
-
-        return [
-            'sys-officers-current' => [
-                'id' => 'sys-officers-current',
-                'name' => __('Current'),
-                'description' => __('Active officer assignments'),
-                'canManage' => false,
-                'config' => [
-                    'filters' => [
-                        ['field' => 'status', 'operator' => 'eq', 'value' => Officer::CURRENT_STATUS],
-                    ],
-                    'columns' => $currentUpcomingColumns,
-                ],
-            ],
-            'sys-officers-upcoming' => [
-                'id' => 'sys-officers-upcoming',
-                'name' => __('Upcoming'),
-                'description' => __('Future officer assignments'),
-                'canManage' => false,
-                'config' => [
-                    'filters' => [
-                        ['field' => 'status', 'operator' => 'eq', 'value' => Officer::UPCOMING_STATUS],
-                    ],
-                    'columns' => $currentUpcomingColumns,
-                ],
-            ],
-            'sys-officers-previous' => [
-                'id' => 'sys-officers-previous',
-                'name' => __('Previous'),
-                'description' => __('Past officer assignments'),
-                'canManage' => false,
-                'config' => [
-                    'filters' => [
-                        ['field' => 'status', 'operator' => 'in', 'value' => [
-                            Officer::EXPIRED_STATUS,
-                            Officer::DEACTIVATED_STATUS,
-                            Officer::RELEASED_STATUS,
-                            Officer::REPLACED_STATUS,
-                        ]],
-                    ],
-                    'columns' => $previousColumns,
-                ],
-            ],
-        ];
     }
 
     /**

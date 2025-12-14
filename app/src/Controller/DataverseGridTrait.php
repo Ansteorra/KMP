@@ -303,6 +303,33 @@ trait DataverseGridTrait
                         continue;
                     }
 
+                    // Handle "is-populated" filter type (check if field is not empty/null)
+                    if (($columnMeta['filterType'] ?? null) === 'is-populated') {
+                        // Use filterQueryField if specified, otherwise use queryField, fallback to column key
+                        $fieldToCheck = $columnMeta['filterQueryField'] ?? $columnMeta['queryField'] ?? $columnKey;
+                        $qualifiedField = strpos($fieldToCheck, '.') === false ? $tableName . '.' . $fieldToCheck : $fieldToCheck;
+
+                        // filterValue should be 'yes' (populated) or 'no' (not populated)
+                        if ($filterValue === 'yes' || $filterValue === '1' || $filterValue === 1 || $filterValue === true) {
+                            // IS NOT NULL AND NOT EMPTY
+                            $baseQuery->where(function ($exp) use ($qualifiedField) {
+                                return $exp->and([
+                                    $qualifiedField . ' IS NOT' => null,
+                                    $qualifiedField . ' !=' => '',
+                                ]);
+                            });
+                        } elseif ($filterValue === 'no' || $filterValue === '0' || $filterValue === 0 || $filterValue === false) {
+                            // IS NULL OR EMPTY
+                            $baseQuery->where(function ($exp) use ($qualifiedField) {
+                                return $exp->or([
+                                    $qualifiedField . ' IS' => null,
+                                    $qualifiedField => '',
+                                ]);
+                            });
+                        }
+                        continue;
+                    }
+
                     $qualifiedField = strpos($columnKey, '.') === false ? $tableName . '.' . $columnKey : $columnKey;
 
                     if (is_array($filterValue)) {
@@ -887,60 +914,100 @@ trait DataverseGridTrait
     /**
      * Load filter options from a data source
      *
-     * @param string $source Source identifier (e.g., 'branches')
-     * @return array Filter options
+     * Supports multiple formats for filterOptionsSource:
+     * 
+     * 1. **Simple string** (table name): Uses 'id' for value, 'name' for label
+     *    ```php
+     *    'filterOptionsSource' => 'Branches'
+     *    ```
+     * 
+     * 2. **Array with table**: Database table with full control
+     *    ```php
+     *    'filterOptionsSource' => [
+     *        'table' => 'Waivers.WaiverTypes',  // Required: table name for fetchTable()
+     *        'valueField' => 'id',              // Optional: field for option value (default: 'id')
+     *        'labelField' => 'name',            // Optional: field for option label (default: 'name')
+     *        'conditions' => ['is_active' => true],  // Optional: filter conditions
+     *        'order' => ['name' => 'ASC'],      // Optional: sort order (default: labelField ASC)
+     *    ]
+     *    ```
+     * 
+     * 3. **Array with appSetting**: Load from app settings (YAML array)
+     *    ```php
+     *    'filterOptionsSource' => [
+     *        'appSetting' => 'Branches.Types',  // Required: app setting key
+     *    ]
+     *    ```
+     *    The app setting should contain a YAML array like: ['Kingdom', 'Principality', 'Barony']
+     *    Both value and label will be set to the array item value.
+     *
+     * @param string|array $source Source identifier string (table name) or configuration array
+     * @return array Filter options as array of ['value' => string, 'label' => string]
      */
-    protected function loadFilterOptions(string $source): array
+    protected function loadFilterOptions(string|array $source): array
     {
-        switch ($source) {
-            case 'branches':
-                $branches = $this->fetchTable('Branches')
-                    ->find('list', [
-                        'keyField' => 'id',
-                        'valueField' => 'name',
-                    ])
-                    ->orderBy(['name' => 'ASC'])
-                    ->toArray();
-
-                return array_map(
-                    fn($id, $name) => ['value' => (string)$id, 'label' => $name],
-                    array_keys($branches),
-                    $branches
-                );
-
-            case 'gathering-types':
-                $types = $this->fetchTable('GatheringTypes')
-                    ->find('list', [
-                        'keyField' => 'id',
-                        'valueField' => 'name',
-                    ])
-                    ->orderBy(['name' => 'ASC'])
-                    ->toArray();
-
-                return array_map(
-                    fn($id, $name) => ['value' => (string)$id, 'label' => $name],
-                    array_keys($types),
-                    $types
-                );
-
-            case 'gathering-activities':
-                $activities = $this->fetchTable('GatheringActivities')
-                    ->find('list', [
-                        'keyField' => 'id',
-                        'valueField' => 'name',
-                    ])
-                    ->orderBy(['name' => 'ASC'])
-                    ->toArray();
-
-                return array_map(
-                    fn($id, $name) => ['value' => (string)$id, 'label' => $name],
-                    array_keys($activities),
-                    $activities
-                );
-
-            default:
+        // Handle app setting source
+        if (is_array($source) && !empty($source['appSetting'])) {
+            $settingKey = $source['appSetting'];
+            $values = \App\KMP\StaticHelpers::getAppSetting($settingKey);
+            
+            if (!is_array($values)) {
                 return [];
+            }
+            
+            return array_map(
+                fn($value) => ['value' => (string)$value, 'label' => (string)$value],
+                $values
+            );
         }
+
+        // Parse source configuration for table-based options
+        if (is_string($source)) {
+            // Simple string format - treat as table name
+            $config = [
+                'table' => $source,
+                'valueField' => 'id',
+                'labelField' => 'name',
+                'conditions' => [],
+                'order' => null,
+            ];
+        } else {
+            // Array configuration format
+            if (empty($source['table'])) {
+                return [];
+            }
+            $config = [
+                'table' => $source['table'],
+                'valueField' => $source['valueField'] ?? 'id',
+                'labelField' => $source['labelField'] ?? 'name',
+                'conditions' => $source['conditions'] ?? [],
+                'order' => $source['order'] ?? null,
+            ];
+        }
+
+        // Build the query
+        $query = $this->fetchTable($config['table'])
+            ->find('list', [
+                'keyField' => $config['valueField'],
+                'valueField' => $config['labelField'],
+            ]);
+
+        // Apply conditions if specified
+        if (!empty($config['conditions'])) {
+            $query->where($config['conditions']);
+        }
+
+        // Apply ordering (default to labelField ASC if not specified)
+        $orderBy = $config['order'] ?? [$config['labelField'] => 'ASC'];
+        $query->orderBy($orderBy);
+
+        $results = $query->toArray();
+
+        return array_map(
+            fn($id, $name) => ['value' => (string)$id, 'label' => $name],
+            array_keys($results),
+            $results
+        );
     }
 
     /**
@@ -1034,6 +1101,11 @@ trait DataverseGridTrait
                         // Strip table prefix from field name for parameter keys
                         $fieldKey = strpos($field, '.') !== false ? substr($field, strrpos($field, '.') + 1) : $field;
                         $defaults['dateRange'][$fieldKey . '_end'] = (string)$value;
+                    }
+                    break;
+                case 'is-populated':
+                    if ($value !== null && $value !== '') {
+                        $defaults['filters'][$field] = (string)$value;
                     }
                     break;
                 default:

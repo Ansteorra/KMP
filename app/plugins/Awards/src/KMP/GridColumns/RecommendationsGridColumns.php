@@ -499,10 +499,89 @@ class RecommendationsGridColumns extends BaseGridColumns
      *
      * Defines the status-based tabs and their filter configurations.
      *
+     * Supported contexts (via $options['context']):
+     * - index (default): main recommendations grid
+     * - memberSubmitted: member profile "Submitted Award Recs" tab
+     * - recsForMember: member profile "Recs For Member" tab
+     * - gatheringAwards: gathering detail "Awards" tab
+     *
      * @return array<string, array<string, mixed>>
      */
-    public static function getSystemViews(): array
+    public static function getSystemViews(array $options = []): array
     {
+        $context = $options['context'] ?? 'index';
+
+        if ($context === 'memberSubmitted') {
+            return [
+                'sys-recs-submitted-by' => [
+                    'id' => 'sys-recs-submitted-by',
+                    'name' => __('Submitted By Me'),
+                    'description' => __('Recommendations you have submitted'),
+                    'canManage' => false,
+                    'config' => [
+                        'filters' => [],
+                        'columns' => [
+                            'created',
+                            'member_sca_name',
+                            'award_name',
+                            'reason',
+                            'gatherings',
+                        ],
+                    ],
+                ],
+            ];
+        }
+
+        if ($context === 'recsForMember') {
+            return [
+                'sys-recs-for-member' => [
+                    'id' => 'sys-recs-for-member',
+                    'name' => __('Recommendations For Member'),
+                    'description' => __('Recommendations for this member'),
+                    'canManage' => false,
+                    'config' => [
+                        'filters' => [],
+                        'columns' => [
+                            'created',
+                            'member_sca_name',
+                            'requester_sca_name',
+                            'award_name',
+                            'reason',
+                            'gatherings',
+                            'state',
+                            'close_reason',
+                            'assigned_gathering',
+                            'given',
+                        ],
+                    ],
+                ],
+            ];
+        }
+
+        if ($context === 'gatheringAwards') {
+            return [
+                'sys-recs-gathering' => [
+                    'id' => 'sys-recs-gathering',
+                    'name' => __('Gathering Awards'),
+                    'description' => __('Awards scheduled for this gathering'),
+                    'canManage' => false,
+                    'config' => [
+                        'filters' => [],
+                        'columns' => [
+                            'member_sca_name',
+                            'op_links',
+                            'branch_name',
+                            'domain_name',
+                            'award_name',
+                            'reason',
+                            'status',
+                            'state',
+                        ],
+                    ],
+                ],
+            ];
+        }
+
         return [
             'sys-recs-all' => [
                 'id' => 'sys-recs-all',
@@ -511,7 +590,7 @@ class RecommendationsGridColumns extends BaseGridColumns
                 'canManage' => false,
                 'config' => [
                     'filters' => [],
-                    'visibleColumns' => [
+                    'columns' => [
                         'created',
                         'member_sca_name',
                         'op_links',
@@ -537,7 +616,7 @@ class RecommendationsGridColumns extends BaseGridColumns
                     'filters' => [
                         ['field' => 'status', 'operator' => 'eq', 'value' => 'In Progress'],
                     ],
-                    'visibleColumns' => [
+                    'columns' => [
                         'created',
                         'member_sca_name',
                         'op_links',
@@ -559,7 +638,7 @@ class RecommendationsGridColumns extends BaseGridColumns
                     'filters' => [
                         ['field' => 'status', 'operator' => 'eq', 'value' => 'Scheduling'],
                     ],
-                    'visibleColumns' => [
+                    'columns' => [
                         'created',
                         'member_sca_name',
                         'branch_name',
@@ -583,7 +662,7 @@ class RecommendationsGridColumns extends BaseGridColumns
                     'filters' => [
                         ['field' => 'status', 'operator' => 'eq', 'value' => 'To Give'],
                     ],
-                    'visibleColumns' => [
+                    'columns' => [
                         'created',
                         'member_sca_name',
                         'branch_name',
@@ -607,7 +686,7 @@ class RecommendationsGridColumns extends BaseGridColumns
                     'filters' => [
                         ['field' => 'status', 'operator' => 'eq', 'value' => 'Closed'],
                     ],
-                    'visibleColumns' => [
+                    'columns' => [
                         'created',
                         'member_sca_name',
                         'branch_name',
@@ -619,101 +698,6 @@ class RecommendationsGridColumns extends BaseGridColumns
                         'assigned_gathering',
                         'state_date',
                         'given',
-                    ],
-                ],
-            ],
-        ];
-    }
-
-    /**
-     * Get system views for "Submitted By Member" context
-     *
-     * Used when viewing recommendations submitted by a specific member.
-     *
-     * @return array<string, array<string, mixed>>
-     */
-    public static function getSubmittedByMemberViews(): array
-    {
-        return [
-            'sys-recs-submitted-by' => [
-                'id' => 'sys-recs-submitted-by',
-                'name' => __('Submitted By Me'),
-                'description' => __('Recommendations you have submitted'),
-                'canManage' => false,
-                'config' => [
-                    'filters' => [],
-                    'visibleColumns' => [
-                        'created',
-                        'member_sca_name',
-                        'award_name',
-                        'reason',
-                        'gatherings',
-                    ],
-                ],
-            ],
-        ];
-    }
-
-    /**
-     * Get system views for "Recs For Member" context
-     *
-     * Used when viewing recommendations for a specific member.
-     *
-     * @return array<string, array<string, mixed>>
-     */
-    public static function getRecsForMemberViews(): array
-    {
-        return [
-            'sys-recs-for-member' => [
-                'id' => 'sys-recs-for-member',
-                'name' => __('Recommendations For Member'),
-                'description' => __('Recommendations for this member'),
-                'canManage' => false,
-                'config' => [
-                    'filters' => [],
-                    'visibleColumns' => [
-                        'created',
-                        'member_sca_name',
-                        'requester_sca_name',
-                        'award_name',
-                        'reason',
-                        'gatherings',
-                        'state',
-                        'close_reason',
-                        'assigned_gathering',
-                        'given',
-                    ],
-                ],
-            ],
-        ];
-    }
-
-    /**
-     * Get system views for "Gathering Awards" context
-     *
-     * Used when viewing recommendations scheduled for a specific gathering.
-     *
-     * @return array<string, array<string, mixed>>
-     */
-    public static function getGatheringAwardsViews(): array
-    {
-        return [
-            'sys-recs-gathering' => [
-                'id' => 'sys-recs-gathering',
-                'name' => __('Gathering Awards'),
-                'description' => __('Awards scheduled for this gathering'),
-                'canManage' => false,
-                'config' => [
-                    'filters' => [],
-                    'columns' => [
-                        'member_sca_name',
-                        'op_links',
-                        'branch_name',
-                        'domain_name',
-                        'award_name',
-                        'reason',
-                        'status',
-                        'state',
                     ],
                 ],
             ],

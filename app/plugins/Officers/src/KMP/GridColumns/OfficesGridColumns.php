@@ -2,7 +2,12 @@
 
 declare(strict_types=1);
 
-namespace App\KMP\GridColumns;
+namespace Officers\KMP\GridColumns;
+
+use App\KMP\GridColumns\BaseGridColumns;
+use App\Model\Entity\ActiveWindowBaseEntity;
+use Cake\I18n\Date;
+use Officers\Model\Entity\Officer;
 
 /**
  * Grid column definitions for the Offices index view
@@ -10,6 +15,17 @@ namespace App\KMP\GridColumns;
  */
 class OfficesGridColumns extends BaseGridColumns
 {
+    /**
+     * Get available system views for the Offices grid.
+     *
+     * @param array<string, mixed> $options Optional context (unused)
+     * @return array<string, array<string, mixed>>
+     */
+    public static function getSystemViews(array $options = []): array
+    {
+        return [];
+    }
+
     /**
      * Get column metadata for the offices grid
      *

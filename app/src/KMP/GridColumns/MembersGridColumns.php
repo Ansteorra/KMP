@@ -138,7 +138,7 @@ class MembersGridColumns extends BaseGridColumns
                 'sortable' => true,
                 'filterable' => true,
                 'filterType' => 'dropdown',
-                'filterOptionsSource' => 'branches',
+                'filterOptionsSource' => 'Branches',
                 'defaultVisible' => true,
                 'width' => '150px',
                 'alignment' => 'left',
@@ -353,6 +353,17 @@ class MembersGridColumns extends BaseGridColumns
          */
 
         return $columns;
+    }
+
+    /**
+     * Get available system views for the Members grid.
+     *
+     * @param array<string, mixed> $options Optional context (unused)
+     * @return array<string, array<string, mixed>>
+     */
+    public static function getSystemViews(array $options = []): array
+    {
+        return [];
     }
 
     /**

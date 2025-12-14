@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\KMP\GridColumns;
 
+use App\Model\Entity\WarrantRoster;
+
 /**
  * Warrant Rosters Grid Column Metadata
  * 
@@ -14,17 +16,6 @@ class WarrantRostersGridColumns extends BaseGridColumns
     public static function getColumns(): array
     {
         return [
-            'id' => [
-                'key' => 'id',
-                'label' => 'ID',
-                'type' => 'number',
-                'sortable' => true,
-                'filterable' => false,
-                'defaultVisible' => false,
-                'width' => '80px',
-                'alignment' => 'right',
-            ],
-
             'name' => [
                 'key' => 'name',
                 'label' => 'Name',
@@ -94,10 +85,11 @@ class WarrantRostersGridColumns extends BaseGridColumns
                 'label' => 'Created',
                 'type' => 'datetime',
                 'sortable' => true,
-                'filterable' => false,
+                'filterable' => true,
                 'defaultVisible' => true,
                 'width' => '150px',
                 'alignment' => 'left',
+                'filterType' => 'date-range',
             ],
 
             'created_by_member_sca_name' => [
@@ -106,10 +98,55 @@ class WarrantRostersGridColumns extends BaseGridColumns
                 'type' => 'string',
                 'sortable' => false,
                 'filterable' => false,
-                'searchable' => true,
+                'searchable' => false,
                 'defaultVisible' => true,
                 'width' => '180px',
                 'alignment' => 'left',
+            ],
+        ];
+    }
+
+    /**
+     * System views for warrant rosters dv_grid.
+     *
+     * @param array<string, mixed> $options
+     * @return array<string, array<string, mixed>>
+     */
+    public static function getSystemViews(array $options = []): array
+    {
+        return [
+            'sys-roster-pending' => [
+                'id' => 'sys-roster-pending',
+                'name' => __('Pending'),
+                'description' => __('Rosters awaiting approval'),
+                'canManage' => false,
+                'config' => [
+                    'filters' => [
+                        ['field' => 'status', 'operator' => 'eq', 'value' => WarrantRoster::STATUS_PENDING],
+                    ],
+                ],
+            ],
+            'sys-roster-approved' => [
+                'id' => 'sys-roster-approved',
+                'name' => __('Approved'),
+                'description' => __('Approved rosters'),
+                'canManage' => false,
+                'config' => [
+                    'filters' => [
+                        ['field' => 'status', 'operator' => 'eq', 'value' => WarrantRoster::STATUS_APPROVED],
+                    ],
+                ],
+            ],
+            'sys-roster-declined' => [
+                'id' => 'sys-roster-declined',
+                'name' => __('Declined'),
+                'description' => __('Declined rosters'),
+                'canManage' => false,
+                'config' => [
+                    'filters' => [
+                        ['field' => 'status', 'operator' => 'eq', 'value' => WarrantRoster::STATUS_DECLINED],
+                    ],
+                ],
             ],
         ];
     }

@@ -1,85 +1,34 @@
 <?php
 
-$renewButton = [
-    "type" => "button",
-    "verify" => false,
-    "label" => "Renew",
-    "options" => [
-        "class" => "btn-sm btn btn-primary renew-btn",
-        "data-bs-toggle" => "modal",
-        "data-bs-target" => "#renewalModal",
-        "data-controller" => "outlet-btn",
-        "data-action" => "click->outlet-btn#fireNotice",
-        "data-outlet-btn-btn-data-value" => '{ "id":{{id}}, "activity": {{activity->id}} }',
-    ],
-];
-$revokeButton = [
-    "type" => "button",
-    "verify" => true,
-    "label" => "Revoke",
-    "controller" => "Authorizations",
-    "action" => "revoke",
-    "options" => [
-        "class" => "btn-sm btn btn-danger revoke-btn",
-        "data-bs-toggle" => "modal",
-        "data-bs-target" => "#revokeModal",
-        "data-controller" => "outlet-btn",
-        "data-action" => "click->outlet-btn#fireNotice",
-        "data-outlet-btn-btn-data-value" => '{ "id":{{id}}, "activity": {{activity->id}} }',
-    ],
-];
-$retractButton = [
-    "type" => "postLink",
-    "verify" => true,
-    "label" => "Retract",
-    "controller" => "Authorizations",
-    "action" => "retract",
-    "id" => "id",
-    "options" => [
-        "class" => "btn-sm btn btn-warning retract-btn",
-        "confirm" => "Are you sure you want to retract this authorization request?"
-    ],
-];
-$columnTemplate = [
-    "Authorization" => "activity->name",
-];
-if ($state == "current") {
-    $columnTemplate["Start Date"] = "formatted_start_on";
-    $columnTemplate["End Date"] = "formatted_expires_on";
-    $columnTemplate["Actions"] = [
-        $renewButton,
-        $revokeButton
-    ];
-}
-if ($state == "pending") {
-    $columnTemplate["Requested Date"] = "current_pending_approval->requested_on";
-    $columnTemplate["Assigned To"] = "current_pending_approval->approver->sca_name";
-    $columnTemplate["Actions"] = [
-        $retractButton
-    ];
-}
-if ($state == "previous") {
-    $columnTemplate["Start Date"] = "formatted_start_on";
-    $columnTemplate["End Date"] = "formatted_expires_on";
-    $columnTemplate["Reason"] = "revoked_reason";
-}
+/**
+ * Member Authorizations View - Dataverse Grid Version
+ *
+ * This template displays authorizations for a member using the dv_grid system
+ * with system views for current/pending/previous states.
+ *
+ * @var \App\View\AppView $this
+ * @var \Cake\Datasource\ResultSetInterface $authorizations
+ * @var \Activities\Model\Entity\Member $member
+ * @var string $state Initial state (current, pending, previous)
+ */
 
-// Format Date objects for display
-foreach ($authorizations as $authorization) {
-    $authorization->formatted_start_on = $authorization->start_on
-        ? $this->Timezone->format($authorization->start_on, 'Y-m-d', false)
-        : '-';
-    $authorization->formatted_expires_on = $authorization->expires_on
-        ? $this->Timezone->format($authorization->expires_on, 'Y-m-d', false)
-        : '-';
-}
+// Map old state to system view
+$initialSystemView = match ($state) {
+    'current' => 'current',
+    'pending' => 'pending',
+    'previous' => 'previous',
+    default => 'current',
+};
 
-$tableData = [
-    "label" => __("Active"),
-    "id" => $turboFrameId,
-    "columns" => $columnTemplate,
-    "data" => $authorizations,
-    "usePagination" => true,
-];
-
-echo $this->element('turboSubTable', ['user' => $user, 'tableConfig' => $tableData]);
+echo $this->element('dv_grid', [
+    'gridKey' => 'Activities.Authorizations.member',
+    'frameId' => $turboFrameId ?? 'member-auth-grid',
+    'dataUrl' => $this->Url->build([
+        'plugin' => 'Activities',
+        'controller' => 'Authorizations',
+        'action' => 'memberAuthorizationsGridData',
+        '?' => ['member_id' => $member->id, 'system_view' => $initialSystemView]
+    ]),
+    'title' => null,
+    'lazyLoad' => true,
+]);

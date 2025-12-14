@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\KMP\GridColumns;
 
+use Cake\I18n\FrozenDate;
+
 /**
  * Gathering Attendances Grid Column Metadata
  *
@@ -229,5 +231,43 @@ class GatheringAttendancesGridColumns extends BaseGridColumns
             static::getColumns(),
             fn($col) => !empty($col['filterable']) && ($col['filterType'] ?? null) === 'date-range'
         );
+    }
+
+    /**
+     * System views for gathering attendances dv_grid.
+     *
+     * @param array<string, mixed> $options
+     * @return array<string, array<string, mixed>>
+     */
+    public static function getSystemViews(array $options = []): array
+    {
+        $today = FrozenDate::today();
+        $todayString = $today->format('Y-m-d');
+        $yesterdayString = $today->subDays(1)->format('Y-m-d');
+
+        return [
+            'sys-gatherings-upcoming' => [
+                'id' => 'sys-gatherings-upcoming',
+                'name' => __('Upcoming'),
+                'description' => __('Gatherings scheduled in the future'),
+                'canManage' => false,
+                'config' => [
+                    'filters' => [
+                        ['field' => 'start_date', 'operator' => 'dateRange', 'value' => [$todayString, null]],
+                    ],
+                ],
+            ],
+            'sys-gatherings-past' => [
+                'id' => 'sys-gatherings-past',
+                'name' => __('Past'),
+                'description' => __('Past gatherings'),
+                'canManage' => false,
+                'config' => [
+                    'filters' => [
+                        ['field' => 'end_date', 'operator' => 'dateRange', 'value' => [null, $yesterdayString]],
+                    ],
+                ],
+            ],
+        ];
     }
 }

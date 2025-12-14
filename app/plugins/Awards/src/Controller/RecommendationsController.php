@@ -135,7 +135,7 @@ class RecommendationsController extends AppController
         $baseQuery = $this->Authorization->applyScope($baseQuery, 'index');
 
         // Get system views with proper state filter options
-        $systemViews = RecommendationsGridColumns::getSystemViews();
+        $systemViews = RecommendationsGridColumns::getSystemViews([]);
 
         // Update state column filter options based on permissions
         $stateFilterOptions = RecommendationsGridColumns::getStateFilterOptions($canViewHidden);
@@ -473,7 +473,7 @@ class RecommendationsController extends AppController
             ]);
 
         // Get system views for this context
-        $systemViews = RecommendationsGridColumns::getSubmittedByMemberViews();
+        $systemViews = RecommendationsGridColumns::getSystemViews(['context' => 'memberSubmitted']);
 
         // Use unified trait for grid processing
         $result = $this->processDataverseGrid([
@@ -590,7 +590,7 @@ class RecommendationsController extends AppController
         $baseQuery = $this->Authorization->applyScope($baseQuery, 'index');
 
         // Get system views for this context
-        $systemViews = RecommendationsGridColumns::getRecsForMemberViews();
+        $systemViews = RecommendationsGridColumns::getSystemViews(['context' => 'recsForMember']);
 
         // Use unified trait for grid processing
         $result = $this->processDataverseGrid([
@@ -712,7 +712,7 @@ class RecommendationsController extends AppController
             ]);
 
         // Get system views for this context
-        $systemViews = RecommendationsGridColumns::getGatheringAwardsViews();
+        $systemViews = RecommendationsGridColumns::getSystemViews(['context' => 'gatheringAwards']);
 
         // Use unified trait for grid processing
         $result = $this->processDataverseGrid([

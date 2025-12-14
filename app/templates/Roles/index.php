@@ -24,9 +24,9 @@ $this->assign('title', __('Roles'));
         <div>
             <?php if ($user->checkCan("add", "Roles")) : ?>
                 <?= $this->Html->link(
-                    __('Add Role'),
+                    __(' Add Role'),
                     ['action' => 'add'],
-                    ['class' => 'btn btn-primary']
+                    ['class' => 'btn btn-primary bi bi-plus-circle']
                 ) ?>
             <?php endif; ?>
         </div>

@@ -69,6 +69,8 @@ class EmailTemplatesController extends AppController
      */
     public function gridData(CsvExportService $csvExportService)
     {
+        // Get system views from GridColumns
+
         // Use unified trait for grid processing
         $result = $this->processDataverseGrid([
             'gridKey' => 'EmailTemplates.index.main',

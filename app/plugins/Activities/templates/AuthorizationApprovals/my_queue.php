@@ -4,7 +4,8 @@
  * @var \App\View\AppView $this
  * @var string $queueFor
  * @var bool $isMyQueue
- * @var int|string $id
+ * @var int|string $member_id
+ * @var string|null $token
  */
 
 function makePossessive($name)
@@ -20,7 +21,7 @@ function makePossessive($name)
 $this->extend("/layout/TwitterBootstrap/dashboard");
 
 echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': View Authorization Queue for ' . $queueFor;
+echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': My Authorization Queue';
 $this->KMP->endBlock();
 
 $this->extend("/layout/TwitterBootstrap/view_record");
@@ -40,10 +41,16 @@ echo $this->KMP->startBlock("pageTitle") ?>
 
 <?php $this->KMP->startBlock("tabContent") ?>
 <div class="tab-pane fade show active m-3" role="tabpanel" tabindex="0">
+    <?php
+    $dataUrl = $this->Url->build(['action' => 'myQueueGridData']);
+    if ($token) {
+        $dataUrl .= '?token=' . urlencode($token);
+    }
+    ?>
     <?= $this->element('dv_grid', [
-        'gridKey' => 'Activities.AuthorizationApprovals.view',
-        'frameId' => 'view-queue-grid',
-        'dataUrl' => $this->Url->build(['action' => 'viewGridData', $id]),
+        'gridKey' => 'Activities.AuthorizationApprovals.myQueue',
+        'frameId' => 'my-queue-grid',
+        'dataUrl' => $dataUrl,
     ]) ?>
 </div>
 <?php $this->KMP->endBlock() ?>

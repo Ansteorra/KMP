@@ -86,7 +86,7 @@ class GatheringsController extends AppController
         $currentUser = $this->Authentication->getIdentity();
         $userTimezone = \App\KMP\TimezoneHelper::getUserTimezone($currentUser);
 
-        $systemViews = $this->getGatheringSystemViews($userTimezone);
+        $systemViews = \App\KMP\GridColumns\GatheringsGridColumns::getSystemViews(['timezone' => $userTimezone]);
         $queryCallback = $this->buildGatheringSystemViewQueryCallback($userTimezone);
 
         $baseQuery = $this->Gatherings->find()
@@ -132,146 +132,37 @@ class GatheringsController extends AppController
             return $this->handleCsvExport($result, $csvExportService, 'gatherings');
         }
 
-        // Enrich results with derived counts
-        foreach ($result['data'] as $gathering) {
-            if (isset($gathering->gathering_activities)) {
-                $gathering->activity_count = count($gathering->gathering_activities);
-            }
-        }
-
-        $rowActions = \App\KMP\GridColumns\GatheringsGridColumns::getRowActions();
-
+        // Set view variables for dv_grid_* elements
         $this->set([
+            'data' => $result['data'],
             'gatherings' => $result['data'],
             'gridState' => $result['gridState'],
-            'columns' => $result['columnsMetadata'],
-            'visibleColumns' => $result['visibleColumns'],
-            'searchableColumns' => \App\KMP\GridColumns\GatheringsGridColumns::getSearchableColumns(),
-            'dropdownFilterColumns' => $result['dropdownFilterColumns'],
-            'filterOptions' => $result['filterOptions'],
-            'currentFilters' => $result['currentFilters'],
-            'currentSearch' => $result['currentSearch'],
-            'currentView' => $result['currentView'],
-            'availableViews' => $result['availableViews'],
-            'gridKey' => $result['gridKey'],
-            'currentSort' => $result['currentSort'],
-            'currentMember' => $result['currentMember'],
-            'rowActions' => $rowActions,
+            'rowActions' => \App\KMP\GridColumns\GatheringsGridColumns::getRowActions(),
         ]);
 
-        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
+        // Build URLs for grid
+        $queryParams = $this->request->getQueryParams();
+        $dataUrl = \Cake\Routing\Router::url(['action' => 'gridData']);
+        $tableDataUrl = $dataUrl;
+        if (!empty($queryParams)) {
+            $tableDataUrl .= '?' . http_build_query($queryParams);
+        }
 
-        if ($turboFrame === 'gatherings-grid-table') {
-            $this->set('data', $result['data']);
-            $this->set('tableFrameId', 'gatherings-grid-table');
+        // Determine which template to render based on Turbo-Frame header
+        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
+        $frameId = 'gatherings-grid';
+
+        if ($turboFrame === $frameId . '-table') {
+            $this->set('tableFrameId', $frameId . '-table');
             $this->viewBuilder()->disableAutoLayout();
             $this->viewBuilder()->setTemplate('../element/dv_grid_table');
         } else {
-            $this->set('data', $result['data']);
-            $this->set('frameId', 'gatherings-grid');
+            $this->set('frameId', $frameId);
+            $this->set('dataUrl', $dataUrl);
+            $this->set('tableDataUrl', $tableDataUrl);
             $this->viewBuilder()->disableAutoLayout();
             $this->viewBuilder()->setTemplate('../element/dv_grid_content');
         }
-
-        // Provide row actions to template context when rendering table element
-        $this->set('rowActions', $rowActions);
-    }
-
-    /**
-     * Compute key month boundaries in both local and UTC timezones
-     *
-     * @param string $userTimezone User's timezone identifier
-     * @return array<string, string>
-     */
-    protected function getGatheringDateBoundaries(string $userTimezone): array
-    {
-        $timezone = new DateTimeZone($userTimezone);
-
-        $thisMonthStart = new DateTime('first day of this month 00:00:00', $timezone);
-        $thisMonthEnd = new DateTime('last day of this month 23:59:59', $timezone);
-        $nextMonthStart = (clone $thisMonthStart)->modify('first day of next month');
-        $nextMonthEnd = (clone $thisMonthEnd)->modify('last day of next month')->setTime(23, 59, 59);
-        $previousCutoff = (clone $thisMonthStart)->setTime(0, 0, 0);
-
-        $thisMonthStartUtc = \App\KMP\TimezoneHelper::toUtc($thisMonthStart->format('Y-m-d H:i:s'), $userTimezone);
-        $thisMonthEndUtc = \App\KMP\TimezoneHelper::toUtc($thisMonthEnd->format('Y-m-d H:i:s'), $userTimezone);
-        $nextMonthStartUtc = \App\KMP\TimezoneHelper::toUtc($nextMonthStart->format('Y-m-d H:i:s'), $userTimezone);
-        $nextMonthEndUtc = \App\KMP\TimezoneHelper::toUtc($nextMonthEnd->format('Y-m-d H:i:s'), $userTimezone);
-        $previousCutoffUtc = \App\KMP\TimezoneHelper::toUtc($previousCutoff->format('Y-m-d H:i:s'), $userTimezone);
-
-        return [
-            'thisMonthStartUtc' => $thisMonthStartUtc->format('Y-m-d H:i:s'),
-            'thisMonthEndUtc' => $thisMonthEndUtc->format('Y-m-d H:i:s'),
-            'nextMonthStartUtc' => $nextMonthStartUtc->format('Y-m-d H:i:s'),
-            'nextMonthEndUtc' => $nextMonthEndUtc->format('Y-m-d H:i:s'),
-            'previousCutoffUtc' => $previousCutoffUtc->format('Y-m-d H:i:s'),
-            'thisMonthStartLocal' => $thisMonthStart->format('Y-m-d'),
-            'thisMonthEndLocal' => $thisMonthEnd->format('Y-m-d'),
-            'nextMonthStartLocal' => $nextMonthStart->format('Y-m-d'),
-            'nextMonthEndLocal' => $nextMonthEnd->format('Y-m-d'),
-        ];
-    }
-
-    /**
-     * Build system view metadata for gatherings dv_grid
-     *
-     * @param string $userTimezone User timezone identifier
-     * @return array<string, array<string, mixed>>
-     */
-    protected function getGatheringSystemViews(string $userTimezone): array
-    {
-        $boundaries = $this->getGatheringDateBoundaries($userTimezone);
-
-        return [
-            'sys-gatherings-this-month' => [
-                'id' => 'sys-gatherings-this-month',
-                'name' => __('This Month'),
-                'description' => __('Gatherings overlapping the current calendar month'),
-                'canManage' => false,
-                'config' => [
-                    'filters' => [
-                        ['field' => 'start_date', 'operator' => 'dateRange', 'value' => [$boundaries['thisMonthStartLocal'], $boundaries['thisMonthEndLocal']]],
-                    ],
-                    'skipFilterColumns' => ['start_date', 'end_date'],
-                ],
-            ],
-            'sys-gatherings-next-month' => [
-                'id' => 'sys-gatherings-next-month',
-                'name' => __('Next Month'),
-                'description' => __('Gatherings scheduled for the next calendar month'),
-                'canManage' => false,
-                'config' => [
-                    'filters' => [
-                        ['field' => 'start_date', 'operator' => 'dateRange', 'value' => [$boundaries['nextMonthStartLocal'], $boundaries['nextMonthEndLocal']]],
-                    ],
-                    'skipFilterColumns' => ['start_date', 'end_date'],
-                ],
-            ],
-            'sys-gatherings-future' => [
-                'id' => 'sys-gatherings-future',
-                'name' => __('Future'),
-                'description' => __('Gatherings starting after next month'),
-                'canManage' => false,
-                'config' => [
-                    'filters' => [
-                        ['field' => 'start_date', 'operator' => 'gte', 'value' => $boundaries['nextMonthEndLocal']],
-                    ],
-                    'skipFilterColumns' => ['start_date'],
-                ],
-            ],
-            'sys-gatherings-previous' => [
-                'id' => 'sys-gatherings-previous',
-                'name' => __('Previous'),
-                'description' => __('Gatherings that ended before this month'),
-                'canManage' => false,
-                'config' => [
-                    'filters' => [
-                        ['field' => 'end_date', 'operator' => 'lt', 'value' => $boundaries['thisMonthStartLocal']],
-                    ],
-                    'skipFilterColumns' => ['end_date'],
-                ],
-            ],
-        ];
     }
 
     /**
@@ -282,7 +173,7 @@ class GatheringsController extends AppController
      */
     protected function buildGatheringSystemViewQueryCallback(string $userTimezone): callable
     {
-        $boundaries = $this->getGatheringDateBoundaries($userTimezone);
+        $boundaries = \App\KMP\GridColumns\GatheringsGridColumns::getSystemViewDateBoundaries($userTimezone);
 
         return function ($query, $selectedSystemView) use ($boundaries) {
             if (!$selectedSystemView || empty($selectedSystemView['id'])) {

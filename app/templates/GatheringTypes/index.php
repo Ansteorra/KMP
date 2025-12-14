@@ -23,10 +23,10 @@ $this->assign('title', __('Gathering Types'));
         <h3><?= __('Gathering Types') ?></h3>
         <div>
             <?php if ($user->checkCan("add", "GatheringTypes")) : ?>
-                <?= $this->Html->link(
-                    __('Add Gathering Type'),
+            <?= $this->Html->link(
+                    __(' Add Gathering Type'),
                     ['action' => 'add'],
-                    ['class' => 'btn btn-primary']
+                    ['class' => 'btn btn-primary  bi bi-plus-circle']
                 ) ?>
             <?php endif; ?>
         </div>

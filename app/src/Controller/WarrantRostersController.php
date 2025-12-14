@@ -82,7 +82,7 @@ class WarrantRostersController extends AppController
         $baseQuery = $this->Authorization->applyScope($baseQuery);
 
         // Define system views for status filtering
-        $systemViews = $this->getWarrantRosterSystemViews();
+        $systemViews = \App\KMP\GridColumns\WarrantRostersGridColumns::getSystemViews([]);
 
         // Use unified trait for grid processing
         $result = $this->processDataverseGrid([
@@ -98,9 +98,9 @@ class WarrantRostersController extends AppController
             'canAddViews' => false,
             'canFilter' => true,
             'canExportCsv' => false,
-            'canFilter' => true,
             'lockedFilters' => ['status'],
-            'showFilterPills' => false,
+            'showFilterPills' => true,
+            'showSearchBox' => true,
         ]);
 
         // Handle CSV export
@@ -142,52 +142,6 @@ class WarrantRostersController extends AppController
             $this->viewBuilder()->disableAutoLayout();
             $this->viewBuilder()->setTemplate('../element/dv_grid_content');
         }
-    }
-
-    /**
-     * Get system views for warrant rosters
-     *
-     * Defines the predefined views (tabs) for filtering warrant rosters by status.
-     *
-     * @return array<string, array<string, mixed>>
-     */
-    protected function getWarrantRosterSystemViews(): array
-    {
-        return [
-            'sys-roster-pending' => [
-                'id' => 'sys-roster-pending',
-                'name' => __('Pending'),
-                'description' => __('Rosters awaiting approval'),
-                'canManage' => false,
-                'config' => [
-                    'filters' => [
-                        ['field' => 'status', 'operator' => 'eq', 'value' => WarrantRoster::STATUS_PENDING],
-                    ],
-                ],
-            ],
-            'sys-roster-approved' => [
-                'id' => 'sys-roster-approved',
-                'name' => __('Approved'),
-                'description' => __('Approved rosters'),
-                'canManage' => false,
-                'config' => [
-                    'filters' => [
-                        ['field' => 'status', 'operator' => 'eq', 'value' => WarrantRoster::STATUS_APPROVED],
-                    ],
-                ],
-            ],
-            'sys-roster-declined' => [
-                'id' => 'sys-roster-declined',
-                'name' => __('Declined'),
-                'description' => __('Declined rosters'),
-                'canManage' => false,
-                'config' => [
-                    'filters' => [
-                        ['field' => 'status', 'operator' => 'eq', 'value' => WarrantRoster::STATUS_DECLINED],
-                    ],
-                ],
-            ],
-        ];
     }
 
     /**

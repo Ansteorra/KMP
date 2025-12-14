@@ -52,6 +52,19 @@ class MembersTablePolicy extends BasePolicy
     }
 
     /**
+     * Check if user can access verifyQueueGridData scope (Dataverse grid data endpoint)
+     * Uses the same authorization scope as the verifyQueue action
+     *
+     * @param \App\KMP\KmpIdentityInterface $user User
+     * @param mixed $query Query
+     * @return mixed
+     */
+    public function scopeVerifyQueueGridData(KmpIdentityInterface $user, mixed $query): mixed
+    {
+        return $this->scopeVerifyQueue($user, $query);
+    }
+
+    /**
      * Check if user can verify queue
      *
      * @param \App\KMP\KmpIdentityInterface $user User
@@ -64,6 +77,20 @@ class MembersTablePolicy extends BasePolicy
         $method = __FUNCTION__;
 
         return $this->_hasPolicy($user, $method, $entity);
+    }
+
+    /**
+     * Check if user can access verifyQueueGridData (grid data endpoint)
+     * Uses the same authorization as the verifyQueue action
+     *
+     * @param \App\KMP\KmpIdentityInterface $user User
+     * @param \App\Model\Entity\BaseEntity|Cake\ORM\Table $entity Entity
+     * @param mixed ...$optionalArgs Optional arguments
+     * @return bool
+     */
+    public function canVerifyQueueGridData(KmpIdentityInterface $user, BaseEntity|Table $entity, mixed ...$optionalArgs): bool
+    {
+        return $this->canVerifyQueue($user, $entity, ...$optionalArgs);
     }
 
     /**

@@ -12688,10 +12688,26 @@ input:checked+.slider:before {
     border-bottom-color: var(--bs-body-bg) !important;
 }
 
-/* Prevent bottom border on active tab hover */
+/* Fix tab height consistency when badges are present */
+.nav-tabs .nav-link {
+    display: flex;
+    align-items: center;
+    min-height: 42px;
+    /* Ensure consistent height for all tabs */
+}
+
+/* Ensure badges don't add extra height */
+.nav-tabs .nav-link .badge {
+    align-self: center;
+}
+
+/* Prevent bottom border on active tabs - override Bootstrap's border-color shorthand */
+.nav-tabs .nav-link.active,
 .nav-tabs .nav-link.active:hover,
+.nav-tabs .nav-item.show .nav-link,
 .nav-tabs .nav-item.show .nav-link:hover {
-    border-bottom-color: var(--bs-body-bg) !important;
+    /* Use border-color to override all sides, maintaining top/sides while hiding bottom */
+    border-color: var(--bs-border-color) var(--bs-border-color) var(--bs-body-bg) var(--bs-border-color) !important;
 }
 
 /* Sub-row expansion styles for grid view */

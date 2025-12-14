@@ -27,20 +27,21 @@ $this->KMP->endBlock();
         <?= $this->Html->link(
             '<i class="bi bi-calendar-event"></i> Calendar View',
             ['action' => 'calendar'],
-            ['class' => 'btn btn-info btn-sm', 'escape' => false]
+            ['class' => 'btn btn-info', 'escape' => false]
         ) ?>
         <?php
         $gatheringsTable = \Cake\ORM\TableRegistry::getTableLocator()->get("Gatherings");
         $tempGathering = $gatheringsTable->newEmptyEntity();
+        $branch_id = $branch_id ?? null;
         if ($branch_id) {
             $tempGathering->branch_id = $branch_id;
         }
         if ($user->checkCan("add", $tempGathering)) :
         ?>
-            <?= $this->Html->link(
+        <?= $this->Html->link(
                 ' Add Gathering',
                 ['action' => 'add'],
-                ['class' => 'btn btn-primary btn-sm bi bi-plus-circle', 'data-turbo-frame' => '_top']
+                ['class' => 'btn btn-primary bi bi-plus-circle', 'data-turbo-frame' => '_top']
             ) ?>
         <?php endif; ?>
     </div>

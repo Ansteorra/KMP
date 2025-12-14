@@ -13,6 +13,17 @@ namespace App\KMP\GridColumns;
 class EmailTemplatesGridColumns extends BaseGridColumns
 {
     /**
+     * Get available system views for the Email Templates grid.
+     *
+     * @param array<string, mixed> $options Optional context (unused)
+     * @return array<string, array<string, mixed>>
+     */
+    public static function getSystemViews(array $options = []): array
+    {
+        return [];
+    }
+
+    /**
      * Get column metadata for email templates grid
      *
      * @return array<string, array<string, mixed>>

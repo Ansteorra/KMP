@@ -21,12 +21,12 @@ $this->assign('title', __('Members'));
 
 <div class="members index content">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h3><?= __('Members - Dataverse Grid') ?></h3>
+        <h3><?= __('Members') ?></h3>
         <div>
             <?= $this->Html->link(
-                __('Add Member'),
+                __(' Add Member'),
                 ['action' => 'add'],
-                ['class' => 'btn btn-primary']
+                ['class' => 'btn btn-primary bi bi-plus-circle']
             ) ?>
             <?= $this->Html->link(
                 __('Classic View'),

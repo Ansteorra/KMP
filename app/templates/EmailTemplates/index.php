@@ -24,9 +24,9 @@ $this->assign('title', __('Email Templates'));
         <div>
             <?php if ($user->checkCan("add", "EmailTemplates")) : ?>
                 <?= $this->Html->link(
-                    __('Add Email Template'),
+                    __(' Add Email Template'),
                     ['action' => 'add'],
-                    ['class' => 'btn btn-primary me-2']
+                    ['class' => 'btn btn-primary bi bi-plus-circle me-2']
                 ) ?>
             <?php endif; ?>
             <?php if ($user->checkCan("sync", "EmailTemplates")) : ?>
