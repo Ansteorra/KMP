@@ -21,8 +21,6 @@
  * @var string $columnKey Column key
  */
 
-use function array_key_exists;
-
 $clickActionPermission = $clickActionPermission ?? null;
 $clickActionPermissionArgs = $clickActionPermissionArgs ?? [];
 $identity = $user ?? $this->getRequest()->getAttribute('identity');

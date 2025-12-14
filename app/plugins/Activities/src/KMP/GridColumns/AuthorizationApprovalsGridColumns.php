@@ -116,9 +116,6 @@ class AuthorizationApprovalsGridColumns extends BaseGridColumns
             'requester_name',
             'requested_on',
             'activity_name',
-            'membership_number',
-            'membership_expires_on',
-            'background_check_expires_on',
         ];
     }
 

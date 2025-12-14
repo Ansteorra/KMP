@@ -334,4 +334,28 @@ class KmpHelper extends Helper
 
         return round($bytes, $precision) . $units[$i];
     }
+
+    /**
+     * Return the possessive form of a name.
+     *
+     * Trims input and appends an apostrophe or apostrophe-s depending
+     * on whether the name ends with an "s" (case-insensitive).
+     *
+     * @param string $name Name to convert
+     * @return string Possessive form (empty string for blank input)
+     */
+    public function makePossessive(string $name): string
+    {
+        $name = trim($name);
+        if ($name === '') {
+            return '';
+        }
+
+        $last = strtolower(substr($name, -1));
+        if ($last === 's') {
+            return $name . "'";
+        }
+
+        return $name . "'s";
+    }
 }

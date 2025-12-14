@@ -31,15 +31,24 @@ class CodeEditorController extends Controller {
     connect() {
         this.setupEditor()
         this.validateContent()
-        console.log('Code editor connected for:', this.languageValue)
     }
 
     disconnect() {
-        // Cleanup if needed
+        if (this._onInput && this.hasTextareaTarget) {
+            this.textareaTarget.removeEventListener('input', this._onInput)
+        }
+        if (this._onScroll && this.hasTextareaTarget) {
+            this.textareaTarget.removeEventListener('scroll', this._onScroll)
+        }
+        if (this._onKeydown && this.hasTextareaTarget) {
+            this.textareaTarget.removeEventListener('keydown', this._onKeydown)
+        }
+        this._onInput = this._onScroll = this._onKeydown = null
     }
 
     setupEditor() {
         if (!this.hasTextareaTarget) return
+        if (this._isSetup) return
 
         const textarea = this.textareaTarget
 
@@ -95,23 +104,25 @@ class CodeEditorController extends Controller {
         wrapper.appendChild(textarea)
 
         // Update line numbers on content change
-        textarea.addEventListener('input', () => {
+        this._onInput = () => {
             this.updateLineNumbers()
             if (this.validateOnChangeValue) {
                 this.validateContent()
             }
-        })
+        }
+        textarea.addEventListener('input', this._onInput)
 
-        textarea.addEventListener('scroll', () => {
+        this._onScroll = () => {
             lineNumbers.scrollTop = textarea.scrollTop
-        })
+        }
+        textarea.addEventListener('scroll', this._onScroll)
 
-        textarea.addEventListener('keydown', (e) => {
-            this.handleKeydown(e)
-        })
+        this._onKeydown = (e) => this.handleKeydown(e)
+        textarea.addEventListener('keydown', this._onKeydown)
 
         // Initial line numbers
         this.updateLineNumbers()
+        this._isSetup = true
     }
 
     updateLineNumbers() {

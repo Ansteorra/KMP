@@ -218,7 +218,7 @@ class ActivityGroupsController extends AppController
                 ),
             );
         }
-        $this->set(compact("ActivityGroup"));
+        $this->set(compact("authorizationGroup"));
     }
 
     /**

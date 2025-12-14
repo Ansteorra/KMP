@@ -10,7 +10,7 @@
 $this->extend("/layout/TwitterBootstrap/dashboard");
 
 echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Activities';
+echo h((string)$this->KMP->getAppSetting("KMP.ShortSiteTitle")) . ': Activities';
 $this->KMP->endBlock();
 ?>
 
@@ -20,7 +20,7 @@ $this->KMP->endBlock();
     </div>
     <div class="col text-end">
         <?php if ($user->checkCan("add", "Activities.Activities")): ?>
-        <?= $this->Html->link(
+            <?= $this->Html->link(
                 ' Add Activity',
                 ['action' => 'add'],
                 ['class' => 'btn btn-primary bi bi-plus-circle', 'data-turbo-frame' => '_top']

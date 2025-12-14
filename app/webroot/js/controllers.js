@@ -490,7 +490,7 @@ class AppSettingModalController extends _hotwired_stimulus__WEBPACK_IMPORTED_MOD
     const clickedButton = event.target;
     if (!clickedButton) return;
     const modalTarget = clickedButton.getAttribute('data-bs-target');
-    if (modalTarget !== '#editAppSettingModal') return;
+    if (modalTarget !== `#${this.modalIdValue}`) return;
     console.log('AppSettingModal: Edit clicked for setting:', data);
     if (data && data.id) {
       this.loadEditForm(data.id);
@@ -1601,13 +1601,22 @@ class CodeEditorController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0
   connect() {
     this.setupEditor();
     this.validateContent();
-    console.log('Code editor connected for:', this.languageValue);
   }
   disconnect() {
-    // Cleanup if needed
+    if (this._onInput && this.hasTextareaTarget) {
+      this.textareaTarget.removeEventListener('input', this._onInput);
+    }
+    if (this._onScroll && this.hasTextareaTarget) {
+      this.textareaTarget.removeEventListener('scroll', this._onScroll);
+    }
+    if (this._onKeydown && this.hasTextareaTarget) {
+      this.textareaTarget.removeEventListener('keydown', this._onKeydown);
+    }
+    this._onInput = this._onScroll = this._onKeydown = null;
   }
   setupEditor() {
     if (!this.hasTextareaTarget) return;
+    if (this._isSetup) return;
     const textarea = this.textareaTarget;
 
     // Create wrapper for editor with line numbers
@@ -1662,21 +1671,23 @@ class CodeEditorController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0
     wrapper.appendChild(textarea);
 
     // Update line numbers on content change
-    textarea.addEventListener('input', () => {
+    this._onInput = () => {
       this.updateLineNumbers();
       if (this.validateOnChangeValue) {
         this.validateContent();
       }
-    });
-    textarea.addEventListener('scroll', () => {
+    };
+    textarea.addEventListener('input', this._onInput);
+    this._onScroll = () => {
       lineNumbers.scrollTop = textarea.scrollTop;
-    });
-    textarea.addEventListener('keydown', e => {
-      this.handleKeydown(e);
-    });
+    };
+    textarea.addEventListener('scroll', this._onScroll);
+    this._onKeydown = e => this.handleKeydown(e);
+    textarea.addEventListener('keydown', this._onKeydown);
 
     // Initial line numbers
     this.updateLineNumbers();
+    this._isSetup = true;
   }
   updateLineNumbers() {
     if (!this.lineNumbersElement || !this.hasTextareaTarget) return;
@@ -4680,12 +4691,17 @@ class GatheringsCalendarController extends _hotwired_stimulus__WEBPACK_IMPORTED_
 
           // Fix close button - Bootstrap's event delegation doesn't work on dynamically loaded content
           const closeButton = this.modalElement.querySelector('.btn-close');
+          // Remove previous listener if exists to avoid accumulating handlers
+          if (this._closeButtonHandler && closeButton) {
+            closeButton.removeEventListener('click', this._closeButtonHandler);
+          }
           if (closeButton) {
-            closeButton.addEventListener('click', () => {
+            this._closeButtonHandler = () => {
               if (this.modalInstance) {
                 this.modalInstance.hide();
               }
-            });
+            };
+            closeButton.addEventListener('click', this._closeButtonHandler);
           }
         } else {
           console.error('Could not find turbo-frame in response');
@@ -4762,15 +4778,19 @@ class GatheringsCalendarController extends _hotwired_stimulus__WEBPACK_IMPORTED_
       modalContent.innerHTML = html;
 
       // Manually attach click handler to close button since Bootstrap's event delegation
-      // doesn't work on dynamically inserted content
+      // doesn't work on dynamically inserted content. Remove previous listener first.
       const closeButton = modalContent.querySelector('.btn-close');
+      if (this._attendanceCloseHandler && closeButton) {
+        closeButton.removeEventListener('click', this._attendanceCloseHandler);
+      }
       if (closeButton) {
-        closeButton.addEventListener('click', () => {
+        this._attendanceCloseHandler = () => {
           const bsModal = bootstrap.Modal.getInstance(attendanceModal);
           if (bsModal) {
             bsModal.hide();
           }
-        });
+        };
+        closeButton.addEventListener('click', this._attendanceCloseHandler);
       }
     } catch (error) {
       console.error('Error loading attendance modal:', error);
@@ -5009,8 +5029,28 @@ class GatheringsCalendarController extends _hotwired_stimulus__WEBPACK_IMPORTED_
    * Disconnect event - cleanup
    */
   disconnect() {
-    if (this.modalInstance) {
-      this.modalInstance.dispose();
+    // Remove event listeners attached to dynamically loaded modal content
+    try {
+      if (this.modalElement) {
+        const closeButton = this.modalElement.querySelector('.btn-close');
+        if (closeButton && this._closeButtonHandler) {
+          closeButton.removeEventListener('click', this._closeButtonHandler);
+          this._closeButtonHandler = null;
+        }
+      }
+      if (this.turboFrame) {
+        // If attendance modal content was rendered into a separate container, try to clean it
+        const attendanceClose = document.querySelector('#attendanceModalContent .btn-close');
+        if (attendanceClose && this._attendanceCloseHandler) {
+          attendanceClose.removeEventListener('click', this._attendanceCloseHandler);
+          this._attendanceCloseHandler = null;
+        }
+      }
+      if (this.modalInstance) {
+        this.modalInstance.dispose();
+      }
+    } catch (e) {
+      console.warn('Error during disconnect cleanup:', e);
     }
   }
 }
@@ -10803,14 +10843,28 @@ __webpack_require__.r(__webpack_exports__);
  */
 class SortableListController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
   static targets = ["item", "handle"];
-  connect() {
-    console.log("Sortable List Controller connected");
+  initialize() {
     this.draggedElement = null;
     this.draggedOverElement = null;
-
+    this.boundHandlers = {
+      dragstart: this.dragStart.bind(this),
+      dragover: this.dragOver.bind(this),
+      dragenter: this.dragEnter.bind(this),
+      dragleave: this.dragLeave.bind(this),
+      drop: this.drop.bind(this),
+      dragend: this.dragEnd.bind(this)
+    };
+  }
+  connect() {
     // Make items draggable
     this.itemTargets.forEach(item => {
       item.setAttribute('draggable', 'true');
+      this.addDragListeners(item);
+    });
+  }
+  disconnect() {
+    this.itemTargets.forEach(item => {
+      this.removeDragListeners(item);
     });
   }
 
@@ -10821,7 +10875,6 @@ class SortableListController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE
     this.draggedElement = event.currentTarget;
     this.draggedElement.classList.add('dragging');
     event.dataTransfer.effectAllowed = 'move';
-    event.dataTransfer.setData('text/html', this.draggedElement.innerHTML);
   }
 
   /**
@@ -10912,7 +10965,6 @@ class SortableListController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE
       cancelable: true
     });
     this.element.dispatchEvent(event);
-    console.log("Items reordered:", order);
   }
 
   /**
@@ -10922,6 +10974,22 @@ class SortableListController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE
     return this.itemTargets.map(item => {
       return item.dataset.itemId || item.dataset.columnKey || item.id;
     });
+  }
+  addDragListeners(item) {
+    item.addEventListener('dragstart', this.boundHandlers.dragstart);
+    item.addEventListener('dragover', this.boundHandlers.dragover);
+    item.addEventListener('dragenter', this.boundHandlers.dragenter);
+    item.addEventListener('dragleave', this.boundHandlers.dragleave);
+    item.addEventListener('drop', this.boundHandlers.drop);
+    item.addEventListener('dragend', this.boundHandlers.dragend);
+  }
+  removeDragListeners(item) {
+    item.removeEventListener('dragstart', this.boundHandlers.dragstart);
+    item.removeEventListener('dragover', this.boundHandlers.dragover);
+    item.removeEventListener('dragenter', this.boundHandlers.dragenter);
+    item.removeEventListener('dragleave', this.boundHandlers.dragleave);
+    item.removeEventListener('drop', this.boundHandlers.drop);
+    item.removeEventListener('dragend', this.boundHandlers.dragend);
   }
 }
 
@@ -11041,19 +11109,25 @@ class TimezoneInputController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODUL
 
         // Store original local value for potential reset
         input.dataset.submittedLocal = input.value;
+        // Only proceed when conversion succeeds
+        if (utcValue) {
+          delete input.dataset.timezoneConversionFailed;
 
-        // Create hidden input with UTC value
-        const hiddenInput = document.createElement('input');
-        hiddenInput.type = 'hidden';
-        hiddenInput.name = input.name;
-        hiddenInput.value = utcValue;
-        hiddenInput.dataset.timezoneConverted = 'true';
+          // Create hidden input with UTC value
+          const hiddenInput = document.createElement('input');
+          hiddenInput.type = 'hidden';
+          hiddenInput.name = input.name;
+          hiddenInput.value = utcValue;
+          hiddenInput.dataset.timezoneConverted = 'true';
 
-        // Disable original input so it doesn't submit
-        input.disabled = true;
+          // Disable original input so it doesn't submit
+          input.disabled = true;
 
-        // Add hidden input to form
-        this.element.appendChild(hiddenInput);
+          // Add hidden input to form
+          this.element.appendChild(hiddenInput);
+        } else {
+          input.dataset.timezoneConversionFailed = 'true';
+        }
       }
     });
   }
@@ -11070,6 +11144,7 @@ class TimezoneInputController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODUL
     // Re-enable and restore datetime inputs
     this.datetimeInputTargets.forEach(input => {
       input.disabled = false;
+      delete input.dataset.timezoneConversionFailed;
 
       // Restore to original local value
       if (input.dataset.localValue) {
@@ -51694,12 +51769,16 @@ class ActivitiesRenewAuthorization extends _hotwired_stimulus__WEBPACK_IMPORTED_
 
   /** Register setId listener when outlet button connects. */
   outletBtnOutletConnected(outlet, element) {
-    outlet.addListener(this.setId.bind(this));
+    this._boundSetId = this._boundSetId || this.setId.bind(this);
+    outlet.addListener(this._boundSetId);
   }
 
   /** Remove setId listener when outlet button disconnects. */
   outletBtnOutletDisconnected(outlet) {
-    outlet.removeListener(this.setId.bind(this));
+    if (this._boundSetId) {
+      outlet.removeListener(this._boundSetId);
+      this._boundSetId = null;
+    }
   }
 
   /** Fetch approvers for selected activity and member, populate dropdown. */

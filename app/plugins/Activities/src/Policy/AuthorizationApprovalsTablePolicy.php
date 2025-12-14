@@ -89,11 +89,16 @@ class AuthorizationApprovalsTablePolicy extends BasePolicy
     {
         $authorizationApprovalsTable = TableRegistry::getTableLocator()->get("Activities.AuthorizationApprovals");
         $authorizationApproval = $authorizationApprovalsTable->newEmptyEntity();
+        $id = $user->getIdentifier();
 
         if ($this->canAllQueues($user, $authorizationApproval)) {
             return $query;
         }
-        return $query->where(["approver_id" => $user->getIdentifier()]);
+        if ($id === null) {
+            return $query->where(['1 = 0']);
+        }
+
+        return $query->where(["approver_id" => $id]);
     }
 
     /**
@@ -105,7 +110,12 @@ class AuthorizationApprovalsTablePolicy extends BasePolicy
      */
     public function scopeMyQueue(KmpIdentityInterface $user, $query)
     {
-        return $query->where(["approver_id" => $user->getIdentifier()]);
+        $id = $user->getIdentifier();
+        if ($id === null) {
+            return $query->where(['1 = 0']);
+        }
+
+        return $query->where(["approver_id" => $id]);
     }
 
     /**
@@ -141,7 +151,12 @@ class AuthorizationApprovalsTablePolicy extends BasePolicy
      */
     public function scopeMobileApproveAuthorizations(KmpIdentityInterface $user, $query)
     {
-        return $query->where(["approver_id" => $user->getIdentifier()]);
+        $id = $user->getIdentifier();
+        if ($id === null) {
+            return $query->where(['1 = 0']);
+        }
+
+        return $query->where(["approver_id" => $id]);
     }
 
     /**

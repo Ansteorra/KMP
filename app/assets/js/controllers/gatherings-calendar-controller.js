@@ -133,12 +133,17 @@ class GatheringsCalendarController extends Controller {
 
                     // Fix close button - Bootstrap's event delegation doesn't work on dynamically loaded content
                     const closeButton = this.modalElement.querySelector('.btn-close')
+                    // Remove previous listener if exists to avoid accumulating handlers
+                    if (this._closeButtonHandler && closeButton) {
+                        closeButton.removeEventListener('click', this._closeButtonHandler)
+                    }
                     if (closeButton) {
-                        closeButton.addEventListener('click', () => {
+                        this._closeButtonHandler = () => {
                             if (this.modalInstance) {
                                 this.modalInstance.hide()
                             }
-                        })
+                        }
+                        closeButton.addEventListener('click', this._closeButtonHandler)
                     }
                 } else {
                     console.error('Could not find turbo-frame in response')
@@ -219,15 +224,19 @@ class GatheringsCalendarController extends Controller {
             modalContent.innerHTML = html
 
             // Manually attach click handler to close button since Bootstrap's event delegation
-            // doesn't work on dynamically inserted content
+            // doesn't work on dynamically inserted content. Remove previous listener first.
             const closeButton = modalContent.querySelector('.btn-close')
+            if (this._attendanceCloseHandler && closeButton) {
+                closeButton.removeEventListener('click', this._attendanceCloseHandler)
+            }
             if (closeButton) {
-                closeButton.addEventListener('click', () => {
+                this._attendanceCloseHandler = () => {
                     const bsModal = bootstrap.Modal.getInstance(attendanceModal)
                     if (bsModal) {
                         bsModal.hide()
                     }
-                })
+                }
+                closeButton.addEventListener('click', this._attendanceCloseHandler)
             }
 
         } catch (error) {
@@ -486,8 +495,30 @@ class GatheringsCalendarController extends Controller {
      * Disconnect event - cleanup
      */
     disconnect() {
-        if (this.modalInstance) {
-            this.modalInstance.dispose()
+        // Remove event listeners attached to dynamically loaded modal content
+        try {
+            if (this.modalElement) {
+                const closeButton = this.modalElement.querySelector('.btn-close')
+                if (closeButton && this._closeButtonHandler) {
+                    closeButton.removeEventListener('click', this._closeButtonHandler)
+                    this._closeButtonHandler = null
+                }
+            }
+
+            if (this.turboFrame) {
+                // If attendance modal content was rendered into a separate container, try to clean it
+                const attendanceClose = document.querySelector('#attendanceModalContent .btn-close')
+                if (attendanceClose && this._attendanceCloseHandler) {
+                    attendanceClose.removeEventListener('click', this._attendanceCloseHandler)
+                    this._attendanceCloseHandler = null
+                }
+            }
+
+            if (this.modalInstance) {
+                this.modalInstance.dispose()
+            }
+        } catch (e) {
+            console.warn('Error during disconnect cleanup:', e)
         }
     }
 

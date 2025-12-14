@@ -24,14 +24,30 @@ import { Controller } from "@hotwired/stimulus"
 class SortableListController extends Controller {
     static targets = ["item", "handle"]
 
-    connect() {
-        console.log("Sortable List Controller connected");
+    initialize() {
         this.draggedElement = null;
         this.draggedOverElement = null;
+        this.boundHandlers = {
+            dragstart: this.dragStart.bind(this),
+            dragover: this.dragOver.bind(this),
+            dragenter: this.dragEnter.bind(this),
+            dragleave: this.dragLeave.bind(this),
+            drop: this.drop.bind(this),
+            dragend: this.dragEnd.bind(this),
+        };
+    }
 
+    connect() {
         // Make items draggable
         this.itemTargets.forEach(item => {
             item.setAttribute('draggable', 'true');
+            this.addDragListeners(item);
+        });
+    }
+
+    disconnect() {
+        this.itemTargets.forEach(item => {
+            this.removeDragListeners(item);
         });
     }
 
@@ -42,7 +58,6 @@ class SortableListController extends Controller {
         this.draggedElement = event.currentTarget;
         this.draggedElement.classList.add('dragging');
         event.dataTransfer.effectAllowed = 'move';
-        event.dataTransfer.setData('text/html', this.draggedElement.innerHTML);
     }
 
     /**
@@ -141,7 +156,6 @@ class SortableListController extends Controller {
         });
 
         this.element.dispatchEvent(event);
-        console.log("Items reordered:", order);
     }
 
     /**
@@ -151,6 +165,24 @@ class SortableListController extends Controller {
         return this.itemTargets.map(item => {
             return item.dataset.itemId || item.dataset.columnKey || item.id;
         });
+    }
+
+    addDragListeners(item) {
+        item.addEventListener('dragstart', this.boundHandlers.dragstart);
+        item.addEventListener('dragover', this.boundHandlers.dragover);
+        item.addEventListener('dragenter', this.boundHandlers.dragenter);
+        item.addEventListener('dragleave', this.boundHandlers.dragleave);
+        item.addEventListener('drop', this.boundHandlers.drop);
+        item.addEventListener('dragend', this.boundHandlers.dragend);
+    }
+
+    removeDragListeners(item) {
+        item.removeEventListener('dragstart', this.boundHandlers.dragstart);
+        item.removeEventListener('dragover', this.boundHandlers.dragover);
+        item.removeEventListener('dragenter', this.boundHandlers.dragenter);
+        item.removeEventListener('dragleave', this.boundHandlers.dragleave);
+        item.removeEventListener('drop', this.boundHandlers.drop);
+        item.removeEventListener('dragend', this.boundHandlers.dragend);
     }
 }
 

@@ -99,19 +99,25 @@ class TimezoneInputController extends Controller {
 
                 // Store original local value for potential reset
                 input.dataset.submittedLocal = input.value;
+                // Only proceed when conversion succeeds
+                if (utcValue) {
+                    delete input.dataset.timezoneConversionFailed;
 
-                // Create hidden input with UTC value
-                const hiddenInput = document.createElement('input');
-                hiddenInput.type = 'hidden';
-                hiddenInput.name = input.name;
-                hiddenInput.value = utcValue;
-                hiddenInput.dataset.timezoneConverted = 'true';
+                    // Create hidden input with UTC value
+                    const hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = input.name;
+                    hiddenInput.value = utcValue;
+                    hiddenInput.dataset.timezoneConverted = 'true';
 
-                // Disable original input so it doesn't submit
-                input.disabled = true;
+                    // Disable original input so it doesn't submit
+                    input.disabled = true;
 
-                // Add hidden input to form
-                this.element.appendChild(hiddenInput);
+                    // Add hidden input to form
+                    this.element.appendChild(hiddenInput);
+                } else {
+                    input.dataset.timezoneConversionFailed = 'true';
+                }
             }
         });
     }
@@ -128,6 +134,7 @@ class TimezoneInputController extends Controller {
         // Re-enable and restore datetime inputs
         this.datetimeInputTargets.forEach(input => {
             input.disabled = false;
+            delete input.dataset.timezoneConversionFailed;
 
             // Restore to original local value
             if (input.dataset.localValue) {

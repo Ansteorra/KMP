@@ -70,7 +70,7 @@ class AuthorizationApprovalsController extends AppController
             'approved_count' => $func->count('CASE WHEN AuthorizationApprovals.approved = 1 THEN 1 END'),
             'denied_count' => $func->count('CASE WHEN AuthorizationApprovals.approved = 0  && AuthorizationApprovals.responded_on IS NOT NULL THEN 1 END'),
         ])
-            ->group(['Approvers.id', 'Approvers.sca_name', 'Approvers.last_login'])
+            ->groupBy(['Approvers.id', 'Approvers.sca_name', 'Approvers.last_login'])
             ->enableAutoFields(false);
 
         $result = $this->processDataverseGrid([
@@ -87,10 +87,6 @@ class AuthorizationApprovalsController extends AppController
             'showFilterPills' => true,
             'enableColumnPicker' => false,
         ]);
-
-        if (!empty($result['isCsvExport'])) {
-            return $this->handleCsvExport($result, $csvExportService, 'authorization-approvers');
-        }
 
         $this->set([
             'authorizationApprovalRollup' => $result['data'],
@@ -576,10 +572,11 @@ class AuthorizationApprovalsController extends AppController
 
         $approverId = $this->Authentication->getIdentity()->getIdentifier();
         $nextApproverId = $this->request->getData("next_approver_id");
+        $nextApproverId = ($nextApproverId === null || $nextApproverId === '') ? null : (int)$nextApproverId;
         $maResult = $maService->approve(
             (int)$id,
             (int)$approverId,
-            (int)$nextApproverId,
+            $nextApproverId,
         );
         if (!$maResult->success) {
             $this->Flash->error(
@@ -731,25 +728,6 @@ class AuthorizationApprovalsController extends AppController
         $counts['pending'] = $pendingQuery
             ->where(['AuthorizationApprovals.responded_on IS' => null])
             ->count();
-
-        // Approved: Previously approved requests
-        $approvedQuery = clone $baseQuery;
-        $counts['approved'] = $approvedQuery
-            ->where([
-                'AuthorizationApprovals.responded_on IS NOT' => null,
-                'AuthorizationApprovals.approved' => true,
-            ])
-            ->count();
-
-        // Denied: Previously denied requests
-        $deniedQuery = clone $baseQuery;
-        $counts['denied'] = $deniedQuery
-            ->where([
-                'AuthorizationApprovals.responded_on IS NOT' => null,
-                'AuthorizationApprovals.approved' => false,
-            ])
-            ->count();
-
         return $counts;
     }
 }

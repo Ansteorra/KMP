@@ -23,12 +23,16 @@ class ActivitiesRenewAuthorization extends Controller {
 
     /** Register setId listener when outlet button connects. */
     outletBtnOutletConnected(outlet, element) {
-        outlet.addListener(this.setId.bind(this));
+        this._boundSetId = this._boundSetId || this.setId.bind(this);
+        outlet.addListener(this._boundSetId);
     }
 
     /** Remove setId listener when outlet button disconnects. */
     outletBtnOutletDisconnected(outlet) {
-        outlet.removeListener(this.setId.bind(this));
+        if (this._boundSetId) {
+            outlet.removeListener(this._boundSetId);
+            this._boundSetId = null;
+        }
     }
 
     /** Fetch approvers for selected activity and member, populate dropdown. */

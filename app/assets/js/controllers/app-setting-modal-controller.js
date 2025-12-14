@@ -100,7 +100,7 @@ class AppSettingModalController extends Controller {
         if (!clickedButton) return
 
         const modalTarget = clickedButton.getAttribute('data-bs-target')
-        if (modalTarget !== '#editAppSettingModal') return
+        if (modalTarget !== `#${this.modalIdValue}`) return
 
         console.log('AppSettingModal: Edit clicked for setting:', data)
 

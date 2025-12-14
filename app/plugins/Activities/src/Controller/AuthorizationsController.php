@@ -407,20 +407,11 @@ class AuthorizationsController extends AppController
     {
         $counts = [];
 
-        // Current: Active authorizations
-        $counts['current'] = $this->Authorizations->find('current')
-            ->where(['member_id' => $memberId])
-            ->count();
-
         // Pending: Authorization requests awaiting approval
         $counts['pending'] = $this->Authorizations->find('pending')
             ->where(['member_id' => $memberId])
             ->count();
 
-        // Previous: Expired, revoked, or denied authorizations
-        $counts['previous'] = $this->Authorizations->find('previous')
-            ->where(['member_id' => $memberId])
-            ->count();
 
         return $counts;
     }

@@ -35,7 +35,7 @@ interface AuthorizationManagerInterface
     public function approve(
         int $authorizationApprovalId,
         int $approverId,
-        int $nextApproverId = null
+        ?int $nextApproverId = null
     ): ServiceResult;
 
     /**

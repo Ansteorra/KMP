@@ -7,15 +7,7 @@
  * @var int|string $id
  */
 
-function makePossessive($name)
-{
-    $name = trim($name);
-    if (strtolower(substr($name, -1)) === 's') {
-        return $name . "'";
-    } else {
-        return $name . "'s";
-    }
-}
+// Use Kmp helper for common utilities
 
 $this->extend("/layout/TwitterBootstrap/dashboard");
 
@@ -26,7 +18,7 @@ $this->KMP->endBlock();
 $this->extend("/layout/TwitterBootstrap/view_record");
 
 echo $this->KMP->startBlock("pageTitle") ?>
-<?= makePossessive($queueFor) ?> Auth Request Queue
+<?= $this->Kmp->makePossessive($queueFor) ?> Auth Request Queue
 <?php $this->KMP->endBlock() ?>
 
 <?= $this->KMP->startBlock("recordActions") ?>
