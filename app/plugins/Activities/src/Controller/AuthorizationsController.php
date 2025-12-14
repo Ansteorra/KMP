@@ -418,7 +418,7 @@ class AuthorizationsController extends AppController
 
     public function activityAuthorizations($state, $id)
     {
-        if ($state != 'current' && $state == 'pending' && $state == 'previous') {
+        if ($state != 'current' && $state != 'pending' && $state != 'previous') {
             throw new \Cake\Http\Exception\NotFoundException();
         }
         $activity = $this->Authorizations->Activities->find()

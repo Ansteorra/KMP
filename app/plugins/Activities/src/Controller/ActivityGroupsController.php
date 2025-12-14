@@ -66,11 +66,6 @@ class ActivityGroupsController extends AppController
             'canExportCsv' => false,
         ]);
 
-        // Handle CSV export
-        if (!empty($result['isCsvExport'])) {
-            return $this->handleCsvExport($result, $csvExportService, 'activity-groups');
-        }
-
         // Set view variables
         $this->set([
             'activityGroups' => $result['data'],

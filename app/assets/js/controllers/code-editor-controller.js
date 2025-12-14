@@ -149,15 +149,29 @@ class CodeEditorController extends Controller {
             if (e.shiftKey) {
                 // Shift+Tab: Remove indentation
                 const beforeCursor = textarea.value.substring(0, start)
-                const afterCursor = textarea.value.substring(end)
                 const lineStart = beforeCursor.lastIndexOf('\n') + 1
-                const line = textarea.value.substring(lineStart, start)
+                const lineEndSearch = textarea.value.indexOf('\n', start)
+                const lineEnd = lineEndSearch === -1 ? textarea.value.length : lineEndSearch
+                const line = textarea.value.substring(lineStart, lineEnd)
 
+                let removeCount = 0
                 if (line.startsWith('  ')) {
-                    textarea.value = textarea.value.substring(0, lineStart) +
-                        line.substring(2) +
-                        textarea.value.substring(start)
-                    textarea.selectionStart = textarea.selectionEnd = start - 2
+                    removeCount = 2
+                } else if (line.startsWith(' ')) {
+                    removeCount = 1
+                }
+
+                if (removeCount > 0) {
+                    const newLine = line.substring(removeCount)
+                    const beforeLine = textarea.value.substring(0, lineStart)
+                    const afterLine = textarea.value.substring(lineEnd)
+                    textarea.value = beforeLine + newLine + afterLine
+
+                    const adjust = removeCount
+                    const newSelectionStart = start >= lineStart + adjust ? start - adjust : lineStart
+                    const newSelectionEnd = end >= lineStart + adjust ? end - adjust : lineStart
+                    textarea.selectionStart = newSelectionStart
+                    textarea.selectionEnd = newSelectionEnd
                 }
             } else {
                 // Tab: Add indentation

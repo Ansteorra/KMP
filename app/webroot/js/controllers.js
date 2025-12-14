@@ -1711,12 +1711,26 @@ class CodeEditorController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0
       if (e.shiftKey) {
         // Shift+Tab: Remove indentation
         const beforeCursor = textarea.value.substring(0, start);
-        const afterCursor = textarea.value.substring(end);
         const lineStart = beforeCursor.lastIndexOf('\n') + 1;
-        const line = textarea.value.substring(lineStart, start);
+        const lineEndSearch = textarea.value.indexOf('\n', start);
+        const lineEnd = lineEndSearch === -1 ? textarea.value.length : lineEndSearch;
+        const line = textarea.value.substring(lineStart, lineEnd);
+        let removeCount = 0;
         if (line.startsWith('  ')) {
-          textarea.value = textarea.value.substring(0, lineStart) + line.substring(2) + textarea.value.substring(start);
-          textarea.selectionStart = textarea.selectionEnd = start - 2;
+          removeCount = 2;
+        } else if (line.startsWith(' ')) {
+          removeCount = 1;
+        }
+        if (removeCount > 0) {
+          const newLine = line.substring(removeCount);
+          const beforeLine = textarea.value.substring(0, lineStart);
+          const afterLine = textarea.value.substring(lineEnd);
+          textarea.value = beforeLine + newLine + afterLine;
+          const adjust = removeCount;
+          const newSelectionStart = start >= lineStart + adjust ? start - adjust : lineStart;
+          const newSelectionEnd = end >= lineStart + adjust ? end - adjust : lineStart;
+          textarea.selectionStart = newSelectionStart;
+          textarea.selectionEnd = newSelectionEnd;
         }
       } else {
         // Tab: Add indentation
@@ -11093,7 +11107,13 @@ class TimezoneInputController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODUL
     const abbr = KMP_Timezone.getAbbreviation(this.timezone);
     const noticeText = `Times shown in ${this.timezone} (${abbr})`;
     this.noticeTargets.forEach(notice => {
-      notice.innerHTML = `<i class="bi bi-clock"></i> ${noticeText}`;
+      while (notice.firstChild) {
+        notice.removeChild(notice.firstChild);
+      }
+      const icon = document.createElement('i');
+      icon.classList.add('bi', 'bi-clock');
+      notice.appendChild(icon);
+      notice.appendChild(document.createTextNode(` ${noticeText}`));
     });
   }
 
@@ -11112,6 +11132,15 @@ class TimezoneInputController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODUL
         // Only proceed when conversion succeeds
         if (utcValue) {
           delete input.dataset.timezoneConversionFailed;
+
+          // Remove any prior hidden UTC inputs for this field
+          const existingHidden = this.element.querySelectorAll(`input[name="${CSS.escape(input.name)}"][data-timezone-converted="true"]`);
+          existingHidden.forEach(el => el.remove());
+
+          // If the original input is already disabled from a previous submit, skip
+          if (input.disabled) {
+            return;
+          }
 
           // Create hidden input with UTC value
           const hiddenInput = document.createElement('input');
