@@ -332,7 +332,12 @@ class GatheringWaiversController extends AppController
         $waiverTypes = $this->GatheringWaivers->WaiverTypes->find('list')->orderBy(['name' => 'ASC'])->toArray();
         $gatheringActivities = $gatheringWaiver->gathering->gathering_activities ?? [];
 
-        $this->set(compact('gatheringWaiver', 'waiverTypes', 'gatheringActivities'));
+        $previewAvailable = false;
+        if ($gatheringWaiver->document) {
+            $previewAvailable = $this->DocumentService->documentPreviewExists($gatheringWaiver->document);
+        }
+
+        $this->set(compact('gatheringWaiver', 'waiverTypes', 'gatheringActivities', 'previewAvailable'));
     }
 
     /**
@@ -435,7 +440,7 @@ class GatheringWaiversController extends AppController
                     $activityIds
                 );
 
-                if ($result->isSuccess()) {
+                if ($result->success) {
                     // Determine redirect URL based on referer or default to index
                     $referer = $this->request->referer();
                     $redirectUrl = null;
@@ -597,9 +602,12 @@ class GatheringWaiversController extends AppController
         $pdfPath = $tmpDir . DIRECTORY_SEPARATOR . $uniqueId . '.pdf';
 
         // Convert image to PDF (includes validation)
+        $previewPath = null;
         $conversionResult = $this->ImageToPdfConversionService->convertImageToPdf(
             $tmpName,
-            $pdfPath
+            $pdfPath,
+            'letter',
+            $previewPath
         );
 
         if (!$conversionResult->success) {
@@ -618,8 +626,11 @@ class GatheringWaiversController extends AppController
             Date::now()
         );
 
-        if (!$retentionResult->isSuccess()) {
+        if (!$retentionResult->success) {
             @unlink($pdfPath);
+            if ($previewPath !== null && file_exists($previewPath)) {
+                @unlink($previewPath);
+            }
             return $retentionResult;
         }
 
@@ -639,6 +650,9 @@ class GatheringWaiversController extends AppController
         // Save without checking rules (document_id=0 doesn't exist yet)
         if (!$this->GatheringWaivers->save($gatheringWaiver, ['checkRules' => false])) {
             @unlink($pdfPath);
+            if ($previewPath !== null && file_exists($previewPath)) {
+                @unlink($previewPath);
+            }
             $errors = $gatheringWaiver->getErrors();
             Log::error('Failed to save waiver record', ['errors' => $errors, 'data' => $gatheringWaiver->toArray()]);
             $errorMessages = [];
@@ -662,33 +676,57 @@ class GatheringWaiversController extends AppController
         // Get current user ID for uploaded_by
         $currentUserId = $this->Authentication->getIdentity()->getIdentifier();
 
-        // Store document using DocumentService (handles local or Azure storage)
-        $documentResult = $this->DocumentService->createDocument(
-            $uploadedPdf,
-            'GatheringWaiver',
-            $gatheringWaiver->id,
-            $currentUserId,
-            [
-                'original_filename' => $fileName,
-                'original_size' => $originalSize,
-                'converted_size' => $convertedSize,
-                'conversion_date' => date('Y-m-d H:i:s'),
-                'compression_ratio' => round((1 - ($convertedSize / $originalSize)) * 100, 2),
-                'source' => 'waiver_upload',
-            ],
-            'waivers', // subdirectory
-            ['pdf']    // allowed extensions
-        );
+        try {
+            // Store document using DocumentService (handles local or Azure storage)
+            $documentResult = $this->DocumentService->createDocument(
+                $uploadedPdf,
+                'GatheringWaiver',
+                $gatheringWaiver->id,
+                $currentUserId,
+                [
+                    'original_filename' => $fileName,
+                    'original_size' => $originalSize,
+                    'converted_size' => $convertedSize,
+                    'conversion_date' => date('Y-m-d H:i:s'),
+                    'compression_ratio' => round((1 - ($convertedSize / $originalSize)) * 100, 2),
+                    'source' => 'waiver_upload',
+                ],
+                'waivers', // subdirectory
+                ['pdf'],   // allowed extensions
+                $previewPath
+            );
+        } catch (\Throwable $exception) {
+            @unlink($pdfPath);
+            if ($previewPath !== null && file_exists($previewPath)) {
+                @unlink($previewPath);
+            }
 
-        // Clean up temporary PDF file
+            $this->GatheringWaivers->delete($gatheringWaiver);
+            Log::error('Document creation threw an exception', [
+                'gathering_waiver_id' => $gatheringWaiver->id,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return new ServiceResult(false, __('Failed to save document: {0}', $exception->getMessage()));
+        }
+
+        // Clean up temporary PDF file regardless of outcome
         @unlink($pdfPath);
 
-        if (!$documentResult->isSuccess()) {
+        if (!$documentResult->success) {
+            if ($previewPath !== null && file_exists($previewPath)) {
+                @unlink($previewPath);
+            }
+            Log::error('Document service returned failure', [
+                'gathering_waiver_id' => $gatheringWaiver->id,
+                'error' => $documentResult->getError(),
+            ]);
             $this->GatheringWaivers->delete($gatheringWaiver);
+
             return new ServiceResult(false, 'Failed to save document: ' . $documentResult->getError());
         }
 
-        $documentId = $documentResult->getData();
+        $documentId = (int)$documentResult->getData();
 
         // Update GatheringWaiver with the real document_id
         $gatheringWaiver->document_id = $documentId;
@@ -771,9 +809,12 @@ class GatheringWaiversController extends AppController
         $pdfPath = $tmpDir . DIRECTORY_SEPARATOR . $uniqueId . '.pdf';
 
         // Convert all images to a single multi-page PDF
+        $previewPath = null;
         $conversionResult = $this->ImageToPdfConversionService->convertMultipleImagesToPdf(
             $tempPaths,
-            $pdfPath
+            $pdfPath,
+            'letter',
+            $previewPath
         );
 
         if (!$conversionResult->success) {
@@ -793,6 +834,9 @@ class GatheringWaiversController extends AppController
 
         if (!$retentionResult->success) {
             @unlink($pdfPath);
+            if ($previewPath !== null && file_exists($previewPath)) {
+                @unlink($previewPath);
+            }
             return $retentionResult;
         }
 
@@ -811,6 +855,9 @@ class GatheringWaiversController extends AppController
         // Save without checking rules (document_id doesn't exist yet)
         if (!$this->GatheringWaivers->save($gatheringWaiver, ['checkRules' => false])) {
             @unlink($pdfPath);
+            if ($previewPath !== null && file_exists($previewPath)) {
+                @unlink($previewPath);
+            }
             $errors = $gatheringWaiver->getErrors();
             Log::error('Failed to save waiver record', ['errors' => $errors, 'data' => $gatheringWaiver->toArray()]);
             $errorMessages = [];
@@ -836,35 +883,59 @@ class GatheringWaiversController extends AppController
         // Get current user ID for uploaded_by
         $currentUserId = $this->Authentication->getIdentity()->getIdentifier();
 
-        // Store document using DocumentService (handles local or Azure storage)
-        $documentResult = $this->DocumentService->createDocument(
-            $uploadedPdf,
-            'GatheringWaiver',
-            $gatheringWaiver->id,
-            $currentUserId,
-            [
-                'original_filename' => $originalFilename,
-                'original_size' => $totalOriginalSize,
-                'converted_size' => $convertedSize,
-                'conversion_date' => date('Y-m-d H:i:s'),
-                'compression_ratio' => round((1 - ($convertedSize / $totalOriginalSize)) * 100, 2),
-                'source' => 'waiver_upload',
-                'page_count' => count($uploadedFiles),
-                'is_multipage' => true,
-            ],
-            'waivers', // subdirectory
-            ['pdf']    // allowed extensions
-        );
+        try {
+            // Store document using DocumentService (handles local or Azure storage)
+            $documentResult = $this->DocumentService->createDocument(
+                $uploadedPdf,
+                'GatheringWaiver',
+                $gatheringWaiver->id,
+                $currentUserId,
+                [
+                    'original_filename' => $originalFilename,
+                    'original_size' => $totalOriginalSize,
+                    'converted_size' => $convertedSize,
+                    'conversion_date' => date('Y-m-d H:i:s'),
+                    'compression_ratio' => round((1 - ($convertedSize / $totalOriginalSize)) * 100, 2),
+                    'source' => 'waiver_upload',
+                    'page_count' => count($uploadedFiles),
+                    'is_multipage' => true,
+                ],
+                'waivers', // subdirectory
+                ['pdf'],   // allowed extensions
+                $previewPath
+            );
+        } catch (\Throwable $exception) {
+            @unlink($pdfPath);
+            if ($previewPath !== null && file_exists($previewPath)) {
+                @unlink($previewPath);
+            }
 
-        // Clean up temporary PDF file
+            $this->GatheringWaivers->delete($gatheringWaiver);
+            Log::error('Document creation threw an exception (multi-image)', [
+                'gathering_waiver_id' => $gatheringWaiver->id,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return new ServiceResult(false, __('Failed to save document: {0}', $exception->getMessage()));
+        }
+
+        // Clean up temporary PDF file regardless of outcome
         @unlink($pdfPath);
 
         if (!$documentResult->success) {
+            if ($previewPath !== null && file_exists($previewPath)) {
+                @unlink($previewPath);
+            }
+            Log::error('Document service returned failure (multi-image)', [
+                'gathering_waiver_id' => $gatheringWaiver->id,
+                'error' => $documentResult->getError(),
+            ]);
             $this->GatheringWaivers->delete($gatheringWaiver);
+
             return new ServiceResult(false, 'Failed to save document: ' . $documentResult->getError());
         }
 
-        $documentId = $documentResult->getData();
+        $documentId = (int)$documentResult->getData();
 
         // Update GatheringWaiver with the real document_id
         $gatheringWaiver->document_id = $documentId;
@@ -1002,6 +1073,34 @@ class GatheringWaiversController extends AppController
 
         if ($response === null) {
             throw new NotFoundException(__('File not found'));
+        }
+
+        return $response;
+    }
+
+    /**
+     * Preview method - Serve the generated JPEG preview for a waiver PDF.
+     *
+     * @param string|null $id Gathering Waiver id.
+     * @return \Cake\Http\Response Inline image response
+     * @throws \Cake\Http\Exception\NotFoundException When preview is not available
+     */
+    public function preview(?string $id = null)
+    {
+        $gatheringWaiver = $this->GatheringWaivers->get($id, [
+            'contain' => ['Documents', 'Gatherings'],
+        ]);
+
+        $this->Authorization->authorize($gatheringWaiver);
+
+        if (!$gatheringWaiver->document) {
+            throw new NotFoundException(__('Document not found for this waiver'));
+        }
+
+        $response = $this->DocumentService->getDocumentPreviewResponse($gatheringWaiver->document);
+
+        if ($response === null) {
+            throw new NotFoundException(__('Preview not available for this waiver.'));
         }
 
         return $response;
@@ -2116,7 +2215,7 @@ class GatheringWaiversController extends AppController
                     $activityIds
                 );
 
-                if ($result->isSuccess()) {
+                if ($result->success) {
                     // Get redirect URL to mobile card
                     $currentUser = $this->Authentication->getIdentity();
                     $Members = $this->fetchTable('Members');
@@ -2410,7 +2509,7 @@ class GatheringWaiversController extends AppController
                 Date::now()
             );
 
-            if (!$retentionResult->isSuccess()) {
+            if (!$retentionResult->success) {
                 $this->set('success', false);
                 $this->set('message', __('Failed to calculate retention date: {0}', $retentionResult->getReason()));
                 $this->viewBuilder()->setOption('serialize', ['success', 'message']);
@@ -2439,7 +2538,7 @@ class GatheringWaiversController extends AppController
                     $gatheringActivityIds  // Pass all activity IDs
                 );
 
-                if (!$associationResult->isSuccess()) {
+                if (!$associationResult->success) {
                     // Rollback - delete the exemption
                     $this->GatheringWaivers->delete($exemption);
                     $this->set('success', false);
