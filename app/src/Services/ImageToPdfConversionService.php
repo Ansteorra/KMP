@@ -408,7 +408,7 @@ class ImageToPdfConversionService
      * Get page dimensions based on size name
      *
      * @param string $pageSize Page size name
-     * @return array [width, height] in points
+     * @return string [width, height] in points
      */
     private function determinePageOrientation(int $width, int $height): string
     {
