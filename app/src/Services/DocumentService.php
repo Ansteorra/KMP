@@ -19,76 +19,12 @@ use League\Flysystem\Local\LocalFilesystemAdapter;
 use RuntimeException;
 
 /**
- * Document Service
- *
- * Centralized service for document management including file uploads, storage, and retrieval.
- * This service uses Flysystem to abstract storage operations and supports multiple backends
- * including local filesystem and Azure Blob Storage.
- *
- * ## Key Responsibilities
- *
- * - **File Upload Processing**: Validates and processes uploaded files
- * - **Document Creation**: Creates document records with metadata
- * - **File Storage**: Handles physical file storage using Flysystem (local/Azure/etc)
- * - **File Retrieval**: Provides file download responses
- * - **Storage Abstraction**: Uses Flysystem for consistent API across storage backends
- *
- * ## Configuration
- *
- * Set storage configuration in `config/app_local.php`:
- *
- * ```php
- * 'Documents' => [
- *     'storage' => [
- *         'adapter' => 'local', // or 'azure'
- *         'path' => ROOT . DS . 'images' . DS . 'uploaded',
- *         // For Azure:
- *         // 'connectionString' => env('AZURE_STORAGE_CONNECTION_STRING'),
- *         // 'container' => 'documents',
- *         // 'prefix' => '', // Optional prefix for all paths
- *     ],
- * ],
- * ```
- *
- * ## Usage in Controllers
- *
- * ```php
- * // In controller initialize
- * $this->DocumentService = new DocumentService();
- *
- * // Create document from upload
- * $result = $this->DocumentService->createDocument(
- *     $uploadedFile,
- *     'Waivers.WaiverTypes',
- *     $waiverType->id,
- *     $this->Authentication->getIdentity()->id,
- *     ['type' => 'waiver_template']
- * );
- *
- * if ($result->success) {
- *     $documentId = $result->data;
- * }
- *
- * // Download document
- * $document = $this->fetchTable('Documents')->get($documentId);
- * $response = $this->DocumentService->getDocumentDownloadResponse(
- *     $document,
- *     'template.pdf'
- * );
- * return $response;
- * ```
- *
- * ## Storage Strategy
- *
- * Uses Flysystem to abstract storage operations. Supports:
- * - Local filesystem storage (default)
- * - Azure Blob Storage
- *
- * Storage adapter is selected based on configuration.
- *
- * @see \App\Model\Table\DocumentsTable
- * @see \App\Model\Entity\Document
- * @see \League\Flysystem\Filesystem
+ * Centralized document management service for file uploads, storage, and retrieval.
+ * 
+ * Uses Flysystem to abstract storage operations across local filesystem and Azure Blob Storage.
+ * Configuration via 'Documents' key in config/app_local.php.
+ * 
+ * @see \App\Services\ServiceResult Standard service result pattern
  */
 class DocumentService
 {

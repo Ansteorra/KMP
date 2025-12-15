@@ -1,10 +1,9 @@
 <?php
 
-use \App\Model\Entity\WarrantRoster;
-
 /**
+ * Warrant Rosters Index - Dataverse Grid View
+ * 
  * @var \App\View\AppView $this
- * @var \App\Model\Entity\WarrantRoster[]|\Cake\Collection\CollectionInterface $warrantRosters
  */
 ?>
 <?php $this->extend('/layout/TwitterBootstrap/dashboard');
@@ -12,36 +11,17 @@ use \App\Model\Entity\WarrantRoster;
 echo $this->KMP->startBlock("title");
 echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Warrant Rosters';
 $this->KMP->endBlock(); ?>
-<h3>
-    Warrant Rosters
-</h3>
-<?php
 
-$tabs["Pending"] = [
-    "label" => __("Pending"),
-    "id" => "pending",
-    "selected" => true,
-    "turboUrl" => $this->URL->build(["controller" => "warrant-rosters", "action" => "All_Rosters", "plugin" => null, WarrantRoster::STATUS_PENDING])
-];
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3><?= __('Warrant Rosters') ?></h3>
+    <?= $this->Html->link(
+        __(' Add Roster'),
+        ['action' => 'add'],
+        ['class' => 'btn btn-primary bi bi-plus-circle']
+    ) ?>
+</div>
 
-$tabs["Approved"] = [
-    "label" => __("Approved"),
-    "id" => "approved",
-    "selected" => false,
-    "turboUrl" => $this->URL->build(["controller" => "warrant-rosters", "action" => "All_Rosters", "plugin" => null,  WarrantRoster::STATUS_APPROVED])
-];
-
-$tabs["Declined"] = [
-    "label" => __("Declined"),
-    "id" => "declined",
-    "selected" => false,
-    "turboUrl" => $this->URL->build(["controller" => "warrant-rosters", "action" => "All_Rosters", "plugin" => null,  WarrantRoster::STATUS_DECLINED])
-];
-
-echo $this->element('turboActiveTabs', [
-    'user' => $user,
-    'tabGroupName' => "authorizationTabs",
-    'tabs' => $tabs,
-    'updateUrl' => false,
-]);
-?>
+<?= $this->element('dv_grid', [
+    'frameId' => 'warrant-rosters-grid',
+    'dataUrl' => $this->Url->build(['controller' => 'WarrantRosters', 'action' => 'gridData']),
+]) ?>

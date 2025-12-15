@@ -176,6 +176,30 @@ class GatheringWaiver extends BaseEntity
     }
 
     /**
+     * Virtual field for activity names as comma-separated list
+     *
+     * Returns the names of all gathering activities this waiver applies to,
+     * formatted as a comma-separated string for display in grid views.
+     *
+     * @return string Comma-separated list of activity names, or empty string if none
+     */
+    protected function _getActivityNames(): string
+    {
+        if (empty($this->gathering_waiver_activities)) {
+            return '';
+        }
+
+        $names = [];
+        foreach ($this->gathering_waiver_activities as $waiverActivity) {
+            if (!empty($waiverActivity->gathering_activity) && !empty($waiverActivity->gathering_activity->name)) {
+                $names[] = $waiverActivity->gathering_activity->name;
+            }
+        }
+
+        return implode(', ', $names);
+    }
+
+    /**
      * Get branch ID for authorization scoping
      * 
      * Returns the branch ID of the hosting branch for this waiver's gathering.

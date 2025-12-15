@@ -16,7 +16,7 @@ The Kingdom Management Portal (KMP) is a comprehensive web-based membership mana
 - **Officer Management**: Officer warrants, reporting, and roster management
 - **Award Recommendations**: Processing and tracking of award recommendations
 - **Activity Management**: Event registration and participation tracking
-- **Role-based Access Control**: Granular permissions system to control access to features
+- **Role-Based Access Control**: Granular permissions system to control access to features
 
 KMP is designed to be modular through its plugin architecture, allowing for customization and extension to meet the specific needs of different SCA Kingdoms.
 
@@ -29,7 +29,7 @@ The purpose of the Kingdom Management Portal is to:
 1. **Centralize Member Data**: Provide a single source of truth for membership information
 2. **Streamline Administrative Processes**: Automate workflows for warrants, awards, and reporting
 3. **Enhance Communication**: Facilitate communication between members, officers, and administrators
-4. **Ensure Data Security**: Protect sensitive member information through secure authentication and authorization
+4. **Ensure Data Security**: Protect sensitive member information through secure authentication and authorization (role-based access control)
 5. **Support Decision Making**: Generate reports and analytics to support Kingdom leadership
 6. **Maintain Historical Records**: Preserve the history of awards, offices, and activities
 

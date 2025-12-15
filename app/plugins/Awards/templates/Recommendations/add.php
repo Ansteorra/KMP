@@ -115,14 +115,17 @@ $this->KMP->endBlock(); ?>
             'label' => 'Reason for Recommendation',
             'data-awards-rec-add-target' => 'reason'
         ]);
-        echo $this->Form->control('gatherings._ids', [
-            'label' => 'Gatherings/Events They May Attend:',
-            "type" => "select",
-            "multiple" => "checkbox",
-            'options' => $gatherings,
-            'data-awards-rec-add-target' => 'gatherings'
-        ]);
         ?>
+        <div data-awards-rec-add-target="gatherings">
+            <?php
+            echo $this->Form->control('gatherings._ids', [
+                'label' => 'Gatherings/Events They May Attend:',
+                "type" => "select",
+                "multiple" => "checkbox",
+                'options' => $gatherings
+            ]);
+            ?>
+        </div>
     </fieldset>
     <?= $this->Form->button(__('Submit'), ["id" => 'recommendation_submit', 'class' => 'btn-primary']) ?>
     <?= $this->Form->end() ?>

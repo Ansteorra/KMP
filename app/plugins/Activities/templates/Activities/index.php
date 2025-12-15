@@ -1,104 +1,36 @@
 <?php
 
 /**
+ * Activities Index - Dataverse Grid View
+ *
  * @var \App\View\AppView $this
- * @var \App\Model\Entity\Activity[]|\Cake\Collection\CollectionInterface $activities
+ * @var \App\Model\Entity\Member $user
  */
-?>
-<?php $this->extend("/layout/TwitterBootstrap/dashboard");
+
+$this->extend("/layout/TwitterBootstrap/dashboard");
 
 echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Activities';
-$this->KMP->endBlock(); ?>
+echo h((string)$this->KMP->getAppSetting("KMP.ShortSiteTitle")) . ': Activities';
+$this->KMP->endBlock();
+?>
 
-<div class="row align-items-start">
+<div class="row align-items-start mb-3">
     <div class="col">
-        <h3>
-            Activities
-        </h3>
+        <h3>Activities</h3>
     </div>
     <div class="col text-end">
-        <?php
-        if ($user->checkCan("add", "Activities.Activities")) :
-        ?>
+        <?php if ($user->checkCan("add", "Activities.Activities")): ?>
             <?= $this->Html->link(
                 ' Add Activity',
                 ['action' => 'add'],
-                ['class' => 'btn btn-primary btn-sm bi bi-plus-circle', 'data-turbo-frame' => '_top']
+                ['class' => 'btn btn-primary bi bi-plus-circle', 'data-turbo-frame' => '_top']
             ) ?>
         <?php endif; ?>
     </div>
 </div>
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th scope="col"><?= $this->Paginator->sort("name") ?></th>
-            <th scope="col">Activity Group</th>
-            <th scope="col" class="text-center">Grants Role</th>
-            <th scope="col" class="text-center"><?= $this->Paginator->sort(
-                                                    "term_length",
-                                                    [
-                                                        "label" => "Duration (Months)",
-                                                    ],
-                                                ) ?></th>
-            <th scope="col" class="text-center"><?= $this->Paginator->sort(
-                                                    "minimum_age",
-                                                ) ?></th>
-            <th scope="col" class="text-center"><?= $this->Paginator->sort(
-                                                    "maximum_age",
-                                                ) ?></th>
-            <th scope="col" class="text-center"><?= $this->Paginator->sort(
-                                                    "num_required_authorizors",
-                                                    ["label" => "# for Auth"],
-                                                ) ?></th>
 
-            <th scope="col" class="actions"></th>
-        </tr>
-    </thead>
-    <tbody>
-        <?php foreach ($activities as $activity) : ?>
-            <tr>
-                <td><?= h($activity->name) ?></td>
-                <td><?= h($activity->activity_group->name) ?></td>
-                <td class="text-center"><?= $activity->role
-                                            ? h($activity->role->name)
-                                            : "None" ?></td>
-                <td class="text-center"><?= $this->Number->format(
-                                            $activity->term_length,
-                                        ) ?></td>
-                <td class="text-center"><?= $activity->minimum_age === null
-                                            ? ""
-                                            : $this->Number->format($activity->minimum_age) ?></td>
-                <td class="text-center"><?= $activity->maximum_age === null
-                                            ? ""
-                                            : $this->Number->format($activity->maximum_age) ?></td>
-                <td class="text-center"><?= $this->Number->format(
-                                            $activity->num_required_authorizors,
-                                        ) ?></td>
-                <td class="actions text-end text-nowrap">
-                    <?= $this->Html->link(
-                        __(""),
-                        ["action" => "view", $activity->id],
-                        ["title" => __("View"), "class" => "btn-sm btn btn-secondary bi bi-binoculars-fill"],
-                    ) ?>
-                </td>
-            </tr>
-        <?php endforeach; ?>
-    </tbody>
-</table>
-<div class="paginator">
-    <ul class="pagination">
-        <?= $this->Paginator->first("«", ["label" => __("First")]) ?>
-        <?= $this->Paginator->prev("‹", [
-            "label" => __("Previous"),
-        ]) ?>
-        <?= $this->Paginator->numbers() ?>
-        <?= $this->Paginator->next("›", ["label" => __("Next")]) ?>
-        <?= $this->Paginator->last("»", ["label" => __("Last")]) ?>
-    </ul>
-    <p><?= $this->Paginator->counter(
-            __(
-                "Page {{page}} of {{pages}}, showing {{current}} record(s) out of {{count}} total",
-            ),
-        ) ?></p>
-</div>
+<?= $this->element('dv_grid', [
+    'gridKey' => 'Activities.Activities.index.main',
+    'frameId' => 'activities-grid',
+    'dataUrl' => $this->Url->build(['action' => 'gridData']),
+]) ?>

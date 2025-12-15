@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Services\CsvExportService;
 use App\Services\MailerDiscoveryService;
 use App\Services\EmailTemplateRendererService;
 use Cake\Http\Exception\NotFoundException;
@@ -15,6 +16,8 @@ use Cake\Http\Exception\NotFoundException;
  */
 class EmailTemplatesController extends AppController
 {
+    use DataverseGridTrait;
+
     /**
      * Initialize method
      *
@@ -25,7 +28,7 @@ class EmailTemplatesController extends AppController
         parent::initialize();
 
         // Authorization handled by AppController for basic CRUD
-        $this->Authorization->authorizeModel('index', 'add', 'edit', 'delete');
+        $this->Authorization->authorizeModel('index', 'add', 'edit', 'delete', 'gridData');
     }
 
     /**
@@ -48,35 +51,79 @@ class EmailTemplatesController extends AppController
     }
 
     /**
-     * Index method
+     * Index method - Display Dataverse grid for email templates
      *
      * @return \Cake\Http\Response|null|void Renders view
      */
     public function index()
     {
-        $query = $this->EmailTemplates->find();
+        // Simple index page - just renders the dv_grid element
+        // The dv_grid element will lazy-load the actual data via gridData action
+    }
 
-        // Filter by mailer class if specified
-        if ($this->request->getQuery('mailer_class')) {
-            $query->where(['mailer_class' => $this->request->getQuery('mailer_class')]);
+    /**
+     * Grid Data method - Provides Dataverse grid data for email templates
+     *
+     * @param \App\Services\CsvExportService $csvExportService Injected CSV export service
+     * @return \Cake\Http\Response|null|void Renders view or returns CSV response
+     */
+    public function gridData(CsvExportService $csvExportService)
+    {
+        // Get system views from GridColumns
+
+        // Use unified trait for grid processing
+        $result = $this->processDataverseGrid([
+            'gridKey' => 'EmailTemplates.index.main',
+            'gridColumnsClass' => \App\KMP\GridColumns\EmailTemplatesGridColumns::class,
+            'baseQuery' => $this->EmailTemplates->find(),
+            'tableName' => 'EmailTemplates',
+            'defaultSort' => ['EmailTemplates.mailer_class' => 'asc'],
+            'defaultPageSize' => 25,
+            'showAllTab' => false,
+            'canAddViews' => false,
+            'canFilter' => true,
+            'canExportCsv' => false,
+        ]);
+
+        // Handle CSV export
+        if (!empty($result['isCsvExport'])) {
+            return $this->handleCsvExport($result, $csvExportService, 'email-templates');
         }
 
-        // Filter by active status if specified
-        if ($this->request->getQuery('is_active') !== null) {
-            $query->where(['is_active' => $this->request->getQuery('is_active')]);
+        // Set view variables
+        $this->set([
+            'emailTemplates' => $result['data'],
+            'gridState' => $result['gridState'],
+            'columns' => $result['columnsMetadata'],
+            'visibleColumns' => $result['visibleColumns'],
+            'searchableColumns' => \App\KMP\GridColumns\EmailTemplatesGridColumns::getSearchableColumns(),
+            'dropdownFilterColumns' => $result['dropdownFilterColumns'],
+            'filterOptions' => $result['filterOptions'],
+            'currentFilters' => $result['currentFilters'],
+            'currentSearch' => $result['currentSearch'],
+            'currentView' => $result['currentView'],
+            'availableViews' => $result['availableViews'],
+            'gridKey' => $result['gridKey'],
+            'currentSort' => $result['currentSort'],
+            'currentMember' => $result['currentMember'],
+        ]);
+
+        // Determine which template to render based on Turbo-Frame header
+        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
+
+        if ($turboFrame === 'email-templates-grid-table') {
+            // Inner frame request - render table data only
+            $this->set('data', $result['data']);
+            $this->set('tableFrameId', 'email-templates-grid-table');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplate('../element/dv_grid_table');
+        } else {
+            // Outer frame request (or no frame) - render toolbar + table frame
+            $this->set('data', $result['data']);
+            $this->set('frameId', 'email-templates-grid');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplate('../element/dv_grid_content');
         }
-
-        $emailTemplates = $this->paginate($query);
-
-        // Get all mailer classes for filter dropdown
-        $discoveryService = new MailerDiscoveryService();
-        $allMailers = $discoveryService->discoverAllMailers();
-        $mailerClasses = [];
-        foreach ($allMailers as $mailer) {
-            $mailerClasses[$mailer['class']] = $mailer['shortName'];
-        }
-
-        $this->set(compact('emailTemplates', 'mailerClasses'));
     }
 
     /**

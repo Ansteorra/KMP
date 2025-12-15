@@ -89,4 +89,33 @@ class AppSetting extends BaseEntity
 
         return $value;
     }
+
+    /**
+     * Get a preview of the value for display in grids
+     * Shows truncated text for long values or indicates complex types
+     *
+     * @return string|null
+     */
+    protected function _getValuePreview(): ?string
+    {
+        $value = $this->value;
+
+        // For complex types (yaml/json that decode to arrays), show indicator
+        if (is_array($value)) {
+            return '[Complex Value]';
+        }
+
+        // For null/empty values
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        // For string values, truncate if too long
+        $stringValue = (string)$value;
+        if (strlen($stringValue) > 100) {
+            return substr($stringValue, 0, 100) . '...';
+        }
+
+        return $stringValue;
+    }
 }

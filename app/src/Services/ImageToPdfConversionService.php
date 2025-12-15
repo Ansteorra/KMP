@@ -8,40 +8,10 @@ use Cake\Core\Configure;
 use Cake\Log\Log;
 
 /**
- * Image to PDF Conversion Service
- *
  * Converts uploaded image files to PDF format for consistent document storage.
- * Uses GD extension for image processing and generates PDFs directly. This ensures
- * all images are stored in a consistent format regardless of upload type.
  * 
- * ## Features
- * 
- * - **Multiple Image Formats**: Supports JPEG, PNG, GIF, BMP, WEBP, and WBMP
- * - **Automatic Sizing**: Fits images to standard page sizes (Letter, A4)
- * - **Quality Control**: Maintains image quality during conversion
- * - **Memory Efficient**: Processes images without excessive memory usage
- * - **Error Handling**: Returns ServiceResult for consistent error reporting
- * - **Debug Support**: Saves failed files for troubleshooting
- * 
- * ## Usage Example
- * 
- * ```php
- * $service = new ImageToPdfConversionService();
- * $result = $service->convertImageToPdf('/path/to/image.jpg', '/path/to/output.pdf');
- * 
- * if ($result->success) {
- *     // PDF created successfully at output path
- * } else {
- *     Log::error('PDF conversion failed: ' . $result->reason);
- * }
- * ```
- * 
- * ## Technical Details
- * 
- * - Uses GD extension for image manipulation
- * - Creates PDFs with FPDF library (if available) or fallback to simple format
- * - Maintains aspect ratio during conversion
- * - Supports portrait and landscape orientations
+ * Uses GD extension for image processing. Supports JPEG, PNG, GIF, BMP, WEBP formats.
+ * Maintains aspect ratio and fits images to standard page sizes (Letter, A4).
  * 
  * @see \App\Services\ServiceResult Standard service result pattern
  */

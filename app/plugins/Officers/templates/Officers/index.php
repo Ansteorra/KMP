@@ -1,49 +1,32 @@
 <?php
 
 /**
+ * Officers Index Template - Dataverse Grid
+ * 
+ * Modern grid interface with saved views, column picker, filtering, and sorting.
+ * Uses lazy-loading turbo-frame architecture with system views for officer status tabs.
+ * 
  * @var \App\View\AppView $this
- * @var \App\Model\Entity\Permission[]|\Cake\Collection\CollectionInterface $warrants
  */
-?>
-<?php $this->extend("/layout/TwitterBootstrap/dashboard");
+
+$this->extend("/layout/TwitterBootstrap/dashboard");
 
 echo $this->KMP->startBlock("title");
 echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Officers';
-$this->KMP->endBlock(); ?>
-<h3>
-    Officers by Warrant Status
-</h3>
-<?php
-echo $this->element('turboActiveTabs', [
-    'user' => $user,
-    'tabGroupName' => "authorizationTabs",
-    'tabs' => [
-        "active" => [
-            "label" => __("Active"),
-            "id" => "current-officers",
-            "selected" => true,
-            "turboUrl" => $this->URL->build(["controller" => "Officers", "action" => "OfficersByWarrantStatus", "current"])
-        ],
-        "pending" => [
-            "label" => __("Pending"),
-            "id" => "pending-officers",
-            "selected" => false,
-            "turboUrl" => $this->URL->build(["controller" => "Officers", "action" => "OfficersByWarrantStatus", "pending"])
-        ],
-        "previous" => [
-            "label" => __("Previous"),
-            "id" => "previous-officers",
-            "selected" => false,
-            "turboUrl" => $this->URL->build(["controller" => "Officers", "action" => "OfficersByWarrantStatus", "previous"])
-        ],
-        "unwarranted" => [
-            "label" => __("Unwarranted"),
-            "id" => "unwarranted-officers",
-            "selected" => false,
-            "turboUrl" => $this->URL->build(["controller" => "Officers", "action" => "OfficersByWarrantStatus", "unwarranted"])
-        ],
+$this->KMP->endBlock();
 
-
-    ]
-]);
+$this->assign('title', __('Officers'));
 ?>
+
+<div class="officers index content">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3><?= __('Officers by Warrant Status') ?></h3>
+    </div>
+
+    <!-- Dataverse Grid with Lazy Loading and System Views -->
+    <?= $this->element('dv_grid', [
+        'gridKey' => 'Officers.Officers.index.main',
+        'frameId' => 'officers-grid',
+        'dataUrl' => $this->Url->build(['plugin' => 'Officers', 'controller' => 'Officers', 'action' => 'gridData']),
+    ]) ?>
+</div>

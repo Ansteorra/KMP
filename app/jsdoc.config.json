@@ -1,0 +1,35 @@
+{
+  "plugins": ["plugins/markdown"],
+  "source": {
+    "include": [
+      "assets/js",
+      "plugins"
+    ],
+    "includePattern": "\\.(js|mjs)$",
+    "excludePattern": "(^|\\/)(tests|node_modules|tmp|vendor|webroot|logs)"
+  },
+  "opts": {
+    "encoding": "utf8",
+    "destination": "../docs/api/js",
+    "recurse": true,
+    "readme": "../docs/10-javascript-development.md",
+    "template": "./node_modules/clean-jsdoc-theme",
+    "theme_opts": {
+      "default_theme": "dark",
+      "title": "KMP JavaScript API",
+      "homepageTitle": "KMP JavaScript API Reference",
+      "menu": [
+        { "title": "PHP API", "link": "../php/index.html" },
+        { "title": "Docs Home", "link": "../../index.html" }
+      ],
+      "search": true
+    }
+  },
+  "tags": {
+    "allowUnknownTags": true,
+    "dictionaries": ["jsdoc", "closure"]
+  },
+  "markdown": {
+    "idInHeadings": true
+  }
+}

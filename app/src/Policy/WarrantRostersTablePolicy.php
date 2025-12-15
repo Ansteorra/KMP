@@ -36,4 +36,16 @@ class WarrantRostersTablePolicy extends BasePolicy
     {
         return parent::scopeIndex($user, $query);
     }
+
+    /**
+     * Check if user can access gridData scope
+     *
+     * @param \App\KMP\KmpIdentityInterface $user User
+     * @param mixed $query Query
+     * @return mixed
+     */
+    public function scopeGridData(KmpIdentityInterface $user, mixed $query): mixed
+    {
+        return parent::scopeIndex($user, $query);
+    }
 }

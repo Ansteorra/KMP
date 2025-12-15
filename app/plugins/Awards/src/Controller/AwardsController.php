@@ -4,77 +4,35 @@ declare(strict_types=1);
 
 namespace Awards\Controller;
 
+use App\Controller\DataverseGridTrait;
 use Awards\Controller\AppController;
 
 /**
  * Awards Controller - Award Management and Hierarchical Organization
  * 
- * Provides comprehensive award management functionality within the KMP Awards system,
- * implementing complete CRUD operations for award configuration and hierarchical
- * organization. This controller manages the administrative interface for award
- * creation, modification, and organization within the Domain/Level/Branch hierarchy.
+ * Provides CRUD operations for award configuration within the Domain/Level/Branch
+ * hierarchy. Includes API endpoints for award discovery and recommendation integration.
  * 
- * The AwardsController serves as the central management interface for award
- * configuration, supporting the complex hierarchical relationships between
- * domains, levels, and branches that define the organizational structure of
- * the award system. It provides both administrative interfaces and API endpoints
- * for award discovery and recommendation workflow integration.
+ * Uses DataverseGridTrait for table-based data display.
  * 
- * ## Core Functionality:
- * - **Award Lifecycle Management**: Complete CRUD operations for award configuration
- * - **Hierarchical Integration**: Management of Domain/Level/Branch relationships
- * - **API Endpoints**: JSON endpoints for dynamic award discovery and selection
- * - **Administrative Interface**: Web-based award management with form validation
- * - **Referential Integrity**: Protection against deletion of awards with recommendations
- * 
- * ## Security Architecture:
- * The controller implements comprehensive authorization through policy-based
- * access control, ensuring that award management operations are restricted
- * to authorized administrators while providing controlled public access to
- * award discovery endpoints for recommendation workflows.
- * 
- * ## Integration Points:
- * - **Recommendation System**: Awards serve as targets for recommendation workflows
- * - **Branch Hierarchy**: Awards are scoped to specific organizational levels
- * - **Domain/Level System**: Awards are categorized and ranked within hierarchical structure
- * - **Administrative Interfaces**: Integration with Awards plugin navigation and management
- * 
- * @property \Awards\Model\Table\AwardsTable $Awards Award data management and relationships
- * 
+ * @property \Awards\Model\Table\AwardsTable $Awards
  * @package Awards\Controller
- * @see \Awards\Model\Table\AwardsTable For award data management
- * @see \Awards\Model\Entity\Award For award entity structure
- * @see \Awards\Controller\RecommendationsController For recommendation workflow integration
  */
 class AwardsController extends AppController
 {
+    use DataverseGridTrait;
     /**
-     * Initialize Awards Controller - Authorization and security configuration
+     * Initialize Awards Controller.
      * 
-     * Configures the Awards controller with comprehensive authorization settings
-     * and security framework integration for award management operations. This
-     * initialization establishes the security baseline for administrative award
-     * management while providing controlled public access to discovery endpoints.
-     * 
-     * ## Authorization Configuration:
-     * - **Model Authorization**: Automatic authorization for index and add operations
-     * - **Public Endpoints**: Unauthenticated access for award discovery API
-     * - **Security Framework**: Integration with Awards plugin security baseline
-     * 
-     * ## Public Access Configuration:
-     * The controller allows unauthenticated access to the awardsByDomain endpoint
-     * to support dynamic award discovery in recommendation workflows without
-     * requiring user authentication for basic award information retrieval.
+     * Configures authorization for index/add/gridData and allows
+     * unauthenticated access to awardsByDomain endpoint.
      * 
      * @return void
-     * 
-     * @see \Awards\Controller\AppController::initialize() For base security configuration
-     * @see \Authorization\Controller\Component\AuthorizationComponent::authorizeModel() For model authorization
      */
     public function initialize(): void
     {
         parent::initialize();
-        $this->Authorization->authorizeModel("index", "add");
+        $this->Authorization->authorizeModel("index", "add", "gridData");
 
         $this->Authentication->allowUnauthenticated([
             "awardsByDomain"
@@ -82,39 +40,28 @@ class AwardsController extends AppController
     }
 
     /**
-     * Award Index - Administrative award listing with hierarchical organization
+     * Award Index - Administrative award listing.
      * 
-     * Displays a comprehensive listing of all awards with their hierarchical
-     * relationships to domains, levels, and branches. This administrative interface
-     * provides pagination, search capabilities, and organizational context for
-     * award management workflows and administrative oversight.
-     * 
-     * ## Query Optimization:
-     * The method implements optimized database queries with selective field loading
-     * and efficient containment to minimize data transfer while providing complete
-     * hierarchical context for award organization and administrative management.
-     * 
-     * ## Authorization Integration:
-     * Query results are automatically scoped through the authorization system
-     * to ensure that users only see awards within their administrative scope
-     * based on branch boundaries and permission-based access control.
-     * 
-     * ## Data Structure:
-     * Returns awards with associated domain, level, and branch information
-     * formatted for administrative display, including:
-     * - Award identification and description
-     * - Domain categorization for organizational context
-     * - Level precedence for hierarchical ranking
-     * - Branch scope for administrative boundaries
-     * 
-     * @return \Cake\Http\Response|null|void Renders administrative award listing view
-     * 
-     * @see \Awards\Model\Table\AwardsTable::find() For award query construction
-     * @see \Authorization\Controller\Component\AuthorizationComponent::applyScope() For access control
+     * @return \Cake\Http\Response|null|void
      */
-    public function index()
+    public function index(): void
     {
-        $query = $this->Awards->find()
+        $this->set('user', $this->request->getAttribute('identity'));
+    }
+
+    /**
+     * Provide grid data for Awards listing.
+     *
+     * This method serves data for the Dataverse grid component via Turbo Frame requests.
+     * Handles filtering, sorting, pagination, and CSV export.
+     *
+     * @param \App\Services\CsvExportService $csvExportService Injected CSV export service
+     * @return \Cake\Http\Response|null|void Renders view or returns CSV response
+     */
+    public function gridData(\App\Services\CsvExportService $csvExportService)
+    {
+        // Build base query with domain, level, and branch info
+        $baseQuery = $this->Awards->find()
             ->contain([
                 'Domains' => function ($q) {
                     return $q->select(['id', 'name']);
@@ -125,12 +72,66 @@ class AwardsController extends AppController
                 'Branches' => function ($q) {
                     return $q->select(['id', 'name']);
                 }
-            ])
-            ->select(['id', 'name', 'description', 'domain_id', 'level_id', 'branch_id', "Domains.name", "Levels.name", "Branches.name"]);
-        $query = $this->Authorization->applyScope($query, "index");
-        $awards = $this->paginate($query);
+            ]);
 
-        $this->set(compact('awards'));
+        // Use unified trait for grid processing
+        $result = $this->processDataverseGrid([
+            'gridKey' => 'Awards.Awards.index.main',
+            'gridColumnsClass' => \Awards\KMP\GridColumns\AwardsGridColumns::class,
+            'baseQuery' => $baseQuery,
+            'tableName' => 'Awards',
+            'defaultSort' => ['Awards.name' => 'asc'],
+            'defaultPageSize' => 25,
+            'showAllTab' => false,
+            'canAddViews' => false,
+            'canFilter' => true,
+            'canExportCsv' => false,
+        ]);
+
+        // Handle CSV export
+        if (!empty($result['isCsvExport'])) {
+            return $this->handleCsvExport($result, $csvExportService, 'awards');
+        }
+
+        // Set view variables
+        $this->set([
+            'awards' => $result['data'],
+            'gridState' => $result['gridState'],
+            'columns' => $result['columnsMetadata'],
+            'visibleColumns' => $result['visibleColumns'],
+            'searchableColumns' => \Awards\KMP\GridColumns\AwardsGridColumns::getSearchableColumns(),
+            'dropdownFilterColumns' => $result['dropdownFilterColumns'],
+            'filterOptions' => $result['filterOptions'],
+            'currentFilters' => $result['currentFilters'],
+            'currentSearch' => $result['currentSearch'],
+            'currentView' => $result['currentView'],
+            'availableViews' => $result['availableViews'],
+            'gridKey' => $result['gridKey'],
+            'currentSort' => $result['currentSort'],
+            'currentMember' => $result['currentMember'],
+        ]);
+
+        // Determine which template to render based on Turbo-Frame header
+        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
+
+        // Use main app's element templates (not plugin templates)
+        $this->viewBuilder()->setPlugin(null);
+
+        if ($turboFrame === 'awards-grid-table') {
+            // Inner frame request - render table data only
+            $this->set('data', $result['data']);
+            $this->set('tableFrameId', 'awards-grid-table');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplatePath('element');
+            $this->viewBuilder()->setTemplate('dv_grid_table');
+        } else {
+            // Outer frame request (or no frame) - render toolbar + table frame
+            $this->set('data', $result['data']);
+            $this->set('frameId', 'awards-grid');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplatePath('element');
+            $this->viewBuilder()->setTemplate('dv_grid_content');
+        }
     }
 
     /**
@@ -197,31 +198,9 @@ class AwardsController extends AppController
     }
 
     /**
-     * Award Add - Administrative award creation interface
+     * Award Add - Create new award.
      * 
-     * Provides the administrative interface for creating new awards within the
-     * hierarchical organization system. This method handles both form display
-     * and form processing for award creation with comprehensive validation
-     * and hierarchical relationship management.
-     * 
-     * ## Form Processing:
-     * - **GET Request**: Displays empty award creation form with dropdown options
-     * - **POST Request**: Processes form submission with validation and database persistence
-     * 
-     * ## Hierarchical Context:
-     * Provides dropdown selections for award organization:
-     * - Domain selection for categorical placement
-     * - Level selection for precedence hierarchy
-     * - Branch selection for organizational scope
-     * 
-     * ## Validation and Error Handling:
-     * Implements comprehensive form validation with user feedback through
-     * Flash messaging system for both success and error conditions.
-     * 
-     * @return \Cake\Http\Response|null|void Redirects on successful creation, renders form otherwise
-     * 
-     * @see \Awards\Model\Table\AwardsTable::newEmptyEntity() For entity creation
-     * @see \Awards\Model\Table\AwardsTable::save() For database persistence
+     * @return \Cake\Http\Response|null|void Redirects on success, renders form otherwise
      */
     public function add()
     {
@@ -246,34 +225,11 @@ class AwardsController extends AppController
     }
 
     /**
-     * Award Edit - In-place award modification with specialty handling
+     * Award Edit - Modify existing award with specialty JSON handling.
      * 
-     * Provides streamlined award modification functionality with specialized
-     * handling for complex fields like specialties (JSON data). This method
-     * implements a redirect-based editing pattern that returns to the award
-     * view after successful modification.
-     * 
-     * ## Editing Pattern:
-     * - Loads existing award entity with authorization validation
-     * - Processes form data with special handling for JSON fields
-     * - Redirects to award view page after processing (success or failure)
-     * 
-     * ## Specialty Processing:
-     * Implements specialized handling for the specialties field, which stores
-     * JSON data representing award specialty categories and configurations.
-     * This allows for dynamic specialty management without schema changes.
-     * 
-     * ## Authorization and Validation:
-     * - Entity-level authorization ensures proper access control
-     * - Comprehensive form validation with user feedback
-     * - Error handling with Flash messaging for user guidance
-     * 
-     * @param string|null $id Award identifier for modification
+     * @param string|null $id Award identifier
      * @return \Cake\Http\Response|null|void Redirects to award view after processing
      * @throws \Cake\Http\Exception\NotFoundException When award not found
-     * 
-     * @see \Awards\Model\Table\AwardsTable::get() For entity retrieval
-     * @see \Authorization\Controller\Component\AuthorizationComponent::authorize() For entity authorization
      */
     public function edit($id = null)
     {
@@ -299,34 +255,13 @@ class AwardsController extends AppController
     }
 
     /**
-     * Award Delete - Soft deletion with referential integrity protection
+     * Award Delete - Soft deletion with referential integrity check.
      * 
-     * Implements safe award deletion with comprehensive referential integrity
-     * checking to prevent deletion of awards that have associated recommendations.
-     * This method uses soft deletion patterns to preserve audit trails while
-     * protecting data consistency.
+     * Prevents deletion if recommendations exist. Prefixes name with "Deleted:".
      * 
-     * ## Referential Integrity Protection:
-     * Before deletion, the method checks for existing recommendations associated
-     * with the award. If recommendations exist, deletion is prevented with
-     * informative error messaging to guide administrative decision-making.
-     * 
-     * ## Soft Deletion Pattern:
-     * - Prefixes award name with "Deleted:" marker for audit trail
-     * - Uses soft deletion to preserve historical data and relationships
-     * - Maintains referential integrity for existing recommendations
-     * 
-     * ## Security and Validation:
-     * - Restricts to POST/DELETE methods for CSRF protection
-     * - Entity-level authorization for access control
-     * - Comprehensive error handling with user feedback
-     * 
-     * @param string|null $id Award identifier for deletion
-     * @return \Cake\Http\Response|null Redirects to index or award view based on outcome
+     * @param string|null $id Award identifier
+     * @return \Cake\Http\Response|null Redirects to index or view based on outcome
      * @throws \Cake\Http\Exception\NotFoundException When award not found
-     * 
-     * @see \Awards\Model\Table\AwardsTable::get() For entity retrieval
-     * @see \Awards\Model\Table\RecommendationsTable::find() For referential integrity checking
      */
     public function delete($id = null)
     {

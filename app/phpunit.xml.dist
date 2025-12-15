@@ -13,24 +13,32 @@
 
     <!-- Add any additional test suites you want to run here -->
     <testsuites>
-        <testsuite name="app">
-            <directory>tests/TestCase/</directory>
+        <!-- Fast-running unit/service coverage -->
+        <testsuite name="core-unit">
+            <directory>tests/TestCase/Core/Unit</directory>
+            <directory>tests/TestCase/Model</directory>
+            <directory>tests/TestCase/Services</directory>
+            <directory>tests/TestCase/KMP</directory>
         </testsuite>
-        <!-- Plugin test suites -->
-        <testsuite name="queue">
-            <directory>plugins/Queue/tests/TestCase/</directory>
+
+        <!-- HTTP-oriented feature and controller tests -->
+        <testsuite name="core-feature">
+            <directory>tests/TestCase/Core/Feature</directory>
+            <directory>tests/TestCase/Controller</directory>
+            <directory>tests/TestCase/Middleware</directory>
+            <directory>tests/TestCase/View</directory>
         </testsuite>
-        <testsuite name="waivers">
-            <directory>plugins/Waivers/tests/TestCase/</directory>
+
+        <!-- New plugin harness plus plugin-owned suites -->
+        <testsuite name="plugins">
+            <directory>tests/TestCase/Plugins</directory>
+            <directory>plugins/*/tests/TestCase</directory>
         </testsuite>
-        <testsuite name="activities">
-            <directory>plugins/Activities/tests/TestCase/</directory>
-        </testsuite>
-        <testsuite name="awards">
-            <directory>plugins/Awards/tests/TestCase/</directory>
-        </testsuite>
-        <testsuite name="officers">
-            <directory>plugins/Officers/tests/TestCase/</directory>
+
+        <!-- Complete regression suite -->
+        <testsuite name="all">
+            <directory>tests/TestCase</directory>
+            <directory>plugins/*/tests/TestCase</directory>
         </testsuite>
     </testsuites>
 

@@ -8,6 +8,7 @@ use App\Services\CsvExportService;
 use App\Services\ICalendarService;
 use Cake\Http\Exception\NotFoundException;
 use DateTime;
+use DateTimeZone;
 use Twig\Sandbox\SecurityError;
 
 /**
@@ -22,6 +23,7 @@ use Twig\Sandbox\SecurityError;
  */
 class GatheringsController extends AppController
 {
+    use DataverseGridTrait;
     /**
      * Service dependency injection configuration
      *
@@ -39,7 +41,7 @@ class GatheringsController extends AppController
         parent::initialize();
 
         // Authorize model-level operations
-        $this->Authorization->authorizeModel('index', 'add');
+        $this->Authorization->authorizeModel('index', 'add', 'gridData', 'calendar', 'calendarGridData');
     }
 
     /**
@@ -65,55 +67,169 @@ class GatheringsController extends AppController
      */
     public function index()
     {
-        $query = $this->Gatherings->find()
-            ->contain([
-                'Branches',
-                'GatheringTypes',
-                'GatheringActivities',
-                'Creators' => ['fields' => ['id', 'sca_name']]
-            ])
-            ->orderBy(['Gatherings.start_date' => 'DESC']);
-        $branch_id = null;
-        $gathering_type_id = null;
-        $start_date = null;
-        $end_date = null;
-        // Apply filters if provided
-        if ($this->request->getQuery('branch_id')) {
-            $branch_id = $this->request->getQuery('branch_id');
-            $query->where(['Gatherings.branch_id' => $branch_id]);
-        }
+        // Dataverse grid handles all data loading via gridData action
+        // This action now only renders the dv_grid shell defined in the template
+        $this->set('user', $this->Authentication->getIdentity());
+    }
 
-        if ($this->request->getQuery('gathering_type_id')) {
-            $gathering_type_id = $this->request->getQuery('gathering_type_id');
-            $query->where(['Gatherings.gathering_type_id' => $gathering_type_id]);
-        }
+    /**
+     * Grid Data provider for gatherings index dv_grid
+     *
+     * @param \App\Services\CsvExportService $csvExportService CSV export service
+     * @return \Cake\Http\Response|null
+     */
+    public function gridData(CsvExportService $csvExportService)
+    {
+        $securityGathering = $this->Gatherings->newEmptyEntity();
+        $this->Authorization->authorize($securityGathering, 'index');
 
-        if ($this->request->getQuery('start_date')) {
-            $start_date = $this->request->getQuery('start_date');
-            $query->where(['Gatherings.start_date >=' => $start_date]);
-        }
-
-        if ($this->request->getQuery('end_date')) {
-            $end_date = $this->request->getQuery('end_date');
-            $query->where(['Gatherings.end_date <=' => $end_date]);
-        }
-
-        $gatherings = $this->paginate($query);
-
-        // Load filter options - filter branches based on user permissions
         $currentUser = $this->Authentication->getIdentity();
-        $branchIds = $currentUser->getBranchIdsForAction('index', 'Gatherings');
+        $userTimezone = \App\KMP\TimezoneHelper::getUserTimezone($currentUser);
 
-        $branchesQuery = $this->Gatherings->Branches->find('list')->orderBy(['name' => 'ASC']);
-        if ($branchIds !== null) {
-            // User has limited access - filter to specific branches
-            $branchesQuery->where(['Branches.id IN' => $branchIds]);
+        $systemViews = \App\KMP\GridColumns\GatheringsGridColumns::getSystemViews(['timezone' => $userTimezone]);
+        $queryCallback = $this->buildGatheringSystemViewQueryCallback($userTimezone);
+
+        $baseQuery = $this->Gatherings->find()
+            ->select([
+                'Gatherings.id',
+                'Gatherings.public_id',
+                'Gatherings.name',
+                'Gatherings.branch_id',
+                'Gatherings.gathering_type_id',
+                'Gatherings.start_date',
+                'Gatherings.end_date',
+                'Gatherings.location',
+                'Gatherings.created',
+                'Gatherings.modified',
+            ])
+            ->contain([
+                'Branches' => ['fields' => ['id', 'name']],
+                'GatheringTypes' => ['fields' => ['id', 'name']],
+                'GatheringActivities' => ['fields' => ['GatheringActivities.id', 'GatheringActivities.name']],
+                'Creators' => ['fields' => ['id', 'sca_name']],
+            ])
+            ->leftJoinWith('GatheringActivities')
+            ->distinct(['Gatherings.id']);
+
+        $result = $this->processDataverseGrid([
+            'gridKey' => 'Gatherings.index.main',
+            'gridColumnsClass' => \App\KMP\GridColumns\GatheringsGridColumns::class,
+            'baseQuery' => $baseQuery,
+            'tableName' => 'Gatherings',
+            'defaultSort' => ['Gatherings.start_date' => 'DESC'],
+            'defaultPageSize' => 25,
+            'systemViews' => $systemViews,
+            'defaultSystemView' => 'sys-gatherings-this-month',
+            'queryCallback' => $queryCallback,
+            'showAllTab' => false,
+            'canAddViews' => true,
+            'canFilter' => true,
+            'canExportCsv' => true,
+            'showFilterPills' => true,
+        ]);
+
+        if (!empty($result['isCsvExport'])) {
+            return $this->handleCsvExport($result, $csvExportService, 'gatherings');
         }
-        $branches = $branchesQuery;
 
-        $gatheringTypes = $this->Gatherings->GatheringTypes->find('list')->orderBy(['name' => 'ASC']);
+        // Set view variables for dv_grid_* elements
+        $this->set([
+            'data' => $result['data'],
+            'gatherings' => $result['data'],
+            'gridState' => $result['gridState'],
+            'rowActions' => \App\KMP\GridColumns\GatheringsGridColumns::getRowActions(),
+        ]);
 
-        $this->set(compact('gatherings', 'branches', 'gatheringTypes', 'branch_id', 'gathering_type_id', 'start_date', 'end_date'));
+        // Build URLs for grid
+        $queryParams = $this->request->getQueryParams();
+        $dataUrl = \Cake\Routing\Router::url(['action' => 'gridData']);
+        $tableDataUrl = $dataUrl;
+        if (!empty($queryParams)) {
+            $tableDataUrl .= '?' . http_build_query($queryParams);
+        }
+
+        // Determine which template to render based on Turbo-Frame header
+        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
+        $frameId = 'gatherings-grid';
+
+        if ($turboFrame === $frameId . '-table') {
+            $this->set('tableFrameId', $frameId . '-table');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplate('../element/dv_grid_table');
+        } else {
+            $this->set('frameId', $frameId);
+            $this->set('dataUrl', $dataUrl);
+            $this->set('tableDataUrl', $tableDataUrl);
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplate('../element/dv_grid_content');
+        }
+    }
+
+    /**
+     * Build query callback for temporal system views
+     *
+     * @param string $userTimezone User timezone identifier
+     * @return callable
+     */
+    protected function buildGatheringSystemViewQueryCallback(string $userTimezone): callable
+    {
+        $boundaries = \App\KMP\GridColumns\GatheringsGridColumns::getSystemViewDateBoundaries($userTimezone);
+
+        return function ($query, $selectedSystemView) use ($boundaries) {
+            if (!$selectedSystemView || empty($selectedSystemView['id'])) {
+                return $query;
+            }
+
+            switch ($selectedSystemView['id']) {
+                case 'sys-gatherings-this-month':
+                    $query->where([
+                        'OR' => [
+                            [
+                                'Gatherings.start_date >=' => $boundaries['thisMonthStartUtc'],
+                                'Gatherings.start_date <=' => $boundaries['thisMonthEndUtc'],
+                            ],
+                            [
+                                'Gatherings.end_date >=' => $boundaries['thisMonthStartUtc'],
+                                'Gatherings.end_date <=' => $boundaries['thisMonthEndUtc'],
+                            ],
+                            [
+                                'Gatherings.start_date <' => $boundaries['thisMonthStartUtc'],
+                                'Gatherings.end_date >' => $boundaries['thisMonthEndUtc'],
+                            ],
+                        ],
+                    ]);
+                    break;
+
+                case 'sys-gatherings-next-month':
+                    $query->where([
+                        'OR' => [
+                            [
+                                'Gatherings.start_date >=' => $boundaries['nextMonthStartUtc'],
+                                'Gatherings.start_date <=' => $boundaries['nextMonthEndUtc'],
+                            ],
+                            [
+                                'Gatherings.end_date >=' => $boundaries['nextMonthStartUtc'],
+                                'Gatherings.end_date <=' => $boundaries['nextMonthEndUtc'],
+                            ],
+                            [
+                                'Gatherings.start_date <' => $boundaries['nextMonthStartUtc'],
+                                'Gatherings.end_date >' => $boundaries['nextMonthEndUtc'],
+                            ],
+                        ],
+                    ]);
+                    break;
+
+                case 'sys-gatherings-future':
+                    $query->where(['Gatherings.start_date >' => $boundaries['nextMonthEndUtc']]);
+                    break;
+
+                case 'sys-gatherings-previous':
+                    $query->where(['Gatherings.end_date <' => $boundaries['previousCutoffUtc']]);
+                    break;
+            }
+
+            return $query;
+        };
     }
 
     /**
@@ -126,144 +242,232 @@ class GatheringsController extends AppController
      */
     public function calendar()
     {
-        // Create security entity for authorization
         $securityGathering = $this->Gatherings->newEmptyEntity();
         $this->Authorization->authorize($securityGathering, 'index');
 
         $currentUser = $this->Authentication->getIdentity();
-
-        // Get user's timezone for proper date boundary calculations
         $userTimezone = \App\KMP\TimezoneHelper::getUserTimezone($currentUser);
-        $timezone = new \DateTimeZone($userTimezone);
+        $timezone = new DateTimeZone($userTimezone);
+        $today = new DateTime('now', $timezone);
 
-        // Get query parameters for date navigation and filters
+        $defaultYear = (int)$today->format('Y');
+        $defaultMonth = (int)$today->format('m');
+        $defaultView = $this->request->getQuery('view', 'month');
+
+        $this->set(compact('defaultYear', 'defaultMonth', 'defaultView'));
+    }
+
+    /**
+     * Dataverse grid data provider for calendar layout
+     *
+     * @param \App\Services\CsvExportService $csvExportService CSV export service
+     * @return \Cake\Http\Response|null
+     */
+    public function calendarGridData(CsvExportService $csvExportService)
+    {
+        $securityGathering = $this->Gatherings->newEmptyEntity();
+        $this->Authorization->authorize($securityGathering, 'index');
+
+        $currentUser = $this->Authentication->getIdentity();
+        $userTimezone = \App\KMP\TimezoneHelper::getUserTimezone($currentUser);
+        $timezone = new DateTimeZone($userTimezone);
+
         $year = (int)$this->request->getQuery('year', date('Y'));
         $month = (int)$this->request->getQuery('month', date('m'));
-        $view = $this->request->getQuery('view', 'month'); // month, week, list
-        $branchFilter = $this->request->getQuery('branch_id');
-        $typeFilter = $this->request->getQuery('gathering_type_id');
-        $activityFilter = $this->request->getQuery('activity_id');
+        $view = $this->request->getQuery('view', 'month');
+        $weekStartParam = $this->request->getQuery('week_start');
 
-        // Validate year and month
         if ($year < 1900 || $year > 2100) {
             $year = (int)date('Y');
         }
         if ($month < 1 || $month > 12) {
             $month = (int)date('m');
         }
+        if (!in_array($view, ['month', 'week', 'list'], true)) {
+            $view = 'month';
+        }
 
-        // Calculate date ranges in user's timezone
-        $startDate = new DateTime(sprintf("%04d-%02d-01", $year, $month), $timezone);
-        $endDate = clone $startDate;
-        $endDate->modify('last day of this month')->setTime(23, 59, 59);
+        if ($view === 'week') {
+            $startDate = null;
 
-        // For calendar display, we need to include days from previous/next months
+            if (is_string($weekStartParam) && $weekStartParam !== '') {
+                try {
+                    $startDate = new DateTime($weekStartParam, $timezone);
+                } catch (\Exception $exception) {
+                    $startDate = null;
+                }
+            }
+
+            if ($startDate === null) {
+                $startDate = new DateTime('now', $timezone);
+            }
+
+            $startDate->setTime(0, 0, 0);
+            $year = (int)$startDate->format('Y');
+            $month = (int)$startDate->format('m');
+        } else {
+            $startDate = new DateTime(sprintf('%04d-%02d-01', $year, $month), $timezone);
+        }
+        $endDate = (clone $startDate)->modify('last day of this month')->setTime(23, 59, 59);
+
         $calendarStart = clone $startDate;
-        // Move back to the previous Sunday (or stay if already Sunday)
         $dayOfWeek = (int)$calendarStart->format('w');
         if ($dayOfWeek > 0) {
             $calendarStart->modify("-{$dayOfWeek} days");
         }
 
         $calendarEnd = clone $endDate;
-        // Move forward to the next Saturday (or stay if already Saturday)
-        $dayOfWeek = (int)$calendarEnd->format('w');
-        if ($dayOfWeek < 6) {
-            $daysToAdd = 6 - $dayOfWeek;
-            $calendarEnd->modify("+{$daysToAdd} days");
+        $endDayOfWeek = (int)$calendarEnd->format('w');
+        if ($endDayOfWeek < 6) {
+            $calendarEnd->modify('+' . (6 - $endDayOfWeek) . ' days');
         }
 
-        // Convert boundary dates to UTC for database queries (gatherings are stored in UTC)
         $calendarStartUtc = \App\KMP\TimezoneHelper::toUtc($calendarStart->format('Y-m-d H:i:s'), $userTimezone);
         $calendarEndUtc = \App\KMP\TimezoneHelper::toUtc($calendarEnd->format('Y-m-d H:i:s'), $userTimezone);
 
-        // Build query for gatherings in the calendar range
-        $query = $this->Gatherings->find()
+        $calendarStartUtcString = $calendarStartUtc->format('Y-m-d H:i:s');
+        $calendarEndUtcString = $calendarEndUtc->format('Y-m-d H:i:s');
+
+        $baseQuery = $this->Gatherings->find()
+            ->select([
+                'Gatherings.id',
+                'Gatherings.public_id',
+                'Gatherings.name',
+                'Gatherings.branch_id',
+                'Gatherings.gathering_type_id',
+                'Gatherings.start_date',
+                'Gatherings.end_date',
+                'Gatherings.location',
+                'Gatherings.created',
+                'Gatherings.modified',
+            ])
             ->contain([
                 'Branches' => ['fields' => ['id', 'name']],
                 'GatheringTypes' => ['fields' => ['id', 'name', 'color']],
-                'GatheringActivities' => ['fields' => ['id', 'name']],
+                'GatheringActivities' => ['fields' => ['GatheringActivities.id', 'GatheringActivities.name']],
                 'GatheringAttendances' => [
                     'conditions' => ['GatheringAttendances.member_id' => $currentUser->id],
-                    'fields' => ['id', 'gathering_id', 'member_id']
-                ]
+                    'fields' => ['id', 'gathering_id', 'member_id'],
+                ],
             ])
+            ->leftJoinWith('GatheringActivities')
+            ->distinct(['Gatherings.id'])
             ->where([
                 'OR' => [
                     [
-                        'Gatherings.start_date >=' => $calendarStartUtc->format('Y-m-d H:i:s'),
-                        'Gatherings.start_date <=' => $calendarEndUtc->format('Y-m-d H:i:s')
+                        'Gatherings.start_date >=' => $calendarStartUtcString,
+                        'Gatherings.start_date <=' => $calendarEndUtcString,
                     ],
                     [
-                        'Gatherings.end_date >=' => $calendarStartUtc->format('Y-m-d H:i:s'),
-                        'Gatherings.end_date <=' => $calendarEndUtc->format('Y-m-d H:i:s')
+                        'Gatherings.end_date >=' => $calendarStartUtcString,
+                        'Gatherings.end_date <=' => $calendarEndUtcString,
                     ],
                     [
-                        'Gatherings.start_date <' => $calendarStartUtc->format('Y-m-d H:i:s'),
-                        'Gatherings.end_date >' => $calendarEndUtc->format('Y-m-d H:i:s')
-                    ]
-                ]
+                        'Gatherings.start_date <' => $calendarStartUtcString,
+                        'Gatherings.end_date >' => $calendarEndUtcString,
+                    ],
+                ],
             ])
             ->orderBy(['Gatherings.start_date' => 'ASC']);
 
-        // Apply filters
+        $result = $this->processDataverseGrid([
+            'gridKey' => 'Gatherings.calendar.main',
+            'gridColumnsClass' => \App\KMP\GridColumns\GatheringsGridColumns::class,
+            'baseQuery' => $baseQuery,
+            'tableName' => 'Gatherings',
+            'defaultSort' => ['Gatherings.start_date' => 'ASC'],
+            'defaultPageSize' => 200,
+            'showAllTab' => false,
+            'showViewTabs' => false,
+            'canAddViews' => false,
+            'canFilter' => true,
+            'canExportCsv' => false,
+            'enableColumnPicker' => false,
+            'showFilterPills' => true,
+        ]);
+
+        if (!empty($result['isCsvExport'])) {
+            return $this->handleCsvExport($result, $csvExportService, 'gatherings-calendar');
+        }
+
+        foreach ($result['data'] as $gathering) {
+            if (isset($gathering->gathering_activities)) {
+                $gathering->activity_count = count($gathering->gathering_activities);
+            }
+        }
+
+        $currentFilters = $result['currentFilters'] ?? [];
+        $branchName = null;
+        $branchFilter = $currentFilters['branch_id'] ?? null;
+
+        if (is_array($branchFilter)) {
+            $branchFilter = $branchFilter[0] ?? null;
+        }
+
         if ($branchFilter) {
-            $query->where(['Gatherings.branch_id' => $branchFilter]);
-        }
-
-        if ($typeFilter) {
-            $query->where(['Gatherings.gathering_type_id' => $typeFilter]);
-        }
-
-        if ($activityFilter) {
-            $query->matching('GatheringActivities', function ($q) use ($activityFilter) {
-                return $q->where(['GatheringActivities.id' => $activityFilter]);
-            });
-        }
-
-        $gatherings = $query->all();
-
-        // Load filter options
-        $branchesQuery = $this->Gatherings->Branches->find('list')->orderBy(['name' => 'ASC']);
-        $branches = $branchesQuery->all();
-        //if branchfilter lets get the current branch and pull it out of the query
-        $selectedBranch = null;
-        if ($branchFilter) {
-            $selectedBranch = $this->Gatherings->Branches->find()
+            $branchName = $this->Gatherings->Branches->find()
                 ->select(['name'])
                 ->where(['Branches.id' => $branchFilter])
                 ->first()
                 ?->name;
         }
 
-        $gatheringTypes = $this->Gatherings->GatheringTypes->find('list')->orderBy(['name' => 'ASC']);
-        $gatheringActivities = $this->Gatherings->GatheringActivities->find('list')->orderBy(['name' => 'ASC']);
+        $prevMonth = (clone $startDate)->modify('-1 month');
+        $nextMonth = (clone $startDate)->modify('+1 month');
 
-        // Navigation dates
-        $prevMonth = clone $startDate;
-        $prevMonth->modify('-1 month');
-        $nextMonth = clone $startDate;
-        $nextMonth->modify('+1 month');
+        $queryParams = $this->request->getQueryParams();
+        if ($view === 'week' && empty($queryParams['week_start']) && $startDate instanceof \DateTimeInterface) {
+            $queryParams['week_start'] = $startDate->format('Y-m-d');
+        }
 
-        $this->set(compact(
-            'gatherings',
-            'year',
-            'month',
-            'view',
-            'startDate',
-            'endDate',
-            'calendarStart',
-            'calendarEnd',
-            'prevMonth',
-            'nextMonth',
-            'branches',
-            'gatheringTypes',
-            'gatheringActivities',
-            'branchFilter',
-            'typeFilter',
-            'activityFilter',
-            'selectedBranch'
-        ));
+        $calendarMeta = [
+            'year' => $year,
+            'month' => $month,
+            'view' => $view,
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'calendarStart' => $calendarStart,
+            'calendarEnd' => $calendarEnd,
+            'prevMonth' => $prevMonth,
+            'nextMonth' => $nextMonth,
+            'selectedBranch' => $branchName,
+            'queryParams' => $queryParams,
+        ];
+
+        $this->set([
+            'gatherings' => $result['data'],
+            'gridState' => $result['gridState'],
+            'columns' => $result['columnsMetadata'],
+            'visibleColumns' => $result['visibleColumns'],
+            'searchableColumns' => \App\KMP\GridColumns\GatheringsGridColumns::getSearchableColumns(),
+            'dropdownFilterColumns' => $result['dropdownFilterColumns'],
+            'filterOptions' => $result['filterOptions'],
+            'currentFilters' => $currentFilters,
+            'currentSearch' => $result['currentSearch'],
+            'gridKey' => $result['gridKey'],
+            'currentSort' => $result['currentSort'],
+            'currentMember' => $result['currentMember'],
+            'frameId' => 'gatherings-calendar-grid',
+            'customElement' => 'gatherings/calendar_renderer',
+            'customElementOptions' => [
+                'calendarMeta' => $calendarMeta,
+                'viewMode' => $view,
+            ],
+            'rowActions' => [],
+        ]);
+
+        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
+
+        if ($turboFrame === 'gatherings-calendar-grid-table') {
+            $this->set('data', $result['data']);
+            $this->set('tableFrameId', 'gatherings-calendar-grid-table');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplate('../element/dv_grid_table');
+        } else {
+            $this->set('data', $result['data']);
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplate('../element/dv_grid_core_content');
+        }
     }
 
     /**
@@ -363,7 +567,7 @@ class GatheringsController extends AppController
             ]
         ]);
 
-        $this->Authorization->authorize($gathering, 'view');
+        $this->Authorization->authorize($gathering, 'quickView');
 
         $currentUser = $this->Authentication->getIdentity();
 
@@ -390,42 +594,14 @@ class GatheringsController extends AppController
     /**
      * All gatherings method - Filtered gathering listing with export capability
      *
-     * Provides comprehensive gathering listing with temporal filtering, pagination,
-     * and CSV export functionality. This method handles the core gathering management
-     * interface with optimized queries and user-friendly filtering options.
-     *
-     * ### Temporal State Filtering
-     * Supports four distinct gathering states:
-     * - **this_month**: Gatherings occurring in the current calendar month
-     * - **next_month**: Gatherings occurring in the next calendar month
-     * - **future**: Gatherings occurring after next month
-     * - **previous**: Past gatherings that have ended before this month
-     *
-     * ### Query Optimization
-     * Implements efficient database queries with proper association loading
-     * and date-based filtering for performance.
-     *
-     * ### CSV Export Integration
-     * Provides memory-efficient CSV export:
-     * - Streaming export handles large datasets without memory issues
-     * - Optimized fields for performance
-     * - Sorted output by gathering start date for usability
-     * - Security: Same authorization rules apply to export functionality
-     *
-     * ### Authorization and Security
-     * - Entity authorization for permission checking
-     * - State validation for filter parameters
-     * - Access control for gathering management permissions
-     *
-     * ### Error Handling
-     * - Invalid state throws NotFoundException
-     * - Authorization failure handled properly
-     * - Database errors handled gracefully
+     * Provides gathering listing with temporal filtering (this_month, next_month, future, previous),
+     * pagination, and CSV export. Uses user timezone for accurate month boundary calculations.
      *
      * @param \App\Services\CsvExportService $csvExportService CSV export service
      * @param string $state Temporal filter state (this_month|next_month|future|previous)
      * @return \Cake\Http\Response|null|void Renders gathering list or returns CSV export
      * @throws \Cake\Http\Exception\NotFoundException When invalid state provided
+     * @see /docs/4.6-gatherings-system.md For complete gatherings documentation
      */
     public function allGatherings(CsvExportService $csvExportService, $state)
     {

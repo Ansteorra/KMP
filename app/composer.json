@@ -75,6 +75,7 @@
         "cs-check": "phpcs --colors -p",
         "cs-fix": "phpcbf --colors -p",
         "stan": "phpstan analyse",
+        "docs:php": "bash bin/run-phpdoc.sh",
         "test": "phpunit --colors=always"
     }
 }

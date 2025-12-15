@@ -8,73 +8,12 @@ use Cake\I18n\Date;
 use Cake\Log\Log;
 
 /**
- * Retention Policy Service
- *
  * Calculates document retention dates based on JSON retention policy definitions.
- * Interprets retention rules and applies them to specific entities and dates
- * to determine when documents should be expired/purged.
  * 
- * ## Retention Policy Structure
+ * Interprets retention rules with anchor types (gathering_end_date, upload_date, permanent)
+ * and duration fields (years, months, days) to determine document expiration dates.
  * 
- * Policies are stored as JSON with the following format:
- * 
- * ```json
- * {
- *   "anchor": "gathering_end_date",
- *   "years": 2,
- *   "months": 0,
- *   "days": 0
- * }
- * ```
- * 
- * ## Anchor Types
- * 
- * - **gathering_end_date**: Count from the gathering's end date
- * - **upload_date**: Count from when the waiver was uploaded
- * - **permanent**: Waiver is never expired (returns far future date)
- * 
- * ## Features
- * 
- * - **Flexible Duration**: Supports years, months, and days combinations
- * - **Multiple Anchors**: Different starting points for retention calculation
- * - **Validation**: Validates policy structure before calculation
- * - **Error Handling**: Returns ServiceResult for consistent error reporting
- * - **Permanent Retention**: Special handling for waivers that never expire
- * 
- * ## Usage Examples
- * 
- * ```php
- * $service = new RetentionPolicyService();
- * 
- * // Calculate retention from policy JSON and gathering end date
- * $policy = '{"anchor":"gathering_end_date","years":2,"months":0,"days":0}';
- * $gatheringEndDate = new Date('2024-12-31');
- * $result = $service->calculateRetentionDate($policy, $gatheringEndDate);
- * 
- * if ($result->success) {
- *     $retentionDate = $result->data; // Date object: 2026-12-31
- * }
- * 
- * // Calculate from upload date
- * $policy = '{"anchor":"upload_date","years":1,"months":6,"days":0}';
- * $uploadDate = new Date('2024-01-01');
- * $result = $service->calculateRetentionDate($policy, null, $uploadDate);
- * // Returns: 2025-07-01
- * 
- * // Permanent retention
- * $policy = '{"anchor":"permanent"}';
- * $result = $service->calculateRetentionDate($policy);
- * // Returns: Date far in future (e.g., 2099-12-31)
- * ```
- * 
- * ## Validation
- * 
- * The service validates:
- * - JSON structure is valid
- * - Required 'anchor' field is present
- * - Anchor type is supported
- * - Duration fields (years/months/days) are present for non-permanent policies
- * - Required date parameters are provided for the anchor type
+ * Policy JSON format: {"anchor": "gathering_end_date", "years": 2, "months": 0, "days": 0}
  * 
  * @see \Waivers\Model\Entity\WaiverType Source of retention policy JSON
  * @see \App\Services\ServiceResult Standard service result pattern

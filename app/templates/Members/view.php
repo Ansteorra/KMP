@@ -24,6 +24,7 @@ if (!empty($aiFormConfig)) {
         $aiForm[$shortKey] = $value;
     }
 }
+$canViewAdditionalInformation = $canViewAdditionalInformation ?? ($user->checkCan('viewAdditionalInformation', $member));
 switch ($member->status) {
     case Member::STATUS_ACTIVE:
         $needVerification = true;
@@ -79,6 +80,18 @@ if (
 <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#passwordModal"
     id='passwordModalBtn'>Change Password</button>
 <?php } ?>
+<?php if (!empty($user) && method_exists($user, 'isSuperUser') && $user->isSuperUser() && empty($impersonationState) && $user->id !== $member->id) : ?>
+<?= $this->Form->postLink(
+        __('Impersonate Member'),
+        ['action' => 'impersonate', $member->id],
+        [
+            'class' => 'btn btn-warning btn-sm',
+            'confirm' => __('Impersonate {0}? You will assume their permissions until you stop.', h($member->sca_name)),
+            'data-bs-toggle' => 'tooltip',
+            'title' => __('Operate as this member'),
+        ],
+    ); ?>
+<?php endif; ?>
 <?php $this->KMP->endBlock() ?>
 
 <?php echo $this->KMP->startBlock('recordDetails');
@@ -102,7 +115,7 @@ $this->KMP->endBlock() ?>
     aria-controls="nav-notes" aria-selected="false" data-detail-tabs-target='tabBtn' data-tab-order="20"
     style="order: 20;"><?= __('Notes') ?>
 </button>
-<?php if (!empty($aiForm)) : ?>
+<?php if (!empty($aiForm) && $canViewAdditionalInformation) : ?>
 <button class="nav-link" id="nav-add-info-tab" data-bs-toggle="tab" data-bs-target="#nav-add-info" type="button"
     role="tab" aria-controls="nav-add-info" aria-selected="false" data-detail-tabs-target='tabBtn' data-tab-order="30"
     style="order: 30;">
@@ -114,90 +127,26 @@ $this->KMP->endBlock() ?>
 <!-- Tab content panels with order matching tab buttons for consistent presentation -->
 <div class="related tab-pane fade m-3" id="nav-roles" role="tabpanel" aria-labelledby="nav-roles-tab"
     data-detail-tabs-target="tabContent" data-tab-order="10" style="order: 10;">
-    <?php if (!empty($member->previous_member_roles) || !empty($member->current_member_roles) || !empty($member->upcoming_member_roles)) {
-        $linkTemplate = [
-            'type' => 'link',
-            'verify' => true,
-            'authData' => 'role',
-            'label' => '',
-            'controller' => 'Roles',
-            'action' => 'view',
-            'id' => 'role_id',
-            'options' => ['class' => 'btn-sm btn btn-secondary bi-binoculars-fill'],
-        ];
-        $removeLinkTemplate = [
-            'type' => 'postLink',
-            'verify' => true,
-            'label' => 'Deactivate',
-            'controller' => 'MemberRoles',
-            'action' => 'deactivate',
-            'id' => 'id',
-            'condition' => ['entity_type' => 'Direct Grant'],
-            'options' => [
-                'confirm' => 'Are you sure you want to deactivate for {{member->sca_name}}?',
-                'class' => 'btn-sm btn btn-danger',
-            ],
-        ];
-        $currentTemplate = [
-            'Role' => 'role->name',
-            'Start Date' => 'start_on',
-            'End Date' => 'expires_on',
-            'Approved By' => 'approved_by->sca_name',
-            'Granted By' => 'entity_type',
-            'Scope' => 'branch->name',
-            'Actions' => [
-                $linkTemplate,
-                $removeLinkTemplate,
-            ],
-        ];
-        $previousTemplate = [
-            'Role' => 'role->name',
-            'Start Date' => 'start_on',
-            'End Date' => 'expires_on',
-            'Approved By' => 'approved_by->sca_name',
-            'Granted By' => 'entity_type',
-            'Actions' => [
-                $linkTemplate,
-            ],
-        ];
-
-        echo $this->element('activeWindowTabs', [
-            'user' => $user,
-            'tabGroupName' => 'roleTabs',
-            'tabs' => [
-                'active' => [
-                    'label' => __('Active'),
-                    'id' => 'active-roles',
-                    'selected' => true,
-                    'columns' => $currentTemplate,
-                    'data' => $member->current_member_roles,
-                ],
-                'upcoming' => [
-                    'label' => __('Upcoming'),
-                    'id' => 'upcoming-roles',
-                    'selected' => false,
-                    'columns' => $currentTemplate,
-                    'data' => $member->upcoming_member_roles,
-                ],
-                'previous' => [
-                    'label' => __('Previous'),
-                    'id' => 'previous-roles',
-                    'selected' => false,
-                    'columns' => $previousTemplate,
-                    'data' => $member->previous_member_roles,
-                ],
-            ],
-        ]);
-    } else {
-        echo '<p>No Roles Assigned</p>';
-    } ?>
+    <?= $this->element('dv_grid', [
+        'gridKey' => "Members.roles.{$member->id}",
+        'frameId' => "member-roles-grid-{$member->id}",
+        'dataUrl' => $this->Url->build(['action' => 'rolesGridData', $member->id]),
+    ]) ?>
 </div>
 <div class="related tab-pane fade m-3" id="nav-gatherings" role="tabpanel" aria-labelledby="nav-gatherings-tab"
     data-detail-tabs-target="tabContent" data-tab-order="15" style="order: 15;">
-    <?= $this->element('members/gatheringAttendances', [
-        'user' => $user,
-        'member' => $member,
-        'availableGatherings' => $availableGatherings
+    <?php if ($user->id == $member->id || $user->checkCan('add', 'GatheringAttendances')): ?>
+    <div class="mb-3">
+        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
+            data-bs-target="#addGatheringAttendanceModal">
+            <i class="bi bi-plus-circle"></i> RSVP for Gathering
+        </button>
+    </div>
+    <?php endif; ?>
+    <?= $this->element('dv_grid', [
+        'gridKey' => "Members.gatherings.{$member->id}",
+        'frameId' => "member-gatherings-grid-{$member->id}",
+        'dataUrl' => $this->Url->build(['action' => 'gatheringsGridData', $member->id]),
     ]) ?>
 </div>
 <div class="related tab-pane fade m-3" id="nav-notes" role="tabpanel" aria-labelledby="nav-notes-tab"
@@ -208,7 +157,7 @@ $this->KMP->endBlock() ?>
         'viewPrivate' => $user->checkCan('viewPrivateNotes', 'Members'),
     ]) ?>
 </div>
-<?php if (!empty($aiForm)) : ?>
+<?php if (!empty($aiForm) && $canViewAdditionalInformation) : ?>
 <div class="related tab-pane fade m-3" id="nav-add-info" role="tabpanel" aria-labelledby="nav-add-info-tab"
     data-detail-tabs-target="tabContent" data-tab-order="30" style="order: 30;">
     <?php

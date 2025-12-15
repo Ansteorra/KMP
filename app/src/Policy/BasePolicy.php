@@ -104,6 +104,19 @@ class BasePolicy implements BeforePolicyInterface
         return $this->_hasPolicy($user, $method, $entity);
     }
 
+
+    /**
+     * Check if $user can view role
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The user.
+     * @param \App\Model\Entity\BaseEntity $entity
+     * @return bool
+     */
+    public function canGridData(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
+    {
+        return $this->canIndex($user, $entity, ...$optionalArgs);
+    }
+
     public function scopeIndex(KmpIdentityInterface $user, $query)
     {
         $table = $query->getRepository();

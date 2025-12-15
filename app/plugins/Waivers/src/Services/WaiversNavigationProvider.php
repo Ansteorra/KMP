@@ -9,39 +9,10 @@ use App\KMP\StaticHelpers;
 /**
  * Waivers Navigation Provider
  *
- * This service provides navigation menu items for the Waivers plugin.
- * It integrates with KMP's NavigationRegistry to add plugin-specific
- * menu items to the main application navigation.
+ * Provides navigation menu items for the Waivers plugin.
+ * Integrates with KMP's NavigationRegistry for dynamic menu generation.
  *
- * ## Navigation Architecture
- *
- * KMP uses a service-based navigation system where plugins register
- * navigation providers that dynamically generate menu items based on:
- * - User permissions and roles
- * - Current context (branch, member, etc.)
- * - Plugin configuration settings
- * - Active warrants and authorizations
- *
- * ## Menu Item Structure
- *
- * Each navigation item is an array with:
- * - **label**: Display text for the menu item
- * - **url**: URL array or string for the link
- * - **icon**: Bootstrap icon class (optional)
- * - **order**: Sort order in the menu
- * - **children**: Sub-menu items (optional)
- * - **badge**: Notification badge (optional)
- * - **active**: Callback to determine if item is active
- *
- * ## Dynamic Generation
- *
- * Navigation items can be generated dynamically based on:
- * - User identity and permissions
- * - Request parameters
- * - Database queries
- * - Plugin settings
- *
- * @package Waivers\Services
+ * @see /docs/5.7-waivers-plugin.md
  */
 class WaiversNavigationProvider
 {

@@ -5,193 +5,24 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\KMP\PermissionsLoader;
+use App\Services\CsvExportService;
 use Cake\Http\Exception\BadRequestException;
 use Cake\Http\Exception\NotFoundException;
 
 /**
- * PermissionsController - KMP RBAC Permission Management Interface
+ * Manages RBAC permissions: CRUD, policy matrix, and role assignments.
  *
- * The PermissionsController provides the web interface for managing permissions within the KMP
- * Role-Based Access Control (RBAC) system. It handles permission creation, editing, viewing,
- * and the complex policy matrix management interface that allows administrators to configure
- * dynamic authorization rules across the system.
- *
- * ## Core Permission Management Features
- *
- * ### Permission CRUD Operations
- * - **Create Permissions**: Add new permissions with validation and security checks
- * - **View Permissions**: Display permission details including associated roles and policies
- * - **Edit Permissions**: Modify permission settings with system permission protection
- * - **Delete Permissions**: Soft delete permissions with system permission protection
- *
- * ### Advanced Policy Management
- * - **Policy Matrix Interface**: Visual grid for managing permission-policy associations
- * - **Dynamic Policy Assignment**: AJAX-based policy addition and removal
- * - **Policy Discovery**: Automatic detection of available policy classes and methods
- * - **Bulk Policy Operations**: Efficient management of multiple policy associations
- *
- * ### Security and Authorization Features
- * - **Role-Based Access**: Different access levels based on user roles
- * - **System Permission Protection**: Prevents modification of critical system permissions
- * - **Super User Controls**: Special handling for super user permission management
- * - **Authorization Integration**: Full integration with KMP authorization framework
- *
- * ## Permission Management Workflows
- *
- * ### Standard Permission Lifecycle
- * 1. **Creation**: Administrator creates permission with basic settings
- * 2. **Configuration**: Settings like scoping rules and requirements are defined
- * 3. **Role Assignment**: Permission is assigned to appropriate roles
- * 4. **Policy Association**: Custom policies are attached for dynamic authorization
- * 5. **Testing**: Permission functionality is validated in system
- * 6. **Maintenance**: Regular review and updates of permission settings
- *
- * ### System Permission Handling
- * - System permissions have special protection against modification
- * - Names cannot be changed to maintain system integrity
- * - Deletion is prevented to avoid breaking core functionality
- * - Super user permissions require elevated privileges to modify
- *
- * ## Policy Matrix Management
- *
- * ### Matrix Interface Features
- * - **Visual Grid**: Permissions vs. Policies in tabular format
- * - **Quick Assignment**: Click to add/remove policy associations
- * - **Policy Discovery**: Automatic scanning of application policy classes
- * - **Namespace Organization**: Policies grouped by namespace for clarity
- * - **Real-time Updates**: AJAX-based changes without page refresh
- *
- * ### Policy Integration
- * - Integrates with PermissionsLoader for policy discovery
- * - Supports both class-level and method-level policy assignments
- * - Handles policy validation and conflict resolution
- * - Provides feedback on policy assignment success/failure
- *
- * ## Security Architecture
- *
- * ### Authorization Layers
- * - **Controller Authorization**: Action-level authorization checks
- * - **Model Authorization**: Entity-level authorization through policies
- * - **Scope Application**: Automatic filtering based on user permissions
- * - **Resource Protection**: System permission and super user safeguards
- *
- * ### Input Validation and Security
- * - **CSRF Protection**: All state-changing operations protected
- * - **JSON Request Validation**: AJAX endpoints validate request format
- * - **Data Sanitization**: Input data properly validated and sanitized
- * - **Error Handling**: Secure error responses without information leakage
- *
- * ## Integration Points
- *
- * ### KMP Authorization System
- * - Uses PermissionsLoader for policy discovery and validation
- * - Integrates with Authorization service for access control
- * - Supports dynamic permission evaluation through policies
- * - Works with KMP identity system for user context
- *
- * ### Role Management Integration
- * - Provides role assignment interface for permissions
- * - Filters available roles based on system/user permissions
- * - Supports bulk role assignment operations
- * - Maintains referential integrity with role system
- *
- * ### Activity System Integration
- * - Supports activity-linked permissions
- * - Provides activity selection interface for permissions
- * - Handles activity-specific permission requirements
- * - Integrates with activity authorization workflows
- *
- * ## User Interface Features
- *
- * ### Permission List Interface
- * - Paginated permission listing with sorting
- * - Search and filtering capabilities
- * - Quick action buttons for common operations
- * - Visual indicators for system vs. user permissions
- *
- * ### Permission Detail Views
- * - Complete permission information display
- * - Associated roles and policies listing
- * - Quick role assignment interface
- * - Policy management controls
- *
- * ### Administrative Tools
- * - Bulk permission operations
- * - Permission import/export capabilities
- * - System permission monitoring
- * - Permission usage analytics
- *
- * ## Performance Considerations
- *
- * ### Efficient Data Loading
- * - Uses contain strategies for optimized queries
- * - Implements pagination for large permission lists
- * - Caches policy discovery results
- * - Optimizes role filtering queries
- *
- * ### AJAX Optimization
- * - Lightweight JSON responses for policy updates
- * - Minimizes page refreshes for better user experience
- * - Implements client-side validation where appropriate
- * - Uses efficient query strategies for matrix operations
- *
- * ## Usage Examples
- *
- * ### Basic Permission Management
- * ```php
- * // Creating a new permission
- * $permission = $permissionsTable->newEntity([
- *     'name' => 'Manage Local Events',
- *     'scoping_rule' => Permission::SCOPE_BRANCH_ONLY,
- *     'require_active_membership' => true
- * ]);
- *
- * // Assigning permission to roles
- * $permission->roles = [$eventStewardRole, $seneschalRole];
- * $permissionsTable->save($permission);
- * ```
- *
- * ### Policy Matrix Management
- * ```javascript
- * // AJAX policy assignment
- * fetch('/permissions/updatePolicy', {
- *     method: 'POST',
- *     headers: { 'Content-Type': 'application/json' },
- *     body: JSON.stringify({
- *         permissionId: permissionId,
- *         className: 'App\\Policy\\EventPolicy',
- *         method: 'canManageEvent',
- *         action: 'add'
- *     })
- * });
- * ```
- *
- * ### Advanced Permission Queries
- * ```php
- * // Find permissions with specific policies
- * $permissions = $permissionsTable->find()
- *     ->matching('PermissionPolicies', function($q) {
- *         return $q->where(['policy_class LIKE' => '%EventPolicy%']);
- *     })
- *     ->contain(['Roles', 'PermissionPolicies'])
- *     ->toArray();
- * ```
- *
- * @see \App\Model\Entity\Permission For permission entity documentation
- * @see \App\Model\Table\PermissionsTable For permission data access
- * @see \App\Model\Entity\PermissionPolicy For policy associations
- * @see \App\KMP\PermissionsLoader For policy discovery
- * @see \App\Controller\RolesController For role management
+ * Provides policy matrix interface for visual permission-policy management.
+ * System permissions are protected from modification/deletion.
  *
  * @property \App\Model\Table\PermissionsTable $Permissions
  */
 class PermissionsController extends AppController
 {
+    use DataverseGridTrait;
+
     /**
-     * Initialize method - Configure authorization for permission management
-     *
-     * Sets up the authorization requirements for the permissions controller,
-     * specifying which actions require model-level authorization checking.
+     * Configure authorization for permission management actions.
      *
      * @return void
      */
@@ -201,38 +32,91 @@ class PermissionsController extends AppController
 
         // Configure model-level authorization for specific actions
         // These actions will have automatic model authorization applied
-        $this->Authorization->authorizeModel('index', 'add', 'matrix');
+        $this->Authorization->authorizeModel('index', 'add', 'matrix', 'gridData');
     }
 
     /**
-     * Index method - Display paginated list of permissions
+     * Index method - Display Dataverse grid for permissions
      *
-     * Provides the main interface for viewing and managing permissions in the system.
-     * Includes authorization scoping to ensure users only see permissions they're
-     * authorized to access, and implements efficient pagination for large datasets.
+     * Renders the permissions grid page which uses lazy-loading turbo-frame
+     * to load the actual grid data via the gridData action.
      *
      * @return \Cake\Http\Response|null|void Renders view
      */
     public function index()
     {
-        // Verify user has permission to view permission list
-        $this->Authorization->authorizeAction();
+        // Simple index page - just renders the dv_grid element
+        // The dv_grid element will lazy-load the actual data via gridData action
+    }
 
-        // Build base query for permissions
-        $query = $this->Permissions->find();
+    /**
+     * Grid Data method - Provides Dataverse grid data for permissions
+     *
+     * Returns grid content with toolbar and table for the permissions grid.
+     * Handles both outer frame (toolbar + table frame) and inner frame
+     * (table only) requests. Also supports CSV export.
+     *
+     * @param \App\Services\CsvExportService $csvExportService Injected CSV export service
+     * @return \Cake\Http\Response|null|void Renders view or returns CSV response
+     */
+    public function gridData(CsvExportService $csvExportService)
+    {
+        // Get system views from GridColumns
+        $systemViews = \App\KMP\GridColumns\PermissionsGridColumns::getSystemViews([]);
 
-        // Apply authorization scoping to filter permissions based on user access
-        // This ensures users only see permissions they're authorized to view
-        $query = $this->Authorization->applyScope($query);
-
-        // Paginate results with alphabetical sorting for better usability
-        $permissions = $this->paginate($query, [
-            'order' => [
-                'name' => 'asc',
-            ],
+        // Use unified trait for grid processing
+        $result = $this->processDataverseGrid([
+            'gridKey' => 'Permissions.index.main',
+            'gridColumnsClass' => \App\KMP\GridColumns\PermissionsGridColumns::class,
+            'baseQuery' => $this->Permissions->find(),
+            'tableName' => 'Permissions',
+            'defaultSort' => ['Permissions.name' => 'asc'],
+            'defaultPageSize' => 25,
+            'showAllTab' => true,
+            'canAddViews' => false,
+            'canFilter' => true,
+            'canExportCsv' => false,
         ]);
 
-        $this->set(compact('permissions'));
+        // Handle CSV export
+        if (!empty($result['isCsvExport'])) {
+            return $this->handleCsvExport($result, $csvExportService, 'permissions');
+        }
+
+        // Set view variables
+        $this->set([
+            'permissions' => $result['data'],
+            'gridState' => $result['gridState'],
+            'columns' => $result['columnsMetadata'],
+            'visibleColumns' => $result['visibleColumns'],
+            'searchableColumns' => \App\KMP\GridColumns\PermissionsGridColumns::getSearchableColumns(),
+            'dropdownFilterColumns' => $result['dropdownFilterColumns'],
+            'filterOptions' => $result['filterOptions'],
+            'currentFilters' => $result['currentFilters'],
+            'currentSearch' => $result['currentSearch'],
+            'currentView' => $result['currentView'],
+            'availableViews' => $result['availableViews'],
+            'gridKey' => $result['gridKey'],
+            'currentSort' => $result['currentSort'],
+            'currentMember' => $result['currentMember'],
+        ]);
+
+        // Determine which template to render based on Turbo-Frame header
+        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
+
+        if ($turboFrame === 'permissions-grid-table') {
+            // Inner frame request - render table data only
+            $this->set('data', $result['data']);
+            $this->set('tableFrameId', 'permissions-grid-table');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplate('../element/dv_grid_table');
+        } else {
+            // Outer frame request (or no frame) - render toolbar + table frame
+            $this->set('data', $result['data']);
+            $this->set('frameId', 'permissions-grid');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplate('../element/dv_grid_content');
+        }
     }
 
     /**
@@ -288,7 +172,7 @@ class PermissionsController extends AppController
 
         // Load available application policies for policy assignment interface
         $appPolicies = PermissionsLoader::getApplicationPolicies();
-        
+
         // Sort policies alphabetically by class name for easier navigation
         ksort($appPolicies);
 

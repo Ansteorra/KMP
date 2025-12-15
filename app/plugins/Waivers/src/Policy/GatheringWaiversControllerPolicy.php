@@ -10,31 +10,10 @@ use Authorization\Policy\ResultInterface;
 
 /**
  * GatheringWaivers Controller Authorization Policy
- * 
- * Provides URL-based authorization control for the GatheringWaiversController.
- * This policy governs access to waiver management operations including upload,
- * viewing, and administrative actions for gathering waivers.
- * 
- * ## Authorization Architecture
- * 
- * The policy extends BasePolicy to provide controller-level authorization through:
- * - **URL-Based Authorization**: Uses _hasPolicyForUrl() for action-level checks
- * - **Permission Integration**: Integrates with KMP's RBAC permission system
- * - **Branch Scoping**: Supports branch-based access control for waivers
- * 
- * ## Usage Patterns
- * 
- * The navigation system and controller actions use this policy:
- * ```php
- * // Navigation checks authorization for menu items
- * $this->Authorization->can($user, 'needingWaivers', $urlProps);
- * 
- * // Controller checks for action access
- * $this->Authorization->authorize($this->request, 'needingWaivers');
- * ```
- * 
- * @see \App\Policy\BasePolicy For base authorization methods
- * @see \Waivers\Controller\GatheringWaiversController For controller actions
+ *
+ * Provides URL-based authorization for GatheringWaiversController actions.
+ *
+ * @see /docs/5.7-waivers-plugin.md
  */
 class GatheringWaiversControllerPolicy extends BasePolicy
 {

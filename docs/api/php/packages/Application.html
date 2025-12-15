@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+            <title>KMP PHP API Reference</title>
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <base href="../">
+    <link rel="icon" href="images/favicon.ico"/>
+    <link rel="stylesheet" href="css/normalize.css">
+    <link rel="stylesheet" href="css/base.css">
+            <link rel="preconnect" href="https://fonts.gstatic.com">
+        <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@100;200;300;400;600;700&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;600;700&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="css/template.css">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.0/css/all.min.css" integrity="sha256-ybRkN9dBjhcS2qrW1z+hfCxq+1aBdwyQM5wlQoQVt/0=" crossorigin="anonymous" />
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.23.0/themes/prism-okaidia.css">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.23.0/plugins/line-numbers/prism-line-numbers.css">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.23.0/plugins/line-highlight/prism-line-highlight.css">
+                <script src="https://cdn.jsdelivr.net/npm/fuse.js@3.4.6"></script>
+        <script src="https://cdn.jsdelivr.net/npm/css-vars-ponyfill@2"></script>
+        <script src="js/template.js"></script>
+        <script src="js/search.js"></script>
+        <script defer src="js/searchIndex.js"></script>
+    </head>
+<body id="top">
+    <header class="phpdocumentor-header phpdocumentor-section">
+    <h1 class="phpdocumentor-title"><a href="" class="phpdocumentor-title__link">KMP PHP API Reference</a></h1>
+    <input class="phpdocumentor-header__menu-button" type="checkbox" id="menu-button" name="menu-button" />
+    <label class="phpdocumentor-header__menu-icon" for="menu-button">
+        <i class="fas fa-bars"></i>
+    </label>
+    <section data-search-form class="phpdocumentor-search">
+    <label>
+        <span class="visually-hidden">Search for</span>
+        <svg class="phpdocumentor-search__icon" width="21" height="20" viewBox="0 0 21 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="7.5" cy="7.5" r="6.5" stroke="currentColor" stroke-width="2"/>
+            <line x1="12.4892" y1="12.2727" x2="19.1559" y2="18.9393" stroke="currentColor" stroke-width="3"/>
+        </svg>
+        <input type="search" class="phpdocumentor-field phpdocumentor-search__field" placeholder="Loading .." disabled />
+    </label>
+</section>
+
+    <nav class="phpdocumentor-topnav">
+    <ul class="phpdocumentor-topnav__menu">
+        </ul>
+</nav>
+</header>
+
+    <main class="phpdocumentor">
+        <div class="phpdocumentor-section">
+            <input class="phpdocumentor-sidebar__menu-button" type="checkbox" id="sidebar-button" name="sidebar-button" />
+<label class="phpdocumentor-sidebar__menu-icon" for="sidebar-button">
+    Menu
+</label>
+<aside class="phpdocumentor-column -three phpdocumentor-sidebar">
+                    <section class="phpdocumentor-sidebar__category -namespaces">
+            <h2 class="phpdocumentor-sidebar__category-header">Namespaces</h2>
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="namespaces/activities.html" class="">Activities</a>
+</h4>
+    <ul class="phpdocumentor-list">
+                    <li>
+                <a href="namespaces/activities-controller.html" class="">Controller</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/activities-kmp.html" class="">KMP</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/activities-mailer.html" class="">Mailer</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/activities-model.html" class="">Model</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/activities-policy.html" class="">Policy</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/activities-services.html" class="">Services</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/activities-view.html" class="">View</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/activities-test.html" class="">Test</a>
+                
+            </li>
+            </ul>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="namespaces/awards.html" class="">Awards</a>
+</h4>
+    <ul class="phpdocumentor-list">
+                    <li>
+                <a href="namespaces/awards-controller.html" class="">Controller</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/awards-kmp.html" class="">KMP</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/awards-model.html" class="">Model</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/awards-policy.html" class="">Policy</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/awards-services.html" class="">Services</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/awards-view.html" class="">View</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/awards-test.html" class="">Test</a>
+                
+            </li>
+            </ul>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="namespaces/bootstrap.html" class="">Bootstrap</a>
+</h4>
+    <ul class="phpdocumentor-list">
+                    <li>
+                <a href="namespaces/bootstrap-utility.html" class="">Utility</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/bootstrap-view.html" class="">View</a>
+                
+            </li>
+            </ul>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="namespaces/githubissuesubmitter.html" class="">GitHubIssueSubmitter</a>
+</h4>
+    <ul class="phpdocumentor-list">
+                    <li>
+                <a href="namespaces/githubissuesubmitter-controller.html" class="">Controller</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/githubissuesubmitter-policy.html" class="">Policy</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/githubissuesubmitter-view.html" class="">View</a>
+                
+            </li>
+            </ul>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="namespaces/officers.html" class="">Officers</a>
+</h4>
+    <ul class="phpdocumentor-list">
+                    <li>
+                <a href="namespaces/officers-controller.html" class="">Controller</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/officers-kmp.html" class="">KMP</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/officers-mailer.html" class="">Mailer</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/officers-model.html" class="">Model</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/officers-policy.html" class="">Policy</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/officers-services.html" class="">Services</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/officers-view.html" class="">View</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/officers-test.html" class="">Test</a>
+                
+            </li>
+            </ul>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="namespaces/queue.html" class="">Queue</a>
+</h4>
+    <ul class="phpdocumentor-list">
+                    <li>
+                <a href="namespaces/queue-command.html" class="">Command</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/queue-config.html" class="">Config</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/queue-console.html" class="">Console</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/queue-controller.html" class="">Controller</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/queue-generator.html" class="">Generator</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/queue-mailer.html" class="">Mailer</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/queue-migration.html" class="">Migration</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/queue-model.html" class="">Model</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/queue-policy.html" class="">Policy</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/queue-queue.html" class="">Queue</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/queue-services.html" class="">Services</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/queue-view.html" class="">View</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/queue-test.html" class="">Test</a>
+                
+            </li>
+            </ul>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="namespaces/foo.html" class="">Foo</a>
+</h4>
+    <ul class="phpdocumentor-list">
+                    <li>
+                <a href="namespaces/foo-queue.html" class="">Queue</a>
+                
+            </li>
+            </ul>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="namespaces/testapp.html" class="">TestApp</a>
+</h4>
+    <ul class="phpdocumentor-list">
+                    <li>
+                <a href="namespaces/testapp-dto.html" class="">Dto</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/testapp-mailer.html" class="">Mailer</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/testapp-queue.html" class="">Queue</a>
+                
+            </li>
+            </ul>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="namespaces/composer.html" class="">Composer</a>
+</h4>
+    <ul class="phpdocumentor-list">
+                    <li>
+                <a href="namespaces/composer-autoload.html" class="">Autoload</a>
+                
+            </li>
+            </ul>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="namespaces/template.html" class="">Template</a>
+</h4>
+    <ul class="phpdocumentor-list">
+                    <li>
+                <a href="namespaces/template-controller.html" class="">Controller</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/template-policy.html" class="">Policy</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/template-services.html" class="">Services</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/template-test.html" class="">Test</a>
+                
+            </li>
+            </ul>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="namespaces/waivers.html" class="">Waivers</a>
+</h4>
+    <ul class="phpdocumentor-list">
+                    <li>
+                <a href="namespaces/waivers-controller.html" class="">Controller</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/waivers-kmp.html" class="">KMP</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/waivers-model.html" class="">Model</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/waivers-policy.html" class="">Policy</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/waivers-services.html" class="">Services</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/waivers-view.html" class="">View</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/waivers-test.html" class="">Test</a>
+                
+            </li>
+            </ul>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="namespaces/app.html" class="">App</a>
+</h4>
+    <ul class="phpdocumentor-list">
+                    <li>
+                <a href="namespaces/app-authenticator.html" class="">Authenticator</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/app-command.html" class="">Command</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/app-console.html" class="">Console</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/app-controller.html" class="">Controller</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/app-event.html" class="">Event</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/app-form.html" class="">Form</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/app-identifier.html" class="">Identifier</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/app-kmp.html" class="">KMP</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/app-mailer.html" class="">Mailer</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/app-model.html" class="">Model</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/app-policy.html" class="">Policy</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/app-services.html" class="">Services</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/app-view.html" class="">View</a>
+                
+            </li>
+            </ul>
+
+                        </section>
+                <section class="phpdocumentor-sidebar__category -packages">
+            <h2 class="phpdocumentor-sidebar__category-header">Packages</h2>
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="packages/Application.html" class="-active">Application</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="packages/Activities.html" class="">Activities</a>
+</h4>
+    <ul class="phpdocumentor-list">
+                    <li>
+                <a href="packages/Activities-Controller.html" class="">Controller</a>
+                
+            </li>
+                    <li>
+                <a href="packages/Activities-Model.html" class="">Model</a>
+                
+            </li>
+                    <li>
+                <a href="packages/Activities-Policy.html" class="">Policy</a>
+                
+            </li>
+                    <li>
+                <a href="packages/Activities-Services.html" class="">Services</a>
+                
+            </li>
+            </ul>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="packages/Awards.html" class="">Awards</a>
+</h4>
+    <ul class="phpdocumentor-list">
+                    <li>
+                <a href="packages/Awards-Controller.html" class="">Controller</a>
+                
+            </li>
+            </ul>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="packages/GitHubIssueSubmitter.html" class="">GitHubIssueSubmitter</a>
+</h4>
+    <ul class="phpdocumentor-list">
+                    <li>
+                <a href="packages/GitHubIssueSubmitter-Controller.html" class="">Controller</a>
+                
+            </li>
+                    <li>
+                <a href="packages/GitHubIssueSubmitter-Policy.html" class="">Policy</a>
+                
+            </li>
+                    <li>
+                <a href="packages/GitHubIssueSubmitter-View.html" class="">View</a>
+                
+            </li>
+            </ul>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="packages/Officers.html" class="">Officers</a>
+</h4>
+    <ul class="phpdocumentor-list">
+                    <li>
+                <a href="packages/Officers-Services.html" class="">Services</a>
+                
+            </li>
+                    <li>
+                <a href="packages/Officers-View.html" class="">View</a>
+                
+            </li>
+            </ul>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="packages/Template.html" class="">Template</a>
+</h4>
+    <ul class="phpdocumentor-list">
+                    <li>
+                <a href="packages/Template-Services.html" class="">Services</a>
+                
+            </li>
+            </ul>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="packages/Waivers.html" class="">Waivers</a>
+</h4>
+    <ul class="phpdocumentor-list">
+                    <li>
+                <a href="packages/Waivers-Controller.html" class="">Controller</a>
+                
+            </li>
+            </ul>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="packages/App.html" class="">App</a>
+</h4>
+    <ul class="phpdocumentor-list">
+                    <li>
+                <a href="packages/App-KMP.html" class="">KMP</a>
+                
+            </li>
+                    <li>
+                <a href="packages/App-View.html" class="">View</a>
+                
+            </li>
+            </ul>
+
+                        </section>
+            
+    <section class="phpdocumentor-sidebar__category -reports">
+        <h2 class="phpdocumentor-sidebar__category-header">Reports</h2>
+                <h3 class="phpdocumentor-sidebar__root-package"><a href="reports/deprecated.html">Deprecated</a></h3>
+        <h3 class="phpdocumentor-sidebar__root-package"><a href="reports/errors.html">Errors</a></h3>
+        <h3 class="phpdocumentor-sidebar__root-package"><a href="reports/markers.html">Markers</a></h3>
+    </section>
+
+    <section class="phpdocumentor-sidebar__category -indices">
+        <h2 class="phpdocumentor-sidebar__category-header">Indices</h2>
+        <h3 class="phpdocumentor-sidebar__root-package"><a href="indices/files.html">Files</a></h3>
+    </section>
+</aside>
+
+            <div class="phpdocumentor-column -nine phpdocumentor-content">
+                                <section>
+                                        <ul class="phpdocumentor-breadcrumbs">
+    </ul>
+
+    <article class="phpdocumentor-element -package">
+        <h2 class="phpdocumentor-content__title">Application</h2>
+
+        
+<h3 id="toc">
+    Table of Contents
+    <a href="packages/Application.html#toc" class="headerlink"><i class="fas fa-link"></i></a>
+
+</h3>
+
+
+
+    <h4 id="toc-interfaces">
+        Interfaces
+        <a href="packages/Application.html#toc-interfaces" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+    <dl class="phpdocumentor-table-of-contents">
+                    <dt class="phpdocumentor-table-of-contents__entry -interface"><a href="classes/Queue-Queue-AddFromBackendInterface.html"><abbr title="\Queue\Queue\AddFromBackendInterface">AddFromBackendInterface</abbr></a></dt><dd>Any task that does not need arguments and can be added from backend GUI.</dd>            <dt class="phpdocumentor-table-of-contents__entry -interface"><a href="classes/Queue-Queue-AddInterface.html"><abbr title="\Queue\Queue\AddInterface">AddInterface</abbr></a></dt><dd>Any task needs to at least implement add().</dd>            <dt class="phpdocumentor-table-of-contents__entry -interface"><a href="classes/Queue-Queue-TaskInterface.html"><abbr title="\Queue\Queue\TaskInterface">TaskInterface</abbr></a></dt><dd>Any task needs to at least implement run().</dd>            <dt class="phpdocumentor-table-of-contents__entry -interface"><a href="classes/App-KMP-KmpIdentityInterface.html"><abbr title="\App\KMP\KmpIdentityInterface">KmpIdentityInterface</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -interface"><a href="classes/App-KMP-KMPPluginInterface.html"><abbr title="\App\KMP\KMPPluginInterface">KMPPluginInterface</abbr></a></dt><dd>Plugin architecture contract for KMP plugins.</dd>            <dt class="phpdocumentor-table-of-contents__entry -interface"><a href="classes/App-Services-ActiveWindowManager-ActiveWindowManagerInterface.html"><abbr title="\App\Services\ActiveWindowManager\ActiveWindowManagerInterface">ActiveWindowManagerInterface</abbr></a></dt><dd>Active Window Manager Interface</dd>            <dt class="phpdocumentor-table-of-contents__entry -interface"><a href="classes/App-Services-WarrantManager-WarrantManagerInterface.html"><abbr title="\App\Services\WarrantManager\WarrantManagerInterface">WarrantManagerInterface</abbr></a></dt><dd>Warrant Manager Interface</dd>    </dl>
+
+    <h4 id="toc-classes">
+        Classes
+        <a href="packages/Application.html#toc-classes" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+    <dl class="phpdocumentor-table-of-contents">
+                    <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/InitActivities.html"><abbr title="\InitActivities">InitActivities</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/MakeTermMonthsNotYears.html"><abbr title="\MakeTermMonthsNotYears">MakeTermMonthsNotYears</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/InitActivitiesSeed.html"><abbr title="\InitActivitiesSeed">InitActivitiesSeed</abbr></a></dt><dd>Role seed.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Activities-Controller-AuthorizationsController.html"><abbr title="\Activities\Controller\AuthorizationsController">AuthorizationsController</abbr></a></dt><dd>Activities Plugin Base Controller</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Activities-KMP-GridColumns-ActivitiesGridColumns.html"><abbr title="\Activities\KMP\GridColumns\ActivitiesGridColumns">ActivitiesGridColumns</abbr></a></dt><dd>Activities Grid Column Metadata</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Activities-KMP-GridColumns-ActivityGroupsGridColumns.html"><abbr title="\Activities\KMP\GridColumns\ActivityGroupsGridColumns">ActivityGroupsGridColumns</abbr></a></dt><dd>Activity Groups Grid Column Metadata</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Activities-Mailer-ActivitiesMailer.html"><abbr title="\Activities\Mailer\ActivitiesMailer">ActivitiesMailer</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Activities-Model-Entity-ActivityGroup.html"><abbr title="\Activities\Model\Entity\ActivityGroup">ActivityGroup</abbr></a></dt><dd>ActivityGroup Entity</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Activities-Model-Entity-Authorization.html"><abbr title="\Activities\Model\Entity\Authorization">Authorization</abbr></a></dt><dd>Authorization Entity</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Activities-Model-Entity-AuthorizationApproval.html"><abbr title="\Activities\Model\Entity\AuthorizationApproval">AuthorizationApproval</abbr></a></dt><dd>AuthorizationApproval Entity</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Activities-Model-Table-ActivitiesTable.html"><abbr title="\Activities\Model\Table\ActivitiesTable">ActivitiesTable</abbr></a></dt><dd>Manages Activity entities for the Activities Plugin.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Activities-Model-Table-ActivityGroupsTable.html"><abbr title="\Activities\Model\Table\ActivityGroupsTable">ActivityGroupsTable</abbr></a></dt><dd>Manages ActivityGroup entities for categorical organization of activities.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Activities-Model-Table-AuthorizationApprovalsTable.html"><abbr title="\Activities\Model\Table\AuthorizationApprovalsTable">AuthorizationApprovalsTable</abbr></a></dt><dd>AuthorizationApprovalsTable</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Activities-Model-Table-AuthorizationsTable.html"><abbr title="\Activities\Model\Table\AuthorizationsTable">AuthorizationsTable</abbr></a></dt><dd>Manages Authorization entities for member activity participation workflows.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Activities-Policy-AuthorizationApprovalPolicy.html"><abbr title="\Activities\Policy\AuthorizationApprovalPolicy">AuthorizationApprovalPolicy</abbr></a></dt><dd>Authorization Approval Policy for Multi-Level Approval Workflows</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Activities-Policy-AuthorizationPolicy.html"><abbr title="\Activities\Policy\AuthorizationPolicy">AuthorizationPolicy</abbr></a></dt><dd>Authorization Policy for Member Activity Authorizations</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Activities-Services-ActivitiesNavigationProvider.html"><abbr title="\Activities\Services\ActivitiesNavigationProvider">ActivitiesNavigationProvider</abbr></a></dt><dd>Activities Navigation Provider Service</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Activities-Services-ActivitiesViewCellProvider.html"><abbr title="\Activities\Services\ActivitiesViewCellProvider">ActivitiesViewCellProvider</abbr></a></dt><dd>Activities View Cell Provider Service</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Activities-Services-DefaultAuthorizationManager.html"><abbr title="\Activities\Services\DefaultAuthorizationManager">DefaultAuthorizationManager</abbr></a></dt><dd>Default Authorization Manager Service</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Activities-View-Cell-MemberAuthorizationDetailsJSONCell.html"><abbr title="\Activities\View\Cell\MemberAuthorizationDetailsJSONCell">MemberAuthorizationDetailsJSONCell</abbr></a></dt><dd>Member Authorization Details JSON Cell</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Activities-View-Cell-MemberAuthorizationsCell.html"><abbr title="\Activities\View\Cell\MemberAuthorizationsCell">MemberAuthorizationsCell</abbr></a></dt><dd>Member Authorizations View Cell</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Activities-View-Cell-PermissionActivitiesCell.html"><abbr title="\Activities\View\Cell\PermissionActivitiesCell">PermissionActivitiesCell</abbr></a></dt><dd>Permission Activities View Cell</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Activities-Test-TestCase-View-Cell-MemberAuthorizationDetailsJSONCellTest.html"><abbr title="\Activities\Test\TestCase\View\Cell\MemberAuthorizationDetailsJSONCellTest">MemberAuthorizationDetailsJSONCellTest</abbr></a></dt><dd>Activities\View\Cell\MemberAuthorizationDetailsJSONCell Test Case</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Activities-Test-TestCase-View-Cell-MemberAuthorizationsCellTest.html"><abbr title="\Activities\Test\TestCase\View\Cell\MemberAuthorizationsCellTest">MemberAuthorizationsCellTest</abbr></a></dt><dd>Activities\View\Cell\MemberAuthorizationsCell Test Case</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Activities-Test-TestCase-View-Cell-MobileCardAuthorizedForCellTest.html"><abbr title="\Activities\Test\TestCase\View\Cell\MobileCardAuthorizedForCellTest">MobileCardAuthorizedForCellTest</abbr></a></dt><dd>Activities\View\Cell\MobileCardAuthorizedForCell Test Case</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Activities-Test-TestCase-View-Cell-MobileCardMarshalForCellTest.html"><abbr title="\Activities\Test\TestCase\View\Cell\MobileCardMarshalForCellTest">MobileCardMarshalForCellTest</abbr></a></dt><dd>Activities\View\Cell\MobileCardMarshalForCell Test Case</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Activities-Test-TestCase-View-Cell-PermissionActivitiesCellTest.html"><abbr title="\Activities\Test\TestCase\View\Cell\PermissionActivitiesCellTest">PermissionActivitiesCellTest</abbr></a></dt><dd>Activities\View\Cell\PermissionActivitiesCell Test Case</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Activities-Test-TestCase-View-Cell-WebCardAuthorizedForCellTest.html"><abbr title="\Activities\Test\TestCase\View\Cell\WebCardAuthorizedForCellTest">WebCardAuthorizedForCellTest</abbr></a></dt><dd>Activities\View\Cell\WebCardAuthorizedForCell Test Case</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Activities-Test-TestCase-View-Cell-WebCardMarshalForCellTest.html"><abbr title="\Activities\Test\TestCase\View\Cell\WebCardMarshalForCellTest">WebCardMarshalForCellTest</abbr></a></dt><dd>Activities\View\Cell\WebCardMarshalForCell Test Case</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/InitAwards.html"><abbr title="\InitAwards">InitAwards</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/AddPersonToNotify.html"><abbr title="\AddPersonToNotify">AddPersonToNotify</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/AddEventClosedFlag.html"><abbr title="\AddEventClosedFlag">AddEventClosedFlag</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/AddNoActionReason.html"><abbr title="\AddNoActionReason">AddNoActionReason</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/RecommendationStates.html"><abbr title="\RecommendationStates">RecommendationStates</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/CreateAwardGatheringActivities.html"><abbr title="\CreateAwardGatheringActivities">CreateAwardGatheringActivities</abbr></a></dt><dd>CreateAwardGatheringActivities Migration</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/AddGatheringIdToRecommendations.html"><abbr title="\AddGatheringIdToRecommendations">AddGatheringIdToRecommendations</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/AddGatheringIdToRecommendationsEvents.html"><abbr title="\AddGatheringIdToRecommendationsEvents">AddGatheringIdToRecommendationsEvents</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/RunMigrateAwardEvents.html"><abbr title="\RunMigrateAwardEvents">RunMigrateAwardEvents</abbr></a></dt><dd>Migration to execute Award Events to Gatherings data migration</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/MakeEventIdNullableInRecommendationsEvents.html"><abbr title="\MakeEventIdNullableInRecommendationsEvents">MakeEventIdNullableInRecommendationsEvents</abbr></a></dt><dd>Make event_id nullable in awards_recommendations_events table</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/InitAwardsSeed.html"><abbr title="\InitAwardsSeed">InitAwardsSeed</abbr></a></dt><dd>Role seed.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Awards-Controller-DomainsController.html"><abbr title="\Awards\Controller\DomainsController">DomainsController</abbr></a></dt><dd>CRUD operations for award domain management.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Awards-Controller-LevelsController.html"><abbr title="\Awards\Controller\LevelsController">LevelsController</abbr></a></dt><dd>Award Levels Controller - CRUD for award precedence/rank levels.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Awards-Controller-ReportsController.html"><abbr title="\Awards\Controller\ReportsController">ReportsController</abbr></a></dt><dd>Awards Reports Controller - Analytics and statistics for award recommendations.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Awards-KMP-GridColumns-AwardsGridColumns.html"><abbr title="\Awards\KMP\GridColumns\AwardsGridColumns">AwardsGridColumns</abbr></a></dt><dd>Grid column definitions for the Awards index view
+Used by Awards\Controller\AwardsController::gridData()</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Awards-KMP-GridColumns-RecommendationsGridColumns.html"><abbr title="\Awards\KMP\GridColumns\RecommendationsGridColumns">RecommendationsGridColumns</abbr></a></dt><dd>Recommendations Grid Column Metadata</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Awards-Model-Entity-Award.html"><abbr title="\Awards\Model\Entity\Award">Award</abbr></a></dt><dd>Award Entity - Individual award configuration with hierarchical organization.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Awards-Model-Entity-AwardGatheringActivity.html"><abbr title="\Awards\Model\Entity\AwardGatheringActivity">AwardGatheringActivity</abbr></a></dt><dd>AwardGatheringActivity Entity</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Awards-Model-Entity-Domain.html"><abbr title="\Awards\Model\Entity\Domain">Domain</abbr></a></dt><dd>Domain Entity - Award category (e.g., Service, Arts &amp; Sciences, Martial).</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Awards-Model-Entity-Event.html"><abbr title="\Awards\Model\Entity\Event">Event</abbr></a></dt><dd>Event Entity - Award ceremony and presentation events.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Awards-Model-Entity-Level.html"><abbr title="\Awards\Model\Entity\Level">Level</abbr></a></dt><dd>Level Entity - Award precedence tier (e.g., Entry, Advanced, Master, Peerage).</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Awards-Model-Entity-Recommendation.html"><abbr title="\Awards\Model\Entity\Recommendation">Recommendation</abbr></a></dt><dd>Recommendation Entity - Award recommendation workflow with state machine.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Awards-Model-Entity-RecommendationsStatesLog.html"><abbr title="\Awards\Model\Entity\RecommendationsStatesLog">RecommendationsStatesLog</abbr></a></dt><dd>RecommendationsStatesLog Entity - Audit trail for recommendation state transitions.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Awards-Model-Table-AwardGatheringActivitiesTable.html"><abbr title="\Awards\Model\Table\AwardGatheringActivitiesTable">AwardGatheringActivitiesTable</abbr></a></dt><dd>AwardGatheringActivities Model</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Awards-Model-Table-AwardsTable.html"><abbr title="\Awards\Model\Table\AwardsTable">AwardsTable</abbr></a></dt><dd>Awards Table - Manages award configuration with Domain/Level/Branch hierarchy.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Awards-Model-Table-DomainsTable.html"><abbr title="\Awards\Model\Table\DomainsTable">DomainsTable</abbr></a></dt><dd>Domains Table - Award category classification management.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Awards-Model-Table-EventsTable.html"><abbr title="\Awards\Model\Table\EventsTable">EventsTable</abbr></a></dt><dd>Manages award event data for ceremony coordination, temporal validation, and recommendation workflow integration.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Awards-Model-Table-LevelsTable.html"><abbr title="\Awards\Model\Table\LevelsTable">LevelsTable</abbr></a></dt><dd>Manages award level data with hierarchical precedence ordering.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Awards-Model-Table-RecommendationsStatesLogsTable.html"><abbr title="\Awards\Model\Table\RecommendationsStatesLogsTable">RecommendationsStatesLogsTable</abbr></a></dt><dd>Manages audit trail for recommendation state transitions.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Awards-Model-Table-RecommendationsTable.html"><abbr title="\Awards\Model\Table\RecommendationsTable">RecommendationsTable</abbr></a></dt><dd>Manages award recommendations with complex state machine and workflow management.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Awards-Policy-AwardPolicy.html"><abbr title="\Awards\Policy\AwardPolicy">AwardPolicy</abbr></a></dt><dd>Authorization policy for Award entities.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Awards-Policy-AwardsTablePolicy.html"><abbr title="\Awards\Policy\AwardsTablePolicy">AwardsTablePolicy</abbr></a></dt><dd>Table-level authorization policy for Awards data operations.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Awards-Policy-DomainPolicy.html"><abbr title="\Awards\Policy\DomainPolicy">DomainPolicy</abbr></a></dt><dd>Authorization policy for Domain entities.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Awards-Policy-DomainsTablePolicy.html"><abbr title="\Awards\Policy\DomainsTablePolicy">DomainsTablePolicy</abbr></a></dt><dd>Table-level authorization policy for Domains.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Awards-Policy-EventPolicy.html"><abbr title="\Awards\Policy\EventPolicy">EventPolicy</abbr></a></dt><dd>Authorization policy for Event entities in the Awards plugin.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Awards-Policy-EventsTablePolicy.html"><abbr title="\Awards\Policy\EventsTablePolicy">EventsTablePolicy</abbr></a></dt><dd>Table-level authorization policy for Events in the Awards plugin.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Awards-Policy-LevelPolicy.html"><abbr title="\Awards\Policy\LevelPolicy">LevelPolicy</abbr></a></dt><dd>Authorization policy for Level entities in the Awards plugin.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Awards-Policy-LevelsTablePolicy.html"><abbr title="\Awards\Policy\LevelsTablePolicy">LevelsTablePolicy</abbr></a></dt><dd>Table-level authorization policy for Levels in the Awards plugin.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Awards-Policy-RecommendationPolicy.html"><abbr title="\Awards\Policy\RecommendationPolicy">RecommendationPolicy</abbr></a></dt><dd>Authorization policy for Recommendation entities in the Awards plugin.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Awards-Policy-RecommendationsStatesLogPolicy.html"><abbr title="\Awards\Policy\RecommendationsStatesLogPolicy">RecommendationsStatesLogPolicy</abbr></a></dt><dd>Authorization policy for RecommendationsStatesLog entities in the Awards plugin.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Awards-Policy-RecommendationsStatesLogTablePolicy.html"><abbr title="\Awards\Policy\RecommendationsStatesLogTablePolicy">RecommendationsStatesLogTablePolicy</abbr></a></dt><dd>Table-level authorization policy for RecommendationsStatesLogs in the Awards plugin.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Awards-Policy-RecommendationsTablePolicy.html"><abbr title="\Awards\Policy\RecommendationsTablePolicy">RecommendationsTablePolicy</abbr></a></dt><dd>Table-level authorization policy for Recommendations in the Awards plugin.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Awards-Services-AwardsNavigationProvider.html"><abbr title="\Awards\Services\AwardsNavigationProvider">AwardsNavigationProvider</abbr></a></dt><dd>Provides navigation integration for the Awards plugin.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Awards-Services-AwardsViewCellProvider.html"><abbr title="\Awards\Services\AwardsViewCellProvider">AwardsViewCellProvider</abbr></a></dt><dd>Provides view cell integration for the Awards plugin.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Awards-View-Cell-ActivityAwardsCell.html"><abbr title="\Awards\View\Cell\ActivityAwardsCell">ActivityAwardsCell</abbr></a></dt><dd>Displays awards that can be given during a specific gathering activity.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Awards-View-Cell-GatheringAwardsCell.html"><abbr title="\Awards\View\Cell\GatheringAwardsCell">GatheringAwardsCell</abbr></a></dt><dd>Gathering Awards View Cell</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Awards-View-Cell-MemberSubmittedRecsCell.html"><abbr title="\Awards\View\Cell\MemberSubmittedRecsCell">MemberSubmittedRecsCell</abbr></a></dt><dd>Displays award recommendations submitted by a specific member.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Awards-View-Cell-RecsForMemberCell.html"><abbr title="\Awards\View\Cell\RecsForMemberCell">RecsForMemberCell</abbr></a></dt><dd>Displays award recommendations received by a specific member.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Awards-Test-TestCase-View-Cell-MemberSubmittedRecsCellTest.html"><abbr title="\Awards\Test\TestCase\View\Cell\MemberSubmittedRecsCellTest">MemberSubmittedRecsCellTest</abbr></a></dt><dd>Awards\View\Cell\MemberSubmittedRecsCell Test Case</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Awards-Test-TestCase-View-Cell-RecsForMemberCellTest.html"><abbr title="\Awards\Test\TestCase\View\Cell\RecsForMemberCellTest">RecsForMemberCellTest</abbr></a></dt><dd>Awards\View\Cell\RecsForMemberCell Test Case</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Bootstrap-BootstrapPlugin.html"><abbr title="\Bootstrap\BootstrapPlugin">BootstrapPlugin</abbr></a></dt><dd>Plugin for Boostrap</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Bootstrap-Utility-Matching.html"><abbr title="\Bootstrap\Utility\Matching">Matching</abbr></a></dt><dd>A trait that provides useful methods to match HTML tag.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Bootstrap-Utility-StackedStates.html"><abbr title="\Bootstrap\Utility\StackedStates">StackedStates</abbr></a></dt><dd>A class that providing stacking states.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Bootstrap-View-EnhancedStringTemplate.html"><abbr title="\Bootstrap\View\EnhancedStringTemplate">EnhancedStringTemplate</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Bootstrap-View-FlexibleStringTemplate.html"><abbr title="\Bootstrap\View\FlexibleStringTemplate">FlexibleStringTemplate</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Bootstrap-View-Helper-CardHelper.html"><abbr title="\Bootstrap\View\Helper\CardHelper">CardHelper</abbr></a></dt><dd>Card helper library.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Bootstrap-View-Helper-HtmlHelper.html"><abbr title="\Bootstrap\View\Helper\HtmlHelper">HtmlHelper</abbr></a></dt><dd>Html Helper class for easy use of HTML widgets.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Bootstrap-View-Helper-ModalHelper.html"><abbr title="\Bootstrap\View\Helper\ModalHelper">ModalHelper</abbr></a></dt><dd>Modal helper library.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Bootstrap-View-Helper-NavbarHelper.html"><abbr title="\Bootstrap\View\Helper\NavbarHelper">NavbarHelper</abbr></a></dt><dd>Navbar helper library.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Bootstrap-View-Widget-ColumnSelectBoxWidget.html"><abbr title="\Bootstrap\View\Widget\ColumnSelectBoxWidget">ColumnSelectBoxWidget</abbr></a></dt><dd>Form &#039;widget&#039; for creating select box in bootstrap columns.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Bootstrap-View-Widget-FancyFileWidget.html"><abbr title="\Bootstrap\View\Widget\FancyFileWidget">FancyFileWidget</abbr></a></dt><dd>Form &#039;widget&#039; for creating fancy file widgets made of a button
+and a text input.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Bootstrap-View-Widget-InlineRadioWidget.html"><abbr title="\Bootstrap\View\Widget\InlineRadioWidget">InlineRadioWidget</abbr></a></dt><dd>Input widget class for generating a set of inline radio buttons.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Bootstrap-View-Widget-LabelLegendWidget.html"><abbr title="\Bootstrap\View\Widget\LabelLegendWidget">LabelLegendWidget</abbr></a></dt><dd>Label widget class for generating label or legend depending on type of
+inputs.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/InitOffices.html"><abbr title="\InitOffices">InitOffices</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/RefactorOfficeHierarchy.html"><abbr title="\RefactorOfficeHierarchy">RefactorOfficeHierarchy</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/AddViewOfficersPermission.html"><abbr title="\AddViewOfficersPermission">AddViewOfficersPermission</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/AddDomainToDepartment.html"><abbr title="\AddDomainToDepartment">AddDomainToDepartment</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/MakeOfficerTermMonthsNotYears.html"><abbr title="\MakeOfficerTermMonthsNotYears">MakeOfficerTermMonthsNotYears</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/InitOfficersRefactorSeed.html"><abbr title="\InitOfficersRefactorSeed">InitOfficersRefactorSeed</abbr></a></dt><dd>Roles seed.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/InitOfficersSeed.html"><abbr title="\InitOfficersSeed">InitOfficersSeed</abbr></a></dt><dd>Role seed.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Officers-Controller-AppController.html"><abbr title="\Officers\Controller\AppController">AppController</abbr></a></dt><dd>Officers Plugin Base Controller</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Officers-Controller-DepartmentsController.html"><abbr title="\Officers\Controller\DepartmentsController">DepartmentsController</abbr></a></dt><dd>Departments Controller</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Officers-Controller-OfficersController.html"><abbr title="\Officers\Controller\OfficersController">OfficersController</abbr></a></dt><dd>Officers Controller</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Officers-Controller-OfficesController.html"><abbr title="\Officers\Controller\OfficesController">OfficesController</abbr></a></dt><dd>Officers Plugin Base Controller</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Officers-Controller-ReportsController.html"><abbr title="\Officers\Controller\ReportsController">ReportsController</abbr></a></dt><dd>Officers Plugin Base Controller</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Officers-Controller-RostersController.html"><abbr title="\Officers\Controller\RostersController">RostersController</abbr></a></dt><dd>Officers Plugin Base Controller</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Officers-KMP-GridColumns-OfficersGridColumns.html"><abbr title="\Officers\KMP\GridColumns\OfficersGridColumns">OfficersGridColumns</abbr></a></dt><dd>Officers Grid Column Metadata</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Officers-Mailer-OfficersMailer.html"><abbr title="\Officers\Mailer\OfficersMailer">OfficersMailer</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Officers-Model-Entity-Department.html"><abbr title="\Officers\Model\Entity\Department">Department</abbr></a></dt><dd>Department Entity - Organizational structure for officer categorization</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Officers-Model-Entity-Office.html"><abbr title="\Officers\Model\Entity\Office">Office</abbr></a></dt><dd>Office Entity - Hierarchical office positions within departments</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Officers-Model-Entity-Officer.html"><abbr title="\Officers\Model\Entity\Officer">Officer</abbr></a></dt><dd>Officer Entity - Officer assignments with temporal management</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Officers-Model-Table-DepartmentsTable.html"><abbr title="\Officers\Model\Table\DepartmentsTable">DepartmentsTable</abbr></a></dt><dd>Departments Table - Departmental data management</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Officers-Model-Table-OfficersTable.html"><abbr title="\Officers\Model\Table\OfficersTable">OfficersTable</abbr></a></dt><dd>Officers Table - Officer assignment lifecycle management</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Officers-Model-Table-OfficesTable.html"><abbr title="\Officers\Model\Table\OfficesTable">OfficesTable</abbr></a></dt><dd>Offices Table - Hierarchical office structure and permission-based access</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Officers-OfficersPlugin.html"><abbr title="\Officers\OfficersPlugin">OfficersPlugin</abbr></a></dt><dd>Officers Plugin - Officer assignment management and hierarchical organization</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Officers-Policy-DepartmentPolicy.html"><abbr title="\Officers\Policy\DepartmentPolicy">DepartmentPolicy</abbr></a></dt><dd>Department Authorization Policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Officers-Policy-DepartmentsTablePolicy.html"><abbr title="\Officers\Policy\DepartmentsTablePolicy">DepartmentsTablePolicy</abbr></a></dt><dd>Departments Table Authorization Policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Officers-Policy-OfficePolicy.html"><abbr title="\Officers\Policy\OfficePolicy">OfficePolicy</abbr></a></dt><dd>Office Authorization Policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Officers-Policy-OfficerPolicy.html"><abbr title="\Officers\Policy\OfficerPolicy">OfficerPolicy</abbr></a></dt><dd>Officer Authorization Policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Officers-Policy-OfficersTablePolicy.html"><abbr title="\Officers\Policy\OfficersTablePolicy">OfficersTablePolicy</abbr></a></dt><dd>Officers Table Authorization Policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Officers-Policy-OfficesTablePolicy.html"><abbr title="\Officers\Policy\OfficesTablePolicy">OfficesTablePolicy</abbr></a></dt><dd>Offices Table Authorization Policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Officers-Policy-ReportsControllerPolicy.html"><abbr title="\Officers\Policy\ReportsControllerPolicy">ReportsControllerPolicy</abbr></a></dt><dd>Officers Reports Controller Authorization Policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Officers-Policy-RostersControllerPolicy.html"><abbr title="\Officers\Policy\RostersControllerPolicy">RostersControllerPolicy</abbr></a></dt><dd>Rosters Controller Authorization Policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Officers-Test-TestCase-Controller-OfficesControllerTest.html"><abbr title="\Officers\Test\TestCase\Controller\OfficesControllerTest">OfficesControllerTest</abbr></a></dt><dd>Officers\Controller\OfficesController Test Case</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Officers-Test-TestCase-Services-DefaultOfficerManagerTest.html"><abbr title="\Officers\Test\TestCase\Services\DefaultOfficerManagerTest">DefaultOfficerManagerTest</abbr></a></dt><dd>Officers\Services\DefaultOfficerManager Test Case</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Officers-Test-TestCase-View-Cell-BranchOfficersCellTest.html"><abbr title="\Officers\Test\TestCase\View\Cell\BranchOfficersCellTest">BranchOfficersCellTest</abbr></a></dt><dd>Officers\View\Cell\BranchOfficersCell Test Case</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Officers-Test-TestCase-View-Cell-BranchRequiredOfficersCellTest.html"><abbr title="\Officers\Test\TestCase\View\Cell\BranchRequiredOfficersCellTest">BranchRequiredOfficersCellTest</abbr></a></dt><dd>Officers\View\Cell\BranchRequiredOfficersCell Test Case</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Officers-Test-TestCase-View-Cell-MemberOfficersCellTest.html"><abbr title="\Officers\Test\TestCase\View\Cell\MemberOfficersCellTest">MemberOfficersCellTest</abbr></a></dt><dd>Officers\View\Cell\MemberOfficersCell Test Case</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/MigrationQueueInitV8.html"><abbr title="\MigrationQueueInitV8">MigrationQueueInitV8</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/AddQueueEngineManagerPermission.html"><abbr title="\AddQueueEngineManagerPermission">AddQueueEngineManagerPermission</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Command-AddCommand.html"><abbr title="\Queue\Command\AddCommand">AddCommand</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Command-BakeQueueTaskCommand.html"><abbr title="\Queue\Command\BakeQueueTaskCommand">BakeQueueTaskCommand</abbr></a></dt><dd>Command class for generating queue task files and their tests.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Command-InfoCommand.html"><abbr title="\Queue\Command\InfoCommand">InfoCommand</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Command-JobCommand.html"><abbr title="\Queue\Command\JobCommand">JobCommand</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Command-RunCommand.html"><abbr title="\Queue\Command\RunCommand">RunCommand</abbr></a></dt><dd>Main execution of queued jobs.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Command-WorkerCommand.html"><abbr title="\Queue\Command\WorkerCommand">WorkerCommand</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Config-JobConfig.html"><abbr title="\Queue\Config\JobConfig">JobConfig</abbr></a></dt><dd>JobConfig DTO</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Console-Io.html"><abbr title="\Queue\Console\Io">Io</abbr></a></dt><dd>Composition class as proxy towards ConsoleIO - basically a shell replacement for inside business logic.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Controller-QueueController.html"><abbr title="\Queue\Controller\QueueController">QueueController</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Controller-QueuedJobsController.html"><abbr title="\Queue\Controller\QueuedJobsController">QueuedJobsController</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Controller-QueueProcessesController.html"><abbr title="\Queue\Controller\QueueProcessesController">QueueProcessesController</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Generator-Task-QueuedJobTask.html"><abbr title="\Queue\Generator\Task\QueuedJobTask">QueuedJobTask</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Mailer-Transport-QueueTransport.html"><abbr title="\Queue\Mailer\Transport\QueueTransport">QueueTransport</abbr></a></dt><dd>Send mail using Queue plugin and Message objects.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Mailer-Transport-SimpleQueueTransport.html"><abbr title="\Queue\Mailer\Transport\SimpleQueueTransport">SimpleQueueTransport</abbr></a></dt><dd>Send mail using Queue plugin and Message settings.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Migration-OldTaskFinder.html"><abbr title="\Queue\Migration\OldTaskFinder">OldTaskFinder</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Model-Behavior-JsonableBehavior.html"><abbr title="\Queue\Model\Behavior\JsonableBehavior">JsonableBehavior</abbr></a></dt><dd>A behavior that will json_encode (and json_decode) fields if they contain an array or specific pattern.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Model-Entity-QueuedJob.html"><abbr title="\Queue\Model\Entity\QueuedJob">QueuedJob</abbr></a></dt><dd>Base Entity for KMP Application</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Model-Entity-QueueProcess.html"><abbr title="\Queue\Model\Entity\QueueProcess">QueueProcess</abbr></a></dt><dd>QueueProcess Entity</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Model-ProcessEndingException.html"><abbr title="\Queue\Model\ProcessEndingException">ProcessEndingException</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Model-QueueException.html"><abbr title="\Queue\Model\QueueException">QueueException</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Model-Table-QueuedJobsTable.html"><abbr title="\Queue\Model\Table\QueuedJobsTable">QueuedJobsTable</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Model-Table-QueueProcessesTable.html"><abbr title="\Queue\Model\Table\QueueProcessesTable">QueueProcessesTable</abbr></a></dt><dd>QueueProcesses Model</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Policy-QueuedJobPolicy.html"><abbr title="\Queue\Policy\QueuedJobPolicy">QueuedJobPolicy</abbr></a></dt><dd>Department policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Queue-Config.html"><abbr title="\Queue\Queue\Config">Config</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Queue-Processor.html"><abbr title="\Queue\Queue\Processor">Processor</abbr></a></dt><dd>Main shell to init and run queue workers.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Queue-Task-CostsExampleTask.html"><abbr title="\Queue\Queue\Task\CostsExampleTask">CostsExampleTask</abbr></a></dt><dd>A Costs QueueTask example.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Queue-Task-EmailTask.html"><abbr title="\Queue\Queue\Task\EmailTask">EmailTask</abbr></a></dt><dd>A convenience task ready to use for asynchronously sending basic emails.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Queue-Task-ExampleTask.html"><abbr title="\Queue\Queue\Task\ExampleTask">ExampleTask</abbr></a></dt><dd>A Simple QueueTask example.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Queue-Task-ExceptionExampleTask.html"><abbr title="\Queue\Queue\Task\ExceptionExampleTask">ExceptionExampleTask</abbr></a></dt><dd>An exception throwing QueueTask example.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Queue-Task-ExecuteTask.html"><abbr title="\Queue\Queue\Task\ExecuteTask">ExecuteTask</abbr></a></dt><dd>Execute a Local command on the server.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Queue-Task-MailerTask.html"><abbr title="\Queue\Queue\Task\MailerTask">MailerTask</abbr></a></dt><dd>A convenience task ready to use for asynchronously sending reusable emails via Mailer classes.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Queue-Task-MonitorExampleTask.html"><abbr title="\Queue\Queue\Task\MonitorExampleTask">MonitorExampleTask</abbr></a></dt><dd>A Simple QueueTask example.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Queue-Task-ProgressExampleTask.html"><abbr title="\Queue\Queue\Task\ProgressExampleTask">ProgressExampleTask</abbr></a></dt><dd>A Simple QueueTask example that runs for a while and updates the progress field.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Queue-Task-RetryExampleTask.html"><abbr title="\Queue\Queue\Task\RetryExampleTask">RetryExampleTask</abbr></a></dt><dd>A retry QueueTask example.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Queue-Task-SuperExampleTask.html"><abbr title="\Queue\Queue\Task\SuperExampleTask">SuperExampleTask</abbr></a></dt><dd>A cascading QueueTask example.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Queue-Task-UniqueExampleTask.html"><abbr title="\Queue\Queue\Task\UniqueExampleTask">UniqueExampleTask</abbr></a></dt><dd>A Unique QueueTask example.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Queue-Task.html"><abbr title="\Queue\Queue\Task">Task</abbr></a></dt><dd>Queue Task.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Queue-TaskFinder.html"><abbr title="\Queue\Queue\TaskFinder">TaskFinder</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-QueuePlugin.html"><abbr title="\Queue\QueuePlugin">QueuePlugin</abbr></a></dt><dd>Plugin for Queue</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Services-QueueNavigationProvider.html"><abbr title="\Queue\Services\QueueNavigationProvider">QueueNavigationProvider</abbr></a></dt><dd>Queue Navigation Provider</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-View-Helper-QueueHelper.html"><abbr title="\Queue\View\Helper\QueueHelper">QueueHelper</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-View-Helper-QueueProgressHelper.html"><abbr title="\Queue\View\Helper\QueueProgressHelper">QueueProgressHelper</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Test-Fixture-QueuedJobsFixture.html"><abbr title="\Queue\Test\Fixture\QueuedJobsFixture">QueuedJobsFixture</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Test-Fixture-QueueProcessesFixture.html"><abbr title="\Queue\Test\Fixture\QueueProcessesFixture">QueueProcessesFixture</abbr></a></dt><dd>QueueProcessesFixture</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Foo-Queue-Task-FooTask.html"><abbr title="\Foo\Queue\Task\FooTask">FooTask</abbr></a></dt><dd>Foo plugin Foo task for testing plugin task discovery</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Foo-Queue-Task-Sub-SubFooTask.html"><abbr title="\Foo\Queue\Task\Sub\SubFooTask">SubFooTask</abbr></a></dt><dd>Foo plugin SubFoo task for testing nested plugin task discovery</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/TestApp-Dto-MyTaskDto.html"><abbr title="\TestApp\Dto\MyTaskDto">MyTaskDto</abbr></a></dt><dd>Simple DTO class for testing data serialization in Queue jobs</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/TestApp-Mailer-TestMailer.html"><abbr title="\TestApp\Mailer\TestMailer">TestMailer</abbr></a></dt><dd>Simple test mailer for testing MailerTask</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/TestApp-Queue-Task-FooTask.html"><abbr title="\TestApp\Queue\Task\FooTask">FooTask</abbr></a></dt><dd>Simple Foo task for testing task name resolution and task finding</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/TestApp-Queue-Task-Sub-SubFooTask.html"><abbr title="\TestApp\Queue\Task\Sub\SubFooTask">SubFooTask</abbr></a></dt><dd>SubFoo task for testing nested task discovery</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Test-TestCase-Command-AddCommandTest.html"><abbr title="\Queue\Test\TestCase\Command\AddCommandTest">AddCommandTest</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Test-TestCase-Command-BakeQueueTaskCommandTest.html"><abbr title="\Queue\Test\TestCase\Command\BakeQueueTaskCommandTest">BakeQueueTaskCommandTest</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Test-TestCase-Command-InfoCommandTest.html"><abbr title="\Queue\Test\TestCase\Command\InfoCommandTest">InfoCommandTest</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Test-TestCase-Command-JobCommandTest.html"><abbr title="\Queue\Test\TestCase\Command\JobCommandTest">JobCommandTest</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Test-TestCase-Command-RunCommandTest.html"><abbr title="\Queue\Test\TestCase\Command\RunCommandTest">RunCommandTest</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Test-TestCase-Command-WorkerCommandTest.html"><abbr title="\Queue\Test\TestCase\Command\WorkerCommandTest">WorkerCommandTest</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Test-TestCase-Config-JobConfigTest.html"><abbr title="\Queue\Test\TestCase\Config\JobConfigTest">JobConfigTest</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Test-TestCase-Controller-Admin-QueueControllerTest.html"><abbr title="\Queue\Test\TestCase\Controller\Admin\QueueControllerTest">QueueControllerTest</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Test-TestCase-Controller-Admin-QueuedJobsControllerTest.html"><abbr title="\Queue\Test\TestCase\Controller\Admin\QueuedJobsControllerTest">QueuedJobsControllerTest</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Test-TestCase-Controller-Admin-QueueProcessesControllerTest.html"><abbr title="\Queue\Test\TestCase\Controller\Admin\QueueProcessesControllerTest">QueueProcessesControllerTest</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Test-TestCase-Generator-Task-QueuedJobGeneratorTest.html"><abbr title="\Queue\Test\TestCase\Generator\Task\QueuedJobGeneratorTest">QueuedJobGeneratorTest</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Test-TestCase-Mailer-Transport-QueueTransportTest.html"><abbr title="\Queue\Test\TestCase\Mailer\Transport\QueueTransportTest">QueueTransportTest</abbr></a></dt><dd>Test case</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Test-TestCase-Mailer-Transport-SimpleQueueTransportTest.html"><abbr title="\Queue\Test\TestCase\Mailer\Transport\SimpleQueueTransportTest">SimpleQueueTransportTest</abbr></a></dt><dd>Test case</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Test-TestCase-Model-Table-QueuedJobsTableTest.html"><abbr title="\Queue\Test\TestCase\Model\Table\QueuedJobsTableTest">QueuedJobsTableTest</abbr></a></dt><dd>Queue\Model\Table\QueuedJobsTable Test Case</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Test-TestCase-Model-Table-QueueProcessesTableTest.html"><abbr title="\Queue\Test\TestCase\Model\Table\QueueProcessesTableTest">QueueProcessesTableTest</abbr></a></dt><dd>Queue\Model\Table\QueueProcessesTable Test Case</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Test-TestCase-Queue-ProcessorTest.html"><abbr title="\Queue\Test\TestCase\Queue\ProcessorTest">ProcessorTest</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Test-TestCase-Queue-Task-CostsExampleTaskTest.html"><abbr title="\Queue\Test\TestCase\Queue\Task\CostsExampleTaskTest">CostsExampleTaskTest</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Test-TestCase-Queue-Task-EmailTaskTest.html"><abbr title="\Queue\Test\TestCase\Queue\Task\EmailTaskTest">EmailTaskTest</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Test-TestCase-Queue-Task-ExampleTaskTest.html"><abbr title="\Queue\Test\TestCase\Queue\Task\ExampleTaskTest">ExampleTaskTest</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Test-TestCase-Queue-Task-ExceptionExampleTaskTest.html"><abbr title="\Queue\Test\TestCase\Queue\Task\ExceptionExampleTaskTest">ExceptionExampleTaskTest</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Test-TestCase-Queue-Task-ExecuteTaskTest.html"><abbr title="\Queue\Test\TestCase\Queue\Task\ExecuteTaskTest">ExecuteTaskTest</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Test-TestCase-Queue-Task-MailerTaskTest.html"><abbr title="\Queue\Test\TestCase\Queue\Task\MailerTaskTest">MailerTaskTest</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Test-TestCase-Queue-Task-MonitorExampleTaskTest.html"><abbr title="\Queue\Test\TestCase\Queue\Task\MonitorExampleTaskTest">MonitorExampleTaskTest</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Test-TestCase-Queue-Task-ProgressExampleTaskTest.html"><abbr title="\Queue\Test\TestCase\Queue\Task\ProgressExampleTaskTest">ProgressExampleTaskTest</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Test-TestCase-Queue-Task-RetryExampleTaskTest.html"><abbr title="\Queue\Test\TestCase\Queue\Task\RetryExampleTaskTest">RetryExampleTaskTest</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Test-TestCase-Queue-Task-SuperExampleTaskTest.html"><abbr title="\Queue\Test\TestCase\Queue\Task\SuperExampleTaskTest">SuperExampleTaskTest</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Test-TestCase-Queue-Task-UniqueExampleTaskTest.html"><abbr title="\Queue\Test\TestCase\Queue\Task\UniqueExampleTaskTest">UniqueExampleTaskTest</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Test-TestCase-Queue-TaskFinderTest.html"><abbr title="\Queue\Test\TestCase\Queue\TaskFinderTest">TaskFinderTest</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Test-TestCase-Queue-TaskTest.html"><abbr title="\Queue\Test\TestCase\Queue\TaskTest">TaskTest</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Test-TestCase-View-Helper-QueueHelperTest.html"><abbr title="\Queue\Test\TestCase\View\Helper\QueueHelperTest">QueueHelperTest</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Queue-Test-TestCase-View-Helper-QueueProgressHelperTest.html"><abbr title="\Queue\Test\TestCase\View\Helper\QueueProgressHelperTest">QueueProgressHelperTest</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/ComposerAutoloaderInita43eb99393ddb31bceb68d6e9167f505.html"><abbr title="\ComposerAutoloaderInita43eb99393ddb31bceb68d6e9167f505">ComposerAutoloaderInita43eb99393ddb31bceb68d6e9167f505</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Composer-Autoload-ComposerStaticInita43eb99393ddb31bceb68d6e9167f505.html"><abbr title="\Composer\Autoload\ComposerStaticInita43eb99393ddb31bceb68d6e9167f505">ComposerStaticInita43eb99393ddb31bceb68d6e9167f505</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Composer-Autoload-ClassLoader.html"><abbr title="\Composer\Autoload\ClassLoader">ClassLoader</abbr></a></dt><dd>ClassLoader implements a PSR-0, PSR-4 and classmap class loader.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/CreateHelloWorldItems.html"><abbr title="\CreateHelloWorldItems">CreateHelloWorldItems</abbr></a></dt><dd>Create HelloWorldItems table</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/HelloWorldItemsSeed.html"><abbr title="\HelloWorldItemsSeed">HelloWorldItemsSeed</abbr></a></dt><dd>HelloWorldItems seed.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Template-Controller-HelloWorldController.html"><abbr title="\Template\Controller\HelloWorldController">HelloWorldController</abbr></a></dt><dd>HelloWorld Controller</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Template-Policy-HelloWorldControllerPolicy.html"><abbr title="\Template\Policy\HelloWorldControllerPolicy">HelloWorldControllerPolicy</abbr></a></dt><dd>HelloWorld Policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Template-Test-TestCase-Controller-HelloWorldControllerTest.html"><abbr title="\Template\Test\TestCase\Controller\HelloWorldControllerTest">HelloWorldControllerTest</abbr></a></dt><dd>Template\Controller\HelloWorldController Test Case</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/CreateWaiverTypes.html"><abbr title="\CreateWaiverTypes">CreateWaiverTypes</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/CreateGatheringActivityWaivers.html"><abbr title="\CreateGatheringActivityWaivers">CreateGatheringActivityWaivers</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/CreateGatheringWaivers.html"><abbr title="\CreateGatheringWaivers">CreateGatheringWaivers</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/CreateGatheringWaiverActivities.html"><abbr title="\CreateGatheringWaiverActivities">CreateGatheringWaiverActivities</abbr></a></dt><dd>CreateGatheringWaiverActivities Migration</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/AddDocumentIdToWaiverTypes.html"><abbr title="\AddDocumentIdToWaiverTypes">AddDocumentIdToWaiverTypes</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/AddDeletedToGatheringActivityWaiversUniqueIndex.html"><abbr title="\AddDeletedToGatheringActivityWaiversUniqueIndex">AddDeletedToGatheringActivityWaiversUniqueIndex</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/RemoveMemberIdFromGatheringWaivers.html"><abbr title="\RemoveMemberIdFromGatheringWaivers">RemoveMemberIdFromGatheringWaivers</abbr></a></dt><dd>Remove member_id from gathering_waivers table</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/AddDeclineFieldsToGatheringWaivers.html"><abbr title="\AddDeclineFieldsToGatheringWaivers">AddDeclineFieldsToGatheringWaivers</abbr></a></dt><dd>Add decline tracking fields to gathering_waivers table</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/AddExemptionReasonsToWaiverTypes.html"><abbr title="\AddExemptionReasonsToWaiverTypes">AddExemptionReasonsToWaiverTypes</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/AddExemptionFieldsToGatheringWaivers.html"><abbr title="\AddExemptionFieldsToGatheringWaivers">AddExemptionFieldsToGatheringWaivers</abbr></a></dt><dd>Add exemption fields to gathering_waivers table</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/DevLoadGatheringActivityWaiversSeed.html"><abbr title="\DevLoadGatheringActivityWaiversSeed">DevLoadGatheringActivityWaiversSeed</abbr></a></dt><dd>DevLoadGatheringActivityWaiversSeed</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Waivers-Controller-GatheringActivityWaiversController.html"><abbr title="\Waivers\Controller\GatheringActivityWaiversController">GatheringActivityWaiversController</abbr></a></dt><dd>GatheringActivityWaivers Controller</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Waivers-Controller-GatheringWaiversController.html"><abbr title="\Waivers\Controller\GatheringWaiversController">GatheringWaiversController</abbr></a></dt><dd>GatheringWaivers Controller</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Waivers-Controller-WaiverTypesController.html"><abbr title="\Waivers\Controller\WaiverTypesController">WaiverTypesController</abbr></a></dt><dd>WaiverTypes Controller</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Waivers-KMP-GridColumns-WaiverTypesGridColumns.html"><abbr title="\Waivers\KMP\GridColumns\WaiverTypesGridColumns">WaiverTypesGridColumns</abbr></a></dt><dd>Waiver Types Grid Column Metadata</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Waivers-Model-Entity-GatheringActivityWaiver.html"><abbr title="\Waivers\Model\Entity\GatheringActivityWaiver">GatheringActivityWaiver</abbr></a></dt><dd>GatheringActivityWaiver Entity</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Waivers-Model-Entity-GatheringWaiver.html"><abbr title="\Waivers\Model\Entity\GatheringWaiver">GatheringWaiver</abbr></a></dt><dd>GatheringWaiver Entity</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Waivers-Model-Entity-GatheringWaiverActivity.html"><abbr title="\Waivers\Model\Entity\GatheringWaiverActivity">GatheringWaiverActivity</abbr></a></dt><dd>GatheringWaiverActivity Entity</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Waivers-Model-Entity-WaiverType.html"><abbr title="\Waivers\Model\Entity\WaiverType">WaiverType</abbr></a></dt><dd>WaiverType Entity</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Waivers-Model-Table-GatheringActivityWaiversTable.html"><abbr title="\Waivers\Model\Table\GatheringActivityWaiversTable">GatheringActivityWaiversTable</abbr></a></dt><dd>GatheringActivityWaivers Model</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Waivers-Model-Table-GatheringWaiverActivitiesTable.html"><abbr title="\Waivers\Model\Table\GatheringWaiverActivitiesTable">GatheringWaiverActivitiesTable</abbr></a></dt><dd>GatheringWaiverActivities Model</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Waivers-Model-Table-GatheringWaiversTable.html"><abbr title="\Waivers\Model\Table\GatheringWaiversTable">GatheringWaiversTable</abbr></a></dt><dd>GatheringWaivers Model</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Waivers-Model-Table-WaiverTypesTable.html"><abbr title="\Waivers\Model\Table\WaiverTypesTable">WaiverTypesTable</abbr></a></dt><dd>WaiverTypes Model</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Waivers-Policy-GatheringActivityWaiverPolicy.html"><abbr title="\Waivers\Policy\GatheringActivityWaiverPolicy">GatheringActivityWaiverPolicy</abbr></a></dt><dd>GatheringActivityWaiver Entity Authorization Policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Waivers-Policy-GatheringActivityWaiversTablePolicy.html"><abbr title="\Waivers\Policy\GatheringActivityWaiversTablePolicy">GatheringActivityWaiversTablePolicy</abbr></a></dt><dd>GatheringActivityWaivers Table Authorization Policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Waivers-Policy-GatheringWaiverActivitiesTablePolicy.html"><abbr title="\Waivers\Policy\GatheringWaiverActivitiesTablePolicy">GatheringWaiverActivitiesTablePolicy</abbr></a></dt><dd>GatheringWaiverActivities Table Authorization Policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Waivers-Policy-GatheringWaiverPolicy.html"><abbr title="\Waivers\Policy\GatheringWaiverPolicy">GatheringWaiverPolicy</abbr></a></dt><dd>GatheringWaiver Entity Authorization Policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Waivers-Policy-GatheringWaiversControllerPolicy.html"><abbr title="\Waivers\Policy\GatheringWaiversControllerPolicy">GatheringWaiversControllerPolicy</abbr></a></dt><dd>GatheringWaivers Controller Authorization Policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Waivers-Policy-GatheringWaiversTablePolicy.html"><abbr title="\Waivers\Policy\GatheringWaiversTablePolicy">GatheringWaiversTablePolicy</abbr></a></dt><dd>GatheringWaivers Table Authorization Policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Waivers-Policy-WaiverPolicy.html"><abbr title="\Waivers\Policy\WaiverPolicy">WaiverPolicy</abbr></a></dt><dd>Waiver Policy (for GatheringWaiver)</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Waivers-Policy-WaiverTypePolicy.html"><abbr title="\Waivers\Policy\WaiverTypePolicy">WaiverTypePolicy</abbr></a></dt><dd>WaiverType Policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Waivers-Policy-WaiverTypesTablePolicy.html"><abbr title="\Waivers\Policy\WaiverTypesTablePolicy">WaiverTypesTablePolicy</abbr></a></dt><dd>WaiverTypes Table Authorization Policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Waivers-Services-GatheringActivityService.html"><abbr title="\Waivers\Services\GatheringActivityService">GatheringActivityService</abbr></a></dt><dd>Gathering Activity Service</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Waivers-Services-WaiversNavigationProvider.html"><abbr title="\Waivers\Services\WaiversNavigationProvider">WaiversNavigationProvider</abbr></a></dt><dd>Waivers Navigation Provider</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Waivers-Services-WaiversViewCellProvider.html"><abbr title="\Waivers\Services\WaiversViewCellProvider">WaiversViewCellProvider</abbr></a></dt><dd>Waivers View Cell Provider Service</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Waivers-View-Cell-GatheringActivityWaiversCell.html"><abbr title="\Waivers\View\Cell\GatheringActivityWaiversCell">GatheringActivityWaiversCell</abbr></a></dt><dd>Gathering Activity Waivers View Cell</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Waivers-View-Cell-GatheringWaiversCell.html"><abbr title="\Waivers\View\Cell\GatheringWaiversCell">GatheringWaiversCell</abbr></a></dt><dd>Gathering Waivers View Cell</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Waivers-WaiversPlugin.html"><abbr title="\Waivers\WaiversPlugin">WaiversPlugin</abbr></a></dt><dd>Waivers Plugin - Gathering Waiver Tracking System</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Waivers-Test-Fixture-GatheringActivityWaiversFixture.html"><abbr title="\Waivers\Test\Fixture\GatheringActivityWaiversFixture">GatheringActivityWaiversFixture</abbr></a></dt><dd>GatheringActivityWaiversFixture</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Waivers-Test-Fixture-GatheringWaiversFixture.html"><abbr title="\Waivers\Test\Fixture\GatheringWaiversFixture">GatheringWaiversFixture</abbr></a></dt><dd>GatheringWaiversFixture</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Waivers-Test-Fixture-WaiverTypesFixture.html"><abbr title="\Waivers\Test\Fixture\WaiverTypesFixture">WaiverTypesFixture</abbr></a></dt><dd>WaiverTypesFixture</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Waivers-Test-TestCase-Controller-GatheringWaiversControllerTest.html"><abbr title="\Waivers\Test\TestCase\Controller\GatheringWaiversControllerTest">GatheringWaiversControllerTest</abbr></a></dt><dd>Waivers\Controller\GatheringWaiversController Test Case</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Template-Test-TestCase-Controller-HelloWorldControllerTest.html"><abbr title="\Template\Test\TestCase\Controller\HelloWorldControllerTest">HelloWorldControllerTest</abbr></a></dt><dd>Template\Controller\HelloWorldController Test Case</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Waivers-Test-TestCase-Controller-WaiverTypesControllerTest.html"><abbr title="\Waivers\Test\TestCase\Controller\WaiverTypesControllerTest">WaiverTypesControllerTest</abbr></a></dt><dd>Waivers\Controller\WaiverTypesController Test Case</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Waivers-Test-TestCase-Model-Entity-WaiverTypeTest.html"><abbr title="\Waivers\Test\TestCase\Model\Entity\WaiverTypeTest">WaiverTypeTest</abbr></a></dt><dd>Waivers\Model\Entity\WaiverType Test Case</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Waivers-Test-TestCase-Model-Table-WaiverTypesTableTest.html"><abbr title="\Waivers\Test\TestCase\Model\Table\WaiverTypesTableTest">WaiverTypesTableTest</abbr></a></dt><dd>Waivers\Model\Table\WaiverTypesTable Test Case</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Waivers-Test-TestCase-Policy-WaiverTypePolicyTest.html"><abbr title="\Waivers\Test\TestCase\Policy\WaiverTypePolicyTest">WaiverTypePolicyTest</abbr></a></dt><dd>Waivers\Policy\WaiverTypePolicy Test Case</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Waivers-Test-TestCase-Services-ImageToPdfConversionServiceTest.html"><abbr title="\Waivers\Test\TestCase\Services\ImageToPdfConversionServiceTest">ImageToPdfConversionServiceTest</abbr></a></dt><dd>App\Services\ImageToPdfConversionService Test Case</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Authenticator-MobileCardTokenAuthenticator.html"><abbr title="\App\Authenticator\MobileCardTokenAuthenticator">MobileCardTokenAuthenticator</abbr></a></dt><dd>Authenticates users via their unique mobile card token passed as a URL parameter.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Command-GeneratePublicIdsCommand.html"><abbr title="\App\Command\GeneratePublicIdsCommand">GeneratePublicIdsCommand</abbr></a></dt><dd>GeneratePublicIds Command</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Command-MigrateAwardEventsCommand.html"><abbr title="\App\Command\MigrateAwardEventsCommand">MigrateAwardEventsCommand</abbr></a></dt><dd>Migrate Award Events Command</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Command-ResetDatabaseCommand.html"><abbr title="\App\Command\ResetDatabaseCommand">ResetDatabaseCommand</abbr></a></dt><dd>RevertDatabase command.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Command-UpdateDatabaseCommand.html"><abbr title="\App\Command\UpdateDatabaseCommand">UpdateDatabaseCommand</abbr></a></dt><dd>RevertDatabase command.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Console-Installer.html"><abbr title="\App\Console\Installer">Installer</abbr></a></dt><dd>Provides installation hooks for when this application is installed through
+composer. Customize this class to suit your needs.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Controller-AppController.html"><abbr title="\App\Controller\AppController">AppController</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Controller-AppSettingsController.html"><abbr title="\App\Controller\AppSettingsController">AppSettingsController</abbr></a></dt><dd>AppSettings Controller</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Controller-BranchesController.html"><abbr title="\App\Controller\BranchesController">BranchesController</abbr></a></dt><dd>Manages hierarchical organizational branches with tree structure maintenance.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Controller-EmailTemplatesController.html"><abbr title="\App\Controller\EmailTemplatesController">EmailTemplatesController</abbr></a></dt><dd>EmailTemplates Controller</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Controller-ErrorController.html"><abbr title="\App\Controller\ErrorController">ErrorController</abbr></a></dt><dd>Error Handling Controller</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Controller-GatheringActivitiesController.html"><abbr title="\App\Controller\GatheringActivitiesController">GatheringActivitiesController</abbr></a></dt><dd>GatheringActivities Controller</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Controller-GatheringAttendancesController.html"><abbr title="\App\Controller\GatheringAttendancesController">GatheringAttendancesController</abbr></a></dt><dd>GatheringAttendances Controller</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Controller-GatheringsController.html"><abbr title="\App\Controller\GatheringsController">GatheringsController</abbr></a></dt><dd>Gatherings Controller</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Controller-GatheringStaffController.html"><abbr title="\App\Controller\GatheringStaffController">GatheringStaffController</abbr></a></dt><dd>GatheringStaff Controller</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Controller-GatheringTypesController.html"><abbr title="\App\Controller\GatheringTypesController">GatheringTypesController</abbr></a></dt><dd>GatheringTypes Controller</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Controller-GridViewsController.html"><abbr title="\App\Controller\GridViewsController">GridViewsController</abbr></a></dt><dd>JSON-based REST endpoints for managing saved grid views.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Controller-MemberRolesController.html"><abbr title="\App\Controller\MemberRolesController">MemberRolesController</abbr></a></dt><dd>MemberRoles Controller</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Controller-MembersController.html"><abbr title="\App\Controller\MembersController">MembersController</abbr></a></dt><dd>Manages member CRUD, authentication, profiles, and member discovery.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Controller-NavBarController.html"><abbr title="\App\Controller\NavBarController">NavBarController</abbr></a></dt><dd>NavBarController Controller</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Controller-NotesController.html"><abbr title="\App\Controller\NotesController">NotesController</abbr></a></dt><dd>Notes Controller</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Controller-PagesController.html"><abbr title="\App\Controller\PagesController">PagesController</abbr></a></dt><dd>Static content controller</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Controller-PermissionsController.html"><abbr title="\App\Controller\PermissionsController">PermissionsController</abbr></a></dt><dd>Manages RBAC permissions: CRUD, policy matrix, and role assignments.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Controller-ReportsController.html"><abbr title="\App\Controller\ReportsController">ReportsController</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Controller-RolesController.html"><abbr title="\App\Controller\RolesController">RolesController</abbr></a></dt><dd>Manages RBAC roles: CRUD, permission assignment, and member management.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Controller-SessionsController.html"><abbr title="\App\Controller\SessionsController">SessionsController</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Controller-WarrantPeriodsController.html"><abbr title="\App\Controller\WarrantPeriodsController">WarrantPeriodsController</abbr></a></dt><dd>Manages warrant period templates for standardized duration definitions.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Controller-WarrantRostersController.html"><abbr title="\App\Controller\WarrantRostersController">WarrantRostersController</abbr></a></dt><dd>Manages warrant roster batches and multi-level approval workflows.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Controller-WarrantsController.html"><abbr title="\App\Controller\WarrantsController">WarrantsController</abbr></a></dt><dd>Manages warrant lifecycle: listing, filtering, deactivation, and CSV export.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Event-CallForCellsHandlerBase.html"><abbr title="\App\Event\CallForCellsHandlerBase">CallForCellsHandlerBase</abbr></a></dt><dd>CallForCellsHandlerBase - Event-based view cell handler</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Form-ResetPasswordForm.html"><abbr title="\App\Form\ResetPasswordForm">ResetPasswordForm</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Identifier-KMPBruteForcePasswordIdentifier.html"><abbr title="\App\Identifier\KMPBruteForcePasswordIdentifier">KMPBruteForcePasswordIdentifier</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-KMP-GridColumns-AppSettingsGridColumns.html"><abbr title="\App\KMP\GridColumns\AppSettingsGridColumns">AppSettingsGridColumns</abbr></a></dt><dd>AppSettings Grid Column Metadata</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-KMP-GridColumns-BaseGridColumns.html"><abbr title="\App\KMP\GridColumns\BaseGridColumns">BaseGridColumns</abbr></a></dt><dd>Base class for grid column metadata definitions.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-KMP-GridColumns-BranchesGridColumns.html"><abbr title="\App\KMP\GridColumns\BranchesGridColumns">BranchesGridColumns</abbr></a></dt><dd>Branches Grid Column Metadata</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-KMP-GridColumns-DepartmentsGridColumns.html"><abbr title="\App\KMP\GridColumns\DepartmentsGridColumns">DepartmentsGridColumns</abbr></a></dt><dd>Grid column definitions for the Departments index view
+Used by Officers\Controller\DepartmentsController::gridData()</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-KMP-GridColumns-DomainsGridColumns.html"><abbr title="\App\KMP\GridColumns\DomainsGridColumns">DomainsGridColumns</abbr></a></dt><dd>Grid column definitions for the Award Domains index view
+Used by Awards\Controller\DomainsController::gridData()</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-KMP-GridColumns-EmailTemplatesGridColumns.html"><abbr title="\App\KMP\GridColumns\EmailTemplatesGridColumns">EmailTemplatesGridColumns</abbr></a></dt><dd>Email Templates Grid Column Metadata</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-KMP-GridColumns-GatheringActivitiesGridColumns.html"><abbr title="\App\KMP\GridColumns\GatheringActivitiesGridColumns">GatheringActivitiesGridColumns</abbr></a></dt><dd>Gathering Activities Grid Column Metadata</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-KMP-GridColumns-GatheringAttendancesGridColumns.html"><abbr title="\App\KMP\GridColumns\GatheringAttendancesGridColumns">GatheringAttendancesGridColumns</abbr></a></dt><dd>Gathering Attendances Grid Column Metadata</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-KMP-GridColumns-GatheringTypesGridColumns.html"><abbr title="\App\KMP\GridColumns\GatheringTypesGridColumns">GatheringTypesGridColumns</abbr></a></dt><dd>Gathering Types Grid Column Metadata</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-KMP-GridColumns-LevelsGridColumns.html"><abbr title="\App\KMP\GridColumns\LevelsGridColumns">LevelsGridColumns</abbr></a></dt><dd>Grid column definitions for the Award Levels index view
+Used by Awards\Controller\LevelsController::gridData()</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-KMP-GridColumns-MemberRolesGridColumns.html"><abbr title="\App\KMP\GridColumns\MemberRolesGridColumns">MemberRolesGridColumns</abbr></a></dt><dd>Member Roles Grid Column Metadata</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-KMP-GridColumns-MembersGridColumns.html"><abbr title="\App\KMP\GridColumns\MembersGridColumns">MembersGridColumns</abbr></a></dt><dd>Members Grid Column Metadata</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-KMP-GridColumns-OfficesGridColumns.html"><abbr title="\App\KMP\GridColumns\OfficesGridColumns">OfficesGridColumns</abbr></a></dt><dd>Grid column definitions for the Offices index view
+Used by Officers\Controller\OfficesController::gridData()</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-KMP-GridColumns-PermissionsGridColumns.html"><abbr title="\App\KMP\GridColumns\PermissionsGridColumns">PermissionsGridColumns</abbr></a></dt><dd>Permissions Grid Column Metadata</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-KMP-GridColumns-RolesGridColumns.html"><abbr title="\App\KMP\GridColumns\RolesGridColumns">RolesGridColumns</abbr></a></dt><dd>Roles Grid Column Metadata</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-KMP-GridColumns-WarrantPeriodsGridColumns.html"><abbr title="\App\KMP\GridColumns\WarrantPeriodsGridColumns">WarrantPeriodsGridColumns</abbr></a></dt><dd>Warrant Periods Grid Column Metadata</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-KMP-GridColumns-WarrantRostersGridColumns.html"><abbr title="\App\KMP\GridColumns\WarrantRostersGridColumns">WarrantRostersGridColumns</abbr></a></dt><dd>Warrant Rosters Grid Column Metadata</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-KMP-GridColumns-WarrantsGridColumns.html"><abbr title="\App\KMP\GridColumns\WarrantsGridColumns">WarrantsGridColumns</abbr></a></dt><dd>Warrants Grid Column Metadata</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-KMP-GridViewConfig.html"><abbr title="\App\KMP\GridViewConfig">GridViewConfig</abbr></a></dt><dd>Configuration validator and normalizer for grid views.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-KMP-PermissionsLoader.html"><abbr title="\App\KMP\PermissionsLoader">PermissionsLoader</abbr></a></dt><dd>Core RBAC security engine for KMP permission validation.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Mailer-KMPMailer.html"><abbr title="\App\Mailer\KMPMailer">KMPMailer</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Behavior-ActiveWindowBehavior.html"><abbr title="\App\Model\Behavior\ActiveWindowBehavior">ActiveWindowBehavior</abbr></a></dt><dd>ActiveWindow Behavior</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Behavior-JsonFieldBehavior.html"><abbr title="\App\Model\Behavior\JsonFieldBehavior">JsonFieldBehavior</abbr></a></dt><dd>JsonField Behavior</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Behavior-PublicIdBehavior.html"><abbr title="\App\Model\Behavior\PublicIdBehavior">PublicIdBehavior</abbr></a></dt><dd>PublicId Behavior</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Behavior-SortableBehavior.html"><abbr title="\App\Model\Behavior\SortableBehavior">SortableBehavior</abbr></a></dt><dd>Sortable Behavior</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Entity-ActiveWindowBaseEntity.html"><abbr title="\App\Model\Entity\ActiveWindowBaseEntity">ActiveWindowBaseEntity</abbr></a></dt><dd>ActiveWindowBaseEntity Entity</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Entity-AppSetting.html"><abbr title="\App\Model\Entity\AppSetting">AppSetting</abbr></a></dt><dd>AppSetting Entity</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Entity-BaseEntity.html"><abbr title="\App\Model\Entity\BaseEntity">BaseEntity</abbr></a></dt><dd>Base Entity for KMP Application</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Entity-Branch.html"><abbr title="\App\Model\Entity\Branch">Branch</abbr></a></dt><dd>Branch Entity - Hierarchical Organizational Structure for KMP</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Entity-Document.html"><abbr title="\App\Model\Entity\Document">Document</abbr></a></dt><dd>Document Entity</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Entity-EmailTemplate.html"><abbr title="\App\Model\Entity\EmailTemplate">EmailTemplate</abbr></a></dt><dd>EmailTemplate Entity</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Entity-Gathering.html"><abbr title="\App\Model\Entity\Gathering">Gathering</abbr></a></dt><dd>Gathering Entity</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Entity-GatheringActivity.html"><abbr title="\App\Model\Entity\GatheringActivity">GatheringActivity</abbr></a></dt><dd>GatheringActivity Entity</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Entity-GatheringAttendance.html"><abbr title="\App\Model\Entity\GatheringAttendance">GatheringAttendance</abbr></a></dt><dd>GatheringAttendance Entity</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Entity-GatheringScheduledActivity.html"><abbr title="\App\Model\Entity\GatheringScheduledActivity">GatheringScheduledActivity</abbr></a></dt><dd>GatheringScheduledActivity Entity</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Entity-GatheringsGatheringActivity.html"><abbr title="\App\Model\Entity\GatheringsGatheringActivity">GatheringsGatheringActivity</abbr></a></dt><dd>GatheringsGatheringActivity Entity</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Entity-GatheringStaff.html"><abbr title="\App\Model\Entity\GatheringStaff">GatheringStaff</abbr></a></dt><dd>GatheringStaff Entity</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Entity-GatheringType.html"><abbr title="\App\Model\Entity\GatheringType">GatheringType</abbr></a></dt><dd>GatheringType Entity</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Entity-GatheringTypeGatheringActivity.html"><abbr title="\App\Model\Entity\GatheringTypeGatheringActivity">GatheringTypeGatheringActivity</abbr></a></dt><dd>GatheringTypeGatheringActivity Entity</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Entity-GridView.html"><abbr title="\App\Model\Entity\GridView">GridView</abbr></a></dt><dd>GridView Entity - Saved grid view configuration.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Entity-GridViewPreference.html"><abbr title="\App\Model\Entity\GridViewPreference">GridViewPreference</abbr></a></dt><dd>GridViewPreference Entity - Stores member-specific grid default selections</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Entity-Member.html"><abbr title="\App\Model\Entity\Member">Member</abbr></a></dt><dd>Member Entity - Core KMP User Identity and Profile Management</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Entity-MemberRole.html"><abbr title="\App\Model\Entity\MemberRole">MemberRole</abbr></a></dt><dd>MemberRole Entity</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Entity-Note.html"><abbr title="\App\Model\Entity\Note">Note</abbr></a></dt><dd>Note Entity</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Entity-Permission.html"><abbr title="\App\Model\Entity\Permission">Permission</abbr></a></dt><dd>Permission Entity - KMP RBAC Permission System</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Entity-PermissionPolicy.html"><abbr title="\App\Model\Entity\PermissionPolicy">PermissionPolicy</abbr></a></dt><dd>PermissionPolicy Entity - Dynamic Permission Authorization</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Entity-Role.html"><abbr title="\App\Model\Entity\Role">Role</abbr></a></dt><dd>Role Entity - KMP RBAC Role Management</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Entity-RolesPermission.html"><abbr title="\App\Model\Entity\RolesPermission">RolesPermission</abbr></a></dt><dd>RolesPermission Entity</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Entity-Warrant.html"><abbr title="\App\Model\Entity\Warrant">Warrant</abbr></a></dt><dd>Warrant Entity - Temporal Validation for RBAC Security</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Entity-WarrantRosterApproval.html"><abbr title="\App\Model\Entity\WarrantRosterApproval">WarrantRosterApproval</abbr></a></dt><dd>WarrantRosterApproval Entity</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Entity-WarrantPeriod.html"><abbr title="\App\Model\Entity\WarrantPeriod">WarrantPeriod</abbr></a></dt><dd>WarrantPeriod Entity - Warrant Period Templates</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Entity-WarrantRoster.html"><abbr title="\App\Model\Entity\WarrantRoster">WarrantRoster</abbr></a></dt><dd>WarrantRoster Entity - Warrant Batch Management and Multi-Level Approval System</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Table-AppSettingsTable.html"><abbr title="\App\Model\Table\AppSettingsTable">AppSettingsTable</abbr></a></dt><dd>AppSettings Model</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Table-BaseTable.html"><abbr title="\App\Model\Table\BaseTable">BaseTable</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Table-BranchesTable.html"><abbr title="\App\Model\Table\BranchesTable">BranchesTable</abbr></a></dt><dd>Branches Model - Hierarchical Organizational Structure Management for KMP</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Table-DocumentsTable.html"><abbr title="\App\Model\Table\DocumentsTable">DocumentsTable</abbr></a></dt><dd>Documents Model</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Table-EmailTemplatesTable.html"><abbr title="\App\Model\Table\EmailTemplatesTable">EmailTemplatesTable</abbr></a></dt><dd>EmailTemplates Model</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Table-GatheringActivitiesTable.html"><abbr title="\App\Model\Table\GatheringActivitiesTable">GatheringActivitiesTable</abbr></a></dt><dd>GatheringActivities Model</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Table-GatheringAttendancesTable.html"><abbr title="\App\Model\Table\GatheringAttendancesTable">GatheringAttendancesTable</abbr></a></dt><dd>GatheringAttendances Model</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Table-GatheringScheduledActivitiesTable.html"><abbr title="\App\Model\Table\GatheringScheduledActivitiesTable">GatheringScheduledActivitiesTable</abbr></a></dt><dd>GatheringScheduledActivities Model</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Table-GatheringsGatheringActivitiesTable.html"><abbr title="\App\Model\Table\GatheringsGatheringActivitiesTable">GatheringsGatheringActivitiesTable</abbr></a></dt><dd>GatheringsGatheringActivities Model</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Table-GatheringsTable.html"><abbr title="\App\Model\Table\GatheringsTable">GatheringsTable</abbr></a></dt><dd>Gatherings Model</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Table-GatheringStaffTable.html"><abbr title="\App\Model\Table\GatheringStaffTable">GatheringStaffTable</abbr></a></dt><dd>GatheringStaff Model</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Table-GatheringTypeGatheringActivitiesTable.html"><abbr title="\App\Model\Table\GatheringTypeGatheringActivitiesTable">GatheringTypeGatheringActivitiesTable</abbr></a></dt><dd>GatheringTypeGatheringActivities Model</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Table-GatheringTypesTable.html"><abbr title="\App\Model\Table\GatheringTypesTable">GatheringTypesTable</abbr></a></dt><dd>GatheringTypes Model</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Table-GridViewPreferencesTable.html"><abbr title="\App\Model\Table\GridViewPreferencesTable">GridViewPreferencesTable</abbr></a></dt><dd>GridViewPreferences Table - Member-specific default view selections</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Table-GridViewsTable.html"><abbr title="\App\Model\Table\GridViewsTable">GridViewsTable</abbr></a></dt><dd>GridViewsTable - Manage Saved Grid View Configurations</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Table-MemberRolesTable.html"><abbr title="\App\Model\Table\MemberRolesTable">MemberRolesTable</abbr></a></dt><dd>MemberRoles Model</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Table-MembersTable.html"><abbr title="\App\Model\Table\MembersTable">MembersTable</abbr></a></dt><dd>Members Table - Central repository for user management.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Table-NotesTable.html"><abbr title="\App\Model\Table\NotesTable">NotesTable</abbr></a></dt><dd>Notes Model</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Table-PermissionPoliciesTable.html"><abbr title="\App\Model\Table\PermissionPoliciesTable">PermissionPoliciesTable</abbr></a></dt><dd>PermissionPoliciesTable - Dynamic Permission Authorization Policies</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Table-PermissionsTable.html"><abbr title="\App\Model\Table\PermissionsTable">PermissionsTable</abbr></a></dt><dd>PermissionsTable - KMP RBAC Permission Management</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Table-RolesPermissionsTable.html"><abbr title="\App\Model\Table\RolesPermissionsTable">RolesPermissionsTable</abbr></a></dt><dd>RolesPermissions Model</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Table-RolesTable.html"><abbr title="\App\Model\Table\RolesTable">RolesTable</abbr></a></dt><dd>RolesTable - KMP RBAC Role Management</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Table-WarrantPeriodsTable.html"><abbr title="\App\Model\Table\WarrantPeriodsTable">WarrantPeriodsTable</abbr></a></dt><dd>WarrantPeriodsTable - Warrant Period Template Management and Administrative Tools</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Table-WarrantRosterApprovalsTable.html"><abbr title="\App\Model\Table\WarrantRosterApprovalsTable">WarrantRosterApprovalsTable</abbr></a></dt><dd>WarrantRosterApprovals Model</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Table-WarrantRostersTable.html"><abbr title="\App\Model\Table\WarrantRostersTable">WarrantRostersTable</abbr></a></dt><dd>WarrantRostersTable - Batch Warrant Management</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Model-Table-WarrantsTable.html"><abbr title="\App\Model\Table\WarrantsTable">WarrantsTable</abbr></a></dt><dd>WarrantsTable - Warrant Data Management for RBAC Security</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Policy-AppSettingPolicy.html"><abbr title="\App\Policy\AppSettingPolicy">AppSettingPolicy</abbr></a></dt><dd>ActivityGroups policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Policy-AppSettingsTablePolicy.html"><abbr title="\App\Policy\AppSettingsTablePolicy">AppSettingsTablePolicy</abbr></a></dt><dd>ActivityGroupsTable policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Policy-BasePolicy.html"><abbr title="\App\Policy\BasePolicy">BasePolicy</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Policy-BranchesTablePolicy.html"><abbr title="\App\Policy\BranchesTablePolicy">BranchesTablePolicy</abbr></a></dt><dd>ActivityGroupsTable policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Policy-BranchPolicy.html"><abbr title="\App\Policy\BranchPolicy">BranchPolicy</abbr></a></dt><dd>ActivityGroups policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Policy-ControllerActionHookPolicy.html"><abbr title="\App\Policy\ControllerActionHookPolicy">ControllerActionHookPolicy</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Policy-ControllerResolver.html"><abbr title="\App\Policy\ControllerResolver">ControllerResolver</abbr></a></dt><dd>Policy resolver that applies conventions based policy classes
+for CakePHP ORM Tables, Entities and Queries.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Policy-DocumentPolicy.html"><abbr title="\App\Policy\DocumentPolicy">DocumentPolicy</abbr></a></dt><dd>Document Policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Policy-EmailTemplatePolicy.html"><abbr title="\App\Policy\EmailTemplatePolicy">EmailTemplatePolicy</abbr></a></dt><dd>EmailTemplate Policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Policy-EmailTemplatesTablePolicy.html"><abbr title="\App\Policy\EmailTemplatesTablePolicy">EmailTemplatesTablePolicy</abbr></a></dt><dd>EmailTemplatesTable Policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Policy-GatheringActivitiesTablePolicy.html"><abbr title="\App\Policy\GatheringActivitiesTablePolicy">GatheringActivitiesTablePolicy</abbr></a></dt><dd>GatheringActivitiesTable policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Policy-GatheringActivityPolicy.html"><abbr title="\App\Policy\GatheringActivityPolicy">GatheringActivityPolicy</abbr></a></dt><dd>GatheringActivity Policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Policy-GatheringAttendancePolicy.html"><abbr title="\App\Policy\GatheringAttendancePolicy">GatheringAttendancePolicy</abbr></a></dt><dd>GatheringAttendance policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Policy-GatheringPolicy.html"><abbr title="\App\Policy\GatheringPolicy">GatheringPolicy</abbr></a></dt><dd>Gathering Policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Policy-GatheringsTablePolicy.html"><abbr title="\App\Policy\GatheringsTablePolicy">GatheringsTablePolicy</abbr></a></dt><dd>Gathering Policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Policy-GatheringTypePolicy.html"><abbr title="\App\Policy\GatheringTypePolicy">GatheringTypePolicy</abbr></a></dt><dd>GatheringType Policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Policy-GatheringTypesTablePolicy.html"><abbr title="\App\Policy\GatheringTypesTablePolicy">GatheringTypesTablePolicy</abbr></a></dt><dd>GatheringTypesTable policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Policy-MemberPolicy.html"><abbr title="\App\Policy\MemberPolicy">MemberPolicy</abbr></a></dt><dd>role policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Policy-MemberRolePolicy.html"><abbr title="\App\Policy\MemberRolePolicy">MemberRolePolicy</abbr></a></dt><dd>role policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Policy-MemberRolesTablePolicy.html"><abbr title="\App\Policy\MemberRolesTablePolicy">MemberRolesTablePolicy</abbr></a></dt><dd>role policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Policy-MembersTablePolicy.html"><abbr title="\App\Policy\MembersTablePolicy">MembersTablePolicy</abbr></a></dt><dd>role policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Policy-NotePolicy.html"><abbr title="\App\Policy\NotePolicy">NotePolicy</abbr></a></dt><dd>Note policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Policy-NotesTablePolicy.html"><abbr title="\App\Policy\NotesTablePolicy">NotesTablePolicy</abbr></a></dt><dd>NotesTable policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Policy-PermissionPolicy.html"><abbr title="\App\Policy\PermissionPolicy">PermissionPolicy</abbr></a></dt><dd>role policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Policy-PermissionsTablePolicy.html"><abbr title="\App\Policy\PermissionsTablePolicy">PermissionsTablePolicy</abbr></a></dt><dd>role policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Policy-ReportsControllerPolicy.html"><abbr title="\App\Policy\ReportsControllerPolicy">ReportsControllerPolicy</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Policy-RolePolicy.html"><abbr title="\App\Policy\RolePolicy">RolePolicy</abbr></a></dt><dd>role policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Policy-RolesTablePolicy.html"><abbr title="\App\Policy\RolesTablePolicy">RolesTablePolicy</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Policy-WarrantPeriodPolicy.html"><abbr title="\App\Policy\WarrantPeriodPolicy">WarrantPeriodPolicy</abbr></a></dt><dd>WarrantPeriod policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Policy-WarrantPeriodsTablePolicy.html"><abbr title="\App\Policy\WarrantPeriodsTablePolicy">WarrantPeriodsTablePolicy</abbr></a></dt><dd>WarrantPeriodTable policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Policy-WarrantPolicy.html"><abbr title="\App\Policy\WarrantPolicy">WarrantPolicy</abbr></a></dt><dd>Warrant policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Policy-WarrantRosterPolicy.html"><abbr title="\App\Policy\WarrantRosterPolicy">WarrantRosterPolicy</abbr></a></dt><dd>WarrantRosters policy</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Policy-WarrantRostersTablePolicy.html"><abbr title="\App\Policy\WarrantRostersTablePolicy">WarrantRostersTablePolicy</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Policy-WarrantsTablePolicy.html"><abbr title="\App\Policy\WarrantsTablePolicy">WarrantsTablePolicy</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Services-ActiveWindowManager-DefaultActiveWindowManager.html"><abbr title="\App\Services\ActiveWindowManager\DefaultActiveWindowManager">DefaultActiveWindowManager</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Services-AuthorizationService.html"><abbr title="\App\Services\AuthorizationService">AuthorizationService</abbr></a></dt><dd>Custom authorization service with KMP identity handling.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Services-CoreNavigationProvider.html"><abbr title="\App\Services\CoreNavigationProvider">CoreNavigationProvider</abbr></a></dt><dd>Core Navigation Provider</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Services-CsvExportService.html"><abbr title="\App\Services\CsvExportService">CsvExportService</abbr></a></dt><dd>Standardized CSV export for query results, entity collections, and arrays.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Services-DocumentService.html"><abbr title="\App\Services\DocumentService">DocumentService</abbr></a></dt><dd>Centralized document management service for file uploads, storage, and retrieval.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Services-EmailTemplateRendererService.html"><abbr title="\App\Services\EmailTemplateRendererService">EmailTemplateRendererService</abbr></a></dt><dd>Service for rendering email templates with variable substitution</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Services-GridViewService.html"><abbr title="\App\Services\GridViewService">GridViewService</abbr></a></dt><dd>Business logic for managing saved grid views.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Services-ICalendarService.html"><abbr title="\App\Services\ICalendarService">ICalendarService</abbr></a></dt><dd>iCalendar Service</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Services-ImageToPdfConversionService.html"><abbr title="\App\Services\ImageToPdfConversionService">ImageToPdfConversionService</abbr></a></dt><dd>Converts uploaded image files to PDF format for consistent document storage.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Services-MailerDiscoveryService.html"><abbr title="\App\Services\MailerDiscoveryService">MailerDiscoveryService</abbr></a></dt><dd>Service for discovering Mailer classes and their methods using reflection</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Services-NavigationRegistry.html"><abbr title="\App\Services\NavigationRegistry">NavigationRegistry</abbr></a></dt><dd>Centralized registry for application navigation items from core and plugins.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Services-NavigationService.html"><abbr title="\App\Services\NavigationService">NavigationService</abbr></a></dt><dd>Navigation Service
+Handles navigation-related business logic and integrates with NavigationRegistry</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Services-RetentionPolicyService.html"><abbr title="\App\Services\RetentionPolicyService">RetentionPolicyService</abbr></a></dt><dd>Calculates document retention dates based on JSON retention policy definitions.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Services-ServiceResult.html"><abbr title="\App\Services\ServiceResult">ServiceResult</abbr></a></dt><dd>Standardized result object for service layer operations.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Services-ViewCellRegistry.html"><abbr title="\App\Services\ViewCellRegistry">ViewCellRegistry</abbr></a></dt><dd>View Cell Registry Service</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Services-WarrantManager-DefaultWarrantManager.html"><abbr title="\App\Services\WarrantManager\DefaultWarrantManager">DefaultWarrantManager</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-Services-WarrantManager-WarrantRequest.html"><abbr title="\App\Services\WarrantManager\WarrantRequest">WarrantRequest</abbr></a></dt><dd>Warrant Request Data Structure</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-View-AjaxView.html"><abbr title="\App\View\AjaxView">AjaxView</abbr></a></dt><dd>AJAX Response View Class</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-View-AppView.html"><abbr title="\App\View\AppView">AppView</abbr></a></dt><dd>Application View</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-View-Helper-KmpHelper.html"><abbr title="\App\View\Helper\KmpHelper">KmpHelper</abbr></a></dt><dd>KMP View Helper providing custom UI components and template utilities.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-View-Helper-MarkdownHelper.html"><abbr title="\App\View\Helper\MarkdownHelper">MarkdownHelper</abbr></a></dt><dd>Markdown Helper</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-View-Helper-SecurityDebugHelper.html"><abbr title="\App\View\Helper\SecurityDebugHelper">SecurityDebugHelper</abbr></a></dt><dd>Security Debug Helper</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/App-View-Helper-TimezoneHelper.html"><abbr title="\App\View\Helper\TimezoneHelper">TimezoneHelper</abbr></a></dt><dd>Timezone View Helper for template-friendly datetime formatting.</dd>    </dl>
+
+    <h4 id="toc-traits">
+        Traits
+        <a href="packages/Application.html#toc-traits" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+    <dl class="phpdocumentor-table-of-contents">
+            <dt class="phpdocumentor-table-of-contents__entry -trait"><a href="classes/Activities-Model-Entity-MemberAuthorizationsTrait.html"><abbr title="\Activities\Model\Entity\MemberAuthorizationsTrait">MemberAuthorizationsTrait</abbr></a></dt><dd>Provides authorization-related functionality to Member entities.</dd>        <dt class="phpdocumentor-table-of-contents__entry -trait"><a href="classes/Bootstrap-View-FlexibleStringTemplateTrait.html"><abbr title="\Bootstrap\View\FlexibleStringTemplateTrait">FlexibleStringTemplateTrait</abbr></a></dt><dd>Adds string template functionality to any class by providing methods to
+load and parse string templates.</dd>        <dt class="phpdocumentor-table-of-contents__entry -trait"><a href="classes/Bootstrap-View-Helper-ClassTrait.html"><abbr title="\Bootstrap\View\Helper\ClassTrait">ClassTrait</abbr></a></dt><dd>A trait that provides useful methods to generate bootstrap html specific
+code.</dd>        <dt class="phpdocumentor-table-of-contents__entry -trait"><a href="classes/Bootstrap-View-Helper-EasyIconTrait.html"><abbr title="\Bootstrap\View\Helper\EasyIconTrait">EasyIconTrait</abbr></a></dt><dd>A trait that provides easy icon processing.</dd>        <dt class="phpdocumentor-table-of-contents__entry -trait"><a href="classes/Bootstrap-View-Helper-UrlComparerTrait.html"><abbr title="\Bootstrap\View\Helper\UrlComparerTrait">UrlComparerTrait</abbr></a></dt><dd>A trait that provides a method to compare url.</dd>        <dt class="phpdocumentor-table-of-contents__entry -trait"><a href="classes/Queue-Controller-LoadHelperTrait.html"><abbr title="\Queue\Controller\LoadHelperTrait">LoadHelperTrait</abbr></a></dt>        <dt class="phpdocumentor-table-of-contents__entry -trait"><a href="classes/Queue-Queue-ServicesTrait.html"><abbr title="\Queue\Queue\ServicesTrait">ServicesTrait</abbr></a></dt>        <dt class="phpdocumentor-table-of-contents__entry -trait"><a href="classes/App-Controller-DataverseGridTrait.html"><abbr title="\App\Controller\DataverseGridTrait">DataverseGridTrait</abbr></a></dt><dd>Unified grid processing for dataverse-style grids with saved views, filters, and sorting.</dd>        <dt class="phpdocumentor-table-of-contents__entry -trait"><a href="classes/App-Mailer-QueuedMailerAwareTrait.html"><abbr title="\App\Mailer\QueuedMailerAwareTrait">QueuedMailerAwareTrait</abbr></a></dt><dd>Provides functionality for loading mailer classes
+onto properties of the host object.</dd>        <dt class="phpdocumentor-table-of-contents__entry -trait"><a href="classes/App-Mailer-TemplateAwareMailerTrait.html"><abbr title="\App\Mailer\TemplateAwareMailerTrait">TemplateAwareMailerTrait</abbr></a></dt><dd>Trait for using database-stored email templates</dd>    </dl>
+
+
+<h4 id="toc-constants">
+    Constants
+    <a href="packages/Application.html#toc-constants" class="headerlink"><i class="fas fa-link"></i></a>
+
+</h4>
+<dl class="phpdocumentor-table-of-contents">
+            <dt class="phpdocumentor-table-of-contents__entry -constant -public">
+    <a class="" href="namespaces/default.html#constant_STDIN">STDIN</a>
+    <span>
+        &nbsp;= fopen(&#039;php://stdin&#039;, &#039;r&#039;)                            </span>
+</dt>
+
+    </dl>
+
+
+
+
+<h4 id="toc-functions">
+    Functions
+    <a href="packages/Application.html#toc-functions" class="headerlink"><i class="fas fa-link"></i></a>
+
+</h4>
+<dl class="phpdocumentor-table-of-contents">
+            <dt class="phpdocumentor-table-of-contents__entry -function -">
+    <a class="" href="namespaces/default.html#function_makePossessive">makePossessive()</a>
+    <span>
+                                &nbsp;: mixed    </span>
+</dt>
+
+            <dt class="phpdocumentor-table-of-contents__entry -function -">
+    <a class="" href="namespaces/default.html#function_addOptions">addOptions()</a>
+    <span>
+                                &nbsp;: mixed    </span>
+</dt>
+
+    </dl>
+
+        
+    <section class="phpdocumentor-constants">
+        <h3 class="phpdocumentor-elements__header" id="constants">
+            Constants
+            <a href="packages/Application.html#constants" class="headerlink"><i class="fas fa-link"></i></a>
+
+        </h3>
+                    <article class="phpdocumentor-element -constant -public ">
+    <h4 class="phpdocumentor-element__name" id="constant_STDIN">
+        STDIN
+        <a href="namespaces/default.html#constant_STDIN" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Console/Installer.php"><a href="files/src-console-installer.html"><abbr title="src/Console/Installer.php">Installer.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">21</span>
+
+    </aside>
+
+    
+    
+    <code class="phpdocumentor-signature phpdocumentor-code ">
+    <span class="phpdocumentor-signature__visibility">public</span>
+        <span class="phpdocumentor-signature__type">mixed</span>
+    <span class="phpdocumentor-signature__name">STDIN</span>
+    = <span class="phpdocumentor-signature__default-value">fopen(&#039;php://stdin&#039;, &#039;r&#039;)</span>
+</code>
+
+
+    
+    
+    
+
+        
+    </article>
+            </section>
+
+            <section class="phpdocumentor-functions">
+        <h3 class="phpdocumentor-elements__header" id="functions">
+            Functions
+            <a href="packages/Application.html#functions" class="headerlink"><i class="fas fa-link"></i></a>
+
+        </h3>
+                    <article class="phpdocumentor-element -function - ">
+    <h4 class="phpdocumentor-element__name" id="function_makePossessive">
+        makePossessive()
+        <a href="namespaces/default.html#function_makePossessive" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="plugins/Activities/templates/AuthorizationApprovals/view.php"><a href="files/plugins-activities-templates-authorizationapprovals-view.html"><abbr title="plugins/Activities/templates/AuthorizationApprovals/view.php">view.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">10</span>
+
+    </aside>
+
+    
+    
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+    <span class="phpdocumentor-signature__visibility"></span>
+                    <span class="phpdocumentor-signature__name">makePossessive</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type">mixed&nbsp;</span><span class="phpdocumentor-signature__argument__name">$name</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">mixed</span></code>
+
+    
+        <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
+    <dl class="phpdocumentor-argument-list">
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$name</span>
+                : <span class="phpdocumentor-argument-list__argument__type">mixed</span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+            </dl>
+
+    
+
+    
+</article>
+                    <article class="phpdocumentor-element -function - ">
+    <h4 class="phpdocumentor-element__name" id="function_addOptions">
+        addOptions()
+        <a href="namespaces/default.html#function_addOptions" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="plugins/Officers/templates/element/assignModal.php"><a href="files/plugins-officers-templates-element-assignmodal.html"><abbr title="plugins/Officers/templates/element/assignModal.php">assignModal.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">4</span>
+
+    </aside>
+
+    
+    
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+    <span class="phpdocumentor-signature__visibility"></span>
+                    <span class="phpdocumentor-signature__name">addOptions</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type">mixed&nbsp;</span><span class="phpdocumentor-signature__argument__name">$office</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type">mixed&nbsp;</span><span class="phpdocumentor-signature__argument__name">$depth</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type">mixed&nbsp;</span><span class="phpdocumentor-signature__argument__reference-operator">&amp;</span><span class="phpdocumentor-signature__argument__name">$officeOptions</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">mixed</span></code>
+
+    
+        <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
+    <dl class="phpdocumentor-argument-list">
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$office</span>
+                : <span class="phpdocumentor-argument-list__argument__type">mixed</span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$depth</span>
+                : <span class="phpdocumentor-argument-list__argument__type">mixed</span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$officeOptions</span>
+                : <span class="phpdocumentor-argument-list__argument__type">mixed</span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+            </dl>
+
+    
+
+    
+</article>
+            </section>
+
+        <div class="phpdocumentor-modal" id="source-view">
+    <div class="phpdocumentor-modal-bg" data-exit-button></div>
+    <div class="phpdocumentor-modal-container">
+        <div class="phpdocumentor-modal-content">
+            <pre style="max-height: 500px; overflow-y: scroll" data-src="" class="language-php line-numbers linkable-line-numbers"></pre>
+        </div>
+        <button data-exit-button class="phpdocumentor-modal__close">&times;</button>
+    </div>
+</div>
+
+    <script type="text/javascript">
+        (function () {
+            function loadExternalCodeSnippet(el, url, line) {
+                Array.prototype.slice.call(el.querySelectorAll('pre[data-src]')).forEach((pre) => {
+                    const src = url || pre.getAttribute('data-src').replace(/\\/g, '/');
+                    const language = 'php';
+
+                    const code = document.createElement('code');
+                    code.className = 'language-' + language;
+                    pre.textContent = '';
+                    pre.setAttribute('data-line', line)
+                    code.textContent = 'Loading…';
+                    pre.appendChild(code);
+
+                    var xhr = new XMLHttpRequest();
+
+                    xhr.open('GET', src, true);
+
+                    xhr.onreadystatechange = function () {
+                        if (xhr.readyState !== 4) {
+                            return;
+                        }
+
+                        if (xhr.status < 400 && xhr.responseText) {
+                            code.textContent = xhr.responseText;
+                            Prism.highlightElement(code);
+                            d=document.getElementsByClassName("line-numbers");
+                            d[0].scrollTop = d[0].children[1].offsetTop;
+                            return;
+                        }
+
+                        if (xhr.status === 404) {
+                            code.textContent = '✖ Error: File could not be found';
+                            return;
+                        }
+
+                        if (xhr.status >= 400) {
+                            code.textContent = '✖ Error ' + xhr.status + ' while fetching file: ' + xhr.statusText;
+                            return;
+                        }
+
+                        code.textContent = '✖ Error: An unknown error occurred';
+                    };
+
+                    xhr.send(null);
+                });
+            }
+
+            const modalButtons = document.querySelectorAll("[data-modal]");
+            const openedAsLocalFile = window.location.protocol === 'file:';
+            if (modalButtons.length > 0 && openedAsLocalFile) {
+                console.warn(
+                    'Viewing the source code is unavailable because you are opening this page from the file:// scheme; ' +
+                    'browsers block XHR requests when a page is opened this way'
+                );
+            }
+
+            modalButtons.forEach(function (trigger) {
+                if (openedAsLocalFile) {
+                    trigger.setAttribute("hidden", "hidden");
+                }
+
+                trigger.addEventListener("click", function (event) {
+                    event.preventDefault();
+                    const modal = document.getElementById(trigger.dataset.modal);
+                    if (!modal) {
+                        console.error(`Modal with id "${trigger.dataset.modal}" could not be found`);
+                        return;
+                    }
+                    modal.classList.add("phpdocumentor-modal__open");
+
+                    loadExternalCodeSnippet(modal, trigger.dataset.src || null, trigger.dataset.line)
+                    const exits = modal.querySelectorAll("[data-exit-button]");
+                    exits.forEach(function (exit) {
+                        exit.addEventListener("click", function (event) {
+                            event.preventDefault();
+                            modal.classList.remove("phpdocumentor-modal__open");
+                        });
+                    });
+                });
+            });
+        })();
+    </script>
+
+    </article>
+                                </section>
+                <section class="phpdocumentor-on-this-page__sidebar">
+                            
+    <section class="phpdocumentor-on-this-page__content">
+        <strong class="phpdocumentor-on-this-page__title">On this page</strong>
+
+        <ul class="phpdocumentor-list -clean">
+            <li class="phpdocumentor-on-this-page-section__title">Table Of Contents</li>
+            <li>
+                <ul class="phpdocumentor-list -clean">
+                                                                                    <li><a href="packages/Application.html#toc-interfaces">Interfaces</a></li>
+                                                                <li><a href="packages/Application.html#toc-classes">Classes</a></li>
+                                                                <li><a href="packages/Application.html#toc-traits">Traits</a></li>
+                                                                                    <li><a href="packages/Application.html#toc-constants">Constants</a></li>
+                                                                <li><a href="packages/Application.html#toc-functions">Functions</a></li>
+                                    </ul>
+            </li>
+
+                            <li class="phpdocumentor-on-this-page-section__title">Constants</li>
+                <li>
+                    <ul class="phpdocumentor-list -clean">
+                                                    <li class=""><a href="namespaces/default.html#constant_STDIN">STDIN</a></li>
+                                            </ul>
+                </li>
+            
+                            <li class="phpdocumentor-on-this-page-section__title">Functions</li>
+                <li>
+                    <ul class="phpdocumentor-list -clean">
+                                                    <li class=""><a href="namespaces/default.html#function_addOptions">addOptions()</a></li>
+                                                    <li class=""><a href="namespaces/default.html#function_makePossessive">makePossessive()</a></li>
+                                            </ul>
+                </li>
+                    </ul>
+    </section>
+
+                </section>
+                            </div>
+            <section data-search-results class="phpdocumentor-search-results phpdocumentor-search-results--hidden">
+    <section class="phpdocumentor-search-results__dialog">
+        <header class="phpdocumentor-search-results__header">
+            <h2 class="phpdocumentor-search-results__title">Search results</h2>
+            <button class="phpdocumentor-search-results__close"><i class="fas fa-times"></i></button>
+        </header>
+        <section class="phpdocumentor-search-results__body">
+            <ul class="phpdocumentor-search-results__entries"></ul>
+        </section>
+    </section>
+</section>
+        </div>
+        <a href="packages/Application.html#top" class="phpdocumentor-back-to-top"><i class="fas fa-chevron-circle-up"></i></a>
+
+    </main>
+
+    <script>
+        cssVars({});
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.23.0/prism.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.23.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.23.0/plugins/line-numbers/prism-line-numbers.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.23.0/plugins/line-highlight/prism-line-highlight.min.js"></script>
+</body>
+</html>

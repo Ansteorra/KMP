@@ -44,6 +44,146 @@ __webpack_require__.r(__webpack_exports__);
 
 /***/ }),
 
+/***/ "./assets/js/controllers/popover-controller.js":
+/*!*****************************************************!*\
+  !*** ./assets/js/controllers/popover-controller.js ***!
+  \*****************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+/* provided dependency */ var bootstrap = __webpack_require__(/*! bootstrap */ "./node_modules/bootstrap/dist/js/bootstrap.esm.js");
+
+
+/**
+ * Popover Controller
+ * 
+ * A reusable Stimulus controller for Bootstrap popovers with support for:
+ * - HTML content with close buttons
+ * - Custom allowList for sanitizer (allows button elements)
+ * - Auto-initialization on connect
+ * - Proper cleanup on disconnect
+ * 
+ * Usage:
+ * <button type="button" 
+ *     data-controller="popover"
+ *     data-bs-toggle="popover"
+ *     data-bs-trigger="click"
+ *     data-bs-html="true"
+ *     data-bs-content="<div>Content with <button class='btn-close popover-close-btn'></button></div>">
+ *     Open Popover
+ * </button>
+ */
+class PopoverController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static values = {
+    placement: {
+      type: String,
+      default: "auto"
+    },
+    trigger: {
+      type: String,
+      default: "click"
+    },
+    html: {
+      type: Boolean,
+      default: true
+    },
+    customClass: {
+      type: String,
+      default: ""
+    }
+  };
+  connect() {
+    this.initializePopover();
+    this.setupCloseButtonHandler();
+  }
+  disconnect() {
+    this.removeCloseButtonHandler();
+    this.destroyPopover();
+  }
+  initializePopover() {
+    // Custom allowList to permit button elements in popover content
+    const allowList = Object.assign({}, bootstrap.Popover.Default.allowList);
+    allowList.button = ['type', 'class', 'aria-label'];
+
+    // Get options from data attributes or use defaults
+    const options = {
+      allowList: allowList,
+      placement: this.placementValue,
+      trigger: this.triggerValue,
+      html: this.htmlValue
+    };
+    if (this.customClassValue) {
+      options.customClass = this.customClassValue;
+    }
+
+    // Initialize Bootstrap popover
+    this.popover = new bootstrap.Popover(this.element, options);
+  }
+  destroyPopover() {
+    if (this.popover) {
+      this.popover.dispose();
+      this.popover = null;
+    }
+  }
+  setupCloseButtonHandler() {
+    // Use bound method for proper removal later
+    this.handleCloseClick = this.handleCloseClick.bind(this);
+    document.addEventListener('click', this.handleCloseClick);
+  }
+  removeCloseButtonHandler() {
+    document.removeEventListener('click', this.handleCloseClick);
+  }
+  handleCloseClick(event) {
+    const closeBtn = event.target.closest('.popover .btn-close, .popover .popover-close-btn');
+    if (!closeBtn) return;
+    const popoverElement = closeBtn.closest('.popover');
+    if (!popoverElement) return;
+
+    // Check if this popover belongs to this controller's element
+    const popoverId = popoverElement.id;
+    if (this.element.getAttribute('aria-describedby') !== popoverId) return;
+
+    // Hide the popover
+    if (this.popover) {
+      this.popover.hide();
+    }
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  // Action to programmatically show the popover
+  show() {
+    if (this.popover) {
+      this.popover.show();
+    }
+  }
+
+  // Action to programmatically hide the popover
+  hide() {
+    if (this.popover) {
+      this.popover.hide();
+    }
+  }
+
+  // Action to toggle the popover
+  toggle() {
+    if (this.popover) {
+      this.popover.toggle();
+    }
+  }
+}
+
+// Register in global Controllers object
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["popover"] = PopoverController;
+/* harmony default export */ __webpack_exports__["default"] = (PopoverController);
+
+/***/ }),
+
 /***/ "./assets/js/controllers/qrcode-controller.js":
 /*!****************************************************!*\
   !*** ./assets/js/controllers/qrcode-controller.js ***!
@@ -362,65 +502,20 @@ __webpack_require__.r(__webpack_exports__);
 
 /**
  * Timezone Input Controller
- * 
- * Automatically handles timezone conversion for datetime-local inputs.
- * Converts UTC values from server to user's local timezone for display/editing,
- * and converts back to UTC before form submission.
- * 
- * ## Usage
- * 
- * ### Basic Auto-Conversion
- * ```html
+ *
+ * Automatically converts datetime-local inputs between user's local timezone
+ * and UTC storage. Converts UTC values to local time on page load, and converts
+ * back to UTC before form submission.
+ *
+ * See /docs/10.3.2-timezone-input-controller.md for complete documentation.
+ *
+ * @example
  * <form data-controller="timezone-input">
- *   <input type="datetime-local" 
+ *   <input type="datetime-local"
  *          name="start_date"
  *          data-timezone-input-target="datetimeInput"
  *          data-utc-value="2025-03-15T14:30:00Z">
  * </form>
- * ```
- * 
- * ### Custom Timezone
- * ```html
- * <form data-controller="timezone-input" data-timezone-input-timezone-value="America/New_York">
- *   <input type="datetime-local" 
- *          name="start_date"
- *          data-timezone-input-target="datetimeInput"
- *          data-utc-value="2025-03-15T14:30:00Z">
- * </form>
- * ```
- * 
- * ### With Timezone Notice
- * ```html
- * <form data-controller="timezone-input">
- *   <input type="datetime-local" 
- *          name="start_date"
- *          data-timezone-input-target="datetimeInput"
- *          data-utc-value="2025-03-15T14:30:00Z">
- *   
- *   <!-- Timezone notice will be auto-populated -->
- *   <small data-timezone-input-target="notice" class="text-muted"></small>
- * </form>
- * ```
- * 
- * ## Features
- * - Automatic timezone detection from browser
- * - Converts UTC to local time on page load
- * - Converts local time back to UTC on form submit
- * - Shows timezone notice to user
- * - Handles multiple datetime inputs in one form
- * - Preserves original values for form reset
- * 
- * ## Targets
- * - `datetimeInput` - datetime-local inputs to convert (required)
- * - `notice` - Elements to populate with timezone info (optional)
- * 
- * ## Values
- * - `timezone` - Override timezone (default: browser detected)
- * - `showNotice` - Show timezone notice (default: true)
- * 
- * ## Actions
- * - `submit` - Converts all inputs to UTC before form submission
- * - `reset` - Restores original local values on form reset
  */
 class TimezoneInputController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
   static targets = ["datetimeInput", "notice"];
@@ -433,7 +528,7 @@ class TimezoneInputController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODUL
   };
 
   /**
-   * Initialize controller and convert UTC values to local time
+   * Initialize controller - detect timezone and convert UTC to local time
    */
   connect() {
     // Get or detect timezone
@@ -460,6 +555,7 @@ class TimezoneInputController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODUL
 
   /**
    * Convert UTC values to local timezone for input display
+   * Stores original and local values in data attributes for reset
    */
   convertUtcToLocal() {
     this.datetimeInputTargets.forEach(input => {
@@ -485,14 +581,19 @@ class TimezoneInputController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODUL
     const abbr = KMP_Timezone.getAbbreviation(this.timezone);
     const noticeText = `Times shown in ${this.timezone} (${abbr})`;
     this.noticeTargets.forEach(notice => {
-      notice.innerHTML = `<i class="bi bi-clock"></i> ${noticeText}`;
+      while (notice.firstChild) {
+        notice.removeChild(notice.firstChild);
+      }
+      const icon = document.createElement('i');
+      icon.classList.add('bi', 'bi-clock');
+      notice.appendChild(icon);
+      notice.appendChild(document.createTextNode(` ${noticeText}`));
     });
   }
 
   /**
-   * Handle form submission - convert local times to UTC
-   * 
-   * @param {Event} event - Submit event
+   * Handle form submission - convert local times to UTC and create hidden inputs
+   * @param {Event} event
    */
   handleSubmit(event) {
     this.datetimeInputTargets.forEach(input => {
@@ -502,27 +603,41 @@ class TimezoneInputController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODUL
 
         // Store original local value for potential reset
         input.dataset.submittedLocal = input.value;
+        // Only proceed when conversion succeeds
+        if (utcValue) {
+          delete input.dataset.timezoneConversionFailed;
 
-        // Create hidden input with UTC value
-        const hiddenInput = document.createElement('input');
-        hiddenInput.type = 'hidden';
-        hiddenInput.name = input.name;
-        hiddenInput.value = utcValue;
-        hiddenInput.dataset.timezoneConverted = 'true';
+          // If the original input is already disabled from a previous submit, skip
+          if (input.disabled) {
+            return;
+          }
 
-        // Disable original input so it doesn't submit
-        input.disabled = true;
+          // Remove any prior hidden UTC inputs for this field
+          const existingHidden = this.element.querySelectorAll(`input[name="${CSS.escape(input.name)}"][data-timezone-converted="true"]`);
+          existingHidden.forEach(el => el.remove());
 
-        // Add hidden input to form
-        this.element.appendChild(hiddenInput);
+          // Create hidden input with UTC value
+          const hiddenInput = document.createElement('input');
+          hiddenInput.type = 'hidden';
+          hiddenInput.name = input.name;
+          hiddenInput.value = utcValue;
+          hiddenInput.dataset.timezoneConverted = 'true';
+
+          // Disable original input so it doesn't submit
+          input.disabled = true;
+
+          // Add hidden input to form
+          this.element.appendChild(hiddenInput);
+        } else {
+          input.dataset.timezoneConversionFailed = 'true';
+        }
       }
     });
   }
 
   /**
-   * Handle form reset - restore local values
-   * 
-   * @param {Event} event - Reset event
+   * Handle form reset - remove hidden inputs and restore original local values
+   * @param {Event} event
    */
   handleReset(event) {
     // Remove any hidden UTC inputs
@@ -532,6 +647,7 @@ class TimezoneInputController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODUL
     // Re-enable and restore datetime inputs
     this.datetimeInputTargets.forEach(input => {
       input.disabled = false;
+      delete input.dataset.timezoneConversionFailed;
 
       // Restore to original local value
       if (input.dataset.localValue) {
@@ -543,9 +659,8 @@ class TimezoneInputController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODUL
   }
 
   /**
-   * Manually update timezone (called if timezone changes)
-   * 
-   * @param {string} newTimezone - New IANA timezone identifier
+   * Manually update timezone and re-convert all values
+   * @param {string} newTimezone - IANA timezone identifier
    */
   updateTimezone(newTimezone) {
     this.timezone = newTimezone;
@@ -561,15 +676,14 @@ class TimezoneInputController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODUL
 
   /**
    * Get current timezone being used
-   * 
-   * @returns {string} Current timezone identifier
+   * @returns {string} Current IANA timezone identifier
    */
   getTimezone() {
     return this.timezone;
   }
 
   /**
-   * Cleanup on disconnect
+   * Cleanup on disconnect - remove event listeners and prevent memory leaks
    */
   disconnect() {
     // Remove event listeners using cached references
@@ -608,6 +722,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _controllers_qrcode_controller_js__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./controllers/qrcode-controller.js */ "./assets/js/controllers/qrcode-controller.js");
 /* harmony import */ var _controllers_timezone_input_controller_js__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./controllers/timezone-input-controller.js */ "./assets/js/controllers/timezone-input-controller.js");
 /* harmony import */ var _controllers_security_debug_controller_js__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./controllers/security-debug-controller.js */ "./assets/js/controllers/security-debug-controller.js");
+/* harmony import */ var _controllers_popover_controller_js__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ./controllers/popover-controller.js */ "./assets/js/controllers/popover-controller.js");
 /* provided dependency */ var bootstrap = __webpack_require__(/*! bootstrap */ "./node_modules/bootstrap/dist/js/bootstrap.esm.js");
 // export for others scripts to use
 
@@ -617,6 +732,7 @@ __webpack_require__.r(__webpack_exports__);
 
 
 // Import controllers
+
 
 
 
@@ -639,6 +755,17 @@ for (const controller in window.Controllers) {
 const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
 const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
 
+// Re-initialize tooltips after Turbo renders (for dynamically loaded content)
+// Note: Popovers are handled by the popover Stimulus controller
+document.addEventListener('turbo:render', () => {
+  // Initialize new tooltips
+  document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+    if (!bootstrap.Tooltip.getInstance(el)) {
+      new bootstrap.Tooltip(el);
+    }
+  });
+});
+
 /***/ }),
 
 /***/ "./assets/js/timezone-utils.js":
@@ -659,80 +786,13 @@ __webpack_require__.r(__webpack_exports__);
  * detecting user timezone, formatting dates/times, and converting between timezones
  * for datetime inputs and displays.
  *
- * ## Features
- * - Automatic timezone detection
- * - UTC to local timezone conversion for display
- * - Local to UTC conversion for form submission
- * - Datetime formatting with timezone awareness
- * - Integration with HTML5 datetime-local inputs
- *
- * ## Usage Examples
- *
- * ### Basic Timezone Detection
- * ```javascript
- * // Detect user's browser timezone
- * const userTz = KMP_Timezone.detectTimezone();
- * console.log(userTz); // "America/Chicago"
- *
- * // Get timezone from data attribute or detect
- * const tz = KMP_Timezone.getTimezone(element);
- * ```
- *
- * ### Formatting Dates for Display
- * ```javascript
- * // Format UTC datetime for display in user's timezone
- * const utcString = "2025-03-15T14:30:00Z";
- * const displayed = KMP_Timezone.formatDateTime(utcString, "America/Chicago");
- * // "3/15/2025, 9:30:00 AM"
- *
- * // Custom format
- * const formatted = KMP_Timezone.formatDateTime(utcString, "America/Chicago", {
- *     dateStyle: 'full',
- *     timeStyle: 'short'
- * });
- * // "Saturday, March 15, 2025 at 9:30 AM"
- * ```
- *
- * ### Form Input Handling
- * ```javascript
- * // Convert UTC to local time for datetime-local input
- * const utcDate = "2025-03-15T14:30:00Z";
- * const inputValue = KMP_Timezone.toLocalInput(utcDate, "America/Chicago");
- * // "2025-03-15T09:30"
- *
- * // Convert local datetime-local input to UTC for submission
- * const localInput = "2025-03-15T09:30";
- * const utcValue = KMP_Timezone.toUTC(localInput, "America/Chicago");
- * // "2025-03-15T14:30:00.000Z"
- * ```
- *
- * ### Auto-Converting Datetime Inputs
- * ```html
- * <!-- Add data attributes to auto-convert inputs -->
- * <input type="datetime-local" 
- *        name="start_date"
- *        data-timezone="America/Chicago"
- *        data-utc-value="2025-03-15T14:30:00Z"
- *        data-controller="timezone-input">
- * ```
- *
- * ## Integration with Server
- *
- * Server always stores in UTC, client converts for display/input:
- * 1. Server sends UTC datetime: "2025-03-15T14:30:00Z"
- * 2. Client converts to local for input: "2025-03-15T09:30" (Chicago time)
- * 3. User edits: "2025-03-15T10:00"
- * 4. Client converts back to UTC: "2025-03-15T15:00:00Z"
- * 5. Server stores UTC value
+ * See /docs/10.3.1-timezone-utils-api.md for complete API documentation and usage examples.
  *
  * @namespace KMP_Timezone
  */
 const KMP_Timezone = {
   /**
-   * Detect user's timezone from browser
-   *
-   * Uses Intl.DateTimeFormat to get IANA timezone identifier
-   *
+   * Detect user's timezone from browser using Intl.DateTimeFormat
    * @returns {string} IANA timezone identifier (e.g., "America/Chicago")
    */
   detectTimezone() {
@@ -745,7 +805,6 @@ const KMP_Timezone = {
   },
   /**
    * Get timezone from element data attribute or detect from browser
-   *
    * @param {HTMLElement} element - Element with optional data-timezone attribute
    * @returns {string} Timezone identifier
    */
@@ -757,9 +816,8 @@ const KMP_Timezone = {
   },
   /**
    * Convert UTC datetime to user's timezone for display
-   *
    * @param {string|Date} utcDateTime - UTC datetime string or Date object
-   * @param {string} timezone - Target timezone (default: detected timezone)
+   * @param {string} timezone - Target timezone (default: detected)
    * @param {object} options - Intl.DateTimeFormat options
    * @returns {string} Formatted datetime string in local timezone
    */
@@ -794,9 +852,8 @@ const KMP_Timezone = {
   },
   /**
    * Format date only (no time)
-   *
    * @param {string|Date} utcDateTime - UTC datetime string or Date object
-   * @param {string} timezone - Target timezone (default: detected timezone)
+   * @param {string} timezone - Target timezone (default: detected)
    * @param {object} options - Intl.DateTimeFormat options
    * @returns {string} Formatted date string
    */
@@ -820,9 +877,8 @@ const KMP_Timezone = {
   },
   /**
    * Format time only (no date)
-   *
    * @param {string|Date} utcDateTime - UTC datetime string or Date object
-   * @param {string} timezone - Target timezone (default: detected timezone)
+   * @param {string} timezone - Target timezone (default: detected)
    * @param {object} options - Intl.DateTimeFormat options
    * @returns {string} Formatted time string
    */
@@ -846,11 +902,8 @@ const KMP_Timezone = {
   },
   /**
    * Convert UTC datetime to HTML5 datetime-local format in user's timezone
-   *
-   * For use with datetime-local inputs
-   *
    * @param {string|Date} utcDateTime - UTC datetime
-   * @param {string} timezone - Target timezone (default: detected timezone)
+   * @param {string} timezone - Target timezone (default: detected)
    * @returns {string} Datetime in YYYY-MM-DDTHH:mm format (local time)
    */
   toLocalInput(utcDateTime, timezone = null) {
@@ -888,12 +941,9 @@ const KMP_Timezone = {
     }
   },
   /**
-   * Convert datetime-local input value (local time) to UTC
-   *
-   * For form submission - converts user's local input to UTC for storage
-   *
-   * @param {string} localDateTime - Datetime in YYYY-MM-DDTHH:mm format (local time)
-   * @param {string} timezone - Source timezone (default: detected timezone)
+   * Convert datetime-local input value (local time) to UTC for storage
+   * @param {string} localDateTime - Datetime in YYYY-MM-DDTHH:mm or YYYY-MM-DD HH:mm:ss format
+   * @param {string} timezone - Source timezone (default: detected)
    * @returns {string} ISO 8601 UTC datetime string
    */
   toUTC(localDateTime, timezone = null) {
@@ -947,7 +997,6 @@ const KMP_Timezone = {
   },
   /**
    * Get timezone offset in minutes for a specific timezone and date
-   *
    * @param {string} timezone - IANA timezone identifier
    * @param {Date} date - Date to calculate offset for (handles DST)
    * @returns {number} Offset in minutes
@@ -973,7 +1022,6 @@ const KMP_Timezone = {
   },
   /**
    * Get timezone abbreviation (e.g., CDT, EST, PST)
-   *
    * @param {string} timezone - IANA timezone identifier
    * @param {Date} date - Date for DST calculation (default: now)
    * @returns {string} Timezone abbreviation
@@ -995,10 +1043,7 @@ const KMP_Timezone = {
   },
   /**
    * Initialize timezone conversion for all datetime inputs on page
-   *
-   * Finds all inputs with data-utc-value and converts them to local time
-   * Call this on page load or after dynamically adding inputs
-   *
+   * Finds inputs with data-utc-value and converts to local time
    * @param {HTMLElement} container - Container to search in (default: document)
    */
   initializeDatetimeInputs(container = document) {
@@ -1013,9 +1058,7 @@ const KMP_Timezone = {
   },
   /**
    * Convert all datetime-local inputs to UTC before form submission
-   *
-   * Attach this to form submit event to automatically convert local times to UTC
-   *
+   * Creates hidden inputs with UTC values, disables originals
    * @param {HTMLFormElement} form - Form element
    * @param {string} timezone - Timezone to use for conversion (default: detected)
    */

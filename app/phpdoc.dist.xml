@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpdocumentor
+    configVersion="3"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="https://docs.phpdoc.org/latest/phpdoc.xsd">
+    <title>KMP PHP API Reference</title>
+
+    <paths>
+        <output>../docs/api/php</output>
+        <cache>.phpdoc/cache</cache>
+    </paths>
+
+    <templates>
+        <template name="default"/>
+    </templates>
+
+    <versions>
+        <version number="current">
+            <api format="php">
+                <source dsn=".">
+                    <path>src</path>
+                    <path>plugins</path>
+                </source>
+                <ignore hidden="true" symlinks="true">
+                    <path>vendor</path>
+                    <path>tmp</path>
+                    <path>logs</path>
+                    <path>tests</path>
+                </ignore>
+            </api>
+        </version>
+    </versions>
+</phpdocumentor>

@@ -5,122 +5,34 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\KMP\StaticHelpers;
+use App\Services\CsvExportService;
 use Cake\Database\Exception\DatabaseException;
 use Cake\Http\Exception\NotFoundException;
 
 /**
- * Branches Controller - Hierarchical Organization Management for KMP
- * 
- * Manages the complete lifecycle of organizational branches within the Kingdom
- * Management Portal. Provides CRUD operations, tree structure maintenance,
- * and organizational search capabilities with comprehensive authorization.
- * 
- * **Core Responsibilities:**
- * - Branch creation, editing, and deletion with tree integrity
- * - Hierarchical search with special character handling
- * - Member association and organizational reporting
- * - Tree structure recovery and maintenance
- * - JSON links management for external resources
- * - Authorization integration with branch-scoped permissions
- * 
- * **Tree Structure Management:**
- * - Automatic tree recovery on initialization
- * - Circular reference detection and prevention
- * - Parent-child relationship validation
- * - Nested set model integrity maintenance
- * 
- * **Search Capabilities:**
- * - Multi-level hierarchy search (branch, parent, grandparent)
- * - Special character handling (th/Þ conversion for Norse names)
- * - Location-based search across organizational units
- * - Real-time search with query parameter persistence
- * 
- * **Authorization Architecture:**
- * - Policy-based authorization for all operations
- * - Branch-scoped permissions with hierarchical inheritance
- * - Role-based access control for organizational management
- * - Automatic scope application for data security
- * 
- * **Member Integration:**
- * - Branch-member association management
- * - Member count and status reporting
- * - Organizational visibility controls
- * - Member transfer and branch assignment
- * 
- * **Administrative Features:**
- * - Bulk branch operations and management
- * - Tree structure validation and repair
- * - Organizational reporting and analytics
- * - Branch type classification and configuration
- * 
- * **Usage Examples:**
- * ```php
- * // Branch hierarchy navigation
- * GET /branches                    // List all branches with search
- * GET /branches/view/123          // View specific branch details
- * 
- * // Branch management
- * GET  /branches/add              // Create new branch form
- * POST /branches/add              // Save new branch
- * GET  /branches/edit/123         // Edit branch form  
- * POST /branches/edit/123         // Update branch
- * POST /branches/delete/123       // Delete branch (soft delete)
- * 
- * // Search operations
- * GET /branches?search=atlantia   // Search by name
- * GET /branches?search=virginia   // Search by location
- * ```
- * 
- * **Error Handling:**
- * - Tree structure validation errors
- * - Circular reference prevention
- * - Database constraint violation handling
- * - User-friendly error messages with corrective guidance
- * 
- * **Security Considerations:**
- * - Authorization required for all operations
- * - Branch-scoped data access control
- * - Input validation and sanitization
- * - CSRF protection for state-changing operations
- * 
+ * Manages hierarchical organizational branches with tree structure maintenance.
+ *
+ * Provides CRUD operations, multi-level hierarchy search with special character handling
+ * (th/Þ conversion), and member association. Maintains nested set tree integrity via
+ * automatic recovery on initialization.
+ *
  * @property \App\Model\Table\BranchesTable $Branches
- * @see \App\Model\Entity\Branch For branch entity documentation
- * @see \App\Model\Table\BranchesTable For tree operations and relationships
- * @see \App\Policy\BranchPolicy For authorization rules and permissions
- * @see \App\Controller\AppController For base controller functionality
  */
 class BranchesController extends AppController
 {
+    use DataverseGridTrait;
+
     /**
-     * Initialize controller with authorization and tree recovery
-     * 
-     * Sets up the BranchesController with proper authorization configuration
-     * and ensures tree structure integrity through automatic recovery. This
-     * method runs before any action and establishes the security and data
-     * consistency foundation.
-     * 
-     * **Authorization Setup:**
-     * - Enables model-level authorization for index and add operations
-     * - Integrates with policy-based authorization system
-     * - Applies branch-scoped permissions automatically
-     * 
-     * **Tree Recovery Process:**
-     * - Checks if tree recovery has been performed
-     * - Runs tree recovery to rebuild lft/rght values if needed
-     * - Marks recovery as complete to prevent repeated operations
-     * - Ensures tree integrity for all subsequent operations
-     * 
-     * **Performance Considerations:**
-     * - Recovery runs only once per application lifecycle
-     * - Uses app settings to track recovery status
-     * - Minimal overhead for normal operations
-     * 
+     * Configure authorization and tree recovery.
+     *
+     * Runs tree recovery on first init to ensure nested set integrity (lft/rght values).
+     *
      * @return void
      */
     public function initialize(): void
     {
         parent::initialize();
-        $this->Authorization->authorizeModel('index', 'add');
+        $this->Authorization->authorizeModel('index', 'add', 'gridData');
         $setting = StaticHelpers::getAppSetting('KMP.BranchInitRun', '');
         if (!$setting == 'recovered') {
             $branches = $this->Branches;
@@ -133,160 +45,182 @@ class BranchesController extends AppController
     }
 
     /**
-     * Index method - List and search organizational branches
+     * Display Dataverse grid for branches.
      *
-     * Displays a comprehensive list of all branches with advanced search
-     * capabilities and hierarchical organization. Supports multi-level
-     * search across branch names, locations, and parent relationships.
-     *
-     * **Search Features:**
-     * - Text search across branch names and locations
-     * - Parent branch name searching (3 levels deep)
-     * - Special character handling for Norse/Icelandic names (th/Þ)
-     * - Real-time filtering with query persistence
-     *
-     * **Hierarchy Display:**
-     * - Threaded tree structure for organizational clarity
-     * - Parent-child relationship visualization
-     * - Efficient join queries for related data
-     * - Alphabetical sorting within hierarchy levels
-     *
-     * **Authorization Integration:**
-     * - Automatic scope application based on user permissions
-     * - Branch-level access control enforcement
-     * - Role-based visibility restrictions
-     *
-     * **Performance Optimizations:**
-     * - Minimal field selection for large datasets
-     * - Efficient join queries for parent relationships
-     * - Search optimization with indexed fields
-     *
-     * **Usage Examples:**
-     * ```php
-     * // Basic listing
-     * GET /branches
-     * 
-     * // Search operations
-     * GET /branches?search=atlantia        // Find "Atlantia" branches
-     * GET /branches?search=virginia        // Search by location
-     * GET /branches?search=windmaster      // Partial name match
-     * GET /branches?search=Þórshöfn        // Norse character handling
-     * ```
-     *
-     * @return \Cake\Http\Response|null|void Renders view with branches and search results
+     * @return \Cake\Http\Response|null|void
      */
     public function index()
     {
-
-        $search = $this->request->getQuery('search');
-        $search = $search ? trim($search) : null;
-        $query = $this->Branches
-            ->find('threaded')
-            ->join([
-                'parent' => [
-                    'table' => 'branches',
-                    'type' => 'LEFT',
-                    'conditions' => 'parent.id = Branches.parent_id',
-                ],
-            ])
-            ->join([
-                'parent2' => [
-                    'table' => 'branches',
-                    'type' => 'LEFT',
-                    'conditions' => 'parent2.id = parent.parent_id',
-                ],
-            ])
-            ->join([
-                'parent3' => [
-                    'table' => 'branches',
-                    'type' => 'LEFT',
-                    'conditions' => 'parent3.id = parent2.parent_id',
-                ],
-            ])
-            ->orderBy(['Branches.name' => 'ASC']);
-
-        if ($search) {
-            //detect th and replace with Þ
-            $nsearch = $search;
-            if (preg_match('/th/', $search)) {
-                $nsearch = str_replace('th', 'Þ', $search);
-            }
-            //detect Þ and replace with th
-            $usearch = $search;
-            if (preg_match('/Þ/', $search)) {
-                $usearch = str_replace('Þ', 'th', $search);
-            }
-            $query = $query->where([
-                'OR' => [
-                    ['Branches.name LIKE' => '%' . $search . '%'],
-                    ['Branches.name LIKE' => '%' . $nsearch . '%'],
-                    ['Branches.name LIKE' => '%' . $usearch . '%'],
-                    ['Branches.location LIKE' => '%' . $search . '%'],
-                    ['Branches.location LIKE' => '%' . $nsearch . '%'],
-                    ['Branches.location LIKE' => '%' . $usearch . '%'],
-                    ['parent.name LIKE' => '%' . $search . '%'],
-                    ['parent.name LIKE' => '%' . $nsearch . '%'],
-                    ['parent.name LIKE' => '%' . $usearch . '%'],
-                    ['parent2.name LIKE' => '%' . $search . '%'],
-                    ['parent2.name LIKE' => '%' . $nsearch . '%'],
-                    ['parent2.name LIKE' => '%' . $usearch . '%'],
-                    ['parent3.name LIKE' => '%' . $search . '%'],
-                    ['parent3.name LIKE' => '%' . $nsearch . '%'],
-                    ['parent3.name LIKE' => '%' . $usearch . '%'],
-                ],
-            ]);
-        }
-        $this->Authorization->authorizeAction();
-        $this->Authorization->applyScope($query);
-        $branches = $query->toArray();
-
-        $this->set(compact('branches', 'search'));
+        // Simple index page - just renders the dv_grid element
+        // The dv_grid element will lazy-load the actual data via gridData action
     }
 
     /**
-     * View method - Display detailed branch information
+     * Provide Dataverse grid data for branches.
+     * Branches use a flat grid with a computed "path" column showing hierarchy.
+     * The path is computed by walking up the parent chain for each branch.
      *
-     * Shows comprehensive information about a specific branch including
-     * member lists, child branches, and administrative details. Provides
-     * the primary interface for branch management and oversight.
+     * @param \App\Services\CsvExportService $csvExportService Injected CSV export service
+     * @return \Cake\Http\Response|null|void Renders view or returns CSV response
+     */
+    public function gridData(CsvExportService $csvExportService)
+    {
+        // Build base query with parent for path computation
+        $baseQuery = $this->Branches->find()
+            ->contain(['Parent']);
+
+        // Get system views from GridColumns
+
+        // Use unified trait for grid processing
+        // Sort by 'lft' (left value) to maintain hierarchical tree order
+        $result = $this->processDataverseGrid([
+            'gridKey' => 'Branches.index.main',
+            'gridColumnsClass' => \App\KMP\GridColumns\BranchesGridColumns::class,
+            'baseQuery' => $baseQuery,
+            'tableName' => 'Branches',
+            'defaultSort' => ['Branches.lft' => 'asc'],
+            'defaultPageSize' => 25,
+            'showAllTab' => false,
+            'canAddViews' => false,
+            'canFilter' => true,
+            'canExportCsv' => false,
+        ]);
+
+        // Post-process data to compute path for each branch
+        $branches = $result['data'];
+        $this->computeBranchPaths($branches);
+
+        // Handle CSV export
+        if (!empty($result['isCsvExport'])) {
+            return $this->handleCsvExport($result, $csvExportService, 'branches');
+        }
+
+        // Set view variables
+        $this->set([
+            'branches' => $branches,
+            'gridState' => $result['gridState'],
+            'columns' => $result['columnsMetadata'],
+            'visibleColumns' => $result['visibleColumns'],
+            'searchableColumns' => \App\KMP\GridColumns\BranchesGridColumns::getSearchableColumns(),
+            'dropdownFilterColumns' => $result['dropdownFilterColumns'],
+            'filterOptions' => $result['filterOptions'],
+            'currentFilters' => $result['currentFilters'],
+            'currentSearch' => $result['currentSearch'],
+            'currentView' => $result['currentView'],
+            'availableViews' => $result['availableViews'],
+            'gridKey' => $result['gridKey'],
+            'currentSort' => $result['currentSort'],
+            'currentMember' => $result['currentMember'],
+        ]);
+
+        // Determine which template to render based on Turbo-Frame header
+        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
+
+        // Override data for grid rendering
+        $this->set('data', $branches);
+
+        if ($turboFrame === 'branches-grid-table') {
+            // Inner frame request - render table data only
+            $this->set('tableFrameId', 'branches-grid-table');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplate('../element/dv_grid_table');
+        } else {
+            // Outer frame request (or no frame) - render toolbar + table frame
+            $this->set('frameId', 'branches-grid');
+            $this->viewBuilder()->disableAutoLayout();
+            $this->viewBuilder()->setTemplate('../element/dv_grid_content');
+        }
+    }
+
+    /**
+     * Compute hierarchical path for each branch
      *
-     * **Branch Information Display:**
-     * - Complete branch details and configuration
-     * - Parent branch relationship and hierarchy path
-     * - Member association list with key information
-     * - Child branch listing and organization
+     * Walks up the parent chain to build a path like "/Kingdom/Barony/Shire"
+     * Uses a cache to avoid repeated lookups for the same ancestors.
      *
-     * **Member Management:**
-     * - Associated member listing with status information
-     * - Member count and demographic overview
-     * - Direct links to member management functions
-     * - Member status and expiration tracking
-     *
-     * **Organizational Context:**
-     * - Child branch listing and management
-     * - Tree list for reorganization operations
-     * - Branch type configuration and settings
-     * - External links and resource management
-     *
-     * **Administrative Features:**
-     * - Edit and delete action availability
-     * - Permission-based action visibility
-     * - Branch-specific configuration options
-     * - Integration with Officers plugin for leadership display
-     *
-     * **Usage Examples:**
-     * ```php
-     * // View branch details
-     * GET /branches/view/123
-     * 
-     * // Branch with members and children
-     * $branch->members;     // Associated member list
-     * $branch->children;    // Direct child branches
-     * $branch->parent;      // Parent branch if applicable
-     * ```
+     * @param iterable $branches The branches to compute paths for
+     * @return void
+     */
+    protected function computeBranchPaths(iterable $branches): void
+    {
+        // Build a lookup map of all branches by ID for efficient path computation
+        $branchMap = [];
+        foreach ($branches as $branch) {
+            $branchMap[$branch->id] = $branch;
+        }
+
+        // We need to load all parent IDs that aren't in the current page
+        $missingParentIds = [];
+        foreach ($branches as $branch) {
+            if ($branch->parent_id && !isset($branchMap[$branch->parent_id])) {
+                $missingParentIds[$branch->parent_id] = true;
+            }
+        }
+
+        // Load missing parents if any
+        if (!empty($missingParentIds)) {
+            $parentBranches = $this->Branches->find()
+                ->where(['Branches.id IN' => array_keys($missingParentIds)])
+                ->contain(['Parent'])
+                ->all();
+
+            foreach ($parentBranches as $parent) {
+                $branchMap[$parent->id] = $parent;
+                // Also check if this parent's parent is missing
+                if ($parent->parent_id && !isset($branchMap[$parent->parent_id])) {
+                    $missingParentIds[$parent->parent_id] = true;
+                }
+            }
+
+            // Recursively load grandparents etc. (max 10 levels to prevent infinite loops)
+            for ($i = 0; $i < 10; $i++) {
+                $newMissing = [];
+                foreach ($missingParentIds as $parentId => $v) {
+                    if (isset($branchMap[$parentId]) && $branchMap[$parentId]->parent_id) {
+                        if (!isset($branchMap[$branchMap[$parentId]->parent_id])) {
+                            $newMissing[$branchMap[$parentId]->parent_id] = true;
+                        }
+                    }
+                }
+
+                if (empty($newMissing)) {
+                    break;
+                }
+
+                $moreBranches = $this->Branches->find()
+                    ->where(['Branches.id IN' => array_keys($newMissing)])
+                    ->all();
+
+                foreach ($moreBranches as $parent) {
+                    $branchMap[$parent->id] = $parent;
+                }
+
+                $missingParentIds = array_merge($missingParentIds, $newMissing);
+            }
+        }
+
+        // Now compute paths for each branch
+        foreach ($branches as $branch) {
+            $pathParts = [$branch->name];
+            $currentId = $branch->parent_id;
+
+            // Walk up the parent chain
+            while ($currentId && isset($branchMap[$currentId])) {
+                $parent = $branchMap[$currentId];
+                array_unshift($pathParts, $parent->name);
+                $currentId = $parent->parent_id;
+            }
+
+            // Store computed path
+            $branch->path = '/' . implode('/', $pathParts);
+        }
+    }
+
+    /**
+     * Display detailed branch information with members and children.
      *
      * @param string|null $id Branch id.
-     * @return \Cake\Http\Response|null|void Renders view with branch details
+     * @return \Cake\Http\Response|null|void
      * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
      */
     public function view(?string $id = null)
@@ -326,50 +260,9 @@ class BranchesController extends AppController
     }
 
     /**
-     * Add method - Create new organizational branch
+     * Create new organizational branch.
      *
-     * Handles the creation of new organizational branches with comprehensive
-     * validation, tree structure maintenance, and JSON links processing.
-     * Supports both GET (form display) and POST (form submission) operations.
-     *
-     * **Form Processing:**
-     * - Entity creation and validation
-     * - JSON links parsing and storage
-     * - Tree structure integration
-     * - Parent-child relationship establishment
-     *
-     * **Validation Features:**
-     * - Unique branch name validation
-     * - Required field checking (name, location)
-     * - Business rule enforcement
-     * - Tree structure integrity validation
-     *
-     * **JSON Links Processing:**
-     * - External resource URL storage
-     * - Website and social media link management
-     * - Calendar and newsletter integration
-     * - Custom link configuration support
-     *
-     * **Branch Type Configuration:**
-     * - Kingdom, Principality, Barony, Shire classification
-     * - Custom branch type support
-     * - Administrative hierarchy establishment
-     *
-     * **Usage Examples:**
-     * ```php
-     * // Display add form
-     * GET /branches/add
-     * 
-     * // Submit new branch
-     * POST /branches/add
-     * {
-     *     "name": "Barony of Example",
-     *     "location": "Example State",
-     *     "type": "Barony",
-     *     "parent_id": 123,
-     *     "branch_links": '{"website": "https://example.com"}'
-     * }
-     * ```
+     * Handles JSON links parsing and tree structure integration.
      *
      * @return \Cake\Http\Response|null|void Redirects on successful add, renders view otherwise.
      */
@@ -404,53 +297,9 @@ class BranchesController extends AppController
     }
 
     /**
-     * Edit method - Update existing organizational branch
+     * Update existing organizational branch.
      *
-     * Handles branch modification with comprehensive tree structure validation,
-     * circular reference prevention, and automatic tree recovery. Supports
-     * both GET (form display) and POST/PUT/PATCH (form submission) operations.
-     *
-     * **Authorization:**
-     * - Entity-level authorization before any modifications
-     * - Policy-based permission checking
-     * - Branch-scoped access control enforcement
-     *
-     * **Tree Structure Validation:**
-     * - Circular reference detection and prevention
-     * - Parent-child relationship validation
-     * - Automatic tree recovery after structure changes
-     * - Database constraint violation handling
-     *
-     * **JSON Links Management:**
-     * - External resource URL updates
-     * - Link configuration modification
-     * - Website and resource link maintenance
-     *
-     * **Error Handling:**
-     * - Database exception catching and user-friendly messages
-     * - Tree structure error detection (circular references)
-     * - Validation error display and form preservation
-     * - Graceful degradation with helpful error messages
-     *
-     * **Performance Considerations:**
-     * - Tree recovery only on successful save
-     * - Minimal query overhead for validation
-     * - Efficient error handling and response
-     *
-     * **Usage Examples:**
-     * ```php
-     * // Display edit form
-     * GET /branches/edit/123
-     * 
-     * // Submit branch updates
-     * POST /branches/edit/123
-     * {
-     *     "name": "Updated Branch Name",
-     *     "location": "Updated Location",
-     *     "parent_id": 456,  // Can trigger tree restructuring
-     *     "branch_links": '{"website": "https://newsite.com"}'
-     * }
-     * ```
+     * Handles circular reference prevention, JSON links, and automatic tree recovery.
      *
      * @param string|null $id Branch id.
      * @return \Cake\Http\Response|null|void Redirects on successful edit, renders view otherwise.
@@ -521,45 +370,9 @@ class BranchesController extends AppController
     }
 
     /**
-     * Delete method - Remove organizational branch with constraints
+     * Delete branch (soft delete with "Deleted:" prefix).
      *
-     * Handles branch deletion with comprehensive safety checks to prevent
-     * orphaned data and maintain organizational integrity. Implements soft
-     * deletion with name prefixing for audit trail maintenance.
-     *
-     * **Safety Constraints:**
-     * - Cannot delete branches with child branches
-     * - Cannot delete branches with associated members
-     * - Prevents orphaned data and broken hierarchies
-     * - Maintains referential integrity
-     *
-     * **Soft Deletion:**
-     * - Prefixes name with "Deleted:" for audit trail
-     * - Uses Trash behavior for recoverable deletion
-     * - Maintains historical records and relationships
-     * - Enables data recovery if needed
-     *
-     * **Authorization:**
-     * - Entity-level authorization required
-     * - Policy-based permission checking
-     * - Administrative role verification
-     *
-     * **Security Features:**
-     * - POST/DELETE method restriction
-     * - CSRF token validation
-     * - Confirmation dialog requirement
-     * - User feedback and error handling
-     *
-     * **Usage Examples:**
-     * ```php
-     * // Delete branch (with confirmation)
-     * POST /branches/delete/123
-     * 
-     * // Only allowed if:
-     * // - No child branches exist
-     * // - No members are associated
-     * // - User has delete permissions
-     * ```
+     * Cannot delete branches with children or associated members.
      *
      * @param string|null $id Branch id.
      * @return \Cake\Http\Response|null Redirects to index.

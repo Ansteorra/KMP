@@ -17,177 +17,29 @@ use App\Services\WarrantManager\WarrantRequest;
 use App\Mailer\QueuedMailerAwareTrait;
 
 /**
- * Default Officer Manager Service Implementation
+ * Default implementation of OfficerManagerInterface for officer lifecycle management.
  * 
- * Provides comprehensive officer lifecycle management implementing the OfficerManagerInterface
- * with complete assignment, release, and warrant integration capabilities. This service handles
- * the complex business logic for officer assignment workflows including temporal validation,
- * hierarchical management, warrant coordination, and notification processing.
- * 
- * The DefaultOfficerManager integrates with multiple KMP systems including ActiveWindowManager
- * for temporal assignment management, WarrantManager for automatic role assignment, and
- * the notification system for stakeholder communication throughout officer lifecycle operations.
- * 
- * ## Service Architecture
- * 
- * **Dependency Integration**: Integrates with ActiveWindowManagerInterface for temporal
- * assignment management, WarrantManagerInterface for warrant coordination, and mailer
- * services for notification processing with comprehensive service coordination.
- * 
- * **Business Logic Implementation**: Implements complex officer assignment business logic
- * including office validation, member verification, hierarchical relationship establishment,
- * deputy management, and comprehensive workflow coordination for robust operations.
- * 
- * **Data Management**: Coordinates data operations across multiple entities including Officers,
- * Offices, Members, Branches, and Warrants with comprehensive relationship management
- * and data integrity validation for accurate assignment processing.
- * 
- * **Error Handling**: Provides comprehensive error handling including validation failures,
- * business rule violations, system errors, and external service coordination issues
- * with detailed error reporting and recovery capabilities.
- * 
- * ## Assignment Workflow Implementation
- * 
- * **Office Validation**: Validates office requirements including warrant requirements,
- * term length configuration, deputy relationships, reporting structure, and
- * assignment constraints for comprehensive office-based assignment validation.
- * 
- * **Member Verification**: Verifies member eligibility including warrantable status
- * for warrant-required offices, active membership, assignment constraints, and
- * organizational compliance for comprehensive member-based assignment authorization.
- * 
- * **Temporal Management**: Calculates assignment dates including automatic end date
- * calculation based on office term length, status determination based on temporal
- * context, and ActiveWindow integration for comprehensive temporal coordination.
- * 
- * **Hierarchical Assignment**: Establishes hierarchical relationships including deputy
- * assignments, reporting structure determination, branch hierarchy navigation, and
- * organizational chain management for comprehensive hierarchical coordination.
- * 
- * ## Deputy Management
- * 
- * **Deputy Assignment Processing**: Handles deputy-specific assignment including deputy
- * description management, deputy relationship establishment, hierarchical coordination,
- * and comprehensive deputy-specific workflow management for deputy positions.
- * 
- * **Reporting Structure Management**: Establishes reporting relationships including
- * deputy-to relationships, reports-to assignments, branch hierarchy navigation,
- * and comprehensive organizational structure management for accurate reporting chains.
- * 
- * ## Release Workflow Implementation
- * 
- * **Release Processing**: Handles officer release including ActiveWindow coordination,
- * warrant cancellation, status management, and comprehensive release workflow
- * coordination for accurate and complete officer release operations.
- * 
- * **Current Officer Replacement**: Manages replacement scenarios including current
- * officer release when only_one_per_branch constraints apply, automatic replacement
- * processing, and comprehensive succession management for organizational continuity.
- * 
- * ## Warrant System Integration
- * 
- * **Automatic Warrant Requests**: Creates warrant requests for warrant-required offices
- * including warrant request generation, role assignment coordination, temporal
- * validation, and comprehensive warrant lifecycle management integration.
- * 
- * **Warrant Cancellation**: Handles warrant cancellation during officer release
- * including warrant cleanup, role revocation, administrative coordination, and
- * comprehensive warrant termination processing for security and compliance.
- * 
- * ## Notification System Integration
- * 
- * **Assignment Notifications**: Sends assignment notifications including hire
- * notifications, appointment details, warrant information, and comprehensive
- * stakeholder communication for assignment coordination and transparency.
- * 
- * **Release Notifications**: Sends release notifications including termination
- * details, reason documentation, administrative information, and comprehensive
- * stakeholder communication for release coordination and transparency.
- * 
- * ## Performance Considerations
- * 
- * **Database Optimization**: Optimizes database operations including efficient entity
- * loading, relationship management, query optimization, and transaction coordination
- * for scalable performance and resource efficiency in high-volume environments.
- * 
- * **Service Integration**: Efficiently coordinates with external services including
- * ActiveWindow management, warrant processing, notification systems, and
- * comprehensive service integration for optimal performance and reliability.
- * 
- * ## Security and Compliance
- * 
- * **Authorization Validation**: Validates administrative authority for assignment and
- * release operations including approver verification, organizational scope validation,
- * and comprehensive security enforcement for secure operations.
- * 
- * **Audit Trail Management**: Creates comprehensive audit trails including assignment
- * documentation, administrative oversight, temporal tracking, and historical
- * record maintenance for accountability and compliance monitoring.
+ * Handles officer assignment, release, and recalculation operations with integrated
+ * warrant management, role assignment, and notification processing.
  * 
  * @package Officers\Services
- * @since 1.0.0
- * @version 2.0.0
+ * @see \Officers\Services\OfficerManagerInterface
+ * @see /docs/5.1.1-officers-services.md for detailed documentation
  */
 class DefaultOfficerManager implements OfficerManagerInterface
 {
     use QueuedMailerAwareTrait;
     use MailerAwareTrait;
 
-    /**
-     * ActiveWindow Manager Service Instance
-     * 
-     * Provides temporal assignment management including assignment start/end date processing,
-     * automatic status transitions, assignment lifecycle coordination, and comprehensive
-     * temporal validation for officer assignment and release operations.
-     * 
-     * @var ActiveWindowManagerInterface
-     */
+    /** @var ActiveWindowManagerInterface */
     private ActiveWindowManagerInterface $activeWindowManager;
 
-    /**
-     * Warrant Manager Service Instance
-     * 
-     * Provides warrant lifecycle management including automatic warrant request creation,
-     * role assignment coordination, warrant cancellation processing, and comprehensive
-     * warrant integration for officer assignment and release operations.
-     * 
-     * @var WarrantManagerInterface
-     */
+    /** @var WarrantManagerInterface */
     private WarrantManagerInterface $warrantManager;
 
     /**
-     * DefaultOfficerManager Constructor
-     * 
-     * Initializes the DefaultOfficerManager with required service dependencies including
-     * ActiveWindowManager for temporal assignment management and WarrantManager for
-     * warrant coordination. Establishes service integration for comprehensive officer
-     * lifecycle management with external system coordination.
-     * 
-     * ## Service Integration
-     * 
-     * **ActiveWindow Integration**: Establishes integration with ActiveWindowManager for
-     * temporal assignment management including assignment lifecycle coordination, automatic
-     * status transitions, and comprehensive temporal validation for officer operations.
-     * 
-     * **Warrant System Integration**: Establishes integration with WarrantManager for
-     * warrant lifecycle coordination including automatic warrant requests, role assignment,
-     * and comprehensive warrant management for officer assignment and release operations.
-     * 
-     * ## Dependency Management
-     * 
-     * **Service Dependencies**: Manages service dependencies through constructor injection
-     * ensuring proper service availability, integration coordination, and comprehensive
-     * service lifecycle management for reliable officer management operations.
-     * 
-     * **Mailer Integration**: Inherits mailer capabilities through trait inclusion enabling
-     * notification processing, stakeholder communication, and comprehensive notification
-     * management for officer assignment and release operations.
-     * 
-     * @param ActiveWindowManagerInterface $activeWindowManager ActiveWindow service for temporal assignment management
-     * @param WarrantManagerInterface $warrantManager Warrant service for warrant lifecycle coordination
-     * 
-     * @since 1.0.0
-     * @version 2.0.0
+     * @param ActiveWindowManagerInterface $activeWindowManager Temporal assignment management
+     * @param WarrantManagerInterface $warrantManager Warrant lifecycle coordination
      */
     public function __construct(ActiveWindowManagerInterface $activeWindowManager, WarrantManagerInterface $warrantManager)
     {
@@ -317,16 +169,11 @@ class DefaultOfficerManager implements OfficerManagerInterface
     }
 
     /**
-     * Calculate Officer Reporting Relationships
-     * 
-     * Private helper method that calculates and returns the correct reporting relationship fields
-     * for an officer based on the office configuration and branch hierarchy. This method encapsulates
-     * the complex logic for determining reports-to and deputy-to relationships including branch
-     * hierarchy navigation and skip-reporting rules.
+     * Calculate reporting relationship fields for an officer based on office configuration.
      * 
      * @param object $office The office entity with deputy_to_id, reports_to_id, and can_skip_report fields
-     * @param object $officer The officer entity with branch_id that needs reporting fields calculated
-     * @return array Associative array with keys: reports_to_office_id, reports_to_branch_id,
+     * @param object $officer The officer entity with branch_id
+     * @return array Associative array with reports_to_office_id, reports_to_branch_id,
      *               deputy_to_office_id, deputy_to_branch_id, deputy_description
      */
     private function _calculateOfficerReportingFields($office, $officer): array
@@ -404,34 +251,14 @@ class DefaultOfficerManager implements OfficerManagerInterface
     }
 
     /**
-     * Recalculate Officer Reports-To Relationships Implementation
+     * Recalculate reporting relationships and roles for all current/upcoming officers of an office.
      * 
-     * Implements comprehensive officer recalculation workflow for office configuration changes
-     * including reporting relationship updates, member role synchronization, and branch hierarchy
-     * navigation. This method processes all current and upcoming officers when office deputy_to_id,
-     * reports_to_id, or grants_role_id changes to maintain organizational structure consistency.
-     * 
-     * ## Recalculation Processing Workflow
-     * 
-     * **Officer Discovery**: Queries for all current and upcoming officers assigned to the office
-     * across all branches, processing each officer to update reporting relationships and role
-     * assignments based on current office configuration and organizational structure.
-     * 
-     * **Reporting Relationship Updates**: Applies helper method to calculate correct reports-to
-     * and deputy-to relationships for each officer, updating branch assignments based on hierarchy
-     * navigation, skip-reporting rules, and comprehensive organizational structure logic.
-     * 
-     * **Member Role Synchronization**: Handles office role assignment changes by ending old
-     * office-granted roles on today's date and creating new roles as needed, ensuring member
-     * permissions align with current office requirements and organizational policies.
-     * 
-     * **Fail-Fast Error Handling**: Stops processing immediately on first failure with detailed
-     * error message identifying specific member, office, and branch to enable targeted
-     * troubleshooting and transaction rollback for data consistency.
-     * 
+     * Call when office deputy_to_id, reports_to_id, or grants_role_id changes.
+     * Uses fail-fast error handling - stops on first failure.
+     *
      * @param int $officeId The office ID for officers requiring recalculation
      * @param int $updaterId The updater ID for audit trail and role change tracking
-     * @return ServiceResult Result with success status and data containing updated_count, current_count, upcoming_count
+     * @return ServiceResult Result with updated_count, current_count, upcoming_count on success
      */
     public function recalculateOfficersForOffice(
         int $officeId,
@@ -693,102 +520,17 @@ class DefaultOfficerManager implements OfficerManagerInterface
     }
 
     /**
-     * Officer Release Implementation
+     * Release an officer from their position.
      * 
-     * Implements comprehensive officer release workflow including ActiveWindow coordination,
-     * warrant cancellation, notification processing, and audit trail management. This method
-     * handles the complete release business logic with comprehensive error handling and
-     * service coordination for accurate and complete officer release operations.
-     * 
-     * ## Release Processing Workflow
-     * 
-     * **ActiveWindow Release Coordination**: Coordinates with ActiveWindowManager for
-     * assignment termination, status management, temporal processing, and comprehensive
-     * assignment lifecycle closure with proper audit trail and historical record maintenance.
-     * 
-     * **Officer Entity Management**: Loads officer entity with office relationships,
-     * processes release status updates, manages assignment closure, and coordinates
-     * comprehensive entity management for accurate release processing and data integrity.
-     * 
-     * **Warrant System Coordination**: Handles warrant cancellation for warrant-required
-     * offices, coordinates with WarrantManager for warrant termination, manages role
-     * revocation, and ensures comprehensive security cleanup during release operations.
-     * 
-     * ## ActiveWindow Integration
-     * 
-     * **Assignment Termination**: Terminates active assignments through ActiveWindow
-     * integration, processes release dates, manages status transitions, and coordinates
-     * comprehensive assignment closure with proper temporal validation and management.
-     * 
-     * **Status Management**: Manages assignment status transitions including release
-     * status assignment, temporal coordination, historical record maintenance, and
-     * comprehensive status management for accurate assignment lifecycle tracking.
-     * 
-     * **Administrative Oversight**: Records administrative oversight including revoker
-     * identification, release reason documentation, approval workflow, and comprehensive
-     * administrative coordination for accountability and compliance management.
-     * 
-     * ## Warrant Cancellation Processing
-     * 
-     * **Warrant Requirement Validation**: Validates warrant requirements for the officer's
-     * office, determines warrant cancellation necessity, coordinates warrant termination
-     * processing, and ensures comprehensive warrant lifecycle management during release.
-     * 
-     * **Warrant Cleanup Coordination**: Coordinates with WarrantManager for warrant
-     * cancellation, manages role revocation, processes warrant termination, and ensures
-     * comprehensive security cleanup and compliance during officer release operations.
-     * 
-     * **Role Revocation Management**: Manages automatic role revocation through warrant
-     * cancellation, coordinates permission cleanup, ensures security compliance, and
-     * maintains comprehensive role management during officer release and transition.
-     * 
-     * ## Notification and Communication
-     * 
-     * **Release Notification Processing**: Sends release notifications including termination
-     * details, reason documentation, administrative information, and comprehensive stakeholder
-     * communication for release coordination and organizational transparency.
-     * 
-     * **Email Communication Coordination**: Coordinates email notifications through queued
-     * mailer system, includes relevant release details, provides comprehensive communication
-     * for release processing and stakeholder coordination and organizational awareness.
-     * 
-     * **Stakeholder Communication**: Communicates release information to relevant stakeholders
-     * including member notification, administrative oversight, organizational coordination,
-     * and comprehensive communication for release processing and organizational management.
-     * 
-     * ## Error Handling and Service Integration
-     * 
-     * **ActiveWindow Error Management**: Handles ActiveWindow service errors including
-     * termination failures, status management issues, temporal validation errors, and
-     * comprehensive error recovery for reliable release processing and system coordination.
-     * 
-     * **Warrant System Error Handling**: Manages warrant system integration errors including
-     * cancellation failures, role revocation issues, service coordination problems, and
-     * comprehensive error management for reliable warrant cleanup and security compliance.
-     * 
-     * **Service Coordination Error Recovery**: Provides comprehensive error recovery including
-     * service integration failures, notification processing errors, data management issues,
-     * and system-level error handling for robust release processing and organizational continuity.
-     * 
-     * ## Administrative and Audit Features
-     * 
-     * **Audit Trail Creation**: Creates comprehensive audit trails including release
-     * documentation, administrative oversight, reason tracking, and historical record
-     * maintenance for accountability and compliance monitoring throughout release processing.
-     * 
-     * **Administrative Documentation**: Documents administrative actions including revoker
-     * identification, approval workflow, release authorization, and comprehensive
-     * administrative oversight for accountability and organizational governance.
-     * 
-     * @param int $officerId Officer identifier for release target validation and processing
-     * @param int $revokerId Revoker identifier for administrative authority and audit trail creation
-     * @param DateTime $revokedOn Release date for temporal processing and assignment closure
-     * @param string|null $revokedReason Optional release reason for documentation and audit trail
-     * @param string|null $releaseStatus Optional release status for assignment closure management
-     * @return ServiceResult Comprehensive result including success status, release data, and error information
-     * 
-     * @since 1.0.0
-     * @version 2.0.0
+     * Handles ActiveWindow termination, warrant cancellation for warrant-required offices,
+     * and sends release notification to the member.
+     *
+     * @param int $officerId Officer identifier
+     * @param int $revokerId Administrator performing the release
+     * @param DateTime $revokedOn Effective release date
+     * @param string|null $revokedReason Optional reason for release
+     * @param string|null $releaseStatus Status to set (defaults to RELEASED_STATUS)
+     * @return ServiceResult Success or failure with reason
      */
     public function release(
         int $officerId,

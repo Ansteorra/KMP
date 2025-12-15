@@ -97,7 +97,8 @@ $today->setTime(0, 0, 0);
                                         <h6 class="mb-1">
                                             <?= $this->Html->link(
                                                 h($gathering->name),
-                                                ['action' => 'view', $gathering->public_id]
+                                                ['action' => 'view', $gathering->public_id],
+                                                ['data-turbo-frame' => '_top']
                                             ) ?>
                                             <?php if ($isAttending): ?>
                                                 <span class="badge bg-success ms-2">

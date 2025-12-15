@@ -21,66 +21,10 @@ use App\KMP\StaticHelpers;
 /**
  * Waivers Plugin - Gathering Waiver Tracking System
  *
- * This plugin serves as a comprehensive template and example for creating new plugins
- * within the Kingdom Management Portal (KMP) system. It demonstrates all common plugin
- * components, patterns, and integration points.
+ * Provides comprehensive waiver management for gatherings, including waiver
+ * templates, upload tracking, compliance monitoring, and decline/rejection workflows.
  *
- * ## Purpose
- *
- * The Template plugin provides:
- * - **Reference Implementation**: Working examples of all plugin components
- * - **Quick Start**: Copy and modify to create new plugins
- * - **Best Practices**: Demonstrates KMP coding standards and patterns
- * - **Complete Integration**: Shows navigation, authorization, and UI integration
- *
- * ## Features Demonstrated
- *
- * ### Core Components
- * - **Controllers**: HelloWorldController with standard CRUD patterns
- * - **Models**: Example Table and Entity classes with proper configuration
- * - **Policies**: HelloWorldPolicy for RBAC authorization
- * - **Services**: Business logic separation and dependency injection
- *
- * ### KMP Integration
- * - **Navigation**: Automatic menu registration with NavigationRegistry
- * - **View Cells**: Dashboard widget integration examples
- * - **Authorization**: Policy-based access control with KMP's RBAC system
- * - **Routing**: Plugin-specific route configuration
- *
- * ### Frontend Components
- * - **Stimulus.js Controllers**: Interactive frontend behavior
- * - **Templates**: Bootstrap-styled view templates
- * - **CSS Styling**: Plugin-specific stylesheet examples
- *
- * ### Database
- * - **Migrations**: Example table creation and schema management
- * - **Seeds**: Sample data for development and testing
- *
- * ## Architecture
- *
- * This plugin follows KMP's service-oriented architecture:
- * - Controllers handle HTTP requests and coordinate responses
- * - Services contain business logic and workflow management
- * - Policies enforce authorization rules
- * - Models manage data access and persistence
- * - View cells provide reusable dashboard components
- *
- * ## Usage as Template
- *
- * To create a new plugin from this template:
- * 1. Copy the entire `plugins/Template` directory
- * 2. Rename to your plugin name (e.g., `plugins/MyPlugin`)
- * 3. Search and replace "Template" with "MyPlugin" throughout
- * 4. Update composer.json with your plugin details
- * 5. Register in config/plugins.php with appropriate migration order
- * 6. Customize the components for your specific needs
- *
- * @package Waivers
- * @author KMP Development Team
- * @version 1.0.0
- * @since KMP 25.10.21
- * @see \App\KMP\KMPPluginInterface
- * @see \Cake\Core\BasePlugin
+ * @see /docs/5.7-waivers-plugin.md
  */
 class WaiversPlugin extends BasePlugin implements KMPPluginInterface
 {
