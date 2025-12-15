@@ -30,14 +30,17 @@ class ImageToPdfConversionService
      * @param string $imagePath Full path to the source image file
      * @param string $outputPath Full path where the PDF should be saved
      * @param string $pageSize Page size: 'letter' or 'a4' (default: letter)
+     * @param string|null $previewPath Reference that will receive the path to a generated JPEG preview
      * @return \App\Services\ServiceResult Success/failure with optional error message
      */
-    public function convertImageToPdf(string $imagePath, string $outputPath, string $pageSize = 'letter'): ServiceResult
+    public function convertImageToPdf(string $imagePath, string $outputPath, string $pageSize = 'letter', ?string &$previewPath = null): ServiceResult
     {
         // Check if GD extension is available
         if (!extension_loaded('gd')) {
             return new ServiceResult(false, 'GD extension is not available for image processing');
         }
+
+        $previewPath = null;
 
         // Validate and get image info
         $imageInfo = $this->validateAndGetImageInfo($imagePath, false);
@@ -55,14 +58,17 @@ class ImageToPdfConversionService
             return new ServiceResult(false, 'Failed to load image file');
         }
 
+        $orientation = $this->determinePageOrientation($width, $height);
+        [$pageWidth, $pageHeight] = $this->getPageDimensions($pageSize, $orientation);
+
         try {
             // Create PDF using simple format (since FPDF may not be installed)
-            $result = $this->createSimplePdf($image, $width, $height, $outputPath, $pageSize);
-            imagedestroy($image);
+            $result = $this->createSimplePdf($image, $width, $height, $outputPath, $pageWidth, $pageHeight, $previewPath);
+            unset($image);
 
             return $result;
         } catch (\Exception $e) {
-            imagedestroy($image);
+            unset($image);
             Log::error('PDF conversion error: ' . $e->getMessage());
             return new ServiceResult(false, 'Error during PDF conversion: ' . $e->getMessage());
         }
@@ -74,9 +80,10 @@ class ImageToPdfConversionService
      * @param array $imagePaths Array of full paths to source image files
      * @param string $outputPath Full path where the PDF should be saved
      * @param string $pageSize Page size: 'letter' or 'a4' (default: letter)
+     * @param string|null $previewPath Reference that will receive the path to a generated JPEG preview for the first page
      * @return \App\Services\ServiceResult Success/failure with optional error message
      */
-    public function convertMultipleImagesToPdf(array $imagePaths, string $outputPath, string $pageSize = 'letter'): ServiceResult
+    public function convertMultipleImagesToPdf(array $imagePaths, string $outputPath, string $pageSize = 'letter', ?string &$previewPath = null): ServiceResult
     {
         if (empty($imagePaths)) {
             return new ServiceResult(false, 'No images provided');
@@ -89,6 +96,7 @@ class ImageToPdfConversionService
 
         $processedImages = [];
         $jpegDataArray = [];
+        $firstPageJpegData = null;
 
         try {
             // Process each image
@@ -108,12 +116,17 @@ class ImageToPdfConversionService
 
                 $processedImages[] = $image;
 
+                $orientation = $this->determinePageOrientation($width, $height);
+                [$pageWidth, $pageHeight] = $this->getPageDimensions($pageSize, $orientation);
+
                 // Process image (resize and convert to grayscale)
-                $result = $this->processImageForPdf($image, $width, $height, $pageSize);
+                $result = $this->processImageForPdf($image, $width, $height, $pageWidth, $pageHeight);
                 if (!$result['success']) {
                     throw new \Exception($result['error']);
                 }
 
+                $result['page_width'] = $pageWidth;
+                $result['page_height'] = $pageHeight;
                 $jpegDataArray[] = [
                     'data' => $result['jpeg_data'],
                     'size' => $result['jpeg_size'],
@@ -121,12 +134,17 @@ class ImageToPdfConversionService
                     'jpeg_height' => $result['jpeg_height'],
                     'display_width' => $result['display_width'],   // Display size in points
                     'display_height' => $result['display_height'],
+                    'page_width' => $result['page_width'],
+                    'page_height' => $result['page_height'],
                 ];
+
+                if ($firstPageJpegData === null) {
+                    $firstPageJpegData = $result['jpeg_data'];
+                }
             }
 
-            // Create multi-page PDF
-            [$pageWidth, $pageHeight] = $this->getPageDimensions($pageSize);
-            $pdf = $this->buildMultiPagePdfStructure($jpegDataArray, $pageWidth, $pageHeight);
+            // Create multi-page PDF with per-page dimensions
+            $pdf = $this->buildMultiPagePdfStructure($jpegDataArray);
 
             // Write PDF file
             if (file_put_contents($outputPath, $pdf) === false) {
@@ -135,18 +153,52 @@ class ImageToPdfConversionService
 
             // Clean up image resources
             foreach ($processedImages as $image) {
-                imagedestroy($image);
+                unset($image);
             }
+
+            $previewPath = $this->createPreviewFromJpegData($firstPageJpegData);
 
             return new ServiceResult(true, 'Images successfully converted to multi-page PDF', $outputPath);
         } catch (\Exception $e) {
-            // Clean up any loaded images
+            // Clean up any loaded images on error
             foreach ($processedImages as $image) {
-                imagedestroy($image);
+                unset($image);
             }
+
+            $previewPath = $this->createPreviewFromJpegData($firstPageJpegData);
+
             Log::error('Multi-image PDF conversion error: ' . $e->getMessage());
             return new ServiceResult(false, 'Error during PDF conversion: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Persist first-page JPEG data into a temporary preview file.
+     *
+     * @param string|null $jpegData Binary JPEG data or null when unavailable
+     * @return string|null Path to temporary preview file (caller responsible for cleanup)
+     */
+    private function createPreviewFromJpegData(?string $jpegData): ?string
+    {
+        if ($jpegData === null) {
+            return null;
+        }
+
+        $previewTemp = tempnam(sys_get_temp_dir(), 'waiver_preview_multi_');
+        if ($previewTemp === false) {
+            return null;
+        }
+
+        $previewTarget = $previewTemp . '.jpg';
+        @rename($previewTemp, $previewTarget);
+
+        if (file_put_contents($previewTarget, $jpegData) !== false) {
+            return $previewTarget;
+        }
+
+        @unlink($previewTarget);
+
+        return null;
     }
 
     /**
@@ -282,13 +334,14 @@ class ImageToPdfConversionService
      * @param int $width Image width
      * @param int $height Image height
      * @param string $outputPath Output PDF path
-     * @param string $pageSize Page size
+     * @param int $pageWidth Page width in points
+     * @param int $pageHeight Page height in points
+     * @param string|null $previewPath Output parameter that receives a temporary JPEG path
      * @return \App\Services\ServiceResult
      */
-    private function createSimplePdf(\GdImage $image, int $width, int $height, string $outputPath, string $pageSize): ServiceResult
+    private function createSimplePdf(\GdImage $image, int $width, int $height, string $outputPath, int $pageWidth, int $pageHeight, ?string &$previewPath = null): ServiceResult
     {
-        // Calculate dimensions to fit page
-        [$pageWidth, $pageHeight] = $this->getPageDimensions($pageSize);
+        $previewPath = null;
         [$imgWidth, $imgHeight] = $this->calculateFitDimensions($width, $height, $pageWidth, $pageHeight);
 
         // Create a new image with the fitted dimensions
@@ -303,13 +356,13 @@ class ImageToPdfConversionService
 
         // Resize the original image to fit
         if (!imagecopyresampled($resizedImage, $image, 0, 0, 0, 0, $imgWidth, $imgHeight, $width, $height)) {
-            imagedestroy($resizedImage);
+            unset($resizedImage);
             return new ServiceResult(false, 'Failed to resize image');
         }
 
         // Convert to grayscale (black and white)
         if (!imagefilter($resizedImage, IMG_FILTER_GRAYSCALE)) {
-            imagedestroy($resizedImage);
+            unset($resizedImage);
             return new ServiceResult(false, 'Failed to convert to grayscale');
         }
 
@@ -321,11 +374,22 @@ class ImageToPdfConversionService
 
         // Save with lower quality since it's black and white
         if (!imagejpeg($resizedImage, $tempJpeg, 70)) {
-            imagedestroy($resizedImage);
+            unset($resizedImage);
             return new ServiceResult(false, 'Failed to create temporary JPEG file');
         }
 
-        imagedestroy($resizedImage);
+        unset($resizedImage);
+
+        $previewCopy = tempnam(sys_get_temp_dir(), 'waiver_preview_');
+        if ($previewCopy !== false) {
+            $previewCopyJpg = $previewCopy . '.jpg';
+            @rename($previewCopy, $previewCopyJpg);
+            if (@copy($tempJpeg, $previewCopyJpg)) {
+                $previewPath = $previewCopyJpg;
+            } else {
+                @unlink($previewCopyJpg);
+            }
+        }
 
         // Read JPEG data
         $jpegData = file_get_contents($tempJpeg);
@@ -339,7 +403,6 @@ class ImageToPdfConversionService
             $jpegWidth = $jpegInfo[0];
             $jpegHeight = $jpegInfo[1];
         }
-
         unlink($tempJpeg);
 
         // Create minimal PDF structure
@@ -358,15 +421,36 @@ class ImageToPdfConversionService
      * Get page dimensions based on size name
      *
      * @param string $pageSize Page size name
-     * @return array [width, height] in points
+     * @return string "portrait" or "landscape" based on image aspect ratio
      */
-    private function getPageDimensions(string $pageSize): array
+    private function determinePageOrientation(int $width, int $height): string
     {
-        return match (strtolower($pageSize)) {
+        if ($height <= 0) {
+            return 'portrait';
+        }
+
+        $ratio = $width / $height;
+
+        if ($ratio >= 1.15) {
+            return 'landscape';
+        }
+
+        return 'portrait';
+    }
+
+    private function getPageDimensions(string $pageSize, string $orientation = 'portrait'): array
+    {
+        [$width, $height] = match (strtolower($pageSize)) {
             'a4' => [595, 842],      // A4 in points (210 x 297 mm)
             'letter' => [612, 792],  // US Letter in points (8.5 x 11 in)
             default => [612, 792],
         };
+
+        if ($orientation === 'landscape') {
+            return [$height, $width];
+        }
+
+        return [$width, $height];
     }
 
     /**
@@ -461,17 +545,16 @@ class ImageToPdfConversionService
      * @param \GdImage $image GD image resource
      * @param int $width Original width
      * @param int $height Original height
-     * @param string $pageSize Page size
+     * @param int $pageWidth Page width in points
+     * @param int $pageHeight Page height in points
      * @return array Result with jpeg_data, jpeg_size, width, height
      */
-    private function processImageForPdf(\GdImage $image, int $width, int $height, string $pageSize): array
+    private function processImageForPdf(\GdImage $image, int $width, int $height, int $pageWidth, int $pageHeight): array
     {
         // Get actual dimensions from the image resource
         $actualWidth = imagesx($image);
         $actualHeight = imagesy($image);
 
-        // Calculate dimensions to fit page (these are the display dimensions in points)
-        [$pageWidth, $pageHeight] = $this->getPageDimensions($pageSize);
         [$displayWidth, $displayHeight] = $this->calculateFitDimensions($width, $height, $pageWidth, $pageHeight);
 
         // Create a new image with the fitted dimensions
@@ -486,13 +569,13 @@ class ImageToPdfConversionService
 
         // Resize the original image to fit - use ACTUAL resource dimensions
         if (!imagecopyresampled($resizedImage, $image, 0, 0, 0, 0, $displayWidth, $displayHeight, $actualWidth, $actualHeight)) {
-            imagedestroy($resizedImage);
+            unset($resizedImage);
             return ['success' => false, 'error' => 'Failed to resize image'];
         }
 
         // Convert to grayscale (black and white)
         if (!imagefilter($resizedImage, IMG_FILTER_GRAYSCALE)) {
-            imagedestroy($resizedImage);
+            unset($resizedImage);
             return ['success' => false, 'error' => 'Failed to convert to grayscale'];
         }
 
@@ -502,7 +585,7 @@ class ImageToPdfConversionService
         // Create temporary JPEG
         $tempJpeg = tempnam(sys_get_temp_dir(), 'waiver_') . '.jpg';
         if (!imagejpeg($resizedImage, $tempJpeg, 70)) {
-            imagedestroy($resizedImage);
+            unset($resizedImage);
             return ['success' => false, 'error' => 'Failed to create JPEG'];
         }
 
@@ -519,7 +602,7 @@ class ImageToPdfConversionService
         }
 
         unlink($tempJpeg);
-        imagedestroy($resizedImage);
+        unset($resizedImage);
 
         return [
             'success' => true,
@@ -535,12 +618,10 @@ class ImageToPdfConversionService
     /**
      * Build multi-page PDF structure
      *
-     * @param array $jpegDataArray Array of page data
-     * @param int $pageWidth Page width
-     * @param int $pageHeight Page height
+     * @param array $jpegDataArray Array of page data (with per-page width/height)
      * @return string PDF content
      */
-    private function buildMultiPagePdfStructure(array $jpegDataArray, int $pageWidth, int $pageHeight): string
+    private function buildMultiPagePdfStructure(array $jpegDataArray): string
     {
         $numPages = count($jpegDataArray);
         $objects = [];
@@ -567,6 +648,8 @@ class ImageToPdfConversionService
             $imageObjects[$pageNum] = $imageNum;
             $contentObjects[$pageNum] = $contentNum;
 
+            $pageWidth = $pageData['page_width'];
+            $pageHeight = $pageData['page_height'];
             // Calculate position to center image using display dimensions
             $x = ($pageWidth - $pageData['display_width']) / 2;
             $y = ($pageHeight - $pageData['display_height']) / 2;

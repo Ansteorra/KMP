@@ -223,6 +223,42 @@ class DocumentService
     }
 
     /**
+     * Determine whether a JPEG preview exists for the provided document.
+     *
+     * @param \App\Model\Entity\Document $document Document entity reference
+     * @return bool True when preview file can be located, otherwise false
+     */
+    public function documentPreviewExists(Document $document): bool
+    {
+        $adapter = $document->storage_adapter ?? 'local';
+        $filesystem = $this->getFilesystemForAdapter($adapter);
+
+        if ($filesystem === null) {
+            return false;
+        }
+
+        $previewPath = preg_replace('/\.pdf$/i', '_preview.jpg', $document->file_path ?? '');
+        if (empty($previewPath)) {
+            return false;
+        }
+
+        $sanitizedPreviewPath = $this->sanitizePath($previewPath);
+
+        try {
+            return $filesystem->fileExists($sanitizedPreviewPath);
+        } catch (Exception $e) {
+            Log::debug('Error checking preview existence', [
+                'document_id' => $document->id,
+                'adapter' => $adapter,
+                'preview_path' => $sanitizedPreviewPath,
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
+    }
+
+    /**
      * Sanitize file path to prevent directory traversal attacks
      *
      * @param string $path The path to sanitize
@@ -259,6 +295,7 @@ class DocumentService
      * @param array $metadata Optional metadata to store with the document
      * @param string $subDirectory Optional subdirectory within storage base (e.g., 'waiver-templates')
      * @param array $allowedExtensions Optional array of allowed file extensions (default: ['pdf'])
+     * @param string|null $previewTempPath Optional path to a temporary JPEG preview to store alongside the document
      * @return \App\Services\ServiceResult Success with document ID, or failure with error message
      */
     public function createDocument(
@@ -269,6 +306,7 @@ class DocumentService
         array $metadata = [],
         string $subDirectory = '',
         array $allowedExtensions = ['pdf'],
+        ?string $previewTempPath = null,
     ): ServiceResult {
         // Validate file upload
         if ($file->getSize() === 0 || $file->getError() !== UPLOAD_ERR_OK) {
@@ -379,11 +417,20 @@ class DocumentService
         } catch (Exception $e) {
             Log::error('Failed to store file');
 
+            if ($previewTempPath !== null && file_exists($previewTempPath)) {
+                @unlink($previewTempPath);
+            }
+
             return new ServiceResult(
                 false,
                 __('Failed to store file: {0}', $e->getMessage()),
             );
         }
+        if ($previewTempPath !== null && !file_exists($previewTempPath)) {
+            $previewTempPath = null;
+        }
+
+        $previewResult = null;
 
         // Create document record
         $document = $this->Documents->newEntity([
@@ -414,6 +461,10 @@ class DocumentService
                 'errors' => $document->getErrors(),
             ]);
 
+            if ($previewTempPath !== null && file_exists($previewTempPath)) {
+                @unlink($previewTempPath);
+            }
+
             return new ServiceResult(
                 false,
                 __('Failed to save document record.'),
@@ -426,6 +477,24 @@ class DocumentService
             'entity_id' => $entityId,
             'filename' => $originalName,
         ]);
+
+        if ($previewTempPath !== null) {
+            $previewResult = $this->savePreviewFromTemp($relativePath, $previewTempPath);
+
+            if (!$previewResult->success) {
+                $error = $previewResult->getError() ?? $previewResult->reason;
+
+                Log::warning('PDF preview copy failed', [
+                    'document_id' => $document->id,
+                    'error' => $error,
+                ]);
+            } else {
+                Log::info('PDF preview stored', [
+                    'document_id' => $document->id,
+                    'preview_path' => $previewResult->getData(),
+                ]);
+            }
+        }
 
         return new ServiceResult(true, null, $document->id);
     }
@@ -535,6 +604,95 @@ class DocumentService
     }
 
     /**
+     * Get an inline preview response for a document's generated JPEG preview.
+     *
+     * @param \App\Model\Entity\Document $document Document entity with stored file path
+     * @return \Cake\Http\Response|null Response streaming the preview image, or null if unavailable
+     */
+    public function getDocumentPreviewResponse(Document $document): ?Response
+    {
+        $documentAdapter = $document->storage_adapter ?? 'local';
+        $filesystem = $this->getFilesystemForAdapter($documentAdapter);
+
+        if ($filesystem === null) {
+            Log::warning('Filesystem unavailable for document preview retrieval', [
+                'document_id' => $document->id,
+                'adapter' => $documentAdapter,
+            ]);
+
+            return null;
+        }
+
+        $previewPath = preg_replace('/\.pdf$/i', '_preview.jpg', $document->file_path ?? '');
+        if (empty($previewPath)) {
+            return null;
+        }
+
+        $sanitizedPreviewPath = $this->sanitizePath($previewPath);
+
+        try {
+            if (!$filesystem->fileExists($sanitizedPreviewPath)) {
+                Log::notice('Document preview not found', [
+                    'document_id' => $document->id,
+                    'preview_path' => $sanitizedPreviewPath,
+                    'adapter' => $documentAdapter,
+                ]);
+
+                return null;
+            }
+        } catch (Exception $e) {
+            Log::error('Error checking preview existence', [
+                'document_id' => $document->id,
+                'preview_path' => $sanitizedPreviewPath,
+                'adapter' => $documentAdapter,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+
+        if ($documentAdapter === 'local') {
+            $config = Configure::read('Documents.storage', []);
+            $localConfig = $config['local'] ?? [];
+            $basePath = $localConfig['path'] ?? WWW_ROOT . '../' . self::STORAGE_BASE_PATH;
+
+            $relativePath = str_replace('/', DIRECTORY_SEPARATOR, $sanitizedPreviewPath);
+            $fullPath = $basePath . DIRECTORY_SEPARATOR . $relativePath;
+            $resolvedPath = realpath($fullPath);
+
+            if ($resolvedPath !== false && file_exists($resolvedPath) && strpos($resolvedPath, realpath($basePath)) === 0) {
+                $response = new Response();
+
+                return $response->withFile(
+                    $resolvedPath,
+                    [
+                        'download' => false,
+                        'name' => basename($sanitizedPreviewPath),
+                    ],
+                )->withType('image/jpeg');
+            }
+        }
+
+        try {
+            $fileContents = $filesystem->read($sanitizedPreviewPath);
+            $response = new Response();
+            $response = $response->withStringBody($fileContents);
+            $response = $response->withType('image/jpeg');
+
+            return $response;
+        } catch (Exception $e) {
+            Log::error('Failed to read document preview', [
+                'document_id' => $document->id,
+                'preview_path' => $sanitizedPreviewPath,
+                'adapter' => $documentAdapter,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
+    /**
      * Update the entity_id of an existing document
      *
      * This is useful when you need to save the parent entity first to get its ID,
@@ -602,6 +760,32 @@ class DocumentService
                             'adapter' => $documentAdapter,
                         ]);
                     }
+
+                    $previewPath = null;
+                    if (!empty($document->file_path)) {
+                        $previewPath = preg_replace('/\.pdf$/i', '_preview.jpg', $document->file_path);
+                    }
+
+                    if (!empty($previewPath)) {
+                        $previewPath = $this->sanitizePath($previewPath);
+                        try {
+                            if ($filesystem->fileExists($previewPath)) {
+                                $filesystem->delete($previewPath);
+                                Log::info('Document preview deleted', [
+                                    'document_id' => $documentId,
+                                    'preview_path' => $previewPath,
+                                    'adapter' => $documentAdapter,
+                                ]);
+                            }
+                        } catch (Exception $e) {
+                            Log::debug('Failed to delete preview image during document cleanup', [
+                                'document_id' => $documentId,
+                                'preview_path' => $previewPath,
+                                'adapter' => $documentAdapter,
+                                'error' => $e->getMessage(),
+                            ]);
+                        }
+                    }
                 } catch (Exception $e) {
                     Log::warning('Failed to delete physical file', [
                         'document_id' => $documentId,
@@ -650,6 +834,65 @@ class DocumentService
     private function generateUniqueFilename(string $extension): string
     {
         return uniqid('doc_', true) . '.' . $extension;
+    }
+
+    /**
+     * Persist a temporary preview image into the configured storage adapter.
+     *
+     * @param string $relativePdfPath Relative path of stored PDF, used to derive preview path
+     * @param string $tempPreviewPath Temporary JPEG path produced during conversion
+     * @return \\App\\Services\\ServiceResult Result indicating success and stored preview path
+     */
+    private function savePreviewFromTemp(string $relativePdfPath, string $tempPreviewPath): ServiceResult
+    {
+        if (!file_exists($tempPreviewPath)) {
+            return new ServiceResult(false, 'Temporary preview image missing.');
+        }
+
+        $previewRelativePath = preg_replace('/\\.pdf$/i', '_preview.jpg', $relativePdfPath) ?? ($relativePdfPath . '_preview.jpg');
+        $sanitizedRelativePath = $this->sanitizePath($previewRelativePath);
+
+        try {
+            if ($this->adapter === 'local') {
+                $destination = $this->localBasePath . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $sanitizedRelativePath);
+                $directory = dirname($destination);
+
+                if (!is_dir($directory) && !mkdir($directory, 0755, true) && !is_dir($directory)) {
+                    return new ServiceResult(false, 'Failed to prepare directory for preview image.');
+                }
+
+                if (file_exists($destination) && !@unlink($destination)) {
+                    return new ServiceResult(false, 'Failed to replace existing preview image.');
+                }
+
+                if (!@rename($tempPreviewPath, $destination)) {
+                    if (!@copy($tempPreviewPath, $destination)) {
+                        return new ServiceResult(false, 'Failed to copy preview into storage.');
+                    }
+                }
+
+                return new ServiceResult(true, null, $sanitizedRelativePath);
+            }
+
+            $previewContents = file_get_contents($tempPreviewPath);
+            if ($previewContents === false) {
+                return new ServiceResult(false, 'Failed to read preview contents.');
+            }
+
+            if ($this->filesystem->fileExists($sanitizedRelativePath)) {
+                $this->filesystem->delete($sanitizedRelativePath);
+            }
+
+            $this->filesystem->write($sanitizedRelativePath, $previewContents);
+
+            return new ServiceResult(true, null, $sanitizedRelativePath);
+        } catch (Exception $e) {
+            return new ServiceResult(false, $e->getMessage());
+        } finally {
+            if (file_exists($tempPreviewPath)) {
+                @unlink($tempPreviewPath);
+            }
+        }
     }
 
     /**
