@@ -482,9 +482,11 @@ class DocumentService
             $previewResult = $this->savePreviewFromTemp($relativePath, $previewTempPath);
 
             if (!$previewResult->success) {
+                $error = $previewResult->getError() ?? $previewResult->reason;
+
                 Log::warning('PDF preview copy failed', [
                     'document_id' => $document->id,
-                    'error' => $previewResult->getMessage(),
+                    'error' => $error,
                 ]);
             } else {
                 Log::info('PDF preview stored', [

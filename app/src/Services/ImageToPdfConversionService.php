@@ -40,6 +40,8 @@ class ImageToPdfConversionService
             return new ServiceResult(false, 'GD extension is not available for image processing');
         }
 
+        $previewPath = null;
+
         // Validate and get image info
         $imageInfo = $this->validateAndGetImageInfo($imagePath, false);
         if (!$imageInfo['success']) {
@@ -61,7 +63,7 @@ class ImageToPdfConversionService
 
         try {
             // Create PDF using simple format (since FPDF may not be installed)
-            $result = $this->createSimplePdf($image, $width, $height, $outputPath, $pageWidth, $pageHeight);
+            $result = $this->createSimplePdf($image, $width, $height, $outputPath, $pageWidth, $pageHeight, $previewPath);
             unset($image);
 
             return $result;
@@ -154,35 +156,49 @@ class ImageToPdfConversionService
                 unset($image);
             }
 
+            $previewPath = $this->createPreviewFromJpegData($firstPageJpegData);
+
             return new ServiceResult(true, 'Images successfully converted to multi-page PDF', $outputPath);
         } catch (\Exception $e) {
-            // Clean up any loaded images
+            // Clean up any loaded images on error
             foreach ($processedImages as $image) {
                 unset($image);
             }
+
+            $previewPath = $this->createPreviewFromJpegData($firstPageJpegData);
+
             Log::error('Multi-image PDF conversion error: ' . $e->getMessage());
             return new ServiceResult(false, 'Error during PDF conversion: ' . $e->getMessage());
-        } finally {
-            if (func_num_args() >= 4) {
-                if ($firstPageJpegData !== null) {
-                    $previewTemp = tempnam(sys_get_temp_dir(), 'waiver_preview_multi_');
-                    if ($previewTemp !== false) {
-                        $previewTarget = $previewTemp . '.jpg';
-                        @rename($previewTemp, $previewTarget);
-                        if (file_put_contents($previewTarget, $firstPageJpegData) !== false) {
-                            $previewPath = $previewTarget;
-                        } else {
-                            @unlink($previewTarget);
-                            $previewPath = null;
-                        }
-                    } else {
-                        $previewPath = null;
-                    }
-                } else {
-                    $previewPath = null;
-                }
-            }
         }
+    }
+
+    /**
+     * Persist first-page JPEG data into a temporary preview file.
+     *
+     * @param string|null $jpegData Binary JPEG data or null when unavailable
+     * @return string|null Path to temporary preview file (caller responsible for cleanup)
+     */
+    private function createPreviewFromJpegData(?string $jpegData): ?string
+    {
+        if ($jpegData === null) {
+            return null;
+        }
+
+        $previewTemp = tempnam(sys_get_temp_dir(), 'waiver_preview_multi_');
+        if ($previewTemp === false) {
+            return null;
+        }
+
+        $previewTarget = $previewTemp . '.jpg';
+        @rename($previewTemp, $previewTarget);
+
+        if (file_put_contents($previewTarget, $jpegData) !== false) {
+            return $previewTarget;
+        }
+
+        @unlink($previewTarget);
+
+        return null;
     }
 
     /**
@@ -320,10 +336,12 @@ class ImageToPdfConversionService
      * @param string $outputPath Output PDF path
      * @param int $pageWidth Page width in points
      * @param int $pageHeight Page height in points
+     * @param string|null $previewPath Output parameter that receives a temporary JPEG path
      * @return \App\Services\ServiceResult
      */
-    private function createSimplePdf(\GdImage $image, int $width, int $height, string $outputPath, int $pageWidth, int $pageHeight): ServiceResult
+    private function createSimplePdf(\GdImage $image, int $width, int $height, string $outputPath, int $pageWidth, int $pageHeight, ?string &$previewPath = null): ServiceResult
     {
+        $previewPath = null;
         [$imgWidth, $imgHeight] = $this->calculateFitDimensions($width, $height, $pageWidth, $pageHeight);
 
         // Create a new image with the fitted dimensions
@@ -362,19 +380,14 @@ class ImageToPdfConversionService
 
         imagedestroy($resizedImage);
 
-        if (func_num_args() >= 4) {
-            $previewCopy = tempnam(sys_get_temp_dir(), 'waiver_preview_');
-            if ($previewCopy !== false) {
-                $previewCopyJpg = $previewCopy . '.jpg';
-                @rename($previewCopy, $previewCopyJpg);
-                if (@copy($tempJpeg, $previewCopyJpg)) {
-                    $previewPath = $previewCopyJpg;
-                } else {
-                    @unlink($previewCopyJpg);
-                    $previewPath = null;
-                }
+        $previewCopy = tempnam(sys_get_temp_dir(), 'waiver_preview_');
+        if ($previewCopy !== false) {
+            $previewCopyJpg = $previewCopy . '.jpg';
+            @rename($previewCopy, $previewCopyJpg);
+            if (@copy($tempJpeg, $previewCopyJpg)) {
+                $previewPath = $previewCopyJpg;
             } else {
-                $previewPath = null;
+                @unlink($previewCopyJpg);
             }
         }
 
