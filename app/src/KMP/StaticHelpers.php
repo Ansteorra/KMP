@@ -126,8 +126,8 @@ class StaticHelpers
         }
 
         // Clean up image resources to free memory
-        imagedestroy($dst_img);
-        imagedestroy($src_img);
+        unset($dst_img);
+        unset($src_img);
         if (!$result) {
             return '';
         }

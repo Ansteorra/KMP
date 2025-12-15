@@ -356,13 +356,13 @@ class ImageToPdfConversionService
 
         // Resize the original image to fit
         if (!imagecopyresampled($resizedImage, $image, 0, 0, 0, 0, $imgWidth, $imgHeight, $width, $height)) {
-            imagedestroy($resizedImage);
+            unset($resizedImage);
             return new ServiceResult(false, 'Failed to resize image');
         }
 
         // Convert to grayscale (black and white)
         if (!imagefilter($resizedImage, IMG_FILTER_GRAYSCALE)) {
-            imagedestroy($resizedImage);
+            unset($resizedImage);
             return new ServiceResult(false, 'Failed to convert to grayscale');
         }
 
@@ -374,11 +374,11 @@ class ImageToPdfConversionService
 
         // Save with lower quality since it's black and white
         if (!imagejpeg($resizedImage, $tempJpeg, 70)) {
-            imagedestroy($resizedImage);
+            unset($resizedImage);
             return new ServiceResult(false, 'Failed to create temporary JPEG file');
         }
 
-        imagedestroy($resizedImage);
+        unset($resizedImage);
 
         $previewCopy = tempnam(sys_get_temp_dir(), 'waiver_preview_');
         if ($previewCopy !== false) {
@@ -421,7 +421,7 @@ class ImageToPdfConversionService
      * Get page dimensions based on size name
      *
      * @param string $pageSize Page size name
-     * @return string [width, height] in points
+     * @return string "portrait" or "landscape" based on image aspect ratio
      */
     private function determinePageOrientation(int $width, int $height): string
     {
@@ -569,13 +569,13 @@ class ImageToPdfConversionService
 
         // Resize the original image to fit - use ACTUAL resource dimensions
         if (!imagecopyresampled($resizedImage, $image, 0, 0, 0, 0, $displayWidth, $displayHeight, $actualWidth, $actualHeight)) {
-            imagedestroy($resizedImage);
+            unset($resizedImage);
             return ['success' => false, 'error' => 'Failed to resize image'];
         }
 
         // Convert to grayscale (black and white)
         if (!imagefilter($resizedImage, IMG_FILTER_GRAYSCALE)) {
-            imagedestroy($resizedImage);
+            unset($resizedImage);
             return ['success' => false, 'error' => 'Failed to convert to grayscale'];
         }
 
@@ -585,7 +585,7 @@ class ImageToPdfConversionService
         // Create temporary JPEG
         $tempJpeg = tempnam(sys_get_temp_dir(), 'waiver_') . '.jpg';
         if (!imagejpeg($resizedImage, $tempJpeg, 70)) {
-            imagedestroy($resizedImage);
+            unset($resizedImage);
             return ['success' => false, 'error' => 'Failed to create JPEG'];
         }
 
@@ -602,7 +602,7 @@ class ImageToPdfConversionService
         }
 
         unlink($tempJpeg);
-        imagedestroy($resizedImage);
+        unset($resizedImage);
 
         return [
             'success' => true,
