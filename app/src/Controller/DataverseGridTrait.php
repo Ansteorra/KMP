@@ -314,16 +314,14 @@ trait DataverseGridTrait
                             // IS NOT NULL AND NOT EMPTY
                             $baseQuery->where(function ($exp) use ($qualifiedField) {
                                 return $exp->and([
-                                    $qualifiedField . ' IS NOT' => null,
-                                    $qualifiedField . ' !=' => '',
+                                    $qualifiedField . ' IS NOT' => null
                                 ]);
                             });
                         } elseif ($filterValue === 'no' || $filterValue === '0' || $filterValue === 0 || $filterValue === false) {
                             // IS NULL OR EMPTY
                             $baseQuery->where(function ($exp) use ($qualifiedField) {
                                 return $exp->or([
-                                    $qualifiedField . ' IS' => null,
-                                    $qualifiedField => '',
+                                    $qualifiedField . ' IS' => null
                                 ]);
                             });
                         }
