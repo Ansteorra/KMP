@@ -61,7 +61,6 @@ class GatheringWaiversController extends AppController
         // Load required models
         $this->fetchTable('Gatherings');
         $this->fetchTable('Waivers.WaiverTypes');
-        $this->fetchTable('Waivers.GatheringWaiverActivities');
 
         // Initialize services
         $this->DocumentService = new DocumentService();
@@ -207,11 +206,6 @@ class GatheringWaiversController extends AppController
                 'WaiverTypes' => function ($q) {
                     return $q->select(['id', 'name']);
                 },
-                'GatheringWaiverActivities' => function ($q) {
-                    return $q->contain(['GatheringActivities' => function ($q2) {
-                        return $q2->select(['id', 'name']);
-                    }]);
-                },
                 'Documents',
             ]);
 
@@ -317,10 +311,9 @@ class GatheringWaiversController extends AppController
     {
         $gatheringWaiver = $this->GatheringWaivers->get($id, [
             'contain' => [
-                'Gatherings' => ['GatheringTypes', 'Branches', 'GatheringActivities'],
+                'Gatherings' => ['GatheringTypes', 'Branches'],
                 'WaiverTypes',
                 'Documents',
-                'GatheringWaiverActivities' => ['GatheringActivities'],
                 'DeclinedByMembers',
                 'CreatedByMembers',
             ],
@@ -328,16 +321,15 @@ class GatheringWaiversController extends AppController
 
         $this->Authorization->authorize($gatheringWaiver);
 
-        // Load all waiver types and gathering activities for the change type/activities modal
+        // Load all waiver types for the change type modal
         $waiverTypes = $this->GatheringWaivers->WaiverTypes->find('list')->orderBy(['name' => 'ASC'])->toArray();
-        $gatheringActivities = $gatheringWaiver->gathering->gathering_activities ?? [];
 
         $previewAvailable = false;
         if ($gatheringWaiver->document) {
             $previewAvailable = $this->DocumentService->documentPreviewExists($gatheringWaiver->document);
         }
 
-        $this->set(compact('gatheringWaiver', 'waiverTypes', 'gatheringActivities', 'previewAvailable'));
+        $this->set(compact('gatheringWaiver', 'waiverTypes', 'previewAvailable'));
     }
 
     /**
@@ -371,23 +363,6 @@ class GatheringWaiversController extends AppController
             ],
         ]);
 
-        // Load waiver requirements for each activity
-        if (!empty($gathering->gathering_activities)) {
-            $activityIds = collection($gathering->gathering_activities)->extract('id')->toArray();
-            $GatheringActivityWaivers = $this->fetchTable('Waivers.GatheringActivityWaivers');
-            $activityWaivers = $GatheringActivityWaivers->find()
-                ->where(['gathering_activity_id IN' => $activityIds])
-                ->toArray();
-
-            // Group by activity ID
-            $waiversByActivity = collection($activityWaivers)->groupBy('gathering_activity_id')->toArray();
-
-            // Add to activities
-            foreach ($gathering->gathering_activities as $activity) {
-                $activity->gathering_activity_waivers = $waiversByActivity[$activity->id] ?? [];
-            }
-        }
-
         // Check if gathering has required waivers
         $requiredWaiverTypes = $this->_getRequiredWaiverTypes($gathering);
         if (empty($requiredWaiverTypes)) {
@@ -405,8 +380,6 @@ class GatheringWaiversController extends AppController
             Log::debug('Waiver upload POST data received', [
                 'keys' => array_keys($data),
                 'waiver_type_id' => $data['waiver_type_id'] ?? null,
-                'activity_ids' => $data['activity_ids'] ?? 'NOT SET',
-                'activity_ids_type' => isset($data['activity_ids']) ? gettype($data['activity_ids']) : 'NOT SET',
                 'notes' => $data['notes'] ?? '',
                 'waiver_images_count' => isset($data['waiver_images']) ? count($data['waiver_images']) : 0,
             ]);
@@ -414,15 +387,9 @@ class GatheringWaiversController extends AppController
             $uploadedFiles = $data['waiver_images'] ?? [];
             $waiverTypeId = $data['waiver_type_id'] ?? null;
             $notes = $data['notes'] ?? '';
-            $activityIds = $data['activity_ids'] ?? [];
 
             if (empty($uploadedFiles) || !$waiverTypeId) {
                 $this->Flash->error(__('Please select waiver type and upload at least one image.'));
-                return $this->redirect($this->referer());
-            }
-
-            if (empty($activityIds)) {
-                $this->Flash->error(__('Please select at least one activity that this waiver applies to.'));
                 return $this->redirect($this->referer());
             }
 
@@ -436,8 +403,7 @@ class GatheringWaiversController extends AppController
                     $uploadedFiles,
                     $gathering,
                     $waiverType,
-                    $notes,
-                    $activityIds
+                    $notes
                 );
 
                 if ($result->success) {
@@ -519,27 +485,6 @@ class GatheringWaiversController extends AppController
         // GET request - show upload form
         // (requiredWaiverTypes already calculated above)
 
-        // Build activity data for client
-        $activitiesData = [];
-        if (!empty($gathering->gathering_activities)) {
-            foreach ($gathering->gathering_activities as $activity) {
-                $waiverTypeIds = [];
-                if (!empty($activity->gathering_activity_waivers)) {
-                    foreach ($activity->gathering_activity_waivers as $activityWaiver) {
-                        $waiverTypeIds[] = $activityWaiver->waiver_type_id;
-                    }
-
-                    // Only add this activity if it has waivers
-                    $activitiesData[] = [
-                        'id' => $activity->id,
-                        'name' => $activity->name,
-                        'description' => $activity->description ?? '',
-                        'waiver_types' => $waiverTypeIds
-                    ];
-                }
-            }
-        }
-
         // Build waiver types data with exemption reasons for attestation support
         $waiverTypesData = [];
         if (!empty($requiredWaiverTypes)) {
@@ -557,10 +502,9 @@ class GatheringWaiversController extends AppController
         $uploadLimits = $this->_getUploadLimits();
 
         // Get pre-selected values from query parameters (for direct upload links)
-        $preSelectedActivityId = $this->request->getQuery('activity_id');
         $preSelectedWaiverTypeId = $this->request->getQuery('waiver_type_id');
 
-        $this->set(compact('gathering', 'requiredWaiverTypes', 'activitiesData', 'waiverTypesData', 'uploadLimits', 'preSelectedActivityId', 'preSelectedWaiverTypeId'));
+        $this->set(compact('gathering', 'requiredWaiverTypes', 'waiverTypesData', 'uploadLimits', 'preSelectedWaiverTypeId'));
     }
 
     /**
@@ -573,14 +517,12 @@ class GatheringWaiversController extends AppController
      * 4. Calculate retention date
      * 5. Create GatheringWaiver record
      * 6. Update document entity_id
-     * 7. Create GatheringActivityWaivers associations
      *
      * @param \Psr\Http\Message\UploadedFileInterface $uploadedFile Uploaded file object
      * @param \App\Model\Entity\Gathering $gathering Gathering entity
      * @param \Waivers\Model\Entity\WaiverType $waiverType Waiver type entity
      * @param int|null $memberId Optional member ID
      * @param string $notes Optional notes
-     * @param array $activityIds Array of gathering_activity IDs
      * @return \App\Services\ServiceResult Result object
      */
     private function _processWaiverUpload(
@@ -588,8 +530,7 @@ class GatheringWaiversController extends AppController
         $gathering,
         $waiverType,
         ?int $memberId,
-        string $notes,
-        array $activityIds
+        string $notes
     ) {
         // Handle UploadedFile object (from form upload)
         $tmpName = $uploadedFile->getStream()->getMetadata('uri');
@@ -737,24 +678,6 @@ class GatheringWaiversController extends AppController
             return new ServiceResult(false, 'Failed to update waiver with document ID');
         }
 
-        // Create GatheringWaiverActivities associations (join table linking waivers to activities)
-        $GatheringWaiverActivities = $this->fetchTable('Waivers.GatheringWaiverActivities');
-        foreach ($activityIds as $activityId) {
-            $waiverActivity = $GatheringWaiverActivities->newEntity([
-                'gathering_waiver_id' => $gatheringWaiver->id,
-                'gathering_activity_id' => (int)$activityId,
-            ]);
-
-            if (!$GatheringWaiverActivities->save($waiverActivity)) {
-                Log::error('Failed to save waiver-activity association', [
-                    'gathering_waiver_id' => $gatheringWaiver->id,
-                    'gathering_activity_id' => $activityId,
-                    'errors' => $waiverActivity->getErrors()
-                ]);
-                // Don't fail the whole upload, just log the error
-            }
-        }
-
         return new ServiceResult(true, null, [
             'waiver_id' => $gatheringWaiver->id,
             'document_id' => $documentId,
@@ -768,15 +691,13 @@ class GatheringWaiversController extends AppController
      * @param mixed $gathering Gathering entity
      * @param mixed $waiverType WaiverType entity
      * @param string $notes Notes for the waiver
-     * @param array $activityIds Array of activity IDs to associate
      * @return ServiceResult
      */
     private function _processMultipleWaiverImages(
         array $uploadedFiles,
         $gathering,
         $waiverType,
-        string $notes,
-        array $activityIds
+        string $notes
     ): ServiceResult {
         // Debug: Log what we received
         Log::debug('_processMultipleWaiverImages called', [
@@ -784,8 +705,6 @@ class GatheringWaiversController extends AppController
             'gathering_id' => $gathering->id,
             'waiverType_id' => $waiverType->id,
             'notes_length' => strlen($notes),
-            'activityIds' => $activityIds,
-            'activityIds_count' => count($activityIds),
         ]);
 
         // Extract temp paths from uploaded files
@@ -946,64 +865,6 @@ class GatheringWaiversController extends AppController
             return new ServiceResult(false, 'Failed to update waiver with document ID');
         }
 
-        // Create GatheringWaiverActivities associations (join table linking waivers to activities)
-        Log::debug('Creating waiver-activity associations', [
-            'gathering_waiver_id' => $gatheringWaiver->id,
-            'activityIds' => $activityIds,
-            'activityIds_count' => count($activityIds),
-            'activityIds_type' => gettype($activityIds),
-        ]);
-
-        if (empty($activityIds)) {
-            Log::warning('No activity IDs provided for waiver-activity associations', [
-                'gathering_waiver_id' => $gatheringWaiver->id,
-            ]);
-        }
-
-        $GatheringWaiverActivities = $this->fetchTable('Waivers.GatheringWaiverActivities');
-        $savedActivities = 0;
-        foreach ($activityIds as $activityId) {
-            Log::debug('Processing activity association', [
-                'activityId' => $activityId,
-                'activityId_type' => gettype($activityId),
-            ]);
-
-            $waiverActivity = $GatheringWaiverActivities->newEntity([
-                'gathering_waiver_id' => $gatheringWaiver->id,
-                'gathering_activity_id' => (int)$activityId,
-            ]);
-
-            // Check for validation errors on the entity
-            if ($waiverActivity->hasErrors()) {
-                Log::error('Validation errors on waiver-activity entity', [
-                    'errors' => $waiverActivity->getErrors(),
-                    'data' => $waiverActivity->toArray(),
-                ]);
-            }
-
-            if (!$GatheringWaiverActivities->save($waiverActivity)) {
-                Log::error('Failed to save waiver-activity association', [
-                    'gathering_waiver_id' => $gatheringWaiver->id,
-                    'gathering_activity_id' => $activityId,
-                    'errors' => $waiverActivity->getErrors(),
-                    'entity_data' => $waiverActivity->toArray(),
-                ]);
-                // Don't fail the whole upload, just log the error
-            } else {
-                $savedActivities++;
-                Log::debug('Saved waiver-activity association', [
-                    'id' => $waiverActivity->id,
-                    'gathering_waiver_id' => $gatheringWaiver->id,
-                    'gathering_activity_id' => $activityId,
-                ]);
-            }
-        }
-
-        Log::debug('Finished creating waiver-activity associations', [
-            'total_requested' => count($activityIds),
-            'total_saved' => $savedActivities,
-        ]);
-
         return new ServiceResult(true, null, [
             'waiver_id' => $gatheringWaiver->id,
             'document_id' => $documentId,
@@ -1126,8 +987,7 @@ class GatheringWaiversController extends AppController
 
         $gatheringWaiver = $this->GatheringWaivers->get($id, [
             'contain' => [
-                'Gatherings' => ['GatheringActivities'],
-                'GatheringWaiverActivities' => ['GatheringActivities'],
+                'Gatherings',
                 'WaiverTypes',
             ],
         ]);
@@ -1137,16 +997,10 @@ class GatheringWaiversController extends AppController
 
         $data = $this->request->getData();
         $waiverTypeId = $data['waiver_type_id'] ?? null;
-        $activityIds = $data['activity_ids'] ?? [];
 
         // Validate inputs
         if (empty($waiverTypeId)) {
             $this->Flash->error(__('Please select a waiver type.'));
-            return $this->redirect(['action' => 'view', $id]);
-        }
-
-        if (empty($activityIds)) {
-            $this->Flash->error(__('Please select at least one activity.'));
             return $this->redirect(['action' => 'view', $id]);
         }
 
@@ -1157,88 +1011,36 @@ class GatheringWaiversController extends AppController
             $this->Flash->error(__('Invalid waiver type selected.'));
             return $this->redirect(['action' => 'view', $id]);
         }
-
-        // Verify all activities belong to the gathering
-        $gatheringActivityIds = array_map(
-            fn($activity) => $activity->id,
-            $gatheringWaiver->gathering->gathering_activities
-        );
-
-        foreach ($activityIds as $activityId) {
-            if (!in_array($activityId, $gatheringActivityIds)) {
-                $this->Flash->error(__('One or more selected activities do not belong to this gathering.'));
-                return $this->redirect(['action' => 'view', $id]);
-            }
-        }
-
-        // Capture before state for audit note
         $oldWaiverTypeName = $gatheringWaiver->waiver_type->name;
-        $oldActivityNames = array_map(
-            fn($wa) => $wa->gathering_activity->name,
-            $gatheringWaiver->gathering_waiver_activities
-        );
 
-        // Get new activity names for audit note
-        $newActivityNames = [];
-        foreach ($gatheringWaiver->gathering->gathering_activities as $activity) {
-            if (in_array($activity->id, $activityIds)) {
-                $newActivityNames[] = $activity->name;
-            }
-        }
+        $gatheringWaiver->waiver_type_id = $waiverTypeId;
 
-        // Start transaction
-        $connection = $this->GatheringWaivers->getConnection();
-        $connection->begin();
-
-        try {
-            // Update waiver type
-            $gatheringWaiver->waiver_type_id = $waiverTypeId;
-            if (!$this->GatheringWaivers->save($gatheringWaiver)) {
-                throw new \Exception('Failed to update waiver type');
-            }
-
-            // Delete existing activity associations
-            $GatheringWaiverActivities = $this->fetchTable('Waivers.GatheringWaiverActivities');
-            $GatheringWaiverActivities->deleteAll(['gathering_waiver_id' => $id]);
-
-            // Create new activity associations
-            foreach ($activityIds as $activityId) {
-                $activityWaiver = $GatheringWaiverActivities->newEntity([
-                    'gathering_waiver_id' => $id,
-                    'gathering_activity_id' => $activityId,
-                ]);
-
-                if (!$GatheringWaiverActivities->save($activityWaiver)) {
-                    throw new \Exception('Failed to create activity association');
-                }
-            }
-
-            // Create audit note with before/after snapshot
+        if ($this->GatheringWaivers->save($gatheringWaiver)) {
             $auditNote = $this->GatheringWaivers->AuditNotes->newEntity([
                 'entity_id' => $id,
                 'entity_type' => 'Waivers.GatheringWaivers',
-                'subject' => 'Waiver Type and Activities Changed',
+                'subject' => 'Waiver Type Changed',
                 'body' => $this->_buildAuditNoteBody(
                     $oldWaiverTypeName,
                     $newWaiverType->name,
-                    $oldActivityNames,
-                    $newActivityNames
+                    [],
+                    []
                 ),
                 'author_id' => $this->Authentication->getIdentity()->id,
                 'private' => false,
             ]);
 
             if (!$this->GatheringWaivers->AuditNotes->save($auditNote)) {
-                throw new \Exception('Failed to create audit note');
+                Log::warning('Failed to save audit note when changing waiver type', [
+                    'waiver_id' => $id,
+                    'errors' => $auditNote->getErrors(),
+                ]);
             }
 
-            $connection->commit();
-
-            $this->Flash->success(__('Waiver type and activity associations have been updated successfully.'));
-        } catch (\Exception $e) {
-            $connection->rollback();
-            $this->Flash->error(__('Failed to update waiver: {0}', $e->getMessage()));
-            Log::error('Error updating waiver type/activities: ' . $e->getMessage());
+            $this->Flash->success(__('Waiver type has been updated successfully.'));
+        } else {
+            $this->Flash->error(__('Failed to update waiver.'));
+            Log::error('Error updating waiver type');
         }
 
         return $this->redirect(['action' => 'view', $id]);
@@ -2133,24 +1935,6 @@ class GatheringWaiversController extends AppController
         $tempWaiver->gathering_id = $gatheringId;
         $this->Authorization->authorize($tempWaiver, "add");
 
-        // Load waiver requirements for each activity
-        if (!empty($gathering->gathering_activities)) {
-            $activityIds = collection($gathering->gathering_activities)->extract('id')->toArray();
-            $GatheringActivityWaivers = $this->fetchTable('Waivers.GatheringActivityWaivers');
-            $activityWaivers = $GatheringActivityWaivers->find()
-                ->where(['gathering_activity_id IN' => $activityIds])
-                ->contain(['WaiverTypes'])
-                ->toArray();
-
-            // Group by activity ID
-            $waiversByActivity = collection($activityWaivers)->groupBy('gathering_activity_id')->toArray();
-
-            // Add to activities
-            foreach ($gathering->gathering_activities as $activity) {
-                $activity->gathering_activity_waivers = $waiversByActivity[$activity->id] ?? [];
-            }
-        }
-
         // Check if gathering has required waivers
         $requiredWaiverTypes = $this->_getRequiredWaiverTypes($gathering);
         if (empty($requiredWaiverTypes)) {
@@ -2181,7 +1965,6 @@ class GatheringWaiversController extends AppController
             $uploadedFiles = $data['waiver_images'] ?? [];
             $waiverTypeId = $data['waiver_type_id'] ?? null;
             $notes = $data['notes'] ?? '';
-            $activityIds = $data['activity_ids'] ?? [];
 
             if (empty($uploadedFiles) || !$waiverTypeId) {
                 // Handle error for AJAX request
@@ -2196,11 +1979,6 @@ class GatheringWaiversController extends AppController
                 return $this->redirect($this->referer());
             }
 
-            if (empty($activityIds)) {
-                $this->Flash->error(__('Please select at least one activity that this waiver applies to.'));
-                return $this->redirect($this->referer());
-            }
-
             // Get waiver type for retention policy
             $WaiverTypes = $this->fetchTable('Waivers.WaiverTypes');
             $waiverType = $WaiverTypes->get($waiverTypeId);
@@ -2211,8 +1989,7 @@ class GatheringWaiversController extends AppController
                     $uploadedFiles,
                     $gathering,
                     $waiverType,
-                    $notes,
-                    $activityIds
+                    $notes
                 );
 
                 if ($result->success) {
@@ -2266,27 +2043,6 @@ class GatheringWaiversController extends AppController
             }
         }
 
-        // Build activity data for client
-        $activitiesData = [];
-        if (!empty($gathering->gathering_activities)) {
-            foreach ($gathering->gathering_activities as $activity) {
-                $waiverTypeIds = [];
-                if (!empty($activity->gathering_activity_waivers)) {
-                    foreach ($activity->gathering_activity_waivers as $activityWaiver) {
-                        $waiverTypeIds[] = $activityWaiver->waiver_type_id;
-                    }
-
-                    // Only add this activity if it has waivers
-                    $activitiesData[] = [
-                        'id' => $activity->id,
-                        'name' => $activity->name,
-                        'description' => $activity->description ?? '',
-                        'waiver_types' => $waiverTypeIds
-                    ];
-                }
-            }
-        }
-
         $waiverTypesData = [];
         if (!empty($requiredWaiverTypes)) {
             foreach ($requiredWaiverTypes as $waiverType) {
@@ -2302,11 +2058,10 @@ class GatheringWaiversController extends AppController
         // Get upload limits for validation
         $uploadLimits = $this->_getUploadLimits();
 
-        // Get pre-selected values from query parameters (for direct upload links)
-        $preSelectedActivityId = $this->request->getQuery('activity_id');
+        // Get pre-selected value from query parameters (for direct upload links)
         $preSelectedWaiverTypeId = $this->request->getQuery('waiver_type_id');
 
-        $this->set(compact('gathering', 'requiredWaiverTypes', 'activitiesData', 'waiverTypesData', 'uploadLimits', 'preSelectedActivityId', 'preSelectedWaiverTypeId'));
+        $this->set(compact('gathering', 'requiredWaiverTypes', 'waiverTypesData', 'uploadLimits', 'preSelectedWaiverTypeId'));
 
         // Use mobile app layout
         $this->viewBuilder()->setLayout('mobile_app');
@@ -2387,20 +2142,19 @@ class GatheringWaiversController extends AppController
 
     /**
      * Attest that a waiver is not needed
-     * 
-     * Records an exemption for a specific activity/waiver type combination,
-     * attesting that the waiver requirement does not apply.
-     * 
+     *
+     * Records an exemption for a gathering/waiver type combination,
+     * attesting that the waiver requirement does not apply for the gathering.
+     *
      * **Expected POST Data**:
-     * - gathering_activity_id: int
      * - waiver_type_id: int
      * - gathering_id: int (for authorization)
      * - reason: string (from waiver type exemption_reasons)
      * - notes: string (optional)
-     * 
+     *
      * **Response**:
      * JSON with success status and message
-     * 
+     *
      * @return \Cake\Http\Response|null JSON response
      */
     public function attest()
@@ -2412,23 +2166,13 @@ class GatheringWaiversController extends AppController
             // Get request data
             $data = $this->request->getData();
 
-            // Support both single activity (old) and multiple activities (new)
-            $gatheringActivityIds = [];
-            if (isset($data['gathering_activity_ids']) && is_array($data['gathering_activity_ids'])) {
-                // New format: multiple activities
-                $gatheringActivityIds = array_map('intval', $data['gathering_activity_ids']);
-            } elseif (isset($data['gathering_activity_id'])) {
-                // Old format: single activity (backward compatibility)
-                $gatheringActivityIds = [(int)$data['gathering_activity_id']];
-            }
-
             $waiverTypeId = (int)($data['waiver_type_id'] ?? 0);
             $gatheringId = (int)($data['gathering_id'] ?? 0);
             $reason = $data['reason'] ?? '';
             $notes = $data['notes'] ?? null;
 
             // Validate required fields
-            if (empty($gatheringActivityIds) || !$waiverTypeId || !$gatheringId || empty($reason)) {
+            if (!$waiverTypeId || !$gatheringId || empty($reason)) {
                 $this->set('success', false);
                 $this->set('message', __('Missing required fields'));
                 $this->viewBuilder()->setOption('serialize', ['success', 'message']);
@@ -2444,23 +2188,6 @@ class GatheringWaiversController extends AppController
             $gatheringWaiver->gathering = $gathering;
             $this->Authorization->authorize($gatheringWaiver, 'uploadWaivers');
 
-            // Verify all activities are assigned to this gathering
-            $GatheringsGatheringActivities = $this->fetchTable('GatheringsGatheringActivities');
-            $validActivities = $GatheringsGatheringActivities->find()
-                ->where([
-                    'gathering_activity_id IN' => $gatheringActivityIds,
-                    'gathering_id' => $gatheringId
-                ])
-                ->all()
-                ->toArray();
-
-            if (count($validActivities) !== count($gatheringActivityIds)) {
-                $this->set('success', false);
-                $this->set('message', __('One or more activities are not assigned to this gathering'));
-                $this->viewBuilder()->setOption('serialize', ['success', 'message']);
-                return;
-            }
-
             // Verify the waiver type exists and has valid exemption reasons
             $WaiverTypes = $this->fetchTable('Waivers.WaiverTypes');
             $waiverType = $WaiverTypes->get($waiverTypeId);
@@ -2474,7 +2201,7 @@ class GatheringWaiversController extends AppController
                 return;
             }
 
-            // Check if exemption already exists for any of these activities with this waiver type
+            // Check if exemption already exists for this gathering/waiver type
             // Ignore declined waivers when checking for duplicates
             $existing = $this->GatheringWaivers->find()
                 ->where([
@@ -2483,19 +2210,16 @@ class GatheringWaiversController extends AppController
                     'GatheringWaivers.is_exemption' => true,
                     'GatheringWaivers.status !=' => 'declined'
                 ])
-                ->matching('GatheringWaiverActivities', function ($q) use ($gatheringActivityIds) {
-                    return $q->where(['GatheringWaiverActivities.gathering_activity_id IN' => $gatheringActivityIds]);
-                })
                 ->first();
 
             if ($existing) {
                 // Check if the reason is the same
                 if ($existing->exemption_reason === $reason) {
                     $this->set('success', false);
-                    $this->set('message', __('An exemption with this reason already exists for one or more of the selected activities and waiver type'));
+                    $this->set('message', __('An exemption with this reason already exists for this gathering and waiver type'));
                 } else {
                     $this->set('success', false);
-                    $this->set('message', __('An exemption already exists for one or more of the selected activities and waiver type. Please delete the existing exemption before creating a new one with a different reason.'));
+                    $this->set('message', __('An exemption already exists for this gathering and waiver type. Please delete the existing exemption before creating a new one with a different reason.'));
                 }
                 $this->viewBuilder()->setOption('serialize', ['success', 'message']);
                 return;
@@ -2518,7 +2242,7 @@ class GatheringWaiversController extends AppController
 
             $retentionDate = $retentionResult->getData();
 
-            // Create new exemption as a GatheringWaiver record (one exemption for all activities)
+            // Create new exemption as a GatheringWaiver record scoped to the gathering
             $exemption = $this->GatheringWaivers->newEntity([
                 'gathering_id' => $gatheringId,
                 'waiver_type_id' => $waiverTypeId,
@@ -2531,22 +2255,6 @@ class GatheringWaiversController extends AppController
             ]);
 
             if ($this->GatheringWaivers->save($exemption)) {
-                // Use the GatheringActivityService to associate the exemption with ALL selected activities
-                $GatheringActivityService = new \Waivers\Services\GatheringActivityService();
-                $associationResult = $GatheringActivityService->associateWaiverWithActivities(
-                    $exemption->id,
-                    $gatheringActivityIds  // Pass all activity IDs
-                );
-
-                if (!$associationResult->success) {
-                    // Rollback - delete the exemption
-                    $this->GatheringWaivers->delete($exemption);
-                    $this->set('success', false);
-                    $this->set('message', __('Failed to associate exemption with activity: {0}', $associationResult->getReason()));
-                    $this->viewBuilder()->setOption('serialize', ['success', 'message']);
-                    return;
-                }
-
                 // Determine redirect URL based on referer
                 $referer = $this->request->referer();
                 $redirectUrl = null;

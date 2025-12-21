@@ -22,7 +22,6 @@ use Cake\ORM\Entity;
  *
  * @property \App\Model\Entity\Gathering $gathering
  * @property \Waivers\Model\Entity\GatheringActivityWaiver[] $gathering_activity_waivers
- * @property \Waivers\Model\Entity\GatheringWaiverActivity[] $gathering_waiver_activities
  */
 class GatheringActivity extends BaseEntity
 {

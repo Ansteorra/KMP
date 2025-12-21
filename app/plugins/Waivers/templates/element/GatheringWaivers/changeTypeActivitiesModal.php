@@ -1,22 +1,14 @@
 <?php
 
 /**
- * Change Waiver Type and Activities Modal
+ * Change Waiver Type Modal
  *
- * Allows authorized users to change the waiver type and activity associations
- * for an already uploaded waiver.
+ * Allows authorized users to change the waiver type for an already uploaded waiver.
  *
  * @var \App\View\AppView $this
  * @var \Waivers\Model\Entity\GatheringWaiver $gatheringWaiver
  * @var array $waiverTypes List of waiver types (id => name)
- * @var \Waivers\Model\Entity\GatheringActivity[] $gatheringActivities Gathering's activities
  */
-
-// Get currently selected activity IDs
-$currentActivityIds = [];
-foreach ($gatheringWaiver->gathering_waiver_activities as $activityWaiver) {
-    $currentActivityIds[] = $activityWaiver->gathering_activity_id;
-}
 ?>
 
 <!-- Change Type/Activities Modal -->
@@ -25,7 +17,7 @@ foreach ($gatheringWaiver->gathering_waiver_activities as $activityWaiver) {
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="changeTypeActivitiesModalLabel">
-                    <i class="bi bi-pencil-square"></i> <?= __('Change Waiver Type and Activities') ?>
+                    <i class="bi bi-pencil-square"></i> <?= __('Change Waiver Type') ?>
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -59,73 +51,6 @@ foreach ($gatheringWaiver->gathering_waiver_activities as $activityWaiver) {
                     ]) ?>
                     <div class="form-text">
                         <?= __('Select the type of waiver that this document represents.') ?>
-                    </div>
-                </div>
-
-                <!-- Activity Selection -->
-                <div class="mb-3">
-                    <label class="form-label">
-                        <i class="bi bi-activity"></i> <?= __('Activities Covered by This Waiver') ?>
-                        <span class="text-danger">*</span>
-                    </label>
-
-                    <?php if (empty($gatheringActivities)): ?>
-                        <div class="alert alert-info mb-0" role="alert">
-                            <i class="bi bi-info-circle"></i>
-                            <?= __('This gathering has no activities defined.') ?>
-                        </div>
-                    <?php else: ?>
-                        <div class="card">
-                            <div class="card-body">
-                                <?php foreach ($gatheringActivities as $activity): ?>
-                                    <div class="form-check mb-2">
-                                        <?= $this->Form->checkbox('activity_ids[]', [
-                                            'value' => $activity->id,
-                                            'checked' => in_array($activity->id, $currentActivityIds),
-                                            'id' => 'activity-' . $activity->id,
-                                            'class' => 'form-check-input',
-                                            'hiddenField' => false
-                                        ]) ?>
-                                        <label class="form-check-label" for="activity-<?= $activity->id ?>">
-                                            <strong><?= h($activity->name) ?></strong>
-                                            <?php if ($activity->description): ?>
-                                                <br>
-                                                <small class="text-muted"><?= h($activity->description) ?></small>
-                                            <?php endif; ?>
-                                        </label>
-                                    </div>
-                                <?php endforeach; ?>
-                            </div>
-                        </div>
-                        <div class="form-text">
-                            <?= __('Select all activities that this waiver document covers. At least one activity must be selected.') ?>
-                        </div>
-                    <?php endif; ?>
-                </div>
-
-                <!-- Current Associations Info -->
-                <div class="card bg-light">
-                    <div class="card-body">
-                        <h6 class="card-title mb-2">
-                            <i class="bi bi-info-circle"></i> <?= __('Current Settings') ?>
-                        </h6>
-                        <dl class="row mb-0">
-                            <dt class="col-sm-4"><?= __('Current Type:') ?></dt>
-                            <dd class="col-sm-8"><?= h($gatheringWaiver->waiver_type->name) ?></dd>
-
-                            <dt class="col-sm-4"><?= __('Current Activities:') ?></dt>
-                            <dd class="col-sm-8">
-                                <?php if (!empty($gatheringWaiver->gathering_waiver_activities)): ?>
-                                    <ul class="mb-0">
-                                        <?php foreach ($gatheringWaiver->gathering_waiver_activities as $activityWaiver): ?>
-                                            <li><?= h($activityWaiver->gathering_activity->name) ?></li>
-                                        <?php endforeach; ?>
-                                    </ul>
-                                <?php else: ?>
-                                    <em class="text-muted"><?= __('None') ?></em>
-                                <?php endif; ?>
-                            </dd>
-                        </dl>
                     </div>
                 </div>
             </div>

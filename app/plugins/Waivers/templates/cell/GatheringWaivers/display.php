@@ -4,12 +4,12 @@
  * Gathering Waivers Cell Display Template
  * 
  * Displays waiver-centric information for a gathering, showing each waiver
- * requirement as a separate row with activity, waiver type, and upload status.
+ * requirement as a separate row with waiver type and upload status.
  * 
  * @var \App\View\AppView $this
  * @var \App\Model\Entity\Gathering $gathering
  * @var int $gatheringId
- * @var array $waiverRows Array of waiver requirement rows (activity + waiver type + upload count)
+ * @var array $waiverRows Array of waiver requirement rows (waiver type + upload count)
  * @var bool $isEmpty Whether gathering has any waiver requirements
  * @var bool $hasWaivers Whether any waivers have been uploaded
  * @var array $overallStats Overall completion statistics
@@ -66,11 +66,7 @@ $user = $this->getRequest()->getAttribute('identity');
     <!-- No Requirements Configured -->
     <div class="alert alert-secondary">
         <i class="bi bi-info-circle"></i>
-        <?= __('No waiver requirements have been configured for this gathering\'s activities yet.') ?>
-        <br>
-        <small class="text-muted">
-            <?= __('Waiver requirements are configured at the activity level. Visit each activity to add waiver requirements.') ?>
-        </small>
+        <?= __('No waiver requirements have been configured for this gathering yet.') ?>
     </div>
     <?php else: ?>
     <!-- Overall Status Summary -->
@@ -81,7 +77,7 @@ $user = $this->getRequest()->getAttribute('identity');
                 <i
                     class="bi bi-<?= ($overallStats['complete'] + $overallStats['exempted']) === $overallStats['total'] ? 'check-circle' : 'info-circle' ?>"></i>
                 <?= __(
-                        '{0} waiver requirements for this gathering.',
+                        '{0} waiver type requirements for this gathering.',
                         count($waiverRows)
                     ) ?>
             </div>
@@ -108,16 +104,15 @@ $user = $this->getRequest()->getAttribute('identity');
         <hr>
         <small>
             <i class="bi bi-lock-fill"></i>
-            <?= __('Waivers have been marked as collected. Activities are now locked.') ?>
+            <?= __('Waivers have been marked as collected for this gathering.') ?>
         </small>
         <?php endif; ?>
     </div>
-    <!-- Waiver Requirements Table - One Row Per Waiver -->
+    <!-- Waiver Requirements Table - One Row Per Waiver Type -->
     <div class="table-responsive mb-3">
         <table class="table table-hover">
             <thead>
                 <tr>
-                    <th><?= __('Activity') ?></th>
                     <th><?= __('Waiver Type') ?></th>
                     <th class="text-center"><?= __('Status') ?></th>
                     <th class="text-center"></th>
@@ -126,7 +121,6 @@ $user = $this->getRequest()->getAttribute('identity');
             <tbody>
                 <?php foreach ($waiverRows as $row): ?>
                 <?php
-                        $activity = $row['activity'];
                         $waiverType = $row['waiver_type'];
                         $uploadedCount = $row['uploaded_count'];
                         $isComplete = $row['is_complete'];
@@ -134,18 +128,7 @@ $user = $this->getRequest()->getAttribute('identity');
                         $hasExemptionReasons = !empty($waiverType->exemption_reasons_parsed);
                         ?>
                 <tr>
-                    <td style="width: 30%;">
-                        <?= $this->Html->link(
-                                    h($activity->name),
-                                    ['controller' => 'GatheringActivities', 'action' => 'view', $activity->id, 'plugin' => null],
-                                    ['class' => 'fw-bold text-decoration-none']
-                                ) ?>
-                        <?php if (!empty($activity->description)): ?>
-                        <br>
-                        <small class="text-muted"><?= h($activity->description) ?></small>
-                        <?php endif; ?>
-                    </td>
-                    <td style="width: 40%;">
+                    <td style="width: 60%;">
                         <?php if ($user && $user->checkCan('view', 'Waivers.WaiverTypes')): ?>
                         <?= $this->Html->link(
                                         h($waiverType->name),
@@ -183,16 +166,20 @@ $user = $this->getRequest()->getAttribute('identity');
                         <?php endif; ?>
                     </td>
                     <td class="text-center align-middle">
-                        <?php if ($user && $user->checkCan('edit', $gathering) && !$exemption && !$isComplete): ?>
+                        <?php if ($user && $user->checkCan('edit', $gathering) && !$exemption):
+                                    if ($uploadedCount > 0) {
+                                        $label = __('Submit More');
+                                    } else {
+                                        $label = __('Submit');
+                                    } ?>
                         <?= $this->Html->link(
-                                        '<i class="bi bi-cloud-upload"></i> ' . __('Submit'),
+                                        '<i class="bi bi-cloud-upload"></i> ' . $label,
                                         [
                                             'plugin' => 'Waivers',
                                             'controller' => 'GatheringWaivers',
                                             'action' => 'upload',
                                             '?' => [
                                                 'gathering_id' => $gatheringId,
-                                                'activity_id' => $activity->id,
                                                 'waiver_type_id' => $waiverType->id
                                             ]
                                         ],
@@ -203,7 +190,7 @@ $user = $this->getRequest()->getAttribute('identity');
                                     ) ?>
                         <!--<?php if ($hasExemptionReasons): ?>
                         <button type="button" class="btn btn-sm btn-outline-secondary"
-                            data-activity-id="<?= $activity->id ?>" data-waiver-type-id="<?= $waiverType->id ?>"
+                            data-waiver-type-id="<?= $waiverType->id ?>"
                             data-gathering-id="<?= $gatheringId ?>"
                             data-reasons="<?= h(json_encode($waiverType->exemption_reasons_parsed)) ?>"
                             data-action="click->waivers-waiver-attestation#showModal">
@@ -222,7 +209,7 @@ $user = $this->getRequest()->getAttribute('identity');
     <div class="alert alert-secondary">
         <i class="bi bi-exclamation-triangle"></i>
         <strong><?= __('Important:') ?></strong>
-        <?= __('Once waivers are uploaded, activities cannot be modified to prevent data inconsistencies.') ?>
+        <?= __('Once waivers are uploaded, gathering waiver requirements should not be changed to prevent data inconsistencies.') ?>
     </div>
     <?php endif; ?>
 

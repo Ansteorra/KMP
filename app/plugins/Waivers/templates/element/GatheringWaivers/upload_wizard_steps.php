@@ -2,59 +2,18 @@
 
 /**
  * @var \App\View\AppView $this
- * @var array $activitiesData
  * @var array $waiverTypesData
  * @var \App\Model\Entity\Gathering $gathering
  */
 ?>
-<!-- Step 1: Select Activities -->
+<!-- Step 1: Select Waiver Type -->
 <div data-waiver-upload-wizard-target="step" data-step-number="1">
     <h3 class="mb-4">
-        <i class="bi bi-activity text-primary"></i>
-        <?= __('Step 1: Select Activities') ?>
-    </h3>
-
-    <p class="lead"><?= __('Which activities is this waiver for?') ?></p>
-
-    <?php if (!empty($activitiesData)): ?>
-        <div class="activities-grid">
-            <?php foreach ($activitiesData as $activity): ?>
-                <div class="card mb-3">
-                    <div class="card-body">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" value="<?= $activity['id'] ?>"
-                                id="activity-<?= $activity['id'] ?>" data-name="<?= h($activity['name']) ?>"
-                                data-waiver-types="<?= h(json_encode($activity['waiver_types'])) ?>"
-                                data-waiver-upload-wizard-target="activityCheckbox"
-                                data-action="change->waiver-upload-wizard#toggleActivity">
-                            <label class="form-check-label" for="activity-<?= $activity['id'] ?>">
-                                <strong><?= h($activity['name']) ?></strong>
-                                <?php if (!empty($activity['description'])): ?>
-                                    <br>
-                                    <small class="text-muted"><?= h($activity['description']) ?></small>
-                                <?php endif; ?>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-            <?php endforeach; ?>
-        </div>
-    <?php else: ?>
-        <div class="alert alert-warning">
-            <i class="bi bi-exclamation-triangle"></i>
-            <?= __('No activities found for this gathering. Please add activities before uploading waivers.') ?>
-        </div>
-    <?php endif; ?>
-</div>
-
-<!-- Step 2: Select Waiver Type -->
-<div data-waiver-upload-wizard-target="step" data-step-number="2" class="d-none">
-    <h3 class="mb-4">
         <i class="bi bi-file-earmark-text text-primary"></i>
-        <?= __('Step 2: Select Waiver Type') ?>
+        <?= __('Step 1: Select Waiver Type') ?>
     </h3>
 
-    <p class="lead"><?= __('What type of waiver are you uploading?') ?></p>
+    <p class="lead"><?= __('What type of waiver are you uploading for this gathering?') ?></p>
 
     <?php if (!empty($waiverTypesData)): ?>
         <div data-waiver-upload-wizard-target="waiverTypeSelect">
@@ -82,16 +41,16 @@
     <?php else: ?>
         <div class="alert alert-info">
             <i class="bi bi-info-circle"></i>
-            <?= __('Waiver types will be filtered based on your activity selection in Step 1.') ?>
+            <?= __('No waiver types have been configured for this gathering.') ?>
         </div>
     <?php endif; ?>
 </div>
 
-<!-- Step 3: Add Pages -->
-<div data-waiver-upload-wizard-target="step" data-step-number="3" class="d-none">
+<!-- Step 2: Add Pages or Attest -->
+<div data-waiver-upload-wizard-target="step" data-step-number="2" class="d-none">
     <h3 class="mb-4">
         <i class="bi bi-file-earmark-image text-primary"></i>
-        <?= __('Step 3: Add Waiver Pages') ?>
+        <?= __('Step 2: Add Waiver Pages') ?>
     </h3>
 
     <p class="lead" data-waiver-upload-wizard-target="step3Lead">
@@ -161,7 +120,7 @@
     <div data-waiver-upload-wizard-target="attestSection" class="d-none">
         <div class="alert alert-info">
             <i class="bi bi-info-circle"></i>
-            <?= __('You are attesting that a waiver is not needed for this activity. Please provide a reason.') ?>
+            <?= __('You are attesting that a waiver is not needed for this gathering. Please provide a reason.') ?>
         </div>
 
         <!-- Reason Selection -->
@@ -181,25 +140,14 @@
     </div>
 </div>
 
-<!-- Step 4: Review -->
-<div data-waiver-upload-wizard-target="step" data-step-number="4" class="d-none">
+<!-- Step 3: Review -->
+<div data-waiver-upload-wizard-target="step" data-step-number="3" class="d-none">
     <h3 class="mb-4">
         <i class="bi bi-check-circle text-success"></i>
-        <?= __('Step 4: Review & Submit') ?>
+        <?= __('Step 3: Review & Submit') ?>
     </h3>
 
     <p class="lead"><?= __('Please review your details before submitting') ?></p>
-
-    <div class="card mb-3">
-        <div class="card-header">
-            <h5 class="mb-0"><?= __('Activities') ?></h5>
-        </div>
-        <div class="card-body">
-            <ul data-waiver-upload-wizard-target="reviewActivities">
-                <!-- Populated by controller -->
-            </ul>
-        </div>
-    </div>
 
     <div class="card mb-3">
         <div class="card-header">

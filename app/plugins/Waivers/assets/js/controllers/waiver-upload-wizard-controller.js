@@ -2,15 +2,11 @@ import { Controller } from "@hotwired/stimulus"
 
 /**
  * Waiver Upload Wizard Controller
- * 
- * Manages a multi-step wizard for uploading waivers:
- * Step 1: Select activities
- * Step 2: Select waiver type (filtered by selected activities)
- * Step 3: Add waiver pages/images
- * Step 4: Review details
- * Step 5: Confirmation
- * 
- * All data is held client-side until final submission.
+ *
+ * Gathering-level workflow:
+ * Step 1: Select waiver type
+ * Step 2: Upload pages or attest not needed
+ * Step 3: Review & submit
  */
 class WaiverUploadWizardController extends Controller {
     static targets = [
@@ -20,13 +16,10 @@ class WaiverUploadWizardController extends Controller {
         "nextButton",
         "submitButton",
         "submitButtonText",
-        "activityCheckbox",
         "waiverTypeOption",
         "waiverTypeSelect",
-        "pagesList",
         "pagesPreview",
         "fileInput",
-        "reviewActivities",
         "reviewWaiverType",
         "reviewPageCount",
         "reviewPagesList",
@@ -47,12 +40,11 @@ class WaiverUploadWizardController extends Controller {
 
     static values = {
         currentStep: { type: Number, default: 1 },
-        totalSteps: { type: Number, default: 4 },
+        totalSteps: { type: Number, default: 3 },
         gatheringId: Number,
         gatheringPublicId: String,
         maxFileSize: Number,           // Maximum single file size in bytes
         totalMaxSize: Number,          // Maximum total upload size in bytes
-        preSelectedActivityId: Number, // Pre-selected activity ID from URL
         preSelectedWaiverTypeId: Number, // Pre-selected waiver type ID from URL
         attestUrl: String,             // URL for attestation endpoint
         gatheringViewUrl: String,      // URL for gathering view page
@@ -60,60 +52,31 @@ class WaiverUploadWizardController extends Controller {
     }
 
     connect() {
-        console.log("Waiver Upload Wizard connected")
         this.uploadedPages = []
-        this.selectedActivities = []
         this.selectedWaiverType = null
         this.notes = ""
-        this.isAttestMode = false  // Track if we're in attestation mode
+        this.isAttestMode = false
         this.attestReason = null
         this.attestNotes = ""
-        
-        // Handle pre-selected values (skip to step 3 if both are provided)
-        if (this.hasPreSelectedActivityIdValue && this.hasPreSelectedWaiverTypeIdValue) {
-            // Use setTimeout to ensure DOM is fully ready
+
+        if (this.hasPreSelectedWaiverTypeIdValue) {
             setTimeout(() => {
-                // Pre-select the activity checkbox
-                const activityCheckbox = this.activityCheckboxTargets.find(
-                    cb => parseInt(cb.value) === this.preSelectedActivityIdValue
-                )
-                if (activityCheckbox) {
-                    activityCheckbox.checked = true
-                    // Manually populate selectedActivities array
-                    this.selectedActivities = [{
-                        id: this.preSelectedActivityIdValue,
-                        name: activityCheckbox.dataset.name,
-                        waiverTypes: JSON.parse(activityCheckbox.dataset.waiverTypes || '[]')
-                    }]
-                }
-                
-                // Pre-select the waiver type
-                // Find the waiver type radio button to get both ID and name
                 const waiverTypeRadio = document.querySelector(
                     `input[name="waiver_type"][value="${this.preSelectedWaiverTypeIdValue}"]`
                 )
+
                 if (waiverTypeRadio) {
                     waiverTypeRadio.checked = true
                     this.selectedWaiverType = {
                         id: this.preSelectedWaiverTypeIdValue,
                         name: waiverTypeRadio.dataset.name
                     }
-                }
-                
-                // Jump directly to step 3 (file upload)
-                this.currentStepValue = 3
-                this.showStep(3)
-                
-                // Explicitly check attestation availability after showing step 3
-                // (in case onStepChange doesn't fire properly)
-                setTimeout(() => {
                     this.checkAttestationAvailability()
-                }, 150)
-            }, 100)
-        } else {
-            // Normal flow - start at step 1
-            this.showStep(1)
+                }
+            }, 50)
         }
+
+        this.showStep(1)
     }
 
     // Step Navigation
@@ -148,7 +111,7 @@ class WaiverUploadWizardController extends Controller {
         })
 
         // Show current step
-        const currentStep = this.stepTargets.find(step => 
+        const currentStep = this.stepTargets.find(step =>
             parseInt(step.dataset.stepNumber) === stepNumber
         )
         if (currentStep) {
@@ -172,7 +135,7 @@ class WaiverUploadWizardController extends Controller {
         this.stepIndicatorTargets.forEach(indicator => {
             const step = parseInt(indicator.dataset.step)
             indicator.classList.remove('active', 'completed')
-            
+
             if (step === currentStep) {
                 indicator.classList.add('active')
             } else if (step < currentStep) {
@@ -197,7 +160,7 @@ class WaiverUploadWizardController extends Controller {
                 this.nextButtonTarget.classList.add('d-none')
             } else {
                 this.nextButtonTarget.classList.remove('d-none')
-                
+
                 // Update button text based on step
                 if (stepNumber === 3) {
                     this.nextButtonTarget.innerHTML = '<i class="bi bi-arrow-right"></i> Review'
@@ -230,14 +193,11 @@ class WaiverUploadWizardController extends Controller {
     }
 
     onStepChange(stepNumber) {
-        switch(stepNumber) {
+        switch (stepNumber) {
             case 2:
-                this.updateWaiverTypeOptions()
-                break
-            case 3:
                 this.checkAttestationAvailability()
                 break
-            case 4:
+            case 3:
                 this.updateReviewSection()
                 break
         }
@@ -245,10 +205,7 @@ class WaiverUploadWizardController extends Controller {
 
     // Check if attestation is available for selected waiver type
     checkAttestationAvailability() {
-        console.log("Checking attestation availability, selectedWaiverType:", this.selectedWaiverType)
-        
         if (!this.selectedWaiverType) {
-            console.log("No waiver type selected yet")
             return
         }
 
@@ -256,37 +213,26 @@ class WaiverUploadWizardController extends Controller {
         const waiverTypeRadio = document.querySelector(
             `input[name="waiver_type"][value="${this.selectedWaiverType.id}"]`
         )
-        
-        console.log("Found waiver type radio:", waiverTypeRadio)
-        
+
         let exemptionReasons = []
         if (waiverTypeRadio && waiverTypeRadio.dataset.exemptionReasons) {
             try {
                 exemptionReasons = JSON.parse(waiverTypeRadio.dataset.exemptionReasons)
-                console.log("Parsed exemption reasons:", exemptionReasons)
             } catch (e) {
                 console.error('Failed to parse exemption reasons:', e)
             }
-        } else {
-            console.log("No exemption reasons data attribute found")
         }
 
         // Show/hide mode toggle and update lead text based on exemption reasons availability
         if (exemptionReasons.length > 0) {
-            console.log("Exemption reasons available - showing toggle")
             // Has exemption reasons - show toggle
             if (this.hasModeToggleTarget) {
                 this.modeToggleTarget.classList.remove('d-none')
-            } else {
-                console.log("WARNING: modeToggleTarget not available")
             }
             if (this.hasStep3LeadTarget) {
                 this.step3LeadTarget.textContent = 'Add one or more pages to your waiver document, or attest that a waiver is not needed'
-            } else {
-                console.log("WARNING: step3LeadTarget not available")
             }
         } else {
-            console.log("No exemption reasons - hiding toggle, forcing upload mode")
             // No exemption reasons - hide toggle, force upload mode
             if (this.hasModeToggleTarget) {
                 this.modeToggleTarget.classList.add('d-none')
@@ -328,7 +274,7 @@ class WaiverUploadWizardController extends Controller {
         const waiverTypeRadio = document.querySelector(
             `input[name="waiver_type"][value="${this.selectedWaiverType.id}"]`
         )
-        
+
         let exemptionReasons = []
         if (waiverTypeRadio && waiverTypeRadio.dataset.exemptionReasons) {
             try {
@@ -363,7 +309,7 @@ class WaiverUploadWizardController extends Controller {
         const waiverTypeRadio = document.querySelector(
             `input[name="waiver_type"][value="${this.selectedWaiverType.id}"]`
         )
-        
+
         let exemptionReasons = []
         if (waiverTypeRadio && waiverTypeRadio.dataset.exemptionReasons) {
             try {
@@ -405,7 +351,7 @@ class WaiverUploadWizardController extends Controller {
         html += '</div>'
 
         this.attestReasonListTarget.innerHTML = html
-        
+
         // Clear attestReason if the previously selected reason is not available for the current waiver type
         if (!hasMatchingSelection) {
             this.attestReason = null
@@ -414,89 +360,6 @@ class WaiverUploadWizardController extends Controller {
 
     selectAttestReason(event) {
         this.attestReason = event.currentTarget.value
-        console.log("Selected attestation reason:", this.attestReason)
-    }
-
-    escapeHtml(text) {
-        const div = document.createElement('div')
-        div.textContent = text
-        return div.innerHTML
-    }
-
-    // Step 1: Activity Selection
-    toggleActivity(event) {
-        const checkbox = event.currentTarget
-        const activityId = parseInt(checkbox.value)
-        const activityName = checkbox.dataset.name
-
-        if (checkbox.checked) {
-            if (!this.selectedActivities.find(a => a.id === activityId)) {
-                this.selectedActivities.push({
-                    id: activityId,
-                    name: activityName,
-                    waiverTypes: JSON.parse(checkbox.dataset.waiverTypes || '[]')
-                })
-            }
-        } else {
-            this.selectedActivities = this.selectedActivities.filter(a => a.id !== activityId)
-        }
-
-        console.log("Selected activities:", this.selectedActivities)
-    }
-
-    validateStep1() {
-        if (this.selectedActivities.length === 0) {
-            this.showError("Please select at least one activity")
-            return false
-        }
-        return true
-    }
-
-    // Step 2: Waiver Type Selection
-    updateWaiverTypeOptions() {
-        if (!this.hasWaiverTypeSelectTarget) return
-
-        // Get waiver types that are common to all selected activities
-        const commonWaiverTypes = this.getCommonWaiverTypes()
-
-        console.log("Common waiver types:", commonWaiverTypes)
-
-        // Show/hide waiver type options (card divs)
-        this.waiverTypeOptionTargets.forEach(optionCard => {
-            const waiverTypeId = parseInt(optionCard.dataset.waiverTypeId)
-            console.log("Checking waiver type:", waiverTypeId, "in common:", commonWaiverTypes)
-            
-            if (commonWaiverTypes.includes(waiverTypeId)) {
-                optionCard.classList.remove('d-none')
-            } else {
-                optionCard.classList.add('d-none')
-                // Deselect radio button if hidden
-                const radioInput = optionCard.querySelector('input[type="radio"]')
-                if (radioInput && radioInput.checked) {
-                    radioInput.checked = false
-                }
-            }
-        })
-
-        // If no common waiver types, show warning
-        if (commonWaiverTypes.length === 0) {
-            this.showError("No waiver types are required by all selected activities. Please adjust your activity selection.")
-        }
-    }
-
-    getCommonWaiverTypes() {
-        if (this.selectedActivities.length === 0) return []
-
-        // Start with waiver types from first activity
-        let common = [...this.selectedActivities[0].waiverTypes]
-
-        // Find intersection with other activities
-        for (let i = 1; i < this.selectedActivities.length; i++) {
-            const activityTypes = this.selectedActivities[i].waiverTypes
-            common = common.filter(typeId => activityTypes.includes(typeId))
-        }
-
-        return common
     }
 
     selectWaiverType(event) {
@@ -505,15 +368,13 @@ class WaiverUploadWizardController extends Controller {
             id: parseInt(option.value),
             name: option.dataset.name
         }
-        console.log("Selected waiver type:", this.selectedWaiverType)
+        this.checkAttestationAvailability()
     }
 
-    validateStep2() {
-        if (!this.selectedWaiverType) {
-            this.showError("Please select a waiver type")
-            return false
-        }
-        return true
+    escapeHtml(text) {
+        const div = document.createElement('div')
+        div.textContent = text
+        return div.innerHTML
     }
 
     // Step 3: Add Pages
@@ -525,14 +386,14 @@ class WaiverUploadWizardController extends Controller {
 
     handleFileSelect(event) {
         const files = Array.from(event.target.files)
-        
+
         // Get max file size (use configured value or fallback to 5MB)
         const maxFileSize = this.hasMaxFileSizeValue ? this.maxFileSizeValue : (5 * 1024 * 1024)
         const totalMaxSize = this.hasTotalMaxSizeValue ? this.totalMaxSizeValue : maxFileSize
-        
+
         // Calculate current total size
         const currentTotalSize = this.uploadedPages.reduce((sum, page) => sum + page.size, 0)
-        
+
         files.forEach(file => {
             // Validate file type
             if (!this.isValidImageFile(file)) {
@@ -555,7 +416,7 @@ class WaiverUploadWizardController extends Controller {
                 const maxFormatted = this.formatBytes(totalMaxSize)
                 const currentFormatted = this.formatBytes(currentTotalSize)
                 const fileFormatted = this.formatBytes(file.size)
-                
+
                 this.showError(
                     `Cannot add ${file.name} (${fileFormatted}). ` +
                     `Current total: ${currentFormatted}. ` +
@@ -571,7 +432,7 @@ class WaiverUploadWizardController extends Controller {
 
         // Clear input so same file can be selected again
         event.target.value = ''
-        
+
         // Show total size info if we have files
         if (this.uploadedPages.length > 0) {
             this.updateTotalSizeDisplay()
@@ -580,10 +441,10 @@ class WaiverUploadWizardController extends Controller {
 
     isValidImageFile(file) {
         const validTypes = [
-            'image/jpeg', 
-            'image/jpg', 
-            'image/png', 
-            'image/gif', 
+            'image/jpeg',
+            'image/jpg',
+            'image/png',
+            'image/gif',
             'image/bmp',
             'image/webp',
             'image/x-ms-bmp', // Alternative MIME type for BMP
@@ -615,14 +476,14 @@ class WaiverUploadWizardController extends Controller {
     removePage(event) {
         const index = parseInt(event.currentTarget.dataset.index)
         this.uploadedPages.splice(index, 1)
-        
+
         // Renumber pages
         this.uploadedPages.forEach((page, idx) => {
             page.number = idx + 1
         })
 
         this.renderPages()
-        
+
         // Update total size display after removal
         if (this.uploadedPages.length > 0) {
             this.updateTotalSizeDisplay()
@@ -684,34 +545,8 @@ class WaiverUploadWizardController extends Controller {
         return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
     }
 
-    validateStep3() {
-        if (this.isAttestMode) {
-            // Validate attestation mode
-            if (!this.attestReason) {
-                this.showError("Please select a reason for the exemption")
-                return false
-            }
-            return true
-        } else {
-            // Validate upload mode
-            if (this.uploadedPages.length === 0) {
-                this.showError("Please add at least one page")
-                return false
-            }
-            return true
-        }
-    }
-
-    // Step 4: Review
+    // Step 3: Review
     updateReviewSection() {
-        // Activities
-        if (this.hasReviewActivitiesTarget) {
-            const html = this.selectedActivities.map(activity => 
-                `<li>${activity.name}</li>`
-            ).join('')
-            this.reviewActivitiesTarget.innerHTML = html
-        }
-
         // Waiver Type
         if (this.hasReviewWaiverTypeTarget && this.selectedWaiverType) {
             this.reviewWaiverTypeTarget.textContent = this.selectedWaiverType.name
@@ -785,16 +620,40 @@ class WaiverUploadWizardController extends Controller {
         }
     }
 
-    validateStep4() {
-        // Final validation before submission
-        return this.validateStep1() && this.validateStep2() && this.validateStep3()
+    validateWaiverType() {
+        if (!this.selectedWaiverType) {
+            this.showError("Please select a waiver type")
+            return false
+        }
+        return true
+    }
+
+    validateUploadOrAttest() {
+        if (this.isAttestMode) {
+            if (!this.attestReason) {
+                this.showError("Please select a reason for the exemption")
+                return false
+            }
+            return true
+        }
+
+        if (this.uploadedPages.length === 0) {
+            this.showError("Please add at least one page")
+            return false
+        }
+
+        return true
+    }
+
+    validateReview() {
+        return this.validateWaiverType() && this.validateUploadOrAttest()
     }
 
     // Form Submission
     async submitForm(event) {
         event.preventDefault()
 
-        if (!this.validateStep4()) {
+        if (!this.validateReview()) {
             return
         }
 
@@ -828,13 +687,8 @@ class WaiverUploadWizardController extends Controller {
     }
 
     async submitAttestation(startTime) {
-        // Submit attestation for all selected activities at once
-        // Create ONE exemption waiver associated with multiple activities
-        const activityIds = this.selectedActivities.map(activity => activity.id)
-        
-        // Use attestUrlValue if provided, otherwise fall back to hard-coded path
         const attestUrl = this.hasAttestUrlValue ? this.attestUrlValue : '/waivers/gathering-waivers/attest'
-        
+
         const response = await fetch(attestUrl, {
             method: 'POST',
             headers: {
@@ -844,7 +698,6 @@ class WaiverUploadWizardController extends Controller {
             },
             body: JSON.stringify({
                 gathering_id: this.gatheringIdValue,
-                gathering_activity_ids: activityIds,  // Send all activity IDs
                 waiver_type_id: this.selectedWaiverType.id,
                 reason: this.attestReason,
                 notes: this.attestNotes
@@ -853,19 +706,19 @@ class WaiverUploadWizardController extends Controller {
 
         try {
             const data = await response.json()
-            
+
             if (response.ok && data.success) {
                 // Attestation succeeded
                 const elapsed = Date.now() - startTime
                 const remainingTime = Math.max(0, 2000 - elapsed)
-                
+
                 setTimeout(() => {
                     if (data.redirectUrl) {
                         window.location.href = data.redirectUrl
                     } else {
                         // Fallback redirect using gatheringViewUrl or construct from public_id
-                        const fallbackUrl = this.hasGatheringViewUrlValue 
-                            ? this.gatheringViewUrlValue 
+                        const fallbackUrl = this.hasGatheringViewUrlValue
+                            ? this.gatheringViewUrlValue
                             : `/gatherings/view/${this.gatheringPublicIdValue}?tab=gathering-waivers`
                         window.location.href = fallbackUrl
                     }
@@ -893,17 +746,12 @@ class WaiverUploadWizardController extends Controller {
 
     async submitWaiverUpload(startTime) {
         const formData = new FormData()
-        
+
         // Add gathering ID
         formData.append('gathering_id', this.gatheringIdValue)
 
         // Add waiver type
         formData.append('waiver_type_id', this.selectedWaiverType.id)
-
-        // Add activity IDs
-        this.selectedActivities.forEach(activity => {
-            formData.append('activity_ids[]', activity.id)
-        })
 
         // Add notes
         formData.append('notes', this.notes)
@@ -918,7 +766,7 @@ class WaiverUploadWizardController extends Controller {
         if (csrfToken) {
             formData.append('_csrfToken', csrfToken)
         }
-        
+
         // Submit via fetch
         const response = await fetch(window.location.href, {
             method: 'POST',
@@ -934,13 +782,13 @@ class WaiverUploadWizardController extends Controller {
                 console.error('Failed to parse JSON response:', err)
                 return {}
             })
-            
+
             console.log('Upload response data:', data)
-            
+
             // Calculate how long to wait (minimum 2 seconds total)
             const elapsed = Date.now() - startTime
             const remainingTime = Math.max(0, 2000 - elapsed)
-            
+
             // Wait for remaining time, then redirect
             setTimeout(() => {
                 if (data.redirectUrl) {
@@ -948,13 +796,13 @@ class WaiverUploadWizardController extends Controller {
                     window.location.href = data.redirectUrl
                 } else {
                     // Fallback redirect using gatheringViewUrl or construct from gathering ID
-                    const fallbackUrl = this.hasGatheringViewUrlValue 
-                        ? this.gatheringViewUrlValue 
+                    const fallbackUrl = this.hasGatheringViewUrlValue
+                        ? this.gatheringViewUrlValue
                         : `/gatherings/view/${this.gatheringIdValue}`
                     window.location.href = fallbackUrl
                 }
             }, remainingTime)
-            
+
         } else {
             const data = await response.json().catch(() => ({}))
             this.showError(data.message || 'Upload failed. Please try again.')
@@ -987,7 +835,7 @@ class WaiverUploadWizardController extends Controller {
                     </p>
                     <div class="alert alert-info d-inline-block">
                         <i class="bi bi-shield-check"></i>
-                        Attesting waiver not needed for ${this.selectedActivities.length} activity(s)
+                        Attesting that a waiver is not needed for this gathering
                     </div>
                 </div>
             `
@@ -1005,7 +853,7 @@ class WaiverUploadWizardController extends Controller {
                     </p>
                     <div class="alert alert-info d-inline-block">
                         <i class="bi bi-info-circle"></i>
-                        Uploading ${this.uploadedPages.length} page(s) for ${this.selectedActivities.length} activity(s)
+                        Uploading ${this.uploadedPages.length} page(s)
                     </div>
                 </div>
             `
@@ -1017,11 +865,10 @@ class WaiverUploadWizardController extends Controller {
 
     // Validation
     validateCurrentStep() {
-        switch(this.currentStepValue) {
-            case 1: return this.validateStep1()
-            case 2: return this.validateStep2()
-            case 3: return this.validateStep3()
-            case 4: return this.validateStep4()
+        switch (this.currentStepValue) {
+            case 1: return this.validateWaiverType()
+            case 2: return this.validateUploadOrAttest()
+            case 3: return this.validateReview()
             default: return true
         }
     }
@@ -1030,32 +877,32 @@ class WaiverUploadWizardController extends Controller {
     showError(message) {
         // Check if we're showing the processing screen (wizard container innerHTML was replaced)
         const container = this.element.querySelector('.wizard-container') || this.element
-        const isProcessing = container.querySelector('h2') && 
+        const isProcessing = container.querySelector('h2') &&
             (container.querySelector('h2').textContent.includes('Processing Your Attestation') ||
-             container.querySelector('h2').textContent.includes('Processing Your Waiver'))
-        
+                container.querySelector('h2').textContent.includes('Processing Your Waiver'))
+
         if (isProcessing) {
             // We're in the processing screen, so we can't show a toast
             // Check if we're in mobile mode by checking the URL
             const isMobile = window.location.pathname.includes('mobile-upload')
-            
+
             if (isMobile) {
                 // Redirect to mobile card using mobileSelectUrl if available, otherwise construct URL
-                const mobileUrl = this.hasMobileSelectUrlValue 
+                const mobileUrl = this.hasMobileSelectUrlValue
                     ? `${this.mobileSelectUrlValue}?error=${encodeURIComponent(message)}`
                     : `/waivers/gathering-waivers/mobile-select-gathering?error=${encodeURIComponent(message)}`
                 window.location.href = mobileUrl
             } else {
                 // Desktop mode - redirect back to the gathering with a flash message
                 const gatheringPublicId = this.gatheringPublicIdValue
-                const desktopUrl = this.hasGatheringViewUrlValue 
+                const desktopUrl = this.hasGatheringViewUrlValue
                     ? `${this.gatheringViewUrlValue}&error=${encodeURIComponent(message)}`
                     : `/gatherings/view/${gatheringPublicId}?tab=gathering-waivers&error=${encodeURIComponent(message)}`
                 window.location.href = desktopUrl
             }
             return
         }
-        
+
         // Create toast notification
         const toastHtml = `
             <div class="toast align-items-center text-white bg-danger border-0" role="alert">
@@ -1109,7 +956,7 @@ class WaiverUploadWizardController extends Controller {
         console.error('CSRF token not found')
         return ''
     }
-    
+
     /**
      * Format bytes to human-readable string
      * 
@@ -1119,33 +966,33 @@ class WaiverUploadWizardController extends Controller {
      */
     formatBytes(bytes, decimals = 2) {
         if (bytes === 0) return '0 Bytes'
-        
+
         const k = 1024
         const dm = decimals < 0 ? 0 : decimals
         const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB']
-        
+
         const i = Math.floor(Math.log(bytes) / Math.log(k))
-        
+
         return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i]
     }
-    
+
     /**
      * Update the display to show current total size
      */
     updateTotalSizeDisplay() {
         const totalSize = this.uploadedPages.reduce((sum, page) => sum + page.size, 0)
         const totalFormatted = this.formatBytes(totalSize)
-        
+
         // If we're getting close to the limit, show a warning
         if (this.hasTotalMaxSizeValue) {
             const percentUsed = (totalSize / this.totalMaxSizeValue) * 100
-            
+
             if (percentUsed > 80 && percentUsed <= 100) {
                 // Show warning when using 80-100% of limit
                 const remaining = this.totalMaxSizeValue - totalSize
                 const remainingFormatted = this.formatBytes(remaining)
                 const maxFormatted = this.formatBytes(this.totalMaxSizeValue)
-                
+
                 console.warn(
                     `Upload size warning: ${totalFormatted} of ${maxFormatted} used. ` +
                     `${remainingFormatted} remaining.`

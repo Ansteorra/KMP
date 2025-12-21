@@ -6,7 +6,6 @@
  * @var \App\View\AppView $this
  * @var \App\Model\Entity\Gathering $gathering
  * @var \Waivers\Model\Entity\WaiverType[] $requiredWaiverTypes
- * @var array $activitiesData
  * @var array $waiverTypesData
  * @var array $uploadLimits
  */
@@ -21,7 +20,7 @@
         <div class="mobile-waiver-wizard" data-controller="waiver-upload-wizard"
             data-waiver-upload-wizard-gathering-id-value="<?= $gathering->id ?>"
             data-waiver-upload-wizard-gathering-public-id-value="<?= h($gathering->public_id) ?>"
-            data-waiver-upload-wizard-total-steps-value="4"
+            data-waiver-upload-wizard-total-steps-value="3"
             data-waiver-upload-wizard-max-file-size-value="<?= h($uploadLimits['maxFileSize']) ?>"
             data-waiver-upload-wizard-total-max-size-value="<?= h($uploadLimits['postMaxSize']) ?>"
             data-waiver-upload-wizard-attest-url-value="<?= $this->Url->build(['plugin' => 'Waivers', 'controller' => 'GatheringWaivers', 'action' => 'attest']) ?>"
@@ -54,7 +53,7 @@
             <div class="mb-3">
                 <div class="progress" style="height: 10px;">
                     <div class="progress-bar progress-bar-striped progress-bar-animated bg-info" role="progressbar"
-                        data-waiver-upload-wizard-target="progressBar" style="width: 25%;" aria-valuenow="25"
+                        data-waiver-upload-wizard-target="progressBar" style="width: 33%;" aria-valuenow="33"
                         aria-valuemin="0" aria-valuemax="100">
                     </div>
                 </div>
@@ -67,23 +66,17 @@
                         <div class="step-circle">
                             <span class="badge rounded-pill bg-info">1</span>
                         </div>
-                        <small class="d-block mt-1"><?= __('Activities') ?></small>
+                        <small class="d-block mt-1"><?= __('Waiver Type') ?></small>
                     </div>
                     <div class="wizard-step-mobile" data-waiver-upload-wizard-target="stepIndicator" data-step="2">
                         <div class="step-circle">
                             <span class="badge rounded-pill bg-secondary">2</span>
                         </div>
-                        <small class="d-block mt-1"><?= __('Type') ?></small>
+                        <small class="d-block mt-1"><?= __('Upload') ?></small>
                     </div>
                     <div class="wizard-step-mobile" data-waiver-upload-wizard-target="stepIndicator" data-step="3">
                         <div class="step-circle">
                             <span class="badge rounded-pill bg-secondary">3</span>
-                        </div>
-                        <small class="d-block mt-1"><?= __('Photos') ?></small>
-                    </div>
-                    <div class="wizard-step-mobile" data-waiver-upload-wizard-target="stepIndicator" data-step="4">
-                        <div class="step-circle">
-                            <span class="badge rounded-pill bg-secondary">4</span>
                         </div>
                         <small class="d-block mt-1"><?= __('Review') ?></small>
                     </div>
@@ -93,7 +86,6 @@
             <!-- Wizard Container -->
             <div class="wizard-container-mobile">
                 <?php echo $this->element('GatheringWaivers/mobile_wizard_steps', [
-                    'activitiesData' => $activitiesData,
                     'waiverTypesData' => $waiverTypesData,
                     'gathering' => $gathering,
                     'uploadLimits' => $uploadLimits
@@ -129,4 +121,3 @@
         </div>
     </div>
 </div>
-</style>
