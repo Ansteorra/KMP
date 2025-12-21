@@ -107,10 +107,7 @@ $this->KMP->endBlock();
                         <?php else: ?>
                         <span class="badge bg-info me-1"><?= $gathering->missing_waiver_count ?></span>
                         <?php endif; ?>
-                        <?php /* if (!empty($gathering->missing_waiver_names)): <small class="text-muted d-block">
-                            <?= h(implode(', ', $gathering->missing_waiver_names)) ?>
-                        </small>
-                        <?php //endif; */ ?>
+
                     </td>
                     <td class="actions text-end text-nowrap">
                         <?= $this->Html->link(
