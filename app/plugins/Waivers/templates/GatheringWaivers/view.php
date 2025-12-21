@@ -122,6 +122,15 @@ echo $this->KMP->startBlock("recordDetails");
                         <?php endif; ?>
                     </dd>
 
+                    <dt class="col-sm-3"><?= __('Exemption') ?></dt>
+                    <dd class="col-sm-9">
+                        <?php if ($gatheringWaiver->is_exemption): ?>
+                            <span class="badge bg-info text-dark"><i class="bi bi-shield-check"></i> <?= __('Waiver Exempted') ?></span>
+                        <?php else: ?>
+                            <span class="text-muted"><?= __('No') ?></span>
+                        <?php endif; ?>
+                    </dd>
+
                     <?php if ($gatheringWaiver->is_declined): ?>
                         <dt class="col-sm-3"><?= __('Declined At') ?></dt>
                         <dd class="col-sm-9">
@@ -158,12 +167,16 @@ echo $this->KMP->startBlock("recordDetails");
                         <?php endif; ?>
                     <?php endif; ?>
 
-                    <?php if ($gatheringWaiver->is_exemption && $gatheringWaiver->exemption_reason): ?>
+                    <?php if ($gatheringWaiver->is_exemption): ?>
                         <dt class="col-sm-3"><?= __('Exemption Reason') ?></dt>
                         <dd class="col-sm-9">
                             <div class="alert alert-info mb-0">
                                 <i class="bi bi-info-circle-fill"></i>
-                                <?= nl2br(h($gatheringWaiver->exemption_reason)) ?>
+                                <?php if ($gatheringWaiver->exemption_reason): ?>
+                                    <?= nl2br(h($gatheringWaiver->exemption_reason)) ?>
+                                <?php else: ?>
+                                    <em><?= __('No reason provided.') ?></em>
+                                <?php endif; ?>
                             </div>
                         </dd>
                     <?php endif; ?>
@@ -288,48 +301,6 @@ echo $this->KMP->startBlock("recordDetails");
             </div>
         <?php endif; ?>
 
-        <!-- Activity Associations -->
-        <div class="card mb-3">
-            <div class="card-header">
-                <h5 class="mb-0">
-                    <i class="bi bi-activity"></i> <?= __('Associated Activities') ?>
-                    <?php if (!empty($gatheringWaiver->gathering_waiver_activities)): ?>
-                        <span class="badge bg-primary ms-2">
-                            <?= count($gatheringWaiver->gathering_waiver_activities) ?>
-                        </span>
-                    <?php endif; ?>
-                </h5>
-            </div>
-            <div class="card-body">
-                <?php if (!empty($gatheringWaiver->gathering_waiver_activities)): ?>
-                    <p class="text-muted mb-3">
-                        <i class="bi bi-info-circle"></i>
-                        <?= __('This waiver applies to the following activities:') ?>
-                    </p>
-                    <ul class="list-group">
-                        <?php foreach ($gatheringWaiver->gathering_waiver_activities as $activityWaiver): ?>
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                <div>
-                                    <strong><?= h($activityWaiver->gathering_activity->name) ?></strong>
-                                    <?php if ($activityWaiver->gathering_activity->description): ?>
-                                        <br>
-                                        <small class="text-muted"><?= h($activityWaiver->gathering_activity->description) ?></small>
-                                    <?php endif; ?>
-                                </div>
-                                <span class="badge bg-success rounded-pill">
-                                    <i class="bi bi-check-circle"></i> <?= __('Covered') ?>
-                                </span>
-                            </li>
-                        <?php endforeach; ?>
-                    </ul>
-                <?php else: ?>
-                    <div class="alert alert-info mb-0" role="alert">
-                        <i class="bi bi-info-circle"></i>
-                        <?= __('This waiver is not associated with any specific activities. It may apply to the gathering as a whole.') ?>
-                    </div>
-                <?php endif; ?>
-            </div>
-        </div>
     </div>
 
     <div class="col-md-4">
@@ -413,7 +384,6 @@ if ($user && $user->checkCan('canChangeWaiverType', $gatheringWaiver)) {
     echo $this->element('Waivers.GatheringWaivers/changeTypeActivitiesModal', [
         'gatheringWaiver' => $gatheringWaiver,
         'waiverTypes' => $waiverTypes,
-        'gatheringActivities' => $gatheringActivities,
     ]);
 }
 

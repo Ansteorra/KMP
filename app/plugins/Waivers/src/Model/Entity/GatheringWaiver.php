@@ -11,7 +11,7 @@ use App\Model\Entity\BaseEntity;
  * GatheringWaiver Entity
  *
  * Represents an uploaded waiver for a gathering OR an exemption (attestation that waiver was not needed).
- * Exemptions are linked to specific activities through the GatheringWaiverActivities join table.
+ * Waivers and exemptions are gathering-level and are not linked to specific activities.
  *
  * @property int $id
  * @property int $gathering_id
@@ -33,7 +33,6 @@ use App\Model\Entity\BaseEntity;
  * @property \App\Model\Entity\Document|null $document
  * @property \App\Model\Entity\Member $created_by_member
  * @property \App\Model\Entity\Member $declined_by_member
- * @property \Waivers\Model\Entity\GatheringWaiverActivity[] $gathering_waiver_activities
  */
 class GatheringWaiver extends BaseEntity
 {
@@ -61,7 +60,6 @@ class GatheringWaiver extends BaseEntity
         'document' => true,
         'created_by_member' => true,
         'declined_by_member' => true,
-        'gathering_waiver_activities' => true,
     ];
 
     /**
@@ -173,30 +171,6 @@ class GatheringWaiver extends BaseEntity
             'deleted' => 'Deleted',
             default => ucfirst($this->status),
         };
-    }
-
-    /**
-     * Virtual field for activity names as comma-separated list
-     *
-     * Returns the names of all gathering activities this waiver applies to,
-     * formatted as a comma-separated string for display in grid views.
-     *
-     * @return string Comma-separated list of activity names, or empty string if none
-     */
-    protected function _getActivityNames(): string
-    {
-        if (empty($this->gathering_waiver_activities)) {
-            return '';
-        }
-
-        $names = [];
-        foreach ($this->gathering_waiver_activities as $waiverActivity) {
-            if (!empty($waiverActivity->gathering_activity) && !empty($waiverActivity->gathering_activity->name)) {
-                $names[] = $waiverActivity->gathering_activity->name;
-            }
-        }
-
-        return implode(', ', $names);
     }
 
     /**

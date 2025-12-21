@@ -321,12 +321,14 @@ $this->KMP->endBlock();
                                         <th><?= __('Type') ?></th>
                                         <th><?= __('Status') ?></th>
                                         <th><?= __('Uploaded By') ?></th>
+                                        <th class="text-center"><?= __('Actions') ?></th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <?php foreach ($recentActivity as $activity): ?>
                                         <tr>
-                                            <td class="text-nowrap"><?= $this->Timezone->format($activity->created, null, 'M d, Y') ?></td>
+                                            <td class="text-nowrap">
+                                                <?= $this->Timezone->format($activity->created, null, 'M d, Y') ?></td>
                                             <td><?= h($activity->gathering->name) ?></td>
                                             <td><?= h($activity->gathering->branch->name) ?></td>
                                             <td><?= h($activity->waiver_type->name) ?></td>
@@ -342,6 +344,13 @@ $this->KMP->endBlock();
                                                 <?php endif; ?>
                                             </td>
                                             <td><?= h($activity->created_by_member->sca_name ?? 'Unknown') ?></td>
+                                            <td class="text-center">
+                                                <?= $this->Html->link(
+                                                    '',
+                                                    ['action' => 'view', $activity->id],
+                                                    ['class' => 'btn btn-sm btn-secondary bi bi-binoculars-fill', 'title' => __('View Waiver')]
+                                                ) ?>
+                                            </td>
                                         </tr>
                                     <?php endforeach; ?>
                                 </tbody>

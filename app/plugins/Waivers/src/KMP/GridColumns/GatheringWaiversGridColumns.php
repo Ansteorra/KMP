@@ -95,19 +95,6 @@ class GatheringWaiversGridColumns extends BaseGridColumns
 
             ],
 
-            'activity_names' => [
-                'key' => 'activity_names',
-                'label' => 'Activities',
-                'type' => 'string',
-                'sortable' => false,
-                'filterable' => false,
-                'searchable' => false,
-                'defaultVisible' => true,
-                'width' => '200px',
-                'alignment' => 'left',
-                'description' => 'Activities this waiver applies to',
-            ],
-
             'status' => [
                 'key' => 'status',
                 'label' => 'Status',

@@ -55542,18 +55542,14 @@ __webpack_require__.r(__webpack_exports__);
 
 /**
  * Waiver Upload Wizard Controller
- * 
- * Manages a multi-step wizard for uploading waivers:
- * Step 1: Select activities
- * Step 2: Select waiver type (filtered by selected activities)
- * Step 3: Add waiver pages/images
- * Step 4: Review details
- * Step 5: Confirmation
- * 
- * All data is held client-side until final submission.
+ *
+ * Gathering-level workflow:
+ * Step 1: Select waiver type
+ * Step 2: Upload pages or attest not needed
+ * Step 3: Review & submit
  */
 class WaiverUploadWizardController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
-  static targets = ["step", "stepIndicator", "prevButton", "nextButton", "submitButton", "submitButtonText", "activityCheckbox", "waiverTypeOption", "waiverTypeSelect", "pagesList", "pagesPreview", "fileInput", "reviewActivities", "reviewWaiverType", "reviewPageCount", "reviewPagesList", "notesField", "progressBar", "uploadSection", "attestSection", "attestReasonList", "attestNotes", "reviewUploadSection", "reviewAttestSection", "reviewAttestReason", "reviewAttestNotes", "reviewAttestNotesSection", "modeToggle", "step3Lead"];
+  static targets = ["step", "stepIndicator", "prevButton", "nextButton", "submitButton", "submitButtonText", "waiverTypeOption", "waiverTypeSelect", "pagesPreview", "fileInput", "reviewWaiverType", "reviewPageCount", "reviewPagesList", "notesField", "progressBar", "uploadSection", "attestSection", "attestReasonList", "attestNotes", "reviewUploadSection", "reviewAttestSection", "reviewAttestReason", "reviewAttestNotes", "reviewAttestNotesSection", "modeToggle", "step3Lead"];
   static values = {
     currentStep: {
       type: Number,
@@ -55561,7 +55557,7 @@ class WaiverUploadWizardController extends _hotwired_stimulus__WEBPACK_IMPORTED_
     },
     totalSteps: {
       type: Number,
-      default: 4
+      default: 3
     },
     gatheringId: Number,
     gatheringPublicId: String,
@@ -55569,8 +55565,6 @@ class WaiverUploadWizardController extends _hotwired_stimulus__WEBPACK_IMPORTED_
     // Maximum single file size in bytes
     totalMaxSize: Number,
     // Maximum total upload size in bytes
-    preSelectedActivityId: Number,
-    // Pre-selected activity ID from URL
     preSelectedWaiverTypeId: Number,
     // Pre-selected waiver type ID from URL
     attestUrl: String,
@@ -55580,33 +55574,14 @@ class WaiverUploadWizardController extends _hotwired_stimulus__WEBPACK_IMPORTED_
     mobileSelectUrl: String // URL for mobile select gathering page
   };
   connect() {
-    console.log("Waiver Upload Wizard connected");
     this.uploadedPages = [];
-    this.selectedActivities = [];
     this.selectedWaiverType = null;
     this.notes = "";
-    this.isAttestMode = false; // Track if we're in attestation mode
+    this.isAttestMode = false;
     this.attestReason = null;
     this.attestNotes = "";
-
-    // Handle pre-selected values (skip to step 3 if both are provided)
-    if (this.hasPreSelectedActivityIdValue && this.hasPreSelectedWaiverTypeIdValue) {
-      // Use setTimeout to ensure DOM is fully ready
+    if (this.hasPreSelectedWaiverTypeIdValue) {
       setTimeout(() => {
-        // Pre-select the activity checkbox
-        const activityCheckbox = this.activityCheckboxTargets.find(cb => parseInt(cb.value) === this.preSelectedActivityIdValue);
-        if (activityCheckbox) {
-          activityCheckbox.checked = true;
-          // Manually populate selectedActivities array
-          this.selectedActivities = [{
-            id: this.preSelectedActivityIdValue,
-            name: activityCheckbox.dataset.name,
-            waiverTypes: JSON.parse(activityCheckbox.dataset.waiverTypes || '[]')
-          }];
-        }
-
-        // Pre-select the waiver type
-        // Find the waiver type radio button to get both ID and name
         const waiverTypeRadio = document.querySelector(`input[name="waiver_type"][value="${this.preSelectedWaiverTypeIdValue}"]`);
         if (waiverTypeRadio) {
           waiverTypeRadio.checked = true;
@@ -55614,22 +55589,11 @@ class WaiverUploadWizardController extends _hotwired_stimulus__WEBPACK_IMPORTED_
             id: this.preSelectedWaiverTypeIdValue,
             name: waiverTypeRadio.dataset.name
           };
-        }
-
-        // Jump directly to step 3 (file upload)
-        this.currentStepValue = 3;
-        this.showStep(3);
-
-        // Explicitly check attestation availability after showing step 3
-        // (in case onStepChange doesn't fire properly)
-        setTimeout(() => {
           this.checkAttestationAvailability();
-        }, 150);
-      }, 100);
-    } else {
-      // Normal flow - start at step 1
-      this.showStep(1);
+        }
+      }, 50);
     }
+    this.showStep(1);
   }
 
   // Step Navigation
@@ -55738,12 +55702,9 @@ class WaiverUploadWizardController extends _hotwired_stimulus__WEBPACK_IMPORTED_
   onStepChange(stepNumber) {
     switch (stepNumber) {
       case 2:
-        this.updateWaiverTypeOptions();
-        break;
-      case 3:
         this.checkAttestationAvailability();
         break;
-      case 4:
+      case 3:
         this.updateReviewSection();
         break;
     }
@@ -55751,43 +55712,31 @@ class WaiverUploadWizardController extends _hotwired_stimulus__WEBPACK_IMPORTED_
 
   // Check if attestation is available for selected waiver type
   checkAttestationAvailability() {
-    console.log("Checking attestation availability, selectedWaiverType:", this.selectedWaiverType);
     if (!this.selectedWaiverType) {
-      console.log("No waiver type selected yet");
       return;
     }
 
     // Find the waiver type to get exemption reasons
     const waiverTypeRadio = document.querySelector(`input[name="waiver_type"][value="${this.selectedWaiverType.id}"]`);
-    console.log("Found waiver type radio:", waiverTypeRadio);
     let exemptionReasons = [];
     if (waiverTypeRadio && waiverTypeRadio.dataset.exemptionReasons) {
       try {
         exemptionReasons = JSON.parse(waiverTypeRadio.dataset.exemptionReasons);
-        console.log("Parsed exemption reasons:", exemptionReasons);
       } catch (e) {
         console.error('Failed to parse exemption reasons:', e);
       }
-    } else {
-      console.log("No exemption reasons data attribute found");
     }
 
     // Show/hide mode toggle and update lead text based on exemption reasons availability
     if (exemptionReasons.length > 0) {
-      console.log("Exemption reasons available - showing toggle");
       // Has exemption reasons - show toggle
       if (this.hasModeToggleTarget) {
         this.modeToggleTarget.classList.remove('d-none');
-      } else {
-        console.log("WARNING: modeToggleTarget not available");
       }
       if (this.hasStep3LeadTarget) {
         this.step3LeadTarget.textContent = 'Add one or more pages to your waiver document, or attest that a waiver is not needed';
-      } else {
-        console.log("WARNING: step3LeadTarget not available");
       }
     } else {
-      console.log("No exemption reasons - hiding toggle, forcing upload mode");
       // No exemption reasons - hide toggle, force upload mode
       if (this.hasModeToggleTarget) {
         this.modeToggleTarget.classList.add('d-none');
@@ -55901,81 +55850,6 @@ class WaiverUploadWizardController extends _hotwired_stimulus__WEBPACK_IMPORTED_
   }
   selectAttestReason(event) {
     this.attestReason = event.currentTarget.value;
-    console.log("Selected attestation reason:", this.attestReason);
-  }
-  escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-  }
-
-  // Step 1: Activity Selection
-  toggleActivity(event) {
-    const checkbox = event.currentTarget;
-    const activityId = parseInt(checkbox.value);
-    const activityName = checkbox.dataset.name;
-    if (checkbox.checked) {
-      if (!this.selectedActivities.find(a => a.id === activityId)) {
-        this.selectedActivities.push({
-          id: activityId,
-          name: activityName,
-          waiverTypes: JSON.parse(checkbox.dataset.waiverTypes || '[]')
-        });
-      }
-    } else {
-      this.selectedActivities = this.selectedActivities.filter(a => a.id !== activityId);
-    }
-    console.log("Selected activities:", this.selectedActivities);
-  }
-  validateStep1() {
-    if (this.selectedActivities.length === 0) {
-      this.showError("Please select at least one activity");
-      return false;
-    }
-    return true;
-  }
-
-  // Step 2: Waiver Type Selection
-  updateWaiverTypeOptions() {
-    if (!this.hasWaiverTypeSelectTarget) return;
-
-    // Get waiver types that are common to all selected activities
-    const commonWaiverTypes = this.getCommonWaiverTypes();
-    console.log("Common waiver types:", commonWaiverTypes);
-
-    // Show/hide waiver type options (card divs)
-    this.waiverTypeOptionTargets.forEach(optionCard => {
-      const waiverTypeId = parseInt(optionCard.dataset.waiverTypeId);
-      console.log("Checking waiver type:", waiverTypeId, "in common:", commonWaiverTypes);
-      if (commonWaiverTypes.includes(waiverTypeId)) {
-        optionCard.classList.remove('d-none');
-      } else {
-        optionCard.classList.add('d-none');
-        // Deselect radio button if hidden
-        const radioInput = optionCard.querySelector('input[type="radio"]');
-        if (radioInput && radioInput.checked) {
-          radioInput.checked = false;
-        }
-      }
-    });
-
-    // If no common waiver types, show warning
-    if (commonWaiverTypes.length === 0) {
-      this.showError("No waiver types are required by all selected activities. Please adjust your activity selection.");
-    }
-  }
-  getCommonWaiverTypes() {
-    if (this.selectedActivities.length === 0) return [];
-
-    // Start with waiver types from first activity
-    let common = [...this.selectedActivities[0].waiverTypes];
-
-    // Find intersection with other activities
-    for (let i = 1; i < this.selectedActivities.length; i++) {
-      const activityTypes = this.selectedActivities[i].waiverTypes;
-      common = common.filter(typeId => activityTypes.includes(typeId));
-    }
-    return common;
   }
   selectWaiverType(event) {
     const option = event.currentTarget;
@@ -55983,14 +55857,12 @@ class WaiverUploadWizardController extends _hotwired_stimulus__WEBPACK_IMPORTED_
       id: parseInt(option.value),
       name: option.dataset.name
     };
-    console.log("Selected waiver type:", this.selectedWaiverType);
+    this.checkAttestationAvailability();
   }
-  validateStep2() {
-    if (!this.selectedWaiverType) {
-      this.showError("Please select a waiver type");
-      return false;
-    }
-    return true;
+  escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
   }
 
   // Step 3: Add Pages
@@ -56134,32 +56006,9 @@ class WaiverUploadWizardController extends _hotwired_stimulus__WEBPACK_IMPORTED_
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   }
-  validateStep3() {
-    if (this.isAttestMode) {
-      // Validate attestation mode
-      if (!this.attestReason) {
-        this.showError("Please select a reason for the exemption");
-        return false;
-      }
-      return true;
-    } else {
-      // Validate upload mode
-      if (this.uploadedPages.length === 0) {
-        this.showError("Please add at least one page");
-        return false;
-      }
-      return true;
-    }
-  }
 
-  // Step 4: Review
+  // Step 3: Review
   updateReviewSection() {
-    // Activities
-    if (this.hasReviewActivitiesTarget) {
-      const html = this.selectedActivities.map(activity => `<li>${activity.name}</li>`).join('');
-      this.reviewActivitiesTarget.innerHTML = html;
-    }
-
     // Waiver Type
     if (this.hasReviewWaiverTypeTarget && this.selectedWaiverType) {
       this.reviewWaiverTypeTarget.textContent = this.selectedWaiverType.name;
@@ -56232,15 +56081,35 @@ class WaiverUploadWizardController extends _hotwired_stimulus__WEBPACK_IMPORTED_
       }
     }
   }
-  validateStep4() {
-    // Final validation before submission
-    return this.validateStep1() && this.validateStep2() && this.validateStep3();
+  validateWaiverType() {
+    if (!this.selectedWaiverType) {
+      this.showError("Please select a waiver type");
+      return false;
+    }
+    return true;
+  }
+  validateUploadOrAttest() {
+    if (this.isAttestMode) {
+      if (!this.attestReason) {
+        this.showError("Please select a reason for the exemption");
+        return false;
+      }
+      return true;
+    }
+    if (this.uploadedPages.length === 0) {
+      this.showError("Please add at least one page");
+      return false;
+    }
+    return true;
+  }
+  validateReview() {
+    return this.validateWaiverType() && this.validateUploadOrAttest();
   }
 
   // Form Submission
   async submitForm(event) {
     event.preventDefault();
-    if (!this.validateStep4()) {
+    if (!this.validateReview()) {
       return;
     }
 
@@ -56272,11 +56141,6 @@ class WaiverUploadWizardController extends _hotwired_stimulus__WEBPACK_IMPORTED_
     }
   }
   async submitAttestation(startTime) {
-    // Submit attestation for all selected activities at once
-    // Create ONE exemption waiver associated with multiple activities
-    const activityIds = this.selectedActivities.map(activity => activity.id);
-
-    // Use attestUrlValue if provided, otherwise fall back to hard-coded path
     const attestUrl = this.hasAttestUrlValue ? this.attestUrlValue : '/waivers/gathering-waivers/attest';
     const response = await fetch(attestUrl, {
       method: 'POST',
@@ -56287,8 +56151,6 @@ class WaiverUploadWizardController extends _hotwired_stimulus__WEBPACK_IMPORTED_
       },
       body: JSON.stringify({
         gathering_id: this.gatheringIdValue,
-        gathering_activity_ids: activityIds,
-        // Send all activity IDs
         waiver_type_id: this.selectedWaiverType.id,
         reason: this.attestReason,
         notes: this.attestNotes
@@ -56337,11 +56199,6 @@ class WaiverUploadWizardController extends _hotwired_stimulus__WEBPACK_IMPORTED_
 
     // Add waiver type
     formData.append('waiver_type_id', this.selectedWaiverType.id);
-
-    // Add activity IDs
-    this.selectedActivities.forEach(activity => {
-      formData.append('activity_ids[]', activity.id);
-    });
 
     // Add notes
     formData.append('notes', this.notes);
@@ -56419,7 +56276,7 @@ class WaiverUploadWizardController extends _hotwired_stimulus__WEBPACK_IMPORTED_
                     </p>
                     <div class="alert alert-info d-inline-block">
                         <i class="bi bi-shield-check"></i>
-                        Attesting waiver not needed for ${this.selectedActivities.length} activity(s)
+                        Attesting that a waiver is not needed for this gathering
                     </div>
                 </div>
             `;
@@ -56437,7 +56294,7 @@ class WaiverUploadWizardController extends _hotwired_stimulus__WEBPACK_IMPORTED_
                     </p>
                     <div class="alert alert-info d-inline-block">
                         <i class="bi bi-info-circle"></i>
-                        Uploading ${this.uploadedPages.length} page(s) for ${this.selectedActivities.length} activity(s)
+                        Uploading ${this.uploadedPages.length} page(s)
                     </div>
                 </div>
             `;
@@ -56450,13 +56307,11 @@ class WaiverUploadWizardController extends _hotwired_stimulus__WEBPACK_IMPORTED_
   validateCurrentStep() {
     switch (this.currentStepValue) {
       case 1:
-        return this.validateStep1();
+        return this.validateWaiverType();
       case 2:
-        return this.validateStep2();
+        return this.validateUploadOrAttest();
       case 3:
-        return this.validateStep3();
-      case 4:
-        return this.validateStep4();
+        return this.validateReview();
       default:
         return true;
     }

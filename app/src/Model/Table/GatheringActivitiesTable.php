@@ -16,8 +16,6 @@ use Cake\ORM\RulesChecker;
  *
  * @property \App\Model\Table\GatheringsTable&\Cake\ORM\Association\BelongsToMany $Gatherings
  * @property \App\Model\Table\GatheringTypesTable&\Cake\ORM\Association\BelongsToMany $GatheringTypes
- * @property \Waivers\Model\Table\GatheringActivityWaiversTable&\Cake\ORM\Association\HasMany $GatheringActivityWaivers
- * @property \Waivers\Model\Table\GatheringWaiverActivitiesTable&\Cake\ORM\Association\HasMany $GatheringWaiverActivities
  *
  * @method \App\Model\Entity\GatheringActivity newEmptyEntity()
  * @method \App\Model\Entity\GatheringActivity newEntity(array $data, array $options = [])

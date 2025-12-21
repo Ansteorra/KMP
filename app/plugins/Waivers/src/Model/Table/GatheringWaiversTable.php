@@ -18,7 +18,6 @@ use Cake\Validation\Validator;
  * @property \Waivers\Model\Table\WaiverTypesTable&\Cake\ORM\Association\BelongsTo $WaiverTypes
  * @property \App\Model\Table\DocumentsTable&\Cake\ORM\Association\BelongsTo $Documents
  * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $CreatedByMembers
- * @property \Waivers\Model\Table\GatheringWaiverActivitiesTable&\Cake\ORM\Association\HasMany $GatheringWaiverActivities
  * @property \App\Model\Table\NotesTable&\Cake\ORM\Association\HasMany $AuditNotes
  *
  * @method \Waivers\Model\Entity\GatheringWaiver newEmptyEntity()
@@ -77,10 +76,6 @@ class GatheringWaiversTable extends Table
         $this->belongsTo('DeclinedByMembers', [
             'foreignKey' => 'declined_by',
             'className' => 'Members',
-        ]);
-        $this->hasMany('GatheringWaiverActivities', [
-            'foreignKey' => 'gathering_waiver_id',
-            'className' => 'Waivers.GatheringWaiverActivities',
         ]);
         $this->hasMany('AuditNotes', [
             'foreignKey' => 'entity_id',
