@@ -46,6 +46,15 @@ class PermissionImport extends Controller {
     /** @type {HTMLInputElement|null} External file input reference */
     externalFileInput = null
 
+    /** @type {HTMLElement|null} External import button reference */
+    externalImportButton = null
+
+    /** @type {Function|null} Bound handleFileSelect reference for cleanup */
+    boundHandleFileSelect = null
+
+    /** @type {Function|null} Bound triggerFileSelect reference for cleanup */
+    boundTriggerFileSelect = null
+
     /**
      * Initialize controller
      */
@@ -59,13 +68,16 @@ class PermissionImport extends Controller {
                 // Find the file input in the external container
                 this.externalFileInput = container.querySelector('input[type="file"]')
                 if (this.externalFileInput) {
-                    this.externalFileInput.addEventListener('change', this.handleFileSelect.bind(this))
+                    this.boundHandleFileSelect = this.handleFileSelect.bind(this)
+                    this.externalFileInput.addEventListener('change', this.boundHandleFileSelect)
                 }
 
                 // Find the import button and wire it up
                 const importBtn = container.querySelector('[data-action*="triggerFileSelect"]')
                 if (importBtn) {
-                    importBtn.addEventListener('click', this.triggerFileSelect.bind(this))
+                    this.externalImportButton = importBtn
+                    this.boundTriggerFileSelect = this.triggerFileSelect.bind(this)
+                    importBtn.addEventListener('click', this.boundTriggerFileSelect)
                 }
             }
         }
@@ -393,9 +405,18 @@ class PermissionImport extends Controller {
     disconnect() {
         this.importData = null
         // Remove event listeners from external elements
-        if (this.externalFileInput) {
-            this.externalFileInput.removeEventListener('change', this.handleFileSelect.bind(this))
+        if (this.externalFileInput && this.boundHandleFileSelect) {
+            this.externalFileInput.removeEventListener('change', this.boundHandleFileSelect)
         }
+
+        if (this.externalImportButton && this.boundTriggerFileSelect) {
+            this.externalImportButton.removeEventListener('click', this.boundTriggerFileSelect)
+        }
+
+        this.boundHandleFileSelect = null
+        this.boundTriggerFileSelect = null
+        this.externalFileInput = null
+        this.externalImportButton = null
     }
 }
 
