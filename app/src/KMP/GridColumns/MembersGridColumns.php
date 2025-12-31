@@ -35,16 +35,6 @@ class MembersGridColumns extends BaseGridColumns
     public static function getColumns(): array
     {
         $columns = [
-            'id' => [
-                'key' => 'id',
-                'label' => 'ID',
-                'type' => 'number',
-                'sortable' => true,
-                'filterable' => true,
-                'defaultVisible' => false,
-                'width' => '80px',
-                'alignment' => 'right',
-            ],
 
             'sca_name' => [
                 'key' => 'sca_name',
@@ -386,6 +376,10 @@ class MembersGridColumns extends BaseGridColumns
             'country',
             'parent_id',
             'is_minor',
+            'last_login',
+            'warrantable',
+            'created',
+            'modified',
         ];
     }
 }

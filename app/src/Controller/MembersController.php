@@ -211,12 +211,13 @@ class MembersController extends AppController
         $previousPiiSetting = MembersGridColumns::setIncludePii($canViewPii);
 
         try {
-
+            $baseQuery = $this->Members->find()->contain(['Branches', 'Parents']);
+            $baseQuery = $this->Authorization->applyScope($baseQuery, 'index');
             // Use unified trait for grid processing (saved views mode)
             $result = $this->processDataverseGrid([
                 'gridKey' => 'Members.index.main',
                 'gridColumnsClass' => MembersGridColumns::class,
-                'baseQuery' => $this->Members->find()->contain(['Branches', 'Parents']),
+                'baseQuery' => $baseQuery,
                 'tableName' => 'Members',
                 'defaultSort' => ['Members.sca_name' => 'asc'],
                 'defaultPageSize' => 25,
@@ -310,7 +311,7 @@ class MembersController extends AppController
             'canFilter' => false,
             'canExportCsv' => false,
             'lockedFilters' => ['start_on', 'expires_on'],
-            'showFilterPills' => true,
+            'showFilterPills' => false,
             'enableColumnPicker' => false,
         ]);
 
@@ -384,17 +385,22 @@ class MembersController extends AppController
             'defaultSystemView' => 'sys-gatherings-upcoming',
             'showAllTab' => false,
             'canAddViews' => false,
-            'canFilter' => true,
+            'canFilter' => false,
             'canExportCsv' => false,
             'lockedFilters' => ['start_date', 'end_date'],
             'enableColumnPicker' => false,
+            'showFilterPills' => false,
         ]);
+
+        // Get row actions for the grid
+        $rowActions = \App\KMP\GridColumns\GatheringAttendancesGridColumns::getRowActions();
 
         // Set view variables
         $this->set([
             'gatheringAttendances' => $result['data'],
             'gridState' => $result['gridState'],
             'member' => $member,
+            'rowActions' => $rowActions,
         ]);
 
         // Build URLs for grid

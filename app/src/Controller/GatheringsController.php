@@ -459,14 +459,17 @@ class GatheringsController extends AppController
         $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
 
         if ($turboFrame === 'gatherings-calendar-grid-table') {
+            // Inner frame: just calendar grid (reloads with filters/navigation)
             $this->set('data', $result['data']);
             $this->set('tableFrameId', 'gatherings-calendar-grid-table');
             $this->viewBuilder()->disableAutoLayout();
             $this->viewBuilder()->setTemplate('../element/dv_grid_table');
         } else {
+            // Outer frame: toolbar + calendar grid (toolbar doesn't reload)
             $this->set('data', $result['data']);
+            $this->set('calendarMeta', $calendarMeta);
             $this->viewBuilder()->disableAutoLayout();
-            $this->viewBuilder()->setTemplate('../element/dv_grid_core_content');
+            $this->viewBuilder()->setTemplate('../element/gatherings/calendar_content');
         }
     }
 

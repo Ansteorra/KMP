@@ -5112,6 +5112,9 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
     // State will be loaded when frame loads
     this.state = null;
 
+    // Track active filter tab (for UX persistence)
+    this.activeFilterKey = null;
+
     // Initialize sticky query parameter support
     this.stickyParams = {};
     if (this.hasStickyDefaultValue && this.stickyDefaultValue) {
@@ -5840,7 +5843,13 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
       group
     }))];
     if (allFilterItems.length === 0) return;
+
+    // Determine which filter should be active (preserve user's selection or default to first)
     const firstFilterKey = allFilterItems[0].key;
+    const activeKey = this.activeFilterKey && allFilterItems.some(item => item.key === this.activeFilterKey) ? this.activeFilterKey : firstFilterKey;
+
+    // Update activeFilterKey to the determined value
+    this.activeFilterKey = activeKey;
     allFilterItems.forEach(item => {
       let activeCount = 0;
       if (item.type === 'date-range') {
@@ -5858,7 +5867,7 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
       }
       const button = document.createElement('button');
       button.type = 'button';
-      button.className = `list-group-item list-group-item-action d-flex justify-content-between align-items-center${item.key === firstFilterKey ? ' active' : ''}`;
+      button.className = `list-group-item list-group-item-action d-flex justify-content-between align-items-center${item.key === activeKey ? ' active' : ''}`;
       button.setAttribute('data-filter-key', item.key);
       button.setAttribute('data-filter-type', item.type);
       button.setAttribute('data-filter-nav-item', '');
@@ -5929,10 +5938,13 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
       group
     }))];
     if (allFilterItems.length === 0) return;
+
+    // Use the same active key logic as navigation
     const firstFilterKey = allFilterItems[0].key;
+    const activeKey = this.activeFilterKey && allFilterItems.some(item => item.key === this.activeFilterKey) ? this.activeFilterKey : firstFilterKey;
     allFilterItems.forEach(item => {
       const panel = document.createElement('div');
-      panel.className = item.key === firstFilterKey ? '' : 'd-none';
+      panel.className = item.key === activeKey ? '' : 'd-none';
       panel.setAttribute('data-filter-key', item.key);
       panel.setAttribute('data-filter-panel', '');
       const innerDiv = document.createElement('div');
@@ -6646,6 +6658,9 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
   selectFilter(event) {
     const key = event.currentTarget.dataset.filterKey;
 
+    // Remember which filter tab is active
+    this.activeFilterKey = key;
+
     // Hide all panels
     this.element.querySelectorAll('[data-filter-panel]').forEach(panel => {
       panel.classList.add('d-none');
@@ -6963,12 +6978,9 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
         }
       } else {
         // Regular filters use filter[] prefix
+        // Always use array syntax (filter[column][]) for consistency, even with single values
         const valueArray = Array.isArray(values) ? values : [values];
-        if (valueArray.length === 1) {
-          params.set(`filter[${column}]`, valueArray[0]);
-        } else if (valueArray.length > 1) {
-          valueArray.forEach(v => params.append(`filter[${column}][]`, v));
-        }
+        valueArray.forEach(v => params.append(`filter[${column}][]`, v));
       }
     }
 
@@ -7020,8 +7032,9 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
         const finalUrl = new URL(baseGridDataUrl, window.location.origin);
 
         // Copy all params from the incoming URL
+        // Use append() instead of set() to preserve multiple values for the same key (e.g., filter[status][])
         urlObj.searchParams.forEach((value, key) => {
-          finalUrl.searchParams.set(key, value);
+          finalUrl.searchParams.append(key, value);
         });
 
         // Ensure sticky parameters are carried over for frame requests
@@ -7392,6 +7405,41 @@ __webpack_require__.r(__webpack_exports__);
  */
 class ImagePreview extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
   static targets = ['file', 'preview', 'loading'];
+  static values = {
+    maxSize: Number,
+    maxSizeFormatted: String
+  };
+  connect() {
+    // If this controller doesn't have explicit max size values, try to
+    // inherit them from the nearest enclosing file-size-validator scope.
+    if (!this.hasMaxSizeValue) {
+      const inherited = this.element.closest('[data-file-size-validator-max-size-value]');
+      if (inherited?.dataset?.fileSizeValidatorMaxSizeValue) {
+        const parsed = parseInt(inherited.dataset.fileSizeValidatorMaxSizeValue, 10);
+        if (!Number.isNaN(parsed)) {
+          this.maxSizeValue = parsed;
+        }
+      }
+    }
+    if (!this.hasMaxSizeFormattedValue) {
+      const inherited = this.element.closest('[data-file-size-validator-max-size-formatted-value]');
+      if (inherited?.dataset?.fileSizeValidatorMaxSizeFormattedValue) {
+        this.maxSizeFormattedValue = inherited.dataset.fileSizeValidatorMaxSizeFormattedValue;
+      }
+    }
+  }
+  buildOversizeMessage(file) {
+    const maxSize = this.maxSizeFormattedValue || this.formatBytes(this.maxSizeValue || 0);
+    return `The file "${file.name}" (${this.formatBytes(file.size)}) exceeds the maximum upload size of ${maxSize}.`;
+  }
+  formatBytes(bytes, decimals = 2) {
+    if (!bytes || bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + sizes[i];
+  }
 
   /**
    * Generate and display image preview
@@ -7401,9 +7449,12 @@ class ImagePreview extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Contr
    */
   preview(event) {
     if (event.target.files.length > 0) {
-      //check that the file is less than 2M
-      if (event.target.files[0].size > 2 * 1024 * 1024) {
-        alert("File size must be less than 2MB");
+      const file = event.target.files[0];
+      if (this.hasMaxSizeValue && this.maxSizeValue > 0 && file.size > this.maxSizeValue) {
+        alert(this.buildOversizeMessage(file));
+
+        // Clear invalid selection so validators + UI stay consistent
+        event.target.value = '';
         return;
       }
       const reader = new FileReader();
@@ -7412,7 +7463,7 @@ class ImagePreview extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Contr
         this.loadingTarget.classList.add("d-none");
         this.previewTarget.hidden = false;
       };
-      reader.readAsDataURL(event.target.files[0]);
+      reader.readAsDataURL(file);
     }
   }
 }
@@ -9599,6 +9650,412 @@ if (!window.Controllers) {
   window.Controllers = {};
 }
 window.Controllers["permission-add-role"] = PermissionAddRole;
+
+/***/ }),
+
+/***/ "./assets/js/controllers/permission-import-controller.js":
+/*!***************************************************************!*\
+  !*** ./assets/js/controllers/permission-import-controller.js ***!
+  \***************************************************************/
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @hotwired/stimulus */ "./node_modules/@hotwired/stimulus/dist/stimulus.js");
+/* provided dependency */ var bootstrap = __webpack_require__(/*! bootstrap */ "./node_modules/bootstrap/dist/js/bootstrap.esm.js");
+
+
+/**
+ * Permission Import Controller
+ * 
+ * Handles permission policy import workflow with preview modal showing
+ * what policies will be added and removed during the sync operation.
+ * 
+ * Features:
+ * - File upload handling for JSON import files
+ * - Preview analysis showing additions and removals
+ * - Confirmation modal before applying changes
+ * - Progress feedback during import
+ * 
+ * @class PermissionImport
+ * @extends Controller
+ * 
+ * HTML Structure Example:
+ * ```html
+ * <div data-controller="permission-import"
+ *      data-permission-import-preview-url-value="/permissions/preview-import"
+ *      data-permission-import-import-url-value="/permissions/import-policies">
+ *   <input type="file" data-permission-import-target="fileInput" data-action="change->permission-import#handleFileSelect">
+ *   <button data-action="click->permission-import#triggerFileSelect">Import</button>
+ *   
+ *   <!-- Modal for preview -->
+ *   <div class="modal" data-permission-import-target="modal">
+ *     <div data-permission-import-target="modalContent"></div>
+ *     <button data-action="click->permission-import#confirmImport">Confirm</button>
+ *     <button data-action="click->permission-import#cancelImport">Cancel</button>
+ *   </div>
+ * </div>
+ * ```
+ */
+class PermissionImport extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_0__.Controller {
+  static targets = ["fileInput", "modal", "modalContent", "addList", "removeList", "confirmBtn", "summary", "loadingOverlay"];
+  static values = {
+    previewUrl: String,
+    importUrl: String,
+    buttonContainer: String // Selector for external button container
+  };
+
+  /** @type {string|null} Base64 encoded import data for final submission */
+  importData = null;
+
+  /** @type {HTMLInputElement|null} External file input reference */
+  externalFileInput = null;
+
+  /**
+   * Initialize controller
+   */
+  connect() {
+    this.importData = null;
+
+    // If buttons are in an external container, wire them up
+    if (this.hasButtonContainerValue && this.buttonContainerValue) {
+      const container = document.querySelector(this.buttonContainerValue);
+      if (container) {
+        // Find the file input in the external container
+        this.externalFileInput = container.querySelector('input[type="file"]');
+        if (this.externalFileInput) {
+          this.externalFileInput.addEventListener('change', this.handleFileSelect.bind(this));
+        }
+
+        // Find the import button and wire it up
+        const importBtn = container.querySelector('[data-action*="triggerFileSelect"]');
+        if (importBtn) {
+          importBtn.addEventListener('click', this.triggerFileSelect.bind(this));
+        }
+      }
+    }
+  }
+
+  /**
+   * Trigger file input click
+   * Called when the import button is clicked
+   */
+  triggerFileSelect(event) {
+    event.preventDefault();
+    // Use external file input if available, otherwise use target
+    const fileInput = this.externalFileInput || (this.hasFileInputTarget ? this.fileInputTarget : null);
+    if (fileInput) {
+      fileInput.click();
+    }
+  }
+
+  /**
+   * Handle file selection
+   * Validates file type and initiates preview request
+   * 
+   * @param {Event} event - Change event from file input
+   */
+  handleFileSelect(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.name.endsWith('.json')) {
+      alert('Please select a JSON file.');
+      event.target.value = '';
+      return;
+    }
+    this.showLoadingOverlay();
+    this.previewImport(file);
+  }
+
+  /**
+   * Get the file input element (either external or target)
+   * @returns {HTMLInputElement|null}
+   */
+  getFileInput() {
+    return this.externalFileInput || (this.hasFileInputTarget ? this.fileInputTarget : null);
+  }
+
+  /**
+   * Reset the file input value
+   */
+  resetFileInput() {
+    const fileInput = this.getFileInput();
+    if (fileInput) {
+      fileInput.value = '';
+    }
+  }
+
+  /**
+   * Send file to server for preview analysis
+   * 
+   * @param {File} file - The uploaded JSON file
+   */
+  async previewImport(file) {
+    const formData = new FormData();
+    formData.append('import_file', file);
+    try {
+      const response = await fetch(this.previewUrlValue, {
+        method: 'POST',
+        headers: {
+          'X-CSRF-Token': document.querySelector("meta[name='csrf-token']").content
+        },
+        body: formData
+      });
+      const data = await response.json();
+      if (!response.ok || data.error) {
+        this.hideLoadingOverlay();
+        alert(data.error || 'Failed to preview import file.');
+        this.resetFileInput();
+        return;
+      }
+
+      // Store import data for final submission
+      this.importData = data.import_data;
+
+      // Display preview modal
+      this.displayPreview(data.changes);
+      this.hideLoadingOverlay();
+      this.showModal();
+    } catch (error) {
+      console.error('Preview error:', error);
+      this.hideLoadingOverlay();
+      alert('An error occurred while analyzing the import file.');
+      this.resetFileInput();
+    }
+  }
+
+  /**
+   * Display preview information in modal
+   * 
+   * @param {Object} changes - The changes object from preview response
+   */
+  displayPreview(changes) {
+    // Update summary
+    if (this.hasSummaryTarget) {
+      let summaryContent = `
+                <div class="alert alert-info">
+                    <strong>Import Summary</strong>
+                    ${changes.source_permission ? `<br><small class="text-muted">Source: ${this.escapeHtml(changes.source_permission)}</small>` : ''}
+                    <ul class="mb-0 mt-2">
+                        <li><span class="badge bg-success">${changes.summary.total_add}</span> policies will be added</li>
+                        <li><span class="badge bg-danger">${changes.summary.total_remove}</span> policies will be removed</li>
+                    </ul>
+                </div>
+            `;
+      this.summaryTarget.innerHTML = summaryContent;
+    }
+
+    // Display policies to add
+    if (this.hasAddListTarget) {
+      if (changes.policies_to_add.length > 0) {
+        let addHtml = '<h6 class="text-success"><i class="bi bi-plus-circle me-1"></i>Policies to Add:</h6>';
+        addHtml += '<div class="list-group list-group-flush" style="max-height: 200px; overflow-y: auto;">';
+        changes.policies_to_add.forEach(policy => {
+          addHtml += `
+                        <div class="list-group-item list-group-item-success py-1 px-2">
+                            <small><code>${this.formatPolicyName(policy.policy_class)}::${this.escapeHtml(policy.policy_method)}</code></small>
+                        </div>
+                    `;
+        });
+        addHtml += '</div>';
+        this.addListTarget.innerHTML = addHtml;
+      } else {
+        this.addListTarget.innerHTML = '<p class="text-muted small">No policies to add.</p>';
+      }
+    }
+
+    // Display policies to remove
+    if (this.hasRemoveListTarget) {
+      if (changes.policies_to_remove.length > 0) {
+        let removeHtml = '<h6 class="text-danger"><i class="bi bi-dash-circle me-1"></i>Policies to Remove:</h6>';
+        removeHtml += '<div class="list-group list-group-flush" style="max-height: 200px; overflow-y: auto;">';
+        changes.policies_to_remove.forEach(policy => {
+          removeHtml += `
+                        <div class="list-group-item list-group-item-danger py-1 px-2">
+                            <small><code>${this.formatPolicyName(policy.policy_class)}::${this.escapeHtml(policy.policy_method)}</code></small>
+                        </div>
+                    `;
+        });
+        removeHtml += '</div>';
+        this.removeListTarget.innerHTML = removeHtml;
+      } else {
+        this.removeListTarget.innerHTML = '<p class="text-muted small">No policies to remove.</p>';
+      }
+    }
+
+    // Enable/disable confirm button based on changes
+    if (this.hasConfirmBtnTarget) {
+      const hasChanges = changes.summary.total_add > 0 || changes.summary.total_remove > 0;
+      this.confirmBtnTarget.disabled = !hasChanges;
+      if (!hasChanges) {
+        this.summaryTarget.innerHTML = `
+                    <div class="alert alert-success">
+                        <i class="bi bi-check-circle me-2"></i><strong>No changes needed!</strong>
+                        The current permission policies match the import file exactly.
+                    </div>
+                `;
+      }
+    }
+  }
+
+  /**
+   * Format policy class name for display
+   * Extracts just the class name from full namespace
+   * 
+   * @param {string} policyClass - Full policy class name
+   * @returns {string} Formatted class name
+   */
+  formatPolicyName(policyClass) {
+    const parts = policyClass.split('\\');
+    return parts[parts.length - 1];
+  }
+
+  /**
+   * Escape HTML to prevent XSS
+   * 
+   * @param {string} text - Text to escape
+   * @returns {string} Escaped text
+   */
+  escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  /**
+   * Show the preview modal
+   */
+  showModal() {
+    if (this.hasModalTarget) {
+      const bsModal = new bootstrap.Modal(this.modalTarget);
+      bsModal.show();
+    }
+  }
+
+  /**
+   * Hide the preview modal
+   */
+  hideModal() {
+    if (this.hasModalTarget) {
+      const bsModal = bootstrap.Modal.getInstance(this.modalTarget);
+      if (bsModal) {
+        bsModal.hide();
+      }
+    }
+  }
+
+  /**
+   * Show loading overlay during processing
+   */
+  showLoadingOverlay() {
+    if (this.hasLoadingOverlayTarget) {
+      this.loadingOverlayTarget.classList.remove('d-none');
+    }
+  }
+
+  /**
+   * Hide loading overlay
+   */
+  hideLoadingOverlay() {
+    if (this.hasLoadingOverlayTarget) {
+      this.loadingOverlayTarget.classList.add('d-none');
+    }
+  }
+
+  /**
+   * Cancel import operation
+   * Closes modal and resets state
+   */
+  cancelImport(event) {
+    event.preventDefault();
+    this.hideModal();
+    this.importData = null;
+    this.resetFileInput();
+    this.resetModalContent();
+  }
+
+  /**
+   * Reset modal content for next use
+   */
+  resetModalContent() {
+    if (this.hasSummaryTarget) this.summaryTarget.innerHTML = '';
+    if (this.hasAddListTarget) this.addListTarget.innerHTML = '';
+    if (this.hasRemoveListTarget) this.removeListTarget.innerHTML = '';
+  }
+
+  /**
+   * Confirm and execute the import
+   * Sends the import data to the server for processing
+   */
+  async confirmImport(event) {
+    event.preventDefault();
+    if (!this.importData) {
+      alert('No import data available.');
+      return;
+    }
+    if (this.hasConfirmBtnTarget) {
+      this.confirmBtnTarget.disabled = true;
+      this.confirmBtnTarget.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Importing...';
+    }
+    try {
+      const response = await fetch(this.importUrlValue, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-CSRF-Token': document.querySelector("meta[name='csrf-token']").content
+        },
+        body: JSON.stringify({
+          import_data: this.importData
+        })
+      });
+      const data = await response.json();
+      if (!response.ok || data.error) {
+        alert(data.error || 'Import failed.');
+        return;
+      }
+
+      // Show success message
+      const results = data.results;
+      let message = `Import completed successfully!\n\nAdded: ${results.added} policies\nRemoved: ${results.removed} policies`;
+      if (results.errors && results.errors.length > 0) {
+        message += `\n\nWarnings:\n${results.errors.join('\n')}`;
+      }
+      alert(message);
+
+      // Close modal and refresh page
+      this.hideModal();
+      window.location.reload();
+    } catch (error) {
+      console.error('Import error:', error);
+      alert('An error occurred during import.');
+    } finally {
+      if (this.hasConfirmBtnTarget) {
+        this.confirmBtnTarget.disabled = false;
+        this.confirmBtnTarget.innerHTML = 'Confirm Import';
+      }
+      this.importData = null;
+      this.resetFileInput();
+    }
+  }
+
+  /**
+   * Clean up on disconnect
+   */
+  disconnect() {
+    this.importData = null;
+    // Remove event listeners from external elements
+    if (this.externalFileInput) {
+      this.externalFileInput.removeEventListener('change', this.handleFileSelect.bind(this));
+    }
+  }
+}
+if (!window.Controllers) {
+  window.Controllers = {};
+}
+window.Controllers["permission-import"] = PermissionImport;
 
 /***/ }),
 
@@ -56449,7 +56906,7 @@ window.Controllers["waiver-upload-wizard"] = WaiverUploadWizardController;
 },
 /******/ function(__webpack_require__) { // webpackRuntimeModules
 /******/ var __webpack_exec__ = function(moduleId) { return __webpack_require__(__webpack_require__.s = moduleId); }
-/******/ __webpack_require__.O(0, ["js/core","css/app","css/waivers","css/dashboard","css/cover","css/signin","css/waiver-upload"], function() { return __webpack_exec__("./assets/js/controllers/activity-toggle-controller.js"), __webpack_exec__("./assets/js/controllers/activity-waiver-manager-controller.js"), __webpack_exec__("./assets/js/controllers/add-activity-modal-controller.js"), __webpack_exec__("./assets/js/controllers/app-setting-form-controller.js"), __webpack_exec__("./assets/js/controllers/app-setting-modal-controller.js"), __webpack_exec__("./assets/js/controllers/auto-complete-controller.js"), __webpack_exec__("./assets/js/controllers/base-gathering-form-controller.js"), __webpack_exec__("./assets/js/controllers/branch-links-controller.js"), __webpack_exec__("./assets/js/controllers/code-editor-controller.js"), __webpack_exec__("./assets/js/controllers/csv-download-controller.js"), __webpack_exec__("./assets/js/controllers/delayed-forward-controller.js"), __webpack_exec__("./assets/js/controllers/delete-confirmation-controller.js"), __webpack_exec__("./assets/js/controllers/detail-tabs-controller.js"), __webpack_exec__("./assets/js/controllers/edit-activity-description-controller.js"), __webpack_exec__("./assets/js/controllers/email-template-editor-controller.js"), __webpack_exec__("./assets/js/controllers/email-template-form-controller.js"), __webpack_exec__("./assets/js/controllers/file-size-validator-controller.js"), __webpack_exec__("./assets/js/controllers/filter-grid-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-clone-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-form-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-location-autocomplete-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-map-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-public-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-schedule-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-type-form-controller.js"), __webpack_exec__("./assets/js/controllers/gatherings-calendar-controller.js"), __webpack_exec__("./assets/js/controllers/grid-view-controller.js"), __webpack_exec__("./assets/js/controllers/guifier-controller.js"), __webpack_exec__("./assets/js/controllers/image-preview-controller.js"), __webpack_exec__("./assets/js/controllers/kanban-controller.js"), __webpack_exec__("./assets/js/controllers/markdown-editor-controller.js"), __webpack_exec__("./assets/js/controllers/member-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-menu-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-pwa-controller.js"), __webpack_exec__("./assets/js/controllers/member-unique-email-controller.js"), __webpack_exec__("./assets/js/controllers/member-verify-form-controller.js"), __webpack_exec__("./assets/js/controllers/mobile-hub-controller.js"), __webpack_exec__("./assets/js/controllers/mobile-offline-overlay-controller.js"), __webpack_exec__("./assets/js/controllers/modal-opener-controller.js"), __webpack_exec__("./assets/js/controllers/nav-bar-controller.js"), __webpack_exec__("./assets/js/controllers/outlet-button-controller.js"), __webpack_exec__("./assets/js/controllers/permission-add-role-controller.js"), __webpack_exec__("./assets/js/controllers/permission-manage-policies-controller.js"), __webpack_exec__("./assets/js/controllers/popover-controller.js"), __webpack_exec__("./assets/js/controllers/qrcode-controller.js"), __webpack_exec__("./assets/js/controllers/revoke-form-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-member-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-permission-controller.js"), __webpack_exec__("./assets/js/controllers/security-debug-controller.js"), __webpack_exec__("./assets/js/controllers/select-all-switch-list-controller.js"), __webpack_exec__("./assets/js/controllers/session-extender-controller.js"), __webpack_exec__("./assets/js/controllers/sortable-list-controller.js"), __webpack_exec__("./assets/js/controllers/timezone-input-controller.js"), __webpack_exec__("./assets/js/controllers/turbo-modal-controller.js"), __webpack_exec__("./assets/js/controllers/variable-insert-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/gw-sharing-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/mobile-request-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/renew-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/request-auth-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/award-form-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-add-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-bulk-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-quick-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-table-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/recommendation-kanban-controller.js"), __webpack_exec__("./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/assign-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/edit-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/office-form-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-search-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-table-controller.js"), __webpack_exec__("./plugins/Template/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/add-requirement-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/camera-capture-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/exemption-reasons-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/retention-policy-input-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-attestation-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-template-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-wizard-controller.js"), __webpack_exec__("./assets/css/app.css"), __webpack_exec__("./assets/css/signin.css"), __webpack_exec__("./assets/css/cover.css"), __webpack_exec__("./assets/css/dashboard.css"), __webpack_exec__("./plugins/Waivers/assets/css/waivers.css"), __webpack_exec__("./plugins/Waivers/assets/css/waiver-upload.css"); });
+/******/ __webpack_require__.O(0, ["js/core","css/app","css/waivers","css/dashboard","css/cover","css/signin","css/waiver-upload"], function() { return __webpack_exec__("./assets/js/controllers/activity-toggle-controller.js"), __webpack_exec__("./assets/js/controllers/activity-waiver-manager-controller.js"), __webpack_exec__("./assets/js/controllers/add-activity-modal-controller.js"), __webpack_exec__("./assets/js/controllers/app-setting-form-controller.js"), __webpack_exec__("./assets/js/controllers/app-setting-modal-controller.js"), __webpack_exec__("./assets/js/controllers/auto-complete-controller.js"), __webpack_exec__("./assets/js/controllers/base-gathering-form-controller.js"), __webpack_exec__("./assets/js/controllers/branch-links-controller.js"), __webpack_exec__("./assets/js/controllers/code-editor-controller.js"), __webpack_exec__("./assets/js/controllers/csv-download-controller.js"), __webpack_exec__("./assets/js/controllers/delayed-forward-controller.js"), __webpack_exec__("./assets/js/controllers/delete-confirmation-controller.js"), __webpack_exec__("./assets/js/controllers/detail-tabs-controller.js"), __webpack_exec__("./assets/js/controllers/edit-activity-description-controller.js"), __webpack_exec__("./assets/js/controllers/email-template-editor-controller.js"), __webpack_exec__("./assets/js/controllers/email-template-form-controller.js"), __webpack_exec__("./assets/js/controllers/file-size-validator-controller.js"), __webpack_exec__("./assets/js/controllers/filter-grid-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-clone-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-form-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-location-autocomplete-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-map-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-public-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-schedule-controller.js"), __webpack_exec__("./assets/js/controllers/gathering-type-form-controller.js"), __webpack_exec__("./assets/js/controllers/gatherings-calendar-controller.js"), __webpack_exec__("./assets/js/controllers/grid-view-controller.js"), __webpack_exec__("./assets/js/controllers/guifier-controller.js"), __webpack_exec__("./assets/js/controllers/image-preview-controller.js"), __webpack_exec__("./assets/js/controllers/kanban-controller.js"), __webpack_exec__("./assets/js/controllers/markdown-editor-controller.js"), __webpack_exec__("./assets/js/controllers/member-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-menu-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-profile-controller.js"), __webpack_exec__("./assets/js/controllers/member-mobile-card-pwa-controller.js"), __webpack_exec__("./assets/js/controllers/member-unique-email-controller.js"), __webpack_exec__("./assets/js/controllers/member-verify-form-controller.js"), __webpack_exec__("./assets/js/controllers/mobile-hub-controller.js"), __webpack_exec__("./assets/js/controllers/mobile-offline-overlay-controller.js"), __webpack_exec__("./assets/js/controllers/modal-opener-controller.js"), __webpack_exec__("./assets/js/controllers/nav-bar-controller.js"), __webpack_exec__("./assets/js/controllers/outlet-button-controller.js"), __webpack_exec__("./assets/js/controllers/permission-add-role-controller.js"), __webpack_exec__("./assets/js/controllers/permission-import-controller.js"), __webpack_exec__("./assets/js/controllers/permission-manage-policies-controller.js"), __webpack_exec__("./assets/js/controllers/popover-controller.js"), __webpack_exec__("./assets/js/controllers/qrcode-controller.js"), __webpack_exec__("./assets/js/controllers/revoke-form-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-member-controller.js"), __webpack_exec__("./assets/js/controllers/role-add-permission-controller.js"), __webpack_exec__("./assets/js/controllers/security-debug-controller.js"), __webpack_exec__("./assets/js/controllers/select-all-switch-list-controller.js"), __webpack_exec__("./assets/js/controllers/session-extender-controller.js"), __webpack_exec__("./assets/js/controllers/sortable-list-controller.js"), __webpack_exec__("./assets/js/controllers/timezone-input-controller.js"), __webpack_exec__("./assets/js/controllers/turbo-modal-controller.js"), __webpack_exec__("./assets/js/controllers/variable-insert-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/approve-and-assign-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/gw-sharing-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/mobile-request-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/renew-auth-controller.js"), __webpack_exec__("./plugins/Activities/assets/js/controllers/request-auth-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/award-form-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-add-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-bulk-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-quick-edit-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/rec-table-controller.js"), __webpack_exec__("./plugins/Awards/Assets/js/controllers/recommendation-kanban-controller.js"), __webpack_exec__("./plugins/GitHubIssueSubmitter/assets/js/controllers/github-submitter-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/assign-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/edit-officer-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/office-form-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-search-controller.js"), __webpack_exec__("./plugins/Officers/assets/js/controllers/officer-roster-table-controller.js"), __webpack_exec__("./plugins/Template/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/add-requirement-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/camera-capture-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/exemption-reasons-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/hello-world-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/retention-policy-input-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-attestation-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-template-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-controller.js"), __webpack_exec__("./plugins/Waivers/assets/js/controllers/waiver-upload-wizard-controller.js"), __webpack_exec__("./assets/css/app.css"), __webpack_exec__("./assets/css/signin.css"), __webpack_exec__("./assets/css/cover.css"), __webpack_exec__("./assets/css/dashboard.css"), __webpack_exec__("./plugins/Waivers/assets/css/waivers.css"), __webpack_exec__("./plugins/Waivers/assets/css/waiver-upload.css"); });
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);

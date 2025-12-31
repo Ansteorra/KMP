@@ -26,6 +26,9 @@ class GridViewController extends Controller {
         // State will be loaded when frame loads
         this.state = null
 
+        // Track active filter tab (for UX persistence)
+        this.activeFilterKey = null
+
         // Initialize sticky query parameter support
         this.stickyParams = {}
         if (this.hasStickyDefaultValue && this.stickyDefaultValue) {
@@ -781,7 +784,14 @@ class GridViewController extends Controller {
 
         if (allFilterItems.length === 0) return
 
+        // Determine which filter should be active (preserve user's selection or default to first)
         const firstFilterKey = allFilterItems[0].key
+        const activeKey = this.activeFilterKey && allFilterItems.some(item => item.key === this.activeFilterKey)
+            ? this.activeFilterKey
+            : firstFilterKey
+
+        // Update activeFilterKey to the determined value
+        this.activeFilterKey = activeKey
 
         allFilterItems.forEach((item) => {
             let activeCount = 0
@@ -800,7 +810,7 @@ class GridViewController extends Controller {
 
             const button = document.createElement('button')
             button.type = 'button'
-            button.className = `list-group-item list-group-item-action d-flex justify-content-between align-items-center${item.key === firstFilterKey ? ' active' : ''}`
+            button.className = `list-group-item list-group-item-action d-flex justify-content-between align-items-center${item.key === activeKey ? ' active' : ''}`
             button.setAttribute('data-filter-key', item.key)
             button.setAttribute('data-filter-type', item.type)
             button.setAttribute('data-filter-nav-item', '')
@@ -868,11 +878,15 @@ class GridViewController extends Controller {
 
         if (allFilterItems.length === 0) return
 
+        // Use the same active key logic as navigation
         const firstFilterKey = allFilterItems[0].key
+        const activeKey = this.activeFilterKey && allFilterItems.some(item => item.key === this.activeFilterKey)
+            ? this.activeFilterKey
+            : firstFilterKey
 
         allFilterItems.forEach((item) => {
             const panel = document.createElement('div')
-            panel.className = item.key === firstFilterKey ? '' : 'd-none'
+            panel.className = item.key === activeKey ? '' : 'd-none'
             panel.setAttribute('data-filter-key', item.key)
             panel.setAttribute('data-filter-panel', '')
 
@@ -1633,6 +1647,9 @@ class GridViewController extends Controller {
     selectFilter(event) {
         const key = event.currentTarget.dataset.filterKey
 
+        // Remember which filter tab is active
+        this.activeFilterKey = key
+
         // Hide all panels
         this.element.querySelectorAll('[data-filter-panel]').forEach(panel => {
             panel.classList.add('d-none')
@@ -1971,12 +1988,9 @@ class GridViewController extends Controller {
                 }
             } else {
                 // Regular filters use filter[] prefix
+                // Always use array syntax (filter[column][]) for consistency, even with single values
                 const valueArray = Array.isArray(values) ? values : [values]
-                if (valueArray.length === 1) {
-                    params.set(`filter[${column}]`, valueArray[0])
-                } else if (valueArray.length > 1) {
-                    valueArray.forEach(v => params.append(`filter[${column}][]`, v))
-                }
+                valueArray.forEach(v => params.append(`filter[${column}][]`, v))
             }
         }
 
@@ -2030,8 +2044,9 @@ class GridViewController extends Controller {
                 const finalUrl = new URL(baseGridDataUrl, window.location.origin)
 
                 // Copy all params from the incoming URL
+                // Use append() instead of set() to preserve multiple values for the same key (e.g., filter[status][])
                 urlObj.searchParams.forEach((value, key) => {
-                    finalUrl.searchParams.set(key, value)
+                    finalUrl.searchParams.append(key, value)
                 })
 
                 // Ensure sticky parameters are carried over for frame requests

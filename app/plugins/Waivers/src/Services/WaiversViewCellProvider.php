@@ -216,6 +216,8 @@ class WaiversViewCellProvider
         // Mobile menu items for PWA card
         // This item will appear on all mobile pages (empty validRoutes = show everywhere)
         // except the page it links to (filtered out by mobile_app.php layout)
+
+        // Submit Waiver - Only for users with permission to add GatheringWaivers
         $cells[] = [
             'type' => ViewCellRegistry::PLUGIN_TYPE_MOBILE_MENU,
             'label' => 'Submit Waiver',
@@ -224,7 +226,20 @@ class WaiversViewCellProvider
             'order' => 30,
             'color' => 'info',
             'badge' => null,
-            'validRoutes' => [] // Empty = show everywhere
+            'validRoutes' => [], // Empty = show everywhere
+            'authCallback' => function ($urlParams, $user) {
+                if (!$user) {
+                    return false;
+                }
+
+                // Check if user can add GatheringWaivers
+                $gatheringWaiversTable = \Cake\ORM\TableRegistry::getTableLocator()->get('Waivers.GatheringWaivers');
+                $tempWaiver = $gatheringWaiversTable->newEmptyEntity();
+
+                // Use the user's checkCan method to verify add permission
+                // This follows the same pattern as mobileSelectGathering controller action
+                return $user->checkCan('uploadWaivers', $tempWaiver);
+            }
         ];
 
         return $cells;

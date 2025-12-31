@@ -584,14 +584,14 @@ class AuthorizationApprovalsController extends AppController
                     "The authorization approval could not be approved. Please, try again.",
                 ),
             );
-
-            return $this->redirect($this->referer());
+            $response = $this->redirect($this->referer());
+            return $response->withHeader('Turbo-Frame', '_top');
         }
         $this->Flash->success(
             __("The authorization approval has been processed."),
         );
-
-        return $this->redirect($this->referer());
+        $response = $this->redirect($this->referer());
+        return $response->withHeader('Turbo-Frame', '_top');
     }
 
     /**
@@ -701,8 +701,8 @@ class AuthorizationApprovalsController extends AppController
                 __("The authorization approval has been rejected."),
             );
         }
-
-        return $this->redirect($this->referer());
+        $response = $this->redirect($this->referer());
+        return $response->withHeader('Turbo-Frame', '_top');
     }
 
     /**

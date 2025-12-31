@@ -155,6 +155,8 @@ class ActivitiesViewCellProvider
         // Mobile menu items for PWA card
         // These items will appear on all mobile pages (empty validRoutes = show everywhere)
         // except the page they link to (filtered out by mobile_app.php layout)
+
+        // Request Authorization - Available to all authenticated users
         $cells[] = [
             'type' => ViewCellRegistry::PLUGIN_TYPE_MOBILE_MENU,
             'label' => 'Request Authorization',
@@ -163,9 +165,14 @@ class ActivitiesViewCellProvider
             'order' => 10,
             'color' => 'success',
             'badge' => null,
-            'validRoutes' => [] // Empty = show everywhere
+            'validRoutes' => [], // Empty = show everywhere
+            'authCallback' => function ($urlParams, $user) {
+                // All authenticated users can request authorizations
+                return $user !== null;
+            }
         ];
 
+        // Approve Authorizations - Only for users with pending approvals
         $cells[] = [
             'type' => ViewCellRegistry::PLUGIN_TYPE_MOBILE_MENU,
             'label' => 'Approve Authorizations',
@@ -174,7 +181,15 @@ class ActivitiesViewCellProvider
             'order' => 20,
             'color' => 'primary',
             'badge' => null, // TODO: Add count of pending approvals
-            'validRoutes' => [] // Empty = show everywhere
+            'validRoutes' => [], // Empty = show everywhere
+            'authCallback' => function ($urlParams, $user) {
+                if (!$user) {
+                    return false;
+                }
+
+                // check if the user can access myQueue
+                return $user->checkCan('myQueue', 'Activities.AuthorizationApprovals');
+            }
         ];
 
         return $cells;

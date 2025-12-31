@@ -101,7 +101,7 @@ class RecommendationsController extends AppController
                     return $q->select(['id', 'sca_name', 'title', 'pronouns', 'pronunciation']);
                 },
                 'Branches' => function ($q) {
-                    return $q->select(['id', 'name']);
+                    return $q->select(['id', 'name', 'type']);
                 },
                 'Awards' => function ($q) {
                     return $q->select(['id', 'abbreviation', 'branch_id']);
@@ -134,6 +134,13 @@ class RecommendationsController extends AppController
         // Apply authorization scope
         $baseQuery = $this->Authorization->applyScope($baseQuery, 'index');
 
+        // Check for gatherings filter and apply custom logic
+        // (The gatherings filter requires matching on related tables, not a direct column)
+        $gatheringsFilter = $this->request->getQuery('filter.gatherings');
+        if (!empty($gatheringsFilter)) {
+            $baseQuery = $this->applyGatheringsFilter($baseQuery, $gatheringsFilter);
+        }
+
         // Get system views with proper state filter options
         $systemViews = RecommendationsGridColumns::getSystemViews([]);
 
@@ -141,6 +148,7 @@ class RecommendationsController extends AppController
         $stateFilterOptions = RecommendationsGridColumns::getStateFilterOptions($canViewHidden);
 
         // Use unified trait for grid processing
+        // Note: 'gatherings' is in skipFilterColumns because we apply that filter manually above
         $result = $this->processDataverseGrid([
             'gridKey' => 'Awards.Recommendations.index.main',
             'gridColumnsClass' => RecommendationsGridColumns::class,
@@ -154,16 +162,25 @@ class RecommendationsController extends AppController
             'canAddViews' => true,
             'canFilter' => true,
             'canExportCsv' => true,
+            'skipFilterColumns' => ['gatherings'],  // Applied manually above
         ]);
 
         // Post-process data to add computed fields for display
         $recommendations = $result['data'];
+
+        // Fetch member attendance gatherings for all members in the result set
+        // These are gatherings where the member has marked attendance with share_with_crown or is_public
+        $memberAttendanceGatherings = $this->getMemberAttendanceGatherings($recommendations);
+
         foreach ($recommendations as $recommendation) {
             // Build OP links HTML
             $recommendation->op_links = $this->buildOpLinksHtml($recommendation);
 
-            // Build gatherings HTML (member attendance)
-            $recommendation->gatherings = $this->buildGatheringsHtml($recommendation);
+            // Merge recommendation-linked gatherings with member attendance gatherings
+            $attendanceGatherings = $memberAttendanceGatherings[$recommendation->member_id] ?? [];
+
+            // Build gatherings HTML (combines recommendation events and member attendance)
+            $recommendation->gatherings = $this->buildGatheringsHtml($recommendation, $attendanceGatherings);
 
             // Build notes HTML
             $recommendation->notes = $this->buildNotesHtml($recommendation);
@@ -254,27 +271,129 @@ class RecommendationsController extends AppController
     }
 
     /**
-     * Build gatherings HTML showing member attendance as comma-separated list
+     * Fetch gatherings where members are attending with share_with_crown or is_public enabled.
      *
-     * Shows up to 3 gatherings, with a "more" link to expand if there are more.
+     * Retrieves attendance records for all unique member_ids in the recommendations set
+     * and returns a map of member_id => array of gathering entities.
+     *
+     * @param iterable $recommendations Collection of recommendation entities
+     * @return array<int, array<\App\Model\Entity\Gathering>> Map of member_id to gatherings array
+     */
+    protected function getMemberAttendanceGatherings(iterable $recommendations): array
+    {
+        // Collect unique member IDs
+        $memberIds = [];
+        foreach ($recommendations as $rec) {
+            if ($rec->member_id) {
+                $memberIds[$rec->member_id] = true;
+            }
+        }
+
+        if (empty($memberIds)) {
+            return [];
+        }
+
+        $memberIds = array_keys($memberIds);
+
+        // Fetch attendance records where the member has shared their attendance
+        // share_with_crown: explicitly shared with crown/royalty
+        // share_with_kingdom: shared at kingdom level (which includes crown)
+        // is_public: shared publicly with everyone
+        $attendanceTable = $this->fetchTable('GatheringAttendances');
+        $attendances = $attendanceTable->find()
+            ->contain([
+                'Gatherings' => function ($q) {
+                    return $q->select(['id', 'name', 'start_date', 'end_date']);
+                }
+            ])
+            ->where([
+                'GatheringAttendances.member_id IN' => $memberIds,
+                'OR' => [
+                    'GatheringAttendances.share_with_crown' => true,
+                    'GatheringAttendances.share_with_kingdom' => true,
+                    'GatheringAttendances.is_public' => true,
+                ],
+            ])
+            ->all();
+
+        // Build the map: member_id => [gatherings]
+        $result = [];
+        foreach ($attendances as $attendance) {
+            if (!$attendance->gathering) {
+                continue;
+            }
+            $memberId = $attendance->member_id;
+            if (!isset($result[$memberId])) {
+                $result[$memberId] = [];
+            }
+            // Avoid duplicates by keying by gathering id
+            $result[$memberId][$attendance->gathering->id] = $attendance->gathering;
+        }
+
+        // Convert inner arrays from id-keyed to simple indexed arrays
+        foreach ($result as $memberId => $gatherings) {
+            $result[$memberId] = array_values($gatherings);
+        }
+
+        return $result;
+    }
+
+    /**
+     * Build gatherings HTML showing combined recommendation events and member attendance.
+     *
+     * Displays up to 3 gatherings with a "more" link to expand if there are more.
+     * Attendance gatherings (from GatheringAttendances with share_with_crown, share_with_kingdom,
+     * or is_public) are shown with a person-check icon to distinguish from recommendation-linked events.
      *
      * @param \Awards\Model\Entity\Recommendation $recommendation The recommendation entity
+     * @param array $attendanceGatherings Optional array of gatherings from member attendance
      * @return string HTML string with gathering information
      */
-    protected function buildGatheringsHtml($recommendation): string
+    protected function buildGatheringsHtml($recommendation, array $attendanceGatherings = []): string
     {
-        if (empty($recommendation->gatherings)) {
+        // Combine recommendation-linked gatherings with attendance gatherings
+        $recGatherings = $recommendation->gatherings ?? [];
+        $recGatheringIds = [];
+
+        // Build list from recommendation-linked gatherings (from awards_recommendations_events)
+        $items = [];
+        foreach ($recGatherings as $gathering) {
+            $recGatheringIds[$gathering->id] = true;
+            $items[] = [
+                'name' => $gathering->name,
+                'id' => $gathering->id,
+                'isAttendance' => false,
+            ];
+        }
+
+        // Add attendance gatherings that aren't already in rec gatherings
+        foreach ($attendanceGatherings as $gathering) {
+            if (!isset($recGatheringIds[$gathering->id])) {
+                $items[] = [
+                    'name' => $gathering->name,
+                    'id' => $gathering->id,
+                    'isAttendance' => true,
+                ];
+            }
+        }
+
+        if (empty($items)) {
             return '';
         }
 
-        $gatherings = $recommendation->gatherings;
-        $total = count($gatherings);
+        $total = count($items);
         $maxVisible = 3;
 
-        // Build list of gathering names
+        // Build display names with attendance indicator
         $names = [];
-        foreach ($gatherings as $gathering) {
-            $names[] = h($gathering->name);
+        foreach ($items as $item) {
+            $displayName = h($item['name']);
+            if ($item['isAttendance']) {
+                // Add crown icon for attendance-based gatherings
+                $displayName = '<span title="' . __('Member shared attendance') . '">'
+                    . '<i class="bi bi-person-check text-success me-1"></i>' . $displayName . '</span>';
+            }
+            $names[] = $displayName;
         }
 
         if ($total <= $maxVisible) {
@@ -300,6 +419,86 @@ class RecommendationsController extends AppController
         $html .= '</span>';
 
         return $html;
+    }
+
+    /**
+     * Apply gatherings filter to recommendations query.
+     *
+     * Filters recommendations to only include those where:
+     * - The gathering is linked via awards_recommendations_events (recommendation events)
+     * - OR the recommendation's member is attending the gathering with share_with_crown or is_public
+     *
+     * @param \Cake\ORM\Query\SelectQuery $query The query to filter
+     * @param string|array $gatheringIds One or more gathering IDs to filter by
+     * @return \Cake\ORM\Query\SelectQuery The filtered query
+     */
+    protected function applyGatheringsFilter($query, $gatheringIds)
+    {
+        // Normalize to array
+        if (!is_array($gatheringIds)) {
+            $gatheringIds = [$gatheringIds];
+        }
+
+        // Filter out empty values and ensure integers
+        $gatheringIds = array_filter(array_map('intval', $gatheringIds));
+
+        if (empty($gatheringIds)) {
+            return $query;
+        }
+
+        // Find recommendation IDs that match either:
+        // 1. Have the gathering linked in awards_recommendations_events
+        // 2. Have a member who is attending the gathering with share_with_crown or is_public
+
+        // Subquery 1: Recommendations linked via awards_recommendations_events join table
+        // Use the Gatherings association through matching to find linked rec IDs
+        $linkedRecIds = $this->Recommendations->find()
+            ->select(['Recommendations.id'])
+            ->matching('Gatherings', function ($q) use ($gatheringIds) {
+                return $q->where(['Gatherings.id IN' => $gatheringIds]);
+            })
+            ->distinct()
+            ->all()
+            ->extract('id')
+            ->toArray();
+
+        // Subquery 2: Members attending these gatherings with share_with_crown, share_with_kingdom, or is_public
+        $attendanceTable = $this->fetchTable('GatheringAttendances');
+        $attendingMemberIds = $attendanceTable->find()
+            ->select(['member_id'])
+            ->where([
+                'gathering_id IN' => $gatheringIds,
+                'OR' => [
+                    'share_with_crown' => true,
+                    'share_with_kingdom' => true,
+                    'is_public' => true,
+                ],
+            ])
+            ->distinct()
+            ->all()
+            ->extract('member_id')
+            ->toArray();
+
+        // Build the OR condition: rec_id in linked recs OR member_id in attending members
+        $conditions = ['OR' => []];
+
+        if (!empty($linkedRecIds)) {
+            $conditions['OR']['Recommendations.id IN'] = $linkedRecIds;
+        }
+
+        if (!empty($attendingMemberIds)) {
+            $conditions['OR']['Recommendations.member_id IN'] = $attendingMemberIds;
+        }
+
+        // If neither condition has results, return query that matches nothing
+        if (empty($conditions['OR'])) {
+            // Use a condition that will never match
+            $query->where(['Recommendations.id' => -1]);
+        } else {
+            $query->where($conditions);
+        }
+
+        return $query;
     }
 
     /**
@@ -689,7 +888,7 @@ class RecommendationsController extends AppController
                     return $q->select(['id', 'sca_name', 'title', 'pronouns', 'pronunciation']);
                 },
                 'Branches' => function ($q) {
-                    return $q->select(['id', 'name']);
+                    return $q->select(['id', 'name', 'type']);
                 },
                 'Awards' => function ($q) {
                     return $q->select(['id', 'abbreviation', 'branch_id']);
@@ -936,7 +1135,36 @@ class RecommendationsController extends AppController
 
             $this->Authorization->authorize($recommendation, 'view');
             $recommendation->domain_id = $recommendation->award->domain_id;
-            $this->set(compact('recommendation'));
+
+            // Fetch member's self-selected attendance gatherings (where they've shared with crown/kingdom/public)
+            $memberAttendanceGatherings = [];
+            if ($recommendation->member_id) {
+                $attendanceTable = $this->fetchTable('GatheringAttendances');
+                $attendances = $attendanceTable->find()
+                    ->contain([
+                        'Gatherings' => function ($q) {
+                            return $q->select(['id', 'name', 'start_date', 'end_date', 'public_id']);
+                        }
+                    ])
+                    ->where([
+                        'GatheringAttendances.member_id' => $recommendation->member_id,
+                        'OR' => [
+                            'GatheringAttendances.share_with_crown' => true,
+                            'GatheringAttendances.share_with_kingdom' => true,
+                            'GatheringAttendances.is_public' => true,
+                        ],
+                    ])
+                    ->orderBy(['Gatherings.start_date' => 'ASC'])
+                    ->all();
+
+                foreach ($attendances as $attendance) {
+                    if ($attendance->gathering) {
+                        $memberAttendanceGatherings[] = $attendance->gathering;
+                    }
+                }
+            }
+
+            $this->set(compact('recommendation', 'memberAttendanceGatherings'));
             return null;
         } catch (\Cake\Datasource\Exception\RecordNotFoundException $e) {
             throw new \Cake\Http\Exception\NotFoundException(__('Recommendation not found'));
@@ -1914,19 +2142,19 @@ class RecommendationsController extends AppController
                         return $q->select(['id', 'name']);
                     }
                 ])
-                ->select(['id', 'name', 'start_date', 'end_date', 'Gatherings.branch_id']);
+                ->select(['Gatherings.id', 'Gatherings.name', 'Gatherings.start_date', 'Gatherings.end_date', 'Gatherings.branch_id']);
 
             // Only filter by date if futureOnly is true
             if ($futureOnly) {
-                $query->where(['start_date >' => DateTime::now()])
-                    ->orderBy(['start_date' => 'ASC']);
+                $query = $query->where(['Gatherings.start_date >' => DateTime::now()])
+                    ->orderBy(['Gatherings.start_date' => 'ASC']);
             } else {
-                $query->orderBy(['start_date' => 'DESC']);
+                $query = $query->orderBy(['Gatherings.start_date' => 'DESC']);
             }
 
-            // If there are linked activities, filter by them
+            // If there are linked activities, filter by them using an inner join
             if (!empty($activityIds)) {
-                $query->matching('GatheringActivities', function ($q) use ($activityIds) {
+                $query = $query->innerJoinWith('GatheringActivities', function ($q) use ($activityIds) {
                     return $q->where(['GatheringActivities.id IN' => $activityIds]);
                 });
             } else {

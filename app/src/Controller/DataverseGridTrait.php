@@ -48,6 +48,11 @@ trait DataverseGridTrait
      *       Locked filters will not show remove (×) buttons and their values cannot be
      *       cleared via query string parameters. Useful for embedded grids where context
      *       filters (e.g., member_id) must always be applied.
+     *
+     * NOTE: Authorization scope must be applied to baseQuery BEFORE calling this method.
+     * Use `$baseQuery = $this->Authorization->applyScope($baseQuery, 'index');` in your
+     * controller before passing the query to processDataverseGrid().
+     *
      * @return array Result array with keys: data, gridState, columnsMetadata, etc.
      */
     protected function processDataverseGrid(array $config): array
@@ -257,7 +262,9 @@ trait DataverseGridTrait
         // Note: System view filters are ALWAYS applied. User-submitted filters only apply when canFilter is true.
         $incomingFilters = $this->request->getQuery('filter', []);
         $currentFilters = is_array($incomingFilters) ? $incomingFilters : [];
-        $skipFilterColumns = [];
+        // Always include config skipFilterColumns (columns that should never be filtered by the trait)
+        $configSkipFilterColumns = $config['skipFilterColumns'] ?? [];
+        $skipFilterColumns = $configSkipFilterColumns;
         $systemViewFilters = [];
 
         if ($selectedSystemView) {
@@ -280,9 +287,11 @@ trait DataverseGridTrait
                 }
             }
 
-            $skipFilterColumns = ($dirtyFilters || $hasIncomingFilters)
+            // Merge system view skipFilterColumns with config skipFilterColumns
+            $systemViewSkipColumns = ($dirtyFilters || $hasIncomingFilters)
                 ? []
                 : ($systemViewDefaults['skipFilterColumns'] ?? []);
+            $skipFilterColumns = array_unique(array_merge($configSkipFilterColumns, $systemViewSkipColumns));
         }
 
         // Determine which filters to apply:
@@ -328,7 +337,9 @@ trait DataverseGridTrait
                         continue;
                     }
 
-                    $qualifiedField = strpos($columnKey, '.') === false ? $tableName . '.' . $columnKey : $columnKey;
+                    // Use queryField if available (for relation columns), otherwise use column key
+                    $fieldToFilter = $columnMeta['queryField'] ?? $columnKey;
+                    $qualifiedField = strpos($fieldToFilter, '.') === false ? $tableName . '.' . $fieldToFilter : $fieldToFilter;
 
                     if (is_array($filterValue)) {
                         if ($columnMeta['type'] === 'boolean') {
@@ -547,11 +558,6 @@ trait DataverseGridTrait
             }
         } else {
             $baseQuery->orderBy($defaultSort);
-        }
-
-        // Apply authorization scope if available
-        if (method_exists($this, 'Authorization') && $this->Authorization) {
-            $baseQuery = $this->Authorization->applyScope($baseQuery);
         }
 
         // Check for CSV export request
@@ -939,6 +945,15 @@ trait DataverseGridTrait
      *    The app setting should contain a YAML array like: ['Kingdom', 'Principality', 'Barony']
      *    Both value and label will be set to the array item value.
      *
+     * 4. **Array with method**: Call a static method on a class to get options
+     *    ```php
+     *    'filterOptionsSource' => [
+     *        'method' => 'getGatheringsFilterOptions',  // Required: static method name
+     *        'class' => 'Awards\\KMP\\GridColumns\\RecommendationsGridColumns',  // Required: fully qualified class name
+     *    ]
+     *    ```
+     *    The method should return array of ['value' => string, 'label' => string].
+     *
      * @param string|array $source Source identifier string (table name) or configuration array
      * @return array Filter options as array of ['value' => string, 'label' => string]
      */
@@ -957,6 +972,18 @@ trait DataverseGridTrait
                 fn($value) => ['value' => (string)$value, 'label' => (string)$value],
                 $values
             );
+        }
+
+        // Handle method source - call a static method on a class
+        if (is_array($source) && !empty($source['method']) && !empty($source['class'])) {
+            $className = $source['class'];
+            $methodName = $source['method'];
+
+            if (class_exists($className) && method_exists($className, $methodName)) {
+                return $className::$methodName();
+            }
+
+            return [];
         }
 
         // Parse source configuration for table-based options

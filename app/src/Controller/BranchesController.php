@@ -68,7 +68,7 @@ class BranchesController extends AppController
         // Build base query with parent for path computation
         $baseQuery = $this->Branches->find()
             ->contain(['Parent']);
-
+        $baseQuery = $this->Authorization->applyScope($baseQuery, 'index');
         // Get system views from GridColumns
 
         // Use unified trait for grid processing

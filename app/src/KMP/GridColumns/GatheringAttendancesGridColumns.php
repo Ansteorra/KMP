@@ -15,6 +15,49 @@ use Cake\I18n\FrozenDate;
 class GatheringAttendancesGridColumns extends BaseGridColumns
 {
     /**
+     * Get row actions for gathering attendances grid
+     *
+     * Provides actions for viewing the gathering and editing attendance.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    public static function getRowActions(): array
+    {
+        return [
+            'view' => [
+                'key' => 'view',
+                'type' => 'link',
+                'label' => '',
+                'icon' => 'bi-binoculars',
+                'class' => 'btn btn-sm btn-secondary',
+                'permission' => 'view',
+                'url' => [
+                    'controller' => 'Gatherings',
+                    'action' => 'view',
+                    'idField' => 'gathering.public_id',
+                ],
+            ],
+            'edit' => [
+                'key' => 'edit',
+                'type' => 'modal',
+                'label' => '',
+                'icon' => 'bi-pencil-fill',
+                'class' => 'btn btn-sm btn-primary',
+                'modalTarget' => '#editGatheringAttendanceModal',
+                'dataAttributes' => [
+                    'attendance-id' => '{{id}}',
+                    'gathering-name' => '{{gathering.name}}',
+                    'public-note' => '{{public_note}}',
+                    'share-kingdom' => '{{share_with_kingdom}}',
+                    'share-hosting' => '{{share_with_hosting_group}}',
+                    'share-crown' => '{{share_with_crown}}',
+                    'is-public' => '{{is_public}}',
+                ],
+            ],
+        ];
+    }
+
+    /**
      * Get column metadata for gathering attendances grid
      */
     public static function getColumns(): array

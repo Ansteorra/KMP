@@ -53,6 +53,7 @@ echo $this->Form->create(null, [
     "url" => ["controller" => "AuthorizationApprovals", "action" => "deny"],
     "data-controller" => "revoke-form",
     "data-revoke-form-outlet-btn-outlet" => ".deny-btn",
+    "data-turbo" => "false",
 ]);
 echo $this->Modal->create("Deny Authorization", [
     "id" => "denyModal",
@@ -93,6 +94,7 @@ echo $this->Form->create(null, [
     "data-controller" => "activities-approve-and-assign-auth",
     "data-activities-approve-and-assign-auth-outlet-btn-outlet" => ".approve-btn",
     "data-activities-approve-and-assign-auth-url-value" => $this->Url->build(['plugin' => 'activities', 'controller' => 'AuthorizationApprovals', 'action' => 'AvailableApproversList']),
+    "data-turbo" => "false",
 ]);
 echo $this->Modal->create("Approve and Assign to next", [
     "id" => "approveAndAssignModal",

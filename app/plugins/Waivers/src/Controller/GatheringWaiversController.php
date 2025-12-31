@@ -1246,7 +1246,7 @@ class GatheringWaiversController extends AppController
         $currentUser = $this->Authentication->getIdentity();
 
         // Get branches user can upload waivers for
-        $branchIds = $currentUser->getBranchIdsForAction('upload', 'Waivers.GatheringWaivers');
+        $branchIds = $currentUser->getBranchIdsForAction('uploadWaivers', 'Waivers.GatheringWaivers');
 
         // If user has no branch permissions, show empty list
         if ($branchIds === null) {
@@ -1824,7 +1824,7 @@ class GatheringWaiversController extends AppController
     public function mobileSelectGathering()
     {
         $tempWaiver = $this->GatheringWaivers->newEmptyEntity();
-        $this->Authorization->authorize($tempWaiver, "add");
+        $this->Authorization->authorize($tempWaiver, "uploadWaivers");
 
         $currentUser = $this->Authentication->getIdentity();
         if (!$currentUser) {
@@ -1833,7 +1833,7 @@ class GatheringWaiversController extends AppController
         }
 
         // Check if user can add GatheringWaivers and get branch IDs they have permission for
-        $branchIds = $currentUser->getBranchIdsForAction('add', $tempWaiver);
+        $branchIds = $currentUser->getBranchIdsForAction('uploadWaivers', $tempWaiver);
 
         // If branchIds is null, user has global permission (super user or global permission)
         // If empty array, user has no permission
@@ -1933,7 +1933,7 @@ class GatheringWaiversController extends AppController
         $tempWaiver = $this->GatheringWaivers->newEmptyEntity();
         $tempWaiver->gathering = $gathering;
         $tempWaiver->gathering_id = $gatheringId;
-        $this->Authorization->authorize($tempWaiver, "add");
+        $this->Authorization->authorize($tempWaiver, "uploadWaivers");
 
         // Check if gathering has required waivers
         $requiredWaiverTypes = $this->_getRequiredWaiverTypes($gathering);
@@ -1948,7 +1948,7 @@ class GatheringWaiversController extends AppController
         $tempWaiver->gathering_id = $gathering->id;
         $tempWaiver->gathering = $gathering;
 
-        $branchIds = $currentUser->getBranchIdsForAction('add', $tempWaiver);
+        $branchIds = $currentUser->getBranchIdsForAction('uploadWaivers', $tempWaiver);
 
         // If branchIds is an empty array, user has no permission
         if (is_array($branchIds) && !in_array($gathering->branch_id, $branchIds)) {

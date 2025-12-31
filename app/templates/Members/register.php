@@ -17,7 +17,12 @@ echo $this->KMP->startBlock("title");
 echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': New Member Register';
 $this->KMP->endBlock(); ?>
 <div class="container-sm">
-    <?= $this->Form->create($member, ["type" => "file"]) ?>
+    <?= $this->Form->create($member, [
+        'type' => 'file',
+        'data-controller' => 'file-size-validator',
+        'data-file-size-validator-max-size-value' => $uploadLimits['maxFileSize'],
+        'data-file-size-validator-max-size-formatted-value' => $uploadLimits['formatted'],
+    ]) ?>
     <div class="card mb-3">
         <div class="card-body">
 
@@ -88,9 +93,9 @@ $this->KMP->endBlock(); ?>
                 <div class="mb-3 form-group">
                     <label class="form-label">Upload Membership Card (optional)</label>
                     <div class="card col-3"
-                        data-controller="image-preview file-size-validator"
-                        data-file-size-validator-max-size-value="<?= h($uploadLimits['maxFileSize']) ?>"
-                        data-file-size-validator-max-size-formatted-value="<?= h($uploadLimits['formatted']) ?>">
+                        data-controller="image-preview"
+                        data-image-preview-max-size-value="<?= h($uploadLimits['maxFileSize']) ?>"
+                        data-image-preview-max-size-formatted-value="<?= h($uploadLimits['formatted']) ?>">
 
                         <!-- Warning message container -->
                         <div data-file-size-validator-target="warning" class="d-none m-2"></div>
@@ -114,7 +119,10 @@ $this->KMP->endBlock(); ?>
                         </div>
                     </div>
             </fieldset>
-            <?= $this->Form->button(__("Submit"), ["class" => "btn-primary"]) ?>
+            <?= $this->Form->button(__("Submit"), [
+                'class' => 'btn-primary',
+                'data-file-size-validator-target' => 'submitButton',
+            ]) ?>
             <?= $this->Form->end() ?>
         </div>
     </div>

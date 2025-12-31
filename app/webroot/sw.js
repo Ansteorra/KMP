@@ -49,6 +49,11 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
+    // Only cache GET requests - POST, PUT, DELETE etc. cannot be cached
+    if (event.request.method !== 'GET') {
+        return;
+    }
+
     event.respondWith(
         (async function () {
             try {

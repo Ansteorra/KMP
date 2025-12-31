@@ -26,6 +26,8 @@ echo $this->Modal->create("Submit your SCA Card ", [
         <div class="mb-3 form-group">
             <label class="form-label">Upload Membership Card</label>
             <div class="card" data-controller="image-preview file-size-validator"
+                data-image-preview-max-size-value="<?= h($uploadLimits['maxFileSize']) ?>"
+                data-image-preview-max-size-formatted-value="<?= h($uploadLimits['formatted']) ?>"
                 data-file-size-validator-max-size-value="<?= h($uploadLimits['maxFileSize']) ?>"
                 data-file-size-validator-max-size-formatted-value="<?= h($uploadLimits['formatted']) ?>">
 

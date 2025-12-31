@@ -12,7 +12,11 @@
 echo $this->KMP->startBlock("title");
 echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Permissions Matrix';
 $this->KMP->endBlock(); ?>
-<h3>Permissions Matrix</h3>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="mb-0">Permissions Matrix</h3>
+</div>
+
 <div class="permissions-matrix" data-controller="permission-manage-policies"
     data-permission-manage-policies-url-value="<?= $this->Url->build([
                                                                                                                             "controller" => "Permissions",
