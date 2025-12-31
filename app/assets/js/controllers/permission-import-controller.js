@@ -42,7 +42,7 @@ class PermissionImport extends Controller {
 
     /** @type {string|null} Base64 encoded import data for final submission */
     importData = null
-    
+
     /** @type {HTMLInputElement|null} External file input reference */
     externalFileInput = null
 
@@ -51,7 +51,7 @@ class PermissionImport extends Controller {
      */
     connect() {
         this.importData = null
-        
+
         // If buttons are in an external container, wire them up
         if (this.hasButtonContainerValue && this.buttonContainerValue) {
             const container = document.querySelector(this.buttonContainerValue)
@@ -61,7 +61,7 @@ class PermissionImport extends Controller {
                 if (this.externalFileInput) {
                     this.externalFileInput.addEventListener('change', this.handleFileSelect.bind(this))
                 }
-                
+
                 // Find the import button and wire it up
                 const importBtn = container.querySelector('[data-action*="triggerFileSelect"]')
                 if (importBtn) {

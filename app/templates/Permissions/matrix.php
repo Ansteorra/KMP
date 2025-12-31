@@ -19,9 +19,9 @@ $this->KMP->endBlock(); ?>
 
 <div class="permissions-matrix" data-controller="permission-manage-policies"
     data-permission-manage-policies-url-value="<?= $this->Url->build([
-                                                                                                                            "controller" => "Permissions",
-                                                                                                                            "action" => "updatePolicy"
-                                                                                                                        ], ["fullBase" => true]) ?>">
+                                                    "controller" => "Permissions",
+                                                    "action" => "updatePolicy"
+                                                ], ["fullBase" => true]) ?>">
 
 
     <div class="table-container">
@@ -31,9 +31,9 @@ $this->KMP->endBlock(); ?>
                     <tr>
                         <th class="policy-header fixed-cell">Policy</th>
                         <?php foreach ($permissions as $permission): ?>
-                        <th class="permission-header">
-                            <?= h($permission->name) ?>
-                        </th>
+                            <th class="permission-header">
+                                <?= h($permission->name) ?>
+                            </th>
                         <?php endforeach; ?>
                     </tr>
                 </thead>
@@ -55,32 +55,32 @@ $this->KMP->endBlock(); ?>
                             $currentClass = $newClass;
                         }
                     ?>
-                    <?php if ($isNewNamespace): ?>
-                    <tr class="namespace-row">
-                        <td colspan="<?= count($permissions) + 1 ?>" class="namespace-cell">
-                            <strong><?= h($policy['namespace']) ?></strong>
-                        </td>
-                    </tr>
-                    <?php endif; ?>
-                    <tr <?php if ($isNewClass):
+                        <?php if ($isNewNamespace): ?>
+                            <tr class="namespace-row">
+                                <td colspan="<?= count($permissions) + 1 ?>" class="namespace-cell">
+                                    <strong><?= h($policy['namespace']) ?></strong>
+                                </td>
+                            </tr>
+                        <?php endif; ?>
+                        <tr <?php if ($isNewClass):
                                 echo 'class="new-group row_' . $nameSpace . '"';
                             else:
                                 echo 'class="row_' . $nameSpace . ' row_' . $fullClassName . ' collapse" ';
                             endif; ?>>
-                        <td class="policy-cell fixed-cell <?= $isNewClass ? 'policy-class' : '' ?>"
-                            <?= $isNewClass ? ' data-bs-toggle="collapse" data-bs-target=".row_' . $fullClassName . '"' : '' ?>>
-                            <?= $isNewClass ? '<strong>' . h($policy['className']) . '</strong>' : '' ?>
-                            <?= h($policy['display']) ?>
-                        </td>
-                        <?php foreach ($permissions as $permission): ?>
-                        <?php
+                            <td class="policy-cell fixed-cell <?= $isNewClass ? 'policy-class' : '' ?>"
+                                <?= $isNewClass ? ' data-bs-toggle="collapse" data-bs-target=".row_' . $fullClassName . '"' : '' ?>>
+                                <?= $isNewClass ? '<strong>' . h($policy['className']) . '</strong>' : '' ?>
+                                <?= h($policy['display']) ?>
+                            </td>
+                            <?php foreach ($permissions as $permission): ?>
+                                <?php
                                 $key = $permission->id . '_' . $policy['class'] . '_' . $policy['method'];
                                 $checked = isset($policyMap[$key]);
                                 $className = $fullClassName;
                                 ?>
-                        <td class="checkbox-cell">
-                            <?php if ($isNewClass): ?>
-                            <?= $this->Form->control($key, [
+                                <td class="checkbox-cell">
+                                    <?php if ($isNewClass): ?>
+                                        <?= $this->Form->control($key, [
                                             "type" => "checkbox",
                                             "switch" => true,
                                             'label' => "",
@@ -88,8 +88,8 @@ $this->KMP->endBlock(); ?>
                                             "data-class-name" => $className,
                                             "data-permission-id" => $permission->id
                                         ]) ?>
-                            <?php else: ?>
-                            <?= $this->Form->control($key, [
+                                    <?php else: ?>
+                                        <?= $this->Form->control($key, [
                                             "type" => "checkbox",
                                             "checked" => $checked,
                                             "switch" => true,
@@ -99,10 +99,10 @@ $this->KMP->endBlock(); ?>
                                             "data-method-name" => h($policy['method']),
                                             "data-permission-id" => $permission->id
                                         ]) ?>
-                            <?php endif; ?>
-                        </td>
-                        <?php endforeach; ?>
-                    </tr>
+                                    <?php endif; ?>
+                                </td>
+                            <?php endforeach; ?>
+                        </tr>
                     <?php endforeach; ?>
                 </tbody>
             </table>
