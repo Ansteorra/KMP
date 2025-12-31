@@ -1,11 +1,10 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Policy;
 
 /**
- * ActivityGroupsTable policy
+ * BranchesTable policy
  */
-class BranchesTablePolicy extends BasePolicy
-{
-}
+class BranchesTablePolicy extends BasePolicy {}

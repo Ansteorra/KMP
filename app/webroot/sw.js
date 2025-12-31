@@ -49,31 +49,36 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
+    // Only cache GET requests - POST, PUT, DELETE etc. cannot be cached
+    if (event.request.method !== 'GET') {
+        return;
+    }
+
     event.respondWith(
         (async function () {
             try {
                 // Try to fetch from network first
                 const networkResponse = await fetch(event.request);
-                
+
                 // Cache successful responses (including JSON endpoints)
                 if (networkResponse && networkResponse.status === 200) {
                     const cache = await caches.open(CACHE_NAME);
                     // Clone the response because it can only be consumed once
                     cache.put(event.request, networkResponse.clone());
                 }
-                
+
                 return networkResponse;
             } catch (err) {
                 // Network failed, try to serve from cache
                 console.log('Network request failed, serving from cache:', event.request.url);
-                const cachedResponse = await caches.open(CACHE_NAME).then((cache) => 
+                const cachedResponse = await caches.open(CACHE_NAME).then((cache) =>
                     cache.match(event.request, { ignoreVary: true })
                 );
-                
+
                 if (cachedResponse) {
                     return cachedResponse;
                 }
-                
+
                 // If no cache available, return a basic offline response
                 console.error('No cache available for:', event.request.url);
                 throw err;

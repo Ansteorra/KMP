@@ -164,7 +164,9 @@ class MemberAuthorizationsGridColumns extends BaseGridColumns
     public static function getSystemViews(array $options = []): array
     {
         $today = FrozenDate::today();
-        $todayString = $today->format('Y-m-d');
+        //we need to make today the last moment of the day to include authorizations that expire today
+        $today = DateTime::createFromFormat('Y-m-d H:i:s', $today->format('Y-m-d') . ' 23:59:59');
+        $todayString = $today->format('Y-m-d H:i:s');
         return [
             'current' => [
                 'id' => 'current',

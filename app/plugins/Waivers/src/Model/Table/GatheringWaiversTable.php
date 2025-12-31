@@ -233,7 +233,7 @@ class GatheringWaiversTable extends Table
         $member = $membersTable->get($memberId);
 
         // Get branches user can upload waivers for
-        $branchIds = $member->getBranchIdsForAction('add', 'Waivers.GatheringWaivers');
+        $branchIds = $member->getBranchIdsForAction('needingWaivers', 'Waivers.GatheringWaivers');
 
         // If user has no permissions, return 0
         if (is_array($branchIds) && empty($branchIds)) {

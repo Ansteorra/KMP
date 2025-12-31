@@ -7,6 +7,7 @@ namespace App\Controller;
 use App\KMP\PermissionsLoader;
 use App\Services\CsvExportService;
 use Cake\Http\Exception\BadRequestException;
+use Cake\Http\Exception\ForbiddenException;
 use Cake\Http\Exception\NotFoundException;
 
 /**
@@ -32,7 +33,7 @@ class PermissionsController extends AppController
 
         // Configure model-level authorization for specific actions
         // These actions will have automatic model authorization applied
-        $this->Authorization->authorizeModel('index', 'add', 'matrix', 'gridData');
+        $this->Authorization->authorizeModel('index', 'add', 'matrix', 'gridData', 'exportPolicies', 'importPolicies', 'previewImport');
     }
 
     /**
@@ -518,5 +519,291 @@ class PermissionsController extends AppController
         }
 
         return $this->redirect(['action' => 'index']);
+    }
+
+    /**
+     * Export policies - Export a single permission with its policy associations
+     *
+     * Exports a permission and its policy mappings to JSON format.
+     * Only available to super users for security purposes.
+     *
+     * @param string|null $id Permission id to export
+     * @return \Cake\Http\Response JSON file download
+     * @throws \Cake\Http\Exception\ForbiddenException If user is not a super user
+     * @throws \Cake\Http\Exception\NotFoundException If permission not found
+     */
+    public function exportPolicies(?string $id = null)
+    {
+        // Verify super user access
+        if (!$this->Authentication->getIdentity()->isSuperUser()) {
+            throw new ForbiddenException(__('Only super users can export permission policies.'));
+        }
+
+        // Load the specific permission with its policy associations
+        $permission = $this->Permissions->get($id, contain: ['PermissionPolicies']);
+        if (!$permission) {
+            throw new NotFoundException(__('Permission not found.'));
+        }
+
+        // Build export data structure
+        $exportData = [
+            'version' => '1.0',
+            'exported_at' => date('Y-m-d H:i:s'),
+            'permission_name' => $permission->name,
+            'policies' => [],
+        ];
+
+        // Export policies by class and method name (not IDs)
+        foreach ($permission->permission_policies as $policy) {
+            $exportData['policies'][] = [
+                'policy_class' => $policy->policy_class,
+                'policy_method' => $policy->policy_method,
+            ];
+        }
+
+        // Return as downloadable JSON file
+        $jsonContent = json_encode($exportData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        $safeName = preg_replace('/[^a-zA-Z0-9_-]/', '_', $permission->name);
+        $filename = 'permission-' . $safeName . '-' . date('Y-m-d-His') . '.json';
+
+        $this->response = $this->response
+            ->withType('application/json')
+            ->withHeader('Content-Disposition', 'attachment; filename="' . $filename . '"')
+            ->withStringBody($jsonContent);
+
+        return $this->response;
+    }
+
+    /**
+     * Preview import - Analyze import file and show changes for a single permission
+     *
+     * Analyzes the uploaded JSON file and returns a preview of changes
+     * that would be made during import. This is an AJAX endpoint.
+     *
+     * @param string|null $id Permission id to import into
+     * @return \Cake\Http\Response JSON response with preview data
+     * @throws \Cake\Http\Exception\ForbiddenException If user is not a super user
+     * @throws \Cake\Http\Exception\BadRequestException If file is invalid
+     */
+    public function previewImport(?string $id = null)
+    {
+        // Verify super user access
+        if (!$this->Authentication->getIdentity()->isSuperUser()) {
+            throw new ForbiddenException(__('Only super users can import permission policies.'));
+        }
+
+        if (!$this->request->is('post')) {
+            throw new BadRequestException(__('Invalid request method.'));
+        }
+
+        if (!$id) {
+            return $this->response
+                ->withType('application/json')
+                ->withStatus(400)
+                ->withStringBody(json_encode(['error' => __('Permission ID required.')]));
+        }
+
+        // Load the target permission
+        $permission = $this->Permissions->get($id, contain: ['PermissionPolicies']);
+        if (!$permission) {
+            return $this->response
+                ->withType('application/json')
+                ->withStatus(404)
+                ->withStringBody(json_encode(['error' => __('Permission not found.')]));
+        }
+
+        // Get uploaded file
+        $uploadedFile = $this->request->getUploadedFile('import_file');
+        if (!$uploadedFile || $uploadedFile->getError() !== UPLOAD_ERR_OK) {
+            return $this->response
+                ->withType('application/json')
+                ->withStatus(400)
+                ->withStringBody(json_encode(['error' => __('No file uploaded or upload error.')]));
+        }
+
+        // Read and parse JSON
+        $content = $uploadedFile->getStream()->getContents();
+        $importData = json_decode($content, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return $this->response
+                ->withType('application/json')
+                ->withStatus(400)
+                ->withStringBody(json_encode(['error' => __('Invalid JSON file.')]));
+        }
+
+        if (!isset($importData['policies']) || !is_array($importData['policies'])) {
+            return $this->response
+                ->withType('application/json')
+                ->withStatus(400)
+                ->withStringBody(json_encode(['error' => __('Invalid file format: missing policies array.')]));
+        }
+
+        // Build current policy set for this permission
+        $currentPolicies = [];
+        foreach ($permission->permission_policies as $policy) {
+            $currentPolicies[] = $policy->policy_class . '::' . $policy->policy_method;
+        }
+        sort($currentPolicies);
+
+        // Build import policy set
+        $importPolicies = [];
+        foreach ($importData['policies'] as $policy) {
+            $importPolicies[] = $policy['policy_class'] . '::' . $policy['policy_method'];
+        }
+        sort($importPolicies);
+
+        // Calculate changes
+        $toAdd = array_diff($importPolicies, $currentPolicies);
+        $toRemove = array_diff($currentPolicies, $importPolicies);
+
+        $changes = [
+            'policies_to_add' => [],
+            'policies_to_remove' => [],
+            'source_permission' => $importData['permission_name'] ?? 'Unknown',
+            'target_permission' => $permission->name,
+            'summary' => [
+                'total_add' => count($toAdd),
+                'total_remove' => count($toRemove),
+            ],
+        ];
+
+        foreach ($toAdd as $policy) {
+            $parts = explode('::', $policy);
+            $changes['policies_to_add'][] = [
+                'policy_class' => $parts[0],
+                'policy_method' => $parts[1],
+            ];
+        }
+
+        foreach ($toRemove as $policy) {
+            $parts = explode('::', $policy);
+            $changes['policies_to_remove'][] = [
+                'policy_class' => $parts[0],
+                'policy_method' => $parts[1],
+            ];
+        }
+
+        return $this->response
+            ->withType('application/json')
+            ->withStringBody(json_encode([
+                'success' => true,
+                'changes' => $changes,
+                'import_data' => base64_encode($content),
+            ]));
+    }
+
+    /**
+     * Import policies - Apply imported policy configuration to a single permission
+     *
+     * Applies the policy changes from the import preview. Expects JSON body
+     * with the import data that was previewed.
+     *
+     * @param string|null $id Permission id to import into
+     * @return \Cake\Http\Response JSON response with import results
+     * @throws \Cake\Http\Exception\ForbiddenException If user is not a super user
+     * @throws \Cake\Http\Exception\BadRequestException If request is invalid
+     */
+    public function importPolicies(?string $id = null)
+    {
+        // Verify super user access
+        if (!$this->Authentication->getIdentity()->isSuperUser()) {
+            throw new ForbiddenException(__('Only super users can import permission policies.'));
+        }
+
+        if (!$this->request->is('post') || !$this->request->is('json')) {
+            throw new BadRequestException(__('Invalid request.'));
+        }
+
+        if (!$id) {
+            return $this->response
+                ->withType('application/json')
+                ->withStatus(400)
+                ->withStringBody(json_encode(['error' => __('Permission ID required.')]));
+        }
+
+        // Load the target permission
+        $permission = $this->Permissions->get($id, contain: ['PermissionPolicies']);
+        if (!$permission) {
+            return $this->response
+                ->withType('application/json')
+                ->withStatus(404)
+                ->withStringBody(json_encode(['error' => __('Permission not found.')]));
+        }
+
+        $requestData = $this->request->getData();
+        if (empty($requestData['import_data'])) {
+            return $this->response
+                ->withType('application/json')
+                ->withStatus(400)
+                ->withStringBody(json_encode(['error' => __('No import data provided.')]));
+        }
+
+        // Decode the import data
+        $content = base64_decode($requestData['import_data']);
+        $importData = json_decode($content, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE || !isset($importData['policies'])) {
+            return $this->response
+                ->withType('application/json')
+                ->withStatus(400)
+                ->withStringBody(json_encode(['error' => __('Invalid import data.')]));
+        }
+
+        $permissionPoliciesTable = $this->fetchTable('PermissionPolicies');
+        $results = [
+            'added' => 0,
+            'removed' => 0,
+            'errors' => [],
+        ];
+
+        // Build current policy lookup for this permission
+        $currentPolicies = [];
+        foreach ($permission->permission_policies as $policy) {
+            $key = $policy->policy_class . '::' . $policy->policy_method;
+            $currentPolicies[$key] = $policy;
+        }
+
+        // Build import policy set
+        $importPolicies = [];
+        foreach ($importData['policies'] as $policy) {
+            $key = $policy['policy_class'] . '::' . $policy['policy_method'];
+            $importPolicies[$key] = $policy;
+        }
+
+        // Add policies that are in import but not current
+        foreach ($importPolicies as $key => $policyData) {
+            if (!isset($currentPolicies[$key])) {
+                $newPolicy = $permissionPoliciesTable->newEntity([
+                    'permission_id' => $permission->id,
+                    'policy_class' => $policyData['policy_class'],
+                    'policy_method' => $policyData['policy_method'],
+                ]);
+
+                if ($permissionPoliciesTable->save($newPolicy)) {
+                    $results['added']++;
+                } else {
+                    $results['errors'][] = __('Failed to add policy {0}', $key);
+                }
+            }
+        }
+
+        // Remove policies that are in current but not import
+        foreach ($currentPolicies as $key => $policy) {
+            if (!isset($importPolicies[$key])) {
+                if ($permissionPoliciesTable->delete($policy)) {
+                    $results['removed']++;
+                } else {
+                    $results['errors'][] = __('Failed to remove policy {0}', $key);
+                }
+            }
+        }
+
+        return $this->response
+            ->withType('application/json')
+            ->withStringBody(json_encode([
+                'success' => true,
+                'results' => $results,
+            ]));
     }
 }

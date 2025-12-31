@@ -345,6 +345,7 @@ class OfficersController extends AppController
             'canAddViews' => false,
             'canFilter' => true,
             'canExportCsv' => true,
+            'showFilterPills' => false,
         ];
         if ($context = 'member') {
             $gridConfig['canExportCsv'] = false;

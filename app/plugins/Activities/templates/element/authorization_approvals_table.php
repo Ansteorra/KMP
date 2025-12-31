@@ -25,36 +25,37 @@ $allColumns = $gridState['columns']['all'] ?? [];
         <thead>
             <tr>
                 <?php foreach ($visibleColumns as $columnKey): ?>
-                    <?php $column = $allColumns[$columnKey] ?? null; ?>
-                    <?php if ($column): ?>
-                        <th scope="col">
-                            <?= h($column['label'] ?? $columnKey) ?>
-                        </th>
-                    <?php endif; ?>
+                <?php $column = $allColumns[$columnKey] ?? null; ?>
+                <?php if ($column): ?>
+                <th scope="col">
+                    <?= h($column['label'] ?? $columnKey) ?>
+                </th>
+                <?php endif; ?>
                 <?php endforeach; ?>
                 <?php if ($isPendingView): ?>
-                    <th scope="col" class="actions"></th>
+                <th scope="col" class="actions"></th>
                 <?php endif; ?>
             </tr>
         </thead>
         <tbody>
             <?php if (empty($data) || (is_countable($data) && count($data) === 0)): ?>
-                <tr>
-                    <td colspan="<?= count($visibleColumns) + ($isPendingView ? 1 : 0) ?>" class="text-center text-muted py-4">
-                        <?php if ($isPendingView): ?>
-                            No pending authorization requests.
-                        <?php elseif ($isApprovedView): ?>
-                            No approved authorization requests.
-                        <?php elseif ($isDeniedView): ?>
-                            No denied authorization requests.
-                        <?php else: ?>
-                            No records found.
-                        <?php endif; ?>
-                    </td>
-                </tr>
+            <tr>
+                <td colspan="<?= count($visibleColumns) + ($isPendingView ? 1 : 0) ?>"
+                    class="text-center text-muted py-4">
+                    <?php if ($isPendingView): ?>
+                    No pending authorization requests.
+                    <?php elseif ($isApprovedView): ?>
+                    No approved authorization requests.
+                    <?php elseif ($isDeniedView): ?>
+                    No denied authorization requests.
+                    <?php else: ?>
+                    No records found.
+                    <?php endif; ?>
+                </td>
+            </tr>
             <?php else: ?>
-                <?php foreach ($data as $request): ?>
-                    <?php
+            <?php foreach ($data as $request): ?>
+            <?php
                     // Calculate if more approvals are needed (for pending view)
                     $hasMoreApprovalsToGo = false;
                     if ($isPendingView && isset($request->authorization)) {
@@ -64,12 +65,12 @@ $allColumns = $gridState['columns']['all'] ?? [];
                         $hasMoreApprovalsToGo = ($authsNeeded - $request->authorization->approval_count) > 1;
                     }
                     ?>
-                    <tr>
-                        <?php foreach ($visibleColumns as $columnKey): ?>
-                            <?php $column = $allColumns[$columnKey] ?? null; ?>
-                            <?php if ($column): ?>
-                                <td>
-                                    <?php
+            <tr>
+                <?php foreach ($visibleColumns as $columnKey): ?>
+                <?php $column = $allColumns[$columnKey] ?? null; ?>
+                <?php if ($column): ?>
+                <td>
+                    <?php
                                     // Get the value based on column configuration
                                     $value = null;
                                     $renderField = $column['renderField'] ?? null;
@@ -108,40 +109,43 @@ $allColumns = $gridState['columns']['all'] ?? [];
                                         echo h($value);
                                     }
                                     ?>
-                                </td>
-                            <?php endif; ?>
-                        <?php endforeach; ?>
-                        <?php if ($isPendingView): ?>
-                            <td class="actions text-end text-nowrap">
-                                <?php if ($hasMoreApprovalsToGo): ?>
-                                    <button type="button" class="btn btn-primary approve-btn" data-bs-toggle="modal"
-                                        data-bs-target="#approveAndAssignModal"
-                                        data-controller="outlet-btn" data-action="click->outlet-btn#fireNotice"
-                                        data-outlet-btn-btn-data-value='{"id":<?= $request->id ?>}'>Approve</button>
-                                <?php else: ?>
-                                    <?= $this->Form->postLink(
-                                        __("Approve"),
-                                        ["action" => "approve", $request->id],
-                                        [
-                                            "confirm" => __(
-                                                "Are you sure you want to approve {0} for {1}?",
-                                                $request->authorization->member->sca_name ?? 'this member',
-                                                $request->authorization->activity->name ?? 'this authorization',
-                                            ),
-                                            "title" => __("Approve"),
-                                            "class" => "btn-sm btn btn-primary",
-                                        ],
-                                    ) ?>
-                                <?php endif; ?>
-                                <button type="button" class="btn-sm btn btn-secondary deny-btn" data-bs-toggle="modal"
-                                    data-bs-target="#denyModal" data-controller="outlet-btn"
-                                    data-action="click->outlet-btn#fireNotice"
-                                    data-outlet-btn-btn-data-value='{"id":<?= $request->id ?>}'>
-                                    Deny</button>
-                            </td>
-                        <?php endif; ?>
-                    </tr>
+                </td>
+                <?php endif; ?>
                 <?php endforeach; ?>
+                <?php if ($isPendingView): ?>
+                <td class="actions text-end text-nowrap">
+                    <?php if ($hasMoreApprovalsToGo): ?>
+                    <button type="button" class="btn btn-primary approve-btn" data-bs-toggle="modal"
+                        data-bs-target="#approveAndAssignModal" data-controller="outlet-btn"
+                        data-action="click->outlet-btn#fireNotice"
+                        data-outlet-btn-btn-data-value='{"id":<?= $request->id ?>}'>Approve</button>
+                    <?php else: ?>
+                    <?= $this->Form->create(null, [
+                        'url' => ['action' => 'approve', $request->id],
+                        'data-turbo' => 'false',
+                        'style' => 'display:inline;',
+                        'onsubmit' => 'return confirm(' . json_encode(__(
+                            "Are you sure you want to approve {0} for {1}?",
+                            $request->authorization->member->sca_name ?? 'this member',
+                            $request->authorization->activity->name ?? 'this authorization',
+                        )) . ')'
+                    ]) ?>
+                    <?= $this->Form->button(__("Approve"), [
+                        "type" => "submit",
+                        "title" => __("Approve"),
+                        "class" => "btn-sm btn btn-primary"
+                    ]) ?>
+                    <?= $this->Form->end() ?>
+                    <?php endif; ?>
+                    <button type="button" class="btn-sm btn btn-secondary deny-btn" data-bs-toggle="modal"
+                        data-bs-target="#denyModal" data-controller="outlet-btn"
+                        data-action="click->outlet-btn#fireNotice"
+                        data-outlet-btn-btn-data-value='{"id":<?= $request->id ?>}'>
+                        Deny</button>
+                </td>
+                <?php endif; ?>
+            </tr>
+            <?php endforeach; ?>
             <?php endif; ?>
         </tbody>
     </table>
@@ -156,5 +160,6 @@ $allColumns = $gridState['columns']['all'] ?? [];
         <?= $this->Paginator->next(__('next') . ' >') ?>
         <?= $this->Paginator->last(__('last') . ' >>') ?>
     </ul>
-    <p><?= $this->Paginator->counter(__('Page {{page}} of {{pages}}, showing {{current}} record(s) out of {{count}} total')) ?></p>
+    <p><?= $this->Paginator->counter(__('Page {{page}} of {{pages}}, showing {{current}} record(s) out of {{count}} total')) ?>
+    </p>
 </div>

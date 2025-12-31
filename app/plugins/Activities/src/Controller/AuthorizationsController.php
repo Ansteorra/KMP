@@ -344,10 +344,10 @@ class AuthorizationsController extends AppController
             'defaultSystemView' => 'current',
             'showAllTab' => false,
             'canAddViews' => false,
-            'canFilter' => true,
+            'canFilter' => false,
             'canExportCsv' => false,
             'lockedFilters' => ['status'],
-            'showFilterPills' => true,
+            'showFilterPills' => false,
             'showViewTabs' => true,
             'enableColumnPicker' => false,
         ]);

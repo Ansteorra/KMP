@@ -32,6 +32,49 @@ class ImagePreview extends Controller {
 
     static targets = ['file', 'preview', 'loading']
 
+    static values = {
+        maxSize: Number,
+        maxSizeFormatted: String,
+    }
+
+    connect() {
+        // If this controller doesn't have explicit max size values, try to
+        // inherit them from the nearest enclosing file-size-validator scope.
+        if (!this.hasMaxSizeValue) {
+            const inherited = this.element.closest('[data-file-size-validator-max-size-value]')
+            if (inherited?.dataset?.fileSizeValidatorMaxSizeValue) {
+                const parsed = parseInt(inherited.dataset.fileSizeValidatorMaxSizeValue, 10)
+                if (!Number.isNaN(parsed)) {
+                    this.maxSizeValue = parsed
+                }
+            }
+        }
+
+        if (!this.hasMaxSizeFormattedValue) {
+            const inherited = this.element.closest('[data-file-size-validator-max-size-formatted-value]')
+            if (inherited?.dataset?.fileSizeValidatorMaxSizeFormattedValue) {
+                this.maxSizeFormattedValue = inherited.dataset.fileSizeValidatorMaxSizeFormattedValue
+            }
+        }
+    }
+
+    buildOversizeMessage(file) {
+        const maxSize = this.maxSizeFormattedValue || this.formatBytes(this.maxSizeValue || 0)
+        return `The file "${file.name}" (${this.formatBytes(file.size)}) exceeds the maximum upload size of ${maxSize}.`
+    }
+
+    formatBytes(bytes, decimals = 2) {
+        if (!bytes || bytes === 0) return '0 Bytes'
+
+        const k = 1024
+        const dm = decimals < 0 ? 0 : decimals
+        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB']
+
+        const i = Math.floor(Math.log(bytes) / Math.log(k))
+
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i]
+    }
+
     /**
      * Generate and display image preview
      * Creates object URL for selected image and updates preview display
@@ -40,10 +83,14 @@ class ImagePreview extends Controller {
      */
     preview(event) {
         if (event.target.files.length > 0) {
-            //check that the file is less than 2M
-            if (event.target.files[0].size > 2 * 1024 * 1024) {
-                alert("File size must be less than 2MB");
-                return;
+            const file = event.target.files[0]
+
+            if (this.hasMaxSizeValue && this.maxSizeValue > 0 && file.size > this.maxSizeValue) {
+                alert(this.buildOversizeMessage(file))
+
+                // Clear invalid selection so validators + UI stay consistent
+                event.target.value = ''
+                return
             }
             const reader = new FileReader();
             reader.onload = () => {
@@ -51,7 +98,7 @@ class ImagePreview extends Controller {
                 this.loadingTarget.classList.add("d-none");
                 this.previewTarget.hidden = false;
             };
-            reader.readAsDataURL(event.target.files[0]);
+            reader.readAsDataURL(file);
         }
     }
 }

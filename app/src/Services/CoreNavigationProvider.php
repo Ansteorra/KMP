@@ -334,17 +334,6 @@ class CoreNavigationProvider
                     'Permissions/view/*',
                 ],
             ],
-            [
-                'type' => 'link',
-                'mergePath' => ['Security', 'Permissions'],
-                'label' => 'Policy Matrix',
-                'order' => 0,
-                'url' => [
-                    'controller' => 'Permissions',
-                    'action' => 'matrix',
-                ],
-                'icon' => 'bi-table',
-            ],
         ];
     }
 }

@@ -191,19 +191,19 @@ class RecommendationsGridColumns extends BaseGridColumns
                 'description' => 'Order of Precedence external links',
             ],
 
-            'branch_name' => [
-                'key' => 'branch_name',
+            'branch_id' => [
+                'key' => 'branch_id',
                 'label' => 'Branch',
                 'type' => 'relation',
                 'sortable' => true,
-                'searchable' => true,
                 'filterable' => true,
                 'filterType' => 'dropdown',
+                'filterOptionsSource' => 'Branches',
                 'defaultVisible' => true,
-                'width' => '150px',
+                'width' => '220px',
                 'alignment' => 'left',
                 'renderField' => 'branch.name',
-                'queryField' => 'Branches.name',
+                'queryField' => 'Branches.id',
                 'description' => 'Branch of member being recommended',
             ],
 
@@ -215,7 +215,7 @@ class RecommendationsGridColumns extends BaseGridColumns
                 'searchable' => false,
                 'filterable' => true,
                 'filterType' => 'dropdown',
-                'defaultVisible' => false,
+                'defaultVisible' => true,
                 'width' => '130px',
                 'alignment' => 'left',
                 'filterOptions' => [
@@ -310,7 +310,8 @@ class RecommendationsGridColumns extends BaseGridColumns
                 'width' => '120px',
                 'alignment' => 'left',
                 'renderField' => 'award.domain.name',
-                'queryField' => 'Domains.name',
+                'queryField' => 'Domains.id',
+                'filterOptionsSource' => 'Awards.Domains',
                 'description' => 'Award domain (e.g., Arts & Sciences, Combat)',
             ],
 
@@ -362,12 +363,17 @@ class RecommendationsGridColumns extends BaseGridColumns
                 'type' => 'html',
                 'sortable' => false,
                 'searchable' => false,
-                'filterable' => false,
+                'filterable' => true,
+                'filterType' => 'dropdown',
+                'filterOptionsSource' => [
+                    'method' => 'getGatheringsFilterOptions',
+                    'class' => 'Awards\\KMP\\GridColumns\\RecommendationsGridColumns',
+                ],
                 'defaultVisible' => true,
                 'exportable' => false,
                 'width' => '180px',
                 'alignment' => 'left',
-                'description' => 'Member attendance at related gatherings',
+                'description' => 'Gatherings linked to recommendation or member attendance (shared with crown/public)',
             ],
 
             'notes' => [
@@ -473,10 +479,10 @@ class RecommendationsGridColumns extends BaseGridColumns
                 'description' => 'Date award was presented',
             ],
 
-            'award_branch_type' => [
-                'key' => 'award_branch_type',
+            'branch_type' => [
+                'key' => 'branch_type',
                 'label' => 'Award Level',
-                'type' => 'string',
+                'type' => 'relation',
                 'sortable' => false,
                 'searchable' => false,
                 'filterable' => true,
@@ -484,6 +490,8 @@ class RecommendationsGridColumns extends BaseGridColumns
                 'defaultVisible' => false,
                 'width' => '120px',
                 'alignment' => 'left',
+                'renderField' => 'branch.type',
+                'queryField' => 'Branches.type',
                 'filterOptions' => [
                     ['value' => 'Kingdom', 'label' => 'Kingdom'],
                     ['value' => 'Principality', 'label' => 'Principality'],
@@ -570,7 +578,7 @@ class RecommendationsGridColumns extends BaseGridColumns
                         'columns' => [
                             'member_sca_name',
                             'op_links',
-                            'branch_name',
+                            'branch_id',
                             'domain_name',
                             'award_name',
                             'reason',
@@ -594,7 +602,7 @@ class RecommendationsGridColumns extends BaseGridColumns
                         'created',
                         'member_sca_name',
                         'op_links',
-                        'branch_name',
+                        'branch_id',
                         'domain_name',
                         'award_name',
                         'reason',
@@ -620,7 +628,7 @@ class RecommendationsGridColumns extends BaseGridColumns
                         'created',
                         'member_sca_name',
                         'op_links',
-                        'branch_name',
+                        'branch_id',
                         'domain_name',
                         'award_name',
                         'reason',
@@ -641,7 +649,7 @@ class RecommendationsGridColumns extends BaseGridColumns
                     'columns' => [
                         'created',
                         'member_sca_name',
-                        'branch_name',
+                        'branch_id',
                         'call_into_court',
                         'court_availability',
                         'person_to_notify',
@@ -665,7 +673,7 @@ class RecommendationsGridColumns extends BaseGridColumns
                     'columns' => [
                         'created',
                         'member_sca_name',
-                        'branch_name',
+                        'branch_id',
                         'call_into_court',
                         'court_availability',
                         'person_to_notify',
@@ -689,7 +697,7 @@ class RecommendationsGridColumns extends BaseGridColumns
                     'columns' => [
                         'created',
                         'member_sca_name',
-                        'branch_name',
+                        'branch_id',
                         'award_name',
                         'reason',
                         'notes',
@@ -762,5 +770,133 @@ class RecommendationsGridColumns extends BaseGridColumns
             }
         }
         return $exportable;
+    }
+
+    /**
+     * Get gatherings filter options for recommendations grid.
+     *
+     * Returns a list of gatherings relevant to award recommendations:
+     * - All future gatherings (starting from today)
+     * - Past gatherings that have recommendations linked to them (via awards_recommendations_events)
+     *   or have member attendance with share_with_crown, share_with_kingdom, or is_public
+     * - Limited to 6 months of back-looking for performance
+     *
+     * @return array<array<string, string>> Filter options for gatherings dropdown
+     */
+    public static function getGatheringsFilterOptions(): array
+    {
+        $gatheringsTable = \Cake\ORM\TableRegistry::getTableLocator()->get('Gatherings');
+        $now = new \Cake\I18n\DateTime();
+        $sixMonthsAgo = $now->modify('-6 months');
+
+        // Query 1: Future gatherings (starting from today)
+        $futureGatherings = $gatheringsTable->find()
+            ->select(['id', 'name', 'start_date'])
+            ->where(['start_date >=' => $now])
+            ->orderBy(['start_date' => 'ASC'])
+            ->limit(100)
+            ->all()
+            ->toArray();
+
+        // Query 2: Past gatherings that have recommendations linked via awards_recommendations_events
+        $pastGatheringsWithRecs = $gatheringsTable->find()
+            ->select(['Gatherings.id', 'Gatherings.name', 'Gatherings.start_date'])
+            ->innerJoin(
+                ['RecEvents' => 'awards_recommendations_events'],
+                ['RecEvents.gathering_id = Gatherings.id']
+            )
+            ->where([
+                'Gatherings.start_date <' => $now,
+                'Gatherings.start_date >=' => $sixMonthsAgo,
+            ])
+            ->orderBy(['Gatherings.start_date' => 'DESC'])
+            ->group(['Gatherings.id'])
+            ->limit(50)
+            ->all()
+            ->toArray();
+
+        // Query 3: Past gatherings with relevant member attendance (share_with_crown, share_with_kingdom, or is_public)
+        $pastGatheringsWithAttendance = $gatheringsTable->find()
+            ->select(['Gatherings.id', 'Gatherings.name', 'Gatherings.start_date'])
+            ->innerJoin(
+                ['Attendance' => 'gathering_attendances'],
+                ['Attendance.gathering_id = Gatherings.id']
+            )
+            ->where([
+                'Gatherings.start_date <' => $now,
+                'Gatherings.start_date >=' => $sixMonthsAgo,
+                'OR' => [
+                    'Attendance.share_with_crown' => true,
+                    'Attendance.share_with_kingdom' => true,
+                    'Attendance.is_public' => true,
+                ],
+            ])
+            ->orderBy(['Gatherings.start_date' => 'DESC'])
+            ->group(['Gatherings.id'])
+            ->limit(50)
+            ->all()
+            ->toArray();
+
+        // Merge all gatherings, removing duplicates by ID
+        $allGatherings = [];
+
+        // Add future gatherings
+        foreach ($futureGatherings as $gathering) {
+            $allGatherings[$gathering->id] = $gathering;
+        }
+
+        // Add past gatherings with recommendations
+        foreach ($pastGatheringsWithRecs as $gathering) {
+            if (!isset($allGatherings[$gathering->id])) {
+                $allGatherings[$gathering->id] = $gathering;
+            }
+        }
+
+        // Add past gatherings with attendance
+        foreach ($pastGatheringsWithAttendance as $gathering) {
+            if (!isset($allGatherings[$gathering->id])) {
+                $allGatherings[$gathering->id] = $gathering;
+            }
+        }
+
+        // Sort by start_date (future first ascending, then past descending)
+        usort($allGatherings, function ($a, $b) use ($now) {
+            $aIsFuture = $a->start_date >= $now;
+            $bIsFuture = $b->start_date >= $now;
+
+            // Future gatherings come first
+            if ($aIsFuture && !$bIsFuture) {
+                return -1;
+            }
+            if (!$aIsFuture && $bIsFuture) {
+                return 1;
+            }
+
+            // Within same group, sort by date
+            if ($aIsFuture) {
+                // Future: ascending (soonest first)
+                return $a->start_date <=> $b->start_date;
+            } else {
+                // Past: descending (most recent first)
+                return $b->start_date <=> $a->start_date;
+            }
+        });
+
+        // Build the options array
+        $options = [];
+        foreach ($allGatherings as $gathering) {
+            $dateStr = $gathering->start_date ? $gathering->start_date->toDateString() : '';
+            $label = $gathering->name;
+            if ($dateStr) {
+                $label .= ' (' . $dateStr . ')';
+            }
+
+            $options[] = [
+                'value' => (string)$gathering->id,
+                'label' => $label,
+            ];
+        }
+
+        return $options;
     }
 }

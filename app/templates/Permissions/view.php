@@ -31,6 +31,26 @@ echo $this->KMP->startBlock("pageTitle") ?>
         ],
     ) ?>
 <?php } ?>
+<?php if ($user->isSuperUser()): ?>
+    <div class="btn-group ms-2" id="permission-import-buttons">
+        <a href="<?= $this->Url->build(['controller' => 'Permissions', 'action' => 'exportPolicies', $permission->id]) ?>"
+            class="btn btn-outline-secondary btn-sm"
+            title="Export this permission's policies to JSON">
+            <i class="bi bi-download me-1"></i>Export Policies
+        </a>
+        <button type="button"
+            class="btn btn-outline-secondary btn-sm"
+            data-action="click->permission-import#triggerFileSelect"
+            title="Import policies from JSON file">
+            <i class="bi bi-upload me-1"></i>Import Policies
+        </button>
+        <input type="file"
+            accept=".json"
+            class="d-none"
+            data-permission-import-target="fileInput"
+            data-action="change->permission-import#handleFileSelect">
+    </div>
+<?php endif; ?>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("recordDetails") ?>
 <tr scope="row">
@@ -267,6 +287,64 @@ echo $this->KMP->startBlock("pageTitle") ?>
 <?php //Start writing to modal block in layout
 
 echo $this->KMP->startBlock("modals");
+
+// Import Preview Modal for super users
+if ($user->isSuperUser()): ?>
+    <div data-controller="permission-import"
+        data-permission-import-preview-url-value="<?= $this->Url->build(['controller' => 'Permissions', 'action' => 'previewImport', $permission->id], ['fullBase' => true]) ?>"
+        data-permission-import-import-url-value="<?= $this->Url->build(['controller' => 'Permissions', 'action' => 'importPolicies', $permission->id], ['fullBase' => true]) ?>"
+        data-permission-import-button-container-value="#permission-import-buttons">
+
+        <!-- Loading Overlay -->
+        <div class="position-fixed top-0 start-0 w-100 h-100 d-none"
+            style="background: rgba(255,255,255,0.8); z-index: 9999;"
+            data-permission-import-target="loadingOverlay">
+            <div class="d-flex justify-content-center align-items-center h-100">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Analyzing import file...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Import Preview Modal -->
+        <div class="modal fade" tabindex="-1" data-permission-import-target="modal">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="bi bi-file-earmark-arrow-up me-2"></i>Import Policies to "<?= h($permission->name) ?>"
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body" data-permission-import-target="modalContent">
+                        <div data-permission-import-target="summary"></div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div data-permission-import-target="addList"></div>
+                            </div>
+                            <div class="col-md-6">
+                                <div data-permission-import-target="removeList"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button"
+                            class="btn btn-secondary"
+                            data-action="click->permission-import#cancelImport">
+                            Cancel
+                        </button>
+                        <button type="button"
+                            class="btn btn-primary"
+                            data-permission-import-target="confirmBtn"
+                            data-action="click->permission-import#confirmImport">
+                            <i class="bi bi-check-lg me-1"></i>Confirm Import
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+<?php endif;
 
 echo $this->Form->create(null, [
     "url" => ["controller" => "Roles", "action" => "addPermission"],
