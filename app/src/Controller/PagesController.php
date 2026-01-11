@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 /**
@@ -22,6 +23,7 @@ use Cake\Http\Exception\ForbiddenException;
 use Cake\Http\Exception\NotFoundException;
 use Cake\Http\Response;
 use Cake\View\Exception\MissingTemplateException;
+use Parsedown;
 
 /**
  * Static content controller
@@ -38,6 +40,7 @@ class PagesController extends AppController
         $this->Authentication->allowUnauthenticated([
             'display',
             'webmanifest',
+            'changelog',
         ]);
     }
 
@@ -106,5 +109,44 @@ class PagesController extends AppController
         $this->viewBuilder()->setLayout('ajax');
         $this->response = $this->response->withType('application/manifest+json');
         $this->set(compact('mobile_token'));
+    }
+
+    /**
+     * Display the changelog page
+     *
+     * Reads the CHANGELOG.md file from the project root and renders it as HTML.
+     *
+     * @return \Cake\Http\Response|null
+     */
+    public function changelog(): ?Response
+    {
+        $this->Authorization->skipAuthorization();
+
+        $changelogPath = ROOT . DS . 'CHANGELOG.md';
+        $changelogContent = '';
+        $lastSyncedDate = null;
+
+        if (file_exists($changelogPath)) {
+            $rawContent = file_get_contents($changelogPath);
+
+            // Extract last synced date from the marker
+            if (preg_match('/<!-- LAST_SYNCED_DATE: ([^\s]+) -->/', $rawContent, $matches)) {
+                $lastSyncedDate = $matches[1] !== 'none' ? $matches[1] : null;
+            }
+
+            // Remove the sync markers from displayed content
+            $cleanContent = preg_replace('/<!-- CHANGELOG_SYNC_MARKER:.*?-->\n?/', '', $rawContent);
+            $cleanContent = preg_replace('/<!-- LAST_SYNCED_COMMIT:.*?-->\n?/', '', $cleanContent);
+            $cleanContent = preg_replace('/<!-- LAST_SYNCED_DATE:.*?-->\n?/', '', $cleanContent);
+
+            // Convert markdown to HTML using Parsedown
+            $parsedown = new Parsedown();
+            $parsedown->setSafeMode(true);
+            $changelogContent = $parsedown->text($cleanContent);
+        }
+
+        $this->set(compact('changelogContent', 'lastSyncedDate'));
+
+        return null;
     }
 }

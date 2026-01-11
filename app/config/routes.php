@@ -145,6 +145,7 @@ return function (RouteBuilder $routes): void {
          * @example "/pages/about" → display('about')
          * @example "/pages/help" → display('help')
          */
+        $builder->connect("/pages/changelog", "Pages::changelog");
         $builder->connect("/pages/*", "Pages::display");
 
         /**
