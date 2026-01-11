@@ -98,7 +98,7 @@ if ($isEdit) {
                         'class' => 'form-check-input',
                         'switch' => true,
                         'checked' => $isEdit ? $userAttendance->share_with_kingdom : false,
-                        'tooltip' => 'Other users of AMP in your kingdom will be able to see your name and public note on the gathering page.'
+                        'tooltip' => 'Signed-in members can see your name and note on the public gathering page, and the host group and crown can view it in AMP.'
                     ]) ?>
 
                     <?= $this->Form->control('share_with_hosting_group', [
@@ -119,14 +119,6 @@ if ($isEdit) {
                         'tooltip' => 'The nobility and crown will be able to see your attendance information in regards to managing award recommendations.'
                     ]) ?>
 
-                    <?= $this->Form->control('is_public', [
-                        'type' => 'checkbox',
-                        'label' => 'Make Public (SCA name only)',
-                        'class' => 'form-check-input',
-                        'switch' => true,
-                        'checked' => $isEdit ? $userAttendance->is_public : false,
-                        'tooltip' => 'If a gathering uses the landing page feature your name (but not note) will be visible to all visitors.'
-                    ]) ?>
                 </div>
             </div>
 
@@ -158,6 +150,3 @@ if ($isEdit) {
     ]) ?>
     <?= $this->Form->end() ?>
 <?php endif; ?>
-</div>
-</div>
-</div>

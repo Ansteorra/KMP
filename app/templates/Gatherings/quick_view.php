@@ -215,7 +215,6 @@ $showAttendanceControls = isset($canAttend)
                         data-action="click->gatherings-calendar#showAttendanceModal"
                         data-attendance-id="<?= $userAttendance->id ?>" data-gathering-id="<?= $gathering->id ?>"
                         data-attendance-action="edit" data-attendance-notes="<?= h($userAttendance->notes ?? '') ?>"
-                        data-attendance-is-public="<?= $userAttendance->is_public ? '1' : '0' ?>"
                         data-attendance-share-kingdom="<?= $userAttendance->share_with_kingdom ? '1' : '0' ?>">
                         <i class="bi bi-pencil"></i> <?= __('Edit') ?>
                     </button>

@@ -8,6 +8,7 @@
  * @var \Waivers\Model\Entity\WaiverType[] $requiredWaiverTypes
  * @var array $waiverTypesData
  * @var array $uploadLimits
+ * @var array $waiverStatusSummary
  */
 ?>
 
@@ -88,7 +89,8 @@
                 <?php echo $this->element('GatheringWaivers/mobile_wizard_steps', [
                     'waiverTypesData' => $waiverTypesData,
                     'gathering' => $gathering,
-                    'uploadLimits' => $uploadLimits
+                    'uploadLimits' => $uploadLimits,
+                    'waiverStatusSummary' => $waiverStatusSummary
                 ]); ?>
             </div>
 

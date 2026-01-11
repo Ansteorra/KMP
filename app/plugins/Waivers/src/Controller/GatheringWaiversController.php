@@ -393,6 +393,19 @@ class GatheringWaiversController extends AppController
                 return $this->redirect($this->referer());
             }
 
+            if ($this->_isWaiverTypeAttested((int)$gatheringId, (int)$waiverTypeId)) {
+                $message = __('This waiver type has been attested as not needed for this gathering.');
+                if ($this->request->is('ajax')) {
+                    $this->viewBuilder()->setClassName('Json');
+                    $this->response = $this->response->withStatus(400);
+                    $this->set('message', $message);
+                    $this->viewBuilder()->setOption('serialize', ['message']);
+                    return;
+                }
+                $this->Flash->error($message);
+                return $this->redirect($this->referer());
+            }
+
             // Get waiver type for retention policy
             $WaiverTypes = $this->fetchTable('Waivers.WaiverTypes');
             $waiverType = $WaiverTypes->get($waiverTypeId);
@@ -504,7 +517,16 @@ class GatheringWaiversController extends AppController
         // Get pre-selected values from query parameters (for direct upload links)
         $preSelectedWaiverTypeId = $this->request->getQuery('waiver_type_id');
 
-        $this->set(compact('gathering', 'requiredWaiverTypes', 'waiverTypesData', 'uploadLimits', 'preSelectedWaiverTypeId'));
+        $waiverStatusSummary = $this->_getWaiverStatusSummary((int)$gathering->id, $requiredWaiverTypes);
+
+        $this->set(compact(
+            'gathering',
+            'requiredWaiverTypes',
+            'waiverTypesData',
+            'uploadLimits',
+            'preSelectedWaiverTypeId',
+            'waiverStatusSummary'
+        ));
     }
 
     /**
@@ -905,6 +927,90 @@ class GatheringWaiversController extends AppController
         }
 
         return $waiverTypes;
+    }
+
+    /**
+     * Build a summary of existing waiver uploads and attestations for a gathering.
+     *
+     * @param int $gatheringId Gathering ID
+     * @param array $requiredWaiverTypes Required waiver types
+     * @return array Summary of waiver status per type
+     */
+    private function _getWaiverStatusSummary(int $gatheringId, array $requiredWaiverTypes): array
+    {
+        if (empty($requiredWaiverTypes)) {
+            return [];
+        }
+
+        $summary = [];
+        $waiverTypeIds = [];
+        foreach ($requiredWaiverTypes as $waiverType) {
+            $waiverTypeIds[] = $waiverType->id;
+            $summary[$waiverType->id] = [
+                'id' => $waiverType->id,
+                'name' => $waiverType->name,
+                'uploaded_count' => 0,
+                'attestation_reasons' => [],
+            ];
+        }
+
+        if (empty($waiverTypeIds)) {
+            return [];
+        }
+
+        $existingWaivers = $this->GatheringWaivers->find()
+            ->where([
+                'GatheringWaivers.gathering_id' => $gatheringId,
+                'GatheringWaivers.waiver_type_id IN' => $waiverTypeIds,
+                'GatheringWaivers.declined_at IS' => null,
+                'GatheringWaivers.deleted IS' => null,
+                'GatheringWaivers.status !=' => 'deleted',
+            ])
+            ->select(['waiver_type_id', 'is_exemption', 'exemption_reason'])
+            ->all();
+
+        foreach ($existingWaivers as $waiver) {
+            if (!isset($summary[$waiver->waiver_type_id])) {
+                continue;
+            }
+
+            if ($waiver->is_exemption) {
+                $reason = $waiver->exemption_reason ?: __('Attested');
+                $summary[$waiver->waiver_type_id]['attestation_reasons'][] = $reason;
+            } else {
+                $summary[$waiver->waiver_type_id]['uploaded_count']++;
+            }
+        }
+
+        foreach ($summary as &$item) {
+            if (!empty($item['attestation_reasons'])) {
+                $item['attestation_reasons'] = array_values(array_unique($item['attestation_reasons']));
+            }
+        }
+        unset($item);
+
+        return array_values($summary);
+    }
+
+    /**
+     * Check if a waiver type has been attested as not needed for a gathering.
+     *
+     * @param int $gatheringId Gathering ID
+     * @param int $waiverTypeId Waiver type ID
+     * @return bool True if an attestation exists
+     */
+    private function _isWaiverTypeAttested(int $gatheringId, int $waiverTypeId): bool
+    {
+        return $this->GatheringWaivers->find()
+            ->where([
+                'GatheringWaivers.gathering_id' => $gatheringId,
+                'GatheringWaivers.waiver_type_id' => $waiverTypeId,
+                'GatheringWaivers.is_exemption' => true,
+                'GatheringWaivers.declined_at IS' => null,
+                'GatheringWaivers.deleted IS' => null,
+                'GatheringWaivers.status !=' => 'deleted',
+            ])
+            ->count() > 0;
     }
 
     /**
@@ -1979,6 +2085,19 @@ class GatheringWaiversController extends AppController
                 return $this->redirect($this->referer());
             }
 
+            if ($this->_isWaiverTypeAttested((int)$gathering->id, (int)$waiverTypeId)) {
+                $message = __('This waiver type has been attested as not needed for this gathering.');
+                if ($this->request->is('ajax')) {
+                    $this->viewBuilder()->setClassName('Json');
+                    $this->response = $this->response->withStatus(400);
+                    $this->set('message', $message);
+                    $this->viewBuilder()->setOption('serialize', ['message']);
+                    return;
+                }
+                $this->Flash->error($message);
+                return $this->redirect($this->referer());
+            }
+
             // Get waiver type for retention policy
             $WaiverTypes = $this->fetchTable('Waivers.WaiverTypes');
             $waiverType = $WaiverTypes->get($waiverTypeId);
@@ -2061,7 +2180,16 @@ class GatheringWaiversController extends AppController
         // Get pre-selected value from query parameters (for direct upload links)
         $preSelectedWaiverTypeId = $this->request->getQuery('waiver_type_id');
 
-        $this->set(compact('gathering', 'requiredWaiverTypes', 'waiverTypesData', 'uploadLimits', 'preSelectedWaiverTypeId'));
+        $waiverStatusSummary = $this->_getWaiverStatusSummary((int)$gathering->id, $requiredWaiverTypes);
+
+        $this->set(compact(
+            'gathering',
+            'requiredWaiverTypes',
+            'waiverTypesData',
+            'uploadLimits',
+            'preSelectedWaiverTypeId',
+            'waiverStatusSummary'
+        ));
 
         // Use mobile app layout
         $this->viewBuilder()->setLayout('mobile_app');

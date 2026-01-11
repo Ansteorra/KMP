@@ -370,10 +370,10 @@ class RecommendationsGridColumns extends BaseGridColumns
                     'class' => 'Awards\\KMP\\GridColumns\\RecommendationsGridColumns',
                 ],
                 'defaultVisible' => true,
-                'exportable' => false,
+                'exportable' => true,
                 'width' => '180px',
                 'alignment' => 'left',
-                'description' => 'Gatherings linked to recommendation or member attendance (shared with crown/public)',
+                'description' => 'Gatherings linked to recommendation or member attendance (shared with crown/kingdom)',
             ],
 
             'notes' => [
@@ -778,7 +778,7 @@ class RecommendationsGridColumns extends BaseGridColumns
      * Returns a list of gatherings relevant to award recommendations:
      * - All future gatherings (starting from today)
      * - Past gatherings that have recommendations linked to them (via awards_recommendations_events)
-     *   or have member attendance with share_with_crown, share_with_kingdom, or is_public
+     *   or have member attendance with share_with_crown or share_with_kingdom
      * - Limited to 6 months of back-looking for performance
      *
      * @return array<array<string, string>> Filter options for gatherings dropdown
@@ -815,7 +815,7 @@ class RecommendationsGridColumns extends BaseGridColumns
             ->all()
             ->toArray();
 
-        // Query 3: Past gatherings with relevant member attendance (share_with_crown, share_with_kingdom, or is_public)
+        // Query 3: Past gatherings with relevant member attendance (share_with_crown or share_with_kingdom)
         $pastGatheringsWithAttendance = $gatheringsTable->find()
             ->select(['Gatherings.id', 'Gatherings.name', 'Gatherings.start_date'])
             ->innerJoin(
@@ -828,7 +828,6 @@ class RecommendationsGridColumns extends BaseGridColumns
                 'OR' => [
                     'Attendance.share_with_crown' => true,
                     'Attendance.share_with_kingdom' => true,
-                    'Attendance.is_public' => true,
                 ],
             ])
             ->orderBy(['Gatherings.start_date' => 'DESC'])

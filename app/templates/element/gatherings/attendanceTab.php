@@ -15,13 +15,13 @@
             <?= $totalAttendanceCount === 1 ? 'person' : 'people' ?>
         </p>
         <small class="text-muted">
-            This list only shows attendees who have chosen to share their attendance with the hosting group or make it public.
+            This list only shows attendees who have chosen to share their attendance with the hosting group or kingdom.
             The total count includes all registered attendees, including those keeping their attendance private.
         </small>
     </div>
 
     <?php if (!empty($gathering->gathering_attendances)): ?>
-        <h6 class="mt-4 mb-3">Attendees Sharing with Host</h6>
+        <h6 class="mt-4 mb-3">Attendees Sharing with Host or Kingdom</h6>
         <div class="table-responsive">
             <table class="table table-striped">
                 <thead>
@@ -55,9 +55,6 @@
                                 <small>
                                     <?php
                                     $visibility = [];
-                                    if ($attendance->is_public) {
-                                        $visibility[] = '<span class="badge bg-success">Public</span>';
-                                    }
                                     if ($attendance->share_with_hosting_group) {
                                         $visibility[] = '<span class="badge bg-info">Host</span>';
                                     }
@@ -79,7 +76,7 @@
     <?php else: ?>
         <div class="alert alert-secondary mt-3">
             <i class="bi bi-info-circle"></i>
-            No attendees have shared their attendance with the hosting group yet.
+            No attendees have shared their attendance with the hosting group or kingdom yet.
         </div>
     <?php endif; ?>
 </div>

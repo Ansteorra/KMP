@@ -144,11 +144,12 @@ $canAddGathering = $identity && $identity->checkCan('add', $tempGathering);
                         'class' => 'btn btn-outline-primary',
                         'title' => $viewMode === 'week' ? __('Previous Week') : __('Previous Month'),
                         'data-turbo-frame' => 'gatherings-calendar-grid-table',
+                        'data-gatherings-calendar-nav' => 'prev',
                     ]) ?>
                 <?php endif; ?>
             </div>
             <div class="col text-center">
-                <h4 class="mb-0">
+                <h4 class="mb-0" data-gatherings-calendar-header>
                     <?= $startDate ? h($this->Timezone->format($startDate, null, 'F Y')) : sprintf('%s %s', date('F'), date('Y')) ?>
                 </h4>
             </div>
@@ -159,6 +160,7 @@ $canAddGathering = $identity && $identity->checkCan('add', $tempGathering);
                         'class' => 'btn btn-outline-primary',
                         'title' => $viewMode === 'week' ? __('Next Week') : __('Next Month'),
                         'data-turbo-frame' => 'gatherings-calendar-grid-table',
+                        'data-gatherings-calendar-nav' => 'next',
                     ]) ?>
                 <?php endif; ?>
             </div>
@@ -166,6 +168,7 @@ $canAddGathering = $identity && $identity->checkCan('add', $tempGathering);
                 <?= $this->Html->link(__('Today'), $todayUrl, [
                     'class' => 'btn btn-outline-secondary',
                     'data-turbo-frame' => 'gatherings-calendar-grid-table',
+                    'data-gatherings-calendar-nav' => 'today',
                 ]) ?>
             </div>
             <div class="col-auto">

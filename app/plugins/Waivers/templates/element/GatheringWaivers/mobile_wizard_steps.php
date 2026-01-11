@@ -7,7 +7,15 @@
  * @var array $waiverTypesData
  * @var \App\Model\Entity\Gathering $gathering
  * @var array $uploadLimits
+ * @var array $waiverStatusSummary
  */
+
+$attestedWaiverTypes = [];
+foreach (($waiverStatusSummary ?? []) as $summary) {
+    if (!empty($summary['attestation_reasons'])) {
+        $attestedWaiverTypes[(int)$summary['id']] = $summary['attestation_reasons'];
+    }
+}
 ?>
 
 <!-- Step 1: Select Waiver Type -->
@@ -22,9 +30,50 @@
         <div class="card-body">
             <p class="mb-3"><?= __('What type of waiver are you uploading for this gathering?') ?></p>
 
+            <?php if (!empty($waiverStatusSummary)): ?>
+                <div class="mb-3 p-2 border rounded bg-light">
+                    <div class="d-flex align-items-center mb-2 small text-muted">
+                        <i class="bi bi-clipboard-check text-success me-2"></i>
+                        <strong class="text-dark"><?= __('Waiver Status') ?></strong>
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        <?php foreach ($waiverStatusSummary as $summary): ?>
+                            <?php
+                            $hasUploaded = $summary['uploaded_count'] > 0;
+                            $hasAttestation = !empty($summary['attestation_reasons']);
+                            $statusLabel = $hasUploaded || $hasAttestation ? __('On File') : __('Outstanding');
+                            $statusClass = $hasUploaded || $hasAttestation ? 'bg-success' : 'bg-warning text-dark';
+                            ?>
+                            <li class="list-group-item px-0 py-2 bg-transparent">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="me-2">
+                                        <strong class="d-block"><?= h($summary['name']) ?></strong>
+                                        <small class="text-muted">
+                                            <?php if ($hasUploaded): ?>
+                                                <?= __('Uploaded: {0}', $summary['uploaded_count']) ?>
+                                            <?php else: ?>
+                                                <?= __('Uploaded: none') ?>
+                                            <?php endif; ?>
+                                            <?php if ($hasAttestation): ?>
+                                                <span class="ms-1"><?= __('Attested: {0}', h(implode(', ', $summary['attestation_reasons']))) ?></span>
+                                            <?php endif; ?>
+                                        </small>
+                                    </div>
+                                    <span class="badge <?= $statusClass ?> align-self-center"><?= $statusLabel ?></span>
+                                </div>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                </div>
+            <?php endif; ?>
+
             <?php if (!empty($waiverTypesData)): ?>
                 <div class="list-group" data-waiver-upload-wizard-target="waiverTypeSelect">
                     <?php foreach ($waiverTypesData as $waiverType): ?>
+                        <?php
+                        $isAttested = isset($attestedWaiverTypes[$waiverType['id']]);
+                        $attestationReasons = $attestedWaiverTypes[$waiverType['id']] ?? [];
+                        ?>
                         <div class="list-group-item"
                             data-waiver-upload-wizard-target="waiverTypeOption"
                             data-waiver-type-id="<?= $waiverType['id'] ?>">
@@ -36,12 +85,24 @@
                                     id="waiver-type-<?= $waiverType['id'] ?>"
                                     data-name="<?= h($waiverType['name']) ?>"
                                     data-exemption-reasons="<?= h(json_encode($waiverType['exemption_reasons'] ?? [])) ?>"
+                                    data-attested="<?= $isAttested ? '1' : '0' ?>"
+                                    <?= $isAttested ? 'disabled' : '' ?>
                                     data-action="change->waiver-upload-wizard#selectWaiverType">
                                 <label class="form-check-label w-100" for="waiver-type-<?= $waiverType['id'] ?>">
                                     <strong><?= h($waiverType['name']) ?></strong>
                                     <?php if (!empty($waiverType['description'])): ?>
                                         <br>
                                         <small class="text-muted"><?= h($waiverType['description']) ?></small>
+                                    <?php endif; ?>
+                                    <?php if ($isAttested): ?>
+                                        <br>
+                                        <small class="text-muted">
+                                            <i class="bi bi-shield-check"></i>
+                                            <?= __('Attested not needed') ?>
+                                            <?php if (!empty($attestationReasons)): ?>
+                                                <span class="ms-1">(<?= h(implode(', ', $attestationReasons)) ?>)</span>
+                                            <?php endif; ?>
+                                        </small>
                                     <?php endif; ?>
                                 </label>
                             </div>

@@ -119,7 +119,6 @@ $canManage = $canManageOwn || $canManageOthers;
                                             if ($attendance->share_with_kingdom) $sharing[] = 'Kingdom';
                                             if ($attendance->share_with_hosting_group) $sharing[] = 'Hosting Group';
                                             if ($attendance->share_with_crown) $sharing[] = 'Crown';
-                                            if ($attendance->is_public) $sharing[] = 'Public';
                                             echo !empty($sharing) ? implode(', ', $sharing) : 'Not shared';
                                             ?>
                                 </small>
@@ -133,8 +132,7 @@ $canManage = $canManageOwn || $canManageOthers;
                                     data-public-note="<?= h($attendance->public_note) ?>"
                                     data-share-kingdom="<?= $attendance->share_with_kingdom ? '1' : '0' ?>"
                                     data-share-hosting="<?= $attendance->share_with_hosting_group ? '1' : '0' ?>"
-                                    data-share-crown="<?= $attendance->share_with_crown ? '1' : '0' ?>"
-                                    data-is-public="<?= $attendance->is_public ? '1' : '0' ?>">
+                                    data-share-crown="<?= $attendance->share_with_crown ? '1' : '0' ?>">
                                     <i class="bi bi-pencil"></i>
                                 </button>
                                 <?= $this->Form->postLink(
@@ -201,7 +199,6 @@ $canManage = $canManageOwn || $canManageOthers;
                                             if ($attendance->share_with_kingdom) $sharing[] = 'Kingdom';
                                             if ($attendance->share_with_hosting_group) $sharing[] = 'Hosting Group';
                                             if ($attendance->share_with_crown) $sharing[] = 'Crown';
-                                            if ($attendance->is_public) $sharing[] = 'Public';
                                             echo !empty($sharing) ? implode(', ', $sharing) : 'Not shared';
                                             ?>
                                 </small>

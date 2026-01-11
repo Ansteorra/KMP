@@ -4,7 +4,15 @@
  * @var \App\View\AppView $this
  * @var array $waiverTypesData
  * @var \App\Model\Entity\Gathering $gathering
+ * @var array $waiverStatusSummary
  */
+
+$attestedWaiverTypes = [];
+foreach (($waiverStatusSummary ?? []) as $summary) {
+    if (!empty($summary['attestation_reasons'])) {
+        $attestedWaiverTypes[(int)$summary['id']] = $summary['attestation_reasons'];
+    }
+}
 ?>
 <!-- Step 1: Select Waiver Type -->
 <div data-waiver-upload-wizard-target="step" data-step-number="1">
@@ -15,9 +23,50 @@
 
     <p class="lead"><?= __('What type of waiver are you uploading for this gathering?') ?></p>
 
+    <?php if (!empty($waiverStatusSummary)): ?>
+        <div class="card mb-4 border-0 shadow-sm">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">
+                    <i class="bi bi-clipboard-check text-success"></i>
+                    <?= __('Waiver Status for This Gathering') ?>
+                </h5>
+            </div>
+            <ul class="list-group list-group-flush">
+                <?php foreach ($waiverStatusSummary as $summary): ?>
+                    <?php
+                    $hasUploaded = $summary['uploaded_count'] > 0;
+                    $hasAttestation = !empty($summary['attestation_reasons']);
+                    $statusLabel = $hasUploaded || $hasAttestation ? __('On File') : __('Outstanding');
+                    $statusClass = $hasUploaded || $hasAttestation ? 'bg-success' : 'bg-warning text-dark';
+                    ?>
+                    <li class="list-group-item d-flex justify-content-between align-items-start">
+                        <div class="me-3">
+                            <strong><?= h($summary['name']) ?></strong>
+                            <div class="small text-muted">
+                                <?php if ($hasUploaded): ?>
+                                    <?= __('Uploaded: {0}', $summary['uploaded_count']) ?>
+                                <?php else: ?>
+                                    <?= __('Uploaded: none') ?>
+                                <?php endif; ?>
+                                <?php if ($hasAttestation): ?>
+                                    <span class="ms-2"><?= __('Attested: {0}', h(implode(', ', $summary['attestation_reasons']))) ?></span>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                        <span class="badge <?= $statusClass ?> align-self-center"><?= $statusLabel ?></span>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+    <?php endif; ?>
+
     <?php if (!empty($waiverTypesData)): ?>
         <div data-waiver-upload-wizard-target="waiverTypeSelect">
             <?php foreach ($waiverTypesData as $waiverType): ?>
+                <?php
+                $isAttested = isset($attestedWaiverTypes[$waiverType['id']]);
+                $attestationReasons = $attestedWaiverTypes[$waiverType['id']] ?? [];
+                ?>
                 <div class="card mb-3" data-waiver-upload-wizard-target="waiverTypeOption"
                     data-waiver-type-id="<?= $waiverType['id'] ?>">
                     <div class="card-body">
@@ -25,12 +74,24 @@
                             <input class="form-check-input" type="radio" name="waiver_type" value="<?= $waiverType['id'] ?>"
                                 id="waiver-type-<?= $waiverType['id'] ?>" data-name="<?= h($waiverType['name']) ?>"
                                 data-exemption-reasons="<?= h(json_encode($waiverType['exemption_reasons'] ?? [])) ?>"
+                                data-attested="<?= $isAttested ? '1' : '0' ?>"
+                                <?= $isAttested ? 'disabled' : '' ?>
                                 data-action="change->waiver-upload-wizard#selectWaiverType">
                             <label class="form-check-label w-100" for="waiver-type-<?= $waiverType['id'] ?>">
                                 <strong><?= h($waiverType['name']) ?></strong>
                                 <?php if (!empty($waiverType['description'])): ?>
                                     <br>
                                     <small class="text-muted"><?= h($waiverType['description']) ?></small>
+                                <?php endif; ?>
+                                <?php if ($isAttested): ?>
+                                    <br>
+                                    <small class="text-muted">
+                                        <i class="bi bi-shield-check"></i>
+                                        <?= __('Attested not needed') ?>
+                                        <?php if (!empty($attestationReasons)): ?>
+                                            <span class="ms-1">(<?= h(implode(', ', $attestationReasons)) ?>)</span>
+                                        <?php endif; ?>
+                                    </small>
                                 <?php endif; ?>
                             </label>
                         </div>

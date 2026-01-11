@@ -69,6 +69,8 @@ class GatheringsCalendarController extends Controller {
             console.error('Turbo frame element not found!')
         }
 
+        this.updateCalendarHeader()
+        this.updateCalendarNavigation()
     }
 
     /**
@@ -156,6 +158,132 @@ class GatheringsCalendarController extends Controller {
             }
         } else {
             console.error('Turbo frame not found')
+        }
+    }
+
+    updateCalendarHeader() {
+        const header = document.querySelector('[data-gatherings-calendar-header]')
+        if (!header || !this.hasYearValue || !this.hasMonthValue) {
+            return
+        }
+
+        const date = new Date(this.yearValue, this.monthValue - 1, 1)
+        if (Number.isNaN(date.getTime())) {
+            return
+        }
+
+        const label = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(date)
+        header.textContent = label
+    }
+
+    updateCalendarNavigation() {
+        const tableFrame = document.getElementById('gatherings-calendar-grid-table')
+        if (!tableFrame) {
+            return
+        }
+
+        const frameSrc = tableFrame.getAttribute('data-grid-src')
+        if (!frameSrc) {
+            return
+        }
+
+        let url
+        try {
+            url = new URL(frameSrc, window.location.origin)
+        } catch (error) {
+            return
+        }
+
+        const params = new URLSearchParams(url.search)
+        const view = params.get('view') || (this.hasViewValue ? this.viewValue : 'month')
+        const currentYear = parseInt(params.get('year') || this.yearValue || new Date().getFullYear(), 10)
+        const currentMonth = parseInt(params.get('month') || this.monthValue || (new Date().getMonth() + 1), 10)
+
+        const pad2 = (value) => String(value).padStart(2, '0')
+        const formatDate = (date) => `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`
+
+        const buildHref = (nextParams) => {
+            const nextUrl = new URL(url.pathname, window.location.origin)
+            nextUrl.search = nextParams.toString()
+            return nextUrl.pathname + (nextUrl.search ? `?${nextParams.toString()}` : '')
+        }
+
+        const prevLink = document.querySelector('[data-gatherings-calendar-nav="prev"]')
+        const nextLink = document.querySelector('[data-gatherings-calendar-nav="next"]')
+        const todayLink = document.querySelector('[data-gatherings-calendar-nav="today"]')
+
+        if (view === 'week') {
+            const weekStartParam = params.get('week_start')
+            const weekStart = weekStartParam ? new Date(`${weekStartParam}T00:00:00`) : new Date(currentYear, currentMonth - 1, 1)
+
+            if (!Number.isNaN(weekStart.getTime())) {
+                const prevWeek = new Date(weekStart)
+                prevWeek.setDate(prevWeek.getDate() - 7)
+                const nextWeek = new Date(weekStart)
+                nextWeek.setDate(nextWeek.getDate() + 7)
+                const today = new Date()
+
+                if (prevLink) {
+                    const prevParams = new URLSearchParams(params)
+                    prevParams.set('year', prevWeek.getFullYear())
+                    prevParams.set('month', pad2(prevWeek.getMonth() + 1))
+                    prevParams.set('week_start', formatDate(prevWeek))
+                    prevLink.setAttribute('href', buildHref(prevParams))
+                }
+
+                if (nextLink) {
+                    const nextParams = new URLSearchParams(params)
+                    nextParams.set('year', nextWeek.getFullYear())
+                    nextParams.set('month', pad2(nextWeek.getMonth() + 1))
+                    nextParams.set('week_start', formatDate(nextWeek))
+                    nextLink.setAttribute('href', buildHref(nextParams))
+                }
+
+                if (todayLink) {
+                    const todayParams = new URLSearchParams(params)
+                    todayParams.set('year', today.getFullYear())
+                    todayParams.set('month', pad2(today.getMonth() + 1))
+                    todayParams.set('week_start', formatDate(today))
+                    todayLink.setAttribute('href', buildHref(todayParams))
+                }
+            }
+
+            return
+        }
+
+        if (Number.isNaN(currentYear) || Number.isNaN(currentMonth)) {
+            return
+        }
+
+        const baseDate = new Date(currentYear, currentMonth - 1, 1)
+        const prevMonth = new Date(baseDate)
+        prevMonth.setMonth(prevMonth.getMonth() - 1)
+        const nextMonth = new Date(baseDate)
+        nextMonth.setMonth(nextMonth.getMonth() + 1)
+        const today = new Date()
+
+        if (prevLink) {
+            const prevParams = new URLSearchParams(params)
+            prevParams.set('year', prevMonth.getFullYear())
+            prevParams.set('month', pad2(prevMonth.getMonth() + 1))
+            prevParams.delete('week_start')
+            prevLink.setAttribute('href', buildHref(prevParams))
+        }
+
+        if (nextLink) {
+            const nextParams = new URLSearchParams(params)
+            nextParams.set('year', nextMonth.getFullYear())
+            nextParams.set('month', pad2(nextMonth.getMonth() + 1))
+            nextParams.delete('week_start')
+            nextLink.setAttribute('href', buildHref(nextParams))
+        }
+
+        if (todayLink) {
+            const todayParams = new URLSearchParams(params)
+            todayParams.set('year', today.getFullYear())
+            todayParams.set('month', pad2(today.getMonth() + 1))
+            todayParams.delete('week_start')
+            todayLink.setAttribute('href', buildHref(todayParams))
         }
     }
 

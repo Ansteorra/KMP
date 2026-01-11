@@ -721,7 +721,10 @@ body {
 <?= $this->element('gatherings/public_content', [
     'gathering' => $gathering,
     'scheduleByDate' => $scheduleByDate,
-    'durationDays' => $durationDays
+    'durationDays' => $durationDays,
+    'user' => $user ?? null,
+    'userAttendance' => $userAttendance ?? null,
+    'kingdomAttendances' => $kingdomAttendances ?? []
 ]) ?>
 
 <footer class="footer">
