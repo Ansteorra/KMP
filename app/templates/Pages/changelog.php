@@ -10,7 +10,7 @@ declare(strict_types=1);
  * @var string|null $lastSyncedDate Date of last changelog sync
  */
 
-$this->extend('/layout/TwitterBootstrap/dashboard');
+$this->extend('/layout/default');
 
 echo $this->KMP->startBlock("title");
 echo $this->KMP->getAppSetting('KMP.ShortSiteTitle', 'KMP') . ': Changelog';
