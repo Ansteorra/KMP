@@ -186,7 +186,6 @@ class GatheringAttendancesTable extends Table
     {
         return $query->where([
             'OR' => [
-                'is_public' => true,
                 'share_with_kingdom' => true,
                 'share_with_hosting_group' => true,
                 'share_with_crown' => true,

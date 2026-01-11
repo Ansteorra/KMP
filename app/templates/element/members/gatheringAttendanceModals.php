@@ -57,7 +57,7 @@
                         'label' => 'Share with Kingdom',
                         'class' => 'form-check-input',
                         'switch' => true,
-                        'tooltip' => 'Other users of AMP in your kingdom will be able to see your name and public note on the gathering page.'
+                        'tooltip' => 'Signed-in members can see your name and note on the public gathering page, and the host group and crown can view it in AMP.'
                     ]) ?>
 
                     <?= $this->Form->control('share_with_hosting_group', [
@@ -76,13 +76,6 @@
                         'tooltip' => 'The nobility and crown will be able to see your attendance information in regards to managing award recommendations.'
                     ]) ?>
 
-                    <?= $this->Form->control('is_public', [
-                        'type' => 'checkbox',
-                        'label' => 'Make Public (SCA name only)',
-                        'class' => 'form-check-input',
-                        'switch' => true,
-                        'tooltip' => 'If a gathering uses the landing page feature your name (but not note) will be visible to all visitors.'
-                    ]) ?>
                 </div>
             </div>
             <div class="modal-footer">
@@ -150,19 +143,12 @@
 
                     <?= $this->Form->control('share_with_crown', [
                         'type' => 'checkbox',
-                        'label' => 'Share with Crown',
+                        'label' => 'Share with Nobility/Crown',
                         'id' => 'editShareCrown',
                         'class' => 'form-check-input',
                         'switch' => true
                     ]) ?>
 
-                    <?= $this->Form->control('is_public', [
-                        'type' => 'checkbox',
-                        'label' => 'Make Public (SCA name only)',
-                        'id' => 'editIsPublic',
-                        'class' => 'form-check-input',
-                        'switch' => true
-                    ]) ?>
                 </div>
             </div>
             <div class="modal-footer">
@@ -187,7 +173,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const shareKingdom = button.getAttribute('data-share-kingdom') === '1';
             const shareHosting = button.getAttribute('data-share-hosting') === '1';
             const shareCrown = button.getAttribute('data-share-crown') === '1';
-            const isPublic = button.getAttribute('data-is-public') === '1';
 
             // Update form action URL to include the ID
             const form = document.getElementById('editGatheringAttendanceForm');
@@ -200,7 +185,6 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('editShareKingdom').checked = shareKingdom;
             document.getElementById('editShareHosting').checked = shareHosting;
             document.getElementById('editShareCrown').checked = shareCrown;
-            document.getElementById('editIsPublic').checked = isPublic;
         });
     }
 });

@@ -66,6 +66,11 @@ class WaiverUploadWizardController extends Controller {
                 )
 
                 if (waiverTypeRadio) {
+                    if (this.isWaiverTypeAttested(this.preSelectedWaiverTypeIdValue)) {
+                        this.showError('This waiver type has been attested as not needed for this gathering.')
+                        waiverTypeRadio.checked = false
+                        return
+                    }
                     waiverTypeRadio.checked = true
                     this.selectedWaiverType = {
                         id: this.preSelectedWaiverTypeIdValue,
@@ -364,6 +369,11 @@ class WaiverUploadWizardController extends Controller {
 
     selectWaiverType(event) {
         const option = event.currentTarget
+        if (option.disabled || option.dataset.attested === '1') {
+            option.checked = false
+            this.showError('This waiver type has been attested as not needed for this gathering.')
+            return
+        }
         this.selectedWaiverType = {
             id: parseInt(option.value),
             name: option.dataset.name
@@ -375,6 +385,16 @@ class WaiverUploadWizardController extends Controller {
         const div = document.createElement('div')
         div.textContent = text
         return div.innerHTML
+    }
+
+    isWaiverTypeAttested(waiverTypeId) {
+        const waiverTypeRadio = document.querySelector(
+            `input[name="waiver_type"][value="${waiverTypeId}"]`
+        )
+        if (!waiverTypeRadio) {
+            return false
+        }
+        return waiverTypeRadio.disabled || waiverTypeRadio.dataset.attested === '1'
     }
 
     // Step 3: Add Pages
@@ -623,6 +643,10 @@ class WaiverUploadWizardController extends Controller {
     validateWaiverType() {
         if (!this.selectedWaiverType) {
             this.showError("Please select a waiver type")
+            return false
+        }
+        if (this.isWaiverTypeAttested(this.selectedWaiverType.id)) {
+            this.showError("This waiver type has been attested as not needed for this gathering.")
             return false
         }
         return true

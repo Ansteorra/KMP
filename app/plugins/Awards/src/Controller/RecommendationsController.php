@@ -165,11 +165,18 @@ class RecommendationsController extends AppController
             'skipFilterColumns' => ['gatherings'],  // Applied manually above
         ]);
 
+        // Handle CSV export using trait's unified method with data mode
+        if (!empty($result['isCsvExport'])) {
+            // Fetch all data from query (not paginated) and process computed fields
+            $exportData = $this->prepareRecommendationsForExport($result['query'], ['includeAttendance' => true]);
+            return $this->handleCsvExport($result, $csvExportService, 'recommendations', 'Awards.Recommendations', $exportData);
+        }
+
         // Post-process data to add computed fields for display
         $recommendations = $result['data'];
 
         // Fetch member attendance gatherings for all members in the result set
-        // These are gatherings where the member has marked attendance with share_with_crown or is_public
+        // These are gatherings where the member has marked attendance with share_with_crown or share_with_kingdom
         $memberAttendanceGatherings = $this->getMemberAttendanceGatherings($recommendations);
 
         foreach ($recommendations as $recommendation) {
@@ -187,13 +194,6 @@ class RecommendationsController extends AppController
 
             // Build reason HTML with truncation
             $recommendation->reason = $this->buildReasonHtml($recommendation);
-        }
-
-        // Handle CSV export using trait's unified method with data mode
-        if (!empty($result['isCsvExport'])) {
-            // Fetch all data from query (not paginated) and process computed fields
-            $exportData = $this->prepareRecommendationsForExport($result['query']);
-            return $this->handleCsvExport($result, $csvExportService, 'recommendations', 'Awards.Recommendations', $exportData);
         }
 
         // Get row actions from grid columns
@@ -271,7 +271,7 @@ class RecommendationsController extends AppController
     }
 
     /**
-     * Fetch gatherings where members are attending with share_with_crown or is_public enabled.
+     * Fetch gatherings where members are attending with share_with_crown or share_with_kingdom enabled.
      *
      * Retrieves attendance records for all unique member_ids in the recommendations set
      * and returns a map of member_id => array of gathering entities.
@@ -298,7 +298,6 @@ class RecommendationsController extends AppController
         // Fetch attendance records where the member has shared their attendance
         // share_with_crown: explicitly shared with crown/royalty
         // share_with_kingdom: shared at kingdom level (which includes crown)
-        // is_public: shared publicly with everyone
         $attendanceTable = $this->fetchTable('GatheringAttendances');
         $attendances = $attendanceTable->find()
             ->contain([
@@ -311,7 +310,6 @@ class RecommendationsController extends AppController
                 'OR' => [
                     'GatheringAttendances.share_with_crown' => true,
                     'GatheringAttendances.share_with_kingdom' => true,
-                    'GatheringAttendances.is_public' => true,
                 ],
             ])
             ->all();
@@ -342,8 +340,8 @@ class RecommendationsController extends AppController
      * Build gatherings HTML showing combined recommendation events and member attendance.
      *
      * Displays up to 3 gatherings with a "more" link to expand if there are more.
-     * Attendance gatherings (from GatheringAttendances with share_with_crown, share_with_kingdom,
-     * or is_public) are shown with a person-check icon to distinguish from recommendation-linked events.
+     * Attendance gatherings (from GatheringAttendances with share_with_crown or share_with_kingdom)
+     * are shown with a person-check icon to distinguish from recommendation-linked events.
      *
      * @param \Awards\Model\Entity\Recommendation $recommendation The recommendation entity
      * @param array $attendanceGatherings Optional array of gatherings from member attendance
@@ -422,11 +420,65 @@ class RecommendationsController extends AppController
     }
 
     /**
+     * Build gatherings export text showing combined recommendation events and member attendance.
+     *
+     * Attendance gatherings are marked with a text suffix to replace the UI icon.
+     *
+     * @param \Awards\Model\Entity\Recommendation $recommendation The recommendation entity
+     * @param array $attendanceGatherings Optional array of gatherings from member attendance
+     * @return string Text string with gathering information for exports
+     */
+    protected function buildGatheringsExportValue($recommendation, array $attendanceGatherings = []): string
+    {
+        // Combine recommendation-linked gatherings with attendance gatherings
+        $recGatherings = $recommendation->gatherings ?? [];
+        $recGatheringIds = [];
+
+        // Build list from recommendation-linked gatherings (from awards_recommendations_events)
+        $items = [];
+        foreach ($recGatherings as $gathering) {
+            $recGatheringIds[$gathering->id] = true;
+            $items[] = [
+                'name' => $gathering->name,
+                'id' => $gathering->id,
+                'isAttendance' => false,
+            ];
+        }
+
+        // Add attendance gatherings that aren't already in rec gatherings
+        foreach ($attendanceGatherings as $gathering) {
+            if (!isset($recGatheringIds[$gathering->id])) {
+                $items[] = [
+                    'name' => $gathering->name,
+                    'id' => $gathering->id,
+                    'isAttendance' => true,
+                ];
+            }
+        }
+
+        if (empty($items)) {
+            return '';
+        }
+
+        $names = [];
+        $attendanceSuffix = ' ' . __('(shared attendance)');
+        foreach ($items as $item) {
+            $displayName = $item['name'];
+            if ($item['isAttendance']) {
+                $displayName .= $attendanceSuffix;
+            }
+            $names[] = $displayName;
+        }
+
+        return implode(', ', $names);
+    }
+
+    /**
      * Apply gatherings filter to recommendations query.
      *
      * Filters recommendations to only include those where:
      * - The gathering is linked via awards_recommendations_events (recommendation events)
-     * - OR the recommendation's member is attending the gathering with share_with_crown or is_public
+     * - OR the recommendation's member is attending the gathering with share_with_crown or share_with_kingdom
      *
      * @param \Cake\ORM\Query\SelectQuery $query The query to filter
      * @param string|array $gatheringIds One or more gathering IDs to filter by
@@ -448,7 +500,7 @@ class RecommendationsController extends AppController
 
         // Find recommendation IDs that match either:
         // 1. Have the gathering linked in awards_recommendations_events
-        // 2. Have a member who is attending the gathering with share_with_crown or is_public
+        // 2. Have a member who is attending the gathering with share_with_crown or share_with_kingdom
 
         // Subquery 1: Recommendations linked via awards_recommendations_events join table
         // Use the Gatherings association through matching to find linked rec IDs
@@ -462,7 +514,7 @@ class RecommendationsController extends AppController
             ->extract('id')
             ->toArray();
 
-        // Subquery 2: Members attending these gatherings with share_with_crown, share_with_kingdom, or is_public
+        // Subquery 2: Members attending these gatherings with share_with_crown or share_with_kingdom
         $attendanceTable = $this->fetchTable('GatheringAttendances');
         $attendingMemberIds = $attendanceTable->find()
             ->select(['member_id'])
@@ -471,7 +523,6 @@ class RecommendationsController extends AppController
                 'OR' => [
                     'share_with_crown' => true,
                     'share_with_kingdom' => true,
-                    'is_public' => true,
                 ],
             ])
             ->distinct()
@@ -616,18 +667,28 @@ class RecommendationsController extends AppController
      * that can't be calculated via SQL (virtual properties, formatted strings, etc.)
      *
      * @param \Cake\ORM\Query $query The filtered query from processDataverseGrid
-     * @return \Cake\ORM\ResultSet Recommendations with computed fields populated
+     * @param array $options Export options (includeAttendance => bool)
+     * @return iterable Recommendations with computed fields populated
      */
-    protected function prepareRecommendationsForExport($query): iterable
+    protected function prepareRecommendationsForExport($query, array $options = []): iterable
     {
         // Execute query to get all matching records (not paginated)
-        $recommendations = $query->all();
+        $recommendations = $query->all()->toList();
+        $includeAttendance = $options['includeAttendance'] ?? false;
+
+        $memberAttendanceGatherings = [];
+        if ($includeAttendance) {
+            $memberAttendanceGatherings = $this->getMemberAttendanceGatherings($recommendations);
+        }
 
         // Process each recommendation to populate computed fields for export
         foreach ($recommendations as $recommendation) {
-            // Note: For export, we don't need HTML formatting.
-            // The trait will use renderField paths to access nested properties like member.name_for_herald
-            // We just need to ensure the associations are loaded, which they should be from the query
+            $attendanceGatherings = [];
+            if ($includeAttendance && $recommendation->member_id) {
+                $attendanceGatherings = $memberAttendanceGatherings[$recommendation->member_id] ?? [];
+            }
+
+            $recommendation->gatherings = $this->buildGatheringsExportValue($recommendation, $attendanceGatherings);
         }
 
         return $recommendations;
@@ -1136,7 +1197,7 @@ class RecommendationsController extends AppController
             $this->Authorization->authorize($recommendation, 'view');
             $recommendation->domain_id = $recommendation->award->domain_id;
 
-            // Fetch member's self-selected attendance gatherings (where they've shared with crown/kingdom/public)
+            // Fetch member's self-selected attendance gatherings (where they've shared with crown/kingdom)
             $memberAttendanceGatherings = [];
             if ($recommendation->member_id) {
                 $attendanceTable = $this->fetchTable('GatheringAttendances');
@@ -1151,7 +1212,6 @@ class RecommendationsController extends AppController
                         'OR' => [
                             'GatheringAttendances.share_with_crown' => true,
                             'GatheringAttendances.share_with_kingdom' => true,
-                            'GatheringAttendances.is_public' => true,
                         ],
                     ])
                     ->orderBy(['Gatherings.start_date' => 'ASC'])

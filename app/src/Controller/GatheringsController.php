@@ -494,7 +494,6 @@ class GatheringsController extends AppController
                     'Members' => ['fields' => ['id', 'sca_name']],
                     'conditions' => [
                         'OR' => [
-                            'GatheringAttendances.is_public' => true,
                             'GatheringAttendances.share_with_kingdom' => true,
                         ]
                     ]
@@ -797,7 +796,7 @@ class GatheringsController extends AppController
                     'conditions' => [
                         'OR' => [
                             'GatheringAttendances.share_with_hosting_group' => true,
-                            'GatheringAttendances.is_public' => true,
+                            'GatheringAttendances.share_with_kingdom' => true,
                         ]
                     ]
                 ],
@@ -840,7 +839,28 @@ class GatheringsController extends AppController
             ])
             ->first();
 
-        $this->set(compact('gathering', 'hasWaivers', 'availableActivities', 'totalAttendanceCount', 'userAttendance'));
+        $kingdomAttendances = [];
+        if ($gathering->public_page_enabled && $currentUser) {
+            $kingdomAttendances = $this->Gatherings->GatheringAttendances
+                ->find()
+                ->contain(['Members' => ['fields' => ['id', 'sca_name']]])
+                ->where([
+                    'gathering_id' => $gathering->id,
+                    'share_with_kingdom' => true,
+                ])
+                ->orderBy(['Members.sca_name' => 'ASC'])
+                ->all()
+                ->toArray();
+        }
+
+        $this->set(compact(
+            'gathering',
+            'hasWaivers',
+            'availableActivities',
+            'totalAttendanceCount',
+            'userAttendance',
+            'kingdomAttendances'
+        ));
 
         // Override recordId to use integer ID for plugin cells that expect it
         // (recordId is auto-set to the URL param which is now public_id)
@@ -1726,7 +1746,28 @@ class GatheringsController extends AppController
                 ->first();
         }
 
-        $this->set(compact('gathering', 'scheduleByDate', 'durationDays', 'user', 'userAttendance'));
+        $kingdomAttendances = [];
+        if ($identity) {
+            $kingdomAttendances = $this->fetchTable('GatheringAttendances')
+                ->find()
+                ->contain(['Members' => ['fields' => ['id', 'sca_name']]])
+                ->where([
+                    'gathering_id' => $gathering->id,
+                    'share_with_kingdom' => true,
+                ])
+                ->orderBy(['Members.sca_name' => 'ASC'])
+                ->all()
+                ->toArray();
+        }
+
+        $this->set(compact(
+            'gathering',
+            'scheduleByDate',
+            'durationDays',
+            'user',
+            'userAttendance',
+            'kingdomAttendances'
+        ));
     }
 
     /**

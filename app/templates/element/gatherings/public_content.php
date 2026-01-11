@@ -12,6 +12,7 @@
  * @var int $durationDays Optional - event duration in days
  * @var \App\Model\Entity\Member|null $user Optional - current authenticated user
  * @var \App\Model\Entity\GatheringAttendance|null $userAttendance Optional - user's attendance record
+ * @var array<\App\Model\Entity\GatheringAttendance> $kingdomAttendances Optional - kingdom-shared attendances
  */
 
 use Cake\I18n\Date;
@@ -19,6 +20,7 @@ use Cake\I18n\DateTime;
 
 // Check if user is authenticated
 $isAuthenticated = isset($user) && $user !== null;
+$kingdomAttendances = $kingdomAttendances ?? [];
 
 // Get current time in the gathering's timezone for accurate status
 $gatheringTimezone = \App\KMP\TimezoneHelper::getGatheringTimezone($gathering, $this->getRequest()->getAttribute('identity'));
@@ -465,6 +467,30 @@ if (!isset($scheduleByDate)) {
                     </a>
                 </div>
             <?php endif; ?>
+        </div>
+    </div>
+<?php endif; ?>
+
+<?php if ($isAuthenticated && $gathering->public_page_enabled && !empty($kingdomAttendances)): ?>
+    <div class="event-container">
+        <div class="section-medieval fade-in" style="animation-delay: 0.22s;">
+            <h2 class="section-title-medieval">
+                <span class="title-ornament">❖</span>
+                <?= __('Attendees Sharing with the Kingdom') ?> (<?= count($kingdomAttendances) ?>)
+                <span class="title-ornament">❖</span>
+            </h2>
+            <div class="content-scroll">
+                <?php foreach ($kingdomAttendances as $attendance): ?>
+                    <?php if (isset($attendance->member)): ?>
+                        <div class="staff-entry">
+                            <strong><?= h($attendance->member->sca_name) ?></strong>
+                            <?php if (!empty($attendance->public_note)): ?>
+                                <div class="contact-note"><?= h($attendance->public_note) ?></div>
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
+                <?php endforeach; ?>
+            </div>
         </div>
     </div>
 <?php endif; ?>

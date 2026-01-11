@@ -743,7 +743,8 @@ $publicLandingUrl = $this->Url->build([
             <?= $this->element('gatherings/public_content', [
                 'gathering' => $gathering,
                 'user' => $user ?? null,
-                'userAttendance' => $userAttendance ?? null
+                'userAttendance' => $userAttendance ?? null,
+                'kingdomAttendances' => $kingdomAttendances ?? []
             ]) ?>
 
 

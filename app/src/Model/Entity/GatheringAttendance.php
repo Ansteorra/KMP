@@ -64,8 +64,7 @@ class GatheringAttendance extends BaseEntity
     {
         return $this->share_with_kingdom
             || $this->share_with_hosting_group
-            || $this->share_with_crown
-            || $this->is_public;
+            || $this->share_with_crown;
     }
 
     /**
@@ -80,9 +79,6 @@ class GatheringAttendance extends BaseEntity
         }
 
         $shares = [];
-        if ($this->is_public) {
-            $shares[] = 'Public';
-        }
         if ($this->share_with_crown) {
             $shares[] = 'Crown';
         }

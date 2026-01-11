@@ -28,6 +28,7 @@ class GatheringAttendancesController extends AppController
 
         if ($this->request->is('post')) {
             $data = $this->request->getData();
+            $data['is_public'] = '0';
 
             // Validate that the gathering exists and is valid for attendance
             $gathering = $this->GatheringAttendances->Gatherings->get($data['gathering_id']);
@@ -91,6 +92,7 @@ class GatheringAttendancesController extends AppController
 
         if ($this->request->is(['patch', 'post', 'put'])) {
             $data = $this->request->getData();
+            $data['is_public'] = '0';
 
             // Validate that the gathering hasn't ended
             $today = Date::now();

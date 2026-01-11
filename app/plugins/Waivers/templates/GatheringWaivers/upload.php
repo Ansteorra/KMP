@@ -4,6 +4,7 @@
  * @var \App\View\AppView $this
  * @var \App\Model\Entity\Gathering $gathering
  * @var \Waivers\Model\Entity\WaiverType[] $requiredWaiverTypes
+ * @var array $waiverStatusSummary
  */
 
 // Include wizard CSS
@@ -138,7 +139,8 @@ echo $this->KMP->startBlock('pageTitle');
                 <?php echo $this->element('GatheringWaivers/upload_wizard_steps', [
                     'waiverTypesData' => $waiverTypesData,
                     'gathering' => $gathering,
-                    'uploadLimits' => $uploadLimits
+                    'uploadLimits' => $uploadLimits,
+                    'waiverStatusSummary' => $waiverStatusSummary
                 ]); ?>
             </div>
         </div>

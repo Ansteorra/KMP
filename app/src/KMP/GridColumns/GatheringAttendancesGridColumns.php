@@ -51,7 +51,6 @@ class GatheringAttendancesGridColumns extends BaseGridColumns
                     'share-kingdom' => '{{share_with_kingdom}}',
                     'share-hosting' => '{{share_with_hosting_group}}',
                     'share-crown' => '{{share_with_crown}}',
-                    'is-public' => '{{is_public}}',
                 ],
             ],
         ];

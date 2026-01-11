@@ -236,6 +236,8 @@ class AwardsRecommendationAddForm extends Controller {
             this.specialtyTarget.disabled = true
             this.specialtyTarget.hidden = true;
         }
+        // Also update gatherings when award changes via autocomplete selection
+        this.updateGatherings(awardId);
     }
 
     /** Handle member field change, load profile or show branch field if not found. */
