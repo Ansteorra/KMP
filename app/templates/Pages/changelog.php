@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /**
  * Changelog display page
  *
@@ -8,10 +10,10 @@
  * @var string|null $lastSyncedDate Date of last changelog sync
  */
 
-$this->extend("/layout/TwitterBootstrap/dashboard");
+$this->extend('/layout/TwitterBootstrap/dashboard');
 
 echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle", "KMP") . ': Changelog';
+echo $this->KMP->getAppSetting('KMP.ShortSiteTitle', 'KMP') . ': Changelog';
 $this->KMP->endBlock();
 
 echo $this->KMP->startBlock("pageTitle") ?>

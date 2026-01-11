@@ -30,7 +30,7 @@ echo $this->KMP->startBlock("tb_footer"); ?>
                     }
                 ?>
                     <li class="nav-item text-nowrap mx-2">
-                        <a class="<?= $css ?>" href="<?= $url ?>"><?= $key ?></a>
+                        <a class="<?= htmlspecialchars($css, ENT_QUOTES, 'UTF-8') ?>" href="<?= htmlspecialchars($url, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($key, ENT_QUOTES, 'UTF-8') ?></a>
                     </li>
                 <?php endforeach; ?>
                 <li class="nav-item text-nowrap mx-2">

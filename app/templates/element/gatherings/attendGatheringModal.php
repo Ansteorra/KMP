@@ -150,6 +150,3 @@ if ($isEdit) {
     ]) ?>
     <?= $this->Form->end() ?>
 <?php endif; ?>
-</div>
-</div>
-</div>

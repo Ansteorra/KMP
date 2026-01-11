@@ -129,6 +129,13 @@ class PagesController extends AppController
         if (file_exists($changelogPath)) {
             $rawContent = file_get_contents($changelogPath);
 
+            // Handle file read failure
+            if ($rawContent === false) {
+                $this->set(compact('changelogContent', 'lastSyncedDate'));
+
+                return null;
+            }
+
             // Extract last synced date from the marker
             if (preg_match('/<!-- LAST_SYNCED_DATE: ([^\s]+) -->/', $rawContent, $matches)) {
                 $lastSyncedDate = $matches[1] !== 'none' ? $matches[1] : null;

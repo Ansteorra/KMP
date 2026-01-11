@@ -963,6 +963,7 @@ class GatheringWaiversController extends AppController
                 'GatheringWaivers.gathering_id' => $gatheringId,
                 'GatheringWaivers.waiver_type_id IN' => $waiverTypeIds,
                 'GatheringWaivers.declined_at IS' => null,
+                'GatheringWaivers.deleted IS' => null,
                 'GatheringWaivers.status !=' => 'deleted',
             ])
             ->select(['waiver_type_id', 'is_exemption', 'exemption_reason'])
@@ -1006,6 +1007,7 @@ class GatheringWaiversController extends AppController
                 'GatheringWaivers.waiver_type_id' => $waiverTypeId,
                 'GatheringWaivers.is_exemption' => true,
                 'GatheringWaivers.declined_at IS' => null,
+                'GatheringWaivers.deleted IS' => null,
                 'GatheringWaivers.status !=' => 'deleted',
             ])
             ->count() > 0;
