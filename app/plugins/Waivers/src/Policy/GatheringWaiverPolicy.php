@@ -43,6 +43,12 @@ class GatheringWaiverPolicy extends BasePolicy
         return $this->_hasPolicy($user, $method, $entity);
     }
 
+    public function canCloseWaivers(\App\KMP\KmpIdentityInterface $user, \App\Model\Entity\BaseEntity $entity, ...$optionalArgs): bool
+    {
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
+    }
+
     /**
      * Check if user can decline a waiver.
      * Business rules (30-day limit, not already declined) are checked in the controller.

@@ -14,6 +14,7 @@ use App\Services\ServiceResult;
 use Cake\Http\Exception\BadRequestException;
 use Cake\Http\Exception\NotFoundException;
 use Cake\I18n\Date;
+use Cake\I18n\DateTime;
 use Cake\Log\Log;
 use Waivers\KMP\GridColumns\GatheringWaiversGridColumns;
 
@@ -96,6 +97,10 @@ class GatheringWaiversController extends AppController
 
             $this->Authorization->authorize($gathering, 'view');
 
+            $GatheringWaiverClosures = $this->fetchTable('Waivers.GatheringWaiverClosures');
+            $waiverClosure = $GatheringWaiverClosures->getClosureForGathering((int)$gatheringId);
+            $waiverCollectionClosed = $waiverClosure !== null;
+
             // Get all waivers for this gathering
             $query = $this->GatheringWaivers->find()
                 ->where(['gathering_id' => $gatheringId])
@@ -135,13 +140,120 @@ class GatheringWaiversController extends AppController
                 $countsMap[$count->waiver_type_id] = $count->count;
             }
 
-            $this->set(compact('gathering', 'gatheringWaivers', 'countsMap', 'requiredWaiverTypes'));
+            $this->set(compact(
+                'gathering',
+                'gatheringWaivers',
+                'countsMap',
+                'requiredWaiverTypes',
+                'waiverClosure',
+                'waiverCollectionClosed'
+            ));
             $this->render('index_gathering');
         } else {
             // Show all waivers using dv_grid
             // The actual data will be loaded via gridData action
             $this->set('gathering', null);
         }
+    }
+
+    /**
+     * Close waiver collection for a gathering.
+     *
+     * @param string|null $gatheringId Gathering ID.
+     * @return \Cake\Http\Response|null
+     */
+    public function close(?string $gatheringId = null)
+    {
+        $this->request->allowMethod(['post']);
+
+        if (!$gatheringId) {
+            throw new BadRequestException(__('Gathering ID is required'));
+        }
+
+        $Gatherings = $this->fetchTable('Gatherings');
+        $gathering = $Gatherings->get($gatheringId);
+
+        $tempWaiver = $this->GatheringWaivers->newEmptyEntity();
+        $tempWaiver->gathering = $gathering;
+        $this->Authorization->authorize($tempWaiver, 'closeWaivers');
+
+        $GatheringWaiverClosures = $this->fetchTable('Waivers.GatheringWaiverClosures');
+        $existing = $GatheringWaiverClosures->getClosureForGathering((int)$gatheringId);
+
+        if ($existing) {
+            $this->Flash->info(__('Waiver collection is already closed for this gathering.'));
+        } else {
+            $closure = $GatheringWaiverClosures->newEntity([
+                'gathering_id' => $gathering->id,
+                'closed_at' => DateTime::now(),
+                'closed_by' => $this->Authentication->getIdentity()->getIdentifier(),
+            ]);
+
+            if ($GatheringWaiverClosures->save($closure)) {
+                $this->Flash->success(__('Waiver collection has been closed.'));
+            } else {
+                $this->Flash->error(__('Unable to close waiver collection. Please try again.'));
+            }
+        }
+
+        $redirectUrl = $this->request->referer();
+        if (!$redirectUrl) {
+            $redirectUrl = [
+                'plugin' => false,
+                'controller' => 'Gatherings',
+                'action' => 'view',
+                $gathering->public_id,
+                '?' => ['tab' => 'gathering-waivers'],
+            ];
+        }
+
+        return $this->redirect($redirectUrl);
+    }
+
+    /**
+     * Reopen waiver collection for a gathering.
+     *
+     * @param string|null $gatheringId Gathering ID.
+     * @return \Cake\Http\Response|null
+     */
+    public function reopen(?string $gatheringId = null)
+    {
+        $this->request->allowMethod(['post']);
+
+        if (!$gatheringId) {
+            throw new BadRequestException(__('Gathering ID is required'));
+        }
+
+        $Gatherings = $this->fetchTable('Gatherings');
+        $gathering = $Gatherings->get($gatheringId);
+
+        $tempWaiver = $this->GatheringWaivers->newEmptyEntity();
+        $tempWaiver->gathering = $gathering;
+        $this->Authorization->authorize($tempWaiver, 'closeWaivers');
+
+        $GatheringWaiverClosures = $this->fetchTable('Waivers.GatheringWaiverClosures');
+        $existing = $GatheringWaiverClosures->getClosureForGathering((int)$gatheringId);
+
+        if (!$existing) {
+            $this->Flash->info(__('Waiver collection is already open for this gathering.'));
+        } elseif ($GatheringWaiverClosures->delete($existing)) {
+            $this->Flash->success(__('Waiver collection has been reopened.'));
+        } else {
+            $this->Flash->error(__('Unable to reopen waiver collection. Please try again.'));
+        }
+
+        $redirectUrl = $this->request->referer();
+        if (!$redirectUrl) {
+            $redirectUrl = [
+                'plugin' => false,
+                'controller' => 'Gatherings',
+                'action' => 'view',
+                $gathering->public_id,
+                '?' => ['tab' => 'gathering-waivers'],
+            ];
+        }
+
+        return $this->redirect($redirectUrl);
     }
 
     /**
@@ -362,6 +474,27 @@ class GatheringWaiversController extends AppController
                 'GatheringActivities',
             ],
         ]);
+
+        $GatheringWaiverClosures = $this->fetchTable('Waivers.GatheringWaiverClosures');
+        $waiverClosure = $GatheringWaiverClosures->getClosureForGathering((int)$gatheringId);
+        if ($waiverClosure) {
+            $message = __('Waiver collection is closed for this gathering.');
+            if ($this->request->is('ajax')) {
+                $this->viewBuilder()->setClassName('Json');
+                $this->response = $this->response->withStatus(403);
+                $this->set('message', $message);
+                $this->viewBuilder()->setOption('serialize', ['message']);
+                return;
+            }
+            $this->Flash->error($message);
+            return $this->redirect([
+                'plugin' => false,
+                'controller' => 'Gatherings',
+                'action' => 'view',
+                $gathering->public_id,
+                '?' => ['tab' => 'gathering-waivers'],
+            ]);
+        }
 
         // Check if gathering has required waivers
         $requiredWaiverTypes = $this->_getRequiredWaiverTypes($gathering);
@@ -1369,6 +1502,8 @@ class GatheringWaiversController extends AppController
         $Gatherings = $this->fetchTable('Gatherings');
         $today = Date::now()->toDateString();
         $oneWeekFromNow = Date::now()->addDays(7)->toDateString();
+        $GatheringWaiverClosures = $this->fetchTable('Waivers.GatheringWaiverClosures');
+        $closedGatheringIds = $GatheringWaiverClosures->getClosedGatheringIds();
 
         // Find gatherings with:
         // 1. end_date >= today (or null which defaults to start_date) - ongoing or future
@@ -1399,6 +1534,10 @@ class GatheringWaiversController extends AppController
                 },
             ])
             ->orderBy(['Gatherings.start_date' => 'ASC', 'Gatherings.name' => 'ASC']);
+
+        if (!empty($closedGatheringIds)) {
+            $query->where(['Gatherings.id NOT IN' => $closedGatheringIds]);
+        }
 
         $allGatherings = $query->all();
 
@@ -1682,6 +1821,7 @@ class GatheringWaiversController extends AppController
     {
         $Gatherings = $this->fetchTable('Gatherings');
         $GatheringActivityWaivers = $this->fetchTable('Waivers.GatheringActivityWaivers');
+        $GatheringWaiverClosures = $this->fetchTable('Waivers.GatheringWaiverClosures');
         $today = Date::now();
         $todayString = $today->toDateString();
         $futureDate = Date::now()->addDays($daysAhead)->toDateString();
@@ -1716,6 +1856,11 @@ class GatheringWaiversController extends AppController
                 },
             ])
             ->orderBy(['Gatherings.start_date' => 'ASC']);
+
+        $closedGatheringIds = $GatheringWaiverClosures->getClosedGatheringIds();
+        if (!empty($closedGatheringIds)) {
+            $query->where(['Gatherings.id NOT IN' => $closedGatheringIds]);
+        }
 
         $allGatherings = $query->all();
         $gatheringsMissing = []; // Past events (>48hrs after end)
@@ -1983,6 +2128,12 @@ class GatheringWaiversController extends AppController
         // Extract gathering IDs
         $gatheringIds = $gatheringIdsQuery->all()->extract('gathering_id')->toArray();
 
+        $GatheringWaiverClosures = $this->fetchTable('Waivers.GatheringWaiverClosures');
+        $closedGatheringIds = $GatheringWaiverClosures->getClosedGatheringIds($gatheringIds);
+        if (!empty($closedGatheringIds)) {
+            $gatheringIds = array_values(array_diff($gatheringIds, $closedGatheringIds));
+        }
+
         // If no gatherings found, show empty state
         if (empty($gatheringIds)) {
             $authorizedGatherings = [];
@@ -2036,6 +2187,21 @@ class GatheringWaiversController extends AppController
                 'GatheringActivities',
             ],
         ]);
+        $GatheringWaiverClosures = $this->fetchTable('Waivers.GatheringWaiverClosures');
+        $waiverClosure = $GatheringWaiverClosures->getClosureForGathering((int)$gatheringId);
+        if ($waiverClosure) {
+            $message = __('Waiver collection is closed for this gathering.');
+            if ($this->request->is('ajax')) {
+                $this->viewBuilder()->setClassName('Json');
+                $this->response = $this->response->withStatus(403);
+                $this->set('message', $message);
+                $this->viewBuilder()->setOption('serialize', ['message']);
+                return;
+            }
+            $this->Flash->error($message);
+            return $this->redirect(['action' => 'mobileSelectGathering']);
+        }
+
         $tempWaiver = $this->GatheringWaivers->newEmptyEntity();
         $tempWaiver->gathering = $gathering;
         $tempWaiver->gathering_id = $gatheringId;
@@ -2310,6 +2476,15 @@ class GatheringWaiversController extends AppController
             // Load gathering for authorization
             $Gatherings = $this->fetchTable('Gatherings');
             $gathering = $Gatherings->get($gatheringId);
+
+            $GatheringWaiverClosures = $this->fetchTable('Waivers.GatheringWaiverClosures');
+            if ($GatheringWaiverClosures->isGatheringClosed($gatheringId)) {
+                $this->response = $this->response->withStatus(403);
+                $this->set('success', false);
+                $this->set('message', __('Waiver collection is closed for this gathering.'));
+                $this->viewBuilder()->setOption('serialize', ['success', 'message']);
+                return;
+            }
 
             // Check authorization - user must be able upload waivers for this gathering to attest
             $gatheringWaiver = $this->GatheringWaivers->newEmptyEntity();

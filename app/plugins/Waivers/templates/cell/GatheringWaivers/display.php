@@ -15,6 +15,9 @@
  * @var array $overallStats Overall completion statistics
  * @var int $totalWaiverCount Total number of waivers uploaded
  * @var int $declinedWaiverCount Number of declined waivers
+ * @var bool $waiverCollectionClosed Whether waiver collection is closed for this gathering
+ * @var \Waivers\Model\Entity\GatheringWaiverClosure|null $waiverClosure Closure details (if closed)
+ * @var bool $canCloseWaivers Whether current user can close waivers
  */
 
 $user = $this->getRequest()->getAttribute('identity');
@@ -29,6 +32,39 @@ $user = $this->getRequest()->getAttribute('identity');
             <?php endif; ?>
         </h5>
         <div>
+            <?php if ($canCloseWaivers): ?>
+            <?php if ($waiverCollectionClosed): ?>
+            <?= $this->Form->postLink(
+                    '<i class="bi bi-unlock"></i> ' . __('Reopen Waivers'),
+                    [
+                        'plugin' => 'Waivers',
+                        'controller' => 'GatheringWaivers',
+                        'action' => 'reopen',
+                        $gathering->id
+                    ],
+                    [
+                        'class' => 'btn btn-sm btn-outline-success me-2',
+                        'escape' => false,
+                        'confirm' => __('Reopen waiver collection for this gathering?'),
+                    ]
+                ) ?>
+            <?php else: ?>
+            <?= $this->Form->postLink(
+                    '<i class="bi bi-lock-fill"></i> ' . __('Close Waivers'),
+                    [
+                        'plugin' => 'Waivers',
+                        'controller' => 'GatheringWaivers',
+                        'action' => 'close',
+                        $gathering->id
+                    ],
+                    [
+                        'class' => 'btn btn-sm btn-outline-danger me-2',
+                        'escape' => false,
+                        'confirm' => __('Closing waivers will prevent new uploads or attestations. Continue?'),
+                    ]
+                ) ?>
+            <?php endif; ?>
+            <?php endif; ?>
             <?php if ($totalWaiverCount > 0): ?>
             <?= $this->Html->link(
                     '<i class="bi bi-list-ul"></i> ' . __('View All Waivers') . ' <span class="badge bg-light text-dark ms-1">' . $totalWaiverCount . '</span>',
@@ -44,7 +80,7 @@ $user = $this->getRequest()->getAttribute('identity');
                     ]
                 ) ?>
             <?php endif; ?>
-            <?php if ($user && $user->checkCan('edit', $gathering) && !$isEmpty): ?>
+            <?php if ($user && $user->checkCan('edit', $gathering) && !$isEmpty && !$waiverCollectionClosed): ?>
             <?= $this->Html->link(
                     '<i class="bi bi-cloud-upload"></i> ' . __('Submit Waivers'),
                     [
@@ -61,6 +97,18 @@ $user = $this->getRequest()->getAttribute('identity');
             <?php endif; ?>
         </div>
     </div>
+
+    <?php if ($waiverCollectionClosed): ?>
+    <div class="alert alert-dark">
+        <i class="bi bi-lock-fill"></i>
+        <?= __('Waiver collection is closed for this gathering.') ?>
+        <?php if ($waiverClosure): ?>
+        <div class="small text-muted mt-1">
+            <?= __('Closed {0} by {1}', $this->Timezone->format($waiverClosure->closed_at, $gathering, 'M d, Y g:i A'), h($waiverClosure->closed_by_member?->sca_name ?? __('Unknown'))) ?>
+        </div>
+        <?php endif; ?>
+    </div>
+    <?php endif; ?>
 
     <?php if ($isEmpty): ?>
     <!-- No Requirements Configured -->
@@ -166,7 +214,7 @@ $user = $this->getRequest()->getAttribute('identity');
                         <?php endif; ?>
                     </td>
                     <td class="text-center align-middle">
-                        <?php if ($user && $user->checkCan('edit', $gathering) && !$exemption):
+                        <?php if ($user && $user->checkCan('edit', $gathering) && !$exemption && !$waiverCollectionClosed):
                                     if ($uploadedCount > 0) {
                                         $label = __('Submit More');
                                     } else {
