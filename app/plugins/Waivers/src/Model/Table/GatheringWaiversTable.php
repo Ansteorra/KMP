@@ -253,6 +253,7 @@ class GatheringWaiversTable extends Table
         $gatheringsTable = \Cake\ORM\TableRegistry::getTableLocator()->get('Gatherings');
         $gatheringWaiversTable = \Cake\ORM\TableRegistry::getTableLocator()->get('Waivers.GatheringWaivers');
         $activityWaiversTable = \Cake\ORM\TableRegistry::getTableLocator()->get('Waivers.GatheringActivityWaivers');
+        $gatheringWaiverClosuresTable = \Cake\ORM\TableRegistry::getTableLocator()->get('Waivers.GatheringWaiverClosures');
 
         $today = Date::now()->toDateString();
         $oneWeekFromNow = Date::now()->addDays(7)->toDateString();
@@ -282,8 +283,12 @@ class GatheringWaiversTable extends Table
             ->all();
 
         $count = 0;
+        $closedGatheringIds = $gatheringWaiverClosuresTable->getClosedGatheringIds();
 
         foreach ($gatherings as $gathering) {
+            if (!empty($closedGatheringIds) && in_array($gathering->id, $closedGatheringIds, true)) {
+                continue;
+            }
             if (empty($gathering->gathering_activities)) {
                 continue;
             }

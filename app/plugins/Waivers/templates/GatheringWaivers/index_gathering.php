@@ -8,6 +8,8 @@
  * @var \Waivers\Model\Entity\GatheringWaiver[]|\Cake\Collection\CollectionInterface $gatheringWaivers
  * @var array $countsMap
  * @var array $requiredWaiverTypes
+ * @var bool $waiverCollectionClosed
+ * @var \Waivers\Model\Entity\GatheringWaiverClosure|null $waiverClosure
  */
 ?>
 <?php
@@ -25,11 +27,13 @@ $this->KMP->endBlock();
         </h3>
     </div>
     <div class="col text-end">
+        <?php if (!$waiverCollectionClosed): ?>
         <?= $this->Html->link(
             '<i class="bi bi-plus-circle"></i> ' . __('Upload Waiver'),
             ['action' => 'upload', '?' => ['gathering_id' => $gathering->id]],
             ['class' => 'btn btn-primary', 'escape' => false]
         ) ?>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -38,6 +42,18 @@ $this->KMP->endBlock();
         <hr>
     </div>
 </div>
+
+<?php if ($waiverCollectionClosed): ?>
+    <div class="alert alert-dark" role="alert">
+        <i class="bi bi-lock-fill"></i>
+        <?= __('Waiver collection is closed for this gathering.') ?>
+        <?php if ($waiverClosure): ?>
+            <div class="small text-muted mt-1">
+                <?= __('Closed {0} by {1}', $this->Timezone->format($waiverClosure->closed_at, $gathering, 'M d, Y g:i A'), h($waiverClosure->closed_by_member?->sca_name ?? __('Unknown'))) ?>
+            </div>
+        <?php endif; ?>
+    </div>
+<?php endif; ?>
 
 <?php if ($gatheringWaivers->isEmpty()): ?>
     <div class="alert alert-info" role="alert">

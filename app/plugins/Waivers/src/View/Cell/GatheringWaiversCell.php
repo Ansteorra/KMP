@@ -155,9 +155,20 @@ class GatheringWaiversCell extends Cell
 
         $gatheringActivityWaiversTable = TableRegistry::getTableLocator()->get('Waivers.GatheringActivityWaivers');
         $gatheringWaiversTable = TableRegistry::getTableLocator()->get('Waivers.GatheringWaivers');
+        $gatheringWaiverClosuresTable = TableRegistry::getTableLocator()->get('Waivers.GatheringWaiverClosures');
         $waiverTypesTable = TableRegistry::getTableLocator()->get('Waivers.WaiverTypes');
 
         $activityIds = array_column($gathering->gathering_activities ?? [], 'id');
+
+        $waiverClosure = $gatheringWaiverClosuresTable->getClosureForGathering($gatheringId);
+        $waiverCollectionClosed = $waiverClosure !== null;
+        $canCloseWaivers = false;
+        $user = $this->request->getAttribute('identity');
+        if ($user) {
+            $tempWaiver = $gatheringWaiversTable->newEmptyEntity();
+            $tempWaiver->gathering = $gathering;
+            $canCloseWaivers = $user->checkCan('closeWaivers', $tempWaiver);
+        }
 
         $requiredWaiverTypeIds = [];
         if (!empty($activityIds)) {
@@ -255,6 +266,9 @@ class GatheringWaiversCell extends Cell
         $this->set('hasWaivers', $hasWaivers);
         $this->set('totalWaiverCount', $totalWaiverCount);
         $this->set('declinedWaiverCount', $declinedWaiverCount);
+        $this->set('waiverClosure', $waiverClosure);
+        $this->set('waiverCollectionClosed', $waiverCollectionClosed);
+        $this->set('canCloseWaivers', $canCloseWaivers);
         $this->set('overallStats', [
             'complete' => $overallComplete,
             'pending' => $overallPending,

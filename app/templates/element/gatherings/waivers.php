@@ -12,13 +12,23 @@
  * @var array $requiredWaiverTypes Required waiver types for this gathering
  * @var bool $hasWaivers Whether any waivers have been uploaded
  * @var \App\Model\Entity\User $user Current user
+ * @var bool|null $waiverCollectionClosed Whether waiver collection is closed (optional)
+ * @var \Waivers\Model\Entity\GatheringWaiverClosure|null $waiverClosure Closure details (optional)
  */
+
+$waiverCollectionClosed = $waiverCollectionClosed ?? null;
+$waiverClosure = $waiverClosure ?? null;
+if ($waiverCollectionClosed === null && class_exists('Waivers\Model\Table\GatheringWaiverClosuresTable')) {
+    $GatheringWaiverClosures = \Cake\ORM\TableRegistry::getTableLocator()->get('Waivers.GatheringWaiverClosures');
+    $waiverClosure = $GatheringWaiverClosures->getClosureForGathering((int)$gathering->id);
+    $waiverCollectionClosed = $waiverClosure !== null;
+}
 ?>
 
 <div class="gathering-waivers">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h5><?= __('Gathering Waivers') ?></h5>
-        <?php if ($user->checkCan('edit', $gathering) && !empty($requiredWaiverTypes)): ?>
+        <?php if ($user->checkCan('edit', $gathering) && !empty($requiredWaiverTypes) && !$waiverCollectionClosed): ?>
             <?= $this->Html->link(
                 '<i class="bi bi-cloud-upload"></i> ' . __('Upload Waivers'),
                 [
@@ -34,6 +44,18 @@
             ) ?>
         <?php endif; ?>
     </div>
+
+    <?php if ($waiverCollectionClosed): ?>
+        <div class="alert alert-dark">
+            <i class="bi bi-lock-fill"></i>
+            <?= __('Waiver collection is closed for this gathering.') ?>
+            <?php if ($waiverClosure): ?>
+                <div class="small text-muted mt-1">
+                    <?= __('Closed {0} by {1}', $this->Timezone->format($waiverClosure->closed_at, $gathering, 'M d, Y g:i A'), h($waiverClosure->closed_by_member?->sca_name ?? __('Unknown'))) ?>
+                </div>
+            <?php endif; ?>
+        </div>
+    <?php endif; ?>
 
     <?php if (empty($requiredWaiverTypes)): ?>
         <div class="alert alert-info">
