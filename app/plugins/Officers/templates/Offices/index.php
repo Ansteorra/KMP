@@ -26,6 +26,17 @@ $this->KMP->endBlock(); ?>
                 ['class' => 'btn btn-primary bi bi-plus-circle', 'data-turbo-frame' => '_top']
             ) ?>
         <?php endif; ?>
+        <?php if ($user->checkCan("syncOfficers", "Officers.Offices")): ?>
+        <?= $this->Form->postLink(
+                ' Sync Officers',
+                ['action' => 'syncOfficers'],
+                [
+                    'class' => 'btn btn-outline-warning bi bi-arrow-repeat ms-2',
+                    'confirm' => __('Recalculate officers for all offices? This may take a few minutes.'),
+                    'data-turbo-frame' => '_top',
+                ]
+            ) ?>
+        <?php endif; ?>
     </div>
 </div>
 
