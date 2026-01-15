@@ -80,6 +80,96 @@ class OfficesController extends AppController
     }
 
     /**
+     * Recalculate officers for all offices to ensure settings are synchronized.
+     *
+     * @param OfficerManagerInterface $officerManager Officer manager for recalculation
+     * @return \\Cake\\Http\\Response|null Redirects to index
+     */
+    public function syncOfficers(OfficerManagerInterface $officerManager)
+    {
+        $this->request->allowMethod(['post']);
+
+        // Authorize administrative sync access
+        $this->Authorization->authorize($this->Offices, 'syncOfficers');
+
+        $currentUser = $this->Authentication->getIdentity();
+
+        $offices = $this->Offices->find()
+            ->select(['id', 'name'])
+            ->orderBy(['name' => 'asc'])
+            ->all();
+
+        $updatedTotal = 0;
+        $currentTotal = 0;
+        $upcomingTotal = 0;
+        $updatedOfficeSummaries = [];
+
+        $connection = $this->Offices->getConnection();
+        $connection->begin();
+
+        try {
+            foreach ($offices as $office) {
+                $result = $officerManager->recalculateOfficersForOffice(
+                    $office->id,
+                    $currentUser->id
+                );
+
+                if (!$result->success) {
+                    \Cake\Log\Log::error('Office bulk recalculation failed', [
+                        'office_id' => $office->id,
+                        'office_name' => $office->name,
+                        'reason' => $result->reason,
+                    ]);
+
+                    $connection->rollback();
+                    $this->Flash->error(__('Officer sync failed for {0}: {1}', $office->name, $result->reason));
+                    return $this->redirect(['action' => 'index']);
+                }
+
+                $updatedCount = (int)($result->data['updated_count'] ?? 0);
+                $currentCount = (int)($result->data['current_count'] ?? 0);
+                $upcomingCount = (int)($result->data['upcoming_count'] ?? 0);
+
+                $updatedTotal += $updatedCount;
+                $currentTotal += $currentCount;
+                $upcomingTotal += $upcomingCount;
+
+                if ($updatedCount > 0) {
+                    $updatedOfficeSummaries[] = __(
+                        '{0}: {1} current, {2} upcoming',
+                        $office->name,
+                        $currentCount,
+                        $upcomingCount
+                    );
+                }
+            }
+
+            $connection->commit();
+        } catch (\Exception $e) {
+            $connection->rollback();
+            \Cake\Log\Log::error('Office bulk recalculation failed with exception', [
+                'exception' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            $this->Flash->error(__('Officer sync failed due to an unexpected error.'));
+            return $this->redirect(['action' => 'index']);
+        }
+
+        if ($updatedTotal > 0) {
+            $summary = __('Updated {0} officers ({1} current, {2} upcoming).', $updatedTotal, $currentTotal, $upcomingTotal);
+            $officeSummary = !empty($updatedOfficeSummaries)
+                ? __(' Offices updated: {0}.', implode('; ', $updatedOfficeSummaries))
+                : '';
+
+            $this->Flash->success($summary . $officeSummary);
+        } else {
+            $this->Flash->success(__('All officers are already in sync with their offices.'));
+        }
+
+        return $this->redirect(['action' => 'index']);
+    }
+
+    /**
      * Provide grid data for offices listing via AJAX.
      *
      * @return \Cake\Http\Response|null|void

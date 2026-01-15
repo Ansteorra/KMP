@@ -20,6 +20,11 @@ use App\Policy\BasePolicy;
  */
 class GatheringWaiverPolicy extends BasePolicy
 {
+    public function canPreview(\App\KMP\KmpIdentityInterface $user, \App\Model\Entity\BaseEntity $entity, ...$optionalArgs): bool
+    {
+        $method = __FUNCTION__;
+        return $this->_hasPolicy($user, $method, $entity);
+    }
     public function canChangeWaiverType(\App\KMP\KmpIdentityInterface $user, \App\Model\Entity\BaseEntity $entity, ...$optionalArgs): bool
     {
         $method = __FUNCTION__;

@@ -1232,7 +1232,7 @@ class GatheringWaiversController extends AppController
         ]);
 
         // Check authorization - this uses the canChangeWaiverType policy
-        $this->Authorization->authorize($gatheringWaiver, 'canChangeWaiverType');
+        $this->Authorization->authorize($gatheringWaiver, 'changeWaiverType');
 
         $data = $this->request->getData();
         $waiverTypeId = $data['waiver_type_id'] ?? null;
