@@ -20,14 +20,14 @@ $this->KMP->endBlock(); ?>
     </div>
     <div class="col text-end">
         <?php if ($user->checkCan("add", "Officers.Offices")): ?>
-        <?= $this->Html->link(
+            <?= $this->Html->link(
                 ' Add Office',
                 ['action' => 'add'],
                 ['class' => 'btn btn-primary bi bi-plus-circle', 'data-turbo-frame' => '_top']
             ) ?>
         <?php endif; ?>
         <?php if ($user->checkCan("syncOfficers", "Officers.Offices")): ?>
-        <?= $this->Form->postLink(
+            <?= $this->Form->postLink(
                 ' Sync Officers',
                 ['action' => 'syncOfficers'],
                 [
