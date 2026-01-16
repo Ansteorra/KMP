@@ -180,11 +180,6 @@ class VerifyQueueGridColumns extends BaseGridColumns
                 'config' => [
                     'filters' => [
                         [
-                            'field' => 'status',
-                            'operator' => 'in',
-                            'value' => ['active'],
-                        ],
-                        [
                             'field' => 'has_membership_card',
                             'operator' => 'is-populated',
                             'value' => 'yes',

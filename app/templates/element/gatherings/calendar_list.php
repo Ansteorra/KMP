@@ -30,11 +30,12 @@ $today = new DateTime('now', new \DateTimeZone($userTimezone));
             <div class="list-group">
                 <?php foreach ($gatherings as $gathering): ?>
                     <?php
-                    // Convert gathering dates to user's timezone for display
-                    $startInUserTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->start_date, $currentUser);
-                    $endInUserTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->end_date, $currentUser);
+                    // Convert gathering dates to gathering's timezone for display (prioritizes event location timezone)
+                    $startInUserTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->start_date, $currentUser, null, $gathering);
+                    $endInUserTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->end_date, $currentUser, null, $gathering);
 
                     $isAttending = !empty($gathering->gathering_attendances);
+                    // Compare dates in the event's timezone, not UTC
                     $isMultiDay = $startInUserTz->format('Y-m-d') !== $endInUserTz->format('Y-m-d');
                     $hasLocation = !empty($gathering->location);
                     $isPast = $endInUserTz < $today;

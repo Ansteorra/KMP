@@ -90,8 +90,13 @@ $today->setTime(0, 0, 0);
                     <?php if (isset($gatheringsByDate[$dateKey])): ?>
                         <?php foreach ($gatheringsByDate[$dateKey] as $gathering): ?>
                             <?php
+                            // Convert gathering dates to user's timezone for proper multi-day detection
+                            $startInUserTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->start_date, $currentUser, null, $gathering);
+                            $endInUserTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->end_date, $currentUser, null, $gathering);
+
                             $isAttending = !empty($gathering->gathering_attendances);
-                            $isMultiDay = !$gathering->start_date->equals($gathering->end_date);
+                            // Compare dates in the event's timezone, not UTC
+                            $isMultiDay = $startInUserTz->format('Y-m-d') !== $endInUserTz->format('Y-m-d');
                             $hasLocation = !empty($gathering->location);
                             $itemClasses = ['gathering-item'];
 

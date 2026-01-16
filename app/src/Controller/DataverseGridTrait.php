@@ -318,15 +318,18 @@ trait DataverseGridTrait
                         $fieldToCheck = $columnMeta['filterQueryField'] ?? $columnMeta['queryField'] ?? $columnKey;
                         $qualifiedField = strpos($fieldToCheck, '.') === false ? $tableName . '.' . $fieldToCheck : $fieldToCheck;
 
+                        // Normalize filterValue - if it's an array, take the first value
+                        $normalizedValue = is_array($filterValue) ? ($filterValue[0] ?? null) : $filterValue;
+
                         // filterValue should be 'yes' (populated) or 'no' (not populated)
-                        if ($filterValue === 'yes' || $filterValue === '1' || $filterValue === 1 || $filterValue === true) {
+                        if ($normalizedValue === 'yes' || $normalizedValue === '1' || $normalizedValue === 1 || $normalizedValue === true) {
                             // IS NOT NULL AND NOT EMPTY
                             $baseQuery->where(function ($exp) use ($qualifiedField) {
                                 return $exp->and([
                                     $qualifiedField . ' IS NOT' => null
                                 ]);
                             });
-                        } elseif ($filterValue === 'no' || $filterValue === '0' || $filterValue === 0 || $filterValue === false) {
+                        } elseif ($normalizedValue === 'no' || $normalizedValue === '0' || $normalizedValue === 0 || $normalizedValue === false) {
                             // IS NULL OR EMPTY
                             $baseQuery->where(function ($exp) use ($qualifiedField) {
                                 return $exp->or([
