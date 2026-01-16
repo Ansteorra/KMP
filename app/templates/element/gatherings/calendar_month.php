@@ -19,12 +19,17 @@ use Cake\I18n\DateTime;
 $currentUser = $this->getRequest()->getAttribute('identity');
 
 // Group gatherings by date for efficient lookup
-// Convert gathering dates to user's timezone for proper day assignment
+// Convert gathering dates to gathering's timezone for correct multi-day detection and day assignment
 $gatheringsByDate = [];
 foreach ($gatherings as $gathering) {
-    // Convert UTC dates to user's timezone using the core TimezoneHelper
-    $startInUserTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->start_date, $currentUser);
-    $endInUserTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->end_date, $currentUser);
+    // Convert UTC dates to gathering's timezone using the core TimezoneHelper
+    $startInUserTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->start_date, null, null, $gathering);
+    $endInUserTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->end_date, null, null, $gathering);
+
+    // Skip if timezone conversion failed
+    if ($startInUserTz === null || $endInUserTz === null) {
+        continue;
+    }
 
     $start = new DateTime($startInUserTz->format('Y-m-d'));
     $end = new DateTime($endInUserTz->format('Y-m-d'));
@@ -58,9 +63,9 @@ $today->setTime(0, 0, 0);
             $dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
             foreach ($dayNames as $dayName):
             ?>
-                <div class="calendar-day-header">
-                    <?= h($dayName) ?>
-                </div>
+            <div class="calendar-day-header">
+                <?= h($dayName) ?>
+            </div>
             <?php endforeach; ?>
 
             <!-- Calendar Days -->
@@ -82,16 +87,26 @@ $today->setTime(0, 0, 0);
                     $dayClasses[] = 'today';
                 }
             ?>
-                <div class="<?= implode(' ', $dayClasses) ?>">
-                    <div class="calendar-day-number">
-                        <?= $this->Timezone->format($current, null, 'j') ?>
-                    </div>
+            <div class="<?= implode(' ', $dayClasses) ?>">
+                <div class="calendar-day-number">
+                    <?= $this->Timezone->format($current, null, 'j') ?>
+                </div>
 
-                    <?php if (isset($gatheringsByDate[$dateKey])): ?>
-                        <?php foreach ($gatheringsByDate[$dateKey] as $gathering): ?>
-                            <?php
+                <?php if (isset($gatheringsByDate[$dateKey])): ?>
+                <?php foreach ($gatheringsByDate[$dateKey] as $gathering): ?>
+                <?php
+                            // Convert gathering dates to gathering's timezone for correct multi-day detection
+                            $startInUserTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->start_date, null, null, $gathering);
+                            $endInUserTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->end_date, null, null, $gathering);
+
+                            // Skip if timezone conversion failed
+                            if ($startInUserTz === null || $endInUserTz === null) {
+                                continue;
+                            }
+
                             $isAttending = !empty($gathering->gathering_attendances);
-                            $isMultiDay = !$gathering->start_date->equals($gathering->end_date);
+                            // Compare dates in the event's timezone, not UTC
+                            $isMultiDay = $startInUserTz->format('Y-m-d') !== $endInUserTz->format('Y-m-d');
                             $hasLocation = !empty($gathering->location);
                             $itemClasses = ['gathering-item'];
 
@@ -122,7 +137,7 @@ $today->setTime(0, 0, 0);
                             }
                             $gatheringContent .= '</div>';
                             ?>
-                            <?= $this->Html->link(
+                <?= $this->Html->link(
                                 $gatheringContent,
                                 ['action' => 'quick-view', $gathering->public_id],
                                 [
@@ -134,9 +149,9 @@ $today->setTime(0, 0, 0);
                                     'data-action' => 'click->gatherings-calendar#showQuickView'
                                 ]
                             ) ?>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                </div>
+                <?php endforeach; ?>
+                <?php endif; ?>
+            </div>
             <?php
                 $current = $current->modify('+1 day');
                 $dayCount++;

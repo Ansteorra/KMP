@@ -328,6 +328,11 @@ class MembersTable extends BaseTable
                 'OR' => [
                     [
                         'Members.membership_card_path IS NOT' => null,
+                        'Members.status NOT IN' => [
+                            Member::STATUS_UNVERIFIED_MINOR,
+                            Member::STATUS_MINOR_MEMBERSHIP_VERIFIED,
+                            Member::STATUS_DEACTIVATED,
+                        ],
                     ],
                     ['Members.status IN' => [
                         Member::STATUS_UNVERIFIED_MINOR,

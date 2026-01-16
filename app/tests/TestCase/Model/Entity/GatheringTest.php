@@ -172,4 +172,124 @@ class GatheringTest extends TestCase
             $gathering->end_date->format('Y-m-d')
         );
     }
+
+    /**
+     * Test is_multi_day virtual field for same day events
+     *
+     * @return void
+     */
+    public function testIsMultiDaySameDay(): void
+    {
+        // Event starts and ends on the same calendar day
+        $gathering = new Gathering([
+            'name' => 'Single Day Event',
+            'start_date' => new \Cake\I18n\DateTime('2025-06-15 09:00:00', 'UTC'),
+            'end_date' => new \Cake\I18n\DateTime('2025-06-15 17:00:00', 'UTC'),
+            'timezone' => 'America/Chicago',
+        ]);
+
+        $this->assertFalse($gathering->is_multi_day);
+    }
+
+    /**
+     * Test is_multi_day virtual field for multi-day events
+     *
+     * @return void
+     */
+    public function testIsMultiDayDifferentDays(): void
+    {
+        // Event clearly spans multiple days
+        $gathering = new Gathering([
+            'name' => 'Multi Day Event',
+            'start_date' => new \Cake\I18n\DateTime('2025-06-15 09:00:00', 'UTC'),
+            'end_date' => new \Cake\I18n\DateTime('2025-06-17 17:00:00', 'UTC'),
+            'timezone' => 'America/Chicago',
+        ]);
+
+        $this->assertTrue($gathering->is_multi_day);
+    }
+
+    /**
+     * Test is_multi_day respects event timezone, not UTC
+     *
+     * An event that spans midnight in UTC but is the same day in the event's
+     * timezone should NOT be flagged as multi-day.
+     *
+     * Example: An event in America/Chicago (UTC-5 or UTC-6) from 6pm-11pm local time
+     * would be 00:00-05:00 next day in UTC, but is clearly a single day event locally.
+     *
+     * @return void
+     */
+    public function testIsMultiDayRespectsEventTimezone(): void
+    {
+        // Event in America/Chicago that runs from 6pm to 11pm local time
+        // In UTC (with CDT offset of -5), this would be 23:00 to 04:00 next day UTC
+        // BUT in the event's timezone, it's the same calendar day
+        $gathering = new Gathering([
+            'name' => 'Evening Event',
+            // 6pm CDT = 23:00 UTC (same day)
+            'start_date' => new \Cake\I18n\DateTime('2025-06-15 23:00:00', 'UTC'),
+            // 11pm CDT = 04:00 UTC (next day in UTC, but same day in CDT)
+            'end_date' => new \Cake\I18n\DateTime('2025-06-16 04:00:00', 'UTC'),
+            'timezone' => 'America/Chicago', // CDT (UTC-5) in June
+        ]);
+
+        // This should NOT be multi-day because in America/Chicago,
+        // both dates are June 15 local time
+        $this->assertFalse(
+            $gathering->is_multi_day,
+            'Event that spans midnight UTC but is same day in event timezone should not be flagged as multi-day'
+        );
+    }
+
+    /**
+     * Test is_multi_day with no timezone falls back to app default timezone
+     *
+     * When no timezone is set on a gathering, the TimezoneHelper falls back to
+     * the application's default timezone (typically America/Chicago).
+     *
+     * @return void
+     */
+    public function testIsMultiDayNoTimezoneFallsBackToAppDefault(): void
+    {
+        // When no timezone is set, TimezoneHelper uses app default (America/Chicago)
+        // An event that spans midnight UTC but is same day in Central time
+        $gathering = new Gathering([
+            'name' => 'Event Without Timezone',
+            'start_date' => new \Cake\I18n\DateTime('2025-06-15 23:00:00', 'UTC'),
+            'end_date' => new \Cake\I18n\DateTime('2025-06-16 04:00:00', 'UTC'),
+            // No timezone set - will use app default (America/Chicago)
+        ]);
+
+        // In America/Chicago (UTC-5 during CDT), the times would be:
+        // 23:00 UTC = 18:00 CDT (June 15)
+        // 04:00 UTC = 23:00 CDT (June 15)
+        // So this is NOT multi-day in the default timezone
+        $this->assertFalse(
+            $gathering->is_multi_day,
+            'Event with no timezone should use app default timezone for multi-day calculation'
+        );
+    }
+
+    /**
+     * Test is_multi_day with explicit UTC timezone
+     *
+     * @return void
+     */
+    public function testIsMultiDayExplicitUtc(): void
+    {
+        // When UTC is explicitly set, dates spanning midnight UTC ARE multi-day
+        $gathering = new Gathering([
+            'name' => 'UTC Event',
+            'start_date' => new \Cake\I18n\DateTime('2025-06-15 23:00:00', 'UTC'),
+            'end_date' => new \Cake\I18n\DateTime('2025-06-16 04:00:00', 'UTC'),
+            'timezone' => 'UTC',
+        ]);
+
+        // In UTC, this spans June 15 and June 16
+        $this->assertTrue(
+            $gathering->is_multi_day,
+            'Event with explicit UTC timezone should be multi-day when spanning midnight UTC'
+        );
+    }
 }

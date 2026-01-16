@@ -73,24 +73,49 @@ class Gathering extends BaseEntity
     /**
      * Virtual field for date range display
      *
+     * Shows dates in the gathering's timezone for accurate representation
+     * of when the event occurs at its location.
+     *
      * @return string
      */
     protected function _getDateRange(): string
     {
-        if ($this->start_date->equals($this->end_date)) {
-            return $this->start_date->format('Y-m-d');
+        // Convert dates to gathering's timezone before display
+        $startInTz = \App\KMP\TimezoneHelper::toUserTimezone($this->start_date, null, null, $this);
+        $endInTz = \App\KMP\TimezoneHelper::toUserTimezone($this->end_date, null, null, $this);
+
+        // Defensive check: return empty string if timezone conversion failed
+        if ($startInTz === null || $endInTz === null) {
+            return '';
         }
 
-        return $this->start_date->format('Y-m-d') . ' to ' . $this->end_date->format('Y-m-d');
+        if ($startInTz->format('Y-m-d') === $endInTz->format('Y-m-d')) {
+            return $startInTz->format('Y-m-d');
+        }
+
+        return $startInTz->format('Y-m-d') . ' to ' . $endInTz->format('Y-m-d');
     }
 
     /**
      * Virtual field to check if gathering is multi-day
      *
+     * Compares dates in the gathering's timezone (not UTC) to accurately
+     * determine if the event spans multiple calendar days at its location.
+     *
      * @return bool
      */
     protected function _getIsMultiDay(): bool
     {
-        return !$this->start_date->equals($this->end_date);
+        // Convert dates to gathering's timezone before comparing
+        $startInTz = \App\KMP\TimezoneHelper::toUserTimezone($this->start_date, null, null, $this);
+        $endInTz = \App\KMP\TimezoneHelper::toUserTimezone($this->end_date, null, null, $this);
+
+        // Defensive check: if timezone conversion failed, assume single-day
+        if ($startInTz === null || $endInTz === null) {
+            return false;
+        }
+
+        // Compare calendar dates (not datetime equality) in the event's timezone
+        return $startInTz->format('Y-m-d') !== $endInTz->format('Y-m-d');
     }
 }
