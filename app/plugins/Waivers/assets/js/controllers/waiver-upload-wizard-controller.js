@@ -960,7 +960,8 @@ class WaiverUploadWizardController extends Controller {
 
     getCsrfToken() {
         // Try to get from meta tag first (CakePHP default)
-        const metaTag = document.querySelector('meta[name="csrfToken"]')
+        const metaTag = document.querySelector('meta[name="csrf-token"]')
+            || document.querySelector('meta[name="csrfToken"]')
         if (metaTag) {
             return metaTag.content
         }
