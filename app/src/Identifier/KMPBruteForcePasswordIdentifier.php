@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Identifier;
@@ -8,6 +9,7 @@ use ArrayAccess;
 use Authentication\Identifier\PasswordIdentifier;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
+use App\KMP\StaticHelpers;
 
 class KMPBruteForcePasswordIdentifier extends PasswordIdentifier
 {
@@ -100,6 +102,10 @@ class KMPBruteForcePasswordIdentifier extends PasswordIdentifier
         $user->last_login = DateTime::now();
         $user->setDirty('modified', true);
         $user->setDirty('modified_by', true);
+        //if the user mobile token isn't set set, set it now
+        if (empty($user->mobile_card_token)) {
+            $user->mobile_card_token = StaticHelpers::generateToken(16);
+        }
         $MembersTable->save($user);
     }
 
