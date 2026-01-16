@@ -57,7 +57,7 @@ if ($currentUser && $currentUser->mobile_card_token) {
 <head>
     <?= $this->Html->charset() ?>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="csrfToken" content="<?= $this->request->getAttribute('csrfToken') ?>">
+    <meta name="csrf-token" content="<?= $this->request->getAttribute('csrfToken') ?>">
     <title>
         <?= $this->KMP->getAppSetting("KMP.ShortSiteTitle") ?>: <?= h($mobileTitle) ?>
     </title>

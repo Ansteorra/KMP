@@ -63,7 +63,7 @@ class EmailTemplatePolicy extends BasePolicy
      * @param mixed ...$optionalArgs Optional arguments
      * @return bool
      */
-    public function canUpdate(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
+    public function canUpdate(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
     {
         return $this->_hasPolicy($user, __FUNCTION__, $entity, ...$optionalArgs);
     }
@@ -76,7 +76,7 @@ class EmailTemplatePolicy extends BasePolicy
      * @param mixed ...$optionalArgs Optional arguments
      * @return bool
      */
-    public function canEdit(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
+    public function canEdit(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
     {
         return $this->canUpdate($user, $entity, ...$optionalArgs);
     }
