@@ -31,8 +31,9 @@ $today = new DateTime('now', new \DateTimeZone($userTimezone));
                 <?php foreach ($gatherings as $gathering): ?>
                     <?php
                     // Convert gathering dates to gathering's timezone for display (prioritizes event location timezone)
-                    $startInUserTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->start_date, $currentUser, null, $gathering);
-                    $endInUserTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->end_date, $currentUser, null, $gathering);
+                    // Pass null for member to use app default timezone fallback, matching Gathering::_getIsMultiDay logic
+                    $startInUserTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->start_date, null, null, $gathering);
+                    $endInUserTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->end_date, null, null, $gathering);
 
                     $isAttending = !empty($gathering->gathering_attendances);
                     // Compare dates in the event's timezone, not UTC
