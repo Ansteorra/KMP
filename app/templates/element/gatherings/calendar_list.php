@@ -35,6 +35,18 @@ $today = new DateTime('now', new \DateTimeZone($userTimezone));
                     $startInUserTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->start_date, null, null, $gathering);
                     $endInUserTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->end_date, null, null, $gathering);
 
+                    // Defensive fallback: if timezone conversion failed, use original dates
+                    if ($startInUserTz === null) {
+                        $startInUserTz = $gathering->start_date instanceof DateTime
+                            ? $gathering->start_date
+                            : new DateTime($gathering->start_date);
+                    }
+                    if ($endInUserTz === null) {
+                        $endInUserTz = $gathering->end_date instanceof DateTime
+                            ? $gathering->end_date
+                            : new DateTime($gathering->end_date);
+                    }
+
                     $isAttending = !empty($gathering->gathering_attendances);
                     // Compare dates in the event's timezone, not UTC
                     $isMultiDay = $startInUserTz->format('Y-m-d') !== $endInUserTz->format('Y-m-d');
