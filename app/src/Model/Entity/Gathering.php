@@ -84,6 +84,11 @@ class Gathering extends BaseEntity
         $startInTz = \App\KMP\TimezoneHelper::toUserTimezone($this->start_date, null, null, $this);
         $endInTz = \App\KMP\TimezoneHelper::toUserTimezone($this->end_date, null, null, $this);
 
+        // Defensive check: return empty string if timezone conversion failed
+        if ($startInTz === null || $endInTz === null) {
+            return '';
+        }
+
         if ($startInTz->format('Y-m-d') === $endInTz->format('Y-m-d')) {
             return $startInTz->format('Y-m-d');
         }
@@ -104,6 +109,11 @@ class Gathering extends BaseEntity
         // Convert dates to gathering's timezone before comparing
         $startInTz = \App\KMP\TimezoneHelper::toUserTimezone($this->start_date, null, null, $this);
         $endInTz = \App\KMP\TimezoneHelper::toUserTimezone($this->end_date, null, null, $this);
+
+        // Defensive check: if timezone conversion failed, assume single-day
+        if ($startInTz === null || $endInTz === null) {
+            return false;
+        }
 
         // Compare calendar dates (not datetime equality) in the event's timezone
         return $startInTz->format('Y-m-d') !== $endInTz->format('Y-m-d');
