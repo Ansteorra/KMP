@@ -21,11 +21,20 @@ $calendarStart = $calendarMeta['calendarStart'] ?? null;
 $calendarEnd = $calendarMeta['calendarEnd'] ?? null;
 $startDate = $calendarMeta['startDate'] ?? null;
 $endDate = $calendarMeta['endDate'] ?? null;
+$weekStartValue = null;
+if ($viewMode === 'week' && $startDate instanceof \DateTimeInterface) {
+    $weekStartValue = clone $startDate;
+    $weekDay = (int)$weekStartValue->format('w');
+    if ($weekDay > 0) {
+        $weekStartValue->modify("-{$weekDay} days");
+    }
+}
 ?>
 
 <div class="gatherings-calendar" data-controller="gatherings-calendar"
     data-gatherings-calendar-year-value="<?= h($year) ?>" data-gatherings-calendar-month-value="<?= h($month) ?>"
-    data-gatherings-calendar-view-value="<?= h($viewMode) ?>">
+    data-gatherings-calendar-view-value="<?= h($viewMode) ?>"
+    <?= $weekStartValue ? 'data-gatherings-calendar-week-start-value="' . h($weekStartValue->format('Y-m-d')) . '"' : '' ?>>
 
     <div class="row g-3">
         <div class="col-12">

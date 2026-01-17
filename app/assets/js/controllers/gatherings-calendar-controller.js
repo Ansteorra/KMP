@@ -33,7 +33,8 @@ class GatheringsCalendarController extends Controller {
     static values = {
         year: Number,
         month: Number,
-        view: String
+        view: String,
+        weekStart: String
     }
 
     /**
@@ -161,13 +162,81 @@ class GatheringsCalendarController extends Controller {
         }
     }
 
+    getCalendarElement() {
+        if (this.element && this.element.dataset) {
+            if (
+                this.element.dataset.gatheringsCalendarYearValue !== undefined ||
+                this.element.dataset.gatheringsCalendarViewValue !== undefined
+            ) {
+                return this.element
+            }
+        }
+
+        return document.querySelector('[data-gatherings-calendar-year-value]')
+    }
+
+    getDisplayedCalendarState() {
+        const state = {
+            year: null,
+            month: null,
+            view: null,
+            weekStart: null
+        }
+
+        const element = this.getCalendarElement()
+        if (element && element.dataset) {
+            const yearValue = parseInt(element.dataset.gatheringsCalendarYearValue, 10)
+            if (!Number.isNaN(yearValue)) {
+                state.year = yearValue
+            }
+
+            const monthValue = parseInt(element.dataset.gatheringsCalendarMonthValue, 10)
+            if (!Number.isNaN(monthValue)) {
+                state.month = monthValue
+            }
+
+            const viewValue = element.dataset.gatheringsCalendarViewValue
+            if (viewValue) {
+                state.view = viewValue
+            }
+
+            const weekStartValue = element.dataset.gatheringsCalendarWeekStartValue
+            if (weekStartValue) {
+                state.weekStart = weekStartValue
+            }
+        }
+
+        if (state.year === null && this.hasYearValue) {
+            state.year = this.yearValue
+        }
+
+        if (state.month === null && this.hasMonthValue) {
+            state.month = this.monthValue
+        }
+
+        if (!state.view && this.hasViewValue) {
+            state.view = this.viewValue
+        }
+
+        if (!state.weekStart && this.hasWeekStartValue) {
+            state.weekStart = this.weekStartValue
+        }
+
+        return state
+    }
+
     updateCalendarHeader() {
         const header = document.querySelector('[data-gatherings-calendar-header]')
-        if (!header || !this.hasYearValue || !this.hasMonthValue) {
+        if (!header) {
             return
         }
 
-        const date = new Date(this.yearValue, this.monthValue - 1, 1)
+        const displayed = this.getDisplayedCalendarState()
+        if (!displayed.year || !displayed.month) {
+            return
+        }
+
+        const date = new Date(displayed.year, displayed.month - 1, 1)
         if (Number.isNaN(date.getTime())) {
             return
         }
@@ -182,7 +251,7 @@ class GatheringsCalendarController extends Controller {
             return
         }
 
-        const frameSrc = tableFrame.getAttribute('data-grid-src')
+        const frameSrc = tableFrame.getAttribute('src') || tableFrame.src || tableFrame.getAttribute('data-grid-src') || tableFrame.dataset.gridSrc
         if (!frameSrc) {
             return
         }
@@ -195,12 +264,71 @@ class GatheringsCalendarController extends Controller {
         }
 
         const params = new URLSearchParams(url.search)
-        const view = params.get('view') || (this.hasViewValue ? this.viewValue : 'month')
-        const currentYear = parseInt(params.get('year') || this.yearValue || new Date().getFullYear(), 10)
-        const currentMonth = parseInt(params.get('month') || this.monthValue || (new Date().getMonth() + 1), 10)
+        params.delete('page')
+
+        const displayed = this.getDisplayedCalendarState()
+
+        const parseNumber = (value) => {
+            const parsed = parseInt(value, 10)
+            return Number.isNaN(parsed) ? null : parsed
+        }
 
         const pad2 = (value) => String(value).padStart(2, '0')
         const formatDate = (date) => `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`
+        const parseDate = (value) => {
+            if (!value) {
+                return null
+            }
+
+            const parts = String(value).split('-')
+            if (parts.length !== 3) {
+                return null
+            }
+
+            const year = parseNumber(parts[0])
+            const month = parseNumber(parts[1])
+            const day = parseNumber(parts[2])
+
+            if (!year || !month || !day) {
+                return null
+            }
+
+            return new Date(year, month - 1, day)
+        }
+
+        const view = displayed.view || params.get('view') || (this.hasViewValue ? this.viewValue : 'month')
+        if (view) {
+            params.set('view', view)
+        }
+
+        let currentYear = displayed.year
+        if (currentYear === null) {
+            currentYear = parseNumber(params.get('year'))
+        }
+        if (currentYear === null && this.hasYearValue) {
+            currentYear = this.yearValue
+        }
+        if (currentYear === null) {
+            currentYear = new Date().getFullYear()
+        }
+
+        let currentMonth = displayed.month
+        if (currentMonth === null) {
+            currentMonth = parseNumber(params.get('month'))
+        }
+        if (currentMonth === null && this.hasMonthValue) {
+            currentMonth = this.monthValue
+        }
+        if (currentMonth === null) {
+            currentMonth = new Date().getMonth() + 1
+        }
+
+        if (!Number.isNaN(currentYear)) {
+            params.set('year', currentYear)
+        }
+        if (!Number.isNaN(currentMonth)) {
+            params.set('month', pad2(currentMonth))
+        }
 
         const buildHref = (nextParams) => {
             const nextUrl = new URL(url.pathname, window.location.origin)
@@ -213,10 +341,13 @@ class GatheringsCalendarController extends Controller {
         const todayLink = document.querySelector('[data-gatherings-calendar-nav="today"]')
 
         if (view === 'week') {
-            const weekStartParam = params.get('week_start')
-            const weekStart = weekStartParam ? new Date(`${weekStartParam}T00:00:00`) : new Date(currentYear, currentMonth - 1, 1)
+            const weekStartParam = displayed.weekStart || params.get('week_start')
+            let weekStart = parseDate(weekStartParam)
+            if (!weekStart && currentYear && currentMonth) {
+                weekStart = new Date(currentYear, currentMonth - 1, 1)
+            }
 
-            if (!Number.isNaN(weekStart.getTime())) {
+            if (weekStart && !Number.isNaN(weekStart.getTime())) {
                 const prevWeek = new Date(weekStart)
                 prevWeek.setDate(prevWeek.getDate() - 7)
                 const nextWeek = new Date(weekStart)
