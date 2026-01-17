@@ -158,7 +158,7 @@ class GatheringsGridColumns extends BaseGridColumns
                 'width' => '180px',
                 'alignment' => 'left',
                 'renderField' => 'gathering_type.name',
-                'queryField' => 'GatheringTypes.name',
+                'queryField' => 'GatheringTypes.id',
             ],
 
             'start_date' => [
