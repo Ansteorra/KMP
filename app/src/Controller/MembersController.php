@@ -651,7 +651,6 @@ class MembersController extends AppController
         $counts['sys-verify-with-card'] = $this->Members
             ->find()
             ->where([
-                'Members.status' => Member::STATUS_ACTIVE,
                 'Members.membership_card_path IS NOT' => null,
                 'Members.membership_card_path !=' => '',
             ])
