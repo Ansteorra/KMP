@@ -1593,13 +1593,15 @@ trait DataverseGridTrait
             // 1. Check query string (user-applied filter) - highest priority
             if ($canFilter) {
                 $queryValue = $this->request->getQuery('filter.' . $columnKey);
-                if (!empty($queryValue)) {
+                // Use explicit null/empty-string check to allow valid falsey values like 0, "0", false
+                if ($queryValue !== null && $queryValue !== '') {
                     $filterValue = $queryValue;
                 }
             }
 
             // 2. Check current filters (may have been set from query or system view defaults)
-            if ($filterValue === null && isset($currentFilters[$columnKey]) && !empty($currentFilters[$columnKey])) {
+            // Use explicit null/empty-string check to allow valid falsey values like 0, "0", false
+            if ($filterValue === null && isset($currentFilters[$columnKey]) && $currentFilters[$columnKey] !== null && $currentFilters[$columnKey] !== '') {
                 $filterValue = $currentFilters[$columnKey];
             }
 
