@@ -809,40 +809,53 @@ class RecommendationsGridColumns extends BaseGridColumns
             ->toArray();
 
         // Query 2: Past gatherings that have recommendations linked via awards_recommendations_events
-        $pastGatheringsWithRecs = $gatheringsTable->find()
-            ->select(['Gatherings.id', 'Gatherings.name', 'Gatherings.start_date'])
-            ->innerJoin(
-                ['RecEvents' => 'awards_recommendations_events'],
-                ['RecEvents.gathering_id = Gatherings.id']
-            )
-            ->where([
-                'Gatherings.start_date <' => $now,
-                'Gatherings.start_date >=' => $sixMonthsAgo,
-            ])
-            ->orderBy(['Gatherings.start_date' => 'DESC'])
-            ->group(['Gatherings.id'])
-            ->limit(50)
-            ->all()
-            ->toArray();
+        //$pastGatheringsWithRecs = $gatheringsTable->find()
+        //    ->select(['Gatherings.id', 'Gatherings.name', 'Gatherings.start_date'])
+        //    ->innerJoin(
+        //        ['RecEvents' => 'awards_recommendations_events'],
+        //        ['RecEvents.gathering_id = Gatherings.id']
+        //    )
+        //    ->where([
+        //        'Gatherings.start_date <' => $now,
+        //        'Gatherings.start_date >=' => $sixMonthsAgo,
+        //    ])
+        //    ->orderBy(['Gatherings.start_date' => 'DESC'])
+        //    ->groupBy(['Gatherings.id'])
+        //    ->all()
+        //     ->toArray();
 
         // Query 3: Past gatherings with relevant member attendance (share_with_crown or share_with_kingdom)
-        $pastGatheringsWithAttendance = $gatheringsTable->find()
+        //$pastGatheringsWithAttendance = $gatheringsTable->find()
+        //    ->select(['Gatherings.id', 'Gatherings.name', 'Gatherings.start_date'])
+        //    ->innerJoin(
+        //        ['Attendance' => 'gathering_attendances'],
+        //        ['Attendance.gathering_id = Gatherings.id']
+        //    )
+        //    ->where([
+        //        'Gatherings.start_date <' => $now,
+        //        'Gatherings.start_date >=' => $sixMonthsAgo,
+        //        'OR' => [
+        //            'Attendance.share_with_crown' => true,
+        //            'Attendance.share_with_kingdom' => true,
+        //        ],
+        //    ])
+        //    ->orderBy(['Gatherings.start_date' => 'DESC'])
+        //    ->groupBy(['Gatherings.id'])
+        //    ->all()
+        //    ->toArray();
+        // query 4: Past gatherings with recommendations linked via the recommendation.gathering_id field
+        $pastGatheringsWithRecAssigned = $gatheringsTable->find()
             ->select(['Gatherings.id', 'Gatherings.name', 'Gatherings.start_date'])
             ->innerJoin(
-                ['Attendance' => 'gathering_attendances'],
-                ['Attendance.gathering_id = Gatherings.id']
+                ['Recommendations' => 'awards_recommendations'],
+                ['Recommendations.gathering_id = Gatherings.id']
             )
             ->where([
                 'Gatherings.start_date <' => $now,
                 'Gatherings.start_date >=' => $sixMonthsAgo,
-                'OR' => [
-                    'Attendance.share_with_crown' => true,
-                    'Attendance.share_with_kingdom' => true,
-                ],
             ])
             ->orderBy(['Gatherings.start_date' => 'DESC'])
-            ->group(['Gatherings.id'])
-            ->limit(50)
+            ->groupBy(['Gatherings.id'])
             ->all()
             ->toArray();
 
@@ -855,14 +868,21 @@ class RecommendationsGridColumns extends BaseGridColumns
         }
 
         // Add past gatherings with recommendations
-        foreach ($pastGatheringsWithRecs as $gathering) {
-            if (!isset($allGatherings[$gathering->id])) {
-                $allGatherings[$gathering->id] = $gathering;
-            }
-        }
+        //foreach ($pastGatheringsWithRecs as $gathering) {
+        //    if (!isset($allGatherings[$gathering->id])) {
+        //        $allGatherings[$gathering->id] = $gathering;
+        //    }
+        //}
 
         // Add past gatherings with attendance
-        foreach ($pastGatheringsWithAttendance as $gathering) {
+        //foreach ($pastGatheringsWithAttendance as $gathering) {
+        //    if (!isset($allGatherings[$gathering->id])) {
+        //        $allGatherings[$gathering->id] = $gathering;
+        //    }
+        //}
+
+        // Add past gatherings with recommendation assigned_gathering
+        foreach ($pastGatheringsWithRecAssigned as $gathering) {
             if (!isset($allGatherings[$gathering->id])) {
                 $allGatherings[$gathering->id] = $gathering;
             }
