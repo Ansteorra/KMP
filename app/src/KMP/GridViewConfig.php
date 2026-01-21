@@ -397,18 +397,22 @@ class GridViewConfig
      * @param array<string, mixed> $config Grid view config
      * @param \Cake\Database\Expression\QueryExpression $queryExpression Base expression object from query
      * @param string $tableName Table name for field qualification (e.g., 'Warrants')
+     * @param array<string> $skipColumns Column keys to skip (for custom-filtered columns)
+     * @param array<string, array<string, mixed>> $columnsMetadata Column metadata for queryField lookups
      * @return \Cake\Database\Expression\QueryExpression|null Built expression tree or null if no expression
      */
     public static function extractExpression(
         array $config,
         $queryExpression,
-        string $tableName = ''
+        string $tableName = '',
+        array $skipColumns = [],
+        array $columnsMetadata = []
     ): ?object {
         if (!isset($config['expression']) || !is_array($config['expression'])) {
             return null;
         }
 
-        return self::buildExpression($config['expression'], $queryExpression, $tableName);
+        return self::buildExpression($config['expression'], $queryExpression, $tableName, $skipColumns, $columnsMetadata);
     }
 
     /**
@@ -417,12 +421,16 @@ class GridViewConfig
      * @param array<string, mixed> $expression Expression node (group or condition)
      * @param \Cake\Database\Expression\QueryExpression $queryExpression Base expression from query
      * @param string $tableName Table name for field qualification
+     * @param array<string> $skipColumns Column keys to skip (for custom-filtered columns)
+     * @param array<string, array<string, mixed>> $columnsMetadata Column metadata for queryField lookups
      * @return \Cake\Database\Expression\QueryExpression Built expression
      */
     protected static function buildExpression(
         array $expression,
         $queryExpression,
-        string $tableName
+        string $tableName,
+        array $skipColumns = [],
+        array $columnsMetadata = []
     ): object {
         // Check if this is a group (OR/AND) or a single condition
         if (isset($expression['type']) && in_array(strtoupper($expression['type']), ['OR', 'AND'], true)) {
@@ -445,10 +453,10 @@ class GridViewConfig
                 if (isset($condition['type']) && in_array(strtoupper($condition['type']), ['OR', 'AND'], true)) {
                     // Nested group - recurse
                     $nestedExp = $queryExpression->newExpr();
-                    $groupConditions[] = self::buildExpression($condition, $nestedExp, $tableName);
+                    $groupConditions[] = self::buildExpression($condition, $nestedExp, $tableName, $skipColumns, $columnsMetadata);
                 } else {
                     // Leaf condition - convert to CakePHP condition array
-                    $leafConditions = self::buildLeafCondition($condition, $tableName);
+                    $leafConditions = self::buildLeafCondition($condition, $tableName, $skipColumns, $columnsMetadata);
                     if (!empty($leafConditions)) {
                         $groupConditions = array_merge($groupConditions, $leafConditions);
                     }
@@ -468,7 +476,7 @@ class GridViewConfig
             }
         } else {
             // Single condition - build and add it
-            $conditions = self::buildLeafCondition($expression, $tableName);
+            $conditions = self::buildLeafCondition($expression, $tableName, $skipColumns, $columnsMetadata);
             if (!empty($conditions)) {
                 return $queryExpression->add($conditions);
             }
@@ -484,12 +492,21 @@ class GridViewConfig
      * - {"field": "status", "operator": "eq", "value": "active"}
      * - Becomes: ["Table.status" => "active"]
      *
+     * Uses queryField from column metadata when available to correctly qualify
+     * fields that map to different table columns (e.g., branch_type -> AwardBranch.type).
+     *
      * @param array<string, mixed> $condition Condition definition
      * @param string $tableName Table name for field qualification
+     * @param array<string> $skipColumns Column keys to skip (for custom-filtered columns)
+     * @param array<string, array<string, mixed>> $columnsMetadata Column metadata for queryField lookups
      * @return array<string, mixed> CakePHP condition array
      */
-    protected static function buildLeafCondition(array $condition, string $tableName): array
-    {
+    protected static function buildLeafCondition(
+        array $condition,
+        string $tableName,
+        array $skipColumns = [],
+        array $columnsMetadata = []
+    ): array {
         $field = $condition['field'] ?? null;
         $operator = $condition['operator'] ?? null;
         $value = $condition['value'] ?? null;
@@ -503,10 +520,25 @@ class GridViewConfig
             return [];
         }
 
-        // Qualify field with table name if not already qualified
-        if ($tableName && strpos($field, '.') === false) {
+        // Skip columns that require custom filtering (handled by controller)
+        if (in_array($field, $skipColumns, true)) {
+            return [];
+        }
+
+        // Determine the qualified field name:
+        // 1. If column metadata has queryField, use it (already qualified or will be qualified)
+        // 2. Otherwise, qualify with table name if not already qualified
+        $columnMeta = $columnsMetadata[$field] ?? null;
+        $queryField = $columnMeta['queryField'] ?? null;
+
+        if ($queryField !== null) {
+            // Use queryField from column metadata (may be already qualified like 'AwardBranch.type')
+            $qualifiedField = $queryField;
+        } elseif ($tableName && strpos($field, '.') === false) {
+            // No queryField defined, qualify with table name
             $qualifiedField = $tableName . '.' . $field;
         } else {
+            // Already qualified or no table name
             $qualifiedField = $field;
         }
 

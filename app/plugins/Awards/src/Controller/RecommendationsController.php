@@ -92,7 +92,9 @@ class RecommendationsController extends AppController
         $canViewHidden = $user->checkCan('ViewHidden', $emptyRecommendation);
 
         // Build base query with containments
+        // Join Awards.AwardBranch so branch_type filter can use AwardBranch.type directly
         $baseQuery = $this->Recommendations->find()
+            ->innerJoinWith('Awards.AwardBranch')
             ->contain([
                 'Requesters' => function ($q) {
                     return $q->select(['id', 'sca_name']);
@@ -108,6 +110,10 @@ class RecommendationsController extends AppController
                 },
                 'Awards.Domains' => function ($q) {
                     return $q->select(['id', 'name']);
+                },
+                // AwardBranch is an aliased association to avoid conflicts with member's Branches
+                'Awards.AwardBranch' => function ($q) {
+                    return $q->select(['id', 'name', 'type']);
                 },
                 'Gatherings' => function ($q) {
                     return $q->select(['id', 'name', 'start_date', 'end_date']);
@@ -134,13 +140,6 @@ class RecommendationsController extends AppController
         // Apply authorization scope
         $baseQuery = $this->Authorization->applyScope($baseQuery, 'index');
 
-        // Check for gatherings filter and apply custom logic
-        // (The gatherings filter requires matching on related tables, not a direct column)
-        $gatheringsFilter = $this->request->getQuery('filter.gatherings');
-        if (!empty($gatheringsFilter)) {
-            $baseQuery = $this->applyGatheringsFilter($baseQuery, $gatheringsFilter);
-        }
-
         // Get system views with proper state filter options
         $systemViews = RecommendationsGridColumns::getSystemViews([]);
 
@@ -148,7 +147,8 @@ class RecommendationsController extends AppController
         $stateFilterOptions = RecommendationsGridColumns::getStateFilterOptions($canViewHidden);
 
         // Use unified trait for grid processing
-        // Note: 'gatherings' is in skipFilterColumns because we apply that filter manually above
+        // Note: 'gatherings' column has customFilterHandler defined in RecommendationsGridColumns
+        // which handles the complex multi-table filtering automatically via the trait
         $result = $this->processDataverseGrid([
             'gridKey' => 'Awards.Recommendations.index.main',
             'gridColumnsClass' => RecommendationsGridColumns::class,
@@ -162,7 +162,6 @@ class RecommendationsController extends AppController
             'canAddViews' => true,
             'canFilter' => true,
             'canExportCsv' => true,
-            'skipFilterColumns' => ['gatherings'],  // Applied manually above
         ]);
 
         // Handle CSV export using trait's unified method with data mode
@@ -353,14 +352,21 @@ class RecommendationsController extends AppController
         $recGatherings = $recommendation->gatherings ?? [];
         $recGatheringIds = [];
 
+        // Build a lookup of attendance gathering IDs for quick reference
+        $attendanceGatheringIds = [];
+        foreach ($attendanceGatherings as $gathering) {
+            $attendanceGatheringIds[$gathering->id] = true;
+        }
+
         // Build list from recommendation-linked gatherings (from awards_recommendations_events)
+        // If the member is also attending this gathering, show the attendance icon (takes precedence)
         $items = [];
         foreach ($recGatherings as $gathering) {
             $recGatheringIds[$gathering->id] = true;
             $items[] = [
                 'name' => $gathering->name,
                 'id' => $gathering->id,
-                'isAttendance' => false,
+                'isAttendance' => isset($attendanceGatheringIds[$gathering->id]),
             ];
         }
 
@@ -434,14 +440,21 @@ class RecommendationsController extends AppController
         $recGatherings = $recommendation->gatherings ?? [];
         $recGatheringIds = [];
 
+        // Build a lookup of attendance gathering IDs for quick reference
+        $attendanceGatheringIds = [];
+        foreach ($attendanceGatherings as $gathering) {
+            $attendanceGatheringIds[$gathering->id] = true;
+        }
+
         // Build list from recommendation-linked gatherings (from awards_recommendations_events)
+        // If the member is also attending this gathering, show attendance suffix (takes precedence)
         $items = [];
         foreach ($recGatherings as $gathering) {
             $recGatheringIds[$gathering->id] = true;
             $items[] = [
                 'name' => $gathering->name,
                 'id' => $gathering->id,
-                'isAttendance' => false,
+                'isAttendance' => isset($attendanceGatheringIds[$gathering->id]),
             ];
         }
 
@@ -471,85 +484,6 @@ class RecommendationsController extends AppController
         }
 
         return implode(', ', $names);
-    }
-
-    /**
-     * Apply gatherings filter to recommendations query.
-     *
-     * Filters recommendations to only include those where:
-     * - The gathering is linked via awards_recommendations_events (recommendation events)
-     * - OR the recommendation's member is attending the gathering with share_with_crown or share_with_kingdom
-     *
-     * @param \Cake\ORM\Query\SelectQuery $query The query to filter
-     * @param string|array $gatheringIds One or more gathering IDs to filter by
-     * @return \Cake\ORM\Query\SelectQuery The filtered query
-     */
-    protected function applyGatheringsFilter($query, $gatheringIds)
-    {
-        // Normalize to array
-        if (!is_array($gatheringIds)) {
-            $gatheringIds = [$gatheringIds];
-        }
-
-        // Filter out empty values and ensure integers
-        $gatheringIds = array_filter(array_map('intval', $gatheringIds));
-
-        if (empty($gatheringIds)) {
-            return $query;
-        }
-
-        // Find recommendation IDs that match either:
-        // 1. Have the gathering linked in awards_recommendations_events
-        // 2. Have a member who is attending the gathering with share_with_crown or share_with_kingdom
-
-        // Subquery 1: Recommendations linked via awards_recommendations_events join table
-        // Use the Gatherings association through matching to find linked rec IDs
-        $linkedRecIds = $this->Recommendations->find()
-            ->select(['Recommendations.id'])
-            ->matching('Gatherings', function ($q) use ($gatheringIds) {
-                return $q->where(['Gatherings.id IN' => $gatheringIds]);
-            })
-            ->distinct()
-            ->all()
-            ->extract('id')
-            ->toArray();
-
-        // Subquery 2: Members attending these gatherings with share_with_crown or share_with_kingdom
-        $attendanceTable = $this->fetchTable('GatheringAttendances');
-        $attendingMemberIds = $attendanceTable->find()
-            ->select(['member_id'])
-            ->where([
-                'gathering_id IN' => $gatheringIds,
-                'OR' => [
-                    'share_with_crown' => true,
-                    'share_with_kingdom' => true,
-                ],
-            ])
-            ->distinct()
-            ->all()
-            ->extract('member_id')
-            ->toArray();
-
-        // Build the OR condition: rec_id in linked recs OR member_id in attending members
-        $conditions = ['OR' => []];
-
-        if (!empty($linkedRecIds)) {
-            $conditions['OR']['Recommendations.id IN'] = $linkedRecIds;
-        }
-
-        if (!empty($attendingMemberIds)) {
-            $conditions['OR']['Recommendations.member_id IN'] = $attendingMemberIds;
-        }
-
-        // If neither condition has results, return query that matches nothing
-        if (empty($conditions['OR'])) {
-            // Use a condition that will never match
-            $query->where(['Recommendations.id' => -1]);
-        } else {
-            $query->where($conditions);
-        }
-
-        return $query;
     }
 
     /**
@@ -936,7 +870,12 @@ class RecommendationsController extends AppController
         $gatheringsTable = TableRegistry::getTableLocator()->get('Gatherings');
         $gathering = $gatheringsTable->get($gatheringId);
 
-        $this->Authorization->authorize($gathering, 'ViewGatheringRecommendations');
+        // blank recommendation for authorization
+        $recommendation = $this->Recommendations->newEmptyEntity();
+        $recommendation->gathering_id = $gatheringId;
+        $recommendation->gathering = $gathering;
+
+        $this->Authorization->authorize($recommendation, 'ViewGatheringRecommendations');
 
         // Build base query filtered by gathering
         $baseQuery = $this->Recommendations->find()

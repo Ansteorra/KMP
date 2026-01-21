@@ -62,6 +62,15 @@ class AwardsTable extends BaseTable
             'className' => 'Branches',
         ]);
 
+        // Aliased association for Awards->Branches to avoid conflicts
+        // when Recommendations also has a Branches association (member's branch)
+        $this->belongsTo('AwardBranch', [
+            'foreignKey' => 'branch_id',
+            'joinType' => 'LEFT',
+            'className' => 'Branches',
+            'propertyName' => 'award_branch',
+        ]);
+
         $this->hasMany('Recommendations', [
             'foreignKey' => 'award_id',
             'joinType' => 'INNER',
