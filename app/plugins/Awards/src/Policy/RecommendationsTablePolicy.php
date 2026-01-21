@@ -59,7 +59,9 @@ class RecommendationsTablePolicy extends BasePolicy
 
         // Filter by approval levels if user has specific approval authority
         if (!empty($approvalLevels)) {
-            return $query->contain(['Awards.Levels'])->where(['Levels.name in' => $approvalLevels]);
+            return $query->matching('Awards.Levels', function ($q) use ($approvalLevels) {
+                return $q->where(['Levels.name IN' => $approvalLevels]);
+            });
         }
 
         return $query;

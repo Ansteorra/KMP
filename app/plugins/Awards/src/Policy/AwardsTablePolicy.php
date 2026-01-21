@@ -52,7 +52,9 @@ class AwardsTablePolicy extends BasePolicy
         }
         $query = $table->addBranchScopeQuery($query, $branchIds);
         if (!empty($approvaLevels)) {
-            return $query->contain(['Levels'])->where(['Levels.name in' => $approvaLevels]);
+            return $query->matching('Levels', function ($q) use ($approvaLevels) {
+                return $q->where(['Levels.name IN' => $approvaLevels]);
+            });
         }
         return $query;
     }
