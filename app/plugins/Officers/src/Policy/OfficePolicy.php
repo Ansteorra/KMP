@@ -32,7 +32,7 @@ class OfficePolicy extends BasePolicy
      * @param \App\Model\Entity\BaseEntity|\Cake\ORM\Table $entity
      * @return bool
      */
-    public function syncOfficers(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
+    public function canSyncOfficers(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
 

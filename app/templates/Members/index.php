@@ -28,11 +28,6 @@ $this->assign('title', __('Members'));
                 ['action' => 'add'],
                 ['class' => 'btn btn-primary bi bi-plus-circle']
             ) ?>
-            <?= $this->Html->link(
-                __('Classic View'),
-                ['action' => 'index'],
-                ['class' => 'btn btn-outline-secondary ms-2']
-            ) ?>
         </div>
     </div>
 

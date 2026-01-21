@@ -17,13 +17,6 @@ $this->assign('title', __('Warrants'));
 <div class="warrants index content">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h3><?= __('Warrants - Dataverse Grid') ?></h3>
-        <div>
-            <?= $this->Html->link(
-                __('Classic View'),
-                ['action' => 'allWarrants', 'current'],
-                ['class' => 'btn btn-outline-secondary']
-            ) ?>
-        </div>
     </div>
 
     <!-- Outer turbo-frame: contains toolbar and loads inner frame -->
@@ -39,9 +32,7 @@ $this->assign('title', __('Warrants'));
         $queryParams = $this->request->getQueryParams();
         $gridDataUrl = $this->Url->build(['action' => 'gridData', '?' => $queryParams]);
         ?>
-        <turbo-frame id="warrants-grid-table"
-            src="<?= $gridDataUrl ?>"
-            data-grid-view-target="tableFrame">
+        <turbo-frame id="warrants-grid-table" src="<?= $gridDataUrl ?>" data-grid-view-target="tableFrame">
 
             <div class="text-center p-5">
                 <div class="spinner-border text-primary" role="status">

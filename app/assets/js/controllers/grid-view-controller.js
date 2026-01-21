@@ -1326,7 +1326,8 @@ class GridViewController extends Controller {
                     "X-CSRF-Token": this.getCsrfToken(),
                     "X-Requested-With": "XMLHttpRequest"
                 },
-                credentials: "same-origin"
+                credentials: "same-origin",
+                body: JSON.stringify({ gridKey: this.state.config.gridKey })
             })
 
             const data = await response.json()

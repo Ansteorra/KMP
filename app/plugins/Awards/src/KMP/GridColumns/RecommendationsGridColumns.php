@@ -369,6 +369,13 @@ class RecommendationsGridColumns extends BaseGridColumns
                     'method' => 'getGatheringsFilterOptions',
                     'class' => 'Awards\\KMP\\GridColumns\\RecommendationsGridColumns',
                 ],
+                // Custom filter handler: this column requires complex filtering logic
+                // that queries across multiple tables. The trait will automatically
+                // call this handler instead of applying a simple WHERE clause.
+                'customFilterHandler' => [
+                    'method' => 'applyGatheringsFilter',
+                    'class' => 'Awards\\KMP\\GridColumns\\RecommendationsGridColumns',
+                ],
                 'defaultVisible' => true,
                 'exportable' => true,
                 'width' => '180px',
@@ -490,14 +497,17 @@ class RecommendationsGridColumns extends BaseGridColumns
                 'defaultVisible' => false,
                 'width' => '120px',
                 'alignment' => 'left',
-                'renderField' => 'branch.type',
-                'queryField' => 'Branches.type',
+                // Uses AwardBranch alias to avoid conflicts with member's Branches
+                'renderField' => 'award.award_branch.type',
+                // queryField tells the filter pipeline to use AwardBranch.type instead of Recommendations.branch_type
+                // Filtering uses innerJoinWith('Awards.AwardBranch') added in controller
+                'queryField' => 'AwardBranch.type',
                 'filterOptions' => [
                     ['value' => 'Kingdom', 'label' => 'Kingdom'],
                     ['value' => 'Principality', 'label' => 'Principality'],
-                    ['value' => 'Barony', 'label' => 'Barony'],
+                    ['value' => 'Local Group', 'label' => 'Local Group'],
                 ],
-                'description' => 'Branch type of the awarding entity',
+                'description' => 'Branch type of the awarding entity (Kingdom, Principality, Barony)',
             ],
         ];
     }
@@ -799,40 +809,53 @@ class RecommendationsGridColumns extends BaseGridColumns
             ->toArray();
 
         // Query 2: Past gatherings that have recommendations linked via awards_recommendations_events
-        $pastGatheringsWithRecs = $gatheringsTable->find()
-            ->select(['Gatherings.id', 'Gatherings.name', 'Gatherings.start_date'])
-            ->innerJoin(
-                ['RecEvents' => 'awards_recommendations_events'],
-                ['RecEvents.gathering_id = Gatherings.id']
-            )
-            ->where([
-                'Gatherings.start_date <' => $now,
-                'Gatherings.start_date >=' => $sixMonthsAgo,
-            ])
-            ->orderBy(['Gatherings.start_date' => 'DESC'])
-            ->group(['Gatherings.id'])
-            ->limit(50)
-            ->all()
-            ->toArray();
+        //$pastGatheringsWithRecs = $gatheringsTable->find()
+        //    ->select(['Gatherings.id', 'Gatherings.name', 'Gatherings.start_date'])
+        //    ->innerJoin(
+        //        ['RecEvents' => 'awards_recommendations_events'],
+        //        ['RecEvents.gathering_id = Gatherings.id']
+        //    )
+        //    ->where([
+        //        'Gatherings.start_date <' => $now,
+        //        'Gatherings.start_date >=' => $sixMonthsAgo,
+        //    ])
+        //    ->orderBy(['Gatherings.start_date' => 'DESC'])
+        //    ->groupBy(['Gatherings.id'])
+        //    ->all()
+        //     ->toArray();
 
         // Query 3: Past gatherings with relevant member attendance (share_with_crown or share_with_kingdom)
-        $pastGatheringsWithAttendance = $gatheringsTable->find()
+        //$pastGatheringsWithAttendance = $gatheringsTable->find()
+        //    ->select(['Gatherings.id', 'Gatherings.name', 'Gatherings.start_date'])
+        //    ->innerJoin(
+        //        ['Attendance' => 'gathering_attendances'],
+        //        ['Attendance.gathering_id = Gatherings.id']
+        //    )
+        //    ->where([
+        //        'Gatherings.start_date <' => $now,
+        //        'Gatherings.start_date >=' => $sixMonthsAgo,
+        //        'OR' => [
+        //            'Attendance.share_with_crown' => true,
+        //            'Attendance.share_with_kingdom' => true,
+        //        ],
+        //    ])
+        //    ->orderBy(['Gatherings.start_date' => 'DESC'])
+        //    ->groupBy(['Gatherings.id'])
+        //    ->all()
+        //    ->toArray();
+        // query 4: Past gatherings with recommendations linked via the recommendation.gathering_id field
+        $pastGatheringsWithRecAssigned = $gatheringsTable->find()
             ->select(['Gatherings.id', 'Gatherings.name', 'Gatherings.start_date'])
             ->innerJoin(
-                ['Attendance' => 'gathering_attendances'],
-                ['Attendance.gathering_id = Gatherings.id']
+                ['Recommendations' => 'awards_recommendations'],
+                ['Recommendations.gathering_id = Gatherings.id']
             )
             ->where([
                 'Gatherings.start_date <' => $now,
                 'Gatherings.start_date >=' => $sixMonthsAgo,
-                'OR' => [
-                    'Attendance.share_with_crown' => true,
-                    'Attendance.share_with_kingdom' => true,
-                ],
             ])
             ->orderBy(['Gatherings.start_date' => 'DESC'])
-            ->group(['Gatherings.id'])
-            ->limit(50)
+            ->groupBy(['Gatherings.id'])
             ->all()
             ->toArray();
 
@@ -845,14 +868,21 @@ class RecommendationsGridColumns extends BaseGridColumns
         }
 
         // Add past gatherings with recommendations
-        foreach ($pastGatheringsWithRecs as $gathering) {
-            if (!isset($allGatherings[$gathering->id])) {
-                $allGatherings[$gathering->id] = $gathering;
-            }
-        }
+        //foreach ($pastGatheringsWithRecs as $gathering) {
+        //    if (!isset($allGatherings[$gathering->id])) {
+        //        $allGatherings[$gathering->id] = $gathering;
+        //    }
+        //}
 
         // Add past gatherings with attendance
-        foreach ($pastGatheringsWithAttendance as $gathering) {
+        //foreach ($pastGatheringsWithAttendance as $gathering) {
+        //    if (!isset($allGatherings[$gathering->id])) {
+        //        $allGatherings[$gathering->id] = $gathering;
+        //    }
+        //}
+
+        // Add past gatherings with recommendation assigned_gathering
+        foreach ($pastGatheringsWithRecAssigned as $gathering) {
             if (!isset($allGatherings[$gathering->id])) {
                 $allGatherings[$gathering->id] = $gathering;
             }
@@ -897,5 +927,91 @@ class RecommendationsGridColumns extends BaseGridColumns
         }
 
         return $options;
+    }
+
+    /**
+     * Apply gatherings filter to recommendations query.
+     *
+     * Custom filter handler that filters recommendations to include those where:
+     * - The gathering is linked via awards_recommendations_events (recommendation events)
+     * - OR the recommendation's member is attending the gathering with share_with_crown or share_with_kingdom
+     *
+     * This method is called automatically by DataverseGridTrait when a gatherings
+     * filter is applied (either from query params or saved view config).
+     *
+     * @param \Cake\ORM\Query\SelectQuery $query The query to filter
+     * @param string|array $filterValue One or more gathering IDs to filter by
+     * @param array $context Additional context (tableName, columnKey, columnMeta)
+     * @return \Cake\ORM\Query\SelectQuery The filtered query
+     */
+    public static function applyGatheringsFilter($query, $filterValue, array $context = [])
+    {
+        // Normalize to array
+        if (!is_array($filterValue)) {
+            $gatheringIds = [$filterValue];
+        } else {
+            $gatheringIds = $filterValue;
+        }
+
+        // Filter out empty values and ensure integers
+        $gatheringIds = array_filter(array_map('intval', $gatheringIds));
+
+        if (empty($gatheringIds)) {
+            return $query;
+        }
+
+        $tableLocator = \Cake\ORM\TableRegistry::getTableLocator();
+        $recommendationsTable = $tableLocator->get('Awards.Recommendations');
+        $attendanceTable = $tableLocator->get('GatheringAttendances');
+
+        // Find recommendation IDs that match either:
+        // 1. Have the gathering linked in awards_recommendations_events
+        // 2. Have a member who is attending the gathering with share_with_crown or share_with_kingdom
+
+        // Subquery 1: Recommendations linked via awards_recommendations_events join table
+        $linkedRecIds = $recommendationsTable->find()
+            ->select(['Recommendations.id'])
+            ->matching('Gatherings', function ($q) use ($gatheringIds) {
+                return $q->where(['Gatherings.id IN' => $gatheringIds]);
+            })
+            ->distinct()
+            ->all()
+            ->extract('id')
+            ->toArray();
+
+        // Subquery 2: Members attending these gatherings with share_with_crown or share_with_kingdom
+        $attendingMemberIds = $attendanceTable->find()
+            ->select(['member_id'])
+            ->where([
+                'gathering_id IN' => $gatheringIds,
+                'OR' => [
+                    'share_with_crown' => true,
+                    'share_with_kingdom' => true,
+                ],
+            ])
+            ->distinct()
+            ->all()
+            ->extract('member_id')
+            ->toArray();
+
+        // Build the OR condition: rec_id in linked recs OR member_id in attending members
+        $conditions = ['OR' => ['Recommendations.gathering_id IN' => $gatheringIds]];
+
+        if (!empty($linkedRecIds)) {
+            $conditions['OR']['Recommendations.id IN'] = $linkedRecIds;
+        }
+
+        if (!empty($attendingMemberIds)) {
+            $conditions['OR']['Recommendations.member_id IN'] = $attendingMemberIds;
+        }
+
+        // If neither condition has results, return query that matches nothing
+        if (empty($conditions['OR'])) {
+            $query->where(['Recommendations.id' => -1]);
+        } else {
+            $query->where($conditions);
+        }
+
+        return $query;
     }
 }

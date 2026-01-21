@@ -34,7 +34,7 @@ class AppSettingsController extends AppController
     public function initialize(): void
     {
         parent::initialize();
-        $this->Authorization->authorizeModel('index', 'add', 'edit', 'gridData', 'toYaml');
+        $this->Authorization->authorizeModel('index', 'gridData', 'toYaml');
     }
 
     /**

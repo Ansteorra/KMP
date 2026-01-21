@@ -79,6 +79,20 @@ trait DataverseGridTrait
         // Load column metadata
         $columnsMetadata = $gridColumnsClass::getColumns();
 
+        // Get columns with custom filter handlers
+        // These columns have complex filter logic defined in the GridColumns class
+        $customFilterColumns = array_filter(
+            $columnsMetadata,
+            fn($col) => !empty($col['customFilterHandler'])
+        );
+
+        // Get columns that require custom filtering (skipAutoFilter: true OR have customFilterHandler)
+        // These columns should be excluded from automatic WHERE clause application
+        $autoSkipFilterColumns = array_keys(array_filter(
+            $columnsMetadata,
+            fn($col) => !empty($col['skipAutoFilter']) || !empty($col['customFilterHandler'])
+        ));
+
         // Get date-range filter columns (needed for filter application)
         // Note: Always populate this regardless of canFilter, since system view filters
         // need to be applied even when user filtering is disabled
@@ -263,8 +277,9 @@ trait DataverseGridTrait
         $incomingFilters = $this->request->getQuery('filter', []);
         $currentFilters = is_array($incomingFilters) ? $incomingFilters : [];
         // Always include config skipFilterColumns (columns that should never be filtered by the trait)
+        // Also include columns with skipAutoFilter: true from column metadata
         $configSkipFilterColumns = $config['skipFilterColumns'] ?? [];
-        $skipFilterColumns = $configSkipFilterColumns;
+        $skipFilterColumns = array_unique(array_merge($configSkipFilterColumns, $autoSkipFilterColumns));
         $systemViewFilters = [];
 
         if ($selectedSystemView) {
@@ -287,11 +302,11 @@ trait DataverseGridTrait
                 }
             }
 
-            // Merge system view skipFilterColumns with config skipFilterColumns
+            // Merge system view skipFilterColumns with config and autoSkip columns
             $systemViewSkipColumns = ($dirtyFilters || $hasIncomingFilters)
                 ? []
                 : ($systemViewDefaults['skipFilterColumns'] ?? []);
-            $skipFilterColumns = array_unique(array_merge($configSkipFilterColumns, $systemViewSkipColumns));
+            $skipFilterColumns = array_unique(array_merge($configSkipFilterColumns, $autoSkipFilterColumns, $systemViewSkipColumns));
         }
 
         // Determine which filters to apply:
@@ -436,6 +451,21 @@ trait DataverseGridTrait
             }
         }
 
+        // Apply custom filter handlers
+        // These are columns with complex filtering logic defined in the GridColumns class
+        if (!empty($customFilterColumns)) {
+            $baseQuery = $this->applyCustomFilterHandlers(
+                $baseQuery,
+                $customFilterColumns,
+                $tableName,
+                $canFilter,
+                $currentFilters,
+                $currentView,
+                $selectedSystemView,
+                $dirtyFilters
+            );
+        }
+
         // Get visible columns from URL, system view config, user view config, or defaults
         $columnsParam = $this->request->getQuery('columns');
         if ($columnsParam) {
@@ -463,11 +493,13 @@ trait DataverseGridTrait
 
         // Apply expression tree from system view (if present and not dirty)
         if ($selectedSystemView && !$dirtyFilters && !empty($selectedSystemView['config']['expression'])) {
-            $config = new GridViewConfig();
-            $expression = $config->extractExpression(
+            $gridViewConfig = new GridViewConfig();
+            $expression = $gridViewConfig->extractExpression(
                 $selectedSystemView['config'],
                 $baseQuery->clause('where') ?? $baseQuery->newExpr(),
-                $tableName
+                $tableName,
+                $skipFilterColumns,
+                $columnsMetadata
             );
 
             if ($expression !== null) {
@@ -478,21 +510,23 @@ trait DataverseGridTrait
         // Apply view configuration filters (only if not dirty)
         // Note: This handles legacy flat filters. New views should use expressions instead.
         if ($currentView && !$dirtyFilters) {
-            $config = new GridViewConfig();
+            $gridViewConfig = new GridViewConfig();
             $viewConfig = $currentView->getConfigArray();
 
             // Check if view has expression tree (preferred)
-            $expression = $config->extractExpression(
+            $expression = $gridViewConfig->extractExpression(
                 $viewConfig,
                 $baseQuery->clause('where') ?? $baseQuery->newExpr(),
-                $tableName
+                $tableName,
+                $skipFilterColumns,
+                $columnsMetadata
             );
 
             if ($expression !== null) {
                 $baseQuery->where($expression);
             } else {
                 // Fallback to legacy flat filters
-                $filterConditions = $config->extractFilters($viewConfig);
+                $filterConditions = $gridViewConfig->extractFilters($viewConfig);
 
                 if (!empty($filterConditions)) {
                     $qualifiedFilters = [];
@@ -501,12 +535,29 @@ trait DataverseGridTrait
                         $field = $parts[0];
                         $operator = $parts[1] ?? '';
 
-                        // Qualify field name with table name if not already qualified
-                        $qualifiedField = strpos($field, '.') === false ? $tableName . '.' . $field : $field;
+                        // Skip columns that require custom filtering
+                        if (in_array($field, $skipFilterColumns, true)) {
+                            continue;
+                        }
+
+                        // Use queryField from column metadata if available
+                        $columnMeta = $columnsMetadata[$field] ?? null;
+                        $queryField = $columnMeta['queryField'] ?? null;
+
+                        if ($queryField !== null) {
+                            $qualifiedField = $queryField;
+                        } elseif (strpos($field, '.') === false) {
+                            $qualifiedField = $tableName . '.' . $field;
+                        } else {
+                            $qualifiedField = $field;
+                        }
+
                         $qualifiedKey = $operator ? $qualifiedField . ' ' . $operator : $qualifiedField;
                         $qualifiedFilters[$qualifiedKey] = $value;
                     }
-                    $baseQuery->where($qualifiedFilters);
+                    if (!empty($qualifiedFilters)) {
+                        $baseQuery->where($qualifiedFilters);
+                    }
                 }
             }
         }
@@ -1492,5 +1543,183 @@ trait DataverseGridTrait
         }
 
         return $grouping;
+    }
+
+    /**
+     * Apply custom filter handlers for columns with complex filtering logic
+     *
+     * Columns can define a `customFilterHandler` in their metadata to specify
+     * a static method that handles their filtering. This allows complex filter
+     * logic (like querying multiple tables) to be defined alongside the column
+     * definition rather than requiring special controller knowledge.
+     *
+     * Filter values are extracted from:
+     * 1. Query string parameters (user-applied filters)
+     * 2. Saved user view configuration (when loading a saved view)
+     * 3. System view configuration (when loading a system view)
+     *
+     * @param \Cake\ORM\Query\SelectQuery $query The query to filter
+     * @param array $customFilterColumns Columns with customFilterHandler defined
+     * @param string $tableName The main table name
+     * @param bool $canFilter Whether user filtering is enabled
+     * @param array $currentFilters Current filter values from query params
+     * @param mixed $currentView Current saved user view (or null)
+     * @param array|null $selectedSystemView Current system view config (or null)
+     * @param bool $dirtyFilters Whether user explicitly modified filters
+     * @return \Cake\ORM\Query\SelectQuery The filtered query
+     */
+    protected function applyCustomFilterHandlers(
+        $query,
+        array $customFilterColumns,
+        string $tableName,
+        bool $canFilter,
+        array $currentFilters,
+        $currentView,
+        ?array $selectedSystemView,
+        bool $dirtyFilters
+    ) {
+        foreach ($customFilterColumns as $columnKey => $columnMeta) {
+            $handler = $columnMeta['customFilterHandler'];
+            $handlerClass = $handler['class'] ?? null;
+            $handlerMethod = $handler['method'] ?? null;
+
+            if (!$handlerClass || !$handlerMethod) {
+                continue;
+            }
+
+            // Try to get filter value from multiple sources
+            $filterValue = null;
+
+            // 1. Check query string (user-applied filter) - highest priority
+            if ($canFilter) {
+                $queryValue = $this->request->getQuery('filter.' . $columnKey);
+                // Use explicit null/empty-string check to allow valid falsey values like 0, "0", false
+                if ($queryValue !== null && $queryValue !== '') {
+                    $filterValue = $queryValue;
+                }
+            }
+
+            // 2. Check current filters (may have been set from query or system view defaults)
+            // Use explicit null/empty-string check to allow valid falsey values like 0, "0", false
+            if ($filterValue === null && isset($currentFilters[$columnKey]) && $currentFilters[$columnKey] !== null && $currentFilters[$columnKey] !== '') {
+                $filterValue = $currentFilters[$columnKey];
+            }
+
+            // 3. Check saved user view configuration
+            if ($filterValue === null && $currentView && !$dirtyFilters) {
+                $filterValue = $this->extractFilterFromViewConfig($currentView, $columnKey);
+            }
+
+            // 4. Check system view configuration
+            if ($filterValue === null && $selectedSystemView && !$dirtyFilters) {
+                $filterValue = $this->extractFilterFromSystemView($selectedSystemView, $columnKey);
+            }
+
+            // If we have a filter value, call the custom handler
+            if ($filterValue !== null && $filterValue !== '' && (!is_array($filterValue) || !empty($filterValue))) {
+                // Verify the handler exists and is callable
+                if (class_exists($handlerClass) && method_exists($handlerClass, $handlerMethod)) {
+                    $context = [
+                        'tableName' => $tableName,
+                        'columnKey' => $columnKey,
+                        'columnMeta' => $columnMeta,
+                    ];
+                    $query = call_user_func([$handlerClass, $handlerMethod], $query, $filterValue, $context);
+                } else {
+                    Log::warning("Custom filter handler not found: {$handlerClass}::{$handlerMethod}");
+                }
+            }
+        }
+
+        return $query;
+    }
+
+    /**
+     * Extract a specific filter value from a saved user view's config
+     *
+     * @param mixed $view The GridView entity
+     * @param string $columnKey The column key to find
+     * @return mixed The filter value or null if not found
+     */
+    protected function extractFilterFromViewConfig($view, string $columnKey)
+    {
+        if (!$view || !method_exists($view, 'getConfigArray')) {
+            return null;
+        }
+
+        $config = $view->getConfigArray();
+
+        // Check filters array
+        if (!empty($config['filters']) && is_array($config['filters'])) {
+            foreach ($config['filters'] as $filter) {
+                if (isset($filter['field']) && $filter['field'] === $columnKey) {
+                    return $filter['value'] ?? null;
+                }
+            }
+        }
+
+        // Check expression tree
+        if (!empty($config['expression']) && is_array($config['expression'])) {
+            return $this->extractFilterFromExpression($config['expression'], $columnKey);
+        }
+
+        return null;
+    }
+
+    /**
+     * Extract a specific filter value from a system view configuration
+     *
+     * @param array $systemView The system view configuration
+     * @param string $columnKey The column key to find
+     * @return mixed The filter value or null if not found
+     */
+    protected function extractFilterFromSystemView(array $systemView, string $columnKey)
+    {
+        $config = $systemView['config'] ?? [];
+
+        // Check filters array
+        if (!empty($config['filters']) && is_array($config['filters'])) {
+            foreach ($config['filters'] as $filter) {
+                if (isset($filter['field']) && $filter['field'] === $columnKey) {
+                    return $filter['value'] ?? null;
+                }
+            }
+        }
+
+        // Check expression tree
+        if (!empty($config['expression']) && is_array($config['expression'])) {
+            return $this->extractFilterFromExpression($config['expression'], $columnKey);
+        }
+
+        return null;
+    }
+
+    /**
+     * Recursively extract a filter value from an expression tree
+     *
+     * @param array $expression The expression node to search
+     * @param string $columnKey The column key to find
+     * @return mixed The filter value or null if not found
+     */
+    protected function extractFilterFromExpression(array $expression, string $columnKey)
+    {
+        // Check if this is a leaf condition with the target field
+        if (isset($expression['field']) && $expression['field'] === $columnKey) {
+            return $expression['value'] ?? null;
+        }
+
+        // Check conditions array for nested expressions
+        if (!empty($expression['conditions']) && is_array($expression['conditions'])) {
+            foreach ($expression['conditions'] as $condition) {
+                if (is_array($condition)) {
+                    $result = $this->extractFilterFromExpression($condition, $columnKey);
+                    if ($result !== null) {
+                        return $result;
+                    }
+                }
+            }
+        }
+
+        return null;
     }
 }

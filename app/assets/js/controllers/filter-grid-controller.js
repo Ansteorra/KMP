@@ -24,13 +24,51 @@ import { Controller } from "@hotwired/stimulus"
 class FilterGrid extends Controller {
     /**
      * Submit the form to update grid results
-     * Triggers form submission for filtering and pagination updates
+     * Triggers form submission for filtering and pagination updates.
+     * Uses feature detection to handle Turbo 8.0.21 compatibility:
+     * - Tries requestSubmit() first if available
+     * - Falls back to clicking an existing or temporary submit button
      * 
      * @param {Event} event - Input/change event from form elements
      */
     submitForm(event) {
         console.log("submitting form");
-        this.element.requestSubmit();
+        this._safeSubmit(this.element);
+    }
+
+    /**
+     * Safely submit a form with fallback for Turbo 8.0.21 compatibility
+     * 
+     * @param {HTMLFormElement} form - The form element to submit
+     * @private
+     */
+    _safeSubmit(form) {
+        // Try requestSubmit first if available
+        if (typeof form.requestSubmit === 'function') {
+            try {
+                form.requestSubmit();
+                return;
+            } catch (e) {
+                // requestSubmit failed, fall through to fallback
+                console.warn("requestSubmit failed, using fallback:", e);
+            }
+        }
+
+        // Fallback: find existing submit button or create a temporary one
+        let submitButton = form.querySelector('button[type="submit"], input[type="submit"]');
+        
+        if (submitButton) {
+            // Use existing submit button
+            submitButton.click();
+        } else {
+            // Create temporary hidden submit button
+            const tempButton = document.createElement('button');
+            tempButton.type = 'submit';
+            tempButton.style.display = 'none';
+            form.appendChild(tempButton);
+            tempButton.click();
+            tempButton.remove();
+        }
     }
 }
 // add to window.Controllers with a name of the controller
