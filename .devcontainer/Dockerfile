@@ -109,11 +109,6 @@ RUN mkdir -p /opt/templates
 COPY init_env/apache-vhost.template /opt/templates/apache-vhost.template
 
 # Install security tools
-RUN curl -sSL https://github.com/zaproxy/zaproxy/releases/download/w2025-08-26/ZAP_WEEKLY_D-2025-08-26.zip -o /tmp/zaproxy.zip && \
-    unzip /tmp/zaproxy.zip -d /opt && \
-    rm /tmp/zaproxy.zip && \
-    ln -s /opt/ZAP_D-2025-05-20/zap.sh /usr/local/bin/zap
-
 RUN mkdir -p /opt/dependency-check && \
     curl -sSL https://github.com/jeremylong/DependencyCheck/releases/download/v8.2.1/dependency-check-8.2.1-release.zip -o /tmp/dependency-check.zip && \
     unzip /tmp/dependency-check.zip -d /opt && \
