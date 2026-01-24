@@ -5347,9 +5347,11 @@ __webpack_require__.r(__webpack_exports__);
  * - Controller captures user actions and navigates
  * 
  * NO state management in JavaScript - server is source of truth.
+ * 
+ * Supports optional bulk selection when enableBulkSelection is configured.
  */
 class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__.Controller {
-  static targets = ["gridState", "searchInput"];
+  static targets = ["gridState", "searchInput", "rowCheckbox", "selectAllCheckbox", "bulkActionBtn", "selectionCount"];
   static values = {
     stickyQuery: String,
     stickyDefault: Object
@@ -5366,6 +5368,9 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
 
     // Track active filter tab (for UX persistence)
     this.activeFilterKey = null;
+
+    // Initialize bulk selection tracking
+    this.selectedIds = [];
 
     // Initialize sticky query parameter support
     this.stickyParams = {};
@@ -5448,6 +5453,9 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
 
         // Update toolbar UI based on new state
         this.updateToolbar();
+
+        // Clear bulk selection when table data changes (pagination, filter, sort)
+        this.clearBulkSelection();
 
         // Capture sticky parameters based on the loaded frame
         this.captureStickyParamsFromFrame(tableFrame);
@@ -7486,6 +7494,135 @@ class GridViewController extends _hotwired_stimulus__WEBPACK_IMPORTED_MODULE_1__
         mainRow.insertAdjacentElement('afterend', subRow);
       });
     }
+  }
+
+  // ============================
+  // BULK SELECTION METHODS
+  // ============================
+
+  /**
+   * Toggle individual row selection checkbox
+   */
+  toggleRowSelection(event) {
+    const checkbox = event.target;
+    const id = checkbox.value;
+    if (checkbox.checked) {
+      if (!this.selectedIds.includes(id)) {
+        this.selectedIds.push(id);
+      }
+    } else {
+      this.selectedIds = this.selectedIds.filter(i => i !== id);
+    }
+    this.updateBulkSelectionUI();
+  }
+
+  /**
+   * Toggle all row checkboxes on current page
+   */
+  toggleAllSelection(event) {
+    const selectAll = event.target.checked;
+    if (this.hasRowCheckboxTarget) {
+      this.rowCheckboxTargets.forEach(checkbox => {
+        checkbox.checked = selectAll;
+        const id = checkbox.value;
+        if (selectAll) {
+          if (!this.selectedIds.includes(id)) {
+            this.selectedIds.push(id);
+          }
+        } else {
+          this.selectedIds = this.selectedIds.filter(i => i !== id);
+        }
+      });
+    }
+    this.updateBulkSelectionUI();
+  }
+
+  /**
+   * Clear all bulk selections
+   */
+  clearBulkSelection() {
+    this.selectedIds = [];
+
+    // Uncheck all row checkboxes
+    if (this.hasRowCheckboxTarget) {
+      this.rowCheckboxTargets.forEach(checkbox => {
+        checkbox.checked = false;
+      });
+    }
+
+    // Uncheck select all checkbox
+    if (this.hasSelectAllCheckboxTarget) {
+      this.selectAllCheckboxTarget.checked = false;
+    }
+    this.updateBulkSelectionUI();
+  }
+
+  /**
+   * Update bulk action button state and selection count display
+   */
+  updateBulkSelectionUI() {
+    const hasSelection = this.selectedIds.length > 0;
+
+    // Enable/disable bulk action buttons
+    if (this.hasBulkActionBtnTarget) {
+      this.bulkActionBtnTargets.forEach(btn => {
+        btn.disabled = !hasSelection;
+      });
+    }
+
+    // Update selection count badges
+    if (this.hasSelectionCountTarget) {
+      this.selectionCountTargets.forEach(badge => {
+        if (hasSelection) {
+          badge.textContent = this.selectedIds.length;
+          badge.style.display = 'inline';
+        } else {
+          badge.style.display = 'none';
+        }
+      });
+    }
+
+    // Update select all checkbox indeterminate state
+    if (this.hasSelectAllCheckboxTarget && this.hasRowCheckboxTarget) {
+      const totalRows = this.rowCheckboxTargets.length;
+      const selectedCount = this.selectedIds.length;
+      if (selectedCount === 0) {
+        this.selectAllCheckboxTarget.checked = false;
+        this.selectAllCheckboxTarget.indeterminate = false;
+      } else if (selectedCount === totalRows) {
+        this.selectAllCheckboxTarget.checked = true;
+        this.selectAllCheckboxTarget.indeterminate = false;
+      } else {
+        this.selectAllCheckboxTarget.checked = false;
+        this.selectAllCheckboxTarget.indeterminate = true;
+      }
+    }
+  }
+
+  /**
+   * Trigger bulk action - dispatches event with selected IDs for modal listeners
+   */
+  triggerBulkAction(event) {
+    if (this.selectedIds.length === 0) {
+      return;
+    }
+
+    // Dispatch custom event with selected IDs for listeners (e.g., bulk edit modal)
+    const detail = {
+      ids: [...this.selectedIds]
+    };
+
+    // Fire event on the button (outlet-btn pattern expects this)
+    event.target.dispatchEvent(new CustomEvent('outlet-btn:notice', {
+      bubbles: true,
+      detail: detail
+    }));
+
+    // Also dispatch a more generic event on the controller element
+    this.element.dispatchEvent(new CustomEvent('grid-view:bulk-action', {
+      bubbles: true,
+      detail: detail
+    }));
   }
 
   /**
@@ -53179,11 +53316,14 @@ class AwardsRecommendationBulkEditForm extends _hotwired_stimulus__WEBPACK_IMPOR
     const status = this.stateTarget.value;
     const currentSelection = this.planToGiveGatheringTarget.value;
     try {
+      // Get CSRF token from meta tag
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
       const response = await fetch(this.gatheringsUrlValue, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest'
+          'X-Requested-With': 'XMLHttpRequest',
+          'X-CSRF-Token': csrfToken
         },
         body: JSON.stringify({
           ids: this.bulkIdsValue,
@@ -53285,8 +53425,27 @@ class AwardsRecommendationBulkEditForm extends _hotwired_stimulus__WEBPACK_IMPOR
     this.updateGatherings();
   }
 
-  /** Initialize bulk edit controller. */
-  connect() {}
+  /** Initialize bulk edit controller and set up event listeners. */
+  connect() {
+    // Listen for bulk action events from grid-view controller
+    this.boundHandleGridBulkAction = this.handleGridBulkAction.bind(this);
+    document.addEventListener('grid-view:bulk-action', this.boundHandleGridBulkAction);
+  }
+
+  /** Clean up event listeners on disconnect. */
+  disconnect() {
+    if (this.boundHandleGridBulkAction) {
+      document.removeEventListener('grid-view:bulk-action', this.boundHandleGridBulkAction);
+    }
+  }
+
+  /** Handle bulk action event from grid-view controller. */
+  handleGridBulkAction(event) {
+    // Create a synthetic event structure matching outlet-btn pattern
+    this.setId({
+      detail: event.detail
+    });
+  }
 }
 // add to window.Controllers with a name of the controller
 if (!window.Controllers) {

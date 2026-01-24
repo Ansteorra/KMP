@@ -67,6 +67,27 @@ class RecommendationsController extends AppController
         $user = $this->request->getAttribute('identity');
         $this->Authorization->authorize($emptyRecommendation, 'index');
 
+        // Prepare bulk edit modal data if user can edit
+        if ($user->checkCan('edit', $emptyRecommendation)) {
+            // Format status list for dropdown
+            $statusList = Recommendation::getStatuses();
+            foreach ($statusList as $key => $value) {
+                $states = $value;
+                $statusList[$key] = [];
+                foreach ($states as $state) {
+                    $statusList[$key][$state] = $state;
+                }
+            }
+
+            // Get state transition rules for form field visibility
+            $rules = StaticHelpers::getAppSetting('Awards.RecommendationStateRules');
+
+            // Empty gathering list initially - will be populated via AJAX
+            $gatheringList = [];
+
+            $this->set(compact('rules', 'statusList', 'gatheringList'));
+        }
+
         // The new index uses dv_grid with lazy loading - no need for complex config
         // Just render the page, the grid will load data via gridData() action
         return null;
@@ -162,6 +183,15 @@ class RecommendationsController extends AppController
             'canAddViews' => true,
             'canFilter' => true,
             'canExportCsv' => true,
+            'enableBulkSelection' => $user->checkCan('edit', $emptyRecommendation),
+            'bulkActions' => [
+                [
+                    'key' => 'bulk-edit',
+                    'label' => 'Bulk Edit',
+                    'icon' => 'bi-pencil-square',
+                    'modalTarget' => '#bulkEditRecommendationModal',
+                ],
+            ],
         ]);
 
         // Handle CSV export using trait's unified method with data mode
@@ -2392,7 +2422,7 @@ class RecommendationsController extends AppController
                 $gatherings[] = [
                     'id' => $gathering->id,
                     'name' => $gathering->name,
-                    'display' => $displayName,
+                    'display_name' => $displayName,
                     'attendance_count' => $attendanceMap[$gathering->id] ?? 0
                 ];
             }

@@ -100,6 +100,8 @@ RUN wget -O /usr/local/bin/phpunit https://phar.phpunit.de/phpunit-10.phar && \
 RUN npm install -g playwright && \
     npx playwright install-deps
 
+run npm install -g @github/copilot
+
 # Create template directory for Apache virtual host configuration
 RUN mkdir -p /opt/templates
 

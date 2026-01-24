@@ -9,9 +9,11 @@ import { Controller } from "@hotwired/stimulus"
  * - Controller captures user actions and navigates
  * 
  * NO state management in JavaScript - server is source of truth.
+ * 
+ * Supports optional bulk selection when enableBulkSelection is configured.
  */
 class GridViewController extends Controller {
-    static targets = ["gridState", "searchInput"]
+    static targets = ["gridState", "searchInput", "rowCheckbox", "selectAllCheckbox", "bulkActionBtn", "selectionCount"]
     static values = {
         stickyQuery: String,
         stickyDefault: Object
@@ -28,6 +30,9 @@ class GridViewController extends Controller {
 
         // Track active filter tab (for UX persistence)
         this.activeFilterKey = null
+
+        // Initialize bulk selection tracking
+        this.selectedIds = []
 
         // Initialize sticky query parameter support
         this.stickyParams = {}
@@ -113,6 +118,9 @@ class GridViewController extends Controller {
 
                 // Update toolbar UI based on new state
                 this.updateToolbar()
+
+                // Clear bulk selection when table data changes (pagination, filter, sort)
+                this.clearBulkSelection()
 
                 // Capture sticky parameters based on the loaded frame
                 this.captureStickyParamsFromFrame(tableFrame)
@@ -2258,6 +2266,139 @@ class GridViewController extends Controller {
                     mainRow.insertAdjacentElement('afterend', subRow)
                 })
         }
+    }
+
+    // ============================
+    // BULK SELECTION METHODS
+    // ============================
+
+    /**
+     * Toggle individual row selection checkbox
+     */
+    toggleRowSelection(event) {
+        const checkbox = event.target
+        const id = checkbox.value
+
+        if (checkbox.checked) {
+            if (!this.selectedIds.includes(id)) {
+                this.selectedIds.push(id)
+            }
+        } else {
+            this.selectedIds = this.selectedIds.filter(i => i !== id)
+        }
+
+        this.updateBulkSelectionUI()
+    }
+
+    /**
+     * Toggle all row checkboxes on current page
+     */
+    toggleAllSelection(event) {
+        const selectAll = event.target.checked
+
+        if (this.hasRowCheckboxTarget) {
+            this.rowCheckboxTargets.forEach(checkbox => {
+                checkbox.checked = selectAll
+                const id = checkbox.value
+                if (selectAll) {
+                    if (!this.selectedIds.includes(id)) {
+                        this.selectedIds.push(id)
+                    }
+                } else {
+                    this.selectedIds = this.selectedIds.filter(i => i !== id)
+                }
+            })
+        }
+
+        this.updateBulkSelectionUI()
+    }
+
+    /**
+     * Clear all bulk selections
+     */
+    clearBulkSelection() {
+        this.selectedIds = []
+
+        // Uncheck all row checkboxes
+        if (this.hasRowCheckboxTarget) {
+            this.rowCheckboxTargets.forEach(checkbox => {
+                checkbox.checked = false
+            })
+        }
+
+        // Uncheck select all checkbox
+        if (this.hasSelectAllCheckboxTarget) {
+            this.selectAllCheckboxTarget.checked = false
+        }
+
+        this.updateBulkSelectionUI()
+    }
+
+    /**
+     * Update bulk action button state and selection count display
+     */
+    updateBulkSelectionUI() {
+        const hasSelection = this.selectedIds.length > 0
+
+        // Enable/disable bulk action buttons
+        if (this.hasBulkActionBtnTarget) {
+            this.bulkActionBtnTargets.forEach(btn => {
+                btn.disabled = !hasSelection
+            })
+        }
+
+        // Update selection count badges
+        if (this.hasSelectionCountTarget) {
+            this.selectionCountTargets.forEach(badge => {
+                if (hasSelection) {
+                    badge.textContent = this.selectedIds.length
+                    badge.style.display = 'inline'
+                } else {
+                    badge.style.display = 'none'
+                }
+            })
+        }
+
+        // Update select all checkbox indeterminate state
+        if (this.hasSelectAllCheckboxTarget && this.hasRowCheckboxTarget) {
+            const totalRows = this.rowCheckboxTargets.length
+            const selectedCount = this.selectedIds.length
+
+            if (selectedCount === 0) {
+                this.selectAllCheckboxTarget.checked = false
+                this.selectAllCheckboxTarget.indeterminate = false
+            } else if (selectedCount === totalRows) {
+                this.selectAllCheckboxTarget.checked = true
+                this.selectAllCheckboxTarget.indeterminate = false
+            } else {
+                this.selectAllCheckboxTarget.checked = false
+                this.selectAllCheckboxTarget.indeterminate = true
+            }
+        }
+    }
+
+    /**
+     * Trigger bulk action - dispatches event with selected IDs for modal listeners
+     */
+    triggerBulkAction(event) {
+        if (this.selectedIds.length === 0) {
+            return
+        }
+
+        // Dispatch custom event with selected IDs for listeners (e.g., bulk edit modal)
+        const detail = { ids: [...this.selectedIds] }
+        
+        // Fire event on the button (outlet-btn pattern expects this)
+        event.target.dispatchEvent(new CustomEvent('outlet-btn:notice', {
+            bubbles: true,
+            detail: detail
+        }))
+
+        // Also dispatch a more generic event on the controller element
+        this.element.dispatchEvent(new CustomEvent('grid-view:bulk-action', {
+            bubbles: true,
+            detail: detail
+        }))
     }
 
     /**

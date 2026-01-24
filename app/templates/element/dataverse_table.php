@@ -16,6 +16,7 @@
  * @var string|null $gridKey Grid key for component uniqueness (optional)
  * @var array $rowActions Row action configurations (optional)
  * @var \Authorization\Identity|null $user Current user for permission checks (optional)
+ * @var bool $enableBulkSelection Whether to show row selection checkboxes (optional)
  */
 
 use App\KMP\StaticHelpers;
@@ -27,15 +28,28 @@ $gridKey = $gridKey ?? 'grid';
 $rowActions = $rowActions ?? [];
 $user = $user ?? $this->request->getAttribute('identity');
 $enableColumnPicker = $enableColumnPicker ?? true;
+$enableBulkSelection = $enableBulkSelection ?? false;
 
 // Show actions column if column picker is enabled OR there are row actions
 $showActionsColumn = $enableColumnPicker || !empty($rowActions);
+
+// Calculate total column count for empty state colspan
+$totalColumns = count($visibleColumns) + ($showActionsColumn ? 1 : 0) + ($enableBulkSelection ? 1 : 0);
 ?>
 
 <div class="table-responsive">
     <table class="table table-striped table-hover" data-<?= h($controllerName) ?>-target="gridTable">
         <thead class="table-light">
             <tr>
+                <?php if ($enableBulkSelection): ?>
+                    <th scope="col" style="width: 40px; text-align: center;">
+                        <input type="checkbox" 
+                               class="form-check-input" 
+                               data-<?= h($controllerName) ?>-target="selectAllCheckbox"
+                               data-action="change-><?= h($controllerName) ?>#toggleAllSelection"
+                               title="Select all rows on this page">
+                    </th>
+                <?php endif; ?>
                 <?php foreach ($visibleColumns as $columnKey): ?>
                     <?php if (!isset($columns[$columnKey])) continue; ?>
                     <?php $column = $columns[$columnKey]; ?>
@@ -86,13 +100,22 @@ $showActionsColumn = $enableColumnPicker || !empty($rowActions);
         <tbody>
             <?php if (empty($data)): ?>
                 <tr>
-                    <td colspan="<?= count($visibleColumns) + ($showActionsColumn ? 1 : 0) ?>" class="text-center text-muted py-4">
+                    <td colspan="<?= $totalColumns ?>" class="text-center text-muted py-4">
                         No records found.
                     </td>
                 </tr>
             <?php else: ?>
                 <?php foreach ($data as $row): ?>
                     <tr data-id="<?= h($row[$primaryKey]) ?>">
+                        <?php if ($enableBulkSelection): ?>
+                            <td style="text-align: center;">
+                                <input type="checkbox" 
+                                       class="form-check-input" 
+                                       value="<?= h($row[$primaryKey]) ?>"
+                                       data-<?= h($controllerName) ?>-target="rowCheckbox"
+                                       data-action="change-><?= h($controllerName) ?>#toggleRowSelection">
+                            </td>
+                        <?php endif; ?>
                         <?php foreach ($visibleColumns as $columnKey): ?>
                             <?php if (!isset($columns[$columnKey])) continue; ?>
                             <?php $column = $columns[$columnKey]; ?>
