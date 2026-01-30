@@ -1669,6 +1669,19 @@ class MembersController extends AppController
         if ($this->request->is('put')) {
             $file = $this->request->getData('member_card');
             if ($file->getSize() > 0) {
+                // Validate file type before saving (security fix)
+                $allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/pjpeg'];
+                $clientMediaType = $file->getClientMediaType();
+                if (!in_array($clientMediaType, $allowedTypes)) {
+                    $this->Flash->error(__('Invalid file type. Only PNG and JPEG images are allowed.'));
+                    return $this->redirect($this->referer());
+                }
+                $ext = strtolower(pathinfo($file->getClientFilename(), PATHINFO_EXTENSION));
+                if (!in_array($ext, ['png', 'jpg', 'jpeg'])) {
+                    $this->Flash->error(__('Invalid file extension. Only .png, .jpg, .jpeg are allowed.'));
+                    return $this->redirect($this->referer());
+                }
+
                 $storageLoc = WWW_ROOT . '../images/uploaded/';
                 $fileName = StaticHelpers::generateToken(10);
                 StaticHelpers::ensureDirectoryExists($storageLoc, 0755);
@@ -1708,6 +1721,21 @@ class MembersController extends AppController
         if ($this->request->is('post')) {
             $file = $this->request->getData('member_card');
             if ($file->getSize() > 0) {
+                // Validate file type before saving (security fix)
+                $allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/pjpeg'];
+                $clientMediaType = $file->getClientMediaType();
+                if (!in_array($clientMediaType, $allowedTypes)) {
+                    $this->Flash->error(__('Invalid file type. Only PNG and JPEG images are allowed.'));
+                    $this->set(compact('member'));
+                    return;
+                }
+                $ext = strtolower(pathinfo($file->getClientFilename(), PATHINFO_EXTENSION));
+                if (!in_array($ext, ['png', 'jpg', 'jpeg'])) {
+                    $this->Flash->error(__('Invalid file extension. Only .png, .jpg, .jpeg are allowed.'));
+                    $this->set(compact('member'));
+                    return;
+                }
+
                 $storageLoc = WWW_ROOT . '../images/uploaded/';
                 $fileName = StaticHelpers::generateToken(10);
                 StaticHelpers::ensureDirectoryExists($storageLoc, 0755);
