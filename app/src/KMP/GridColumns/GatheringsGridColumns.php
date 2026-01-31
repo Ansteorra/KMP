@@ -251,9 +251,9 @@ class GatheringsGridColumns extends BaseGridColumns
                 'filterable' => true,
                 'filterType' => 'dropdown',
                 'filterOptions' => [
-                    '' => 'All',
-                    'active' => 'Active',
-                    'cancelled' => 'Cancelled',
+                    ['value' => '', 'label' => 'All'],
+                    ['value' => 'active', 'label' => 'Active'],
+                    ['value' => 'cancelled', 'label' => 'Cancelled'],
                 ],
                 'defaultVisible' => true,
                 'width' => '100px',
@@ -261,6 +261,11 @@ class GatheringsGridColumns extends BaseGridColumns
                 'badgeConfig' => [
                     'nullValue' => ['text' => 'Active', 'class' => 'bg-success'],
                     'hasValue' => ['text' => 'Cancelled', 'class' => 'bg-danger'],
+                ],
+                'skipAutoFilter' => true,
+                'customFilterHandler' => [
+                    'class' => self::class,
+                    'method' => 'filterByCancelledStatus',
                 ],
             ],
         ];
@@ -274,6 +279,32 @@ class GatheringsGridColumns extends BaseGridColumns
     public static function getSearchableColumns(): array
     {
         return ['name', 'location'];
+    }
+
+    /**
+     * Custom filter handler for cancelled_at status column
+     *
+     * Maps 'active'/'cancelled' filter values to NULL-based conditions:
+     * - 'active' → cancelled_at IS NULL
+     * - 'cancelled' → cancelled_at IS NOT NULL
+     *
+     * @param \Cake\ORM\Query\SelectQuery $query The query to filter
+     * @param mixed $filterValue The filter value ('active' or 'cancelled')
+     * @param array $context Context including tableName, columnKey, columnMeta
+     * @return \Cake\ORM\Query\SelectQuery The filtered query
+     */
+    public static function filterByCancelledStatus($query, $filterValue, array $context)
+    {
+        $tableName = $context['tableName'] ?? 'Gatherings';
+        $field = $tableName . '.cancelled_at';
+
+        if ($filterValue === 'active') {
+            $query->where([$field . ' IS' => null]);
+        } elseif ($filterValue === 'cancelled') {
+            $query->where([$field . ' IS NOT' => null]);
+        }
+
+        return $query;
     }
 
     /**
