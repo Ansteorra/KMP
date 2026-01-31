@@ -220,6 +220,14 @@ $totalColumns = count($visibleColumns) + ($showActionsColumn ? 1 : 0) + ($enable
                                                 echo '<span class="text-muted">—</span>';
                                             }
                                             break;
+                                        case 'email':
+                                            // Render email as a mailto link
+                                            if ($value !== null && $value !== '') {
+                                                echo '<a href="mailto:' . h($value) . '">' . h($value) . '</a>';
+                                            } else {
+                                                echo '<span class="text-muted">—</span>';
+                                            }
+                                            break;
                                         case 'string':
                                         default:
                                             if ($value !== null && $value !== '') {

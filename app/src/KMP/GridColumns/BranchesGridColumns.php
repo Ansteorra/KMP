@@ -6,6 +6,8 @@ namespace App\KMP\GridColumns;
 
 /**
  * Branches Grid Column Metadata
+ * 
+ * Provides tree-aware rendering with visual hierarchy indicators.
  */
 class BranchesGridColumns extends BaseGridColumns
 {
@@ -55,10 +57,11 @@ class BranchesGridColumns extends BaseGridColumns
                 'searchable' => true,
                 'defaultVisible' => true,
                 'required' => true,
-                'width' => '350px',
+                'width' => '300px',
                 'alignment' => 'left',
                 'clickAction' => 'navigate:/branches/view/:id',
                 'exportable' => true,
+                'cellRenderer' => [self::class, 'renderTreePath'],
             ],
 
             'name' => [
@@ -106,7 +109,7 @@ class BranchesGridColumns extends BaseGridColumns
                 'type' => 'relation',
                 'sortable' => true,
                 'filterable' => false,
-                'defaultVisible' => true,
+                'defaultVisible' => false,
                 'width' => '200px',
                 'alignment' => 'left',
                 'renderField' => 'parent.name',
@@ -127,17 +130,6 @@ class BranchesGridColumns extends BaseGridColumns
                     ['value' => '1', 'label' => 'Yes'],
                     ['value' => '0', 'label' => 'No'],
                 ],
-            ],
-
-            'member_count' => [
-                'key' => 'member_count',
-                'label' => 'Member Count',
-                'type' => 'number',
-                'sortable' => false,
-                'filterable' => false,
-                'defaultVisible' => true,
-                'width' => '120px',
-                'alignment' => 'right',
             ],
 
             'created' => [
@@ -162,5 +154,34 @@ class BranchesGridColumns extends BaseGridColumns
                 'alignment' => 'left',
             ],
         ];
+    }
+
+    /**
+     * Custom cell renderer for tree path display.
+     * 
+     * Renders the branch hierarchy with visual indentation.
+     *
+     * @param mixed $value The cell value (path string)
+     * @param object|array $row The full row data
+     * @param \App\View\AppView $view The view instance
+     * @return string Rendered HTML
+     */
+    public static function renderTreePath($value, $row, $view): string
+    {
+        $depth = $row->tree_depth ?? 0;
+        $name = $row->name ?? '';
+
+        $html = '';
+
+        // Add indentation based on depth
+        if ($depth > 0) {
+            $indent = str_repeat('&nbsp;&nbsp;&nbsp;&nbsp;', $depth);
+            $html .= '<span class="text-muted">' . $indent . '└ </span>';
+        }
+
+        // Show branch name
+        $html .= htmlspecialchars($name);
+
+        return $html;
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Waivers\Model\Table;
 
+use Cake\I18n\DateTime;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
@@ -11,10 +12,13 @@ use Cake\Validation\Validator;
 /**
  * GatheringWaiverClosures Model
  *
- * Tracks when waiver collection is closed for a gathering.
+ * Tracks waiver collection status for gatherings. Supports two states:
+ * - Ready to close: Event staff signals waivers are complete
+ * - Closed: Waiver secretary reviews and confirms closure
  *
  * @property \App\Model\Table\GatheringsTable&\Cake\ORM\Association\BelongsTo $Gatherings
  * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $ClosedByMembers
+ * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $ReadyToCloseByMembers
  */
 class GatheringWaiverClosuresTable extends Table
 {
@@ -43,6 +47,10 @@ class GatheringWaiverClosuresTable extends Table
             'foreignKey' => 'closed_by',
             'className' => 'Members',
         ]);
+        $this->belongsTo('ReadyToCloseByMembers', [
+            'foreignKey' => 'ready_to_close_by',
+            'className' => 'Members',
+        ]);
     }
 
     /**
@@ -60,13 +68,19 @@ class GatheringWaiverClosuresTable extends Table
 
         $validator
             ->dateTime('closed_at')
-            ->requirePresence('closed_at', 'create')
-            ->notEmptyDateTime('closed_at');
+            ->allowEmptyDateTime('closed_at');
 
         $validator
             ->integer('closed_by')
-            ->requirePresence('closed_by', 'create')
-            ->notEmptyString('closed_by');
+            ->allowEmptyString('closed_by');
+
+        $validator
+            ->dateTime('ready_to_close_at')
+            ->allowEmptyDateTime('ready_to_close_at');
+
+        $validator
+            ->integer('ready_to_close_by')
+            ->allowEmptyString('ready_to_close_by');
 
         $validator
             ->dateTime('created')
@@ -93,6 +107,11 @@ class GatheringWaiverClosuresTable extends Table
         ]);
         $rules->add($rules->existsIn(['closed_by'], 'ClosedByMembers'), [
             'errorField' => 'closed_by',
+            'allowNullableNulls' => true,
+        ]);
+        $rules->add($rules->existsIn(['ready_to_close_by'], 'ReadyToCloseByMembers'), [
+            'errorField' => 'ready_to_close_by',
+            'allowNullableNulls' => true,
         ]);
         $rules->add($rules->isUnique(['gathering_id']), [
             'errorField' => 'gathering_id',
@@ -109,7 +128,24 @@ class GatheringWaiverClosuresTable extends Table
      */
     public function isGatheringClosed(int $gatheringId): bool
     {
-        return $this->exists(['gathering_id' => $gatheringId]);
+        return $this->exists([
+            'gathering_id' => $gatheringId,
+            'closed_at IS NOT' => null,
+        ]);
+    }
+
+    /**
+     * Check if gathering is marked ready to close.
+     *
+     * @param int $gatheringId Gathering ID
+     * @return bool
+     */
+    public function isGatheringReadyToClose(int $gatheringId): bool
+    {
+        return $this->exists([
+            'gathering_id' => $gatheringId,
+            'ready_to_close_at IS NOT' => null,
+        ]);
     }
 
     /**
@@ -121,7 +157,7 @@ class GatheringWaiverClosuresTable extends Table
     public function getClosureForGathering(int $gatheringId)
     {
         return $this->find()
-            ->contain(['ClosedByMembers'])
+            ->contain(['ClosedByMembers', 'ReadyToCloseByMembers'])
             ->where(['gathering_id' => $gatheringId])
             ->first();
     }
@@ -134,7 +170,10 @@ class GatheringWaiverClosuresTable extends Table
      */
     public function getClosedGatheringIds(?array $gatheringIds = null): array
     {
-        $query = $this->find()->select(['gathering_id']);
+        $query = $this->find()
+            ->select(['gathering_id'])
+            ->where(['closed_at IS NOT' => null]);
+
         if ($gatheringIds !== null) {
             if (empty($gatheringIds)) {
                 return [];
@@ -143,5 +182,84 @@ class GatheringWaiverClosuresTable extends Table
         }
 
         return $query->all()->extract('gathering_id')->toArray();
+    }
+
+    /**
+     * Get gathering IDs that are marked ready to close but not yet closed.
+     *
+     * @param array<int>|null $gatheringIds Optional list of gathering IDs to filter.
+     * @return array<int>
+     */
+    public function getReadyToCloseGatheringIds(?array $gatheringIds = null): array
+    {
+        $query = $this->find()
+            ->select(['gathering_id'])
+            ->where([
+                'ready_to_close_at IS NOT' => null,
+                'closed_at IS' => null,
+            ]);
+
+        if ($gatheringIds !== null) {
+            if (empty($gatheringIds)) {
+                return [];
+            }
+            $query->where(['gathering_id IN' => $gatheringIds]);
+        }
+
+        return $query->all()->extract('gathering_id')->toArray();
+    }
+
+    /**
+     * Mark a gathering as ready to close.
+     *
+     * @param int $gatheringId Gathering ID
+     * @param int $memberId Member marking as ready
+     * @return \Waivers\Model\Entity\GatheringWaiverClosure|false
+     */
+    public function markReadyToClose(int $gatheringId, int $memberId)
+    {
+        $closure = $this->find()
+            ->where(['gathering_id' => $gatheringId])
+            ->first();
+
+        if ($closure) {
+            // Update existing record
+            $closure->ready_to_close_at = DateTime::now();
+            $closure->ready_to_close_by = $memberId;
+        } else {
+            // Create new record
+            $closure = $this->newEntity([
+                'gathering_id' => $gatheringId,
+                'ready_to_close_at' => DateTime::now(),
+                'ready_to_close_by' => $memberId,
+            ]);
+        }
+
+        return $this->save($closure);
+    }
+
+    /**
+     * Unmark a gathering as ready to close.
+     *
+     * @param int $gatheringId Gathering ID
+     * @return bool
+     */
+    public function unmarkReadyToClose(int $gatheringId): bool
+    {
+        $closure = $this->find()
+            ->where(['gathering_id' => $gatheringId])
+            ->first();
+
+        if (!$closure) {
+            return true; // Nothing to unmark
+        }
+
+        // If already closed, cannot unmark
+        if ($closure->closed_at !== null) {
+            return false;
+        }
+
+        // Delete the record entirely if only marked ready
+        return (bool)$this->delete($closure);
     }
 }

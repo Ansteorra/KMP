@@ -128,11 +128,7 @@ $canManage = $canManageOwn || $canManageOthers;
                                 <button type="button" class="btn btn-sm btn-secondary" data-bs-toggle="modal"
                                     data-bs-target="#editGatheringAttendanceModal"
                                     data-attendance-id="<?= $attendance->id ?>"
-                                    data-gathering-name="<?= h($attendance->gathering->name) ?>"
-                                    data-public-note="<?= h($attendance->public_note) ?>"
-                                    data-share-kingdom="<?= $attendance->share_with_kingdom ? '1' : '0' ?>"
-                                    data-share-hosting="<?= $attendance->share_with_hosting_group ? '1' : '0' ?>"
-                                    data-share-crown="<?= $attendance->share_with_crown ? '1' : '0' ?>">
+                                    data-gathering-id="<?= $attendance->gathering->id ?>">
                                     <i class="bi bi-pencil"></i>
                                 </button>
                                 <?= $this->Form->postLink(

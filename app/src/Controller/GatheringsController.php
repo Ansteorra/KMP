@@ -966,7 +966,7 @@ class GatheringsController extends AppController
      */
     public function edit($id = null)
     {
-        $gathering = $this->Gatherings->get($id);
+        $gathering = $this->Gatherings->get($id, contain: ['Branches']);
         $this->Authorization->authorize($gathering);
 
         if ($this->request->is(['patch', 'post', 'put'])) {
@@ -1017,16 +1017,38 @@ class GatheringsController extends AppController
         $currentUser = $this->Authentication->getIdentity();
         $branchIds = $currentUser->getBranchIdsForAction('edit', $gathering);
 
-        $branchesQuery = $this->Gatherings->Branches->find('list')->orderBy(['name' => 'ASC']);
-        if ($branchIds !== null) {
-            // User has limited access - filter to specific branches
-            $branchesQuery->where(['Branches.id IN' => $branchIds]);
+        // Determine if branch should be locked (non-editable)
+        // Lock branch if:
+        // 1. User has no branch scope (empty array - e.g., stewards with no standard permissions)
+        // 2. User has branch scope but current gathering's branch is not in their scope
+        $lockBranch = false;
+        $branches = [];
+
+        if ($branchIds === null) {
+            // Global access - user can edit any branch
+            $branches = $this->Gatherings->Branches->find('list')->orderBy(['name' => 'ASC']);
+            $lockBranch = false;
+        } elseif (empty($branchIds)) {
+            // No branch scope (e.g., steward with no standard permissions)
+            // Lock to current branch
+            $lockBranch = true;
+            $branches = [$gathering->branch_id => $gathering->branch->name ?? 'Current Branch'];
+        } elseif (!in_array($gathering->branch_id, $branchIds)) {
+            // User has branch scope but gathering's branch is not in their scope
+            // Lock to current branch
+            $lockBranch = true;
+            $branches = [$gathering->branch_id => $gathering->branch->name ?? 'Current Branch'];
+        } else {
+            // User has branch scope and gathering's branch is in their scope
+            $branches = $this->Gatherings->Branches->find('list')
+                ->where(['Branches.id IN' => $branchIds])
+                ->orderBy(['name' => 'ASC']);
+            $lockBranch = false;
         }
-        $branches = $branchesQuery;
 
         $gatheringTypes = $this->Gatherings->GatheringTypes->find('list')->orderBy(['name' => 'ASC']);
 
-        $this->set(compact('gathering', 'branches', 'gatheringTypes'));
+        $this->set(compact('gathering', 'branches', 'gatheringTypes', 'lockBranch'));
     }
 
     /**

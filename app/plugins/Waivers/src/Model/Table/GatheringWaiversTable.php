@@ -222,7 +222,7 @@ class GatheringWaiversTable extends Table
      * - End date is today or in the future
      * - Have required waivers configured
      * - Missing at least one required waiver upload
-     * - User has permission to upload waivers for the gathering's branch
+     * - User has permission to upload waivers for the gathering's branch OR is a steward
      *
      * @param int $memberId The member ID to check permissions for
      * @return int Count of gatherings needing waivers
@@ -235,13 +235,30 @@ class GatheringWaiversTable extends Table
         // Get branches user can upload waivers for
         $branchIds = $member->getBranchIdsForAction('needingWaivers', 'Waivers.GatheringWaivers');
 
-        // If user has no permissions, return 0
-        if (is_array($branchIds) && empty($branchIds)) {
+        // Get gathering IDs where user is a steward
+        $gatheringStaffTable = \Cake\ORM\TableRegistry::getTableLocator()->get('GatheringStaff');
+        $stewardGatheringIds = $gatheringStaffTable->find()
+            ->where([
+                'GatheringStaff.member_id' => $memberId,
+                'GatheringStaff.is_steward' => true,
+            ])
+            ->select(['gathering_id'])
+            ->all()
+            ->extract('gathering_id')
+            ->toArray();
+
+        // Determine access mode
+        $hasGlobalAccess = ($branchIds === null);
+        $hasBranchAccess = !empty($branchIds);
+        $hasStewardAccess = !empty($stewardGatheringIds);
+
+        // If user has no permissions and is not a steward, return 0
+        if (!$hasGlobalAccess && !$hasBranchAccess && !$hasStewardAccess) {
             return 0;
         }
 
         // If null (global permission), get all branches
-        if ($branchIds === null) {
+        if ($hasGlobalAccess) {
             $branchesTable = \Cake\ORM\TableRegistry::getTableLocator()->get('Branches');
             $branchIds = $branchesTable->find()
                 ->select(['id'])
@@ -254,11 +271,26 @@ class GatheringWaiversTable extends Table
         $gatheringWaiversTable = \Cake\ORM\TableRegistry::getTableLocator()->get('Waivers.GatheringWaivers');
         $activityWaiversTable = \Cake\ORM\TableRegistry::getTableLocator()->get('Waivers.GatheringActivityWaivers');
         $gatheringWaiverClosuresTable = \Cake\ORM\TableRegistry::getTableLocator()->get('Waivers.GatheringWaiverClosures');
+        $closedGatheringIds = $gatheringWaiverClosuresTable->getClosedGatheringIds();
 
         $today = Date::now()->toDateString();
         $oneWeekFromNow = Date::now()->addDays(7)->toDateString();
 
-        // Find gatherings in user's branches that are:
+        // Build the access condition: branch-based OR steward-based
+        $accessConditions = [];
+        if (!empty($branchIds)) {
+            $accessConditions[] = ['Gatherings.branch_id IN' => $branchIds];
+        }
+        if (!empty($stewardGatheringIds)) {
+            $accessConditions[] = ['Gatherings.id IN' => $stewardGatheringIds];
+        }
+
+        // If no access conditions, return 0 (shouldn't happen due to earlier check)
+        if (empty($accessConditions)) {
+            return 0;
+        }
+
+        // Find gatherings that are:
         // - Not yet ended (ongoing or future)
         // - Either already started OR starting within next 7 days
         $gatherings = $gatheringsTable->find()
@@ -270,20 +302,21 @@ class GatheringWaiversTable extends Table
                         'Gatherings.start_date >=' => $today,
                     ]
                 ],
+                'Gatherings.deleted IS' => null,
+            ])
+            ->where([
                 'OR' => [
                     'Gatherings.start_date <' => $today, // Already started (past or ongoing)
                     'Gatherings.start_date <=' => $oneWeekFromNow, // Starts within next 7 days
                 ],
-                'Gatherings.branch_id IN' => $branchIds,
-                'Gatherings.deleted IS' => null,
             ])
+            ->where(['OR' => $accessConditions])
             ->contain(['GatheringActivities' => function ($q) {
                 return $q->select(['id']);
             }])
             ->all();
 
         $count = 0;
-        $closedGatheringIds = $gatheringWaiverClosuresTable->getClosedGatheringIds();
 
         foreach ($gatherings as $gathering) {
             if (!empty($closedGatheringIds) && in_array($gathering->id, $closedGatheringIds, true)) {

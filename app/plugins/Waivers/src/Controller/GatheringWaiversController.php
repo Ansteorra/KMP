@@ -180,8 +180,18 @@ class GatheringWaiversController extends AppController
         $GatheringWaiverClosures = $this->fetchTable('Waivers.GatheringWaiverClosures');
         $existing = $GatheringWaiverClosures->getClosureForGathering((int)$gatheringId);
 
-        if ($existing) {
+        if ($existing && $existing->isClosed()) {
             $this->Flash->info(__('Waiver collection is already closed for this gathering.'));
+        } elseif ($existing) {
+            // Update existing record (may be marked ready to close)
+            $existing->closed_at = DateTime::now();
+            $existing->closed_by = $this->Authentication->getIdentity()->getIdentifier();
+
+            if ($GatheringWaiverClosures->save($existing)) {
+                $this->Flash->success(__('Waiver collection has been closed.'));
+            } else {
+                $this->Flash->error(__('Unable to close waiver collection. Please try again.'));
+            }
         } else {
             $closure = $GatheringWaiverClosures->newEntity([
                 'gathering_id' => $gathering->id,
@@ -240,6 +250,109 @@ class GatheringWaiversController extends AppController
             $this->Flash->success(__('Waiver collection has been reopened.'));
         } else {
             $this->Flash->error(__('Unable to reopen waiver collection. Please try again.'));
+        }
+
+        $redirectUrl = $this->request->referer();
+        if (!$redirectUrl) {
+            $redirectUrl = [
+                'plugin' => false,
+                'controller' => 'Gatherings',
+                'action' => 'view',
+                $gathering->public_id,
+                '?' => ['tab' => 'gathering-waivers'],
+            ];
+        }
+
+        return $this->redirect($redirectUrl);
+    }
+
+    /**
+     * Mark a gathering as ready for waiver secretary to close.
+     *
+     * @param string|null $gatheringId Gathering ID.
+     * @return \Cake\Http\Response|null
+     */
+    public function markReadyToClose(?string $gatheringId = null)
+    {
+        $this->request->allowMethod(['post']);
+
+        if (!$gatheringId) {
+            throw new BadRequestException(__('Gathering ID is required'));
+        }
+
+        $Gatherings = $this->fetchTable('Gatherings');
+        $gathering = $Gatherings->get($gatheringId);
+
+        // Use edit permission on gathering - editors and stewards can mark ready
+        $this->Authorization->authorize($gathering, 'edit');
+
+        $GatheringWaiverClosures = $this->fetchTable('Waivers.GatheringWaiverClosures');
+        $existing = $GatheringWaiverClosures->getClosureForGathering((int)$gatheringId);
+
+        // If already closed, cannot mark ready
+        if ($existing && $existing->isClosed()) {
+            $this->Flash->info(__('Waiver collection is already closed for this gathering.'));
+        } elseif ($existing && $existing->isReadyToClose()) {
+            $this->Flash->info(__('This gathering is already marked as ready to close.'));
+        } else {
+            $closure = $GatheringWaiverClosures->markReadyToClose(
+                (int)$gatheringId,
+                $this->Authentication->getIdentity()->getIdentifier()
+            );
+
+            if ($closure) {
+                $this->Flash->success(__('Gathering marked as ready for waiver secretary review.'));
+            } else {
+                $this->Flash->error(__('Unable to mark gathering as ready. Please try again.'));
+            }
+        }
+
+        $redirectUrl = $this->request->referer();
+        if (!$redirectUrl) {
+            $redirectUrl = [
+                'plugin' => false,
+                'controller' => 'Gatherings',
+                'action' => 'view',
+                $gathering->public_id,
+                '?' => ['tab' => 'gathering-waivers'],
+            ];
+        }
+
+        return $this->redirect($redirectUrl);
+    }
+
+    /**
+     * Unmark a gathering as ready to close (reverts ready status).
+     *
+     * @param string|null $gatheringId Gathering ID.
+     * @return \Cake\Http\Response|null
+     */
+    public function unmarkReadyToClose(?string $gatheringId = null)
+    {
+        $this->request->allowMethod(['post']);
+
+        if (!$gatheringId) {
+            throw new BadRequestException(__('Gathering ID is required'));
+        }
+
+        $Gatherings = $this->fetchTable('Gatherings');
+        $gathering = $Gatherings->get($gatheringId);
+
+        // Use edit permission on gathering - editors and stewards can unmark ready
+        $this->Authorization->authorize($gathering, 'edit');
+
+        $GatheringWaiverClosures = $this->fetchTable('Waivers.GatheringWaiverClosures');
+        $existing = $GatheringWaiverClosures->getClosureForGathering((int)$gatheringId);
+
+        // If already closed, cannot unmark
+        if ($existing && $existing->isClosed()) {
+            $this->Flash->error(__('Cannot unmark - waiver collection is already closed by the waiver secretary.'));
+        } elseif (!$existing || !$existing->isReadyToClose()) {
+            $this->Flash->info(__('This gathering is not marked as ready to close.'));
+        } elseif ($GatheringWaiverClosures->unmarkReadyToClose((int)$gatheringId)) {
+            $this->Flash->success(__('Gathering is no longer marked as ready to close.'));
+        } else {
+            $this->Flash->error(__('Unable to unmark gathering. Please try again.'));
         }
 
         $redirectUrl = $this->request->referer();
@@ -1484,32 +1597,64 @@ class GatheringWaiversController extends AppController
 
         $currentUser = $this->Authentication->getIdentity();
 
-        // Get branches user can upload waivers for
+        // Get branches user can upload waivers for via standard permissions
         $branchIds = $currentUser->getBranchIdsForAction('uploadWaivers', 'Waivers.GatheringWaivers');
 
-        // If user has no branch permissions, show empty list
-        if ($branchIds === null) {
-            // null means global permission - get all branches
-            $Branches = $this->fetchTable('Branches');
-            $branchIds = $Branches->find()->select(['id'])->all()->extract('id')->toArray();
-        } elseif (empty($branchIds)) {
-            // Empty array means no permission
+        // Get gathering IDs where user is a steward (these are allowed even without branch permissions)
+        $GatheringStaff = $this->fetchTable('GatheringStaff');
+        $stewardGatheringIds = $GatheringStaff->find()
+            ->where([
+                'GatheringStaff.member_id' => $currentUser->getIdentifier(),
+                'GatheringStaff.is_steward' => true,
+            ])
+            ->select(['gathering_id'])
+            ->all()
+            ->extract('gathering_id')
+            ->toArray();
+
+        // Determine access mode
+        $hasGlobalAccess = ($branchIds === null);
+        $hasBranchAccess = !empty($branchIds);
+        $hasStewardAccess = !empty($stewardGatheringIds);
+
+        // If user has no permissions at all (no branch access and not a steward), show empty list
+        if (!$hasGlobalAccess && !$hasBranchAccess && !$hasStewardAccess) {
             $this->set('gatherings', []);
+            $this->set('gatheringsNeedingWaivers', []);
             return;
         }
 
-        // Get gatherings that need waivers
+        // Get all branch IDs for global access
+        if ($hasGlobalAccess) {
+            $Branches = $this->fetchTable('Branches');
+            $branchIds = $Branches->find()->select(['id'])->all()->extract('id')->toArray();
+        }
+
+        // Get gatherings - show ALL non-closed gatherings user has access to
         $Gatherings = $this->fetchTable('Gatherings');
         $today = Date::now()->toDateString();
         $oneWeekFromNow = Date::now()->addDays(7)->toDateString();
         $GatheringWaiverClosures = $this->fetchTable('Waivers.GatheringWaiverClosures');
         $closedGatheringIds = $GatheringWaiverClosures->getClosedGatheringIds();
 
-        // Find gatherings with:
-        // 1. end_date >= today (or null which defaults to start_date) - ongoing or future
-        // 2. If future event: start_date <= one week from now (only show gatherings within the next 7 days)
-        // 3. In branches user has permission for
-        // 4. Have required waivers configured (checked via activities)
+        // Build the access condition: branch-based OR steward-based
+        $accessConditions = [];
+        if (!empty($branchIds)) {
+            $accessConditions[] = ['Gatherings.branch_id IN' => $branchIds];
+        }
+        if (!empty($stewardGatheringIds)) {
+            $accessConditions[] = ['Gatherings.id IN' => $stewardGatheringIds];
+        }
+
+        // If no access conditions, show empty (shouldn't happen due to earlier check)
+        if (empty($accessConditions)) {
+            $this->set('gatherings', []);
+            $this->set('gatheringsNeedingWaivers', []);
+            return;
+        }
+
+        // Query for all accessible gatherings that are not closed
+        // Show gatherings: started or starting within 7 days, and not yet ended (or ended recently)
         $query = $Gatherings->find()
             ->where([
                 'OR' => [
@@ -1519,13 +1664,15 @@ class GatheringWaiversController extends AppController
                         'Gatherings.start_date >=' => $today,
                     ]
                 ],
+                'Gatherings.deleted IS' => null,
+            ])
+            ->where([
                 'OR' => [
                     'Gatherings.start_date <' => $today, // Already started (past or ongoing)
                     'Gatherings.start_date <=' => $oneWeekFromNow, // Starts within next 7 days
                 ],
-                'Gatherings.branch_id IN' => $branchIds,
-                'Gatherings.deleted IS' => null,
             ])
+            ->where(['OR' => $accessConditions])
             ->contain([
                 'Branches',
                 'GatheringTypes',
@@ -1535,72 +1682,85 @@ class GatheringWaiversController extends AppController
             ])
             ->orderBy(['Gatherings.start_date' => 'ASC', 'Gatherings.name' => 'ASC']);
 
+        // Exclude closed gatherings
         if (!empty($closedGatheringIds)) {
             $query->where(['Gatherings.id NOT IN' => $closedGatheringIds]);
         }
 
         $allGatherings = $query->all();
 
-        // Filter to only gatherings that have required waivers and are missing at least one
+        // Get ready-to-close gathering IDs
+        $readyToCloseGatheringIds = $GatheringWaiverClosures->getReadyToCloseGatheringIds();
+
+        // Process gatherings to determine waiver status for each
         $GatheringActivityWaivers = $this->fetchTable('Waivers.GatheringActivityWaivers');
+        $gatherings = [];
         $gatheringsNeedingWaivers = [];
 
         foreach ($allGatherings as $gathering) {
-            if (empty($gathering->gathering_activities)) {
-                continue; // No activities = no waiver requirements
-            }
+            // Default: no waivers needed/missing
+            $gathering->missing_waiver_count = 0;
+            $gathering->missing_waiver_names = [];
+            $gathering->has_waiver_requirements = false;
+            $gathering->is_waiver_complete = true;
+            $gathering->is_ready_to_close = in_array($gathering->id, $readyToCloseGatheringIds, true);
 
-            $activityIds = collection($gathering->gathering_activities)->extract('id')->toArray();
+            if (!empty($gathering->gathering_activities)) {
+                $activityIds = collection($gathering->gathering_activities)->extract('id')->toArray();
 
-            // Get required waiver types for this gathering's activities
-            $requiredWaiverTypes = $GatheringActivityWaivers->find()
-                ->where([
-                    'gathering_activity_id IN' => $activityIds,
-                    'deleted IS' => null,
-                ])
-                ->select(['waiver_type_id'])
-                ->distinct(['waiver_type_id'])
-                ->all()
-                ->extract('waiver_type_id')
-                ->toArray();
-
-            if (empty($requiredWaiverTypes)) {
-                continue; // No required waivers
-            }
-
-            // Get uploaded waiver types for this gathering
-            $uploadedWaiverTypes = $this->GatheringWaivers->find()
-                ->where([
-                    'gathering_id' => $gathering->id,
-                    'deleted IS' => null,
-                    'declined_at IS' => null, // Exclude declined waivers
-                ])
-                ->select(['waiver_type_id'])
-                ->distinct(['waiver_type_id'])
-                ->all()
-                ->extract('waiver_type_id')
-                ->toArray();
-
-            // Check if any required waivers are missing
-            $missingWaiverTypes = array_diff($requiredWaiverTypes, $uploadedWaiverTypes);
-
-            if (!empty($missingWaiverTypes)) {
-                // Load waiver type names
-                $WaiverTypes = $this->fetchTable('Waivers.WaiverTypes');
-                $missingWaiverNames = $WaiverTypes->find()
-                    ->where(['id IN' => $missingWaiverTypes])
-                    ->orderBy(['name' => 'ASC'])
+                // Get required waiver types for this gathering's activities
+                $requiredWaiverTypes = $GatheringActivityWaivers->find()
+                    ->where([
+                        'gathering_activity_id IN' => $activityIds,
+                        'deleted IS' => null,
+                    ])
+                    ->select(['waiver_type_id'])
+                    ->distinct(['waiver_type_id'])
                     ->all()
-                    ->extract('name')
+                    ->extract('waiver_type_id')
                     ->toArray();
 
-                $gathering->missing_waiver_count = count($missingWaiverTypes);
-                $gathering->missing_waiver_names = $missingWaiverNames;
-                $gatheringsNeedingWaivers[] = $gathering;
+                if (!empty($requiredWaiverTypes)) {
+                    $gathering->has_waiver_requirements = true;
+
+                    // Get uploaded waiver types for this gathering
+                    $uploadedWaiverTypes = $this->GatheringWaivers->find()
+                        ->where([
+                            'gathering_id' => $gathering->id,
+                            'deleted IS' => null,
+                            'declined_at IS' => null, // Exclude declined waivers
+                        ])
+                        ->select(['waiver_type_id'])
+                        ->distinct(['waiver_type_id'])
+                        ->all()
+                        ->extract('waiver_type_id')
+                        ->toArray();
+
+                    // Check if any required waivers are missing
+                    $missingWaiverTypes = array_diff($requiredWaiverTypes, $uploadedWaiverTypes);
+
+                    if (!empty($missingWaiverTypes)) {
+                        // Load waiver type names
+                        $WaiverTypes = $this->fetchTable('Waivers.WaiverTypes');
+                        $missingWaiverNames = $WaiverTypes->find()
+                            ->where(['id IN' => $missingWaiverTypes])
+                            ->orderBy(['name' => 'ASC'])
+                            ->all()
+                            ->extract('name')
+                            ->toArray();
+
+                        $gathering->missing_waiver_count = count($missingWaiverTypes);
+                        $gathering->missing_waiver_names = $missingWaiverNames;
+                        $gathering->is_waiver_complete = false;
+                        $gatheringsNeedingWaivers[] = $gathering;
+                    }
+                }
             }
+
+            $gatherings[] = $gathering;
         }
 
-        $this->set(compact('gatheringsNeedingWaivers'));
+        $this->set(compact('gatherings', 'gatheringsNeedingWaivers'));
     }
 
     /**
@@ -1663,10 +1823,14 @@ class GatheringWaiversController extends AppController
         // Get compliance days setting
         $complianceDays = (int)StaticHelpers::getAppSetting('Waivers.ComplianceDays', '2', 'int', false);
 
+        // Get gatherings marked ready to close
+        $gatheringsReadyToClose = $this->_getGatheringsReadyToClose($branchIds);
+
         $this->set(compact(
             'statistics',
             'gatheringsMissingWaivers',
             'gatheringsNeedingWaivers',
+            'gatheringsReadyToClose',
             'branchesWithIssues',
             'recentActivity',
             'waiverTypesSummary',
@@ -1674,6 +1838,115 @@ class GatheringWaiversController extends AppController
             'searchTerm',
             'complianceDays'
         ));
+    }
+
+    /**
+     * Get gatherings that have been marked ready to close by event staff
+     *
+     * @param array $branchIds Branches the user can access
+     * @return array Gatherings ready to close
+     */
+    private function _getGatheringsReadyToClose(array $branchIds): array
+    {
+        $GatheringWaiverClosures = $this->fetchTable('Waivers.GatheringWaiverClosures');
+        $Gatherings = $this->fetchTable('Gatherings');
+
+        // Get all closure records that are ready but not yet closed
+        $readyClosures = $GatheringWaiverClosures->find()
+            ->where([
+                'ready_to_close_at IS NOT' => null,
+                'closed_at IS' => null,
+            ])
+            ->contain(['ReadyToCloseByMembers'])
+            ->all()
+            ->indexBy('gathering_id')
+            ->toArray();
+
+        if (empty($readyClosures)) {
+            return [];
+        }
+
+        $readyGatheringIds = array_keys($readyClosures);
+
+        // Get gathering details
+        $gatherings = $Gatherings->find()
+            ->where([
+                'Gatherings.id IN' => $readyGatheringIds,
+                'Gatherings.branch_id IN' => $branchIds,
+                'Gatherings.deleted IS' => null,
+            ])
+            ->contain([
+                'Branches',
+                'GatheringActivities' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+            ])
+            ->orderBy(['Gatherings.start_date' => 'DESC'])
+            ->all();
+
+        // Add closure info and waiver stats to each gathering
+        $GatheringActivityWaivers = $this->fetchTable('Waivers.GatheringActivityWaivers');
+        $result = [];
+
+        foreach ($gatherings as $gathering) {
+            $closure = $readyClosures[$gathering->id] ?? null;
+            $gathering->ready_to_close_at = $closure?->ready_to_close_at;
+            $gathering->ready_to_close_by_member = $closure?->ready_to_close_by_member;
+
+            // Calculate waiver completion status
+            $gathering->missing_waiver_count = 0;
+            $gathering->missing_waiver_names = [];
+            $gathering->is_waiver_complete = true;
+
+            if (!empty($gathering->gathering_activities)) {
+                $activityIds = collection($gathering->gathering_activities)->extract('id')->toArray();
+
+                $requiredWaiverTypes = $GatheringActivityWaivers->find()
+                    ->where([
+                        'gathering_activity_id IN' => $activityIds,
+                        'deleted IS' => null,
+                    ])
+                    ->select(['waiver_type_id'])
+                    ->distinct(['waiver_type_id'])
+                    ->all()
+                    ->extract('waiver_type_id')
+                    ->toArray();
+
+                if (!empty($requiredWaiverTypes)) {
+                    $uploadedWaiverTypes = $this->GatheringWaivers->find()
+                        ->where([
+                            'gathering_id' => $gathering->id,
+                            'deleted IS' => null,
+                            'declined_at IS' => null,
+                        ])
+                        ->select(['waiver_type_id'])
+                        ->distinct(['waiver_type_id'])
+                        ->all()
+                        ->extract('waiver_type_id')
+                        ->toArray();
+
+                    $missingWaiverTypes = array_diff($requiredWaiverTypes, $uploadedWaiverTypes);
+
+                    if (!empty($missingWaiverTypes)) {
+                        $WaiverTypes = $this->fetchTable('Waivers.WaiverTypes');
+                        $missingWaiverNames = $WaiverTypes->find()
+                            ->where(['id IN' => $missingWaiverTypes])
+                            ->orderBy(['name' => 'ASC'])
+                            ->all()
+                            ->extract('name')
+                            ->toArray();
+
+                        $gathering->missing_waiver_count = count($missingWaiverTypes);
+                        $gathering->missing_waiver_names = $missingWaiverNames;
+                        $gathering->is_waiver_complete = false;
+                    }
+                }
+            }
+
+            $result[] = $gathering;
+        }
+
+        return $result;
     }
 
     /**
@@ -2086,9 +2359,25 @@ class GatheringWaiversController extends AppController
         // Check if user can add GatheringWaivers and get branch IDs they have permission for
         $branchIds = $currentUser->getBranchIdsForAction('uploadWaivers', $tempWaiver);
 
-        // If branchIds is null, user has global permission (super user or global permission)
-        // If empty array, user has no permission
-        if (is_array($branchIds) && empty($branchIds)) {
+        // Get gathering IDs where user is a steward (these are allowed even without branch permissions)
+        $GatheringStaff = $this->fetchTable('GatheringStaff');
+        $stewardGatheringIds = $GatheringStaff->find()
+            ->where([
+                'GatheringStaff.member_id' => $currentUser->getIdentifier(),
+                'GatheringStaff.is_steward' => true,
+            ])
+            ->select(['gathering_id'])
+            ->all()
+            ->extract('gathering_id')
+            ->toArray();
+
+        // Determine access mode
+        $hasGlobalAccess = ($branchIds === null);
+        $hasBranchAccess = !empty($branchIds);
+        $hasStewardAccess = !empty($stewardGatheringIds);
+
+        // If user has no permissions at all (no branch access and not a steward), deny access
+        if (!$hasGlobalAccess && !$hasBranchAccess && !$hasStewardAccess) {
             $this->Flash->error(__('You do not have permission to upload waivers.'));
             return $this->redirect($this->request->referer());
         }
@@ -2101,7 +2390,7 @@ class GatheringWaiversController extends AppController
 
         // STEP 1: Get list of gathering IDs that meet all criteria
         // - Have waiver requirements configured
-        // - User has permission to upload waivers
+        // - User has permission to upload waivers (via branch OR steward access)
         // - Within date range
         $GatheringActivityWaivers = $this->fetchTable('Waivers.GatheringActivityWaivers');
 
@@ -2120,9 +2409,18 @@ class GatheringWaiversController extends AppController
             ->select(['gathering_id' => 'Gatherings.id'])
             ->distinct(['Gatherings.id']);
 
-        // If not global permission, filter by branch IDs
-        if ($branchIds !== null) {
-            $gatheringIdsQuery->where(['Gatherings.branch_id IN' => $branchIds]);
+        // Build access filter: branch-based OR steward-based (unless global)
+        if (!$hasGlobalAccess) {
+            $accessConditions = [];
+            if (!empty($branchIds)) {
+                $accessConditions[] = ['Gatherings.branch_id IN' => $branchIds];
+            }
+            if (!empty($stewardGatheringIds)) {
+                $accessConditions[] = ['Gatherings.id IN' => $stewardGatheringIds];
+            }
+            if (!empty($accessConditions)) {
+                $gatheringIdsQuery->where(['OR' => $accessConditions]);
+            }
         }
 
         // Extract gathering IDs
@@ -2214,22 +2512,8 @@ class GatheringWaiversController extends AppController
             return $this->redirect(['action' => 'mobileSelectGathering']);
         }
 
-        // Check if user has permission to add waivers for this gathering's branch
-        $currentUser = $this->Authentication->getIdentity();
-        $tempWaiver = $this->GatheringWaivers->newEmptyEntity();
-        $tempWaiver->gathering_id = $gathering->id;
-        $tempWaiver->gathering = $gathering;
-
-        $branchIds = $currentUser->getBranchIdsForAction('uploadWaivers', $tempWaiver);
-
-        // If branchIds is an empty array, user has no permission
-        if (is_array($branchIds) && !in_array($gathering->branch_id, $branchIds)) {
-            $this->Flash->error(__('You do not have permission to upload waivers for this gathering.'));
-            return $this->redirect(['action' => 'mobileSelectGathering']);
-        }
-
-        // If branchIds is null, user has global permission (allowed)
-        // If branchIds contains the gathering's branch_id, user has permission (allowed)
+        // Authorization was already checked above (line 2208) which includes steward permissions.
+        // The authorization system handles branch scoping, so we don't need a redundant check here.
 
         // Handle POST - process uploads
         if ($this->request->is('post')) {

@@ -2,8 +2,12 @@
 
 /**
  * @var \App\View\AppView $this
- * @var \App\Model\Entity\Gathering[] $gatheringsNeedingWaivers
+ * @var \App\Model\Entity\Gathering[] $gatherings All accessible gatherings (not closed by waiver secretary)
+ * @var \App\Model\Entity\Gathering[] $gatheringsNeedingWaivers Gatherings that are missing required waivers
  */
+
+$gatherings = $gatherings ?? [];
+$gatheringsNeedingWaivers = $gatheringsNeedingWaivers ?? [];
 ?>
 <?php
 $this->extend("/layout/TwitterBootstrap/dashboard");
@@ -20,15 +24,31 @@ $this->KMP->endBlock();
                 <?= __('Gatherings Needing Waivers') ?>
             </h2>
             <p class="text-muted">
-                <?= __('These gatherings have required waivers that haven\'t been uploaded yet.') ?>
+                <?= __('All gatherings you can upload waivers for. Gatherings with missing waivers are highlighted.') ?>
             </p>
+            <?php if (!empty($gatheringsNeedingWaivers)): ?>
+            <div class="alert alert-warning" role="alert">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                <?= __n(
+                    '{0} gathering needs waivers uploaded.',
+                    '{0} gatherings need waivers uploaded.',
+                    count($gatheringsNeedingWaivers),
+                    count($gatheringsNeedingWaivers)
+                ) ?>
+            </div>
+            <?php else: ?>
+            <div class="alert alert-success" role="alert">
+                <i class="bi bi-check-circle-fill"></i>
+                <?= __('All required waivers have been uploaded!') ?>
+            </div>
+            <?php endif; ?>
         </div>
     </div>
 
-    <?php if (empty($gatheringsNeedingWaivers)): ?>
-    <div class="alert alert-success" role="alert">
-        <i class="bi bi-check-circle-fill"></i>
-        <?= __('Great! All gatherings that you can manage have the required waivers uploaded.') ?>
+    <?php if (empty($gatherings)): ?>
+    <div class="alert alert-info" role="alert">
+        <i class="bi bi-info-circle-fill"></i>
+        <?= __('No gatherings are currently available for waiver upload. Gatherings appear here when they start within 7 days and remain until the waiver secretary closes them.') ?>
     </div>
 
     <?php else: ?>
@@ -37,16 +57,17 @@ $this->KMP->endBlock();
         <table class="table">
             <thead>
                 <tr>
+                    <th><?= __('Status') ?></th>
                     <th><?= __('Gathering') ?></th>
                     <th><?= __('Branch') ?></th>
                     <th><?= __('Dates') ?></th>
                     <th><?= __('Days Until Start') ?></th>
-                    <th><?= __('Missing Waivers') ?></th>
+                    <th><?= __('Waivers') ?></th>
                     <th class="actions"><?= __('Actions') ?></th>
                 </tr>
             </thead>
             <tbody>
-                <?php foreach ($gatheringsNeedingWaivers as $gathering): ?>
+                <?php foreach ($gatherings as $gathering): ?>
                 <?php
                         $today = \Cake\I18n\Date::now();
                         $startDate = \Cake\I18n\Date::parse($gathering->start_date);
@@ -57,11 +78,54 @@ $this->KMP->endBlock();
                         $hasEnded = $today > $endDate;
                         $isOngoing = $hasStarted && !$hasEnded;
                         $isUrgent = $daysUntilStart <= 7 && $daysUntilStart > 0;
+                        
+                        $needsWaivers = !$gathering->is_waiver_complete && $gathering->has_waiver_requirements;
+                        $isComplete = $gathering->is_waiver_complete && $gathering->has_waiver_requirements;
+                        $noRequirements = !$gathering->has_waiver_requirements;
+                        $isReadyToClose = $gathering->is_ready_to_close ?? false;
+                        
+                        // Row class based on status
+                        $rowClass = '';
+                        if ($isReadyToClose) {
+                            $rowClass = 'table-info';
+                        } elseif ($needsWaivers && $hasEnded) {
+                            $rowClass = 'table-danger';
+                        } elseif ($needsWaivers && $isOngoing) {
+                            $rowClass = 'table-warning';
+                        } elseif ($needsWaivers) {
+                            $rowClass = 'table-light';
+                        } elseif ($isComplete) {
+                            $rowClass = '';
+                        }
                         ?>
-                <tr class="<?= $hasEnded ? 'table-danger' : '' ?> <?= $isOngoing ? 'table-warning' : '' ?>">
+                <tr class="<?= $rowClass ?>">
+                    <td class="text-center">
+                        <?php if ($isReadyToClose): ?>
+                        <span class="badge bg-info" title="<?= __('Ready for secretary review') ?>">
+                            <i class="bi bi-check2-square"></i>
+                        </span>
+                        <?php elseif ($isComplete): ?>
+                        <span class="badge bg-success" title="<?= __('All waivers uploaded') ?>">
+                            <i class="bi bi-check-circle-fill"></i>
+                        </span>
+                        <?php elseif ($noRequirements): ?>
+                        <span class="badge bg-secondary" title="<?= __('No waiver requirements') ?>">
+                            <i class="bi bi-dash-circle"></i>
+                        </span>
+                        <?php elseif ($needsWaivers): ?>
+                        <span class="badge bg-warning text-dark" title="<?= __('Missing waivers') ?>">
+                            <i class="bi bi-exclamation-triangle-fill"></i>
+                        </span>
+                        <?php endif; ?>
+                    </td>
                     <td>
                         <?= h($gathering->name) ?>
-                        <?php if ($isUrgent): ?>
+                        <?php if ($isReadyToClose): ?>
+                        <span class="badge bg-info ms-2">
+                            <i class="bi bi-check2-square"></i> Ready to Close
+                        </span>
+                        <?php endif; ?>
+                        <?php if ($isUrgent && $needsWaivers): ?>
                         <span class="badge bg-info text-dark ms-2">
                             <i class="bi bi-exclamation-triangle-fill"></i> Upcoming
                         </span>
@@ -73,7 +137,7 @@ $this->KMP->endBlock();
                         <?php endif; ?>
                         <?php if ($hasEnded): ?>
                         <span class="badge bg-danger ms-2">
-                            <i class="bi bi-check-circle-fill"></i> Ended
+                            <i class="bi bi-calendar-x"></i> Ended
                         </span>
                         <?php endif; ?>
                     </td>
@@ -100,21 +164,25 @@ $this->KMP->endBlock();
                         <?php endif; ?>
                     </td>
                     <td>
-                        <?php if ($hasEnded): ?>
-                        <span class="badge bg-danger me-1"><?= $gathering->missing_waiver_count ?></span>
-                        <?php elseif ($isOngoing): ?>
-                        <span class="badge bg-warning me-1"><?= $gathering->missing_waiver_count ?></span>
+                        <?php if ($noRequirements): ?>
+                        <span class="text-muted">—</span>
+                        <?php elseif ($isComplete): ?>
+                        <span class="badge bg-success">Complete</span>
                         <?php else: ?>
-                        <span class="badge bg-info me-1"><?= $gathering->missing_waiver_count ?></span>
+                        <span class="badge bg-<?= $hasEnded ? 'danger' : ($isOngoing ? 'warning' : 'info') ?> me-1" 
+                              title="<?= h(implode(', ', $gathering->missing_waiver_names)) ?>">
+                            <?= $gathering->missing_waiver_count ?> missing
+                        </span>
                         <?php endif; ?>
-
                     </td>
                     <td class="actions text-end text-nowrap">
+                        <?php if ($gathering->has_waiver_requirements): ?>
                         <?= $this->Html->link(
                                     '<i class="bi bi-upload"></i> ' . __('Upload'),
                                     ['controller' => 'GatheringWaivers', 'action' => 'upload', 'plugin' => 'Waivers', '?' => ['gathering_id' => $gathering->id]],
                                     ['class' => 'btn btn-sm btn-primary', 'escape' => false, 'title' => __('Upload Waivers')]
                                 ) ?>
+                        <?php endif; ?>
                         <?= $this->Html->link(
                                     '',
                                     ['plugin' => false, 'controller' => 'Gatherings', 'action' => 'view', $gathering->public_id],
@@ -132,17 +200,25 @@ $this->KMP->endBlock();
             <div class="alert alert-light border" role="alert">
                 <h6 class="alert-heading"><i class="bi bi-info-circle"></i> <?= __('Legend') ?></h6>
                 <div class="row">
-                    <div class="col-md-4">
-                        <span class="badge bg-info text-dark">Upcoming</span>
-                        <?= __('Event starts within 7 days') ?>
+                    <div class="col-md-2">
+                        <span class="badge bg-info"><i class="bi bi-check2-square"></i></span>
+                        <?= __('Ready to close') ?>
                     </div>
-                    <div class="col-md-4">
-                        <span class="badge bg-warning">In Progress</span>
-                        <?= __('Event has already started') ?>
+                    <div class="col-md-2">
+                        <span class="badge bg-success"><i class="bi bi-check-circle-fill"></i></span>
+                        <?= __('All waivers uploaded') ?>
                     </div>
-                    <div class="col-md-4">
-                        <span class="badge bg-danger">Count</span>
-                        <?= __('Number of missing waivers') ?>
+                    <div class="col-md-2">
+                        <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle-fill"></i></span>
+                        <?= __('Missing waivers') ?>
+                    </div>
+                    <div class="col-md-2">
+                        <span class="badge bg-secondary"><i class="bi bi-dash-circle"></i></span>
+                        <?= __('No waiver requirements') ?>
+                    </div>
+                    <div class="col-md-2">
+                        <span class="badge bg-danger">Ended</span>
+                        <?= __('Event has ended') ?>
                     </div>
                 </div>
             </div>

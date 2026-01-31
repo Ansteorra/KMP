@@ -148,7 +148,7 @@ class Officer extends ActiveWindowBaseEntity
         if (!empty($effectiveReports)) {
             foreach ($effectiveReports as $report) {
                 if ($report->email_address !== null && $report->email_address !== "") {
-                    $reportsTo[] = "<a href='mailto:{$report->email_address}'>{$report->member->sca_name}</a>";
+                    $reportsTo[] = "<a href='mailto:{$report->email_address}'><i class='bi bi-envelope-fill me-1'></i>{$report->member->sca_name}</a>";
                 } else {
                     $reportsTo[] = $report->member->sca_name;
                 }
@@ -158,7 +158,7 @@ class Officer extends ActiveWindowBaseEntity
         if (!empty($this->deputy_to_currently)) {
             foreach ($this->deputy_to_currently as $report) {
                 if ($report->email_address !== null && $report->email_address !== "") {
-                    $reportsTo[] = "<a href='mailto:{$report->email_address}'>{$report->member->sca_name}</a>";
+                    $reportsTo[] = "<a href='mailto:{$report->email_address}'><i class='bi bi-envelope-fill me-1'></i>{$report->member->sca_name}</a>";
                 } else {
                     $reportsTo[] = $report->member->sca_name;
                 }

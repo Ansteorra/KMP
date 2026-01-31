@@ -1943,7 +1943,7 @@ class MembersController extends AppController
                 $parentId = $this->request->getData('parent_id');
                 if ($parentId) {
                     if ($parentId && strlen($parentId) > 0) {
-                        $parent = $this->Members->get($parentId);
+                        $parent = $this->Members->find()->where(['public_id' => $parentId])->first();
                     }
                     if ($parentId == $member->id) {
                         $this->Flash->error('Parent cannot be the same as the member.');

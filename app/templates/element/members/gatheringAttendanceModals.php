@@ -1,6 +1,12 @@
 <?php
 
 /**
+ * Gathering Attendance Modals for Member View
+ * 
+ * Contains:
+ * - Add modal: For RSVPing to a new gathering (with gathering selector dropdown)
+ * - Edit modal: Shell that dynamically loads content from attendance_modal.php (same as calendar)
+ * 
  * @var \App\View\AppView $this
  * @var \App\Model\Entity\Member $member
  * @var array $availableGatherings
@@ -87,104 +93,95 @@
     </div>
 </div>
 
-<!-- Edit Gathering Attendance Modal -->
+<!-- Edit Gathering Attendance Modal - Content loaded dynamically via AJAX -->
 <div class="modal fade" id="editGatheringAttendanceModal" tabindex="-1"
     aria-labelledby="editGatheringAttendanceModalLabel" aria-hidden="true">
     <div class="modal-dialog">
-        <div class="modal-content">
-            <?= $this->Form->create(null, [
-                'url' => ['controller' => 'GatheringAttendances', 'action' => 'edit'],
-                'id' => 'editGatheringAttendanceForm'
-            ]) ?>
+        <div class="modal-content" id="editGatheringAttendanceModalContent">
+            <!-- Content will be loaded dynamically -->
             <div class="modal-header">
-                <h5 class="modal-title" id="editGatheringAttendanceModalLabel">
-                    Edit Attendance: <span id="editGatheringName"></span>
-                </h5>
+                <h5 class="modal-title">Loading...</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
-                <div class="alert alert-info" role="alert">
-                    <small>This will just allow you to show your intent to attend, but does not register you for the
-                        event itself.</small>
-                </div>
-                <?= $this->Form->hidden('id', ['id' => 'editAttendanceId']) ?>
-
-                <?= $this->Form->control('public_note', [
-                    'type' => 'textarea',
-                    'label' => 'Public Note',
-                    'id' => 'editPublicNote',
-                    'placeholder' => 'Optional note to share...',
-                    'rows' => 3,
-                    'class' => 'form-control'
-                ]) ?>
-
-                <div class="mt-3">
-                    <label class="form-label">Share Information With:</label>
-                    <small class="form-text text-muted d-block mb-2">
-                        Select who can see that you plan to attend this gathering. If nothing is selected, your
-                        attendance will be private.
-                    </small>
-
-                    <?= $this->Form->control('share_with_kingdom', [
-                        'type' => 'checkbox',
-                        'label' => 'Share with Kingdom',
-                        'id' => 'editShareKingdom',
-                        'class' => 'form-check-input',
-                        'switch' => true
-                    ]) ?>
-
-                    <?= $this->Form->control('share_with_hosting_group', [
-                        'type' => 'checkbox',
-                        'label' => 'Share with Hosting Group',
-                        'id' => 'editShareHosting',
-                        'class' => 'form-check-input',
-                        'switch' => true
-                    ]) ?>
-
-                    <?= $this->Form->control('share_with_crown', [
-                        'type' => 'checkbox',
-                        'label' => 'Share with Nobility/Crown',
-                        'id' => 'editShareCrown',
-                        'class' => 'form-check-input',
-                        'switch' => true
-                    ]) ?>
-
+            <div class="modal-body text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <?= $this->Form->button('Update', ['class' => 'btn btn-primary']) ?>
-            </div>
-            <?= $this->Form->end() ?>
         </div>
     </div>
 </div>
 
 <script>
-// Populate edit modal with attendance data
 document.addEventListener('DOMContentLoaded', function() {
     const editModal = document.getElementById('editGatheringAttendanceModal');
-    if (editModal) {
-        editModal.addEventListener('show.bs.modal', function(event) {
+    const modalContent = document.getElementById('editGatheringAttendanceModalContent');
+
+    if (editModal && modalContent) {
+        editModal.addEventListener('show.bs.modal', async function(event) {
             const button = event.relatedTarget;
             const attendanceId = button.getAttribute('data-attendance-id');
-            const gatheringName = button.getAttribute('data-gathering-name');
-            const publicNote = button.getAttribute('data-public-note');
-            const shareKingdom = button.getAttribute('data-share-kingdom') === '1';
-            const shareHosting = button.getAttribute('data-share-hosting') === '1';
-            const shareCrown = button.getAttribute('data-share-crown') === '1';
+            const gatheringId = button.getAttribute('data-gathering-id');
 
-            // Update form action URL to include the ID
-            const form = document.getElementById('editGatheringAttendanceForm');
-            form.action = form.action.replace(/\/edit.*$/, '/edit/' + attendanceId);
+            if (!gatheringId || !attendanceId) {
+                console.error('Missing gathering ID or attendance ID');
+                return;
+            }
 
-            // Update modal content
-            document.getElementById('editGatheringName').textContent = gatheringName;
-            document.getElementById('editAttendanceId').value = attendanceId;
-            document.getElementById('editPublicNote').value = publicNote || '';
-            document.getElementById('editShareKingdom').checked = shareKingdom;
-            document.getElementById('editShareHosting').checked = shareHosting;
-            document.getElementById('editShareCrown').checked = shareCrown;
+            // Show loading state
+            modalContent.innerHTML = `
+                <div class="modal-header">
+                    <h5 class="modal-title">Loading...</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            `;
+
+            try {
+                // Fetch the modal content from the same endpoint used by the calendar
+                const url = `/gatherings/attendance-modal/${gatheringId}?attendance_id=${attendanceId}`;
+                const response = await fetch(url);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const html = await response.text();
+                modalContent.innerHTML = html;
+
+                // Manually attach click handler to close button since Bootstrap's event delegation
+                // doesn't work on dynamically inserted content
+                const closeButton = modalContent.querySelector('.btn-close');
+                if (closeButton) {
+                    closeButton.addEventListener('click', function() {
+                        const bsModal = bootstrap.Modal.getInstance(editModal);
+                        if (bsModal) {
+                            bsModal.hide();
+                        }
+                    });
+                }
+
+            } catch (error) {
+                console.error('Error loading attendance modal:', error);
+                modalContent.innerHTML = `
+                    <div class="modal-header">
+                        <h5 class="modal-title text-danger">Error</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-danger">
+                            Failed to load attendance form. Please try again or refresh the page.
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                `;
+            }
         });
     }
 });

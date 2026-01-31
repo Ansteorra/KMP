@@ -46,11 +46,7 @@ class GatheringAttendancesGridColumns extends BaseGridColumns
                 'modalTarget' => '#editGatheringAttendanceModal',
                 'dataAttributes' => [
                     'attendance-id' => '{{id}}',
-                    'gathering-name' => '{{gathering.name}}',
-                    'public-note' => '{{public_note}}',
-                    'share-kingdom' => '{{share_with_kingdom}}',
-                    'share-hosting' => '{{share_with_hosting_group}}',
-                    'share-crown' => '{{share_with_crown}}',
+                    'gathering-id' => '{{gathering.id}}',
                 ],
             ],
         ];
