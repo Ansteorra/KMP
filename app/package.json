@@ -36,7 +36,7 @@
         "jsdoc": "^4.0.5",
         "jsdom": "^25.0.1",
         "laravel-mix": "^6.0.3",
-        "lodash": "^4.17.19",
+        "lodash": "^4.17.23",
         "playwright-bdd": "^8.2.1",
         "resolve-url-loader": "^5.0.0",
         "sass": "^1.20.1",
