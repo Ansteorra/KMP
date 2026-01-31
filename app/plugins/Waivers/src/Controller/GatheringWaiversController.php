@@ -2545,7 +2545,7 @@ class GatheringWaiversController extends AppController
             return $this->redirect(['action' => 'mobileSelectGathering']);
         }
 
-        // Authorization was already checked above (line 2208) which includes steward permissions.
+        // Authorization was already checked above which includes steward permissions.
         // The authorization system handles branch scoping, so we don't need a redundant check here.
 
         // Handle POST - process uploads

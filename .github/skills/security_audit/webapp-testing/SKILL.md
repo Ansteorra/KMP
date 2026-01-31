@@ -22,7 +22,7 @@ Use this skill when you need to:
 
 - Node.js installed on the system
 - A locally running web application (or accessible URL)
-- Playwright will be installed automatically if not present
+- Playwright installed (`npm install` + `npx playwright install` to download browsers)
 
 ## Core Capabilities
 

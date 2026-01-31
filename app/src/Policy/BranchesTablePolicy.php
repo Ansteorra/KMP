@@ -6,6 +6,7 @@ namespace App\Policy;
 
 use App\KMP\KmpIdentityInterface;
 use App\Model\Entity\BaseEntity;
+use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\Table;
 
 /**
@@ -59,7 +60,7 @@ class BranchesTablePolicy extends BasePolicy
      * @param \Cake\ORM\Query\SelectQuery $query The query.
      * @return \Cake\ORM\Query\SelectQuery
      */
-    public function scopeIndex(KmpIdentityInterface $user, $query)
+    public function scopeIndex(KmpIdentityInterface $user, SelectQuery $query): SelectQuery
     {
         // No branch scoping - all members can see all branches
         return $query;

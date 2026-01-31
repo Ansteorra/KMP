@@ -30,8 +30,8 @@ $currentUrl = $this->request->getRequestTarget();
                 }
                 $exportUrl = $currentUrl;
             ?>
-                <a href="<?= $exportUrl ?>" class="btn btn-outline-primary btn-sm" data-controller="csv-download"
-                    data-csv-download-url-value="<?= $exportUrl ?>" data-csv-download-filename-value="recommendations.csv"
+                <a href="<?= h($exportUrl) ?>" class="btn btn-outline-primary btn-sm" data-controller="csv-download"
+                    data-csv-download-url-value="<?= h($exportUrl) ?>" data-csv-download-filename-value="recommendations.csv"
                     title="Download CSV">
                     <i class="bi bi-download"></i> Download CSV
                 </a>
@@ -397,7 +397,7 @@ $currentUrl = $this->request->getRequestTarget();
                                 <button type="button" class="btn btn-primary btn-sm edit-rec bi-pencil-fill"
                                     data-bs-toggle="modal" data-bs-target="#tableEditModal" data-controller="outlet-btn"
                                     data-action="click->outlet-btn#fireNotice"
-                                    data-outlet-btn-btn-data-value='{ "id":<?= $recommendation->id ?>}' ,></button>
+                                    data-outlet-btn-btn-data-value='{ "id":<?= $recommendation->id ?>}'></button>
                             <?php endif; ?>
                             <?php if ($user->checkCan("view", $recommendation)) : ?>
                                 <?= $this->Html->link(

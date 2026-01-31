@@ -75,7 +75,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
 <?php $this->KMP->startBlock("tabContent") ?>
 <div class="tab-content" id="nav-tabContent">
     <div class="related tab-pane fade m-3" id="nav-warrants" role="tabpanel" aria-labelledby="nav-warrants-tab"
-        data-detail-tabs-target="tabContent" data-detail-tabs-target="tabContent">
+        data-detail-tabs-target="tabContent">
         <?php if (!empty($warrantRoster->warrants)): ?>
         <div class="table-responsive">
             <table class="table table-striped">
@@ -103,7 +103,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
                     <td class="actions text-end text-nowrap">
                         <?php if ($warrant->status == Warrant::PENDING_STATUS && $user->checkCan("decline", "WarrantRosters")) :
                                     if (!$userApprovedAlready): ?>
-                        <?= $this->Form->postLink(__('Release from Office'), ['controller' => 'WarrantRosters', 'action' => 'declineWarrantInRoster', $warrantRoster->id, $warrant->id], ['confirm' => __(' This will decline this individual warrant and release this member from their office: ' . $warrant->member->sca_name), 'class' => 'btn-sm btn btn-danger']) ?>
+                        <?= $this->Form->postLink(__('Release from Office'), ['controller' => 'WarrantRosters', 'action' => 'declineWarrantInRoster', $warrantRoster->id, $warrant->id], ['confirm' => __('This will decline this individual warrant and release {0} from their office.', $warrant->member->sca_name), 'class' => 'btn-sm btn btn-danger']) ?>
                         <?php endif ?>
                         <?php endif ?>
                     </td>
@@ -114,7 +114,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
         <?php endif; ?>
     </div>
     <div class="related tab-pane fade m-3" id="nav-approvals" role="tabpanel" aria-labelledby="nav-approvals-tab"
-        data-detail-tabs-target="tabContent" data-detail-tabs-target="tabContent">
+        data-detail-tabs-target="tabContent">
 
         <?php if (!empty($warrantRoster->warrant_roster_approvals)): ?>
         <div class="table-responsive">

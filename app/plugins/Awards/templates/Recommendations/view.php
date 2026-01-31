@@ -79,13 +79,17 @@ echo $this->KMP->startBlock("pageTitle") ?>
         if ($recommendation->given != null) :
             // Format as date only (no timezone conversion) since it's stored as midnight UTC
             $given = $recommendation->given->format('F j, Y');
-            $gatheringName = h($recommendation->assigned_gathering->name);
-            $isCancelled = $recommendation->assigned_gathering && $recommendation->assigned_gathering->cancelled_at !== null;
-            if ($isCancelled) {
-                echo ' at <span class="text-danger fw-bold">[CANCELLED]</span> ' . $gatheringName . ' on ' . $given;
-            } else {
-                echo " at " . $gatheringName . " on " . $given;
-            }
+            if ($recommendation->assigned_gathering):
+                $gatheringName = h($recommendation->assigned_gathering->name);
+                $isCancelled = $recommendation->assigned_gathering->cancelled_at !== null;
+                if ($isCancelled) {
+                    echo ' at <span class="text-danger fw-bold">[CANCELLED]</span> ' . $gatheringName . ' on ' . $given;
+                } else {
+                    echo " at " . $gatheringName . " on " . $given;
+                }
+            else:
+                echo " on " . $given;
+            endif;
         endif;
         if ($recommendation->assigned_gathering && $recommendation->given == null):
             $gatheringName = h($recommendation->assigned_gathering->name);

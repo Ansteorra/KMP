@@ -8,6 +8,7 @@ use Cake\I18n\DateTime;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
+use Waivers\Model\Entity\GatheringWaiverClosure;
 
 /**
  * GatheringWaiverClosures Model
@@ -154,7 +155,7 @@ class GatheringWaiverClosuresTable extends Table
      * @param int $gatheringId Gathering ID
      * @return \Waivers\Model\Entity\GatheringWaiverClosure|null
      */
-    public function getClosureForGathering(int $gatheringId)
+    public function getClosureForGathering(int $gatheringId): ?GatheringWaiverClosure
     {
         return $this->find()
             ->contain(['ClosedByMembers', 'ReadyToCloseByMembers'])
@@ -216,7 +217,7 @@ class GatheringWaiverClosuresTable extends Table
      * @param int $memberId Member marking as ready
      * @return \Waivers\Model\Entity\GatheringWaiverClosure|false
      */
-    public function markReadyToClose(int $gatheringId, int $memberId)
+    public function markReadyToClose(int $gatheringId, int $memberId): GatheringWaiverClosure|false
     {
         $closure = $this->find()
             ->where(['gathering_id' => $gatheringId])

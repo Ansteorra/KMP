@@ -2329,6 +2329,7 @@ class GridViewController extends Controller {
         // Uncheck select all checkbox
         if (this.hasSelectAllCheckboxTarget) {
             this.selectAllCheckboxTarget.checked = false
+            this.selectAllCheckboxTarget.indeterminate = false
         }
 
         this.updateBulkSelectionUI()
@@ -2389,7 +2390,7 @@ class GridViewController extends Controller {
         const detail = { ids: [...this.selectedIds] }
         
         // Fire event on the button (outlet-btn pattern expects this)
-        event.target.dispatchEvent(new CustomEvent('outlet-btn:notice', {
+        event.currentTarget.dispatchEvent(new CustomEvent('outlet-btn:notice', {
             bubbles: true,
             detail: detail
         }))

@@ -13,4 +13,4 @@ security-reports/**/.*
 .DS_Store
 amp_no_commit.sql
 node_modules/
-test-results/
+test-results/.claude/settings.local.json

@@ -6,7 +6,7 @@ Stay up to date with the latest features, improvements, and announcements for th
 <!-- LAST_SYNCED_COMMIT: 0962825cb6b937def816a1bdb654612d2d74144e -->
 <!-- LAST_SYNCED_DATE: 2026-01-31 -->
 
----
+## January 2026
 
 ### Gathering Cancellation Management
 

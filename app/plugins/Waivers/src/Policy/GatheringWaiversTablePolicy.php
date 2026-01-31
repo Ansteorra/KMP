@@ -23,6 +23,14 @@ use Cake\ORM\TableRegistry;
  */
 class GatheringWaiversTablePolicy extends BasePolicy
 {
+    /**
+     * Check if user can access the needing waivers dashboard.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The user.
+     * @param \App\Model\Entity\BaseEntity $entity The entity.
+     * @param mixed ...$optionalArgs Optional arguments.
+     * @return bool
+     */
     public function canNeedingWaivers(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         // Check standard permission first

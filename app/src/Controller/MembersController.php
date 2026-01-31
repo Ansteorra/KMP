@@ -1685,6 +1685,15 @@ class MembersController extends AppController
                     return $this->redirect($this->referer());
                 }
 
+                // Server-side content validation using finfo
+                $tempPath = $file->getStream()->getMetadata('uri');
+                $finfo = new \finfo(FILEINFO_MIME_TYPE);
+                $actualMimeType = $finfo->file($tempPath);
+                if (!in_array($actualMimeType, ['image/png', 'image/jpeg'])) {
+                    $this->Flash->error(__('File content does not match an allowed image type.'));
+                    return $this->redirect($this->referer());
+                }
+
                 $storageLoc = WWW_ROOT . '../images/uploaded/';
                 $fileName = StaticHelpers::generateToken(10);
                 StaticHelpers::ensureDirectoryExists($storageLoc, 0755);
